@@ -17,6 +17,7 @@ package metrics
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
@@ -29,15 +30,10 @@ import (
 )
 
 const (
-	resourceType     = "resource_type"
-	nodeName         = "node_name"
-	nodeProvisioner  = "provisioner"
-	nodeZone         = "zone"
-	nodeArchitecture = "arch"
-	nodeCapacityType = "capacity_type"
-	nodeInstanceType = "instance_type"
-	nodePhase        = "phase"
-	provisionerName  = "provisioner"
+	resourceType    = "resource_type"
+	nodeName        = "node_name"
+	nodeProvisioner = "provisioner"
+	nodePhase       = "phase"
 )
 
 var (
@@ -98,16 +94,18 @@ var (
 )
 
 func nodeLabelNames() []string {
-	return []string{
+	labels := []string{
 		resourceType,
 		nodeName,
 		nodeProvisioner,
-		nodeZone,
-		nodeArchitecture,
-		nodeCapacityType,
-		nodeInstanceType,
 		nodePhase, // NOTE: deprecated
 	}
+
+	for _, l := range getWellKnownLabels() {
+		labels = append(labels, l)
+	}
+
+	return labels
 }
 
 type nodeScraper struct {
@@ -263,14 +261,30 @@ func (ns *nodeScraper) getNodeLabels(node *v1.Node, resourceTypeName string) pro
 	} else {
 		metricLabels[nodeProvisioner] = provisionerName
 	}
-	metricLabels[nodeZone] = node.Labels[v1.LabelTopologyZone]
-	metricLabels[nodeArchitecture] = node.Labels[v1.LabelArchStable]
-	if capacityType, ok := node.Labels[v1alpha5.LabelCapacityType]; !ok {
-		metricLabels[nodeCapacityType] = "N/A"
-	} else {
-		metricLabels[nodeCapacityType] = capacityType
-	}
-	metricLabels[nodeInstanceType] = node.Labels[v1.LabelInstanceTypeStable]
 	metricLabels[nodePhase] = string(node.Status.Phase)
+
+	// Populate well known labels
+	for wellKnownLabel, label := range getWellKnownLabels() {
+		if value, ok := node.Labels[wellKnownLabel]; !ok {
+			metricLabels[label] = "N/A"
+		} else {
+			metricLabels[label] = value
+		}
+	}
+
 	return metricLabels
+}
+
+func getWellKnownLabels() map[string]string {
+	labels := make(map[string]string)
+
+	const labelIdx = 1
+	regex := regexp.MustCompile(`.+\/(?P<label>.+$)`)
+	for wellKnownLabel := range v1alpha5.WellKnownLabels {
+		label := regex.FindStringSubmatch(wellKnownLabel)[labelIdx]
+		label = strings.ReplaceAll(strings.ToLower(string(label)), "-", "_")
+		labels[wellKnownLabel] = label
+	}
+
+	return labels
 }
