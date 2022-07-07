@@ -20,6 +20,11 @@ import (
 	"knative.dev/pkg/apis"
 )
 
+const (
+	launchTemplatePath = "launchTemplate"
+	userDataPath       = "userData"
+)
+
 func (a *AWSNodeTemplate) Validate(ctx context.Context) (errs *apis.FieldError) {
 	return errs.Also(
 		apis.ValidateObjectMetadata(a).ViaField("metadata"),
@@ -28,5 +33,18 @@ func (a *AWSNodeTemplate) Validate(ctx context.Context) (errs *apis.FieldError) 
 }
 
 func (a *AWSNodeTemplateSpec) validate(ctx context.Context) (errs *apis.FieldError) {
-	return a.AWS.Validate()
+	return errs.Also(
+		a.AWS.Validate(),
+		a.validateUserData(),
+	)
+}
+
+func (a *AWSNodeTemplateSpec) validateUserData() (errs *apis.FieldError) {
+	if a.UserData == nil {
+		return nil
+	}
+	if a.LaunchTemplateName != nil {
+		errs = errs.Also(apis.ErrMultipleOneOf(userDataPath, launchTemplatePath))
+	}
+	return errs
 }
