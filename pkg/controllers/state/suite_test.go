@@ -26,6 +26,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/karpenter/pkg/controllers/state"
+	statemetrics "github.com/aws/karpenter/pkg/controllers/state/metrics"
 	"github.com/aws/karpenter/pkg/utils/resources"
 	prometheus "github.com/prometheus/client_model/go"
 	v1 "k8s.io/api/core/v1"
@@ -49,6 +50,7 @@ var nodeController *state.NodeController
 var podController *state.PodController
 var cloudProvider *fake.CloudProvider
 var provisioner *v1alpha5.Provisioner
+var metricScraper *statemetrics.MetricScraper
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -72,16 +74,17 @@ var _ = BeforeEach(func() {
 	cluster = state.NewCluster(cfg, env.Client, cloudProvider)
 	nodeController = state.NewNodeController(env.Client, cluster)
 	podController = state.NewPodController(env.Client, cluster)
+	metricScraper = statemetrics.NewMetricScraper(ctx, cluster)
 	ExpectApplied(ctx, env.Client, provisioner)
-
-	// metrics.ResetMetrics()
 })
 
 var _ = AfterEach(func() {
+	metricScraper.Terminate()
 	ExpectCleanedUp(ctx, env.Client)
 })
 
 var _ = Describe("Node Metrics", func() {
+
 	It("should update the allocatable metric", func() {
 		node := test.Node(test.NodeOptions{
 			Allocatable: v1.ResourceList{
@@ -94,6 +97,7 @@ var _ = Describe("Node Metrics", func() {
 		ExpectReconcileSucceeded(ctx, nodeController, client.ObjectKeyFromObject(node))
 
 		// metrics should now be tracking the allocatable capacity of our single node
+		metricScraper.Update()
 		nodeAllocation := ExpectMetric("karpenter_nodes_allocatable")
 
 		expectedValues := map[string]float64{

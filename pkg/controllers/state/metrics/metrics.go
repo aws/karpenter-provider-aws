@@ -35,21 +35,37 @@ type scraper interface {
 type MetricScraper struct {
 	Cluster *state.Cluster
 
-	scrapers []scraper
+	scrapers         []scraper
+	terminateChan    chan struct{}
+	updateChan       chan struct{}
+	updateReturnChan chan struct{}
+	updateAsyncChan  chan struct{}
 }
 
 func NewMetricScraper(ctx context.Context, cluster *state.Cluster) *MetricScraper {
 	mc := &MetricScraper{
-		Cluster: cluster,
+		Cluster:          cluster,
+		terminateChan:    make(chan struct{}),
+		updateChan:       make(chan struct{}),
+		updateReturnChan: make(chan struct{}),
+		updateAsyncChan:  make(chan struct{}),
 	}
 	mc.init(ctx)
 	return mc
 }
 
-func (ms *MetricScraper) Reset() {
-	for _, c := range ms.scrapers {
-		c.reset()
-	}
+func (ms *MetricScraper) Terminate() {
+	ms.terminateChan <- struct{}{}
+	ms.ResetScrapers()
+}
+
+func (ms *MetricScraper) Update() {
+	ms.updateChan <- struct{}{}
+	<-ms.updateReturnChan
+}
+
+func (ms *MetricScraper) UpdateAsync() {
+	ms.updateAsyncChan <- struct{}{}
 }
 
 func (ms *MetricScraper) init(ctx context.Context) {
@@ -83,9 +99,17 @@ func (ms *MetricScraper) init(ctx context.Context) {
 
 		for {
 			select {
+			case <-ms.terminateChan:
+				logging.FromContext(ctx).Infof("Terminating metric-scraper")
+				return
 			case <-ctx.Done():
 				logging.FromContext(ctx).Infof("Terminating metric-scraper")
 				return
+			case <-ms.updateChan:
+				ms.update(ctx)
+				ms.updateReturnChan <- struct{}{}
+			case <-ms.updateAsyncChan:
+				ms.update(ctx)
 			case <-ticker.C:
 				ms.update(ctx)
 			}
