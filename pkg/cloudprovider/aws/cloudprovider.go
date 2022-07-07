@@ -76,6 +76,12 @@ type CloudProvider struct {
 }
 
 func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *CloudProvider {
+	// if performing validation only, then only the Validate()/Default() methods will be called which
+	// don't require any other setup
+	if options.WebhookOnly {
+		return &CloudProvider{}
+	}
+
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("aws"))
 	sess := withUserAgent(session.Must(session.NewSession(
 		request.WithRetryer(
@@ -149,7 +155,9 @@ func (c *CloudProvider) Delete(ctx context.Context, node *v1.Node) error {
 }
 
 // Validate the provisioner
-func (c *CloudProvider) Validate(ctx context.Context, provisioner *v1alpha5.Provisioner) *apis.FieldError {
+func (*CloudProvider) Validate(ctx context.Context, provisioner *v1alpha5.Provisioner) *apis.FieldError {
+	// The receiver is intentionally omitted here as when used by the webhook, Validate/Default are the only methods
+	// called and we don't fully initialize the CloudProvider to prevent some network calls to EC2/Pricing.
 	if provisioner.Spec.Provider == nil {
 		return nil
 	}
@@ -161,7 +169,7 @@ func (c *CloudProvider) Validate(ctx context.Context, provisioner *v1alpha5.Prov
 }
 
 // Default the provisioner
-func (c *CloudProvider) Default(ctx context.Context, provisioner *v1alpha5.Provisioner) {
+func (*CloudProvider) Default(ctx context.Context, provisioner *v1alpha5.Provisioner) {
 	defaultLabels(provisioner)
 }
 
