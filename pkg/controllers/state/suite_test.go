@@ -114,18 +114,6 @@ var _ = Describe("Node Metrics", func() {
 	})
 })
 
-var _ = Describe("Pod Metrics", func() {
-	It("should update the pod state metrics", func() {
-		p := test.Pod()
-		ExpectApplied(ctx, env.Client, p)
-		ExpectReconcileSucceeded(ctx, podController, client.ObjectKeyFromObject(p))
-
-		podState := ExpectMetric("karpenter_pods_state")
-		ExpectMetricLabel(podState, "name", p.GetName())
-		ExpectMetricLabel(podState, "namespace", p.GetNamespace())
-	})
-})
-
 var _ = Describe("Node Resource Level", func() {
 	It("should not count pods not bound to nodes", func() {
 		pod1 := test.UnschedulablePod(test.PodOptions{
