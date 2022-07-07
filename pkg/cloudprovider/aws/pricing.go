@@ -89,11 +89,10 @@ func NewPricingProvider(ctx context.Context, pricing pricingiface.PricingAPI, ec
 	if isolatedVPC {
 		logging.FromContext(ctx).Infof("Assuming isolated VPC, pricing information will not be updated")
 	} else {
-		// perform an initial price update at startup to prevent launching initial pending pods with
-		// old pricing information
-		p.updatePricing(ctx)
-
 		go func() {
+			// perform an initial price update at startup
+			p.updatePricing(ctx)
+
 			startup := time.Now()
 			// wait for leader election or to be signaled to exit
 			select {
@@ -125,6 +124,20 @@ func (p *PricingProvider) InstanceTypes() []string {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	return lo.Union(lo.Keys(p.onDemandPrices), lo.Keys(p.spotPrices))
+}
+
+// OnDemandLastUpdated returns the time that the on-demand pricing was last updated
+func (p *PricingProvider) OnDemandLastUpdated() time.Time {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.onDemandUpdateTime
+}
+
+// SpotLastUpdated returns the time that the spot pricing was last updated
+func (p *PricingProvider) SpotLastUpdated() time.Time {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.onDemandUpdateTime
 }
 
 // OnDemandPrice returns the last known on-demand price for a given instance type, returning an error if there is no
