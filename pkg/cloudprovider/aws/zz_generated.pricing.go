@@ -18,9 +18,9 @@ package aws
 
 import "time"
 
-// generated at 28 Jun 22 14:16 -0400 for us-east-1
+// generated at 2022-07-07T12:28:27Z for us-east-1
 
-var initialPriceUpdate, _ = time.Parse(time.RFC822Z, "28 Jun 22 14:16 -0400")
+var initialPriceUpdate, _ = time.Parse(time.RFC3339, "2022-07-07T12:28:27Z")
 var initialOnDemandPrices = map[string]float64{
 	// a1 family
 	"a1.2xlarge": 0.204000, "a1.4xlarge": 0.408000, "a1.large": 0.051000, "a1.medium": 0.025500,
