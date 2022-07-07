@@ -34,7 +34,7 @@ battletest: ## Run randomized, racing, code coveraged, tests
 		-tags random_test_delay
 
 e2etests: ## Run the e2e suite against your local cluster
-	go test -v ./test/... -environment-name=${CLUSTER_NAME}
+	go test -timeout 60m -v ./test/... -environment-name=${CLUSTER_NAME}
 
 benchmark:
 	go test -tags=test_performance -run=NoTests -bench=. ./...
@@ -117,4 +117,4 @@ issues: ## Run GitHub issue analysis scripts
 website: ## Serve the docs website locally
 	cd website && npm install && git submodule update --init --recursive && hugo server
 
-.PHONY: help dev ci release test battletest verify codegen docgen apply delete toolchain release release-gen licenses issues website nightly snapshot
+.PHONY: help dev ci release test battletest verify codegen docgen apply delete toolchain release release-gen licenses issues website nightly snapshot e2etests

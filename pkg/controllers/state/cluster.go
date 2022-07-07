@@ -202,6 +202,11 @@ func (c *Cluster) populateProvisioner(ctx context.Context, node *v1.Node, n *Nod
 	if provisionerName, ok := node.Labels[v1alpha5.ProvisionerNameLabelKey]; ok {
 		var provisioner v1alpha5.Provisioner
 		if err := c.kubeClient.Get(ctx, client.ObjectKey{Name: provisionerName}, &provisioner); err != nil {
+			if errors.IsNotFound(err) {
+				// this occurs if the provisioner was deleted, the node won't last much longer anyway so it's
+				// safe to just not report this and continue
+				return nil
+			}
 			return fmt.Errorf("getting provisioner, %w", err)
 		}
 		n.Provisioner = &provisioner
