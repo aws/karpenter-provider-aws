@@ -44,8 +44,7 @@ type Cluster struct {
 	cloudProvider cloudprovider.CloudProvider
 
 	// Pod Specific Tracking
-	antiAffinityPods sync.Map                         // mapping of pod namespaced name to *v1.Pod of pods that have required anti affinities
-	pods             map[types.NamespacedName]*v1.Pod // pod namespaced name -> *v1.Pod
+	antiAffinityPods sync.Map // mapping of pod namespaced name to *v1.Pod of pods that have required anti affinities
 
 	nominatedNodes *cache.Cache
 
@@ -68,7 +67,6 @@ func NewCluster(cfg config.Config, client client.Client, cp cloudprovider.CloudP
 		kubeClient:     client,
 		cloudProvider:  cp,
 		nominatedNodes: cache.New(nominationPeriod, 10*time.Second),
-		pods:           map[types.NamespacedName]*v1.Pod{},
 		nodes:          map[string]*Node{},
 		bindings:       map[types.NamespacedName]string{},
 	}
@@ -106,27 +104,6 @@ type Node struct {
 	PodTotalRequests v1.ResourceList
 	// PodTotalRequests is the total resource limits that have been placed on pods on this node
 	PodTotalLimits v1.ResourceList
-}
-
-// ForEachPod calls the supplied function once per pod object that is being tracked.
-func (c *Cluster) ForEachPod(f func(p *v1.Pod) bool) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	var pods []*v1.Pod
-	for _, pod := range c.pods {
-		pods = append(pods, pod)
-	}
-
-	sort.Slice(pods, func(a, b int) bool {
-		return pods[a].CreationTimestamp.Time.Before(pods[b].CreationTimestamp.Time)
-	})
-
-	for _, pod := range pods {
-		if !f(pod) {
-			return
-		}
-	}
 }
 
 // ForPodsWithAntiAffinity calls the supplied function once for each pod with required anti affinity terms that is
@@ -329,14 +306,14 @@ func (c *Cluster) updateNode(ctx context.Context, node *v1.Node) error {
 
 // deletePod is called when the pod has been deleted
 func (c *Cluster) deletePod(podKey types.NamespacedName) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	delete(c.pods, podKey)
 	c.antiAffinityPods.Delete(podKey)
 	c.updateNodeUsageFromPodDeletion(podKey)
 }
 
 func (c *Cluster) updateNodeUsageFromPodDeletion(podKey types.NamespacedName) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	nodeName, bindingKnown := c.bindings[podKey]
 	if !bindingKnown {
 		// we didn't think the pod was bound, so we weren't tracking it and don't need to do anything
@@ -366,14 +343,6 @@ func (c *Cluster) updateNodeUsageFromPodDeletion(podKey types.NamespacedName) {
 
 // updatePod is called every time the pod is reconciled
 func (c *Cluster) updatePod(ctx context.Context, pod *v1.Pod) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	// Update cached pod
-	nn := types.NamespacedName{Namespace: pod.Namespace, Name: pod.Name}
-	delete(c.pods, nn)
-	c.pods[nn] = pod
-
 	err := c.updateNodeUsageFromPod(ctx, pod)
 	c.updatePodAntiAffinities(pod)
 	return err
@@ -398,6 +367,9 @@ func (c *Cluster) updateNodeUsageFromPod(ctx context.Context, pod *v1.Pod) error
 	if pod.Spec.NodeName == "" {
 		return nil
 	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	podKey := client.ObjectKeyFromObject(pod)
 	oldNodeName, bindingKnown := c.bindings[podKey]
