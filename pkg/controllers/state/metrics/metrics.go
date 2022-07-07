@@ -38,7 +38,7 @@ type MetricScraper struct {
 	scrapers []scraper
 }
 
-func NewMetricCollector(ctx context.Context, cluster *state.Cluster) *MetricScraper {
+func NewMetricScraper(ctx context.Context, cluster *state.Cluster) *MetricScraper {
 	mc := &MetricScraper{
 		Cluster: cluster,
 	}

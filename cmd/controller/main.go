@@ -49,7 +49,7 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/node"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
 	"github.com/aws/karpenter/pkg/controllers/state"
-	"github.com/aws/karpenter/pkg/controllers/state/metrics"
+	statemetrics "github.com/aws/karpenter/pkg/controllers/state/metrics"
 	"github.com/aws/karpenter/pkg/controllers/termination"
 	"github.com/aws/karpenter/pkg/events"
 	"github.com/aws/karpenter/pkg/utils/injection"
@@ -114,7 +114,7 @@ func main() {
 	recorder := events.NewDedupeRecorder(events.NewRecorder(manager.GetEventRecorderFor(appName)))
 	cluster := state.NewCluster(cfg, manager.GetClient(), cloudProvider)
 
-	metrics.NewMetricCollector(ctx, cluster)
+	statemetrics.NewMetricScraper(ctx, cluster)
 
 	if err := manager.RegisterControllers(ctx,
 		provisioning.NewController(ctx, cfg, manager.GetClient(), clientSet.CoreV1(), recorder, cloudProvider, cluster),
