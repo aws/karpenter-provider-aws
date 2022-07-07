@@ -17,7 +17,6 @@ package metrics
 import (
 	"context"
 	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
@@ -241,14 +240,12 @@ func (ns *nodeScraper) getNodeLabels(node *v1.Node, resourceTypeName string) pro
 
 func getWellKnownLabels() map[string]string {
 	labels := make(map[string]string)
-
-	const labelIdx = 1
-	regex := regexp.MustCompile(`.+\/(?P<label>.+$)`)
 	for wellKnownLabel := range v1alpha5.WellKnownLabels {
-		label := regex.FindStringSubmatch(wellKnownLabel)[labelIdx]
-		label = strings.ReplaceAll(strings.ToLower(string(label)), "-", "_")
-		labels[wellKnownLabel] = label
+		if parts := strings.Split(wellKnownLabel, "/"); len(parts) == 2 {
+			label := parts[1]
+			label = strings.ReplaceAll(strings.ToLower(string(label)), "-", "_")
+			labels[wellKnownLabel] = label
+		}
 	}
-
 	return labels
 }
