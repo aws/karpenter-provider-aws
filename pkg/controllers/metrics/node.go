@@ -12,8 +12,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// TODO: (Optimization) Don't reset gauges on every scrape
-
 package metrics
 
 import (
@@ -108,16 +106,20 @@ func nodeLabelNames() []string {
 		nodeArchitecture,
 		nodeCapacityType,
 		nodeInstanceType,
-		nodePhase,
+		nodePhase, // NOTE: deprecated
 	}
 }
 
 type nodeScraper struct {
-	cluster *state.Cluster
+	cluster  *state.Cluster
+	labelMap map[string]map[*prometheus.GaugeVec][]prometheus.Labels
 }
 
 func newNodeCollector(cluster *state.Cluster) *nodeScraper {
-	return &nodeScraper{cluster: cluster}
+	return &nodeScraper{
+		cluster:  cluster,
+		labelMap: make(map[string]map[*prometheus.GaugeVec][]prometheus.Labels),
+	}
 }
 
 func (ns *nodeScraper) getName() string {
@@ -138,13 +140,16 @@ func (ns *nodeScraper) init(ctx context.Context) {
 }
 
 func (ns *nodeScraper) update(ctx context.Context) {
-	ns.reset()
-
+	nodes := make(map[string]struct{})
 	ns.cluster.ForEachNode(func(n *state.Node) bool {
+		if _, ok := ns.labelMap[n.Node.Name]; !ok {
+			logging.FromContext(ctx).Infof("Tracking new node: %s", n.Node.Name)
+			ns.labelMap[n.Node.Name] = make(map[*prometheus.GaugeVec][]prometheus.Labels)
+		}
+		nodes[n.Node.Name] = struct{}{}
+
 		podRequests := resources.Subtract(n.PodTotalRequests, n.DaemonSetRequested)
 		podLimits := resources.Subtract(n.PodTotalLimits, n.DaemonSetLimits)
-		// podRequests := n.DaemonSetRequested
-		// podLimits := n.DaemonSetLimits
 		allocatable := n.Node.Status.Capacity
 		if len(n.Node.Status.Allocatable) > 0 {
 			allocatable = n.Node.Status.Allocatable
@@ -166,6 +171,8 @@ func (ns *nodeScraper) update(ctx context.Context) {
 
 		return true
 	})
+
+	ns.cleanup(ctx, nodes)
 }
 
 func (ns *nodeScraper) reset() {
@@ -181,11 +188,45 @@ func (ns *nodeScraper) reset() {
 	}
 }
 
+func (ns *nodeScraper) cleanup(ctx context.Context, existingNodes map[string]struct{}) {
+	nodesToRemove := []string{}
+	for nodeName := range ns.labelMap {
+		if _, ok := existingNodes[nodeName]; !ok {
+			nodesToRemove = append(nodesToRemove, nodeName)
+		}
+	}
+
+	// Remove all gauges associated with removed node
+	for _, node := range nodesToRemove {
+		gaugeMap := ns.labelMap[node]
+		for gaugeVec, labelSet := range gaugeMap {
+			for _, labels := range labelSet {
+				gaugeVec.Delete(labels)
+			}
+		}
+		delete(ns.labelMap, node)
+	}
+
+	if len(nodesToRemove) > 0 {
+		logging.FromContext(ctx).Infof("Removing the following node gauges: %s", func() string {
+			var sb strings.Builder
+			for idx, nodeName := range nodesToRemove {
+				sb.WriteString(nodeName)
+				if idx < len(nodesToRemove)-1 {
+					sb.WriteString(", ")
+				}
+			}
+			return sb.String()
+		}())
+	}
+}
+
 // set sets the value for the node gauge
 func (ns *nodeScraper) set(resourceList v1.ResourceList, node *v1.Node, gaugeVec *prometheus.GaugeVec) error {
 	for resourceName, quantity := range resourceList {
 		resourceTypeName := strings.ReplaceAll(strings.ToLower(string(resourceName)), "-", "_")
 		labels := ns.getNodeLabels(node, resourceTypeName)
+		ns.labelMap[node.Name][gaugeVec] = append(ns.labelMap[node.Name][gaugeVec], labels)
 
 		gauge, err := gaugeVec.GetMetricWith(labels)
 		if err != nil {
