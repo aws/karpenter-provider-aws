@@ -19,7 +19,6 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
-	"knative.dev/pkg/apis"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
@@ -30,9 +29,6 @@ import (
 type Options struct {
 	ClientSet  *kubernetes.Clientset
 	KubeClient client.Client
-	// WebhookOnly is true if the cloud provider is being used for its validation/defaulting only by the webhook.  In
-	// this case it may not need to perform some initialization and the StartAsync channel will not be closed.
-	WebhookOnly bool
 	// StartAsync is a channel that is closed when leader election has been won.  This is a signal to start any  async
 	// processing that should only occur while the cloud provider is the leader.
 	StartAsync <-chan struct{}
@@ -52,10 +48,6 @@ type CloudProvider interface {
 	// availability, the GetInstanceTypes method should always return all instance types,
 	// even those with no offerings available.
 	GetInstanceTypes(context.Context, *v1alpha5.Provisioner) ([]InstanceType, error)
-	// Default is a hook for additional defaulting logic at webhook time.
-	Default(context.Context, *v1alpha5.Provisioner)
-	// Validate is a hook for additional validation logic at webhook time.
-	Validate(context.Context, *v1alpha5.Provisioner) *apis.FieldError
 	// Name returns the CloudProvider implementation name.
 	Name() string
 }

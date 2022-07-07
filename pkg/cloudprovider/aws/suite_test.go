@@ -36,7 +36,6 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/amifamily"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/fake"
-	"github.com/aws/karpenter/pkg/cloudprovider/registry"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/test"
@@ -140,7 +139,6 @@ var _ = BeforeSuite(func() {
 			},
 			kubeClient: e.Client,
 		}
-		registry.RegisterOrDie(ctx, cloudProvider)
 		cluster = state.NewCluster(e.Client, cloudProvider)
 		recorder = test.NewEventRecorder()
 		cfg = test.NewConfig()
@@ -1722,21 +1720,6 @@ var _ = Describe("Allocation", func() {
 					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 				})
 			})
-		})
-	})
-
-	Context("Webhook", func() {
-		It("should validate when in webhook mode", func() {
-			cp := NewCloudProvider(ctx, cloudprovider.Options{WebhookOnly: true})
-			// just ensures that validation doesn't depend on anything as when created for the webhook
-			// we don't fully initialize the cloud provider
-			Expect(cp.Validate(ctx, provisioner)).To(Succeed())
-		})
-		It("should default when in webhookmode", func() {
-			cp := NewCloudProvider(ctx, cloudprovider.Options{WebhookOnly: true})
-			// just ensures that validation doesn't depend on anything as when created for the webhook
-			// we don't fully initialize the cloud provider
-			cp.Default(ctx, provisioner)
 		})
 	})
 })

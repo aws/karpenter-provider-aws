@@ -12,12 +12,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha5
+package apis
 
 import (
-	"context"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"knative.dev/pkg/webhook/resourcesemantics"
+
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 )
 
-// SetDefaults for the provisioner
-func (p *Provisioner) SetDefaults(ctx context.Context) {
-}
+var (
+	Resources = map[schema.GroupVersionKind]resourcesemantics.GenericCRD{
+		v1alpha5.SchemeGroupVersion.WithKind("Provisioner"): &v1alpha1.Provisioner{},
+	}
+)
