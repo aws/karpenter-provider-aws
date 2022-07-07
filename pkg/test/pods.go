@@ -156,7 +156,7 @@ func PodDisruptionBudget(overrides ...PDBOptions) *v1beta1.PodDisruptionBudget {
 	options := PDBOptions{}
 	for _, opts := range overrides {
 		if err := mergo.Merge(&options, opts, mergo.WithOverride); err != nil {
-			panic(fmt.Sprintf("Failed to merge pod options: %s", err))
+			panic(fmt.Sprintf("Failed to merge pdb options: %s", err))
 		}
 	}
 	return &v1beta1.PodDisruptionBudget{

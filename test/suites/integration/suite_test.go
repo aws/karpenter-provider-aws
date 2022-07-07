@@ -66,7 +66,7 @@ var _ = Describe("Sanity Checks", func() {
 		const numPods = 50
 		deployment := test.Deployment(test.DeploymentOptions{Replicas: numPods})
 
-		selector := labels.SelectorFromValidatedSet(deployment.Spec.Selector.MatchLabels)
+		selector := labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels)
 		env.ExpectCreatedNodeCount("==", 0)
 		env.ExpectCreated(provisioner, provider, deployment)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
@@ -98,7 +98,7 @@ var _ = Describe("Sanity Checks", func() {
 				},
 			},
 		})
-		selector := labels.SelectorFromValidatedSet(podLabels)
+		selector := labels.SelectorFromSet(podLabels)
 		env.ExpectCreatedNodeCount("==", 0)
 		env.ExpectCreated(provisioner, provider, deployment)
 		env.EventuallyExpectHealthyPodCount(selector, 2)
@@ -133,7 +133,7 @@ var _ = Describe("Sanity Checks", func() {
 			},
 		})
 
-		selector := labels.SelectorFromValidatedSet(podLabels)
+		selector := labels.SelectorFromSet(podLabels)
 		env.ExpectCreatedNodeCount("==", 0)
 		env.ExpectCreated(provisioner, provider, deployment)
 		env.EventuallyExpectHealthyPodCount(selector, 3)

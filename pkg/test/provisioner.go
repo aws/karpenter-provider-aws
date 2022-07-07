@@ -52,7 +52,7 @@ func Provisioner(overrides ...ProvisionerOptions) *v1alpha5.Provisioner {
 	options := ProvisionerOptions{}
 	for _, opts := range overrides {
 		if err := mergo.Merge(&options, opts, mergo.WithOverride); err != nil {
-			panic(fmt.Sprintf("Failed to merge pod options: %s", err))
+			panic(fmt.Sprintf("Failed to merge provisioner options: %s", err))
 		}
 	}
 	if options.Name == "" {
