@@ -40,6 +40,16 @@ var (
 	}
 )
 
+type SpotFallbackError error
+
+func isSpotFallback(err error) bool {
+	if err == nil {
+		return false
+	}
+	var sfbErr SpotFallbackError
+	return errors.As(err, &sfbErr)
+}
+
 // isNotFound returns true if the err is an AWS error (even if it's
 // wrapped) and is a known to mean "not found" (as opposed to a more
 // serious or unexpected error)
