@@ -39,7 +39,6 @@ type MetricScraper struct {
 	terminateChan    chan struct{}
 	updateChan       chan struct{}
 	updateReturnChan chan struct{}
-	updateAsyncChan  chan struct{}
 }
 
 func NewMetricScraper(ctx context.Context, cluster *state.Cluster) *MetricScraper {
@@ -48,7 +47,6 @@ func NewMetricScraper(ctx context.Context, cluster *state.Cluster) *MetricScrape
 		terminateChan:    make(chan struct{}),
 		updateChan:       make(chan struct{}),
 		updateReturnChan: make(chan struct{}),
-		updateAsyncChan:  make(chan struct{}),
 	}
 	mc.init(ctx)
 	return mc
@@ -64,10 +62,6 @@ func (ms *MetricScraper) Update() {
 	<-ms.updateReturnChan
 }
 
-func (ms *MetricScraper) UpdateAsync() {
-	ms.updateAsyncChan <- struct{}{}
-}
-
 func (ms *MetricScraper) init(ctx context.Context) {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("metric-scraper"))
 
@@ -77,7 +71,7 @@ func (ms *MetricScraper) init(ctx context.Context) {
 		ms.scrapers = append(ms.scrapers, c)
 	}
 
-	logging.FromContext(ctx).Infof("Starting metric-scraper with the following scrapers: %s", strings.Join(ms.getScraperNames(), ", "))
+	logging.FromContext(ctx).Debugf("Starting metric-scraper with the following scrapers: %s", strings.Join(ms.getScraperNames(), ", "))
 
 	// Initialize all metrics scrapers
 	for _, scraper := range ms.scrapers {
@@ -91,16 +85,14 @@ func (ms *MetricScraper) init(ctx context.Context) {
 		for {
 			select {
 			case <-ms.terminateChan:
-				logging.FromContext(ctx).Infof("Terminating metric-scraper")
+				logging.FromContext(ctx).Debugf("Terminating metric-scraper")
 				return
 			case <-ctx.Done():
-				logging.FromContext(ctx).Infof("Terminating metric-scraper")
+				logging.FromContext(ctx).Debugf("Terminating metric-scraper")
 				return
 			case <-ms.updateChan:
 				ms.update(ctx)
 				ms.updateReturnChan <- struct{}{}
-			case <-ms.updateAsyncChan:
-				ms.update(ctx)
 			case <-ticker.C:
 				ms.update(ctx)
 			}

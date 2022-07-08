@@ -43,15 +43,16 @@ var (
 	daemonRequestsGaugeVec = newNodeGaugeVec("total_daemon_requests", "Node total daemon requests are the resource requested by DaemonSet pods bound to nodes. Labeled by provisioner name, node name, zone, architecture, capacity type, instance type, node phase and resource type.")
 	daemonLimitsGaugeVec   = newNodeGaugeVec("total_daemon_limits", "Node total pod limits are the resources specified by DaemonSet pod limits. Labeled by provisioner name, node name, zone, architecture, capacity type, instance type, node phase and resource type.")
 	overheadGaugeVec       = newNodeGaugeVec("system_overhead", "Node system daemon overhead are the resources reserved for system overhead, the difference between the node's capacity and allocatable values are reported by the status. Labeled by provisioner name, node name, zone, architecture, capacity type, instance type, node phase and resource type.")
+	wellKnownLabels        = getWellKnownLabels()
 )
 
-func newNodeGaugeVec(name, helpMessage string) *prometheus.GaugeVec {
+func newNodeGaugeVec(name, help string) *prometheus.GaugeVec {
 	return prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: "karpenter",
 			Subsystem: "nodes",
 			Name:      name,
-			Help:      helpMessage,
+			Help:      help,
 		},
 		nodeLabelNames(),
 	)
@@ -65,7 +66,7 @@ func nodeLabelNames() []string {
 		nodePhase, // NOTE: deprecated
 	}
 
-	for _, l := range getWellKnownLabels() {
+	for _, l := range wellKnownLabels {
 		labels = append(labels, l)
 	}
 
@@ -222,7 +223,7 @@ func (ns *nodeScraper) getNodeLabels(node *v1.Node, resourceTypeName string) pro
 	metricLabels[nodePhase] = string(node.Status.Phase)
 
 	// Populate well known labels
-	for wellKnownLabel, label := range getWellKnownLabels() {
+	for wellKnownLabel, label := range wellKnownLabels {
 		if value, ok := node.Labels[wellKnownLabel]; !ok {
 			metricLabels[label] = "N/A"
 		} else {

@@ -26,9 +26,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/karpenter/pkg/controllers/state"
-	statemetrics "github.com/aws/karpenter/pkg/controllers/state/metrics"
 	"github.com/aws/karpenter/pkg/utils/resources"
-	prometheus "github.com/prometheus/client_model/go"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -50,7 +48,6 @@ var nodeController *state.NodeController
 var podController *state.PodController
 var cloudProvider *fake.CloudProvider
 var provisioner *v1alpha5.Provisioner
-var metricScraper *statemetrics.MetricScraper
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -74,47 +71,11 @@ var _ = BeforeEach(func() {
 	cluster = state.NewCluster(cfg, env.Client, cloudProvider)
 	nodeController = state.NewNodeController(env.Client, cluster)
 	podController = state.NewPodController(env.Client, cluster)
-	metricScraper = statemetrics.NewMetricScraper(ctx, cluster)
 	ExpectApplied(ctx, env.Client, provisioner)
 })
 
 var _ = AfterEach(func() {
-	metricScraper.Terminate()
 	ExpectCleanedUp(ctx, env.Client)
-})
-
-var _ = Describe("Node Metrics", func() {
-	It("should update the allocatable metric", func() {
-		node := test.Node(test.NodeOptions{
-			Allocatable: v1.ResourceList{
-				v1.ResourcePods:   resource.MustParse("100"),
-				v1.ResourceCPU:    resource.MustParse("5000"),
-				v1.ResourceMemory: resource.MustParse("32Gi"),
-			},
-		})
-		ExpectApplied(ctx, env.Client, node)
-		ExpectReconcileSucceeded(ctx, nodeController, client.ObjectKeyFromObject(node))
-
-		// metrics should now be tracking the allocatable capacity of our single node
-		metricScraper.Update()
-		nodeAllocation := ExpectMetric("karpenter_nodes_allocatable")
-
-		expectedValues := map[string]float64{
-			"cpu":    5000.0,
-			"pods":   100.0,
-			"memory": 32 * 1024 * 1024 * 1024,
-		}
-
-		for _, m := range nodeAllocation.Metric {
-			for _, l := range m.Label {
-				if l.GetName() == "resource_type" {
-					Expect(m.GetGauge().GetValue()).To(Equal(expectedValues[l.GetValue()]),
-						fmt.Sprintf("%s, %f to equal %f", l.GetValue(), m.GetGauge().GetValue(),
-							expectedValues[l.GetValue()]))
-				}
-			}
-		}
-	})
 })
 
 var _ = Describe("Node Resource Level", func() {
@@ -678,19 +639,6 @@ var _ = Describe("Pod Anti-Affinity", func() {
 
 })
 
-func ExpectMetricLabel(mf *prometheus.MetricFamily, name string, value string) {
-	found := false
-	for _, m := range mf.Metric {
-		for _, l := range m.Label {
-			if l.GetName() == name {
-				Expect(l.GetValue()).To(Equal(value), fmt.Sprintf("expected metrics %s = %s", name, value))
-				found = true
-			}
-		}
-	}
-	Expect(found).To(BeTrue())
-}
-
 func ExpectNodeResourceRequest(node *v1.Node, resourceName v1.ResourceName, amount string) {
 	cluster.ForEachNode(func(n *state.Node) bool {
 		if n.Node.Name != node.Name {
@@ -704,6 +652,7 @@ func ExpectNodeResourceRequest(node *v1.Node, resourceName v1.ResourceName, amou
 		return false
 	})
 }
+
 func ExpectNodeDaemonSetRequested(node *v1.Node, resourceName v1.ResourceName, amount string) {
 	cluster.ForEachNode(func(n *state.Node) bool {
 		if n.Node.Name != node.Name {
