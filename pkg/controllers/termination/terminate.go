@@ -16,10 +16,11 @@ package termination
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -38,6 +39,13 @@ type Terminator struct {
 	KubeClient    client.Client
 	CoreV1Client  corev1.CoreV1Interface
 	CloudProvider cloudprovider.CloudProvider
+}
+
+type NodeDrainErr error
+
+func IsNodeDrainErr(err error) bool {
+	var nodeDrainErr NodeDrainErr
+	return errors.As(err, &nodeDrainErr)
 }
 
 // cordon cordons a node
@@ -64,11 +72,13 @@ func (t *Terminator) drain(ctx context.Context, node *v1.Node) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("listing pods for node, %w", err)
 	}
-	// Skip node due to do-not-evict
+	// Skip node due to pods that are not able to be evicted
 	for _, pod := range pods {
-		if val := pod.Annotations[v1alpha5.DoNotEvictPodAnnotationKey]; val == "true" {
-			logging.FromContext(ctx).Debugf("Unable to drain node, pod %s/%s has do-not-evict annotation", pod.Namespace, pod.Name)
-			return false, nil
+		// if a pod doesn't have owner references then we can't expect a controller to manage its lifecycle
+		if len(pod.ObjectMeta.OwnerReferences) == 0 {
+			return false, NodeDrainErr(fmt.Errorf("pod %s/%s does not have any owner references", pod.Namespace, pod.Name))
+		} else if val := pod.Annotations[v1alpha5.DoNotEvictPodAnnotationKey]; val == "true" {
+			return false, NodeDrainErr(fmt.Errorf("pod %s/%s has do-not-evict annotation", pod.Namespace, pod.Name))
 		}
 	}
 	// Enqueue for eviction
@@ -86,7 +96,7 @@ func (t *Terminator) terminate(ctx context.Context, node *v1.Node) error {
 	persisted := node.DeepCopy()
 	node.Finalizers = functional.StringSliceWithout(node.Finalizers, v1alpha5.TerminationFinalizer)
 	if err := t.KubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil {
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return nil
 		}
 		return fmt.Errorf("removing finalizer from node, %w", err)

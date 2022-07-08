@@ -16,6 +16,7 @@ package termination
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	set "github.com/deckarep/golang-set"
@@ -28,6 +29,8 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/aws/karpenter/pkg/events"
 )
 
 const (
@@ -40,14 +43,16 @@ type EvictionQueue struct {
 	set.Set
 
 	coreV1Client corev1.CoreV1Interface
+	recorder     events.Recorder
 }
 
-func NewEvictionQueue(ctx context.Context, coreV1Client corev1.CoreV1Interface) *EvictionQueue {
+func NewEvictionQueue(ctx context.Context, coreV1Client corev1.CoreV1Interface, recorder events.Recorder) *EvictionQueue {
 	queue := &EvictionQueue{
 		RateLimitingInterface: workqueue.NewRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(evictionQueueBaseDelay, evictionQueueMaxDelay)),
 		Set:                   set.NewSet(),
 
 		coreV1Client: coreV1Client,
+		recorder:     recorder,
 	}
 	go queue.Start(logging.WithLogger(ctx, logging.FromContext(ctx).Named("eviction")))
 	return queue
@@ -85,17 +90,22 @@ func (e *EvictionQueue) Start(ctx context.Context) {
 	logging.FromContext(ctx).Errorf("EvictionQueue is broken and has shutdown")
 }
 
-// evict returns true if successful eviction call, error is returned if not eviction-related error
+// evict returns true if successful eviction call, and false if not an eviction-related error
 func (e *EvictionQueue) evict(ctx context.Context, nn types.NamespacedName) bool {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("pod", nn))
 	err := e.coreV1Client.Pods(nn.Namespace).Evict(ctx, &v1beta1.Eviction{
 		ObjectMeta: metav1.ObjectMeta{Name: nn.Name, Namespace: nn.Namespace},
 	})
+	// status codes for the eviction API are defined here:
+	// https://kubernetes.io/docs/concepts/scheduling-eviction/api-eviction/#how-api-initiated-eviction-works
 	if errors.IsNotFound(err) { // 404
 		return true
 	}
-	if errors.IsTooManyRequests(err) { // 429
-		logging.FromContext(ctx).Debug(err)
+	if errors.IsTooManyRequests(err) { // 429 - PDB violation
+		e.recorder.NodeFailedToDrain(&v1.Node{ObjectMeta: metav1.ObjectMeta{
+			Name:      nn.Name,
+			Namespace: nn.Namespace,
+		}}, fmt.Errorf("evicting pod %s/%s violates a PDB", nn.Namespace, nn.Name))
 		return false
 	}
 	if err != nil {

@@ -51,3 +51,12 @@ func (d *dedupe) PodFailedToSchedule(pod *v1.Pod, err error) {
 	d.cache.SetDefault(key, nil)
 	d.rec.PodFailedToSchedule(pod, err)
 }
+
+func (d *dedupe) NodeFailedToDrain(node *v1.Node, err error) {
+	key := fmt.Sprintf("failed-to-drain-%s", node.Name)
+	if _, exists := d.cache.Get(key); exists {
+		return
+	}
+	d.cache.SetDefault(key, nil)
+	d.rec.NodeFailedToDrain(node, err)
+}
