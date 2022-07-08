@@ -15,14 +15,11 @@ limitations under the License.
 package bootstrap
 
 import (
-	"reflect"
-	"strings"
-
 	"github.com/pelletier/go-toml/v2"
 )
 
-func NewBottlerocketSettings(userdata *string) (*config, error) {
-	c := &config{}
+func NewBottlerocketConfig(userdata *string) (*BottlerocketConfig, error) {
+	c := &BottlerocketConfig{}
 	if userdata == nil {
 		return c, nil
 	}
@@ -32,56 +29,56 @@ func NewBottlerocketSettings(userdata *string) (*config, error) {
 	return c, nil
 }
 
-// config is the root of the bottlerocket config, see more here https://github.com/bottlerocket-os/bottlerocket#using-user-data
-type config struct {
+// BottlerocketConfig is the root of the bottlerocket config, see more here https://github.com/bottlerocket-os/bottlerocket#using-user-data
+type BottlerocketConfig struct {
 	SettingsRaw map[string]interface{} `toml:"settings"`
-	Settings    settings               `toml:"-"`
+	Settings    BottlerocketSettings   `toml:"-"`
 }
 
-// This is a subset of all configuration in https://github.com/bottlerocket-os/bottlerocket/blob/develop/sources/models/src/aws-k8s-1.22/mod.rs
+// BottlerocketSettings is a subset of all configuration in https://github.com/bottlerocket-os/bottlerocket/blob/develop/sources/models/src/aws-k8s-1.22/mod.rs
 // These settings apply across all K8s versions that karpenter supports.
-type settings struct {
-	Kubernetes *kubernetes `toml:"kubernetes"`
+type BottlerocketSettings struct {
+	Kubernetes BottlerocketKubernetes `toml:"kubernetes"`
 }
 
-// kubernetes specific configuration for bottlerocket api
-type kubernetes struct {
-	APIServer                 *string              `toml:"api-server"`
-	ClusterCertificate        *string              `toml:"cluster-certificate"`
-	ClusterName               *string              `toml:"cluster-name"`
-	ClusterDNSIP              *string              `toml:"cluster-dns-ip,omitempty"`
-	NodeLabels                map[string]string    `toml:"node-labels,omitempty"`
-	NodeTaints                map[string][]string  `toml:"node-taints,omitempty"`
-	MaxPods                   *int                 `toml:"max-pods,omitempty"`
-	StaticPods                map[string]staticPod `toml:"static-pods,omitempty"`
-	EvictionHard              map[string]string    `toml:"eviction-hard,omitempty"`
-	KubeReserved              map[string]string    `toml:"kube-reserved,omitempty"`
-	SystemReserved            map[string]string    `toml:"system-reserved,omitempty"`
-	AllowedUnsafeSysctls      []string             `toml:"allowed-unsafe-sysctls,omitempty"`
-	ServerTLSBootstrap        *bool                `toml:"server-tls-bootstrap,omitempty"`
-	RegistryQPS               *int                 `toml:"registry-qps,omitempty"`
-	RegistryBurst             *int                 `toml:"registry-burst,omitempty"`
-	EventQPS                  *int                 `toml:"event-qps,omitempty"`
-	EventBurst                *int                 `toml:"event-burst,omitempty"`
-	KubeAPIQPS                *int                 `toml:"kube-api-qps,omitempty"`
-	KubeAPIBurst              *int                 `toml:"kube-api-burst,omitempty"`
-	ContainerLogMaxSize       *string              `toml:"container-log-max-size,omitempty"`
-	ContainerLogMaxFiles      *int                 `toml:"container-log-max-files,omitempty"`
-	CPUManagerPolicy          *string              `toml:"cpu-manager-policy,omitempty"`
-	CPUManagerReconcilePeriod *string              `toml:"cpu-manager-reconcile-period,omitempty"`
-	TopologyManagerScope      *string              `toml:"topology-manager-scope,omitempty"`
-	TopologyManagerPolicy     *string              `toml:"topology-manager-policy,omitempty"`
+// BottlerocketKubernetes is k8s specific configuration for bottlerocket api
+type BottlerocketKubernetes struct {
+	APIServer                 *string                          `toml:"api-server"`
+	ClusterCertificate        *string                          `toml:"cluster-certificate"`
+	ClusterName               *string                          `toml:"cluster-name"`
+	ClusterDNSIP              *string                          `toml:"cluster-dns-ip,omitempty"`
+	NodeLabels                map[string]string                `toml:"node-labels,omitempty"`
+	NodeTaints                map[string][]string              `toml:"node-taints,omitempty"`
+	MaxPods                   *int                             `toml:"max-pods,omitempty"`
+	StaticPods                map[string]BottlerocketStaticPod `toml:"static-pods,omitempty"`
+	EvictionHard              map[string]string                `toml:"eviction-hard,omitempty"`
+	KubeReserved              map[string]string                `toml:"kube-reserved,omitempty"`
+	SystemReserved            map[string]string                `toml:"system-reserved,omitempty"`
+	AllowedUnsafeSysctls      []string                         `toml:"allowed-unsafe-sysctls,omitempty"`
+	ServerTLSBootstrap        *bool                            `toml:"server-tls-bootstrap,omitempty"`
+	RegistryQPS               *int                             `toml:"registry-qps,omitempty"`
+	RegistryBurst             *int                             `toml:"registry-burst,omitempty"`
+	EventQPS                  *int                             `toml:"event-qps,omitempty"`
+	EventBurst                *int                             `toml:"event-burst,omitempty"`
+	KubeAPIQPS                *int                             `toml:"kube-api-qps,omitempty"`
+	KubeAPIBurst              *int                             `toml:"kube-api-burst,omitempty"`
+	ContainerLogMaxSize       *string                          `toml:"container-log-max-size,omitempty"`
+	ContainerLogMaxFiles      *int                             `toml:"container-log-max-files,omitempty"`
+	CPUManagerPolicy          *string                          `toml:"cpu-manager-policy,omitempty"`
+	CPUManagerReconcilePeriod *string                          `toml:"cpu-manager-reconcile-period,omitempty"`
+	TopologyManagerScope      *string                          `toml:"topology-manager-scope,omitempty"`
+	TopologyManagerPolicy     *string                          `toml:"topology-manager-policy,omitempty"`
 }
 
-type staticPod struct {
+type BottlerocketStaticPod struct {
 	Enabled  *bool   `toml:"enabled,omitempty"`
 	Manifest *string `toml:"manifest,omitempty"`
 }
 
-func (c *config) UnmarshalTOML(data []byte) error {
+func (c *BottlerocketConfig) UnmarshalTOML(data []byte) error {
 	// unmarshal known settings
 	s := struct {
-		Settings settings `toml:"settings"`
+		Settings BottlerocketSettings `toml:"settings"`
 	}{}
 	if err := toml.Unmarshal(data, &s); err != nil {
 		return err
@@ -94,26 +91,10 @@ func (c *config) UnmarshalTOML(data []byte) error {
 	return nil
 }
 
-func (c *config) MarshalTOML() ([]byte, error) {
+func (c *BottlerocketConfig) MarshalTOML() ([]byte, error) {
 	if c.SettingsRaw == nil {
 		c.SettingsRaw = map[string]interface{}{}
 	}
-	settings := reflect.ValueOf(c.Settings)
-	for i := 0; i < settings.NumField(); i++ {
-		field := settings.Field(i)
-		tField := settings.Type().Field(i)
-		if !tField.IsExported() {
-			continue
-		}
-		tomlKey := tField.Name
-		tag, ok := tField.Tag.Lookup("toml")
-		if ok {
-			parts := strings.Split(tag, ",")
-			if parts[0] != "" {
-				tomlKey = parts[0]
-			}
-		}
-		c.SettingsRaw[tomlKey] = field.Interface()
-	}
+	c.SettingsRaw["kubernetes"] = c.Settings.Kubernetes
 	return toml.Marshal(c)
 }

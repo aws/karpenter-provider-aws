@@ -26,15 +26,12 @@ type Bottlerocket struct {
 }
 
 func (b Bottlerocket) Script() (string, error) {
-	s, err := NewBottlerocketSettings(b.CustomUserData)
+	s, err := NewBottlerocketConfig(b.CustomUserData)
 	if err != nil {
 		return "", fmt.Errorf("invalid UserData %w", err)
 	}
 	// Karpenter will overwrite settings present inside custom UserData
 	// based on other fields specified in the provisioner
-	if s.Settings.Kubernetes == nil {
-		s.Settings.Kubernetes = &kubernetes{}
-	}
 	s.Settings.Kubernetes.ClusterName = &b.ClusterName
 	s.Settings.Kubernetes.APIServer = &b.ClusterEndpoint
 	s.Settings.Kubernetes.ClusterCertificate = b.CABundle
