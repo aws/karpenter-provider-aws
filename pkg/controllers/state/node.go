@@ -64,7 +64,6 @@ func (c *NodeController) Reconcile(ctx context.Context, req reconcile.Request) (
 	return reconcile.Result{Requeue: true, RequeueAfter: stateRetryPeriod}, nil
 }
 
-// TODO: Determine if additional watches conflict w/ cluster state
 func (c *NodeController) Register(ctx context.Context, m manager.Manager) error {
 	return controllerruntime.
 		NewControllerManagedBy(m).
