@@ -24,26 +24,6 @@ import (
 // Taints is a decorated alias type for []v1.Taint
 type Taints []v1.Taint
 
-// Has returns true if taints has a taint for the given key and effect
-func (ts Taints) Has(taint v1.Taint) bool {
-	for _, t := range ts {
-		if t.MatchTaint(&taint) {
-			return true
-		}
-	}
-	return false
-}
-
-// HasKey returns true if taints has a taint for the given key
-func (ts Taints) HasKey(taintKey string) bool {
-	for _, t := range ts {
-		if t.Key == taintKey {
-			return true
-		}
-	}
-	return false
-}
-
 // Tolerates returns true if the pod tolerates all taints. 'additional' are extra tolerations for things like startup
 // taints or the standard not-ready taint applied to nodes we have launched.
 func (ts Taints) Tolerates(pod *v1.Pod, additional ...v1.Toleration) (errs error) {
