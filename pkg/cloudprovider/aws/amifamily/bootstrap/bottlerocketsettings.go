@@ -14,28 +14,39 @@ limitations under the License.
 
 package bootstrap
 
+import (
+	"reflect"
+	"strings"
+
+	"github.com/pelletier/go-toml/v2"
+)
+
+func NewBottlerocketSettings(userdata *string) (*config, error) {
+	c := &config{}
+	if userdata == nil {
+		return c, nil
+	}
+	if err := c.UnmarshalTOML([]byte(*userdata)); err != nil {
+		return c, err
+	}
+	return c, nil
+}
+
 // config is the root of the bottlerocket config, see more here https://github.com/bottlerocket-os/bottlerocket#using-user-data
 type config struct {
-	Settings settings `toml:"settings"`
+	SettingsRaw map[string]interface{} `toml:"settings"`
+	Settings    settings               `toml:"-"`
 }
 
 // This is a subset of all configuration in https://github.com/bottlerocket-os/bottlerocket/blob/develop/sources/models/src/aws-k8s-1.22/mod.rs
 // These settings apply across all K8s versions that karpenter supports.
-// This is currently an opinionated subset and can evolve over time
 type settings struct {
-	Kubernetes        kubernetes         `toml:"kubernetes"`
-	HostContainers    *hostContainers    `toml:"host-containers,omitempty"`
-	AWS               *awsConfig         `toml:"aws,omitempty"`
-	Metrics           *metrics           `toml:"metrics,omitempty"`
-	Kernel            *kernel            `toml:"kernel,omitempty"`
-	ContainerRegistry *containerRegistry `toml:"container-registry,omitempty"`
-	Network           *network           `toml:"network,omitempty"`
-	NTP               *ntp               `toml:"ntp,omitempty"`
+	Kubernetes *kubernetes `toml:"kubernetes"`
 }
 
 // kubernetes specific configuration for bottlerocket api
 type kubernetes struct {
-	APIServer                 string               `toml:"api-server"`
+	APIServer                 *string              `toml:"api-server"`
 	ClusterCertificate        *string              `toml:"cluster-certificate"`
 	ClusterName               *string              `toml:"cluster-name"`
 	ClusterDNSIP              *string              `toml:"cluster-dns-ip,omitempty"`
@@ -62,62 +73,47 @@ type kubernetes struct {
 	TopologyManagerPolicy     *string              `toml:"topology-manager-policy,omitempty"`
 }
 
-type containerRegistry struct {
-	Credentials []*credential `toml:"credentials,omitempty"`
-}
-
-type credential struct {
-	Registry *string `toml:"registry,omitempty"`
-	Auth     *string `toml:"auth,omitempty"`
-	UserName *string `toml:"username,omitempty"`
-	Password *string `toml:"password,omitempty"`
-}
-
 type staticPod struct {
 	Enabled  *bool   `toml:"enabled,omitempty"`
 	Manifest *string `toml:"manifest,omitempty"`
 }
 
-type awsConfig struct {
-	Region *string `toml:"region,omitempty"`
+func (c *config) UnmarshalTOML(data []byte) error {
+	// unmarshal known settings
+	s := struct {
+		Settings settings `toml:"settings"`
+	}{}
+	if err := toml.Unmarshal(data, &s); err != nil {
+		return err
+	}
+	// unmarshal untyped settings
+	if err := toml.Unmarshal(data, c); err != nil {
+		return err
+	}
+	c.Settings = s.Settings
+	return nil
 }
 
-type hostContainers struct {
-	Admin   *admin   `toml:"admin,omitempty"`
-	Control *control `toml:"control,omitempty"`
-}
-
-type admin struct {
-	Enabled      *bool   `toml:"enabled,omitempty"`
-	Source       *string `toml:"source,omitempty"`
-	Superpowered *bool   `toml:"superpowered,omitempty"`
-	UserData     *string `toml:"user-data,omitempty"`
-}
-
-type control struct {
-	Enabled      *bool   `toml:"enabled,omitempty"`
-	Source       *string `toml:"source,omitempty"`
-	Superpowered *bool   `toml:"superpowered,omitempty"`
-}
-
-type metrics struct {
-	MetricsURL    *string  `toml:"metrics-url,omitempty"`
-	SendMetrics   *bool    `toml:"send-metrics,omitempty"`
-	ServiceChecks []string `toml:"service-checks,omitempty"`
-}
-
-type kernel struct {
-	Lockdown *string           `toml:"lockdown,omitempty"`
-	SysCtl   map[string]string `toml:"sysctl,omitempty"`
-}
-
-type network struct {
-	Hostname   *string         `toml:"hostname,omitempty"`
-	HTTPSProxy *string         `toml:"https-proxy,omitempty"`
-	NoProxy    []string        `toml:"no-proxy,omitempty"`
-	Hosts      [][]interface{} `toml:"hosts,omitempty"`
-}
-
-type ntp struct {
-	TimeServers []string `toml:"time-servers,omitempty"`
+func (c *config) MarshalTOML() ([]byte, error) {
+	if c.SettingsRaw == nil {
+		c.SettingsRaw = map[string]interface{}{}
+	}
+	settings := reflect.ValueOf(c.Settings)
+	for i := 0; i < settings.NumField(); i++ {
+		field := settings.Field(i)
+		tField := settings.Type().Field(i)
+		if !tField.IsExported() {
+			continue
+		}
+		tomlKey := tField.Name
+		tag, ok := tField.Tag.Lookup("toml")
+		if ok {
+			parts := strings.Split(tag, ",")
+			if parts[0] != "" {
+				tomlKey = parts[0]
+			}
+		}
+		c.SettingsRaw[tomlKey] = field.Interface()
+	}
+	return toml.Marshal(c)
 }
