@@ -100,9 +100,9 @@ type Node struct {
 	podRequests map[types.NamespacedName]v1.ResourceList
 	podLimits   map[types.NamespacedName]v1.ResourceList
 
-	// PodTotalRequests is the total amount of resources that have been requested pods
+	// PodTotalRequests is the total resources on pods scheduled to this node
 	PodTotalRequests v1.ResourceList
-	// PodTotalRequests is the total resource limits that have been placed on pods on this node
+	// PodTotalLimits is the total resource limits scheduled to this node
 	PodTotalLimits v1.ResourceList
 }
 

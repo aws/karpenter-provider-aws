@@ -84,7 +84,6 @@ var _ = AfterEach(func() {
 })
 
 var _ = Describe("Node Metrics", func() {
-
 	It("should update the allocatable metric", func() {
 		node := test.Node(test.NodeOptions{
 			Allocatable: v1.ResourceList{

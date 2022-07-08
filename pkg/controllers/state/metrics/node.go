@@ -23,6 +23,7 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/utils/resources"
 	"github.com/prometheus/client_golang/prometheus"
+	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/logging"
 	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
@@ -96,7 +97,7 @@ func (ns *nodeScraper) init(ctx context.Context) {
 		daemonLimitsGaugeVec,
 		overheadGaugeVec,
 	} {
-		crmetrics.Registry.Register(gauge)
+		crmetrics.Registry.MustRegister(gauge)
 	}
 }
 
@@ -104,7 +105,7 @@ func (ns *nodeScraper) update(ctx context.Context) {
 	nodes := make(map[string]struct{})
 	ns.cluster.ForEachNode(func(n *state.Node) bool {
 		if _, ok := ns.labelMap[n.Node.Name]; !ok {
-			logging.FromContext(ctx).Infof("Tracking new node: %s", n.Node.Name)
+			logging.FromContext(ctx).Debugf("Tracking new node: %s", n.Node.Name)
 			ns.labelMap[n.Node.Name] = make(map[*prometheus.GaugeVec][]prometheus.Labels)
 		}
 		nodes[n.Node.Name] = struct{}{}
@@ -117,6 +118,7 @@ func (ns *nodeScraper) update(ctx context.Context) {
 		}
 
 		// Populate  metrics
+		var err error
 		for gaugeVec, resourceList := range map[*prometheus.GaugeVec]v1.ResourceList{
 			overheadGaugeVec:       ns.getSystemOverhead(n.Node),
 			podRequestsGaugeVec:    podRequests,
@@ -125,9 +127,11 @@ func (ns *nodeScraper) update(ctx context.Context) {
 			daemonLimitsGaugeVec:   n.DaemonSetLimits,
 			allocatableGaugeVec:    allocatable,
 		} {
-			if err := ns.set(resourceList, n.Node, gaugeVec); err != nil {
-				logging.FromContext(ctx).Errorf("Failed to generate gauge: %s", err)
-			}
+			err = multierr.Append(err, ns.set(resourceList, n.Node, gaugeVec))
+		}
+
+		if err != nil {
+			logging.FromContext(ctx).Errorf("Failed to generate gauges for %s: %s", n.Node.Name, err)
 		}
 
 		return true
@@ -169,16 +173,7 @@ func (ns *nodeScraper) cleanup(ctx context.Context, existingNodes map[string]str
 	}
 
 	if len(nodesToRemove) > 0 {
-		logging.FromContext(ctx).Infof("Removing the following node gauges: %s", func() string {
-			var sb strings.Builder
-			for idx, nodeName := range nodesToRemove {
-				sb.WriteString(nodeName)
-				if idx < len(nodesToRemove)-1 {
-					sb.WriteString(", ")
-				}
-			}
-			return sb.String()
-		}())
+		logging.FromContext(ctx).Debugf("Removed the following node gauges: %s", strings.Join(nodesToRemove, ", "))
 	}
 }
 
@@ -191,7 +186,7 @@ func (ns *nodeScraper) set(resourceList v1.ResourceList, node *v1.Node, gaugeVec
 
 		gauge, err := gaugeVec.GetMetricWith(labels)
 		if err != nil {
-			return fmt.Errorf("generate new gauge: %w", err)
+			return fmt.Errorf("generating new gauge: %w", err)
 		}
 		if resourceName == v1.ResourceCPU {
 			gauge.Set(float64(quantity.MilliValue()) / float64(1000))

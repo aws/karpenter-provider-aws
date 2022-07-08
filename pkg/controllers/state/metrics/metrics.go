@@ -77,16 +77,7 @@ func (ms *MetricScraper) init(ctx context.Context) {
 		ms.scrapers = append(ms.scrapers, c)
 	}
 
-	logging.FromContext(ctx).Infof("Starting metric-scraper with the following scrapers: %s", func() string {
-		var sb strings.Builder
-		for idx := range ms.scrapers {
-			sb.WriteString(ms.scrapers[idx].getName())
-			if idx < len(ms.scrapers)-1 {
-				sb.WriteString(", ")
-			}
-		}
-		return sb.String()
-	}())
+	logging.FromContext(ctx).Infof("Starting metric-scraper with the following scrapers: %s", strings.Join(ms.getScraperNames(), ", "))
 
 	// Initialize all metrics scrapers
 	for _, scraper := range ms.scrapers {
@@ -121,6 +112,14 @@ func (ms *MetricScraper) update(ctx context.Context) {
 	for _, c := range ms.scrapers {
 		c.update(ctx)
 	}
+}
+
+func (ms *MetricScraper) getScraperNames() []string {
+	names := []string{}
+	for _, scraper := range ms.scrapers {
+		names = append(names, scraper.getName())
+	}
+	return names
 }
 
 func (ms *MetricScraper) ResetScrapers() {
