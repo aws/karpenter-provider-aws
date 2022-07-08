@@ -22,6 +22,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter/pkg/utils/pretty"
 )
@@ -38,7 +39,10 @@ func (p *Preferences) Relax(ctx context.Context, pod *v1.Pod) bool {
 		p.toleratePreferNoScheduleTaints,
 	} {
 		if reason := relaxFunc(pod); reason != nil {
-			logging.FromContext(ctx).Debugf("Relaxing soft constraints for pod since it previously failed to schedule, %s", ptr.StringValue(reason))
+
+			logging.FromContext(ctx).
+				With("pod", client.ObjectKeyFromObject(pod)).
+				Debugf("Relaxing soft constraints for pod since it previously failed to schedule, %s", ptr.StringValue(reason))
 			return true
 		}
 	}
