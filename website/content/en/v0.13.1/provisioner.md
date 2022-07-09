@@ -50,7 +50,7 @@ spec:
     - key: "topology.kubernetes.io/zone"
       operator: In
       values: ["us-west-2a", "us-west-2b"]
-    - key: "kubernetes.io/arch"
+    - key: "kubernetes.io/arch" # If not included, the webhook for the AWS Cloud Provider will default to amd64
       operator: In
       values: ["arm64", "amd64"]
     - key: "karpenter.sh/capacity-type" # If not included, the webhook for the AWS cloud provider will default to on-demand
