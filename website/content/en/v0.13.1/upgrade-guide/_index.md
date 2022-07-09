@@ -71,10 +71,23 @@ for a subset of older versions and deprecate the others.
 
 ## Upgrading to v0.13.0+
 * v0.13.0 introduces a new CRD named `AWSNodeTemplate` which can be used to specify AWS Cloud Provider parameters. Everything that was previously specified under `spec.provider` in the Provisioner resource, can now be specified in the spec of the new resource. The use of `spec.provider` is deprecated but will continue to function to maintain backwards compatibility for the current API version (v1alpha5) of the Provisioner resource. v0.13.0 also introduces support for custom user data that doesn't require the use of a custom launch template. The user data can be specified in-line in the AWSNodeTemplate resource. Read the [UserData documentation here](../aws/user-data) to get started.
+
+  If you are upgrading from v0.10.1 - v0.11.1, a new CRD `awsnodetemplate` was added. In v0.12.0, this crd was renamed to `awsnodetemplates`. Since helm does not manage the lifecycle of CRDs, you will need to perform a few manual steps for this CRD upgrade:
+  1. Make sure any `awsnodetemplate` manifests are saved somewhere so that they can be reapplied to the cluster.
+  2. `kubectl delete crd awsnodetemplate`
+  3. `kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.13.1/charts/karpenter/crds/karpenter.k8s.aws_awsnodetemplates.yaml`
+  4. Perform the Karpenter upgrade to v0.13.x, which will install the new `awsnodetemplates` CRD.
+  5. Reapply the `awsnodetemplate` manifests you saved from step 1, if applicable. 
 * v0.13.0 also adds EC2/spot price fetching to Karpenter to allow making more accurate decisions regarding node deployments.  Our getting started guide documents this, but if you are upgrading Karpenter you will need to modify your Karpenter controller policy to add the `pricing:GetProducts` and `ec2:DescribeSpotPriceHistory` permissions.
 
 ## Upgrading to v0.12.0+
-v0.12.0 adds an OwnerReference to each Node created by a provisioner. Previously, deleting a provisioner would orphan nodes. Now, deleting a provisioner will cause Kubernetes [cascading delete](https://kubernetes.io/docs/concepts/architecture/garbage-collection/#cascading-deletion) logic to gracefully terminate the nodes using the Karpenter node finalizer. You may still orphan nodes by removing the owner reference.
+* v0.12.0 adds an OwnerReference to each Node created by a provisioner. Previously, deleting a provisioner would orphan nodes. Now, deleting a provisioner will cause Kubernetes [cascading delete](https://kubernetes.io/docs/concepts/architecture/garbage-collection/#cascading-deletion) logic to gracefully terminate the nodes using the Karpenter node finalizer. You may still orphan nodes by removing the owner reference.
+* If you are upgrading from v0.10.1 - v0.11.1, a new CRD `awsnodetemplate` was added. In v0.12.0, this crd was renamed to `awsnodetemplates`. Since helm does not manage the lifecycle of CRDs, you will need to perform a few manual steps for this CRD upgrade:
+  1. Make sure any `awsnodetemplate` manifests are saved somewhere so that they can be reapplied to the cluster.
+  2. `kubectl delete crd awsnodetemplate`
+  3. `kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.12.1/charts/karpenter/crds/karpenter.k8s.aws_awsnodetemplates.yaml`
+  4. Perform the Karpenter upgrade to v0.12.x, which will install the new `awsnodetemplates` CRD.
+  5. Reapply the `awsnodetemplate` manifests you saved from step 1, if applicable. 
 
 ## Upgrading to v0.11.0+
 
