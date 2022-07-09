@@ -27,9 +27,9 @@ spec:
   taints:
     - key: example.com/special-taint
       effect: NoSchedule
-      
-      
-  # Provisioned nodes will have these taints, but pods do not need to tolerate these taints to be provisioned by this 
+
+
+  # Provisioned nodes will have these taints, but pods do not need to tolerate these taints to be provisioned by this
   # provisioner. These taints are expected to be temporary and some other entity (e.g. a DaemonSet) is responsible for
   # removing the taint after it has finished initializing the node.
   startupTaints:
@@ -50,7 +50,7 @@ spec:
     - key: "topology.kubernetes.io/zone"
       operator: In
       values: ["us-west-2a", "us-west-2b"]
-    - key: "kubernetes.io/arch"
+    - key: "kubernetes.io/arch" # If not included, the webhook for the AWS Cloud Provider will default to amd64
       operator: In
       values: ["arm64", "amd64"]
     - key: "karpenter.sh/capacity-type" # If not included, the webhook for the AWS cloud provider will default to on-demand
@@ -73,29 +73,29 @@ spec:
   provider: {}
 ```
 
-## Node deprovisioning 
+## Node deprovisioning
 
-If neither of these values are set, Karpenter will *not* delete instances. It is recommended to set the `ttlSecondsAfterEmpty` value, to enable scale down of the cluster. 
+If neither of these values are set, Karpenter will *not* delete instances. It is recommended to set the `ttlSecondsAfterEmpty` value, to enable scale down of the cluster.
 
 ### spec.ttlSecondsAfterEmpty
 
-Setting a value here enables Karpenter to delete empty/unnecessary instances. DaemonSets are excluded from considering a node "empty". This value is in seconds. 
+Setting a value here enables Karpenter to delete empty/unnecessary instances. DaemonSets are excluded from considering a node "empty". This value is in seconds.
 
 ### spec.ttlSecondsUntilExpired
 
 Setting a value here enables node expiry. After nodes reach the defined age in seconds, they will be deleted, even if in use. This enables nodes to effectively be periodically "upgraded" by replacing them with newly provisioned instances.
 
-Note that Karpenter does not automatically add jitter to this value. If multiple instances are created in a small amount of time, they will expire at very similar times. Consider defining a [pod disruption budget](https://kubernetes.io/docs/tasks/run-application/configure-pdb/) to prevent excessive workload disruption. 
+Note that Karpenter does not automatically add jitter to this value. If multiple instances are created in a small amount of time, they will expire at very similar times. Consider defining a [pod disruption budget](https://kubernetes.io/docs/tasks/run-application/configure-pdb/) to prevent excessive workload disruption.
 
 
 
 ## spec.requirements
 
-Kubernetes defines the following [Well-Known Labels](https://kubernetes.io/docs/reference/labels-annotations-taints/), and cloud providers (e.g., AWS) implement them. They are defined at the "spec.requirements" section of the Provisioner API. 
+Kubernetes defines the following [Well-Known Labels](https://kubernetes.io/docs/reference/labels-annotations-taints/), and cloud providers (e.g., AWS) implement them. They are defined at the "spec.requirements" section of the Provisioner API.
 
 These well known labels may be specified at the provisioner level, or in a workload definition (e.g., nodeSelector on a pod.spec). Nodes are chosen using both the provisioner's and pod's requirements. If there is no overlap, nodes will not be launched. In other words, a pod's requirements must be within the provisioner's requirements. If a requirement is not defined for a well known label, any value available to the cloud provider may be chosen.
 
-For example, an instance type may be specified using a nodeSelector in a pod spec. If the instance type requested is not included in the provisioner list and the provisioner has instance type requirements, Karpenter will not create a node or schedule the pod. 
+For example, an instance type may be specified using a nodeSelector in a pod spec. If the instance type requested is not included in the provisioner list and the provisioner has instance type requirements, Karpenter will not create a node or schedule the pod.
 
 📝 None of these values are required.
 
@@ -103,7 +103,7 @@ For example, an instance type may be specified using a nodeSelector in a pod spe
 
 - key: `node.kubernetes.io/instance-type`
 
-Generally, instance types should be a list and not a single value. Leaving this field undefined is recommended, as it maximizes choices for efficiently placing pods. 
+Generally, instance types should be a list and not a single value. Leaving this field undefined is recommended, as it maximizes choices for efficiently placing pods.
 
 ☁️ **AWS**
 
@@ -169,12 +169,12 @@ Karpenter supports `amd64` nodes, and `arm64` nodes.
 ☁️ **AWS**
 
 - values
-  - `spot` 
+  - `spot`
   - `on-demand` (default)
 
 Karpenter supports specifying capacity type, which is analogous to [EC2 purchase options](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-purchasing-options.html).
 
-Karpenter prioritizes Spot offerings if the provisioner allows Spot and on-demand instances. If the provider API (e.g. EC2 Fleet's API) indicates Spot capacity is unavailable, Karpenter caches that result across all attempts to provision EC2 capacity for that instance type and zone for the next 45 seconds. If there are no other possible offerings available for Spot, Karpenter will attempt to provision on-demand instances, generally within milliseconds. 
+Karpenter prioritizes Spot offerings if the provisioner allows Spot and on-demand instances. If the provider API (e.g. EC2 Fleet's API) indicates Spot capacity is unavailable, Karpenter caches that result across all attempts to provision EC2 capacity for that instance type and zone for the next 45 seconds. If there are no other possible offerings available for Spot, Karpenter will attempt to provision on-demand instances, generally within milliseconds.
 
 Karpenter also allows `karpenter.sh/capacity-type` to be used as a topology key for enforcing topology-spread.
 
@@ -189,11 +189,11 @@ spec:
     clusterDNS: ["10.0.1.100"]
 ```
 
-## spec.limits.resources 
+## spec.limits.resources
 
-The provisioner spec includes a limits section (`spec.limits.resources`), which constrains the maximum amount of resources that the provisioner will manage. 
+The provisioner spec includes a limits section (`spec.limits.resources`), which constrains the maximum amount of resources that the provisioner will manage.
 
-Presently, Karpenter supports `memory` and `cpu` limits. 
+Presently, Karpenter supports `memory` and `cpu` limits.
 
 CPU limits are described with a `DecimalSI` value. Note that the Kubernetes API will coerce this into a string, so we recommend against using integers to avoid GitOps skew.
 
