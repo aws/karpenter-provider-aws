@@ -25,7 +25,7 @@ We try to maintain compatibility with:
 
 When we introduce a breaking change, we do so only as described in this document.
 
-Karpenter follows [Semantic Versioning 2.0.0](https://semver.org/) in its release versions, while in
+Karpenter follows [Semantic Versioning 2.0.0](https://semver.org/) in its stable release versions, while in
 major version zero (v0.y.z) [anything may change at any time](https://semver.org/#spec-item-4).
 However, to further protect users during this phase we will only introduce breaking changes in minor releases (releases that increment y in x.y.z).
 Note this does not mean every minor upgrade has a breaking change as we will also increment the
@@ -49,23 +49,39 @@ incompatibilities:
 * (To be implemented) To check the compatibility of the application, we will automate tests for installing, uninstalling, upgrading from an older version, and downgrading to an older version
 * (To be implemented) To check the compatibility of the documentation with the application, we will turn the commands in our documentation into scripts that we can automatically run
 
-## Nightly Builds
-
-(To be implemented) Every night we will build and release everything that has been checked into the source code.
-This enables us to detect problems including breaking changes and potential drifts in our external dependencies sooner than we otherwise would.
-It also allows some advanced Karpenter users who have their own nightly builds to test the upcoming changes before they are released.
-
-## Release Candidates
-
-We consider having release candidates for major and important minor versions. Our release candidates are tagged like `vx.y.z-rc.0`, `vx.y.z-rc.1`. The release candidate will then graduate to `vx.y.z` as a normal stable release.
-By adopting this practice we allow our users who are early adopters to test out new releases before they are available to the wider community, thereby providing us with early feedback resulting in more stable releases.
-
 ## Security Patches
 
 While we are in major version 0 we will not release security patches to older versions.
 Rather we provide the patches in the latest versions.
 When at major version 1 we will have an EOL (end of life) policy where we provide security patches
 for a subset of older versions and deprecate the others.
+
+# Release Types
+
+Karpenter offers four types of releases. This section explains the purpose of each release type and how the images for each release type are tagged in our [public image repository](https://gallery.ecr.aws/karpenter).
+
+## Stable Releases
+
+Stable releases are the most reliable releases that are released with weekly cadence. Stable releases are our only recommended versions for production environments.
+Sometimes we skip a stable release because we find instability or problems that need to be fixed before having a stable release.
+Stable releases are tagged with Semantic Versioning. For example `v0.13.0`.
+
+## Snapshot Releases
+
+We release a snapshot release for every commit that gets merged into the main repository. This enables our users to immediately try a new feature or fix right after it's merged rather than waiting days or weeks for release.
+Snapshot releases are suitable for testing, and troubleshooting but users should exercise great care if they decide to use them in production environments.
+Snapshot releases are tagged with the git commit hash prefixed by the Karpenter major version. For example `v0-fc17bfc89ebb30a3b102a86012b3e3992ec08adf`. For more detailed examples on how to use snapshot releases look under "Usage" in [Karpenter Helm Chart](https://gallery.ecr.aws/karpenter/karpenter).
+
+## Nightly Releases
+
+Every night we build and release everything that has been checked into the source code. This enables us to detect problems including breaking changes and potential drifts in our external dependencies sooner than we otherwise would.
+It also allows some advanced Karpenter users who have their own nightly builds to test the upcoming changes before they are released. Nightly releases are tagged with date in YYYYMMDD format. For example `20220713`.
+For more examples on how to use nightly releases look under "Usage" in [Karpenter Helm Chart](https://gallery.ecr.aws/karpenter/karpenter).
+
+## Release Candidates
+
+We consider having release candidates for major and important minor versions. Our release candidates are tagged like `vx.y.z-rc.0`, `vx.y.z-rc.1`. The release candidate will then graduate to `vx.y.z` as a normal stable release.
+By adopting this practice we allow our users who are early adopters to test out new releases before they are available to the wider community, thereby providing us with early feedback resulting in more stable releases.
 
 # Released Upgrade Notes
 
