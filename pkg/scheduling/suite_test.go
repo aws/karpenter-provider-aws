@@ -15,12 +15,20 @@ limitations under the License.
 package scheduling_test
 
 import (
+	"testing"
+
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/scheduling"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
 )
+
+
+func TestAPIs(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Scheduling")
+}
 
 var _ = Describe("Scheduling", func() {
 	Context("Compatibility", func() {
