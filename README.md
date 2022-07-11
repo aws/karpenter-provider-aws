@@ -26,19 +26,6 @@ Come discuss Karpenter in the [#karpenter](https://kubernetes.slack.com/archives
 
 Check out the [Docs](https://karpenter.sh/) to learn more.
 
-## Installation
-
-Follow the setup recommendations of your cloud provider.
-- [AWS](https://karpenter.sh/docs/getting-started/)
-
-## References
-- [Docs](https://karpenter.sh/docs/)
-- [Concepts](https://karpenter.sh/docs/concepts/)
-- [API](https://karpenter.sh/docs/provisioner/)
-- [Working Group](WORKING_GROUP.md)
-- [Developer Guide](https://karpenter.sh/docs/development-guide/)
-- [Contributing](CONTRIBUTING.md)
-
 ## Talks
 - 05/19/2022 [Scaling K8s Nodes Without Breaking the Bank or Your Sanity](https://www.youtube.com/watch?v=UBb8wbfSc34)
 - 03/25/2022 [Karpenter @ AWS Community Day 2022](https://youtu.be/sxDtmzbNHwE?t=3931)
