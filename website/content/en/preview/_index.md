@@ -15,7 +15,6 @@ Karpenter works by:
 * **Watching** for pods that the Kubernetes scheduler has marked as unschedulable
 * **Evaluating** scheduling constraints (resource requests, nodeselectors, affinities, tolerations, and topology spread constraints) requested by the pods
 * **Provisioning** nodes that meet the requirements of the pods
-* **Scheduling** the pods to run on the new nodes
 * **Removing** the nodes when the nodes are no longer needed
 
 As someone using Karpenter, once your Kubernetes cluster and the Karpenter controller are up and running (see [Getting Started]({{<ref "./getting-started" >}})), you can:
