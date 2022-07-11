@@ -70,9 +70,9 @@ var _ = BeforeEach(func() {
 	cluster = state.NewCluster(cfg, env.Client, cloudProvider)
 	nodeController = state.NewNodeController(env.Client, cluster)
 	podController = state.NewPodController(env.Client, cluster)
+	provisioner = test.Provisioner(test.ProvisionerOptions{ObjectMeta: metav1.ObjectMeta{Name: "default"}})
 	ExpectApplied(ctx, env.Client, provisioner)
 })
-
 var _ = AfterEach(func() {
 	ExpectCleanedUp(ctx, env.Client)
 })
@@ -651,7 +651,6 @@ func ExpectNodeResourceRequest(node *v1.Node, resourceName v1.ResourceName, amou
 		return false
 	})
 }
-
 func ExpectNodeDaemonSetRequested(node *v1.Node, resourceName v1.ResourceName, amount string) {
 	cluster.ForEachNode(func(n *state.Node) bool {
 		if n.Node.Name != node.Name {

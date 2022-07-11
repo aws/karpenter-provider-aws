@@ -16,7 +16,6 @@ package state
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	v1 "k8s.io/api/core/v1"
@@ -36,7 +35,6 @@ const podControllerName = "pod-state"
 type PodController struct {
 	kubeClient client.Client
 	cluster    *Cluster
-	labelsMap  sync.Map
 }
 
 func NewPodController(kubeClient client.Client, cluster *Cluster) *PodController {
@@ -48,7 +46,6 @@ func NewPodController(kubeClient client.Client, cluster *Cluster) *PodController
 
 func (c *PodController) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named(podControllerName).With("pod", req.NamespacedName))
-
 	stored := &v1.Pod{}
 	if err := c.kubeClient.Get(ctx, req.NamespacedName, stored); err != nil {
 		if errors.IsNotFound(err) {

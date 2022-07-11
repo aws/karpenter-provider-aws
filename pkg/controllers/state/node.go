@@ -16,7 +16,6 @@ package state
 
 import (
 	"context"
-	"sync"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -33,7 +32,6 @@ const nodeControllerName = "node-state"
 type NodeController struct {
 	kubeClient client.Client
 	cluster    *Cluster
-	labelMap   sync.Map
 }
 
 // NewNodeController constructs a controller instance
@@ -46,7 +44,6 @@ func NewNodeController(kubeClient client.Client, cluster *Cluster) *NodeControll
 
 func (c *NodeController) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named(nodeControllerName).With("node", req.Name))
-
 	node := &v1.Node{}
 	if err := c.kubeClient.Get(ctx, req.NamespacedName, node); err != nil {
 		if errors.IsNotFound(err) {
@@ -56,11 +53,10 @@ func (c *NodeController) Reconcile(ctx context.Context, req reconcile.Request) (
 		}
 		return reconcile.Result{}, err
 	}
-
 	if err := c.cluster.updateNode(ctx, node); err != nil {
 		return reconcile.Result{}, err
 	}
-
+	// ensure it's aware of any nodes we discover, this is a no-op if the node is already known to our cluster state
 	return reconcile.Result{Requeue: true, RequeueAfter: stateRetryPeriod}, nil
 }
 
