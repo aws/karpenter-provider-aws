@@ -18,9 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
 
-	"github.com/Pallinder/go-randomdata"
 	"github.com/imdario/mergo"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -56,7 +54,7 @@ func Provisioner(overrides ...ProvisionerOptions) *v1alpha5.Provisioner {
 		}
 	}
 	if options.Name == "" {
-		options.Name = strings.ToLower(randomdata.SillyName())
+		options.Name = RandomName()
 	}
 	if options.Limits == nil {
 		options.Limits = v1.ResourceList{v1.ResourceCPU: resource.MustParse("1000")}

@@ -20,7 +20,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider/fake"
 	"github.com/aws/karpenter/pkg/controllers/termination"
@@ -189,7 +188,7 @@ var _ = Describe("Termination", func() {
 		})
 		It("should fail to evict pods that violate a PDB", func() {
 			minAvailable := intstr.FromInt(1)
-			labelSelector := map[string]string{randomdata.SillyName(): randomdata.SillyName()}
+			labelSelector := map[string]string{test.RandomName(): test.RandomName()}
 			pdb := test.PodDisruptionBudget(test.PDBOptions{
 				Labels: labelSelector,
 				// Don't let any pod evict

@@ -29,6 +29,7 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/pkg/utils/functional"
 )
 
@@ -105,7 +106,7 @@ func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFlee
 	var spotInstanceRequestID *string
 
 	if aws.StringValue(input.TargetCapacitySpecification.DefaultTargetCapacityType) == v1alpha1.CapacityTypeSpot {
-		spotInstanceRequestID = aws.String(randomdata.SillyName())
+		spotInstanceRequestID = aws.String(test.RandomName())
 	}
 
 	for _, ltc := range input.LaunchTemplateConfigs {
@@ -125,7 +126,7 @@ func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFlee
 				continue
 			}
 			instance := &ec2.Instance{
-				InstanceId:            aws.String(randomdata.SillyName()),
+				InstanceId:            aws.String(test.RandomName()),
 				Placement:             &ec2.Placement{AvailabilityZone: input.LaunchTemplateConfigs[0].Overrides[0].AvailabilityZone},
 				PrivateDnsName:        aws.String(randomdata.IpV4Address()),
 				InstanceType:          input.LaunchTemplateConfigs[0].Overrides[0].InstanceType,
