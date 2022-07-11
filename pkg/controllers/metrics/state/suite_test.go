@@ -60,7 +60,6 @@ var _ = AfterSuite(func() {
 })
 
 var _ = BeforeEach(func() {
-	// fmt.Printf("Running setup...\n")
 	cloudProvider = &fake.CloudProvider{InstanceTypes: fake.InstanceTypesAssorted()}
 	cluster = state.NewCluster(env.Client, cloudProvider)
 	provisioner = test.Provisioner(test.ProvisionerOptions{ObjectMeta: metav1.ObjectMeta{Name: "default"}})

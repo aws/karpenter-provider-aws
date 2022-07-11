@@ -66,7 +66,6 @@ var _ = AfterSuite(func() {
 })
 
 var _ = BeforeEach(func() {
-	// fmt.Printf("Running setup...\n")
 	cloudProvider = &fake.CloudProvider{InstanceTypes: fake.InstanceTypesAssorted()}
 	cluster = state.NewCluster(cfg, env.Client, cloudProvider)
 	nodeController = state.NewNodeController(env.Client, cluster)
