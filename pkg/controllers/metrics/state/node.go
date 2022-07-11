@@ -16,14 +16,12 @@ package metrics
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/utils/resources"
 	"github.com/prometheus/client_golang/prometheus"
-	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/logging"
 	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
@@ -119,7 +117,6 @@ func (ns *nodeScraper) update(ctx context.Context) {
 		}
 
 		// Populate  metrics
-		var err error
 		for gaugeVec, resourceList := range map[*prometheus.GaugeVec]v1.ResourceList{
 			overheadGaugeVec:       ns.getSystemOverhead(n.Node),
 			podRequestsGaugeVec:    podRequests,
@@ -128,11 +125,7 @@ func (ns *nodeScraper) update(ctx context.Context) {
 			daemonLimitsGaugeVec:   n.DaemonSetLimits,
 			allocatableGaugeVec:    allocatable,
 		} {
-			err = multierr.Append(err, ns.set(resourceList, n.Node, gaugeVec))
-		}
-
-		if err != nil {
-			logging.FromContext(ctx).Errorf("Failed to generate gauges for %s: %s", n.Node.Name, err)
+			ns.set(resourceList, n.Node, gaugeVec)
 		}
 
 		return true
@@ -179,7 +172,7 @@ func (ns *nodeScraper) cleanup(ctx context.Context, existingNodes map[string]str
 }
 
 // set sets the value for the node gauge
-func (ns *nodeScraper) set(resourceList v1.ResourceList, node *v1.Node, gaugeVec *prometheus.GaugeVec) error {
+func (ns *nodeScraper) set(resourceList v1.ResourceList, node *v1.Node, gaugeVec *prometheus.GaugeVec) {
 	for resourceName, quantity := range resourceList {
 		// Reformat resource type to be consistent with Prometheus naming conventions (snake_case)
 		resourceTypeName := strings.ReplaceAll(strings.ToLower(string(resourceName)), "-", "_")
@@ -187,17 +180,12 @@ func (ns *nodeScraper) set(resourceList v1.ResourceList, node *v1.Node, gaugeVec
 		labels := ns.getNodeLabels(node, resourceTypeName)
 		ns.labelMap[node.Name][gaugeVec] = append(ns.labelMap[node.Name][gaugeVec], labels)
 
-		gauge, err := gaugeVec.GetMetricWith(labels)
-		if err != nil {
-			return fmt.Errorf("generating new gauge: %w", err)
-		}
 		if resourceName == v1.ResourceCPU {
-			gauge.Set(float64(quantity.MilliValue()) / float64(1000))
+			gaugeVec.With(labels).Set(float64(quantity.MilliValue()) / float64(1000))
 		} else {
-			gauge.Set(float64(quantity.Value()))
+			gaugeVec.With(labels).Set(float64(quantity.Value()))
 		}
 	}
-	return nil
 }
 
 func (ns *nodeScraper) getSystemOverhead(node *v1.Node) v1.ResourceList {
