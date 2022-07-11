@@ -34,6 +34,7 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/amifamily"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	awsapisv1alpha5 "github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/fake"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
 	"github.com/aws/karpenter/pkg/controllers/state"
@@ -1522,7 +1523,7 @@ var _ = Describe("Pricing", func() {
 
 func Provisioner(options test.ProvisionerOptions) *v1alpha5.Provisioner {
 	from := test.Provisioner(options)
-	to := v1alpha1.Provisioner(*from)
+	to := awsapisv1alpha5.Provisioner(*from)
 	// Apply provider specific defaults
 	to.SetDefaults(context.Background())
 	provisioner := v1alpha5.Provisioner(to)

@@ -22,7 +22,9 @@ import (
 	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha5"
+
+	provisioningv1alpha5 "github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/test"
 
@@ -92,10 +94,10 @@ var _ = Describe("Validation", func() {
 	})
 	Context("Labels", func() {
 		It("should not allow unrecognized labels with the aws label prefix", func() {
-			Expect(v1alpha5.RestrictedLabelDomains.List()).To(ContainElement(v1alpha1.LabelDomain))
+			Expect(provisioningv1alpha5.RestrictedLabelDomains.List()).To(ContainElement(v1alpha1.LabelDomain))
 		})
 		It("should support well known labels", func() {
-			Expect(v1alpha5.WellKnownLabels.List()).To(ContainElements(
+			Expect(provisioningv1alpha5.WellKnownLabels.List()).To(ContainElements(
 				v1alpha1.LabelInstanceHypervisor,
 				v1alpha1.LabelInstanceFamily,
 				v1alpha1.LabelInstanceSize,
