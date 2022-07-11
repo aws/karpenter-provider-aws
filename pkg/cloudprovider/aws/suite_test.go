@@ -652,18 +652,21 @@ var _ = Describe("Allocation", func() {
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateFleetInput.Len()).To(Equal(1))
 				createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop()
-				Expect(createFleetInput.TagSpecifications).To(HaveLen(2))
+				Expect(createFleetInput.TagSpecifications).To(HaveLen(3))
 
 				tags := map[string]string{
 					v1alpha5.ProvisionerNameLabelKey: provisionerName,
 					"Name":                           fmt.Sprintf("%s/%s", v1alpha5.ProvisionerNameLabelKey, provisionerName),
 				}
-				// tags should be included in both the instance and volume tag specification
+				// tags should be included in instance, volume, and fleet tag specification
 				Expect(*createFleetInput.TagSpecifications[0].ResourceType).To(Equal(ec2.ResourceTypeInstance))
 				ExpectTags(createFleetInput.TagSpecifications[0].Tags, tags)
 
 				Expect(*createFleetInput.TagSpecifications[1].ResourceType).To(Equal(ec2.ResourceTypeVolume))
 				ExpectTags(createFleetInput.TagSpecifications[1].Tags, tags)
+
+				Expect(*createFleetInput.TagSpecifications[2].ResourceType).To(Equal(ec2.ResourceTypeFleet))
+				ExpectTags(createFleetInput.TagSpecifications[2].Tags, tags)
 			})
 			It("should request that tags be applied to both instances and volumes", func() {
 				provider.Tags = map[string]string{
@@ -675,14 +678,17 @@ var _ = Describe("Allocation", func() {
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateFleetInput.Len()).To(Equal(1))
 				createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop()
-				Expect(createFleetInput.TagSpecifications).To(HaveLen(2))
+				Expect(createFleetInput.TagSpecifications).To(HaveLen(3))
 
-				// tags should be included in both the instance and volume tag specification
+				// tags should be included in instance, volume, and fleet tag specification
 				Expect(*createFleetInput.TagSpecifications[0].ResourceType).To(Equal(ec2.ResourceTypeInstance))
 				ExpectTags(createFleetInput.TagSpecifications[0].Tags, provider.Tags)
 
 				Expect(*createFleetInput.TagSpecifications[1].ResourceType).To(Equal(ec2.ResourceTypeVolume))
 				ExpectTags(createFleetInput.TagSpecifications[1].Tags, provider.Tags)
+
+				Expect(*createFleetInput.TagSpecifications[2].ResourceType).To(Equal(ec2.ResourceTypeFleet))
+				ExpectTags(createFleetInput.TagSpecifications[2].Tags, provider.Tags)
 			})
 
 			It("should override default tag names", func() {
@@ -698,14 +704,17 @@ var _ = Describe("Allocation", func() {
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateFleetInput.Len()).To(Equal(1))
 				createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop()
-				Expect(createFleetInput.TagSpecifications).To(HaveLen(2))
+				Expect(createFleetInput.TagSpecifications).To(HaveLen(3))
 
-				// tags should be included in both the instance and volume tag specification
+				// tags should be included in instance, volume, and fleet tag specification
 				Expect(*createFleetInput.TagSpecifications[0].ResourceType).To(Equal(ec2.ResourceTypeInstance))
 				ExpectTags(createFleetInput.TagSpecifications[0].Tags, provider.Tags)
 
 				Expect(*createFleetInput.TagSpecifications[1].ResourceType).To(Equal(ec2.ResourceTypeVolume))
 				ExpectTags(createFleetInput.TagSpecifications[1].Tags, provider.Tags)
+
+				Expect(*createFleetInput.TagSpecifications[2].ResourceType).To(Equal(ec2.ResourceTypeFleet))
+				ExpectTags(createFleetInput.TagSpecifications[2].Tags, provider.Tags)
 			})
 			It("should default to a generated launch template", func() {
 				ExpectApplied(ctx, env.Client, provisioner)
