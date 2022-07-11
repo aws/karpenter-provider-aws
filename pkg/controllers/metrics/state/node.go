@@ -181,7 +181,9 @@ func (ns *nodeScraper) cleanup(ctx context.Context, existingNodes map[string]str
 // set sets the value for the node gauge
 func (ns *nodeScraper) set(resourceList v1.ResourceList, node *v1.Node, gaugeVec *prometheus.GaugeVec) error {
 	for resourceName, quantity := range resourceList {
+		// Reformat resource type to be consistent with Prometheus naming conventions (snake_case)
 		resourceTypeName := strings.ReplaceAll(strings.ToLower(string(resourceName)), "-", "_")
+
 		labels := ns.getNodeLabels(node, resourceTypeName)
 		ns.labelMap[node.Name][gaugeVec] = append(ns.labelMap[node.Name][gaugeVec], labels)
 
@@ -239,6 +241,7 @@ func getWellKnownLabels() map[string]string {
 	for wellKnownLabel := range v1alpha5.WellKnownLabels {
 		if parts := strings.Split(wellKnownLabel, "/"); len(parts) == 2 {
 			label := parts[1]
+			// Reformat label names to be consistent with Prometheus naming conventions (snake_case)
 			label = strings.ReplaceAll(strings.ToLower(string(label)), "-", "_")
 			labels[wellKnownLabel] = label
 		}
