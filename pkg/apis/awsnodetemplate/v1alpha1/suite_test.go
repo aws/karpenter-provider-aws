@@ -16,10 +16,11 @@ package v1alpha1
 
 import (
 	"context"
+	"strings"
 	"testing"
 
+	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/karpenter/pkg/test"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
@@ -40,7 +41,7 @@ var _ = Describe("Validation", func() {
 
 	BeforeEach(func() {
 		ant = &AWSNodeTemplate{
-			ObjectMeta: metav1.ObjectMeta{Name: test.RandomName()},
+			ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName())},
 			Spec:       AWSNodeTemplateSpec{},
 		}
 	})

@@ -19,7 +19,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aws/karpenter/pkg/test"
+	"github.com/Pallinder/go-randomdata"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
@@ -42,7 +42,7 @@ var _ = Describe("Validation", func() {
 
 	BeforeEach(func() {
 		provisioner = &Provisioner{
-			ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(test.RandomName())},
+			ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName())},
 			Spec:       ProvisionerSpec{},
 		}
 	})
@@ -84,20 +84,20 @@ var _ = Describe("Validation", func() {
 	})
 	Context("Labels", func() {
 		It("should allow unrecognized labels", func() {
-			provisioner.Spec.Labels = map[string]string{"foo": test.RandomName()}
+			provisioner.Spec.Labels = map[string]string{"foo": randomdata.SillyName()}
 			Expect(provisioner.Validate(ctx)).To(Succeed())
 		})
 		It("should fail for invalid label keys", func() {
-			provisioner.Spec.Labels = map[string]string{"spaces are not allowed": test.RandomName()}
+			provisioner.Spec.Labels = map[string]string{"spaces are not allowed": randomdata.SillyName()}
 			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 		})
 		It("should fail for invalid label values", func() {
-			provisioner.Spec.Labels = map[string]string{test.RandomName(): "/ is not allowed"}
+			provisioner.Spec.Labels = map[string]string{randomdata.SillyName(): "/ is not allowed"}
 			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 		})
 		It("should fail for restricted label domains", func() {
 			for label := range RestrictedLabelDomains {
-				provisioner.Spec.Labels = map[string]string{label + "/unknown": test.RandomName()}
+				provisioner.Spec.Labels = map[string]string{label + "/unknown": randomdata.SillyName()}
 				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 			}
 		})
