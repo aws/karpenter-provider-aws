@@ -16,6 +16,7 @@ package node_test
 
 import (
 	"context"
+	"github.com/aws/karpenter/pkg/controllers/state"
 	"strings"
 	"testing"
 	"time"
@@ -52,7 +53,9 @@ func TestAPIs(t *testing.T) {
 var _ = BeforeSuite(func() {
 
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
-		controller = node.NewController(e.Client, &fake.CloudProvider{})
+		cp := &fake.CloudProvider{}
+		cluster := state.NewCluster(test.NewConfig(), e.Client, cp)
+		controller = node.NewController(e.Client, cp, cluster)
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })

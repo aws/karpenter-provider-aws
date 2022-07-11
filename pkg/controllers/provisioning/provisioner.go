@@ -270,6 +270,7 @@ func (p *Provisioner) launch(ctx context.Context, node *scheduler.Node) error {
 		}
 	}
 	logging.FromContext(ctx).Infof("Created %s", node)
+	p.cluster.NominateNodeForPod(k8sNode.Name)
 	for _, pod := range node.Pods {
 		p.recorder.NominatePod(pod, k8sNode)
 	}
