@@ -174,7 +174,7 @@ var _ = Describe("Scheduling", func() {
 		It("A should be compatible to B, <Empty, Exists> operator, conflicting", func() {
 			A := scheduling.NewNodeSelectorRequirements()
 			B := scheduling.NewNodeSelectorRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpExists})
-			Expect(A.Compatible(B)).ToNot(Succeed())
+			Expect(A.Compatible(B)).To(Succeed())
 		})
 		It("A should be compatible to B, <Empty, DoesNotExist> operator", func() {
 			A := scheduling.NewNodeSelectorRequirements()
