@@ -20,7 +20,6 @@ import (
 	"math"
 	"strings"
 
-	"github.com/aws/amazon-vpc-resource-controller-k8s/pkg/aws/vpc"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/samber/lo"
@@ -191,7 +190,7 @@ func (i *InstanceType) pods() *resource.Quantity {
 
 func (i *InstanceType) awsPodENI(enablePodENI bool) *resource.Quantity {
 	// https://docs.aws.amazon.com/eks/latest/userguide/security-groups-for-pods.html#supported-instance-types
-	limits, ok := vpc.Limits[aws.StringValue(i.InstanceType)]
+	limits, ok := Limits[aws.StringValue(i.InstanceType)]
 	if enablePodENI && ok && limits.IsTrunkingCompatible {
 		return resources.Quantity(fmt.Sprint(limits.BranchInterface))
 	}

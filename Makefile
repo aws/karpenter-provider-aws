@@ -88,6 +88,9 @@ docgen: ## Generate docs
 
 release-gen: docgen ## Generate any materials which should be updated prior to release
 	go run hack/code/prices_gen.go -- pkg/cloudprovider/aws/zz_generated.pricing.go
+	go run hack/code/vpc_limits_gen.go -- \
+		--url=https://raw.githubusercontent.com/aws/amazon-vpc-resource-controller-k8s/master/pkg/aws/vpc/limits.go \
+		--output=pkg/cloudprovider/aws/zz_generated.vpclimits.go
 	hack/boilerplate.sh
 	go mod tidy
 	go mod download
