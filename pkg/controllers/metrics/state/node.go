@@ -189,16 +189,16 @@ func (ns *nodeScraper) set(resourceList v1.ResourceList, node *v1.Node, gaugeVec
 }
 
 func (ns *nodeScraper) getSystemOverhead(node *v1.Node) v1.ResourceList {
-	systemOverheads := v1.ResourceList{}
+	systemOverhead := v1.ResourceList{}
 	if len(node.Status.Allocatable) > 0 {
 		// calculating system daemons overhead
 		for resourceName, quantity := range node.Status.Allocatable {
 			overhead := node.Status.Capacity[resourceName]
 			overhead.Sub(quantity)
-			systemOverheads[resourceName] = overhead
+			systemOverhead[resourceName] = overhead
 		}
 	}
-	return systemOverheads
+	return systemOverhead
 }
 
 func (ns *nodeScraper) getNodeLabels(node *v1.Node, resourceTypeName string) prometheus.Labels {
