@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1_test
+package v1alpha5_test
 
 import (
 	"context"
@@ -41,7 +41,7 @@ func TestAPIs(t *testing.T) {
 }
 
 var _ = Describe("Validation", func() {
-	var provisioner v1alpha1.Provisioner
+	var provisioner v1alpha5.Provisioner
 	BeforeEach(func() {
 		provisioner = Provisioner(test.ProvisionerOptions{})
 	})
@@ -317,7 +317,7 @@ var _ = Describe("Validation", func() {
 	})
 })
 
-func Provisioner(options test.ProvisionerOptions) v1alpha1.Provisioner {
+func Provisioner(options test.ProvisionerOptions) v1alpha5.Provisioner {
 	if options.Provider == nil {
 		options.Provider = &v1alpha1.AWS{}
 	}
@@ -332,7 +332,7 @@ func Provisioner(options test.ProvisionerOptions) v1alpha1.Provisioner {
 		provider.SecurityGroupSelector = map[string]string{"foo": "bar"}
 	}
 	from := test.Provisioner(options)
-	to := v1alpha1.Provisioner(*from)
+	to := v1alpha5.Provisioner(*from)
 	// Apply provider specific defaults
 	to.SetDefaults(context.Background())
 	return to

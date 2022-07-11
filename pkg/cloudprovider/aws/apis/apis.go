@@ -19,11 +19,10 @@ import (
 	"knative.dev/pkg/webhook/resourcesemantics"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 )
 
 var (
 	Resources = map[schema.GroupVersionKind]resourcesemantics.GenericCRD{
-		v1alpha5.SchemeGroupVersion.WithKind("Provisioner"): &v1alpha1.Provisioner{},
+		v1alpha5.SchemeGroupVersion.WithKind("Provisioner"): &v1alpha5.Provisioner{},
 	}
 )

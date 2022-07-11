@@ -19,7 +19,6 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/samber/lo"
 	"knative.dev/pkg/configmap"
 	"knative.dev/pkg/controller"
 	knativeinjection "knative.dev/pkg/injection"
@@ -60,20 +59,13 @@ func main() {
 
 	// Controllers and webhook
 	sharedmain.MainWithConfig(ctx, "webhook", config,
-		lo.Flatten([][]knativeinjection.ControllerConstructor{
-			// Webhooks
-			{
-				certificates.NewController,
-				newCRDDefaultingWebhook,
-				newCRDValidationWebhook,
-				newConfigValidationController,
-			},
-			// AWS Specific Webhooks
-			{
-				newAWSDefaultingWebhook,
-				newAWSValidationWebhook,
-			},
-		})...,
+		certificates.NewController,
+		newCRDDefaultingWebhook,
+		newCRDValidationWebhook,
+		newConfigValidationController,
+		// AWS Specific Webhooks
+		newAWSDefaultingWebhook,
+		newAWSValidationWebhook,
 	)
 }
 

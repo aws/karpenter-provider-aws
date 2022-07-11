@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package v1alpha5
 
 import (
 	"context"
@@ -22,6 +22,7 @@ import (
 	"knative.dev/pkg/apis"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 )
 
 // Provisioner is an alias type that attaches provider specific defaulting and validation logic
@@ -38,13 +39,11 @@ func (p *Provisioner) defaultLabels() {
 		v1alpha5.LabelCapacityType: ec2.DefaultTargetCapacityTypeOnDemand,
 		v1.LabelArchStable:         v1alpha5.ArchitectureAmd64,
 	} {
-		hasLabel := false
-		if _, ok := p.Spec.Labels[key]; ok {
-			hasLabel = true
-		}
+		_, hasLabel := p.Spec.Labels[key]
 		for _, requirement := range p.Spec.Requirements {
-			if requirement.Key == key {
+			if requirement.Key == key || hasLabel {
 				hasLabel = true
+				break
 			}
 		}
 		if !hasLabel {
@@ -60,7 +59,7 @@ func (p *Provisioner) Validate(ctx context.Context) (errs *apis.FieldError) {
 	if p.Spec.Provider == nil {
 		return nil
 	}
-	provider, err := Deserialize(p.Spec.Provider)
+	provider, err := v1alpha1.Deserialize(p.Spec.Provider)
 	if err != nil {
 		return apis.ErrGeneric(err.Error())
 	}
