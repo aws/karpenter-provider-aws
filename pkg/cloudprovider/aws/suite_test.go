@@ -29,7 +29,6 @@ import (
 	"github.com/samber/lo"
 
 	"github.com/Pallinder/go-randomdata"
-	"github.com/aws/amazon-vpc-resource-controller-k8s/pkg/aws/vpc"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/amifamily"
@@ -282,7 +281,7 @@ var _ = Describe("Allocation", func() {
 					node := ExpectScheduled(ctx, env.Client, pod)
 					Expect(node.Labels).To(HaveKey(v1.LabelInstanceTypeStable))
 					supportsPodENI := func() bool {
-						limits, ok := vpc.Limits[node.Labels[v1.LabelInstanceTypeStable]]
+						limits, ok := limits[node.Labels[v1.LabelInstanceTypeStable]]
 						return ok && limits.IsTrunkingCompatible
 					}
 					Expect(supportsPodENI()).To(Equal(true))

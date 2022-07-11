@@ -88,6 +88,7 @@ docgen: ## Generate docs
 
 release-gen: docgen ## Generate any materials which should be updated prior to release
 	go run hack/code/prices_gen.go -- pkg/cloudprovider/aws/zz_generated.pricing.go
+	./hack/code/vpc_limits_gen.sh pkg/cloudprovider/aws/zz_generated.limits.go
 	hack/boilerplate.sh
 	go mod tidy
 	go mod download
