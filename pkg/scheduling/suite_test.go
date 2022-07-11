@@ -161,17 +161,17 @@ var _ = Describe("Scheduling", func() {
 			B := scheduling.NewNodeSelectorRequirements()
 			Expect(A.Compatible(B)).To(Succeed())
 		})
-		It("A should fail to be compatible to B, <Empty, In> operator, indirectional", func() {
+		It("A should be compatible to B, <Empty, In> operator, indirectional", func() {
 			A := scheduling.NewNodeSelectorRequirements()
 			B := scheduling.NewNodeSelectorRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"foo"}})
-			Expect(A.Compatible(B)).ToNot(Succeed())
+			Expect(A.Compatible(B)).To(Succeed())
 		})
 		It("A should be compatible to B, <Empty, NotIn> operator", func() {
 			A := scheduling.NewNodeSelectorRequirements()
 			B := scheduling.NewNodeSelectorRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpNotIn, Values: []string{"foo"}})
 			Expect(A.Compatible(B)).To(Succeed())
 		})
-		It("A should fail to be compatible to B, <Empty, Exists> operator, conflicting", func() {
+		It("A should be compatible to B, <Empty, Exists> operator, conflicting", func() {
 			A := scheduling.NewNodeSelectorRequirements()
 			B := scheduling.NewNodeSelectorRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpExists})
 			Expect(A.Compatible(B)).ToNot(Succeed())
