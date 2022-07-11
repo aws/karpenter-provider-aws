@@ -361,8 +361,8 @@ func (p *InstanceProvider) filterInstanceTypes(instanceTypes []cloudprovider.Ins
 		if !functional.HasAnyPrefix(*it.InstanceType, "m", "c", "r", "a", "t", "i") {
 			continue
 		}
-		// deprioritize 1st/2nd gen burstable and graviton 1
-		if functional.HasAnyPrefix(*it.InstanceType, "t1", "t2", "a1") {
+		// deprioritize some older instance types including 1st/2nd gen burstable, compute and graviton
+		if functional.HasAnyPrefix(*it.InstanceType, "t1", "t2", "a1", "c1") {
 			continue
 		}
 		// deprioritize metal
