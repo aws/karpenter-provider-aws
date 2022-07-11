@@ -19,9 +19,13 @@ import (
 	"fmt"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
+	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -33,12 +37,16 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/scheduling"
+	"github.com/aws/karpenter/pkg/utils/functional"
+	"github.com/aws/karpenter/pkg/utils/sets"
 )
 
 type AMIProvider struct {
-	cache      *cache.Cache
+	ssmCache   *cache.Cache
+	ec2Cache   *cache.Cache
 	ssm        ssmiface.SSMAPI
 	kubeClient client.Client
+	ec2api     ec2iface.EC2API
 }
 
 // Get returns a set of AMIIDs and corresponding instance types. AMI may vary due to architecture, accelerator, etc
@@ -52,7 +60,7 @@ func (p *AMIProvider) Get(ctx context.Context, provider *awsv1alpha1.AWS, nodeRe
 	var amiID string
 	if len(amiRequirements) > 0 {
 		for _, instanceType := range nodeRequest.InstanceTypeOptions {
-			amiID = getAMIOverride(instanceType, amiRequirements)
+			amiID = getCompatibleAMI(instanceType, amiRequirements)
 			if amiID != "" {
 				amiIDs[amiID] = append(amiIDs[amiID], instanceType)
 			}
@@ -73,7 +81,7 @@ func (p *AMIProvider) Get(ctx context.Context, provider *awsv1alpha1.AWS, nodeRe
 }
 
 func (p *AMIProvider) getDefaultAMIFromSSM(ctx context.Context, instanceType cloudprovider.InstanceType, ssmQuery string) (string, error) {
-	if id, ok := p.cache.Get(ssmQuery); ok {
+	if id, ok := p.ssmCache.Get(ssmQuery); ok {
 		return id.(string), nil
 	}
 	output, err := p.ssm.GetParameterWithContext(ctx, &ssm.GetParameterInput{Name: aws.String(ssmQuery)})
@@ -81,7 +89,7 @@ func (p *AMIProvider) getDefaultAMIFromSSM(ctx context.Context, instanceType clo
 		return "", fmt.Errorf("getting ssm parameter %q, %w", ssmQuery, err)
 	}
 	ami := aws.StringValue(output.Parameter.Value)
-	p.cache.SetDefault(ssmQuery, ami)
+	p.ssmCache.SetDefault(ssmQuery, ami)
 	logging.FromContext(ctx).Debugf("Discovered %s for query %q", ami, ssmQuery)
 	return ami, nil
 }
@@ -93,18 +101,95 @@ func (p *AMIProvider) getAMIRequirements(ctx context.Context, providerRef *v1alp
 		if err := p.kubeClient.Get(ctx, types.NamespacedName{Name: providerRef.Name}, &ant); err != nil {
 			return amiRequirements, fmt.Errorf("retrieving provider reference, %w", err)
 		}
-		for _, ami := range ant.Spec.AMIs {
-			amiRequirements[ami.ID] = ami.Requirements()
+		if len(ant.Spec.AMISelector) == 0 {
+			return amiRequirements, nil
 		}
+		return p.selectAMIs(ctx, ant.Spec.AMISelector)
 	}
 	return amiRequirements, nil
 }
 
-func getAMIOverride(instanceType cloudprovider.InstanceType, amiRequirements map[string]scheduling.Requirements) string {
+func getCompatibleAMI(instanceType cloudprovider.InstanceType, amiRequirements map[string]scheduling.Requirements) string {
 	for amiID, requirements := range amiRequirements {
 		if err := instanceType.Requirements().Compatible(requirements); err == nil {
 			return amiID
 		}
 	}
 	return ""
+}
+
+func (p *AMIProvider) selectAMIs(ctx context.Context, amiSelector map[string]string) (map[string]scheduling.Requirements, error) {
+	ec2AMIs, err := p.fetchAMIsFromEC2(ctx, p.getFilters(amiSelector))
+	if err != nil {
+		return nil, err
+	}
+	if len(ec2AMIs) == 0 {
+		return nil, fmt.Errorf("no amis exist given constraints")
+	}
+	var amiIDs = map[string]scheduling.Requirements{}
+	for _, ec2AMI := range ec2AMIs {
+		amiIDs[*ec2AMI.ImageId] = p.getRequirementsFromImage(ec2AMI)
+	}
+	return amiIDs, nil
+}
+
+func (p *AMIProvider) getRequirementsFromImage(ec2Image *ec2.Image) scheduling.Requirements {
+	requirements := scheduling.NewRequirements()
+	for _, tag := range ec2Image.Tags {
+		if v1alpha5.WellKnownLabels.Has(*tag.Key) {
+			requirements.Add(scheduling.Requirements{*tag.Key: sets.NewSet(*tag.Value)})
+		}
+	}
+	// Always add the architecture of an image as a requirement, irrespective of what's specified in EC2 tags.
+	architecture := *ec2Image.Architecture
+	if value, ok := awsv1alpha1.AWSToKubeArchitectures[architecture]; ok {
+		architecture = value
+	}
+	requirements.Add(scheduling.Requirements{v1.LabelArchStable: sets.NewSet(architecture)})
+	return requirements
+}
+
+func (p *AMIProvider) getFilters(amiSelector map[string]string) []*ec2.Filter {
+	filters := []*ec2.Filter{}
+	for key, value := range amiSelector {
+		if key == "aws-ids" {
+			filterValues := functional.SplitCommaSeparatedString(value)
+			filters = append(filters, &ec2.Filter{
+				Name:   aws.String("image-id"),
+				Values: aws.StringSlice(filterValues),
+			})
+		} else {
+			filters = append(filters, &ec2.Filter{
+				Name:   aws.String(fmt.Sprintf("tag:%s", key)),
+				Values: []*string{aws.String(value)},
+			})
+		}
+	}
+	return filters
+}
+
+func (p *AMIProvider) fetchAMIsFromEC2(ctx context.Context, filters []*ec2.Filter) ([]*ec2.Image, error) {
+	hash, err := hashstructure.Hash(filters, hashstructure.FormatV2, nil)
+	if err != nil {
+		return nil, err
+	}
+	if amis, ok := p.ec2Cache.Get(fmt.Sprint(hash)); ok {
+		return amis.([]*ec2.Image), nil
+	}
+	// This API is not paginated, so a single call suffices.
+	output, err := p.ec2api.DescribeImagesWithContext(ctx, &ec2.DescribeImagesInput{Filters: filters})
+	if err != nil {
+		return nil, fmt.Errorf("describing images %+v, %w", filters, err)
+	}
+	p.ec2Cache.SetDefault(fmt.Sprint(hash), output.Images)
+	logging.FromContext(ctx).Debugf("Discovered images: %s", amiIDs(output.Images))
+	return output.Images, nil
+}
+
+func amiIDs(amis []*ec2.Image) []string {
+	names := []string{}
+	for _, ami := range amis {
+		names = append(names, aws.StringValue(ami.ImageId))
+	}
+	return names
 }

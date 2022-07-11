@@ -31,10 +31,9 @@ type AWSNodeTemplateSpec struct {
 	// +optional
 	UserData     *string `json:"userData,omitempty"`
 	v1alpha1.AWS `json:",inline"`
-	// AMIs is a list of custom AMIs that Karpenter will choose from. If multiple AMIs satisfy your pod requirements,
-	// one will be chosen at random.
+	// AMISelector discovers AMIs to be used by Amazon EC2 tags.
 	// +optional
-	AMIs []AMI `json:"amis,omitempty"`
+	AMISelector map[string]string `json:"amiSelector,omitempty"`
 }
 
 type AMI struct {

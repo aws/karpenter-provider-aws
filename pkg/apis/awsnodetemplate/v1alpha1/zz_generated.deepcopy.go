@@ -112,11 +112,11 @@ func (in *AWSNodeTemplateSpec) DeepCopyInto(out *AWSNodeTemplateSpec) {
 		**out = **in
 	}
 	in.AWS.DeepCopyInto(&out.AWS)
-	if in.AMIs != nil {
-		in, out := &in.AMIs, &out.AMIs
-		*out = make([]AMI, len(*in))
-		for i := range *in {
-			(*in)[i].DeepCopyInto(&(*out)[i])
+	if in.AMISelector != nil {
+		in, out := &in.AMISelector, &out.AMISelector
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
 		}
 	}
 }

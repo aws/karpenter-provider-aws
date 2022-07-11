@@ -19,6 +19,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
 	"github.com/patrickmn/go-cache"
 	core "k8s.io/api/core/v1"
@@ -78,12 +79,14 @@ type AMIFamily interface {
 }
 
 // New constructs a new launch template Resolver
-func New(ctx context.Context, ssm ssmiface.SSMAPI, c *cache.Cache, client client.Client) *Resolver {
+func New(ctx context.Context, ssm ssmiface.SSMAPI, ec2api ec2iface.EC2API, ssmCache *cache.Cache, ec2Cache *cache.Cache, client client.Client) *Resolver {
 	return &Resolver{
 		amiProvider: &AMIProvider{
 			ssm:        ssm,
-			cache:      c,
+			ssmCache:   ssmCache,
+			ec2Cache:   ec2Cache,
 			kubeClient: client,
+			ec2api:     ec2api,
 		},
 		UserDataProvider: NewUserDataProvider(client),
 	}
