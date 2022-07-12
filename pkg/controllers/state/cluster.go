@@ -131,7 +131,11 @@ func (c *Cluster) ForEachNode(f func(n *Node) bool) {
 	}
 	// sort nodes by creation time so we provide a consistent ordering
 	sort.Slice(nodes, func(a, b int) bool {
-		return nodes[a].Node.CreationTimestamp.Time.Before(nodes[b].Node.CreationTimestamp.Time)
+		if nodes[a].Node.CreationTimestamp != nodes[b].Node.CreationTimestamp {
+			return nodes[a].Node.CreationTimestamp.Time.Before(nodes[b].Node.CreationTimestamp.Time)
+		}
+		// sometimes we get nodes created in the same second, so sort again by node UID to provide a consistent ordering
+		return nodes[a].Node.UID < nodes[b].Node.UID
 	})
 
 	for _, node := range nodes {
