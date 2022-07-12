@@ -51,7 +51,6 @@ func TestAPIs(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
 		cp := &fake.CloudProvider{}
 		cluster := state.NewCluster(test.NewConfig(), e.Client, cp)
