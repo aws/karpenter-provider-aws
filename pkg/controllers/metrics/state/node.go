@@ -22,7 +22,9 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/utils/resources"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
@@ -96,12 +98,12 @@ func NewNodeScraper(cluster *state.Cluster) *NodeScraper {
 }
 
 func (ns *NodeScraper) Scrape(ctx context.Context) {
-	nodes := make(map[string]struct{})
+	nodes := sets.NewString()
 	ns.cluster.ForEachNode(func(n *state.Node) bool {
 		if _, ok := ns.labelMap[n.Node.Name]; !ok {
 			ns.labelMap[n.Node.Name] = make(map[*prometheus.GaugeVec][]prometheus.Labels)
 		}
-		nodes[n.Node.Name] = struct{}{}
+		nodes.Insert(n.Node.Name)
 
 		podRequests := resources.Subtract(n.PodTotalRequests, n.DaemonSetRequested)
 		podLimits := resources.Subtract(n.PodTotalLimits, n.DaemonSetLimits)
@@ -128,18 +130,9 @@ func (ns *NodeScraper) Scrape(ctx context.Context) {
 	ns.cleanup(ctx, nodes)
 }
 
-func (ns *NodeScraper) cleanup(ctx context.Context, existingNodes map[string]struct{}) {
-	nodesToRemove := []string{}
-	for nodeName := range ns.labelMap {
-		if _, ok := existingNodes[nodeName]; !ok {
-			nodesToRemove = append(nodesToRemove, nodeName)
-		}
-	}
-
-	// Remove all gauges associated with removed node
-	for _, node := range nodesToRemove {
-		gaugeMap := ns.labelMap[node]
-		for gaugeVec, labelSet := range gaugeMap {
+func (ns *NodeScraper) cleanup(ctx context.Context, existingNodes sets.String) {
+	for node := range sets.NewString(lo.Keys(ns.labelMap)...).Difference(existingNodes) {
+		for gaugeVec, labelSet := range ns.labelMap[node] {
 			for _, labels := range labelSet {
 				gaugeVec.Delete(labels)
 			}
