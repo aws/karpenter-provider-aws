@@ -19,13 +19,11 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/aws/karpenter/pkg/controllers/state"
 
-	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/aws-sdk-go/aws"
 	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -924,7 +922,7 @@ var _ = Describe("Topology", func() {
 			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(1, 2, 2))
 		})
 		It("should only count running/scheduled pods with matching labels scheduled to nodes with a corresponding domain", func() {
-			wrongNamespace := strings.ToLower(randomdata.SillyName())
+			wrongNamespace := test.RandomName()
 			firstNode := test.Node(test.NodeOptions{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{v1.LabelTopologyZone: "test-zone-1"}}})
 			secondNode := test.Node(test.NodeOptions{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{v1.LabelTopologyZone: "test-zone-2"}}})
 			thirdNode := test.Node(test.NodeOptions{}) // missing topology domain
@@ -1205,7 +1203,7 @@ var _ = Describe("Topology", func() {
 			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(1, 5))
 		})
 		It("should only count running/scheduled pods with matching labels scheduled to nodes with a corresponding domain", func() {
-			wrongNamespace := strings.ToLower(randomdata.SillyName())
+			wrongNamespace := test.RandomName()
 			firstNode := test.Node(test.NodeOptions{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{v1alpha5.LabelCapacityType: v1alpha1.CapacityTypeSpot}}})
 			secondNode := test.Node(test.NodeOptions{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{v1alpha5.LabelCapacityType: v1alpha1.CapacityTypeOnDemand}}})
 			thirdNode := test.Node(test.NodeOptions{}) // missing topology capacity type

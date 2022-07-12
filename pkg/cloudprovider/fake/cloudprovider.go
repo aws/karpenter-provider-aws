@@ -17,11 +17,7 @@ package fake
 import (
 	"context"
 	"fmt"
-	"strings"
 	"sync"
-	"sync/atomic"
-
-	"github.com/Pallinder/go-randomdata"
 
 	utilsets "k8s.io/apimachinery/pkg/util/sets"
 
@@ -29,6 +25,7 @@ import (
 
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/scheduling"
+	"github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/pkg/utils/sets"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
@@ -38,8 +35,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-var sequentialNodeID uint64
 
 type CloudProvider struct {
 	InstanceTypes []cloudprovider.InstanceType
@@ -56,7 +51,7 @@ func (c *CloudProvider) Create(ctx context.Context, nodeRequest *cloudprovider.N
 	c.mu.Lock()
 	c.CreateCalls = append(c.CreateCalls, nodeRequest)
 	c.mu.Unlock()
-	name := fmt.Sprintf("n%04d-%s", atomic.AddUint64(&sequentialNodeID, 1), strings.ToLower(randomdata.SillyName()))
+	name := test.RandomName()
 	instanceType := nodeRequest.InstanceTypeOptions[0]
 	// Labels
 	labels := map[string]string{}

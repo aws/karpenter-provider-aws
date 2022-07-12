@@ -16,20 +16,16 @@ package node_test
 
 import (
 	"context"
-	"github.com/aws/karpenter/pkg/controllers/state"
-	"strings"
 	"testing"
 	"time"
 
-	"github.com/aws/karpenter/pkg/cloudprovider/fake"
-
-	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/cloudprovider/fake"
 	"github.com/aws/karpenter/pkg/controllers/node"
+	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/test"
-	"github.com/aws/karpenter/pkg/utils/injectabletime"
-
 	. "github.com/aws/karpenter/pkg/test/expectations"
+	"github.com/aws/karpenter/pkg/utils/injectabletime"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
@@ -68,7 +64,7 @@ var _ = Describe("Controller", func() {
 	var provisioner *v1alpha5.Provisioner
 	BeforeEach(func() {
 		provisioner = &v1alpha5.Provisioner{
-			ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName())},
+			ObjectMeta: metav1.ObjectMeta{Name: test.RandomName()},
 			Spec:       v1alpha5.ProvisionerSpec{},
 		}
 	})

@@ -16,12 +16,7 @@ package test
 
 import (
 	"fmt"
-	"math/rand"
-	"strings"
-	"sync"
-	"time"
 
-	"github.com/Pallinder/go-randomdata"
 	"github.com/imdario/mergo"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/policy/v1beta1"
@@ -59,13 +54,6 @@ type PDBOptions struct {
 	MaxUnavailable *intstr.IntOrString
 }
 
-var (
-	sequentialPodNumber     = 0
-	randomSource            = rand.NewSource(time.Now().UnixNano())
-	randomizer              = rand.New(randomSource) //nolint
-	sequentialPodNumberLock = new(sync.Mutex)
-)
-
 // Pod creates a test pod with defaults that can be overridden by PodOptions.
 // Overrides are applied in order, with a last write wins semantic.
 func Pod(overrides ...PodOptions) *v1.Pod {
@@ -81,7 +69,7 @@ func Pod(overrides ...PodOptions) *v1.Pod {
 	var volumes []v1.Volume
 	for _, pvc := range options.PersistentVolumeClaims {
 		volumes = append(volumes, v1.Volume{
-			Name:         strings.ToLower(randomdata.SillyName()),
+			Name:         RandomName(),
 			VolumeSource: v1.VolumeSource{PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{ClaimName: pvc}},
 		})
 	}
@@ -93,7 +81,7 @@ func Pod(overrides ...PodOptions) *v1.Pod {
 			TopologySpreadConstraints: options.TopologySpreadConstraints,
 			Tolerations:               options.Tolerations,
 			Containers: []v1.Container{{
-				Name:      strings.ToLower(sequentialRandomName()),
+				Name:      RandomName(),
 				Image:     options.Image,
 				Resources: options.ResourceRequirements,
 			}},
@@ -108,19 +96,12 @@ func Pod(overrides ...PodOptions) *v1.Pod {
 	}
 	if options.InitImage != "" {
 		p.Spec.InitContainers = []v1.Container{{
-			Name:      strings.ToLower(sequentialRandomName()),
+			Name:      RandomName(),
 			Image:     options.InitImage,
 			Resources: options.InitResourceRequirements,
 		}}
 	}
 	return p
-}
-
-func sequentialRandomName() string {
-	sequentialPodNumberLock.Lock()
-	defer sequentialPodNumberLock.Unlock()
-	sequentialPodNumber++
-	return fmt.Sprintf("P%04d-%s-%06d", sequentialPodNumber, randomdata.SillyName(), randomizer.Intn(99999))
 }
 
 // Pods creates homogeneous groups of pods based on the passed in options, evenly divided by the total pods requested

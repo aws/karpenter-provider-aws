@@ -24,11 +24,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/pricing"
-	"github.com/samber/lo"
-
-	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/amifamily"
@@ -40,19 +39,17 @@ import (
 	"github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/options"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/patrickmn/go-cache"
+	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	"knative.dev/pkg/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	. "github.com/aws/karpenter/pkg/test/expectations"
 	. "knative.dev/pkg/logging/testing"
@@ -1006,7 +1003,7 @@ var _ = Describe("Allocation", func() {
 					provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
 					content, _ := ioutil.ReadFile("testdata/br_userdata_input.golden")
-					providerRefName := strings.ToLower(randomdata.SillyName())
+					providerRefName := test.RandomName()
 					providerRef := &v1alpha5.ProviderRef{
 						Name: providerRefName,
 					}
@@ -1034,7 +1031,7 @@ var _ = Describe("Allocation", func() {
 					opts.AWSENILimitedPodDensity = false
 					provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
-					providerRefName := strings.ToLower(randomdata.SillyName())
+					providerRefName := test.RandomName()
 					providerRef := &v1alpha5.ProviderRef{
 						Name: providerRefName,
 					}
@@ -1073,7 +1070,7 @@ var _ = Describe("Allocation", func() {
 				It("should not bootstrap on invalid toml user data", func() {
 					provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
-					providerRefName := strings.ToLower(randomdata.SillyName())
+					providerRefName := test.RandomName()
 					providerRef := &v1alpha5.ProviderRef{
 						Name: providerRefName,
 					}
@@ -1095,7 +1092,7 @@ var _ = Describe("Allocation", func() {
 					opts.AWSENILimitedPodDensity = false
 					provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					content, _ := ioutil.ReadFile("testdata/al2_userdata_input.golden")
-					providerRefName := strings.ToLower(randomdata.SillyName())
+					providerRefName := test.RandomName()
 					providerRef := &v1alpha5.ProviderRef{
 						Name: providerRefName,
 					}
@@ -1119,7 +1116,7 @@ var _ = Describe("Allocation", func() {
 				It("should handle empty custom user data", func() {
 					opts.AWSENILimitedPodDensity = false
 					provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
-					providerRefName := strings.ToLower(randomdata.SillyName())
+					providerRefName := test.RandomName()
 					providerRef := &v1alpha5.ProviderRef{
 						Name: providerRefName,
 					}
@@ -1143,7 +1140,7 @@ var _ = Describe("Allocation", func() {
 				It("should not bootstrap invalid MIME UserData", func() {
 					opts.AWSENILimitedPodDensity = false
 					provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
-					providerRefName := strings.ToLower(randomdata.SillyName())
+					providerRefName := test.RandomName()
 					providerRef := &v1alpha5.ProviderRef{
 						Name: providerRefName,
 					}

@@ -16,9 +16,7 @@ package test
 
 import (
 	"fmt"
-	"strings"
 
-	"github.com/Pallinder/go-randomdata"
 	"github.com/imdario/mergo"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -43,7 +41,7 @@ func DaemonSet(overrides ...DaemonSetOptions) *appsv1.DaemonSet {
 		}
 	}
 	if options.Name == "" {
-		options.Name = strings.ToLower(randomdata.SillyName())
+		options.Name = RandomName()
 	}
 	if options.Namespace == "" {
 		options.Namespace = "default"
