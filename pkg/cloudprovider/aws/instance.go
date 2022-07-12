@@ -152,6 +152,7 @@ func (p *InstanceProvider) launchInstance(ctx context.Context, provider *v1alpha
 		TagSpecifications: []*ec2.TagSpecification{
 			{ResourceType: aws.String(ec2.ResourceTypeInstance), Tags: tags},
 			{ResourceType: aws.String(ec2.ResourceTypeVolume), Tags: tags},
+			{ResourceType: aws.String(ec2.ResourceTypeFleet), Tags: tags},
 		},
 	}
 	if capacityType == v1alpha1.CapacityTypeSpot {

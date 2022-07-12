@@ -42,6 +42,7 @@ import (
 
 const (
 	launchTemplateNameFormat  = "Karpenter-%s-%s"
+	karpenterManagedTagKey    = "karpenter.k8s.aws/cluster"
 	kubernetesVersionCacheKey = "kubernetesVersion"
 )
 
@@ -184,11 +185,16 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, optio
 				HttpPutResponseHopLimit: options.MetadataOptions.HTTPPutResponseHopLimit,
 				HttpTokens:              options.MetadataOptions.HTTPTokens,
 			},
+			TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{
+				{ResourceType: aws.String(ec2.ResourceTypeNetworkInterface), Tags: v1alpha1.MergeTags(ctx, options.Tags)},
+			},
 		},
-		TagSpecifications: []*ec2.TagSpecification{{
-			ResourceType: aws.String(ec2.ResourceTypeLaunchTemplate),
-			Tags:         v1alpha1.MergeTags(ctx, options.Tags),
-		}},
+		TagSpecifications: []*ec2.TagSpecification{
+			{
+				ResourceType: aws.String(ec2.ResourceTypeLaunchTemplate),
+				Tags:         v1alpha1.MergeTags(ctx, options.Tags, map[string]string{karpenterManagedTagKey: options.ClusterName}),
+			},
+		},
 	})
 	if err != nil {
 		return nil, err
@@ -238,10 +244,10 @@ func (p *LaunchTemplateProvider) Invalidate(ctx context.Context, ltName string) 
 // hydrateCache queries for existing Launch Templates created by Karpenter for the current cluster and adds to the LT cache.
 // Any error during hydration will result in a panic
 func (p *LaunchTemplateProvider) hydrateCache(ctx context.Context) {
-	queryKey := fmt.Sprintf(launchTemplateNameFormat, injection.GetOptions(ctx).ClusterName, "*")
-	p.logger.Debugf("Hydrating the launch template cache with names matching \"%s\"", queryKey)
+	clusterName := injection.GetOptions(ctx).ClusterName
+	p.logger.Debugf("Hydrating the launch template cache with tags matching \"%s: %s\"", karpenterManagedTagKey, clusterName)
 	if err := p.ec2api.DescribeLaunchTemplatesPagesWithContext(ctx, &ec2.DescribeLaunchTemplatesInput{
-		Filters: []*ec2.Filter{{Name: aws.String("launch-template-name"), Values: []*string{aws.String(queryKey)}}},
+		Filters: []*ec2.Filter{{Name: aws.String(fmt.Sprintf("tag:%s", karpenterManagedTagKey)), Values: []*string{aws.String(clusterName)}}},
 	}, func(output *ec2.DescribeLaunchTemplatesOutput, _ bool) bool {
 		for _, lt := range output.LaunchTemplates {
 			p.cache.SetDefault(*lt.LaunchTemplateName, lt)
@@ -267,7 +273,7 @@ func (p *LaunchTemplateProvider) onCacheEvicted(key string, lt interface{}) {
 		p.logger.Errorf("Unable to delete launch template, %v", err)
 		return
 	}
-	p.logger.Debugf("Deleted launch template %v", aws.StringValue(launchTemplate.LaunchTemplateId))
+	p.logger.Debugf("Deleted launch template %v (%v)", aws.StringValue(launchTemplate.LaunchTemplateName), aws.StringValue(launchTemplate.LaunchTemplateId))
 }
 
 func (p *LaunchTemplateProvider) getInstanceProfile(ctx context.Context, provider *v1alpha1.AWS) (string, error) {
