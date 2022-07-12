@@ -16,7 +16,6 @@ package metrics
 
 import (
 	"context"
-	"strings"
 	"time"
 
 	"github.com/aws/karpenter/pkg/controllers/state"
@@ -25,15 +24,14 @@ import (
 
 const tickPeriodSeconds = 5
 
-type scraper interface {
-	getName() string
+type Scraper interface {
 	Scrape(context.Context)
 }
 
 type MetricScraper struct {
 	Cluster *state.Cluster
 
-	scrapers         []scraper
+	scrapers         []Scraper
 	updateChan       chan struct{}
 	updateReturnChan chan struct{}
 }
@@ -56,13 +54,11 @@ func (ms *MetricScraper) Update() {
 func (ms *MetricScraper) init(ctx context.Context) {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("metric-scraper"))
 
-	for _, c := range []scraper{
+	for _, c := range []Scraper{
 		NewNodeScraper(ms.Cluster),
 	} {
 		ms.scrapers = append(ms.scrapers, c)
 	}
-
-	logging.FromContext(ctx).Debugf("Starting metric-scraper with the following scrapers: %s", strings.Join(ms.getScraperNames(), ", "))
 
 	go func() {
 		ticker := time.NewTicker(tickPeriodSeconds * time.Second)
@@ -87,12 +83,4 @@ func (ms *MetricScraper) scrape(ctx context.Context) {
 	for _, c := range ms.scrapers {
 		c.Scrape(ctx)
 	}
-}
-
-func (ms *MetricScraper) getScraperNames() []string {
-	names := []string{}
-	for _, scraper := range ms.scrapers {
-		names = append(names, scraper.getName())
-	}
-	return names
 }

@@ -23,8 +23,7 @@ import (
 	"github.com/aws/karpenter/pkg/utils/resources"
 	"github.com/prometheus/client_golang/prometheus"
 	v1 "k8s.io/api/core/v1"
-	"knative.dev/pkg/logging"
-	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
 const (
@@ -80,7 +79,7 @@ func init() {
 		daemonLimitsGaugeVec,
 		overheadGaugeVec,
 	} {
-		crmetrics.Registry.MustRegister(gauge)
+		metrics.Registry.MustRegister(gauge)
 	}
 }
 
@@ -96,15 +95,10 @@ func NewNodeScraper(cluster *state.Cluster) *NodeScraper {
 	}
 }
 
-func (ns *NodeScraper) getName() string {
-	return "nodes"
-}
-
 func (ns *NodeScraper) Scrape(ctx context.Context) {
 	nodes := make(map[string]struct{})
 	ns.cluster.ForEachNode(func(n *state.Node) bool {
 		if _, ok := ns.labelMap[n.Node.Name]; !ok {
-			logging.FromContext(ctx).Debugf("Tracking new node: %s", n.Node.Name)
 			ns.labelMap[n.Node.Name] = make(map[*prometheus.GaugeVec][]prometheus.Labels)
 		}
 		nodes[n.Node.Name] = struct{}{}
@@ -151,10 +145,6 @@ func (ns *NodeScraper) cleanup(ctx context.Context, existingNodes map[string]str
 			}
 		}
 		delete(ns.labelMap, node)
-	}
-
-	if len(nodesToRemove) > 0 {
-		logging.FromContext(ctx).Debugf("Removed the following node gauges: %s", strings.Join(nodesToRemove, ", "))
 	}
 }
 
