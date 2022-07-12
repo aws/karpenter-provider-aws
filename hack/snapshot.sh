@@ -24,3 +24,4 @@ authenticate
 buildImages $HELM_CHART_VERSION
 cosignImages
 publishHelmChart
+notifyRelease "snapshot" $HELM_CHART_VERSION

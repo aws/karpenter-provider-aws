@@ -100,13 +100,13 @@ release: release-gen ## Generate release manifests and publish a versioned conta
 	$(WITH_GOFLAGS) ./hack/release.sh
 
 nightly: ## Tag the latest snapshot release with timestamp
-	./hack/add-snapshot-tag.sh $(shell git rev-parse HEAD) $(shell date +"%Y%m%d")
+	./hack/add-snapshot-tag.sh $(shell git rev-parse HEAD) $(shell date +"%Y%m%d") "nightly"
 
 snapshot: ## Generate a snapshot release out of the current commit
 	$(WITH_GOFLAGS) ./hack/snapshot.sh
 
 stablerelease: ## Tags the snapshot release of the current commit with the latest tag available, for prod launch
-	./hack/add-snapshot-tag.sh $(shell git rev-parse HEAD) $(shell git describe --tags --exact-match || echo "Current commit is not tagged")
+	./hack/add-snapshot-tag.sh $(shell git rev-parse HEAD) $(shell git describe --tags --exact-match || echo "Current commit is not tagged") "stable"
 
 toolchain: ## Install developer toolchain
 	./hack/toolchain.sh

@@ -8,6 +8,7 @@ then
 fi
 SNAPSHOT_TAG=$1
 NEW_TAG=$2
+RELEASE_TYPE=$3
 RELEASE_REPO=${RELEASE_REPO:-public.ecr.aws/karpenter/}
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
@@ -28,3 +29,4 @@ tagRelease() {
 
 authenticate
 tagAllRepositories
+notifyRelease $RELEASE_TYPE $HELM_CHART_VERSION
