@@ -48,5 +48,6 @@ notifyRelease(){
   MESSAGE="{\"releaseType\":\"${RELEASE_TYPE}\",\"releaseIdentifier\":\"${RELEASE_IDENTIFIER}\"}"
   aws sns publish \
       --topic-arn "arn:aws:sns:us-east-1:071440425669:KarpenterReleases" \
-      --message ${MESSAGE}
+      --message ${MESSAGE} \
+      --no-cli-pager
 }
