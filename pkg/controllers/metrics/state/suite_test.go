@@ -48,19 +48,13 @@ var nodeScraper *statemetrics.NodeScraper
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Controllers/State")
+	RunSpecs(t, "Controllers/Metrics/State")
 }
 
 var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
-})
 
-var _ = AfterSuite(func() {
-	Expect(env.Stop()).To(Succeed(), "Failed to stop environment")
-})
-
-var _ = BeforeEach(func() {
 	cloudProvider = &fake.CloudProvider{InstanceTypes: fake.InstanceTypesAssorted()}
 	cluster = state.NewCluster(env.Client, cloudProvider)
 	provisioner = test.Provisioner(test.ProvisionerOptions{ObjectMeta: metav1.ObjectMeta{Name: "default"}})
@@ -70,8 +64,9 @@ var _ = BeforeEach(func() {
 	ExpectApplied(ctx, env.Client, provisioner)
 })
 
-var _ = AfterEach(func() {
+var _ = AfterSuite(func() {
 	ExpectCleanedUp(ctx, env.Client)
+	Expect(env.Stop()).To(Succeed(), "Failed to stop environment")
 })
 
 var _ = Describe("Node Metrics", func() {
