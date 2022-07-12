@@ -19,9 +19,19 @@ publishHelmChart() {
     )
 }
 
+notifyIfStableRelease(){
+  COMMIT_TAG=$(git describe --tags --exact-match || echo "none")
+  if [[ "${COMMIT_TAG}" == "none" || "${COMMIT_TAG}" != v* ]]; then
+    echo "No valid stable tag releases found in '${COMMIT_TAG}'"
+    return
+  fi
+  notifyRelease "stable" $COMMIT_TAG
+}
+
 requireCloudProvider
 authenticate
 buildImages $HELM_CHART_VERSION
 cosignImages
 publishHelmChart
 notifyRelease "snapshot" $HELM_CHART_VERSION
+notifyIfStableRelease
