@@ -45,6 +45,10 @@ var _ = BeforeSuite(func() {
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })
 
+var _ = AfterSuite(func() {
+	Expect(env.Stop()).To(Succeed(), "Failed to stop environment")
+})
+
 var _ = Describe("Node Metrics", func() {
 	It("should update the allocatable metric", func() {
 		node := test.Node(test.NodeOptions{
