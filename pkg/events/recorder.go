@@ -24,9 +24,11 @@ import (
 type Recorder interface {
 	// NominatePod is called when we have determined that a pod should schedule against an existing node and don't
 	// currently need to provision new capacity for the pod.
-	NominatePod(pod *v1.Pod, node *v1.Node)
+	NominatePod(*v1.Pod, *v1.Node)
 	// PodFailedToSchedule is called when a pod has failed to schedule entirely.
-	PodFailedToSchedule(pod *v1.Pod, err error)
+	PodFailedToSchedule(*v1.Pod, error)
+	// NodeFailedToDrain is called when a pod causes a node draining to fail
+	NodeFailedToDrain(*v1.Node, error)
 }
 
 type recorder struct {
@@ -43,4 +45,8 @@ func (r recorder) NominatePod(pod *v1.Pod, node *v1.Node) {
 
 func (r recorder) PodFailedToSchedule(pod *v1.Pod, err error) {
 	r.rec.Eventf(pod, "Warning", "FailedProvisioning", "Failed to provision new node, %s", err)
+}
+
+func (r recorder) NodeFailedToDrain(node *v1.Node, err error) {
+	r.rec.Eventf(node, "Warning", "FailedDraining", "Failed to drain node, %s", err)
 }

@@ -34,6 +34,7 @@ import (
 
 	provisioning "github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/events"
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injection"
 )
@@ -44,18 +45,20 @@ const controllerName = "termination"
 type Controller struct {
 	Terminator *Terminator
 	KubeClient client.Client
+	Recorder   events.Recorder
 }
 
 // NewController constructs a controller instance
-func NewController(ctx context.Context, kubeClient client.Client, coreV1Client corev1.CoreV1Interface, cloudProvider cloudprovider.CloudProvider) *Controller {
+func NewController(ctx context.Context, kubeClient client.Client, coreV1Client corev1.CoreV1Interface, recorder events.Recorder, cloudProvider cloudprovider.CloudProvider) *Controller {
 	return &Controller{
 		KubeClient: kubeClient,
 		Terminator: &Terminator{
 			KubeClient:    kubeClient,
 			CoreV1Client:  coreV1Client,
 			CloudProvider: cloudProvider,
-			EvictionQueue: NewEvictionQueue(ctx, coreV1Client),
+			EvictionQueue: NewEvictionQueue(ctx, coreV1Client, recorder),
 		},
+		Recorder: recorder,
 	}
 }
 
@@ -84,7 +87,10 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// 4. Drain node
 	drained, err := c.Terminator.drain(ctx, node)
 	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("draining node %s, %w", node.Name, err)
+		if !IsNodeDrainErr(err) {
+			return reconcile.Result{}, err
+		}
+		c.Recorder.NodeFailedToDrain(node, err)
 	}
 	if !drained {
 		return reconcile.Result{Requeue: true}, nil

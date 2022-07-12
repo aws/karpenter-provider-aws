@@ -62,6 +62,10 @@ func Pod(overrides ...PodOptions) *v1.Pod {
 		if err := mergo.Merge(&options, opts, mergo.WithOverride); err != nil {
 			panic(fmt.Sprintf("Failed to merge pod options: %s", err))
 		}
+		// need this since mergo won't override a nil slice with an empty slice
+		if len(opts.ObjectMeta.OwnerReferences) == 0 && opts.ObjectMeta.OwnerReferences != nil {
+			options.OwnerReferences = []metav1.OwnerReference{}
+		}
 	}
 	if options.Image == "" {
 		options.Image = "public.ecr.aws/eks-distro/kubernetes/pause:3.2"

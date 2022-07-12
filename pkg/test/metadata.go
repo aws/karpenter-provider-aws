@@ -45,5 +45,13 @@ func ObjectMeta(options metav1.ObjectMeta) metav1.ObjectMeta {
 	if options.Namespace == "" {
 		options.Namespace = "default"
 	}
+	if options.OwnerReferences == nil {
+		options.OwnerReferences = []metav1.OwnerReference{{
+			APIVersion: "v1",
+			Kind:       "Namespace",
+			Name:       "default",
+			UID:        "58953756-099e-47ad-bc6f-0486b690ea12",
+		}}
+	}
 	return options
 }
