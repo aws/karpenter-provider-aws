@@ -1,10 +1,11 @@
 package integration
 
 import (
+	"testing"
+
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"testing"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
@@ -36,7 +37,7 @@ var _ = AfterEach(func() {
 })
 
 var _ = Describe("Sanity Checks", func() {
-	It("should provision a node for a single pod", func() {
+	It("should provision nodes", func() {
 		provider := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{AWS: v1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.Options.EnvironmentName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.Options.EnvironmentName},
