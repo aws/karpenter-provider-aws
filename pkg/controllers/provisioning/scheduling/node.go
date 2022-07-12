@@ -106,6 +106,14 @@ func (n *Node) Add(ctx context.Context, pod *v1.Pod) error {
 	return nil
 }
 
+// FinalizeScheduling is called once all scheduling has completed and allows the node to perform any cleanup
+// necessary before its requirements are used for instance launching
+func (n *Node) FinalizeScheduling() {
+	// We need nodes to have hostnames for topology purposes, but we don't want to pass that node name on to consumers
+	// of the node as it will be displayed in error messages
+	delete(n.Requirements, v1.LabelHostname)
+}
+
 func (n *Node) String() string {
 	var itSb strings.Builder
 	for i, it := range n.InstanceTypeOptions {

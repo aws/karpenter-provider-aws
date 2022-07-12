@@ -126,16 +126,14 @@ var _ = BeforeSuite(func() {
 		cloudProvider = &CloudProvider{
 			subnetProvider:       subnetProvider,
 			instanceTypeProvider: instanceTypeProvider,
-			instanceProvider: &InstanceProvider{
-				fakeEC2API, instanceTypeProvider, subnetProvider, &LaunchTemplateProvider{
-					ec2api:                fakeEC2API,
-					amiFamily:             amifamily.New(ctx, fake.SSMAPI{}, fakeEC2API, ssmCache, ec2Cache, e.Client),
-					clientSet:             clientSet,
-					securityGroupProvider: securityGroupProvider,
-					cache:                 launchTemplateCache,
-					caBundle:              ptr.String("ca-bundle"),
-				},
-			},
+			instanceProvider: NewInstanceProvider(ctx, fakeEC2API, instanceTypeProvider, subnetProvider, &LaunchTemplateProvider{
+				ec2api:                fakeEC2API,
+				amiFamily:             amifamily.New(ctx, fake.SSMAPI{}, fakeEC2API, ssmCache, ec2Cache, e.Client),
+				clientSet:             clientSet,
+				securityGroupProvider: securityGroupProvider,
+				cache:                 launchTemplateCache,
+				caBundle:              ptr.String("ca-bundle"),
+			}),
 			kubeClient: e.Client,
 		}
 		cfg = test.NewConfig()
