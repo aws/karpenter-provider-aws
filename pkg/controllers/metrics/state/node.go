@@ -36,13 +36,67 @@ const (
 )
 
 var (
-	allocatableGaugeVec    = newNodeGaugeVec("allocatable", "Node allocatable are the resources allocatable by nodes. Labeled by provisioner name, node name, zone, architecture, capacity type, instance type, node phase and resource type.")
-	podRequestsGaugeVec    = newNodeGaugeVec("total_pod_requests", "Node total pod requests are the resources requested by non-DaemonSet pods bound to nodes.  Labeled by provisioner name, node name, zone, architecture, capacity type, instance type, node phase and resource type.")
-	podLimitsGaugeVec      = newNodeGaugeVec("total_pod_limits", "Node total pod limits are the resources specified by non-DaemonSet pod limits. Labeled by provisioner name, node name, zone, architecture, capacity type, instance type, node phase and resource type.")
-	daemonRequestsGaugeVec = newNodeGaugeVec("total_daemon_requests", "Node total daemon requests are the resource requested by DaemonSet pods bound to nodes. Labeled by provisioner name, node name, zone, architecture, capacity type, instance type, node phase and resource type.")
-	daemonLimitsGaugeVec   = newNodeGaugeVec("total_daemon_limits", "Node total pod limits are the resources specified by DaemonSet pod limits. Labeled by provisioner name, node name, zone, architecture, capacity type, instance type, node phase and resource type.")
-	overheadGaugeVec       = newNodeGaugeVec("system_overhead", "Node system daemon overhead are the resources reserved for system overhead, the difference between the node's capacity and allocatable values are reported by the status. Labeled by provisioner name, node name, zone, architecture, capacity type, instance type, node phase and resource type.")
-	wellKnownLabels        = getWellKnownLabels()
+	allocatableGaugeVec = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "karpenter",
+			Subsystem: "nodes",
+			Name:      "allocatable",
+			Help:      "Node allocatable are the resources allocatable by nodes. Labeled by provisioner name, node name, zone, architecture, capacity type, instance type, node phase and resource type.",
+		},
+		nodeLabelNames(),
+	)
+
+	podRequestsGaugeVec = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "karpenter",
+			Subsystem: "nodes",
+			Name:      "total_pod_requests",
+			Help:      "Node total pod requests are the resources requested by non-DaemonSet pods bound to nodes.  Labeled by provisioner name, node name, zone, architecture, capacity type, instance type, node phase and resource type.",
+		},
+		nodeLabelNames(),
+	)
+
+	podLimitsGaugeVec = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "karpenter",
+			Subsystem: "nodes",
+			Name:      "total_pod_limits",
+			Help:      "Node total pod limits are the resources specified by non-DaemonSet pod limits. Labeled by provisioner name, node name, zone, architecture, capacity type, instance type, node phase and resource type.",
+		},
+		nodeLabelNames(),
+	)
+
+	daemonRequestsGaugeVec = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "karpenter",
+			Subsystem: "nodes",
+			Name:      "total_daemon_limits",
+			Help:      "Node total daemon requests are the resource requested by DaemonSet pods bound to nodes. Labeled by provisioner name, node name, zone, architecture, capacity type, instance type, node phase and resource type.",
+		},
+		nodeLabelNames(),
+	)
+
+	daemonLimitsGaugeVec = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "karpenter",
+			Subsystem: "nodes",
+			Name:      "total_daemon_requests",
+			Help:      "Node total daemon limits are the resources specified by DaemonSet pod limits. Labeled by provisioner name, node name, zone, architecture, capacity type, instance type, node phase and resource type.",
+		},
+		nodeLabelNames(),
+	)
+
+	overheadGaugeVec = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "karpenter",
+			Subsystem: "nodes",
+			Name:      "system_overhead",
+			Help:      "Node system daemon overhead are the resources reserved for system overhead, the difference between the node's capacity and allocatable values are reported by the status. Labeled by provisioner name, node name, zone, architecture, capacity type, instance type, node phase and resource type.",
+		},
+		nodeLabelNames(),
+	)
+
+	wellKnownLabels = getWellKnownLabels()
 )
 
 func newNodeGaugeVec(name, help string) *prometheus.GaugeVec {
