@@ -71,23 +71,7 @@ func nodeLabelNames() []string {
 	return labels
 }
 
-type nodeScraper struct {
-	cluster  *state.Cluster
-	labelMap map[string]map[*prometheus.GaugeVec][]prometheus.Labels
-}
-
-func newNodeCollector(cluster *state.Cluster) *nodeScraper {
-	return &nodeScraper{
-		cluster:  cluster,
-		labelMap: make(map[string]map[*prometheus.GaugeVec][]prometheus.Labels),
-	}
-}
-
-func (ns *nodeScraper) getName() string {
-	return "nodes"
-}
-
-func (ns *nodeScraper) init(ctx context.Context) {
+func init() {
 	for _, gauge := range []*prometheus.GaugeVec{
 		allocatableGaugeVec,
 		podRequestsGaugeVec,
@@ -100,7 +84,23 @@ func (ns *nodeScraper) init(ctx context.Context) {
 	}
 }
 
-func (ns *nodeScraper) update(ctx context.Context) {
+type NodeScraper struct {
+	cluster  *state.Cluster
+	labelMap map[string]map[*prometheus.GaugeVec][]prometheus.Labels
+}
+
+func NewNodeScraper(cluster *state.Cluster) *NodeScraper {
+	return &NodeScraper{
+		cluster:  cluster,
+		labelMap: make(map[string]map[*prometheus.GaugeVec][]prometheus.Labels),
+	}
+}
+
+func (ns *NodeScraper) getName() string {
+	return "nodes"
+}
+
+func (ns *NodeScraper) Scrape(ctx context.Context) {
 	nodes := make(map[string]struct{})
 	ns.cluster.ForEachNode(func(n *state.Node) bool {
 		if _, ok := ns.labelMap[n.Node.Name]; !ok {
@@ -134,20 +134,7 @@ func (ns *nodeScraper) update(ctx context.Context) {
 	ns.cleanup(ctx, nodes)
 }
 
-func (ns *nodeScraper) reset() {
-	for _, gauge := range []*prometheus.GaugeVec{
-		allocatableGaugeVec,
-		podRequestsGaugeVec,
-		podLimitsGaugeVec,
-		daemonRequestsGaugeVec,
-		daemonLimitsGaugeVec,
-		overheadGaugeVec,
-	} {
-		gauge.Reset()
-	}
-}
-
-func (ns *nodeScraper) cleanup(ctx context.Context, existingNodes map[string]struct{}) {
+func (ns *NodeScraper) cleanup(ctx context.Context, existingNodes map[string]struct{}) {
 	nodesToRemove := []string{}
 	for nodeName := range ns.labelMap {
 		if _, ok := existingNodes[nodeName]; !ok {
@@ -172,7 +159,7 @@ func (ns *nodeScraper) cleanup(ctx context.Context, existingNodes map[string]str
 }
 
 // set sets the value for the node gauge
-func (ns *nodeScraper) set(resourceList v1.ResourceList, node *v1.Node, gaugeVec *prometheus.GaugeVec) {
+func (ns *NodeScraper) set(resourceList v1.ResourceList, node *v1.Node, gaugeVec *prometheus.GaugeVec) {
 	for resourceName, quantity := range resourceList {
 		// Reformat resource type to be consistent with Prometheus naming conventions (snake_case)
 		resourceTypeName := strings.ReplaceAll(strings.ToLower(string(resourceName)), "-", "_")
@@ -188,7 +175,7 @@ func (ns *nodeScraper) set(resourceList v1.ResourceList, node *v1.Node, gaugeVec
 	}
 }
 
-func (ns *nodeScraper) getSystemOverhead(node *v1.Node) v1.ResourceList {
+func (ns *NodeScraper) getSystemOverhead(node *v1.Node) v1.ResourceList {
 	systemOverhead := v1.ResourceList{}
 	if len(node.Status.Allocatable) > 0 {
 		// calculating system daemons overhead
@@ -201,7 +188,7 @@ func (ns *nodeScraper) getSystemOverhead(node *v1.Node) v1.ResourceList {
 	return systemOverhead
 }
 
-func (ns *nodeScraper) getNodeLabels(node *v1.Node, resourceTypeName string) prometheus.Labels {
+func (ns *NodeScraper) getNodeLabels(node *v1.Node, resourceTypeName string) prometheus.Labels {
 	metricLabels := prometheus.Labels{}
 	metricLabels[resourceType] = resourceTypeName
 	metricLabels[nodeName] = node.GetName()

@@ -24,6 +24,7 @@ import (
 	statemetrics "github.com/aws/karpenter/pkg/controllers/metrics/state"
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/test"
+	io_prometheus_client "github.com/prometheus/client_model/go"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -42,7 +43,7 @@ var nodeController *state.NodeController
 var podController *state.PodController
 var cloudProvider *fake.CloudProvider
 var provisioner *v1alpha5.Provisioner
-var metricScraper *statemetrics.MetricScraper
+var nodeScraper *statemetrics.NodeScraper
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -65,12 +66,11 @@ var _ = BeforeEach(func() {
 	provisioner = test.Provisioner(test.ProvisionerOptions{ObjectMeta: metav1.ObjectMeta{Name: "default"}})
 	nodeController = state.NewNodeController(env.Client, cluster)
 	podController = state.NewPodController(env.Client, cluster)
-	metricScraper = statemetrics.NewMetricScraper(ctx, cluster)
+	nodeScraper = statemetrics.NewNodeScraper(cluster)
 	ExpectApplied(ctx, env.Client, provisioner)
 })
 
 var _ = AfterEach(func() {
-	metricScraper.Terminate()
 	ExpectCleanedUp(ctx, env.Client)
 })
 
@@ -87,7 +87,7 @@ var _ = Describe("Node Metrics", func() {
 		ExpectReconcileSucceeded(ctx, nodeController, client.ObjectKeyFromObject(node))
 
 		// metrics should now be tracking the allocatable capacity of our single node
-		metricScraper.Update()
+		nodeScraper.Scrape(ctx)
 		nodeAllocation := ExpectMetric("karpenter_nodes_allocatable")
 
 		expectedValues := map[string]float64{
@@ -96,13 +96,21 @@ var _ = Describe("Node Metrics", func() {
 			"memory": float64(resources.Memory().Value()),
 		}
 
+		var metric *io_prometheus_client.Metric
 		for _, m := range nodeAllocation.Metric {
 			for _, l := range m.Label {
-				if l.GetName() == "resource_type" {
-					Expect(m.GetGauge().GetValue()).To(Equal(expectedValues[l.GetValue()]),
-						fmt.Sprintf("%s, %f to equal %f", l.GetValue(), m.GetGauge().GetValue(),
-							expectedValues[l.GetValue()]))
+				if l.GetName() == "node_name" && l.GetValue() == node.GetName() {
+					metric = m
+					break
 				}
+			}
+		}
+
+		for _, l := range metric.Label {
+			if l.GetName() == "resource_type" {
+				Expect(metric.GetGauge().GetValue()).To(Equal(expectedValues[l.GetValue()]),
+					fmt.Sprintf("%s, %f to equal %f", l.GetValue(), metric.GetGauge().GetValue(),
+						expectedValues[l.GetValue()]))
 			}
 		}
 	})

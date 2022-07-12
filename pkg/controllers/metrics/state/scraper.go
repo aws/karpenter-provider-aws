@@ -27,16 +27,13 @@ const tickPeriodSeconds = 5
 
 type scraper interface {
 	getName() string
-	init(context.Context)
-	reset()
-	update(context.Context)
+	Scrape(context.Context)
 }
 
 type MetricScraper struct {
 	Cluster *state.Cluster
 
 	scrapers         []scraper
-	terminateChan    chan struct{}
 	updateChan       chan struct{}
 	updateReturnChan chan struct{}
 }
@@ -44,17 +41,11 @@ type MetricScraper struct {
 func NewMetricScraper(ctx context.Context, cluster *state.Cluster) *MetricScraper {
 	mc := &MetricScraper{
 		Cluster:          cluster,
-		terminateChan:    make(chan struct{}),
 		updateChan:       make(chan struct{}),
 		updateReturnChan: make(chan struct{}),
 	}
 	mc.init(ctx)
 	return mc
-}
-
-func (ms *MetricScraper) Terminate() {
-	ms.terminateChan <- struct{}{}
-	ms.ResetScrapers()
 }
 
 func (ms *MetricScraper) Update() {
@@ -66,17 +57,12 @@ func (ms *MetricScraper) init(ctx context.Context) {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("metric-scraper"))
 
 	for _, c := range []scraper{
-		newNodeCollector(ms.Cluster),
+		NewNodeScraper(ms.Cluster),
 	} {
 		ms.scrapers = append(ms.scrapers, c)
 	}
 
 	logging.FromContext(ctx).Debugf("Starting metric-scraper with the following scrapers: %s", strings.Join(ms.getScraperNames(), ", "))
-
-	// Initialize all metrics scrapers
-	for _, scraper := range ms.scrapers {
-		scraper.init(ctx)
-	}
 
 	go func() {
 		ticker := time.NewTicker(tickPeriodSeconds * time.Second)
@@ -84,25 +70,22 @@ func (ms *MetricScraper) init(ctx context.Context) {
 
 		for {
 			select {
-			case <-ms.terminateChan:
-				logging.FromContext(ctx).Debugf("Terminating metric-scraper")
-				return
 			case <-ctx.Done():
 				logging.FromContext(ctx).Debugf("Terminating metric-scraper")
 				return
 			case <-ms.updateChan:
-				ms.update(ctx)
+				ms.scrape(ctx)
 				ms.updateReturnChan <- struct{}{}
 			case <-ticker.C:
-				ms.update(ctx)
+				ms.scrape(ctx)
 			}
 		}
 	}()
 }
 
-func (ms *MetricScraper) update(ctx context.Context) {
+func (ms *MetricScraper) scrape(ctx context.Context) {
 	for _, c := range ms.scrapers {
-		c.update(ctx)
+		c.Scrape(ctx)
 	}
 }
 
@@ -112,10 +95,4 @@ func (ms *MetricScraper) getScraperNames() []string {
 		names = append(names, scraper.getName())
 	}
 	return names
-}
-
-func (ms *MetricScraper) ResetScrapers() {
-	for _, c := range ms.scrapers {
-		c.reset()
-	}
 }
