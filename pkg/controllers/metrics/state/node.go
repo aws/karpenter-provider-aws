@@ -112,18 +112,13 @@ func newNodeGaugeVec(name, help string) *prometheus.GaugeVec {
 }
 
 func nodeLabelNames() []string {
-	labels := []string{
+	return append(
+		lo.Values(wellKnownLabels),
 		resourceType,
 		nodeName,
 		nodeProvisioner,
-		nodePhase, // NOTE: deprecated
-	}
-
-	for _, l := range wellKnownLabels {
-		labels = append(labels, l)
-	}
-
-	return labels
+		nodePhase,
+	)
 }
 
 func init() {
@@ -152,12 +147,12 @@ func NewNodeScraper(cluster *state.Cluster) *NodeScraper {
 }
 
 func (ns *NodeScraper) Scrape(ctx context.Context) {
-	nodes := sets.NewString()
+	existingNodes := sets.NewString()
 	ns.cluster.ForEachNode(func(n *state.Node) bool {
 		if _, ok := ns.labelMap[n.Node.Name]; !ok {
 			ns.labelMap[n.Node.Name] = make(map[*prometheus.GaugeVec][]prometheus.Labels)
 		}
-		nodes.Insert(n.Node.Name)
+		existingNodes.Insert(n.Node.Name)
 
 		// Populate  metrics
 		for gaugeVec, resourceList := range map[*prometheus.GaugeVec]v1.ResourceList{
@@ -168,16 +163,13 @@ func (ns *NodeScraper) Scrape(ctx context.Context) {
 			daemonLimitsGaugeVec:   n.DaemonSetLimits,
 			allocatableGaugeVec:    n.Node.Status.Allocatable,
 		} {
-			ns.set(resourceList, n.Node, gaugeVec)
+			ns.set(gaugeVec, n.Node, resourceList)
 		}
 
 		return true
 	})
 
-	ns.cleanup(ctx, nodes)
-}
-
-func (ns *NodeScraper) cleanup(ctx context.Context, existingNodes sets.String) {
+	// Remove gauges for nodes that no longer exist
 	for node := range sets.NewString(lo.Keys(ns.labelMap)...).Difference(existingNodes) {
 		for gaugeVec, labelSet := range ns.labelMap[node] {
 			for _, labels := range labelSet {
@@ -189,14 +181,11 @@ func (ns *NodeScraper) cleanup(ctx context.Context, existingNodes sets.String) {
 }
 
 // set sets the value for the node gauge
-func (ns *NodeScraper) set(resourceList v1.ResourceList, node *v1.Node, gaugeVec *prometheus.GaugeVec) {
+func (ns *NodeScraper) set(gaugeVec *prometheus.GaugeVec, node *v1.Node, resourceList v1.ResourceList) {
 	for resourceName, quantity := range resourceList {
 		// Reformat resource type to be consistent with Prometheus naming conventions (snake_case)
-		resourceTypeName := strings.ReplaceAll(strings.ToLower(string(resourceName)), "-", "_")
-
-		labels := ns.getNodeLabels(node, resourceTypeName)
+		labels := ns.getNodeLabels(node, strings.ReplaceAll(strings.ToLower(string(resourceName)), "-", "_"))
 		ns.labelMap[node.Name][gaugeVec] = append(ns.labelMap[node.Name][gaugeVec], labels)
-
 		if resourceName == v1.ResourceCPU {
 			gaugeVec.With(labels).Set(float64(quantity.MilliValue()) / float64(1000))
 		} else {
