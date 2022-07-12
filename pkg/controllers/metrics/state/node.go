@@ -16,6 +16,8 @@ package metrics
 
 import (
 	"context"
+	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
@@ -121,7 +123,7 @@ func nodeLabelNames() []string {
 	)
 }
 
-func init() {
+func forEachGaugeVec(f func(*prometheus.GaugeVec)) {
 	for _, gauge := range []*prometheus.GaugeVec{
 		allocatableGaugeVec,
 		podRequestsGaugeVec,
@@ -130,31 +132,42 @@ func init() {
 		daemonLimitsGaugeVec,
 		overheadGaugeVec,
 	} {
-		metrics.Registry.MustRegister(gauge)
+		f(gauge)
 	}
 }
 
+func init() {
+	forEachGaugeVec(func(g *prometheus.GaugeVec) {
+		metrics.Registry.MustRegister(g)
+	})
+}
+
 type NodeScraper struct {
-	cluster  *state.Cluster
-	labelMap map[string]map[*prometheus.GaugeVec][]prometheus.Labels
+	cluster       *state.Cluster
+	gaugeLabelMap map[*prometheus.GaugeVec]map[string]prometheus.Labels
 }
 
 func NewNodeScraper(cluster *state.Cluster) *NodeScraper {
 	return &NodeScraper{
-		cluster:  cluster,
-		labelMap: make(map[string]map[*prometheus.GaugeVec][]prometheus.Labels),
+		cluster: cluster,
+		gaugeLabelMap: func() map[*prometheus.GaugeVec]map[string]prometheus.Labels {
+			m := make(map[*prometheus.GaugeVec]map[string]prometheus.Labels)
+			forEachGaugeVec(func(g *prometheus.GaugeVec) {
+				m[g] = make(map[string]prometheus.Labels)
+			})
+			return m
+		}(),
 	}
 }
 
 func (ns *NodeScraper) Scrape(ctx context.Context) {
-	existingNodes := sets.NewString()
-	ns.cluster.ForEachNode(func(n *state.Node) bool {
-		if _, ok := ns.labelMap[n.Node.Name]; !ok {
-			ns.labelMap[n.Node.Name] = make(map[*prometheus.GaugeVec][]prometheus.Labels)
-		}
-		existingNodes.Insert(n.Node.Name)
+	gaugeLabelSet := make(map[*prometheus.GaugeVec]sets.String)
+	forEachGaugeVec(func(g *prometheus.GaugeVec) {
+		gaugeLabelSet[g] = sets.NewString()
+	})
 
-		// Populate  metrics
+	// Populate metrics
+	ns.cluster.ForEachNode(func(n *state.Node) bool {
 		for gaugeVec, resourceList := range map[*prometheus.GaugeVec]v1.ResourceList{
 			overheadGaugeVec:       ns.getSystemOverhead(n.Node),
 			podRequestsGaugeVec:    resources.Subtract(n.PodTotalRequests, n.DaemonSetRequested),
@@ -163,35 +176,36 @@ func (ns *NodeScraper) Scrape(ctx context.Context) {
 			daemonLimitsGaugeVec:   n.DaemonSetLimits,
 			allocatableGaugeVec:    n.Node.Status.Allocatable,
 		} {
-			ns.set(gaugeVec, n.Node, resourceList)
+			for _, labels := range ns.set(gaugeVec, n.Node, resourceList) {
+				ns.gaugeLabelMap[gaugeVec][labelsToString(labels)] = labels
+				gaugeLabelSet[gaugeVec].Insert(labelsToString(labels))
+			}
 		}
-
 		return true
 	})
 
-	// Remove gauges for nodes that no longer exist
-	for node := range sets.NewString(lo.Keys(ns.labelMap)...).Difference(existingNodes) {
-		for gaugeVec, labelSet := range ns.labelMap[node] {
-			for _, labels := range labelSet {
-				gaugeVec.Delete(labels)
-			}
+	// Remove stale gauges
+	forEachGaugeVec(func(g *prometheus.GaugeVec) {
+		for labelsKey := range sets.NewString(lo.Keys(ns.gaugeLabelMap[g])...).Difference(gaugeLabelSet[g]) {
+			g.Delete(ns.gaugeLabelMap[g][labelsKey])
 		}
-		delete(ns.labelMap, node)
-	}
+	})
 }
 
-// set sets the value for the node gauge
-func (ns *NodeScraper) set(gaugeVec *prometheus.GaugeVec, node *v1.Node, resourceList v1.ResourceList) {
+// set sets the value for the node gauge and returns a slice of the labels for the gauges set
+func (ns *NodeScraper) set(gaugeVec *prometheus.GaugeVec, node *v1.Node, resourceList v1.ResourceList) []prometheus.Labels {
+	gaugeLabels := []prometheus.Labels{}
 	for resourceName, quantity := range resourceList {
 		// Reformat resource type to be consistent with Prometheus naming conventions (snake_case)
-		labels := ns.getNodeLabels(node, strings.ReplaceAll(strings.ToLower(string(resourceName)), "-", "_"))
-		ns.labelMap[node.Name][gaugeVec] = append(ns.labelMap[node.Name][gaugeVec], labels)
+		resourceLabels := ns.getNodeLabels(node, strings.ReplaceAll(strings.ToLower(string(resourceName)), "-", "_"))
+		gaugeLabels = append(gaugeLabels, resourceLabels)
 		if resourceName == v1.ResourceCPU {
-			gaugeVec.With(labels).Set(float64(quantity.MilliValue()) / float64(1000))
+			gaugeVec.With(resourceLabels).Set(float64(quantity.MilliValue()) / float64(1000))
 		} else {
-			gaugeVec.With(labels).Set(float64(quantity.Value()))
+			gaugeVec.With(resourceLabels).Set(float64(quantity.Value()))
 		}
 	}
+	return gaugeLabels
 }
 
 func (ns *NodeScraper) getSystemOverhead(node *v1.Node) v1.ResourceList {
@@ -241,4 +255,15 @@ func getWellKnownLabels() map[string]string {
 		}
 	}
 	return labels
+}
+
+func labelsToString(labels prometheus.Labels) string {
+	keyValues := lo.Entries(labels)
+	sort.Slice(keyValues, func(i, j int) bool {
+		return keyValues[i].Key < keyValues[j].Key
+	})
+
+	return strings.Join(lo.Map(keyValues, func(entry lo.Entry[string, string], _ int) string {
+		return fmt.Sprintf("%s=\"%s\"", entry.Key, entry.Value)
+	}), ",")
 }
