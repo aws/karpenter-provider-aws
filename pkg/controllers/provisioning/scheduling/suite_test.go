@@ -69,14 +69,14 @@ func TestAPIs(t *testing.T) {
 var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
 		cloudProv = &fake.CloudProvider{}
+		cfg = test.NewConfig()
 		instanceTypes, _ := cloudProv.GetInstanceTypes(ctx, nil)
 		// set these on the cloud provider so we can manipulate them if needed
 		cloudProv.InstanceTypes = instanceTypes
-		cluster = state.NewCluster(e.Client, cloudProv)
+		cluster = state.NewCluster(cfg, e.Client, cloudProv)
 		nodeStateController = state.NewNodeController(e.Client, cluster)
 		podStateController = state.NewPodController(e.Client, cluster)
 		recorder = test.NewEventRecorder()
-		cfg = test.NewConfig()
 		controller = provisioning.NewController(ctx, cfg, e.Client, corev1.NewForConfigOrDie(e.Config), recorder, cloudProv, cluster)
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
@@ -1775,6 +1775,9 @@ var _ = Describe("Topology", func() {
 			affPod1 := test.UnschedulablePod(test.PodOptions{
 				TopologySpreadConstraints: tsc,
 				ObjectMeta:                metav1.ObjectMeta{Labels: affLabels},
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("2")},
+				},
 				NodeSelector: map[string]string{
 					v1.LabelArchStable: "arm64",
 				}})
@@ -1782,6 +1785,9 @@ var _ = Describe("Topology", func() {
 			affPod2 := test.UnschedulablePod(test.PodOptions{
 				ObjectMeta:                metav1.ObjectMeta{Labels: affLabels},
 				TopologySpreadConstraints: tsc,
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
+				},
 				PodRequirements: []v1.PodAffinityTerm{{
 					LabelSelector: &metav1.LabelSelector{
 						MatchLabels: affLabels,
@@ -2124,13 +2130,21 @@ var _ = Describe("Topology", func() {
 			affPod1 := test.UnschedulablePod(test.PodOptions{
 				TopologySpreadConstraints: tsc,
 				ObjectMeta:                metav1.ObjectMeta{Labels: affLabels},
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("2")},
+				},
 				NodeSelector: map[string]string{
 					v1.LabelArchStable: "arm64",
 				}})
-			// affPod2 will try to get scheduled with affPod1
+
+			// affPod2 will try to get scheduled on a node with a different archi from affPod1. Due to resource
+			// requests we try to schedule it last
 			affPod2 := test.UnschedulablePod(test.PodOptions{
 				ObjectMeta:                metav1.ObjectMeta{Labels: affLabels},
 				TopologySpreadConstraints: tsc,
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
+				},
 				PodAntiRequirements: []v1.PodAffinityTerm{{
 					LabelSelector: &metav1.LabelSelector{
 						MatchLabels: affLabels,

@@ -112,14 +112,14 @@ func main() {
 	}
 
 	recorder := events.NewDedupeRecorder(events.NewRecorder(manager.GetEventRecorderFor(appName)))
-	cluster := state.NewCluster(manager.GetClient(), cloudProvider)
+	cluster := state.NewCluster(cfg, manager.GetClient(), cloudProvider)
 
 	if err := manager.RegisterControllers(ctx,
 		provisioning.NewController(ctx, cfg, manager.GetClient(), clientSet.CoreV1(), recorder, cloudProvider, cluster),
 		state.NewNodeController(manager.GetClient(), cluster),
 		state.NewPodController(manager.GetClient(), cluster),
 		termination.NewController(ctx, manager.GetClient(), clientSet.CoreV1(), cloudProvider),
-		node.NewController(manager.GetClient(), cloudProvider),
+		node.NewController(manager.GetClient(), cloudProvider, cluster),
 		metricspod.NewController(manager.GetClient()),
 		metricsnode.NewController(manager.GetClient()),
 		metricsprovisioner.NewController(manager.GetClient()),

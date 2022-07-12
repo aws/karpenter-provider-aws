@@ -64,7 +64,7 @@ var _ = BeforeSuite(func() {
 		for _, it := range instanceTypes {
 			instanceTypeMap[it.Name()] = it
 		}
-		cluster := state.NewCluster(e.Client, cloudProvider)
+		cluster := state.NewCluster(cfg, e.Client, cloudProvider)
 		controller = provisioning.NewController(ctx, cfg, e.Client, corev1.NewForConfigOrDie(e.Config), recorder, cloudProvider, cluster)
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")

@@ -138,9 +138,9 @@ var _ = BeforeSuite(func() {
 			},
 			kubeClient: e.Client,
 		}
-		cluster = state.NewCluster(e.Client, cloudProvider)
-		recorder = test.NewEventRecorder()
 		cfg = test.NewConfig()
+		cluster = state.NewCluster(cfg, e.Client, cloudProvider)
+		recorder = test.NewEventRecorder()
 		controller = provisioning.NewController(ctx, cfg, e.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 	})
 

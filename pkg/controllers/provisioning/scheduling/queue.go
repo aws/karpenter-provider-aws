@@ -66,8 +66,11 @@ func (q *Queue) List() []*v1.Pod {
 
 func byCPUAndMemoryDescending(pods []*v1.Pod) func(i int, j int) bool {
 	return func(i, j int) bool {
-		lhs := resources.RequestsForPods(pods[i])
-		rhs := resources.RequestsForPods(pods[j])
+		lhsPod := pods[i]
+		rhsPod := pods[j]
+
+		lhs := resources.RequestsForPods(lhsPod)
+		rhs := resources.RequestsForPods(rhsPod)
 
 		cpuCmp := resources.Cmp(lhs[v1.ResourceCPU], rhs[v1.ResourceCPU])
 		if cpuCmp < 0 {
@@ -83,6 +86,18 @@ func byCPUAndMemoryDescending(pods []*v1.Pod) func(i int, j int) bool {
 		} else if memCmp > 0 {
 			return true
 		}
-		return false
+
+		// If all else is equal, give a consistent ordering. This reduces the number of NominatePod events as we
+		// de-duplicate those based on identical content.
+
+		// unfortunately creation timestamp only has a 1-second resolution, so we would still re-order pods created
+		// during a deployment scale-up if we only looked at creation time
+		if lhsPod.CreationTimestamp != rhsPod.CreationTimestamp {
+			return lhsPod.CreationTimestamp.Before(&rhsPod.CreationTimestamp)
+		}
+
+		// pod UIDs aren't in any order, but since we first sort by creation time this only serves to consistently order
+		// pods created within the same second
+		return lhsPod.UID < rhsPod.UID
 	}
 }
