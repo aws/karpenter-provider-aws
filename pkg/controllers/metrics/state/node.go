@@ -159,21 +159,14 @@ func (ns *NodeScraper) Scrape(ctx context.Context) {
 		}
 		nodes.Insert(n.Node.Name)
 
-		podRequests := resources.Subtract(n.PodTotalRequests, n.DaemonSetRequested)
-		podLimits := resources.Subtract(n.PodTotalLimits, n.DaemonSetLimits)
-		allocatable := n.Node.Status.Capacity
-		if len(n.Node.Status.Allocatable) > 0 {
-			allocatable = n.Node.Status.Allocatable
-		}
-
 		// Populate  metrics
 		for gaugeVec, resourceList := range map[*prometheus.GaugeVec]v1.ResourceList{
 			overheadGaugeVec:       ns.getSystemOverhead(n.Node),
-			podRequestsGaugeVec:    podRequests,
-			podLimitsGaugeVec:      podLimits,
+			podRequestsGaugeVec:    resources.Subtract(n.PodTotalRequests, n.DaemonSetRequested),
+			podLimitsGaugeVec:      resources.Subtract(n.PodTotalLimits, n.DaemonSetLimits),
 			daemonRequestsGaugeVec: n.DaemonSetRequested,
 			daemonLimitsGaugeVec:   n.DaemonSetLimits,
-			allocatableGaugeVec:    allocatable,
+			allocatableGaugeVec:    n.Node.Status.Allocatable,
 		} {
 			ns.set(resourceList, n.Node, gaugeVec)
 		}
