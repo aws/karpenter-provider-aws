@@ -25,7 +25,7 @@ import (
 func NewDedupeRecorder(r Recorder) Recorder {
 	return &dedupe{
 		rec:   r,
-		cache: cache.New(60*time.Second, 10*time.Second),
+		cache: cache.New(120*time.Second, 10*time.Second),
 	}
 }
 
