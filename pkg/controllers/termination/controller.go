@@ -87,11 +87,10 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// 4. Drain node
 	drained, err := c.Terminator.drain(ctx, node)
 	if err != nil {
-		if IsNodeDrainErr(err) {
-			c.Recorder.NodeFailedToDrain(node, err)
-		} else {
-			return reconcile.Result{}, fmt.Errorf("draining node %s, %w", node.Name, err)
+		if !IsNodeDrainErr(err) {
+			return reconcile.Result{}, err
 		}
+		c.Recorder.NodeFailedToDrain(node, err)
 	}
 	if !drained {
 		return reconcile.Result{Requeue: true}, nil
