@@ -35,15 +35,16 @@ import (
 // ProvisionerOptions customizes a Provisioner.
 type ProvisionerOptions struct {
 	metav1.ObjectMeta
-	Limits        v1.ResourceList
-	Provider      interface{}
-	ProviderRef   *v1alpha5.ProviderRef
-	Kubelet       *v1alpha5.KubeletConfiguration
-	Labels        map[string]string
-	Taints        []v1.Taint
-	StartupTaints []v1.Taint
-	Requirements  []v1.NodeSelectorRequirement
-	Status        v1alpha5.ProvisionerStatus
+	Limits               v1.ResourceList
+	Provider             interface{}
+	ProviderRef          *v1alpha5.ProviderRef
+	Kubelet              *v1alpha5.KubeletConfiguration
+	Labels               map[string]string
+	Taints               []v1.Taint
+	StartupTaints        []v1.Taint
+	Requirements         []v1.NodeSelectorRequirement
+	Status               v1alpha5.ProvisionerStatus
+	TTLSecondsAfterEmpty *int64
 }
 
 // Provisioner creates a test provisioner with defaults that can be overridden by ProvisionerOptions.
@@ -61,6 +62,9 @@ func Provisioner(overrides ...ProvisionerOptions) *v1alpha5.Provisioner {
 	if options.Limits == nil {
 		options.Limits = v1.ResourceList{v1.ResourceCPU: resource.MustParse("1000")}
 	}
+	if options.TTLSecondsAfterEmpty == nil {
+		options.TTLSecondsAfterEmpty = ptr.Int64(10)
+	}
 
 	provisioner := &v1alpha5.Provisioner{
 		ObjectMeta: ObjectMeta(options.ObjectMeta),
@@ -72,7 +76,7 @@ func Provisioner(overrides ...ProvisionerOptions) *v1alpha5.Provisioner {
 			StartupTaints:        options.StartupTaints,
 			Labels:               options.Labels,
 			Limits:               &v1alpha5.Limits{Resources: options.Limits},
-			TTLSecondsAfterEmpty: ptr.Int64(30),
+			TTLSecondsAfterEmpty: options.TTLSecondsAfterEmpty,
 		},
 		Status: options.Status,
 	}

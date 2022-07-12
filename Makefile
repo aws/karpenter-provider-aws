@@ -15,7 +15,7 @@ HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${K
       		--set clusterName=${CLUSTER_NAME} \
 			--set clusterEndpoint=${CLUSTER_ENDPOINT} \
 			--set aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME}
-
+TEST_FILTER ?= .*
 help: ## Display help
 	@awk 'BEGIN {FS = ":.*##"; printf "Usage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
@@ -24,17 +24,17 @@ dev: verify test ## Run all steps in the developer loop
 ci: toolchain verify licenses battletest coverage ## Run all steps used by continuous integration
 
 test: ## Run tests
-	go test ./pkg/...
+	go test -run=${TEST_FILTER} ./pkg/...
 
 battletest: ## Run randomized, racing, code coveraged, tests
-	go test ./pkg/... \
+	go test -run=${TEST_FILTER} ./pkg/... \
 		-race \
 		-cover -coverprofile=coverage.out -outputdir=. -coverpkg=./pkg/... \
 		-ginkgo.randomizeAllSpecs \
 		-tags random_test_delay
 
 e2etests: ## Run the e2e suite against your local cluster
-	go test -timeout 60m -v ./test/... -environment-name=${CLUSTER_NAME}
+	go test -timeout 60m -v ./test/suites/... -run=${TEST_FILTER} -environment-name=${CLUSTER_NAME}
 
 benchmark:
 	go test -tags=test_performance -run=NoTests -bench=. ./...

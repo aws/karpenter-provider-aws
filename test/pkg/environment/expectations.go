@@ -4,15 +4,13 @@ import (
 	"fmt"
 	"sync"
 
-	"k8s.io/apimachinery/pkg/labels"
-
-	"github.com/aws/karpenter/pkg/utils/pod"
-
 	"github.com/samber/lo"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/policy/v1beta1"
 	storagev1 "k8s.io/api/storage/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	. "github.com/onsi/ginkgo" //nolint:revive,stylecheck
@@ -20,6 +18,7 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/utils/pod"
 )
 
 var (
@@ -70,7 +69,7 @@ func (env *Environment) ExpectCreated(objects ...client.Object) {
 
 func (env *Environment) ExpectDeleted(objects ...client.Object) {
 	for _, object := range objects {
-		Expect(env.Client.Delete(env, object)).To(Succeed())
+		Expect(env.Client.Delete(env, object, &client.DeleteOptions{GracePeriodSeconds: ptr.Int64(0)})).To(Succeed())
 	}
 }
 
@@ -116,7 +115,7 @@ func (env *Environment) EventuallyExpectScaleDown() {
 	Eventually(func(g Gomega) {
 		// expect the current node count to be what it was when the test started
 		g.Expect(env.Monitor.NodeCount()).To(Equal(env.Monitor.NodeCountAtReset()))
-	}).Should(Succeed())
+	}).Should(Succeed(), fmt.Sprintf("expected scale down to %d nodes, had %d", env.Monitor.NodeCountAtReset(), env.Monitor.NodeCount()))
 }
 
 func (env *Environment) ExpectCreatedNodeCount(comparator string, nodeCount int) {

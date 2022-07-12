@@ -16,14 +16,14 @@ import (
 
 var env *environment.Environment
 
-func TestAPIs(t *testing.T) {
+func TestIntegration(t *testing.T) {
 	RegisterFailHandler(Fail)
 	BeforeSuite(func() {
 		var err error
 		env, err = environment.NewEnvironment(t)
 		Expect(err).ToNot(HaveOccurred())
 	})
-	RunSpecs(t, "Integration Suite")
+	RunSpecs(t, "Integration")
 }
 
 var _ = BeforeEach(func() {
