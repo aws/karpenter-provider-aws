@@ -1181,7 +1181,7 @@ var _ = Describe("Allocation", func() {
 					ExpectNotScheduled(ctx, env.Client, pod)
 				})
 			})
-			FContext("Custom AMI Selector", func() {
+			Context("Custom AMI Selector", func() {
 				It("should use ami selector specified in AWSNodeTemplate", func() {
 					opts.AWSENILimitedPodDensity = false
 					provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
@@ -1346,7 +1346,6 @@ var _ = Describe("Allocation", func() {
 					ExpectApplied(ctx, env.Client, newProvisioner)
 					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 					ExpectScheduled(ctx, env.Client, pod)
-					Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 					input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 					Expect(*input.LaunchTemplateData.ImageId).To(ContainSubstring("test-ami"))
 				})

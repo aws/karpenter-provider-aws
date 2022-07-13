@@ -27,10 +27,7 @@ require (
 	sigs.k8s.io/controller-runtime v0.11.1
 )
 
-require (
-	github.com/aws/amazon-vpc-resource-controller-k8s v1.1.3
-	github.com/samber/lo v1.21.0
-)
+require github.com/samber/lo v1.21.0
 
 require (
 	cloud.google.com/go v0.97.0 // indirect
