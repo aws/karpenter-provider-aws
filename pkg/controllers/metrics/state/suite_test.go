@@ -93,21 +93,22 @@ var _ = Describe("Node Metrics", func() {
 			"memory": float64(resources.Memory().Value()),
 		}
 
-		var metric *io_prometheus_client.Metric
+		var metrics []*io_prometheus_client.Metric
 		for _, m := range nodeAllocation.Metric {
 			for _, l := range m.Label {
 				if l.GetName() == "node_name" && l.GetValue() == node.GetName() {
-					metric = m
-					break
+					metrics = append(metrics, m)
 				}
 			}
 		}
 
-		for _, l := range metric.Label {
-			if l.GetName() == "resource_type" {
-				Expect(metric.GetGauge().GetValue()).To(Equal(expectedValues[l.GetValue()]),
-					fmt.Sprintf("%s, %f to equal %f", l.GetValue(), metric.GetGauge().GetValue(),
-						expectedValues[l.GetValue()]))
+		for _, metric := range metrics {
+			for _, l := range metric.Label {
+				if l.GetName() == "resource_type" {
+					Expect(metric.GetGauge().GetValue()).To(Equal(expectedValues[l.GetValue()]),
+						fmt.Sprintf("%s, %f to equal %f", l.GetValue(), metric.GetGauge().GetValue(),
+							expectedValues[l.GetValue()]))
+				}
 			}
 		}
 	})
