@@ -18,8 +18,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/aws/karpenter/pkg/controllers/state"
 	"knative.dev/pkg/logging"
+
+	"github.com/aws/karpenter/pkg/controllers/state"
 )
 
 const tickPeriodSeconds = 5
@@ -43,11 +44,7 @@ func StartMetricScraper(ctx context.Context, cluster *state.Cluster) {
 func (ms *MetricScraper) init(ctx context.Context) {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("metric-scraper"))
 
-	for _, c := range []Scraper{
-		NewNodeScraper(ms.cluster),
-	} {
-		ms.scrapers = append(ms.scrapers, c)
-	}
+	ms.scrapers = append(ms.scrapers, []Scraper{NewNodeScraper(ms.cluster)}...)
 
 	go func() {
 		ticker := time.NewTicker(tickPeriodSeconds * time.Second)
