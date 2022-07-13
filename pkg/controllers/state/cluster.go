@@ -88,6 +88,7 @@ type Node struct {
 	// of the Node to identify the remaining resources that we expect future daemonsets to consume.  This is already
 	// included in the calculation for Available.
 	DaemonSetRequested v1.ResourceList
+	DaemonSetLimits    v1.ResourceList
 	// HostPort usage of all pods that are bound to the node
 	HostPortUsage *scheduling.HostPortUsage
 	VolumeUsage   *scheduling.VolumeLimits
@@ -97,6 +98,12 @@ type Node struct {
 	Provisioner *v1alpha5.Provisioner
 
 	podRequests map[types.NamespacedName]v1.ResourceList
+	podLimits   map[types.NamespacedName]v1.ResourceList
+
+	// PodTotalRequests is the total resources on pods scheduled to this node
+	PodTotalRequests v1.ResourceList
+	// PodTotalLimits is the total resource limits scheduled to this node
+	PodTotalLimits v1.ResourceList
 }
 
 // ForPodsWithAntiAffinity calls the supplied function once for each pod with required anti affinity terms that is
@@ -165,6 +172,7 @@ func (c *Cluster) newNode(ctx context.Context, node *v1.Node) (*Node, error) {
 		VolumeUsage:   scheduling.NewVolumeLimits(c.kubeClient),
 		VolumeLimits:  scheduling.VolumeCount{},
 		podRequests:   map[types.NamespacedName]v1.ResourceList{},
+		podLimits:     map[types.NamespacedName]v1.ResourceList{},
 	}
 	if err := multierr.Combine(
 		c.populateProvisioner(ctx, node, n),
@@ -183,23 +191,32 @@ func (c *Cluster) populateResourceRequests(ctx context.Context, node *v1.Node, n
 		return fmt.Errorf("listing pods, %w", err)
 	}
 	var requested []v1.ResourceList
+	var limits []v1.ResourceList
 	var daemonsetRequested []v1.ResourceList
+	var daemonsetLimits []v1.ResourceList
 	for i := range pods.Items {
 		pod := &pods.Items[i]
 		requests := resources.RequestsForPods(pod)
+		podLimits := resources.LimitsForPods(pod)
 		podKey := client.ObjectKeyFromObject(pod)
 
 		n.podRequests[podKey] = requests
+		n.podLimits[podKey] = podLimits
 		c.bindings[podKey] = n.Node.Name
 		if podutils.IsOwnedByDaemonSet(pod) {
 			daemonsetRequested = append(daemonsetRequested, requests)
+			daemonsetLimits = append(daemonsetLimits, podLimits)
 		}
 		requested = append(requested, requests)
+		limits = append(limits, podLimits)
 		n.HostPortUsage.Add(ctx, pod)
 		n.VolumeUsage.Add(ctx, pod)
 	}
 
 	n.DaemonSetRequested = resources.Merge(daemonsetRequested...)
+	n.DaemonSetLimits = resources.Merge(daemonsetLimits...)
+	n.PodTotalRequests = resources.Merge(requested...)
+	n.PodTotalLimits = resources.Merge(limits...)
 	n.Capacity = n.Node.Status.Capacity
 	// if the capacity hasn't been reported yet, fall back to what the instance type reports so we can track
 	// limits
@@ -296,6 +313,7 @@ func (c *Cluster) deletePod(podKey types.NamespacedName) {
 func (c *Cluster) updateNodeUsageFromPodDeletion(podKey types.NamespacedName) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
 	nodeName, bindingKnown := c.bindings[podKey]
 	if !bindingKnown {
 		// we didn't think the pod was bound, so we weren't tracking it and don't need to do anything
@@ -311,7 +329,10 @@ func (c *Cluster) updateNodeUsageFromPodDeletion(podKey types.NamespacedName) {
 	// pod has been deleted so our available capacity increases by the resources that had been
 	// requested by the pod
 	n.Available = resources.Merge(n.Available, n.podRequests[podKey])
+	n.PodTotalRequests = resources.Subtract(n.PodTotalRequests, n.podRequests[podKey])
+	n.PodTotalLimits = resources.Subtract(n.PodTotalLimits, n.podLimits[podKey])
 	delete(n.podRequests, podKey)
+	delete(n.podLimits, podKey)
 	n.HostPortUsage.DeletePod(podKey)
 	n.VolumeUsage.DeletePod(podKey)
 
@@ -365,8 +386,11 @@ func (c *Cluster) updateNodeUsageFromPod(ctx context.Context, pod *v1.Pod) error
 			// left it
 			delete(c.bindings, podKey)
 			n.Available = resources.Merge(n.Available, n.podRequests[podKey])
+			n.PodTotalRequests = resources.Subtract(n.PodTotalRequests, n.podRequests[podKey])
+			n.PodTotalLimits = resources.Subtract(n.PodTotalLimits, n.podLimits[podKey])
 			n.HostPortUsage.DeletePod(podKey)
 			delete(n.podRequests, podKey)
+			delete(n.podLimits, podKey)
 		}
 	}
 
@@ -389,17 +413,22 @@ func (c *Cluster) updateNodeUsageFromPod(ctx context.Context, pod *v1.Pod) error
 		return nil
 	}
 
-	// sum the newly bound pod's requests into the existing node and record the binding
+	// sum the newly bound pod's requests and limits into the existing node and record the binding
 	podRequests := resources.RequestsForPods(pod)
+	podLimits := resources.LimitsForPods(pod)
 	// our available capacity goes down by the amount that the pod had requested
 	n.Available = resources.Subtract(n.Available, podRequests)
+	n.PodTotalRequests = resources.Merge(n.PodTotalRequests, podRequests)
+	n.PodTotalLimits = resources.Merge(n.PodTotalLimits, podLimits)
 	// if it's a daemonset, we track what it has requested separately
 	if podutils.IsOwnedByDaemonSet(pod) {
 		n.DaemonSetRequested = resources.Merge(n.DaemonSetRequested, podRequests)
+		n.DaemonSetLimits = resources.Merge(n.DaemonSetRequested, podLimits)
 	}
 	n.HostPortUsage.Add(ctx, pod)
 	n.VolumeUsage.Add(ctx, pod)
 	n.podRequests[podKey] = podRequests
+	n.podLimits[podKey] = podLimits
 	c.bindings[podKey] = n.Node.Name
 	return nil
 }
