@@ -19,7 +19,6 @@ import (
 	"fmt"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/pelletier/go-toml/v2"
 )
 
 type Bottlerocket struct {
@@ -27,14 +26,14 @@ type Bottlerocket struct {
 }
 
 func (b Bottlerocket) Script() (string, error) {
-	s, err := b.unmarshalCustomUserData()
+	s, err := NewBottlerocketConfig(b.CustomUserData)
 	if err != nil {
 		return "", fmt.Errorf("invalid UserData %w", err)
 	}
 	// Karpenter will overwrite settings present inside custom UserData
 	// based on other fields specified in the provisioner
 	s.Settings.Kubernetes.ClusterName = &b.ClusterName
-	s.Settings.Kubernetes.APIServer = b.ClusterEndpoint
+	s.Settings.Kubernetes.APIServer = &b.ClusterEndpoint
 	s.Settings.Kubernetes.ClusterCertificate = b.CABundle
 	s.Settings.Kubernetes.NodeLabels = b.Labels
 
@@ -48,21 +47,9 @@ func (b Bottlerocket) Script() (string, error) {
 	for _, taint := range b.Taints {
 		s.Settings.Kubernetes.NodeTaints[taint.Key] = append(s.Settings.Kubernetes.NodeTaints[taint.Key], fmt.Sprintf("%s:%s", taint.Value, taint.Effect))
 	}
-	script, err := toml.Marshal(s)
+	script, err := s.MarshalTOML()
 	if err != nil {
 		return "", fmt.Errorf("constructing toml UserData %w", err)
 	}
 	return base64.StdEncoding.EncodeToString(script), nil
-}
-
-func (b Bottlerocket) unmarshalCustomUserData() (config, error) {
-	var c config
-	if b.CustomUserData == nil {
-		return c, nil
-	}
-	err := toml.Unmarshal([]byte(*b.CustomUserData), &c)
-	if err != nil {
-		return c, err
-	}
-	return c, nil
 }
