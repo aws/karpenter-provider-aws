@@ -18,8 +18,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/scheduling"
-	"github.com/aws/karpenter/pkg/utils/sets"
 )
 
 // AWSNodeTemplateSpec is the top level specification for the AWS Karpenter Provider.
@@ -34,13 +32,6 @@ type AWSNodeTemplateSpec struct {
 	// AMISelector discovers AMIs to be used by Amazon EC2 tags.
 	// +optional
 	AMISelector map[string]string `json:"amiSelector,omitempty"`
-}
-
-type AMI struct {
-	// Id is an identifier for an AMI.
-	ID string `json:"id,omitempty"`
-	// Properties defines all the properties of an AMI like architecture, GPU compatibility and so on.
-	Properties map[string]string `json:"properties,omitempty"`
 }
 
 // AWSNodeTemplate is the Schema for the AWSNodeTemplate API
@@ -60,12 +51,4 @@ type AWSNodeTemplateList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []AWSNodeTemplate `json:"items"`
-}
-
-func (a *AMI) Requirements() scheduling.Requirements {
-	requirements := scheduling.NewRequirements()
-	for key, value := range a.Properties {
-		requirements.Add(scheduling.Requirements{key: sets.NewSet(value)})
-	}
-	return requirements
 }

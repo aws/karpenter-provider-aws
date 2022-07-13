@@ -119,7 +119,7 @@ func getCompatibleAMI(instanceType cloudprovider.InstanceType, amiRequirements m
 }
 
 func (p *AMIProvider) selectAMIs(ctx context.Context, amiSelector map[string]string) (map[string]scheduling.Requirements, error) {
-	ec2AMIs, err := p.fetchAMIsFromEC2(ctx, p.getFilters(amiSelector))
+	ec2AMIs, err := p.fetchAMIsFromEC2(ctx, amiSelector)
 	if err != nil {
 		return nil, err
 	}
@@ -133,23 +133,26 @@ func (p *AMIProvider) selectAMIs(ctx context.Context, amiSelector map[string]str
 	return amiIDs, nil
 }
 
-func (p *AMIProvider) getRequirementsFromImage(ec2Image *ec2.Image) scheduling.Requirements {
-	requirements := scheduling.NewRequirements()
-	for _, tag := range ec2Image.Tags {
-		if v1alpha5.WellKnownLabels.Has(*tag.Key) {
-			requirements.Add(scheduling.Requirements{*tag.Key: sets.NewSet(*tag.Value)})
-		}
+func (p *AMIProvider) fetchAMIsFromEC2(ctx context.Context, amiSelector map[string]string) ([]*ec2.Image, error) {
+	filters := getFilters(amiSelector)
+	hash, err := hashstructure.Hash(filters, hashstructure.FormatV2, nil)
+	if err != nil {
+		return nil, err
 	}
-	// Always add the architecture of an image as a requirement, irrespective of what's specified in EC2 tags.
-	architecture := *ec2Image.Architecture
-	if value, ok := awsv1alpha1.AWSToKubeArchitectures[architecture]; ok {
-		architecture = value
+	if amis, ok := p.ec2Cache.Get(fmt.Sprint(hash)); ok {
+		return amis.([]*ec2.Image), nil
 	}
-	requirements.Add(scheduling.Requirements{v1.LabelArchStable: sets.NewSet(architecture)})
-	return requirements
+	// This API is not paginated, so a single call suffices.
+	output, err := p.ec2api.DescribeImagesWithContext(ctx, &ec2.DescribeImagesInput{Filters: filters})
+	if err != nil {
+		return nil, fmt.Errorf("describing images %+v, %w", filters, err)
+	}
+	p.ec2Cache.SetDefault(fmt.Sprint(hash), output.Images)
+	logging.FromContext(ctx).Debugf("Discovered images: %s", amiIDs(output.Images))
+	return output.Images, nil
 }
 
-func (p *AMIProvider) getFilters(amiSelector map[string]string) []*ec2.Filter {
+func getFilters(amiSelector map[string]string) []*ec2.Filter {
 	filters := []*ec2.Filter{}
 	for key, value := range amiSelector {
 		if key == "aws-ids" {
@@ -168,22 +171,20 @@ func (p *AMIProvider) getFilters(amiSelector map[string]string) []*ec2.Filter {
 	return filters
 }
 
-func (p *AMIProvider) fetchAMIsFromEC2(ctx context.Context, filters []*ec2.Filter) ([]*ec2.Image, error) {
-	hash, err := hashstructure.Hash(filters, hashstructure.FormatV2, nil)
-	if err != nil {
-		return nil, err
+func (p *AMIProvider) getRequirementsFromImage(ec2Image *ec2.Image) scheduling.Requirements {
+	requirements := scheduling.NewRequirements()
+	for _, tag := range ec2Image.Tags {
+		if v1alpha5.WellKnownLabels.Has(*tag.Key) {
+			requirements.Add(scheduling.Requirements{*tag.Key: sets.NewSet(*tag.Value)})
+		}
 	}
-	if amis, ok := p.ec2Cache.Get(fmt.Sprint(hash)); ok {
-		return amis.([]*ec2.Image), nil
+	// Always add the architecture of an image as a requirement, irrespective of what's specified in EC2 tags.
+	architecture := *ec2Image.Architecture
+	if value, ok := awsv1alpha1.AWSToKubeArchitectures[architecture]; ok {
+		architecture = value
 	}
-	// This API is not paginated, so a single call suffices.
-	output, err := p.ec2api.DescribeImagesWithContext(ctx, &ec2.DescribeImagesInput{Filters: filters})
-	if err != nil {
-		return nil, fmt.Errorf("describing images %+v, %w", filters, err)
-	}
-	p.ec2Cache.SetDefault(fmt.Sprint(hash), output.Images)
-	logging.FromContext(ctx).Debugf("Discovered images: %s", amiIDs(output.Images))
-	return output.Images, nil
+	requirements.Add(scheduling.Requirements{v1.LabelArchStable: sets.NewSet(architecture)})
+	return requirements
 }
 
 func amiIDs(amis []*ec2.Image) []string {
