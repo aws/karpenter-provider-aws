@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [ "$#" -ne 2 ]
+if [ "$#" -ne 3 ]
 then
-  echo "Missing two required arguments. Usage: retag-snapshot-release.sh snapshot-tag new-tag-to-be-added"
+  echo "Missing three required arguments. Usage: retag-snapshot-release.sh snapshot-tag new-tag-to-be-added release-type"
   exit 1
 fi
 SNAPSHOT_TAG=$1
