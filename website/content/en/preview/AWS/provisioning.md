@@ -281,3 +281,11 @@ spec:
           limits:
             nvidia.com/gpu: "1"
 ```
+{{% alert title="Note" color="primary" %}}
+If you are provisioning GPU nodes, such as the `g4dn.2xlarge` instance type, you should run `nvidia-device-plugin-daemonset` on those nodes.
+Without that daemonset running, Karpenter will not see those nodes as initialized.
+To install the daemonset plugin, run:
+
+`kubectl create -f https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/v0.12.2/nvidia-device-plugin.yml`
+{{% /alert %}}
+
