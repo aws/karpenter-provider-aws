@@ -232,6 +232,26 @@ var _ = Describe("Allocation", func() {
 					ExpectNotScheduled(ctx, env.Client, pod)
 				}
 			})
+			It("should de-prioritize metal", func() {
+				ExpectApplied(ctx, env.Client, provisioner)
+				for _, pod := range ExpectProvisioned(ctx, env.Client, controller,
+					test.UnschedulablePod(test.PodOptions{
+						ResourceRequirements: v1.ResourceRequirements{
+							Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
+							Limits:   v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
+						},
+					})) {
+					ExpectScheduled(ctx, env.Client, pod)
+				}
+				Expect(fakeEC2API.CalledWithCreateFleetInput.Len()).To(Equal(1))
+				call := fakeEC2API.CalledWithCreateFleetInput.Pop()
+				_ = call
+				for _, ltc := range call.LaunchTemplateConfigs {
+					for _, ovr := range ltc.Overrides {
+						Expect(strings.HasSuffix(aws.StringValue(ovr.InstanceType), "metal")).To(BeFalse())
+					}
+				}
+			})
 			It("should launch on metal", func() {
 				ExpectApplied(ctx, env.Client, provisioner)
 				for _, pod := range ExpectProvisioned(ctx, env.Client, controller,
@@ -477,7 +497,7 @@ var _ = Describe("Allocation", func() {
 				Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "inf1.6xlarge"))
 			})
 			It("should launch on-demand capacity if flexible to both spot and on-demand, but spot if unavailable", func() {
-				safeSpotFallbackThreshold = 5
+				safeSpotFallbackThreshold = 4
 				fakeEC2API.DescribeInstanceTypesPagesWithContext(ctx, &ec2.DescribeInstanceTypesInput{}, func(dito *ec2.DescribeInstanceTypesOutput, b bool) bool {
 					for _, it := range dito.InstanceTypes {
 						fakeEC2API.InsufficientCapacityPools.Add(fake.CapacityPool{CapacityType: v1alpha1.CapacityTypeSpot, InstanceType: aws.StringValue(it.InstanceType), Zone: "test-zone-1a"})
