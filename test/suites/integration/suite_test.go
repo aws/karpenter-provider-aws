@@ -39,8 +39,8 @@ var _ = AfterEach(func() {
 var _ = Describe("Sanity Checks", func() {
 	It("should provision nodes", func() {
 		provider := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.Options.EnvironmentName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.Options.EnvironmentName},
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.Options.ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.Options.ClusterName},
 		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
 		pod := test.Pod()
@@ -59,8 +59,8 @@ var _ = Describe("Sanity Checks", func() {
 	})
 	It("should provision for a deployment", func() {
 		provider := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.Options.EnvironmentName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.Options.EnvironmentName},
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.Options.ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.Options.ClusterName},
 		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
 
@@ -79,8 +79,8 @@ var _ = Describe("Sanity Checks", func() {
 	})
 	It("should provision a node for a self-afinity deployment", func() {
 		provider := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.Options.EnvironmentName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.Options.EnvironmentName},
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.Options.ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.Options.ClusterName},
 		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
 		// just two pods as they all need to land on the same node
@@ -110,8 +110,8 @@ var _ = Describe("Sanity Checks", func() {
 	})
 	It("should provision three nodes for a zonal topology spread", func() {
 		provider := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.Options.EnvironmentName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.Options.EnvironmentName},
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.Options.ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.Options.ClusterName},
 		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
 
