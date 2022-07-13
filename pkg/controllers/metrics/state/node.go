@@ -43,7 +43,7 @@ var (
 			Namespace: "karpenter",
 			Subsystem: "nodes",
 			Name:      "allocatable",
-			Help:      "Node allocatable are the resources allocatable by nodes. Labeled by provisioner name, node name, zone, architecture, capacity type, instance type, node phase and resource type.",
+			Help:      "Node allocatable are the resources allocatable by nodes.",
 		},
 		nodeLabelNames(),
 	)
@@ -53,7 +53,7 @@ var (
 			Namespace: "karpenter",
 			Subsystem: "nodes",
 			Name:      "total_pod_requests",
-			Help:      "Node total pod requests are the resources requested by non-DaemonSet pods bound to nodes.  Labeled by provisioner name, node name, zone, architecture, capacity type, instance type, node phase and resource type.",
+			Help:      "Node total pod requests are the resources requested by non-DaemonSet pods bound to nodes.",
 		},
 		nodeLabelNames(),
 	)
@@ -63,7 +63,7 @@ var (
 			Namespace: "karpenter",
 			Subsystem: "nodes",
 			Name:      "total_pod_limits",
-			Help:      "Node total pod limits are the resources specified by non-DaemonSet pod limits. Labeled by provisioner name, node name, zone, architecture, capacity type, instance type, node phase and resource type.",
+			Help:      "Node total pod limits are the resources specified by non-DaemonSet pod limits.",
 		},
 		nodeLabelNames(),
 	)
@@ -73,7 +73,7 @@ var (
 			Namespace: "karpenter",
 			Subsystem: "nodes",
 			Name:      "total_daemon_limits",
-			Help:      "Node total daemon requests are the resource requested by DaemonSet pods bound to nodes. Labeled by provisioner name, node name, zone, architecture, capacity type, instance type, node phase and resource type.",
+			Help:      "Node total daemon requests are the resource requested by DaemonSet pods bound to nodes.",
 		},
 		nodeLabelNames(),
 	)
@@ -83,7 +83,7 @@ var (
 			Namespace: "karpenter",
 			Subsystem: "nodes",
 			Name:      "total_daemon_requests",
-			Help:      "Node total daemon limits are the resources specified by DaemonSet pod limits. Labeled by provisioner name, node name, zone, architecture, capacity type, instance type, node phase and resource type.",
+			Help:      "Node total daemon limits are the resources specified by DaemonSet pod limits.",
 		},
 		nodeLabelNames(),
 	)
@@ -93,25 +93,13 @@ var (
 			Namespace: "karpenter",
 			Subsystem: "nodes",
 			Name:      "system_overhead",
-			Help:      "Node system daemon overhead are the resources reserved for system overhead, the difference between the node's capacity and allocatable values are reported by the status. Labeled by provisioner name, node name, zone, architecture, capacity type, instance type, node phase and resource type.",
+			Help:      "Node system daemon overhead are the resources reserved for system overhead, the difference between the node's capacity and allocatable values are reported by the status.",
 		},
 		nodeLabelNames(),
 	)
 
 	wellKnownLabels = getWellKnownLabels()
 )
-
-func newNodeGaugeVec(name, help string) *prometheus.GaugeVec {
-	return prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Namespace: "karpenter",
-			Subsystem: "nodes",
-			Name:      name,
-			Help:      help,
-		},
-		nodeLabelNames(),
-	)
-}
 
 func nodeLabelNames() []string {
 	return append(
