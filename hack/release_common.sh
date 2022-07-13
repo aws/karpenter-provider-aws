@@ -41,3 +41,13 @@ cosignImages() {
     COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_FLAGS} ${CONTROLLER_DIGEST}
     COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_FLAGS} ${WEBHOOK_DIGEST}
 }
+
+notifyRelease(){
+  RELEASE_TYPE=$1
+  RELEASE_IDENTIFIER=$2
+  MESSAGE="{\"releaseType\":\"${RELEASE_TYPE}\",\"releaseIdentifier\":\"${RELEASE_IDENTIFIER}\"}"
+  aws sns publish \
+      --topic-arn "arn:aws:sns:us-east-1:071440425669:KarpenterReleases" \
+      --message ${MESSAGE} \
+      --no-cli-pager
+}

@@ -43,6 +43,14 @@ func PersistentVolume(overrides ...PersistentVolumeOptions) *v1.PersistentVolume
 	if options.Driver == "" {
 		options.Driver = "test.driver"
 	}
+
+	var nodeAffinity *v1.VolumeNodeAffinity
+	if len(options.Zones) != 0 {
+		nodeAffinity = &v1.VolumeNodeAffinity{Required: &v1.NodeSelector{NodeSelectorTerms: []v1.NodeSelectorTerm{{MatchExpressions: []v1.NodeSelectorRequirement{
+			{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: options.Zones},
+		}}}}}
+	}
+
 	return &v1.PersistentVolume{
 		ObjectMeta: ObjectMeta(metav1.ObjectMeta{}),
 		Spec: v1.PersistentVolumeSpec{
@@ -50,9 +58,7 @@ func PersistentVolume(overrides ...PersistentVolumeOptions) *v1.PersistentVolume
 			StorageClassName:       options.StorageClassName,
 			AccessModes:            []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce},
 			Capacity:               v1.ResourceList{v1.ResourceStorage: resource.MustParse("100Gi")},
-			NodeAffinity: &v1.VolumeNodeAffinity{Required: &v1.NodeSelector{NodeSelectorTerms: []v1.NodeSelectorTerm{{MatchExpressions: []v1.NodeSelectorRequirement{
-				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: options.Zones},
-			}}}}},
+			NodeAffinity:           nodeAffinity,
 		},
 	}
 }
@@ -61,6 +67,7 @@ type PersistentVolumeClaimOptions struct {
 	metav1.ObjectMeta
 	StorageClassName *string
 	VolumeName       string
+	Resources        v1.ResourceRequirements
 }
 
 func PersistentVolumeClaim(overrides ...PersistentVolumeClaimOptions) *v1.PersistentVolumeClaim {
@@ -70,21 +77,25 @@ func PersistentVolumeClaim(overrides ...PersistentVolumeClaimOptions) *v1.Persis
 			panic(fmt.Sprintf("Failed to merge options: %s", err))
 		}
 	}
+	if len(options.Resources.Requests) == 0 {
+		options.Resources = v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceStorage: resource.MustParse("1Gi")}}
+	}
 	return &v1.PersistentVolumeClaim{
 		ObjectMeta: ObjectMeta(options.ObjectMeta),
 		Spec: v1.PersistentVolumeClaimSpec{
 			StorageClassName: options.StorageClassName,
 			VolumeName:       options.VolumeName,
 			AccessModes:      []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce},
-			Resources:        v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceStorage: resource.MustParse("1Gi")}},
+			Resources:        options.Resources,
 		},
 	}
 }
 
 type StorageClassOptions struct {
 	metav1.ObjectMeta
-	Zones       []string
-	Provisioner *string
+	Zones             []string
+	Provisioner       *string
+	VolumeBindingMode *storagev1.VolumeBindingMode
 }
 
 func StorageClass(overrides ...StorageClassOptions) *storagev1.StorageClass {
@@ -107,5 +118,6 @@ func StorageClass(overrides ...StorageClassOptions) *storagev1.StorageClass {
 		ObjectMeta:        ObjectMeta(options.ObjectMeta),
 		Provisioner:       *options.Provisioner,
 		AllowedTopologies: allowedTopologies,
+		VolumeBindingMode: options.VolumeBindingMode,
 	}
 }

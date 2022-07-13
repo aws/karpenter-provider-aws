@@ -20,10 +20,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider/fake"
-	"github.com/aws/karpenter/pkg/cloudprovider/registry"
 	"github.com/aws/karpenter/pkg/controllers/termination"
 	"github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/pkg/utils/functional"
@@ -55,9 +53,9 @@ func TestAPIs(t *testing.T) {
 var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
 		cloudProvider := &fake.CloudProvider{}
-		registry.RegisterOrDie(ctx, cloudProvider)
 		coreV1Client := corev1.NewForConfigOrDie(e.Config)
-		evictionQueue = termination.NewEvictionQueue(ctx, coreV1Client)
+		recorder := test.NewEventRecorder()
+		evictionQueue = termination.NewEvictionQueue(ctx, coreV1Client, recorder)
 		controller = &termination.Controller{
 			KubeClient: e.Client,
 			Terminator: &termination.Terminator{
@@ -66,6 +64,7 @@ var _ = BeforeSuite(func() {
 				CloudProvider: cloudProvider,
 				EvictionQueue: evictionQueue,
 			},
+			Recorder: recorder,
 		}
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
@@ -157,6 +156,45 @@ var _ = Describe("Termination", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 			ExpectNotFound(ctx, env.Client, node)
 		})
+		It("should not delete nodes that have pods without an owner ref", func() {
+			podEvict := test.Pod(test.PodOptions{NodeName: node.Name})
+			podNoEvict := test.Pod(test.PodOptions{
+				NodeName: node.Name,
+				ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{},
+				},
+			})
+
+			ExpectApplied(ctx, env.Client, node, podEvict, podNoEvict)
+
+			Expect(env.Client.Delete(ctx, node)).To(Succeed())
+			node = ExpectNodeExists(ctx, env.Client, node.Name)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
+
+			// Expect no pod to be enqueued for eviction
+			ExpectNotEnqueuedForEviction(evictionQueue, podEvict, podNoEvict)
+
+			// Expect node to exist and be draining
+			ExpectNodeDraining(env.Client, node.Name)
+
+			// Delete no owner refs pod
+			ExpectDeleted(ctx, env.Client, podNoEvict)
+
+			// Reconcile node to evict pod
+			node = ExpectNodeExists(ctx, env.Client, node.Name)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
+
+			// Expect podEvict to be enqueued for eviction then be successful
+			ExpectEvicted(env.Client, podEvict)
+
+			// Delete pod to simulate successful eviction
+			ExpectDeleted(ctx, env.Client, podEvict)
+
+			// Reconcile to delete node
+			node = ExpectNodeExists(ctx, env.Client, node.Name)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
+			ExpectNotFound(ctx, env.Client, node)
+		})
 		It("should delete nodes that have do-not-evict on pods for which it does not apply", func() {
 			ExpectApplied(ctx, env.Client, node)
 			node = ExpectNodeExists(ctx, env.Client, node.Name)
@@ -191,7 +229,7 @@ var _ = Describe("Termination", func() {
 		})
 		It("should fail to evict pods that violate a PDB", func() {
 			minAvailable := intstr.FromInt(1)
-			labelSelector := map[string]string{randomdata.SillyName(): randomdata.SillyName()}
+			labelSelector := map[string]string{test.RandomName(): test.RandomName()}
 			pdb := test.PodDisruptionBudget(test.PDBOptions{
 				Labels: labelSelector,
 				// Don't let any pod evict
@@ -259,7 +297,6 @@ var _ = Describe("Termination", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 			ExpectNotFound(ctx, env.Client, node)
 		})
-
 		It("should not evict static pods", func() {
 			podEvict := test.Pod(test.PodOptions{NodeName: node.Name})
 			ExpectApplied(ctx, env.Client, node, podEvict)

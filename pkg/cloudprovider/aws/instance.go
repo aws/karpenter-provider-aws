@@ -36,11 +36,16 @@ import (
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/options"
 	"github.com/aws/karpenter/pkg/utils/resources"
 	"github.com/aws/karpenter/pkg/utils/sets"
+)
+
+var (
+	safeSpotFallbackThreshold = 10 // falling back to on-demand without flexibility risks insufficient capacity errors
 )
 
 type InstanceProvider struct {
@@ -74,6 +79,13 @@ func (p *InstanceProvider) Create(ctx context.Context, provider *v1alpha1.AWS, n
 		// retry once if launch template is not found. This allows karpenter to generate a new LT if the
 		// cache was out-of-sync on the first try
 		id, err = p.launchInstance(ctx, provider, nodeRequest)
+	} else if isSpotFallback(err) {
+		// constrain capacity type requirements to only spot since required instance type diversity is not met
+		nodeRequest.Template.Requirements.Add(scheduling.NewLabelRequirements(map[string]string{v1alpha5.LabelCapacityType: v1alpha1.CapacityTypeSpot}))
+		// try to launch again with spot
+		var retryErr error
+		id, retryErr = p.launchInstance(ctx, provider, nodeRequest)
+		err = multierr.Append(err, retryErr)
 	}
 	if err != nil {
 		return nil, err
@@ -124,6 +136,9 @@ func (p *InstanceProvider) launchInstance(ctx context.Context, provider *v1alpha
 	if err != nil {
 		return nil, fmt.Errorf("getting launch template configs, %w", err)
 	}
+	if err = p.checkODFallback(nodeRequest, launchTemplateConfigs); err != nil {
+		return nil, err
+	}
 	// Create fleet
 	tags := v1alpha1.MergeTags(ctx, provider.Tags, map[string]string{fmt.Sprintf("kubernetes.io/cluster/%s", injection.GetOptions(ctx).ClusterName): "owned"})
 	createFleetInput := &ec2.CreateFleetInput{
@@ -137,6 +152,7 @@ func (p *InstanceProvider) launchInstance(ctx context.Context, provider *v1alpha
 		TagSpecifications: []*ec2.TagSpecification{
 			{ResourceType: aws.String(ec2.ResourceTypeInstance), Tags: tags},
 			{ResourceType: aws.String(ec2.ResourceTypeVolume), Tags: tags},
+			{ResourceType: aws.String(ec2.ResourceTypeFleet), Tags: tags},
 		},
 	}
 	if capacityType == v1alpha1.CapacityTypeSpot {
@@ -163,6 +179,28 @@ func (p *InstanceProvider) launchInstance(ctx context.Context, provider *v1alpha
 		return nil, combineFleetErrors(createFleetOutput.Errors)
 	}
 	return createFleetOutput.Instances[0].InstanceIds[0], nil
+}
+
+func (p *InstanceProvider) checkODFallback(nodeRequest *cloudprovider.NodeRequest, launchTemplateConfigs []*ec2.FleetLaunchTemplateConfigRequest) error {
+	// only evaluate for on-demand fallback if the capacity type for the request is OD and both OD and spot are allowed in requirements
+	if p.getCapacityType(nodeRequest) != v1alpha1.CapacityTypeOnDemand || !nodeRequest.Template.Requirements.Get(v1alpha5.LabelCapacityType).Has(v1alpha1.CapacityTypeSpot) {
+		return nil
+	}
+
+	// loop through the LT configs for currently considered instance types to get the flexibility count
+	instanceTypes := map[string]struct{}{}
+	for _, ltc := range launchTemplateConfigs {
+		for _, override := range ltc.Overrides {
+			if override.InstanceType != nil {
+				instanceTypes[*override.InstanceType] = struct{}{}
+			}
+		}
+	}
+	if len(instanceTypes) < safeSpotFallbackThreshold {
+		return SpotFallbackError(fmt.Errorf("at least %d instance types are required to perform spot to on-demand fallback, "+
+			"the current provisioning request only has %d instance type options", safeSpotFallbackThreshold, len(nodeRequest.InstanceTypeOptions)))
+	}
+	return nil
 }
 
 func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, provider *v1alpha1.AWS, nodeRequest *cloudprovider.NodeRequest, capacityType string) ([]*ec2.FleetLaunchTemplateConfigRequest, error) {
@@ -324,8 +362,8 @@ func (p *InstanceProvider) filterInstanceTypes(instanceTypes []cloudprovider.Ins
 		if !functional.HasAnyPrefix(*it.InstanceType, "m", "c", "r", "a", "t", "i") {
 			continue
 		}
-		// deprioritize 1st/2nd gen burstable and graviton 1
-		if functional.HasAnyPrefix(*it.InstanceType, "t1", "t2", "a1") {
+		// deprioritize some older instance types including 1st/2nd gen burstable, compute and graviton
+		if functional.HasAnyPrefix(*it.InstanceType, "t1", "t2", "a1", "c1") {
 			continue
 		}
 		// deprioritize metal

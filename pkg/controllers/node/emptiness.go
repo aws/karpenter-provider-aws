@@ -26,6 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injectabletime"
 	"github.com/aws/karpenter/pkg/utils/pod"
@@ -34,6 +35,7 @@ import (
 // Emptiness is a subreconciler that deletes nodes that are empty after a ttl
 type Emptiness struct {
 	kubeClient client.Client
+	cluster    *state.Cluster
 }
 
 // Reconcile reconciles the node
@@ -52,6 +54,11 @@ func (r *Emptiness) Reconcile(ctx context.Context, provisioner *v1alpha5.Provisi
 	empty, err := r.isEmpty(ctx, n)
 	if err != nil {
 		return reconcile.Result{}, err
+	}
+
+	// node is empty, but it is in-use per the last scheduling round so we don't consider it empty
+	if r.cluster.IsNodeNominated(n.Name) {
+		return reconcile.Result{}, nil
 	}
 
 	emptinessTimestamp, hasEmptinessTimestamp := n.Annotations[v1alpha5.EmptinessTimestampAnnotationKey]

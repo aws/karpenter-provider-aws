@@ -108,8 +108,13 @@ func (p *Provisioner) Start(ctx context.Context) {
 func (p *Provisioner) Provision(ctx context.Context) error {
 	// Batch pods
 	p.batcher.Wait()
-	// wake any waiters on the cond
-	defer p.cond.Broadcast()
+	defer func() {
+		// wake any waiters on the cond, this is only used for unit testing to ensure we can sync on the
+		// provisioning loop for reliable tests
+		p.mu.Lock()
+		p.cond.Broadcast()
+		p.mu.Unlock()
+	}()
 
 	// Get pods, exit if nothing to do
 	pods, err := p.getPods(ctx)
@@ -265,6 +270,7 @@ func (p *Provisioner) launch(ctx context.Context, node *scheduler.Node) error {
 		}
 	}
 	logging.FromContext(ctx).Infof("Created %s", node)
+	p.cluster.NominateNodeForPod(k8sNode.Name)
 	for _, pod := range node.Pods {
 		p.recorder.NominatePod(pod, k8sNode)
 	}

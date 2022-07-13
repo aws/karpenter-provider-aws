@@ -18,8 +18,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/aws/karpenter/pkg/cloudprovider"
-
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -35,17 +33,19 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/utils/result"
 )
 
 const controllerName = "node"
 
 // NewController constructs a controller instance
-func NewController(kubeClient client.Client, cloudProvider cloudprovider.CloudProvider) *Controller {
+func NewController(kubeClient client.Client, cloudProvider cloudprovider.CloudProvider, cluster *state.Cluster) *Controller {
 	return &Controller{
 		kubeClient:     kubeClient,
 		initialization: &Initialization{kubeClient: kubeClient, cloudProvider: cloudProvider},
-		emptiness:      &Emptiness{kubeClient: kubeClient},
+		emptiness:      &Emptiness{kubeClient: kubeClient, cluster: cluster},
 		expiration:     &Expiration{kubeClient: kubeClient},
 	}
 }

@@ -15,7 +15,7 @@ HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${K
       		--set clusterName=${CLUSTER_NAME} \
 			--set clusterEndpoint=${CLUSTER_ENDPOINT} \
 			--set aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME}
-
+TEST_FILTER ?= .*
 help: ## Display help
 	@awk 'BEGIN {FS = ":.*##"; printf "Usage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
@@ -24,17 +24,17 @@ dev: verify test ## Run all steps in the developer loop
 ci: toolchain verify licenses battletest coverage ## Run all steps used by continuous integration
 
 test: ## Run tests
-	go test ./pkg/...
+	go test -run=${TEST_FILTER} ./pkg/...
 
 battletest: ## Run randomized, racing, code coveraged, tests
-	go test ./pkg/... \
+	go test -run=${TEST_FILTER} ./pkg/... \
 		-race \
 		-cover -coverprofile=coverage.out -outputdir=. -coverpkg=./pkg/... \
 		-ginkgo.randomizeAllSpecs \
 		-tags random_test_delay
 
 e2etests: ## Run the e2e suite against your local cluster
-	go test -v ./test/... -environment-name=${CLUSTER_NAME}
+	go test -timeout 60m -v ./test/suites/... -run=${TEST_FILTER} -environment-name=${CLUSTER_NAME}
 
 benchmark:
 	go test -tags=test_performance -run=NoTests -bench=. ./...
@@ -88,6 +88,9 @@ docgen: ## Generate docs
 
 release-gen: docgen ## Generate any materials which should be updated prior to release
 	go run hack/code/prices_gen.go -- pkg/cloudprovider/aws/zz_generated.pricing.go
+	go run hack/code/vpc_limits_gen.go -- \
+		--url=https://raw.githubusercontent.com/aws/amazon-vpc-resource-controller-k8s/master/pkg/aws/vpc/limits.go \
+		--output=pkg/cloudprovider/aws/zz_generated.vpclimits.go
 	hack/boilerplate.sh
 	go mod tidy
 	go mod download
@@ -97,13 +100,13 @@ release: release-gen ## Generate release manifests and publish a versioned conta
 	$(WITH_GOFLAGS) ./hack/release.sh
 
 nightly: ## Tag the latest snapshot release with timestamp
-	./hack/add-snapshot-tag.sh $(shell git rev-parse HEAD) $(shell date +"%Y%m%d")
+	./hack/add-snapshot-tag.sh $(shell git rev-parse HEAD) $(shell date +"%Y%m%d") "nightly"
 
 snapshot: ## Generate a snapshot release out of the current commit
 	$(WITH_GOFLAGS) ./hack/snapshot.sh
 
 stablerelease: ## Tags the snapshot release of the current commit with the latest tag available, for prod launch
-	./hack/add-snapshot-tag.sh $(shell git rev-parse HEAD) $(shell git describe --tags --exact-match || echo "Current commit is not tagged")
+	./hack/add-snapshot-tag.sh $(shell git rev-parse HEAD) $(shell git describe --tags --exact-match || echo "Current commit is not tagged") "stable"
 
 toolchain: ## Install developer toolchain
 	./hack/toolchain.sh
@@ -117,4 +120,4 @@ issues: ## Run GitHub issue analysis scripts
 website: ## Serve the docs website locally
 	cd website && npm install && git submodule update --init --recursive && hugo server
 
-.PHONY: help dev ci release test battletest verify codegen docgen apply delete toolchain release release-gen licenses issues website nightly snapshot
+.PHONY: help dev ci release test battletest verify codegen docgen apply delete toolchain release release-gen licenses issues website nightly snapshot e2etests

@@ -16,9 +16,7 @@ package test
 
 import (
 	"fmt"
-	"strings"
 
-	"github.com/Pallinder/go-randomdata"
 	"github.com/imdario/mergo"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -39,11 +37,11 @@ func DaemonSet(overrides ...DaemonSetOptions) *appsv1.DaemonSet {
 	options := DaemonSetOptions{}
 	for _, opts := range overrides {
 		if err := mergo.Merge(&options, opts, mergo.WithOverride); err != nil {
-			panic(fmt.Sprintf("Failed to merge pod options: %s", err))
+			panic(fmt.Sprintf("Failed to merge daemonset options: %s", err))
 		}
 	}
 	if options.Name == "" {
-		options.Name = strings.ToLower(randomdata.SillyName())
+		options.Name = RandomName()
 	}
 	if options.Namespace == "" {
 		options.Namespace = "default"

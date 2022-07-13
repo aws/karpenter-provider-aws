@@ -101,7 +101,7 @@ type Scheduler struct {
 }
 
 func (s *Scheduler) Solve(ctx context.Context, pods []*v1.Pod) ([]*Node, error) {
-	// We loop and retrying to schedule to unschedulable pods as long as we are making progress.  This solves a few
+	// We loop trying to schedule unschedulable pods as long as we are making progress.  This solves a few
 	// issues including pods with affinity to another pod in the batch. We could topo-sort to solve this, but it wouldn't
 	// solve the problem of scheduling pods where a particular order is needed to prevent a max-skew violation. E.g. if we
 	// had 5xA pods and 5xB pods were they have a zonal topology spread, but A can only go in one zone and B in another.
@@ -139,7 +139,11 @@ func (s *Scheduler) recordSchedulingResults(ctx context.Context, pods []*v1.Pod,
 		logging.FromContext(ctx).With("pod", client.ObjectKeyFromObject(pod)).Errorf("Could not schedule pod, %s", errors[pod])
 		s.recorder.PodFailedToSchedule(pod, errors[pod])
 	}
+
 	for _, node := range s.inflight {
+		if len(node.Pods) > 0 {
+			s.cluster.NominateNodeForPod(node.Node.Name)
+		}
 		for _, pod := range node.Pods {
 			s.recorder.NominatePod(pod, node.Node)
 		}
@@ -197,6 +201,9 @@ func (s *Scheduler) add(ctx context.Context, pod *v1.Pod) error {
 			if len(instanceTypes) == 0 {
 				errs = multierr.Append(errs, fmt.Errorf("all available instance types exceed provisioner limits"))
 				continue
+			} else if len(s.instanceTypes[nodeTemplate.ProvisionerName]) != len(instanceTypes) {
+				logging.FromContext(ctx).Debugf("%d out of %d instance types were excluded because they would breach provisioner limits",
+					len(s.instanceTypes[nodeTemplate.ProvisionerName])-len(instanceTypes), len(s.instanceTypes[nodeTemplate.ProvisionerName]))
 			}
 		}
 

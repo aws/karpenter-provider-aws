@@ -25,7 +25,7 @@ if [ -z "$(helm repo list | grep karpenter)" ]; then
   helm repo add karpenter https://charts.karpenter.sh
 fi
 helm repo update
-helm upgrade --install --namespace karpenter --create-namespace karpenter --version v0.9.0 \
+helm upgrade --install --namespace karpenter --create-namespace karpenter --version v0.13.2 \
   --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="arn:aws:iam::${AWS_ACCOUNT_ID}:role/${CLUSTER_NAME}-karpenter" \
   --set clusterName=${CLUSTER_NAME} \
   --set clusterEndpoint=$(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.endpoint" --output json) \

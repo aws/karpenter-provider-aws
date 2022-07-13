@@ -116,7 +116,7 @@ func benchmarkScheduler(b *testing.B, instanceCount, podCount int) {
 		nil,
 		[]*scheduling.NodeTemplate{scheduling.NewNodeTemplate(provisioner)},
 		nil,
-		state.NewCluster(nil, cloudProv),
+		state.NewCluster(test.NewConfig(), nil, cloudProv),
 		&Topology{},
 		map[string][]cloudprovider.InstanceType{provisioner.Name: instanceTypes},
 		map[*scheduling.NodeTemplate]v1.ResourceList{},

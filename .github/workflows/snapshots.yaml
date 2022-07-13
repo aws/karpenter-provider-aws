@@ -24,10 +24,11 @@ jobs:
           key: ${{ runner.os }}-go-cache-${{ hashFiles('**/go.sum') }}
       - uses: aws-actions/configure-aws-credentials@v1
         with:
-          role-to-assume: arn:aws:iam::274912145732:role/Snapshots
+          role-to-assume: arn:aws:iam::071440425669:role/Github
           aws-region: us-east-1
       - run: make toolchain
       - run: make snapshot
         env:
           CLOUD_PROVIDER: aws
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

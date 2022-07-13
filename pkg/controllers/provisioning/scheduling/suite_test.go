@@ -19,13 +19,11 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/aws/karpenter/pkg/controllers/state"
 
-	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/aws-sdk-go/aws"
 	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -39,7 +37,6 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider/fake"
-	"github.com/aws/karpenter/pkg/cloudprovider/registry"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
 	"github.com/aws/karpenter/pkg/controllers/provisioning/scheduling"
 	"github.com/aws/karpenter/pkg/test"
@@ -70,15 +67,14 @@ func TestAPIs(t *testing.T) {
 var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
 		cloudProv = &fake.CloudProvider{}
-		registry.RegisterOrDie(ctx, cloudProv)
+		cfg = test.NewConfig()
 		instanceTypes, _ := cloudProv.GetInstanceTypes(ctx, nil)
 		// set these on the cloud provider so we can manipulate them if needed
 		cloudProv.InstanceTypes = instanceTypes
-		cluster = state.NewCluster(e.Client, cloudProv)
+		cluster = state.NewCluster(cfg, e.Client, cloudProv)
 		nodeStateController = state.NewNodeController(e.Client, cluster)
 		podStateController = state.NewPodController(e.Client, cluster)
 		recorder = test.NewEventRecorder()
-		cfg = test.NewConfig()
 		controller = provisioning.NewController(ctx, cfg, e.Client, corev1.NewForConfigOrDie(e.Config), recorder, cloudProv, cluster)
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
@@ -926,7 +922,7 @@ var _ = Describe("Topology", func() {
 			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(1, 2, 2))
 		})
 		It("should only count running/scheduled pods with matching labels scheduled to nodes with a corresponding domain", func() {
-			wrongNamespace := strings.ToLower(randomdata.SillyName())
+			wrongNamespace := test.RandomName()
 			firstNode := test.Node(test.NodeOptions{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{v1.LabelTopologyZone: "test-zone-1"}}})
 			secondNode := test.Node(test.NodeOptions{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{v1.LabelTopologyZone: "test-zone-2"}}})
 			thirdNode := test.Node(test.NodeOptions{}) // missing topology domain
@@ -1207,7 +1203,7 @@ var _ = Describe("Topology", func() {
 			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(1, 5))
 		})
 		It("should only count running/scheduled pods with matching labels scheduled to nodes with a corresponding domain", func() {
-			wrongNamespace := strings.ToLower(randomdata.SillyName())
+			wrongNamespace := test.RandomName()
 			firstNode := test.Node(test.NodeOptions{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{v1alpha5.LabelCapacityType: v1alpha1.CapacityTypeSpot}}})
 			secondNode := test.Node(test.NodeOptions{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{v1alpha5.LabelCapacityType: v1alpha1.CapacityTypeOnDemand}}})
 			thirdNode := test.Node(test.NodeOptions{}) // missing topology capacity type
@@ -1777,6 +1773,9 @@ var _ = Describe("Topology", func() {
 			affPod1 := test.UnschedulablePod(test.PodOptions{
 				TopologySpreadConstraints: tsc,
 				ObjectMeta:                metav1.ObjectMeta{Labels: affLabels},
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("2")},
+				},
 				NodeSelector: map[string]string{
 					v1.LabelArchStable: "arm64",
 				}})
@@ -1784,6 +1783,9 @@ var _ = Describe("Topology", func() {
 			affPod2 := test.UnschedulablePod(test.PodOptions{
 				ObjectMeta:                metav1.ObjectMeta{Labels: affLabels},
 				TopologySpreadConstraints: tsc,
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
+				},
 				PodRequirements: []v1.PodAffinityTerm{{
 					LabelSelector: &metav1.LabelSelector{
 						MatchLabels: affLabels,
@@ -2126,13 +2128,21 @@ var _ = Describe("Topology", func() {
 			affPod1 := test.UnschedulablePod(test.PodOptions{
 				TopologySpreadConstraints: tsc,
 				ObjectMeta:                metav1.ObjectMeta{Labels: affLabels},
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("2")},
+				},
 				NodeSelector: map[string]string{
 					v1.LabelArchStable: "arm64",
 				}})
-			// affPod2 will try to get scheduled with affPod1
+
+			// affPod2 will try to get scheduled on a node with a different archi from affPod1. Due to resource
+			// requests we try to schedule it last
 			affPod2 := test.UnschedulablePod(test.PodOptions{
 				ObjectMeta:                metav1.ObjectMeta{Labels: affLabels},
 				TopologySpreadConstraints: tsc,
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
+				},
 				PodAntiRequirements: []v1.PodAffinityTerm{{
 					LabelSelector: &metav1.LabelSelector{
 						MatchLabels: affLabels,
@@ -3323,6 +3333,7 @@ var _ = Describe("Binpacking", func() {
 					v1.ResourceCPU:    resource.MustParse("1"),
 				},
 			},
+				InitImage: "pause",
 				InitResourceRequirements: v1.ResourceRequirements{
 					Requests: map[v1.ResourceName]resource.Quantity{
 						v1.ResourceMemory: resource.MustParse("1Gi"),
@@ -3342,6 +3353,7 @@ var _ = Describe("Binpacking", func() {
 					v1.ResourceCPU:    resource.MustParse("1"),
 				},
 			},
+				InitImage: "pause",
 				InitResourceRequirements: v1.ResourceRequirements{
 					Requests: map[v1.ResourceName]resource.Quantity{
 						v1.ResourceMemory: resource.MustParse("1Ti"),

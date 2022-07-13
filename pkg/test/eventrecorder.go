@@ -43,6 +43,8 @@ func (e *EventRecorder) NominatePod(pod *v1.Pod, node *v1.Node) {
 }
 func (e *EventRecorder) PodFailedToSchedule(pod *v1.Pod, err error) {}
 
+func (e *EventRecorder) NodeFailedToDrain(node *v1.Node, err error) {}
+
 func (e *EventRecorder) Reset() {
 	e.ResetBindings()
 }

@@ -19,4 +19,4 @@ Tekton CRDs used here are distinguished as Tasks, Pipelines, and PipelineRuns. T
 After creating these resources using kubectl, you can use the tekton CLI to run these quickly without having to navigate the Tekton UI or delete and re-create the resources. The most common command to utilize the existing configs is to instantiate pipeline runs.
 
 To run a tekton pipeline with a [pod template](https://tekton.dev/docs/pipelines/podtemplates/) for Task pods, take the following example:
-- `tkn pipeline start create-kit-pipeline -n tekton-tests --pod-template pod-template.yaml -s tekton`
+- `tkn pipeline start create-kit-pipeline -n karpenter-tests --pod-template pod-template.yaml -s tekton`

@@ -41,6 +41,7 @@ import (
 )
 
 var ctx context.Context
+var cfg *test.Config
 var env *test.Environment
 var cluster *state.Cluster
 var nodeController *state.NodeController
@@ -56,6 +57,7 @@ func TestAPIs(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {})
+	cfg = test.NewConfig()
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })
 
@@ -65,7 +67,7 @@ var _ = AfterSuite(func() {
 
 var _ = BeforeEach(func() {
 	cloudProvider = &fake.CloudProvider{InstanceTypes: fake.InstanceTypesAssorted()}
-	cluster = state.NewCluster(env.Client, cloudProvider)
+	cluster = state.NewCluster(cfg, env.Client, cloudProvider)
 	nodeController = state.NewNodeController(env.Client, cluster)
 	podController = state.NewPodController(env.Client, cluster)
 	provisioner = test.Provisioner(test.ProvisionerOptions{ObjectMeta: metav1.ObjectMeta{Name: "default"}})

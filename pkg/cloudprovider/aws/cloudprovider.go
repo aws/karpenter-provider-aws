@@ -45,7 +45,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/transport"
-	"knative.dev/pkg/apis"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 )
@@ -76,12 +75,6 @@ type CloudProvider struct {
 }
 
 func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *CloudProvider {
-	// if performing validation only, then only the Validate()/Default() methods will be called which
-	// don't require any other setup
-	if options.WebhookOnly {
-		return &CloudProvider{}
-	}
-
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("aws"))
 	sess := withUserAgent(session.Must(session.NewSession(
 		request.WithRetryer(
@@ -152,47 +145,6 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, provisioner *v1alp
 
 func (c *CloudProvider) Delete(ctx context.Context, node *v1.Node) error {
 	return c.instanceProvider.Terminate(ctx, node)
-}
-
-// Validate the provisioner
-func (*CloudProvider) Validate(ctx context.Context, provisioner *v1alpha5.Provisioner) *apis.FieldError {
-	// The receiver is intentionally omitted here as when used by the webhook, Validate/Default are the only methods
-	// called and we don't fully initialize the CloudProvider to prevent some network calls to EC2/Pricing.
-	if provisioner.Spec.Provider == nil {
-		return nil
-	}
-	provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
-	if err != nil {
-		return apis.ErrGeneric(err.Error())
-	}
-	return provider.Validate()
-}
-
-// Default the provisioner
-func (*CloudProvider) Default(ctx context.Context, provisioner *v1alpha5.Provisioner) {
-	defaultLabels(provisioner)
-}
-
-func defaultLabels(provisioner *v1alpha5.Provisioner) {
-	for key, value := range map[string]string{
-		v1alpha5.LabelCapacityType: ec2.DefaultTargetCapacityTypeOnDemand,
-		v1.LabelArchStable:         v1alpha5.ArchitectureAmd64,
-	} {
-		hasLabel := false
-		if _, ok := provisioner.Spec.Labels[key]; ok {
-			hasLabel = true
-		}
-		for _, requirement := range provisioner.Spec.Requirements {
-			if requirement.Key == key {
-				hasLabel = true
-			}
-		}
-		if !hasLabel {
-			provisioner.Spec.Requirements = append(provisioner.Spec.Requirements, v1.NodeSelectorRequirement{
-				Key: key, Operator: v1.NodeSelectorOpIn, Values: []string{value},
-			})
-		}
-	}
 }
 
 // Name returns the CloudProvider implementation name.

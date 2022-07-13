@@ -16,12 +16,7 @@ package test
 
 import (
 	"fmt"
-	"math/rand"
-	"strings"
-	"sync"
-	"time"
 
-	"github.com/Pallinder/go-randomdata"
 	"github.com/imdario/mergo"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/policy/v1beta1"
@@ -33,6 +28,7 @@ import (
 type PodOptions struct {
 	metav1.ObjectMeta
 	Image                     string
+	InitImage                 string
 	NodeName                  string
 	PriorityClassName         string
 	InitResourceRequirements  v1.ResourceRequirements
@@ -58,13 +54,6 @@ type PDBOptions struct {
 	MaxUnavailable *intstr.IntOrString
 }
 
-var (
-	sequentialPodNumber     = 0
-	randomSource            = rand.NewSource(time.Now().UnixNano())
-	randomizer              = rand.New(randomSource) //nolint
-	sequentialPodNumberLock = new(sync.Mutex)
-)
-
 // Pod creates a test pod with defaults that can be overridden by PodOptions.
 // Overrides are applied in order, with a last write wins semantic.
 func Pod(overrides ...PodOptions) *v1.Pod {
@@ -73,31 +62,30 @@ func Pod(overrides ...PodOptions) *v1.Pod {
 		if err := mergo.Merge(&options, opts, mergo.WithOverride); err != nil {
 			panic(fmt.Sprintf("Failed to merge pod options: %s", err))
 		}
+		// need this since mergo won't override a nil slice with an empty slice
+		if len(opts.ObjectMeta.OwnerReferences) == 0 && opts.ObjectMeta.OwnerReferences != nil {
+			options.OwnerReferences = []metav1.OwnerReference{}
+		}
 	}
 	if options.Image == "" {
-		options.Image = "alpine"
+		options.Image = "public.ecr.aws/eks-distro/kubernetes/pause:3.2"
 	}
-	volumes := []v1.Volume{}
+	var volumes []v1.Volume
 	for _, pvc := range options.PersistentVolumeClaims {
 		volumes = append(volumes, v1.Volume{
-			Name:         strings.ToLower(randomdata.SillyName()),
+			Name:         RandomName(),
 			VolumeSource: v1.VolumeSource{PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{ClaimName: pvc}},
 		})
 	}
-	return &v1.Pod{
+	p := &v1.Pod{
 		ObjectMeta: ObjectMeta(options.ObjectMeta),
 		Spec: v1.PodSpec{
 			NodeSelector:              options.NodeSelector,
 			Affinity:                  buildAffinity(options),
 			TopologySpreadConstraints: options.TopologySpreadConstraints,
 			Tolerations:               options.Tolerations,
-			InitContainers: []v1.Container{{
-				Name:      strings.ToLower(sequentialRandomName()),
-				Image:     options.Image,
-				Resources: options.InitResourceRequirements,
-			}},
 			Containers: []v1.Container{{
-				Name:      strings.ToLower(sequentialRandomName()),
+				Name:      RandomName(),
 				Image:     options.Image,
 				Resources: options.ResourceRequirements,
 			}},
@@ -110,13 +98,14 @@ func Pod(overrides ...PodOptions) *v1.Pod {
 			Phase:      options.Phase,
 		},
 	}
-}
-
-func sequentialRandomName() string {
-	sequentialPodNumberLock.Lock()
-	defer sequentialPodNumberLock.Unlock()
-	sequentialPodNumber++
-	return fmt.Sprintf("P%04d-%s-%06d", sequentialPodNumber, randomdata.SillyName(), randomizer.Intn(99999))
+	if options.InitImage != "" {
+		p.Spec.InitContainers = []v1.Container{{
+			Name:      RandomName(),
+			Image:     options.InitImage,
+			Resources: options.InitResourceRequirements,
+		}}
+	}
+	return p
 }
 
 // Pods creates homogeneous groups of pods based on the passed in options, evenly divided by the total pods requested
@@ -152,7 +141,7 @@ func PodDisruptionBudget(overrides ...PDBOptions) *v1beta1.PodDisruptionBudget {
 	options := PDBOptions{}
 	for _, opts := range overrides {
 		if err := mergo.Merge(&options, opts, mergo.WithOverride); err != nil {
-			panic(fmt.Sprintf("Failed to merge pod options: %s", err))
+			panic(fmt.Sprintf("Failed to merge pdb options: %s", err))
 		}
 	}
 	return &v1beta1.PodDisruptionBudget{

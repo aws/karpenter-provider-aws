@@ -20,5 +20,4 @@ import (
 
 // SetDefaults for the provisioner
 func (p *Provisioner) SetDefaults(ctx context.Context) {
-	DefaultHook(ctx, p)
 }

@@ -19,19 +19,20 @@ import (
 	"fmt"
 	"sort"
 	"sync"
-
-	"go.uber.org/multierr"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"k8s.io/apimachinery/pkg/api/errors"
-
+	"github.com/patrickmn/go-cache"
+	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/config"
 	"github.com/aws/karpenter/pkg/scheduling"
 	podutils "github.com/aws/karpenter/pkg/utils/pod"
 	"github.com/aws/karpenter/pkg/utils/resources"
@@ -45,18 +46,29 @@ type Cluster struct {
 	// Pod Specific Tracking
 	antiAffinityPods sync.Map // mapping of pod namespaced name to *v1.Pod of pods that have required anti affinities
 
+	nominatedNodes *cache.Cache
+
 	// Node Status & Pod -> Node Binding
 	mu       sync.RWMutex
 	nodes    map[string]*Node                // node name -> node
 	bindings map[types.NamespacedName]string // pod namespaced named -> node name
 }
 
-func NewCluster(client client.Client, cp cloudprovider.CloudProvider) *Cluster {
+func NewCluster(cfg config.Config, client client.Client, cp cloudprovider.CloudProvider) *Cluster {
+	// The nominationPeriod is how long we consider a node as 'likely to be used' after a pending pod was
+	// nominated for it. This time can very depending on the batching window size + time spent scheduling
+	// so we try to adjust based off the window size.
+	nominationPeriod := time.Duration(1.5*cfg.BatchMaxDuration().Seconds()) * time.Second
+	if nominationPeriod < 10*time.Second {
+		nominationPeriod = 10 * time.Second
+	}
+
 	c := &Cluster{
-		kubeClient:    client,
-		cloudProvider: cp,
-		nodes:         map[string]*Node{},
-		bindings:      map[types.NamespacedName]string{},
+		kubeClient:     client,
+		cloudProvider:  cp,
+		nominatedNodes: cache.New(nominationPeriod, 10*time.Second),
+		nodes:          map[string]*Node{},
+		bindings:       map[types.NamespacedName]string{},
 	}
 	return c
 }
@@ -119,7 +131,11 @@ func (c *Cluster) ForEachNode(f func(n *Node) bool) {
 	}
 	// sort nodes by creation time so we provide a consistent ordering
 	sort.Slice(nodes, func(a, b int) bool {
-		return nodes[a].Node.CreationTimestamp.Time.Before(nodes[b].Node.CreationTimestamp.Time)
+		if nodes[a].Node.CreationTimestamp != nodes[b].Node.CreationTimestamp {
+			return nodes[a].Node.CreationTimestamp.Time.Before(nodes[b].Node.CreationTimestamp.Time)
+		}
+		// sometimes we get nodes created in the same second, so sort again by node UID to provide a consistent ordering
+		return nodes[a].Node.UID < nodes[b].Node.UID
 	})
 
 	for _, node := range nodes {
@@ -127,6 +143,18 @@ func (c *Cluster) ForEachNode(f func(n *Node) bool) {
 			return
 		}
 	}
+}
+
+// IsNodeNominated returns true if the given node was expected to have a pod bound to it during a recent scheduling
+// batch
+func (c *Cluster) IsNodeNominated(nodeName string) bool {
+	_, exists := c.nominatedNodes.Get(nodeName)
+	return exists
+}
+
+// NominateNodeForPod records that a node was the target of a pending pod during a scheduling batch
+func (c *Cluster) NominateNodeForPod(nodeName string) {
+	c.nominatedNodes.SetDefault(nodeName, nil)
 }
 
 // newNode always returns a node, even if some portion of the update has failed
@@ -202,6 +230,11 @@ func (c *Cluster) populateProvisioner(ctx context.Context, node *v1.Node, n *Nod
 	if provisionerName, ok := node.Labels[v1alpha5.ProvisionerNameLabelKey]; ok {
 		var provisioner v1alpha5.Provisioner
 		if err := c.kubeClient.Get(ctx, client.ObjectKey{Name: provisionerName}, &provisioner); err != nil {
+			if errors.IsNotFound(err) {
+				// this occurs if the provisioner was deleted, the node won't last much longer anyway so it's
+				// safe to just not report this and continue
+				return nil
+			}
 			return fmt.Errorf("getting provisioner, %w", err)
 		}
 		n.Provisioner = &provisioner

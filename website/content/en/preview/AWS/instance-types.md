@@ -2519,7 +2519,6 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-memory|61952|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|8xlarge|
- |karpenter.sh/capacity-type|on-demand|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|cc2.8xlarge|
@@ -9511,7 +9510,6 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-memory|512|
  |karpenter.k8s.aws/instance-pods|4|
  |karpenter.k8s.aws/instance-size|nano|
- |karpenter.sh/capacity-type|on-demand|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|t2.nano|
@@ -10076,7 +10074,6 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-memory|12582912|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|112xlarge|
- |karpenter.sh/capacity-type|on-demand|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|u-12tb1.112xlarge|
@@ -10098,7 +10095,6 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-memory|3145728|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|56xlarge|
- |karpenter.sh/capacity-type|on-demand|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|u-3tb1.56xlarge|
@@ -10120,7 +10116,6 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-memory|6291456|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|56xlarge|
- |karpenter.sh/capacity-type|on-demand|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|u-6tb1.56xlarge|
@@ -10141,7 +10136,6 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-memory|6291456|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|112xlarge|
- |karpenter.sh/capacity-type|on-demand|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|u-6tb1.112xlarge|
@@ -10163,7 +10157,6 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-memory|9437184|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|112xlarge|
- |karpenter.sh/capacity-type|on-demand|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|u-9tb1.112xlarge|

@@ -6,7 +6,7 @@ metadata:
     app.kubernetes.io/instance: default
     app.kubernetes.io/part-of: tekton-dashboard
   name: tekton
-  namespace: tekton-tests
+  namespace: karpenter-tests
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -57,7 +57,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: tekton
-  namespace: tekton-tests
+  namespace: karpenter-tests
 - kind: Group
   name: tekton
   apiGroup: rbac.authorization.k8s.io
@@ -71,7 +71,7 @@ metadata:
     app.kubernetes.io/instance: default
     app.kubernetes.io/part-of: tekton-dashboard
   name: tekton-pipelines-executor
-  namespace: tekton-tests
+  namespace: karpenter-tests
 rules:
 - apiGroups: ["kit.k8s.sh"]
   resources: ["controlplanes", "dataplanes"]
@@ -106,7 +106,7 @@ metadata:
     app.kubernetes.io/instance: default
     app.kubernetes.io/part-of: tekton-dashboard
   name: tekton-pipelines-executor
-  namespace: tekton-tests
+  namespace: karpenter-tests
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -114,7 +114,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: tekton
-  namespace: tekton-tests
+  namespace: karpenter-tests
 - kind: Group
   name: tekton
   apiGroup: rbac.authorization.k8s.io

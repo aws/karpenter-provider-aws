@@ -1,4 +1,11 @@
-# Working Group
+---
+title: "Working Group"
+linkTitle: "Working Group"
+weight: 10
+description: >
+  Join the Karpenter Working Group
+---
+
 Karpenter's community is open to everyone.
 
 - All invites are managed through our [Calendar](https://calendar.google.com/calendar/u/0?cid=N3FmZGVvZjVoZWJkZjZpMnJrMmplZzVqYmtAZ3JvdXAuY2FsZW5kYXIuZ29vZ2xlLmNvbQ).

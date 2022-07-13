@@ -28,7 +28,6 @@ import (
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider/fake"
-	"github.com/aws/karpenter/pkg/cloudprovider/registry"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
 	"github.com/aws/karpenter/pkg/test"
 	v1 "k8s.io/api/core/v1"
@@ -58,7 +57,6 @@ func TestAPIs(t *testing.T) {
 var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
 		cloudProvider := &fake.CloudProvider{}
-		registry.RegisterOrDie(ctx, cloudProvider)
 		recorder = test.NewEventRecorder()
 		cfg = test.NewConfig()
 		instanceTypes, _ := cloudProvider.GetInstanceTypes(context.Background(), nil)
@@ -66,7 +64,7 @@ var _ = BeforeSuite(func() {
 		for _, it := range instanceTypes {
 			instanceTypeMap[it.Name()] = it
 		}
-		cluster := state.NewCluster(e.Client, cloudProvider)
+		cluster := state.NewCluster(cfg, e.Client, cloudProvider)
 		controller = provisioning.NewController(ctx, cfg, e.Client, corev1.NewForConfigOrDie(e.Config), recorder, cloudProvider, cluster)
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
@@ -320,6 +318,7 @@ var _ = Describe("Provisioning", func() {
 						Limits:   v1.ResourceList{v1.ResourceCPU: resource.MustParse("2"), v1.ResourceMemory: resource.MustParse("1Gi")},
 						Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("2")},
 					},
+					InitImage: "pause",
 					InitResourceRequirements: v1.ResourceRequirements{
 						Limits:   v1.ResourceList{v1.ResourceCPU: resource.MustParse("10000"), v1.ResourceMemory: resource.MustParse("2Gi")},
 						Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
@@ -339,6 +338,7 @@ var _ = Describe("Provisioning", func() {
 						Limits:   v1.ResourceList{v1.ResourceCPU: resource.MustParse("10000"), v1.ResourceMemory: resource.MustParse("1Gi")},
 						Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
 					},
+					InitImage: "pause",
 					InitResourceRequirements: v1.ResourceRequirements{
 						Limits:   v1.ResourceList{v1.ResourceCPU: resource.MustParse("10000"), v1.ResourceMemory: resource.MustParse("10000Gi")},
 						Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
@@ -351,6 +351,7 @@ var _ = Describe("Provisioning", func() {
 		It("should not schedule if initContainer resources are too large", func() {
 			ExpectApplied(ctx, env.Client, test.Provisioner(), test.DaemonSet(
 				test.DaemonSetOptions{PodOptions: test.PodOptions{
+					InitImage: "pause",
 					InitResourceRequirements: v1.ResourceRequirements{
 						Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("10000"), v1.ResourceMemory: resource.MustParse("10000Gi")},
 					},

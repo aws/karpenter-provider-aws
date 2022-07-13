@@ -29,6 +29,7 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/pkg/utils/functional"
 )
 
@@ -104,59 +105,57 @@ func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFlee
 	if input.LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName == nil {
 		return nil, fmt.Errorf("missing launch template name")
 	}
-	var instances []*ec2.Instance
 	var instanceIds []*string
 	var skippedPools []CapacityPool
 	var spotInstanceRequestID *string
 
 	if aws.StringValue(input.TargetCapacitySpecification.DefaultTargetCapacityType) == v1alpha1.CapacityTypeSpot {
-		spotInstanceRequestID = aws.String(randomdata.SillyName())
+		spotInstanceRequestID = aws.String(test.RandomName())
 	}
 
-	for i := 0; i < int(*input.TargetCapacitySpecification.TotalTargetCapacity); i++ {
-		skipInstance := false
-		e.InsufficientCapacityPools.Range(func(pool CapacityPool) bool {
-			if pool.InstanceType == aws.StringValue(input.LaunchTemplateConfigs[0].Overrides[0].InstanceType) &&
-				pool.Zone == aws.StringValue(input.LaunchTemplateConfigs[0].Overrides[0].AvailabilityZone) &&
-				pool.CapacityType == aws.StringValue(input.TargetCapacitySpecification.DefaultTargetCapacityType) {
-				skippedPools = append(skippedPools, pool)
-				skipInstance = true
-				return false
-			}
-			return true
-		})
-		if skipInstance {
-			continue
-		}
-		instances = append(instances, &ec2.Instance{
-			InstanceId:            aws.String(randomdata.SillyName()),
-			Placement:             &ec2.Placement{AvailabilityZone: input.LaunchTemplateConfigs[0].Overrides[0].AvailabilityZone},
-			PrivateDnsName:        aws.String(randomdata.IpV4Address()),
-			InstanceType:          input.LaunchTemplateConfigs[0].Overrides[0].InstanceType,
-			SpotInstanceRequestId: spotInstanceRequestID,
-		})
-		e.Instances.Store(*instances[i].InstanceId, instances[i])
-		instanceIds = append(instanceIds, instances[i].InstanceId)
-	}
-
-	result := &ec2.CreateFleetOutput{
-		Instances: []*ec2.CreateFleetInstance{{InstanceIds: instanceIds}}}
-	if len(skippedPools) > 0 {
-		for _, pool := range skippedPools {
-			result.Errors = append(result.Errors, &ec2.CreateFleetError{
-				ErrorCode: aws.String("InsufficientInstanceCapacity"),
-				LaunchTemplateAndOverrides: &ec2.LaunchTemplateAndOverridesResponse{
-					LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecification{
-						LaunchTemplateId:   input.LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateId,
-						LaunchTemplateName: input.LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName,
-					},
-					Overrides: &ec2.FleetLaunchTemplateOverrides{
-						InstanceType:     aws.String(pool.InstanceType),
-						AvailabilityZone: aws.String(pool.Zone),
-					},
-				},
+	for _, ltc := range input.LaunchTemplateConfigs {
+		for _, override := range ltc.Overrides {
+			skipInstance := false
+			e.InsufficientCapacityPools.Range(func(pool CapacityPool) bool {
+				if pool.InstanceType == aws.StringValue(override.InstanceType) &&
+					pool.Zone == aws.StringValue(override.AvailabilityZone) &&
+					pool.CapacityType == aws.StringValue(input.TargetCapacitySpecification.DefaultTargetCapacityType) {
+					skippedPools = append(skippedPools, pool)
+					skipInstance = true
+					return false
+				}
+				return true
 			})
+			if skipInstance {
+				continue
+			}
+			instance := &ec2.Instance{
+				InstanceId:            aws.String(test.RandomName()),
+				Placement:             &ec2.Placement{AvailabilityZone: input.LaunchTemplateConfigs[0].Overrides[0].AvailabilityZone},
+				PrivateDnsName:        aws.String(randomdata.IpV4Address()),
+				InstanceType:          input.LaunchTemplateConfigs[0].Overrides[0].InstanceType,
+				SpotInstanceRequestId: spotInstanceRequestID,
+			}
+			e.Instances.Store(*instance.InstanceId, instance)
+			instanceIds = append(instanceIds, instance.InstanceId)
 		}
+	}
+
+	result := &ec2.CreateFleetOutput{Instances: []*ec2.CreateFleetInstance{{InstanceIds: instanceIds}}}
+	for _, pool := range skippedPools {
+		result.Errors = append(result.Errors, &ec2.CreateFleetError{
+			ErrorCode: aws.String("InsufficientInstanceCapacity"),
+			LaunchTemplateAndOverrides: &ec2.LaunchTemplateAndOverridesResponse{
+				LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecification{
+					LaunchTemplateId:   input.LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateId,
+					LaunchTemplateName: input.LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName,
+				},
+				Overrides: &ec2.FleetLaunchTemplateOverrides{
+					InstanceType:     aws.String(pool.InstanceType),
+					AvailabilityZone: aws.String(pool.Zone),
+				},
+			},
+		})
 	}
 	return result, nil
 }

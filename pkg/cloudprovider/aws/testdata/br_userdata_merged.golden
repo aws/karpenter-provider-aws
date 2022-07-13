@@ -13,3 +13,12 @@ max-pods = 110
 
 [settings.kubernetes.eviction-hard]
 'memory.available' = '12%%'
+
+[settings.network]
+hostname = 'test.local'
+hosts = [['10.0.0.0', ['test.example.com', 'test1.example.com']]]
+https-proxy = '1.2.3.4:8080'
+no-proxy = ['localhost', '127.0.0.1']
+
+[settings.ntp]
+time-servers = ['169.254.169.123']

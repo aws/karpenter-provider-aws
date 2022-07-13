@@ -25,7 +25,7 @@ import (
 func NewDedupeRecorder(r Recorder) Recorder {
 	return &dedupe{
 		rec:   r,
-		cache: cache.New(60*time.Second, 10*time.Second),
+		cache: cache.New(120*time.Second, 10*time.Second),
 	}
 }
 
@@ -50,4 +50,13 @@ func (d *dedupe) PodFailedToSchedule(pod *v1.Pod, err error) {
 	}
 	d.cache.SetDefault(key, nil)
 	d.rec.PodFailedToSchedule(pod, err)
+}
+
+func (d *dedupe) NodeFailedToDrain(node *v1.Node, err error) {
+	key := fmt.Sprintf("failed-to-drain-%s", node.Name)
+	if _, exists := d.cache.Get(key); exists {
+		return
+	}
+	d.cache.SetDefault(key, nil)
+	d.rec.NodeFailedToDrain(node, err)
 }

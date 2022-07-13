@@ -18,9 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
 
-	"github.com/Pallinder/go-randomdata"
 	"github.com/imdario/mergo"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -35,15 +33,16 @@ import (
 // ProvisionerOptions customizes a Provisioner.
 type ProvisionerOptions struct {
 	metav1.ObjectMeta
-	Limits        v1.ResourceList
-	Provider      interface{}
-	ProviderRef   *v1alpha5.ProviderRef
-	Kubelet       *v1alpha5.KubeletConfiguration
-	Labels        map[string]string
-	Taints        []v1.Taint
-	StartupTaints []v1.Taint
-	Requirements  []v1.NodeSelectorRequirement
-	Status        v1alpha5.ProvisionerStatus
+	Limits               v1.ResourceList
+	Provider             interface{}
+	ProviderRef          *v1alpha5.ProviderRef
+	Kubelet              *v1alpha5.KubeletConfiguration
+	Labels               map[string]string
+	Taints               []v1.Taint
+	StartupTaints        []v1.Taint
+	Requirements         []v1.NodeSelectorRequirement
+	Status               v1alpha5.ProvisionerStatus
+	TTLSecondsAfterEmpty *int64
 }
 
 // Provisioner creates a test provisioner with defaults that can be overridden by ProvisionerOptions.
@@ -52,14 +51,17 @@ func Provisioner(overrides ...ProvisionerOptions) *v1alpha5.Provisioner {
 	options := ProvisionerOptions{}
 	for _, opts := range overrides {
 		if err := mergo.Merge(&options, opts, mergo.WithOverride); err != nil {
-			panic(fmt.Sprintf("Failed to merge pod options: %s", err))
+			panic(fmt.Sprintf("Failed to merge provisioner options: %s", err))
 		}
 	}
 	if options.Name == "" {
-		options.Name = strings.ToLower(randomdata.SillyName())
+		options.Name = RandomName()
 	}
 	if options.Limits == nil {
 		options.Limits = v1.ResourceList{v1.ResourceCPU: resource.MustParse("1000")}
+	}
+	if options.TTLSecondsAfterEmpty == nil {
+		options.TTLSecondsAfterEmpty = ptr.Int64(10)
 	}
 
 	provisioner := &v1alpha5.Provisioner{
@@ -72,7 +74,7 @@ func Provisioner(overrides ...ProvisionerOptions) *v1alpha5.Provisioner {
 			StartupTaints:        options.StartupTaints,
 			Labels:               options.Labels,
 			Limits:               &v1alpha5.Limits{Resources: options.Limits},
-			TTLSecondsAfterEmpty: ptr.Int64(10),
+			TTLSecondsAfterEmpty: options.TTLSecondsAfterEmpty,
 		},
 		Status: options.Status,
 	}

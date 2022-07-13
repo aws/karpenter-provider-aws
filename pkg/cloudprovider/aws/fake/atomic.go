@@ -168,3 +168,9 @@ func (a *AtomicSlice[T]) Set(values []T) {
 	defer a.mu.Unlock()
 	a.values = values
 }
+
+func (a *AtomicSlice[T]) Len() int {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return len(a.values)
+}

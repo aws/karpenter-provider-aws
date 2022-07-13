@@ -104,8 +104,10 @@ below are the resources available with some assumptions and after the instance o
 	familyNames := lo.Keys(families)
 	sort.Strings(familyNames)
 
-	// we don't want to show the zone label that was applied based on our credentials
+	// we don't want to show a few labels that will vary amongst regions
 	delete(labelNameMap, v1.LabelTopologyZone)
+	delete(labelNameMap, v1alpha5.LabelCapacityType)
+
 	labelNames := lo.Keys(labelNameMap)
 
 	sort.Strings(labelNames)

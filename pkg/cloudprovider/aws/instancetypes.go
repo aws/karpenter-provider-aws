@@ -214,6 +214,7 @@ func compressInstanceType(instanceType *ec2.InstanceTypeInfo) *ec2.InstanceTypeI
 		InstanceStorageInfo:      instanceType.InstanceStorageInfo,
 		MemoryInfo:               &ec2.MemoryInfo{SizeInMiB: instanceType.MemoryInfo.SizeInMiB},
 		ProcessorInfo:            &ec2.ProcessorInfo{SupportedArchitectures: instanceType.ProcessorInfo.SupportedArchitectures},
+		BareMetal:                instanceType.BareMetal,
 		NetworkInfo: &ec2.NetworkInfo{
 			Ipv4AddressesPerInterface: instanceType.NetworkInfo.Ipv4AddressesPerInterface,
 			MaximumNetworkInterfaces:  instanceType.NetworkInfo.MaximumNetworkInterfaces,

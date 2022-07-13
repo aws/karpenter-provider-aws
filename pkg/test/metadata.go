@@ -15,17 +15,43 @@ limitations under the License.
 package test
 
 import (
+	"fmt"
+	"math/rand"
 	"strings"
+	"sync"
+	"time"
 
+	"github.com/Pallinder/go-randomdata"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+var (
+	sequentialNumber     = 0
+	randomizer           = rand.New(rand.NewSource(time.Now().UnixNano())) //nolint
+	sequentialNumberLock = new(sync.Mutex)
+)
+
+func RandomName() string {
+	sequentialNumberLock.Lock()
+	defer sequentialNumberLock.Unlock()
+	sequentialNumber++
+	return strings.ToLower(fmt.Sprintf("%s-%d-%s", randomdata.SillyName(), sequentialNumber, randomdata.Alphanumeric(10)))
+}
+
 func ObjectMeta(options metav1.ObjectMeta) metav1.ObjectMeta {
 	if options.Name == "" {
-		options.Name = strings.ToLower(sequentialRandomName())
+		options.Name = RandomName()
 	}
 	if options.Namespace == "" {
 		options.Namespace = "default"
+	}
+	if options.OwnerReferences == nil {
+		options.OwnerReferences = []metav1.OwnerReference{{
+			APIVersion: "v1",
+			Kind:       "Namespace",
+			Name:       "default",
+			UID:        "58953756-099e-47ad-bc6f-0486b690ea12",
+		}}
 	}
 	return options
 }
