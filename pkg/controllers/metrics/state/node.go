@@ -131,14 +131,14 @@ func init() {
 }
 
 type NodeScraper struct {
-	cluster       *state.Cluster
-	gaugeLabelMap map[*prometheus.GaugeVec]map[string]prometheus.Labels
+	cluster     *state.Cluster
+	gaugeLabels map[*prometheus.GaugeVec]map[string]prometheus.Labels
 }
 
 func NewNodeScraper(cluster *state.Cluster) *NodeScraper {
 	return &NodeScraper{
 		cluster: cluster,
-		gaugeLabelMap: func() map[*prometheus.GaugeVec]map[string]prometheus.Labels {
+		gaugeLabels: func() map[*prometheus.GaugeVec]map[string]prometheus.Labels {
 			m := make(map[*prometheus.GaugeVec]map[string]prometheus.Labels)
 			forEachGaugeVec(func(g *prometheus.GaugeVec) {
 				m[g] = make(map[string]prometheus.Labels)
@@ -149,9 +149,9 @@ func NewNodeScraper(cluster *state.Cluster) *NodeScraper {
 }
 
 func (ns *NodeScraper) Scrape(ctx context.Context) {
-	gaugeLabelSet := make(map[*prometheus.GaugeVec]sets.String)
+	currentGaugeLabels := make(map[*prometheus.GaugeVec]sets.String)
 	forEachGaugeVec(func(g *prometheus.GaugeVec) {
-		gaugeLabelSet[g] = sets.NewString()
+		currentGaugeLabels[g] = sets.NewString()
 	})
 
 	// Populate metrics
@@ -165,8 +165,9 @@ func (ns *NodeScraper) Scrape(ctx context.Context) {
 			allocatableGaugeVec:    n.Node.Status.Allocatable,
 		} {
 			for _, labels := range ns.set(gaugeVec, n.Node, resourceList) {
-				ns.gaugeLabelMap[gaugeVec][labelsToString(labels)] = labels
-				gaugeLabelSet[gaugeVec].Insert(labelsToString(labels))
+				key := labelsToString(labels)
+				ns.gaugeLabels[gaugeVec][key] = labels
+				currentGaugeLabels[gaugeVec].Insert(key)
 			}
 		}
 		return true
@@ -174,13 +175,14 @@ func (ns *NodeScraper) Scrape(ctx context.Context) {
 
 	// Remove stale gauges
 	forEachGaugeVec(func(g *prometheus.GaugeVec) {
-		for labelsKey := range sets.NewString(lo.Keys(ns.gaugeLabelMap[g])...).Difference(gaugeLabelSet[g]) {
-			g.Delete(ns.gaugeLabelMap[g][labelsKey])
+		for labelsKey := range sets.NewString(lo.Keys(ns.gaugeLabels[g])...).Difference(currentGaugeLabels[g]) {
+			g.Delete(ns.gaugeLabels[g][labelsKey])
+			delete(ns.gaugeLabels[g], labelsKey)
 		}
 	})
 }
 
-// set sets the value for the node gauge and returns a slice of the labels for the gauges set
+// set the value for the node gauge and returns a slice of the labels for the gauges set
 func (ns *NodeScraper) set(gaugeVec *prometheus.GaugeVec, node *v1.Node, resourceList v1.ResourceList) []prometheus.Labels {
 	gaugeLabels := []prometheus.Labels{}
 	for resourceName, quantity := range resourceList {
