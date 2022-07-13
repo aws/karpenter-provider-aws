@@ -20,14 +20,15 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter/pkg/controllers/state"
-	"github.com/aws/karpenter/pkg/utils/resources"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
+
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/controllers/state"
+	"github.com/aws/karpenter/pkg/utils/resources"
 )
 
 const (
@@ -240,7 +241,7 @@ func getWellKnownLabels() map[string]string {
 		if parts := strings.Split(wellKnownLabel, "/"); len(parts) == 2 {
 			label := parts[1]
 			// Reformat label names to be consistent with Prometheus naming conventions (snake_case)
-			label = strings.ReplaceAll(strings.ToLower(string(label)), "-", "_")
+			label = strings.ReplaceAll(strings.ToLower(label), "-", "_")
 			labels[wellKnownLabel] = label
 		}
 	}
