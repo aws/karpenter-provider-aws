@@ -37,6 +37,7 @@ import (
 )
 
 var ctx context.Context
+var cfg *test.Config
 var env *test.Environment
 var cluster *state.Cluster
 var nodeController *state.NodeController
@@ -47,6 +48,7 @@ var nodeScraper *statemetrics.NodeScraper
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
+	cfg = test.NewConfig()
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Controllers/Metrics/State")
 }
@@ -56,7 +58,7 @@ var _ = BeforeSuite(func() {
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 
 	cloudProvider = &fake.CloudProvider{InstanceTypes: fake.InstanceTypesAssorted()}
-	cluster = state.NewCluster(env.Client, cloudProvider)
+	cluster = state.NewCluster(cfg, env.Client, cloudProvider)
 	provisioner = test.Provisioner(test.ProvisionerOptions{ObjectMeta: metav1.ObjectMeta{Name: "default"}})
 	nodeController = state.NewNodeController(env.Client, cluster)
 	podController = state.NewPodController(env.Client, cluster)

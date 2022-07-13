@@ -44,6 +44,10 @@ var _ = BeforeSuite(func() {
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })
 
+var _ = AfterSuite(func() {
+	Expect(env.Stop()).To(Succeed(), "Failed to stop environment")
+})
+
 var _ = Describe("Pod Metrics", func() {
 	It("should update the pod state metrics", func() {
 		p := test.Pod()
