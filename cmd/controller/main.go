@@ -114,7 +114,7 @@ func main() {
 	recorder := events.NewDedupeRecorder(events.NewRecorder(manager.GetEventRecorderFor(appName)))
 	cluster := state.NewCluster(cfg, manager.GetClient(), cloudProvider)
 
-	statemetrics.NewMetricScraper(ctx, cluster)
+	statemetrics.StartMetricScraper(ctx, cluster)
 
 	if err := manager.RegisterControllers(ctx,
 		provisioning.NewController(ctx, cfg, manager.GetClient(), clientSet.CoreV1(), recorder, cloudProvider, cluster),

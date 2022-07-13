@@ -29,33 +29,22 @@ type Scraper interface {
 }
 
 type MetricScraper struct {
-	Cluster *state.Cluster
-
-	scrapers         []Scraper
-	updateChan       chan struct{}
-	updateReturnChan chan struct{}
+	cluster  *state.Cluster
+	scrapers []Scraper
 }
 
-func NewMetricScraper(ctx context.Context, cluster *state.Cluster) *MetricScraper {
+func StartMetricScraper(ctx context.Context, cluster *state.Cluster) {
 	mc := &MetricScraper{
-		Cluster:          cluster,
-		updateChan:       make(chan struct{}),
-		updateReturnChan: make(chan struct{}),
+		cluster: cluster,
 	}
 	mc.init(ctx)
-	return mc
-}
-
-func (ms *MetricScraper) Update() {
-	ms.updateChan <- struct{}{}
-	<-ms.updateReturnChan
 }
 
 func (ms *MetricScraper) init(ctx context.Context) {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("metric-scraper"))
 
 	for _, c := range []Scraper{
-		NewNodeScraper(ms.Cluster),
+		NewNodeScraper(ms.cluster),
 	} {
 		ms.scrapers = append(ms.scrapers, c)
 	}
@@ -69,18 +58,11 @@ func (ms *MetricScraper) init(ctx context.Context) {
 			case <-ctx.Done():
 				logging.FromContext(ctx).Debugf("Terminating metric-scraper")
 				return
-			case <-ms.updateChan:
-				ms.scrape(ctx)
-				ms.updateReturnChan <- struct{}{}
 			case <-ticker.C:
-				ms.scrape(ctx)
+				for _, c := range ms.scrapers {
+					c.Scrape(ctx)
+				}
 			}
 		}
 	}()
-}
-
-func (ms *MetricScraper) scrape(ctx context.Context) {
-	for _, c := range ms.scrapers {
-		c.Scrape(ctx)
-	}
 }
