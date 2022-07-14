@@ -29,4 +29,4 @@ tagRelease() {
 
 authenticate
 tagAllRepositories
-notifyRelease $RELEASE_TYPE $HELM_CHART_VERSION
+notifyRelease $RELEASE_TYPE $NEW_TAG
