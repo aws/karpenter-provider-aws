@@ -43,6 +43,7 @@ var ctx context.Context
 var controller *termination.Controller
 var evictionQueue *termination.EvictionQueue
 var env *test.Environment
+var defaultOwnerRefs = []metav1.OwnerReference{{Kind: "ReplicaSet", APIVersion: "appsv1", Name: "rs", UID: "1234567890"}}
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -95,10 +96,11 @@ var _ = Describe("Termination", func() {
 			ExpectNotFound(ctx, env.Client, node)
 		})
 		It("should not evict pods that tolerate unschedulable taint", func() {
-			podEvict := test.Pod(test.PodOptions{NodeName: node.Name})
+			podEvict := test.Pod(test.PodOptions{NodeName: node.Name, ObjectMeta: metav1.ObjectMeta{OwnerReferences: defaultOwnerRefs}})
 			podSkip := test.Pod(test.PodOptions{
 				NodeName:    node.Name,
 				Tolerations: []v1.Toleration{{Key: v1.TaintNodeUnschedulable, Operator: v1.TolerationOpExists, Effect: v1.TaintEffectNoSchedule}},
+				ObjectMeta:  metav1.ObjectMeta{OwnerReferences: defaultOwnerRefs},
 			})
 			ExpectApplied(ctx, env.Client, node, podEvict, podSkip)
 
@@ -120,10 +122,16 @@ var _ = Describe("Termination", func() {
 			ExpectNotFound(ctx, env.Client, node)
 		})
 		It("should not delete nodes that have a do-not-evict pod", func() {
-			podEvict := test.Pod(test.PodOptions{NodeName: node.Name})
-			podNoEvict := test.Pod(test.PodOptions{
+			podEvict := test.Pod(test.PodOptions{
 				NodeName:   node.Name,
-				ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{v1alpha5.DoNotEvictPodAnnotationKey: "true"}},
+				ObjectMeta: metav1.ObjectMeta{OwnerReferences: defaultOwnerRefs},
+			})
+			podNoEvict := test.Pod(test.PodOptions{
+				NodeName: node.Name,
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations:     map[string]string{v1alpha5.DoNotEvictPodAnnotationKey: "true"},
+					OwnerReferences: defaultOwnerRefs,
+				},
 			})
 
 			ExpectApplied(ctx, env.Client, node, podEvict, podNoEvict)
@@ -156,17 +164,108 @@ var _ = Describe("Termination", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 			ExpectNotFound(ctx, env.Client, node)
 		})
-		It("should not delete nodes that have pods without an owner ref", func() {
-			podEvict := test.Pod(test.PodOptions{NodeName: node.Name})
+		It("should not delete nodes that have a do-not-evict pod that tolerates an unschedulable taint", func() {
+			podEvict := test.Pod(test.PodOptions{
+				NodeName:   node.Name,
+				ObjectMeta: metav1.ObjectMeta{OwnerReferences: defaultOwnerRefs},
+			})
 			podNoEvict := test.Pod(test.PodOptions{
-				NodeName: node.Name,
+				NodeName:    node.Name,
+				Tolerations: []v1.Toleration{{Key: v1.TaintNodeUnschedulable, Operator: v1.TolerationOpExists, Effect: v1.TaintEffectNoSchedule}},
 				ObjectMeta: metav1.ObjectMeta{
-					OwnerReferences: []metav1.OwnerReference{},
+					Annotations:     map[string]string{v1alpha5.DoNotEvictPodAnnotationKey: "true"},
+					OwnerReferences: defaultOwnerRefs,
 				},
 			})
 
 			ExpectApplied(ctx, env.Client, node, podEvict, podNoEvict)
 
+			Expect(env.Client.Delete(ctx, node)).To(Succeed())
+			node = ExpectNodeExists(ctx, env.Client, node.Name)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
+
+			// Expect no pod to be enqueued for eviction
+			ExpectNotEnqueuedForEviction(evictionQueue, podEvict, podNoEvict)
+
+			// Expect node to exist and be draining
+			ExpectNodeDraining(env.Client, node.Name)
+
+			// Delete do-not-evict pod
+			ExpectDeleted(ctx, env.Client, podNoEvict)
+
+			// Reconcile node to evict pod
+			node = ExpectNodeExists(ctx, env.Client, node.Name)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
+
+			// Expect podEvict to be enqueued for eviction then be successful
+			ExpectEvicted(env.Client, podEvict)
+
+			// Delete pod to simulate successful eviction
+			ExpectDeleted(ctx, env.Client, podEvict)
+
+			// Reconcile to delete node
+			node = ExpectNodeExists(ctx, env.Client, node.Name)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
+			ExpectNotFound(ctx, env.Client, node)
+		})
+		It("should not delete nodes that have a do-not-evict static pod", func() {
+			ExpectApplied(ctx, env.Client, node)
+			node = ExpectNodeExists(ctx, env.Client, node.Name)
+			podEvict := test.Pod(test.PodOptions{
+				NodeName:   node.Name,
+				ObjectMeta: metav1.ObjectMeta{OwnerReferences: defaultOwnerRefs},
+			})
+			podNoEvict := test.Pod(test.PodOptions{
+				NodeName: node.Name,
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{v1alpha5.DoNotEvictPodAnnotationKey: "true"},
+					OwnerReferences: []metav1.OwnerReference{{
+						APIVersion: "v1",
+						Kind:       "Node",
+						Name:       node.Name,
+						UID:        node.UID,
+					}},
+				},
+			})
+
+			ExpectApplied(ctx, env.Client, podEvict, podNoEvict)
+
+			Expect(env.Client.Delete(ctx, node)).To(Succeed())
+			node = ExpectNodeExists(ctx, env.Client, node.Name)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
+
+			// Expect no pod to be enqueued for eviction
+			ExpectNotEnqueuedForEviction(evictionQueue, podEvict, podNoEvict)
+
+			// Expect node to exist and be draining
+			ExpectNodeDraining(env.Client, node.Name)
+
+			// Delete do-not-evict pod
+			ExpectDeleted(ctx, env.Client, podNoEvict)
+
+			// Reconcile node to evict pod
+			node = ExpectNodeExists(ctx, env.Client, node.Name)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
+
+			// Expect podEvict to be enqueued for eviction then be successful
+			ExpectEvicted(env.Client, podEvict)
+
+			// Delete pod to simulate successful eviction
+			ExpectDeleted(ctx, env.Client, podEvict)
+
+			// Reconcile to delete node
+			node = ExpectNodeExists(ctx, env.Client, node.Name)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
+			ExpectNotFound(ctx, env.Client, node)
+		})
+		It("should not delete nodes that have pods without an owner ref", func() {
+			podEvict := test.Pod(test.PodOptions{
+				NodeName:   node.Name,
+				ObjectMeta: metav1.ObjectMeta{OwnerReferences: defaultOwnerRefs},
+			})
+			podNoEvict := test.Pod(test.PodOptions{NodeName: node.Name})
+
+			ExpectApplied(ctx, env.Client, node, podEvict, podNoEvict)
 			Expect(env.Client.Delete(ctx, node)).To(Succeed())
 			node = ExpectNodeExists(ctx, env.Client, node.Name)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
@@ -196,22 +295,25 @@ var _ = Describe("Termination", func() {
 			ExpectNotFound(ctx, env.Client, node)
 		})
 		It("should delete nodes that have do-not-evict on pods for which it does not apply", func() {
-			ExpectApplied(ctx, env.Client, node)
-			node = ExpectNodeExists(ctx, env.Client, node.Name)
 			pods := []*v1.Pod{
 				test.Pod(test.PodOptions{
-					NodeName:   node.Name,
-					ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{v1alpha5.DoNotEvictPodAnnotationKey: "true"}},
+					NodeName: node.Name,
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations:     map[string]string{v1alpha5.DoNotEvictPodAnnotationKey: "true"},
+						OwnerReferences: defaultOwnerRefs,
+					},
 				}),
 				test.Pod(test.PodOptions{
 					NodeName:    node.Name,
 					Tolerations: []v1.Toleration{{Operator: v1.TolerationOpExists}},
+					ObjectMeta:  metav1.ObjectMeta{OwnerReferences: defaultOwnerRefs},
 				}),
 				test.Pod(test.PodOptions{
 					NodeName:   node.Name,
-					ObjectMeta: metav1.ObjectMeta{OwnerReferences: []metav1.OwnerReference{{Kind: "Node", APIVersion: "v1", Name: node.Name, UID: node.UID}}},
+					ObjectMeta: metav1.ObjectMeta{OwnerReferences: defaultOwnerRefs},
 				}),
 			}
+			ExpectApplied(ctx, env.Client, node)
 			for _, pod := range pods {
 				ExpectApplied(ctx, env.Client, pod)
 			}
@@ -236,9 +338,12 @@ var _ = Describe("Termination", func() {
 				MinAvailable: &minAvailable,
 			})
 			podNoEvict := test.Pod(test.PodOptions{
-				NodeName:   node.Name,
-				ObjectMeta: metav1.ObjectMeta{Labels: labelSelector},
-				Phase:      v1.PodRunning,
+				NodeName: node.Name,
+				ObjectMeta: metav1.ObjectMeta{
+					Labels:          labelSelector,
+					OwnerReferences: defaultOwnerRefs,
+				},
+				Phase: v1.PodRunning,
 			})
 
 			ExpectApplied(ctx, env.Client, node, podNoEvict, pdb)
@@ -266,9 +371,9 @@ var _ = Describe("Termination", func() {
 			ExpectNotFound(ctx, env.Client, node)
 		})
 		It("should evict non-critical pods first", func() {
-			podEvict := test.Pod(test.PodOptions{NodeName: node.Name})
-			podNodeCritical := test.Pod(test.PodOptions{NodeName: node.Name, PriorityClassName: "system-node-critical"})
-			podClusterCritical := test.Pod(test.PodOptions{NodeName: node.Name, PriorityClassName: "system-cluster-critical"})
+			podEvict := test.Pod(test.PodOptions{NodeName: node.Name, ObjectMeta: metav1.ObjectMeta{OwnerReferences: defaultOwnerRefs}})
+			podNodeCritical := test.Pod(test.PodOptions{NodeName: node.Name, PriorityClassName: "system-node-critical", ObjectMeta: metav1.ObjectMeta{OwnerReferences: defaultOwnerRefs}})
+			podClusterCritical := test.Pod(test.PodOptions{NodeName: node.Name, PriorityClassName: "system-cluster-critical", ObjectMeta: metav1.ObjectMeta{OwnerReferences: defaultOwnerRefs}})
 
 			ExpectApplied(ctx, env.Client, node, podEvict, podNodeCritical, podClusterCritical)
 
@@ -298,7 +403,7 @@ var _ = Describe("Termination", func() {
 			ExpectNotFound(ctx, env.Client, node)
 		})
 		It("should not evict static pods", func() {
-			podEvict := test.Pod(test.PodOptions{NodeName: node.Name})
+			podEvict := test.Pod(test.PodOptions{NodeName: node.Name, ObjectMeta: metav1.ObjectMeta{OwnerReferences: defaultOwnerRefs}})
 			ExpectApplied(ctx, env.Client, node, podEvict)
 
 			podNoEvict := test.Pod(test.PodOptions{
@@ -341,7 +446,10 @@ var _ = Describe("Termination", func() {
 
 		})
 		It("should not delete nodes until all pods are deleted", func() {
-			pods := []*v1.Pod{test.Pod(test.PodOptions{NodeName: node.Name}), test.Pod(test.PodOptions{NodeName: node.Name})}
+			pods := []*v1.Pod{
+				test.Pod(test.PodOptions{NodeName: node.Name, ObjectMeta: metav1.ObjectMeta{OwnerReferences: defaultOwnerRefs}}),
+				test.Pod(test.PodOptions{NodeName: node.Name, ObjectMeta: metav1.ObjectMeta{OwnerReferences: defaultOwnerRefs}}),
+			}
 			ExpectApplied(ctx, env.Client, node, pods[0], pods[1])
 
 			// Trigger Termination Controller
@@ -372,7 +480,7 @@ var _ = Describe("Termination", func() {
 			ExpectNotFound(ctx, env.Client, node)
 		})
 		It("should wait for pods to terminate", func() {
-			pod := test.Pod(test.PodOptions{NodeName: node.Name})
+			pod := test.Pod(test.PodOptions{NodeName: node.Name, ObjectMeta: metav1.ObjectMeta{OwnerReferences: defaultOwnerRefs}})
 			ExpectApplied(ctx, env.Client, node, pod)
 
 			// Before grace period, node should not delete
