@@ -281,3 +281,12 @@ spec:
           limits:
             nvidia.com/gpu: "1"
 ```
+{{% alert title="Note" color="primary" %}}
+If you are provisioning GPU nodes, you need to deploy an appropriate GPU device plugin daemonset for those nodes.
+Without the daemonset running, Karpenter will not see those nodes as initialized.
+Refer to general [Kubernetes GPU](https://kubernetes.io/docs/tasks/manage-gpus/scheduling-gpus/#deploying-amd-gpu-device-plugin) docs and the following specific GPU docs:
+* `nvidia.com/gpu`: [NVIDIA device plugin for Kubernetes](https://github.com/NVIDIA/k8s-device-plugin)
+* `amd.com/gpu`: [AMD GPU device plugin for Kubernetes](https://github.com/RadeonOpenCompute/k8s-device-plugin)
+* `aws.amazon.com/neuron`: [Kubernetes enviroment setup for Neuron](https://github.com/aws/aws-neuron-sdk/blob/master/neuron-deploy/tutorials/tutorial-k8s.rst)
+{{% /alert %}}
+
