@@ -64,7 +64,7 @@ func ExpectNotFound(ctx context.Context, c client.Client, objects ...client.Obje
 		Eventually(func() bool {
 			return errors.IsNotFound(c.Get(ctx, types.NamespacedName{Name: object.GetName(), Namespace: object.GetNamespace()}, object))
 		}, ReconcilerPropagationTime, RequestInterval).Should(BeTrue(), func() string {
-			return fmt.Sprintf("expected %s to be deleted, but it still exists", object.GetSelfLink())
+			return fmt.Sprintf("expected %s to be deleted, but it still exists", client.ObjectKeyFromObject(object))
 		})
 	}
 }
