@@ -22,7 +22,7 @@ publishHelmChart() {
 notifyIfStableRelease(){
   COMMIT_TAG=$(git describe --tags --exact-match || echo "none")
   if [[ "${COMMIT_TAG}" == "none" || "${COMMIT_TAG}" != v* ]]; then
-    echo "No valid stable tag releases found in '${COMMIT_TAG}'"
+    echo "Not sending a stable release message since no valid stable tag releases found in tags of this commit: '${COMMIT_TAG}'"
     return
   fi
   notifyRelease "stable" $COMMIT_TAG
