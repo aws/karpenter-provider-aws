@@ -37,6 +37,16 @@ func DurationBuckets() []float64 {
 		1.25, 1.5, 1.75, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30, 40, 50, 60}
 }
 
+// Returns a map of summary objectives (quantile-error pairs)
+func SummaryObjectives() map[float64]float64 {
+	const epsilon = 0.01
+	objectives := make(map[float64]float64)
+	for _, quantile := range []float64{0.0, 0.5, 0.9, 0.99, 1.0} {
+		objectives[quantile] = epsilon
+	}
+	return objectives
+}
+
 // Measure returns a deferrable function that observes the duration between the
 // defer statement and the end of the function.
 func Measure(observer prometheus.Observer) func() {
