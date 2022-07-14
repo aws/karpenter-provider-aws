@@ -10,9 +10,9 @@ import (
 	"github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"knative.dev/pkg/environment"
 	loggingtesting "knative.dev/pkg/logging/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
 
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/utils/env"
@@ -54,7 +54,7 @@ func NewLocalClient() (client.Client, error) {
 	if err := apis.AddToScheme(scheme); err != nil {
 		return nil, err
 	}
-	config, err := (&environment.ClientConfig{}).GetRESTConfig()
+	config, err := config.GetConfig()
 	if err != nil {
 		return nil, err
 	}
