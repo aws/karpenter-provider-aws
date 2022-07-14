@@ -8,4 +8,4 @@ Run `./setup-management-cluster.sh` to create an EKS cluster with the following 
 - [Prometheus](https://prometheus.io/)
 - [KIT Operator](https://github.com/awslabs/kubernetes-iteration-toolkit/tree/main/operator)
 
-See [/test/README.md](../README.md) for design choices and more information.
+More information about the design choices will be coming. Refer to the /test/README.md for more.
