@@ -1,0 +1,8 @@
+{
+    "pImageId": "ami-12345",
+    "pClusterName": "KarpenterCluster",
+    "pKubeletExtraArgs": "--node-labels=node.k8s.aws/capacity-type=spot",
+    "pB64ClusterCa": "LS0t....0tCg==",
+    "pApiServiceEndpoint": "https://B0385BE2OIH383CB5866D23C856E.gr7.us-east-2.eks.amazonaws.com",
+    "pSecurityGroupIDs": "sg-12345"
+}

@@ -131,8 +131,7 @@ The [AWS CNI](https://docs.aws.amazon.com/eks/latest/userguide/pod-networking.ht
 
 ## Creating the Launch Template
 
-Launch Templates may be created via the web console, the AWS CLI, or
-CloudFormation.
+Launch Templates may be created via the web console, the AWS CLI, CloudFormation or AWS CDK.
 
 ### CloudFormation
 
@@ -223,6 +222,10 @@ aws cloudformation create-stack \
   --template-body file://$(pwd)/lt-cfn-demo.yaml \
   --capabilities CAPABILITY_NAMED_IAM
 ```
+
+### CDK
+
+A CDK example of the stack above can be found [here](https://github.com/aws/karpenter/tree/main/examples/templates/cdk/launchtemplate).
 
 ### Define LaunchTemplate for Provisioner
 
