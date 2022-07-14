@@ -34,7 +34,7 @@ battletest: ## Run randomized, racing, code coveraged, tests
 		-tags random_test_delay
 
 e2etests: ## Run the e2e suite against your local cluster
-	go test -p 1 -timeout 60m -v ./test/suites/... -run=${TEST_FILTER} -environment-name=${CLUSTER_NAME}
+	go test -p 1 -timeout 60m -v ./test/suites/... -run=${TEST_FILTER} -cluster-name=${CLUSTER_NAME} -kubeconfig ${HOME}/.kube/config
 
 benchmark:
 	go test -tags=test_performance -run=NoTests -bench=. ./...
@@ -62,8 +62,8 @@ licenses: ## Verifies dependency licenses
 apply: ## Deploy the controller from the current state of your git repository into your ~/.kube/config cluster
 	helm upgrade --create-namespace --install karpenter charts/karpenter --namespace karpenter \
 		$(HELM_OPTS) \
-		--set controller.image=$(shell $(WITH_GOFLAGS) ko build -B github.com/aws/karpenter/cmd/controller) \
-		--set webhook.image=$(shell $(WITH_GOFLAGS) ko build -B github.com/aws/karpenter/cmd/webhook)
+		--set controller.image=$(shell $(WITH_GOFLAGS) ko build --bare github.com/aws/karpenter/cmd/controller) \
+		--set webhook.image=$(shell $(WITH_GOFLAGS) ko build --bare github.com/aws/karpenter/cmd/webhook)
 
 install:  ## Deploy the latest released version into your ~/.kube/config cluster
 	@echo Upgrading to $(shell grep version charts/karpenter/Chart.yaml)
