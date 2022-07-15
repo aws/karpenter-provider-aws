@@ -38,7 +38,12 @@ Users should therefore check to see if there is a breaking change every time the
 Karpenter ships with a few Custom Resource Definitions (CRDs). These CRDs are part of the helm chart [here](https://github.com/aws/karpenter/blob/main/charts/karpenter/crds). Helm [does not manage the lifecycle of CRDs](https://helm.sh/docs/chart_best_practices/custom_resource_definitions/), the tool will only install the CRD during the first installation of the helm chart. Subsequent chart upgrades will not add or remove CRDs, even if the CRDs have changed. When CRDs are changed, we will make a note in the version's upgrade guide. 
 
 In general, you can reapply the CRDs in the `crds` directory of the Karpenter helm chart:
-`kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/<KARPENTER_VERSION>/charts/karpenter/crds/<new-crd>.yaml` 
+
+```shell
+kubectl replace -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}charts/karpenter/crds/karpenter.sh_provisioners.yaml
+
+kubectl replace -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}charts/karpenter/crds/karpenter.k8s.aws_awsnodetemplates.yaml
+``` 
 
 ## How Do We Break Incompatibility?
 
@@ -129,6 +134,12 @@ aws ec2 delete-launch-template --launch-template-id <LAUNCH_TEMPLATE_ID>
 v0.11.0 changes the way that the `vpc.amazonaws.com/pod-eni` resource is reported.  Instead of being reported for all nodes that could support the resources regardless of if the cluster is configured to support it, it is now controlled by a command line flag or environment variable. The parameter defaults to false and must be set if your cluster uses [security groups for pods](https://docs.aws.amazon.com/eks/latest/userguide/security-groups-for-pods.html).  This can be enabled by setting the environment variable `AWS_ENABLE_POD_ENI` to true via the helm value `controller.env`.
 
 Other extended resources must be registered on nodes by their respective device plugins which are typically installed as DaemonSets (e.g. the `nvidia.com/gpu` resource will be registered by the [NVIDIA device plugin](https://github.com/NVIDIA/k8s-device-plugin). Previously, Karpenter would register these resources on nodes at creation and they would be zeroed out by `kubelet` at startup.  By allowing the device plugins to register the resources, pods will not bind to the nodes before any device plugin initialization has occurred.
+
+v0.11.0 adds a `providerRef` field in the Provisioner CRD. To use this new field you will need to replace the Provisioner CRD manually:
+
+```shell
+kubectl replace -f https://raw.githubusercontent.com/aws/karpenter/v0.11.0/charts/karpenter/crds/karpenter.sh_provisioners.yaml
+```
 
 ## Upgrading to v0.10.0+
 

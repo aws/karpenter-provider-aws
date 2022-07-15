@@ -22,8 +22,8 @@ import (
 )
 
 var (
-	EnvironmentLabelName = "testing.karpenter.sh/environment-name"
-	CleanableObjects     = []client.Object{
+	ClusterLabelName = "testing.karpenter.sh/cluster-name"
+	CleanableObjects = []client.Object{
 		&v1alpha5.Provisioner{},
 		&v1.Pod{},
 		&appsv1.Deployment{},
@@ -62,7 +62,7 @@ func (env *Environment) BeforeEach() {
 
 func (env *Environment) ExpectCreated(objects ...client.Object) {
 	for _, object := range objects {
-		object.SetLabels(lo.Assign(object.GetLabels(), map[string]string{EnvironmentLabelName: env.Options.EnvironmentName}))
+		object.SetLabels(lo.Assign(object.GetLabels(), map[string]string{ClusterLabelName: env.Options.ClusterName}))
 		Expect(env.Client.Create(env, object)).To(Succeed())
 	}
 }
@@ -84,7 +84,7 @@ func (env *Environment) AfterEach() {
 			go func(object client.Object, namespace string) {
 				Expect(env.Client.DeleteAllOf(env, object,
 					client.InNamespace(namespace),
-					client.MatchingLabels(map[string]string{EnvironmentLabelName: env.Options.EnvironmentName}),
+					client.MatchingLabels(map[string]string{ClusterLabelName: env.Options.ClusterName}),
 				)).ToNot(HaveOccurred())
 				wg.Done()
 			}(object, namespace.Name)

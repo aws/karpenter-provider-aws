@@ -2,6 +2,8 @@ package storage
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
@@ -13,7 +15,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"testing"
 
 	"github.com/aws/karpenter/test/pkg/environment"
 	. "github.com/onsi/ginkgo"
@@ -56,8 +57,8 @@ var _ = Describe("Dynamic PVC", func() {
 		}
 
 		provider := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.Options.EnvironmentName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.Options.EnvironmentName},
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.Options.ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.Options.ClusterName},
 		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{
 			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
@@ -97,8 +98,8 @@ var _ = Describe("Dynamic PVC", func() {
 var _ = Describe("Static PVC", func() {
 	It("should run a pod with a static persistent volume", func() {
 		provider := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.Options.EnvironmentName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.Options.EnvironmentName},
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.Options.ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.Options.ClusterName},
 		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{
 			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})

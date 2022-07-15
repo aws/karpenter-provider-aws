@@ -4,23 +4,21 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
-	"path"
 	"testing"
 	"time"
 
 	"github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"knative.dev/pkg/environment"
 	loggingtesting "knative.dev/pkg/logging/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
 
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/utils/env"
 )
 
-var EnvironmentName = flag.String("environment-name", env.WithDefaultString("ENVIRONMENT_NAME", ""), "Environment name enables discovery of the testing environment")
+var ClusterName = flag.String("cluster-name", env.WithDefaultString("CLUSTER_NAME", ""), "Cluster name enables discovery of the testing environment")
 
 type Environment struct {
 	context.Context
@@ -56,11 +54,7 @@ func NewLocalClient() (client.Client, error) {
 	if err := apis.AddToScheme(scheme); err != nil {
 		return nil, err
 	}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return nil, err
-	}
-	config, err := (&environment.ClientConfig{Kubeconfig: path.Join(home, ".kube/config")}).GetRESTConfig()
+	config, err := config.GetConfig()
 	if err != nil {
 		return nil, err
 	}
@@ -68,12 +62,12 @@ func NewLocalClient() (client.Client, error) {
 }
 
 type Options struct {
-	EnvironmentName string
+	ClusterName string
 }
 
 func NewOptions() (*Options, error) {
 	options := &Options{
-		EnvironmentName: *EnvironmentName,
+		ClusterName: *ClusterName,
 	}
 	if err := options.Validate(); err != nil {
 		return nil, err
@@ -82,8 +76,8 @@ func NewOptions() (*Options, error) {
 }
 
 func (o Options) Validate() error {
-	if o.EnvironmentName == "" {
-		return fmt.Errorf("--environment-name must be defined")
+	if o.ClusterName == "" {
+		return fmt.Errorf("--cluster-name must be defined")
 	}
 	return nil
 }
