@@ -74,8 +74,7 @@ following metrics will be instrumented to implement these visualizations:
 
 | Name                                                   | Type      | Labels                                                          | Description                                        |
 |--------------------------------------------------------|-----------|-----------------------------------------------------------------|----------------------------------------------------|
-| `karpenter_nodes_termination_provisioner_time_seconds` | Summary   | `provisioner`                                                   | [Measurement Definitions](#measurment-definitions) |
-| `karpenter_nodes_termination_time_seconds`             | Summary   |                                                                 | [Measurement Definitions](#measurment-definitions) |
+| `karpenter_nodes_termination_time_seconds`             | Summary   | None                                                            | [Measurement Definitions](#measurment-definitions) | 
 | `karpenter_pods_startup_time_seconds`                  | Summary   | `provisioner`, `zone`, `arch`, `capacity_type`, `instance_type` | [Measurement Definitions](#measurment-definitions) |
 
 API statistics will consist of API call latency, call rate, call method, return code, and payload size. These statistics will be
@@ -105,8 +104,7 @@ computation but works better for unbounded data.
 Prometheus `Summary` metric types compute running quantiles for a given metric for given label values. Unlike 
 histograms, summaries cannot be aggregated since it can result in statistically non-sensical results. Theoretically,
 summaries can be tracked for many labels, but we would need a number of summary metrics equal to the size of the 
-cartesian product of all the labels, which is not viable. Thus, if we want to track the termination latencies of all
-nodes and still be able to filter over provisioners, this must be instrumented as two separate metric families.
+cartesian product of all the labels, which is not viable. 
 
 ### Cluster State
 

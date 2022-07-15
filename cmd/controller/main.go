@@ -47,7 +47,6 @@ import (
 	metricspod "github.com/aws/karpenter/pkg/controllers/metrics/pod"
 	metricsprovisioner "github.com/aws/karpenter/pkg/controllers/metrics/provisioner"
 	metricsstate "github.com/aws/karpenter/pkg/controllers/metrics/state"
-	metricstermination "github.com/aws/karpenter/pkg/controllers/metrics/termination"
 	"github.com/aws/karpenter/pkg/controllers/node"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
 	"github.com/aws/karpenter/pkg/controllers/state"
@@ -125,7 +124,6 @@ func main() {
 		termination.NewController(ctx, manager.GetClient(), clientSet.CoreV1(), recorder, cloudProvider),
 		metricspod.NewController(manager.GetClient()),
 		metricsprovisioner.NewController(manager.GetClient()),
-		metricstermination.NewController(manager.GetClient()),
 		counter.NewController(manager.GetClient(), cluster),
 	).Start(ctx); err != nil {
 		panic(fmt.Sprintf("Unable to start manager, %s", err))
