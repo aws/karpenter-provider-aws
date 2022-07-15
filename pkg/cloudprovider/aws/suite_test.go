@@ -394,7 +394,7 @@ var _ = Describe("Allocation", func() {
 					Expect(err).To(BeNil())
 					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], 0, provider, nil)
 					overhead := it.Overhead()
-					Expect(overhead.Memory().String()).To(Equal("3073Mi"))
+					Expect(overhead.Memory().String()).To(Equal("1093Mi"))
 				})
 				It("should calculate memory overhead based on eni limited pods when not ENI limited", func() {
 					opts.AWSENILimitedPodDensity = false
@@ -404,7 +404,7 @@ var _ = Describe("Allocation", func() {
 					Expect(err).To(BeNil())
 					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], 0, provider, nil)
 					overhead := it.Overhead()
-					Expect(overhead.Memory().String()).To(Equal("3073Mi"))
+					Expect(overhead.Memory().String()).To(Equal("1093Mi"))
 				})
 			})
 			Context("Bottlerocket", func() {
@@ -416,7 +416,7 @@ var _ = Describe("Allocation", func() {
 					Expect(err).To(BeNil())
 					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], 0, provider, nil)
 					overhead := it.Overhead()
-					Expect(overhead.Memory().String()).To(Equal("3073Mi"))
+					Expect(overhead.Memory().String()).To(Equal("1093Mi"))
 				})
 				It("should calculate memory overhead based on max pods when not ENI limited", func() {
 					opts.AWSENILimitedPodDensity = false
