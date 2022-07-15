@@ -60,9 +60,10 @@ func (p *AMIProvider) Get(ctx context.Context, provider *awsv1alpha1.AWS, nodeRe
 	var amiID string
 	if len(amiRequirements) > 0 {
 		for _, instanceType := range nodeRequest.InstanceTypeOptions {
-			amiID = getCompatibleAMI(instanceType, amiRequirements)
-			if amiID != "" {
-				amiIDs[amiID] = append(amiIDs[amiID], instanceType)
+			for amiID, requirements := range amiRequirements {
+				if err := instanceType.Requirements().Compatible(requirements); err == nil {
+					amiIDs[amiID] = append(amiIDs[amiID], instanceType)
+				}
 			}
 		}
 		if len(amiIDs) == 0 {
@@ -107,15 +108,6 @@ func (p *AMIProvider) getAMIRequirements(ctx context.Context, providerRef *v1alp
 		return p.selectAMIs(ctx, ant.Spec.AMISelector)
 	}
 	return amiRequirements, nil
-}
-
-func getCompatibleAMI(instanceType cloudprovider.InstanceType, amiRequirements map[string]scheduling.Requirements) string {
-	for amiID, requirements := range amiRequirements {
-		if err := instanceType.Requirements().Compatible(requirements); err == nil {
-			return amiID
-		}
-	}
-	return ""
 }
 
 func (p *AMIProvider) selectAMIs(ctx context.Context, amiSelector map[string]string) (map[string]scheduling.Requirements, error) {

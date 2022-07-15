@@ -17,12 +17,12 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/aws/aws-sdk-go/aws/session"
+
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/utils/env"
 )
 
 var ClusterName = flag.String("cluster-name", env.WithDefaultString("CLUSTER_NAME", ""), "Cluster name enables discovery of the testing environment")
-var EnvironmentName = flag.String("environment-name", env.WithDefaultString("ENVIRONMENT_NAME", ""), "Environment name enables discovery of the testing environment")
 var Region = flag.String("region", env.WithDefaultString("AWS_REGION", ""), "Region that your test cluster lives in.")
 
 type Environment struct {
@@ -76,15 +76,13 @@ func NewAWSSession(region string) session.Session {
 
 type Options struct {
 	ClusterName string
-	EnvironmentName string
-	Region          string
+	Region      string
 }
 
 func NewOptions() (*Options, error) {
 	options := &Options{
 		ClusterName: *ClusterName,
-		EnvironmentName: *EnvironmentName,
-		Region:          *Region,
+		Region:      *Region,
 	}
 	if err := options.Validate(); err != nil {
 		return nil, err

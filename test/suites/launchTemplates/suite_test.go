@@ -48,8 +48,8 @@ var _ = Describe("Custom Launch Templates", func() {
 	It("should use the AMI defined by the AMI Selector", func() {
 		amiUnderTest := customAMI()
 		provider := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.Options.EnvironmentName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.Options.EnvironmentName},
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.Options.ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.Options.ClusterName},
 			AMIFamily:             &v1alpha1.AMIFamilyAL2,
 		},
 			AMISelector: map[string]string{"aws-ids": amiUnderTest}, // TODO - Retrieve recommended EKS AMI and use here.
