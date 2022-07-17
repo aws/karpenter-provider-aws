@@ -72,10 +72,10 @@ Scheduling statistics consist of actions not representable by a single controlle
 termination and pod startup. The visualizations will be the same as those for individual controller performance. The
 following metrics will be instrumented to implement these visualizations:
 
-| Name                                       | Type    | Labels                                                          | Description                               |
-|--------------------------------------------|---------|-----------------------------------------------------------------|-------------------------------------------|
-| `karpenter_nodes_termination_time_seconds` | Summary | `provisioner`, `zone`, `arch`, `capacity_type`, `instance_type` | [Measurement Definitions](#measurment-definitions) |
-| `karpenter_pods_startup_time_seconds`      | Summary | `provisioner`, `zone`, `arch`, `capacity_type`, `instance_type` | [Measurement Definitions](#measurment-definitions) |
+| Name                                                   | Type      | Labels                                                          | Description                                        |
+|--------------------------------------------------------|-----------|-----------------------------------------------------------------|----------------------------------------------------|
+| `karpenter_nodes_termination_time_seconds`             | Summary   | None                                                            | [Measurement Definitions](#measurment-definitions) | 
+| `karpenter_pods_startup_time_seconds`                  | Summary   | `provisioner`, `zone`, `arch`, `capacity_type`, `instance_type` | [Measurement Definitions](#measurment-definitions) |
 
 API statistics will consist of API call latency, call rate, call method, return code, and payload size. These statistics will be
 separated into Kubernetes API and cloudprovider API statistics. Call latency and call rate will be represented the same
@@ -100,6 +100,11 @@ the metrics, they are not without their faults. Histograms track a set of bucket
 represents the number of occurrences that were less than that buckets value. Since the buckets are a fixed range,
 histograms are a poor choice for unbounded data. Summaries instead directly track quantiles. This involves more
 computation but works better for unbounded data.
+
+Prometheus `Summary` metric types compute running quantiles for a given metric for given label values. Unlike 
+histograms, summaries cannot be aggregated since it can result in statistically non-sensical results. Theoretically,
+summaries can be tracked for many labels, but we would need a number of summary metrics equal to the size of the 
+cartesian product of all the labels, which is not viable. 
 
 ### Cluster State
 

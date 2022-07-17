@@ -30,16 +30,37 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	"github.com/prometheus/client_golang/prometheus"
 
 	provisioning "github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/events"
+	"github.com/aws/karpenter/pkg/metrics"
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injection"
 )
 
 const controllerName = "termination"
+
+var (
+	terminationSummaryVec = prometheus.NewSummaryVec(
+		prometheus.SummaryOpts{
+			Namespace:  "karpenter",
+			Subsystem:  "nodes",
+			Name:       "termination_time_seconds",
+			Help:       "The time taken between a node's deletion request and the removal of its finalizer",
+			Objectives: metrics.SummaryObjectives(),
+		},
+		[]string{},
+	)
+)
+
+func init() {
+	crmetrics.Registry.MustRegister(terminationSummaryVec)
+}
 
 // Controller for the resource
 type Controller struct {
@@ -99,6 +120,10 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if err := c.Terminator.terminate(ctx, node); err != nil {
 		return reconcile.Result{}, fmt.Errorf("terminating node %s, %w", node.Name, err)
 	}
+
+	// 6. Record termination duration (time between deletion timestamp and finalizer removal)
+	terminationSummaryVec.With(prometheus.Labels{}).Observe(time.Since(node.DeletionTimestamp.Time).Seconds())
+
 	return reconcile.Result{}, nil
 }
 
