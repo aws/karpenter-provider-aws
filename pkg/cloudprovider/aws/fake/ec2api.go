@@ -203,7 +203,7 @@ func (e *EC2API) DescribeImagesWithContext(_ context.Context, input *ec2.Describ
 	return &ec2.DescribeImagesOutput{
 		Images: []*ec2.Image{
 			{
-				ImageId:      aws.String(randomdata.SillyName()),
+				ImageId:      aws.String(test.RandomName()),
 				Architecture: aws.String("x86_64"),
 			},
 		},

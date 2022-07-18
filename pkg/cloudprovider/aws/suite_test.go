@@ -1198,7 +1198,6 @@ var _ = Describe("Allocation", func() {
 						{ImageId: aws.String("ami-123"), Architecture: aws.String("x86_64")},
 					}})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
-					controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: providerRef})
 					ExpectApplied(ctx, env.Client, newProvisioner)
 					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
@@ -1232,7 +1231,6 @@ var _ = Describe("Allocation", func() {
 						},
 					}})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
-					controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: providerRef})
 					ExpectApplied(ctx, env.Client, newProvisioner)
 					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
@@ -1272,7 +1270,6 @@ var _ = Describe("Allocation", func() {
 						AWS:         *provider,
 						ObjectMeta:  metav1.ObjectMeta{Name: providerRefName}})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
-					controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: providerRef})
 					ExpectApplied(ctx, env.Client, newProvisioner)
 					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
@@ -1299,7 +1296,6 @@ var _ = Describe("Allocation", func() {
 						AWS:         *provider,
 						ObjectMeta:  metav1.ObjectMeta{Name: providerRefName}})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
-					controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: providerRef})
 					ExpectApplied(ctx, env.Client, newProvisioner)
 					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
@@ -1322,7 +1318,6 @@ var _ = Describe("Allocation", func() {
 						AWS:         *provider,
 						ObjectMeta:  metav1.ObjectMeta{Name: providerRefName}})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
-					controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: providerRef})
 					ExpectApplied(ctx, env.Client, newProvisioner)
 					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
@@ -1341,7 +1336,6 @@ var _ = Describe("Allocation", func() {
 						AWS:        *provider,
 						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
-					controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: providerRef})
 					ExpectApplied(ctx, env.Client, newProvisioner)
 					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]

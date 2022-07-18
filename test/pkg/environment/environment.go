@@ -9,14 +9,18 @@ import (
 
 	"github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	loggingtesting "knative.dev/pkg/logging/testing"
+	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/ssm"
 
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/utils/env"
@@ -29,7 +33,9 @@ type Environment struct {
 	context.Context
 	Options    *Options
 	Client     client.Client
-	AWSSession session.Session
+	KubeClient *kubernetes.Clientset
+	Ec2Api     ec2.EC2
+	SsmApi     ssm.SSM
 	Monitor    *Monitor
 }
 
@@ -39,18 +45,37 @@ func NewEnvironment(t *testing.T) (*Environment, error) {
 	if err != nil {
 		return nil, err
 	}
+	kubeClient, err := NewKubeClient()
+	if err != nil {
+		return nil, err
+	}
 	options, err := NewOptions()
 	if err != nil {
 		return nil, err
 	}
 	gomega.SetDefaultEventuallyTimeout(5 * time.Minute)
 	gomega.SetDefaultEventuallyPollingInterval(1 * time.Second)
+	session := *session.Must(session.NewSession(
+		&aws.Config{STSRegionalEndpoint: endpoints.RegionalSTSEndpoint, Region: aws.String(options.Region)},
+	))
 	return &Environment{Context: ctx,
 		Options:    options,
 		Client:     client,
-		AWSSession: NewAWSSession(options.Region),
+		KubeClient: kubeClient,
+		Ec2Api:     *ec2.New(&session),
+		SsmApi:     *ssm.New(&session),
 		Monitor:    NewClusterMonitor(ctx, client),
 	}, nil
+}
+
+func NewKubeClient() (*kubernetes.Clientset, error) {
+	config, err := config.GetConfig()
+	if err != nil {
+		return nil, err
+	}
+	controllerRuntimeConfig := controllerruntime.GetConfigOrDie()
+	controllerRuntimeConfig.UserAgent = "KarpenterIntegrationTest"
+	return kubernetes.NewForConfigOrDie(config), nil
 }
 
 func NewLocalClient() (client.Client, error) {
@@ -66,12 +91,6 @@ func NewLocalClient() (client.Client, error) {
 		return nil, err
 	}
 	return client.New(config, client.Options{Scheme: scheme})
-}
-
-func NewAWSSession(region string) session.Session {
-	return *session.Must(session.NewSession(
-		&aws.Config{STSRegionalEndpoint: endpoints.RegionalSTSEndpoint, Region: aws.String(region)},
-	))
 }
 
 type Options struct {

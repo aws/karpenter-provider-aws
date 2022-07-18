@@ -57,7 +57,6 @@ func (p *AMIProvider) Get(ctx context.Context, provider *awsv1alpha1.AWS, nodeRe
 	if err != nil {
 		return nil, err
 	}
-	var amiID string
 	if len(amiRequirements) > 0 {
 		for _, instanceType := range nodeRequest.InstanceTypeOptions {
 			for amiID, requirements := range amiRequirements {
@@ -71,7 +70,7 @@ func (p *AMIProvider) Get(ctx context.Context, provider *awsv1alpha1.AWS, nodeRe
 		}
 	} else {
 		for _, instanceType := range nodeRequest.InstanceTypeOptions {
-			amiID, err = p.getDefaultAMIFromSSM(ctx, instanceType, amiFamily.SSMAlias(options.KubernetesVersion, instanceType))
+			amiID, err := p.getDefaultAMIFromSSM(ctx, instanceType, amiFamily.SSMAlias(options.KubernetesVersion, instanceType))
 			if err != nil {
 				return nil, err
 			}
@@ -140,7 +139,8 @@ func (p *AMIProvider) fetchAMIsFromEC2(ctx context.Context, amiSelector map[stri
 		return nil, fmt.Errorf("describing images %+v, %w", filters, err)
 	}
 	p.ec2Cache.SetDefault(fmt.Sprint(hash), output.Images)
-	logging.FromContext(ctx).Debugf("Discovered images: %s", amiIDs(output.Images))
+	amiIDs := lo.Map(output.Images, func(ami *ec2.Image, _ int) string { return *ami.ImageId })
+	logging.FromContext(ctx).Debugf("Discovered images: %s", amiIDs)
 	return output.Images, nil
 }
 
@@ -177,12 +177,4 @@ func (p *AMIProvider) getRequirementsFromImage(ec2Image *ec2.Image) scheduling.R
 	}
 	requirements.Add(scheduling.Requirements{v1.LabelArchStable: sets.NewSet(architecture)})
 	return requirements
-}
-
-func amiIDs(amis []*ec2.Image) []string {
-	names := []string{}
-	for _, ami := range amis {
-		names = append(names, aws.StringValue(ami.ImageId))
-	}
-	return names
 }
