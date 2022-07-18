@@ -126,7 +126,7 @@ func (p *AMIProvider) selectAMIs(ctx context.Context, amiSelector map[string]str
 
 func (p *AMIProvider) fetchAMIsFromEC2(ctx context.Context, amiSelector map[string]string) ([]*ec2.Image, error) {
 	filters := getFilters(amiSelector)
-	hash, err := hashstructure.Hash(filters, hashstructure.FormatV2, nil)
+	hash, err := hashstructure.Hash(filters, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	if err != nil {
 		return nil, err
 	}
