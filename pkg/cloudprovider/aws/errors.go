@@ -37,6 +37,7 @@ var (
 		"MaxSpotInstanceCountExceeded",
 		"VcpuLimitExceeded",
 		"UnfulfillableCapacity",
+		"Unsupported",
 	}
 )
 
