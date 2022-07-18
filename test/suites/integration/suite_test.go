@@ -174,7 +174,7 @@ var _ = Describe("Sanity Checks", func() {
 			env.Client.Get(env.Context, types.NamespacedName{Name: pod.Spec.NodeName}, &node)
 			providerIDSplit := strings.Split(node.Spec.ProviderID, "/")
 			instanceID := providerIDSplit[len(providerIDSplit)-1]
-			instance, _ := env.Ec2Api.DescribeInstances(&ec2.DescribeInstancesInput{
+			instance, _ := env.Ec2API.DescribeInstances(&ec2.DescribeInstancesInput{
 				InstanceIds: aws.StringSlice([]string{instanceID}),
 			})
 			Expect(*instance.Reservations[0].Instances[0].ImageId).To(Equal(amiUnderTest))
@@ -194,7 +194,7 @@ func selectCustomAMI(amiPath string) string {
 	// this test that wouldn't be selected as Karpenter's SSM default (therefore avoiding false positives), and also
 	// ensures that we aren't violating version skew.
 	version := fmt.Sprintf("%s.%d", serverVersion.Major, minorVersion-1)
-	parameter, err := env.SsmApi.GetParameter(&ssm.GetParameterInput{
+	parameter, err := env.SsmAPI.GetParameter(&ssm.GetParameterInput{
 		Name: aws.String(fmt.Sprintf(amiPath, version)),
 	})
 	Expect(err).To(BeNil())

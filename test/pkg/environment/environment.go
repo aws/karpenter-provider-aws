@@ -34,8 +34,8 @@ type Environment struct {
 	Options    *Options
 	Client     client.Client
 	KubeClient *kubernetes.Clientset
-	Ec2Api     ec2.EC2
-	SsmApi     ssm.SSM
+	Ec2API     ec2.EC2
+	SsmAPI     ssm.SSM
 	Monitor    *Monitor
 }
 
@@ -62,8 +62,8 @@ func NewEnvironment(t *testing.T) (*Environment, error) {
 		Options:    options,
 		Client:     client,
 		KubeClient: kubeClient,
-		Ec2Api:     *ec2.New(&session),
-		SsmApi:     *ssm.New(&session),
+		Ec2API:     *ec2.New(&session),
+		SsmAPI:     *ssm.New(&session),
 		Monitor:    NewClusterMonitor(ctx, client),
 	}, nil
 }
