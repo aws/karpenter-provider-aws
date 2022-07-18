@@ -1204,6 +1204,32 @@ var _ = Describe("Allocation", func() {
 					input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 					Expect("ami-123").To(Equal(*input.LaunchTemplateData.ImageId))
 				})
+				It("should copy over userData untouched when AMIFamily is Custom", func() {
+					opts.AWSENILimitedPodDensity = false
+					provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider.AMIFamily = &v1alpha1.AMIFamilyCustom
+					providerRefName := strings.ToLower(randomdata.SillyName())
+					providerRef := &v1alpha5.ProviderRef{
+						Name: providerRefName,
+					}
+					nodeTemplate := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{
+						UserData:    aws.String("special user data"),
+						AMISelector: map[string]string{"karpenter.sh/discovery": "my-cluster"},
+						AWS:         *provider,
+						ObjectMeta:  metav1.ObjectMeta{Name: providerRefName}})
+					fakeEC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
+						{ImageId: aws.String("ami-123"), Architecture: aws.String("x86_64")},
+					}})
+					ExpectApplied(ctx, env.Client, nodeTemplate)
+					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: providerRef})
+					ExpectApplied(ctx, env.Client, newProvisioner)
+					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+					ExpectScheduled(ctx, env.Client, pod)
+					Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+					input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+					userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+					Expect("special user data").To(Equal(string(userData)))
+				})
 				It("should correctly use ami selector with specific IDs in AWSNodeTemplate", func() {
 					opts.AWSENILimitedPodDensity = false
 					provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
@@ -1469,6 +1495,45 @@ var _ = Describe("Allocation", func() {
 				Expect(*input.LaunchTemplateData.BlockDeviceMappings[1].Ebs.VolumeType).To(Equal("gp3"))
 				Expect(input.LaunchTemplateData.BlockDeviceMappings[1].Ebs.Iops).To(BeNil())
 			})
+			It("should not default block device mappings for custom AMIFamilies", func() {
+				provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
+				provider.AMIFamily = &v1alpha1.AMIFamilyCustom
+				ExpectApplied(ctx, env.Client, Provisioner(test.ProvisionerOptions{Provider: provider}))
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+				Expect(len(input.LaunchTemplateData.BlockDeviceMappings)).To(Equal(0))
+			})
+			It("should use custom block device mapping for custom AMIFamilies", func() {
+				provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
+				provider.AMIFamily = &v1alpha1.AMIFamilyCustom
+				provider.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{
+					{
+						DeviceName: aws.String("/dev/xvda"),
+						EBS: &v1alpha1.BlockDevice{
+							DeleteOnTermination: aws.Bool(true),
+							Encrypted:           aws.Bool(true),
+							VolumeType:          aws.String("io2"),
+							VolumeSize:          resource.NewScaledQuantity(40, resource.Giga),
+							IOPS:                aws.Int64(10_000),
+							KMSKeyID:            aws.String("arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab"),
+						},
+					},
+				}
+				ExpectApplied(ctx, env.Client, Provisioner(test.ProvisionerOptions{Provider: provider}))
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+				Expect(len(input.LaunchTemplateData.BlockDeviceMappings)).To(Equal(1))
+				Expect(*input.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeSize).To(Equal(int64(40)))
+				Expect(*input.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeType).To(Equal("io2"))
+				Expect(*input.LaunchTemplateData.BlockDeviceMappings[0].Ebs.Iops).To(Equal(int64(10_000)))
+				Expect(*input.LaunchTemplateData.BlockDeviceMappings[0].Ebs.DeleteOnTermination).To(BeTrue())
+				Expect(*input.LaunchTemplateData.BlockDeviceMappings[0].Ebs.Encrypted).To(BeTrue())
+				Expect(*input.LaunchTemplateData.BlockDeviceMappings[0].Ebs.KmsKeyId).To(Equal("arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab"))
+			})
 		})
 		Context("Ephemeral Storage", func() {
 			It("should pack pods when a daemonset has an ephemeral-storage request", func() {
@@ -1574,6 +1639,36 @@ var _ = Describe("Allocation", func() {
 				pod := ExpectProvisioned(ctx, env.Client, controller,
 					test.UnschedulablePod(test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
 						Requests: map[v1.ResourceName]resource.Quantity{
+							v1.ResourceEphemeralStorage: resource.MustParse("25Gi"),
+						},
+					},
+					}))[0]
+
+				// capacity isn't recorded on the node any longer, but we know the pod should schedule
+				ExpectScheduled(ctx, env.Client, pod)
+			})
+			It("should pack pods using blockdevicemappings for Custom AMIFamily", func() {
+				provider, _ = v1alpha1.Deserialize(provisioner.Spec.Provider)
+				provider.AMIFamily = &v1alpha1.AMIFamilyCustom
+				provider.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{
+					{
+						DeviceName: aws.String("/dev/xvda"),
+						EBS: &v1alpha1.BlockDevice{
+							VolumeSize: resource.NewScaledQuantity(20, resource.Giga),
+						},
+					},
+					{
+						DeviceName: aws.String("/dev/xvdb"),
+						EBS: &v1alpha1.BlockDevice{
+							VolumeSize: resource.NewScaledQuantity(40, resource.Giga),
+						},
+					},
+				}
+				ExpectApplied(ctx, env.Client, Provisioner(test.ProvisionerOptions{Provider: provider}))
+				pod := ExpectProvisioned(ctx, env.Client, controller,
+					test.UnschedulablePod(test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
+						Requests: map[v1.ResourceName]resource.Quantity{
+							// this pod can only be satisifed if `/dev/xvdb` will house all the pods.
 							v1.ResourceEphemeralStorage: resource.MustParse("25Gi"),
 						},
 					},

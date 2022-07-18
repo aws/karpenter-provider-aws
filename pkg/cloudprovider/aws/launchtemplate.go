@@ -204,6 +204,10 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, optio
 }
 
 func (p *LaunchTemplateProvider) blockDeviceMappings(blockDeviceMappings []*v1alpha1.BlockDeviceMapping) []*ec2.LaunchTemplateBlockDeviceMappingRequest {
+	if len(blockDeviceMappings) == 0 {
+		// The EC2 API fails with empty slices and expects nil.
+		return nil
+	}
 	blockDeviceMappingsRequest := []*ec2.LaunchTemplateBlockDeviceMappingRequest{}
 	for _, blockDeviceMapping := range blockDeviceMappings {
 		blockDeviceMappingsRequest = append(blockDeviceMappingsRequest, &ec2.LaunchTemplateBlockDeviceMappingRequest{

@@ -23,6 +23,7 @@ import (
 )
 
 var env *environment.Environment
+var customAMI string
 
 func TestIntegration(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -30,6 +31,7 @@ func TestIntegration(t *testing.T) {
 		var err error
 		env, err = environment.NewEnvironment(t)
 		Expect(err).ToNot(HaveOccurred())
+		customAMI = selectCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id")
 	})
 	RunSpecs(t, "Integration")
 }
@@ -152,14 +154,12 @@ var _ = Describe("Sanity Checks", func() {
 	})
 	Context("LaunchTemplates", func() {
 		It("should use the AMI defined by the AMI Selector", func() {
-			// TODO - Cache the AMI so it can be re-used across multiple tests.
-			amiUnderTest := selectCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id")
 			provider := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{AWS: v1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.Options.ClusterName},
 				SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.Options.ClusterName},
 				AMIFamily:             &v1alpha1.AMIFamilyAL2,
 			},
-				AMISelector: map[string]string{"aws-ids": amiUnderTest}, // TODO - Retrieve recommended EKS AMI and use here.
+				AMISelector: map[string]string{"aws-ids": customAMI},
 			})
 			provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
 			pod := test.Pod()
@@ -177,7 +177,37 @@ var _ = Describe("Sanity Checks", func() {
 			instance, _ := env.Ec2API.DescribeInstances(&ec2.DescribeInstancesInput{
 				InstanceIds: aws.StringSlice([]string{instanceID}),
 			})
-			Expect(*instance.Reservations[0].Instances[0].ImageId).To(Equal(amiUnderTest))
+			Expect(*instance.Reservations[0].Instances[0].ImageId).To(Equal(customAMI))
+			env.ExpectDeleted(pod)
+			env.EventuallyExpectScaleDown()
+			env.ExpectNoCrashes()
+		})
+		It("should support Custom AMIFamily with AMI Selectors", func() {
+			provider := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{AWS: v1alpha1.AWS{
+				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.Options.ClusterName},
+				SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.Options.ClusterName},
+				AMIFamily:             &v1alpha1.AMIFamilyCustom,
+			},
+				AMISelector: map[string]string{"aws-ids": customAMI},
+				UserData:    aws.String(fmt.Sprintf("#!/bin/bash\n/etc/eks/bootstrap.sh '%s'", env.Options.ClusterName)),
+			})
+			provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
+			pod := test.Pod()
+
+			env.ExpectCreatedNodeCount("==", 0)
+			env.ExpectCreated(pod, provider, provisioner)
+
+			env.EventuallyExpectHealthy(pod)
+			env.ExpectCreatedNodeCount("==", 1)
+
+			var node v1.Node
+			env.Client.Get(env.Context, types.NamespacedName{Name: pod.Spec.NodeName}, &node)
+			providerIDSplit := strings.Split(node.Spec.ProviderID, "/")
+			instanceID := providerIDSplit[len(providerIDSplit)-1]
+			instance, _ := env.Ec2API.DescribeInstances(&ec2.DescribeInstancesInput{
+				InstanceIds: aws.StringSlice([]string{instanceID}),
+			})
+			Expect(*instance.Reservations[0].Instances[0].ImageId).To(Equal(customAMI))
 			env.ExpectDeleted(pod)
 			env.EventuallyExpectScaleDown()
 			env.ExpectNoCrashes()

@@ -42,10 +42,12 @@ var (
 	AMIFamilyBottlerocket = "Bottlerocket"
 	AMIFamilyAL2          = "AL2"
 	AMIFamilyUbuntu       = "Ubuntu"
+	AMIFamilyCustom       = "Custom"
 	SupportedAMIFamilies  = []string{
 		AMIFamilyBottlerocket,
 		AMIFamilyAL2,
 		AMIFamilyUbuntu,
+		AMIFamilyCustom,
 	}
 	SupportedContainerRuntimesByAMIFamily = map[string]sets.String{
 		AMIFamilyBottlerocket: sets.NewString("containerd"),
