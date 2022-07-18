@@ -61,6 +61,9 @@ type createFleetResult struct {
 }
 
 func (b *CreateFleetBatcher) CreateFleet(ctx context.Context, createFleetInput *ec2.CreateFleetInput) (*ec2.CreateFleetOutput, error) {
+	if createFleetInput.TargetCapacitySpecification != nil && *createFleetInput.TargetCapacitySpecification.TotalTargetCapacity != 1 {
+		return nil, fmt.Errorf("expected to receive a single instance only, found %d", *createFleetInput.TargetCapacitySpecification.TotalTargetCapacity)
+	}
 	hash, err := hashstructure.Hash(createFleetInput, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	if err != nil {
 		logging.FromContext(ctx).Errorf("error hashing")
@@ -140,16 +143,9 @@ func (b *CreateFleetBatcher) runCalls() {
 			continue
 		}
 
-		// error launching instances (e.g. ICE), so we notify all callers.  From my understanding, we shouldn't get a mixture of
-		// some instance IDs + some errors.
-		if len(outputs.Errors) != 0 {
-			for i := range requestBatch {
-				requestBatch[i].requestor <- createFleetResult{
-					output: outputs,
-				}
-			}
-			continue
-		}
+		// we can get partial fulfillment of a CreateFleet request, so we:
+		// 1) split out the single instance IDs and deliver to each requestor
+		// 2) deliver errors to any remaining requestors for which we don't have an instance
 
 		requestIdx := -1
 		for _, reservation := range outputs.Instances {
@@ -163,6 +159,7 @@ func (b *CreateFleetBatcher) runCalls() {
 				requestBatch[requestIdx].requestor <- createFleetResult{
 					output: &ec2.CreateFleetOutput{
 						FleetId: outputs.FleetId,
+						Errors:  outputs.Errors,
 						Instances: []*ec2.CreateFleetInstance{
 							{
 								InstanceIds:                []*string{instanceID},
@@ -176,9 +173,21 @@ func (b *CreateFleetBatcher) runCalls() {
 				}
 			}
 		}
-		for i := requestIdx + 1; i < len(requestBatch); i++ {
-			requestBatch[i].requestor <- createFleetResult{
-				err: fmt.Errorf("too few instances returned"),
+
+		if requestIdx != len(requestBatch) {
+			// we should receive some sort of error, but just in case
+			if len(outputs.Errors) == 0 {
+				outputs.Errors = append(outputs.Errors, &ec2.CreateFleetError{
+					ErrorCode:    aws.String("too few instances returned"),
+					ErrorMessage: aws.String("too few instances returned"),
+				})
+			}
+			for i := requestIdx + 1; i < len(requestBatch); i++ {
+				requestBatch[i].requestor <- createFleetResult{
+					output: &ec2.CreateFleetOutput{
+						Errors: outputs.Errors,
+					},
+				}
 			}
 		}
 	}

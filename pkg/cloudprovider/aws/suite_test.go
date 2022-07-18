@@ -40,8 +40,6 @@ import (
 	"github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/options"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
@@ -53,6 +51,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	. "github.com/aws/karpenter/pkg/test/expectations"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
 )
 
