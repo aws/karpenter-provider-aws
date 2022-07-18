@@ -19,6 +19,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
 	"github.com/patrickmn/go-cache"
 	core "k8s.io/api/core/v1"
@@ -78,11 +79,14 @@ type AMIFamily interface {
 }
 
 // New constructs a new launch template Resolver
-func New(ctx context.Context, ssm ssmiface.SSMAPI, c *cache.Cache, client client.Client) *Resolver {
+func New(ctx context.Context, ssm ssmiface.SSMAPI, ec2api ec2iface.EC2API, ssmCache *cache.Cache, ec2Cache *cache.Cache, client client.Client) *Resolver {
 	return &Resolver{
 		amiProvider: &AMIProvider{
-			ssm:   ssm,
-			cache: c,
+			ssm:        ssm,
+			ssmCache:   ssmCache,
+			ec2Cache:   ec2Cache,
+			kubeClient: client,
+			ec2api:     ec2api,
 		},
 		UserDataProvider: NewUserDataProvider(client),
 	}
@@ -96,13 +100,9 @@ func (r Resolver) Resolve(ctx context.Context, provider *v1alpha1.AWS, nodeReque
 		return nil, err
 	}
 	amiFamily := GetAMIFamily(provider.AMIFamily, options)
-	amiIDs := map[string][]cloudprovider.InstanceType{}
-	for _, instanceType := range nodeRequest.InstanceTypeOptions {
-		amiID, err := r.amiProvider.Get(ctx, instanceType, amiFamily.SSMAlias(options.KubernetesVersion, instanceType))
-		if err != nil {
-			return nil, err
-		}
-		amiIDs[amiID] = append(amiIDs[amiID], instanceType)
+	amiIDs, err := r.amiProvider.Get(ctx, provider, nodeRequest, options, amiFamily)
+	if err != nil {
+		return nil, err
 	}
 	var resolvedTemplates []*LaunchTemplate
 	for amiID, instanceTypes := range amiIDs {

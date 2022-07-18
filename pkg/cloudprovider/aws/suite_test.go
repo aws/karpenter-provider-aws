@@ -24,6 +24,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -62,7 +63,8 @@ var env *test.Environment
 var launchTemplateCache *cache.Cache
 var securityGroupCache *cache.Cache
 var subnetCache *cache.Cache
-var amiCache *cache.Cache
+var ssmCache *cache.Cache
+var ec2Cache *cache.Cache
 var unavailableOfferingsCache *cache.Cache
 var instanceTypeCache *cache.Cache
 var instanceTypeProvider *InstanceTypeProvider
@@ -99,7 +101,8 @@ var _ = BeforeSuite(func() {
 		unavailableOfferingsCache = cache.New(UnfulfillableCapacityErrorCacheTTL, CacheCleanupInterval)
 		securityGroupCache = cache.New(CacheTTL, CacheCleanupInterval)
 		subnetCache = cache.New(CacheTTL, CacheCleanupInterval)
-		amiCache = cache.New(CacheTTL, CacheCleanupInterval)
+		ssmCache = cache.New(CacheTTL, CacheCleanupInterval)
+		ec2Cache = cache.New(CacheTTL, CacheCleanupInterval)
 		instanceTypeCache = cache.New(InstanceTypesAndZonesCacheTTL, CacheCleanupInterval)
 		fakeEC2API = &fake.EC2API{}
 		fakePricingAPI = &fake.PricingAPI{}
@@ -126,7 +129,7 @@ var _ = BeforeSuite(func() {
 			instanceProvider: &InstanceProvider{
 				fakeEC2API, instanceTypeProvider, subnetProvider, &LaunchTemplateProvider{
 					ec2api:                fakeEC2API,
-					amiFamily:             amifamily.New(ctx, fake.SSMAPI{}, amiCache, e.Client),
+					amiFamily:             amifamily.New(ctx, fake.SSMAPI{}, fakeEC2API, ssmCache, ec2Cache, e.Client),
 					clientSet:             clientSet,
 					securityGroupProvider: securityGroupProvider,
 					cache:                 launchTemplateCache,
@@ -166,7 +169,8 @@ var _ = Describe("Allocation", func() {
 		securityGroupCache.Flush()
 		subnetCache.Flush()
 		unavailableOfferingsCache.Flush()
-		amiCache.Flush()
+		ssmCache.Flush()
+		ec2Cache.Flush()
 		instanceTypeCache.Flush()
 	})
 
@@ -1175,6 +1179,169 @@ var _ = Describe("Allocation", func() {
 					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 					// This will not be scheduled since userData cannot be generated for the prospective node.
 					ExpectNotScheduled(ctx, env.Client, pod)
+				})
+			})
+			Context("Custom AMI Selector", func() {
+				It("should use ami selector specified in AWSNodeTemplate", func() {
+					opts.AWSENILimitedPodDensity = false
+					provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
+					providerRefName := strings.ToLower(randomdata.SillyName())
+					providerRef := &v1alpha5.ProviderRef{
+						Name: providerRefName,
+					}
+					nodeTemplate := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{
+						UserData:    nil,
+						AMISelector: map[string]string{"karpenter.sh/discovery": "my-cluster"},
+						AWS:         *provider,
+						ObjectMeta:  metav1.ObjectMeta{Name: providerRefName}})
+					fakeEC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
+						{ImageId: aws.String("ami-123"), Architecture: aws.String("x86_64")},
+					}})
+					ExpectApplied(ctx, env.Client, nodeTemplate)
+					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: providerRef})
+					ExpectApplied(ctx, env.Client, newProvisioner)
+					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+					ExpectScheduled(ctx, env.Client, pod)
+					Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+					input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+					Expect("ami-123").To(Equal(*input.LaunchTemplateData.ImageId))
+				})
+				It("should correctly use ami selector with specific IDs in AWSNodeTemplate", func() {
+					opts.AWSENILimitedPodDensity = false
+					provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
+					providerRefName := strings.ToLower(randomdata.SillyName())
+					providerRef := &v1alpha5.ProviderRef{
+						Name: providerRefName,
+					}
+					nodeTemplate := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{
+						UserData:    nil,
+						AMISelector: map[string]string{"aws-ids": "ami-123,ami-456"},
+						AWS:         *provider,
+						ObjectMeta:  metav1.ObjectMeta{Name: providerRefName}})
+					fakeEC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
+						{
+							ImageId:      aws.String("ami-123"),
+							Architecture: aws.String("x86_64"),
+							Tags:         []*ec2.Tag{{Key: aws.String(v1.LabelInstanceTypeStable), Value: aws.String("t3.large")}},
+						},
+						{
+							ImageId:      aws.String("ami-456"),
+							Architecture: aws.String("x86_64"),
+							Tags:         []*ec2.Tag{{Key: aws.String(v1.LabelInstanceTypeStable), Value: aws.String("m5.large")}},
+						},
+					}})
+					ExpectApplied(ctx, env.Client, nodeTemplate)
+					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: providerRef})
+					ExpectApplied(ctx, env.Client, newProvisioner)
+					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+					ExpectScheduled(ctx, env.Client, pod)
+					Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(2))
+					actualFilter := fakeEC2API.CalledWithDescribeImagesInput.Pop().Filters
+					expectedFilter := []*ec2.Filter{
+						{
+							Name:   aws.String("image-id"),
+							Values: aws.StringSlice([]string{"ami-123", "ami-456"}),
+						},
+					}
+					Expect(actualFilter).To(Equal(expectedFilter))
+				})
+				It("should create multiple launch templates when multiple amis are discovered", func() {
+					opts.AWSENILimitedPodDensity = false
+					provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
+					providerRefName := strings.ToLower(randomdata.SillyName())
+					providerRef := &v1alpha5.ProviderRef{
+						Name: providerRefName,
+					}
+					fakeEC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
+						{
+							ImageId:      aws.String("ami-123"),
+							Architecture: aws.String("x86_64"),
+							Tags:         []*ec2.Tag{{Key: aws.String(v1.LabelInstanceTypeStable), Value: aws.String("t3.large")}},
+						},
+						{
+							ImageId:      aws.String("ami-456"),
+							Architecture: aws.String("x86_64"),
+							Tags:         []*ec2.Tag{{Key: aws.String(v1.LabelInstanceTypeStable), Value: aws.String("m5.large")}},
+						},
+					}})
+					nodeTemplate := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{
+						UserData:    nil,
+						AMISelector: map[string]string{"karpenter.sh/discovery": "my-cluster"},
+						AWS:         *provider,
+						ObjectMeta:  metav1.ObjectMeta{Name: providerRefName}})
+					ExpectApplied(ctx, env.Client, nodeTemplate)
+					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: providerRef})
+					ExpectApplied(ctx, env.Client, newProvisioner)
+					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+					ExpectScheduled(ctx, env.Client, pod)
+					Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(2))
+					expectedImageIds := sets.NewString("ami-123", "ami-456")
+					actualImageIds := sets.NewString(
+						*fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().LaunchTemplateData.ImageId,
+						*fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().LaunchTemplateData.ImageId,
+					)
+					Expect(expectedImageIds.Equal(actualImageIds)).To(BeTrue())
+				})
+				It("should fail if no amis match selector.", func() {
+					opts.AWSENILimitedPodDensity = false
+					provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
+					providerRefName := strings.ToLower(randomdata.SillyName())
+					providerRef := &v1alpha5.ProviderRef{
+						Name: providerRefName,
+					}
+					fakeEC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{}})
+					nodeTemplate := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{
+						UserData:    nil,
+						AMISelector: map[string]string{"karpenter.sh/discovery": "my-cluster"},
+						AWS:         *provider,
+						ObjectMeta:  metav1.ObjectMeta{Name: providerRefName}})
+					ExpectApplied(ctx, env.Client, nodeTemplate)
+					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: providerRef})
+					ExpectApplied(ctx, env.Client, newProvisioner)
+					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+					ExpectNotScheduled(ctx, env.Client, pod)
+					Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(0))
+				})
+				It("should fail if no instanceType matches ami requirements.", func() {
+					opts.AWSENILimitedPodDensity = false
+					provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
+					providerRefName := strings.ToLower(randomdata.SillyName())
+					providerRef := &v1alpha5.ProviderRef{
+						Name: providerRefName,
+					}
+					fakeEC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
+						{ImageId: aws.String("ami-123"), Architecture: aws.String("newnew")},
+					}})
+					nodeTemplate := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{
+						UserData:    nil,
+						AMISelector: map[string]string{"karpenter.sh/discovery": "my-cluster"},
+						AWS:         *provider,
+						ObjectMeta:  metav1.ObjectMeta{Name: providerRefName}})
+					ExpectApplied(ctx, env.Client, nodeTemplate)
+					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: providerRef})
+					ExpectApplied(ctx, env.Client, newProvisioner)
+					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+					ExpectNotScheduled(ctx, env.Client, pod)
+					Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(0))
+				})
+				It("should choose amis from SSM if no selector specified in AWSNodeTemplate", func() {
+					opts.AWSENILimitedPodDensity = false
+					provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
+					providerRefName := strings.ToLower(randomdata.SillyName())
+					providerRef := &v1alpha5.ProviderRef{
+						Name: providerRefName,
+					}
+					nodeTemplate := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{
+						UserData:   nil,
+						AWS:        *provider,
+						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
+					ExpectApplied(ctx, env.Client, nodeTemplate)
+					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: providerRef})
+					ExpectApplied(ctx, env.Client, newProvisioner)
+					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+					ExpectScheduled(ctx, env.Client, pod)
+					input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+					Expect(*input.LaunchTemplateData.ImageId).To(ContainSubstring("test-ami"))
 				})
 			})
 			Context("Kubelet Args", func() {

@@ -43,6 +43,7 @@ type CapacityPool struct {
 // pollute each other.
 type EC2Behavior struct {
 	DescribeInstancesOutput             AtomicPtr[ec2.DescribeInstancesOutput]
+	DescribeImagesOutput                AtomicPtr[ec2.DescribeImagesOutput]
 	DescribeLaunchTemplatesOutput       AtomicPtr[ec2.DescribeLaunchTemplatesOutput]
 	DescribeSubnetsOutput               AtomicPtr[ec2.DescribeSubnetsOutput]
 	DescribeSecurityGroupsOutput        AtomicPtr[ec2.DescribeSecurityGroupsOutput]
@@ -52,6 +53,7 @@ type EC2Behavior struct {
 	DescribeSpotPriceHistoryOutput      AtomicPtr[ec2.DescribeSpotPriceHistoryOutput]
 	CalledWithCreateFleetInput          AtomicPtrSlice[ec2.CreateFleetInput]
 	CalledWithCreateLaunchTemplateInput AtomicPtrSlice[ec2.CreateLaunchTemplateInput]
+	CalledWithDescribeImagesInput       AtomicPtrSlice[ec2.DescribeImagesInput]
 	Instances                           sync.Map
 	LaunchTemplates                     sync.Map
 	InsufficientCapacityPools           AtomicSlice[CapacityPool]
@@ -70,6 +72,7 @@ var DefaultSupportedUsageClasses = aws.StringSlice([]string{"on-demand", "spot"}
 // each other.
 func (e *EC2API) Reset() {
 	e.DescribeInstancesOutput.Reset()
+	e.DescribeImagesOutput.Reset()
 	e.DescribeLaunchTemplatesOutput.Reset()
 	e.DescribeSubnetsOutput.Reset()
 	e.DescribeSecurityGroupsOutput.Reset()
@@ -78,6 +81,7 @@ func (e *EC2API) Reset() {
 	e.DescribeAvailabilityZonesOutput.Reset()
 	e.CalledWithCreateFleetInput.Reset()
 	e.CalledWithCreateLaunchTemplateInput.Reset()
+	e.CalledWithDescribeImagesInput.Reset()
 	e.DescribeSpotPriceHistoryOutput.Reset()
 	e.Instances.Range(func(k, v any) bool {
 		e.Instances.Delete(k)
@@ -184,6 +188,25 @@ func (e *EC2API) DescribeInstancesWithContext(_ context.Context, input *ec2.Desc
 
 	return &ec2.DescribeInstancesOutput{
 		Reservations: []*ec2.Reservation{{Instances: instances}},
+	}, nil
+}
+
+func (e *EC2API) DescribeImagesWithContext(_ context.Context, input *ec2.DescribeImagesInput, _ ...request.Option) (*ec2.DescribeImagesOutput, error) {
+	if !e.NextError.IsNil() {
+		defer e.NextError.Reset()
+		return nil, e.NextError.Get()
+	}
+	e.CalledWithDescribeImagesInput.Add(input)
+	if !e.DescribeImagesOutput.IsNil() {
+		return e.DescribeImagesOutput.Clone(), nil
+	}
+	return &ec2.DescribeImagesOutput{
+		Images: []*ec2.Image{
+			{
+				ImageId:      aws.String(test.RandomName()),
+				Architecture: aws.String("x86_64"),
+			},
+		},
 	}, nil
 }
 

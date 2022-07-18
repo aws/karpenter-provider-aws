@@ -29,6 +29,9 @@ type AWSNodeTemplateSpec struct {
 	// +optional
 	UserData     *string `json:"userData,omitempty"`
 	v1alpha1.AWS `json:",inline"`
+	// AMISelector discovers AMIs to be used by Amazon EC2 tags.
+	// +optional
+	AMISelector map[string]string `json:"amiSelector,omitempty"`
 }
 
 // AWSNodeTemplate is the Schema for the AWSNodeTemplate API

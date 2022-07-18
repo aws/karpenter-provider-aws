@@ -104,7 +104,7 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 				ctx,
 				ec2api,
 				options.ClientSet,
-				amifamily.New(ctx, ssm.New(sess), cache.New(CacheTTL, CacheCleanupInterval), options.KubeClient),
+				amifamily.New(ctx, ssm.New(sess), ec2api, cache.New(CacheTTL, CacheCleanupInterval), cache.New(CacheTTL, CacheCleanupInterval), options.KubeClient),
 				NewSecurityGroupProvider(ec2api),
 				getCABundle(ctx),
 				options.StartAsync,

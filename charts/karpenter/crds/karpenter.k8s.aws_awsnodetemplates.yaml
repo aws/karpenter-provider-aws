@@ -42,6 +42,11 @@ spec:
               amiFamily:
                 description: AMIFamily is the AMI family that instances use.
                 type: string
+              amiSelector:
+                additionalProperties:
+                  type: string
+                description: AMISelector discovers AMIs to be used by Amazon EC2 tags.
+                type: object
               apiVersion:
                 description: 'APIVersion defines the versioned schema of this representation
                   of an object. Servers should convert recognized schemas to the latest
