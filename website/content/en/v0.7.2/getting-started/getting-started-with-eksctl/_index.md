@@ -103,7 +103,7 @@ Install the chart passing in the cluster details and the Karpenter role ARN.
 
 #### Deploy a temporary Prometheus and Grafana stack (optional)
 
-The following commands will deploy a Prometheus and Grafana stack that is suitable for this guide but does not include persistent storage or other configurations that would be necessary for monitoring a production deployment of Karpenter. This deployment includes two Karpenter dashboards that are automatically onboaraded to Grafana. They provide a variety of visualization examples on Karpenter metrices.
+The following commands will deploy a Prometheus and Grafana stack that is suitable for this guide but does not include persistent storage or other configurations that would be necessary for monitoring a production deployment of Karpenter. This deployment includes two Karpenter dashboards that are automatically onboarded to Grafana. They provide a variety of visualization examples on Karpenter metrics.
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step09-add-prometheus-grafana.sh" language="bash"%}}
 
