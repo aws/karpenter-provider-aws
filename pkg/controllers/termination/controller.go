@@ -67,7 +67,7 @@ type Controller struct {
 	Terminator        *Terminator
 	KubeClient        client.Client
 	Recorder          events.Recorder
-	terminationRecord sets.String
+	TerminationRecord sets.String
 }
 
 // NewController constructs a controller instance
@@ -81,7 +81,7 @@ func NewController(ctx context.Context, kubeClient client.Client, coreV1Client c
 			EvictionQueue: NewEvictionQueue(ctx, coreV1Client, recorder),
 		},
 		Recorder:          recorder,
-		terminationRecord: sets.NewString(),
+		TerminationRecord: sets.NewString(),
 	}
 }
 
@@ -94,7 +94,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	node := &v1.Node{}
 	if err := c.KubeClient.Get(ctx, req.NamespacedName, node); err != nil {
 		if errors.IsNotFound(err) {
-			c.terminationRecord.Delete(req.String())
+			c.TerminationRecord.Delete(req.String())
 			return reconcile.Result{}, nil
 		}
 		return reconcile.Result{}, err
@@ -125,8 +125,8 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	// 6. Record termination duration (time between deletion timestamp and finalizer removal)
-	if !c.terminationRecord.Has(req.String()) {
-		c.terminationRecord.Insert(req.String())
+	if !c.TerminationRecord.Has(req.String()) {
+		c.TerminationRecord.Insert(req.String())
 		terminationSummary.Observe(time.Since(node.DeletionTimestamp.Time).Seconds())
 	}
 
