@@ -3,7 +3,7 @@ title: "Migrating from Cluster Autoscaler"
 linkTitle: "Migrating from Cluster Autoscaler"
 weight: 10
 description: >
-  Migrate to Karpenter from Cluster Autoscaler 
+  Migrate to Karpenter from Cluster Autoscaler
 ---
 
 This guide will show you how to switch from the [Kubernetes Cluster Autoscaler](https://github.com/kubernetes/autoscaler) to Karpenter for automatic node provisioning.
@@ -108,8 +108,8 @@ The rules should look something like this.
 Modify the value to match your `$NODEGROUP`.
 
 ```
-      affinity:                      
-        nodeAffinity: 
+      affinity:
+        nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
             - matchExpressions:
@@ -146,8 +146,8 @@ You can edit them with `kubectl edit deploy ...` and you should add node affinit
 Modify the value to match your `$NODEGROUP`.
 
 ```
-      affinity:                      
-        nodeAffinity: 
+      affinity:
+        nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
             - matchExpressions:
