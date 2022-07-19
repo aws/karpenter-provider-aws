@@ -129,6 +129,10 @@ func (s *Scheduler) Solve(ctx context.Context, pods []*v1.Pod) ([]*Node, error) 
 			}
 		}
 	}
+
+	for _, n := range s.nodes {
+		n.FinalizeScheduling()
+	}
 	s.recordSchedulingResults(ctx, pods, q.List(), errors)
 	return s.nodes, nil
 }

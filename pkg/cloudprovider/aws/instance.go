@@ -53,14 +53,16 @@ type InstanceProvider struct {
 	instanceTypeProvider   *InstanceTypeProvider
 	subnetProvider         *SubnetProvider
 	launchTemplateProvider *LaunchTemplateProvider
+	createFleetBatcher     *CreateFleetBatcher
 }
 
-func NewInstanceProvider(ec2api ec2iface.EC2API, instanceTypeProvider *InstanceTypeProvider, subnetProvider *SubnetProvider, launchTemplateProvider *LaunchTemplateProvider) *InstanceProvider {
+func NewInstanceProvider(ctx context.Context, ec2api ec2iface.EC2API, instanceTypeProvider *InstanceTypeProvider, subnetProvider *SubnetProvider, launchTemplateProvider *LaunchTemplateProvider) *InstanceProvider {
 	return &InstanceProvider{
 		ec2api:                 ec2api,
 		instanceTypeProvider:   instanceTypeProvider,
 		subnetProvider:         subnetProvider,
 		launchTemplateProvider: launchTemplateProvider,
+		createFleetBatcher:     NewCreateFleetBatcher(ctx, ec2api),
 	}
 }
 
@@ -160,7 +162,8 @@ func (p *InstanceProvider) launchInstance(ctx context.Context, provider *v1alpha
 	} else {
 		createFleetInput.OnDemandOptions = &ec2.OnDemandOptionsRequest{AllocationStrategy: aws.String(ec2.FleetOnDemandAllocationStrategyLowestPrice)}
 	}
-	createFleetOutput, err := p.ec2api.CreateFleetWithContext(ctx, createFleetInput)
+
+	createFleetOutput, err := p.createFleetBatcher.CreateFleet(ctx, createFleetInput)
 	if err != nil {
 		if isLaunchTemplateNotFound(err) {
 			for _, lt := range launchTemplateConfigs {

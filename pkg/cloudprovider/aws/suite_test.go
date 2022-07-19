@@ -40,8 +40,6 @@ import (
 	"github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/options"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
@@ -53,6 +51,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	. "github.com/aws/karpenter/pkg/test/expectations"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
 )
 
@@ -126,16 +126,14 @@ var _ = BeforeSuite(func() {
 		cloudProvider = &CloudProvider{
 			subnetProvider:       subnetProvider,
 			instanceTypeProvider: instanceTypeProvider,
-			instanceProvider: &InstanceProvider{
-				fakeEC2API, instanceTypeProvider, subnetProvider, &LaunchTemplateProvider{
-					ec2api:                fakeEC2API,
-					amiFamily:             amifamily.New(ctx, fake.SSMAPI{}, fakeEC2API, ssmCache, ec2Cache, e.Client),
-					clientSet:             clientSet,
-					securityGroupProvider: securityGroupProvider,
-					cache:                 launchTemplateCache,
-					caBundle:              ptr.String("ca-bundle"),
-				},
-			},
+			instanceProvider: NewInstanceProvider(ctx, fakeEC2API, instanceTypeProvider, subnetProvider, &LaunchTemplateProvider{
+				ec2api:                fakeEC2API,
+				amiFamily:             amifamily.New(ctx, fake.SSMAPI{}, fakeEC2API, ssmCache, ec2Cache, e.Client),
+				clientSet:             clientSet,
+				securityGroupProvider: securityGroupProvider,
+				cache:                 launchTemplateCache,
+				caBundle:              ptr.String("ca-bundle"),
+			}),
 			kubeClient: e.Client,
 		}
 		cfg = test.NewConfig()

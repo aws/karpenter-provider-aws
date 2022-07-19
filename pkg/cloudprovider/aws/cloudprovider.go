@@ -99,7 +99,7 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 	return &CloudProvider{
 		instanceTypeProvider: instanceTypeProvider,
 		subnetProvider:       subnetProvider,
-		instanceProvider: &InstanceProvider{ec2api, instanceTypeProvider, subnetProvider,
+		instanceProvider: NewInstanceProvider(ctx, ec2api, instanceTypeProvider, subnetProvider,
 			NewLaunchTemplateProvider(
 				ctx,
 				ec2api,
@@ -109,7 +109,7 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 				getCABundle(ctx),
 				options.StartAsync,
 			),
-		},
+		),
 		kubeClient: options.KubeClient,
 	}
 }

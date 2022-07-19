@@ -53,6 +53,7 @@ type EC2Behavior struct {
 	DescribeSpotPriceHistoryOutput      AtomicPtr[ec2.DescribeSpotPriceHistoryOutput]
 	CalledWithCreateFleetInput          AtomicPtrSlice[ec2.CreateFleetInput]
 	CalledWithCreateLaunchTemplateInput AtomicPtrSlice[ec2.CreateLaunchTemplateInput]
+	CreateFleetOutput                   AtomicPtr[ec2.CreateFleetOutput]
 	CalledWithDescribeImagesInput       AtomicPtrSlice[ec2.DescribeImagesInput]
 	Instances                           sync.Map
 	LaunchTemplates                     sync.Map
@@ -79,6 +80,7 @@ func (e *EC2API) Reset() {
 	e.DescribeInstanceTypesOutput.Reset()
 	e.DescribeInstanceTypeOfferingsOutput.Reset()
 	e.DescribeAvailabilityZonesOutput.Reset()
+	e.CreateFleetOutput.Reset()
 	e.CalledWithCreateFleetInput.Reset()
 	e.CalledWithCreateLaunchTemplateInput.Reset()
 	e.CalledWithDescribeImagesInput.Reset()
@@ -102,6 +104,11 @@ func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFlee
 		return nil, e.NextError.Get()
 	}
 	e.CalledWithCreateFleetInput.Add(input)
+
+	if !e.CreateFleetOutput.IsNil() {
+		return e.CreateFleetOutput.Clone(), nil
+	}
+
 	if input.LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName == nil {
 		return nil, fmt.Errorf("missing launch template name")
 	}
@@ -129,15 +136,17 @@ func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFlee
 			if skipInstance {
 				continue
 			}
-			instance := &ec2.Instance{
-				InstanceId:            aws.String(test.RandomName()),
-				Placement:             &ec2.Placement{AvailabilityZone: input.LaunchTemplateConfigs[0].Overrides[0].AvailabilityZone},
-				PrivateDnsName:        aws.String(randomdata.IpV4Address()),
-				InstanceType:          input.LaunchTemplateConfigs[0].Overrides[0].InstanceType,
-				SpotInstanceRequestId: spotInstanceRequestID,
+			for i := 0; i < int(*input.TargetCapacitySpecification.TotalTargetCapacity); i++ {
+				instance := &ec2.Instance{
+					InstanceId:            aws.String(test.RandomName()),
+					Placement:             &ec2.Placement{AvailabilityZone: input.LaunchTemplateConfigs[0].Overrides[0].AvailabilityZone},
+					PrivateDnsName:        aws.String(randomdata.IpV4Address()),
+					InstanceType:          input.LaunchTemplateConfigs[0].Overrides[0].InstanceType,
+					SpotInstanceRequestId: spotInstanceRequestID,
+				}
+				e.Instances.Store(*instance.InstanceId, instance)
+				instanceIds = append(instanceIds, instance.InstanceId)
 			}
-			e.Instances.Store(*instance.InstanceId, instance)
-			instanceIds = append(instanceIds, instance.InstanceId)
 		}
 	}
 
