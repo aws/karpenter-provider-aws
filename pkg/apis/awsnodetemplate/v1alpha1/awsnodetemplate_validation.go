@@ -29,7 +29,6 @@ const (
 	launchTemplatePath = "launchTemplate"
 	userDataPath       = "userData"
 	amiSelectorPath    = "amiSelector"
-	amiFamilyPath      = "amiFamily"
 )
 
 var (
@@ -78,9 +77,6 @@ func (a *AWSNodeTemplateSpec) validateAMISelector() (errs *apis.FieldError) {
 	}
 	if a.LaunchTemplateName != nil {
 		errs = errs.Also(apis.ErrMultipleOneOf(amiSelectorPath, launchTemplatePath))
-	}
-	if a.AMIFamily == nil {
-		errs = errs.Also(apis.ErrMissingField(amiFamilyPath))
 	}
 	for key, value := range a.AMISelector {
 		if key == "" || value == "" {
