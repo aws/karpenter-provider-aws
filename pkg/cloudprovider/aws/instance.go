@@ -71,7 +71,7 @@ func NewInstanceProvider(ctx context.Context, ec2api ec2iface.EC2API, instanceTy
 // If spot is not used, the instanceTypes are not required to be sorted
 // because we are using ec2 fleet's lowest-price OD allocation strategy
 func (p *InstanceProvider) Create(ctx context.Context, provider *v1alpha1.AWS, nodeRequest *cloudprovider.NodeRequest) (*v1.Node, error) {
-	nodeRequest.InstanceTypeOptions = p.filterInstanceTypes(nodeRequest.InstanceTypeOptions)
+	nodeRequest.InstanceTypeOptions = p.prioritizeInstanceTypes(nodeRequest.InstanceTypeOptions)
 	if len(nodeRequest.InstanceTypeOptions) > MaxInstanceTypes {
 		nodeRequest.InstanceTypeOptions = nodeRequest.InstanceTypeOptions[0:MaxInstanceTypes]
 	}
@@ -354,10 +354,10 @@ func (p *InstanceProvider) getCapacityType(nodeRequest *cloudprovider.NodeReques
 	return v1alpha1.CapacityTypeOnDemand
 }
 
-// filterInstanceTypes is used to eliminate less desirable instance types (like GPUs) from the list of possible instance types when
+// prioritizeInstanceTypes is used to eliminate less desirable instance types (like GPUs) from the list of possible instance types when
 // a set of more appropriate instance types would work. If a set of more desirable instance types is not found, then the original slice
 // of instance types are returned.
-func (p *InstanceProvider) filterInstanceTypes(instanceTypes []cloudprovider.InstanceType) []cloudprovider.InstanceType {
+func (p *InstanceProvider) prioritizeInstanceTypes(instanceTypes []cloudprovider.InstanceType) []cloudprovider.InstanceType {
 	var genericInstanceTypes []cloudprovider.InstanceType
 	for _, it := range instanceTypes {
 		it := it.(*InstanceType)
@@ -365,14 +365,12 @@ func (p *InstanceProvider) filterInstanceTypes(instanceTypes []cloudprovider.Ins
 		if !functional.HasAnyPrefix(*it.InstanceType, "m", "c", "r", "a", "t", "i") {
 			continue
 		}
-		// deprioritize some older instance types including 1st/2nd gen burstable, compute and graviton
-		if functional.HasAnyPrefix(*it.InstanceType, "t1", "t2", "a1", "c1", "u-") {
-			continue
-		}
-		// deprioritize metal
+		// deprioritize metal even if our opinionated filter isn't apply due to something like an instance family
+		// requirement
 		if aws.BoolValue(it.BareMetal) {
 			continue
 		}
+
 		itRes := it.Resources()
 		if !resources.IsZero(itRes[v1alpha1.ResourceAWSNeuron]) ||
 			!resources.IsZero(itRes[v1alpha1.ResourceAMDGPU]) ||

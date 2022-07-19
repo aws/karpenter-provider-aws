@@ -255,6 +255,11 @@ var _ = Describe("Allocation", func() {
 				}
 			})
 			It("should launch on metal", func() {
+				// add a provisioner requirement for instance type exists to remove our default filter for metal sizes
+				provisioner.Spec.Requirements = append(provisioner.Spec.Requirements, v1.NodeSelectorRequirement{
+					Key:      v1.LabelInstanceTypeStable,
+					Operator: v1.NodeSelectorOpExists,
+				})
 				ExpectApplied(ctx, env.Client, provisioner)
 				for _, pod := range ExpectProvisioned(ctx, env.Client, controller,
 					test.UnschedulablePod(test.PodOptions{
