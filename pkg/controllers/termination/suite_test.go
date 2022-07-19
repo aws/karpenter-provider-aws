@@ -35,6 +35,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/sets"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	. "knative.dev/pkg/logging/testing"
 	"knative.dev/pkg/ptr"
@@ -67,7 +68,8 @@ var _ = BeforeSuite(func() {
 				CloudProvider: cloudProvider,
 				EvictionQueue: evictionQueue,
 			},
-			Recorder: recorder,
+			Recorder:          recorder,
+			TerminationRecord: sets.NewString(),
 		}
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
