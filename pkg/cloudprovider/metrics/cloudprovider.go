@@ -19,6 +19,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	v1 "k8s.io/api/core/v1"
+	"knative.dev/pkg/apis"
 	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
@@ -79,4 +80,14 @@ func (d *decorator) Delete(ctx context.Context, node *v1.Node) error {
 func (d *decorator) GetInstanceTypes(ctx context.Context, provisioner *v1alpha5.Provisioner) ([]cloudprovider.InstanceType, error) {
 	defer metrics.Measure(methodDurationHistogramVec.WithLabelValues(injection.GetControllerName(ctx), "GetInstanceTypes", d.Name()))()
 	return d.CloudProvider.GetInstanceTypes(ctx, provisioner)
+}
+
+func (d *decorator) Default(ctx context.Context, provisioner *v1alpha5.Provisioner) {
+	defer metrics.Measure(methodDurationHistogramVec.WithLabelValues(injection.GetControllerName(ctx), "Default", d.Name()))()
+	d.CloudProvider.Default(ctx, provisioner)
+}
+
+func (d *decorator) Validate(ctx context.Context, provisioner *v1alpha5.Provisioner) *apis.FieldError {
+	defer metrics.Measure(methodDurationHistogramVec.WithLabelValues(injection.GetControllerName(ctx), "Validate", d.Name()))()
+	return d.CloudProvider.Validate(ctx, provisioner)
 }

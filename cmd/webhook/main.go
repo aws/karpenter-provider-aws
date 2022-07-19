@@ -19,6 +19,7 @@ import (
 	"flag"
 	"fmt"
 
+	"k8s.io/client-go/kubernetes"
 	"knative.dev/pkg/configmap"
 	"knative.dev/pkg/controller"
 	knativeinjection "knative.dev/pkg/injection"
@@ -33,7 +34,8 @@ import (
 	"knative.dev/pkg/webhook/resourcesemantics/validation"
 
 	"github.com/aws/karpenter/pkg/apis"
-	awsapis "github.com/aws/karpenter/pkg/cloudprovider/aws/apis"
+	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/cloudprovider/registry"
 	"github.com/aws/karpenter/pkg/utils/env"
 )
 
@@ -57,15 +59,18 @@ func main() {
 		SecretName:  fmt.Sprintf("%s-cert", opts.KarpenterService),
 	})
 
+	// Register the cloud provider to attach vendor specific validation logic.
+	registry.NewCloudProvider(ctx, cloudprovider.Options{
+		ClientSet:   kubernetes.NewForConfigOrDie(config),
+		WebhookOnly: true,
+	})
+
 	// Controllers and webhook
 	sharedmain.MainWithConfig(ctx, "webhook", config,
 		certificates.NewController,
 		newCRDDefaultingWebhook,
 		newCRDValidationWebhook,
 		newConfigValidationController,
-		// AWS Specific Webhooks
-		newAWSDefaultingWebhook,
-		newAWSValidationWebhook,
 	)
 }
 
@@ -84,26 +89,6 @@ func newCRDValidationWebhook(ctx context.Context, w configmap.Watcher) *controll
 		"validation.webhook.provisioners.karpenter.sh",
 		"/validate-resource",
 		apis.Resources,
-		InjectContext,
-		true,
-	)
-}
-
-func newAWSDefaultingWebhook(ctx context.Context, w configmap.Watcher) *controller.Impl {
-	return defaulting.NewAdmissionController(ctx,
-		"defaulting.webhook.karpenter.k8s.aws",
-		"/aws/default-resource",
-		awsapis.Resources,
-		InjectContext,
-		true,
-	)
-}
-
-func newAWSValidationWebhook(ctx context.Context, w configmap.Watcher) *controller.Impl {
-	return validation.NewAdmissionController(ctx,
-		"validation.webhook.karpenter.k8s.aws",
-		"/aws/validate-resource",
-		awsapis.Resources,
 		InjectContext,
 		true,
 	)
