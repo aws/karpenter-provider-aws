@@ -53,6 +53,12 @@ func main() {
 	}
 	prov := &v1alpha5.Provisioner{
 		Spec: v1alpha5.ProvisionerSpec{
+			Requirements: []v1.NodeSelectorRequirement{
+				{
+					Key:      v1.LabelInstanceTypeStable,
+					Operator: v1.NodeSelectorOpExists,
+				},
+			},
 			Provider: &v1alpha5.Provider{
 				Raw: buf.Bytes(),
 			},

@@ -8714,6 +8714,227 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|14288370Ki|
  |memory|718887Mi|
  |pods|737|
+## r6a Family
+### `r6a.large`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-cpu|2|
+ |karpenter.k8s.aws/instance-family|r6a|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|16384|
+ |karpenter.k8s.aws/instance-pods|29|
+ |karpenter.k8s.aws/instance-size|large|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r6a.large|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|1830m|
+ |ephemeral-storage|14288370Ki|
+ |memory|14381Mi|
+ |pods|29|
+### `r6a.xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-cpu|4|
+ |karpenter.k8s.aws/instance-family|r6a|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|32768|
+ |karpenter.k8s.aws/instance-pods|58|
+ |karpenter.k8s.aws/instance-size|xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r6a.xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|3820m|
+ |ephemeral-storage|14288370Ki|
+ |memory|29217Mi|
+ |pods|58|
+### `r6a.2xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-cpu|8|
+ |karpenter.k8s.aws/instance-family|r6a|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|65536|
+ |karpenter.k8s.aws/instance-pods|58|
+ |karpenter.k8s.aws/instance-size|2xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r6a.2xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|7810m|
+ |ephemeral-storage|14288370Ki|
+ |memory|59527Mi|
+ |pods|58|
+### `r6a.4xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-cpu|16|
+ |karpenter.k8s.aws/instance-family|r6a|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|131072|
+ |karpenter.k8s.aws/instance-pods|234|
+ |karpenter.k8s.aws/instance-size|4xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r6a.4xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|15790m|
+ |ephemeral-storage|14288370Ki|
+ |memory|118212Mi|
+ |pods|234|
+### `r6a.8xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-cpu|32|
+ |karpenter.k8s.aws/instance-family|r6a|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|262144|
+ |karpenter.k8s.aws/instance-pods|234|
+ |karpenter.k8s.aws/instance-size|8xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r6a.8xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|31750m|
+ |ephemeral-storage|14288370Ki|
+ |memory|239454Mi|
+ |pods|234|
+### `r6a.12xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-cpu|48|
+ |karpenter.k8s.aws/instance-family|r6a|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|393216|
+ |karpenter.k8s.aws/instance-pods|234|
+ |karpenter.k8s.aws/instance-size|12xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r6a.12xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|47710m|
+ |ephemeral-storage|14288370Ki|
+ |memory|360695Mi|
+ |pods|234|
+### `r6a.16xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-cpu|64|
+ |karpenter.k8s.aws/instance-family|r6a|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|524288|
+ |karpenter.k8s.aws/instance-pods|737|
+ |karpenter.k8s.aws/instance-size|16xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r6a.16xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|63670m|
+ |ephemeral-storage|14288370Ki|
+ |memory|476404Mi|
+ |pods|737|
+### `r6a.24xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-cpu|96|
+ |karpenter.k8s.aws/instance-family|r6a|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|786432|
+ |karpenter.k8s.aws/instance-pods|737|
+ |karpenter.k8s.aws/instance-size|24xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r6a.24xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|95590m|
+ |ephemeral-storage|14288370Ki|
+ |memory|718887Mi|
+ |pods|737|
+### `r6a.32xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-cpu|128|
+ |karpenter.k8s.aws/instance-family|r6a|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|1048576|
+ |karpenter.k8s.aws/instance-pods|737|
+ |karpenter.k8s.aws/instance-size|32xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r6a.32xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|127510m|
+ |ephemeral-storage|14288370Ki|
+ |memory|961370Mi|
+ |pods|737|
+### `r6a.48xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-cpu|192|
+ |karpenter.k8s.aws/instance-family|r6a|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|1572864|
+ |karpenter.k8s.aws/instance-pods|737|
+ |karpenter.k8s.aws/instance-size|48xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r6a.48xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|191350m|
+ |ephemeral-storage|14288370Ki|
+ |memory|1446337Mi|
+ |pods|737|
+### `r6a.metal`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-cpu|192|
+ |karpenter.k8s.aws/instance-family|r6a|
+ |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-memory|1572864|
+ |karpenter.k8s.aws/instance-pods|737|
+ |karpenter.k8s.aws/instance-size|metal|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r6a.metal|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|191350m|
+ |ephemeral-storage|14288370Ki|
+ |memory|1446337Mi|
+ |pods|737|
 ## r6g Family
 ### `r6g.medium`
 #### Labels

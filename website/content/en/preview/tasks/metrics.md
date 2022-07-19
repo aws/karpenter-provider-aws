@@ -22,22 +22,25 @@ The Provisioner Usage Percentage is the percentage of each resource used based o
 ## Nodes Metrics
 
 ### `karpenter_nodes_allocatable`
-Node allocatable are the resources allocatable by nodes. Labeled by provisioner name, node name, zone, architecture, capacity type, instance type, node phase and resource type.
+Node allocatable are the resources allocatable by nodes.
 
 ### `karpenter_nodes_system_overhead`
-Node system daemon overhead are the resources reserved for system overhead, the difference between the node's capacity and allocatable values are reported by the status. Labeled by provisioner name, node name, zone, architecture, capacity type, instance type, node phase and resource type.
+Node system daemon overhead are the resources reserved for system overhead, the difference between the node's capacity and allocatable values are reported by the status.
+
+### `karpenter_nodes_termination_time_seconds`
+The time taken between a node's deletion request and the removal of its finalizer
 
 ### `karpenter_nodes_total_daemon_limits`
-Node total pod limits are the resources specified by DaemonSet pod limits. Labeled by provisioner name, node name, zone, architecture, capacity type, instance type, node phase and resource type.
+Node total daemon requests are the resource requested by DaemonSet pods bound to nodes.
 
 ### `karpenter_nodes_total_daemon_requests`
-Node total daemon requests are the resource requested by DaemonSet pods bound to nodes. Labeled by provisioner name, node name, zone, architecture, capacity type, instance type, node phase and resource type.
+Node total daemon limits are the resources specified by DaemonSet pod limits.
 
 ### `karpenter_nodes_total_pod_limits`
-Node total pod limits are the resources specified by non-DaemonSet pod limits. Labeled by provisioner name, node name, zone, architecture, capacity type, instance type, node phase and resource type.
+Node total pod limits are the resources specified by non-DaemonSet pod limits.
 
 ### `karpenter_nodes_total_pod_requests`
-Node total pod requests are the resources requested by non-DaemonSet pods bound to nodes.  Labeled by provisioner name, node name, zone, architecture, capacity type, instance type, node phase and resource type.
+Node total pod requests are the resources requested by non-DaemonSet pods bound to nodes.
 
 ## Pods Metrics
 

@@ -18,9 +18,9 @@ package aws
 
 import "time"
 
-// generated at 2022-07-07T12:28:27Z for us-east-1
+// generated at 2022-07-19T21:28:17Z for us-east-1
 
-var initialPriceUpdate, _ = time.Parse(time.RFC3339, "2022-07-07T12:28:27Z")
+var initialPriceUpdate, _ = time.Parse(time.RFC3339, "2022-07-19T21:28:17Z")
 var initialOnDemandPrices = map[string]float64{
 	// a1 family
 	"a1.2xlarge": 0.204000, "a1.4xlarge": 0.408000, "a1.large": 0.051000, "a1.medium": 0.025500,
@@ -226,6 +226,10 @@ var initialOnDemandPrices = map[string]float64{
 	"r5n.12xlarge": 3.576000, "r5n.16xlarge": 4.768000, "r5n.24xlarge": 7.152000, "r5n.2xlarge": 0.596000,
 	"r5n.4xlarge": 1.192000, "r5n.8xlarge": 2.384000, "r5n.large": 0.149000, "r5n.metal": 7.152000,
 	"r5n.xlarge": 0.298000,
+	// r6a family
+	"r6a.12xlarge": 2.721600, "r6a.16xlarge": 3.628800, "r6a.24xlarge": 5.443200, "r6a.2xlarge": 0.453600,
+	"r6a.32xlarge": 7.257600, "r6a.48xlarge": 10.886400, "r6a.4xlarge": 0.907200, "r6a.8xlarge": 1.814400,
+	"r6a.large": 0.113400, "r6a.metal": 10.886400, "r6a.xlarge": 0.226800,
 	// r6g family
 	"r6g.12xlarge": 2.419200, "r6g.16xlarge": 3.225600, "r6g.2xlarge": 0.403200, "r6g.4xlarge": 0.806400,
 	"r6g.8xlarge": 1.612800, "r6g.large": 0.100800, "r6g.medium": 0.050400, "r6g.metal": 3.419100,
