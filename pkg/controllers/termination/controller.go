@@ -24,6 +24,7 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/util/sets"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/util/workqueue"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -46,7 +47,7 @@ import (
 const controllerName = "termination"
 
 var (
-	terminationSummaryVec = prometheus.NewSummaryVec(
+	terminationSummary = prometheus.NewSummary(
 		prometheus.SummaryOpts{
 			Namespace:  "karpenter",
 			Subsystem:  "nodes",
@@ -54,19 +55,19 @@ var (
 			Help:       "The time taken between a node's deletion request and the removal of its finalizer",
 			Objectives: metrics.SummaryObjectives(),
 		},
-		[]string{},
 	)
 )
 
 func init() {
-	crmetrics.Registry.MustRegister(terminationSummaryVec)
+	crmetrics.Registry.MustRegister(terminationSummary)
 }
 
 // Controller for the resource
 type Controller struct {
-	Terminator *Terminator
-	KubeClient client.Client
-	Recorder   events.Recorder
+	Terminator        *Terminator
+	KubeClient        client.Client
+	Recorder          events.Recorder
+	terminationRecord sets.String
 }
 
 // NewController constructs a controller instance
@@ -79,7 +80,8 @@ func NewController(ctx context.Context, kubeClient client.Client, coreV1Client c
 			CloudProvider: cloudProvider,
 			EvictionQueue: NewEvictionQueue(ctx, coreV1Client, recorder),
 		},
-		Recorder: recorder,
+		Recorder:          recorder,
+		terminationRecord: sets.NewString(),
 	}
 }
 
@@ -92,6 +94,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	node := &v1.Node{}
 	if err := c.KubeClient.Get(ctx, req.NamespacedName, node); err != nil {
 		if errors.IsNotFound(err) {
+			c.terminationRecord.Delete(req.String())
 			return reconcile.Result{}, nil
 		}
 		return reconcile.Result{}, err
@@ -122,7 +125,10 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	// 6. Record termination duration (time between deletion timestamp and finalizer removal)
-	terminationSummaryVec.With(prometheus.Labels{}).Observe(time.Since(node.DeletionTimestamp.Time).Seconds())
+	if !c.terminationRecord.Has(req.String()) {
+		c.terminationRecord.Insert(req.String())
+		terminationSummary.Observe(time.Since(node.DeletionTimestamp.Time).Seconds())
+	}
 
 	return reconcile.Result{}, nil
 }
