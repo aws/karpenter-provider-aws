@@ -56,7 +56,7 @@ spec:
       metadata:
         name: $(params.cluster-name)
         region: $(cat $(results.region.path))
-        version: "1.22"
+        version: "1.21"
         tags:
           karpenter.sh/discovery: $(params.cluster-name)
       managedNodeGroups:
