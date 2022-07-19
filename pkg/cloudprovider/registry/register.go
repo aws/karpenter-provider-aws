@@ -17,9 +17,21 @@ package registry
 import (
 	"context"
 
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 )
 
 func NewCloudProvider(ctx context.Context, options cloudprovider.Options) cloudprovider.CloudProvider {
-	return newCloudProvider(ctx, options)
+	cloudProvider := newCloudProvider(ctx, options)
+	RegisterOrDie(ctx, cloudProvider)
+	return cloudProvider
+}
+
+// RegisterOrDie populates supported instance types, zones, operating systems,
+// architectures, and validation logic. This operation should only be called
+// once at startup time. Typically, this call is made by NewCloudProvider(), but
+// must be called if the cloud provider is constructed manually (e.g. tests).
+func RegisterOrDie(ctx context.Context, cloudProvider cloudprovider.CloudProvider) {
+	v1alpha5.ValidateHook = cloudProvider.Validate
+	v1alpha5.DefaultHook = cloudProvider.Default
 }
