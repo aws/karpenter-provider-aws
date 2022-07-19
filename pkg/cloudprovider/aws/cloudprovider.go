@@ -29,6 +29,14 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/patrickmn/go-cache"
+	"github.com/samber/lo"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/transport"
+	"knative.dev/pkg/logging"
+	"knative.dev/pkg/ptr"
+	k8sClient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	awsv1alpha1 "github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
@@ -38,15 +46,6 @@ import (
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/project"
-
-	k8sClient "sigs.k8s.io/controller-runtime/pkg/client"
-
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/transport"
-	"knative.dev/pkg/logging"
-	"knative.dev/pkg/ptr"
 )
 
 const (
@@ -140,7 +139,38 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, provisioner *v1alp
 	if err != nil {
 		return nil, err
 	}
-	return c.instanceTypeProvider.Get(ctx, aws)
+	instanceTypes, err := c.instanceTypeProvider.Get(ctx, aws)
+	if err != nil {
+		return nil, err
+	}
+
+	// if the provisioner is not supplying a list of instance types or families, perform some filtering to get instance
+	// types that are suitable for general workloads
+	if c.useOpinionatedInstanceFilter(provisioner.Spec.Requirements...) {
+		instanceTypes = lo.Filter(instanceTypes, func(it cloudprovider.InstanceType, _ int) bool {
+			cit, ok := it.(*InstanceType)
+			if !ok {
+				return true
+			}
+
+			// c3, m3 and r3 aren't current generation but are fine for general workloads
+			if functional.HasAnyPrefix(*cit.InstanceType, "c3", "m3", "r3") {
+				return false
+			}
+
+			// filter out all non-current generation
+			if cit.CurrentGeneration != nil && !*cit.CurrentGeneration {
+				return false
+			}
+
+			// t2 is current generation but has different bursting behavior and u- isn't widely available
+			if functional.HasAnyPrefix(*cit.InstanceType, "t2", "u-") {
+				return false
+			}
+			return true
+		})
+	}
+	return instanceTypes, nil
 }
 
 func (c *CloudProvider) Delete(ctx context.Context, node *v1.Node) error {
@@ -204,4 +234,40 @@ func (c *CloudProvider) getProvider(ctx context.Context, provider *runtime.RawEx
 		return nil, err
 	}
 	return aws, nil
+}
+
+func (c *CloudProvider) useOpinionatedInstanceFilter(provisionerRequirements ...v1.NodeSelectorRequirement) bool {
+	var instanceTypeRequirement, familyRequirement v1.NodeSelectorRequirement
+
+	for _, r := range provisionerRequirements {
+		if r.Key == v1.LabelInstanceTypeStable {
+			instanceTypeRequirement = r
+		} else if r.Key == v1alpha1.LabelInstanceFamily {
+			familyRequirement = r
+		}
+	}
+	// no provisioner instance type filtering, so use our opinionated list
+	if instanceTypeRequirement.Operator == "" && familyRequirement.Operator == "" {
+		return true
+	}
+
+	for _, req := range []v1.NodeSelectorRequirement{instanceTypeRequirement, familyRequirement} {
+		switch req.Operator {
+		case v1.NodeSelectorOpIn:
+			// provisioner supplies its own list of instance types/families, so use that instead of filtering
+			return false
+		case v1.NodeSelectorOpNotIn:
+			// provisioner further restricts instance types/families, so we can possibly use our list and it will
+			// be filtered more
+		case v1.NodeSelectorOpExists:
+			// provisioner explicitly is asking for no filtering
+			return false
+		case v1.NodeSelectorOpDoesNotExist:
+			// this shouldn't match any instance type at provisioning time, but avoid filtering anyway
+			return false
+		}
+	}
+
+	// provisioner requirements haven't prevented us from filtering
+	return true
 }
