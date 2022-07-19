@@ -66,7 +66,7 @@ If you have multiple nodegroups or multiple security groups you will need to dec
 
 ## Update aws-auth ConfigMap
 
-We need to allow nodes that are using the node IAM role we just created to join the cluter.
+We need to allow nodes that are using the node IAM role we just created to join the cluster.
 To do that we have to modify the `aws-auth` ConfigMap in the cluster.
 
 {{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step08-edit-aws-auth.sh" language="bash" %}}
@@ -89,6 +89,12 @@ One for your Karpenter node role and one for your existing node group.
 First set the Karpenter release you want to deploy.
 ```bash
 export KARPENTER_VERSION=v0.9.1
+```
+
+Make sure the Karpenter repo is added to Helm by running the following commands.
+```bash
+helm repo add karpenter https://charts.karpenter.sh/
+helm repo update
 ```
 
 We can now generate a full Karpenter deployment yaml from the helm chart.
