@@ -102,15 +102,15 @@ func (b *CreateFleetBatcher) run() {
 }
 
 func (b *CreateFleetBatcher) waitForIdle() {
-	timeout := time.NewTimer(1 * time.Second)
-	idle := time.NewTimer(100 * time.Millisecond)
+	timeout := time.NewTimer(100 * time.Millisecond)
+	idle := time.NewTimer(10 * time.Millisecond)
 	for {
 		select {
 		case <-b.trigger:
 			if !idle.Stop() {
 				<-idle.C
 			}
-			idle.Reset(100 * time.Millisecond)
+			idle.Reset(10 * time.Millisecond)
 		case <-timeout.C:
 			return
 		case <-idle.C:
