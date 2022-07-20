@@ -2,7 +2,7 @@
 apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
-  name: after-suite
+  name: cleanup
   namespace: karpenter-tests
 spec:
   description: |
@@ -15,12 +15,12 @@ spec:
   steps:
 
   - name: delete-cluster
-    image: 767520670908.dkr.ecr.us-west-2.amazonaws.com/karpenter-test-infrastructure:v4
+    image: public.ecr.aws/karpenter-testing/tools:latest
     script: |
       eksctl delete cluster --name $(params.cluster-name) --wait || true
 
   - name: delete-iam-policies
-    image: 767520670908.dkr.ecr.us-west-2.amazonaws.com/karpenter-test-infrastructure:v4
+    image: public.ecr.aws/karpenter-testing/tools:latest
     script: |
       aws cloudformation delete-stack --stack-name KarpenterIAM-$(params.cluster-name)
       aws cloudformation wait stack-delete-complete --stack-name KarpenterIAM-$(params.cluster-name)

@@ -2,7 +2,7 @@
 apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
-  name: suite
+  name: run-test
   namespace: karpenter-tests
 spec:
   description: |
@@ -26,7 +26,7 @@ spec:
       git checkout $(params.git-ref)
 
   - name: go-test
-    image: 767520670908.dkr.ecr.us-west-2.amazonaws.com/karpenter-test-infrastructure:v4
+    image: public.ecr.aws/karpenter-testing/tools:latest
     workingDir: $(workspaces.ws.path)
     script: |
       aws eks update-kubeconfig --name $(params.cluster-name)

@@ -1,8 +1,7 @@
----
 apiVersion: tekton.dev/v1beta1
 kind: Pipeline
 metadata:
-  name: integration
+  name: suite
   namespace: karpenter-tests
 spec:
   params:
@@ -18,17 +17,19 @@ spec:
       default: "true"
       description: If true, clean up resources
   tasks:
-  - name: before-suite
+
+  - name: setup
     taskRef:
-      name: before-suite
+      name: setup
     params:
     - name: cluster-name
       value: $(params.cluster-name)
     - name: git-ref
       value: $(params.git-ref)
-  - name: suite
+
+  - name: run-test
     taskRef:
-      name: suite
+      name: run-test
     params:
     - name: cluster-name
       value: $(params.cluster-name)
@@ -37,11 +38,12 @@ spec:
     - name: suite-path
       value: $(params.suite-path)
     runAfter:
-    - before-suite
+    - setup
+
   finally:
-  - name: after-suite
+  - name: cleanup
     taskRef:
-      name: after-suite
+      name: cleanup
     params:
     - name: cluster-name
       value: $(params.cluster-name)
