@@ -72,10 +72,10 @@ Scheduling statistics consist of actions not representable by a single controlle
 termination and pod startup. The visualizations will be the same as those for individual controller performance. The
 following metrics will be instrumented to implement these visualizations:
 
-| Name                                                   | Type      | Labels                                                          | Description                                        |
-|--------------------------------------------------------|-----------|-----------------------------------------------------------------|----------------------------------------------------|
-| `karpenter_nodes_termination_time_seconds`             | Summary   | None                                                            | [Measurement Definitions](#measurment-definitions) | 
-| `karpenter_pods_startup_time_seconds`                  | Summary   | `provisioner`, `zone`, `arch`, `capacity_type`, `instance_type` | [Measurement Definitions](#measurment-definitions) |
+| Name                                                   | Type      | Labels | Description                                        |
+|--------------------------------------------------------|-----------|--------|----------------------------------------------------|
+| `karpenter_nodes_termination_time_seconds`             | Summary   | None   | [Measurement Definitions](#measurment-definitions) | 
+| `karpenter_pods_startup_time_seconds`                  | Summary   | None   | [Measurement Definitions](#measurment-definitions) |
 
 API statistics will consist of API call latency, call rate, call method, return code, and payload size. These statistics will be
 separated into Kubernetes API and cloudprovider API statistics. Call latency and call rate will be represented the same
@@ -188,7 +188,7 @@ file](https://github.com/aws/karpenter/blob/main/website/content/en/v0.12.0/gett
 
 ### Measurement Definitions
 
-**Pod Startup Latency:** Measures the time in seconds from the pod being created until the pod is running.
+**Pod Startup Latency:** Measures the time in seconds from the pod being created until the pod is ready.
 
 **Node Termination Latency:** Measures the time from an initial node termination request until the node object is
 deleted. This differs from the termination controller latency since multiple reconciles may be required to terminate the
@@ -210,8 +210,8 @@ node.
 | `controller_runtime_reconcile_errors_total`       | Counter   | `controller`                                                                                           | Total number of reconciliation errors per controller
 | `controller_runtime_reconcile_time_seconds`       | Histogram | `controller`                                                                                           | Length of time per reconciliation per controller
 | `controller_runtime_reconcile_total`              | Counter   | `controller`                                                                                           | Total number of reconciliations per controller
-| `karpenter_nodes_termination_time_seconds`        | Summary   | `provisioner`, `zone`, `arch`, `capacity_type`, `instance_type`                                        | [Measurement Definitions](#measurment-definitions)
-| `karpenter_pods_startup_time_seconds`             | Summary   | `provisioner`, `zone`, `arch`, `capacity_type`, `instance_type`                                        | [Measurement Definitions](#measurment-definitions)
+| `karpenter_nodes_termination_time_seconds`        | Summary   | None                                                                                                   | [Measurement Definitions](#measurment-definitions)
+| `karpenter_pods_startup_time_seconds`             | Summary   | None                                                                                                   | [Measurement Definitions](#measurment-definitions)
 | `karpenter_kube_api_time_seconds`                 | Summary   | `object`, `verb`, `code`                                                                               | The duration of a call the API server
 | `karpenter_kube_api_payload_total_bytes`          | Gauge     | `object`, `verb`, `code`                                                                               | The total payload size transferred to/from the API server
 | `karpenter_cloudprovider_api_time_seconds`        | Summary   | `verb`, `code`                                                                                         | The duration of an API call to a cloudprovider

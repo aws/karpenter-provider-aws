@@ -26,6 +26,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -33,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/metrics"
 )
 
 const (
@@ -46,6 +48,8 @@ const (
 	podHostCapacityType = "capacity_type"
 	podHostInstanceType = "instance_type"
 	podPhase            = "phase"
+
+	phasePending = "Pending"
 )
 
 var (
@@ -58,16 +62,28 @@ var (
 		},
 		labelNames(),
 	)
+
+	podStartupTimeSummary = prometheus.NewSummary(
+		prometheus.SummaryOpts{
+			Namespace:  "karpenter",
+			Subsystem:  "pods",
+			Name:       "startup_time_seconds",
+			Help:       "The time from pod creation until the pod is running.",
+			Objectives: metrics.SummaryObjectives(),
+		},
+	)
 )
 
 // Controller for the resource
 type Controller struct {
-	kubeClient client.Client
-	labelsMap  sync.Map
+	kubeClient  client.Client
+	labelsMap   sync.Map
+	pendingPods sets.String
 }
 
 func init() {
 	crmetrics.Registry.MustRegister(podGaugeVec)
+	crmetrics.Registry.MustRegister(podStartupTimeSummary)
 }
 
 func labelNames() []string {
@@ -88,7 +104,8 @@ func labelNames() []string {
 // NewController constructs a controller instance
 func NewController(kubeClient client.Client) *Controller {
 	return &Controller{
-		kubeClient: kubeClient,
+		kubeClient:  kubeClient,
+		pendingPods: sets.NewString(),
 	}
 }
 
@@ -112,9 +129,26 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 }
 
 func (c *Controller) record(ctx context.Context, pod *v1.Pod) {
+	// Record pods state metric
 	labels := c.labels(ctx, pod)
 	podGaugeVec.With(labels).Set(float64(1))
 	c.labelsMap.Store(client.ObjectKeyFromObject(pod), labels)
+
+	// Record pods startup time metric
+	var condition *v1.PodCondition
+	for i := range pod.Status.Conditions {
+		if pod.Status.Conditions[i].Type == v1.PodReady {
+			condition = &pod.Status.Conditions[i]
+		}
+	}
+
+	podKey := client.ObjectKeyFromObject(pod).String()
+	if pod.Status.Phase == phasePending {
+		c.pendingPods.Insert(podKey)
+	} else if c.pendingPods.Has(podKey) && condition != nil {
+		podStartupTimeSummary.Observe(condition.LastTransitionTime.Sub(pod.CreationTimestamp.Time).Seconds())
+		c.pendingPods.Delete(podKey)
+	}
 }
 
 func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
