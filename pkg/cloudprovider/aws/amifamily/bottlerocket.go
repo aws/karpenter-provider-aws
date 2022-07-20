@@ -85,3 +85,7 @@ func (b Bottlerocket) EphemeralBlockDevice() *string {
 func (b Bottlerocket) EphemeralBlockDeviceOverhead() resource.Quantity {
 	return resource.MustParse("5Gi")
 }
+
+func (b Bottlerocket) ENILimitedMemoryOverhead() bool {
+	return false
+}

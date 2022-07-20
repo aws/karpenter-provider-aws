@@ -395,6 +395,50 @@ var _ = Describe("Allocation", func() {
 					Expect(resources.Pods().Value()).ToNot(BeNumerically("==", 110))
 				}
 			})
+			Context("AL2", func() {
+				It("should calculate memory overhead based on eni limited pods when ENI limited", func() {
+					opts.AWSENILimitedPodDensity = true
+					opts.VMMemoryOverhead = 0 // cutting a factor out of the equation
+					provider.AMIFamily = &v1alpha1.AMIFamilyAL2
+					instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx, provider)
+					Expect(err).To(BeNil())
+					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], 0, provider, nil)
+					overhead := it.Overhead()
+					Expect(overhead.Memory().String()).To(Equal("1093Mi"))
+				})
+				It("should calculate memory overhead based on eni limited pods when not ENI limited", func() {
+					opts.AWSENILimitedPodDensity = false
+					opts.VMMemoryOverhead = 0 // cutting a factor out of the equation
+					provider.AMIFamily = &v1alpha1.AMIFamilyAL2
+					instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx, provider)
+					Expect(err).To(BeNil())
+					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], 0, provider, nil)
+					overhead := it.Overhead()
+					Expect(overhead.Memory().String()).To(Equal("1093Mi"))
+				})
+			})
+			Context("Bottlerocket", func() {
+				It("should calculate memory overhead based on eni limited pods when ENI limited", func() {
+					opts.AWSENILimitedPodDensity = true
+					opts.VMMemoryOverhead = 0 // cutting a factor out of the equation
+					provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
+					instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx, provider)
+					Expect(err).To(BeNil())
+					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], 0, provider, nil)
+					overhead := it.Overhead()
+					Expect(overhead.Memory().String()).To(Equal("1093Mi"))
+				})
+				It("should calculate memory overhead based on max pods when not ENI limited", func() {
+					opts.AWSENILimitedPodDensity = false
+					opts.VMMemoryOverhead = 0 // cutting a factor out of the equation
+					provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
+					instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx, provider)
+					Expect(err).To(BeNil())
+					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], 0, provider, nil)
+					overhead := it.Overhead()
+					Expect(overhead.Memory().String()).To(Equal("1665Mi"))
+				})
+			})
 		})
 		Context("Insufficient Capacity Error Cache", func() {
 			It("should launch instances of different type on second reconciliation attempt with Insufficient Capacity Error Cache fallback", func() {
