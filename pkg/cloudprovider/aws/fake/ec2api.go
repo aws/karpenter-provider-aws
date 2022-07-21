@@ -439,6 +439,41 @@ func (e *EC2API) DescribeInstanceTypesPagesWithContext(_ context.Context, _ *ec2
 				},
 			},
 			{
+				InstanceType:                  aws.String("g4dn.8xlarge"),
+				SupportedUsageClasses:         DefaultSupportedUsageClasses,
+				SupportedVirtualizationTypes:  []*string{aws.String("hvm")},
+				BurstablePerformanceSupported: aws.Bool(false),
+				BareMetal:                     aws.Bool(false),
+				Hypervisor:                    aws.String("nitro"),
+				ProcessorInfo: &ec2.ProcessorInfo{
+					SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
+				},
+				VCpuInfo: &ec2.VCpuInfo{
+					DefaultVCpus: aws.Int64(32),
+				},
+				MemoryInfo: &ec2.MemoryInfo{
+					SizeInMiB: aws.Int64(131072),
+				},
+				GpuInfo: &ec2.GpuInfo{
+					Gpus: []*ec2.GpuDeviceInfo{{
+						Name:         aws.String("t4"),
+						Manufacturer: aws.String("NVIDIA"),
+						Count:        aws.Int64(1),
+						MemoryInfo: &ec2.GpuDeviceMemoryInfo{
+							SizeInMiB: aws.Int64(16384),
+						},
+					}},
+				},
+				NetworkInfo: &ec2.NetworkInfo{
+					MaximumNetworkInterfaces:  aws.Int64(4),
+					Ipv4AddressesPerInterface: aws.Int64(15),
+				},
+				InstanceStorageInfo: &ec2.InstanceStorageInfo{
+					NvmeSupport:   aws.String("required"),
+					TotalSizeInGB: aws.Int64(900),
+				},
+			},
+			{
 				InstanceType:                  aws.String("c6g.large"),
 				SupportedUsageClasses:         DefaultSupportedUsageClasses,
 				SupportedVirtualizationTypes:  []*string{aws.String("hvm")},
@@ -586,6 +621,14 @@ func (e *EC2API) DescribeInstanceTypeOfferingsPagesWithContext(_ context.Context
 			},
 			{
 				InstanceType: aws.String("p3.8xlarge"),
+				Location:     aws.String("test-zone-1b"),
+			},
+			{
+				InstanceType: aws.String("g4dn.8xlarge"),
+				Location:     aws.String("test-zone-1a"),
+			},
+			{
+				InstanceType: aws.String("g4dn.8xlarge"),
 				Location:     aws.String("test-zone-1b"),
 			},
 			{

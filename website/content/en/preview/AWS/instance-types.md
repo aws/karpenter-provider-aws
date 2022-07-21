@@ -17,8 +17,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|a|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-family|a1|
+ |karpenter.k8s.aws/instance-generation|1|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|2048|
  |karpenter.k8s.aws/instance-pods|8|
@@ -37,8 +39,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|a|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|a1|
+ |karpenter.k8s.aws/instance-generation|1|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|4096|
  |karpenter.k8s.aws/instance-pods|29|
@@ -57,8 +61,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|a|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|a1|
+ |karpenter.k8s.aws/instance-generation|1|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|8192|
  |karpenter.k8s.aws/instance-pods|58|
@@ -77,8 +83,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|a|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|a1|
+ |karpenter.k8s.aws/instance-generation|1|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|58|
@@ -97,8 +105,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|a|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|a1|
+ |karpenter.k8s.aws/instance-generation|1|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|234|
@@ -117,8 +127,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|a|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|a1|
+ |karpenter.k8s.aws/instance-generation|1|
  |karpenter.k8s.aws/instance-hypervisor||
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|234|
@@ -138,8 +150,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|c1|
+ |karpenter.k8s.aws/instance-generation|1|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|1740|
  |karpenter.k8s.aws/instance-pods|12|
@@ -158,8 +172,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|c1|
+ |karpenter.k8s.aws/instance-generation|1|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|7168|
  |karpenter.k8s.aws/instance-pods|58|
@@ -179,8 +195,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|c3|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|3840|
  |karpenter.k8s.aws/instance-pods|29|
@@ -199,8 +217,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|c3|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|7680|
  |karpenter.k8s.aws/instance-pods|58|
@@ -219,8 +239,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|c3|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|15360|
  |karpenter.k8s.aws/instance-pods|58|
@@ -239,8 +261,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|c3|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|30720|
  |karpenter.k8s.aws/instance-pods|234|
@@ -259,8 +283,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|c3|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|61440|
  |karpenter.k8s.aws/instance-pods|234|
@@ -280,8 +306,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|c4|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|3840|
  |karpenter.k8s.aws/instance-pods|29|
@@ -300,8 +328,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|c4|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|7680|
  |karpenter.k8s.aws/instance-pods|58|
@@ -320,8 +350,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|c4|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|15360|
  |karpenter.k8s.aws/instance-pods|58|
@@ -340,8 +372,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|c4|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|30720|
  |karpenter.k8s.aws/instance-pods|234|
@@ -360,8 +394,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|36|
  |karpenter.k8s.aws/instance-family|c4|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|61440|
  |karpenter.k8s.aws/instance-pods|234|
@@ -381,8 +417,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|c5|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|4096|
  |karpenter.k8s.aws/instance-pods|29|
@@ -401,8 +439,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|c5|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|8192|
  |karpenter.k8s.aws/instance-pods|58|
@@ -421,8 +461,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|c5|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|58|
@@ -441,8 +483,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|c5|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|234|
@@ -461,8 +505,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|36|
  |karpenter.k8s.aws/instance-family|c5|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|73728|
  |karpenter.k8s.aws/instance-pods|234|
@@ -481,8 +527,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-family|c5|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|98304|
  |karpenter.k8s.aws/instance-pods|234|
@@ -501,8 +549,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|72|
  |karpenter.k8s.aws/instance-family|c5|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|147456|
  |karpenter.k8s.aws/instance-pods|737|
@@ -521,8 +571,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|c5|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|196608|
  |karpenter.k8s.aws/instance-pods|737|
@@ -541,8 +593,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|c5|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor||
  |karpenter.k8s.aws/instance-memory|196608|
  |karpenter.k8s.aws/instance-pods|737|
@@ -562,8 +616,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|c5a|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|4096|
  |karpenter.k8s.aws/instance-pods|29|
@@ -582,8 +638,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|c5a|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|8192|
  |karpenter.k8s.aws/instance-pods|58|
@@ -602,8 +660,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|c5a|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|58|
@@ -622,8 +682,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|c5a|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|234|
@@ -642,8 +704,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|c5a|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|65536|
  |karpenter.k8s.aws/instance-pods|234|
@@ -662,8 +726,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-family|c5a|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|98304|
  |karpenter.k8s.aws/instance-pods|234|
@@ -682,8 +748,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|c5a|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|131072|
  |karpenter.k8s.aws/instance-pods|737|
@@ -702,8 +770,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|c5a|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|196608|
  |karpenter.k8s.aws/instance-pods|737|
@@ -723,9 +793,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|c5ad|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|75|
  |karpenter.k8s.aws/instance-memory|4096|
  |karpenter.k8s.aws/instance-pods|29|
  |karpenter.k8s.aws/instance-size|large|
@@ -743,9 +816,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|c5ad|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|150|
  |karpenter.k8s.aws/instance-memory|8192|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|xlarge|
@@ -763,9 +839,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|c5ad|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|300|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|2xlarge|
@@ -783,9 +862,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|c5ad|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|600|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|4xlarge|
@@ -803,9 +885,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|c5ad|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|1200|
  |karpenter.k8s.aws/instance-memory|65536|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|8xlarge|
@@ -823,9 +908,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-family|c5ad|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|1800|
  |karpenter.k8s.aws/instance-memory|98304|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|12xlarge|
@@ -843,9 +931,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|c5ad|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|2400|
  |karpenter.k8s.aws/instance-memory|131072|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|16xlarge|
@@ -863,9 +954,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|c5ad|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|3800|
  |karpenter.k8s.aws/instance-memory|196608|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|24xlarge|
@@ -884,9 +978,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|c5d|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|50|
  |karpenter.k8s.aws/instance-memory|4096|
  |karpenter.k8s.aws/instance-pods|29|
  |karpenter.k8s.aws/instance-size|large|
@@ -904,9 +1001,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|c5d|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|100|
  |karpenter.k8s.aws/instance-memory|8192|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|xlarge|
@@ -924,9 +1024,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|c5d|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|200|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|2xlarge|
@@ -944,9 +1047,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|c5d|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|400|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|4xlarge|
@@ -964,9 +1070,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|36|
  |karpenter.k8s.aws/instance-family|c5d|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|900|
  |karpenter.k8s.aws/instance-memory|73728|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|9xlarge|
@@ -984,9 +1093,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-family|c5d|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|1800|
  |karpenter.k8s.aws/instance-memory|98304|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|12xlarge|
@@ -1004,9 +1116,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|72|
  |karpenter.k8s.aws/instance-family|c5d|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|1800|
  |karpenter.k8s.aws/instance-memory|147456|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|18xlarge|
@@ -1024,9 +1139,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|c5d|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|3600|
  |karpenter.k8s.aws/instance-memory|196608|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|24xlarge|
@@ -1044,9 +1162,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|c5d|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-local-nvme|3600|
  |karpenter.k8s.aws/instance-memory|196608|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|metal|
@@ -1065,8 +1186,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|c5n|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|5376|
  |karpenter.k8s.aws/instance-pods|29|
@@ -1085,8 +1208,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|c5n|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|10752|
  |karpenter.k8s.aws/instance-pods|58|
@@ -1105,8 +1230,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|c5n|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|21504|
  |karpenter.k8s.aws/instance-pods|58|
@@ -1125,8 +1252,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|c5n|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|43008|
  |karpenter.k8s.aws/instance-pods|234|
@@ -1145,8 +1274,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|36|
  |karpenter.k8s.aws/instance-family|c5n|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|98304|
  |karpenter.k8s.aws/instance-pods|234|
@@ -1165,8 +1296,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|72|
  |karpenter.k8s.aws/instance-family|c5n|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|196608|
  |karpenter.k8s.aws/instance-pods|737|
@@ -1185,8 +1318,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|72|
  |karpenter.k8s.aws/instance-family|c5n|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor||
  |karpenter.k8s.aws/instance-memory|196608|
  |karpenter.k8s.aws/instance-pods|737|
@@ -1206,8 +1341,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|c6a|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|4096|
  |karpenter.k8s.aws/instance-pods|29|
@@ -1226,8 +1363,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|c6a|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|8192|
  |karpenter.k8s.aws/instance-pods|58|
@@ -1246,8 +1385,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|c6a|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|58|
@@ -1266,8 +1407,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|c6a|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|234|
@@ -1286,8 +1429,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|c6a|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|65536|
  |karpenter.k8s.aws/instance-pods|234|
@@ -1306,8 +1451,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-family|c6a|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|98304|
  |karpenter.k8s.aws/instance-pods|234|
@@ -1326,8 +1473,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|c6a|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|131072|
  |karpenter.k8s.aws/instance-pods|737|
@@ -1346,8 +1495,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|c6a|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|196608|
  |karpenter.k8s.aws/instance-pods|737|
@@ -1366,8 +1517,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-family|c6a|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|262144|
  |karpenter.k8s.aws/instance-pods|737|
@@ -1386,8 +1539,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-family|c6a|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|393216|
  |karpenter.k8s.aws/instance-pods|737|
@@ -1406,8 +1561,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-family|c6a|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor||
  |karpenter.k8s.aws/instance-memory|393216|
  |karpenter.k8s.aws/instance-pods|737|
@@ -1427,8 +1584,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-family|c6g|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|2048|
  |karpenter.k8s.aws/instance-pods|8|
@@ -1447,8 +1606,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|c6g|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|4096|
  |karpenter.k8s.aws/instance-pods|29|
@@ -1467,8 +1628,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|c6g|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|8192|
  |karpenter.k8s.aws/instance-pods|58|
@@ -1487,8 +1650,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|c6g|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|58|
@@ -1507,8 +1672,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|c6g|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|234|
@@ -1527,8 +1694,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|c6g|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|65536|
  |karpenter.k8s.aws/instance-pods|234|
@@ -1547,8 +1716,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-family|c6g|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|98304|
  |karpenter.k8s.aws/instance-pods|234|
@@ -1567,8 +1738,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|c6g|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|131072|
  |karpenter.k8s.aws/instance-pods|737|
@@ -1587,8 +1760,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|c6g|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor||
  |karpenter.k8s.aws/instance-memory|131072|
  |karpenter.k8s.aws/instance-pods|737|
@@ -1608,9 +1783,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-family|c6gd|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|59|
  |karpenter.k8s.aws/instance-memory|2048|
  |karpenter.k8s.aws/instance-pods|8|
  |karpenter.k8s.aws/instance-size|medium|
@@ -1628,9 +1806,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|c6gd|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|118|
  |karpenter.k8s.aws/instance-memory|4096|
  |karpenter.k8s.aws/instance-pods|29|
  |karpenter.k8s.aws/instance-size|large|
@@ -1648,9 +1829,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|c6gd|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|237|
  |karpenter.k8s.aws/instance-memory|8192|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|xlarge|
@@ -1668,9 +1852,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|c6gd|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|474|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|2xlarge|
@@ -1688,9 +1875,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|c6gd|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|950|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|4xlarge|
@@ -1708,9 +1898,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|c6gd|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|1900|
  |karpenter.k8s.aws/instance-memory|65536|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|8xlarge|
@@ -1728,9 +1921,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-family|c6gd|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|2850|
  |karpenter.k8s.aws/instance-memory|98304|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|12xlarge|
@@ -1748,9 +1944,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|c6gd|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|3800|
  |karpenter.k8s.aws/instance-memory|131072|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|16xlarge|
@@ -1768,9 +1967,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|c6gd|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-local-nvme|3800|
  |karpenter.k8s.aws/instance-memory|131072|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|metal|
@@ -1789,8 +1991,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-family|c6gn|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|2048|
  |karpenter.k8s.aws/instance-pods|8|
@@ -1809,8 +2013,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|c6gn|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|4096|
  |karpenter.k8s.aws/instance-pods|29|
@@ -1829,8 +2035,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|c6gn|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|8192|
  |karpenter.k8s.aws/instance-pods|58|
@@ -1849,8 +2057,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|c6gn|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|58|
@@ -1869,8 +2079,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|c6gn|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|234|
@@ -1889,8 +2101,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|c6gn|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|65536|
  |karpenter.k8s.aws/instance-pods|234|
@@ -1909,8 +2123,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-family|c6gn|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|98304|
  |karpenter.k8s.aws/instance-pods|234|
@@ -1929,8 +2145,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|c6gn|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|131072|
  |karpenter.k8s.aws/instance-pods|737|
@@ -1950,8 +2168,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|c6i|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|4096|
  |karpenter.k8s.aws/instance-pods|29|
@@ -1970,8 +2190,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|c6i|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|8192|
  |karpenter.k8s.aws/instance-pods|58|
@@ -1990,8 +2212,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|c6i|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|58|
@@ -2010,8 +2234,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|c6i|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|234|
@@ -2030,8 +2256,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|c6i|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|65536|
  |karpenter.k8s.aws/instance-pods|234|
@@ -2050,8 +2278,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-family|c6i|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|98304|
  |karpenter.k8s.aws/instance-pods|234|
@@ -2070,8 +2300,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|c6i|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|131072|
  |karpenter.k8s.aws/instance-pods|737|
@@ -2090,8 +2322,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|c6i|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|196608|
  |karpenter.k8s.aws/instance-pods|737|
@@ -2110,8 +2344,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-family|c6i|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|262144|
  |karpenter.k8s.aws/instance-pods|737|
@@ -2130,8 +2366,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-family|c6i|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor||
  |karpenter.k8s.aws/instance-memory|262144|
  |karpenter.k8s.aws/instance-pods|737|
@@ -2151,9 +2389,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|c6id|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|118|
  |karpenter.k8s.aws/instance-memory|4096|
  |karpenter.k8s.aws/instance-pods|29|
  |karpenter.k8s.aws/instance-size|large|
@@ -2171,9 +2412,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|c6id|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|237|
  |karpenter.k8s.aws/instance-memory|8192|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|xlarge|
@@ -2191,9 +2435,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|c6id|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|474|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|2xlarge|
@@ -2211,9 +2458,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|c6id|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|950|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|4xlarge|
@@ -2231,9 +2481,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|c6id|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|1900|
  |karpenter.k8s.aws/instance-memory|65536|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|8xlarge|
@@ -2251,9 +2504,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-family|c6id|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|2850|
  |karpenter.k8s.aws/instance-memory|98304|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|12xlarge|
@@ -2271,9 +2527,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|c6id|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|3800|
  |karpenter.k8s.aws/instance-memory|131072|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|16xlarge|
@@ -2291,9 +2550,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|c6id|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|5700|
  |karpenter.k8s.aws/instance-memory|196608|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|24xlarge|
@@ -2311,9 +2573,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-family|c6id|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|7600|
  |karpenter.k8s.aws/instance-memory|262144|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|32xlarge|
@@ -2331,9 +2596,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-family|c6id|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-local-nvme|7600|
  |karpenter.k8s.aws/instance-memory|262144|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|metal|
@@ -2352,8 +2620,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-family|c7g|
+ |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|2048|
  |karpenter.k8s.aws/instance-pods|8|
@@ -2372,8 +2642,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|c7g|
+ |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|4096|
  |karpenter.k8s.aws/instance-pods|29|
@@ -2392,8 +2664,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|c7g|
+ |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|8192|
  |karpenter.k8s.aws/instance-pods|58|
@@ -2412,8 +2686,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|c7g|
+ |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|58|
@@ -2432,8 +2708,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|c7g|
+ |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|234|
@@ -2452,8 +2730,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|c7g|
+ |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|65536|
  |karpenter.k8s.aws/instance-pods|234|
@@ -2472,8 +2752,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-family|c7g|
+ |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|98304|
  |karpenter.k8s.aws/instance-pods|234|
@@ -2492,8 +2774,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|c7g|
+ |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|131072|
  |karpenter.k8s.aws/instance-pods|737|
@@ -2513,8 +2797,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|cc|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|cc2|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|61952|
  |karpenter.k8s.aws/instance-pods|234|
@@ -2534,8 +2820,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|d2|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|31232|
  |karpenter.k8s.aws/instance-pods|58|
@@ -2554,8 +2842,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|d2|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|62464|
  |karpenter.k8s.aws/instance-pods|58|
@@ -2574,8 +2864,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|d2|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|124928|
  |karpenter.k8s.aws/instance-pods|234|
@@ -2594,8 +2886,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|36|
  |karpenter.k8s.aws/instance-family|d2|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|249856|
  |karpenter.k8s.aws/instance-pods|234|
@@ -2615,9 +2909,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|d3|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|5940|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|10|
  |karpenter.k8s.aws/instance-size|xlarge|
@@ -2635,9 +2932,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|d3|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|11880|
  |karpenter.k8s.aws/instance-memory|65536|
  |karpenter.k8s.aws/instance-pods|18|
  |karpenter.k8s.aws/instance-size|2xlarge|
@@ -2655,9 +2955,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|d3|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|23760|
  |karpenter.k8s.aws/instance-memory|131072|
  |karpenter.k8s.aws/instance-pods|38|
  |karpenter.k8s.aws/instance-size|4xlarge|
@@ -2675,9 +2978,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|d3|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|47520|
  |karpenter.k8s.aws/instance-memory|262144|
  |karpenter.k8s.aws/instance-pods|59|
  |karpenter.k8s.aws/instance-size|8xlarge|
@@ -2696,9 +3002,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|d3en|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|27960|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|10|
  |karpenter.k8s.aws/instance-size|xlarge|
@@ -2716,9 +3025,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|d3en|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|55920|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|18|
  |karpenter.k8s.aws/instance-size|2xlarge|
@@ -2736,9 +3048,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|d3en|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|111840|
  |karpenter.k8s.aws/instance-memory|65536|
  |karpenter.k8s.aws/instance-pods|38|
  |karpenter.k8s.aws/instance-size|4xlarge|
@@ -2756,9 +3071,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|24|
  |karpenter.k8s.aws/instance-family|d3en|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|167760|
  |karpenter.k8s.aws/instance-memory|98304|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|6xlarge|
@@ -2776,9 +3094,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|d3en|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|223680|
  |karpenter.k8s.aws/instance-memory|131072|
  |karpenter.k8s.aws/instance-pods|78|
  |karpenter.k8s.aws/instance-size|8xlarge|
@@ -2796,9 +3117,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-family|d3en|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|335520|
  |karpenter.k8s.aws/instance-memory|196608|
  |karpenter.k8s.aws/instance-pods|89|
  |karpenter.k8s.aws/instance-size|12xlarge|
@@ -2817,13 +3141,16 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|dl|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|dl1|
+ |karpenter.k8s.aws/instance-generation|1|
  |karpenter.k8s.aws/instance-gpu-count|8|
  |karpenter.k8s.aws/instance-gpu-manufacturer|habana|
  |karpenter.k8s.aws/instance-gpu-memory|32768|
  |karpenter.k8s.aws/instance-gpu-name|gaudi-hl-205|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|4000|
  |karpenter.k8s.aws/instance-memory|786432|
  |karpenter.k8s.aws/instance-pods|2942|
  |karpenter.k8s.aws/instance-size|24xlarge|
@@ -2842,8 +3169,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|g3|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-gpu-count|1|
  |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
  |karpenter.k8s.aws/instance-gpu-memory|8192|
@@ -2867,8 +3196,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|g3|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-gpu-count|2|
  |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
  |karpenter.k8s.aws/instance-gpu-memory|8192|
@@ -2892,8 +3223,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|g3|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-gpu-count|4|
  |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
  |karpenter.k8s.aws/instance-gpu-memory|8192|
@@ -2918,8 +3251,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|g3s|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-gpu-count|1|
  |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
  |karpenter.k8s.aws/instance-gpu-memory|8192|
@@ -2944,13 +3279,16 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|g4ad|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-gpu-count|1|
  |karpenter.k8s.aws/instance-gpu-manufacturer|amd|
  |karpenter.k8s.aws/instance-gpu-memory|8192|
  |karpenter.k8s.aws/instance-gpu-name|radeon-pro-v520|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|150|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|8|
  |karpenter.k8s.aws/instance-size|xlarge|
@@ -2969,13 +3307,16 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|g4ad|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-gpu-count|1|
  |karpenter.k8s.aws/instance-gpu-manufacturer|amd|
  |karpenter.k8s.aws/instance-gpu-memory|8192|
  |karpenter.k8s.aws/instance-gpu-name|radeon-pro-v520|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|300|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|8|
  |karpenter.k8s.aws/instance-size|2xlarge|
@@ -2994,13 +3335,16 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|g4ad|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-gpu-count|1|
  |karpenter.k8s.aws/instance-gpu-manufacturer|amd|
  |karpenter.k8s.aws/instance-gpu-memory|8192|
  |karpenter.k8s.aws/instance-gpu-name|radeon-pro-v520|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|600|
  |karpenter.k8s.aws/instance-memory|65536|
  |karpenter.k8s.aws/instance-pods|29|
  |karpenter.k8s.aws/instance-size|4xlarge|
@@ -3019,13 +3363,16 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|g4ad|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-gpu-count|2|
  |karpenter.k8s.aws/instance-gpu-manufacturer|amd|
  |karpenter.k8s.aws/instance-gpu-memory|8192|
  |karpenter.k8s.aws/instance-gpu-name|radeon-pro-v520|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|1200|
  |karpenter.k8s.aws/instance-memory|131072|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|8xlarge|
@@ -3044,13 +3391,16 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|g4ad|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-gpu-count|4|
  |karpenter.k8s.aws/instance-gpu-manufacturer|amd|
  |karpenter.k8s.aws/instance-gpu-memory|8192|
  |karpenter.k8s.aws/instance-gpu-name|radeon-pro-v520|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|2400|
  |karpenter.k8s.aws/instance-memory|262144|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|16xlarge|
@@ -3070,13 +3420,16 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|g4dn|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-gpu-count|1|
  |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
  |karpenter.k8s.aws/instance-gpu-memory|16384|
  |karpenter.k8s.aws/instance-gpu-name|t4|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|125|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|29|
  |karpenter.k8s.aws/instance-size|xlarge|
@@ -3095,13 +3448,16 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|g4dn|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-gpu-count|1|
  |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
  |karpenter.k8s.aws/instance-gpu-memory|16384|
  |karpenter.k8s.aws/instance-gpu-name|t4|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|225|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|29|
  |karpenter.k8s.aws/instance-size|2xlarge|
@@ -3120,13 +3476,16 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|g4dn|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-gpu-count|1|
  |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
  |karpenter.k8s.aws/instance-gpu-memory|16384|
  |karpenter.k8s.aws/instance-gpu-name|t4|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|225|
  |karpenter.k8s.aws/instance-memory|65536|
  |karpenter.k8s.aws/instance-pods|29|
  |karpenter.k8s.aws/instance-size|4xlarge|
@@ -3145,13 +3504,16 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|g4dn|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-gpu-count|1|
  |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
  |karpenter.k8s.aws/instance-gpu-memory|16384|
  |karpenter.k8s.aws/instance-gpu-name|t4|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|900|
  |karpenter.k8s.aws/instance-memory|131072|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|8xlarge|
@@ -3170,13 +3532,16 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-family|g4dn|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-gpu-count|4|
  |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
  |karpenter.k8s.aws/instance-gpu-memory|16384|
  |karpenter.k8s.aws/instance-gpu-name|t4|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|900|
  |karpenter.k8s.aws/instance-memory|196608|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|12xlarge|
@@ -3195,13 +3560,16 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|g4dn|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-gpu-count|1|
  |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
  |karpenter.k8s.aws/instance-gpu-memory|16384|
  |karpenter.k8s.aws/instance-gpu-name|t4|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|900|
  |karpenter.k8s.aws/instance-memory|262144|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|16xlarge|
@@ -3220,13 +3588,16 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|g4dn|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-gpu-count|8|
  |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
  |karpenter.k8s.aws/instance-gpu-memory|16384|
  |karpenter.k8s.aws/instance-gpu-name|t4|
  |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-local-nvme|1800|
  |karpenter.k8s.aws/instance-memory|393216|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|metal|
@@ -3246,13 +3617,16 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|g5|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-gpu-count|1|
  |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
  |karpenter.k8s.aws/instance-gpu-memory|24576|
  |karpenter.k8s.aws/instance-gpu-name|a10g|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|250|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|xlarge|
@@ -3271,13 +3645,16 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|g5|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-gpu-count|1|
  |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
  |karpenter.k8s.aws/instance-gpu-memory|24576|
  |karpenter.k8s.aws/instance-gpu-name|a10g|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|450|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|2xlarge|
@@ -3296,13 +3673,16 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|g5|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-gpu-count|1|
  |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
  |karpenter.k8s.aws/instance-gpu-memory|24576|
  |karpenter.k8s.aws/instance-gpu-name|a10g|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|600|
  |karpenter.k8s.aws/instance-memory|65536|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|4xlarge|
@@ -3321,13 +3701,16 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|g5|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-gpu-count|1|
  |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
  |karpenter.k8s.aws/instance-gpu-memory|24576|
  |karpenter.k8s.aws/instance-gpu-name|a10g|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|900|
  |karpenter.k8s.aws/instance-memory|131072|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|8xlarge|
@@ -3346,13 +3729,16 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-family|g5|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-gpu-count|4|
  |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
  |karpenter.k8s.aws/instance-gpu-memory|24576|
  |karpenter.k8s.aws/instance-gpu-name|a10g|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|3800|
  |karpenter.k8s.aws/instance-memory|196608|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|12xlarge|
@@ -3371,13 +3757,16 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|g5|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-gpu-count|1|
  |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
  |karpenter.k8s.aws/instance-gpu-memory|24576|
  |karpenter.k8s.aws/instance-gpu-name|a10g|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|1900|
  |karpenter.k8s.aws/instance-memory|262144|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|16xlarge|
@@ -3396,13 +3785,16 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|g5|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-gpu-count|4|
  |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
  |karpenter.k8s.aws/instance-gpu-memory|24576|
  |karpenter.k8s.aws/instance-gpu-name|a10g|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|3800|
  |karpenter.k8s.aws/instance-memory|393216|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|24xlarge|
@@ -3421,13 +3813,16 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-family|g5|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-gpu-count|8|
  |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
  |karpenter.k8s.aws/instance-gpu-memory|24576|
  |karpenter.k8s.aws/instance-gpu-name|a10g|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|7600|
  |karpenter.k8s.aws/instance-memory|786432|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|48xlarge|
@@ -3447,8 +3842,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|g5g|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-gpu-count|1|
  |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
  |karpenter.k8s.aws/instance-gpu-memory|16384|
@@ -3472,8 +3869,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|g5g|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-gpu-count|1|
  |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
  |karpenter.k8s.aws/instance-gpu-memory|16384|
@@ -3497,8 +3896,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|g5g|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-gpu-count|1|
  |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
  |karpenter.k8s.aws/instance-gpu-memory|16384|
@@ -3522,8 +3923,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|g5g|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-gpu-count|1|
  |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
  |karpenter.k8s.aws/instance-gpu-memory|16384|
@@ -3547,8 +3950,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|g5g|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-gpu-count|2|
  |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
  |karpenter.k8s.aws/instance-gpu-memory|16384|
@@ -3572,8 +3977,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|g5g|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-gpu-count|2|
  |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
  |karpenter.k8s.aws/instance-gpu-memory|16384|
@@ -3598,8 +4005,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|h|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|h1|
+ |karpenter.k8s.aws/instance-generation|1|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|58|
@@ -3618,8 +4027,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|h|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|h1|
+ |karpenter.k8s.aws/instance-generation|1|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|65536|
  |karpenter.k8s.aws/instance-pods|234|
@@ -3638,8 +4049,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|h|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|h1|
+ |karpenter.k8s.aws/instance-generation|1|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|131072|
  |karpenter.k8s.aws/instance-pods|234|
@@ -3658,8 +4071,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|h|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|h1|
+ |karpenter.k8s.aws/instance-generation|1|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|262144|
  |karpenter.k8s.aws/instance-pods|737|
@@ -3679,8 +4094,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|i2|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|31232|
  |karpenter.k8s.aws/instance-pods|58|
@@ -3699,8 +4116,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|i2|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|62464|
  |karpenter.k8s.aws/instance-pods|58|
@@ -3719,8 +4138,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|i2|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|124928|
  |karpenter.k8s.aws/instance-pods|234|
@@ -3739,8 +4160,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|i2|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|249856|
  |karpenter.k8s.aws/instance-pods|234|
@@ -3760,9 +4183,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|i3|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|xen|
+ |karpenter.k8s.aws/instance-local-nvme|475|
  |karpenter.k8s.aws/instance-memory|15616|
  |karpenter.k8s.aws/instance-pods|29|
  |karpenter.k8s.aws/instance-size|large|
@@ -3780,9 +4206,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|i3|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|xen|
+ |karpenter.k8s.aws/instance-local-nvme|950|
  |karpenter.k8s.aws/instance-memory|31232|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|xlarge|
@@ -3800,9 +4229,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|i3|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|xen|
+ |karpenter.k8s.aws/instance-local-nvme|1900|
  |karpenter.k8s.aws/instance-memory|62464|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|2xlarge|
@@ -3820,9 +4252,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|i3|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|xen|
+ |karpenter.k8s.aws/instance-local-nvme|3800|
  |karpenter.k8s.aws/instance-memory|124928|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|4xlarge|
@@ -3840,9 +4275,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|i3|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|xen|
+ |karpenter.k8s.aws/instance-local-nvme|7600|
  |karpenter.k8s.aws/instance-memory|249856|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|8xlarge|
@@ -3860,9 +4298,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|i3|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|xen|
+ |karpenter.k8s.aws/instance-local-nvme|15200|
  |karpenter.k8s.aws/instance-memory|499712|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|16xlarge|
@@ -3880,9 +4321,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|72|
  |karpenter.k8s.aws/instance-family|i3|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-local-nvme|15200|
  |karpenter.k8s.aws/instance-memory|524288|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|metal|
@@ -3901,9 +4345,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|i3en|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|1250|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|29|
  |karpenter.k8s.aws/instance-size|large|
@@ -3921,9 +4368,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|i3en|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|2500|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|xlarge|
@@ -3941,9 +4391,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|i3en|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|5000|
  |karpenter.k8s.aws/instance-memory|65536|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|2xlarge|
@@ -3961,9 +4414,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|12|
  |karpenter.k8s.aws/instance-family|i3en|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|7500|
  |karpenter.k8s.aws/instance-memory|98304|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|3xlarge|
@@ -3981,9 +4437,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|24|
  |karpenter.k8s.aws/instance-family|i3en|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|15000|
  |karpenter.k8s.aws/instance-memory|196608|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|6xlarge|
@@ -4001,9 +4460,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-family|i3en|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|30000|
  |karpenter.k8s.aws/instance-memory|393216|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|12xlarge|
@@ -4021,9 +4483,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|i3en|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|60000|
  |karpenter.k8s.aws/instance-memory|786432|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|24xlarge|
@@ -4041,9 +4506,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|i3en|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-local-nvme|60000|
  |karpenter.k8s.aws/instance-memory|786432|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|metal|
@@ -4062,9 +4530,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|i4i|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|468|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|29|
  |karpenter.k8s.aws/instance-size|large|
@@ -4082,9 +4553,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|i4i|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|937|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|xlarge|
@@ -4102,9 +4576,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|i4i|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|1875|
  |karpenter.k8s.aws/instance-memory|65536|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|2xlarge|
@@ -4122,9 +4599,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|i4i|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|3750|
  |karpenter.k8s.aws/instance-memory|131072|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|4xlarge|
@@ -4142,9 +4622,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|i4i|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|7500|
  |karpenter.k8s.aws/instance-memory|262144|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|8xlarge|
@@ -4162,9 +4645,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|i4i|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|15000|
  |karpenter.k8s.aws/instance-memory|524288|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|16xlarge|
@@ -4182,9 +4668,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-family|i4i|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|30000|
  |karpenter.k8s.aws/instance-memory|1048576|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|32xlarge|
@@ -4202,9 +4691,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-family|i4i|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-local-nvme|30000|
  |karpenter.k8s.aws/instance-memory|1048576|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|metal|
@@ -4223,9 +4715,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|im|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|im4gn|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|937|
  |karpenter.k8s.aws/instance-memory|8192|
  |karpenter.k8s.aws/instance-pods|29|
  |karpenter.k8s.aws/instance-size|large|
@@ -4243,9 +4738,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|im|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|im4gn|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|1875|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|xlarge|
@@ -4263,9 +4761,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|im|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|im4gn|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|3750|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|2xlarge|
@@ -4283,9 +4784,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|im|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|im4gn|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|7500|
  |karpenter.k8s.aws/instance-memory|65536|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|4xlarge|
@@ -4303,9 +4807,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|im|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|im4gn|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|15000|
  |karpenter.k8s.aws/instance-memory|131072|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|8xlarge|
@@ -4323,9 +4830,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|im|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|im4gn|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|30000|
  |karpenter.k8s.aws/instance-memory|262144|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|16xlarge|
@@ -4344,8 +4854,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|inf|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|inf1|
+ |karpenter.k8s.aws/instance-generation|1|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|8192|
  |karpenter.k8s.aws/instance-pods|38|
@@ -4365,8 +4877,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|inf|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|inf1|
+ |karpenter.k8s.aws/instance-generation|1|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|38|
@@ -4386,8 +4900,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|inf|
  |karpenter.k8s.aws/instance-cpu|24|
  |karpenter.k8s.aws/instance-family|inf1|
+ |karpenter.k8s.aws/instance-generation|1|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|49152|
  |karpenter.k8s.aws/instance-pods|234|
@@ -4407,8 +4923,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|inf|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|inf1|
+ |karpenter.k8s.aws/instance-generation|1|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|196608|
  |karpenter.k8s.aws/instance-pods|321|
@@ -4429,9 +4947,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|is|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-family|is4gen|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|937|
  |karpenter.k8s.aws/instance-memory|6144|
  |karpenter.k8s.aws/instance-pods|8|
  |karpenter.k8s.aws/instance-size|medium|
@@ -4449,9 +4970,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|is|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|is4gen|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|1875|
  |karpenter.k8s.aws/instance-memory|12288|
  |karpenter.k8s.aws/instance-pods|29|
  |karpenter.k8s.aws/instance-size|large|
@@ -4469,9 +4993,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|is|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|is4gen|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|3750|
  |karpenter.k8s.aws/instance-memory|24576|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|xlarge|
@@ -4489,9 +5016,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|is|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|is4gen|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|7500|
  |karpenter.k8s.aws/instance-memory|49152|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|2xlarge|
@@ -4509,9 +5039,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|is|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|is4gen|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|15000|
  |karpenter.k8s.aws/instance-memory|98304|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|4xlarge|
@@ -4529,9 +5062,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|is|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|is4gen|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|30000|
  |karpenter.k8s.aws/instance-memory|196608|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|8xlarge|
@@ -4550,8 +5086,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-family|m1|
+ |karpenter.k8s.aws/instance-generation|1|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|1740|
  |karpenter.k8s.aws/instance-pods|8|
@@ -4570,8 +5108,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-family|m1|
+ |karpenter.k8s.aws/instance-generation|1|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|3788|
  |karpenter.k8s.aws/instance-pods|12|
@@ -4590,8 +5130,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|m1|
+ |karpenter.k8s.aws/instance-generation|1|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|7680|
  |karpenter.k8s.aws/instance-pods|29|
@@ -4610,8 +5152,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|m1|
+ |karpenter.k8s.aws/instance-generation|1|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|15360|
  |karpenter.k8s.aws/instance-pods|58|
@@ -4631,8 +5175,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|m2|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|17510|
  |karpenter.k8s.aws/instance-pods|58|
@@ -4651,8 +5197,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|m2|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|35020|
  |karpenter.k8s.aws/instance-pods|118|
@@ -4671,8 +5219,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|m2|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|70041|
  |karpenter.k8s.aws/instance-pods|234|
@@ -4692,8 +5242,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-family|m3|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|3840|
  |karpenter.k8s.aws/instance-pods|12|
@@ -4712,8 +5264,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|m3|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|7680|
  |karpenter.k8s.aws/instance-pods|29|
@@ -4732,8 +5286,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|m3|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|15360|
  |karpenter.k8s.aws/instance-pods|58|
@@ -4752,8 +5308,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|m3|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|30720|
  |karpenter.k8s.aws/instance-pods|118|
@@ -4773,8 +5331,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|m4|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|8192|
  |karpenter.k8s.aws/instance-pods|20|
@@ -4793,8 +5353,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|m4|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|58|
@@ -4813,8 +5375,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|m4|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|58|
@@ -4833,8 +5397,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|m4|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|65536|
  |karpenter.k8s.aws/instance-pods|234|
@@ -4853,8 +5419,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|40|
  |karpenter.k8s.aws/instance-family|m4|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|163840|
  |karpenter.k8s.aws/instance-pods|234|
@@ -4873,8 +5441,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|m4|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|262144|
  |karpenter.k8s.aws/instance-pods|234|
@@ -4894,8 +5464,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|m5|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|8192|
  |karpenter.k8s.aws/instance-pods|29|
@@ -4914,8 +5486,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|m5|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|58|
@@ -4934,8 +5508,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|m5|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|58|
@@ -4954,8 +5530,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|m5|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|65536|
  |karpenter.k8s.aws/instance-pods|234|
@@ -4974,8 +5552,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|m5|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|131072|
  |karpenter.k8s.aws/instance-pods|234|
@@ -4994,8 +5574,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-family|m5|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|196608|
  |karpenter.k8s.aws/instance-pods|234|
@@ -5014,8 +5596,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|m5|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|262144|
  |karpenter.k8s.aws/instance-pods|737|
@@ -5034,8 +5618,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|m5|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|393216|
  |karpenter.k8s.aws/instance-pods|737|
@@ -5054,8 +5640,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|m5|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor||
  |karpenter.k8s.aws/instance-memory|393216|
  |karpenter.k8s.aws/instance-pods|737|
@@ -5075,8 +5663,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|m5a|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|8192|
  |karpenter.k8s.aws/instance-pods|29|
@@ -5095,8 +5685,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|m5a|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|58|
@@ -5115,8 +5707,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|m5a|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|58|
@@ -5135,8 +5729,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|m5a|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|65536|
  |karpenter.k8s.aws/instance-pods|234|
@@ -5155,8 +5751,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|m5a|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|131072|
  |karpenter.k8s.aws/instance-pods|234|
@@ -5175,8 +5773,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-family|m5a|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|196608|
  |karpenter.k8s.aws/instance-pods|234|
@@ -5195,8 +5795,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|m5a|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|262144|
  |karpenter.k8s.aws/instance-pods|737|
@@ -5215,8 +5817,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|m5a|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|393216|
  |karpenter.k8s.aws/instance-pods|737|
@@ -5236,9 +5840,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|m5ad|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|75|
  |karpenter.k8s.aws/instance-memory|8192|
  |karpenter.k8s.aws/instance-pods|29|
  |karpenter.k8s.aws/instance-size|large|
@@ -5256,9 +5863,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|m5ad|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|150|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|xlarge|
@@ -5276,9 +5886,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|m5ad|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|300|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|2xlarge|
@@ -5296,9 +5909,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|m5ad|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|600|
  |karpenter.k8s.aws/instance-memory|65536|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|4xlarge|
@@ -5316,9 +5932,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|m5ad|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|1200|
  |karpenter.k8s.aws/instance-memory|131072|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|8xlarge|
@@ -5336,9 +5955,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-family|m5ad|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|1800|
  |karpenter.k8s.aws/instance-memory|196608|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|12xlarge|
@@ -5356,9 +5978,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|m5ad|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|2400|
  |karpenter.k8s.aws/instance-memory|262144|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|16xlarge|
@@ -5376,9 +6001,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|m5ad|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|3600|
  |karpenter.k8s.aws/instance-memory|393216|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|24xlarge|
@@ -5397,9 +6025,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|m5d|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|75|
  |karpenter.k8s.aws/instance-memory|8192|
  |karpenter.k8s.aws/instance-pods|29|
  |karpenter.k8s.aws/instance-size|large|
@@ -5417,9 +6048,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|m5d|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|150|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|xlarge|
@@ -5437,9 +6071,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|m5d|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|300|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|2xlarge|
@@ -5457,9 +6094,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|m5d|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|600|
  |karpenter.k8s.aws/instance-memory|65536|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|4xlarge|
@@ -5477,9 +6117,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|m5d|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|1200|
  |karpenter.k8s.aws/instance-memory|131072|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|8xlarge|
@@ -5497,9 +6140,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-family|m5d|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|1800|
  |karpenter.k8s.aws/instance-memory|196608|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|12xlarge|
@@ -5517,9 +6163,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|m5d|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|2400|
  |karpenter.k8s.aws/instance-memory|262144|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|16xlarge|
@@ -5537,9 +6186,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|m5d|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|3600|
  |karpenter.k8s.aws/instance-memory|393216|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|24xlarge|
@@ -5557,9 +6209,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|m5d|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-local-nvme|3600|
  |karpenter.k8s.aws/instance-memory|393216|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|metal|
@@ -5578,9 +6233,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|m5dn|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|75|
  |karpenter.k8s.aws/instance-memory|8192|
  |karpenter.k8s.aws/instance-pods|29|
  |karpenter.k8s.aws/instance-size|large|
@@ -5598,9 +6256,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|m5dn|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|150|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|xlarge|
@@ -5618,9 +6279,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|m5dn|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|300|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|2xlarge|
@@ -5638,9 +6302,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|m5dn|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|600|
  |karpenter.k8s.aws/instance-memory|65536|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|4xlarge|
@@ -5658,9 +6325,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|m5dn|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|1200|
  |karpenter.k8s.aws/instance-memory|131072|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|8xlarge|
@@ -5678,9 +6348,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-family|m5dn|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|1800|
  |karpenter.k8s.aws/instance-memory|196608|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|12xlarge|
@@ -5698,9 +6371,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|m5dn|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|2400|
  |karpenter.k8s.aws/instance-memory|262144|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|16xlarge|
@@ -5718,9 +6394,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|m5dn|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|3600|
  |karpenter.k8s.aws/instance-memory|393216|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|24xlarge|
@@ -5738,9 +6417,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|m5dn|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-local-nvme|3600|
  |karpenter.k8s.aws/instance-memory|393216|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|metal|
@@ -5759,8 +6441,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|m5n|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|8192|
  |karpenter.k8s.aws/instance-pods|29|
@@ -5779,8 +6463,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|m5n|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|58|
@@ -5799,8 +6485,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|m5n|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|58|
@@ -5819,8 +6507,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|m5n|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|65536|
  |karpenter.k8s.aws/instance-pods|234|
@@ -5839,8 +6529,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|m5n|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|131072|
  |karpenter.k8s.aws/instance-pods|234|
@@ -5859,8 +6551,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-family|m5n|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|196608|
  |karpenter.k8s.aws/instance-pods|234|
@@ -5879,8 +6573,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|m5n|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|262144|
  |karpenter.k8s.aws/instance-pods|737|
@@ -5899,8 +6595,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|m5n|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|393216|
  |karpenter.k8s.aws/instance-pods|737|
@@ -5919,8 +6617,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|m5n|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor||
  |karpenter.k8s.aws/instance-memory|393216|
  |karpenter.k8s.aws/instance-pods|737|
@@ -5940,8 +6640,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|m5zn|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|8192|
  |karpenter.k8s.aws/instance-pods|29|
@@ -5960,8 +6662,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|m5zn|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|58|
@@ -5980,8 +6684,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|m5zn|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|58|
@@ -6000,8 +6706,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|12|
  |karpenter.k8s.aws/instance-family|m5zn|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|49152|
  |karpenter.k8s.aws/instance-pods|234|
@@ -6020,8 +6728,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|24|
  |karpenter.k8s.aws/instance-family|m5zn|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|98304|
  |karpenter.k8s.aws/instance-pods|234|
@@ -6040,8 +6750,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-family|m5zn|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|196608|
  |karpenter.k8s.aws/instance-pods|737|
@@ -6060,8 +6772,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-family|m5zn|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor||
  |karpenter.k8s.aws/instance-memory|196608|
  |karpenter.k8s.aws/instance-pods|737|
@@ -6081,8 +6795,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|m6a|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|8192|
  |karpenter.k8s.aws/instance-pods|29|
@@ -6101,8 +6817,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|m6a|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|58|
@@ -6121,8 +6839,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|m6a|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|58|
@@ -6141,8 +6861,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|m6a|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|65536|
  |karpenter.k8s.aws/instance-pods|234|
@@ -6161,8 +6883,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|m6a|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|131072|
  |karpenter.k8s.aws/instance-pods|234|
@@ -6181,8 +6905,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-family|m6a|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|196608|
  |karpenter.k8s.aws/instance-pods|234|
@@ -6201,8 +6927,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|m6a|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|262144|
  |karpenter.k8s.aws/instance-pods|737|
@@ -6221,8 +6949,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|m6a|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|393216|
  |karpenter.k8s.aws/instance-pods|737|
@@ -6241,8 +6971,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-family|m6a|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|524288|
  |karpenter.k8s.aws/instance-pods|737|
@@ -6261,8 +6993,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-family|m6a|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|786432|
  |karpenter.k8s.aws/instance-pods|737|
@@ -6281,8 +7015,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-family|m6a|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor||
  |karpenter.k8s.aws/instance-memory|786432|
  |karpenter.k8s.aws/instance-pods|737|
@@ -6302,8 +7038,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-family|m6g|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|4096|
  |karpenter.k8s.aws/instance-pods|8|
@@ -6322,8 +7060,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|m6g|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|8192|
  |karpenter.k8s.aws/instance-pods|29|
@@ -6342,8 +7082,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|m6g|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|58|
@@ -6362,8 +7104,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|m6g|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|58|
@@ -6382,8 +7126,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|m6g|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|65536|
  |karpenter.k8s.aws/instance-pods|234|
@@ -6402,8 +7148,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|m6g|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|131072|
  |karpenter.k8s.aws/instance-pods|234|
@@ -6422,8 +7170,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-family|m6g|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|196608|
  |karpenter.k8s.aws/instance-pods|234|
@@ -6442,8 +7192,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|m6g|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|262144|
  |karpenter.k8s.aws/instance-pods|737|
@@ -6462,8 +7214,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|m6g|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor||
  |karpenter.k8s.aws/instance-memory|262144|
  |karpenter.k8s.aws/instance-pods|737|
@@ -6483,9 +7237,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-family|m6gd|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|59|
  |karpenter.k8s.aws/instance-memory|4096|
  |karpenter.k8s.aws/instance-pods|8|
  |karpenter.k8s.aws/instance-size|medium|
@@ -6503,9 +7260,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|m6gd|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|118|
  |karpenter.k8s.aws/instance-memory|8192|
  |karpenter.k8s.aws/instance-pods|29|
  |karpenter.k8s.aws/instance-size|large|
@@ -6523,9 +7283,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|m6gd|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|237|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|xlarge|
@@ -6543,9 +7306,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|m6gd|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|474|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|2xlarge|
@@ -6563,9 +7329,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|m6gd|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|950|
  |karpenter.k8s.aws/instance-memory|65536|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|4xlarge|
@@ -6583,9 +7352,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|m6gd|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|1900|
  |karpenter.k8s.aws/instance-memory|131072|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|8xlarge|
@@ -6603,9 +7375,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-family|m6gd|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|2850|
  |karpenter.k8s.aws/instance-memory|196608|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|12xlarge|
@@ -6623,9 +7398,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|m6gd|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|3800|
  |karpenter.k8s.aws/instance-memory|262144|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|16xlarge|
@@ -6643,9 +7421,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|m6gd|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-local-nvme|3800|
  |karpenter.k8s.aws/instance-memory|262144|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|metal|
@@ -6664,8 +7445,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|m6i|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|8192|
  |karpenter.k8s.aws/instance-pods|29|
@@ -6684,8 +7467,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|m6i|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|58|
@@ -6704,8 +7489,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|m6i|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|58|
@@ -6724,8 +7511,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|m6i|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|65536|
  |karpenter.k8s.aws/instance-pods|234|
@@ -6744,8 +7533,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|m6i|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|131072|
  |karpenter.k8s.aws/instance-pods|234|
@@ -6764,8 +7555,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-family|m6i|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|196608|
  |karpenter.k8s.aws/instance-pods|234|
@@ -6784,8 +7577,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|m6i|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|262144|
  |karpenter.k8s.aws/instance-pods|737|
@@ -6804,8 +7599,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|m6i|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|393216|
  |karpenter.k8s.aws/instance-pods|737|
@@ -6824,8 +7621,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-family|m6i|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|524288|
  |karpenter.k8s.aws/instance-pods|737|
@@ -6844,8 +7643,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-family|m6i|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor||
  |karpenter.k8s.aws/instance-memory|524288|
  |karpenter.k8s.aws/instance-pods|737|
@@ -6865,9 +7666,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|m6id|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|118|
  |karpenter.k8s.aws/instance-memory|8192|
  |karpenter.k8s.aws/instance-pods|29|
  |karpenter.k8s.aws/instance-size|large|
@@ -6885,9 +7689,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|m6id|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|237|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|xlarge|
@@ -6905,9 +7712,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|m6id|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|474|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|2xlarge|
@@ -6925,9 +7735,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|m6id|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|950|
  |karpenter.k8s.aws/instance-memory|65536|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|4xlarge|
@@ -6945,9 +7758,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|m6id|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|1900|
  |karpenter.k8s.aws/instance-memory|131072|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|8xlarge|
@@ -6965,9 +7781,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-family|m6id|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|2850|
  |karpenter.k8s.aws/instance-memory|196608|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|12xlarge|
@@ -6985,9 +7804,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|m6id|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|3800|
  |karpenter.k8s.aws/instance-memory|262144|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|16xlarge|
@@ -7005,9 +7827,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|m6id|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|5700|
  |karpenter.k8s.aws/instance-memory|393216|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|24xlarge|
@@ -7025,9 +7850,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-family|m6id|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|7600|
  |karpenter.k8s.aws/instance-memory|524288|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|32xlarge|
@@ -7045,9 +7873,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-family|m6id|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-local-nvme|7600|
  |karpenter.k8s.aws/instance-memory|524288|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|metal|
@@ -7066,8 +7897,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|p|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|p2|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-gpu-count|1|
  |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
  |karpenter.k8s.aws/instance-gpu-memory|12288|
@@ -7091,8 +7924,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|p|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|p2|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-gpu-count|8|
  |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
  |karpenter.k8s.aws/instance-gpu-memory|12288|
@@ -7116,8 +7951,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|p|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|p2|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-gpu-count|16|
  |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
  |karpenter.k8s.aws/instance-gpu-memory|12288|
@@ -7142,8 +7979,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|p|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|p3|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-gpu-count|1|
  |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
  |karpenter.k8s.aws/instance-gpu-memory|16384|
@@ -7167,8 +8006,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|p|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|p3|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-gpu-count|4|
  |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
  |karpenter.k8s.aws/instance-gpu-memory|16384|
@@ -7192,8 +8033,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|p|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|p3|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-gpu-count|8|
  |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
  |karpenter.k8s.aws/instance-gpu-memory|16384|
@@ -7218,13 +8061,16 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|p|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|p3dn|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-gpu-count|8|
  |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
  |karpenter.k8s.aws/instance-gpu-memory|32768|
  |karpenter.k8s.aws/instance-gpu-name|v100|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|1800|
  |karpenter.k8s.aws/instance-memory|786432|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|24xlarge|
@@ -7244,13 +8090,16 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|p|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|p4d|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-gpu-count|8|
  |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
  |karpenter.k8s.aws/instance-gpu-memory|40960|
  |karpenter.k8s.aws/instance-gpu-name|a100|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|8000|
  |karpenter.k8s.aws/instance-memory|1179648|
  |karpenter.k8s.aws/instance-pods|2942|
  |karpenter.k8s.aws/instance-size|24xlarge|
@@ -7270,8 +8119,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|r3|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|15360|
  |karpenter.k8s.aws/instance-pods|29|
@@ -7290,8 +8141,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|r3|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|31232|
  |karpenter.k8s.aws/instance-pods|58|
@@ -7310,8 +8163,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|r3|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|62464|
  |karpenter.k8s.aws/instance-pods|58|
@@ -7330,8 +8185,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|r3|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|124928|
  |karpenter.k8s.aws/instance-pods|234|
@@ -7350,8 +8207,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|r3|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|249856|
  |karpenter.k8s.aws/instance-pods|234|
@@ -7371,8 +8230,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|r4|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|15616|
  |karpenter.k8s.aws/instance-pods|29|
@@ -7391,8 +8252,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|r4|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|31232|
  |karpenter.k8s.aws/instance-pods|58|
@@ -7411,8 +8274,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|r4|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|62464|
  |karpenter.k8s.aws/instance-pods|58|
@@ -7431,8 +8296,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|r4|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|124928|
  |karpenter.k8s.aws/instance-pods|234|
@@ -7451,8 +8318,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|r4|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|249856|
  |karpenter.k8s.aws/instance-pods|234|
@@ -7471,8 +8340,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|r4|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|499712|
  |karpenter.k8s.aws/instance-pods|737|
@@ -7492,8 +8363,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|r5|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|29|
@@ -7512,8 +8385,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|r5|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|58|
@@ -7532,8 +8407,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|r5|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|65536|
  |karpenter.k8s.aws/instance-pods|58|
@@ -7552,8 +8429,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|r5|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|131072|
  |karpenter.k8s.aws/instance-pods|234|
@@ -7572,8 +8451,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|r5|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|262144|
  |karpenter.k8s.aws/instance-pods|234|
@@ -7592,8 +8473,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-family|r5|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|393216|
  |karpenter.k8s.aws/instance-pods|234|
@@ -7612,8 +8495,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|r5|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|524288|
  |karpenter.k8s.aws/instance-pods|737|
@@ -7632,8 +8517,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|r5|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|786432|
  |karpenter.k8s.aws/instance-pods|737|
@@ -7652,8 +8539,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|r5|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor||
  |karpenter.k8s.aws/instance-memory|786432|
  |karpenter.k8s.aws/instance-pods|737|
@@ -7673,8 +8562,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|r5a|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|29|
@@ -7693,8 +8584,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|r5a|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|58|
@@ -7713,8 +8606,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|r5a|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|65536|
  |karpenter.k8s.aws/instance-pods|58|
@@ -7733,8 +8628,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|r5a|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|131072|
  |karpenter.k8s.aws/instance-pods|234|
@@ -7753,8 +8650,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|r5a|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|262144|
  |karpenter.k8s.aws/instance-pods|234|
@@ -7773,8 +8672,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-family|r5a|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|393216|
  |karpenter.k8s.aws/instance-pods|234|
@@ -7793,8 +8694,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|r5a|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|524288|
  |karpenter.k8s.aws/instance-pods|737|
@@ -7813,8 +8716,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|r5a|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|786432|
  |karpenter.k8s.aws/instance-pods|737|
@@ -7834,9 +8739,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|r5ad|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|75|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|29|
  |karpenter.k8s.aws/instance-size|large|
@@ -7854,9 +8762,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|r5ad|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|150|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|xlarge|
@@ -7874,9 +8785,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|r5ad|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|300|
  |karpenter.k8s.aws/instance-memory|65536|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|2xlarge|
@@ -7894,9 +8808,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|r5ad|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|600|
  |karpenter.k8s.aws/instance-memory|131072|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|4xlarge|
@@ -7914,9 +8831,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|r5ad|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|1200|
  |karpenter.k8s.aws/instance-memory|262144|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|8xlarge|
@@ -7934,9 +8854,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-family|r5ad|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|1800|
  |karpenter.k8s.aws/instance-memory|393216|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|12xlarge|
@@ -7954,9 +8877,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|r5ad|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|2400|
  |karpenter.k8s.aws/instance-memory|524288|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|16xlarge|
@@ -7974,9 +8900,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|r5ad|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|3600|
  |karpenter.k8s.aws/instance-memory|786432|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|24xlarge|
@@ -7995,8 +8924,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|r5b|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|29|
@@ -8015,8 +8946,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|r5b|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|58|
@@ -8035,8 +8968,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|r5b|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|65536|
  |karpenter.k8s.aws/instance-pods|58|
@@ -8055,8 +8990,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|r5b|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|131072|
  |karpenter.k8s.aws/instance-pods|234|
@@ -8075,8 +9012,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|r5b|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|262144|
  |karpenter.k8s.aws/instance-pods|234|
@@ -8095,8 +9034,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-family|r5b|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|393216|
  |karpenter.k8s.aws/instance-pods|234|
@@ -8115,8 +9056,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|r5b|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|524288|
  |karpenter.k8s.aws/instance-pods|737|
@@ -8135,8 +9078,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|r5b|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|786432|
  |karpenter.k8s.aws/instance-pods|737|
@@ -8155,8 +9100,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|r5b|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor||
  |karpenter.k8s.aws/instance-memory|786432|
  |karpenter.k8s.aws/instance-pods|737|
@@ -8176,9 +9123,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|r5d|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|75|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|29|
  |karpenter.k8s.aws/instance-size|large|
@@ -8196,9 +9146,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|r5d|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|150|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|xlarge|
@@ -8216,9 +9169,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|r5d|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|300|
  |karpenter.k8s.aws/instance-memory|65536|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|2xlarge|
@@ -8236,9 +9192,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|r5d|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|600|
  |karpenter.k8s.aws/instance-memory|131072|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|4xlarge|
@@ -8256,9 +9215,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|r5d|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|1200|
  |karpenter.k8s.aws/instance-memory|262144|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|8xlarge|
@@ -8276,9 +9238,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-family|r5d|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|1800|
  |karpenter.k8s.aws/instance-memory|393216|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|12xlarge|
@@ -8296,9 +9261,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|r5d|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|2400|
  |karpenter.k8s.aws/instance-memory|524288|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|16xlarge|
@@ -8316,9 +9284,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|r5d|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|3600|
  |karpenter.k8s.aws/instance-memory|786432|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|24xlarge|
@@ -8336,9 +9307,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|r5d|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-local-nvme|3600|
  |karpenter.k8s.aws/instance-memory|786432|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|metal|
@@ -8357,9 +9331,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|r5dn|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|75|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|29|
  |karpenter.k8s.aws/instance-size|large|
@@ -8377,9 +9354,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|r5dn|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|150|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|xlarge|
@@ -8397,9 +9377,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|r5dn|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|300|
  |karpenter.k8s.aws/instance-memory|65536|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|2xlarge|
@@ -8417,9 +9400,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|r5dn|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|600|
  |karpenter.k8s.aws/instance-memory|131072|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|4xlarge|
@@ -8437,9 +9423,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|r5dn|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|1200|
  |karpenter.k8s.aws/instance-memory|262144|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|8xlarge|
@@ -8457,9 +9446,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-family|r5dn|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|1800|
  |karpenter.k8s.aws/instance-memory|393216|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|12xlarge|
@@ -8477,9 +9469,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|r5dn|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|2400|
  |karpenter.k8s.aws/instance-memory|524288|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|16xlarge|
@@ -8497,9 +9492,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|r5dn|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|3600|
  |karpenter.k8s.aws/instance-memory|786432|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|24xlarge|
@@ -8517,9 +9515,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|r5dn|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-local-nvme|3600|
  |karpenter.k8s.aws/instance-memory|786432|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|metal|
@@ -8538,8 +9539,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|r5n|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|29|
@@ -8558,8 +9561,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|r5n|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|58|
@@ -8578,8 +9583,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|r5n|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|65536|
  |karpenter.k8s.aws/instance-pods|58|
@@ -8598,8 +9605,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|r5n|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|131072|
  |karpenter.k8s.aws/instance-pods|234|
@@ -8618,8 +9627,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|r5n|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|262144|
  |karpenter.k8s.aws/instance-pods|234|
@@ -8638,8 +9649,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-family|r5n|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|393216|
  |karpenter.k8s.aws/instance-pods|234|
@@ -8658,8 +9671,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|r5n|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|524288|
  |karpenter.k8s.aws/instance-pods|737|
@@ -8678,8 +9693,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|r5n|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|786432|
  |karpenter.k8s.aws/instance-pods|737|
@@ -8698,8 +9715,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|r5n|
+ |karpenter.k8s.aws/instance-generation|5|
  |karpenter.k8s.aws/instance-hypervisor||
  |karpenter.k8s.aws/instance-memory|786432|
  |karpenter.k8s.aws/instance-pods|737|
@@ -8719,8 +9738,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|r6a|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|29|
@@ -8739,8 +9760,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|r6a|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|58|
@@ -8759,8 +9782,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|r6a|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|65536|
  |karpenter.k8s.aws/instance-pods|58|
@@ -8779,8 +9804,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|r6a|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|131072|
  |karpenter.k8s.aws/instance-pods|234|
@@ -8799,8 +9826,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|r6a|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|262144|
  |karpenter.k8s.aws/instance-pods|234|
@@ -8819,8 +9848,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-family|r6a|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|393216|
  |karpenter.k8s.aws/instance-pods|234|
@@ -8839,8 +9870,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|r6a|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|524288|
  |karpenter.k8s.aws/instance-pods|737|
@@ -8859,8 +9892,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|r6a|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|786432|
  |karpenter.k8s.aws/instance-pods|737|
@@ -8879,8 +9914,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-family|r6a|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|1048576|
  |karpenter.k8s.aws/instance-pods|737|
@@ -8899,8 +9936,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-family|r6a|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|1572864|
  |karpenter.k8s.aws/instance-pods|737|
@@ -8919,8 +9958,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-family|r6a|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor||
  |karpenter.k8s.aws/instance-memory|1572864|
  |karpenter.k8s.aws/instance-pods|737|
@@ -8940,8 +9981,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-family|r6g|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|8192|
  |karpenter.k8s.aws/instance-pods|8|
@@ -8960,8 +10003,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|r6g|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|29|
@@ -8980,8 +10025,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|r6g|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|58|
@@ -9000,8 +10047,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|r6g|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|65536|
  |karpenter.k8s.aws/instance-pods|58|
@@ -9020,8 +10069,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|r6g|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|131072|
  |karpenter.k8s.aws/instance-pods|234|
@@ -9040,8 +10091,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|r6g|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|262144|
  |karpenter.k8s.aws/instance-pods|234|
@@ -9060,8 +10113,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-family|r6g|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|393216|
  |karpenter.k8s.aws/instance-pods|234|
@@ -9080,8 +10135,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|r6g|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|524288|
  |karpenter.k8s.aws/instance-pods|737|
@@ -9100,8 +10157,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|r6g|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor||
  |karpenter.k8s.aws/instance-memory|524288|
  |karpenter.k8s.aws/instance-pods|737|
@@ -9121,9 +10180,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-family|r6gd|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|59|
  |karpenter.k8s.aws/instance-memory|8192|
  |karpenter.k8s.aws/instance-pods|8|
  |karpenter.k8s.aws/instance-size|medium|
@@ -9141,9 +10203,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|r6gd|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|118|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|29|
  |karpenter.k8s.aws/instance-size|large|
@@ -9161,9 +10226,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|r6gd|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|237|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|xlarge|
@@ -9181,9 +10249,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|r6gd|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|474|
  |karpenter.k8s.aws/instance-memory|65536|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|2xlarge|
@@ -9201,9 +10272,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|r6gd|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|950|
  |karpenter.k8s.aws/instance-memory|131072|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|4xlarge|
@@ -9221,9 +10295,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|r6gd|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|1900|
  |karpenter.k8s.aws/instance-memory|262144|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|8xlarge|
@@ -9241,9 +10318,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-family|r6gd|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|2850|
  |karpenter.k8s.aws/instance-memory|393216|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|12xlarge|
@@ -9261,9 +10341,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|r6gd|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|3800|
  |karpenter.k8s.aws/instance-memory|524288|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|16xlarge|
@@ -9281,9 +10364,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|r6gd|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-local-nvme|3800|
  |karpenter.k8s.aws/instance-memory|524288|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|metal|
@@ -9302,8 +10388,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|r6i|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|29|
@@ -9322,8 +10410,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|r6i|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|58|
@@ -9342,8 +10432,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|r6i|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|65536|
  |karpenter.k8s.aws/instance-pods|58|
@@ -9362,8 +10454,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|r6i|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|131072|
  |karpenter.k8s.aws/instance-pods|234|
@@ -9382,8 +10476,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|r6i|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|262144|
  |karpenter.k8s.aws/instance-pods|234|
@@ -9402,8 +10498,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-family|r6i|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|393216|
  |karpenter.k8s.aws/instance-pods|234|
@@ -9422,8 +10520,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|r6i|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|524288|
  |karpenter.k8s.aws/instance-pods|737|
@@ -9442,8 +10542,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|r6i|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|786432|
  |karpenter.k8s.aws/instance-pods|737|
@@ -9462,8 +10564,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-family|r6i|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|1048576|
  |karpenter.k8s.aws/instance-pods|737|
@@ -9482,8 +10586,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-family|r6i|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor||
  |karpenter.k8s.aws/instance-memory|1048576|
  |karpenter.k8s.aws/instance-pods|737|
@@ -9503,9 +10609,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|r6id|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|118|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|29|
  |karpenter.k8s.aws/instance-size|large|
@@ -9523,9 +10632,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|r6id|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|237|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|xlarge|
@@ -9543,9 +10655,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|r6id|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|474|
  |karpenter.k8s.aws/instance-memory|65536|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|2xlarge|
@@ -9563,9 +10678,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|r6id|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|950|
  |karpenter.k8s.aws/instance-memory|131072|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|4xlarge|
@@ -9583,9 +10701,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|r6id|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|1900|
  |karpenter.k8s.aws/instance-memory|262144|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|8xlarge|
@@ -9603,9 +10724,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-family|r6id|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|2850|
  |karpenter.k8s.aws/instance-memory|393216|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|12xlarge|
@@ -9623,9 +10747,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|r6id|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|3800|
  |karpenter.k8s.aws/instance-memory|524288|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|16xlarge|
@@ -9643,9 +10770,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|r6id|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|5700|
  |karpenter.k8s.aws/instance-memory|786432|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|24xlarge|
@@ -9663,9 +10793,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-family|r6id|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|7600|
  |karpenter.k8s.aws/instance-memory|1048576|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|32xlarge|
@@ -9683,9 +10816,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-family|r6id|
+ |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-local-nvme|7600|
  |karpenter.k8s.aws/instance-memory|1048576|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|metal|
@@ -9704,8 +10840,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-family|t1|
+ |karpenter.k8s.aws/instance-generation|1|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|627|
  |karpenter.k8s.aws/instance-pods|4|
@@ -9725,8 +10863,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-family|t2|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|512|
  |karpenter.k8s.aws/instance-pods|4|
@@ -9745,8 +10885,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-family|t2|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|1024|
  |karpenter.k8s.aws/instance-pods|4|
@@ -9765,8 +10907,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-family|t2|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|2048|
  |karpenter.k8s.aws/instance-pods|11|
@@ -9785,8 +10929,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|t2|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|4096|
  |karpenter.k8s.aws/instance-pods|17|
@@ -9805,8 +10951,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|t2|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|8192|
  |karpenter.k8s.aws/instance-pods|35|
@@ -9825,8 +10973,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|t2|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|44|
@@ -9845,8 +10995,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|t2|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|44|
@@ -9866,8 +11018,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|t3|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|512|
  |karpenter.k8s.aws/instance-pods|4|
@@ -9886,8 +11040,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|t3|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|1024|
  |karpenter.k8s.aws/instance-pods|4|
@@ -9906,8 +11062,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|t3|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|2048|
  |karpenter.k8s.aws/instance-pods|11|
@@ -9926,8 +11084,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|t3|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|4096|
  |karpenter.k8s.aws/instance-pods|17|
@@ -9946,8 +11106,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|t3|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|8192|
  |karpenter.k8s.aws/instance-pods|35|
@@ -9966,8 +11128,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|t3|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|58|
@@ -9986,8 +11150,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|t3|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|58|
@@ -10007,8 +11173,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|t3a|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|512|
  |karpenter.k8s.aws/instance-pods|4|
@@ -10027,8 +11195,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|t3a|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|1024|
  |karpenter.k8s.aws/instance-pods|4|
@@ -10047,8 +11217,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|t3a|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|2048|
  |karpenter.k8s.aws/instance-pods|8|
@@ -10067,8 +11239,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|t3a|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|4096|
  |karpenter.k8s.aws/instance-pods|17|
@@ -10087,8 +11261,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|t3a|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|8192|
  |karpenter.k8s.aws/instance-pods|35|
@@ -10107,8 +11283,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|t3a|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|58|
@@ -10127,8 +11305,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|t3a|
+ |karpenter.k8s.aws/instance-generation|3|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|58|
@@ -10148,8 +11328,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|t4g|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|512|
  |karpenter.k8s.aws/instance-pods|4|
@@ -10168,8 +11350,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|t4g|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|1024|
  |karpenter.k8s.aws/instance-pods|4|
@@ -10188,8 +11372,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|t4g|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|2048|
  |karpenter.k8s.aws/instance-pods|11|
@@ -10208,8 +11394,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|t4g|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|4096|
  |karpenter.k8s.aws/instance-pods|17|
@@ -10228,8 +11416,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|t4g|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|8192|
  |karpenter.k8s.aws/instance-pods|35|
@@ -10248,8 +11438,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|t4g|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|58|
@@ -10268,8 +11460,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|t4g|
+ |karpenter.k8s.aws/instance-generation|4|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|58|
@@ -10289,8 +11483,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|u|
  |karpenter.k8s.aws/instance-cpu|448|
  |karpenter.k8s.aws/instance-family|u-12tb1|
+ |karpenter.k8s.aws/instance-generation|1|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|12582912|
  |karpenter.k8s.aws/instance-pods|737|
@@ -10310,8 +11506,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|u|
  |karpenter.k8s.aws/instance-cpu|224|
  |karpenter.k8s.aws/instance-family|u-3tb1|
+ |karpenter.k8s.aws/instance-generation|1|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|3145728|
  |karpenter.k8s.aws/instance-pods|234|
@@ -10331,8 +11529,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|u|
  |karpenter.k8s.aws/instance-cpu|224|
  |karpenter.k8s.aws/instance-family|u-6tb1|
+ |karpenter.k8s.aws/instance-generation|1|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|6291456|
  |karpenter.k8s.aws/instance-pods|737|
@@ -10351,8 +11551,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|u|
  |karpenter.k8s.aws/instance-cpu|448|
  |karpenter.k8s.aws/instance-family|u-6tb1|
+ |karpenter.k8s.aws/instance-generation|1|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|6291456|
  |karpenter.k8s.aws/instance-pods|737|
@@ -10372,8 +11574,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|u|
  |karpenter.k8s.aws/instance-cpu|448|
  |karpenter.k8s.aws/instance-family|u-9tb1|
+ |karpenter.k8s.aws/instance-generation|1|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|9437184|
  |karpenter.k8s.aws/instance-pods|737|
@@ -10393,8 +11597,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|vt|
  |karpenter.k8s.aws/instance-cpu|12|
  |karpenter.k8s.aws/instance-family|vt1|
+ |karpenter.k8s.aws/instance-generation|1|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|24576|
  |karpenter.k8s.aws/instance-pods|58|
@@ -10413,8 +11619,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|vt|
  |karpenter.k8s.aws/instance-cpu|24|
  |karpenter.k8s.aws/instance-family|vt1|
+ |karpenter.k8s.aws/instance-generation|1|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|49152|
  |karpenter.k8s.aws/instance-pods|234|
@@ -10433,8 +11641,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|vt|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|vt1|
+ |karpenter.k8s.aws/instance-generation|1|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|196608|
  |karpenter.k8s.aws/instance-pods|737|
@@ -10454,8 +11664,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|x1|
+ |karpenter.k8s.aws/instance-generation|1|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|999424|
  |karpenter.k8s.aws/instance-pods|234|
@@ -10474,8 +11686,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-family|x1|
+ |karpenter.k8s.aws/instance-generation|1|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|1998848|
  |karpenter.k8s.aws/instance-pods|234|
@@ -10495,8 +11709,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|x1e|
+ |karpenter.k8s.aws/instance-generation|1|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|124928|
  |karpenter.k8s.aws/instance-pods|29|
@@ -10515,8 +11731,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|x1e|
+ |karpenter.k8s.aws/instance-generation|1|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|249856|
  |karpenter.k8s.aws/instance-pods|58|
@@ -10535,8 +11753,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|x1e|
+ |karpenter.k8s.aws/instance-generation|1|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|499712|
  |karpenter.k8s.aws/instance-pods|58|
@@ -10555,8 +11775,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|x1e|
+ |karpenter.k8s.aws/instance-generation|1|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|999424|
  |karpenter.k8s.aws/instance-pods|58|
@@ -10575,8 +11797,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|x1e|
+ |karpenter.k8s.aws/instance-generation|1|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|1998848|
  |karpenter.k8s.aws/instance-pods|234|
@@ -10595,8 +11819,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-family|x1e|
+ |karpenter.k8s.aws/instance-generation|1|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|3997696|
  |karpenter.k8s.aws/instance-pods|234|
@@ -10616,9 +11842,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-family|x2gd|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|59|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|8|
  |karpenter.k8s.aws/instance-size|medium|
@@ -10636,9 +11865,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|x2gd|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|118|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|29|
  |karpenter.k8s.aws/instance-size|large|
@@ -10656,9 +11888,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|x2gd|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|237|
  |karpenter.k8s.aws/instance-memory|65536|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|xlarge|
@@ -10676,9 +11911,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|x2gd|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|475|
  |karpenter.k8s.aws/instance-memory|131072|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|2xlarge|
@@ -10696,9 +11934,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|x2gd|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|950|
  |karpenter.k8s.aws/instance-memory|262144|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|4xlarge|
@@ -10716,9 +11957,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|x2gd|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|1900|
  |karpenter.k8s.aws/instance-memory|524288|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|8xlarge|
@@ -10736,9 +11980,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-family|x2gd|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|2850|
  |karpenter.k8s.aws/instance-memory|786432|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|12xlarge|
@@ -10756,9 +12003,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|x2gd|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|3800|
  |karpenter.k8s.aws/instance-memory|1048576|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|16xlarge|
@@ -10776,9 +12026,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|x2gd|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-local-nvme|3800|
  |karpenter.k8s.aws/instance-memory|1048576|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|metal|
@@ -10797,9 +12050,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|x2idn|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|1900|
  |karpenter.k8s.aws/instance-memory|1048576|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|16xlarge|
@@ -10817,9 +12073,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|x2idn|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|2850|
  |karpenter.k8s.aws/instance-memory|1572864|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|24xlarge|
@@ -10837,9 +12096,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-family|x2idn|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|3800|
  |karpenter.k8s.aws/instance-memory|2097152|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|32xlarge|
@@ -10857,9 +12119,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-family|x2idn|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-local-nvme|3800|
  |karpenter.k8s.aws/instance-memory|2097152|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|metal|
@@ -10878,9 +12143,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|x2iedn|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|118|
  |karpenter.k8s.aws/instance-memory|131072|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|xlarge|
@@ -10898,9 +12166,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|x2iedn|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|237|
  |karpenter.k8s.aws/instance-memory|262144|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|2xlarge|
@@ -10918,9 +12189,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|x2iedn|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|475|
  |karpenter.k8s.aws/instance-memory|524288|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|4xlarge|
@@ -10938,9 +12212,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|x2iedn|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|950|
  |karpenter.k8s.aws/instance-memory|1048576|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|8xlarge|
@@ -10958,9 +12235,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-family|x2iedn|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|1900|
  |karpenter.k8s.aws/instance-memory|2097152|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|16xlarge|
@@ -10978,9 +12258,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-family|x2iedn|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|2850|
  |karpenter.k8s.aws/instance-memory|3145728|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|24xlarge|
@@ -10998,9 +12281,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-family|x2iedn|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|3800|
  |karpenter.k8s.aws/instance-memory|4194304|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|32xlarge|
@@ -11018,9 +12304,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-family|x2iedn|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-local-nvme|3800|
  |karpenter.k8s.aws/instance-memory|4194304|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|metal|
@@ -11039,8 +12328,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|x2iezn|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|262144|
  |karpenter.k8s.aws/instance-pods|58|
@@ -11059,8 +12350,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-family|x2iezn|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|524288|
  |karpenter.k8s.aws/instance-pods|234|
@@ -11079,8 +12372,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|24|
  |karpenter.k8s.aws/instance-family|x2iezn|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|786432|
  |karpenter.k8s.aws/instance-pods|234|
@@ -11099,8 +12394,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-family|x2iezn|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|1048576|
  |karpenter.k8s.aws/instance-pods|234|
@@ -11119,8 +12416,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-family|x2iezn|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|1572864|
  |karpenter.k8s.aws/instance-pods|737|
@@ -11139,8 +12438,10 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-family|x2iezn|
+ |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-hypervisor||
  |karpenter.k8s.aws/instance-memory|1572864|
  |karpenter.k8s.aws/instance-pods|737|
@@ -11160,9 +12461,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|z|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-family|z1d|
+ |karpenter.k8s.aws/instance-generation|1|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|75|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-pods|29|
  |karpenter.k8s.aws/instance-size|large|
@@ -11180,9 +12484,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|z|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-family|z1d|
+ |karpenter.k8s.aws/instance-generation|1|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|150|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|xlarge|
@@ -11200,9 +12507,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|z|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-family|z1d|
+ |karpenter.k8s.aws/instance-generation|1|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|300|
  |karpenter.k8s.aws/instance-memory|65536|
  |karpenter.k8s.aws/instance-pods|58|
  |karpenter.k8s.aws/instance-size|2xlarge|
@@ -11220,9 +12530,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|z|
  |karpenter.k8s.aws/instance-cpu|12|
  |karpenter.k8s.aws/instance-family|z1d|
+ |karpenter.k8s.aws/instance-generation|1|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|450|
  |karpenter.k8s.aws/instance-memory|98304|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|3xlarge|
@@ -11240,9 +12553,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|z|
  |karpenter.k8s.aws/instance-cpu|24|
  |karpenter.k8s.aws/instance-family|z1d|
+ |karpenter.k8s.aws/instance-generation|1|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|900|
  |karpenter.k8s.aws/instance-memory|196608|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|6xlarge|
@@ -11260,9 +12576,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|z|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-family|z1d|
+ |karpenter.k8s.aws/instance-generation|1|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|1800|
  |karpenter.k8s.aws/instance-memory|393216|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|12xlarge|
@@ -11280,9 +12599,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-category|z|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-family|z1d|
+ |karpenter.k8s.aws/instance-generation|1|
  |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-local-nvme|1800|
  |karpenter.k8s.aws/instance-memory|393216|
  |karpenter.k8s.aws/instance-pods|737|
  |karpenter.k8s.aws/instance-size|metal|

@@ -27,9 +27,6 @@ Node allocatable are the resources allocatable by nodes.
 ### `karpenter_nodes_system_overhead`
 Node system daemon overhead are the resources reserved for system overhead, the difference between the node's capacity and allocatable values are reported by the status.
 
-### `karpenter_nodes_termination_time_seconds`
-The time taken between a node's deletion request and the removal of its finalizer
-
 ### `karpenter_nodes_total_daemon_limits`
 Node total daemon requests are the resource requested by DaemonSet pods bound to nodes.
 
