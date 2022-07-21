@@ -56,3 +56,7 @@ func (c Custom) EphemeralBlockDevice() *string {
 func (c Custom) EphemeralBlockDeviceOverhead() resource.Quantity {
 	return resource.MustParse("5Gi")
 }
+
+func (c Custom) ENILimitedMemoryOverhead() bool {
+	return true
+}

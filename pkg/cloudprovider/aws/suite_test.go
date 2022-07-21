@@ -1556,7 +1556,7 @@ var _ = Describe("Allocation", func() {
 			It("should not default block device mappings for custom AMIFamilies", func() {
 				provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
 				provider.AMIFamily = &v1alpha1.AMIFamilyCustom
-				ExpectApplied(ctx, env.Client, Provisioner(test.ProvisionerOptions{Provider: provider}))
+				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
 				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
@@ -1579,7 +1579,7 @@ var _ = Describe("Allocation", func() {
 						},
 					},
 				}
-				ExpectApplied(ctx, env.Client, Provisioner(test.ProvisionerOptions{Provider: provider}))
+				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
 				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
@@ -1722,7 +1722,7 @@ var _ = Describe("Allocation", func() {
 						},
 					},
 				}
-				ExpectApplied(ctx, env.Client, Provisioner(test.ProvisionerOptions{Provider: provider}))
+				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
 				pod := ExpectProvisioned(ctx, env.Client, controller,
 					test.UnschedulablePod(test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
 						Requests: map[v1.ResourceName]resource.Quantity{
