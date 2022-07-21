@@ -205,16 +205,19 @@ var _ = Describe("Allocation", func() {
 				ExpectApplied(ctx, env.Client, provisioner)
 				var pods []*v1.Pod
 				for key, value := range map[string]string{
-					v1alpha1.LabelInstanceHypervisor:      "xen",
-					v1alpha1.LabelInstanceFamily:          "p3",
-					v1alpha1.LabelInstanceSize:            "xlarge",
+					v1alpha1.LabelInstanceHypervisor:      "nitro",
+					v1alpha1.LabelInstanceCategory:        "g",
+					v1alpha1.LabelInstanceFamily:          "g4dn",
+					v1alpha1.LabelInstanceGeneration:      "4",
+					v1alpha1.LabelInstanceSize:            "8xlarge",
 					v1alpha1.LabelInstanceCPU:             "32",
-					v1alpha1.LabelInstanceMemory:          "249856",
-					v1alpha1.LabelInstancePods:            "238",
-					v1alpha1.LabelInstanceGPUName:         "nvidia-v100",
+					v1alpha1.LabelInstanceMemory:          "131072",
+					v1alpha1.LabelInstancePods:            "58",
+					v1alpha1.LabelInstanceGPUName:         "t4",
 					v1alpha1.LabelInstanceGPUManufacturer: "nvidia",
-					v1alpha1.LabelInstanceGPUCount:        "4",
+					v1alpha1.LabelInstanceGPUCount:        "1",
 					v1alpha1.LabelInstanceGPUMemory:       "16384",
+					v1alpha1.LabelInstanceLocalNVME:       "900",
 				} {
 					pods = append(pods, test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{key: value}}))
 				}
@@ -475,6 +478,7 @@ var _ = Describe("Allocation", func() {
 			It("should launch instances in a different zone on second reconciliation attempt with Insufficient Capacity Error Cache fallback", func() {
 				fakeEC2API.InsufficientCapacityPools.Set([]fake.CapacityPool{{CapacityType: v1alpha1.CapacityTypeOnDemand, InstanceType: "p3.8xlarge", Zone: "test-zone-1a"}})
 				pod := test.UnschedulablePod(test.PodOptions{
+					NodeSelector: map[string]string{v1.LabelInstanceTypeStable: "p3.8xlarge"},
 					ResourceRequirements: v1.ResourceRequirements{
 						Requests: v1.ResourceList{v1alpha1.ResourceNVIDIAGPU: resource.MustParse("1")},
 						Limits:   v1.ResourceList{v1alpha1.ResourceNVIDIAGPU: resource.MustParse("1")},

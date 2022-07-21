@@ -58,7 +58,10 @@ var (
 	ResourceAWSPodENI v1.ResourceName = "vpc.amazonaws.com/pod-eni"
 
 	LabelInstanceHypervisor      = LabelDomain + "/instance-hypervisor"
+	LabelInstanceCategory        = LabelDomain + "/instance-category"
 	LabelInstanceFamily          = LabelDomain + "/instance-family"
+	LabelInstanceGeneration      = LabelDomain + "/instance-generation"
+	LabelInstanceLocalNVME       = LabelDomain + "/instance-local-nvme"
 	LabelInstanceSize            = LabelDomain + "/instance-size"
 	LabelInstanceCPU             = LabelDomain + "/instance-cpu"
 	LabelInstanceMemory          = LabelDomain + "/instance-memory"
@@ -89,8 +92,11 @@ func init() {
 	v1alpha5.RestrictedLabelDomains = v1alpha5.RestrictedLabelDomains.Insert(RestrictedLabelDomains...)
 	v1alpha5.WellKnownLabels = v1alpha5.WellKnownLabels.Insert(
 		LabelInstanceHypervisor,
+		LabelInstanceCategory,
 		LabelInstanceFamily,
+		LabelInstanceGeneration,
 		LabelInstanceSize,
+		LabelInstanceLocalNVME,
 		LabelInstanceCPU,
 		LabelInstanceMemory,
 		LabelInstancePods,

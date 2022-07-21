@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"regexp"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -37,7 +38,10 @@ import (
 	"github.com/aws/karpenter/pkg/utils/sets"
 )
 
-var _ cloudprovider.InstanceType = (*InstanceType)(nil)
+var (
+	_                  cloudprovider.InstanceType = (*InstanceType)(nil)
+	instanceTypeScheme                            = regexp.MustCompile(`(^[a-z]+)(\-[0-9]+tb)?([0-9]+).*\.`)
+)
 
 type InstanceType struct {
 	*ec2.InstanceTypeInfo
@@ -107,7 +111,10 @@ func (i *InstanceType) computeRequirements() scheduling.Requirements {
 		v1alpha1.LabelInstanceCPU:             sets.NewSet(fmt.Sprint(aws.Int64Value(i.VCpuInfo.DefaultVCpus))),
 		v1alpha1.LabelInstanceMemory:          sets.NewSet(fmt.Sprint(aws.Int64Value(i.MemoryInfo.SizeInMiB))),
 		v1alpha1.LabelInstancePods:            sets.NewSet(fmt.Sprint(i.pods().Value())),
+		v1alpha1.LabelInstanceCategory:        sets.NewSet(),
 		v1alpha1.LabelInstanceFamily:          sets.NewSet(),
+		v1alpha1.LabelInstanceGeneration:      sets.NewSet(),
+		v1alpha1.LabelInstanceLocalNVME:       sets.NewSet(),
 		v1alpha1.LabelInstanceSize:            sets.NewSet(),
 		v1alpha1.LabelInstanceGPUName:         sets.NewSet(),
 		v1alpha1.LabelInstanceGPUManufacturer: sets.NewSet(),
@@ -116,10 +123,18 @@ func (i *InstanceType) computeRequirements() scheduling.Requirements {
 		v1alpha1.LabelInstanceHypervisor:      sets.NewSet(aws.StringValue(i.Hypervisor)),
 	}
 	// Instance Type Labels
+	instanceFamilyParts := instanceTypeScheme.FindStringSubmatch(aws.StringValue(i.InstanceType))
+	if len(instanceFamilyParts) == 4 {
+		requirements[v1alpha1.LabelInstanceCategory].Insert(instanceFamilyParts[1])
+		requirements[v1alpha1.LabelInstanceGeneration].Insert(instanceFamilyParts[3])
+	}
 	instanceTypeParts := strings.Split(aws.StringValue(i.InstanceType), ".")
 	if len(instanceTypeParts) == 2 {
 		requirements[v1alpha1.LabelInstanceFamily].Insert(instanceTypeParts[0])
 		requirements[v1alpha1.LabelInstanceSize].Insert(instanceTypeParts[1])
+	}
+	if i.InstanceStorageInfo != nil && aws.StringValue(i.InstanceStorageInfo.NvmeSupport) != ec2.EphemeralNvmeSupportUnsupported {
+		requirements[v1alpha1.LabelInstanceLocalNVME].Insert(fmt.Sprint(aws.Int64Value(i.InstanceStorageInfo.TotalSizeInGB)))
 	}
 	// GPU Labels
 	if i.GpuInfo != nil && len(i.GpuInfo.Gpus) == 1 {

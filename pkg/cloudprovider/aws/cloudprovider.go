@@ -285,34 +285,29 @@ func (c *CloudProvider) getProvider(ctx context.Context, provider *runtime.RawEx
 }
 
 func (c *CloudProvider) useOpinionatedInstanceFilter(provisionerRequirements ...v1.NodeSelectorRequirement) bool {
-	var instanceTypeRequirement, familyRequirement v1.NodeSelectorRequirement
+	var instanceRequirements []v1.NodeSelectorRequirement
+	requirementKeys := []string{v1.LabelInstanceTypeStable, v1alpha1.LabelInstanceFamily, v1alpha1.LabelInstanceCategory, v1alpha1.LabelInstanceGeneration}
 
 	for _, r := range provisionerRequirements {
-		if r.Key == v1.LabelInstanceTypeStable {
-			instanceTypeRequirement = r
-		} else if r.Key == v1alpha1.LabelInstanceFamily {
-			familyRequirement = r
+		if lo.Contains(requirementKeys, r.Key) {
+			instanceRequirements = append(instanceRequirements, r)
 		}
 	}
 	// no provisioner instance type filtering, so use our opinionated list
-	if instanceTypeRequirement.Operator == "" && familyRequirement.Operator == "" {
+	if len(instanceRequirements) == 0 {
 		return true
 	}
 
-	for _, req := range []v1.NodeSelectorRequirement{instanceTypeRequirement, familyRequirement} {
+	for _, req := range instanceRequirements {
 		switch req.Operator {
-		case v1.NodeSelectorOpIn:
-			// provisioner supplies its own list of instance types/families, so use that instead of filtering
+		case v1.NodeSelectorOpIn, v1.NodeSelectorOpExists, v1.NodeSelectorOpDoesNotExist:
+			// v1.NodeSelectorOpIn: provisioner supplies its own list of instance types/families, so use that instead of filtering
+			// v1.NodeSelectorOpExists: provisioner explicitly is asking for no filtering
+			// v1.NodeSelectorOpDoesNotExist: this shouldn't match any instance type at provisioning time, but avoid filtering anyway
 			return false
 		case v1.NodeSelectorOpNotIn:
 			// provisioner further restricts instance types/families, so we can possibly use our list and it will
 			// be filtered more
-		case v1.NodeSelectorOpExists:
-			// provisioner explicitly is asking for no filtering
-			return false
-		case v1.NodeSelectorOpDoesNotExist:
-			// this shouldn't match any instance type at provisioning time, but avoid filtering anyway
-			return false
 		}
 	}
 
