@@ -196,8 +196,8 @@ func (c *Cluster) populateResourceRequests(ctx context.Context, node *v1.Node, n
 	var daemonsetLimits []v1.ResourceList
 	for i := range pods.Items {
 		pod := &pods.Items[i]
-		requests := resources.RequestsForPods(pod)
-		podLimits := resources.LimitsForPods(pod)
+		requests := FilterWellKnownRequests(ctx, resources.RequestsForPods(pod))
+		podLimits := FilterWellKnownRequests(ctx, resources.LimitsForPods(pod))
 		podKey := client.ObjectKeyFromObject(pod)
 
 		n.podRequests[podKey] = requests

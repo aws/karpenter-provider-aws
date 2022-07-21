@@ -2912,8 +2912,8 @@ var _ = Describe("Instance Type Compatibility", func() {
 	})
 	It("should launch pods with resources that aren't on any single instance type on different instances", func() {
 		cloudProv.InstanceTypes = fake.InstanceTypes(5)
-		const fakeGPU1 = "karpenter.sh/super-great-gpu"
-		const fakeGPU2 = "karpenter.sh/even-better-gpu"
+		fakeGPU1 := v1alpha1.ResourceNVIDIAGPU
+		fakeGPU2 := v1alpha1.ResourceAMDGPU
 		cloudProv.InstanceTypes[0].Resources()[fakeGPU1] = resource.MustParse("25")
 		cloudProv.InstanceTypes[1].Resources()[fakeGPU2] = resource.MustParse("25")
 
@@ -2935,24 +2935,6 @@ var _ = Describe("Instance Type Compatibility", func() {
 			nodeNames.Insert(node.Name)
 		}
 		Expect(nodeNames.Len()).To(Equal(2))
-	})
-	It("should fail to schedule a pod with resources requests that aren't on a single instance type", func() {
-		cloudProv.InstanceTypes = fake.InstanceTypes(5)
-		const fakeGPU1 = "karpenter.sh/super-great-gpu"
-		const fakeGPU2 = "karpenter.sh/even-better-gpu"
-		cloudProv.InstanceTypes[0].Resources()[fakeGPU1] = resource.MustParse("25")
-		cloudProv.InstanceTypes[1].Resources()[fakeGPU2] = resource.MustParse("25")
-
-		ExpectApplied(ctx, env.Client, provisioner)
-		pods := ExpectProvisioned(ctx, env.Client, controller,
-			test.UnschedulablePod(test.PodOptions{
-				ResourceRequirements: v1.ResourceRequirements{
-					Limits: v1.ResourceList{
-						fakeGPU1: resource.MustParse("1"),
-						fakeGPU2: resource.MustParse("1")},
-				},
-			}))
-		ExpectNotScheduled(ctx, env.Client, pods[0])
 	})
 	Context("Provider Specific Labels", func() {
 		It("should filter instance types that match labels", func() {
@@ -3288,11 +3270,22 @@ var _ = Describe("Binpacking", func() {
 		pod := ExpectProvisioned(ctx, env.Client, controller,
 			test.UnschedulablePod(test.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{
-					Requests: v1.ResourceList{"foo.com/weird-resources": resource.MustParse("0")},
-					Limits:   v1.ResourceList{"foo.com/weird-resources": resource.MustParse("0")},
+					Requests: v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("0")},
+					Limits:   v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("0")},
 				},
 			}))
 		// requesting a resource of quantity zero of a type unsupported by any instance is fine
+		ExpectScheduled(ctx, env.Client, pod[0])
+	})
+	It("should be neutral regarding custom, unknown resource requests", func() {
+		ExpectApplied(ctx, env.Client, provisioner)
+		pod := ExpectProvisioned(ctx, env.Client, controller,
+			test.UnschedulablePod(test.PodOptions{
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{"smarter-device/fuse": resource.MustParse("1")},
+					Limits:   v1.ResourceList{"smarter-device/fuse": resource.MustParse("1")},
+				},
+			}))
 		ExpectScheduled(ctx, env.Client, pod[0])
 	})
 	It("should not schedule pods that exceed every instance type's capacity", func() {

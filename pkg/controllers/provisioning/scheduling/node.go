@@ -25,6 +25,7 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/utils/resources"
 	"github.com/aws/karpenter/pkg/utils/sets"
@@ -90,10 +91,11 @@ func (n *Node) Add(ctx context.Context, pod *v1.Pod) error {
 	nodeRequirements.Add(topologyRequirements)
 
 	// Check instance type combinations
-	requests := resources.Merge(n.requests, resources.RequestsForPods(pod))
+	podRequests := state.FilterWellKnownRequests(ctx, resources.RequestsForPods(pod))
+	requests := resources.Merge(n.requests, podRequests)
 	instanceTypes := filterInstanceTypes(n.InstanceTypeOptions, nodeRequirements, requests)
 	if len(instanceTypes) == 0 {
-		return fmt.Errorf("no instance type satisfied resources %s and requirements %s", resources.String(resources.RequestsForPods(pod)), nodeRequirements)
+		return fmt.Errorf("no instance type satisfied resources %s and requirements %s", resources.String(podRequests), nodeRequirements)
 	}
 
 	// Update node

@@ -108,7 +108,8 @@ func (n *InFlightNode) Add(ctx context.Context, pod *v1.Pod) error {
 
 	// check resource requests first since that's a pretty likely reason the pod won't schedule on an in-flight
 	// node, which at this point can't be increased in size
-	requests := resources.Merge(n.requests, resources.RequestsForPods(pod))
+	podRequests := state.FilterWellKnownRequests(ctx, resources.RequestsForPods(pod))
+	requests := resources.Merge(n.requests, podRequests)
 
 	if !resources.Fits(requests, n.available) {
 		return fmt.Errorf("exceeds node resources")

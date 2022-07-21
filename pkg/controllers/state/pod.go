@@ -20,11 +20,14 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"knative.dev/pkg/logging"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 )
 
 var stateRetryPeriod = 1 * time.Minute
@@ -68,4 +71,32 @@ func (c *PodController) Register(ctx context.Context, m manager.Manager) error {
 		Named(podControllerName).
 		For(&v1.Pod{}).
 		Complete(c)
+}
+
+// TODO: deduplicate with unexported func (*InstanceType).computeResources
+func getWellKnownRequests() v1.ResourceList {
+	return v1.ResourceList{
+		v1.ResourceCPU:              resource.Quantity{},
+		v1.ResourceMemory:           resource.Quantity{},
+		v1.ResourceStorage:          resource.Quantity{},
+		v1.ResourceEphemeralStorage: resource.Quantity{},
+		v1.ResourcePods:             resource.Quantity{},
+		v1alpha1.ResourceAWSPodENI:  resource.Quantity{},
+		v1alpha1.ResourceNVIDIAGPU:  resource.Quantity{},
+		v1alpha1.ResourceAMDGPU:     resource.Quantity{},
+		v1alpha1.ResourceAWSNeuron:  resource.Quantity{},
+	}
+}
+
+func FilterWellKnownRequests(ctx context.Context, podResources v1.ResourceList) (filteredReq v1.ResourceList) {
+	wkReq := getWellKnownRequests()
+	filteredReq = make(v1.ResourceList, len(wkReq))
+	for k, v := range podResources {
+		if _, ok := wkReq[k]; ok {
+			filteredReq[k] = v
+		} else {
+			logging.FromContext(ctx).With(k.String(), v.String()).Info("Ignoring custom pod request")
+		}
+	}
+	return
 }
