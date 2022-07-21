@@ -169,7 +169,7 @@ func (i *InstanceType) memory() *resource.Quantity {
 
 // Setting ephemeral-storage to be either the default value or what is defined in blockDeviceMappings
 func (i *InstanceType) ephemeralStorage() *resource.Quantity {
-	if i.provider.BlockDeviceMappings != nil {
+	if len(i.provider.BlockDeviceMappings) != 0 {
 		if aws.StringValue(i.provider.AMIFamily) == v1alpha1.AMIFamilyCustom {
 			// For Custom AMIFamily, use the volume size of the last defined block device mapping.
 			// TODO: Consider giving better control to define which block device will be used for pods.
