@@ -137,5 +137,5 @@ Provisioners created without those tags and run in more recent Karpenter version
 ```text
  field(s): spec.provider.securityGroupSelector, spec.provider.subnetSelector
 ```
-If you are providing a [custom launch template]({{<ref "./aws/launch-templates" >}}), specifiying a `subnetSelector` is still required.
+If you are providing a [custom launch template]({{<ref "./aws/launch-templates" >}}), specifying a `subnetSelector` is still required.
 However, specifying a `securityGroupSelector` will cause a validation error.

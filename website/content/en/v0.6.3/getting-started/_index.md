@@ -169,7 +169,7 @@ The global log level can be modified with the `logLevel` chart value (e.g. `--se
 
 #### Deploy a temporary Prometheus and Grafana stack (optional)
 
-The following commands will deploy a Prometheus and Grafana stack that is suitable for this guide but does not include persistent storage or other configurations that would be necessary for monitoring a production deployment of Karpenter. This deployment includes two Karpenter dashboards that are automatically onboaraded to Grafana. They provide a variety of visualization examples on Karpenter metrices.
+The following commands will deploy a Prometheus and Grafana stack that is suitable for this guide but does not include persistent storage or other configurations that would be necessary for monitoring a production deployment of Karpenter. This deployment includes two Karpenter dashboards that are automatically onboarded to Grafana. They provide a variety of visualization examples on Karpenter metrics.
 
 ```bash
 helm repo add grafana-charts https://grafana.github.io/helm-charts

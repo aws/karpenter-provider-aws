@@ -78,7 +78,7 @@ The first uses [AWS EKS managed node groups](https://docs.aws.amazon.com/eks/lat
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step02-create-cluster-fargate.sh" language="bash"%}}
 
-Karpenter itself can run anywhere, including on [self-managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/worker.html), [managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-groups.html) (Example 1), or [AWS Fargate](https://aws.amazon.com/fargate/)(Example 2). 
+Karpenter itself can run anywhere, including on [self-managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/worker.html), [managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-groups.html) (Example 1), or [AWS Fargate](https://aws.amazon.com/fargate/)(Example 2).
 
 Karpenter will provision EC2 instances in your account.
 
@@ -122,7 +122,7 @@ Install the chart passing in the cluster details and the Karpenter role ARN.
 
 #### Deploy a temporary Prometheus and Grafana stack (optional)
 
-The following commands will deploy a Prometheus and Grafana stack that is suitable for this guide but does not include persistent storage or other configurations that would be necessary for monitoring a production deployment of Karpenter. This deployment includes two Karpenter dashboards that are automatically onboaraded to Grafana. They provide a variety of visualization examples on Karpenter metrices.
+The following commands will deploy a Prometheus and Grafana stack that is suitable for this guide but does not include persistent storage or other configurations that would be necessary for monitoring a production deployment of Karpenter. This deployment includes two Karpenter dashboards that are automatically onboarded to Grafana. They provide a variety of visualization examples on Karpenter metrics.
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step09-add-prometheus-grafana.sh" language="bash"%}}
 
@@ -133,6 +133,14 @@ The Grafana instance may be accessed using port forwarding.
 The new stack has only one user, `admin`, and the password is stored in a secret. The following command will retrieve the password.
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step11-grafana-get-password.sh" language="bash"%}}
+
+#### Deploy the AWS Node Termination Handler to handle Spot interruptions gracefully (optional)
+
+The following commands will deploy the AWS Node Termination Handler as a DaemonSet to run on Spot nodes to handle spot interruption notifications, 
+spot rebalance recommendations, and EC2 scheduled maintenance events. Learn more about the AWS Node Termination Handler and more advanced configurations 
+[here](https://github.com/aws/aws-node-termination-handler). 
+
+{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step12-install-nth.sh" language="bash"%}}
 
 ### Provisioner
 
@@ -154,7 +162,7 @@ Review the [provisioner CRD]({{<ref "../../provisioner.md" >}}) for more informa
 
 Note: This provisioner will create capacity as long as the sum of all created capacity is less than the specified limit.
 
-{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step12-add-provisioner.sh" language="bash"%}}
+{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step13-add-provisioner.sh" language="bash"%}}
 
 ## First Use
 
@@ -165,14 +173,14 @@ Create some pods using a deployment, and watch Karpenter provision nodes in resp
 
 This deployment uses the [pause image](https://www.ianlewis.org/en/almighty-pause-container) and starts with zero replicas.
 
-{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step13-automatic-node-provisioning.sh" language="bash"%}}
+{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step14-automatic-node-provisioning.sh" language="bash"%}}
 
 ### Automatic Node Termination
 
 Now, delete the deployment. After 30 seconds (`ttlSecondsAfterEmpty`),
 Karpenter should terminate the now empty nodes.
 
-{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step14-deprovisioning.sh" language="bash"%}}
+{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step15-deprovisioning.sh" language="bash"%}}
 
 ### Manual Node Termination
 
@@ -182,10 +190,10 @@ finalizer to the node object, which blocks deletion until all pods are
 drained and the instance is terminated. Keep in mind, this only works for
 nodes provisioned by Karpenter.
 
-{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step15-delete-node.sh" language="bash"%}}
+{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step16-delete-node.sh" language="bash"%}}
 
 ## Cleanup
 
 To avoid additional charges, remove the demo infrastructure from your AWS account.
 
-{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step16-cleanup.sh" language="bash"%}}
+{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step17-cleanup.sh" language="bash"%}}

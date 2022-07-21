@@ -22,6 +22,7 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider/fake"
+	"github.com/aws/karpenter/pkg/cloudprovider/registry"
 	"github.com/aws/karpenter/pkg/controllers/termination"
 	"github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/pkg/utils/functional"
@@ -34,6 +35,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/sets"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	. "knative.dev/pkg/logging/testing"
 	"knative.dev/pkg/ptr"
@@ -54,6 +56,7 @@ func TestAPIs(t *testing.T) {
 var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
 		cloudProvider := &fake.CloudProvider{}
+		registry.RegisterOrDie(ctx, cloudProvider)
 		coreV1Client := corev1.NewForConfigOrDie(e.Config)
 		recorder := test.NewEventRecorder()
 		evictionQueue = termination.NewEvictionQueue(ctx, coreV1Client, recorder)
@@ -65,7 +68,8 @@ var _ = BeforeSuite(func() {
 				CloudProvider: cloudProvider,
 				EvictionQueue: evictionQueue,
 			},
-			Recorder: recorder,
+			Recorder:          recorder,
+			TerminationRecord: sets.NewString(),
 		}
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")

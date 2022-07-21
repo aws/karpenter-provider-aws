@@ -93,3 +93,7 @@ func (a AL2) EphemeralBlockDevice() *string {
 func (a AL2) EphemeralBlockDeviceOverhead() resource.Quantity {
 	return resource.MustParse("5Gi")
 }
+
+func (a AL2) ENILimitedMemoryOverhead() bool {
+	return true
+}

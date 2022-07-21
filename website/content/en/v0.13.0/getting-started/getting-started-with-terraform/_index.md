@@ -136,7 +136,7 @@ module "eks" {
 
   # Only need one node to get Karpenter up and running.
   # This ensures core services such as VPC CNI, CoreDNS, etc. are up and running
-  # so that Karpetner can be deployed and start managing compute capacity as required
+  # so that Karpenter can be deployed and start managing compute capacity as required
   eks_managed_node_groups = {
     initial = {
       instance_types = ["t3.medium"]
