@@ -54,8 +54,8 @@ You can review these fields [in the code](https://github.com/aws/karpenter/blob{
 ### InstanceProfile
 An `InstanceProfile` is a way to pass a single IAM role to an EC2 instance. Karpenter will not create one automatically.
 A default profile may be specified on the controller, allowing it to be omitted here. If not specified as either a default
-or on the controller, node provisioning will fail. The KarpenterControllerPolicy will also need to have permissions for 
-`iam:PassRole` to the role provided here or provisioning will fail.  
+or on the controller, node provisioning will fail. The KarpenterControllerPolicy will also need to have permissions for
+`iam:PassRole` to the role provided here or provisioning will fail.
 
 ```
 spec:
@@ -210,9 +210,9 @@ spec:
 
 ### Amazon Machine Image (AMI) Family
 
-The AMI used when provisioning nodes can be controlled by the `amiFamily` field. Based on the value set for `amiFamily`, Karpenter will automatically query for the appropriate [EKS optimized AMI](https://docs.aws.amazon.com/eks/latest/userguide/eks-optimized-amis.html) via AWS Systems Manager (SSM).
+The AMI used when provisioning nodes can be controlled by the `amiFamily` field. Based on the value set for `amiFamily`, Karpenter will automatically query for the appropriate [EKS optimized AMI](https://docs.aws.amazon.com/eks/latest/userguide/eks-optimized-amis.html) via AWS Systems Manager (SSM). When an `amiFamily` of `Custom` is chosen, then an `amiSelector` must be specified that informs Karpenter on which custom AMIs are to be used.
 
-Currently, Karpenter supports `amiFamily` values `AL2`, `Bottlerocket`, and `Ubuntu`. GPUs are only supported with `AL2` and `Bottlerocket`.
+Currently, Karpenter supports `amiFamily` values `AL2`, `Bottlerocket`, `Ubuntu` and `Custom`. GPUs are only supported with `AL2` and `Bottlerocket`.
 
 Note: If a custom launch template is specified, then the AMI value in the launch template is used rather than the `amiFamily` value.
 
@@ -251,6 +251,46 @@ spec:
 
 You can control the UserData that needs to be applied to your worker nodes via this field. Review the [Custom UserData documentation](../user-data/) to learn the necessary steps
 If you need to specify a launch template in addition to UserData, then review the [Launch Template documentation](../launch-templates/) instead and utilize the `spec.providerRef.launchTemplate` field.
+
+### AMISelector
+
+AMISelector is used to configure custom AMIs for Karpenter to use, where the AMIs are discovered through [AWS tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html), similar to `subnetSelector`. This field is optional, and Karpenter will use the latest EKS-optimized AMIs if an amiSelector is not specified.
+
+EC2 AMIs may be specified by any AWS tag, including `Name`. Selecting tag values using wildcards (`*`) is supported.
+
+EC2 AMI IDs may be specified by using the key `aws-ids` and then passing the IDs as a comma-separated string value.
+
+* When launching nodes, Karpenter automatically determines which architecture a custom AMI is compatible with and will use images that match an instanceType's requirements.
+* If multiple AMIs are found that can be used, Karpenter will randomly choose any one.
+* If no AMIs are found that can be used, then no nodes will be provisioned.
+
+For additional data on how UserData is configured for Custom AMIs, and how more requirements can be specified for custom AMIs, follow [this documentation](../user-data/#custom-amis).
+
+**Examples**
+
+Select all AMIs with a specified tag:
+```
+  amiSelector:
+    karpenter.sh/discovery/MyClusterName: '*'
+```
+
+Select AMIs by name:
+```
+  amiSelector:
+    Name: my-ami
+```
+
+Select AMIs by an arbitrary AWS tag key/value pair:
+```
+  amiSelector:
+    MySubnetTag: value
+```
+
+Specify AMIs explicitly by ID:
+```yaml
+  amiSelector:
+    aws-ids: "ami-123,ami-456"
+```
 
 ## spec.provider (Deprecated)
 

@@ -1,7 +1,9 @@
 package integration
 
 import (
+	"encoding/base64"
 	"fmt"
+	"io/ioutil"
 	"strconv"
 	"strings"
 	"testing"
@@ -208,6 +210,72 @@ var _ = Describe("Sanity Checks", func() {
 				InstanceIds: aws.StringSlice([]string{instanceID}),
 			})
 			Expect(*instance.Reservations[0].Instances[0].ImageId).To(Equal(customAMI))
+			env.ExpectDeleted(pod)
+			env.EventuallyExpectScaleDown()
+			env.ExpectNoCrashes()
+		})
+		It("should merge UserData contents for AL2 AMIFamily", func() {
+			content, _ := ioutil.ReadFile("testdata/al2_userdata_input.golden")
+			provider := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{AWS: v1alpha1.AWS{
+				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.Options.ClusterName},
+				SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.Options.ClusterName},
+				AMIFamily:             &v1alpha1.AMIFamilyAL2,
+			},
+				UserData: aws.String(string(content)),
+			})
+			provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
+			pod := test.Pod()
+
+			env.ExpectCreatedNodeCount("==", 0)
+			env.ExpectCreated(pod, provider, provisioner)
+
+			env.EventuallyExpectHealthy(pod)
+			env.ExpectCreatedNodeCount("==", 1)
+
+			var node v1.Node
+			env.Client.Get(env.Context, types.NamespacedName{Name: pod.Spec.NodeName}, &node)
+			providerIDSplit := strings.Split(node.Spec.ProviderID, "/")
+			instanceID := providerIDSplit[len(providerIDSplit)-1]
+			instanceAttributes, _ := env.Ec2API.DescribeInstanceAttribute(&ec2.DescribeInstanceAttributeInput{
+				InstanceId: aws.String(instanceID),
+				Attribute:  aws.String("userData"),
+			})
+			actualUserData, _ := base64.StdEncoding.DecodeString(*instanceAttributes.UserData.Value)
+			// Since the node has joined the cluster, we know our bootstrapping was correct.
+			// Just verify if the UserData contains our custom content too, rather than doing a byte-wise comparison.
+			Expect(string(actualUserData)).To(ContainSubstring("Running custom user data script"))
+			env.ExpectDeleted(pod)
+			env.EventuallyExpectScaleDown()
+			env.ExpectNoCrashes()
+		})
+		It("should merge UserData contents for Bottlerocket AMIFamily", func() {
+			content, _ := ioutil.ReadFile("testdata/br_userdata_input.golden")
+			provider := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{AWS: v1alpha1.AWS{
+				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.Options.ClusterName},
+				SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.Options.ClusterName},
+				AMIFamily:             &v1alpha1.AMIFamilyBottlerocket,
+			},
+				UserData: aws.String(string(content)),
+			})
+			provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
+			pod := test.Pod()
+
+			env.ExpectCreatedNodeCount("==", 0)
+			env.ExpectCreated(pod, provider, provisioner)
+
+			env.EventuallyExpectHealthy(pod)
+			env.ExpectCreatedNodeCount("==", 1)
+
+			var node v1.Node
+			env.Client.Get(env.Context, types.NamespacedName{Name: pod.Spec.NodeName}, &node)
+			providerIDSplit := strings.Split(node.Spec.ProviderID, "/")
+			instanceID := providerIDSplit[len(providerIDSplit)-1]
+			instanceAttributes, _ := env.Ec2API.DescribeInstanceAttribute(&ec2.DescribeInstanceAttributeInput{
+				InstanceId: aws.String(instanceID),
+				Attribute:  aws.String("userData"),
+			})
+			actualUserData, _ := base64.StdEncoding.DecodeString(*instanceAttributes.UserData.Value)
+			Expect(string(actualUserData)).To(ContainSubstring("kube-api-qps = 30"))
 			env.ExpectDeleted(pod)
 			env.EventuallyExpectScaleDown()
 			env.ExpectNoCrashes()

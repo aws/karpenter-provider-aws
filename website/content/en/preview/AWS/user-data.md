@@ -1,20 +1,20 @@
 ---
-title: "User Data Configuration"
-linkTitle: "UserData"
+title: "Custom User Data and AMI Configuration"
+linkTitle: "Custom User Data and AMI"
 weight: 10
 description: >
-  Learn how to configure custom UserData with Karpenter
+  Learn how to configure custom UserData and AMIs with Karpenter
 ---
 
-This document describes how you can customize the UserData that will be specified on your EC2 worker nodes, without using a launch template.
+This document describes how you can customize the UserData and AMIs for your EC2 worker nodes, without using a launch template.
 
 ## Configuration
 
-In order to specify custom user data, you must include it within a AWSNodeTemplate resource. You can then reference this AWSNodeTemplate resource through `spec.providerRef` in your provisioner.
+In order to specify custom user data and AMIs, you must include them within a AWSNodeTemplate resource. You can then reference this AWSNodeTemplate resource through `spec.providerRef` in your provisioner.
 
 **Examples**
 
-Your UserData can be added to `spec.userData` in the `AWSNodeTemplate` resource like this -
+Your UserData and AMIs can be added to `spec.userData` and `spec.amiSelector` respectively in the `AWSNodeTemplate` resource -
 ```yaml
 apiVersion: karpenter.k8s.aws/v1alpha1
 kind: AWSNodeTemplate
@@ -32,9 +32,11 @@ spec:
     kube-api-qps = 30
     [settings.kubernetes.eviction-hard]
     "memory.available" = "20%"
+  amiSelector:
+    karpenter.sh/discovery: my-cluster
 ```
 
-For more examples on configuring UserData, see the examples for [AL2](https://github.com/aws/karpenter/blob/main/examples/provisioner/al2-custom-userdata.yaml) and [Bottlerocket](https://github.com/aws/karpenter/blob/main/examples/provisioner/br-custom-userdata.yaml).
+For more examples on configuring these fields for different AMI families, see the [examples here](https://github.com/aws/karpenter/blob/main/examples/provisioner/launchtemplates).
 
 ## UserData Content and Merge Semantics
 
@@ -123,3 +125,51 @@ exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 --kubelet-extra-args '--node-labels=karpenter.sh/capacity-type=on-demand,karpenter.sh/provisioner-name=test  --max-pods=110'
 --//--
 ```
+
+
+## Custom AMIs
+
+You can specify a set of AMIs for a provisioner to use by specifying an AMISelector that identifies AMIs to use through EC2 tags or via a comma-separated list.
+
+
+### Defining AMI constraints
+
+Karpenter will automatically determine the architecture that an EC2 AMI is compatible with (amd64, arm64), but other constraints of an AMI can be expressed as tags on the EC2 AMI.
+For example, if you want to limit an EC2 AMI to only be used with instanceTypes that have an `nvidia` GPU, you can specify an EC2 tag with a key of `karpenter.k8s.aws/instance-gpu-manufacturer` and value `nvidia` on that AMI.
+
+All labels defined [in the scheduling documentation](../../tasks/scheduling#supported-labels) can be used as requirements for an EC2 AMI.
+
+```
+> aws ec2 describe-images --image-id ami-123 --query Images[0].Tags
+[
+    {
+        "Key": "karpenter.sh/discovery",
+        "Value": "my-cluster"
+    },
+    {
+        "Key": "Name",
+        "Value": "amazon-eks-node-1.21-customized-v0"
+    },
+    {
+        "Key": "karpenter.k8s.aws/instance-gpu-manufacturer",
+        "Value": "nvidia"
+    }
+]
+```
+
+
+###  AMIFamily
+
+When you give Karpenter an AMI ID to use, you can specify which AMIFamily they belong to. This will determine how Karpenter should use your AMI.
+For example, if you define the `AMIFamily` to be `AL2`, then Karpenter will assume that a worker node using that AMI should be bootstrapped in the same manner as EKS-optimized AL2 AMIs. This is useful when your custom images are variants of EKS-optimized AMIs and there are no differences in how bootstrapping needs to be performed.
+
+When the `AMIFamily` is set to `Custom`, then Karpenter will not attempt to bootstrap the worker node. You must set the necessary commands through `spec.UserData` to ensure that your worker node joins the cluster.
+
+
+### Binpacking semantics for AMIFamily
+
+In order for Karpenter to accurately binpack your pods in a worker node, it needs to know the eventual allocatable capacity on your node. This capacity has several dimensions (cpu, memory, ephemeral-storage) and is a function of the instanceType as well as the AMI.
+
+* When the AMIFamily is *`AL2`, `Bottlerocket` or `Ubuntu`*, Karpenter will bin-pack your pods in the same way as other EKS-optimized AMIs of that family.
+* When the AMIFamily is *`Custom`*, Karpenter assumes that the amount of allocatable cpu, memory and ephemeral-storage is identical to `AL2` EKS-Optimized AMIs, regardless of how the node is being bootstrapped.
+  * When the AMIFamily is *`Custom`*, Karpenter has no way of knowing which ephemeral volume will be used for pods. Therefore, it will default to using the last volume in `spec.blockDeviceMappings` to determine the total available ephemeral capacity on a worker node.
