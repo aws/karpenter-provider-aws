@@ -312,7 +312,12 @@ func (p *PricingProvider) onDemandPage(prices map[string]float64) func(output *p
 
 	return func(output *pricing.GetProductsOutput, b bool) bool {
 		for _, outer := range output.PriceList {
-			dec := json.NewDecoder(bytes.NewBufferString(aws.StringValue(outer)))
+			var buf bytes.Buffer
+			enc := json.NewEncoder(&buf)
+			if err := enc.Encode(outer); err != nil {
+				logging.FromContext(context.Background()).Errorf("encoding %s", err)
+			}
+			dec := json.NewDecoder(&buf)
 			var pItem priceItem
 			if err := dec.Decode(&pItem); err != nil {
 				logging.FromContext(context.Background()).Errorf("decoding %s", err)

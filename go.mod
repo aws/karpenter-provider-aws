@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/Pallinder/go-randomdata v1.2.0
 	github.com/avast/retry-go v3.0.0+incompatible
-	github.com/aws/aws-sdk-go v1.44.46
+	github.com/aws/aws-sdk-go v1.44.60
 	github.com/deckarep/golang-set v1.8.0
 	github.com/go-logr/zapr v0.4.0
 	github.com/imdario/mergo v0.3.13
