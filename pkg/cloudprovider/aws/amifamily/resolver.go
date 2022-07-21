@@ -132,6 +132,8 @@ func GetAMIFamily(amiFamily *string, options *Options) AMIFamily {
 		return &Bottlerocket{Options: options}
 	case v1alpha1.AMIFamilyUbuntu:
 		return &Ubuntu{Options: options}
+	case v1alpha1.AMIFamilyCustom:
+		return &Custom{Options: options}
 	default:
 		return &AL2{Options: options}
 	}
