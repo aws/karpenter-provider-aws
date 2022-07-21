@@ -1,0 +1,33 @@
+
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: run-test
+  namespace: karpenter-tests
+spec:
+  description: |
+    Execute a karpenter test suite
+  params:
+    - name: cluster-name
+      description: Name of the cluster under test.
+    - name: suite-path
+      description: Path to the test suite
+    - name: git-ref
+      description: Git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release.
+  workspaces:
+    - name: ws
+  steps:
+
+  - name: checkout-repository
+    image: alpine/git
+    workingDir: $(workspaces.ws.path)
+    script: |
+      git clone https://github.com/aws/karpenter.git .
+      git checkout $(params.git-ref)
+
+  - name: go-test
+    image: public.ecr.aws/karpenter-testing/tools:latest
+    workingDir: $(workspaces.ws.path)
+    script: |
+      aws eks update-kubeconfig --name $(params.cluster-name)
+      go test -v $(params.suite-path) -cluster-name $(params.cluster-name) -kubeconfig /root/.kube/config

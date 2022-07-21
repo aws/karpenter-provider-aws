@@ -1,0 +1,105 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: setup
+  namespace: karpenter-tests
+spec:
+  description: |
+    Execute a karpenter test suite
+  params:
+    - name: cluster-name
+      description: Name of the cluster under test.
+    - name: git-ref
+      description: Git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release.
+  results:
+    - name: account-id
+    - name: region
+  workspaces:
+    - name: ws
+  steps:
+
+  - name: discover-environment
+    image: public.ecr.aws/karpenter-testing/tools:latest
+    script: |
+      TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+      curl -H "X-aws-ec2-metadata-token: $TOKEN" -v http://169.254.169.254/latest/meta-data/identity-credentials/ec2/info | jq -r ".AccountId" > $(results.account-id.path)
+      curl -H "X-aws-ec2-metadata-token: $TOKEN" -v http://169.254.169.254/latest/meta-data/placement/region > $(results.region.path)
+
+  - name: checkout-repository
+    image: alpine/git
+    workingDir: $(workspaces.ws.path)
+    script: |
+      git clone https://github.com/aws/karpenter.git .
+      git checkout $(params.git-ref)
+
+  - name: create-iam-policies
+    image: public.ecr.aws/karpenter-testing/tools:latest
+    workingDir: $(workspaces.ws.path)
+    script: |
+      aws cloudformation deploy \
+        --stack-name KarpenterIAM-$(params.cluster-name) \
+        --template-file website/content/en/preview/getting-started/getting-started-with-eksctl/cloudformation.yaml \
+        --capabilities CAPABILITY_NAMED_IAM \
+        --parameter-overrides "ClusterName=$(params.cluster-name)"
+
+  - name: create-cluster
+    image: public.ecr.aws/karpenter-testing/tools:latest
+    script: |
+      cmd="create"
+      eksctl get cluster --name $(params.cluster-name) && cmd="upgrade"
+      eksctl ${cmd} cluster -f - <<EOF
+      ---
+      apiVersion: eksctl.io/v1alpha5
+      kind: ClusterConfig
+      metadata:
+        name: $(params.cluster-name)
+        region: $(cat $(results.region.path))
+        version: "1.21"
+        tags:
+          karpenter.sh/discovery: $(params.cluster-name)
+      managedNodeGroups:
+        - instanceType: m5.large
+          amiFamily: AmazonLinux2
+          name: $(params.cluster-name)-system-pool
+          desiredCapacity: 2
+          minSize: 2
+          maxSize: 2
+          taints:
+          - key: CriticalAddonsOnly
+            value: "true"
+            effect: NoSchedule
+      iam:
+        withOIDC: true
+      EOF
+
+      eksctl create iamidentitymapping \
+      --username system:node:{{EC2PrivateDNSName}} \
+      --cluster "$(params.cluster-name)" \
+      --arn "arn:aws:iam::$(cat $(results.account-id.path)):role/KarpenterNodeRole-$(params.cluster-name)" \
+      --group system:bootstrappers \
+      --group system:nodes
+
+      eksctl create iamserviceaccount \
+        --cluster "$(params.cluster-name)" --name karpenter --namespace karpenter \
+        --role-name "$(params.cluster-name)-karpenter" \
+        --attach-policy-arn "arn:aws:iam::$(cat $(results.account-id.path)):policy/KarpenterControllerPolicy-$(params.cluster-name)" \
+        --role-only \
+        --approve
+
+  - name: install-karpenter
+    image: public.ecr.aws/karpenter-testing/tools:latest
+    workingDir: $(workspaces.ws.path)
+    script: |
+      aws eks update-kubeconfig --name $(params.cluster-name)
+      helm repo add karpenter https://charts.karpenter.sh/
+      helm repo update
+      helm upgrade --install --kubeconfig /root/.kube/config --namespace karpenter --create-namespace \
+        karpenter karpenter/karpenter \
+        --version v0-$(git rev-parse HEAD) \
+        --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="arn:aws:iam::$(cat $(results.account-id.path)):role/$(params.cluster-name)-karpenter" \
+        --set tolerations[0].key="CriticalAddonsOnly" \
+        --set tolerations[0].operator="Exists" \
+        --set clusterName=$(params.cluster-name) \
+        --set clusterEndpoint=$(cat /root/.kube/config | grep server | awk '{print $2}') \
+        --set aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-$(params.cluster-name) \
+        --wait

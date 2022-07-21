@@ -1,0 +1,79 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: upgrade
+  namespace: karpenter-tests
+spec:
+  params:
+    - name: cluster-name
+      default: $(context.pipelineRun.namespace)-$(context.pipelineRun.name)
+      description: Uniquely identifies a cluster name for the suite.
+    - name: from-git-ref
+      default: v0.13.2
+      description: Git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release.
+    - name: to-git-ref
+      default: HEAD
+      description: Git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release.
+    - name: cleanup
+      default: "true"
+      description: If true, clean up resources
+  tasks:
+
+  - name: setup
+    taskRef:
+      name: setup
+    params:
+    - name: cluster-name
+      value: $(params.cluster-name)
+    - name: git-ref
+      value: $(params.from-git-ref)
+
+  - name: run-test
+    taskRef:
+      name: run-test
+    params:
+    - name: cluster-name
+      value: $(params.cluster-name)
+    - name: git-ref
+      value: $(params.to-git-ref)
+    - name: suite-path
+      value: ./test/suites/integration
+    runAfter:
+    - setup
+
+  - name: upgrade
+    taskRef:
+      name: setup
+    params:
+    - name: cluster-name
+      value: $(params.cluster-name)
+    - name: git-ref
+      value: $(params.to-git-ref)
+    runAfter:
+    - run-test
+
+  - name: run-test-again
+    taskRef:
+      name: run-test
+    params:
+    - name: cluster-name
+      value: $(params.cluster-name)
+    - name: git-ref
+      value: $(params.to-git-ref)
+    - name: suite-path
+      value: ./test/suites/integration
+    runAfter:
+    - upgrade
+
+  finally:
+  - name: cleanup
+    taskRef:
+      name: cleanup
+    params:
+    - name: cluster-name
+      value: $(params.cluster-name)
+    when:
+    - input: $(params.cleanup)
+      operator: in
+      values:
+        - "true"
