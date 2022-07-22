@@ -39,7 +39,6 @@ podLabels: {}
 # -- Additional annotations for the pod.
 podAnnotations: {}
 podDisruptionBudget:
-# -- Allow custom PDB name to be used  
   name: karpenter
   maxUnavailable: 1
 # -- SecurityContext for the pod.
