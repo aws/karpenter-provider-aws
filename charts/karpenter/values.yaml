@@ -10,6 +10,7 @@ additionalLabels: {}
 additionalAnnotations: {}
 # -- Image pull policy for Docker images.
 imagePullPolicy: IfNotPresent
+# -- Image pull secrets for Docker images.
 imagePullSecrets: []
 serviceAccount:
   # -- Specifies if a ServiceAccount should be created.
