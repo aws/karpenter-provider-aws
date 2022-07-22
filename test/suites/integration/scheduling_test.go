@@ -1,8 +1,9 @@
 package integration_test
 
 import (
+	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/test"
 	. "github.com/onsi/ginkgo"
 	v1 "k8s.io/api/core/v1"
@@ -13,7 +14,7 @@ import (
 
 var _ = Describe("Scheduling Conformance", func() {
 	It("should provision a node for naked pods", func() {
-		provider := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{AWS: v1alpha1.AWS{
+		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 		}})
@@ -25,7 +26,7 @@ var _ = Describe("Scheduling Conformance", func() {
 		env.ExpectCreatedNodeCount("==", 1)
 	})
 	It("should provision a node for a deployment", func() {
-		provider := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{AWS: v1alpha1.AWS{
+		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 		}})
@@ -39,7 +40,7 @@ var _ = Describe("Scheduling Conformance", func() {
 		env.ExpectCreatedNodeCount("<=", 2) // should probably all land on a single node, but at worst two depending on batching
 	})
 	It("should provision a node for a self-affinity deployment", func() {
-		provider := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{AWS: v1alpha1.AWS{
+		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 		}})
@@ -66,7 +67,7 @@ var _ = Describe("Scheduling Conformance", func() {
 		env.ExpectCreatedNodeCount("==", 1)
 	})
 	It("should provision three nodes for a zonal topology spread", func() {
-		provider := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{AWS: v1alpha1.AWS{
+		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 		}})

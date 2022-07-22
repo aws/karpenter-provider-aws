@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/Pallinder/go-randomdata"
+	"github.com/imdario/mergo"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -38,12 +39,18 @@ func RandomName() string {
 	return strings.ToLower(fmt.Sprintf("%s-%d-%s", randomdata.SillyName(), sequentialNumber, randomdata.Alphanumeric(10)))
 }
 
-func ObjectMeta(options metav1.ObjectMeta) metav1.ObjectMeta {
-	if options.Name == "" {
-		options.Name = RandomName()
+func ObjectMeta(overrides ...metav1.ObjectMeta) metav1.ObjectMeta {
+	return MustMerge(metav1.ObjectMeta{
+		Name:      RandomName(),
+		Namespace: "default",
+	}, overrides...)
+}
+
+func MustMerge[T interface{}](dest T, srcs ...T) T {
+	for _, src := range srcs {
+		if err := mergo.Merge(&dest, src, mergo.WithOverride); err != nil {
+			panic(fmt.Sprintf("Failed to merge object: %s", err))
+		}
 	}
-	if options.Namespace == "" {
-		options.Namespace = "default"
-	}
-	return options
+	return dest
 }

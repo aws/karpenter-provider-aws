@@ -8,8 +8,9 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ssm"
+	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/test"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -25,12 +26,13 @@ var _ = Describe("LaunchTemplates", func() {
 	})
 
 	It("should use the AMI defined by the AMI Selector", func() {
-		provider := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
-			AMIFamily:             &v1alpha1.AMIFamilyAL2,
-		},
-			AMISelector: map[string]string{"aws-ids": customAMI},
+		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+			AWS: awsv1alpha1.AWS{
+				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
+				SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
+				AMIFamily:             &awsv1alpha1.AMIFamilyAL2,
+			},
+			AMISelector:           map[string]string{"aws-ids": customAMI},
 		})
 		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
 		pod := test.Pod()
@@ -39,13 +41,13 @@ var _ = Describe("LaunchTemplates", func() {
 		env.EventuallyExpectHealthy(pod)
 		env.ExpectCreatedNodeCount("==", 1)
 
-		ExpectInstance(pod.Spec.NodeName).To(HaveField("ImageId", BeEquivalentTo(customAMI)))
+		ExpectInstance(pod.Spec.NodeName).To(HaveField("ImageId", HaveValue(Equal(customAMI))))
 	})
 	It("should support Custom AMIFamily with AMI Selectors", func() {
-		provider := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{AWS: v1alpha1.AWS{
+		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
-			AMIFamily:             &v1alpha1.AMIFamilyCustom,
+			AMIFamily:             &awsv1alpha1.AMIFamilyCustom,
 		},
 			AMISelector: map[string]string{"aws-ids": customAMI},
 			UserData:    aws.String(fmt.Sprintf("#!/bin/bash\n/etc/eks/bootstrap.sh '%s'", env.ClusterName)),
@@ -57,7 +59,7 @@ var _ = Describe("LaunchTemplates", func() {
 		env.EventuallyExpectHealthy(pod)
 		env.ExpectCreatedNodeCount("==", 1)
 
-		ExpectInstance(pod.Spec.NodeName).To(HaveField("ImageId", BeEquivalentTo(customAMI)))
+		ExpectInstance(pod.Spec.NodeName).To(HaveField("ImageId", HaveValue(Equal(customAMI))))
 	})
 })
 

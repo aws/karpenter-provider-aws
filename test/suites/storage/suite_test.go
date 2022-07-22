@@ -5,8 +5,9 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/test"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -52,7 +53,7 @@ var _ = Describe("Dynamic PVC", func() {
 			}
 		}
 
-		provider := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{AWS: v1alpha1.AWS{
+		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 		}})
@@ -90,7 +91,7 @@ var _ = Describe("Dynamic PVC", func() {
 
 var _ = Describe("Static PVC", func() {
 	It("should run a pod with a static persistent volume", func() {
-		provider := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{AWS: v1alpha1.AWS{
+		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 		}})
