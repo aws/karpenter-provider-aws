@@ -15,35 +15,12 @@ limitations under the License.
 package test
 
 import (
-	"fmt"
-
-	"github.com/imdario/mergo"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
-	aws "github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 )
 
-type AWSNodeTemplateOptions struct {
-	metav1.ObjectMeta
-	UserData    *string
-	AMISelector map[string]string
-	AWS         aws.AWS
-}
-
-func AWSNodeTemplate(overrides ...AWSNodeTemplateOptions) *v1alpha1.AWSNodeTemplate {
-	options := AWSNodeTemplateOptions{}
-	for _, opts := range overrides {
-		if err := mergo.Merge(&options, opts, mergo.WithOverride); err != nil {
-			panic(fmt.Sprintf("Failed to merge aws node template options: %s", err))
-		}
-	}
+func AWSNodeTemplate(overrides ...v1alpha1.AWSNodeTemplateSpec) *v1alpha1.AWSNodeTemplate {
 	return &v1alpha1.AWSNodeTemplate{
-		ObjectMeta: ObjectMeta(options.ObjectMeta),
-		Spec: v1alpha1.AWSNodeTemplateSpec{
-			UserData:    options.UserData,
-			AMISelector: options.AMISelector,
-			AWS:         options.AWS,
-		},
+		ObjectMeta: ObjectMeta(),
+		Spec:       MustMerge(v1alpha1.AWSNodeTemplateSpec{}, overrides...),
 	}
 }

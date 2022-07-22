@@ -29,7 +29,7 @@ type recording struct {
 	pods  v1.PodList
 }
 
-func NewClusterMonitor(ctx context.Context, kubeClient client.Client) *Monitor {
+func NewMonitor(ctx context.Context, kubeClient client.Client) *Monitor {
 	m := &Monitor{
 		ctx:        ctx,
 		kubeClient: kubeClient,
@@ -138,17 +138,12 @@ func (m *Monitor) poll() {
 	if err := m.kubeClient.List(m.ctx, &pods); err != nil {
 		logging.FromContext(m.ctx).Errorf("listing pods, %s", err)
 	}
-	m.record(nodes, pods)
-}
-
-func (m *Monitor) record(nodes v1.NodeList, pods v1.PodList) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.recordings = append(m.recordings, recording{
 		nodes: nodes,
 		pods:  pods,
 	})
-
 	for _, node := range nodes.Items {
 		m.nodesSeen.Insert(node.Name)
 	}

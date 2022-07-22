@@ -25,7 +25,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"knative.dev/pkg/logging"
-	"knative.dev/pkg/ptr"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 )
@@ -59,9 +58,6 @@ func Provisioner(overrides ...ProvisionerOptions) *v1alpha5.Provisioner {
 	}
 	if options.Limits == nil {
 		options.Limits = v1.ResourceList{v1.ResourceCPU: resource.MustParse("1000")}
-	}
-	if options.TTLSecondsAfterEmpty == nil {
-		options.TTLSecondsAfterEmpty = ptr.Int64(10)
 	}
 
 	provisioner := &v1alpha5.Provisioner{
