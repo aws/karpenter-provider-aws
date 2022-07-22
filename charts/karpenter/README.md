@@ -61,6 +61,7 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | nameOverride | string | `""` | Overrides the chart's name. |
 | nodeSelector | object | `{"kubernetes.io/os":"linux"}` | Node selectors to schedule the pod to nodes with labels. |
 | podAnnotations | object | `{}` | Additional annotations for the pod. |
+| podDisruptionBudget.name | string | `karpenter` | Custom PDB name. |
 | podDisruptionBudget.maxUnavailable | int | `1` |  |
 | podLabels | object | `{}` | Additional labels for the pod. |
 | podSecurityContext | object | `{"fsGroup":1000}` | SecurityContext for the pod. |
