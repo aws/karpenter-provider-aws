@@ -39,6 +39,7 @@ podLabels: {}
 # -- Additional annotations for the pod.
 podAnnotations: {}
 podDisruptionBudget:
+  name: karpenter
   maxUnavailable: 1
 # -- SecurityContext for the pod.
 podSecurityContext:
