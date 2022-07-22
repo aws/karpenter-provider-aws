@@ -10,7 +10,6 @@ additionalLabels: {}
 additionalAnnotations: {}
 # -- Image pull policy for Docker images.
 imagePullPolicy: IfNotPresent
-# -- Image pull secrets for Docker images.
 imagePullSecrets: []
 serviceAccount:
   # -- Specifies if a ServiceAccount should be created.
@@ -39,6 +38,8 @@ podLabels: {}
 # -- Additional annotations for the pod.
 podAnnotations: {}
 podDisruptionBudget:
+# -- Allow custom PDB name to be used  
+  name: karpenter
   maxUnavailable: 1
 # -- SecurityContext for the pod.
 podSecurityContext:
