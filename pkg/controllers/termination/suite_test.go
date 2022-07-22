@@ -329,7 +329,7 @@ var _ = Describe("Termination", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 			node = ExpectNodeExists(ctx, env.Client, node.Name)
 			// Simulate stuck terminating
-			injectabletime.Now = func() time.Time { return time.Now().Add(1 * time.Minute) }
+			injectabletime.Now = func() time.Time { return time.Now().Add(2 * time.Minute) }
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 			ExpectNotFound(ctx, env.Client, node)
 		})
@@ -494,7 +494,7 @@ var _ = Describe("Termination", func() {
 			ExpectEvicted(env.Client, pod)
 
 			// After grace period, node should delete
-			injectabletime.Now = func() time.Time { return time.Now().Add(30 * time.Second) }
+			injectabletime.Now = func() time.Time { return time.Now().Add(90 * time.Second) }
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 			ExpectNotFound(ctx, env.Client, node)
 		})
