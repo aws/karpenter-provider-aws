@@ -1431,6 +1431,60 @@ var _ = Describe("Topology", func() {
 			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(7, 7, 7))
 			ExpectSkew(ctx, env.Client, "default", &topology[1]).ToNot(ContainElements(BeNumerically(">", 3)))
 		})
+		It("should balance pods across provisioner requirements", func() {
+			spotProv := test.Provisioner(test.ProvisionerOptions{
+				Requirements: []v1.NodeSelectorRequirement{
+					{
+						Key:      v1alpha5.LabelCapacityType,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{"spot"},
+					},
+					{
+						Key:      "capacity.spread.4-1",
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{"2", "3", "4", "5"},
+					},
+				},
+			})
+			onDemandProv := test.Provisioner(test.ProvisionerOptions{
+				Requirements: []v1.NodeSelectorRequirement{
+					{
+						Key:      v1alpha5.LabelCapacityType,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{"on-demand"},
+					},
+					{
+						Key:      "capacity.spread.4-1",
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{"1"},
+					},
+				},
+			})
+
+			topology := []v1.TopologySpreadConstraint{{
+				TopologyKey:       "capacity.spread.4-1",
+				WhenUnsatisfiable: v1.DoNotSchedule,
+				LabelSelector:     &metav1.LabelSelector{MatchLabels: labels},
+				MaxSkew:           1,
+			}}
+			ExpectApplied(ctx, env.Client, spotProv, onDemandProv)
+			pods := ExpectProvisioned(ctx, env.Client, controller, MakePods(20, test.PodOptions{
+				ObjectMeta:                metav1.ObjectMeta{Labels: labels},
+				TopologySpreadConstraints: topology,
+			})...)
+			for _, p := range pods {
+				ExpectScheduled(ctx, env.Client, p)
+			}
+
+			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(4, 4, 4, 4, 4))
+			// due to the spread across provisioners, we've forced a 4:1 spot to on-demand spread
+			ExpectSkew(ctx, env.Client, "default", &v1.TopologySpreadConstraint{
+				TopologyKey:       v1alpha5.LabelCapacityType,
+				WhenUnsatisfiable: v1.DoNotSchedule,
+				LabelSelector:     &metav1.LabelSelector{MatchLabels: labels},
+				MaxSkew:           1,
+			}).To(ConsistOf(4, 16))
+		})
 	})
 
 	Context("Combined Hostname and Capacity Type Topology", func() {
