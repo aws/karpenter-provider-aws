@@ -36,8 +36,8 @@ spec:
       value: $(params.cluster-name)
     - name: git-ref
       value: $(params.to-git-ref)
-    - name: suite-path
-      value: ./test/suites/integration
+    - name: test-filter
+      value: TestIntegration
     runAfter:
     - setup
 
@@ -60,8 +60,8 @@ spec:
       value: $(params.cluster-name)
     - name: git-ref
       value: $(params.to-git-ref)
-    - name: suite-path
-      value: ./test/suites/integration
+    - name: test-filter
+      value: TestIntegration
     runAfter:
     - upgrade
 

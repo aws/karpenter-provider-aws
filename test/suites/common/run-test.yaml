@@ -10,8 +10,8 @@ spec:
   params:
     - name: cluster-name
       description: Name of the cluster under test.
-    - name: suite-path
-      description: Path to the test suite
+    - name: test-filter
+      description: Test filter passed to `go test -run`
     - name: git-ref
       description: Git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release.
   workspaces:
@@ -30,4 +30,4 @@ spec:
     workingDir: $(workspaces.ws.path)
     script: |
       aws eks update-kubeconfig --name $(params.cluster-name)
-      go test -v $(params.suite-path) -cluster-name $(params.cluster-name) -kubeconfig /root/.kube/config
+      TEST_FILTER=$(params.test-filter) make e2etests

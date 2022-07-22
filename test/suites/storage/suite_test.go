@@ -33,12 +33,8 @@ func TestStorage(t *testing.T) {
 	RunSpecs(t, "Storage")
 }
 
-var _ = BeforeEach(func() {
-	env.BeforeEach()
-})
-var _ = AfterEach(func() {
-	env.AfterEach()
-})
+var _ = BeforeEach(func() { env.BeforeEach() })
+var _ = AfterEach(func() { env.AfterEach() })
 
 // This test requires the EBS CSI driver to be installed
 var _ = Describe("Dynamic PVC", func() {
@@ -57,8 +53,8 @@ var _ = Describe("Dynamic PVC", func() {
 		}
 
 		provider := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.Options.ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.Options.ClusterName},
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{
 			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
@@ -85,21 +81,18 @@ var _ = Describe("Dynamic PVC", func() {
 			PersistentVolumeClaims: []string{pvc.Name},
 		})
 
-		env.ExpectCreatedNodeCount("==", 0)
 		env.ExpectCreated(provisioner, provider, sc, pvc, pod)
 		env.EventuallyExpectHealthy(pod)
 		env.ExpectCreatedNodeCount("==", 1)
 		env.ExpectDeleted(pod)
-		env.EventuallyExpectScaleDown()
-		env.ExpectNoCrashes()
 	})
 })
 
 var _ = Describe("Static PVC", func() {
 	It("should run a pod with a static persistent volume", func() {
 		provider := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.Options.ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.Options.ClusterName},
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{
 			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
@@ -130,12 +123,9 @@ var _ = Describe("Static PVC", func() {
 			PersistentVolumeClaims: []string{pvc.Name},
 		})
 
-		env.ExpectCreatedNodeCount("==", 0)
 		env.ExpectCreated(provisioner, provider, pv, pvc, pod)
 		env.EventuallyExpectHealthy(pod)
 		env.ExpectCreatedNodeCount("==", 1)
 		env.ExpectDeleted(pod)
-		env.EventuallyExpectScaleDown()
-		env.ExpectNoCrashes()
 	})
 })

@@ -74,7 +74,9 @@ topologySpreadConstraints:
     topologyKey: topology.kubernetes.io/zone
     whenUnsatisfiable: ScheduleAnyway
 # -- Tolerations to allow the pod to be scheduled to nodes with taints.
-tolerations: []
+tolerations:
+  - key: CriticalAddonsOnly
+    operator: Exists
 # -- Additional volumes for the pod.
 extraVolumes: []
 # - name: aws-iam-token

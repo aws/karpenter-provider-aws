@@ -11,8 +11,8 @@ spec:
     - name: git-ref
       default: HEAD
       description: Git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release.
-    - name: suite-path
-      description: Path to the test suite from the git-ref root directory. (e.g. ./test/suites/...)
+    - name: test-filter
+      description: Test filter passed to `go test -run`
     - name: cleanup
       default: "true"
       description: If true, clean up resources
@@ -35,8 +35,8 @@ spec:
       value: $(params.cluster-name)
     - name: git-ref
       value: $(params.git-ref)
-    - name: suite-path
-      value: $(params.suite-path)
+    - name: test-filter
+      value: $(params.test-filter)
     runAfter:
     - setup
 
