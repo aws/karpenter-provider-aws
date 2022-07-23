@@ -1,4 +1,3 @@
-
 apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
@@ -30,4 +29,4 @@ spec:
     workingDir: $(workspaces.ws.path)
     script: |
       aws eks update-kubeconfig --name $(params.cluster-name)
-      TEST_FILTER=$(params.test-filter) make e2etests
+      KUBECONFIG=/root/.kube/config TEST_FILTER=$(params.test-filter) make e2etests

@@ -32,7 +32,7 @@ var _ = Describe("LaunchTemplates", func() {
 				SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 				AMIFamily:             &awsv1alpha1.AMIFamilyAL2,
 			},
-			AMISelector:           map[string]string{"aws-ids": customAMI},
+			AMISelector: map[string]string{"aws-ids": customAMI},
 		})
 		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
 		pod := test.Pod()
