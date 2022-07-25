@@ -64,7 +64,8 @@ var _ = Describe("LaunchTemplates", func() {
 		ExpectInstance(pod.Spec.NodeName).To(HaveField("ImageId", HaveValue(Equal(customAMI))))
 	})
 	It("should merge UserData contents for AL2 AMIFamily", func() {
-		content, _ := ioutil.ReadFile("testdata/al2_userdata_input.golden")
+		content, err := ioutil.ReadFile("testdata/al2_userdata_input.golden")
+		Expect(err).ToNot(HaveOccurred())
 		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
@@ -79,13 +80,15 @@ var _ = Describe("LaunchTemplates", func() {
 		env.EventuallyExpectHealthy(pod)
 		env.ExpectCreatedNodeCount("==", 1)
 
-		actualUserData, _ := base64.StdEncoding.DecodeString(*getInstanceAttribute(pod.Spec.NodeName, "userData").UserData.Value)
+		actualUserData, err := base64.StdEncoding.DecodeString(*getInstanceAttribute(pod.Spec.NodeName, "userData").UserData.Value)
+		Expect(err).ToNot(HaveOccurred())
 		// Since the node has joined the cluster, we know our bootstrapping was correct.
 		// Just verify if the UserData contains our custom content too, rather than doing a byte-wise comparison.
 		Expect(string(actualUserData)).To(ContainSubstring("Running custom user data script"))
 	})
 	It("should merge UserData contents for Bottlerocket AMIFamily", func() {
-		content, _ := ioutil.ReadFile("testdata/br_userdata_input.golden")
+		content, err := ioutil.ReadFile("testdata/br_userdata_input.golden")
+		Expect(err).ToNot(HaveOccurred())
 		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
@@ -100,7 +103,8 @@ var _ = Describe("LaunchTemplates", func() {
 		env.EventuallyExpectHealthy(pod)
 		env.ExpectCreatedNodeCount("==", 1)
 
-		actualUserData, _ := base64.StdEncoding.DecodeString(*getInstanceAttribute(pod.Spec.NodeName, "userData").UserData.Value)
+		actualUserData, err := base64.StdEncoding.DecodeString(*getInstanceAttribute(pod.Spec.NodeName, "userData").UserData.Value)
+		Expect(err).ToNot(HaveOccurred())
 		Expect(string(actualUserData)).To(ContainSubstring("kube-api-qps = 30"))
 	})
 })
@@ -119,7 +123,7 @@ func ExpectInstance(nodeName string) Assertion {
 	return Expect(instance.Reservations[0].Instances[0])
 }
 
-func getInstanceAttribute(nodeName string, attribute string) ec2.DescribeInstanceAttributeOutput {
+func getInstanceAttribute(nodeName string, attribute string) *ec2.DescribeInstanceAttributeOutput {
 	var node v1.Node
 	Expect(env.Client.Get(env.Context, types.NamespacedName{Name: nodeName}, &node)).To(Succeed())
 	providerIDSplit := strings.Split(node.Spec.ProviderID, "/")
@@ -129,7 +133,7 @@ func getInstanceAttribute(nodeName string, attribute string) ec2.DescribeInstanc
 		Attribute:  aws.String(attribute),
 	})
 	Expect(err).ToNot(HaveOccurred())
-	return *instanceAttribute
+	return instanceAttribute
 }
 
 func selectCustomAMI(amiPath string) string {
