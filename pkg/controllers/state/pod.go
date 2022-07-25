@@ -23,6 +23,7 @@ import (
 	"knative.dev/pkg/logging"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -66,6 +67,7 @@ func (c *PodController) Register(ctx context.Context, m manager.Manager) error {
 	return controllerruntime.
 		NewControllerManagedBy(m).
 		Named(podControllerName).
+		WithOptions(controller.Options{MaxConcurrentReconciles: 10}).
 		For(&v1.Pod{}).
 		Complete(c)
 }
