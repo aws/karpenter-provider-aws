@@ -292,9 +292,11 @@ func (c *Cluster) deleteNode(nodeName string) {
 
 // updateNode is called for every node reconciliation
 func (c *Cluster) updateNode(ctx context.Context, node *v1.Node) error {
+	// perform node lookup before we lock so that the slower operation can occur in parallel
+	n, err := c.newNode(ctx, node)
+
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	n, err := c.newNode(ctx, node)
 	if err != nil {
 		// ensure that the out of date node is forgotten
 		delete(c.nodes, node.Name)

@@ -18,10 +18,13 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"time"
 
+	"github.com/avast/retry-go"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -32,6 +35,10 @@ import (
 	"github.com/aws/karpenter/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/utils/resources"
 )
+
+// ClusterSyncRetries controls how many times we attempt to retry waiting on cluster state sync. This is exposed for
+// unit testing purposes so we can avoid a lengthy delay in cluster sync.
+var ClusterSyncRetries uint = 5
 
 func NewScheduler(ctx context.Context, kubeClient client.Client, nodeTemplates []*scheduling.NodeTemplate, provisioners []v1alpha5.Provisioner, cluster *state.Cluster, topology *Topology, instanceTypes map[string][]cloudprovider.InstanceType, daemonOverhead map[*scheduling.NodeTemplate]v1.ResourceList, recorder events.Recorder) *Scheduler {
 	for provisioner := range instanceTypes {
@@ -61,6 +68,9 @@ func NewScheduler(ctx context.Context, kubeClient client.Client, nodeTemplates [
 			s.remainingResources[provisioner.Name] = provisioner.Spec.Limits.Resources
 		}
 	}
+
+	// wait to ensure that our cluster state is synced with the current known nodes to prevent over-shooting
+	s.waitForClusterStateSync(ctx)
 
 	// create our in-flight nodes
 	s.cluster.ForEachNode(func(node *state.Node) bool {
@@ -222,6 +232,40 @@ func (s *Scheduler) add(ctx context.Context, pod *v1.Pod) error {
 		return nil
 	}
 	return errs
+}
+
+// waitForClusterStateSync ensures that our cluster state is aware of at least all of the nodes that our list cache has.
+// Since we launch nodes in parallel, we can create many node objects which may not all be reconciled by the cluster
+// state before we start trying to schedule again.  In this case, we would over-provision as we weren't aware of the
+// inflight nodes.
+func (s *Scheduler) waitForClusterStateSync(ctx context.Context) {
+	if err := retry.Do(func() error {
+		// collect the nodes known by the kube API server
+		var nodes v1.NodeList
+		if err := s.kubeClient.List(ctx, &nodes); err != nil {
+			return nil
+		}
+		unknownNodes := sets.NewString()
+		for _, n := range nodes.Items {
+			unknownNodes.Insert(n.Name)
+		}
+
+		// delete any that cluster state already knows about
+		s.cluster.ForEachNode(func(n *state.Node) bool {
+			delete(unknownNodes, n.Node.Name)
+			return true
+		})
+
+		// and we're left with nodes which exist, but haven't reconciled with cluster state yet
+		if len(unknownNodes) != 0 {
+			return fmt.Errorf("%d nodes not known to cluster state", len(unknownNodes))
+		}
+		return nil
+	}, retry.Delay(1*time.Second),
+		retry.Attempts(ClusterSyncRetries),
+	); err != nil {
+		logging.FromContext(ctx).Infof("nodes failed to sync, may launch too many nodes which should resolve")
+	}
 }
 
 // subtractMax returns the remaining resources after subtracting the max resource quantity per instance type. To avoid
