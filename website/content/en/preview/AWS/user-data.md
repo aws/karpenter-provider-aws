@@ -131,7 +131,6 @@ exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 
 You can specify a set of AMIs for a provisioner to use by specifying an AMISelector that identifies AMIs to use through EC2 tags or via a comma-separated list.
 
-
 ### Defining AMI constraints
 
 Karpenter will automatically determine the architecture that an EC2 AMI is compatible with (amd64, arm64), but other constraints of an AMI can be expressed as tags on the EC2 AMI.
