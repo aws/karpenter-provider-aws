@@ -86,7 +86,7 @@ The following labels are supported by Karpenter. They may be specified as provis
 | karpenter.sh/capacity-type                  | spot        | Capacity types include `spot`, `on-demand`                                                                                                  |
 | karpenter.k8s.aws/instance-hypervisor       | nitro       | [AWS Specific] Instance types that use a specific hypervisor                                                                                |
 | karpenter.k8s.aws/instance-category         | g           | [AWS Specific] Instance types of the same category, usually the string before the generation number                                         |
-| karpenter.k8s.aws/instance-generation       | 4           | [AWS Specific] Instance types of the same category, usually the string before the generation number                                         |
+| karpenter.k8s.aws/instance-generation       | 4           | [AWS Specific] Instance type generation number within an instance category                                                                  |
 | karpenter.k8s.aws/instance-family           | g4dn        | [AWS Specific] Instance types of similar properties but different resource quantities                                                       |
 | karpenter.k8s.aws/instance-size             | 8xlarge     | [AWS Specific] Instance types of similar resource quantities but different properties                                                       |
 | karpenter.k8s.aws/instance-cpu              | 32          | [AWS Specific] Number of CPUs on the instance                                                                                               |

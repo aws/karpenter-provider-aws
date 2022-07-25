@@ -1,0 +1,26 @@
+# ginkgo-suite is a generic task that executes ginkgo on the given repository and ginkgo suite.
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: cleanup
+  namespace: karpenter-tests
+spec:
+  description: |
+    Executes after a test suite to clean up resources
+  params:
+    - name: cluster-name
+      description: Name of the cluster under test.
+  workspaces:
+    - name: ws
+  steps:
+
+  - name: delete-cluster
+    image: public.ecr.aws/karpenter-testing/tools:latest
+    script: |
+      eksctl delete cluster --name $(params.cluster-name) --wait || true
+
+  - name: delete-iam-policies
+    image: public.ecr.aws/karpenter-testing/tools:latest
+    script: |
+      aws cloudformation delete-stack --stack-name KarpenterIAM-$(params.cluster-name)
+      aws cloudformation wait stack-delete-complete --stack-name KarpenterIAM-$(params.cluster-name)

@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -158,5 +159,5 @@ func IsStuckTerminating(pod *v1.Pod) bool {
 	if pod.DeletionTimestamp == nil {
 		return false
 	}
-	return injectabletime.Now().After(pod.DeletionTimestamp.Time)
+	return injectabletime.Now().After(pod.DeletionTimestamp.Time.Add(1 * time.Minute))
 }

@@ -18,7 +18,7 @@ kind: AWSNodeTemplate
 metadata:
   name: custom-family
 spec:
-  amiFamily: AL2
+  amiFamily: Custom
   instanceProfile: myInstanceProfile
   subnetSelector:
     karpenter.sh/discovery: my-cluster
