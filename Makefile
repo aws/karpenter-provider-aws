@@ -34,7 +34,7 @@ battletest: ## Run randomized, racing, code coveraged, tests
 		-tags random_test_delay
 
 e2etests: ## Run the e2e suite against your local cluster
-	go test -p 1 -timeout 60m -v ./test/suites/... -run=${TEST_FILTER} -cluster-name ${CLUSTER_NAME}
+	go test -p 1 -timeout 60m -v ./test/suites/... -run=${TEST_FILTER}
 
 benchmark:
 	go test -tags=test_performance -run=NoTests -bench=. ./...

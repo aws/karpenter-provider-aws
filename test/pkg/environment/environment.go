@@ -67,7 +67,10 @@ func DiscoverClusterName(config *rest.Config) (string, error) {
 	if ptr.StringValue(clusterNameFlag) != "" {
 		return ptr.StringValue(clusterNameFlag), nil
 	}
-	return "", fmt.Errorf("-cluster-name is not set")
+	if config.ExecProvider != nil && len(config.ExecProvider.Args) > 5 {
+		return config.ExecProvider.Args[5], nil
+	}
+	return "", fmt.Errorf("-cluster-name is not set and could not be discovered")
 }
 
 func NewConfig() *rest.Config {
