@@ -363,3 +363,73 @@ The EBS CSI driver uses `topology.ebs.csi.aws.com/zone` instead of the standard 
 {{% alert title="Note" color="primary" %}}
 The topology key `topology.kubernetes.io/region` is not supported. Legacy in-tree CSI providers specify this label. Instead, install an out-of-tree CSI provider. [Learn more about moving to CSI providers.](https://kubernetes.io/blog/2021/12/10/storage-in-tree-to-csi-migration-status-update/#quick-recap-what-is-csi-migration-and-why-migrate)
 {{% /alert %}}
+
+## Advanced Scheduling Techniques
+
+### `Exists` Operator
+
+The `Exists` operator can be used on a provisioner to provide workload segregation across nodes.  
+
+```yaml
+...
+  requirements:
+  - key: company.com/team
+    operator: Exists
+...
+```
+
+With the requirement on the provisioner in place, workloads can optionally specify a custom value as a required node affinity or node selector.  Karpenter will then label the nodes it launches for these pods which prevents `kube-scheduler` from scheduling conflicting pods to those nodes.  This provides a way to more dynamically isolate workloads without requiring a unique provisioner for each workload subset.
+
+```yaml
+  nodeSelector:
+    company.com/team: team-a
+```
+{{% alert title="Note" color="primary" %}}
+If a workload matches the provisioner but doesn't specify a label, Karpenter will generate a random label for the node.
+{{% /alert %}}
+
+### On-Demand/Spot Ratio Split
+
+Taking advantage of Karpenter's ability to assign labels to node and using a topology spread across those labels enables a crude method for splitting a workload across on-demand and spot instances in a desired ratio. 
+
+To do this, we create a provisioner each for spot and on-demand with disjoint values for a unique new label called `capacity-spread`.  In the example below, we provide four unique values for the spot provisioner and one value for the on-demand provisioner.  When we spread across our new label evenly, we'll end up with a ratio of 4:1 spot to on-demand nodes.   
+
+{{% alert title="Warning" color="warning" %}}
+This is not identical to a topology spread with a specified ratio.  We are constructing 'virtual domains' to spread evenly across and the ratio of those 'virtual domains' to spot and on-demand happen to coincide with the desired spot to on-demand ratio.  As an example, if you launch pods using the provided example, Karpenter will launch nodes with `capacity-spread` labels of 1, 2, 3, 4, and 5. `kube-scheduler` will then schedule evenly across those nodes to give the desired ratio.
+{{% /alert %}}
+
+#### Spot Provisioner
+```yaml
+  requirements:
+  - key: "karpenter.sh/capacity-type"
+    operator: In
+    values: [ "spot"]
+  - key: capacity-spread
+    operator: In
+    values:
+    - "2"
+    - "3"
+    - "4"
+    - "5"
+```
+
+#### On-Demand Provisioner
+```yaml
+  requirements:
+  - key: "karpenter.sh/capacity-type"
+    operator: In
+    values: [ "on-demand"]
+  - key: capacity-spread
+    operator: In
+    values:
+    - "1"
+```
+
+#### Workload Topology Spread Constraint
+
+```yaml
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: capacity-spread
+        whenUnsatisfiable: DoNotSchedule
+```
