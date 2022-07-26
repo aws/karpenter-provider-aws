@@ -32,11 +32,9 @@ var _ = Describe("Scheduling Conformance", func() {
 		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
 
-		const numPods = 50
-		deployment := test.Deployment(test.DeploymentOptions{Replicas: numPods})
-
+		deployment := test.Deployment(test.DeploymentOptions{Replicas: 50})
 		env.ExpectCreated(provisioner, provider, deployment)
-		env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), numPods)
+		env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
 		env.ExpectCreatedNodeCount("<=", 2) // should probably all land on a single node, but at worst two depending on batching
 	})
 	It("should provision a node for a self-affinity deployment", func() {

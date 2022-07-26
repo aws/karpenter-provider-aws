@@ -28,6 +28,7 @@ import (
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
@@ -451,4 +452,30 @@ func (c *Cluster) populateInstanceType(ctx context.Context, node *v1.Node, n *No
 		}
 	}
 	return fmt.Errorf("instance type '%s' not found", instanceTypeName)
+}
+
+// clusterStateSynchronized ensures that our cluster state is aware of at least all of the nodes that our list cache has.
+// Since we launch nodes in parallel, we can create many node objects which may not all be reconciled by the cluster
+// state before we start trying to schedule again.  In this case, we would over-provision as we weren't aware of the
+// inflight nodes.
+func (c *Cluster) Synchronized(ctx context.Context) error {
+	// collect the nodes known by the kube API server
+	var nodes v1.NodeList
+	if err := c.kubeClient.List(ctx, &nodes); err != nil {
+		return err
+	}
+	unknownNodes := sets.NewString()
+	for _, n := range nodes.Items {
+		unknownNodes.Insert(n.Name)
+	}
+	// delete any that cluster state already knows about
+	c.ForEachNode(func(n *Node) bool {
+		unknownNodes.Delete(n.Node.Name)
+		return true
+	})
+	// and we're left with nodes which exist, but haven't reconciled with cluster state yet
+	if len(unknownNodes) != 0 {
+		return fmt.Errorf("%d/%d nodes not yet synchronized", unknownNodes.Len(), len(nodes.Items))
+	}
+	return nil
 }

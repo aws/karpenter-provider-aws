@@ -27,6 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
 	"github.com/aws/karpenter/pkg/apis"
+	"github.com/aws/karpenter/pkg/controllers/provisioning/scheduling"
 	"github.com/aws/karpenter/pkg/utils/project"
 )
 
@@ -71,6 +72,8 @@ type Environment struct {
 type EnvironmentOption func(env *Environment)
 
 func NewEnvironment(ctx context.Context, options ...EnvironmentOption) *Environment {
+	scheduling.WaitForClusterSync = false
+
 	ctx, stop := context.WithCancel(ctx)
 	return &Environment{
 		Environment: envtest.Environment{
