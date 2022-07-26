@@ -216,12 +216,8 @@ func (p *Provisioner) schedule(ctx context.Context, pods []*v1.Pod) ([]*schedule
 		return nil, fmt.Errorf("no provisioners found")
 	}
 
-	// Inject topology requirements
-	for _, pod := range pods {
-		if err := p.volumeTopology.Inject(ctx, pod); err != nil {
-			return nil, fmt.Errorf("getting volume topology requirements, %w", err)
-		}
-	}
+	// inject topology constraints
+	pods = p.injectTopology(ctx, pods)
 
 	// Calculate cluster topology
 	topology, err := scheduler.NewTopology(ctx, p.kubeClient, p.cluster, domains, pods)
@@ -314,6 +310,18 @@ func (p *Provisioner) Validate(ctx context.Context, pod *v1.Pod) error {
 		validateAffinity(pod),
 		p.volumeTopology.validatePersistentVolumeClaims(ctx, pod),
 	)
+}
+
+func (p *Provisioner) injectTopology(ctx context.Context, pods []*v1.Pod) []*v1.Pod {
+	var schedulablePods []*v1.Pod
+	for _, pod := range pods {
+		if err := p.volumeTopology.Inject(ctx, pod); err != nil {
+			logging.FromContext(ctx).With("pod", client.ObjectKeyFromObject(pod)).Errorf("getting volume topology requirements, %w", err)
+		} else {
+			schedulablePods = append(schedulablePods, pod)
+		}
+	}
+	return schedulablePods
 }
 
 func validateAffinity(p *v1.Pod) (errs error) {
