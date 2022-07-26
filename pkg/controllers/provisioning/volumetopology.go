@@ -135,10 +135,25 @@ func (v *VolumeTopology) getPersistentVolumeClaim(ctx context.Context, pod *v1.P
 	return pvc, nil
 }
 
+// validatePersistentVolumeClaims returns an error if the pod doesn't appear to be valid with respect to
+// PVCs (e.g. the PVC is not found or references an unknown storage class).
 func (v *VolumeTopology) validatePersistentVolumeClaims(ctx context.Context, pod *v1.Pod) error {
 	for _, volume := range pod.Spec.Volumes {
-		if _, err := v.getPersistentVolumeClaim(ctx, pod, volume); err != nil {
+		// validate the PVC if it exists
+		pvc, err := v.getPersistentVolumeClaim(ctx, pod, volume)
+		if err != nil {
 			return err
+		}
+		// may not have a PVC
+		if pvc == nil {
+			continue
+		}
+		// if the PVC exists and it has a storage class, ensure it's valid as well
+		if pvc.Spec.StorageClassName != nil && ptr.StringValue(pvc.Spec.StorageClassName) != "" {
+			storageClass := &storagev1.StorageClass{}
+			if err := v.kubeClient.Get(ctx, types.NamespacedName{Name: ptr.StringValue(pvc.Spec.StorageClassName)}, storageClass); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

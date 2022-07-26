@@ -506,10 +506,30 @@ var _ = Describe("Volume Topology Requirements", func() {
 		}))[0]
 		ExpectNotScheduled(ctx, env.Client, pod)
 	})
-	It("should schedule valid pods when a pod with an invalid pvc is encountered", func() {
+	It("should schedule with an empty storage class", func() {
+		storageClass := ""
+		persistentVolumeClaim := test.PersistentVolumeClaim(test.PersistentVolumeClaimOptions{StorageClassName: &storageClass})
+		ExpectApplied(ctx, env.Client, test.Provisioner(), persistentVolumeClaim)
+		pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(test.PodOptions{
+			PersistentVolumeClaims: []string{persistentVolumeClaim.Name},
+		}))[0]
+		ExpectScheduled(ctx, env.Client, pod)
+	})
+	It("should schedule valid pods when a pod with an invalid pvc is encountered (pvc)", func() {
 		ExpectApplied(ctx, env.Client, test.Provisioner())
 		invalidPod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(test.PodOptions{
 			PersistentVolumeClaims: []string{"invalid"},
+		}))[0]
+		pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(test.PodOptions{}))[0]
+		ExpectNotScheduled(ctx, env.Client, invalidPod)
+		ExpectScheduled(ctx, env.Client, pod)
+	})
+	It("should schedule valid pods when a pod with an invalid pvc is encountered (storage class)", func() {
+		invalidStorageClass := "invalid-storage-class"
+		persistentVolumeClaim := test.PersistentVolumeClaim(test.PersistentVolumeClaimOptions{StorageClassName: &invalidStorageClass})
+		ExpectApplied(ctx, env.Client, test.Provisioner(), persistentVolumeClaim)
+		invalidPod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(test.PodOptions{
+			PersistentVolumeClaims: []string{persistentVolumeClaim.Name},
 		}))[0]
 		pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(test.PodOptions{}))[0]
 		ExpectNotScheduled(ctx, env.Client, invalidPod)
