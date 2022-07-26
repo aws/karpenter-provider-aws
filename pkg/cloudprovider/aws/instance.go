@@ -45,7 +45,7 @@ import (
 )
 
 var (
-	safeSpotFallbackThreshold = 10 // falling back to on-demand without flexibility risks insufficient capacity errors
+	safeSpotFallbackThreshold = 5 // falling back to on-demand without flexibility risks insufficient capacity errors
 )
 
 type InstanceProvider struct {
