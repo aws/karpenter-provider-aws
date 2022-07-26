@@ -77,6 +77,9 @@ Also, `nodeSelector` can do only do inclusions, while `affinity` can do inclusio
 ### Supported Labels
 The following labels are supported by Karpenter. They may be specified as provisioner requirements or pod scheduling constraints.
 
+{{% alert title="Warning" color="warning" %}}
+Take care to ensure the label domains are correct. A well known label like `karpenter.k8s.aws/instance-family` will enforce node properties, but may be confused with `node.kubernetes.io/instance-family`, which is unknown to Karpenter, and treated as a custom label which will not enforce node properties.
+
 | Label                                       | Example     | Description                                                                                                                                 |
 | ------------------------------------------- | ----------  | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | topology.kubernetes.io/zone                 | us-east-2a  | Zones are defined by your cloud provider ([aws](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-regions-availability-zones.html)) |
@@ -368,7 +371,7 @@ The topology key `topology.kubernetes.io/region` is not supported. Legacy in-tre
 
 ### `Exists` Operator
 
-The `Exists` operator can be used on a provisioner to provide workload segregation across nodes.  
+The `Exists` operator can be used on a provisioner to provide workload segregation across nodes.
 
 ```yaml
 ...
@@ -390,9 +393,9 @@ If a workload matches the provisioner but doesn't specify a label, Karpenter wil
 
 ### On-Demand/Spot Ratio Split
 
-Taking advantage of Karpenter's ability to assign labels to node and using a topology spread across those labels enables a crude method for splitting a workload across on-demand and spot instances in a desired ratio. 
+Taking advantage of Karpenter's ability to assign labels to node and using a topology spread across those labels enables a crude method for splitting a workload across on-demand and spot instances in a desired ratio.
 
-To do this, we create a provisioner each for spot and on-demand with disjoint values for a unique new label called `capacity-spread`.  In the example below, we provide four unique values for the spot provisioner and one value for the on-demand provisioner.  When we spread across our new label evenly, we'll end up with a ratio of 4:1 spot to on-demand nodes.   
+To do this, we create a provisioner each for spot and on-demand with disjoint values for a unique new label called `capacity-spread`.  In the example below, we provide four unique values for the spot provisioner and one value for the on-demand provisioner.  When we spread across our new label evenly, we'll end up with a ratio of 4:1 spot to on-demand nodes.
 
 {{% alert title="Warning" color="warning" %}}
 This is not identical to a topology spread with a specified ratio.  We are constructing 'virtual domains' to spread evenly across and the ratio of those 'virtual domains' to spot and on-demand happen to coincide with the desired spot to on-demand ratio.  As an example, if you launch pods using the provided example, Karpenter will launch nodes with `capacity-spread` labels of 1, 2, 3, 4, and 5. `kube-scheduler` will then schedule evenly across those nodes to give the desired ratio.
