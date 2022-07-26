@@ -2,7 +2,6 @@ package environment
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"testing"
 	"time"
@@ -24,8 +23,6 @@ import (
 	"github.com/aws/karpenter/pkg/utils/env"
 	"github.com/aws/karpenter/pkg/utils/project"
 )
-
-var clusterNameFlag = *flag.String("cluster-name", env.WithDefaultString("CLUSTER_NAME", ""), "Cluster name enables discovery of the testing environment")
 
 type Environment struct {
 	context.Context
@@ -63,10 +60,10 @@ func NewEnvironment(t *testing.T) (*Environment, error) {
 }
 
 func DiscoverClusterName(config *rest.Config) (string, error) {
-	if clusterNameFlag != "" {
-		return clusterNameFlag, nil
+	if clusterName := env.WithDefaultString("CLUSTER_NAME", ""); clusterName != "" {
+		return clusterName, nil
 	}
-	if len(config.ExecProvider.Args) > 5 {
+	if config.ExecProvider != nil && len(config.ExecProvider.Args) > 5 {
 		return config.ExecProvider.Args[5], nil
 	}
 	return "", fmt.Errorf("-cluster-name is not set and could not be discovered")

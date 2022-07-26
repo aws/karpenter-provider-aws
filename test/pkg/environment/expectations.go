@@ -2,7 +2,6 @@ package environment
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"io"
 	"strings"
@@ -124,7 +123,6 @@ func (env *Environment) eventuallyExpectScaleDown() {
 		// expect the current node count to be what it was when the test started
 		g.Expect(env.Monitor.NodeCount()).To(Equal(env.Monitor.NodeCountAtReset()))
 	}).Should(Succeed(), fmt.Sprintf("expected scale down to %d nodes, had %d", env.Monitor.NodeCountAtReset(), env.Monitor.NodeCount()))
-	logging.FromContext(context.Background()).Info(env.Monitor.NodeCountAtReset())
 }
 
 func (env *Environment) ExpectCreatedNodeCount(comparator string, nodeCount int) {

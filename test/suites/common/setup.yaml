@@ -91,10 +91,8 @@ spec:
     workingDir: $(workspaces.ws.path)
     script: |
       aws eks update-kubeconfig --name $(params.cluster-name)
-      helm repo add karpenter https://charts.karpenter.sh/
-      helm repo update
       helm upgrade --install --kubeconfig /root/.kube/config --namespace karpenter --create-namespace \
-        karpenter karpenter/karpenter \
+        karpenter oci://public.ecr.aws/karpenter/karpenter \
         --version v0-$(git rev-parse HEAD) \
         --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="arn:aws:iam::$(cat $(results.account-id.path)):role/$(params.cluster-name)-karpenter" \
         --set clusterName=$(params.cluster-name) \
