@@ -90,7 +90,7 @@ func (c *Controller) resourceCountsFor(provisionerName string) (v1.ResourceList,
 	// is accurately reported even for nodes that haven't fully started yet. This allows us to update our provisioner
 	// status immediately upon node creation instead of waiting for the node to become ready.
 	c.cluster.ForEachNode(func(n *state.Node) bool {
-		if n.Provisioner != nil && n.Provisioner.Name == provisionerName {
+		if n.Node.Labels[v1alpha5.ProvisionerNameLabelKey] == provisionerName {
 			provisioned = append(provisioned, n.Capacity)
 		}
 		return true
@@ -138,7 +138,7 @@ func (c *Controller) nodesSynced(nodes []v1.Node, provisionerName string) bool {
 	missingNode := false
 	c.cluster.ForEachNode(func(n *state.Node) bool {
 		// skip any nodes not created by this provisioner
-		if n.Provisioner == nil || n.Provisioner.Name != provisionerName {
+		if n.Node.Labels[v1alpha5.ProvisionerNameLabelKey] != provisionerName {
 			return true
 		}
 		if !extraNodes.Has(n.Node.Name) {
