@@ -21,9 +21,7 @@ dashboardProviders:
         path: /var/lib/grafana/dashboards/default
 dashboards:
   default:
-    pod-dashboard:
-      url: https://karpenter.sh/preview/getting-started/getting-started-with-eksctl/karpenter-pod-metrics.json
-    node-dashboard:
-      url: https://karpenter.sh/preview/getting-started/getting-started-with-eksctl/karpenter-node-metrics.json
-    provisioner-dashboard:
-      url: https://karpenter.sh/preview/getting-started/getting-started-with-eksctl/karpenter-provisioner-metrics.json
+    capacity-dashboard:
+      url: https://karpenter.sh/preview/getting-started/getting-started-with-eksctl/karpenter-capacity-dashboard.json
+    performance-dashboard:
+      url: https://karpenter.sh/preview/getting-started/getting-started-with-eksctl/karpenter-performance-dashboard.json
