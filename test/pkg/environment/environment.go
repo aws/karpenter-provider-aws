@@ -2,7 +2,6 @@ package environment
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"testing"
 	"time"
@@ -17,7 +16,6 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	loggingtesting "knative.dev/pkg/logging/testing"
-	"knative.dev/pkg/ptr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -25,8 +23,6 @@ import (
 	"github.com/aws/karpenter/pkg/utils/env"
 	"github.com/aws/karpenter/pkg/utils/project"
 )
-
-var clusterNameFlag = flag.String("cluster-name", env.WithDefaultString("CLUSTER_NAME", ""), "Cluster name enables discovery of the testing environment")
 
 type Environment struct {
 	context.Context
@@ -64,8 +60,8 @@ func NewEnvironment(t *testing.T) (*Environment, error) {
 }
 
 func DiscoverClusterName(config *rest.Config) (string, error) {
-	if ptr.StringValue(clusterNameFlag) != "" {
-		return ptr.StringValue(clusterNameFlag), nil
+	if clusterName := env.WithDefaultString("CLUSTER_NAME", ""); clusterName != "" {
+		return clusterName, nil
 	}
 	if config.ExecProvider != nil && len(config.ExecProvider.Args) > 5 {
 		return config.ExecProvider.Args[5], nil

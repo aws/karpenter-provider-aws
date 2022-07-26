@@ -47,7 +47,7 @@ RUN aws --version
 RUN curl --silent --location "https://github.com/weaveworks/eksctl/releases/download/v0.105.0/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
 RUN mv /tmp/eksctl /usr/local/bin
 
-# Install toolchain
+# Cache modules to speed up test execution
 RUN git clone https://github.com/aws/karpenter.git /karpenter
 WORKDIR /karpenter
-RUN GOPRIVATE=* go mod tidy
+RUN GOPROXY=direct go mod tidy
