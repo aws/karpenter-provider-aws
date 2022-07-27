@@ -40,10 +40,8 @@ var _ = Describe("CNITests", func() {
 		// At the end of the test, set this to true since an unset/true value is the default and what all other integration tests
 		// should rely on.
 		updateEnvironment(corev1.EnvVar{Name: "AWS_ENI_LIMITED_POD_DENSITY", Value: "true"})
-		fmt.Println("Test should be over now")
 	})
 	It("should set eni-limited maxPods when AWSENILimited when AWS_ENI_LIMITED_POD_DENSITY is true", func() {
-		updateEnvironment(corev1.EnvVar{Name: "AWS_ENI_LIMITED_POD_DENSITY", Value: "true"})
 		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 			AWS: awsv1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
