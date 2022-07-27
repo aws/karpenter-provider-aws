@@ -32,16 +32,17 @@ import (
 // ProvisionerOptions customizes a Provisioner.
 type ProvisionerOptions struct {
 	metav1.ObjectMeta
-	Limits               v1.ResourceList
-	Provider             interface{}
-	ProviderRef          *v1alpha5.ProviderRef
-	Kubelet              *v1alpha5.KubeletConfiguration
-	Labels               map[string]string
-	Taints               []v1.Taint
-	StartupTaints        []v1.Taint
-	Requirements         []v1.NodeSelectorRequirement
-	Status               v1alpha5.ProvisionerStatus
-	TTLSecondsAfterEmpty *int64
+	Limits                 v1.ResourceList
+	Provider               interface{}
+	ProviderRef            *v1alpha5.ProviderRef
+	Kubelet                *v1alpha5.KubeletConfiguration
+	Labels                 map[string]string
+	Taints                 []v1.Taint
+	StartupTaints          []v1.Taint
+	Requirements           []v1.NodeSelectorRequirement
+	Status                 v1alpha5.ProvisionerStatus
+	TTLSecondsAfterEmpty   *int64
+	TTLSecondsUntilExpired *int64
 }
 
 // Provisioner creates a test provisioner with defaults that can be overridden by ProvisionerOptions.
@@ -63,14 +64,15 @@ func Provisioner(overrides ...ProvisionerOptions) *v1alpha5.Provisioner {
 	provisioner := &v1alpha5.Provisioner{
 		ObjectMeta: ObjectMeta(options.ObjectMeta),
 		Spec: v1alpha5.ProvisionerSpec{
-			Requirements:         options.Requirements,
-			KubeletConfiguration: options.Kubelet,
-			ProviderRef:          options.ProviderRef,
-			Taints:               options.Taints,
-			StartupTaints:        options.StartupTaints,
-			Labels:               options.Labels,
-			Limits:               &v1alpha5.Limits{Resources: options.Limits},
-			TTLSecondsAfterEmpty: options.TTLSecondsAfterEmpty,
+			Requirements:           options.Requirements,
+			KubeletConfiguration:   options.Kubelet,
+			ProviderRef:            options.ProviderRef,
+			Taints:                 options.Taints,
+			StartupTaints:          options.StartupTaints,
+			Labels:                 options.Labels,
+			Limits:                 &v1alpha5.Limits{Resources: options.Limits},
+			TTLSecondsAfterEmpty:   options.TTLSecondsAfterEmpty,
+			TTLSecondsUntilExpired: options.TTLSecondsUntilExpired,
 		},
 		Status: options.Status,
 	}
