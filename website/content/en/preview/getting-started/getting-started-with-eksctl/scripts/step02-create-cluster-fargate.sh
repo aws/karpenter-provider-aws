@@ -11,7 +11,6 @@ metadata:
 fargateProfiles:
   - name: karpenter
     selectors:
-    - namespace: kube-system
     - namespace: karpenter
 iam:
   withOIDC: true
