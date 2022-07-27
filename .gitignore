@@ -6,6 +6,7 @@ coverage.html
 
 # Common in OSs and IDEs
 .idea
+.vscode
 .DS_Store
 
 # Go Benchmarking
