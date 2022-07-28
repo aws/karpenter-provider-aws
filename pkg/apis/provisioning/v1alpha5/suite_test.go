@@ -16,6 +16,7 @@ package v1alpha5
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go/aws"
 	"strings"
 	"testing"
 
@@ -62,6 +63,25 @@ var _ = Describe("Validation", func() {
 	})
 	It("should succeed on a missing empty ttl", func() {
 		provisioner.Spec.TTLSecondsAfterEmpty = nil
+		Expect(provisioner.Validate(ctx)).To(Succeed())
+	})
+	It("should succeed on a valid empty ttl", func() {
+		provisioner.Spec.TTLSecondsAfterEmpty = aws.Int64(30)
+		Expect(provisioner.Validate(ctx)).To(Succeed())
+	})
+	It("should fail if both consolidation and TTLSecondsAfterEmpty are enabled", func() {
+		provisioner.Spec.TTLSecondsAfterEmpty = ptr.Int64(30)
+		provisioner.Spec.Consolidation = &Consolidation{Enabled: aws.Bool(true)}
+		Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+	})
+	It("should succeed if consolidation is off and TTLSecondsAfterEmpty is set", func() {
+		provisioner.Spec.TTLSecondsAfterEmpty = ptr.Int64(30)
+		provisioner.Spec.Consolidation = &Consolidation{Enabled: aws.Bool(false)}
+		Expect(provisioner.Validate(ctx)).To(Succeed())
+	})
+	It("should succeed if consolidation is on and TTLSecondsAfterEmpty is not set", func() {
+		provisioner.Spec.TTLSecondsAfterEmpty = nil
+		provisioner.Spec.Consolidation = &Consolidation{Enabled: aws.Bool(true)}
 		Expect(provisioner.Validate(ctx)).To(Succeed())
 	})
 

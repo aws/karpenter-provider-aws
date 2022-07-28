@@ -16,26 +16,26 @@ package provisioning_test
 
 import (
 	"context"
-	"knative.dev/pkg/ptr"
 	"testing"
 	"time"
 
-	"github.com/aws/karpenter/pkg/cloudprovider"
 
+	"knative.dev/pkg/ptr"
+	"k8s.io/apimachinery/pkg/util/clock"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/aws/karpenter/pkg/controllers/state"
+	v1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 
+	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider/fake"
 	"github.com/aws/karpenter/pkg/cloudprovider/registry"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
 	"github.com/aws/karpenter/pkg/test"
-	v1 "k8s.io/api/core/v1"
-	storagev1 "k8s.io/api/storage/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
-	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 
 	. "github.com/aws/karpenter/pkg/test/expectations"
 	. "github.com/onsi/ginkgo"
@@ -44,6 +44,7 @@ import (
 )
 
 var ctx context.Context
+var fakeClock *clock.FakeClock
 var controller *provisioning.Controller
 var env *test.Environment
 var recorder *test.EventRecorder
@@ -62,13 +63,16 @@ var _ = BeforeSuite(func() {
 		registry.RegisterOrDie(ctx, cloudProvider)
 		recorder = test.NewEventRecorder()
 		cfg = test.NewConfig()
+		recorder = test.NewEventRecorder()
+		fakeClock = clock.NewFakeClock(time.Now())
+		cluster := state.NewCluster(fakeClock, cfg, e.Client, cloudProvider)
+		prov := provisioning.NewProvisioner(ctx, cfg, e.Client, corev1.NewForConfigOrDie(e.Config), recorder, cloudProvider, cluster)
+		controller = provisioning.NewController(e.Client, prov, recorder)
 		instanceTypes, _ := cloudProvider.GetInstanceTypes(context.Background(), nil)
 		instanceTypeMap = map[string]cloudprovider.InstanceType{}
 		for _, it := range instanceTypes {
 			instanceTypeMap[it.Name()] = it
 		}
-		cluster := state.NewCluster(cfg, e.Client, cloudProvider)
-		controller = provisioning.NewController(ctx, cfg, e.Client, corev1.NewForConfigOrDie(e.Config), recorder, cloudProvider, cluster)
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })

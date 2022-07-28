@@ -13,7 +13,7 @@ import (
 	"github.com/samber/lo"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/api/policy/v1beta1"
+	policyv1 "k8s.io/api/policy/v1beta1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -34,7 +34,7 @@ var (
 		&v1.Pod{},
 		&appsv1.Deployment{},
 		&appsv1.DaemonSet{},
-		&v1beta1.PodDisruptionBudget{},
+		&policyv1.PodDisruptionBudget{},
 		&v1.PersistentVolumeClaim{},
 		&v1.PersistentVolume{},
 		&storagev1.StorageClass{},
@@ -100,6 +100,15 @@ func (env *Environment) ExpectCreated(objects ...client.Object) {
 func (env *Environment) ExpectDeleted(objects ...client.Object) {
 	for _, object := range objects {
 		Expect(env.Client.Delete(env, object, &client.DeleteOptions{GracePeriodSeconds: ptr.Int64(0)})).To(Succeed())
+	}
+}
+
+func (env *Environment) ExpectUpdate(objects ...client.Object) {
+	for _, o := range objects {
+		current := o.DeepCopyObject().(client.Object)
+		Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(current), current)).To(Succeed())
+		o.SetResourceVersion(current.GetResourceVersion())
+		Expect(env.Client.Update(env.Context, o)).To(Succeed())
 	}
 }
 
@@ -206,4 +215,16 @@ func (env *Environment) printControllerLogs(options *v1.PodLogOptions) {
 	_, err = io.Copy(log, stream)
 	Expect(err).ToNot(HaveOccurred())
 	logging.FromContext(env.Context).Info(log)
+}
+
+func (env *Environment) EventuallyExpectMinUtilization(resource v1.ResourceName, comparator string, value float64) {
+	Eventually(func(g Gomega) {
+		g.Expect(env.Monitor.MinUtilization(resource)).To(BeNumerically(comparator, value))
+	}).Should(Succeed())
+}
+
+func (env *Environment) EventuallyExpectAvgUtilization(resource v1.ResourceName, comparator string, value float64) {
+	Eventually(func(g Gomega) {
+		g.Expect(env.Monitor.AvgUtilization(resource)).To(BeNumerically(comparator, value))
+	}, 10*time.Minute).Should(Succeed())
 }

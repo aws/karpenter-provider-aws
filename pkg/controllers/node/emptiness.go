@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"time"
 
+	"k8s.io/apimachinery/pkg/util/clock"
+
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
@@ -28,13 +30,13 @@ import (
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/utils/functional"
-	"github.com/aws/karpenter/pkg/utils/injectabletime"
 	"github.com/aws/karpenter/pkg/utils/pod"
 )
 
 // Emptiness is a subreconciler that deletes nodes that are empty after a ttl
 type Emptiness struct {
 	kubeClient client.Client
+	clock      clock.Clock
 	cluster    *state.Cluster
 }
 
@@ -73,7 +75,7 @@ func (r *Emptiness) Reconcile(ctx context.Context, provisioner *v1alpha5.Provisi
 	n.Annotations = functional.UnionStringMaps(n.Annotations)
 	ttl := time.Duration(ptr.Int64Value(provisioner.Spec.TTLSecondsAfterEmpty)) * time.Second
 	if !hasEmptinessTimestamp {
-		n.Annotations[v1alpha5.EmptinessTimestampAnnotationKey] = injectabletime.Now().Format(time.RFC3339)
+		n.Annotations[v1alpha5.EmptinessTimestampAnnotationKey] = r.clock.Now().Format(time.RFC3339)
 		logging.FromContext(ctx).Infof("Added TTL to empty node")
 		return reconcile.Result{RequeueAfter: ttl}, nil
 	}
@@ -82,13 +84,13 @@ func (r *Emptiness) Reconcile(ctx context.Context, provisioner *v1alpha5.Provisi
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("parsing emptiness timestamp, %s", emptinessTimestamp)
 	}
-	if injectabletime.Now().After(emptinessTime.Add(ttl)) {
+	if r.clock.Now().After(emptinessTime.Add(ttl)) {
 		logging.FromContext(ctx).Infof("Triggering termination after %s for empty node", ttl)
 		if err := r.kubeClient.Delete(ctx, n); err != nil {
 			return reconcile.Result{}, fmt.Errorf("deleting node, %w", err)
 		}
 	}
-	return reconcile.Result{RequeueAfter: emptinessTime.Add(ttl).Sub(injectabletime.Now())}, nil
+	return reconcile.Result{RequeueAfter: emptinessTime.Add(ttl).Sub(r.clock.Now())}, nil
 }
 
 func (r *Emptiness) isEmpty(ctx context.Context, n *v1.Node) (bool, error) {

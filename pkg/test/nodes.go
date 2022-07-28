@@ -50,6 +50,7 @@ func Node(overrides ...NodeOptions) *v1.Node {
 		},
 		Status: v1.NodeStatus{
 			Allocatable: options.Allocatable,
+			Capacity:    options.Allocatable,
 			Conditions:  []v1.NodeCondition{{Type: v1.NodeReady, Status: options.ReadyStatus, Reason: options.ReadyReason}},
 		},
 	}

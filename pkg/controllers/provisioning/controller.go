@@ -18,18 +18,11 @@ import (
 	"context"
 	"time"
 
-	"github.com/aws/karpenter/pkg/config"
-	"github.com/aws/karpenter/pkg/utils/pod"
-
 	"github.com/aws/karpenter/pkg/events"
-
-	"github.com/aws/karpenter/pkg/controllers/state"
-
-	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/utils/pod"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -47,10 +40,10 @@ type Controller struct {
 }
 
 // NewController constructs a controller instance
-func NewController(ctx context.Context, cfg config.Config, kubeClient client.Client, coreV1Client corev1.CoreV1Interface, recorder events.Recorder, cloudProvider cloudprovider.CloudProvider, cluster *state.Cluster) *Controller {
+func NewController(kubeClient client.Client, provisioner *Provisioner, recorder events.Recorder) *Controller {
 	return &Controller{
 		kubeClient:  kubeClient,
-		provisioner: NewProvisioner(ctx, cfg, kubeClient, coreV1Client, recorder, cloudProvider, cluster),
+		provisioner: provisioner,
 		recorder:    recorder,
 	}
 }

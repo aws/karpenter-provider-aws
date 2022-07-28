@@ -23,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/clock"
 	"knative.dev/pkg/logging"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -41,12 +42,12 @@ import (
 const controllerName = "node"
 
 // NewController constructs a controller instance
-func NewController(kubeClient client.Client, cloudProvider cloudprovider.CloudProvider, cluster *state.Cluster) *Controller {
+func NewController(clk clock.Clock, kubeClient client.Client, cloudProvider cloudprovider.CloudProvider, cluster *state.Cluster) *Controller {
 	return &Controller{
 		kubeClient:     kubeClient,
 		initialization: &Initialization{kubeClient: kubeClient, cloudProvider: cloudProvider},
-		emptiness:      &Emptiness{kubeClient: kubeClient, cluster: cluster},
-		expiration:     &Expiration{kubeClient: kubeClient},
+		emptiness:      &Emptiness{kubeClient: kubeClient, clock: clk, cluster: cluster},
+		expiration:     &Expiration{kubeClient: kubeClient, clock: clk},
 	}
 }
 

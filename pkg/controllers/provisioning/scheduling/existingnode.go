@@ -18,9 +18,8 @@ import (
 	"context"
 	"fmt"
 
-	v1 "k8s.io/api/core/v1"
-
 	"github.com/samber/lo"
+	v1 "k8s.io/api/core/v1"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/controllers/state"
@@ -28,7 +27,7 @@ import (
 	"github.com/aws/karpenter/pkg/utils/resources"
 )
 
-type InFlightNode struct {
+type ExistingNode struct {
 	Pods          []*v1.Pod
 	Node          *v1.Node
 	requests      v1.ResourceList
@@ -41,12 +40,11 @@ type InFlightNode struct {
 	volumeLimits  scheduling.VolumeCount
 }
 
-func NewInFlightNode(n *state.Node, topology *Topology, startupTaints []v1.Taint, daemonResources v1.ResourceList) *InFlightNode {
+func NewExistingNode(n *state.Node, topology *Topology, startupTaints []v1.Taint, daemonResources v1.ResourceList) *ExistingNode {
 	// The state node passed in here must be a deep copy from cluster state as we modify it
-
 	// the remaining daemonResources to schedule are the total daemonResources minus what has already scheduled
 	remainingDaemonResources := resources.Subtract(daemonResources, n.DaemonSetRequested)
-	node := &InFlightNode{
+	node := &ExistingNode{
 		Node:          n.Node,
 		available:     n.Available,
 		topology:      topology,
@@ -87,7 +85,7 @@ func NewInFlightNode(n *state.Node, topology *Topology, startupTaints []v1.Taint
 	return node
 }
 
-func (n *InFlightNode) Add(ctx context.Context, pod *v1.Pod) error {
+func (n *ExistingNode) Add(ctx context.Context, pod *v1.Pod) error {
 	// Check Taints
 	if err := scheduling.Taints(n.taints).Tolerates(pod); err != nil {
 		return err

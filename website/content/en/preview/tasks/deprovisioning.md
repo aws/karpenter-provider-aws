@@ -22,16 +22,17 @@ There are both automated and manual ways of deprovisioning nodes provisioned by 
 * **Provisioner Deletion**: Nodes are considered to be "owned" by the Provisioner that launched them. Karpenter will gracefully terminate nodes when a provisioner is deleted. Nodes may be reparented to another provisioner by modifying their labels. For example: `kubectl label node -l karpenter.sh/provisioner-name=source-provisioner-name karpenter.sh/provisioner-name=destination-provisioner-name --overwrite`.
 * **Node empty**: Karpenter notes when the last workload (non-daemonset) pod stops running on a node. From that point, Karpenter waits the number of seconds set by `ttlSecondsAfterEmpty` in the provisioner, then Karpenter requests to delete the node. This feature can keep costs down by removing nodes that are no longer being used for workloads.
 * **Node expired**: Karpenter requests to delete the node after a set number of seconds, based on the provisioner `ttlSecondsUntilExpired`  value, from the time the node was provisioned. One use case for node expiry is to handle node upgrades. Old nodes (with a potentially outdated Kubernetes version or operating system) are deleted, and replaced with nodes on the current version (assuming that you requested the latest version, rather than a specific version).
+* **Consolidation**: Karpenter works to actively reduce cluster cost by identifying when nodes can be removed as their workloads will run on other nodes in the cluster and when nodes can be replaced with cheaper variants due to a change in the workloads.
 
-    {{% alert title="Note" color="primary" %}}
-    - Automated deprovisioning is configured through the ProvisionerSpec .ttlSecondsAfterEmpty
-    and .ttlSecondsUntilExpired fields. If either field is left empty, Karpenter will not
-    default a value and will not terminate nodes in that condition.
+{{% alert title="Note" color="primary" %}}
+- Automated deprovisioning is configured through the ProvisionerSpec `.ttlSecondsAfterEmpty`
+, `.ttlSecondsUntilExpired` and `.consolidation.enabled` fields. If these are not configured, Karpenter will not
+default values for them and will not terminate nodes for that purpose.
 
-    - Keep in mind that a small NodeExpiry results in a higher churn in cluster activity. So, for
-    example, if a cluster brings up all nodes at once, all the pods on those nodes would fall into
-    the same batching window on expiration.
-    {{% /alert %}}
+- Keep in mind that a small NodeExpiry results in a higher churn in cluster activity. So, for
+example, if a cluster brings up all nodes at once, all the pods on those nodes would fall into
+the same batching window on expiration.
+{{% /alert %}}
 
 * **Node deleted**: You could use `kubectl` to manually remove a single Karpenter node:
 
@@ -56,6 +57,20 @@ When you run `kubectl delete node` on a node without a finalizer, the node is de
 The kubelet isn’t watching for its own existence, so if a node is deleted the kubelet doesn’t terminate itself.
 All the pod objects get deleted by a garbage collection process later, because the pods’ node is gone.
 {{% /alert %}}
+
+## Consolidation
+
+
+Karpenter has two mechanisms for cluster consolidation:
+- Deletion - A node is eligible for deletion if all of its pods can run on free capacity of other nodes in the cluster.  
+- Replace - A node can be replaced if all of its pods can run on a combination of free capacity of other nodes in the cluster and a single cheaper replacement node. 
+
+When there are multiple nodes that could be potentially deleted or replaced, Karpenter choose to consolidate the node that overall disrupts your workloads the least by preferring to terminate:
+
+* nodes running fewer pods
+* nodes that will expire soon
+* nodes with lower priority pods
+
 
 ## What can cause deprovisioning to fail?
 
@@ -86,9 +101,17 @@ Review what [disruptions are](https://kubernetes.io/docs/concepts/workloads/pods
 
 ### Pod set to do-not-evict
 
-If a pod exists with the annotation `karpenter.sh/do-not-evict: true` on a node, and a request is made to delete the node, Karpenter will not drain any pods from that node or otherwise try to delete the node. This annotation will have no effect for static pods, pods that tolerate `NoSchedule`, or pods terminating past their graceful termination period.
+If a pod exists with the annotation `karpenter.sh/do-not-evict: true` on a node, and a request is made to delete the node, Karpenter will not drain any pods from that node or otherwise try to delete the node. Nodes that have pods with a `do-not-evict` annotation are not considered for consolidation, though their unused capacity is considered for the purposes of running pods from other nodes which can ber consolidated. This annotation will have no effect for static pods, pods that tolerate `NoSchedule`, or pods terminating past their graceful termination period. 
 
 This is useful for pods that you want to run from start to finish without interruption.
 Examples might include a real-time, interactive game that you don't want to interrupt or a long batch job (such as you might have with machine learning) that would need to start over if it were interrupted.
 
 If you want to terminate a node with a `do-not-evict` pod, you can simply remove the annotation and the deprovisioning process will continue.
+
+### Scheduling Constraints (Consolidation Only)
+
+Consolidation will be unable to consolidate a node if, as a result of its scheduling simulation, it determines that the pods on a node cannot run on other nodes due to inter-pod affinity/anti-affinity, topology spread constraints, or some other scheduling restriction that couldn't be fulfilled.
+
+### Controllerless Pods (Consolidation Only)
+
+Consolidation will not attempt to consolidate a node that is running pods that are not owned by a controller (e.g. a `ReplicaSet`).  In general we cannot assume that these pods would be recreated if they were evicted from the node that they are currently running on.
