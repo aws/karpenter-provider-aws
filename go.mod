@@ -7,6 +7,7 @@ require (
 	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/aws/aws-sdk-go v1.44.60
 	github.com/deckarep/golang-set v1.8.0
+	github.com/go-logr/logr v0.4.0
 	github.com/go-logr/zapr v0.4.0
 	github.com/imdario/mergo v0.3.13
 	github.com/mitchellh/hashstructure/v2 v2.0.2
@@ -16,6 +17,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.0.2
 	github.com/prometheus/client_golang v1.12.2
 	github.com/prometheus/client_model v0.2.0
+	github.com/samber/lo v1.21.0
 	go.uber.org/multierr v1.7.0
 	go.uber.org/zap v1.21.0
 	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac
@@ -26,8 +28,6 @@ require (
 	knative.dev/pkg v0.0.0-20211120133512-d016976f2567
 	sigs.k8s.io/controller-runtime v0.9.7
 )
-
-require github.com/samber/lo v1.21.0
 
 require (
 	cloud.google.com/go v0.97.0 // indirect
@@ -45,7 +45,6 @@ require (
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/go-kit/log v0.1.0 // indirect
 	github.com/go-logfmt/logfmt v0.5.0 // indirect
-	github.com/go-logr/logr v0.4.0 // indirect
 	github.com/gobuffalo/flect v0.2.4 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
