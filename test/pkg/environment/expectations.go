@@ -112,6 +112,23 @@ func (env *Environment) EventuallyExpectHealthy(pods ...*v1.Pod) {
 	}
 }
 
+func (env *Environment) EventuallyExpectKarpenterWithEnvVar(envVar v1.EnvVar) {
+	Eventually(func(g Gomega) {
+		labelMap := map[string]string{"app.kubernetes.io/instance": "karpenter"}
+		listOptions := metav1.ListOptions{LabelSelector: labels.SelectorFromSet(labelMap).String()}
+		podList, err := env.KubeClient.CoreV1().Pods("karpenter").List(env.Context, listOptions)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(podList.Items[0].Spec.Containers[0].Env).To(ContainElement(And(
+			HaveField("Name", Equal(envVar.Name)),
+			HaveField("Value", Equal(envVar.Value)),
+		)))
+		g.Expect(podList.Items[0].Status.Conditions).To(ContainElement(And(
+			HaveField("Type", Equal(v1.PodReady)),
+			HaveField("Status", Equal(v1.ConditionTrue)),
+		)))
+	}).Should(Succeed())
+}
+
 func (env *Environment) EventuallyExpectHealthyPodCount(selector labels.Selector, numPods int) {
 	Eventually(func(g Gomega) {
 		g.Expect(env.Monitor.RunningPods(selector)).To(Equal(numPods))
