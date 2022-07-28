@@ -109,9 +109,8 @@ func (e *EvictionQueue) evict(ctx context.Context, nn types.NamespacedName) bool
 		return false
 	}
 	if err != nil {
-		logging.FromContext(ctx).Error(err)
+		logging.FromContext(ctx).Errorf("evicting pod, %s", err)
 		return false
 	}
-	logging.FromContext(ctx).Debug("Evicted pod")
 	return true
 }
