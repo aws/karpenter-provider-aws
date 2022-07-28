@@ -298,6 +298,38 @@ var _ = Describe("Termination", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 			ExpectNotFound(ctx, env.Client, node)
 		})
+		It("should delete nodes that have pods without an owner ref in phase Succeeded or Failed", func() {
+			podEvictPhaseSucceeded := test.Pod(test.PodOptions{
+				NodeName: node.Name,
+				Phase:    v1.PodSucceeded,
+			})
+			podEvictPhaseFailed := test.Pod(test.PodOptions{
+				NodeName: node.Name,
+				Phase:    v1.PodFailed,
+			})
+
+			ExpectApplied(ctx, env.Client, node, podEvictPhaseSucceeded, podEvictPhaseFailed)
+
+			// Trigger Termination Controller
+			Expect(env.Client.Delete(ctx, node)).To(Succeed())
+			node = ExpectNodeExists(ctx, env.Client, node.Name)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
+
+			// Expect node to exist and be draining
+			ExpectNodeDraining(env.Client, node.Name)
+
+			// Expecy pods terminated to be evicted and deleted
+			node = ExpectNodeExists(ctx, env.Client, node.Name)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
+			ExpectEvicted(env.Client, podEvictPhaseSucceeded)
+			ExpectDeleted(ctx, env.Client, podEvictPhaseSucceeded)
+			ExpectEvicted(env.Client, podEvictPhaseFailed)
+			ExpectDeleted(ctx, env.Client, podEvictPhaseFailed)
+			// Reconcile to delete node
+			node = ExpectNodeExists(ctx, env.Client, node.Name)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
+			ExpectNotFound(ctx, env.Client, node)
+		})
 		It("should delete nodes that have do-not-evict on pods for which it does not apply", func() {
 			pods := []*v1.Pod{
 				test.Pod(test.PodOptions{
