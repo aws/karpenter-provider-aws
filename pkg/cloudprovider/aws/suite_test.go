@@ -381,7 +381,7 @@ var _ = Describe("Allocation", func() {
 			})
 			It("should set pods to 110 if not using ENI-based pod density", func() {
 				opts.AWSENILimitedPodDensity = false
-				instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx, provider)
+				instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 				Expect(err).To(BeNil())
 				for _, info := range instanceInfo {
 					it := NewInstanceType(injection.WithOptions(ctx, opts), info, 0, provider, nil)
@@ -391,7 +391,7 @@ var _ = Describe("Allocation", func() {
 			})
 			It("should not set pods to 110 if using ENI-based pod density", func() {
 				opts.AWSENILimitedPodDensity = true
-				instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx, provider)
+				instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 				Expect(err).To(BeNil())
 				for _, info := range instanceInfo {
 					it := NewInstanceType(injection.WithOptions(ctx, opts), info, 0, provider, nil)
@@ -404,7 +404,7 @@ var _ = Describe("Allocation", func() {
 					opts.AWSENILimitedPodDensity = true
 					opts.VMMemoryOverhead = 0 // cutting a factor out of the equation
 					provider.AMIFamily = &awsv1alpha1.AMIFamilyAL2
-					instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx, provider)
+					instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 					Expect(err).To(BeNil())
 					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], 0, provider, nil)
 					overhead := it.Overhead()
@@ -414,7 +414,7 @@ var _ = Describe("Allocation", func() {
 					opts.AWSENILimitedPodDensity = false
 					opts.VMMemoryOverhead = 0 // cutting a factor out of the equation
 					provider.AMIFamily = &awsv1alpha1.AMIFamilyAL2
-					instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx, provider)
+					instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 					Expect(err).To(BeNil())
 					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], 0, provider, nil)
 					overhead := it.Overhead()
@@ -426,7 +426,7 @@ var _ = Describe("Allocation", func() {
 					opts.AWSENILimitedPodDensity = true
 					opts.VMMemoryOverhead = 0 // cutting a factor out of the equation
 					provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
-					instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx, provider)
+					instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 					Expect(err).To(BeNil())
 					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], 0, provider, nil)
 					overhead := it.Overhead()
@@ -436,7 +436,7 @@ var _ = Describe("Allocation", func() {
 					opts.AWSENILimitedPodDensity = false
 					opts.VMMemoryOverhead = 0 // cutting a factor out of the equation
 					provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
-					instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx, provider)
+					instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 					Expect(err).To(BeNil())
 					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], 0, provider, nil)
 					overhead := it.Overhead()

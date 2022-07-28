@@ -23,6 +23,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/patrickmn/go-cache"
+	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -79,12 +80,14 @@ func NewCluster(cfg config.Config, client client.Client, cp cloudprovider.CloudP
 // compute topology information.
 type Node struct {
 	Node *v1.Node
-	// Capacity is the total amount of resources on the node.  The available resources are the capacity minus overhead
-	// minus anything allocated to pods.
+	// Capacity is the total resources on the node.
 	Capacity v1.ResourceList
+	// Allocatable is the total amount of resources on the node after os overhead.
+	Allocatable v1.ResourceList
+	// Available is allocatable minus anything allocated to pods.
+	Available v1.ResourceList
 	// Available is the total amount of resources that are available on the node.  This is the Allocatable minus the
 	// resources requested by all pods bound to the node.
-	Available v1.ResourceList
 	// DaemonSetRequested is the total amount of resources that have been requested by daemon sets.  This allows users
 	// of the Node to identify the remaining resources that we expect future daemonsets to consume.  This is already
 	// included in the calculation for Available.
@@ -94,9 +97,6 @@ type Node struct {
 	HostPortUsage *scheduling.HostPortUsage
 	VolumeUsage   *scheduling.VolumeLimits
 	VolumeLimits  scheduling.VolumeCount
-	InstanceType  cloudprovider.InstanceType
-	// Provisioner is the provisioner used to create the node.
-	Provisioner *v1alpha5.Provisioner
 
 	podRequests map[types.NamespacedName]v1.ResourceList
 	podLimits   map[types.NamespacedName]v1.ResourceList
@@ -169,6 +169,9 @@ func (c *Cluster) NominateNodeForPod(nodeName string) {
 func (c *Cluster) newNode(ctx context.Context, node *v1.Node) (*Node, error) {
 	n := &Node{
 		Node:          node,
+		Capacity:      v1.ResourceList{},
+		Allocatable:   v1.ResourceList{},
+		Available:     v1.ResourceList{},
 		HostPortUsage: scheduling.NewHostPortUsage(),
 		VolumeUsage:   scheduling.NewVolumeLimits(c.kubeClient),
 		VolumeLimits:  scheduling.VolumeCount{},
@@ -176,14 +179,58 @@ func (c *Cluster) newNode(ctx context.Context, node *v1.Node) (*Node, error) {
 		podLimits:     map[types.NamespacedName]v1.ResourceList{},
 	}
 	if err := multierr.Combine(
-		c.populateProvisioner(ctx, node, n),
-		c.populateInstanceType(ctx, node, n),
+		c.populateCapacity(ctx, node, n),
 		c.populateVolumeLimits(ctx, node, n),
 		c.populateResourceRequests(ctx, node, n),
 	); err != nil {
 		return nil, err
 	}
 	return n, nil
+}
+
+// nolint:gocyclo
+func (c *Cluster) populateCapacity(ctx context.Context, node *v1.Node, n *Node) error {
+	// Use node's values if initialized
+	if node.Labels[v1alpha5.LabelNodeInitialized] == "true" {
+		n.Allocatable = node.Status.Allocatable
+		n.Capacity = node.Status.Capacity
+		return nil
+	}
+	// Fallback to instance type capacity otherwise
+	provisioner := &v1alpha5.Provisioner{}
+	// In flight nodes not owned by karpenter are not included in calculations
+	if _, ok := node.Labels[v1alpha5.ProvisionerNameLabelKey]; !ok {
+		return nil
+	}
+	if err := c.kubeClient.Get(ctx, client.ObjectKey{Name: node.Labels[v1alpha5.ProvisionerNameLabelKey]}, provisioner); err != nil {
+		if errors.IsNotFound(err) {
+			// Nodes that are not owned by an existing provisioner are not included in calculations
+			return nil
+		}
+		return fmt.Errorf("getting provisioner, %w", err)
+	}
+	instanceTypes, err := c.cloudProvider.GetInstanceTypes(ctx, provisioner)
+	if err != nil {
+		return err
+	}
+	instanceType, ok := lo.Find(instanceTypes, func(it cloudprovider.InstanceType) bool { return it.Name() == node.Labels[v1.LabelInstanceTypeStable] })
+	if !ok {
+		return fmt.Errorf("instance type '%s' not found", node.Labels[v1.LabelInstanceTypeStable])
+	}
+	n.Capacity = instanceType.Resources()
+
+	for k, v := range node.Status.Allocatable {
+		n.Allocatable[k] = v
+	}
+	for resourceName, quantity := range instanceType.Resources() {
+		// kubelet will zero out both the capacity and allocatable for an extended resource on startup
+		if resources.IsZero(node.Status.Capacity[resourceName]) &&
+			resources.IsZero(node.Status.Allocatable[resourceName]) &&
+			!quantity.IsZero() {
+			n.Allocatable[resourceName] = quantity
+		}
+	}
+	return nil
 }
 
 func (c *Cluster) populateResourceRequests(ctx context.Context, node *v1.Node, n *Node) error {
@@ -218,13 +265,7 @@ func (c *Cluster) populateResourceRequests(ctx context.Context, node *v1.Node, n
 	n.DaemonSetLimits = resources.Merge(daemonsetLimits...)
 	n.PodTotalRequests = resources.Merge(requested...)
 	n.PodTotalLimits = resources.Merge(limits...)
-	n.Capacity = n.Node.Status.Capacity
-	// if the capacity hasn't been reported yet, fall back to what the instance type reports so we can track
-	// limits
-	if len(n.Capacity) == 0 && n.InstanceType != nil {
-		n.Capacity = n.InstanceType.Resources()
-	}
-	n.Available = resources.Subtract(c.getNodeAllocatable(node, n), resources.Merge(requested...))
+	n.Available = resources.Subtract(n.Allocatable, resources.Merge(requested...))
 	return nil
 }
 
@@ -241,48 +282,6 @@ func (c *Cluster) populateVolumeLimits(ctx context.Context, node *v1.Node, n *No
 		n.VolumeLimits[driver.Name] = int(aws.Int32Value(driver.Allocatable.Count))
 	}
 	return nil
-}
-
-func (c *Cluster) populateProvisioner(ctx context.Context, node *v1.Node, n *Node) error {
-	// store the provisioner if it exists
-	if provisionerName, ok := node.Labels[v1alpha5.ProvisionerNameLabelKey]; ok {
-		var provisioner v1alpha5.Provisioner
-		if err := c.kubeClient.Get(ctx, client.ObjectKey{Name: provisionerName}, &provisioner); err != nil {
-			if errors.IsNotFound(err) {
-				// this occurs if the provisioner was deleted, the node won't last much longer anyway so it's
-				// safe to just not report this and continue
-				return nil
-			}
-			return fmt.Errorf("getting provisioner, %w", err)
-		}
-		n.Provisioner = &provisioner
-	}
-	return nil
-}
-
-// getNodeAllocatable gets the allocatable resources for the node.
-func (c *Cluster) getNodeAllocatable(node *v1.Node, n *Node) v1.ResourceList {
-	// If the node is ready, don't take into consideration possible kubelet resource  zeroing.  This is to handle the
-	// case where a node comes up with a resource and the hardware fails in some way so that the device-plugin zeros
-	// out the resource.  We don't want to assume that it will always come back.  The instance type may be nil if
-	// the node was created from a provisioner that has since been deleted.
-	if n.InstanceType == nil || node.Labels[v1alpha5.LabelNodeInitialized] == "true" {
-		return node.Status.Allocatable
-	}
-
-	allocatable := v1.ResourceList{}
-	for k, v := range node.Status.Allocatable {
-		allocatable[k] = v
-	}
-	for resourceName, quantity := range n.InstanceType.Resources() {
-		// kubelet will zero out both the capacity and allocatable for an extended resource on startup
-		if resources.IsZero(node.Status.Capacity[resourceName]) &&
-			resources.IsZero(node.Status.Allocatable[resourceName]) &&
-			!quantity.IsZero() {
-			allocatable[resourceName] = quantity
-		}
-	}
-	return allocatable
 }
 
 func (c *Cluster) deleteNode(nodeName string) {
@@ -434,24 +433,6 @@ func (c *Cluster) updateNodeUsageFromPod(ctx context.Context, pod *v1.Pod) error
 	n.podLimits[podKey] = podLimits
 	c.bindings[podKey] = n.Node.Name
 	return nil
-}
-
-func (c *Cluster) populateInstanceType(ctx context.Context, node *v1.Node, n *Node) error {
-	if n.Provisioner == nil {
-		return nil
-	}
-	instanceTypes, err := c.cloudProvider.GetInstanceTypes(ctx, n.Provisioner)
-	if err != nil {
-		return err
-	}
-	instanceTypeName := node.Labels[v1.LabelInstanceTypeStable]
-	for _, it := range instanceTypes {
-		if it.Name() == instanceTypeName {
-			n.InstanceType = it
-			return nil
-		}
-	}
-	return fmt.Errorf("instance type '%s' not found", instanceTypeName)
 }
 
 // clusterStateSynchronized ensures that our cluster state is aware of at least all of the nodes that our list cache has.

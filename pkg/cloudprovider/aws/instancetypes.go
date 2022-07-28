@@ -68,7 +68,7 @@ func (p *InstanceTypeProvider) Get(ctx context.Context, provider *v1alpha1.AWS) 
 	p.Lock()
 	defer p.Unlock()
 	// Get InstanceTypes from EC2
-	instanceTypes, err := p.getInstanceTypes(ctx, provider)
+	instanceTypes, err := p.getInstanceTypes(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +142,7 @@ func (p *InstanceTypeProvider) getInstanceTypeZones(ctx context.Context, provide
 }
 
 // getInstanceTypes retrieves all instance types from the ec2 DescribeInstanceTypes API using some opinionated filters
-func (p *InstanceTypeProvider) getInstanceTypes(ctx context.Context, provider *v1alpha1.AWS) (map[string]*ec2.InstanceTypeInfo, error) {
+func (p *InstanceTypeProvider) getInstanceTypes(ctx context.Context) (map[string]*ec2.InstanceTypeInfo, error) {
 	if cached, ok := p.cache.Get(InstanceTypesCacheKey); ok {
 		return cached.(map[string]*ec2.InstanceTypeInfo), nil
 	}
