@@ -41,6 +41,9 @@ func (e *EventRecorder) NominatePod(pod *v1.Pod, node *v1.Node) {
 	defer e.mu.Unlock()
 	e.bindings = append(e.bindings, Binding{pod, node})
 }
+
+func (e *EventRecorder) EvictPod(pod *v1.Pod) {}
+
 func (e *EventRecorder) PodFailedToSchedule(pod *v1.Pod, err error) {}
 
 func (e *EventRecorder) NodeFailedToDrain(node *v1.Node, err error) {}

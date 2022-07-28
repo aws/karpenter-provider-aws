@@ -43,6 +43,15 @@ func (d *dedupe) NominatePod(pod *v1.Pod, node *v1.Node) {
 	d.rec.NominatePod(pod, node)
 }
 
+func (d *dedupe) EvictPod(pod *v1.Pod) {
+	key := fmt.Sprintf("evict-pod-%s", pod.Name)
+	if _, exists := d.cache.Get(key); exists {
+		return
+	}
+	d.cache.SetDefault(key, nil)
+	d.rec.EvictPod(pod)
+}
+
 func (d *dedupe) PodFailedToSchedule(pod *v1.Pod, err error) {
 	key := fmt.Sprintf("failed-to-schedule-%s-%s", pod.Name, err.Error())
 	if _, exists := d.cache.Get(key); exists {
