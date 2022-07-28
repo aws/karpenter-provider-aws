@@ -81,6 +81,15 @@ func (m *Monitor) RestartCount() map[string]int {
 	return restarts
 }
 
+// GetNodes returns the most recent recording of nodes
+func (m *Monitor) GetNodes() []v1.Node {
+	m.poll()
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	last := m.recordings[len(m.recordings)-1]
+	return last.nodes.Items
+}
+
 // NodeCount returns the current number of nodes
 func (m *Monitor) NodeCount() int {
 	m.poll()

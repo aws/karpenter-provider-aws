@@ -6,6 +6,7 @@ import (
 	"io"
 	"strings"
 	"sync"
+	"time"
 
 	. "github.com/onsi/ginkgo" //nolint:revive,stylecheck
 	. "github.com/onsi/gomega" //nolint:revive,stylecheck
@@ -14,6 +15,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/policy/v1beta1"
 	storagev1 "k8s.io/api/storage/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"knative.dev/pkg/logging"
@@ -23,6 +25,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/utils/pod"
+	"github.com/aws/karpenter/pkg/utils/sets"
 )
 
 var (
@@ -140,6 +143,31 @@ func (env *Environment) eventuallyExpectScaleDown() {
 		// expect the current node count to be what it was when the test started
 		g.Expect(env.Monitor.NodeCount()).To(Equal(env.Monitor.NodeCountAtReset()))
 	}).Should(Succeed(), fmt.Sprintf("expected scale down to %d nodes, had %d", env.Monitor.NodeCountAtReset(), env.Monitor.NodeCount()))
+}
+
+func (env *Environment) GetCreatedNodes(before []v1.Node, after []v1.Node) []*v1.Node {
+	createdNodes := []*v1.Node{}
+	oldList := sets.NewSet()
+	for _, node := range before {
+		oldList.Insert(node.Name)
+	}
+	for i := range after {
+		if !oldList.Has(after[i].Name) {
+			createdNodes = append(createdNodes, &after[i])
+		}
+	}
+	return createdNodes
+}
+
+func (env *Environment) ExpectNodesEventuallyDeleted(timeout time.Duration, nodes ...*v1.Node) {
+	for _, node := range nodes {
+		Eventually(func(g Gomega) {
+			n := &v1.Node{}
+			err := env.Client.Get(env, client.ObjectKeyFromObject(node), n)
+			g.Expect(err).ToNot(BeNil())
+			g.Expect(errors.IsNotFound(err)).To(BeTrue())
+		}).WithTimeout(timeout).Should(Succeed(), fmt.Sprintf("expcted nodes %s to be deleted", nodes))
+	}
 }
 
 func (env *Environment) ExpectCreatedNodeCount(comparator string, nodeCount int) {
