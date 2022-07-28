@@ -77,7 +77,7 @@ func (t *Terminator) drain(ctx context.Context, node *v1.Node) (bool, error) {
 	// Skip node due to pods that are not able to be evicted
 	for _, p := range pods {
 		// if a pod doesn't have owner references then we can't expect a controller to manage its lifecycle
-		if len(p.ObjectMeta.OwnerReferences) == 0 {
+		if len(p.ObjectMeta.OwnerReferences) == 0 && !IsTerminatedStatus(p) {
 			return false, NodeDrainErr(fmt.Errorf("pod %s/%s does not have any owner references", p.Namespace, p.Name))
 		} else if val := p.Annotations[v1alpha5.DoNotEvictPodAnnotationKey]; val == "true" {
 			return false, NodeDrainErr(fmt.Errorf("pod %s/%s has do-not-evict annotation", p.Namespace, p.Name))
@@ -160,4 +160,11 @@ func IsStuckTerminating(pod *v1.Pod) bool {
 		return false
 	}
 	return injectabletime.Now().After(pod.DeletionTimestamp.Time.Add(1 * time.Minute))
+}
+
+func IsTerminatedStatus(pod *v1.Pod) bool {
+	if pod.Status.Phase == v1.PodFailed || pod.Status.Phase == v1.PodSucceeded {
+		return true
+	}
+	return false
 }
