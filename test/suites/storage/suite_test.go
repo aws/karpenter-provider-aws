@@ -99,6 +99,14 @@ var _ = Describe("Static PVC", func() {
 			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
 
 		storageClassName := "nfs-test"
+		bindMode := storagev1.VolumeBindingWaitForFirstConsumer
+		sc := test.StorageClass(test.StorageClassOptions{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: storageClassName,
+			},
+			VolumeBindingMode: &bindMode,
+		})
+
 		pv := test.PersistentVolume(test.PersistentVolumeOptions{
 			ObjectMeta:       metav1.ObjectMeta{Name: "nfs-test-volume"},
 			StorageClassName: "nfs-test",
@@ -124,7 +132,7 @@ var _ = Describe("Static PVC", func() {
 			PersistentVolumeClaims: []string{pvc.Name},
 		})
 
-		env.ExpectCreated(provisioner, provider, pv, pvc, pod)
+		env.ExpectCreated(provisioner, provider, sc, pv, pvc, pod)
 		env.EventuallyExpectHealthy(pod)
 		env.ExpectCreatedNodeCount("==", 1)
 		env.ExpectDeleted(pod)
