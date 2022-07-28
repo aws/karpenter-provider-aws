@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"net/http/pprof"
 
+	"github.com/go-logr/logr"
 	"github.com/go-logr/zapr"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -85,7 +86,7 @@ func main() {
 	logging.FromContext(ctx).Infof("Initializing with version %s", project.Version)
 	// Set up controller runtime controller
 	manager := controllers.NewManagerOrDie(ctx, controllerRuntimeConfig, controllerruntime.Options{
-		Logger:                     zapr.NewLogger(logging.FromContext(ctx).Desugar()),
+		Logger:                     ignoreDebugEvents(zapr.NewLogger(logging.FromContext(ctx).Desugar())),
 		LeaderElection:             true,
 		LeaderElectionID:           "karpenter-leader-election",
 		LeaderElectionResourceLock: resourcelock.LeasesResourceLock,
@@ -149,6 +150,40 @@ func registerPprof(manager controllers.Manager) error {
 		}
 	}
 	return nil
+}
+
+type ignoreDebugEventsLogger struct {
+	level  int
+	name   string
+	logger logr.Logger
+}
+
+func (i ignoreDebugEventsLogger) Enabled() bool { return i.logger.Enabled() }
+func (i ignoreDebugEventsLogger) Info(msg string, keysAndValues ...interface{}) {
+	// ignore debug "events" logs
+	if i.level == 1 && i.name == "events" {
+		return
+	}
+	i.logger.Info(msg, keysAndValues...)
+}
+func (i ignoreDebugEventsLogger) Error(err error, msg string, keysAndValues ...interface{}) {
+	i.logger.Error(err, msg, keysAndValues...)
+}
+func (i ignoreDebugEventsLogger) V(level int) logr.Logger {
+	return &ignoreDebugEventsLogger{level: level, name: i.name, logger: i.logger.V(level)}
+}
+func (i ignoreDebugEventsLogger) WithValues(keysAndValues ...interface{}) logr.Logger {
+	return i.logger.WithValues(keysAndValues...)
+}
+func (i ignoreDebugEventsLogger) WithName(name string) logr.Logger {
+	return &ignoreDebugEventsLogger{level: i.level, name: name, logger: i.logger.WithName(name)}
+}
+
+// ignoreDebugEvents wraps the logger with one that ignores any debug logs coming from a logger named "events".  This
+// prevents every event we write from creating a debug log which spams the log file during scale-ups due to recording
+// pod scheduling decisions as events for visibility.
+func ignoreDebugEvents(logger logr.Logger) logr.Logger {
+	return &ignoreDebugEventsLogger{logger: logger}
 }
 
 // LoggingContextOrDie injects a logger into the returned context. The logger is
