@@ -2,7 +2,7 @@ apiVersion: kustomize.toolkit.fluxcd.io/v1beta2
 kind: Kustomization
 metadata:
   name: test-suites
-  namespace: flux-system
+  namespace: karpenter-tests
 spec:
   interval: 2m0s
   path: ./test/suites
