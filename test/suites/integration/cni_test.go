@@ -1,8 +1,6 @@
 package integration_test
 
 import (
-	"fmt"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
