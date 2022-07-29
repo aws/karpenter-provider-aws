@@ -24,7 +24,8 @@
     "editable": true,
     "fiscalYearStartMonth": 0,
     "graphTooltip": 0,
-    "iteration": 1658856621549,
+    "id": 7,
+    "iteration": 1659113139050,
     "links": [],
     "liveNow": true,
     "panels": [
@@ -79,7 +80,8 @@
                                 "value": 80
                             }
                         ]
-                    }
+                    },
+                    "unit": "s"
                 },
                 "overrides": []
             },
@@ -552,6 +554,6 @@
     "timezone": "",
     "title": "Karpenter Performance",
     "uid": "_bdgC2g4z",
-    "version": 1,
+    "version": 2,
     "weekStart": ""
 }
