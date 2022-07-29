@@ -72,7 +72,6 @@ params:
     - "v0.12.1"
     - "v0.11.1"
     - "v0.10.1"
-    - "v0.9.1"
     - "preview"
 menu:
   main:
