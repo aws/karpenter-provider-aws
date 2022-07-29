@@ -126,6 +126,14 @@ spec:
               context:
                 description: Context is a Reserved field in EC2 APIs https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html
                 type: string
+              ebsOptimized:
+                description: EBSOptimized indicates whether the instance is optimized
+                  for Amazon EBS I/O. This optimization provides dedicated throughput
+                  to Amazon EBS and an optimized configuration stack to provide optimal
+                  Amazon EBS I/O performance. This optimization isn't available with
+                  all instance types. Additional usage charges apply when using an
+                  EBS-optimized instance.
+                type: boolean
               instanceProfile:
                 description: InstanceProfile is the AWS identity that instances use.
                 type: string

@@ -78,6 +78,13 @@ type LaunchTemplate struct {
 	// BlockDeviceMappings to be applied to provisioned nodes.
 	// +optionals
 	BlockDeviceMappings []*BlockDeviceMapping `json:"blockDeviceMappings,omitempty"`
+	// EBSOptimized indicates whether the instance is optimized for Amazon EBS I/O.
+	// This optimization provides dedicated throughput to Amazon EBS and an optimized
+	// configuration stack to provide optimal Amazon EBS I/O performance. This
+	// optimization isn't available with all instance types. Additional usage charges
+	// apply when using an EBS-optimized instance.
+	// +optional
+	EBSOptimized *bool `json:"ebsOptimized,omitempty"`
 }
 
 // MetadataOptions contains parameters for specifying the exposure of the

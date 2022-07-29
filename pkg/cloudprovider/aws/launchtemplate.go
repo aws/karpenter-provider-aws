@@ -173,6 +173,7 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, optio
 		LaunchTemplateName: aws.String(launchTemplateName(options)),
 		LaunchTemplateData: &ec2.RequestLaunchTemplateData{
 			BlockDeviceMappings: p.blockDeviceMappings(options.BlockDeviceMappings),
+			EbsOptimized:        aws.Bool(options.EBSOptimized),
 			IamInstanceProfile: &ec2.LaunchTemplateIamInstanceProfileSpecificationRequest{
 				Name: aws.String(options.InstanceProfile),
 			},

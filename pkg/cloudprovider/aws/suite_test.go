@@ -1442,6 +1442,27 @@ var _ = Describe("Allocation", func() {
 				Expect(*input.LaunchTemplateData.MetadataOptions.HttpTokens).To(Equal(ec2.LaunchTemplateHttpTokensStateOptional))
 			})
 		})
+		Context("EBS Optimized", func() {
+			It("should default EBS-Optimized on generated launch template", func() {
+				ExpectApplied(ctx, env.Client, provisioner)
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+				Expect(*input.LaunchTemplateData.EbsOptimized).To(BeFalse())
+			})
+			It("should set EBS Optimized on generated launch template from provisioner configuration", func() {
+				provider, err := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
+				Expect(err).ToNot(HaveOccurred())
+				provider.EBSOptimized = aws.Bool(true)
+				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+				Expect(*input.LaunchTemplateData.EbsOptimized).To(BeTrue())
+			})
+		})
 		Context("Block Device Mappings", func() {
 			It("should default AL2 block device mappings", func() {
 				provider, _ := awsv1alpha1.Deserialize(provisioner.Spec.Provider)

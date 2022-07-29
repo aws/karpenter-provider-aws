@@ -62,6 +62,7 @@ type Options struct {
 type LaunchTemplate struct {
 	*Options
 	UserData            bootstrap.Bootstrapper
+	EBSOptimized        bool
 	BlockDeviceMappings []*v1alpha1.BlockDeviceMapping
 	MetadataOptions     *v1alpha1.MetadataOptions
 	AMIID               string
@@ -120,6 +121,10 @@ func (r Resolver) Resolve(ctx context.Context, provider *v1alpha1.AWS, nodeReque
 		}
 		if resolved.MetadataOptions == nil {
 			resolved.MetadataOptions = amiFamily.DefaultMetadataOptions()
+		}
+		resolved.EBSOptimized = false
+		if provider.EBSOptimized != nil {
+			resolved.EBSOptimized = *provider.EBSOptimized
 		}
 		resolvedTemplates = append(resolvedTemplates, resolved)
 	}
