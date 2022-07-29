@@ -79,6 +79,7 @@ The following labels are supported by Karpenter. They may be specified as provis
 
 {{% alert title="Warning" color="warning" %}}
 Take care to ensure the label domains are correct. A well known label like `karpenter.k8s.aws/instance-family` will enforce node properties, but may be confused with `node.kubernetes.io/instance-family`, which is unknown to Karpenter, and treated as a custom label which will not enforce node properties.
+{{% /alert %}}
 
 | Label                                       | Example     | Description                                                                                                                                 |
 | ------------------------------------------- | ----------  | ------------------------------------------------------------------------------------------------------------------------------------------- |
