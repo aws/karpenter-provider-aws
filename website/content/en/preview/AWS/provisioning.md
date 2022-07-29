@@ -294,7 +294,7 @@ Specify AMIs explicitly by ID:
 
 ## spec.provider (Deprecated)
 
-Prior to the introduction of `spec.providerRef`, parameters for the AWS Cloud Provider could be specified within the Provisioner itself through the `spec.provider` field. This field in the Provisioners has now been deprecated, and all fields previously specified through the ProvisionerSpec can now be specified in the `AWSNodeTemplate` CRD instead. See the [upgrade guide for more information](../upgrade-guide/_index.md). New parameters can only be specified in the `AWSNodeTemplate` CRD.
+Prior to the introduction of `spec.providerRef`, parameters for the AWS Cloud Provider could be specified within the Provisioner itself through the `spec.provider` field. This field in the Provisioners has now been deprecated, and all fields previously specified through the ProvisionerSpec can now be specified in the `AWSNodeTemplate` CRD instead. See the [upgrade guide for more information](../../upgrade-guide). New parameters can only be specified in the `AWSNodeTemplate` CRD.
 
 ## Other Resources
 
