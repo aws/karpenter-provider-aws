@@ -11,6 +11,7 @@ metadata:
   {{- end }}
 spec:
   replicas: {{ .Values.replicas }}
+  revisionHistoryLimit: {{ .Values.revisionHistoryLimit }}
   {{- with .Values.strategy }}
   strategy:
     {{- toYaml . | nindent 4 }}
@@ -52,7 +53,7 @@ spec:
       dnsConfig:
         {{- toYaml . | nindent 8}}
       {{- end }}
-      {{- if .Values.webhook.hostNetwork }}
+      {{- if .Values.hostNetwork }}
       hostNetwork: true
       {{- end }}
       containers:

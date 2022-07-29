@@ -29,6 +29,8 @@ serviceMonitor:
   endpointConfig: {}
 # -- Number of replicas.
 replicas: 1
+# -- The number of old ReplicaSets to retain to allow rollback.
+revisionHistoryLimit: 10
 # -- Strategy for updating the pod.
 strategy:
   type: Recreate
@@ -37,6 +39,7 @@ podLabels: {}
 # -- Additional annotations for the pod.
 podAnnotations: {}
 podDisruptionBudget:
+  name: karpenter
   maxUnavailable: 1
 # -- SecurityContext for the pod.
 podSecurityContext:
@@ -49,7 +52,7 @@ terminationGracePeriodSeconds:
 # This is required when using a custom CNI.
 hostNetwork: false
 # -- Configure the DNS Policy for the pod
-dnsPolicy: ClusterFirst
+dnsPolicy: Default
 # -- Configure DNS Config for the pod
 dnsConfig: {}
 #  options:
@@ -72,7 +75,9 @@ topologySpreadConstraints:
     topologyKey: topology.kubernetes.io/zone
     whenUnsatisfiable: ScheduleAnyway
 # -- Tolerations to allow the pod to be scheduled to nodes with taints.
-tolerations: []
+tolerations:
+  - key: CriticalAddonsOnly
+    operator: Exists
 # -- Additional volumes for the pod.
 extraVolumes: []
 # - name: aws-iam-token
@@ -86,7 +91,7 @@ extraVolumes: []
 
 controller:
   # -- Controller image.
-  image: "public.ecr.aws/karpenter/controller:v0.13.2@sha256:af463b2ab0a9b7b1fdf0991ee733dd8bcf5eabf80907f69ceddda28556aead31"
+  image: "public.ecr.aws/karpenter/controller:v0.14.0-rc.0@sha256:f87857bea61b2961ce95933a8a79f656493a5e7fa87434c88a82a8f2f4d4ec05"
   # -- SecurityContext for the controller container.
   securityContext: {}
   # -- Additional environment variables for the controller pod.
@@ -121,7 +126,7 @@ controller:
   batchIdleDuration: 1s
 webhook:
   # -- Webhook image.
-  image: "public.ecr.aws/karpenter/webhook:v0.13.2@sha256:e10488262a58173911d2b17d6ef1385979e33334807efd8783e040aa241dd239"
+  image: "public.ecr.aws/karpenter/webhook:v0.14.0-rc.0@sha256:be351e160b701f6c13c8fce7dcda79779adb657ff5c2cc894220b2bd57fa6184"
   # -- SecurityContext for the webhook container.
   securityContext: {}
   # -- The container port to use for the webhook.
