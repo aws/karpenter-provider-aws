@@ -16,6 +16,7 @@ package provisioning_test
 
 import (
 	"context"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"testing"
 	"time"
 
@@ -700,7 +701,6 @@ var _ = Describe("Multiple Provisioners", func() {
 	It("should schedule to a provisioner by labels", func() {
 		provisioner := test.Provisioner(test.ProvisionerOptions{Labels: map[string]string{"foo": "bar"}})
 		ExpectApplied(ctx, env.Client, provisioner, test.Provisioner())
-		ExpectProvisioned(ctx, env.Client, controller)
 		pod := ExpectProvisioned(ctx, env.Client, controller,
 			test.UnschedulablePod(test.PodOptions{NodeSelector: provisioner.Spec.Labels}),
 		)[0]
@@ -713,5 +713,34 @@ var _ = Describe("Multiple Provisioners", func() {
 		pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 		node := ExpectScheduled(ctx, env.Client, pod)
 		Expect(node.Labels[v1alpha5.ProvisionerNameLabelKey]).ToNot(Equal(provisioner.Name))
+	})
+	Describe("Weighted Provisioners", func() {
+		It("should schedule to the provisioner with the highest priority always", func() {
+			provisioners := []client.Object{
+				test.Provisioner(),
+				test.Provisioner(test.ProvisionerOptions{Weight: 20}),
+				test.Provisioner(test.ProvisionerOptions{Weight: 100}),
+			}
+			ExpectApplied(ctx, env.Client, provisioners...)
+			pods := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(), test.UnschedulablePod(), test.UnschedulablePod())
+			for _, pod := range pods {
+				node := ExpectScheduled(ctx, env.Client, pod)
+				Expect(node.Labels[v1alpha5.ProvisionerNameLabelKey]).To(Equal(provisioners[2].GetName()))
+			}
+		})
+		It("should schedule to explicitly selected provisioner even if other provisioners are higher priority", func() {
+			targetedProvisioner := test.Provisioner()
+			provisioners := []client.Object{
+				targetedProvisioner,
+				test.Provisioner(test.ProvisionerOptions{Weight: 20}),
+				test.Provisioner(test.ProvisionerOptions{Weight: 100}),
+			}
+			ExpectApplied(ctx, env.Client, provisioners...)
+			pod := ExpectProvisioned(ctx, env.Client, controller,
+				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1alpha5.ProvisionerNameLabelKey: targetedProvisioner.Name}}),
+			)[0]
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(node.Labels[v1alpha5.ProvisionerNameLabelKey]).To(Equal(targetedProvisioner.Name))
+		})
 	})
 })

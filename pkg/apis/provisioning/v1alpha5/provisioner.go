@@ -73,7 +73,8 @@ type ProvisionerSpec struct {
 	Limits *Limits `json:"limits,omitempty"`
 	// Weight is the priority given to the provisioner during scheduling. A higher
 	// numerical weight indicates that this provisioner will be ordered
-	// ahead of other provisioners with lower weights.
+	// ahead of other provisioners with lower weights. A provisioner with no weight
+	// will be treated as if it is a provisioner with a weight of 0.
 	// +optional
 	Weight int `json:"weight,omitempty"`
 }
