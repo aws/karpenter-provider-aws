@@ -15,10 +15,11 @@ limitations under the License.
 package v1alpha5
 
 import (
+	"sort"
+
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"sort"
 )
 
 // ProvisionerSpec is the top level provisioner specification. Provisioners
