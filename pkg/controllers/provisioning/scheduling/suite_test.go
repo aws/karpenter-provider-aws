@@ -59,7 +59,7 @@ var podStateController *state.PodController
 var recorder *test.EventRecorder
 var cfg *test.Config
 
-func TestAPIs(t *testing.T) {
+func TestScheduling(t *testing.T) {
 	ctx = TestContextWithLogger(t)
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Controllers/Scheduling")
@@ -3759,6 +3759,30 @@ var _ = Describe("In-Flight Nodes", func() {
 			secondPod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())
 			node2 := ExpectScheduled(ctx, env.Client, secondPod[0])
 			Expect(node1.Name).ToNot(Equal(node2.Name))
+		})
+		It("should consider a tainted NotReady node as in-flight even if initialized", func() {
+			opts := test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
+				Requests: map[v1.ResourceName]resource.Quantity{v1.ResourceCPU: resource.MustParse("10m")},
+			}}
+			ExpectApplied(ctx, env.Client, provisioner)
+
+			// Schedule to New Node
+			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(opts))[0]
+			node1 := ExpectScheduled(ctx, env.Client, pod)
+			ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node1))
+			// Mark Initialized
+			node1.Labels[v1alpha5.LabelNodeInitialized] = "true"
+			node1.Spec.Taints = []v1.Taint{
+				{Key: v1.TaintNodeNotReady, Effect: v1.TaintEffectNoSchedule},
+				{Key: v1.TaintNodeUnreachable, Effect: v1.TaintEffectNoSchedule},
+			}
+			ExpectApplied(ctx, env.Client, node1)
+			// Schedule to In Flight Node
+			pod = ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(opts))[0]
+			node2 := ExpectScheduled(ctx, env.Client, pod)
+			ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node2))
+
+			Expect(node1.Name).To(Equal(node2.Name))
 		})
 	})
 	Context("Daemonsets", func() {

@@ -18,10 +18,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
-
 	v1 "k8s.io/api/core/v1"
 
+	"github.com/samber/lo"
+
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/utils/resources"
@@ -29,16 +30,16 @@ import (
 )
 
 type InFlightNode struct {
-	Pods               []*v1.Pod
-	Node               *v1.Node
-	requests           v1.ResourceList
-	topology           *Topology
-	requirements       scheduling.Requirements
-	available          v1.ResourceList
-	startupTolerations []v1.Toleration
-	hostPortUsage      *scheduling.HostPortUsage
-	volumeUsage        *scheduling.VolumeLimits
-	volumeLimits       scheduling.VolumeCount
+	Pods          []*v1.Pod
+	Node          *v1.Node
+	requests      v1.ResourceList
+	topology      *Topology
+	requirements  scheduling.Requirements
+	available     v1.ResourceList
+	taints        []v1.Taint
+	hostPortUsage *scheduling.HostPortUsage
+	volumeUsage   *scheduling.VolumeLimits
+	volumeLimits  scheduling.VolumeCount
 }
 
 func NewInFlightNode(n *state.Node, topology *Topology, startupTaints []v1.Taint, daemonResources v1.ResourceList) *InFlightNode {
@@ -55,26 +56,24 @@ func NewInFlightNode(n *state.Node, topology *Topology, startupTaints []v1.Taint
 		volumeLimits:  n.VolumeLimits,
 	}
 
-	if n.Node.Labels[v1alpha5.LabelNodeInitialized] != "true" {
-		// add a default toleration for the standard not ready and startup taints if the node hasn't fully
-		// launched yet
-		node.startupTolerations = append(node.startupTolerations, v1.Toleration{
-			Key:      v1.TaintNodeNotReady,
-			Operator: v1.TolerationOpExists,
-			Effect:   v1.TaintEffectNoSchedule,
-		})
-		node.startupTolerations = append(node.startupTolerations, v1.Toleration{
-			Key:      v1.TaintNodeUnreachable,
-			Operator: v1.TolerationOpExists,
-			Effect:   v1.TaintEffectNoSchedule,
-		})
-		// Only consider startup taints until the node is initialized. Without this, if the startup taint is generic and
-		// re-appears on the node for a different reason (e.g. the node is cordoned) we will assume that pods can
-		// schedule against the node in the future incorrectly.
-		for _, taint := range startupTaints {
-			node.startupTolerations = append(node.startupTolerations, scheduling.TaintToToleration(taint))
-		}
+	ephemeralTaints := []v1.Taint{
+		{Key: v1.TaintNodeNotReady, Effect: v1.TaintEffectNoSchedule},
+		{Key: v1.TaintNodeUnreachable, Effect: v1.TaintEffectNoSchedule},
 	}
+	// Only consider startup taints until the node is initialized. Without this, if the startup taint is generic and
+	// re-appears on the node for a different reason (e.g. the node is cordoned) we will assume that pods can
+	// schedule against the node in the future incorrectly.
+	if n.Node.Labels[v1alpha5.LabelNodeInitialized] != "true" {
+		ephemeralTaints = append(ephemeralTaints, startupTaints...)
+	}
+
+	// Filter out ignored taints
+	node.taints = lo.Reject(n.Node.Spec.Taints, func(taint v1.Taint, _ int) bool {
+		_, rejected := lo.Find(ephemeralTaints, func(t v1.Taint) bool {
+			return t.Key == taint.Key && t.Value == taint.Value && t.Effect == taint.Effect
+		})
+		return rejected
+	})
 
 	// If the in-flight node doesn't have a hostname yet, we treat it's unique name as the hostname.  This allows toppology
 	// with hostname keys to schedule correctly.
@@ -89,7 +88,7 @@ func NewInFlightNode(n *state.Node, topology *Topology, startupTaints []v1.Taint
 
 func (n *InFlightNode) Add(ctx context.Context, pod *v1.Pod) error {
 	// Check Taints
-	if err := scheduling.Taints(n.Node.Spec.Taints).Tolerates(pod, n.startupTolerations...); err != nil {
+	if err := scheduling.Taints(n.taints).Tolerates(pod); err != nil {
 		return err
 	}
 
