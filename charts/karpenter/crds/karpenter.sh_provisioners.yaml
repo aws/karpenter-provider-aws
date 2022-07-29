@@ -205,6 +205,11 @@ spec:
                   is not set."
                 format: int64
                 type: integer
+              weight:
+                description: Weight is the priority given to the provisioner during
+                  scheduling. A higher numerical weight indicates that this provisioner
+                  will be ordered ahead of other provisioners with lower weights.
+                type: integer
             type: object
           status:
             description: ProvisionerStatus defines the observed state of Provisioner
