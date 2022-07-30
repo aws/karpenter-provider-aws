@@ -65,6 +65,9 @@ licenses: ## Verifies dependency licenses
 	go mod download
 	! go-licenses csv ./... | grep -v -e 'MIT' -e 'Apache-2.0' -e 'BSD-3-Clause' -e 'BSD-2-Clause' -e 'ISC' -e 'MPL-2.0'
 
+setup: ## Sets up the IAM roles needed prior to deploying the karpenter-controller. This command only needs to be run once
+	hack/setup-roles.sh
+
 apply: ## Deploy the controller from the current state of your git repository into your ~/.kube/config cluster
 	helm upgrade --create-namespace --install karpenter charts/karpenter --namespace karpenter \
 		$(HELM_OPTS) \
