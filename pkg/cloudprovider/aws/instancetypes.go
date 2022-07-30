@@ -24,6 +24,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -36,7 +37,7 @@ import (
 
 const (
 	InstanceTypesCacheKey              = "types"
-	InstanceTypeZonesCacheKey          = "zones"
+	InstanceTypeZonesCacheKeyPrefix    = "zones:"
 	InstanceTypesAndZonesCacheTTL      = 5 * time.Minute
 	UnfulfillableCapacityErrorCacheTTL = 3 * time.Minute
 )
@@ -46,8 +47,9 @@ type InstanceTypeProvider struct {
 	ec2api          ec2iface.EC2API
 	subnetProvider  *SubnetProvider
 	pricingProvider *PricingProvider
-	// Has two entries: one for all the instance types and one for all zones; values cached *before* considering insufficient capacity errors
-	// from the unavailableOfferings cache
+	// Has one cache entry for all the instance types (key: InstanceTypesCacheKey)
+	// Has one cache entry for all the zones for each subnet selector (key: InstanceTypesZonesCacheKeyPrefix:<hash_of_selector>)
+	// Values cached *before* considering insufficient capacity errors from the unavailableOfferings cache.
 	cache *cache.Cache
 	// key: <capacityType>:<instanceType>:<zone>, value: struct{}{}
 	unavailableOfferings *cache.Cache
@@ -107,7 +109,12 @@ func (p *InstanceTypeProvider) createOfferings(instanceType *ec2.InstanceTypeInf
 }
 
 func (p *InstanceTypeProvider) getInstanceTypeZones(ctx context.Context, provider *v1alpha1.AWS) (map[string]sets.String, error) {
-	if cached, ok := p.cache.Get(InstanceTypeZonesCacheKey); ok {
+	subnetSelectorHash, err := hashstructure.Hash(provider.SubnetSelector, hashstructure.FormatV2, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to hash the subnet selector: %w", err)
+	}
+	cacheKey := fmt.Sprintf("%s%016x", InstanceTypeZonesCacheKeyPrefix, subnetSelectorHash)
+	if cached, ok := p.cache.Get(cacheKey); ok {
 		return cached.(map[string]sets.String), nil
 	}
 
@@ -136,8 +143,8 @@ func (p *InstanceTypeProvider) getInstanceTypeZones(ctx context.Context, provide
 		}); err != nil {
 		return nil, fmt.Errorf("describing instance type zone offerings, %w", err)
 	}
-	logging.FromContext(ctx).Debugf("Discovered EC2 instance types zonal offerings")
-	p.cache.SetDefault(InstanceTypeZonesCacheKey, instanceTypeZones)
+	logging.FromContext(ctx).Debugf("Discovered EC2 instance types zonal offerings (cache key: %v)", cacheKey)
+	p.cache.SetDefault(cacheKey, instanceTypeZones)
 	return instanceTypeZones, nil
 }
 
