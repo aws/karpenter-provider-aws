@@ -21,11 +21,6 @@ spec:
 
   # If omitted, the feature is disabled, nodes will never scale down due to low utilization
   ttlSecondsAfterEmpty: 30
-  
-  # Priority given to the provisioner when the scheduler considers which provisioner
-  # to select. Higher weights indicate higher priority when comparing provisioners.
-  # Specifying no weight is equivalent to specifying a weight of 0.
-  weight: 10
 
   # Provisioned nodes will have these taints
   # Taints may prevent pods from scheduling if they are not tolerated by the pod.

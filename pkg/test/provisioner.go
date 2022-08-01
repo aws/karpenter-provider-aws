@@ -43,7 +43,6 @@ type ProvisionerOptions struct {
 	Status                 v1alpha5.ProvisionerStatus
 	TTLSecondsAfterEmpty   *int64
 	TTLSecondsUntilExpired *int64
-	Weight                 *int32
 }
 
 // Provisioner creates a test provisioner with defaults that can be overridden by ProvisionerOptions.
@@ -74,7 +73,6 @@ func Provisioner(overrides ...ProvisionerOptions) *v1alpha5.Provisioner {
 			Limits:                 &v1alpha5.Limits{Resources: options.Limits},
 			TTLSecondsAfterEmpty:   options.TTLSecondsAfterEmpty,
 			TTLSecondsUntilExpired: options.TTLSecondsUntilExpired,
-			Weight:                 options.Weight,
 		},
 		Status: options.Status,
 	}
