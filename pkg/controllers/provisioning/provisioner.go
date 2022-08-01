@@ -186,6 +186,12 @@ func (p *Provisioner) schedule(ctx context.Context, pods []*v1.Pod) ([]*schedule
 	if err := p.kubeClient.List(ctx, &provisionerList); err != nil {
 		return nil, fmt.Errorf("listing provisioners, %w", err)
 	}
+
+	// nodeTemplates generated from provisioners are ordered by weight
+	// since they are stored within a slice and scheduling
+	// will always attempt to schedule on the first nodeTemplate
+	provisionerList.OrderByWeight()
+
 	for i := range provisionerList.Items {
 		provisioner := &provisionerList.Items[i]
 		if !provisioner.DeletionTimestamp.IsZero() {

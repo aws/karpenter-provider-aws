@@ -15,6 +15,10 @@ limitations under the License.
 package v1alpha5
 
 import (
+	"sort"
+
+	"knative.dev/pkg/ptr"
+
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -70,6 +74,14 @@ type ProvisionerSpec struct {
 	TTLSecondsUntilExpired *int64 `json:"ttlSecondsUntilExpired,omitempty"`
 	// Limits define a set of bounds for provisioning capacity.
 	Limits *Limits `json:"limits,omitempty"`
+	// Weight is the priority given to the provisioner during scheduling. A higher
+	// numerical weight indicates that this provisioner will be ordered
+	// ahead of other provisioners with lower weights. A provisioner with no weight
+	// will be treated as if it is a provisioner with a weight of 0.
+	// +kubebuilder:validation:Minimum:=1
+	// +kubebuilder:validation:Maximum:=100
+	// +optional
+	Weight *int32 `json:"weight,omitempty"`
 }
 
 // +kubebuilder:object:generate=false
@@ -118,4 +130,12 @@ type ProvisionerList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Provisioner `json:"items"`
+}
+
+// OrderByWeight orders the provisioners in the ProvisionerList
+// by their priority weight in-place
+func (pl *ProvisionerList) OrderByWeight() {
+	sort.Slice(pl.Items, func(a, b int) bool {
+		return ptr.Int32Value(pl.Items[a].Spec.Weight) > ptr.Int32Value(pl.Items[b].Spec.Weight)
+	})
 }
