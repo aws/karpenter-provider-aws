@@ -42,6 +42,8 @@ type InFlightNode struct {
 }
 
 func NewInFlightNode(n *state.Node, topology *Topology, startupTaints []v1.Taint, daemonResources v1.ResourceList) *InFlightNode {
+	// The state node passed in here must be a deep copy from cluster state as we modify it
+
 	// the remaining daemonResources to schedule are the total daemonResources minus what has already scheduled
 	remainingDaemonResources := resources.Subtract(daemonResources, n.DaemonSetRequested)
 	node := &InFlightNode{
@@ -50,8 +52,8 @@ func NewInFlightNode(n *state.Node, topology *Topology, startupTaints []v1.Taint
 		topology:      topology,
 		requests:      remainingDaemonResources,
 		requirements:  scheduling.NewLabelRequirements(n.Node.Labels),
-		hostPortUsage: n.HostPortUsage.Copy(),
-		volumeUsage:   n.VolumeUsage.Copy(),
+		hostPortUsage: n.HostPortUsage,
+		volumeUsage:   n.VolumeUsage,
 		volumeLimits:  n.VolumeLimits,
 	}
 

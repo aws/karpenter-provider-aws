@@ -19,15 +19,14 @@ import (
 	"strings"
 	"sync"
 
-	"k8s.io/apimachinery/pkg/util/version"
-
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/version"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
 	"github.com/aws/karpenter/pkg/apis"
-	"github.com/aws/karpenter/pkg/controllers/provisioning/scheduling"
+	"github.com/aws/karpenter/pkg/controllers/provisioning"
 	"github.com/aws/karpenter/pkg/utils/project"
 )
 
@@ -72,7 +71,7 @@ type Environment struct {
 type EnvironmentOption func(env *Environment)
 
 func NewEnvironment(ctx context.Context, options ...EnvironmentOption) *Environment {
-	scheduling.WaitForClusterSync = false
+	provisioning.WaitForClusterSync = false
 
 	ctx, stop := context.WithCancel(ctx)
 	return &Environment{

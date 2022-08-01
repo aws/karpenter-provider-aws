@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/imdario/mergo"
 	"github.com/prometheus/client_golang/prometheus"
@@ -46,6 +47,10 @@ import (
 	"github.com/aws/karpenter/pkg/utils/pod"
 	"github.com/aws/karpenter/pkg/utils/resources"
 )
+
+// WaitForClusterSync controls whether or not we synchronize before scheduling. This is exposed for
+// unit testing purposes so we can avoid a lengthy delay in cluster sync.
+var WaitForClusterSync = true
 
 func NewProvisioner(ctx context.Context, cfg config.Config, kubeClient client.Client, coreV1Client corev1.CoreV1Interface, recorder events.Recorder, cloudProvider cloudprovider.CloudProvider, cluster *state.Cluster) *Provisioner {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("provisioning"))
@@ -116,6 +121,27 @@ func (p *Provisioner) Provision(ctx context.Context) error {
 		p.mu.Unlock()
 	}()
 
+	// wait to ensure that our cluster state is synced with the current known nodes to prevent over-provisioning
+	for WaitForClusterSync {
+		if err := p.cluster.Synchronized(ctx); err != nil {
+			logging.FromContext(ctx).Infof("waiting for cluster state to catch up, %s", err)
+			time.Sleep(1 * time.Second)
+		} else {
+			break
+		}
+	}
+
+	// We collect the nodes with their used capacities before we get the list of pending pods. This ensures that
+	// the node capacities we schedule against are always >= what the actual capacity is at any given instance. This
+	// prevents over-provisioning at the cost of potentially under-provisioning which will self-heal during the next
+	// scheduling loop when we launch a new node.  When this order is reversed, our node capacity may be reduced by pods
+	// that have bound which we then provision new un-needed capacity for.
+	var stateNodes []*state.Node
+	p.cluster.ForEachNode(func(node *state.Node) bool {
+		stateNodes = append(stateNodes, node.DeepCopy())
+		return true
+	})
+
 	// Get pods, exit if nothing to do
 	pods, err := p.getPods(ctx)
 	if err != nil {
@@ -124,8 +150,9 @@ func (p *Provisioner) Provision(ctx context.Context) error {
 	if len(pods) == 0 {
 		return nil
 	}
+
 	// Schedule pods to potential nodes, exit if nothing to do
-	nodes, err := p.schedule(ctx, pods)
+	nodes, err := p.schedule(ctx, pods, stateNodes)
 	if err != nil {
 		return err
 	}
@@ -175,7 +202,7 @@ func (p *Provisioner) getPods(ctx context.Context) ([]*v1.Pod, error) {
 }
 
 // nolint: gocyclo
-func (p *Provisioner) schedule(ctx context.Context, pods []*v1.Pod) ([]*scheduler.Node, error) {
+func (p *Provisioner) schedule(ctx context.Context, pods []*v1.Pod, nodes []*state.Node) ([]*scheduler.Node, error) {
 	defer metrics.Measure(schedulingDuration.WithLabelValues(injection.GetNamespacedName(ctx).Name))()
 
 	// Build node templates
@@ -231,7 +258,8 @@ func (p *Provisioner) schedule(ctx context.Context, pods []*v1.Pod) ([]*schedule
 		return nil, fmt.Errorf("getting daemon overhead, %w", err)
 	}
 
-	return scheduler.NewScheduler(ctx, p.kubeClient, nodeTemplates, provisionerList.Items, p.cluster, topology, instanceTypes, daemonOverhead, p.recorder).Solve(ctx, pods)
+	return scheduler.NewScheduler(ctx, p.kubeClient, nodeTemplates, provisionerList.Items,
+		p.cluster, nodes, topology, instanceTypes, daemonOverhead, p.recorder).Solve(ctx, pods)
 }
 
 func (p *Provisioner) launch(ctx context.Context, node *scheduler.Node) error {
