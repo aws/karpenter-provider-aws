@@ -72,6 +72,7 @@ func Filter(filters []*ec2.Filter, id string, tags []*ec2.Tag) bool {
 }
 
 // matchTags is a predicate that matches a slice of tags with a tag:<key> or tag-keys filter
+// nolint: gocyclo
 func matchTags(tags []*ec2.Tag, filter *ec2.Filter) bool {
 	if strings.HasPrefix(*filter.Name, "tag:") {
 		tagKey := strings.Split(*filter.Name, ":")[1]
