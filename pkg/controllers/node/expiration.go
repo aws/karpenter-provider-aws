@@ -51,6 +51,7 @@ func (r *Expiration) Reconcile(ctx context.Context, provisioner *v1alpha5.Provis
 			return reconcile.Result{}, fmt.Errorf("deleting node, %w", err)
 		}
 	}
+
 	// 3. Backoff until expired
 	return reconcile.Result{RequeueAfter: time.Until(expirationTime)}, nil
 }

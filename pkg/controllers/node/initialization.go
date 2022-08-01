@@ -17,6 +17,7 @@ package node
 import (
 	"context"
 	"fmt"
+	"knative.dev/pkg/ptr"
 
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
@@ -47,6 +48,15 @@ func (r *Initialization) Reconcile(ctx context.Context, provisioner *v1alpha5.Pr
 		return reconcile.Result{}, fmt.Errorf("determining instance type, %w", err)
 	}
 	if !r.isInitialized(n, provisioner, instanceType) {
+		// trigger termination workflow if node has not become Ready after the set liveness TTL
+		if provisioner.Spec.TTLSecondsAfterNotReady != nil {
+			_, err = TriggerTerminationIfExpired(ctx, ptr.Int64Value(provisioner.Spec.TTLSecondsAfterNotReady), n,
+				r.kubeClient, "NotReady")
+			if err != nil {
+				// requeue and retry termination if failed
+				return reconcile.Result{Requeue: true}, fmt.Errorf("triggering termination: %w", err)
+			}
+		}
 		return reconcile.Result{}, nil
 	}
 

@@ -64,6 +64,15 @@ type ProvisionerSpec struct {
 	// Termination due to no utilization is disabled if this field is not set.
 	// +optional
 	TTLSecondsAfterEmpty *int64 `json:"ttlSecondsAfterEmpty,omitempty"`
+	// TTLSecondsAfterNotReady is the number of seconds before a node that does not
+	// become Ready will be terminated. It is disabled if this field is not set,
+	// which means a node that joins the cluster but never become ready will cause
+	// pods assigned to the node to never start Running.
+	// Note: Seeing the TTL too low can hastily terminate nodes that otherwise would've
+	// joined given some time, especially for large clusters. It may also hinder
+	// debugging the underlying root problem of the node if it goes away too soon.
+	// +optional
+	TTLSecondsAfterNotReady *int64 `json:"ttlSecondsAfterNotReady,omitempty"`
 	// TTLSecondsUntilExpired is the number of seconds the controller will wait
 	// before terminating a node, measured from when the node is created. This
 	// is useful to implement features like eventually consistent node upgrade,

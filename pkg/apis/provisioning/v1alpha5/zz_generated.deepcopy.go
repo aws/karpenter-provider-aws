@@ -229,6 +229,11 @@ func (in *ProvisionerSpec) DeepCopyInto(out *ProvisionerSpec) {
 		*out = new(int64)
 		**out = **in
 	}
+	if in.TTLSecondsAfterNotReady != nil {
+		in, out := &in.TTLSecondsAfterNotReady, &out.TTLSecondsAfterNotReady
+		*out = new(int64)
+		**out = **in
+	}
 	if in.TTLSecondsUntilExpired != nil {
 		in, out := &in.TTLSecondsUntilExpired, &out.TTLSecondsUntilExpired
 		*out = new(int64)

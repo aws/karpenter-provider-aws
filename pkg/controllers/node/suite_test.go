@@ -298,4 +298,154 @@ var _ = Describe("Controller", func() {
 			}}))
 		})
 	})
+
+	Context("Initialization", func() {
+		It("should ignore NotReady nodes without TTLSecondsAfterNotReady", func() {
+			n := test.Node(test.NodeOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Finalizers: []string{v1alpha5.TerminationFinalizer},
+					Labels: map[string]string{
+						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+					},
+				},
+				ReadyStatus: v1.ConditionFalse,
+			})
+			ExpectApplied(ctx, env.Client, provisioner, n)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
+
+			n = ExpectNodeExists(ctx, env.Client, n.Name)
+			Expect(n.DeletionTimestamp.IsZero()).To(BeTrue())
+		})
+		It("should ignore NotReady nodes without a provisioner", func() {
+			n := test.Node(test.NodeOptions{
+				ObjectMeta:  metav1.ObjectMeta{Finalizers: []string{v1alpha5.TerminationFinalizer}},
+				ReadyStatus: v1.ConditionFalse,
+			})
+			ExpectApplied(ctx, env.Client, provisioner, n)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
+
+			n = ExpectNodeExists(ctx, env.Client, n.Name)
+			Expect(n.DeletionTimestamp.IsZero()).To(BeTrue())
+		})
+		It("should ignore nodes that become NotReady after TTL", func() {
+			provisioner.Spec.TTLSecondsAfterNotReady = ptr.Int64(30)
+			n := test.Node(test.NodeOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Finalizers: []string{v1alpha5.TerminationFinalizer},
+					Labels: map[string]string{
+						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+					},
+				},
+			})
+			ExpectApplied(ctx, env.Client, provisioner, n)
+
+			// Should still exist
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
+			n = ExpectNodeExists(ctx, env.Client, n.Name)
+			Expect(n.DeletionTimestamp.IsZero()).To(BeTrue())
+
+			// Verify init label
+			Expect(n.Labels[v1alpha5.LabelNodeInitialized]).To(Equal("true"))
+
+			// Simulate time passing
+			injectabletime.Now = func() time.Time {
+				return time.Now().Add(time.Duration(*provisioner.Spec.TTLSecondsAfterNotReady+1) * time.Second)
+			}
+
+			// Node becomes NotReady
+			for i, condition := range n.Status.Conditions {
+				if condition.Type == v1.NodeReady {
+					n.Status.Conditions[i].Status = v1.ConditionFalse
+				}
+			}
+
+			// Should still exist
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
+			n = ExpectNodeExists(ctx, env.Client, n.Name)
+			Expect(n.DeletionTimestamp.IsZero()).To(BeTrue())
+		})
+		It("should delete nodes not ready after TTL", func() {
+			provisioner.Spec.TTLSecondsAfterNotReady = ptr.Int64(30)
+			n := test.Node(test.NodeOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Finalizers: []string{v1alpha5.TerminationFinalizer},
+					Labels: map[string]string{
+						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+					},
+				},
+				ReadyStatus: v1.ConditionFalse,
+			})
+			ExpectApplied(ctx, env.Client, provisioner, n)
+
+			// Should still exist
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
+			n = ExpectNodeExists(ctx, env.Client, n.Name)
+			Expect(n.DeletionTimestamp.IsZero()).To(BeTrue())
+
+			// Simulate time passing
+			injectabletime.Now = func() time.Time {
+				return time.Now().Add(time.Duration(*provisioner.Spec.TTLSecondsAfterNotReady) * time.Second)
+			}
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
+			n = ExpectNodeExists(ctx, env.Client, n.Name)
+			Expect(n.DeletionTimestamp.IsZero()).To(BeFalse())
+		})
+		It("should delete node without startup taints removed after TTL", func() {
+			provisioner.Spec.TTLSecondsAfterNotReady = ptr.Int64(30)
+			provisioner.Spec.StartupTaints = []v1.Taint{
+				{Key: "a", Effect: v1.TaintEffectNoSchedule},
+			}
+			n := test.Node(test.NodeOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Finalizers: []string{v1alpha5.TerminationFinalizer},
+					Labels: map[string]string{
+						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+					},
+				},
+				Taints: []v1.Taint{
+					{Key: "a", Effect: v1.TaintEffectNoSchedule},
+				},
+			})
+			ExpectApplied(ctx, env.Client, provisioner, n)
+
+			// Should still exist
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
+			n = ExpectNodeExists(ctx, env.Client, n.Name)
+			Expect(n.DeletionTimestamp.IsZero()).To(BeTrue())
+
+			// Simulate time passing
+			injectabletime.Now = func() time.Time {
+				return time.Now().Add(time.Duration(*provisioner.Spec.TTLSecondsAfterNotReady) * time.Second)
+			}
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
+			n = ExpectNodeExists(ctx, env.Client, n.Name)
+			Expect(n.DeletionTimestamp.IsZero()).To(BeFalse())
+		})
+		It("should delete nodes without extended resources registered after TTL", func() {
+			provisioner.Spec.TTLSecondsAfterNotReady = ptr.Int64(30)
+			n := test.Node(test.NodeOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Finalizers: []string{v1alpha5.TerminationFinalizer},
+					Labels: map[string]string{
+						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+						v1.LabelInstanceTypeStable:       "default-instance-type",
+					},
+				},
+			})
+			ExpectApplied(ctx, env.Client, provisioner, n)
+
+			// Should still exist
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
+			n = ExpectNodeExists(ctx, env.Client, n.Name)
+			Expect(n.DeletionTimestamp.IsZero()).To(BeTrue())
+
+			// Simulate time passing
+			injectabletime.Now = func() time.Time {
+				return time.Now().Add(time.Duration(*provisioner.Spec.TTLSecondsAfterNotReady) * time.Second)
+			}
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
+			n = ExpectNodeExists(ctx, env.Client, n.Name)
+			Expect(n.DeletionTimestamp.IsZero()).To(BeFalse())
+		})
+	})
 })

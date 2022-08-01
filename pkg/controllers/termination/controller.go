@@ -19,25 +19,22 @@ import (
 	"fmt"
 	"time"
 
-	"k8s.io/apimachinery/pkg/util/clock"
-
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/samber/lo"
 	"golang.org/x/time/rate"
-	"knative.dev/pkg/logging"
-
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/util/clock"
 	"k8s.io/apimachinery/pkg/util/sets"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/util/workqueue"
+	"knative.dev/pkg/logging"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/samber/lo"
 
 	provisioning "github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"

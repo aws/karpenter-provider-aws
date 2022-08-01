@@ -17,6 +17,7 @@ package node
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
@@ -36,6 +37,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/controllers/state"
+	"github.com/aws/karpenter/pkg/utils/injectabletime"
 	"github.com/aws/karpenter/pkg/utils/result"
 )
 
@@ -150,4 +152,22 @@ func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
 		).
 		WithOptions(controller.Options{MaxConcurrentReconciles: 10}).
 		Complete(c)
+}
+
+// TriggerTerminationIfExpired is a helper function to be called by other controllers that want to trigger the
+// termination of nodes.
+func TriggerTerminationIfExpired(ctx context.Context, ttlSeconds int64, node *v1.Node, kubeClient client.Client,
+	reason string) (
+	time.Time, error) {
+	expirationTTL := time.Duration(ttlSeconds) * time.Second
+	expirationTime := node.CreationTimestamp.Add(expirationTTL)
+	if injectabletime.Now().After(expirationTime) {
+		logging.FromContext(ctx).Infof("Triggering termination for %s node after %s (+%s)",
+			reason, expirationTTL, time.Since(expirationTime))
+		if err := kubeClient.Delete(ctx, node); err != nil {
+			return expirationTime, fmt.Errorf("deleting node, %w", err)
+		}
+	}
+
+	return expirationTime, nil
 }
