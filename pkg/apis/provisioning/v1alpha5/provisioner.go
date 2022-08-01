@@ -76,8 +76,10 @@ type ProvisionerSpec struct {
 	// numerical weight indicates that this provisioner will be ordered
 	// ahead of other provisioners with lower weights. A provisioner with no weight
 	// will be treated as if it is a provisioner with a weight of 0.
+	// +kubebuilder:validation:Minimum:=1
+	// +kubebuilder:validation:Maximum:=100
 	// +optional
-	Weight int `json:"weight,omitempty"`
+	Weight *int32 `json:"weight,omitempty"`
 }
 
 // +kubebuilder:object:generate=false
@@ -132,6 +134,12 @@ type ProvisionerList struct {
 // by their priority weight in-place
 func (pl *ProvisionerList) OrderByWeight() {
 	sort.Slice(pl.Items, func(a, b int) bool {
-		return pl.Items[a].Spec.Weight > pl.Items[b].Spec.Weight
+		if pl.Items[b].Spec.Weight == nil {
+			return true
+		} else if pl.Items[a].Spec.Weight == nil {
+			return false
+		} else {
+			return *pl.Items[a].Spec.Weight > *pl.Items[b].Spec.Weight
+		}
 	})
 }

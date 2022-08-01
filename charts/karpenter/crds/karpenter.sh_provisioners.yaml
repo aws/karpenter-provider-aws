@@ -211,6 +211,9 @@ spec:
                   will be ordered ahead of other provisioners with lower weights.
                   A provisioner with no weight will be treated as if it is a provisioner
                   with a weight of 0.
+                format: int32
+                maximum: 100
+                minimum: 1
                 type: integer
             type: object
           status:

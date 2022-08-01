@@ -16,6 +16,7 @@ package provisioning_test
 
 import (
 	"context"
+	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"testing"
 	"time"
@@ -715,11 +716,11 @@ var _ = Describe("Multiple Provisioners", func() {
 		Expect(node.Labels[v1alpha5.ProvisionerNameLabelKey]).ToNot(Equal(provisioner.Name))
 	})
 	Describe("Weighted Provisioners", func() {
-		It("should schedule to the provisioner with the highest priority always", func() {
+		FIt("should schedule to the provisioner with the highest priority always", func() {
 			provisioners := []client.Object{
 				test.Provisioner(),
-				test.Provisioner(test.ProvisionerOptions{Weight: 20}),
-				test.Provisioner(test.ProvisionerOptions{Weight: 100}),
+				test.Provisioner(test.ProvisionerOptions{Weight: ptr.Int32(20)}),
+				test.Provisioner(test.ProvisionerOptions{Weight: ptr.Int32(100)}),
 			}
 			ExpectApplied(ctx, env.Client, provisioners...)
 			pods := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(), test.UnschedulablePod(), test.UnschedulablePod())
@@ -732,8 +733,8 @@ var _ = Describe("Multiple Provisioners", func() {
 			targetedProvisioner := test.Provisioner()
 			provisioners := []client.Object{
 				targetedProvisioner,
-				test.Provisioner(test.ProvisionerOptions{Weight: 20}),
-				test.Provisioner(test.ProvisionerOptions{Weight: 100}),
+				test.Provisioner(test.ProvisionerOptions{Weight: ptr.Int32(20)}),
+				test.Provisioner(test.ProvisionerOptions{Weight: ptr.Int32(100)}),
 			}
 			ExpectApplied(ctx, env.Client, provisioners...)
 			pod := ExpectProvisioned(ctx, env.Client, controller,

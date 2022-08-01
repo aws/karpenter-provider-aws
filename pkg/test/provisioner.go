@@ -18,7 +18,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-
 	"github.com/imdario/mergo"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -43,7 +42,7 @@ type ProvisionerOptions struct {
 	Status                 v1alpha5.ProvisionerStatus
 	TTLSecondsAfterEmpty   *int64
 	TTLSecondsUntilExpired *int64
-	Weight                 int
+	Weight                 *int32
 }
 
 // Provisioner creates a test provisioner with defaults that can be overridden by ProvisionerOptions.
