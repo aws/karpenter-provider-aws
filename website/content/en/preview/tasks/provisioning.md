@@ -113,7 +113,40 @@ spec:
 ```
 In order for a pod to run on a node defined in this provisioner, it must tolerate `nvidia.com/gpu` in its pod spec.
 
-### Example: Adding the Cilium Startup Taint
+## Example: Creating Provisioner Hierarchies with Weights
+
+Provisioners can be given preference by their `.spec.weight` value. This enables us to describe hierarchical relationships between provisioners. In the example below, I define a `primary` provisioner with higher weight which allows me to deploy nodes to `kubernetes.io/arch=amd64` for all pods that support this architecture by default. I can then define a `backup` provisioner that will deploy `kubernets.io/arch=arm64` nodes to workloads that specifically require the `arm64` architecture.
+
+```yaml
+# primary.yaml
+
+apiVersion: karpenter.sh/v1alpha5
+kind: Provisioner
+metadata:
+  name: primary
+spec:
+  weight: 10
+  requirements:
+  - key: kubernetes.io/arch
+    operator: In
+    values: ["amd64"]
+```
+
+```yaml
+# backup.yaml
+
+apiVersion: karpenter.sh/v1alpha5
+kind: Provisioner
+metadata:
+  name: backup
+spec:
+  requirements:
+  - key: kubernetes.io/arch
+    operator: In
+    values: ["amd64"]
+```
+
+## Example: Adding the Cilium Startup Taint
 
 Per the Cilium [docs](https://docs.cilium.io/en/stable/gettingstarted/taints/),  it's recommended to place a taint of `node.cilium.io/agent-not-ready=true:NoExecute` on nodes to allow Cilium to configure networking prior to other pods starting.  This can be accomplished via the use of Karpenter `startupTaints`.  These taints are placed on the node, but pods aren't required to tolerate these taints to be considered for provisioning.
 
