@@ -161,8 +161,8 @@ var _ = Describe("Allocation", func() {
 	BeforeEach(func() {
 		provider = &awsv1alpha1.AWS{
 			AMIFamily:             aws.String(awsv1alpha1.AMIFamilyAL2),
-			SubnetSelector:        map[string]string{"foo": "bar"},
-			SecurityGroupSelector: map[string]string{"foo": "bar"},
+			SubnetSelector:        map[string]string{"*": "*"},
+			SecurityGroupSelector: map[string]string{"*": "*"},
 		}
 		provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
 		fakeEC2API.Reset()
@@ -876,10 +876,34 @@ var _ = Describe("Allocation", func() {
 					{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1a"), AvailableIpAddressCount: aws.Int64(100),
 						Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
 				}})
-				ExpectApplied(ctx, env.Client, provisioner)
+				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
 				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}}))[0]
 				ExpectScheduled(ctx, env.Client, pod)
 				createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop()
+				Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-2"))
+			})
+			It("should launch instances into subnets that are excluded by another provisioner", func() {
+				fakeEC2API.DescribeSubnetsOutput.Set(&ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{
+					{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a"), AvailableIpAddressCount: aws.Int64(10),
+						Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1")}}},
+					{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1b"), AvailableIpAddressCount: aws.Int64(100),
+						Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
+				}})
+				provider.SubnetSelector = map[string]string{"Name": "test-subnet-1"}
+				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
+				podSubnet1 := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				ExpectScheduled(ctx, env.Client, podSubnet1)
+				createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop()
+				Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-1"))
+
+				provider = &awsv1alpha1.AWS{
+					SubnetSelector:        map[string]string{"Name": "test-subnet-2"},
+					SecurityGroupSelector: map[string]string{"*": "*"},
+				}
+				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
+				podSubnet2 := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				ExpectScheduled(ctx, env.Client, podSubnet2)
+				createFleetInput = fakeEC2API.CalledWithCreateFleetInput.Pop()
 				Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-2"))
 			})
 			It("should discover subnet by ID", func() {
