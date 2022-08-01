@@ -17,6 +17,8 @@ package v1alpha5
 import (
 	"sort"
 
+	"knative.dev/pkg/ptr"
+
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -134,12 +136,6 @@ type ProvisionerList struct {
 // by their priority weight in-place
 func (pl *ProvisionerList) OrderByWeight() {
 	sort.Slice(pl.Items, func(a, b int) bool {
-		if pl.Items[b].Spec.Weight == nil {
-			return true
-		} else if pl.Items[a].Spec.Weight == nil {
-			return false
-		} else {
-			return *pl.Items[a].Spec.Weight > *pl.Items[b].Spec.Weight
-		}
+		return ptr.Int32Value(pl.Items[a].Spec.Weight) > ptr.Int32Value(pl.Items[b].Spec.Weight)
 	})
 }

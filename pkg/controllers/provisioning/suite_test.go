@@ -716,7 +716,7 @@ var _ = Describe("Multiple Provisioners", func() {
 		Expect(node.Labels[v1alpha5.ProvisionerNameLabelKey]).ToNot(Equal(provisioner.Name))
 	})
 	Describe("Weighted Provisioners", func() {
-		FIt("should schedule to the provisioner with the highest priority always", func() {
+		It("should schedule to the provisioner with the highest priority always", func() {
 			provisioners := []client.Object{
 				test.Provisioner(),
 				test.Provisioner(test.ProvisionerOptions{Weight: ptr.Int32(20)}),
