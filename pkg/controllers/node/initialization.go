@@ -17,15 +17,18 @@ package node
 import (
 	"context"
 	"fmt"
-	"knative.dev/pkg/ptr"
+	"time"
 
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
+	"knative.dev/pkg/logging"
+	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/utils/injectabletime"
 	"github.com/aws/karpenter/pkg/utils/resources"
 )
 
@@ -50,11 +53,13 @@ func (r *Initialization) Reconcile(ctx context.Context, provisioner *v1alpha5.Pr
 	if !r.isInitialized(n, provisioner, instanceType) {
 		// trigger termination workflow if node has not become Ready after the set liveness TTL
 		if provisioner.Spec.TTLSecondsAfterNotReady != nil {
-			_, err = TriggerTerminationIfExpired(ctx, ptr.Int64Value(provisioner.Spec.TTLSecondsAfterNotReady), n,
-				r.kubeClient, "NotReady")
-			if err != nil {
-				// requeue and retry termination if failed
-				return reconcile.Result{Requeue: true}, fmt.Errorf("triggering termination: %w", err)
+			expirationTTL := time.Duration(ptr.Int64Value(provisioner.Spec.TTLSecondsAfterNotReady)) * time.Second
+			expirationTime := n.CreationTimestamp.Add(expirationTTL)
+			if injectabletime.Now().After(expirationTime) {
+				logging.FromContext(ctx).Infof("Triggering termination for NotReady node after %s (+%s)", expirationTTL, time.Since(expirationTime))
+				if err := r.kubeClient.Delete(ctx, n); err != nil {
+					return reconcile.Result{Requeue: true}, fmt.Errorf("triggering termination: %w", err)
+				}
 			}
 		}
 		return reconcile.Result{}, nil

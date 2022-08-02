@@ -42,6 +42,7 @@ func (r *Expiration) Reconcile(ctx context.Context, provisioner *v1alpha5.Provis
 	if provisioner.Spec.TTLSecondsUntilExpired == nil {
 		return reconcile.Result{}, nil
 	}
+
 	// 2. Trigger termination workflow if expired
 	expirationTTL := time.Duration(ptr.Int64Value(provisioner.Spec.TTLSecondsUntilExpired)) * time.Second
 	expirationTime := node.CreationTimestamp.Add(expirationTTL)
