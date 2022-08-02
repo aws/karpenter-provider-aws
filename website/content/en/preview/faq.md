@@ -124,19 +124,6 @@ More specifically, Karpenter maintains a concept of "offerings" for each instanc
 
 See [Application developer]({{< ref "./concepts/#application-developer" >}}) for descriptions of how Karpenter matches nodes with pod requests.
 
-### How do I use Karpenter with the AWS load balancer controller?
-
-* In most cases, set the AWS load balancer [target type](https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.3/guide/ingress/annotations/#target-type) to IP mode for the pods.
-Using IP targets is generally recommended because it avoids routing traffic through kube-proxy (which adds greater overhead).
-Although kubeproxy overhead is small for small clusters, it can be significant with very large clusters.
-
-* Set [readiness gate](https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.3/deploy/pod_readiness_gate/) on the namespace.
-The default is round robin at the node level.
-For Karpenter, not all nodes are equal.
-For example, each node will have different performance characteristics and a different number of pods running on it.
-A `t3.small` with three instances should not receive the same amount of traffic as a `m5.4xlarge` with dozens of pods.
-If you don't specify a spread at the workload level, or limit what instances should be picked, you could get the same amount of traffic sent to the `t3` and `m5`.
-
 ### Can I use Karpenter with EBS disks per availability zone?
 Yes.  See [Persistent Volume Topology]({{< ref "./tasks/scheduling#persistent-volume-topology" >}}) for details.
 
