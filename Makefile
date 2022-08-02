@@ -1,4 +1,4 @@
-export K8S_VERSION ?= 1.22.x
+export K8S_VERSION ?= 1.23.x
 export KUBEBUILDER_ASSETS ?= ${HOME}/.kubebuilder/bin
 
 ## Inject the app version into project.Version
