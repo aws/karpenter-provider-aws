@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"time"
 
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
@@ -34,11 +33,10 @@ import (
 	"github.com/aws/karpenter/pkg/utils/resources"
 )
 
-// WaitForClusterSync controls whether or not we synchronize before scheduling. This is exposed for
-// unit testing purposes so we can avoid a lengthy delay in cluster sync.
-var WaitForClusterSync = true
-
-func NewScheduler(ctx context.Context, kubeClient client.Client, nodeTemplates []*scheduling.NodeTemplate, provisioners []v1alpha5.Provisioner, cluster *state.Cluster, topology *Topology, instanceTypes map[string][]cloudprovider.InstanceType, daemonOverhead map[*scheduling.NodeTemplate]v1.ResourceList, recorder events.Recorder) *Scheduler {
+func NewScheduler(ctx context.Context, kubeClient client.Client, nodeTemplates []*scheduling.NodeTemplate,
+	provisioners []v1alpha5.Provisioner, cluster *state.Cluster, stateNodes []*state.Node, topology *Topology,
+	instanceTypes map[string][]cloudprovider.InstanceType, daemonOverhead map[*scheduling.NodeTemplate]v1.ResourceList,
+	recorder events.Recorder) *Scheduler {
 	for provisioner := range instanceTypes {
 		sort.Slice(instanceTypes[provisioner], func(i, j int) bool {
 			return instanceTypes[provisioner][i].Price() < instanceTypes[provisioner][j].Price()
@@ -67,27 +65,17 @@ func NewScheduler(ctx context.Context, kubeClient client.Client, nodeTemplates [
 		}
 	}
 
-	// wait to ensure that our cluster state is synced with the current known nodes to prevent over-shooting
-	for WaitForClusterSync {
-		if err := s.cluster.Synchronized(ctx); err != nil {
-			logging.FromContext(ctx).Infof("waiting for cluster state to catch up, %s", err)
-			time.Sleep(1 * time.Second)
-		} else {
-			break
-		}
-	}
-
 	// create our in-flight nodes
-	s.cluster.ForEachNode(func(node *state.Node) bool {
+	for _, node := range stateNodes {
 		name, ok := node.Node.Labels[v1alpha5.ProvisionerNameLabelKey]
 		if !ok {
 			// ignoring this node as it wasn't launched by us
-			return true
+			continue
 		}
 		nodeTemplate, ok := namedNodeTemplates[name]
 		if !ok {
 			// ignoring this node as it wasn't launched by a provisioner that we recognize
-			return true
+			continue
 		}
 		s.inflight = append(s.inflight, NewInFlightNode(node, s.topology, nodeTemplate.StartupTaints, s.daemonOverhead[nodeTemplate]))
 
@@ -95,8 +83,7 @@ func NewScheduler(ctx context.Context, kubeClient client.Client, nodeTemplates [
 		// of the cluster during scheduling.  Depending on how node creation falls out, this will also work for cases where
 		// we don't create Node resources.
 		s.remainingResources[name] = resources.Subtract(s.remainingResources[name], node.Capacity)
-		return true
-	})
+	}
 	return s
 }
 

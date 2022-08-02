@@ -78,6 +78,7 @@ func NewCluster(cfg config.Config, client client.Client, cp cloudprovider.CloudP
 // Node is a cached version of a node in the cluster that maintains state which is expensive to compute every time it's
 // needed.  This currently contains node utilization across all the allocatable resources, but will soon be used to
 // compute topology information.
+// +k8s:deepcopy-gen=true
 type Node struct {
 	Node *v1.Node
 	// Capacity is the total resources on the node.
@@ -435,7 +436,7 @@ func (c *Cluster) updateNodeUsageFromPod(ctx context.Context, pod *v1.Pod) error
 	return nil
 }
 
-// clusterStateSynchronized ensures that our cluster state is aware of at least all of the nodes that our list cache has.
+// Synchronized ensures that our cluster state is aware of at least all of the nodes that our list cache has.
 // Since we launch nodes in parallel, we can create many node objects which may not all be reconciled by the cluster
 // state before we start trying to schedule again.  In this case, we would over-provision as we weren't aware of the
 // inflight nodes.
