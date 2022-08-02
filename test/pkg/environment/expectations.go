@@ -18,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -25,7 +26,6 @@ import (
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/utils/pod"
-	"github.com/aws/karpenter/pkg/utils/sets"
 )
 
 var (
@@ -147,7 +147,7 @@ func (env *Environment) eventuallyExpectScaleDown() {
 
 func (env *Environment) GetCreatedNodes(before []v1.Node, after []v1.Node) []*v1.Node {
 	createdNodes := []*v1.Node{}
-	oldList := sets.NewSet()
+	oldList := sets.NewString()
 	for _, node := range before {
 		oldList.Insert(node.Name)
 	}

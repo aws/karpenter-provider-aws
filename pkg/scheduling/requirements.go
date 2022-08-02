@@ -19,19 +19,19 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
-	stringsets "k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/apimachinery/pkg/util/sets"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter/pkg/utils/sets"
 )
 
 // Requirements are an efficient set representation under the hood. Since its underlying
 // types are slices and maps, this type should not be used as a pointer.
-type Requirements map[string]sets.Set
+type Requirements map[string]*Requirement
 
-func NewRequirements(requirements ...Requirements) Requirements {
+func NewRequirements(requirements ...*Requirement) Requirements {
 	r := Requirements{}
 	for _, requirement := range requirements {
 		r.Add(requirement)
@@ -41,79 +41,63 @@ func NewRequirements(requirements ...Requirements) Requirements {
 
 // NewRequirements constructs requirements from NodeSelectorRequirements
 func NewNodeSelectorRequirements(requirements ...v1.NodeSelectorRequirement) Requirements {
-	r := NewRequirements()
+	r := Requirements{}
 	for _, requirement := range requirements {
-		if normalized, ok := v1alpha5.NormalizedLabels[requirement.Key]; ok {
-			requirement.Key = normalized
-		}
-		if v1alpha5.IgnoredLabels.Has(requirement.Key) {
-			continue
-		}
-		var values sets.Set
-		switch requirement.Operator {
-		case v1.NodeSelectorOpIn:
-			values = sets.NewSet(requirement.Values...)
-		case v1.NodeSelectorOpNotIn:
-			values = sets.NewComplementSet(requirement.Values...)
-		case v1.NodeSelectorOpExists:
-			values = sets.NewComplementSet()
-		case v1.NodeSelectorOpDoesNotExist:
-			values = sets.NewSet()
-		}
-		r.Add(map[string]sets.Set{requirement.Key: values})
+		r.Add(NewRequirement(requirement.Key, requirement.Operator, requirement.Values...))
 	}
 	return r
 }
 
 // NewLabelRequirements constructs requirements from labels
 func NewLabelRequirements(labels map[string]string) Requirements {
-	requirements := NewRequirements()
+	requirements := Requirements{}
 	for key, value := range labels {
-		requirements.Add(Requirements{key: sets.NewSet(value)})
+		requirements.Add(NewRequirement(key, v1.NodeSelectorOpIn, value))
 	}
 	return requirements
 }
 
 // NewPodRequirements constructs requirements from a pod
 func NewPodRequirements(pod *v1.Pod) Requirements {
-	var requirements []v1.NodeSelectorRequirement
-	for key, value := range pod.Spec.NodeSelector {
-		requirements = append(requirements, v1.NodeSelectorRequirement{Key: key, Operator: v1.NodeSelectorOpIn, Values: []string{value}})
-	}
+	requirements := NewLabelRequirements(pod.Spec.NodeSelector)
 	if pod.Spec.Affinity == nil || pod.Spec.Affinity.NodeAffinity == nil {
-		return NewNodeSelectorRequirements(requirements...)
+		return requirements
 	}
 	// The legal operators for pod affinity and anti-affinity are In, NotIn, Exists, DoesNotExist.
 	// Select heaviest preference and treat as a requirement. An outer loop will iteratively unconstrain them if unsatisfiable.
 	if preferred := pod.Spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution; len(preferred) > 0 {
 		sort.Slice(preferred, func(i int, j int) bool { return preferred[i].Weight > preferred[j].Weight })
-		requirements = append(requirements, preferred[0].Preference.MatchExpressions...)
+		requirements.Add(NewNodeSelectorRequirements(preferred[0].Preference.MatchExpressions...).Values()...)
 	}
 	// Select first requirement. An outer loop will iteratively remove OR requirements if unsatisfiable
 	if pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil &&
 		len(pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms) > 0 {
-		requirements = append(requirements, pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions...)
+		requirements.Add(NewNodeSelectorRequirements(pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions...).Values()...)
 	}
-	return NewNodeSelectorRequirements(requirements...)
+	return requirements
 }
 
 // Add requirements to provided requirements. Mutates existing requirements
-func (r Requirements) Add(requirements Requirements) {
-	for key, values := range requirements {
-		if existing, ok := r[key]; ok {
-			values = values.Intersection(existing)
+func (r Requirements) Add(requirements ...*Requirement) {
+	for _, requirement := range requirements {
+		if existing, ok := r[requirement.Key]; ok {
+			requirement = requirement.Intersection(existing)
 		}
-		r[key] = values
+		r[requirement.Key] = requirement
 	}
 }
 
 // Keys returns unique set of the label keys from the requirements
-func (r Requirements) Keys() stringsets.String {
-	keys := stringsets.NewString()
+func (r Requirements) Keys() sets.String {
+	keys := sets.NewString()
 	for key := range r {
 		keys.Insert(key)
 	}
 	return keys
+}
+
+func (r Requirements) Values() []*Requirement {
+	return lo.Values(r)
 }
 
 func (r Requirements) Has(key string) bool {
@@ -121,18 +105,19 @@ func (r Requirements) Has(key string) bool {
 	return ok
 }
 
-func (r Requirements) Get(key string) sets.Set {
-	if _, ok := r[key]; ok {
-		return r[key]
+func (r Requirements) Get(key string) *Requirement {
+	if _, ok := r[key]; !ok {
+		// If not defined, allow any values with the exists operator
+		return NewRequirement(key, v1.NodeSelectorOpExists)
 	}
-	return sets.NewComplementSet()
+	return r[key]
 }
 
 // Compatible ensures the provided requirements can be met.
 func (r Requirements) Compatible(requirements Requirements) (errs error) {
 	// Custom Labels must intersect, but if not defined are denied.
 	for key := range requirements.Keys().Difference(v1alpha5.WellKnownLabels) {
-		if operator := requirements.Get(key).Type(); r.Has(key) || operator == v1.NodeSelectorOpNotIn || operator == v1.NodeSelectorOpDoesNotExist {
+		if operator := requirements.Get(key).Operator(); r.Has(key) || operator == v1.NodeSelectorOpNotIn || operator == v1.NodeSelectorOpDoesNotExist {
 			continue
 		}
 		errs = multierr.Append(errs, fmt.Errorf("key %s does not have known values", key))
@@ -149,9 +134,9 @@ func (r Requirements) Intersects(requirements Requirements) (errs error) {
 		// There must be some value, except
 		if existing.Intersection(incoming).Len() == 0 {
 			// where the incoming requirement has operator { NotIn, DoesNotExist }
-			if operator := incoming.Type(); operator == v1.NodeSelectorOpNotIn || operator == v1.NodeSelectorOpDoesNotExist {
+			if operator := incoming.Operator(); operator == v1.NodeSelectorOpNotIn || operator == v1.NodeSelectorOpDoesNotExist {
 				// and the existing requirement has operator { NotIn, DoesNotExist }
-				if operator := existing.Type(); operator == v1.NodeSelectorOpNotIn || operator == v1.NodeSelectorOpDoesNotExist {
+				if operator := existing.Operator(); operator == v1.NodeSelectorOpNotIn || operator == v1.NodeSelectorOpDoesNotExist {
 					continue
 				}
 			}
@@ -165,7 +150,7 @@ func (r Requirements) Labels() map[string]string {
 	labels := map[string]string{}
 	for key, values := range r {
 		if !v1alpha5.IsRestrictedNodeLabel(key) {
-			switch values.Type() {
+			switch values.Operator() {
 			case v1.NodeSelectorOpIn, v1.NodeSelectorOpExists:
 				labels[key] = r.Get(key).Any()
 			}
@@ -180,7 +165,7 @@ func (r Requirements) String() string {
 		if v1alpha5.RestrictedLabels.Has(key) {
 			continue
 		}
-		values := req.Values().List()
+		values := req.values.List()
 		if sb.Len() > 0 {
 			sb.WriteString(", ")
 		}
@@ -188,7 +173,7 @@ func (r Requirements) String() string {
 			values[5] = fmt.Sprintf("and %d others", len(values)-5)
 			values = values[0:6]
 		}
-		fmt.Fprintf(&sb, "%s %s %v", key, req.Type(), values)
+		fmt.Fprintf(&sb, "%s %s %v", key, req.Operator(), values)
 	}
 	return sb.String()
 }

@@ -35,7 +35,6 @@ import (
 	"github.com/aws/karpenter/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/resources"
-	"github.com/aws/karpenter/pkg/utils/sets"
 )
 
 var (
@@ -99,29 +98,29 @@ func (i *InstanceType) Price() float64 {
 }
 
 func (i *InstanceType) computeRequirements() scheduling.Requirements {
-	requirements := scheduling.Requirements{
+	requirements := scheduling.NewRequirements(
 		// Well Known Upstream
-		v1.LabelInstanceTypeStable: sets.NewSet(i.Name()),
-		v1.LabelArchStable:         sets.NewSet(i.architecture()),
-		v1.LabelOSStable:           sets.NewSet(v1alpha5.OperatingSystemLinux),
-		v1.LabelTopologyZone:       sets.NewSet(lo.Map(i.Offerings(), func(o cloudprovider.Offering, _ int) string { return o.Zone })...),
+		scheduling.NewRequirement(v1.LabelInstanceTypeStable, v1.NodeSelectorOpIn, i.Name()),
+		scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, i.architecture()),
+		scheduling.NewRequirement(v1.LabelOSStable, v1.NodeSelectorOpIn, v1alpha5.OperatingSystemLinux),
+		scheduling.NewRequirement(v1.LabelTopologyZone, v1.NodeSelectorOpIn, lo.Map(i.Offerings(), func(o cloudprovider.Offering, _ int) string { return o.Zone })...),
 		// Well Known to Karpenter
-		v1alpha5.LabelCapacityType: sets.NewSet(lo.Map(i.Offerings(), func(o cloudprovider.Offering, _ int) string { return o.CapacityType })...),
+		scheduling.NewRequirement(v1alpha5.LabelCapacityType, v1.NodeSelectorOpIn, lo.Map(i.Offerings(), func(o cloudprovider.Offering, _ int) string { return o.CapacityType })...),
 		// Well Known to AWS
-		v1alpha1.LabelInstanceCPU:             sets.NewSet(fmt.Sprint(aws.Int64Value(i.VCpuInfo.DefaultVCpus))),
-		v1alpha1.LabelInstanceMemory:          sets.NewSet(fmt.Sprint(aws.Int64Value(i.MemoryInfo.SizeInMiB))),
-		v1alpha1.LabelInstancePods:            sets.NewSet(fmt.Sprint(i.pods().Value())),
-		v1alpha1.LabelInstanceCategory:        sets.NewSet(),
-		v1alpha1.LabelInstanceFamily:          sets.NewSet(),
-		v1alpha1.LabelInstanceGeneration:      sets.NewSet(),
-		v1alpha1.LabelInstanceLocalNVME:       sets.NewSet(),
-		v1alpha1.LabelInstanceSize:            sets.NewSet(),
-		v1alpha1.LabelInstanceGPUName:         sets.NewSet(),
-		v1alpha1.LabelInstanceGPUManufacturer: sets.NewSet(),
-		v1alpha1.LabelInstanceGPUCount:        sets.NewSet(),
-		v1alpha1.LabelInstanceGPUMemory:       sets.NewSet(),
-		v1alpha1.LabelInstanceHypervisor:      sets.NewSet(aws.StringValue(i.Hypervisor)),
-	}
+		scheduling.NewRequirement(v1alpha1.LabelInstanceCPU, v1.NodeSelectorOpIn, fmt.Sprint(aws.Int64Value(i.VCpuInfo.DefaultVCpus))),
+		scheduling.NewRequirement(v1alpha1.LabelInstanceMemory, v1.NodeSelectorOpIn, fmt.Sprint(aws.Int64Value(i.MemoryInfo.SizeInMiB))),
+		scheduling.NewRequirement(v1alpha1.LabelInstancePods, v1.NodeSelectorOpIn, fmt.Sprint(i.pods().Value())),
+		scheduling.NewRequirement(v1alpha1.LabelInstanceCategory, v1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(v1alpha1.LabelInstanceFamily, v1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(v1alpha1.LabelInstanceGeneration, v1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(v1alpha1.LabelInstanceLocalNVME, v1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(v1alpha1.LabelInstanceSize, v1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(v1alpha1.LabelInstanceGPUName, v1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(v1alpha1.LabelInstanceGPUManufacturer, v1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(v1alpha1.LabelInstanceGPUCount, v1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(v1alpha1.LabelInstanceGPUMemory, v1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(v1alpha1.LabelInstanceHypervisor, v1.NodeSelectorOpIn, aws.StringValue(i.Hypervisor)),
+	)
 	// Instance Type Labels
 	instanceFamilyParts := instanceTypeScheme.FindStringSubmatch(aws.StringValue(i.InstanceType))
 	if len(instanceFamilyParts) == 4 {
@@ -130,8 +129,8 @@ func (i *InstanceType) computeRequirements() scheduling.Requirements {
 	}
 	instanceTypeParts := strings.Split(aws.StringValue(i.InstanceType), ".")
 	if len(instanceTypeParts) == 2 {
-		requirements[v1alpha1.LabelInstanceFamily].Insert(instanceTypeParts[0])
-		requirements[v1alpha1.LabelInstanceSize].Insert(instanceTypeParts[1])
+		requirements.Get(v1alpha1.LabelInstanceFamily).Insert(instanceTypeParts[0])
+		requirements.Get(v1alpha1.LabelInstanceSize).Insert(instanceTypeParts[1])
 	}
 	if i.InstanceStorageInfo != nil && aws.StringValue(i.InstanceStorageInfo.NvmeSupport) != ec2.EphemeralNvmeSupportUnsupported {
 		requirements[v1alpha1.LabelInstanceLocalNVME].Insert(fmt.Sprint(aws.Int64Value(i.InstanceStorageInfo.TotalSizeInGB)))
@@ -139,10 +138,10 @@ func (i *InstanceType) computeRequirements() scheduling.Requirements {
 	// GPU Labels
 	if i.GpuInfo != nil && len(i.GpuInfo.Gpus) == 1 {
 		gpu := i.GpuInfo.Gpus[0]
-		requirements[v1alpha1.LabelInstanceGPUName].Insert(lowerKabobCase(aws.StringValue(gpu.Name)))
-		requirements[v1alpha1.LabelInstanceGPUManufacturer].Insert(lowerKabobCase(aws.StringValue(gpu.Manufacturer)))
-		requirements[v1alpha1.LabelInstanceGPUCount].Insert(fmt.Sprint(aws.Int64Value(gpu.Count)))
-		requirements[v1alpha1.LabelInstanceGPUMemory].Insert(fmt.Sprint(aws.Int64Value(gpu.MemoryInfo.SizeInMiB)))
+		requirements.Get(v1alpha1.LabelInstanceGPUName).Insert(lowerKabobCase(aws.StringValue(gpu.Name)))
+		requirements.Get(v1alpha1.LabelInstanceGPUManufacturer).Insert(lowerKabobCase(aws.StringValue(gpu.Manufacturer)))
+		requirements.Get(v1alpha1.LabelInstanceGPUCount).Insert(fmt.Sprint(aws.Int64Value(gpu.Count)))
+		requirements.Get(v1alpha1.LabelInstanceGPUMemory).Insert(fmt.Sprint(aws.Int64Value(gpu.MemoryInfo.SizeInMiB)))
 	}
 	return requirements
 }

@@ -30,7 +30,7 @@ import (
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	utilsets "k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
@@ -41,7 +41,6 @@ import (
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/options"
 	"github.com/aws/karpenter/pkg/utils/resources"
-	"github.com/aws/karpenter/pkg/utils/sets"
 )
 
 var (
@@ -83,7 +82,7 @@ func (p *InstanceProvider) Create(ctx context.Context, provider *v1alpha1.AWS, n
 		id, err = p.launchInstance(ctx, provider, nodeRequest)
 	} else if isSpotFallback(err) {
 		// constrain capacity type requirements to only spot since required instance type diversity is not met
-		nodeRequest.Template.Requirements.Add(scheduling.NewLabelRequirements(map[string]string{v1alpha5.LabelCapacityType: v1alpha1.CapacityTypeSpot}))
+		nodeRequest.Template.Requirements.Add(scheduling.NewRequirement(v1alpha5.LabelCapacityType, v1.NodeSelectorOpIn, v1alpha1.CapacityTypeSpot))
 		// try to launch again with spot
 		var retryErr error
 		id, retryErr = p.launchInstance(ctx, provider, nodeRequest)
@@ -237,7 +236,7 @@ func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, provide
 
 // getOverrides creates and returns launch template overrides for the cross product of instanceTypeOptions and subnets (with subnets being constrained by
 // zones and the offerings in instanceTypeOptions)
-func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.InstanceType, subnets []*ec2.Subnet, zones sets.Set, capacityType string) []*ec2.FleetLaunchTemplateOverridesRequest {
+func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.InstanceType, subnets []*ec2.Subnet, zones *scheduling.Requirement, capacityType string) []*ec2.FleetLaunchTemplateOverridesRequest {
 	// sort subnets in ascending order of available IP addresses and populate map with most available subnet per AZ
 	zonalSubnets := map[string]*ec2.Subnet{}
 	sort.Slice(subnets, func(i, j int) bool {
@@ -309,7 +308,7 @@ func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Ins
 
 			labels := map[string]string{}
 			for key, req := range instanceType.Requirements() {
-				if req.Values().Len() == 1 {
+				if req.Len() == 1 {
 					labels[key] = req.Any()
 				}
 			}
@@ -395,7 +394,7 @@ func getInstanceID(node *v1.Node) (*string, error) {
 }
 
 func combineFleetErrors(errors []*ec2.CreateFleetError) (errs error) {
-	unique := utilsets.NewString()
+	unique := sets.NewString()
 	for _, err := range errors {
 		unique.Insert(fmt.Sprintf("%s: %s", aws.StringValue(err.ErrorCode), aws.StringValue(err.ErrorMessage)))
 	}

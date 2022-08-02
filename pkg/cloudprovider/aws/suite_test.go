@@ -79,7 +79,7 @@ var cluster *state.Cluster
 var recorder *test.EventRecorder
 var cfg *test.Config
 
-func TestAPIs(t *testing.T) {
+func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "CloudProvider/AWS")

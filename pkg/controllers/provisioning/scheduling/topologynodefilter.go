@@ -38,10 +38,10 @@ func MakeTopologyNodeFilter(p *v1.Pod) TopologyNodeFilter {
 	// those terms are OR'd together
 	var filter TopologyNodeFilter
 	for _, term := range p.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
-		filter = append(filter, scheduling.NewRequirements(
-			nodeSelectorRequirements,
-			scheduling.NewNodeSelectorRequirements(term.MatchExpressions...),
-		))
+		requirements := scheduling.NewRequirements()
+		requirements.Add(nodeSelectorRequirements.Values()...)
+		requirements.Add(scheduling.NewNodeSelectorRequirements(term.MatchExpressions...).Values()...)
+		filter = append(filter, requirements)
 	}
 
 	return filter

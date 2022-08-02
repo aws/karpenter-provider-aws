@@ -39,6 +39,9 @@ type NodeTemplate struct {
 
 func NewNodeTemplate(provisioner *v1alpha5.Provisioner) *NodeTemplate {
 	labels := lo.Assign(provisioner.Spec.Labels, map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name})
+	requirements := NewRequirements()
+	requirements.Add(NewNodeSelectorRequirements(provisioner.Spec.Requirements...).Values()...)
+	requirements.Add(NewLabelRequirements(labels).Values()...)
 	return &NodeTemplate{
 		ProvisionerName:      provisioner.Name,
 		Provider:             provisioner.Spec.Provider,
@@ -47,10 +50,7 @@ func NewNodeTemplate(provisioner *v1alpha5.Provisioner) *NodeTemplate {
 		Labels:               labels,
 		Taints:               provisioner.Spec.Taints,
 		StartupTaints:        provisioner.Spec.StartupTaints,
-		Requirements: NewRequirements(
-			NewNodeSelectorRequirements(provisioner.Spec.Requirements...),
-			NewLabelRequirements(labels),
-		),
+		Requirements:         requirements,
 	}
 }
 
