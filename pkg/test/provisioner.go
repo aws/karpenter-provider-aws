@@ -24,7 +24,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"knative.dev/pkg/logging"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 )
@@ -83,13 +82,10 @@ func Provisioner(overrides ...ProvisionerOptions) *v1alpha5.Provisioner {
 		}
 		provider, err := json.Marshal(options.Provider)
 		if err != nil {
-			panic(err)
+			panic(err.Error())
 		}
 		provisioner.Spec.Provider = &runtime.RawExtension{Raw: provider}
 	}
 	provisioner.SetDefaults(context.Background())
-	if err := provisioner.Validate(context.Background()); err != nil {
-		logging.FromContext(context.TODO()).Info("TODO: Fix the tests that cause this")
-	}
 	return provisioner
 }
