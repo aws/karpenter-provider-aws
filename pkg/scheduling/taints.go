@@ -24,16 +24,12 @@ import (
 // Taints is a decorated alias type for []v1.Taint
 type Taints []v1.Taint
 
-// Tolerates returns true if the pod tolerates all taints. 'additional' are extra tolerations for things like startup
-// taints or the standard not-ready taint applied to nodes we have launched.
-func (ts Taints) Tolerates(pod *v1.Pod, additional ...v1.Toleration) (errs error) {
+// Tolerates returns true if the pod tolerates all taints.
+func (ts Taints) Tolerates(pod *v1.Pod) (errs error) {
 	for i := range ts {
 		taint := ts[i]
 		tolerates := false
 		for _, t := range pod.Spec.Tolerations {
-			tolerates = tolerates || t.ToleratesTaint(&taint)
-		}
-		for _, t := range additional {
 			tolerates = tolerates || t.ToleratesTaint(&taint)
 		}
 		if !tolerates {
@@ -41,14 +37,4 @@ func (ts Taints) Tolerates(pod *v1.Pod, additional ...v1.Toleration) (errs error
 		}
 	}
 	return errs
-}
-
-// TaintToToleration converts a taint to a toleration that tolerates the specified taint.
-func TaintToToleration(taint v1.Taint) v1.Toleration {
-	return v1.Toleration{
-		Key:      taint.Key,
-		Operator: v1.TolerationOpEqual,
-		Value:    taint.Value,
-		Effect:   taint.Effect,
-	}
 }
