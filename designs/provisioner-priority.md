@@ -1,11 +1,12 @@
-# Provisioner Priority
+# Prioritizing Provisioners
 
 ## Goals
 
-- Allowing a mechanism to describe provisioner prioritization to enable provisioner defaults over more specific provisioner requirements
-- Allowing provisioner fallbacks when highly-constrained provisioners do not meet the pod criteria
+- Allowing a user to describe a logical ordering to their provisioners
+- Allowing a user to set defaults and/or fallback orderings for their provisioners
 
 ## Use Cases
+
 
 1. Creating a strongly preferred default provisioner that will always be attempted first, except when more specific configuration is required. This enables scenarios like specifying `kubernetes.io/arch=arm64` for workloads that require this architecture, while preferring `kubernetes.io/arch=amd64` on all other workloads, even if the pod does not contain specific `nodeSelector` constraints. This is particularly useful for those that have high numbers of workloads that only work on `amd64` instances but they do not want to have to go and assign the specific architecture-specific `nodeSelector` to each of these workloads.
 
@@ -126,7 +127,7 @@ These constraints are consistent with pod affinity/pod anti-affinity preference 
 
 ## Considerations
 
-### Initial Scheduling
+### Provisioner Scheduling Ordering
 
 __Current State__: Scheduling calls the Kubernetes LIST API for the `karpenter.sh/v1alpha5/Provisioner` and receives a random ordering of Provisioners back for scheduling. When processing pods, Karpenter will find the first provisioner that it is able to schedule the pod onto given the instance type options that are constrained by the pod scheduling requirements (affinity, anti-affinity, topology spread) and the provisioner requirements. This creates some randomness for users and leads to some unpredictability with respect to the provisioner that will be used for a given pod. Currently, the best practices that are recommended by the [Karpenter/EKS docs](https://aws.github.io/aws-eks-best-practices/karpenter/#create-provisioners-that-are-mutually-exclusive) recommend that we create mutually exclusive provisioners such that we reduce this unpredictability.
 
@@ -138,45 +139,58 @@ __Current State__: Scheduling calls the Kubernetes LIST API for the `karpenter.s
 
 __Recommendation:__ Use a `.spec.weight` to enforce strict ordering of provisioners when scheduling
 
+### Pod Scheduling Ordering
+
+When pods are batched, they are not necessarily ordered in any particular way. This means that we may not actually considered the highest priority provisioner when attempting to schedule pods.
+
+As an example, we could receive a pod that does not support a given node taint specified on the highest priority provisioner first. Thus, we would schedule using the second highest priority or backup provisioner.
+
+Because we scheduled with this provisioner and the node has capacity, all the other pods that were part of this batch may end up on that single node, even though there were some pods in this batch that would have tolerated the taints.
+
+**Options**
+
+1. Use a `karpenter.sh/weight` annotation on pods to tell Karpenter to order these pods first by weight ahead of any resource ordering that is performed for bin-packing.
+2. Do not change any of the existing logic and document that this is a consideration to take into account when prioritizing provisioners.
+
+**Recommendation:** Do not change the existing logic. In general, the fact that the scheduler may choose to schedule a second provisioner first due to constraints is a general concern with the kube-scheduler as we can't even guarantee which node each pod will end up on. Instead, document that provisioner weight is just a preference given in scheduling and may not actually mean that all pods that could be scheduled to a provisioner with higher weight will always end up on a provisioner with higher weight.
+
 ### Consolidation
 
 The consolidation algorithm requires that the same scheduling algorithm that is used for the initial scheduling should be used during the consolidation scheduling dry-run. This is important such that we do not spin up a new node based on a selected provisioner that is then spun down immediately after a first consolidation run due to the presence of a less expensive instance type on a different provisioner.
 
 **Recommendation:** Because of the requirement to use a consistent scheduling algorithm across initial scheduling and consolidation, we will choose the same ordering-based logic that is used in the initial scheduling in the consolidation algorithm.
 
-### Concerns with User-Based Priority Ordering
+### Configuration Considerations
 
-1. There are scenarios where this user-based priority ordering could cause undesirable affects to the node provisioning. In particular, consider the scenario where a user has provided the following provisioners
+There are scenarios where this user-based priority ordering could cause undesirable affects to the node provisioning. In particular, consider the scenario where a user has provided the following provisioners
 
-    ```yaml
-    apiVersion: karpenter.sh/v1alpha5
-    kind: Provisioner
-    metadata:
-      name: expensive
-    spec:
-      requirements:
-        - key: "node.kubernetes.io/instance-type"
-          operator: In
-          values: ["p3.16xlarge"]
-      weight: 100
-    ```
+```yaml
+apiVersion: karpenter.sh/v1alpha5
+kind: Provisioner
+metadata:
+  name: expensive
+spec:
+  requirements:
+    - key: "node.kubernetes.io/instance-type"
+      operator: In
+      values: ["p3.16xlarge"]
+  weight: 100
+```
 
-    ```yaml
-    apiVersion: karpenter.sh/v1alpha5
-    kind: Provisioner
-    metadata:
-      name: inexpensive
-    spec:
-      requirements:
-        - key: "node.kubernetes.io/instance-type"
-          operator: In
-          values: ["t3.small"]
-    ```
+```yaml
+apiVersion: karpenter.sh/v1alpha5
+kind: Provisioner
+metadata:
+   name: inexpensive
+spec:
+   requirements:
+      - key: "node.kubernetes.io/instance-type"
+        operator: In
+        values: ["t3.small"]
+```
 
-   In this scenario, since the first provisioner marked `expensive` has the highest weight, it will always be considered first. On a deployment with 20 replicas and strict pod anti-affinity, this will cause the `expensive` provisioner to always be considered for scheduling for this deployment and will deploy 20 new nodes all with the most expensive instance type when a cheaper/more available instance type could have fit the same number of pods across the same number of nodes.
+In this scenario, since the first provisioner marked `expensive` has the highest weight, it will always be considered first. On a deployment with 20 replicas and strict pod anti-affinity, this will cause the `expensive` provisioner to always be considered for scheduling for this deployment and will deploy 20 new nodes all with the most expensive instance type when a cheaper/more available instance type could have fit the same number of pods across the same number of nodes.
 
-   This is an extreme example; however, it is worth noting that users who constrain their instance types with a hierarchical structure that prioritizes larger instances should take care when placing weights on these instance types that would order expensive instance types before less expensive ones.
+This is an extreme example; however, it is worth noting that users who constrain their instance types with a hierarchical structure that prioritizes larger instances should take care when placing weights on these instance types that would order expensive instance types before less expensive ones.
 
-2. Provisioners that are ordered first are not always guaranteed to be chosen. A pod could be scheduled to the second provisioner in our ordering and all other pods would be scheduled to that provisioner because it has capacity to support all the pod workloads.
-
-**Recommendation:** Document that placing a high number of constraints on your provisioners can lead to high cost for user nodes in certain scenarios. Additionally, document that provisioner weight is just a preference given in scheduling and may not actually mean that all pods that could be scheduled to a provisioner with higher weight will always end up on a provisioner with high weight.
+**Recommendation:** Document that placing a high number of constraints on your provisioners can lead to high cost for user nodes in certain scenarios.
