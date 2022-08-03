@@ -68,11 +68,15 @@ licenses: ## Verifies dependency licenses
 setup: ## Sets up the IAM roles needed prior to deploying the karpenter-controller. This command only needs to be run once
 	hack/setup-roles.sh
 
-apply: ## Deploy the controller from the current state of your git repository into your ~/.kube/config cluster
+build: ## Build the Karpenter controller and webhook images using ko build
+	$(eval CONTROLLER_IMG=$(shell $(WITH_GOFLAGS) ko build -B github.com/aws/karpenter/cmd/controller))
+	$(eval WEBHOOK_IMG=$(shell $(WITH_GOFLAGS) ko build -B github.com/aws/karpenter/cmd/webhook))
+
+apply: build ## Deploy the controller from the current state of your git repository into your ~/.kube/config cluster
 	helm upgrade --create-namespace --install karpenter charts/karpenter --namespace karpenter \
 		$(HELM_OPTS) \
-		--set controller.image=$(shell $(WITH_GOFLAGS) ko build -B github.com/aws/karpenter/cmd/controller) \
-		--set webhook.image=$(shell $(WITH_GOFLAGS) ko build -B github.com/aws/karpenter/cmd/webhook)
+		--set controller.image=$(CONTROLLER_IMG) \
+		--set webhook.image=$(WEBHOOK_IMG)
 
 install:  ## Deploy the latest released version into your ~/.kube/config cluster
 	@echo Upgrading to $(shell grep version charts/karpenter/Chart.yaml)
