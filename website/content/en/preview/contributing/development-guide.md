@@ -48,6 +48,12 @@ make apply # quickly deploy changes to your cluster
 make dev # run codegen, lint, and tests
 ```
 
+If you are only interested in building the Karpenter images and not deploying the updated release to your cluster immediately with Helm, you can run
+
+```bash
+make build # build and push the karpenter images
+```
+
 ### Testing
 
 ```bash

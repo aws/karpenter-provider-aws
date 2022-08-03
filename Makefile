@@ -75,8 +75,8 @@ build: ## Build the Karpenter controller and webhook images using ko build
 apply: build ## Deploy the controller from the current state of your git repository into your ~/.kube/config cluster
 	helm upgrade --create-namespace --install karpenter charts/karpenter --namespace karpenter \
 		$(HELM_OPTS) \
-		--set controller.image=$(WEBHOOK_IMG) \
-		--set webhook.image=$(CONTROLLER_IMG)
+		--set controller.image=$(CONTROLLER_IMG) \
+		--set webhook.image=$(WEBHOOK_IMG)
 
 install:  ## Deploy the latest released version into your ~/.kube/config cluster
 	@echo Upgrading to $(shell grep version charts/karpenter/Chart.yaml)
