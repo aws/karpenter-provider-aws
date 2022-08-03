@@ -136,6 +136,7 @@ func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFlee
 			if skipInstance {
 				continue
 			}
+			instanceState := ec2.InstanceStateNameRunning
 			for i := 0; i < int(*input.TargetCapacitySpecification.TotalTargetCapacity); i++ {
 				instance := &ec2.Instance{
 					InstanceId:            aws.String(test.RandomName()),
@@ -143,6 +144,9 @@ func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFlee
 					PrivateDnsName:        aws.String(randomdata.IpV4Address()),
 					InstanceType:          input.LaunchTemplateConfigs[0].Overrides[0].InstanceType,
 					SpotInstanceRequestId: spotInstanceRequestID,
+					State: &ec2.InstanceState{
+						Name: &instanceState,
+					},
 				}
 				e.Instances.Store(*instance.InstanceId, instance)
 				instanceIds = append(instanceIds, instance.InstanceId)
