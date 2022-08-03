@@ -5,10 +5,7 @@ metadata:
   namespace: karpenter-tests
 spec:
   limits:
-  - default:
-      memory: 256Mi
-      cpu: 500m
-    defaultRequest:
+  - defaultRequest:
       memory: 256Mi
       cpu: 250m
     type: Container
