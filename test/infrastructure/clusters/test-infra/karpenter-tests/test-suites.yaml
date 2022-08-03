@@ -1,0 +1,12 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1beta2
+kind: Kustomization
+metadata:
+  name: test-suites
+  namespace: karpenter-tests
+spec:
+  interval: 2m0s
+  path: ./test/suites
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: karpenter
