@@ -21,6 +21,9 @@ spec:
     image: alpine/git
     workingDir: $(workspaces.ws.path)
     resources:
+      requests:
+        memory: "256Mi"
+        cpu: "250m"
     script: |
       git clone https://github.com/aws/karpenter.git .
       git checkout $(params.git-ref)
@@ -28,6 +31,10 @@ spec:
   - name: go-test
     image: public.ecr.aws/karpenter-testing/tools:latest
     workingDir: $(workspaces.ws.path)
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "250m"
     script: |
       aws eks update-kubeconfig --name $(params.cluster-name)
       KUBECONFIG=/root/.kube/config TEST_FILTER=$(params.test-filter) make e2etests

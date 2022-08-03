@@ -20,6 +20,10 @@ spec:
 
   - name: discover-environment
     image: public.ecr.aws/karpenter-testing/tools:latest
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "250m"
     script: |
       TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
       curl -H "X-aws-ec2-metadata-token: $TOKEN" -v http://169.254.169.254/latest/meta-data/identity-credentials/ec2/info | jq -r ".AccountId" | tr -d '\n' > $(results.account-id.path)
@@ -28,6 +32,10 @@ spec:
   - name: checkout-repository
     image: alpine/git
     workingDir: $(workspaces.ws.path)
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "250m"
     script: |
       git clone https://github.com/aws/karpenter.git .
       git checkout $(params.git-ref)
@@ -35,6 +43,10 @@ spec:
   - name: create-iam-policies
     image: public.ecr.aws/karpenter-testing/tools:latest
     workingDir: $(workspaces.ws.path)
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "250m"
     script: |
       aws cloudformation deploy \
         --stack-name KarpenterIAM-$(params.cluster-name) \
@@ -44,6 +56,10 @@ spec:
 
   - name: create-cluster
     image: public.ecr.aws/karpenter-testing/tools:latest
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "250m"
     script: |
       cmd="create"
       eksctl get cluster --name $(params.cluster-name) && cmd="upgrade"
@@ -89,6 +105,10 @@ spec:
   - name: install-karpenter
     image: public.ecr.aws/karpenter-testing/tools:latest
     workingDir: $(workspaces.ws.path)
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "250m"
     script: |
       aws eks update-kubeconfig --name $(params.cluster-name)
       helm upgrade --install --kubeconfig /root/.kube/config --namespace karpenter --create-namespace \
