@@ -24,16 +24,16 @@ import (
 	"github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega" //nolint:revive,stylecheck
 	prometheus "github.com/prometheus/client_model/go"
-	"sigs.k8s.io/controller-runtime/pkg/metrics"
-
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/policy/v1beta1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
@@ -208,8 +208,12 @@ func ExpectMetric(prefix string) *prometheus.MetricFamily {
 }
 func ExpectManualBinding(ctx context.Context, c client.Client, pod *v1.Pod, node *v1.Node) {
 	Expect(c.Create(ctx, &v1.Binding{
-		TypeMeta:   pod.TypeMeta,
-		ObjectMeta: pod.ObjectMeta,
+		TypeMeta: pod.TypeMeta,
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      pod.ObjectMeta.Name,
+			Namespace: pod.ObjectMeta.Namespace,
+			UID:       pod.ObjectMeta.UID,
+		},
 		Target: v1.ObjectReference{
 			Name: node.Name,
 		},
