@@ -1,3 +1,18 @@
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: default-resources
+  namespace: karpenter-tests
+spec:
+  limits:
+  - default:
+      memory: 256Mi
+      cpu: 500m
+    defaultRequest:
+      memory: 256Mi
+      cpu: 250m
+    type: Container
+---
 apiVersion: kustomize.toolkit.fluxcd.io/v1beta2
 kind: Kustomization
 metadata:
