@@ -146,7 +146,7 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, provisioner *v1alp
 	if err != nil {
 		return nil, err
 	}
-	instanceTypes, err := c.instanceTypeProvider.Get(ctx, aws)
+	instanceTypes, err := c.instanceTypeProvider.Get(ctx, aws, provisioner)
 	if err != nil {
 		return nil, err
 	}

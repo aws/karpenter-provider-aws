@@ -98,6 +98,10 @@ type KubeletConfiguration struct {
 	// ContainerRuntime is the container runtime to be used with your worker nodes.
 	// +optional
 	ContainerRuntime *string `json:"containerRuntime,omitempty"`
+	// MaxPods is an override for the maximum number of pods that can run on
+	// a worker node instance.
+	// +optional
+	MaxPods *int32 `json:"maxPods,omitempty"`
 }
 
 // Provisioner is the Schema for the Provisioners API

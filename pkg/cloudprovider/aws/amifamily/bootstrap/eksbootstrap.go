@@ -57,10 +57,16 @@ func (e EKS) Script() (string, error) {
 
 	kubeletExtraArgs := strings.Join([]string{e.nodeLabelArg(), e.nodeTaintArg()}, " ")
 
+	// Backwards compatability for AWSENILimitedPodDensity flag
 	if !e.AWSENILimitedPodDensity {
 		userData.WriteString(" \\\n--use-max-pods false")
 		kubeletExtraArgs += " --max-pods=110"
 	}
+	if e.KubeletConfig.MaxPods != nil {
+		userData.WriteString(" \\\n--use-max-pods false")
+		kubeletExtraArgs += fmt.Sprintf(" --max-pods=%d", e.KubeletConfig.MaxPods)
+	}
+
 	if e.ContainerRuntime != "" {
 		userData.WriteString(fmt.Sprintf(" \\\n--container-runtime %s", e.ContainerRuntime))
 	}

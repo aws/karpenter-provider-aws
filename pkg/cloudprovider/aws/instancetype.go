@@ -53,17 +53,23 @@ type InstanceType struct {
 	price        float64
 }
 
-func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, price float64, provider *v1alpha1.AWS, offerings []cloudprovider.Offering) *InstanceType {
+func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, provisioner *v1alpha5.Provisioner, price float64, provider *v1alpha1.AWS, offerings []cloudprovider.Offering) *InstanceType {
 	instanceType := &InstanceType{
 		InstanceTypeInfo: info,
 		provider:         provider,
 		offerings:        offerings,
 		price:            price,
 	}
+
 	// set max pods before computing resources
+	// Backwards compatability for AWSENILimitedPodDensity flag
 	if !injection.GetOptions(ctx).AWSENILimitedPodDensity {
 		instanceType.maxPods = ptr.Int32(110)
 	}
+	if provisioner.Spec.KubeletConfiguration.MaxPods != nil {
+		instanceType.maxPods = provisioner.Spec.KubeletConfiguration.MaxPods
+	}
+
 	// Precompute to minimize memory/compute overhead
 	instanceType.resources = instanceType.computeResources(injection.GetOptions(ctx).AWSEnablePodENI)
 	instanceType.overhead = instanceType.computeOverhead(injection.GetOptions(ctx).VMMemoryOverhead)
