@@ -247,7 +247,9 @@ func (e *EC2API) DescribeSubnetsWithContext(ctx context.Context, input *ec2.Desc
 		return nil, e.NextError.Get()
 	}
 	if !e.DescribeSubnetsOutput.IsNil() {
-		return e.DescribeSubnetsOutput.Clone(), nil
+		describeSubnetsOutput := e.DescribeSubnetsOutput.Clone()
+		describeSubnetsOutput.Subnets = FilterDescribeSubnets(describeSubnetsOutput.Subnets, input.Filters)
+		return describeSubnetsOutput, nil
 	}
 	subnets := []*ec2.Subnet{
 		{
@@ -289,6 +291,8 @@ func (e *EC2API) DescribeSecurityGroupsWithContext(ctx context.Context, input *e
 		return nil, e.NextError.Get()
 	}
 	if !e.DescribeSecurityGroupsOutput.IsNil() {
+		describeSecurityGroupsOutput := e.DescribeSecurityGroupsOutput.Clone()
+		describeSecurityGroupsOutput.SecurityGroups = FilterDescribeSecurtyGroups(describeSecurityGroupsOutput.SecurityGroups, input.Filters)
 		return e.DescribeSecurityGroupsOutput.Clone(), nil
 	}
 	sgs := []*ec2.SecurityGroup{
