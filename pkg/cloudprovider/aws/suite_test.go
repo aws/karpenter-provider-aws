@@ -896,12 +896,12 @@ var _ = Describe("Allocation", func() {
 				createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop()
 				Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-1"))
 
-				provider = &awsv1alpha1.AWS{
+				provisioner = test.Provisioner(test.ProvisionerOptions{Provider: &awsv1alpha1.AWS{
 					SubnetSelector:        map[string]string{"Name": "test-subnet-2"},
 					SecurityGroupSelector: map[string]string{"*": "*"},
-				}
-				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
-				podSubnet2 := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				}})
+				ExpectApplied(ctx, env.Client, provisioner)
+				podSubnet2 := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name}}))[0]
 				ExpectScheduled(ctx, env.Client, podSubnet2)
 				createFleetInput = fakeEC2API.CalledWithCreateFleetInput.Pop()
 				Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-2"))
