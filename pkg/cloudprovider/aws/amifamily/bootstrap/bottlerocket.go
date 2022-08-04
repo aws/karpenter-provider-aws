@@ -17,8 +17,10 @@ package bootstrap
 import (
 	"encoding/base64"
 	"fmt"
-	"github.com/aws/aws-sdk-go/aws"
+
 	"knative.dev/pkg/ptr"
+
+	"github.com/aws/aws-sdk-go/aws"
 )
 
 type Bottlerocket struct {
@@ -42,11 +44,10 @@ func (b Bottlerocket) Script() (string, error) {
 	}
 
 	// Backwards compatability for AWSENILimitedPodDensity flag
-	if !b.AWSENILimitedPodDensity {
-		s.Settings.Kubernetes.MaxPods = aws.Int(110)
-	}
-	if b.KubeletConfig.MaxPods != nil {
+	if b.KubeletConfig != nil && b.KubeletConfig.MaxPods != nil {
 		s.Settings.Kubernetes.MaxPods = aws.Int(int(ptr.Int32Value(b.KubeletConfig.MaxPods)))
+	} else if !b.AWSENILimitedPodDensity {
+		s.Settings.Kubernetes.MaxPods = aws.Int(110)
 	}
 
 	s.Settings.Kubernetes.NodeTaints = map[string][]string{}

@@ -63,11 +63,10 @@ func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, provisione
 
 	// set max pods before computing resources
 	// Backwards compatability for AWSENILimitedPodDensity flag
-	if !injection.GetOptions(ctx).AWSENILimitedPodDensity {
-		instanceType.maxPods = ptr.Int32(110)
-	}
-	if provisioner.Spec.KubeletConfiguration.MaxPods != nil {
+	if provisioner.Spec.KubeletConfiguration != nil && provisioner.Spec.KubeletConfiguration.MaxPods != nil {
 		instanceType.maxPods = provisioner.Spec.KubeletConfiguration.MaxPods
+	} else if !injection.GetOptions(ctx).AWSENILimitedPodDensity {
+		instanceType.maxPods = ptr.Int32(110)
 	}
 
 	// Precompute to minimize memory/compute overhead
