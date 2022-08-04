@@ -426,15 +426,28 @@ var _ = Describe("Provisioning", func() {
 	})
 	Context("Labels", func() {
 		It("should label nodes", func() {
-			provisioner := test.Provisioner(test.ProvisionerOptions{Labels: map[string]string{"test-key": "test-value", "test-key-2": "test-value-2"}})
+			provisioner := test.Provisioner(test.ProvisionerOptions{
+				Labels: map[string]string{"test-key-1": "test-value-1"},
+				Requirements: []v1.NodeSelectorRequirement{
+					{Key: "test-key-2", Operator: v1.NodeSelectorOpIn, Values: []string{"test-value-2"}},
+					{Key: "test-key-3", Operator: v1.NodeSelectorOpNotIn, Values: []string{"test-value-3"}},
+					{Key: "test-key-4", Operator: v1.NodeSelectorOpLt, Values: []string{"4"}},
+					{Key: "test-key-5", Operator: v1.NodeSelectorOpGt, Values: []string{"5"}},
+					{Key: "test-key-6", Operator: v1.NodeSelectorOpExists},
+					{Key: "test-key-7", Operator: v1.NodeSelectorOpDoesNotExist},
+				},
+			})
 			ExpectApplied(ctx, env.Client, provisioner)
 			for _, pod := range ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod()) {
 				node := ExpectScheduled(ctx, env.Client, pod)
 				Expect(node.Labels).To(HaveKeyWithValue(v1alpha5.ProvisionerNameLabelKey, provisioner.Name))
-				Expect(node.Labels).To(HaveKeyWithValue("test-key", "test-value"))
+				Expect(node.Labels).To(HaveKeyWithValue("test-key-1", "test-value-1"))
 				Expect(node.Labels).To(HaveKeyWithValue("test-key-2", "test-value-2"))
-				Expect(node.Labels).To(HaveKey(v1.LabelTopologyZone))
-				Expect(node.Labels).To(HaveKey(v1.LabelInstanceTypeStable))
+				Expect(node.Labels).To(And(HaveKey("test-key-3"), Not(HaveValue(Equal("test-value-3")))))
+				Expect(node.Labels).To(And(HaveKey("test-key-4"), Not(HaveValue(Equal("test-value-4")))))
+				Expect(node.Labels).To(And(HaveKey("test-key-5"), Not(HaveValue(Equal("test-value-5")))))
+				Expect(node.Labels).To(HaveKey("test-key-6"))
+				Expect(node.Labels).ToNot(HaveKey("test-key-7"))
 			}
 		})
 		It("should label nodes with labels in the LabelDomainExceptions list", func() {

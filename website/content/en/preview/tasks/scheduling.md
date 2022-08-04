@@ -70,12 +70,10 @@ See [Managing Resources for Containers](https://kubernetes.io/docs/concepts/conf
 With `nodeSelector` you can ask for a node that matches selected key-value pairs.
 This can include well-known labels or custom labels you create yourself.
 
-While `nodeSelector` is like node affinity, it doesn't have the same "and/or" matchExpressions that affinity has.
-So all key-value pairs must match if you use `nodeSelector`.
-Also, `nodeSelector` can do only do inclusions, while `affinity` can do inclusions and exclusions (`In` and `NotIn`).
+You can use `affinity` to define more complicated constraints, see [Node Affinity](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#node-affinity) for the complete specification.
 
 ### Supported Labels
-The following labels are supported by Karpenter. They may be specified as provisioner requirements or pod scheduling constraints.
+The following labels are supported by Karpenter. They may be specified as provisioner requirements or pod scheduling constraints. You can also define your own custom labels by specifying `requirements` or `labels` on your Provisioner and select them using `nodeAffinity` or `nodeSelectors` on your Pods.
 
 {{% alert title="Warning" color="warning" %}}
 Take care to ensure the label domains are correct. A well known label like `karpenter.k8s.aws/instance-family` will enforce node properties, but may be confused with `node.kubernetes.io/instance-family`, which is unknown to Karpenter, and treated as a custom label which will not enforce node properties.

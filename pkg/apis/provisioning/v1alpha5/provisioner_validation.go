@@ -17,6 +17,7 @@ package v1alpha5
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
@@ -27,8 +28,14 @@ import (
 )
 
 var (
-	SupportedNodeSelectorOps sets.String = sets.NewString(string(v1.NodeSelectorOpIn), string(v1.NodeSelectorOpNotIn), string(v1.NodeSelectorOpExists), string(v1.NodeSelectorOpDoesNotExist))
-	SupportedProvisionerOps  sets.String = sets.NewString(string(v1.NodeSelectorOpIn), string(v1.NodeSelectorOpNotIn), string(v1.NodeSelectorOpExists))
+	SupportedNodeSelectorOps sets.String = sets.NewString(
+		string(v1.NodeSelectorOpIn),
+		string(v1.NodeSelectorOpNotIn),
+		string(v1.NodeSelectorOpGt),
+		string(v1.NodeSelectorOpLt),
+		string(v1.NodeSelectorOpExists),
+		string(v1.NodeSelectorOpDoesNotExist),
+	)
 )
 
 const (
@@ -140,34 +147,13 @@ func (s *ProvisionerSpec) validateTaintsField(taints []v1.Taint, existing map[ta
 // This function is used by the provisioner validation webhook to verify the provisioner requirements.
 // When this function is called, the provisioner's requirments do not include the requirements from labels.
 // Provisioner requirements only support well known labels.
-func (s *ProvisionerSpec) validateRequirements() *apis.FieldError {
-	var errs error
-	for _, requirement := range s.Requirements {
-		// Ensure requirements operator is allowed
-		if !SupportedProvisionerOps.Has(string(requirement.Operator)) {
-			errs = multierr.Append(errs, fmt.Errorf("key %s has an unsupported operator %s, provisioner only supports %s", requirement.Key, requirement.Operator, SupportedProvisionerOps.UnsortedList()))
-		}
-		if e := IsRestrictedLabel(requirement.Key); e != nil {
-			errs = multierr.Append(errs, e)
-		}
-		// We don't support a 'NotExists' operator, but this turns into an empty set of values by re-building node selector requirements
-		if requirement.Operator == v1.NodeSelectorOpIn && len(requirement.Values) == 0 {
-			errs = multierr.Append(errs, fmt.Errorf("key %s is unsatisfiable due to unsupported operator or no values being provided", requirement.Key))
-		}
-		for _, err := range validation.IsQualifiedName(requirement.Key) {
-			errs = multierr.Append(errs, fmt.Errorf("key %s is not a qualified name, %s", requirement.Key, err))
-		}
-		for _, value := range requirement.Values {
-			for _, err := range validation.IsValidLabelValue(value) {
-				errs = multierr.Append(errs, fmt.Errorf("invalid value %s for key %s, %s", value, requirement.Key, err))
-			}
+func (s *ProvisionerSpec) validateRequirements() (errs *apis.FieldError) {
+	for i, requirement := range s.Requirements {
+		if err := ValidateRequirement(requirement); err != nil {
+			errs = errs.Also(apis.ErrInvalidArrayValue(err, "requirements", i))
 		}
 	}
-	var result *apis.FieldError
-	if errs != nil {
-		result = result.Also(apis.ErrInvalidValue(errs, "requirements"))
-	}
-	return result
+	return errs
 }
 
 func (s *ProvisionerSpec) validateProvider() *apis.FieldError {
@@ -175,4 +161,36 @@ func (s *ProvisionerSpec) validateProvider() *apis.FieldError {
 		return apis.ErrMultipleOneOf(providerPath, providerRefPath)
 	}
 	return nil
+}
+
+func ValidateRequirement(requirement v1.NodeSelectorRequirement) error { //nolint:gocyclo
+	var errs error
+	if !SupportedNodeSelectorOps.Has(string(requirement.Operator)) {
+		errs = multierr.Append(errs, fmt.Errorf("key %s has an unsupported operator %s not in %s", requirement.Key, requirement.Operator, SupportedNodeSelectorOps.UnsortedList()))
+	}
+	if e := IsRestrictedLabel(requirement.Key); e != nil {
+		errs = multierr.Append(errs, e)
+	}
+	for _, err := range validation.IsQualifiedName(requirement.Key) {
+		errs = multierr.Append(errs, fmt.Errorf("key %s is not a qualified name, %s", requirement.Key, err))
+	}
+	for _, value := range requirement.Values {
+		for _, err := range validation.IsValidLabelValue(value) {
+			errs = multierr.Append(errs, fmt.Errorf("invalid value %s for key %s, %s", value, requirement.Key, err))
+		}
+	}
+	if requirement.Operator == v1.NodeSelectorOpIn && len(requirement.Values) == 0 {
+		errs = multierr.Append(errs, fmt.Errorf("key %s with operator %s must have a value defined", requirement.Key, requirement.Operator))
+	}
+	if requirement.Operator == v1.NodeSelectorOpGt || requirement.Operator == v1.NodeSelectorOpLt {
+		if len(requirement.Values) != 1 {
+			errs = multierr.Append(errs, fmt.Errorf("key %s with operator %s must have a single positive integer value", requirement.Key, requirement.Operator))
+		} else {
+			value, err := strconv.Atoi(requirement.Values[0])
+			if err != nil || value < 0 {
+				errs = multierr.Append(errs, fmt.Errorf("key %s with operator %s must have a single positive integer value", requirement.Key, requirement.Operator))
+			}
+		}
+	}
+	return errs
 }

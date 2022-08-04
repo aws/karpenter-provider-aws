@@ -56,7 +56,7 @@ func NewScheduler(ctx context.Context, kubeClient client.Client, nodeTemplates [
 	}
 
 	namedNodeTemplates := lo.KeyBy(s.nodeTemplates, func(nodeTemplate *scheduling.NodeTemplate) string {
-		return nodeTemplate.Requirements.Get(v1alpha5.ProvisionerNameLabelKey).Any()
+		return nodeTemplate.Requirements.Get(v1alpha5.ProvisionerNameLabelKey).Values()[0]
 	})
 
 	for _, provisioner := range provisioners {

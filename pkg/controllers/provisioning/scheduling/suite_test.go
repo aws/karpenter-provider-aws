@@ -220,6 +220,24 @@ var _ = Describe("Custom Constraints", func() {
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelTopologyZone, "test-zone-3"))
 		})
+		It("should schedule compatible requirements with Operator=Gt", func() {
+			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{{
+				Key: fake.IntegerInstanceLabelKey, Operator: v1.NodeSelectorOpGt, Values: []string{"8"},
+			}}
+			ExpectApplied(ctx, env.Client, provisioner)
+			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(node.Labels).To(HaveKeyWithValue(fake.IntegerInstanceLabelKey, "16"))
+		})
+		It("should schedule compatible requirements with Operator=Lt", func() {
+			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{{
+				Key: fake.IntegerInstanceLabelKey, Operator: v1.NodeSelectorOpLt, Values: []string{"8"},
+			}}
+			ExpectApplied(ctx, env.Client, provisioner)
+			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(node.Labels).To(HaveKeyWithValue(fake.IntegerInstanceLabelKey, "2"))
+		})
 		It("should not schedule incompatible preferences and requirements with Operator=In", func() {
 			ExpectApplied(ctx, env.Client, provisioner)
 			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(
@@ -405,7 +423,7 @@ var _ = Describe("Custom Constraints", func() {
 					{Key: "test-key", Operator: v1.NodeSelectorOpNotIn, Values: []string{"test-value"}},
 				}}))[0]
 			node := ExpectScheduled(ctx, env.Client, pod)
-			Expect(node.Labels).ToNot(HaveKey("test-key"))
+			Expect(node.Labels).ToNot(HaveKeyWithValue("test-key", "test-value"))
 		})
 		It("should not schedule pods that have node selectors with Exists operator and undefined key", func() {
 			ExpectApplied(ctx, env.Client, provisioner)

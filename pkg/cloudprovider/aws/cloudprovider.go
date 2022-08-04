@@ -305,7 +305,7 @@ func (c *CloudProvider) useOpinionatedInstanceFilter(provisionerRequirements ...
 			// v1.NodeSelectorOpExists: provisioner explicitly is asking for no filtering
 			// v1.NodeSelectorOpDoesNotExist: this shouldn't match any instance type at provisioning time, but avoid filtering anyway
 			return false
-		case v1.NodeSelectorOpNotIn:
+		case v1.NodeSelectorOpNotIn, v1.NodeSelectorOpGt, v1.NodeSelectorOpLt:
 			// provisioner further restricts instance types/families, so we can possibly use our list and it will
 			// be filtered more
 		}
