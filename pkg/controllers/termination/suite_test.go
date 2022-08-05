@@ -298,6 +298,23 @@ var _ = Describe("Termination", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 			ExpectNotFound(ctx, env.Client, node)
 		})
+		It("should delete nodes with terminal pods", func() {
+			podEvictPhaseSucceeded := test.Pod(test.PodOptions{
+				NodeName: node.Name,
+				Phase:    v1.PodSucceeded,
+			})
+			podEvictPhaseFailed := test.Pod(test.PodOptions{
+				NodeName: node.Name,
+				Phase:    v1.PodFailed,
+			})
+
+			ExpectApplied(ctx, env.Client, node, podEvictPhaseSucceeded, podEvictPhaseFailed)
+			Expect(env.Client.Delete(ctx, node)).To(Succeed())
+			node = ExpectNodeExists(ctx, env.Client, node.Name)
+			// Trigger Termination Controller, which should ignore these pods and delete the node
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
+			ExpectNotFound(ctx, env.Client, node)
+		})
 		It("should delete nodes that have do-not-evict on pods for which it does not apply", func() {
 			pods := []*v1.Pod{
 				test.Pod(test.PodOptions{

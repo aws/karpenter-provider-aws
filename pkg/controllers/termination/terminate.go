@@ -124,6 +124,10 @@ func (t *Terminator) getPods(ctx context.Context, node *v1.Node) ([]*v1.Pod, err
 	}
 	pods := []*v1.Pod{}
 	for _, p := range podList.Items {
+		// Ignore if the pod is complete and doesn't need to be evicted
+		if pod.IsTerminal(ptr.Pod(p)) {
+			continue
+		}
 		// Ignore if kubelet is partitioned and pods are beyond graceful termination window
 		if IsStuckTerminating(ptr.Pod(p)) {
 			continue
