@@ -98,6 +98,8 @@ type KubeletConfiguration struct {
 	// ContainerRuntime is the container runtime to be used with your worker nodes.
 	// +optional
 	ContainerRuntime *string `json:"containerRuntime,omitempty"`
+	// SystemReserved are the resources reserved for OS system daemons and for kernel memory.
+	SystemReserved v1.ResourceList `json:"systemReserved,omitempty"`
 }
 
 // Provisioner is the Schema for the Provisioners API

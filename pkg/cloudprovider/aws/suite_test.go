@@ -384,7 +384,7 @@ var _ = Describe("Allocation", func() {
 				instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 				Expect(err).To(BeNil())
 				for _, info := range instanceInfo {
-					it := NewInstanceType(injection.WithOptions(ctx, opts), info, 0, provider, nil)
+					it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner, 0, provider, nil)
 					resources := it.Resources()
 					Expect(resources.Pods().Value()).To(BeNumerically("==", 110))
 				}
@@ -394,7 +394,7 @@ var _ = Describe("Allocation", func() {
 				instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 				Expect(err).To(BeNil())
 				for _, info := range instanceInfo {
-					it := NewInstanceType(injection.WithOptions(ctx, opts), info, 0, provider, nil)
+					it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner, 0, provider, nil)
 					resources := it.Resources()
 					Expect(resources.Pods().Value()).ToNot(BeNumerically("==", 110))
 				}
@@ -406,7 +406,7 @@ var _ = Describe("Allocation", func() {
 					provider.AMIFamily = &awsv1alpha1.AMIFamilyAL2
 					instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 					Expect(err).To(BeNil())
-					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], 0, provider, nil)
+					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner, 0, provider, nil)
 					overhead := it.Overhead()
 					Expect(overhead.Memory().String()).To(Equal("1093Mi"))
 				})
@@ -416,7 +416,7 @@ var _ = Describe("Allocation", func() {
 					provider.AMIFamily = &awsv1alpha1.AMIFamilyAL2
 					instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 					Expect(err).To(BeNil())
-					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], 0, provider, nil)
+					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner, 0, provider, nil)
 					overhead := it.Overhead()
 					Expect(overhead.Memory().String()).To(Equal("1093Mi"))
 				})
@@ -428,7 +428,7 @@ var _ = Describe("Allocation", func() {
 					provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
 					instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 					Expect(err).To(BeNil())
-					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], 0, provider, nil)
+					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner, 0, provider, nil)
 					overhead := it.Overhead()
 					Expect(overhead.Memory().String()).To(Equal("1093Mi"))
 				})
@@ -438,9 +438,39 @@ var _ = Describe("Allocation", func() {
 					provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
 					instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 					Expect(err).To(BeNil())
-					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], 0, provider, nil)
+					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner, 0, provider, nil)
 					overhead := it.Overhead()
 					Expect(overhead.Memory().String()).To(Equal("1665Mi"))
+				})
+			})
+			Context("KubeletConfiguration Overrides", func() {
+				It("should override system reserved cpus when specified", func() {
+					instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
+					Expect(err).To(BeNil())
+					provisioner = test.Provisioner(test.ProvisionerOptions{
+						Kubelet: &v1alpha5.KubeletConfiguration{
+							SystemReserved: v1.ResourceList{
+								v1.ResourceCPU: resource.MustParse("2"),
+							},
+						},
+					})
+					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner, 0, provider, nil)
+					overhead := it.Overhead()
+					Expect(overhead.Cpu().String()).To(Equal("2080m"))
+				})
+				It("should override system reserved memory when specified", func() {
+					instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
+					Expect(err).To(BeNil())
+					provisioner = test.Provisioner(test.ProvisionerOptions{
+						Kubelet: &v1alpha5.KubeletConfiguration{
+							SystemReserved: v1.ResourceList{
+								v1.ResourceMemory: resource.MustParse("2Gi"),
+							},
+						},
+					})
+					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner, 0, provider, nil)
+					overhead := it.Overhead()
+					Expect(overhead.Memory().String()).To(Equal("3041Mi"))
 				})
 			})
 		})
@@ -1022,6 +1052,25 @@ var _ = Describe("Allocation", func() {
 				userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 				Expect(string(userData)).To(ContainSubstring("--use-max-pods false"))
 				Expect(string(userData)).To(ContainSubstring("--max-pods=110"))
+			})
+			It("should specify --system-reserved when overriding system reserved values", func() {
+				controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+
+				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{
+					Kubelet: &v1alpha5.KubeletConfiguration{
+						SystemReserved: v1.ResourceList{
+							v1.ResourceCPU:              resource.MustParse("500m"),
+							v1.ResourceMemory:           resource.MustParse("1Gi"),
+							v1.ResourceEphemeralStorage: resource.MustParse("2Gi"),
+						},
+					},
+				}))
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+				userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+				Expect(string(userData)).To(ContainSubstring("--system-reserved=cpu=500m,memory=1Gi,ephemeral-storage=2Gi"))
 			})
 			It("should specify --container-runtime containerd by default", func() {
 				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
