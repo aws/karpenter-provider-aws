@@ -21,8 +21,6 @@ import (
 
 	"k8s.io/apimachinery/pkg/util/sets"
 
-	"knative.dev/pkg/apis"
-
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
@@ -140,13 +138,6 @@ func (c *CloudProvider) GetInstanceTypes(_ context.Context, provisioner *v1alpha
 }
 
 func (c *CloudProvider) Delete(context.Context, *v1.Node) error {
-	return nil
-}
-
-func (c *CloudProvider) Default(context.Context, *v1alpha5.Provisioner) {
-}
-
-func (c *CloudProvider) Validate(context.Context, *v1alpha5.Provisioner) *apis.FieldError {
 	return nil
 }
 

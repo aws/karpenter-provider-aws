@@ -53,7 +53,6 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/amifamily/bootstrap"
 	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/fake"
-	"github.com/aws/karpenter/pkg/cloudprovider/registry"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/test"
@@ -76,7 +75,7 @@ var instanceTypeProvider *InstanceTypeProvider
 var fakeEC2API *fake.EC2API
 var fakePricingAPI *fake.PricingAPI
 var controller *provisioning.Controller
-var cloudProvider cloudprovider.CloudProvider
+var cloudProvider *CloudProvider
 var clientSet *kubernetes.Clientset
 var cluster *state.Cluster
 var recorder *test.EventRecorder
@@ -142,7 +141,8 @@ var _ = BeforeSuite(func() {
 			}),
 			kubeClient: e.Client,
 		}
-		registry.RegisterOrDie(ctx, cloudProvider)
+		v1alpha5.DefaultHook = cloudProvider.Default
+		v1alpha5.ValidateHook = cloudProvider.Validate
 		cfg = test.NewConfig()
 		fakeClock = clock.NewFakeClock(time.Now())
 		cluster = state.NewCluster(fakeClock, cfg, e.Client, cloudProvider)
