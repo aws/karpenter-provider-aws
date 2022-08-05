@@ -16,7 +16,6 @@ package amifamily
 
 import (
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
@@ -51,10 +50,6 @@ func (c Custom) DefaultBlockDeviceMappings() []*v1alpha1.BlockDeviceMapping {
 // to us.
 func (c Custom) EphemeralBlockDevice() *string {
 	return nil
-}
-
-func (c Custom) EphemeralBlockDeviceOverhead() resource.Quantity {
-	return resource.MustParse("5Gi")
 }
 
 func (c Custom) ENILimitedMemoryOverhead() bool {

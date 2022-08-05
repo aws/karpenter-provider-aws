@@ -272,10 +272,11 @@ func (i *InstanceType) eniLimitedPods() int64 {
 }
 
 func (i *InstanceType) systemReservedResources(ami amifamily.AMIFamily, p *v1alpha5.Provisioner) v1.ResourceList {
+	// default system-reserved resources: https://kubernetes.io/docs/tasks/administer-cluster/reserve-compute-resources/#system-reserved
 	resources := v1.ResourceList{
 		v1.ResourceCPU:              resource.MustParse("100m"),
 		v1.ResourceMemory:           resource.MustParse("100Mi"),
-		v1.ResourceEphemeralStorage: ami.EphemeralBlockDeviceOverhead(),
+		v1.ResourceEphemeralStorage: resource.MustParse("1Gi"),
 	}
 
 	if p.Spec.KubeletConfiguration != nil && p.Spec.KubeletConfiguration.SystemReserved != nil {
@@ -290,7 +291,8 @@ func (i *InstanceType) systemReservedResources(ami amifamily.AMIFamily, p *v1alp
 
 func (i *InstanceType) kubeReservedResources(pods int64) v1.ResourceList {
 	resources := v1.ResourceList{
-		v1.ResourceMemory: resource.MustParse(fmt.Sprintf("%dMi", (11*pods)+255)),
+		v1.ResourceMemory:           resource.MustParse(fmt.Sprintf("%dMi", (11*pods)+255)),
+		v1.ResourceEphemeralStorage: resource.MustParse("1Gi"), // default kube-reserved ephemeral-storage
 	}
 	// kube-reserved Computed from
 	// https://github.com/bottlerocket-os/bottlerocket/pull/1388/files#diff-bba9e4e3e46203be2b12f22e0d654ebd270f0b478dd34f40c31d7aa695620f2fR611

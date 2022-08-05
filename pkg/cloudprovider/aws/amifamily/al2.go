@@ -19,7 +19,6 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
@@ -88,10 +87,6 @@ func (a AL2) DefaultBlockDeviceMappings() []*v1alpha1.BlockDeviceMapping {
 
 func (a AL2) EphemeralBlockDevice() *string {
 	return aws.String("/dev/xvda")
-}
-
-func (a AL2) EphemeralBlockDeviceOverhead() resource.Quantity {
-	return resource.MustParse("5Gi")
 }
 
 func (a AL2) ENILimitedMemoryOverhead() bool {
