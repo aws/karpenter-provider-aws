@@ -62,8 +62,8 @@ spec:
                       - type: string
                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                       x-kubernetes-int-or-string: true
-                    description: SystemReserved are the resources reserved for OS
-                      system daemons and for kernel memory.
+                    description: SystemReserved contains resources reserved for OS
+                      system daemons and kernel memory.
                     type: object
                 type: object
               labels:

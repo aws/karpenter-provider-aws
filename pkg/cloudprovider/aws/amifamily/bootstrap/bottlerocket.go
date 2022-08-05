@@ -18,6 +18,8 @@ import (
 	"encoding/base64"
 	"fmt"
 
+	"github.com/aws/karpenter/pkg/utils/resources"
+
 	"github.com/aws/aws-sdk-go/aws"
 )
 
@@ -41,7 +43,7 @@ func (b Bottlerocket) Script() (string, error) {
 		s.Settings.Kubernetes.ClusterDNSIP = &b.KubeletConfig.ClusterDNS[0]
 	}
 	if b.KubeletConfig != nil {
-		s.Settings.Kubernetes.SystemReserved = b.KubeletConfig.SystemReserved
+		s.Settings.Kubernetes.SystemReserved = resources.StringMap(b.KubeletConfig.SystemReserved)
 	}
 	if !b.AWSENILimitedPodDensity {
 		s.Settings.Kubernetes.MaxPods = aws.Int(110)

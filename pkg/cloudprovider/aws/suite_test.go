@@ -19,6 +19,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/amifamily/bootstrap"
 	"io/ioutil"
 	"math"
 	"strings"
@@ -464,13 +465,13 @@ var _ = Describe("Allocation", func() {
 					provisioner = test.Provisioner(test.ProvisionerOptions{
 						Kubelet: &v1alpha5.KubeletConfiguration{
 							SystemReserved: v1.ResourceList{
-								v1.ResourceMemory: resource.MustParse("2Gi"),
+								v1.ResourceMemory: resource.MustParse("20Gi"),
 							},
 						},
 					})
 					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner, 0, provider, nil)
 					overhead := it.Overhead()
-					Expect(overhead.Memory().String()).To(Equal("3041Mi"))
+					Expect(overhead.Memory().String()).To(Equal("21473Mi"))
 				})
 			})
 		})
@@ -1204,6 +1205,41 @@ var _ = Describe("Allocation", func() {
 					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 					// This will not be scheduled since userData cannot be generated for the prospective node.
 					ExpectNotScheduled(ctx, env.Client, pod)
+				})
+				It("should override system reserved values in user data", func() {
+					provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
+					provider, _ := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
+					nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+						UserData: nil,
+						AWS:      *provider,
+					})
+					ExpectApplied(ctx, env.Client, nodeTemplate)
+					controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+					newProvisioner := test.Provisioner(test.ProvisionerOptions{
+						ProviderRef: &v1alpha5.ProviderRef{
+							Name: nodeTemplate.Name,
+						},
+						Kubelet: &v1alpha5.KubeletConfiguration{
+							SystemReserved: v1.ResourceList{
+								v1.ResourceCPU:              resource.MustParse("2"),
+								v1.ResourceMemory:           resource.MustParse("3Gi"),
+								v1.ResourceEphemeralStorage: resource.MustParse("10Gi"),
+							},
+						},
+					})
+					ExpectApplied(ctx, env.Client, newProvisioner)
+					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+					ExpectScheduled(ctx, env.Client, pod)
+					Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+					input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+					userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+					config := &bootstrap.BottlerocketConfig{}
+					config.UnmarshalTOML(userData)
+					Expect(len(config.Settings.Kubernetes.SystemReserved)).To(Equal(3))
+					Expect(config.Settings.Kubernetes.SystemReserved[v1.ResourceCPU.String()]).To(Equal("2"))
+					Expect(config.Settings.Kubernetes.SystemReserved[v1.ResourceMemory.String()]).To(Equal("3Gi"))
+					Expect(config.Settings.Kubernetes.SystemReserved[v1.ResourceEphemeralStorage.String()]).To(Equal("10Gi"))
 				})
 			})
 			Context("AL2 Custom UserData", func() {

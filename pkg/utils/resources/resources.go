@@ -151,3 +151,12 @@ func String(list v1.ResourceList) string {
 	}
 	return pretty.Concise(list)
 }
+
+// StringMap returns the string map representation of the resource list
+func StringMap(list v1.ResourceList) map[string]string {
+	m := make(map[string]string)
+	for k, v := range list {
+		m[k.String()] = v.String()
+	}
+	return m
+}

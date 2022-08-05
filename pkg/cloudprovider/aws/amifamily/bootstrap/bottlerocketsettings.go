@@ -16,7 +16,6 @@ package bootstrap
 
 import (
 	"github.com/pelletier/go-toml/v2"
-	v1 "k8s.io/api/core/v1"
 )
 
 func NewBottlerocketConfig(userdata *string) (*BottlerocketConfig, error) {
@@ -54,7 +53,7 @@ type BottlerocketKubernetes struct {
 	StaticPods                map[string]BottlerocketStaticPod `toml:"static-pods,omitempty"`
 	EvictionHard              map[string]string                `toml:"eviction-hard,omitempty"`
 	KubeReserved              map[string]string                `toml:"kube-reserved,omitempty"`
-	SystemReserved            v1.ResourceList                  `toml:"system-reserved,omitempty"`
+	SystemReserved            map[string]string                `toml:"system-reserved,omitempty"`
 	AllowedUnsafeSysctls      []string                         `toml:"allowed-unsafe-sysctls,omitempty"`
 	ServerTLSBootstrap        *bool                            `toml:"server-tls-bootstrap,omitempty"`
 	RegistryQPS               *int                             `toml:"registry-qps,omitempty"`
