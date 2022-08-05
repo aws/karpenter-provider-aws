@@ -11,7 +11,7 @@ Currently, there is no logical ordering to how the Karpenter scheduling receives
 
 ## Use Cases
 
-1. Creating a strongly preferred default provisioner that will always be attempted first, except when more specific configuration is required. This enables scenarios like specifying `kubernetes.io/arch=arm64` for workloads that require this architecture, while preferring `kubernetes.io/arch=amd64` on all other workloads, even if the pod does not contain specific `nodeSelector` constraints. This is particularly useful for those that have high numbers of workloads that only work on `amd64` instances, but they do not want to have to go and assign the specific architecture-specific `nodeSelector` to each of these workloads.
+1. Users who have specific architecture requirements for workloads but can't or don't want to go through the process of retro-fitting `nodeSelectors` across these workloads. In this case, we can create a strongly preferred default provisioner that will always be attempted first, except when a specific `nodeSelector` or `nodeAffinity` is specified. 
 
    **Example**
 
@@ -41,11 +41,40 @@ Currently, there is no logical ordering to how the Karpenter scheduling receives
       weight: 50
       requirements:
       - key: kubernetes.io/arch
-        operator: In
-        values: ["arm64"]
+        operator: Exists
     ```
 
-2. Creating a strongly preferred default provisioner for enterprise users that have `reserved` instance types and want to prefer having these instance types scheduled prior to other instance types.
+2. Users who have a large set of stateful workloads that require on-demand instances. These users do not want to retrofit their workloads to add `nodeSelectors` that specify a capacity type. In this case, we want to default to on-demand instances and fallback to spot instances for workloads that can support spot.
+
+    **Example**
+
+    ```yaml
+    # Default on-demand capacity type 
+    apiVersion: karpenter.sh/v1alpha5
+    kind: Provisioner
+    metadata:
+      name: on-demand
+    spec:
+      weight: 50
+      requirements:
+      - key: "karpenter.sh/capacity-type"
+        operator: In
+        values: ["on-demand"]
+   ```
+
+   ```yaml
+    # Spot capacity type for those that can use spot
+    apiVersion: karpenter.sh/v1alpha5
+      kind: Provisioner
+      metadata:
+        name: spot
+      spec:
+        requirements:
+        - key: "karpenter.sh/capacity-type"
+          operator: Exists
+   ```
+
+3. Creating a strongly preferred default provisioner for enterprise users that have `reserved` instance types and want to prefer having these instance types scheduled prior to other instance types. To ensure we don't over-provision to an instance type over what we have reserved, we can place a `.spec.limits.cpu` on the provisioner to stop after a given limit.
 
    **Example**
 
@@ -62,6 +91,8 @@ Currently, there is no logical ordering to how the Karpenter scheduling receives
       - key: "node.kubernetes.io/instance-type"
         operator: In
         values: ["c5.large"]
+      limits:
+        cpu: 20
     ```
 
     ```yaml
@@ -78,7 +109,44 @@ Currently, there is no logical ordering to how the Karpenter scheduling receives
         values: ["m5.large", "m5.2xlarge"]
     ```
 
-3. Allowing provisioner with taints to be attempted first so that pods that have tolerations for these taints can be scheduled to specific instance types. Without this ordering, it is possible these pods will be scheduled to nodes that have no tolerations.
+4. Preferring specific instance types for workloads where you are aware that a specific instance type is optimal for your needs but can define other instance types as backups
+
+    **Example**
+    
+    ```yaml
+    # Prefer p3 instance types for GPU workloads
+
+    apiVersion: karpenter.sh/v1alpha5
+    kind: Provisioner
+    metadata:
+      name: reserved
+    spec:
+      weight: 50
+      requirements:
+      - key: "karpenter.k8s.aws/instance-family"
+        operator: In
+        values: ["p3"]
+      - key: "gpu-intensive"
+        operator: Exists
+    ```
+
+    ```yaml
+    # GPU-intensive workloads can run optionally on these as a backup
+
+    apiVersion: karpenter.sh/v1alpha5
+    kind: Provisioner
+    metadata:
+      name: fallback
+    spec:
+      requirements:
+      - key: "node.kubernetes.io/instance-type"
+        operator: In
+        values: ["g5", "g3"]
+      - key: "gpu-intensive"
+        operator: Exists
+    ```
+
+4. Allowing provisioner with taints to be attempted first so that pods that have tolerations for these taints can be scheduled to specific instance types. Without this ordering, it is possible these pods will be scheduled to nodes that have no tolerations.
 
    _Note: It is still possible that pods with tolerations may not be scheduled to nodes with taints even if they are preferred, since pods with tolerations can technically be scheduled anywhere they are tolerated (including nodes that contain no taints)._
 
@@ -118,40 +186,6 @@ Currently, there is no logical ordering to how the Karpenter scheduling receives
         values: ["amd64"]
     ```
 
-4. Multi-Tenant users with mutually exclusive `Provisioners` can define separate hierarchies for their teams to deploy to specific instance types before others. In the case below, we define two provisioners for Team A, one to prefer specific instance types and the other to pick from all available instance types.
-
-   ```yaml
-   # Team A Primary provisioner 
-   
-    apiVersion: karpenter.sh/v1alpha5
-    kind: Provisioner
-    metadata:
-      name: teama-primary
-    spec:
-      weight: 100
-      requirements:
-      - key: "node.kubernetes.io/instance-type"
-        operator: In
-        values: ["c4.large", "c4.xlarge"]
-      - key: "team-name"
-        operator: In
-        values: ["teama"]
-   ```
-
-   ```yaml
-   # Team A Backup Provisioner 
-   
-    apiVersion: karpenter.sh/v1alpha5
-    kind: Provisioner
-    metadata:
-      name: teama-backup
-    spec:
-      requirements:
-      - key: "team-name"
-        operator: In
-        values: ["teama"]
-    ```
-
 ## Proposed Design
 
 To enable the ability to define a user-defined relationship between provisioners that will be considered in scheduling, we introduce a `.spec.weight` value in the `karpenter.sh/v1alpha5/Karpenter` provisioner spec. This value will have the following constraints:
@@ -173,6 +207,26 @@ __Current State__: Scheduling calls the Kubernetes LIST API for the `karpenter.s
 1. User-Based Priority Ordering with Weights: Scheduling would receive a provisioner ordering based on a `.spec.weight` field, where higher weighted provisioners will be attempted to be scheduled first. In particular, there will be a strict ordering of weights for provisioners, such that higher-weighted provisioners that meet scheduling constraints will have pods scheduled to them first.
 
 2. Define a `karpenter.sh/preferred: true` annotation for Provisioners. Provisioners that have this annotation would be considered first when scheduling pods to provisioners but there would be no ordering among provisioners marked as `preferred` or those that were not marked as `preferred`.
+
+3. Define a `.spec.preferences` section of the `Provisioner`. This preferences section would have the same schema as requirements but with added `.spec.preferences.[].weight` parameter. Preferences would be treated as requirements and backed off if preferences are too strict to be attainable. Users would need to use mutually exclusive provisioners to have predictable results with this interface.
+
+    ```yaml
+    apiVersion: karpenter.sh/v1alpha5
+    kind: Provisioner
+    metadata:
+      name: preference
+    spec:
+      requirements:
+      - key: kubernetes.io/arch
+        operator: In
+        values: ["amd64", "arm64"]
+      preferences:
+      - key: kubernetes.io/arch
+        operator: In
+        values: ["amd64"]
+        weight: 100
+      
+    ```
 
 __Recommendation:__ Use a `.spec.weight` to enforce strict ordering of provisioners when scheduling
 
@@ -231,38 +285,3 @@ In this scenario, since the first provisioner marked `expensive` has the highest
 This is an extreme example; however, it is worth noting that users who constrain their instance types with a hierarchical structure that prioritizes larger instances should take care when placing weights on these instance types that would order expensive instance types before less expensive ones.
 
 **Recommendation:** Document that placing a high number of constraints on your provisioners can lead to high cost for user nodes in certain scenarios.
-
-**Creating Provisioners that Order Fallback to On-Demand from Spot**: A user may manually create a fallback mechanism for falling back from a spot instance to an on-demand instance of the same type with too many constraints.
-
-```yaml
-apiVersion: karpenter.sh/v1alpha5
-kind: Provisioner
-metadata:
-  name: spot
-spec:
-  requirements:
-    - key: "node.kubernetes.io/instance-type"
-      operator: In
-      values: ["p3.16xlarge"]
-    - key: "karpenter.sh/capacity-type"
-      operator: In
-      values: ["spot"]
-  weight: 100
-```
-
-```yaml
-apiVersion: karpenter.sh/v1alpha5
-kind: Provisioner
-metadata:
-   name: on-demand
-spec:
-   requirements:
-      - key: "node.kubernetes.io/instance-type"
-      operator: In
-      values: ["p3.16xlarge"]
-      - key: "karpenter.sh/capacity-type"
-        operator: In
-        values: ["on-demand"]
-```
-
-**Recommendation:** Document that creating highly constrained provisioners that fallback to on-demand instances is not supported and will lead to failures from EC2 APIs when resources are highly constrained for an instance type.
