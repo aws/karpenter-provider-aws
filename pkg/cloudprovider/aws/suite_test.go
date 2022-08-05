@@ -385,7 +385,7 @@ var _ = Describe("Allocation", func() {
 				instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 				Expect(err).To(BeNil())
 				for _, info := range instanceInfo {
-					it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner, 0, provider, nil)
+					it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, 0, provider, nil)
 					resources := it.Resources()
 					Expect(resources.Pods().Value()).To(BeNumerically("==", 110))
 				}
@@ -395,7 +395,7 @@ var _ = Describe("Allocation", func() {
 				instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 				Expect(err).To(BeNil())
 				for _, info := range instanceInfo {
-					it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner, 0, provider, nil)
+					it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, 0, provider, nil)
 					resources := it.Resources()
 					Expect(resources.Pods().Value()).ToNot(BeNumerically("==", 110))
 				}
@@ -407,7 +407,7 @@ var _ = Describe("Allocation", func() {
 					provider.AMIFamily = &awsv1alpha1.AMIFamilyAL2
 					instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 					Expect(err).To(BeNil())
-					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner, 0, provider, nil)
+					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, 0, provider, nil)
 					overhead := it.Overhead()
 					Expect(overhead.Memory().String()).To(Equal("1093Mi"))
 				})
@@ -417,7 +417,7 @@ var _ = Describe("Allocation", func() {
 					provider.AMIFamily = &awsv1alpha1.AMIFamilyAL2
 					instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 					Expect(err).To(BeNil())
-					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner, 0, provider, nil)
+					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, 0, provider, nil)
 					overhead := it.Overhead()
 					Expect(overhead.Memory().String()).To(Equal("1093Mi"))
 				})
@@ -429,7 +429,7 @@ var _ = Describe("Allocation", func() {
 					provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
 					instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 					Expect(err).To(BeNil())
-					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner, 0, provider, nil)
+					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, 0, provider, nil)
 					overhead := it.Overhead()
 					Expect(overhead.Memory().String()).To(Equal("1093Mi"))
 				})
@@ -439,7 +439,7 @@ var _ = Describe("Allocation", func() {
 					provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
 					instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 					Expect(err).To(BeNil())
-					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner, 0, provider, nil)
+					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, 0, provider, nil)
 					overhead := it.Overhead()
 					Expect(overhead.Memory().String()).To(Equal("1665Mi"))
 				})
@@ -455,7 +455,7 @@ var _ = Describe("Allocation", func() {
 							},
 						},
 					})
-					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner, 0, provider, nil)
+					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, 0, provider, nil)
 					overhead := it.Overhead()
 					Expect(overhead.Cpu().String()).To(Equal("2080m"))
 				})
@@ -469,7 +469,7 @@ var _ = Describe("Allocation", func() {
 							},
 						},
 					})
-					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner, 0, provider, nil)
+					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, 0, provider, nil)
 					overhead := it.Overhead()
 					Expect(overhead.Memory().String()).To(Equal("21473Mi"))
 				})
@@ -1057,7 +1057,7 @@ var _ = Describe("Allocation", func() {
 			It("should specify --system-reserved when overriding system reserved values", func() {
 				controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 
-				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{
+				newProvisioner := test.Provisioner(test.ProvisionerOptions{
 					Kubelet: &v1alpha5.KubeletConfiguration{
 						SystemReserved: v1.ResourceList{
 							v1.ResourceCPU:              resource.MustParse("500m"),
@@ -1065,13 +1065,22 @@ var _ = Describe("Allocation", func() {
 							v1.ResourceEphemeralStorage: resource.MustParse("2Gi"),
 						},
 					},
-				}))
+				})
+				ExpectApplied(ctx, env.Client, newProvisioner)
 				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 				userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
-				Expect(string(userData)).To(ContainSubstring("--system-reserved=cpu=500m,memory=1Gi,ephemeral-storage=2Gi"))
+
+				// Check whether the arguments are there for --system-reserved
+				arg := "--system-reserved="
+				i := strings.Index(string(userData), arg)
+				rem := string(userData)[(i + len(arg)):]
+				i = strings.Index(rem, "'")
+				for k, v := range newProvisioner.Spec.KubeletConfiguration.SystemReserved {
+					Expect(rem[:i]).To(ContainSubstring(fmt.Sprintf("%v=%v", k.String(), v.String())))
+				}
 			})
 			It("should specify --container-runtime containerd by default", func() {
 				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))

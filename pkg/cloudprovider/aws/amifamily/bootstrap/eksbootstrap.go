@@ -28,8 +28,6 @@ import (
 	"strings"
 	"sync"
 
-	v1 "k8s.io/api/core/v1"
-
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
@@ -117,10 +115,8 @@ func (e EKS) nodeLabelArg() string {
 func (e EKS) systemReservedArg() string {
 	var args []string
 	if e.KubeletConfig.SystemReserved != nil {
-		for _, name := range []v1.ResourceName{v1.ResourceCPU, v1.ResourceMemory, v1.ResourceEphemeralStorage} {
-			if v, ok := e.KubeletConfig.SystemReserved[name]; ok {
-				args = append(args, fmt.Sprintf("%v=%v", name, v.String()))
-			}
+		for k, v := range e.KubeletConfig.SystemReserved {
+			args = append(args, fmt.Sprintf("%v=%v", k.String(), v.String()))
 		}
 	}
 	if len(args) > 0 {

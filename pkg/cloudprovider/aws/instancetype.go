@@ -53,7 +53,7 @@ type InstanceType struct {
 	price        float64
 }
 
-func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, provisioner *v1alpha5.Provisioner, price float64, provider *v1alpha1.AWS, offerings []cloudprovider.Offering) *InstanceType {
+func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, kc *v1alpha5.KubeletConfiguration, price float64, provider *v1alpha1.AWS, offerings []cloudprovider.Offering) *InstanceType {
 	instanceType := &InstanceType{
 		InstanceTypeInfo: info,
 		provider:         provider,
@@ -66,7 +66,7 @@ func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, provisione
 	}
 	// Precompute to minimize memory/compute overhead
 	instanceType.resources = instanceType.computeResources(injection.GetOptions(ctx).AWSEnablePodENI)
-	instanceType.overhead = instanceType.computeOverhead(injection.GetOptions(ctx).VMMemoryOverhead, provisioner)
+	instanceType.overhead = instanceType.computeOverhead(injection.GetOptions(ctx).VMMemoryOverhead, kc)
 	instanceType.requirements = instanceType.computeRequirements()
 	return instanceType
 }
@@ -248,7 +248,7 @@ func (i *InstanceType) awsNeurons() *resource.Quantity {
 	return resources.Quantity(fmt.Sprint(count))
 }
 
-func (i *InstanceType) computeOverhead(vmMemOverhead float64, p *v1alpha5.Provisioner) v1.ResourceList {
+func (i *InstanceType) computeOverhead(vmMemOverhead float64, kc *v1alpha5.KubeletConfiguration) v1.ResourceList {
 	pods := i.pods()
 	amiFamily := amifamily.GetAMIFamily(i.provider.AMIFamily, &amifamily.Options{})
 	podsQuantity := pods.Value()
@@ -256,7 +256,7 @@ func (i *InstanceType) computeOverhead(vmMemOverhead float64, p *v1alpha5.Provis
 		podsQuantity = i.eniLimitedPods()
 	}
 
-	srr := i.systemReservedResources(amiFamily, p)
+	srr := i.systemReservedResources(kc)
 	krr := i.kubeReservedResources(podsQuantity)
 	misc := i.miscResources(vmMemOverhead)
 	overhead := resources.Merge(srr, krr, misc)
@@ -271,7 +271,7 @@ func (i *InstanceType) eniLimitedPods() int64 {
 	return *i.NetworkInfo.MaximumNetworkInterfaces*(*i.NetworkInfo.Ipv4AddressesPerInterface-1) + 2
 }
 
-func (i *InstanceType) systemReservedResources(ami amifamily.AMIFamily, p *v1alpha5.Provisioner) v1.ResourceList {
+func (i *InstanceType) systemReservedResources(kc *v1alpha5.KubeletConfiguration) v1.ResourceList {
 	// default system-reserved resources: https://kubernetes.io/docs/tasks/administer-cluster/reserve-compute-resources/#system-reserved
 	resources := v1.ResourceList{
 		v1.ResourceCPU:              resource.MustParse("100m"),
@@ -279,9 +279,9 @@ func (i *InstanceType) systemReservedResources(ami amifamily.AMIFamily, p *v1alp
 		v1.ResourceEphemeralStorage: resource.MustParse("1Gi"),
 	}
 
-	if p.Spec.KubeletConfiguration != nil && p.Spec.KubeletConfiguration.SystemReserved != nil {
+	if kc != nil && kc.SystemReserved != nil {
 		for _, name := range []v1.ResourceName{v1.ResourceCPU, v1.ResourceMemory, v1.ResourceEphemeralStorage} {
-			if v, ok := p.Spec.KubeletConfiguration.SystemReserved[name]; ok {
+			if v, ok := kc.SystemReserved[name]; ok {
 				resources[name] = v
 			}
 		}
