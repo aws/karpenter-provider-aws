@@ -128,6 +128,12 @@ func (c *CloudProvider) GetInstanceTypes(_ context.Context, provisioner *v1alpha
 				v1.ResourceMemory: resource.MustParse("128Gi"),
 			},
 		}),
+		NewInstanceType(InstanceTypeOptions{
+			Name: "single-pod-instance-type",
+			Resources: map[v1.ResourceName]resource.Quantity{
+				v1.ResourcePods: resource.MustParse("1"),
+			},
+		}),
 	}, nil
 }
 

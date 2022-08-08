@@ -16,6 +16,7 @@ package provisioning_test
 
 import (
 	"context"
+	"knative.dev/pkg/ptr"
 	"testing"
 	"time"
 
@@ -152,6 +153,25 @@ var _ = Describe("Provisioning", func() {
 				ResourceRequirements: v1.ResourceRequirements{Limits: v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("1")}},
 			}),
 		) {
+			ExpectScheduled(ctx, env.Client, pod)
+		}
+	})
+	It("should provision multiple nodes when maxPods is set", func() {
+		ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{
+			Kubelet: &v1alpha5.KubeletConfiguration{MaxPods: ptr.Int32(1)},
+			Requirements: []v1.NodeSelectorRequirement{
+				{
+					Key:      v1.LabelInstanceTypeStable,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{"single-pod-instance-type"},
+				},
+			},
+		}))
+		pods := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(), test.UnschedulablePod(), test.UnschedulablePod())
+		nodes := &v1.NodeList{}
+		Expect(env.Client.List(ctx, nodes)).To(Succeed())
+		Expect(len(nodes.Items)).To(Equal(3))
+		for _, pod := range pods {
 			ExpectScheduled(ctx, env.Client, pod)
 		}
 	})

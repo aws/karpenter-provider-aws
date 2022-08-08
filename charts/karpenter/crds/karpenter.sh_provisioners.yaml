@@ -55,6 +55,11 @@ spec:
                     description: ContainerRuntime is the container runtime to be used
                       with your worker nodes.
                     type: string
+                  maxPods:
+                    description: MaxPods is an override for the maximum number of
+                      pods that can run on a worker node instance.
+                    format: int32
+                    type: integer
                   systemReserved:
                     additionalProperties:
                       anyOf:
