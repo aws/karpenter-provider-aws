@@ -20,6 +20,8 @@ import (
 
 	"knative.dev/pkg/ptr"
 
+	"github.com/aws/karpenter/pkg/utils/resources"
+
 	"github.com/aws/aws-sdk-go/aws"
 )
 
@@ -39,15 +41,18 @@ func (b Bottlerocket) Script() (string, error) {
 	s.Settings.Kubernetes.ClusterCertificate = b.CABundle
 	s.Settings.Kubernetes.NodeLabels = b.Labels
 
-	if b.KubeletConfig != nil && len(b.KubeletConfig.ClusterDNS) > 0 {
-		s.Settings.Kubernetes.ClusterDNSIP = &b.KubeletConfig.ClusterDNS[0]
-	}
-
 	// Backwards compatability for AWSENILimitedPodDensity flag
 	if b.KubeletConfig != nil && b.KubeletConfig.MaxPods != nil {
 		s.Settings.Kubernetes.MaxPods = aws.Int(int(ptr.Int32Value(b.KubeletConfig.MaxPods)))
 	} else if !b.AWSENILimitedPodDensity {
 		s.Settings.Kubernetes.MaxPods = aws.Int(110)
+	}
+
+	if b.KubeletConfig != nil && len(b.KubeletConfig.ClusterDNS) > 0 {
+		s.Settings.Kubernetes.ClusterDNSIP = &b.KubeletConfig.ClusterDNS[0]
+	}
+	if b.KubeletConfig != nil {
+		s.Settings.Kubernetes.SystemReserved = resources.StringMap(b.KubeletConfig.SystemReserved)
 	}
 
 	s.Settings.Kubernetes.NodeTaints = map[string][]string{}

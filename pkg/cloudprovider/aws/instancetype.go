@@ -53,7 +53,7 @@ type InstanceType struct {
 	price        float64
 }
 
-func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, provisioner *v1alpha5.Provisioner, price float64, provider *v1alpha1.AWS, offerings []cloudprovider.Offering) *InstanceType {
+func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, kc *v1alpha5.KubeletConfiguration, price float64, provider *v1alpha1.AWS, offerings []cloudprovider.Offering) *InstanceType {
 	instanceType := &InstanceType{
 		InstanceTypeInfo: info,
 		provider:         provider,
@@ -62,16 +62,16 @@ func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, provisione
 	}
 
 	// set max pods before computing resources
-	// Backwards compatability for AWSENILimitedPodDensity flag
-	if provisioner.Spec.KubeletConfiguration != nil && provisioner.Spec.KubeletConfiguration.MaxPods != nil {
-		instanceType.maxPods = provisioner.Spec.KubeletConfiguration.MaxPods
+	// backwards compatability for AWSENILimitedPodDensity flag
+	if kc != nil && kc.MaxPods != nil {
+		instanceType.maxPods = kc.MaxPods
 	} else if !injection.GetOptions(ctx).AWSENILimitedPodDensity {
 		instanceType.maxPods = ptr.Int32(110)
 	}
 
 	// Precompute to minimize memory/compute overhead
 	instanceType.resources = instanceType.computeResources(injection.GetOptions(ctx).AWSEnablePodENI)
-	instanceType.overhead = instanceType.computeOverhead(injection.GetOptions(ctx).VMMemoryOverhead)
+	instanceType.overhead = instanceType.computeOverhead(injection.GetOptions(ctx).VMMemoryOverhead, kc)
 	instanceType.requirements = instanceType.computeRequirements()
 	return instanceType
 }
@@ -253,30 +253,51 @@ func (i *InstanceType) awsNeurons() *resource.Quantity {
 	return resources.Quantity(fmt.Sprint(count))
 }
 
-func (i *InstanceType) computeOverhead(vmMemOverhead float64) v1.ResourceList {
-	memory := i.memory()
+func (i *InstanceType) computeOverhead(vmMemOverhead float64, kc *v1alpha5.KubeletConfiguration) v1.ResourceList {
 	pods := i.pods()
 	amiFamily := amifamily.GetAMIFamily(i.provider.AMIFamily, &amifamily.Options{})
-	memoryOverheadPods := pods.Value()
+	podsQuantity := pods.Value()
 	if amiFamily.ENILimitedMemoryOverhead() {
-		memoryOverheadPods = i.eniLimitedPods()
+		podsQuantity = i.eniLimitedPods()
 	}
 
-	overhead := v1.ResourceList{
-		v1.ResourceCPU: *resource.NewMilliQuantity(
-			100, // system-reserved
-			resource.DecimalSI),
-		v1.ResourceMemory: resource.MustParse(fmt.Sprintf("%dMi",
-			// vm-overhead
-			(int64(math.Ceil(float64(memory.Value())*vmMemOverhead/1024/1024)))+
-				// kube-reserved
-				((11*memoryOverheadPods)+255)+
-				// system-reserved
-				100+
-				// eviction threshold https://github.com/kubernetes/kubernetes/blob/ea0764452222146c47ec826977f49d7001b0ea8c/pkg/kubelet/apis/config/v1beta1/defaults_linux.go#L23
-				100,
-		)),
-		v1.ResourceEphemeralStorage: amiFamily.EphemeralBlockDeviceOverhead(),
+	srr := i.systemReservedResources(kc)
+	krr := i.kubeReservedResources(podsQuantity)
+	misc := i.miscResources(vmMemOverhead)
+	overhead := resources.Merge(srr, krr, misc)
+
+	return overhead
+}
+
+// The number of pods per node is calculated using the formula:
+// max number of ENIs * (IPv4 Addresses per ENI -1) + 2
+// https://github.com/awslabs/amazon-eks-ami/blob/master/files/eni-max-pods.txt#L20
+func (i *InstanceType) eniLimitedPods() int64 {
+	return *i.NetworkInfo.MaximumNetworkInterfaces*(*i.NetworkInfo.Ipv4AddressesPerInterface-1) + 2
+}
+
+func (i *InstanceType) systemReservedResources(kc *v1alpha5.KubeletConfiguration) v1.ResourceList {
+	// default system-reserved resources: https://kubernetes.io/docs/tasks/administer-cluster/reserve-compute-resources/#system-reserved
+	resources := v1.ResourceList{
+		v1.ResourceCPU:              resource.MustParse("100m"),
+		v1.ResourceMemory:           resource.MustParse("100Mi"),
+		v1.ResourceEphemeralStorage: resource.MustParse("1Gi"),
+	}
+
+	if kc != nil && kc.SystemReserved != nil {
+		for _, name := range []v1.ResourceName{v1.ResourceCPU, v1.ResourceMemory, v1.ResourceEphemeralStorage} {
+			if v, ok := kc.SystemReserved[name]; ok {
+				resources[name] = v
+			}
+		}
+	}
+	return resources
+}
+
+func (i *InstanceType) kubeReservedResources(pods int64) v1.ResourceList {
+	resources := v1.ResourceList{
+		v1.ResourceMemory:           resource.MustParse(fmt.Sprintf("%dMi", (11*pods)+255)),
+		v1.ResourceEphemeralStorage: resource.MustParse("1Gi"), // default kube-reserved ephemeral-storage
 	}
 	// kube-reserved Computed from
 	// https://github.com/bottlerocket-os/bottlerocket/pull/1388/files#diff-bba9e4e3e46203be2b12f22e0d654ebd270f0b478dd34f40c31d7aa695620f2fR611
@@ -296,19 +317,24 @@ func (i *InstanceType) computeOverhead(vmMemOverhead float64) v1.ResourceList {
 			if cpu < cpuRange.end {
 				r = float64(cpu - cpuRange.start)
 			}
-			cpuOverhead := overhead[v1.ResourceCPU]
+			cpuOverhead := resources.Cpu()
 			cpuOverhead.Add(*resource.NewMilliQuantity(int64(r*cpuRange.percentage), resource.DecimalSI))
-			overhead[v1.ResourceCPU] = cpuOverhead
+			resources[v1.ResourceCPU] = *cpuOverhead
 		}
 	}
-	return overhead
+	return resources
 }
 
-// The number of pods per node is calculated using the formula:
-// max number of ENIs * (IPv4 Addresses per ENI -1) + 2
-// https://github.com/awslabs/amazon-eks-ami/blob/master/files/eni-max-pods.txt#L20
-func (i *InstanceType) eniLimitedPods() int64 {
-	return *i.NetworkInfo.MaximumNetworkInterfaces*(*i.NetworkInfo.Ipv4AddressesPerInterface-1) + 2
+func (i *InstanceType) miscResources(vmMemOverhead float64) v1.ResourceList {
+	memory := i.memory().Value()
+	return v1.ResourceList{
+		v1.ResourceMemory: resource.MustParse(fmt.Sprintf("%dMi",
+			// vm-overhead
+			(int64(math.Ceil(float64(memory)*vmMemOverhead/1024/1024)))+
+				// eviction threshold https://github.com/kubernetes/kubernetes/blob/ea0764452222146c47ec826977f49d7001b0ea8c/pkg/kubelet/apis/config/v1beta1/defaults_linux.go#L23
+				100,
+		)),
+	}
 }
 
 func lowerKabobCase(s string) string {

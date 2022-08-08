@@ -19,7 +19,6 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
@@ -33,7 +32,7 @@ type Ubuntu struct {
 
 // SSMAlias returns the AMI Alias to query SSM
 func (u Ubuntu) SSMAlias(version string, instanceType cloudprovider.InstanceType) string {
-	return fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/%s/hvm/ebs-gp2/ami-id", version, instanceType.Requirements().Get(v1.LabelArchStable).Any())
+	return fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/%s/hvm/ebs-gp2/ami-id", version, instanceType.Requirements().Get(v1.LabelArchStable).Values()[0])
 }
 
 // UserData returns the default userdata script for the AMI Family
@@ -62,10 +61,6 @@ func (u Ubuntu) DefaultBlockDeviceMappings() []*v1alpha1.BlockDeviceMapping {
 
 func (u Ubuntu) EphemeralBlockDevice() *string {
 	return aws.String("/dev/sda1")
-}
-
-func (u Ubuntu) EphemeralBlockDeviceOverhead() resource.Quantity {
-	return resource.MustParse("5Gi")
 }
 
 func (u Ubuntu) ENILimitedMemoryOverhead() bool {

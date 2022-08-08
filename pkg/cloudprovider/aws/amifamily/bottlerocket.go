@@ -82,10 +82,6 @@ func (b Bottlerocket) EphemeralBlockDevice() *string {
 	return aws.String("/dev/xvdb")
 }
 
-func (b Bottlerocket) EphemeralBlockDeviceOverhead() resource.Quantity {
-	return resource.MustParse("5Gi")
-}
-
 func (b Bottlerocket) ENILimitedMemoryOverhead() bool {
 	return false
 }

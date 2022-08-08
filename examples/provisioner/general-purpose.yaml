@@ -14,12 +14,12 @@ spec:
       operator: NotIn
       values: [nano, micro, small, large]
   providerRef:
-    name: my-provider
+    name: default
 ---
 apiVersion: karpenter.k8s.aws/v1alpha1
 kind: AWSNodeTemplate
 metadata:
-  name: my-provider
+  name: default
 spec:
   subnetSelector:
     karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name

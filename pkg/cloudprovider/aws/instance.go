@@ -125,6 +125,14 @@ func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
 		if isNotFound(err) {
 			return nil
 		}
+		if _, errMsg := p.getInstance(ctx, aws.StringValue(id)); err != nil {
+			if isInstanceTerminated(errMsg) || isNotFound(errMsg) {
+				logging.FromContext(ctx).Debugf("Instance already terminated, %s", node.Name)
+				return nil
+			}
+			err = multierr.Append(err, errMsg)
+		}
+
 		return fmt.Errorf("terminating instance %s, %w", node.Name, err)
 	}
 	return nil
@@ -286,9 +294,12 @@ func (p *InstanceProvider) getInstance(ctx context.Context, id string) (*ec2.Ins
 		return nil, fmt.Errorf("failed to describe ec2 instances, %w", err)
 	}
 	if len(describeInstancesOutput.Reservations) != 1 || len(describeInstancesOutput.Reservations[0].Instances) != 1 {
-		return nil, fmt.Errorf("expected instance but got 0")
+		return nil, InstanceTerminatedError{fmt.Errorf("expected instance but got 0")}
 	}
 	instance := describeInstancesOutput.Reservations[0].Instances[0]
+	if *instance.State.Name == ec2.InstanceStateNameTerminated {
+		return nil, InstanceTerminatedError{fmt.Errorf("instance is in terminated state")}
+	}
 	if injection.GetOptions(ctx).GetAWSNodeNameConvention() == options.ResourceName {
 		return instance, nil
 	}
@@ -309,7 +320,7 @@ func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Ins
 			labels := map[string]string{}
 			for key, req := range instanceType.Requirements() {
 				if req.Len() == 1 {
-					labels[key] = req.Any()
+					labels[key] = req.Values()[0]
 				}
 			}
 			labels[v1.LabelTopologyZone] = aws.StringValue(instance.Placement.AvailabilityZone)

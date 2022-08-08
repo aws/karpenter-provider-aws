@@ -102,6 +102,8 @@ type KubeletConfiguration struct {
 	// a worker node instance.
 	// +optional
 	MaxPods *int32 `json:"maxPods,omitempty"`
+	// SystemReserved contains resources reserved for OS system daemons and kernel memory.
+	SystemReserved v1.ResourceList `json:"systemReserved,omitempty"`
 }
 
 // Provisioner is the Schema for the Provisioners API

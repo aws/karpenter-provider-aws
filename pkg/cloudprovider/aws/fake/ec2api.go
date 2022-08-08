@@ -136,6 +136,7 @@ func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFlee
 			if skipInstance {
 				continue
 			}
+			instanceState := ec2.InstanceStateNameRunning
 			for i := 0; i < int(*input.TargetCapacitySpecification.TotalTargetCapacity); i++ {
 				instance := &ec2.Instance{
 					InstanceId:            aws.String(test.RandomName()),
@@ -143,6 +144,9 @@ func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFlee
 					PrivateDnsName:        aws.String(randomdata.IpV4Address()),
 					InstanceType:          input.LaunchTemplateConfigs[0].Overrides[0].InstanceType,
 					SpotInstanceRequestId: spotInstanceRequestID,
+					State: &ec2.InstanceState{
+						Name: &instanceState,
+					},
 				}
 				e.Instances.Store(*instance.InstanceId, instance)
 				instanceIds = append(instanceIds, instance.InstanceId)
@@ -247,7 +251,9 @@ func (e *EC2API) DescribeSubnetsWithContext(ctx context.Context, input *ec2.Desc
 		return nil, e.NextError.Get()
 	}
 	if !e.DescribeSubnetsOutput.IsNil() {
-		return e.DescribeSubnetsOutput.Clone(), nil
+		describeSubnetsOutput := e.DescribeSubnetsOutput.Clone()
+		describeSubnetsOutput.Subnets = FilterDescribeSubnets(describeSubnetsOutput.Subnets, input.Filters)
+		return describeSubnetsOutput, nil
 	}
 	subnets := []*ec2.Subnet{
 		{
@@ -289,6 +295,8 @@ func (e *EC2API) DescribeSecurityGroupsWithContext(ctx context.Context, input *e
 		return nil, e.NextError.Get()
 	}
 	if !e.DescribeSecurityGroupsOutput.IsNil() {
+		describeSecurityGroupsOutput := e.DescribeSecurityGroupsOutput.Clone()
+		describeSecurityGroupsOutput.SecurityGroups = FilterDescribeSecurtyGroups(describeSecurityGroupsOutput.SecurityGroups, input.Filters)
 		return e.DescribeSecurityGroupsOutput.Clone(), nil
 	}
 	sgs := []*ec2.SecurityGroup{

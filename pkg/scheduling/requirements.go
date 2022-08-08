@@ -148,11 +148,10 @@ func (r Requirements) Intersects(requirements Requirements) (errs error) {
 
 func (r Requirements) Labels() map[string]string {
 	labels := map[string]string{}
-	for key, values := range r {
+	for key, requirement := range r {
 		if !v1alpha5.IsRestrictedNodeLabel(key) {
-			switch values.Operator() {
-			case v1.NodeSelectorOpIn, v1.NodeSelectorOpExists:
-				labels[key] = r.Get(key).Any()
+			if value := requirement.Any(); value != "" {
+				labels[key] = value
 			}
 		}
 	}
@@ -160,20 +159,6 @@ func (r Requirements) Labels() map[string]string {
 }
 
 func (r Requirements) String() string {
-	var sb strings.Builder
-	for key, req := range r {
-		if v1alpha5.RestrictedLabels.Has(key) {
-			continue
-		}
-		values := req.values.List()
-		if sb.Len() > 0 {
-			sb.WriteString(", ")
-		}
-		if len(values) > 5 {
-			values[5] = fmt.Sprintf("and %d others", len(values)-5)
-			values = values[0:6]
-		}
-		fmt.Fprintf(&sb, "%s %s %v", key, req.Operator(), values)
-	}
-	return sb.String()
+	requirements := lo.Reject(r.Values(), func(requirement *Requirement, _ int) bool { return v1alpha5.RestrictedLabels.Has(requirement.Key) })
+	return strings.Join(lo.Map(requirements, func(requirement *Requirement, _ int) string { return requirement.String() }), ", ")
 }

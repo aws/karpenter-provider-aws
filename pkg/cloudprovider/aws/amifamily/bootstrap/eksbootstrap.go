@@ -67,7 +67,9 @@ func (e EKS) Script() (string, error) {
 		userData.WriteString(" \\\n--use-max-pods false")
 		kubeletExtraArgs += " --max-pods=110"
 	}
-
+	if e.KubeletConfig != nil {
+		kubeletExtraArgs += e.systemReservedArg()
+	}
 	if e.ContainerRuntime != "" {
 		userData.WriteString(fmt.Sprintf(" \\\n--container-runtime %s", e.ContainerRuntime))
 	}
@@ -112,6 +114,21 @@ func (e EKS) nodeLabelArg() string {
 		labelStrings = append(labelStrings, fmt.Sprintf("%s=%v", key, e.Labels[key]))
 	}
 	return fmt.Sprintf("%s%s", nodeLabelArg, strings.Join(labelStrings, ","))
+}
+
+// systemReservedArg gets the kubelet-defined arguments for any valid resource
+// values that are specified within the system reserved resource list
+func (e EKS) systemReservedArg() string {
+	var args []string
+	if e.KubeletConfig.SystemReserved != nil {
+		for k, v := range e.KubeletConfig.SystemReserved {
+			args = append(args, fmt.Sprintf("%v=%v", k.String(), v.String()))
+		}
+	}
+	if len(args) > 0 {
+		return " --system-reserved=" + strings.Join(args, ",")
+	}
+	return ""
 }
 
 func (e EKS) mergeCustomUserData(userData *bytes.Buffer) (*bytes.Buffer, error) {

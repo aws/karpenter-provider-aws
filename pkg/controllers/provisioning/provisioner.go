@@ -265,7 +265,7 @@ func (p *Provisioner) schedule(ctx context.Context, pods []*v1.Pod, nodes []*sta
 func (p *Provisioner) launch(ctx context.Context, node *scheduler.Node) error {
 	// Check limits
 	latest := &v1alpha5.Provisioner{}
-	name := node.Requirements.Get(v1alpha5.ProvisionerNameLabelKey).Any()
+	name := node.Requirements.Get(v1alpha5.ProvisionerNameLabelKey).Values()[0]
 	if err := p.kubeClient.Get(ctx, types.NamespacedName{Name: name}, latest); err != nil {
 		return fmt.Errorf("getting current resource usage, %w", err)
 	}
@@ -375,9 +375,7 @@ func validateNodeSelectorTerm(term v1.NodeSelectorTerm) (errs error) {
 	}
 	if term.MatchExpressions != nil {
 		for _, requirement := range term.MatchExpressions {
-			if !v1alpha5.SupportedNodeSelectorOps.Has(string(requirement.Operator)) {
-				errs = multierr.Append(errs, fmt.Errorf("node selector term has unsupported operator, %s", requirement.Operator))
-			}
+			errs = multierr.Append(errs, v1alpha5.ValidateRequirement(requirement))
 		}
 	}
 	return errs
