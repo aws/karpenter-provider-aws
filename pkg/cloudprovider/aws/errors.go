@@ -41,7 +41,9 @@ var (
 	}
 )
 
-type SpotFallbackError error
+type SpotFallbackError struct {
+	error
+}
 
 type InstanceTerminatedError struct {
 	error
