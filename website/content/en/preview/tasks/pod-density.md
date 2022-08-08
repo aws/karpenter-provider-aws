@@ -22,7 +22,18 @@ Do not use the `max-pods` argument to kubelet. Karpenter is not aware of this va
 
 By default, the number of pods on a node is limited by both the number of networking interfaces (ENIs) that may be attached to an instance type and the number of IP addresses that can be assigned to each ENI.  See [IP addresses per network interface per instance type](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-eni.html#AvailableIpPerENI) for a more detailed information on these instance types' limits.
 
-Karpenter can be configured to disable nodes' ENI-based pod density.  This is specially useful for small to medium instance types which have a lower ENI-based pod density.  Set the environment variable `AWS_ENI_LIMITED_POD_DENSITY: "false"` (or the argument  `--aws-eni-limited-pod-density=false`) in the Karpenter controller to allow nodes to host up to 110 pods.
+Karpenter can be configured to disable nodes' ENI-based pod density.  This is specially useful for small to medium instance types which have a lower ENI-based pod density. Pod density can be configured for node provisioning in the following ways
+
+
+### Provisioner-Specific Pod Density
+
+Pod density can be configured at the provisioner level by specifying `maxPods` within the `.spec.kubeletConfiguration`. All nodes spawned by this provisioner will set this `maxPods` value on their kubelet and will account for this value during scheduling.
+
+See [Provisioner API Kubelet Configuration](../provisioner.md#Maximum-Pods)
+
+### Controller-Wide Pod Density
+
+Set the environment variable `AWS_ENI_LIMITED_POD_DENSITY: "false"` (or the argument  `--aws-eni-limited-pod-density=false`) in the Karpenter controller to allow nodes to host up to 110 pods by default.
 
 Environment variables for the Karpenter controller may be specified as [helm chart values](https://github.com/aws/karpenter/blob/c73f425e924bb64c3f898f30ca5035a1d8591183/charts/karpenter/values.yaml#L15).
 
