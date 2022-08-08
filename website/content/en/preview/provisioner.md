@@ -61,6 +61,11 @@ spec:
   # These are all optional and provide support for additional customization and use cases.
   kubeletConfiguration:
     clusterDNS: ["10.0.1.100"]
+    containerRuntime: containerd
+    systemReserved:
+      cpu: 1
+      memory: 5Gi
+      ephemeral-storage: 2Gi
 
   # Resource limits constrain the total size of the cluster.
   # Limits prevent Karpenter from creating new instances once the limit is exceeded.
@@ -183,6 +188,10 @@ spec:
   kubeletConfiguration:
     clusterDNS: ["10.0.1.100"]
     containerRuntime: containerd
+    systemReserved:
+      cpu: 1
+      memory: 5Gi
+      ephemeral-storage: 2Gi
 ```
 
 ☁️ **AWS**
@@ -191,6 +200,14 @@ You can specify the container runtime to be either `dockerd` or `containerd`.
 
 * `dockerd` will be chosen by default for [Inferentia instanceTypes](https://aws.amazon.com/ec2/instance-types/inf1/). For all other instances `containerd` is the default.
 * You can only use `containerd` with the Bottlerocket AMI Family.
+
+### System Reserved Resources
+
+Karpenter will automatically configure the system reserved resource requests on the fly on your behalf. These requests are used to configure your node and to make scheduling decisions for your pods. If you have specific requirements or know that you will have additional capacity requirements, you can optionally override the `--system-reserved` configuration defaults with the `.spec.kubeletConfiguration.systemReserved` value.
+
+These values will be accounted for in scheduling and be passed through when your node is bootstrapped to the kubelet.
+
+For more information on the deafult `--system-reserved` configuration refer to the [Kubelet Docs](https://kubernetes.io/docs/tasks/administer-cluster/reserve-compute-resources/#system-reserved)
 
 ## spec.limits.resources
 

@@ -21,6 +21,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
@@ -67,7 +69,7 @@ func NewInstanceTypeProvider(ec2api ec2iface.EC2API, subnetProvider *SubnetProvi
 }
 
 // Get all instance type options
-func (p *InstanceTypeProvider) Get(ctx context.Context, provider *v1alpha1.AWS) ([]cloudprovider.InstanceType, error) {
+func (p *InstanceTypeProvider) Get(ctx context.Context, provider *v1alpha1.AWS, kc *v1alpha5.KubeletConfiguration) ([]cloudprovider.InstanceType, error) {
 	p.Lock()
 	defer p.Unlock()
 	// Get InstanceTypes from EC2
@@ -89,7 +91,7 @@ func (p *InstanceTypeProvider) Get(ctx context.Context, provider *v1alpha1.AWS) 
 			// don't warn as this can occur extremely often
 			price = math.MaxFloat64
 		}
-		instanceType := NewInstanceType(ctx, i, price, provider, p.createOfferings(i, instanceTypeZones[instanceTypeName]))
+		instanceType := NewInstanceType(ctx, i, kc, price, provider, p.createOfferings(i, instanceTypeZones[instanceTypeName]))
 		result = append(result, instanceType)
 	}
 	return result, nil
