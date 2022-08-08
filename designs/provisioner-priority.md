@@ -146,7 +146,7 @@ Currently, there is no logical ordering to how the Karpenter scheduling receives
         operator: Exists
     ```
 
-4. Allowing provisioner with taints to be attempted first so that pods that have tolerations for these taints can be scheduled to specific instance types. Without this ordering, it is possible these pods will be scheduled to nodes that have no tolerations.
+4. Allowing provisioner with taints to be attempted first so that pods that have tolerations for these taints can be scheduled to specific instance types. Without this ordering, it is possible these pods will be scheduled to nodes that have no taints.
 
    _Note: It is still possible that pods with tolerations may not be scheduled to nodes with taints even if they are preferred, since pods with tolerations can technically be scheduled anywhere they are tolerated (including nodes that contain no taints)._
 
@@ -227,6 +227,12 @@ __Current State__: Scheduling calls the Kubernetes LIST API for the `karpenter.s
         weight: 100
       
     ```
+  
+    This implementation has some technical concerns related to how these preferences are understood in the following scenarios:
+
+    1. A node has been provisioned using preferences as part of the node requirements. Should this node be consolidated to a smaller instance during the consolidation loop if there is a smaller instance that meets the requirements but does not meet the preferences? In general, if the scheduling loop is performing the same during initial provisioning and consolidation, the preferences would be observed 
+
+    2. A new node is being prepared to be created with a pod assigned to it. The node has preferences that it is treating as requirements. During the scheduling loop, another pod has to be scheduled but does not meet the new node preferences. Should we attempt to relax this node's preferences such that the pod could be scheduled to the node or create an entirely separate node that this pod can fit on? Basically, this comes down to the question of whether the node can have relaxed requirements after node "creation" has occurred in Karpenter scheduling loop.
 
 __Recommendation:__ Use a `.spec.weight` to enforce strict ordering of provisioners when scheduling
 
