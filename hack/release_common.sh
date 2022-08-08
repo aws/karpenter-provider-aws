@@ -64,10 +64,4 @@ pullPrivateReplica(){
   PULL_THROUGH_CACHE_PATH="${PRIVATE_PULL_THROUGH_HOST}/ecr-public/karpenter/"
   docker pull "${PULL_THROUGH_CACHE_PATH}controller:${RELEASE_IDENTIFIER}"
   docker pull "${PULL_THROUGH_CACHE_PATH}webhook:${RELEASE_IDENTIFIER}"
-
-  if [[ $RELEASE_TYPE == "snapshot" ]]; then
-      docker pull "${PULL_THROUGH_CACHE_PATH}karpenter:v${CURRENT_MAJOR_VERSION}-${RELEASE_IDENTIFIER}"
-  else
-      docker pull "${PULL_THROUGH_CACHE_PATH}karpenter:${RELEASE_IDENTIFIER}"
-  fi
 }
