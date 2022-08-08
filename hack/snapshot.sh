@@ -34,5 +34,5 @@ buildImages $HELM_CHART_VERSION
 cosignImages
 publishHelmChart
 notifyIfStableRelease
-notifyRelease "snapshot" $HELM_CHART_VERSION
 pullPrivateReplica "snapshot" $SNAPSHOT_TAG
+notifyRelease "snapshot" $HELM_CHART_VERSION
