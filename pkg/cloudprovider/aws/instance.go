@@ -207,8 +207,8 @@ func (p *InstanceProvider) checkODFallback(nodeRequest *cloudprovider.NodeReques
 		}
 	}
 	if len(instanceTypes) < safeSpotFallbackThreshold {
-		return SpotFallbackError(fmt.Errorf("at least %d instance types are required to perform spot to on-demand fallback, "+
-			"the current provisioning request only has %d instance type options", safeSpotFallbackThreshold, len(nodeRequest.InstanceTypeOptions)))
+		return SpotFallbackError{fmt.Errorf("at least %d instance types are required to perform spot to on-demand fallback, "+
+			"the current provisioning request only has %d instance type options", safeSpotFallbackThreshold, len(nodeRequest.InstanceTypeOptions))}
 	}
 	return nil
 }

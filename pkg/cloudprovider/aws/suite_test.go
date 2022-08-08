@@ -586,7 +586,7 @@ var _ = Describe("Allocation", func() {
 				node := ExpectScheduled(ctx, env.Client, pod)
 				Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "inf1.6xlarge"))
 			})
-			It("should launch on-demand capacity if flexible to both spot and on-demand, but spot if unavailable", func() {
+			It("should launch on-demand capacity if flexible to both spot and on-demand, but spot is unavailable", func() {
 				safeSpotFallbackThreshold = 4
 				fakeEC2API.DescribeInstanceTypesPagesWithContext(ctx, &ec2.DescribeInstanceTypesInput{}, func(dito *ec2.DescribeInstanceTypesOutput, b bool) bool {
 					for _, it := range dito.InstanceTypes {
