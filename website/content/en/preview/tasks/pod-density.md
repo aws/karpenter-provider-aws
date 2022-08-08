@@ -29,7 +29,7 @@ Karpenter can be configured to disable nodes' ENI-based pod density.  This is sp
 
 Pod density can be configured at the provisioner level by specifying `maxPods` within the `.spec.kubeletConfiguration`. All nodes spawned by this provisioner will set this `maxPods` value on their kubelet and will account for this value during scheduling.
 
-See [Provisioner API Kubelet Configuration](../provisioner.md#Maximum-Pods)
+See [Provisioner API Kubelet Configuration](../../provisioner/#maximum-pods) for more details.
 
 ### Controller-Wide Pod Density
 

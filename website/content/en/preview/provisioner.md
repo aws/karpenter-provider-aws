@@ -211,7 +211,7 @@ These values will be accounted for in scheduling and be passed through when your
 
 For more information on the deafult `--system-reserved` configuration refer to the [Kubelet Docs](https://kubernetes.io/docs/tasks/administer-cluster/reserve-compute-resources/#system-reserved)
 
-### Maximum Pods
+### Max Pods
 
 By default, AWS will configure the maximum density of pods on a node [based on the node instance type](https://github.com/awslabs/amazon-eks-ami/blob/master/files/eni-max-pods.txt). For small instances that require an increased pod density or large instances that require a reduced pod density, you can override this default value with `.spec.kubeletConfiguration.maxPods`. This value will be used during Karpenter pod scheduling and passed through to `--max-pods` on kubelet startup.
 
@@ -219,7 +219,7 @@ By default, AWS will configure the maximum density of pods on a node [based on t
 When using small instance types, it may be necessary to enable [prefix assignment mode](https://aws.amazon.com/blogs/containers/amazon-vpc-cni-increases-pods-per-node-limits/) in the AWS VPC CNI plugin to support a higher pod density per node.  Prefix assignment mode was introduced in AWS VPC CNI v1.9 and allows ENIs to manage a broader set of IP addresses.  Much higher pod densities are supported as a result.
 {{% /alert %}}
 
-For a more detailed description of pod density considerations, see [Control Pod Density](tasks/pod-density.md)
+For a more detailed description of pod density considerations, see [Control Pod Density](../tasks/pod-density).
 
 ## spec.limits.resources
 
