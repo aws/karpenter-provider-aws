@@ -97,10 +97,9 @@ func (p *InstanceProvider) Create(ctx context.Context, provider *v1alpha1.AWS, n
 		func() (err error) { instance, err = p.getInstance(ctx, aws.StringValue(id)); return err },
 		retry.Delay(1*time.Second),
 		retry.Attempts(6),
+		retry.LastErrorOnly(true),
 	); err != nil {
-		return nil, err
-	} else if err != nil {
-		logging.FromContext(ctx).Errorf("retrieving node name for instance %s", aws.StringValue(instance.InstanceId))
+		return nil, fmt.Errorf("retrieving node name for instance %s, %w", aws.StringValue(instance.InstanceId), err)
 	}
 	logging.FromContext(ctx).Infof("Launched instance: %s, hostname: %s, type: %s, zone: %s, capacityType: %s",
 		aws.StringValue(instance.InstanceId),
