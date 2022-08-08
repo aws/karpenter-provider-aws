@@ -2,6 +2,7 @@
 set -euo pipefail
 
 CURRENT_MAJOR_VERSION="0"
+PRIVATE_PULL_THROUGH_HOST="071440425669.dkr.ecr.us-east-1.amazonaws.com"
 HELM_CHART_VERSION="v${CURRENT_MAJOR_VERSION}-${SNAPSHOT_TAG}"
 RELEASE_VERSION=${RELEASE_VERSION:-"${SNAPSHOT_TAG}"}
 RELEASE_PLATFORM="--platform=linux/amd64,linux/arm64"
@@ -27,6 +28,10 @@ authenticate() {
   aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${RELEASE_REPO}
 }
 
+authenticatePrivateRepo() {
+  aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${PRIVATE_PULL_THROUGH_HOST}
+}
+
 buildImages() {
     HELM_CHART_VERSION=$1
     CONTROLLER_DIGEST=$(GOFLAGS=${GOFLAGS} KO_DOCKER_REPO=${RELEASE_REPO} ko publish -B -t ${RELEASE_VERSION} ${RELEASE_PLATFORM} ./cmd/controller)
@@ -50,4 +55,19 @@ notifyRelease(){
       --topic-arn "arn:aws:sns:us-east-1:071440425669:KarpenterReleases" \
       --message ${MESSAGE} \
       --no-cli-pager
+}
+
+pullPrivateReplica(){
+  authenticatePrivateRepo
+  RELEASE_TYPE=$1
+  RELEASE_IDENTIFIER=$2
+  PULL_THROUGH_CACHE_PATH="${PRIVATE_PULL_THROUGH_HOST}/ecr-public/karpenter/"
+  docker pull "${PULL_THROUGH_CACHE_PATH}controller:${RELEASE_IDENTIFIER}"
+  docker pull "${PULL_THROUGH_CACHE_PATH}webhook:${RELEASE_IDENTIFIER}"
+
+  if [[ $RELEASE_TYPE == "snapshot" ]]; then
+      docker pull "${PULL_THROUGH_CACHE_PATH}karpenter:v${CURRENT_MAJOR_VERSION}-${RELEASE_IDENTIFIER}"
+  else
+      docker pull "${PULL_THROUGH_CACHE_PATH}karpenter:${RELEASE_IDENTIFIER}"
+  fi
 }
