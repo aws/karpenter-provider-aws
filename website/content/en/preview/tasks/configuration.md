@@ -16,11 +16,11 @@ There are two main configuration mechanisms that can be used to configure Karpen
 |--|--|--|
 | AWS_DEFAULT_INSTANCE_PROFILE | \-\-aws-default-instance-profile | The default instance profile to use when provisioning nodes in AWS|
 | AWS_ENABLE_POD_ENI | \-\-aws-enable-pod-eni | If true then instances that support pod ENI will report a vpc.amazonaws.com/pod-eni resource (default = false)|
-| AWS_ENI_LIMITED_POD_DENSITY | \-\-aws-eni-limited-pod-density | Indicates whether new nodes should use ENI-based pod density (default = true) DEPRECATED: Use `.spec.kubeletConfiguration.maxPods` to set pod density on a per-provisioner basis|
+| AWS_ENI_LIMITED_POD_DENSITY | \-\-aws-eni-limited-pod-density | Indicates whether new nodes should use ENI-based pod density. DEPRECATED: Use `.spec.kubeletConfiguration.maxPods` to set pod density on a per-provisioner basis (default = true)|
 | AWS_ISOLATED_VPC | \-\-aws-isolated-vpc | If true then assume we can't reach AWS services which don't have a VPC endpoint (default = false)|
 | AWS_NODE_NAME_CONVENTION | \-\-aws-node-name-convention | The node naming convention used by the AWS cloud provider. DEPRECATION WARNING: this field may be deprecated at any time (default = ip-name)|
 | CLUSTER_ENDPOINT | \-\-cluster-endpoint | The external kubernetes cluster endpoint for new nodes to connect with|
-| CLUSTER_NAME | \-\-cluster-name | The kubernetes cluster name for resource discovery (default = karp-cluster)|
+| CLUSTER_NAME | \-\-cluster-name | The kubernetes cluster name for resource discovery|
 | ENABLE_PROFILING | \-\-enable-profiling | Enable the profiling on the metric endpoint (default = false)|
 | HEALTH_PROBE_PORT | \-\-health-probe-port | The port the health probe endpoint binds to for reporting controller health (default = 8081)|
 | KUBE_CLIENT_BURST | \-\-kube-client-burst | The maximum allowed burst of queries to the kube-apiserver (default = 300)|
