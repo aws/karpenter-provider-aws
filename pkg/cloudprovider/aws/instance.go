@@ -44,7 +44,7 @@ import (
 )
 
 var (
-	safeSpotFallbackThreshold = 5 // falling back to on-demand without flexibility risks insufficient capacity errors
+	instanceTypeFlexibilityThreshold = 5 // falling back to on-demand without flexibility risks insufficient capacity errors
 )
 
 type InstanceProvider struct {
@@ -80,13 +80,6 @@ func (p *InstanceProvider) Create(ctx context.Context, provider *v1alpha1.AWS, n
 		// retry once if launch template is not found. This allows karpenter to generate a new LT if the
 		// cache was out-of-sync on the first try
 		id, err = p.launchInstance(ctx, provider, nodeRequest)
-	} else if isSpotFallback(err) {
-		// constrain capacity type requirements to only spot since required instance type diversity is not met
-		nodeRequest.Template.Requirements.Add(scheduling.NewRequirement(v1alpha5.LabelCapacityType, v1.NodeSelectorOpIn, v1alpha1.CapacityTypeSpot))
-		// try to launch again with spot
-		var retryErr error
-		id, retryErr = p.launchInstance(ctx, provider, nodeRequest)
-		err = multierr.Append(err, retryErr)
 	}
 	if err != nil {
 		return nil, err
@@ -144,8 +137,8 @@ func (p *InstanceProvider) launchInstance(ctx context.Context, provider *v1alpha
 	if err != nil {
 		return nil, fmt.Errorf("getting launch template configs, %w", err)
 	}
-	if err = p.checkODFallback(nodeRequest, launchTemplateConfigs); err != nil {
-		return nil, err
+	if err := p.checkODFallback(nodeRequest, launchTemplateConfigs); err != nil {
+		logging.FromContext(ctx).Warn(err.Error())
 	}
 	// Create fleet
 	tags := v1alpha1.MergeTags(ctx, provider.Tags, map[string]string{fmt.Sprintf("kubernetes.io/cluster/%s", injection.GetOptions(ctx).ClusterName): "owned"})
@@ -205,9 +198,9 @@ func (p *InstanceProvider) checkODFallback(nodeRequest *cloudprovider.NodeReques
 			}
 		}
 	}
-	if len(instanceTypes) < safeSpotFallbackThreshold {
-		return SpotFallbackError{fmt.Errorf("at least %d instance types are required to perform spot to on-demand fallback, "+
-			"the current provisioning request only has %d instance type options", safeSpotFallbackThreshold, len(nodeRequest.InstanceTypeOptions))}
+	if len(instanceTypes) < instanceTypeFlexibilityThreshold {
+		return fmt.Errorf("at least %d instance types are recommended when flexible to spot but requesting on-demand, "+
+			"the current provisioning request only has %d instance type options", instanceTypeFlexibilityThreshold, len(nodeRequest.InstanceTypeOptions))
 	}
 	return nil
 }

@@ -41,20 +41,8 @@ var (
 	}
 )
 
-type SpotFallbackError struct {
-	error
-}
-
 type InstanceTerminatedError struct {
 	error
-}
-
-func isSpotFallback(err error) bool {
-	if err == nil {
-		return false
-	}
-	var sfbErr SpotFallbackError
-	return errors.As(err, &sfbErr)
 }
 
 func isInstanceTerminated(err error) bool {
