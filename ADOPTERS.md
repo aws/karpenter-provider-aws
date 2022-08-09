@@ -16,6 +16,7 @@ If you are open to others contacting you about your use of Karpenter on Slack, a
 | Organization | Description | Contacts | Link |
 | --- | --- | --- | --- |
 | Amazon, Inc. | Scaling production workloads and batch jobs in all AWS regions | `@Alex Kestner`, `@Ellis Tarn` | [Introducing Karpenter](https://aws.amazon.com/blogs/aws/introducing-karpenter-an-open-source-high-performance-kubernetes-cluster-autoscaler/) |
+| Anthropic | Better utilizing mixes of instance types for more reliable capacity | N/A | [Homepage](https://anthropic.com) |
 | Codefresh | Juggling workloads for the SAAS CD/GitOps offering | `@Vadim Gusev` | [Codefresh](https://codefresh.io/) |
 | idealo | Scaling multi-arch IPv6 clusters hosting web and event-driven applications | `@Heiko Rothe` | [Homepage](https://www.idealo.de) |
 | Nirvana Money | Building healthy, happy financial lives - Using Karpenter to manage all-Spot clusters | `@DWSR` | [Homepage](https://www.nirvana.money/) |
