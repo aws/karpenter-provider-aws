@@ -98,6 +98,14 @@ By adopting this practice we allow our users who are early adopters to test out 
 # Released Upgrade Notes
 
 ## Upgrading to v0.14.0+
+* v0.14.0 adds new fields to the `provisioners.karpenter.sh` v1alpha5 and `awsnodetemplates.karpenter.k8s.aws` v1alpha1 CRDs. The CRDs will need to be updated to use the new parameters:
+
+```
+kubectl replace -f https://raw.githubusercontent.com/aws/karpenter/v0.14.0/charts/karpenter/crds/karpenter.sh_provisioners.yaml
+
+kubectl replace -f https://raw.githubusercontent.com/aws/karpenter/v0.14.0/charts/karpenter/crds/karpenter.k8s.aws_awsnodetemplates.yaml
+```
+
 * v0.14.0 changes the way Karpenter discovers its dynamically generated AWS launch templates to use a tag rather than a Name scheme. The previous name scheme was `Karpenter-${CLUSTER_NAME}-*` which could collide with user created launch templates that Karpenter should not manage. The new scheme uses a tag on the launch template `karpenter.k8s.aws/cluster: ${CLUSTER_NAME}`. As a result, Karpenter will not clean-up dynamically generated launch templates using the old name scheme. You can manually clean these up with the following commands:
 
 ```bash
