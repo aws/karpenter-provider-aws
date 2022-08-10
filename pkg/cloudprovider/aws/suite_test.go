@@ -19,12 +19,13 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"github.com/aws/karpenter/pkg/cloudprovider/aws/amifamily/bootstrap"
 	"io/ioutil"
 	"math"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/amifamily/bootstrap"
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/aws-sdk-go/aws"
@@ -44,7 +45,6 @@ import (
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/options"
 	"github.com/patrickmn/go-cache"
-	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -610,7 +610,6 @@ var _ = Describe("Allocation", func() {
 				Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "inf1.6xlarge"))
 			})
 			It("should launch on-demand capacity if flexible to both spot and on-demand, but spot is unavailable", func() {
-				safeSpotFallbackThreshold = 4
 				fakeEC2API.DescribeInstanceTypesPagesWithContext(ctx, &ec2.DescribeInstanceTypesInput{}, func(dito *ec2.DescribeInstanceTypesOutput, b bool) bool {
 					for _, it := range dito.InstanceTypes {
 						fakeEC2API.InsufficientCapacityPools.Add(fake.CapacityPool{CapacityType: awsv1alpha1.CapacityTypeSpot, InstanceType: aws.StringValue(it.InstanceType), Zone: "test-zone-1a"})
@@ -694,29 +693,6 @@ var _ = Describe("Allocation", func() {
 				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 				node := ExpectScheduled(ctx, env.Client, pod)
 				Expect(node.Labels).To(HaveKeyWithValue(v1alpha5.LabelCapacityType, awsv1alpha1.CapacityTypeSpot))
-			})
-			It("should not launch spot capacity if flexible to both spot and on demand but only flexible to 1 instance types", func() {
-				provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
-					{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{awsv1alpha1.CapacityTypeSpot, awsv1alpha1.CapacityTypeOnDemand}},
-					{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
-					{Key: v1.LabelInstanceTypeStable, Operator: v1.NodeSelectorOpIn, Values: []string{"m5.large"}},
-				}
-				var m5large *ec2.InstanceTypeInfo
-				fakeEC2API.DescribeInstanceTypesPagesWithContext(ctx, &ec2.DescribeInstanceTypesInput{}, func(dito *ec2.DescribeInstanceTypesOutput, b bool) bool {
-					var ok bool
-					if m5large, ok = lo.Find(dito.InstanceTypes, func(it *ec2.InstanceTypeInfo) bool { return *it.InstanceType == "m5.large" }); !ok {
-						return true
-					}
-					return false
-				})
-				fakeEC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
-					InstanceTypes: []*ec2.InstanceTypeInfo{m5large},
-				})
-				unavailableOfferingsCache.SetDefault(UnavailableOfferingsCacheKey("m5.large", "test-zone-1a", awsv1alpha1.CapacityTypeSpot), struct{}{})
-				ExpectApplied(ctx, env.Client, provisioner)
-				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
-				unscheduledPod := ExpectNotScheduled(ctx, env.Client, pod)
-				Expect(unscheduledPod.Name).To(Equal(pod.Name))
 			})
 		})
 		Context("LaunchTemplates", func() {
