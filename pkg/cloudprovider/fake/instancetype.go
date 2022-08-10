@@ -129,8 +129,9 @@ func InstanceTypesAssorted() []cloudprovider.InstanceType {
 // InstanceTypes creates instance types with incrementing resources
 // 2Gi of RAM and 10 pods for every 1vcpu
 // i.e. 1vcpu, 2Gi mem, 10 pods
-//      2vcpu, 4Gi mem, 20 pods
-//      3vcpu, 6Gi mem, 30 pods
+//
+//	2vcpu, 4Gi mem, 20 pods
+//	3vcpu, 6Gi mem, 30 pods
 func InstanceTypes(total int) []cloudprovider.InstanceType {
 	instanceTypes := []cloudprovider.InstanceType{}
 	for i := 0; i < total; i++ {

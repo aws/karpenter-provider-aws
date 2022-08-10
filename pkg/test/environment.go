@@ -46,11 +46,13 @@ simultaneously, as the ports are randomized. A common use case for this is
 parallel tests using ginkgo's parallelization functionality. The environment is
 typically instantiated once in a test file and re-used between different test
 cases. Resources for each test should be isolated into its own namespace.
-env := new Local(func(local *Local) {
-	// Register test controller with manager
-	controllerruntime.NewControllerManagedBy(local.Manager).For(...)
-	return nil
-})
+
+	env := new Local(func(local *Local) {
+		// Register test controller with manager
+		controllerruntime.NewControllerManagedBy(local.Manager).For(...)
+		return nil
+	})
+
 BeforeSuite(func() { env.Start() })
 AfterSuite(func() { env.Stop() })
 */
