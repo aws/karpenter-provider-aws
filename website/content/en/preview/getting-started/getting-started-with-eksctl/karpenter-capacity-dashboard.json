@@ -3,10 +3,7 @@
         "list": [
             {
                 "builtIn": 1,
-                "datasource": {
-                    "type": "grafana",
-                    "uid": "-- Grafana --"
-                },
+                "datasource": "-- Grafana --",
                 "enable": true,
                 "hide": true,
                 "iconColor": "rgba(0, 211, 255, 1)",
@@ -25,14 +22,13 @@
     "fiscalYearStartMonth": 0,
     "graphTooltip": 0,
     "id": 6,
-    "iteration": 1658858252847,
     "links": [],
     "liveNow": true,
     "panels": [
         {
             "datasource": {
                 "type": "prometheus",
-                "uid": "PBFA97CFB590B2093"
+                "uid": "${datasource}"
             },
             "fieldConfig": {
                 "defaults": {
@@ -108,7 +104,7 @@
                 {
                     "datasource": {
                         "type": "prometheus",
-                        "uid": "PBFA97CFB590B2093"
+                        "uid": "${datasource}"
                     },
                     "editorMode": "code",
                     "expr": "sum by(phase)(karpenter_pods_state)",
@@ -123,7 +119,7 @@
         {
             "datasource": {
                 "type": "prometheus",
-                "uid": "PBFA97CFB590B2093"
+                "uid": "${datasource}"
             },
             "fieldConfig": {
                 "defaults": {
@@ -197,7 +193,7 @@
                 {
                     "datasource": {
                         "type": "prometheus",
-                        "uid": "PBFA97CFB590B2093"
+                        "uid": "${datasource}"
                     },
                     "editorMode": "code",
                     "expr": "sum by ($distribution_filter)(\n    karpenter_pods_state{arch=~\"$arch\", capacity_type=~\"$capacity_type\", instance_type=~\"$instance_type\", provisioner=~\"$provisioner\"}\n)",
@@ -212,7 +208,7 @@
         {
             "datasource": {
                 "type": "prometheus",
-                "uid": "PBFA97CFB590B2093"
+                "uid": "${datasource}"
             },
             "fieldConfig": {
                 "defaults": {
@@ -295,12 +291,12 @@
                 },
                 "showHeader": true
             },
-            "pluginVersion": "9.0.1",
+            "pluginVersion": "9.0.5",
             "targets": [
                 {
                     "datasource": {
                         "type": "prometheus",
-                        "uid": "PBFA97CFB590B2093"
+                        "uid": "${datasource}"
                     },
                     "editorMode": "code",
                     "exemplar": false,
@@ -314,7 +310,7 @@
                 {
                     "datasource": {
                         "type": "prometheus",
-                        "uid": "PBFA97CFB590B2093"
+                        "uid": "${datasource}"
                     },
                     "editorMode": "code",
                     "exemplar": false,
@@ -328,7 +324,7 @@
                 {
                     "datasource": {
                         "type": "prometheus",
-                        "uid": "PBFA97CFB590B2093"
+                        "uid": "${datasource}"
                     },
                     "editorMode": "code",
                     "exemplar": false,
@@ -343,7 +339,7 @@
                 {
                     "datasource": {
                         "type": "prometheus",
-                        "uid": "PBFA97CFB590B2093"
+                        "uid": "${datasource}"
                     },
                     "editorMode": "code",
                     "exemplar": false,
@@ -357,7 +353,7 @@
                 {
                     "datasource": {
                         "type": "prometheus",
-                        "uid": "PBFA97CFB590B2093"
+                        "uid": "${datasource}"
                     },
                     "editorMode": "code",
                     "exemplar": false,
@@ -440,7 +436,7 @@
         {
             "datasource": {
                 "type": "prometheus",
-                "uid": "PBFA97CFB590B2093"
+                "uid": "${datasource}"
             },
             "fieldConfig": {
                 "defaults": {
@@ -517,7 +513,7 @@
                 {
                     "datasource": {
                         "type": "prometheus",
-                        "uid": "PBFA97CFB590B2093"
+                        "uid": "${datasource}"
                     },
                     "editorMode": "code",
                     "expr": "(count(karpenter_nodes_allocatable{arch=~\"$arch\",capacity_type=\"spot\",instance_type=~\"$instance_type\",provisioner=~\"$provisioner\",zone=~\"$zone\"}) or vector(0)) / count(karpenter_nodes_allocatable{arch=~\"$arch\",instance_type=~\"$instance_type\",provisioner=~\"$provisioner\",zone=~\"$zone\"})",
@@ -532,7 +528,7 @@
         {
             "datasource": {
                 "type": "prometheus",
-                "uid": "PBFA97CFB590B2093"
+                "uid": "${datasource}"
             },
             "fieldConfig": {
                 "defaults": {
@@ -653,12 +649,12 @@
                     }
                 ]
             },
-            "pluginVersion": "9.0.1",
+            "pluginVersion": "9.0.5",
             "targets": [
                 {
                     "datasource": {
                         "type": "prometheus",
-                        "uid": "PBFA97CFB590B2093"
+                        "uid": "${datasource}"
                     },
                     "editorMode": "code",
                     "exemplar": false,
@@ -673,7 +669,7 @@
                 {
                     "datasource": {
                         "type": "prometheus",
-                        "uid": "PBFA97CFB590B2093"
+                        "uid": "${datasource}"
                     },
                     "editorMode": "code",
                     "exemplar": false,
@@ -688,7 +684,7 @@
                 {
                     "datasource": {
                         "type": "prometheus",
-                        "uid": "PBFA97CFB590B2093"
+                        "uid": "${datasource}"
                     },
                     "editorMode": "code",
                     "exemplar": false,
@@ -703,7 +699,7 @@
                 {
                     "datasource": {
                         "type": "prometheus",
-                        "uid": "PBFA97CFB590B2093"
+                        "uid": "${datasource}"
                     },
                     "editorMode": "code",
                     "exemplar": false,
@@ -933,7 +929,7 @@
                 },
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "PBFA97CFB590B2093"
+                    "uid": "${datasource}"
                 },
                 "definition": "label_values(karpenter_nodes_allocatable, provisioner)",
                 "hide": 0,
@@ -963,7 +959,7 @@
                 },
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "PBFA97CFB590B2093"
+                    "uid": "${datasource}"
                 },
                 "definition": "label_values(karpenter_nodes_allocatable, zone)",
                 "hide": 0,
@@ -993,7 +989,7 @@
                 },
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "PBFA97CFB590B2093"
+                    "uid": "${datasource}"
                 },
                 "definition": "label_values(karpenter_nodes_allocatable, arch)",
                 "hide": 0,
@@ -1023,7 +1019,7 @@
                 },
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "PBFA97CFB590B2093"
+                    "uid": "${datasource}"
                 },
                 "definition": "label_values(karpenter_nodes_allocatable, capacity_type)",
                 "hide": 0,
@@ -1053,7 +1049,7 @@
                 },
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "PBFA97CFB590B2093"
+                    "uid": "${datasource}"
                 },
                 "definition": "label_values(karpenter_nodes_allocatable, instance_type)",
                 "hide": 0,
@@ -1122,6 +1118,24 @@
                 "queryValue": "",
                 "skipUrlSync": false,
                 "type": "custom"
+            },
+            {
+                "current": {
+                    "selected": false,
+                    "text": "Prometheus",
+                    "value": "Prometheus"
+                },
+                "hide": 2,
+                "includeAll": false,
+                "label": "Data Source",
+                "multi": false,
+                "name": "datasource",
+                "options": [],
+                "query": "prometheus",
+                "refresh": 1,
+                "regex": "",
+                "skipUrlSync": false,
+                "type": "datasource"
             }
         ]
     },
@@ -1133,6 +1147,6 @@
     "timezone": "",
     "title": "Karpenter Capacity",
     "uid": "ta8I9Q67z",
-    "version": 2,
+    "version": 3,
     "weekStart": ""
 }
