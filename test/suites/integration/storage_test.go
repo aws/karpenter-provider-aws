@@ -1,8 +1,7 @@
-package storage_test
+package integration_test
 
 import (
 	"fmt"
-	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
@@ -17,28 +16,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/aws/karpenter/test/pkg/environment"
 	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
 )
-
-var env *environment.Environment
-
-func TestStorage(t *testing.T) {
-	RegisterFailHandler(Fail)
-	BeforeSuite(func() {
-		var err error
-		env, err = environment.NewEnvironment(t)
-		Expect(err).ToNot(HaveOccurred())
-	})
-	RunSpecs(t, "Storage")
-}
-
-var _ = BeforeEach(func() { env.BeforeEach() })
-var _ = AfterEach(func() { env.AfterEach() })
 
 // This test requires the EBS CSI driver to be installed
 var _ = Describe("Dynamic PVC", func() {
+	BeforeEach(func() { env.BeforeEach() })
+	AfterEach(func() { env.AfterEach() })
+
 	It("should run a pod with a dynamic persistent volume", func() {
 		// Ensure that the EBS driver is installed, or we can't run the test.
 		var ds appsv1.DaemonSet

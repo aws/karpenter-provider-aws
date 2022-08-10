@@ -86,5 +86,5 @@ func eniLimitedPodsFor(instanceType string) int64 {
 	})
 	Expect(err).ToNot(HaveOccurred())
 	networkInfo := *instance.InstanceTypes[0].NetworkInfo
-	return (*networkInfo.MaximumNetworkInterfaces-1)**networkInfo.Ipv4AddressesPerInterface + 2
+	return *networkInfo.MaximumNetworkInterfaces*(*networkInfo.Ipv4AddressesPerInterface-1) + 2
 }
