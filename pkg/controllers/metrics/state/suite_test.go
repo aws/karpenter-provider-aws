@@ -17,7 +17,9 @@ package metrics_test
 import (
 	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/util/clock"
 	"testing"
+	"time"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider/fake"
@@ -38,6 +40,7 @@ import (
 
 var ctx context.Context
 var cfg *test.Config
+var fakeClock *clock.FakeClock
 var env *test.Environment
 var cluster *state.Cluster
 var nodeController *state.NodeController
@@ -58,7 +61,8 @@ var _ = BeforeSuite(func() {
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 
 	cloudProvider = &fake.CloudProvider{InstanceTypes: fake.InstanceTypesAssorted()}
-	cluster = state.NewCluster(cfg, env.Client, cloudProvider)
+	fakeClock = clock.NewFakeClock(time.Now())
+	cluster = state.NewCluster(fakeClock, cfg, env.Client, cloudProvider)
 	provisioner = test.Provisioner(test.ProvisionerOptions{ObjectMeta: metav1.ObjectMeta{Name: "default"}})
 	nodeController = state.NewNodeController(env.Client, cluster)
 	podController = state.NewPodController(env.Client, cluster)

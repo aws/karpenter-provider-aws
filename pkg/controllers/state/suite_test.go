@@ -17,8 +17,10 @@ package state_test
 import (
 	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/util/clock"
 	"math/rand"
 	"testing"
+	"time"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 
@@ -43,6 +45,7 @@ import (
 var ctx context.Context
 var cfg *test.Config
 var env *test.Environment
+var fakeClock *clock.FakeClock
 var cluster *state.Cluster
 var nodeController *state.NodeController
 var podController *state.PodController
@@ -67,7 +70,8 @@ var _ = AfterSuite(func() {
 
 var _ = BeforeEach(func() {
 	cloudProvider = &fake.CloudProvider{InstanceTypes: fake.InstanceTypesAssorted()}
-	cluster = state.NewCluster(cfg, env.Client, cloudProvider)
+	fakeClock = clock.NewFakeClock(time.Now())
+	cluster = state.NewCluster(fakeClock, cfg, env.Client, cloudProvider)
 	nodeController = state.NewNodeController(env.Client, cluster)
 	podController = state.NewPodController(env.Client, cluster)
 	provisioner = test.Provisioner(test.ProvisionerOptions{ObjectMeta: metav1.ObjectMeta{Name: "default"}})
@@ -635,7 +639,6 @@ var _ = Describe("Pod Anti-Affinity", func() {
 		})
 		Expect(foundPodCount).To(BeNumerically("==", 0))
 	})
-
 })
 
 func ExpectNodeResourceRequest(node *v1.Node, resourceName v1.ResourceName, amount string) {

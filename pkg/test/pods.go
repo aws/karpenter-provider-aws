@@ -19,7 +19,7 @@ import (
 
 	"github.com/imdario/mergo"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/api/policy/v1beta1"
+	policyv1 "k8s.io/api/policy/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -45,6 +45,7 @@ type PodOptions struct {
 	PersistentVolumeClaims    []string
 	Conditions                []v1.PodCondition
 	Phase                     v1.PodPhase
+	RestartPolicy             v1.RestartPolicy
 }
 
 type PDBOptions struct {
@@ -52,6 +53,7 @@ type PDBOptions struct {
 	Labels         map[string]string
 	MinAvailable   *intstr.IntOrString
 	MaxUnavailable *intstr.IntOrString
+	Status         *policyv1.PodDisruptionBudgetStatus
 }
 
 // Pod creates a test pod with defaults that can be overridden by PodOptions.
@@ -88,6 +90,7 @@ func Pod(overrides ...PodOptions) *v1.Pod {
 			NodeName:          options.NodeName,
 			Volumes:           volumes,
 			PriorityClassName: options.PriorityClassName,
+			RestartPolicy:     options.RestartPolicy,
 		},
 		Status: v1.PodStatus{
 			Conditions: options.Conditions,
@@ -133,29 +136,34 @@ func UnschedulablePod(options ...PodOptions) *v1.Pod {
 }
 
 // PodDisruptionBudget creates a PodDisruptionBudget.  To function properly, it should have its status applied
-func PodDisruptionBudget(overrides ...PDBOptions) *v1beta1.PodDisruptionBudget {
+func PodDisruptionBudget(overrides ...PDBOptions) *policyv1.PodDisruptionBudget {
 	options := PDBOptions{}
 	for _, opts := range overrides {
 		if err := mergo.Merge(&options, opts, mergo.WithOverride); err != nil {
 			panic(fmt.Sprintf("Failed to merge pdb options: %s", err))
 		}
 	}
-	return &v1beta1.PodDisruptionBudget{
+	status := policyv1.PodDisruptionBudgetStatus{
+		// To be considered for application by eviction, the Status.ObservedGeneration must be >= the PDB generation.
+		// kube-controller-manager normally sets ObservedGeneration, but we don't have one when running under
+		// EnvTest. If this isn't modified the eviction controller assumes that the PDB hasn't been processed
+		// by the disruption controller yet and adds a 10 second retry to our evict() call
+		ObservedGeneration: 1,
+	}
+	if options.Status != nil {
+		status = *options.Status
+	}
+
+	return &policyv1.PodDisruptionBudget{
 		ObjectMeta: ObjectMeta(options.ObjectMeta),
-		Spec: v1beta1.PodDisruptionBudgetSpec{
+		Spec: policyv1.PodDisruptionBudgetSpec{
 			MinAvailable: options.MinAvailable,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: options.Labels,
 			},
 			MaxUnavailable: options.MaxUnavailable,
 		},
-		Status: v1beta1.PodDisruptionBudgetStatus{
-			// To be considered for application by eviction, the Status.ObservedGeneration must be >= the PDB generation.
-			// kube-controller-manager normally sets ObservedGeneration, but we don't have one when running under
-			// EnvTest. If this isn't modified the eviction controller assumes that the PDB hasn't been processed
-			// by the disruption controller yet and adds a 10 second retry to our evict() call
-			ObservedGeneration: 1,
-		},
+		Status: status,
 	}
 }
 

@@ -163,7 +163,7 @@ func handleVariableDeclaration(v *ast.GenDecl) []metricInfo {
 			if funcPkg != "prometheus" {
 				continue
 			}
-			if len(ce.Args) != 2 {
+			if len(ce.Args) == 0 {
 				continue
 			}
 			arg := ce.Args[0].(*ast.CompositeLit)

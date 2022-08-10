@@ -34,12 +34,31 @@ type dedupe struct {
 	cache *cache.Cache
 }
 
-func (d *dedupe) NominatePod(pod *v1.Pod, node *v1.Node) {
-	key := fmt.Sprintf("nominate-node-%s-%s", pod.Name, node.Name)
-	if _, exists := d.cache.Get(key); exists {
+func (d *dedupe) WaitingOnReadinessForConsolidation(node *v1.Node) {
+	if !d.shouldCreateEvent(fmt.Sprintf("wait-node-consolidate-%s", node.UID)) {
 		return
 	}
-	d.cache.SetDefault(key, nil)
+	d.rec.WaitingOnReadinessForConsolidation(node)
+}
+
+func (d *dedupe) TerminatingNodeForConsolidation(node *v1.Node, reason string) {
+	if !d.shouldCreateEvent(fmt.Sprintf("terminate-node-consolidate-%s-%s", node.UID, reason)) {
+		return
+	}
+	d.rec.TerminatingNodeForConsolidation(node, reason)
+}
+
+func (d *dedupe) LaunchingNodeForConsolidation(node *v1.Node, reason string) {
+	if !d.shouldCreateEvent(fmt.Sprintf("launch-node-consolidate-%s-%s", node.UID, reason)) {
+		return
+	}
+	d.rec.LaunchingNodeForConsolidation(node, reason)
+}
+
+func (d *dedupe) NominatePod(pod *v1.Pod, node *v1.Node) {
+	if !d.shouldCreateEvent(fmt.Sprintf("nominate-node-%s-%s", pod.UID, node.UID)) {
+		return
+	}
 	d.rec.NominatePod(pod, node)
 }
 
@@ -53,19 +72,23 @@ func (d *dedupe) EvictPod(pod *v1.Pod) {
 }
 
 func (d *dedupe) PodFailedToSchedule(pod *v1.Pod, err error) {
-	key := fmt.Sprintf("failed-to-schedule-%s-%s", pod.Name, err.Error())
-	if _, exists := d.cache.Get(key); exists {
+	if !d.shouldCreateEvent(fmt.Sprintf("failed-to-schedule-%s-%s", pod.UID, err)) {
 		return
 	}
-	d.cache.SetDefault(key, nil)
 	d.rec.PodFailedToSchedule(pod, err)
 }
 
 func (d *dedupe) NodeFailedToDrain(node *v1.Node, err error) {
-	key := fmt.Sprintf("failed-to-drain-%s", node.Name)
-	if _, exists := d.cache.Get(key); exists {
+	if !d.shouldCreateEvent(fmt.Sprintf("failed-to-drain-%s", node.Name)) {
 		return
 	}
-	d.cache.SetDefault(key, nil)
 	d.rec.NodeFailedToDrain(node, err)
+}
+
+func (d *dedupe) shouldCreateEvent(key string) bool {
+	if _, exists := d.cache.Get(key); exists {
+		return false
+	}
+	d.cache.SetDefault(key, nil)
+	return true
 }

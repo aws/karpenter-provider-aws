@@ -48,7 +48,10 @@ type Topology struct {
 	inverseTopologies map[uint64]*TopologyGroup
 	// The universe of domains by topology key
 	domains map[string]utilsets.String
-	cluster *state.Cluster
+	// excludedPods are the pod UIDs of pods that are excluded from counting.  This is used so we can simulate
+	// moving pods to prevent them from being double counted.
+	excludedPods utilsets.String
+	cluster      *state.Cluster
 }
 
 func NewTopology(ctx context.Context, kubeClient client.Client, cluster *state.Cluster, domains map[string]utilsets.String, pods []*v1.Pod) (*Topology, error) {
@@ -58,7 +61,15 @@ func NewTopology(ctx context.Context, kubeClient client.Client, cluster *state.C
 		domains:           domains,
 		topologies:        map[uint64]*TopologyGroup{},
 		inverseTopologies: map[uint64]*TopologyGroup{},
+		excludedPods:      utilsets.NewString(),
 	}
+
+	// these are the pods that we intend to schedule, so if they are currently in the cluster we shouldn't count them for
+	// topology purposes
+	for _, p := range pods {
+		t.excludedPods.Insert(string(p.UID))
+	}
+
 	errs := t.updateInverseAffinities(ctx)
 	for i := range pods {
 		errs = multierr.Append(errs, t.Update(ctx, pods[i]))
@@ -175,6 +186,10 @@ func (t *Topology) Register(topologyKey string, domain string) {
 func (t *Topology) updateInverseAffinities(ctx context.Context) error {
 	var errs error
 	t.cluster.ForPodsWithAntiAffinity(func(pod *v1.Pod, node *v1.Node) bool {
+		// don't count the pod we are excluding
+		if t.excludedPods.Has(string(pod.UID)) {
+			return true
+		}
 		if err := t.updateInverseAntiAffinity(ctx, pod, node.Labels); err != nil {
 			errs = multierr.Append(errs, fmt.Errorf("tracking existing pod anti-affinity, %w", err))
 		}
@@ -229,6 +244,10 @@ func (t *Topology) countDomains(ctx context.Context, tg *TopologyGroup) error {
 
 	for i, p := range pods {
 		if IgnoredForTopology(&pods[i]) {
+			continue
+		}
+		// pod is excluded for counting purposes
+		if t.excludedPods.Has(string(p.UID)) {
 			continue
 		}
 		node := &v1.Node{}

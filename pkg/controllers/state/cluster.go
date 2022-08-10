@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -29,6 +30,7 @@ import (
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/clock"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -44,6 +46,7 @@ import (
 type Cluster struct {
 	kubeClient    client.Client
 	cloudProvider cloudprovider.CloudProvider
+	clock         clock.Clock
 
 	// Pod Specific Tracking
 	antiAffinityPods sync.Map // mapping of pod namespaced name to *v1.Pod of pods that have required anti affinities
@@ -54,9 +57,15 @@ type Cluster struct {
 	mu       sync.RWMutex
 	nodes    map[string]*Node                // node name -> node
 	bindings map[types.NamespacedName]string // pod namespaced named -> node name
+
+	// consolidationState is a number indicating the state of the cluster with respect to consolidation.  If this number
+	// hasn't changed, it indicates that the cluster hasn't changed in a state which would enable consolidation if
+	// it previously couldn't occur.
+	consolidationState   int64
+	lastNodeDeletionTime int64
 }
 
-func NewCluster(cfg config.Config, client client.Client, cp cloudprovider.CloudProvider) *Cluster {
+func NewCluster(clk clock.Clock, cfg config.Config, client client.Client, cp cloudprovider.CloudProvider) *Cluster {
 	// The nominationPeriod is how long we consider a node as 'likely to be used' after a pending pod was
 	// nominated for it. This time can very depending on the batching window size + time spent scheduling
 	// so we try to adjust based off the window size.
@@ -66,6 +75,7 @@ func NewCluster(cfg config.Config, client client.Client, cp cloudprovider.CloudP
 	}
 
 	c := &Cluster{
+		clock:          clk,
 		kubeClient:     client,
 		cloudProvider:  cp,
 		nominatedNodes: cache.New(nominationPeriod, 10*time.Second),
@@ -289,6 +299,7 @@ func (c *Cluster) deleteNode(nodeName string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	delete(c.nodes, nodeName)
+	c.recordConsolidationChange()
 }
 
 // updateNode is called for every node reconciliation
@@ -302,13 +313,41 @@ func (c *Cluster) updateNode(ctx context.Context, node *v1.Node) error {
 		return err
 	}
 	c.nodes[node.Name] = n
+
+	if node.DeletionTimestamp != nil {
+		nodeDeletionTime := node.DeletionTimestamp.UnixMilli()
+		if nodeDeletionTime > atomic.LoadInt64(&c.lastNodeDeletionTime) {
+			atomic.StoreInt64(&c.lastNodeDeletionTime, nodeDeletionTime)
+		}
+	}
 	return nil
+}
+
+// ClusterConsolidationState returns a number representing the state of the cluster with respect to consolidation.  If
+// consolidation can't occur and this number hasn't changed, there is no point in re-attempting consolidation. This
+// allows reducing overall CPU utilization by pausing consolidation when the cluster is in a static state.
+func (c *Cluster) ClusterConsolidationState() int64 {
+	cs := atomic.LoadInt64(&c.consolidationState)
+	// If 5 minutes elapsed since the last time the consolidation state was changed, we change the state anyway. This
+	// ensures that at least once every 5 minutes we consider consolidating our cluster in case something else has
+	// changed (e.g. instance type availability) that we can't detect which would allow consolidation to occur.
+	if c.clock.Now().After(time.UnixMilli(cs).Add(5 * time.Minute)) {
+		c.recordConsolidationChange()
+		return atomic.LoadInt64(&c.consolidationState)
+	}
+	return cs
+}
+
+// LastNodeDeletionTime returns the last time that at a node was marked for deletion.
+func (c *Cluster) LastNodeDeletionTime() time.Time {
+	return time.UnixMilli(atomic.LoadInt64(&c.lastNodeDeletionTime))
 }
 
 // deletePod is called when the pod has been deleted
 func (c *Cluster) deletePod(podKey types.NamespacedName) {
 	c.antiAffinityPods.Delete(podKey)
 	c.updateNodeUsageFromPodDeletion(podKey)
+	c.recordConsolidationChange()
 }
 
 func (c *Cluster) updateNodeUsageFromPodDeletion(podKey types.NamespacedName) {
@@ -393,9 +432,12 @@ func (c *Cluster) updateNodeUsageFromPod(ctx context.Context, pod *v1.Pod) error
 			delete(n.podRequests, podKey)
 			delete(n.podLimits, podKey)
 		}
+	} else {
+		// new pod binding has occurred
+		c.recordConsolidationChange()
 	}
 
-	// we have noticed that the pod is bound to a node and didn't know about the binding before
+	// did we notice that the pod is bound to a node and didn't know about the node before?
 	n, ok := c.nodes[pod.Spec.NodeName]
 	if !ok {
 		var node v1.Node
@@ -458,4 +500,8 @@ func (c *Cluster) Synchronized(ctx context.Context) error {
 		return fmt.Errorf("%d/%d nodes not yet synchronized", unknownNodes.Len(), len(nodes.Items))
 	}
 	return nil
+}
+
+func (c *Cluster) recordConsolidationChange() {
+	atomic.StoreInt64(&c.consolidationState, c.clock.Now().UnixMilli())
 }

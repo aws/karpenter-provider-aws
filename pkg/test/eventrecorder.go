@@ -36,6 +36,10 @@ func NewEventRecorder() *EventRecorder {
 	return &EventRecorder{}
 }
 
+func (e *EventRecorder) WaitingOnReadinessForConsolidation(v *v1.Node)                {}
+func (e *EventRecorder) TerminatingNodeForConsolidation(node *v1.Node, reason string) {}
+func (e *EventRecorder) LaunchingNodeForConsolidation(node *v1.Node, reason string)   {}
+
 func (e *EventRecorder) NominatePod(pod *v1.Pod, node *v1.Node) {
 	e.mu.Lock()
 	defer e.mu.Unlock()

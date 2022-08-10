@@ -93,7 +93,7 @@ func (n *Node) Add(ctx context.Context, pod *v1.Pod) error {
 
 	// Check instance type combinations
 	requests := resources.Merge(n.requests, resources.RequestsForPods(pod))
-	instanceTypes := filterInstanceTypes(n.InstanceTypeOptions, nodeRequirements, requests)
+	instanceTypes := filterInstanceTypesByRequirements(n.InstanceTypeOptions, nodeRequirements, requests)
 	if len(instanceTypes) == 0 {
 		return fmt.Errorf("no instance type satisfied resources %s and requirements %s", resources.String(resources.RequestsForPods(pod)), nodeRequirements)
 	}
@@ -117,21 +117,26 @@ func (n *Node) FinalizeScheduling() {
 }
 
 func (n *Node) String() string {
+	return fmt.Sprintf("node with %d pods requesting %s from types %s", len(n.Pods), resources.String(n.requests),
+		InstanceTypeList(n.InstanceTypeOptions))
+}
+
+func InstanceTypeList(instanceTypeOptions []cloudprovider.InstanceType) string {
 	var itSb strings.Builder
-	for i, it := range n.InstanceTypeOptions {
+	for i, it := range instanceTypeOptions {
 		// print the first 5 instance types only (indices 0-4)
 		if i > 4 {
-			fmt.Fprintf(&itSb, " and %d other(s)", len(n.InstanceTypeOptions)-i)
+			fmt.Fprintf(&itSb, " and %d other(s)", len(instanceTypeOptions)-i)
 			break
 		} else if i > 0 {
 			fmt.Fprint(&itSb, ", ")
 		}
 		fmt.Fprint(&itSb, it.Name())
 	}
-	return fmt.Sprintf("node with %d pods requesting %s from types %s", len(n.Pods), resources.String(n.requests), itSb.String())
+	return itSb.String()
 }
 
-func filterInstanceTypes(instanceTypes []cloudprovider.InstanceType, requirements scheduling.Requirements, requests v1.ResourceList) []cloudprovider.InstanceType {
+func filterInstanceTypesByRequirements(instanceTypes []cloudprovider.InstanceType, requirements scheduling.Requirements, requests v1.ResourceList) []cloudprovider.InstanceType {
 	return lo.Filter(instanceTypes, func(instanceType cloudprovider.InstanceType, _ int) bool {
 		return compatible(instanceType, requirements) && fits(instanceType, requests) && hasOffering(instanceType, requirements)
 	})

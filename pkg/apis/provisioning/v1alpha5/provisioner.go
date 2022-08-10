@@ -57,7 +57,7 @@ type ProvisionerSpec struct {
 	// detected to be empty. A Node is considered to be empty when it does not
 	// have pods scheduled to it, excluding daemonsets.
 	//
-	// Termination due to underutilization is disabled if this field is not set.
+	// Termination due to no utilization is disabled if this field is not set.
 	// +optional
 	TTLSecondsAfterEmpty *int64 `json:"ttlSecondsAfterEmpty,omitempty"`
 	// TTLSecondsUntilExpired is the number of seconds the controller will wait
@@ -70,6 +70,14 @@ type ProvisionerSpec struct {
 	TTLSecondsUntilExpired *int64 `json:"ttlSecondsUntilExpired,omitempty"`
 	// Limits define a set of bounds for provisioning capacity.
 	Limits *Limits `json:"limits,omitempty"`
+	// Consolidation are the consolidation parameters
+	// +optional
+	Consolidation *Consolidation `json:"consolidation,omitempty"`
+}
+
+type Consolidation struct {
+	// Enabled enables consolidation if it has been set
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // +kubebuilder:object:generate=false
