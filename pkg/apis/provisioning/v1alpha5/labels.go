@@ -30,10 +30,11 @@ var (
 	// Karpenter specific domains and labels
 	KarpenterLabelDomain = "karpenter.sh"
 
-	ProvisionerNameLabelKey         = Group + "/provisioner-name"
-	DoNotEvictPodAnnotationKey      = Group + "/do-not-evict"
-	EmptinessTimestampAnnotationKey = Group + "/emptiness-timestamp"
-	TerminationFinalizer            = Group + "/termination"
+	ProvisionerNameLabelKey           = Group + "/provisioner-name"
+	DoNotEvictPodAnnotationKey        = Group + "/do-not-evict"
+	DoNotConsolidateNodeAnnotationKey = KarpenterLabelDomain + "/do-not-consolidate"
+	EmptinessTimestampAnnotationKey   = Group + "/emptiness-timestamp"
+	TerminationFinalizer              = Group + "/termination"
 
 	LabelCapacityType    = KarpenterLabelDomain + "/capacity-type"
 	LabelNodeInitialized = KarpenterLabelDomain + "/initialized"
@@ -64,7 +65,7 @@ var (
 	)
 
 	// RestrictedLabels are labels that should not be used
-	// because they may interfer the internal provisioning logic.
+	// because they may interfere with the internal provisioning logic.
 	RestrictedLabels = sets.NewString(
 		EmptinessTimestampAnnotationKey,
 		v1.LabelHostname,

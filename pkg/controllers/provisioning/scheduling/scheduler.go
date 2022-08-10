@@ -22,6 +22,7 @@ import (
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -33,10 +34,35 @@ import (
 	"github.com/aws/karpenter/pkg/utils/resources"
 )
 
+// SchedulerOptions can be used to control the scheduling, these options are currently only used during consolidation.
+type SchedulerOptions struct {
+	// SimulationMode if true will prevent recording of the pod nomination decisions as events
+	SimulationMode bool
+	// ExcludeNodes are a list of node names that are excluded from existingNodes nodes for scheduling purposes.
+	ExcludeNodes []string
+}
+
 func NewScheduler(ctx context.Context, kubeClient client.Client, nodeTemplates []*scheduling.NodeTemplate,
 	provisioners []v1alpha5.Provisioner, cluster *state.Cluster, stateNodes []*state.Node, topology *Topology,
 	instanceTypes map[string][]cloudprovider.InstanceType, daemonOverhead map[*scheduling.NodeTemplate]v1.ResourceList,
-	recorder events.Recorder) *Scheduler {
+	recorder events.Recorder, opts SchedulerOptions) *Scheduler {
+
+	// if any of the provisioners add a taint with a prefer no schedule effect, we add a toleration for the taint
+	// during preference relaxation
+	toleratePreferNoSchedule := false
+	for _, prov := range provisioners {
+		for _, taint := range prov.Spec.Taints {
+			if taint.Effect == v1.TaintEffectPreferNoSchedule {
+				toleratePreferNoSchedule = true
+			}
+		}
+	}
+
+	for provisioner := range instanceTypes {
+		sort.Slice(instanceTypes[provisioner], func(i, j int) bool {
+			return instanceTypes[provisioner][i].Price() < instanceTypes[provisioner][j].Price()
+		})
+	}
 	s := &Scheduler{
 		ctx:                ctx,
 		kubeClient:         kubeClient,
@@ -46,7 +72,8 @@ func NewScheduler(ctx context.Context, kubeClient client.Client, nodeTemplates [
 		instanceTypes:      instanceTypes,
 		daemonOverhead:     daemonOverhead,
 		recorder:           recorder,
-		preferences:        &Preferences{},
+		opts:               opts,
+		preferences:        &Preferences{ToleratePreferNoSchedule: toleratePreferNoSchedule},
 		remainingResources: map[string]v1.ResourceList{},
 	}
 
@@ -60,32 +87,14 @@ func NewScheduler(ctx context.Context, kubeClient client.Client, nodeTemplates [
 		}
 	}
 
-	// create our in-flight nodes
-	for _, node := range stateNodes {
-		name, ok := node.Node.Labels[v1alpha5.ProvisionerNameLabelKey]
-		if !ok {
-			// ignoring this node as it wasn't launched by us
-			continue
-		}
-		nodeTemplate, ok := namedNodeTemplates[name]
-		if !ok {
-			// ignoring this node as it wasn't launched by a provisioner that we recognize
-			continue
-		}
-		s.inflight = append(s.inflight, NewInFlightNode(node, s.topology, nodeTemplate.StartupTaints, s.daemonOverhead[nodeTemplate]))
-
-		// We don't use the status field and instead recompute the remaining resources to ensure we have a consistent view
-		// of the cluster during scheduling.  Depending on how node creation falls out, this will also work for cases where
-		// we don't create Node resources.
-		s.remainingResources[name] = resources.Subtract(s.remainingResources[name], node.Capacity)
-	}
+	s.calculateExistingNodes(opts, namedNodeTemplates, stateNodes)
 	return s
 }
 
 type Scheduler struct {
 	ctx                context.Context
 	nodes              []*Node
-	inflight           []*InFlightNode
+	existingNodes      []*ExistingNode
 	nodeTemplates      []*scheduling.NodeTemplate
 	remainingResources map[string]v1.ResourceList // provisioner name -> remaining resources for that provisioner
 	instanceTypes      map[string][]cloudprovider.InstanceType
@@ -94,10 +103,11 @@ type Scheduler struct {
 	topology           *Topology
 	cluster            *state.Cluster
 	recorder           events.Recorder
+	opts               SchedulerOptions
 	kubeClient         client.Client
 }
 
-func (s *Scheduler) Solve(ctx context.Context, pods []*v1.Pod) ([]*Node, error) {
+func (s *Scheduler) Solve(ctx context.Context, pods []*v1.Pod) ([]*Node, []*ExistingNode, error) {
 	// We loop trying to schedule unschedulable pods as long as we are making progress.  This solves a few
 	// issues including pods with affinity to another pod in the batch. We could topo-sort to solve this, but it wouldn't
 	// solve the problem of scheduling pods where a particular order is needed to prevent a max-skew violation. E.g. if we
@@ -130,8 +140,10 @@ func (s *Scheduler) Solve(ctx context.Context, pods []*v1.Pod) ([]*Node, error) 
 	for _, n := range s.nodes {
 		n.FinalizeScheduling()
 	}
-	s.recordSchedulingResults(ctx, pods, q.List(), errors)
-	return s.nodes, nil
+	if !s.opts.SimulationMode {
+		s.recordSchedulingResults(ctx, pods, q.List(), errors)
+	}
+	return s.nodes, s.existingNodes, nil
 }
 
 func (s *Scheduler) recordSchedulingResults(ctx context.Context, pods []*v1.Pod, failedToSchedule []*v1.Pod, errors map[*v1.Pod]error) {
@@ -141,7 +153,7 @@ func (s *Scheduler) recordSchedulingResults(ctx context.Context, pods []*v1.Pod,
 		s.recorder.PodFailedToSchedule(pod, errors[pod])
 	}
 
-	for _, node := range s.inflight {
+	for _, node := range s.existingNodes {
 		if len(node.Pods) > 0 {
 			s.cluster.NominateNodeForPod(node.Node.Name)
 		}
@@ -164,7 +176,7 @@ func (s *Scheduler) recordSchedulingResults(ctx context.Context, pods []*v1.Pod,
 	// Report in flight nodes, or exit to avoid log spam
 	inflightCount := 0
 	existingCount := 0
-	for _, node := range lo.Filter(s.inflight, func(node *InFlightNode, _ int) bool { return len(node.Pods) > 0 }) {
+	for _, node := range lo.Filter(s.existingNodes, func(node *ExistingNode, _ int) bool { return len(node.Pods) > 0 }) {
 		inflightCount++
 		existingCount += len(node.Pods)
 	}
@@ -176,7 +188,7 @@ func (s *Scheduler) recordSchedulingResults(ctx context.Context, pods []*v1.Pod,
 
 func (s *Scheduler) add(ctx context.Context, pod *v1.Pod) error {
 	// first try to schedule against an in-flight real node
-	for _, node := range s.inflight {
+	for _, node := range s.existingNodes {
 		if err := node.Add(ctx, pod); err == nil {
 			return nil
 		}
@@ -219,6 +231,33 @@ func (s *Scheduler) add(ctx context.Context, pod *v1.Pod) error {
 		return nil
 	}
 	return errs
+}
+
+func (s *Scheduler) calculateExistingNodes(opts SchedulerOptions, namedNodeTemplates map[string]*scheduling.NodeTemplate, stateNodes []*state.Node) {
+	// create our in-flight nodes
+	excluded := sets.NewString(opts.ExcludeNodes...)
+	for _, node := range stateNodes {
+		// skip any nodes that have been excluded
+		if excluded.Has(node.Node.Name) {
+			continue
+		}
+		name, ok := node.Node.Labels[v1alpha5.ProvisionerNameLabelKey]
+		if !ok {
+			// ignoring this node as it wasn't launched by us
+			continue
+		}
+		nodeTemplate, ok := namedNodeTemplates[name]
+		if !ok {
+			// ignoring this node as it wasn't launched by a provisioner that we recognize
+			continue
+		}
+		s.existingNodes = append(s.existingNodes, NewExistingNode(node, s.topology, nodeTemplate.StartupTaints, s.daemonOverhead[nodeTemplate]))
+
+		// We don't use the status field and instead recompute the remaining resources to ensure we have a consistent view
+		// of the cluster during scheduling.  Depending on how node creation falls out, this will also work for cases where
+		// we don't create Node resources.
+		s.remainingResources[name] = resources.Subtract(s.remainingResources[name], node.Capacity)
+	}
 }
 
 // subtractMax returns the remaining resources after subtracting the max resource quantity per instance type. To avoid

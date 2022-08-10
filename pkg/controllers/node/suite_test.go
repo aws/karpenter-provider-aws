@@ -19,26 +19,29 @@ import (
 	"testing"
 	"time"
 
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/clock"
+	"knative.dev/pkg/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	. "github.com/aws/karpenter/pkg/test/expectations"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
+	. "knative.dev/pkg/logging/testing"
+
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider/fake"
 	"github.com/aws/karpenter/pkg/controllers/node"
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/test"
-	. "github.com/aws/karpenter/pkg/test/expectations"
-	"github.com/aws/karpenter/pkg/utils/injectabletime"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	. "knative.dev/pkg/logging/testing"
-	"knative.dev/pkg/ptr"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 var ctx context.Context
 var controller *node.Controller
 var env *test.Environment
+var fakeClock *clock.FakeClock
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -47,10 +50,11 @@ func TestAPIs(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
+	fakeClock = clock.NewFakeClock(time.Now())
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
 		cp := &fake.CloudProvider{}
-		cluster := state.NewCluster(test.NewConfig(), e.Client, cp)
-		controller = node.NewController(e.Client, cp, cluster)
+		cluster := state.NewCluster(fakeClock, test.NewConfig(), e.Client, cp)
+		controller = node.NewController(fakeClock, e.Client, cp, cluster)
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })
@@ -69,7 +73,7 @@ var _ = Describe("Controller", func() {
 	})
 
 	AfterEach(func() {
-		injectabletime.Now = time.Now
+		fakeClock.SetTime(time.Now())
 		ExpectCleanedUp(ctx, env.Client)
 	})
 
@@ -106,6 +110,7 @@ var _ = Describe("Controller", func() {
 				},
 			}})
 			ExpectApplied(ctx, env.Client, provisioner, n)
+			fakeClock.SetTime(time.Now())
 
 			// Should still exist
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
@@ -113,9 +118,8 @@ var _ = Describe("Controller", func() {
 			Expect(n.DeletionTimestamp.IsZero()).To(BeTrue())
 
 			// Simulate time passing
-			injectabletime.Now = func() time.Time {
-				return time.Now().Add(time.Duration(*provisioner.Spec.TTLSecondsUntilExpired) * time.Second)
-			}
+			fakeClock.Step(time.Duration(*provisioner.Spec.TTLSecondsUntilExpired) * time.Second)
+
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
 			n = ExpectNodeExists(ctx, env.Client, n.Name)
 			Expect(n.DeletionTimestamp.IsZero()).To(BeFalse())
@@ -157,11 +161,11 @@ var _ = Describe("Controller", func() {
 			ExpectApplied(ctx, env.Client, provisioner, node)
 
 			// mark it empty first to get past the debounce check
-			injectabletime.Now = func() time.Time { return time.Now().Add(30 * time.Second) }
+			fakeClock.Step(30 * time.Second)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 
 			// make the node more than 5 minutes old
-			injectabletime.Now = func() time.Time { return time.Now().Add(320 * time.Second) }
+			fakeClock.Step(320 * time.Second)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 
 			node = ExpectNodeExists(ctx, env.Client, node.Name)
@@ -172,7 +176,7 @@ var _ = Describe("Controller", func() {
 			node := test.Node(test.NodeOptions{ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name},
 				Annotations: map[string]string{
-					v1alpha5.EmptinessTimestampAnnotationKey: time.Now().Add(100 * time.Second).Format(time.RFC3339),
+					v1alpha5.EmptinessTimestampAnnotationKey: fakeClock.Now().Add(100 * time.Second).Format(time.RFC3339),
 				}},
 			})
 			ExpectApplied(ctx, env.Client, provisioner, node, test.Pod(test.PodOptions{
@@ -180,7 +184,7 @@ var _ = Describe("Controller", func() {
 				Conditions: []v1.PodCondition{{Type: v1.PodReady, Status: v1.ConditionTrue}},
 			}))
 			// make the node more than 5 minutes old
-			injectabletime.Now = func() time.Time { return time.Now().Add(320 * time.Second) }
+			fakeClock.Step(320 * time.Second)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 
 			node = ExpectNodeExists(ctx, env.Client, node.Name)
@@ -196,12 +200,9 @@ var _ = Describe("Controller", func() {
 				}},
 			})
 			ExpectApplied(ctx, env.Client, provisioner, node)
-			// debounce emptiness
-			injectabletime.Now = func() time.Time { return time.Now().Add(10 * time.Second) }
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 
 			// make the node more than 5 minutes old
-			injectabletime.Now = func() time.Time { return time.Now().Add(320 * time.Second) }
+			fakeClock.Step(320 * time.Second)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 
 			node = ExpectNodeExists(ctx, env.Client, node.Name)
@@ -209,8 +210,6 @@ var _ = Describe("Controller", func() {
 		})
 		It("should requeue reconcile if node is empty, but not past emptiness TTL", func() {
 			provisioner.Spec.TTLSecondsAfterEmpty = ptr.Int64(30)
-			now := time.Now()
-			injectabletime.Now = func() time.Time { return now } // injectabletime.Now() is called multiple times in function being tested.
 			node := test.Node(test.NodeOptions{ObjectMeta: metav1.ObjectMeta{
 				Finalizers: []string{v1alpha5.TerminationFinalizer},
 				Labels:     map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name},
@@ -218,15 +217,10 @@ var _ = Describe("Controller", func() {
 
 			ExpectApplied(ctx, env.Client, provisioner, node)
 
-			// debounce the emptiness
-			now = now.Add(10 * time.Second)
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
-
 			// make the node eligible to be expired
-			now = now.Add(320 * time.Second)
-			injectabletime.Now = func() time.Time { return now }
+			fakeClock.Step(320 * time.Second)
 
-			emptinessTime := injectabletime.Now().Add(-10 * time.Second)
+			emptinessTime := fakeClock.Now().Add(-10 * time.Second)
 			node.Annotations = map[string]string{
 				v1alpha5.EmptinessTimestampAnnotationKey: emptinessTime.Format(time.RFC3339),
 			}
@@ -234,7 +228,7 @@ var _ = Describe("Controller", func() {
 			// Emptiness timestamps are first formatted to a string friendly (time.RFC3339) (to put it in the node object)
 			// and then eventually parsed back into time.Time when comparing ttls. Repeating that logic in the test.
 			emptinessTimestamp, _ := time.Parse(time.RFC3339, emptinessTime.Format(time.RFC3339))
-			expectedRequeueTime := emptinessTimestamp.Add(30 * time.Second).Sub(injectabletime.Now()) // we should requeue in ~20 seconds.
+			expectedRequeueTime := emptinessTimestamp.Add(30 * time.Second).Sub(fakeClock.Now()) // we should requeue in ~20 seconds.
 
 			result := ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 			Expect(result).To(Equal(reconcile.Result{Requeue: true, RequeueAfter: expectedRequeueTime}))

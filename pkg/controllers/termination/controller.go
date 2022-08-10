@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"time"
 
+	"k8s.io/apimachinery/pkg/util/clock"
+
 	"golang.org/x/time/rate"
 	"knative.dev/pkg/logging"
 
@@ -71,7 +73,7 @@ type Controller struct {
 }
 
 // NewController constructs a controller instance
-func NewController(ctx context.Context, kubeClient client.Client, coreV1Client corev1.CoreV1Interface, recorder events.Recorder, cloudProvider cloudprovider.CloudProvider) *Controller {
+func NewController(ctx context.Context, clk clock.Clock, kubeClient client.Client, coreV1Client corev1.CoreV1Interface, recorder events.Recorder, cloudProvider cloudprovider.CloudProvider) *Controller {
 	return &Controller{
 		KubeClient: kubeClient,
 		Terminator: &Terminator{
@@ -79,6 +81,7 @@ func NewController(ctx context.Context, kubeClient client.Client, coreV1Client c
 			CoreV1Client:  coreV1Client,
 			CloudProvider: cloudProvider,
 			EvictionQueue: NewEvictionQueue(ctx, coreV1Client, recorder),
+			Clock:         clk,
 		},
 		Recorder:          recorder,
 		TerminationRecord: sets.NewString(),

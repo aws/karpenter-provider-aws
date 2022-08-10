@@ -40,8 +40,9 @@ type ProvisionerOptions struct {
 	StartupTaints          []v1.Taint
 	Requirements           []v1.NodeSelectorRequirement
 	Status                 v1alpha5.ProvisionerStatus
-	TTLSecondsAfterEmpty   *int64
 	TTLSecondsUntilExpired *int64
+	TTLSecondsAfterEmpty   *int64
+	Consolidation          *v1alpha5.Consolidation
 }
 
 // Provisioner creates a test provisioner with defaults that can be overridden by ProvisionerOptions.
@@ -72,6 +73,7 @@ func Provisioner(overrides ...ProvisionerOptions) *v1alpha5.Provisioner {
 			Limits:                 &v1alpha5.Limits{Resources: options.Limits},
 			TTLSecondsAfterEmpty:   options.TTLSecondsAfterEmpty,
 			TTLSecondsUntilExpired: options.TTLSecondsUntilExpired,
+			Consolidation:          options.Consolidation,
 		},
 		Status: options.Status,
 	}

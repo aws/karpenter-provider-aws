@@ -161,23 +161,35 @@ func (p *Provisioner) Provision(ctx context.Context) error {
 		return nil
 	}
 
+	_, err = p.LaunchNodes(ctx, LaunchOptions{RecordPodNomination: true}, nodes...)
+	return err
+}
+
+type LaunchOptions struct {
+	// RecordPodNomination causes nominate pod events to be recorded against the node.
+	RecordPodNomination bool
+}
+
+func (p *Provisioner) LaunchNodes(ctx context.Context, opts LaunchOptions, nodes ...*scheduler.Node) ([]string, error) {
 	// Launch capacity and bind pods
 	errs := make([]error, len(nodes))
+	nodeNames := make([]string, len(nodes))
 	workqueue.ParallelizeUntil(ctx, len(nodes), len(nodes), func(i int) {
 		// create a new context to avoid a data race on the ctx variable
 		ctx := logging.WithLogger(ctx, logging.FromContext(ctx).With("provisioner", nodes[i].Labels[v1alpha5.ProvisionerNameLabelKey]))
 		// register the provisioner on the context so we can pull it off for tagging purposes
 		// TODO: rethink this, maybe just pass the provisioner down instead of hiding it in the context?
 		ctx = injection.WithNamespacedName(ctx, types.NamespacedName{Name: nodes[i].Labels[v1alpha5.ProvisionerNameLabelKey]})
-		if err := p.launch(ctx, nodes[i]); err != nil {
+		if nodeName, err := p.launch(ctx, opts, nodes[i]); err != nil {
 			errs[i] = fmt.Errorf("launching node, %w", err)
+		} else {
+			nodeNames[i] = nodeName
 		}
 	})
 	if err := multierr.Combine(errs...); err != nil {
-		return err
+		return nodeNames, err
 	}
-	logging.FromContext(ctx).Infof("Waiting for unschedulable pods")
-	return nil
+	return nodeNames, nil
 }
 
 func (p *Provisioner) getPods(ctx context.Context) ([]*v1.Pod, error) {
@@ -203,9 +215,7 @@ func (p *Provisioner) getPods(ctx context.Context) ([]*v1.Pod, error) {
 }
 
 // nolint: gocyclo
-func (p *Provisioner) schedule(ctx context.Context, pods []*v1.Pod, nodes []*state.Node) ([]*scheduler.Node, error) {
-	defer metrics.Measure(schedulingDuration.WithLabelValues(injection.GetNamespacedName(ctx).Name))()
-
+func (p *Provisioner) NewScheduler(ctx context.Context, pods []*v1.Pod, stateNodes []*state.Node, opts scheduler.SchedulerOptions) (*scheduler.Scheduler, error) {
 	// Build node templates
 	var nodeTemplates []*scheduling.NodeTemplate
 	var provisionerList v1alpha5.ProvisionerList
@@ -258,20 +268,31 @@ func (p *Provisioner) schedule(ctx context.Context, pods []*v1.Pod, nodes []*sta
 	if err != nil {
 		return nil, fmt.Errorf("getting daemon overhead, %w", err)
 	}
-
-	return scheduler.NewScheduler(ctx, p.kubeClient, nodeTemplates, provisionerList.Items,
-		p.cluster, nodes, topology, instanceTypes, daemonOverhead, p.recorder).Solve(ctx, pods)
+	return scheduler.NewScheduler(ctx, p.kubeClient, nodeTemplates, provisionerList.Items, p.cluster, stateNodes, topology, instanceTypes, daemonOverhead, p.recorder, opts), nil
 }
 
-func (p *Provisioner) launch(ctx context.Context, node *scheduler.Node) error {
+func (p *Provisioner) schedule(ctx context.Context, pods []*v1.Pod, stateNodes []*state.Node) ([]*scheduler.Node, error) {
+	defer metrics.Measure(schedulingDuration.WithLabelValues(injection.GetNamespacedName(ctx).Name))()
+
+	scheduler, err := p.NewScheduler(ctx, pods, stateNodes, scheduler.SchedulerOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("creating scheduler, %w", err)
+	}
+
+	// don't care about inflight scheduling results in this context
+	nodes, _, err := scheduler.Solve(ctx, pods)
+	return nodes, err
+}
+
+func (p *Provisioner) launch(ctx context.Context, opts LaunchOptions, node *scheduler.Node) (string, error) {
 	// Check limits
 	latest := &v1alpha5.Provisioner{}
 	name := node.Requirements.Get(v1alpha5.ProvisionerNameLabelKey).Values()[0]
 	if err := p.kubeClient.Get(ctx, types.NamespacedName{Name: name}, latest); err != nil {
-		return fmt.Errorf("getting current resource usage, %w", err)
+		return "", fmt.Errorf("getting current resource usage, %w", err)
 	}
 	if err := latest.Spec.Limits.ExceededBy(latest.Status.Resources); err != nil {
-		return err
+		return "", err
 	}
 
 	// Order instance types so that we get the cheapest instance types of the available offerings
@@ -287,11 +308,11 @@ func (p *Provisioner) launch(ctx context.Context, node *scheduler.Node) error {
 		&cloudprovider.NodeRequest{InstanceTypeOptions: node.InstanceTypeOptions, Template: &node.NodeTemplate},
 	)
 	if err != nil {
-		return fmt.Errorf("creating cloud provider instance, %w", err)
+		return "", fmt.Errorf("creating cloud provider instance, %w", err)
 	}
 
 	if err := mergo.Merge(k8sNode, node.ToNode()); err != nil {
-		return fmt.Errorf("merging cloud provider node, %w", err)
+		return "", fmt.Errorf("merging cloud provider node, %w", err)
 	}
 	// ensure we clear out the status
 	k8sNode.Status = v1.NodeStatus{}
@@ -305,15 +326,17 @@ func (p *Provisioner) launch(ctx context.Context, node *scheduler.Node) error {
 		if errors.IsAlreadyExists(err) {
 			logging.FromContext(ctx).Debugf("node %s already registered", k8sNode.Name)
 		} else {
-			return fmt.Errorf("creating node %s, %w", k8sNode.Name, err)
+			return "", fmt.Errorf("creating node %s, %w", k8sNode.Name, err)
 		}
 	}
 	logging.FromContext(ctx).Infof("Created %s", node)
 	p.cluster.NominateNodeForPod(k8sNode.Name)
-	for _, pod := range node.Pods {
-		p.recorder.NominatePod(pod, k8sNode)
+	if opts.RecordPodNomination {
+		for _, pod := range node.Pods {
+			p.recorder.NominatePod(pod, k8sNode)
+		}
 	}
-	return nil
+	return k8sNode.Name, nil
 }
 
 func (p *Provisioner) getDaemonOverhead(ctx context.Context, nodeTemplates []*scheduling.NodeTemplate) (map[*scheduling.NodeTemplate]v1.ResourceList, error) {

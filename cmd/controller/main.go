@@ -23,6 +23,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zapr"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/clock"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -44,6 +45,7 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider/registry"
 	"github.com/aws/karpenter/pkg/config"
 	"github.com/aws/karpenter/pkg/controllers"
+	"github.com/aws/karpenter/pkg/controllers/consolidation"
 	"github.com/aws/karpenter/pkg/controllers/counter"
 	metricspod "github.com/aws/karpenter/pkg/controllers/metrics/pod"
 	metricsprovisioner "github.com/aws/karpenter/pkg/controllers/metrics/provisioner"
@@ -113,16 +115,19 @@ func main() {
 	}
 
 	recorder := events.NewDedupeRecorder(events.NewRecorder(manager.GetEventRecorderFor(appName)))
-	cluster := state.NewCluster(cfg, manager.GetClient(), cloudProvider)
+	realClock := &clock.RealClock{}
+	cluster := state.NewCluster(realClock, cfg, manager.GetClient(), cloudProvider)
+	provisioner := provisioning.NewProvisioner(ctx, cfg, manager.GetClient(), clientSet.CoreV1(), recorder, cloudProvider, cluster)
 
+	consolidation.NewController(ctx, realClock, manager.GetClient(), provisioner, cloudProvider, recorder, cluster, manager.Elected())
 	metricsstate.StartMetricScraper(ctx, cluster)
 
 	if err := manager.RegisterControllers(ctx,
-		provisioning.NewController(ctx, cfg, manager.GetClient(), clientSet.CoreV1(), recorder, cloudProvider, cluster),
+		provisioning.NewController(manager.GetClient(), provisioner, recorder),
 		state.NewNodeController(manager.GetClient(), cluster),
 		state.NewPodController(manager.GetClient(), cluster),
-		node.NewController(manager.GetClient(), cloudProvider, cluster),
-		termination.NewController(ctx, manager.GetClient(), clientSet.CoreV1(), recorder, cloudProvider),
+		termination.NewController(ctx, realClock, manager.GetClient(), clientSet.CoreV1(), recorder, cloudProvider),
+		node.NewController(realClock, manager.GetClient(), cloudProvider, cluster),
 		metricspod.NewController(manager.GetClient()),
 		metricsprovisioner.NewController(manager.GetClient()),
 		counter.NewController(manager.GetClient(), cluster),

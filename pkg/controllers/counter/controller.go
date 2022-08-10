@@ -79,6 +79,10 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 	provisioner.Status.Resources = resourceCounts
 	if err := c.kubeClient.Status().Patch(ctx, provisioner, client.MergeFrom(persisted)); err != nil {
+		// provisioner was deleted
+		if errors.IsNotFound(err) {
+			return reconcile.Result{}, nil
+		}
 		return reconcile.Result{}, fmt.Errorf("patching provisioner, %w", err)
 	}
 	return reconcile.Result{}, nil

@@ -17,6 +17,7 @@ package termination_test
 import (
 	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/util/clock"
 	"testing"
 	"time"
 
@@ -26,7 +27,6 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/termination"
 	"github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/pkg/utils/functional"
-	"github.com/aws/karpenter/pkg/utils/injectabletime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	. "github.com/aws/karpenter/pkg/test/expectations"
@@ -46,6 +46,7 @@ var controller *termination.Controller
 var evictionQueue *termination.EvictionQueue
 var env *test.Environment
 var defaultOwnerRefs = []metav1.OwnerReference{{Kind: "ReplicaSet", APIVersion: "appsv1", Name: "rs", UID: "1234567890"}}
+var fakeClock *clock.FakeClock
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -54,6 +55,7 @@ func TestAPIs(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
+	fakeClock = clock.NewFakeClock(time.Now())
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
 		cloudProvider := &fake.CloudProvider{}
 		registry.RegisterOrDie(ctx, cloudProvider)
@@ -67,6 +69,7 @@ var _ = BeforeSuite(func() {
 				CoreV1Client:  coreV1Client,
 				CloudProvider: cloudProvider,
 				EvictionQueue: evictionQueue,
+				Clock:         fakeClock,
 			},
 			Recorder:          recorder,
 			TerminationRecord: sets.NewString(),
@@ -88,7 +91,7 @@ var _ = Describe("Termination", func() {
 
 	AfterEach(func() {
 		ExpectCleanedUp(ctx, env.Client)
-		injectabletime.Now = time.Now
+		fakeClock.SetTime(time.Now())
 	})
 
 	Context("Reconciliation", func() {
@@ -346,7 +349,7 @@ var _ = Describe("Termination", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 			node = ExpectNodeExists(ctx, env.Client, node.Name)
 			// Simulate stuck terminating
-			injectabletime.Now = func() time.Time { return time.Now().Add(2 * time.Minute) }
+			fakeClock.Step(2 * time.Minute)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 			ExpectNotFound(ctx, env.Client, node)
 		})
@@ -502,6 +505,7 @@ var _ = Describe("Termination", func() {
 		})
 		It("should wait for pods to terminate", func() {
 			pod := test.Pod(test.PodOptions{NodeName: node.Name, ObjectMeta: metav1.ObjectMeta{OwnerReferences: defaultOwnerRefs}})
+			fakeClock.SetTime(time.Now()) // make our fake clock match the pod creation time
 			ExpectApplied(ctx, env.Client, node, pod)
 
 			// Before grace period, node should not delete
@@ -511,7 +515,7 @@ var _ = Describe("Termination", func() {
 			ExpectEvicted(env.Client, pod)
 
 			// After grace period, node should delete
-			injectabletime.Now = func() time.Time { return time.Now().Add(90 * time.Second) }
+			fakeClock.Step(90 * time.Second)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 			ExpectNotFound(ctx, env.Client, node)
 		})

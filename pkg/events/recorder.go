@@ -31,6 +31,14 @@ type Recorder interface {
 	PodFailedToSchedule(*v1.Pod, error)
 	// NodeFailedToDrain is called when a pod causes a node draining to fail
 	NodeFailedToDrain(*v1.Node, error)
+	// TerminatingNodeForConsolidation is called just before terminating the node due to consolidation with a user
+	// presentable string describing the consolidation operation
+	TerminatingNodeForConsolidation(node *v1.Node, reason string)
+	// LaunchingNodeForConsolidation is called with the new node that was just created due to a consolidation operation.
+	LaunchingNodeForConsolidation(v *v1.Node, reason string)
+	// WaitingOnReadinessForConsolidation is called when consolidation is waiting on a node to become ready prior to
+	// continuing consolidation
+	WaitingOnReadinessForConsolidation(v *v1.Node)
 }
 
 type recorder struct {
@@ -39,6 +47,18 @@ type recorder struct {
 
 func NewRecorder(rec record.EventRecorder) Recorder {
 	return &recorder{rec: rec}
+}
+
+func (r recorder) WaitingOnReadinessForConsolidation(node *v1.Node) {
+	r.rec.Eventf(node, "Normal", "ConsolidateWaiting", "Waiting on readiness to continue consolidation")
+}
+
+func (r recorder) TerminatingNodeForConsolidation(node *v1.Node, reason string) {
+	r.rec.Eventf(node, "Normal", "ConsolidateTerminateNode", "Consolidating node via %s", reason)
+}
+
+func (r recorder) LaunchingNodeForConsolidation(node *v1.Node, reason string) {
+	r.rec.Eventf(node, "Normal", "ConsolidateLaunchNode", "Launching node for %s", reason)
 }
 
 func (r recorder) NominatePod(pod *v1.Pod, node *v1.Node) {

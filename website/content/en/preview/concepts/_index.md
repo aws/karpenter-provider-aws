@@ -68,6 +68,7 @@ Karpenter handles all clean-up work needed to properly delete the node.
 * **Node Expiry**: If a node expiry time-to-live value (`ttlSecondsUntilExpired`) is reached, that node is drained of pods and deleted (even if it is still running workloads).
 * **Empty nodes**: When the last workload pod running on a Karpenter-managed node is gone, the node is annotated with an emptiness timestamp.
 Once that "node empty" time-to-live (`ttlSecondsAfterEmpty`) is reached, finalization is triggered.
+* **Consolidation**: If enabled, Karpenter will work to actively reduce cluster cost by identifying when nodes can be removed as their workloads will run on other nodes in the cluster and when nodes can be replaced with cheaper variants due to a change in the workloads.
 
 For more details on how Karpenter deletes nodes, see [Deprovisioning nodes](../tasks/deprovisioning) for details.
 
@@ -104,6 +105,18 @@ Separating Kubernetes and AWS-specific settings allows Karpenter a clean path to
 
 While using Kubernetes well-known labels, the provisioner can set some values that are specific to the cloud provider.
 So, for example, to include a certain instance type, you could use the Kubernetes label `node.kubernetes.io/instance-type`, but set its value to an AWS instance type (such as `m5.large` or `m5.2xlarge`).
+
+### Consolidation
+
+If consolidation is enabled for a provisioner, Karpenter attempts to reduce the overall cost of the nodes launched by that provisioner if workloads have changed in two ways:
+- Node Deletion
+- Node Replacement
+
+To perform these actions, Karpenter simulates all pods being evicted from a candidate node and then looks at the results of the scheduling simulation to determine if those pods can run on a combination of existing nodes in the cluster and a new cheaper node.  This operation takes into consideration all scheduling constraints placed on your workloads and provisioners (e.g. taints, tolerations, node selectors, inter-pod affinity, etc).  
+
+If as a result of the scheduling simulation all pods can run on existing nodes, the candidate node is simply deleted.  If all pods can run on a combination of existing nodes and a cheaper node, we launch the cheaper node and delete the candidate node which causes the pods to be evicted and re-created by their controllers in order to be rescheduled.
+
+For Node Replacement to work well, your provisioner must allow selecting from a variety of instance types with varying amounts of allocatable resources.  Consolidation will only consider launching nodes using instance types which are allowed by your provisioner. 
 
 ### Kubernetes cluster autoscaler
 Like Karpenter, [Kubernetes Cluster Autoscaler](https://github.com/kubernetes/autoscaler/tree/master/cluster-autoscaler) is

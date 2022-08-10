@@ -27,17 +27,25 @@ import (
 	"github.com/aws/karpenter/pkg/utils/pretty"
 )
 
-type Preferences struct{}
+type Preferences struct {
+	// ToleratePreferNoSchedule controls if preference relaxation adds a toleration for PreferNoSchedule taints.  This only
+	// helps if there is a corresponding taint, so we don't always add it.
+	ToleratePreferNoSchedule bool
+}
 
 func (p *Preferences) Relax(ctx context.Context, pod *v1.Pod) bool {
-	for _, relaxFunc := range []func(*v1.Pod) *string{
+	relaxations := []func(*v1.Pod) *string{
 		p.removeRequiredNodeAffinityTerm,
 		p.removePreferredPodAffinityTerm,
 		p.removePreferredPodAntiAffinityTerm,
 		p.removePreferredNodeAffinityTerm,
-		p.removeTopologySpreadScheduleAnyway,
-		p.toleratePreferNoScheduleTaints,
-	} {
+		p.removeTopologySpreadScheduleAnyway}
+
+	if p.ToleratePreferNoSchedule {
+		relaxations = append(relaxations, p.toleratePreferNoScheduleTaints)
+	}
+
+	for _, relaxFunc := range relaxations {
 		if reason := relaxFunc(pod); reason != nil {
 
 			logging.FromContext(ctx).

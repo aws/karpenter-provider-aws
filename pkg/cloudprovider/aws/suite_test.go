@@ -43,12 +43,15 @@ import (
 	"github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/options"
+	"github.com/aws/aws-sdk-go/service/pricing"
 	"github.com/patrickmn/go-cache"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/clock"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
+	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -56,6 +59,20 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
+	
+	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/amifamily"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/amifamily/bootstrap"
+	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/fake"
+	"github.com/aws/karpenter/pkg/cloudprovider/registry"
+	"github.com/aws/karpenter/pkg/controllers/provisioning"
+	"github.com/aws/karpenter/pkg/controllers/state"
+	"github.com/aws/karpenter/pkg/test"
+	"github.com/aws/karpenter/pkg/utils/injection"
+	"github.com/aws/karpenter/pkg/utils/options"
 )
 
 var ctx context.Context
@@ -79,6 +96,7 @@ var cluster *state.Cluster
 var recorder *test.EventRecorder
 var pricingProvider *PricingProvider
 var cfg *test.Config
+var fakeClock *clock.FakeClock
 
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -141,10 +159,11 @@ var _ = BeforeSuite(func() {
 		}
 		registry.RegisterOrDie(ctx, cloudProvider)
 		cfg = test.NewConfig()
+		fakeClock = clock.NewFakeClock(time.Now())
+		cluster = state.NewCluster(fakeClock, cfg, e.Client, cloudProvider)
 		recorder = test.NewEventRecorder()
-		cluster = state.NewCluster(cfg, e.Client, cloudProvider)
-		recorder = test.NewEventRecorder()
-		controller = provisioning.NewController(ctx, cfg, e.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+		prov := provisioning.NewProvisioner(ctx, cfg, e.Client, corev1.NewForConfigOrDie(e.Config), recorder, cloudProvider, cluster)
+		controller = provisioning.NewController(e.Client, prov, recorder)
 	})
 
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
@@ -289,7 +308,9 @@ var _ = Describe("Allocation", func() {
 				cancelCtx, cancelFunc := context.WithCancel(injection.WithOptions(ctx, optsCopy))
 				// ensure the provisioner is shut down at the end of this test
 				defer cancelFunc()
-				provisionContoller := provisioning.NewController(cancelCtx, cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+
+				prov := provisioning.NewProvisioner(cancelCtx, cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
+				provisionContoller := provisioning.NewController(env.Client, prov, recorder)
 				ExpectApplied(ctx, env.Client, provisioner)
 				for _, pod := range ExpectProvisioned(cancelCtx, env.Client, provisionContoller,
 					test.UnschedulablePod(test.PodOptions{
@@ -542,8 +563,8 @@ var _ = Describe("Allocation", func() {
 				pod.Spec.Affinity = &v1.Affinity{NodeAffinity: &v1.NodeAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []v1.PreferredSchedulingTerm{
 					{
 						Weight: 1, Preference: v1.NodeSelectorTerm{MatchExpressions: []v1.NodeSelectorRequirement{
-							{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
-						}},
+						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
+					}},
 					},
 				}}}
 				ExpectApplied(ctx, env.Client, provisioner)
@@ -1119,7 +1140,8 @@ var _ = Describe("Allocation", func() {
 		Context("User Data", func() {
 			It("should not specify --use-max-pods=false when using ENI-based pod density", func() {
 				opts.AWSENILimitedPodDensity = true
-				controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+				prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
+				controller := provisioning.NewController(env.Client, prov, recorder)
 				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
 				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
@@ -1130,8 +1152,8 @@ var _ = Describe("Allocation", func() {
 			})
 			It("should specify --use-max-pods=false when not using ENI-based pod density", func() {
 				opts.AWSENILimitedPodDensity = false
-				controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
-
+				prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
+				controller := provisioning.NewController(env.Client, prov, recorder)
 				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
 				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
@@ -1142,7 +1164,8 @@ var _ = Describe("Allocation", func() {
 				Expect(string(userData)).To(ContainSubstring("--max-pods=110"))
 			})
 			It("should specify --use-max-pods=false and --max-pods user value when user specifies maxPods in Provisioner", func() {
-				controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+				prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
+				controller := provisioning.NewController(env.Client, prov, recorder)
 
 				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider, Kubelet: &v1alpha5.KubeletConfiguration{MaxPods: ptr.Int32(10)}}))
 				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
@@ -1154,7 +1177,8 @@ var _ = Describe("Allocation", func() {
 				Expect(string(userData)).To(ContainSubstring("--max-pods=10"))
 			})
 			It("should specify --system-reserved when overriding system reserved values", func() {
-				controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+				prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
+				controller := provisioning.NewController(env.Client, prov, recorder)
 
 				newProvisioner := test.Provisioner(test.ProvisionerOptions{
 					Kubelet: &v1alpha5.KubeletConfiguration{
@@ -1251,7 +1275,8 @@ var _ = Describe("Allocation", func() {
 						AWS:      *provider,
 					})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
-					controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+					controller := provisioning.NewController(env.Client,
+						provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster), recorder)
 					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
 					ExpectApplied(ctx, env.Client, newProvisioner)
 					env.Client.Get(ctx, client.ObjectKeyFromObject(newProvisioner), newProvisioner)
@@ -1275,9 +1300,11 @@ var _ = Describe("Allocation", func() {
 						AWS:      *provider,
 					})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
-					controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+					controller := provisioning.NewController(env.Client,
+						provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster), recorder)
 					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
 					ExpectApplied(ctx, env.Client, newProvisioner)
+					env.Client.Get(ctx, client.ObjectKeyFromObject(newProvisioner), newProvisioner)
 					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 					ExpectScheduled(ctx, env.Client, pod)
 					Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
@@ -1292,7 +1319,6 @@ var _ = Describe("Allocation", func() {
 					opts.AWSENILimitedPodDensity = false
 					provider, _ := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
 					provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
-					controller := provisioning.NewController(ctx, cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: "doesnotexist"}})
 					ExpectApplied(ctx, env.Client, newProvisioner)
 					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
@@ -1307,7 +1333,6 @@ var _ = Describe("Allocation", func() {
 						AWS:      *provider,
 					})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
-					controller := provisioning.NewController(ctx, cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
 					ExpectApplied(ctx, env.Client, newProvisioner)
 					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
@@ -1323,7 +1348,8 @@ var _ = Describe("Allocation", func() {
 						AWS:      *provider,
 					})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
-					controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+					prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
+					controller := provisioning.NewController(env.Client, prov, recorder)
 					newProvisioner := test.Provisioner(test.ProvisionerOptions{
 						ProviderRef: &v1alpha5.ProviderRef{
 							Name: nodeTemplate.Name,
@@ -1350,7 +1376,8 @@ var _ = Describe("Allocation", func() {
 					Expect(config.Settings.Kubernetes.SystemReserved[v1.ResourceEphemeralStorage.String()]).To(Equal("10Gi"))
 				})
 				It("should specify max pods value when passing maxPods in configuration", func() {
-					controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+					prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
+					controller := provisioning.NewController(env.Client, prov, recorder)
 
 					bottlerocketProvider := provider.DeepCopy()
 					bottlerocketProvider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
@@ -1376,7 +1403,9 @@ var _ = Describe("Allocation", func() {
 						AWS:      *provider,
 					})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
-					controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+					controller := provisioning.NewController(env.Client,
+						provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster),
+						recorder)
 					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
 					ExpectApplied(ctx, env.Client, newProvisioner)
 					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
@@ -1396,7 +1425,9 @@ var _ = Describe("Allocation", func() {
 						AWS:      *provider,
 					})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
-					controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+					controller := provisioning.NewController(env.Client,
+						provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster),
+						recorder)
 					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
 					ExpectApplied(ctx, env.Client, newProvisioner)
 					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
@@ -1416,7 +1447,9 @@ var _ = Describe("Allocation", func() {
 						AWS:      *provider,
 					})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
-					controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+					controller := provisioning.NewController(env.Client,
+						provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster),
+						recorder)
 					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
 					ExpectApplied(ctx, env.Client, newProvisioner)
 					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]

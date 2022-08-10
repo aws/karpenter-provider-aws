@@ -38,6 +38,7 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
+	"github.com/aws/karpenter/pkg/controllers/provisioning/scheduling"
 	"github.com/aws/karpenter/pkg/test"
 )
 
@@ -218,4 +219,30 @@ func ExpectManualBinding(ctx context.Context, c client.Client, pod *v1.Pod, node
 			Name: node.Name,
 		},
 	})).To(Succeed())
+}
+
+func ExpectSkew(ctx context.Context, c client.Client, namespace string, constraint *v1.TopologySpreadConstraint) Assertion {
+	nodes := &v1.NodeList{}
+	Expect(c.List(ctx, nodes)).To(Succeed())
+	pods := &v1.PodList{}
+	Expect(c.List(ctx, pods, scheduling.TopologyListOptions(namespace, constraint.LabelSelector))).To(Succeed())
+	skew := map[string]int{}
+	for i, pod := range pods.Items {
+		if scheduling.IgnoredForTopology(&pods.Items[i]) {
+			continue
+		}
+		for _, node := range nodes.Items {
+			if pod.Spec.NodeName == node.Name {
+				switch constraint.TopologyKey {
+				case v1.LabelHostname:
+					skew[node.Name]++ // Check node name since hostname labels aren't applied
+				default:
+					if key, ok := node.Labels[constraint.TopologyKey]; ok {
+						skew[key]++
+					}
+				}
+			}
+		}
+	}
+	return Expect(skew)
 }
