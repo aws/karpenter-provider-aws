@@ -19,7 +19,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/pricing"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/amifamily/bootstrap"
 	"io/ioutil"
 	"math"
@@ -31,7 +31,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/pricing"
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
@@ -78,6 +77,7 @@ var cloudProvider cloudprovider.CloudProvider
 var clientSet *kubernetes.Clientset
 var cluster *state.Cluster
 var recorder *test.EventRecorder
+var pricingProvider *PricingProvider
 var cfg *test.Config
 
 func TestAWS(t *testing.T) {
@@ -109,7 +109,7 @@ var _ = BeforeSuite(func() {
 		instanceTypeCache = cache.New(InstanceTypesAndZonesCacheTTL, CacheCleanupInterval)
 		fakeEC2API = &fake.EC2API{}
 		fakePricingAPI = &fake.PricingAPI{}
-		pricing := NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
+		pricingProvider = NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
 		subnetProvider := &SubnetProvider{
 			ec2api: fakeEC2API,
 			cache:  subnetCache,
@@ -118,7 +118,7 @@ var _ = BeforeSuite(func() {
 			ec2api:               fakeEC2API,
 			subnetProvider:       subnetProvider,
 			cache:                instanceTypeCache,
-			pricingProvider:      pricing,
+			pricingProvider:      pricingProvider,
 			unavailableOfferings: unavailableOfferingsCache,
 		}
 		securityGroupProvider := &SecurityGroupProvider{
@@ -542,8 +542,8 @@ var _ = Describe("Allocation", func() {
 				pod.Spec.Affinity = &v1.Affinity{NodeAffinity: &v1.NodeAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []v1.PreferredSchedulingTerm{
 					{
 						Weight: 1, Preference: v1.NodeSelectorTerm{MatchExpressions: []v1.NodeSelectorRequirement{
-						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
-					}},
+							{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
+						}},
 					},
 				}}}
 				ExpectApplied(ctx, env.Client, provisioner)
@@ -693,6 +693,70 @@ var _ = Describe("Allocation", func() {
 				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 				node := ExpectScheduled(ctx, env.Client, pod)
 				Expect(node.Labels).To(HaveKeyWithValue(v1alpha5.LabelCapacityType, awsv1alpha1.CapacityTypeSpot))
+			})
+			It("should fail to launch capacity when there is no zonal availability for spot", func() {
+				now := time.Now()
+				fakeEC2API.DescribeSpotPriceHistoryOutput.Set(&ec2.DescribeSpotPriceHistoryOutput{
+					SpotPriceHistory: []*ec2.SpotPrice{
+						{
+							AvailabilityZone: aws.String("test-zone-1a"),
+							InstanceType:     aws.String("m5.large"),
+							SpotPrice:        aws.String("0.004"),
+							Timestamp:        &now,
+						},
+						{
+							AvailabilityZone: aws.String("test-zone-1a"),
+							InstanceType:     aws.String("m5.large"),
+							SpotPrice:        aws.String("0.002"),
+							Timestamp:        &now,
+						},
+					},
+				})
+				pricingProvider.updateSpotPricing(ctx)
+				Eventually(func() bool { return pricingProvider.SpotLastUpdated().After(now) }).Should(BeTrue())
+
+				provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
+					{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{awsv1alpha1.CapacityTypeSpot}},
+					{Key: v1.LabelInstanceTypeStable, Operator: v1.NodeSelectorOpIn, Values: []string{"m5.large"}},
+					{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1c"}},
+				}
+
+				// Instance type with no zonal availability for spot shouldn't be scheduled
+				ExpectApplied(ctx, env.Client, provisioner)
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				ExpectNotScheduled(ctx, env.Client, pod)
+			})
+			It("should succeed to launch spot instance when zonal availability exists", func() {
+				now := time.Now()
+				fakeEC2API.DescribeSpotPriceHistoryOutput.Set(&ec2.DescribeSpotPriceHistoryOutput{
+					SpotPriceHistory: []*ec2.SpotPrice{
+						{
+							AvailabilityZone: aws.String("test-zone-1a"),
+							InstanceType:     aws.String("m5.large"),
+							SpotPrice:        aws.String("0.004"),
+							Timestamp:        &now,
+						},
+						{
+							AvailabilityZone: aws.String("test-zone-1b"),
+							InstanceType:     aws.String("m5.large"),
+							SpotPrice:        aws.String("0.002"),
+							Timestamp:        &now,
+						},
+					},
+				})
+				pricingProvider.updateSpotPricing(ctx)
+				Eventually(func() bool { return pricingProvider.SpotLastUpdated().After(now) }).Should(BeTrue())
+
+				// not restricting to the zone so we can get any zone
+				provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
+					{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{awsv1alpha1.CapacityTypeSpot}},
+					{Key: v1.LabelInstanceTypeStable, Operator: v1.NodeSelectorOpIn, Values: []string{"m5.large"}},
+				}
+
+				ExpectApplied(ctx, env.Client, provisioner)
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				node := ExpectScheduled(ctx, env.Client, pod)
+				Expect(node.Labels).To(HaveKeyWithValue(v1alpha5.ProvisionerNameLabelKey, provisioner.Name))
 			})
 		})
 		Context("LaunchTemplates", func() {
@@ -2281,12 +2345,6 @@ var _ = Describe("Pricing", func() {
 
 		price, err = p.SpotPriceForZone("c98.large", "test-zone-1b")
 		Expect(err).ToNot(BeNil())
-	})
-	It("should update with real-time pricing data", func() {
-		region := "us-east-1"
-		sess := session.Must(session.NewSession())
-		_ = NewPricingProvider(ctx, NewPricingAPI(sess, region), ec2.New(sess), region, false, make(chan struct{}))
-		time.Sleep(time.Hour)
 	})
 })
 

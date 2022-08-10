@@ -56,8 +56,10 @@ type PricingProvider struct {
 	spotPrices         map[string]zonalPricing
 }
 
-// zonal pricing is a map with a key "zone name"
-// and a value which is the price in that zone
+// Default zone is used to store the pricing data based off of instance
+// type level information until zonal information is available
+const defaultZone = "default"
+
 type zonalPricing map[string]float64
 
 // pricingUpdatePeriod is how often we try to update our pricing information after the initial update on startup
@@ -85,7 +87,7 @@ func NewPricingProvider(ctx context.Context, pricing pricingiface.PricingAPI, ec
 		onDemandPrices:     initialOnDemandPrices,
 		spotUpdateTime:     initialPriceUpdate,
 		// default our spot pricing to the same as the on-demand pricing until a price update
-		spotPrices: make(map[string]zonalPricing), // TODO: Update this with the specific zonal pricing information
+		spotPrices: initialSpotPricing(initialOnDemandPrices),
 		ec2:        ec2Api,
 		pricing:    pricing,
 	}
@@ -142,7 +144,7 @@ func (p *PricingProvider) OnDemandLastUpdated() time.Time {
 func (p *PricingProvider) SpotLastUpdated() time.Time {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	return p.onDemandUpdateTime
+	return p.spotUpdateTime
 }
 
 // OnDemandPrice returns the last known on-demand price for a given instance type, returning an error if there is no
@@ -163,11 +165,11 @@ func (p *PricingProvider) SpotPrice(instanceType string) (float64, error) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	if zonalData, ok := p.spotPrices[instanceType]; ok {
-		maxPrice := -math.MaxFloat64
+		minPrice := math.MaxFloat64
 		for _, price := range zonalData {
-			maxPrice = math.Max(maxPrice, price)
+			minPrice = math.Min(minPrice, price)
 		}
-		return maxPrice, nil
+		return minPrice, nil
 	}
 	// if there is no spot price available, fall back to the on-demand price
 	if price, ok := p.onDemandPrices[instanceType]; ok {
@@ -183,6 +185,9 @@ func (p *PricingProvider) SpotPriceForZone(instanceType string, zone string) (fl
 	defer p.mu.RUnlock()
 	if _, ok := p.spotPrices[instanceType]; ok {
 		if price, ok := p.spotPrices[instanceType][zone]; ok {
+			return price, nil
+		} else if price, ok := p.spotPrices[instanceType][defaultZone]; ok {
+			// In the case that we
 			return price, nil
 		}
 		return 0.0, fmt.Errorf("instance type %s not found in zone %s", instanceType, zone)
@@ -425,4 +430,15 @@ func (p *PricingProvider) updateSpotPricing(ctx context.Context) error {
 	p.spotUpdateTime = time.Now()
 	logging.FromContext(ctx).Infof("updated spot pricing with %d instance types", len(p.spotPrices))
 	return nil
+}
+
+// initialSpotPricing creates spot zonal pricing information based off of the
+// initial on-demand pricing information coming at the regional level
+func initialSpotPricing(odPricing map[string]float64) map[string]zonalPricing {
+	m := make(map[string]zonalPricing)
+	for it, price := range odPricing {
+		m[it] = make(zonalPricing)
+		m[it][defaultZone] = price
+	}
+	return m
 }
