@@ -53,14 +53,12 @@ type PricingProvider struct {
 	onDemandUpdateTime time.Time
 	onDemandPrices     map[string]float64
 	spotUpdateTime     time.Time
-	spotPrices         map[string]zonalPricing
+	spotPrices         map[string]map[string]float64
 }
 
 // Default zone is used to store the pricing data based off of instance
 // type level information until zonal information is available
 const defaultZone = "default"
-
-type zonalPricing map[string]float64
 
 // pricingUpdatePeriod is how often we try to update our pricing information after the initial update on startup
 const pricingUpdatePeriod = 12 * time.Hour
@@ -187,7 +185,8 @@ func (p *PricingProvider) SpotPriceForZone(instanceType string, zone string) (fl
 		if price, ok := p.spotPrices[instanceType][zone]; ok {
 			return price, nil
 		} else if price, ok := p.spotPrices[instanceType][defaultZone]; ok {
-			// In the case that we
+			// In the case that we haven't updated the external data yet, we use on-demand
+			// data that will populate with the default zone name
 			return price, nil
 		}
 		return 0.0, fmt.Errorf("instance type %s not found in zone %s", instanceType, zone)
@@ -418,11 +417,11 @@ func (p *PricingProvider) updateSpotPricing(ctx context.Context) error {
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.spotPrices = map[string]zonalPricing{}
+	p.spotPrices = make(map[string]map[string]float64)
 	for it, zp := range prices {
 		for k, v := range zp {
 			if _, ok := p.spotPrices[it]; !ok {
-				p.spotPrices[it] = make(zonalPricing)
+				p.spotPrices[it] = make(map[string]float64)
 			}
 			p.spotPrices[it][k] = v.price
 		}
@@ -434,10 +433,10 @@ func (p *PricingProvider) updateSpotPricing(ctx context.Context) error {
 
 // initialSpotPricing creates spot zonal pricing information based off of the
 // initial on-demand pricing information coming at the regional level
-func initialSpotPricing(odPricing map[string]float64) map[string]zonalPricing {
-	m := make(map[string]zonalPricing)
+func initialSpotPricing(odPricing map[string]float64) map[string]map[string]float64 {
+	m := make(map[string]map[string]float64)
 	for it, price := range odPricing {
-		m[it] = make(zonalPricing)
+		m[it] = make(map[string]float64)
 		m[it][defaultZone] = price
 	}
 	return m

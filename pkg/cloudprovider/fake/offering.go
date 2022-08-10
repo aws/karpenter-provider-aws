@@ -17,6 +17,15 @@ package fake
 type Offering struct {
 	capacityType string
 	zone         string
+	price        float64
+}
+
+func NewOffering(ct, zone string, price float64) *Offering {
+	return &Offering{
+		capacityType: ct,
+		zone:         zone,
+		price:        price,
+	}
 }
 
 func (o *Offering) CapacityType() string {
@@ -28,5 +37,5 @@ func (o *Offering) Zone() string {
 }
 
 func (o *Offering) Price() float64 {
-	return 0.0
+	return o.price
 }

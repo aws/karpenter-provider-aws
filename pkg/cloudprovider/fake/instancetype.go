@@ -16,6 +16,7 @@ package fake
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/samber/lo"
@@ -56,21 +57,6 @@ func NewInstanceType(options InstanceTypeOptions) *InstanceType {
 			v1.ResourceMemory: resource.MustParse("10Mi"),
 		}
 	}
-	if len(options.Offerings) == 0 {
-		options.Offerings = []cloudprovider.Offering{
-			&Offering{capacityType: "spot", zone: "test-zone-1"},
-			&Offering{capacityType: "spot", zone: "test-zone-2"},
-			&Offering{capacityType: "on-demand", zone: "test-zone-1"},
-			&Offering{capacityType: "on-demand", zone: "test-zone-2"},
-			&Offering{capacityType: "on-demand", zone: "test-zone-3"},
-		}
-	}
-	if len(options.Architecture) == 0 {
-		options.Architecture = "amd64"
-	}
-	if options.OperatingSystems.Len() == 0 {
-		options.OperatingSystems = utilsets.NewString("linux", "windows", "darwin")
-	}
 	if r := options.Resources[v1.ResourceCPU]; r.IsZero() {
 		options.Resources[v1.ResourceCPU] = resource.MustParse("4")
 	}
@@ -79,6 +65,21 @@ func NewInstanceType(options InstanceTypeOptions) *InstanceType {
 	}
 	if r := options.Resources[v1.ResourcePods]; r.IsZero() {
 		options.Resources[v1.ResourcePods] = resource.MustParse("5")
+	}
+	if len(options.Offerings) == 0 {
+		options.Offerings = []cloudprovider.Offering{
+			&Offering{capacityType: "spot", zone: "test-zone-1", price: priceFromResources(options.Resources)},
+			&Offering{capacityType: "spot", zone: "test-zone-2", price: priceFromResources(options.Resources)},
+			&Offering{capacityType: "on-demand", zone: "test-zone-1", price: priceFromResources(options.Resources)},
+			&Offering{capacityType: "on-demand", zone: "test-zone-2", price: priceFromResources(options.Resources)},
+			&Offering{capacityType: "on-demand", zone: "test-zone-3", price: priceFromResources(options.Resources)},
+		}
+	}
+	if len(options.Architecture) == 0 {
+		options.Architecture = "amd64"
+	}
+	if options.OperatingSystems.Len() == 0 {
+		options.OperatingSystems = utilsets.NewString("linux", "windows", "darwin")
 	}
 
 	return &InstanceType{
@@ -89,7 +90,8 @@ func NewInstanceType(options InstanceTypeOptions) *InstanceType {
 			OperatingSystems: options.OperatingSystems,
 			Resources:        options.Resources,
 			Overhead:         options.Overhead,
-			Price:            options.Price},
+			Price:            options.Price,
+		},
 	}
 }
 
@@ -102,7 +104,7 @@ func InstanceTypesAssorted() []cloudprovider.InstanceType {
 				for _, ct := range []string{v1alpha1.CapacityTypeSpot, v1alpha1.CapacityTypeOnDemand} {
 					for _, os := range []utilsets.String{utilsets.NewString("linux"), utilsets.NewString("windows")} {
 						for _, arch := range []string{v1alpha5.ArchitectureAmd64, v1alpha5.ArchitectureArm64} {
-							it := NewInstanceType(InstanceTypeOptions{
+							opts := InstanceTypeOptions{
 								Name:             fmt.Sprintf("%d-cpu-%d-mem-%s-%s-%s-%s", cpu, mem, arch, strings.Join(os.List(), ","), zone, ct),
 								Architecture:     arch,
 								OperatingSystems: os,
@@ -110,14 +112,16 @@ func InstanceTypesAssorted() []cloudprovider.InstanceType {
 									v1.ResourceCPU:    resource.MustParse(fmt.Sprintf("%d", cpu)),
 									v1.ResourceMemory: resource.MustParse(fmt.Sprintf("%dGi", mem)),
 								},
-								Offerings: []cloudprovider.Offering{
-									&Offering{
-										capacityType: ct,
-										zone:         zone,
-									},
+							}
+							price := priceFromResources(opts.Resources)
+							opts.Offerings = []cloudprovider.Offering{
+								&Offering{
+									capacityType: ct,
+									zone:         zone,
+									price:        price,
 								},
-							})
-							instanceTypes = append(instanceTypes, it)
+							}
+							instanceTypes = append(instanceTypes, NewInstanceType(opts))
 						}
 					}
 				}
@@ -166,13 +170,27 @@ func (i *InstanceType) Name() string {
 	return i.options.Name
 }
 
-func (i *InstanceType) Price() float64 {
+func (i *InstanceType) Price(f func(o cloudprovider.Offering) bool) float64 {
 	if i.options.Price != 0 {
 		return i.options.Price
 	}
+	opts := i.options.Offerings
+	if f != nil {
+		opts = lo.Filter(opts, func(off cloudprovider.Offering, i int) bool { return f(off) })
+	}
+	if len(opts) == 0 {
+		return math.MaxFloat64
+	}
+	minPrice := opts[0].Price()
+	for _, offering := range opts[1:] {
+		minPrice = math.Min(minPrice, offering.Price())
+	}
+	return minPrice
+}
 
+func priceFromResources(resources v1.ResourceList) float64 {
 	price := 0.0
-	for k, v := range i.Resources() {
+	for k, v := range resources {
 		switch k {
 		case v1.ResourceCPU:
 			price += 0.1 * v.AsApproximateFloat64()

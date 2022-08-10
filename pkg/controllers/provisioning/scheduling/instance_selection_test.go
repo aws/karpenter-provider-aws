@@ -16,10 +16,9 @@ package scheduling_test
 
 import (
 	"fmt"
+	"github.com/mitchellh/hashstructure/v2"
 	"math"
 	"math/rand"
-
-	"github.com/mitchellh/hashstructure/v2"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
@@ -53,12 +52,7 @@ var _ = Describe("Instance Type Selection", func() {
 		}
 		cloudProv.CreateCalls = nil
 		cloudProv.InstanceTypes = fake.InstanceTypesAssorted()
-		minPrice = math.MaxFloat64
-		instanceTypePrices = map[string]float64{}
-		for _, it := range cloudProv.InstanceTypes {
-			instanceTypePrices[it.Name()] = it.Price()
-			minPrice = math.Min(it.Price(), minPrice)
-		}
+		instanceTypePrices, minPrice = getPricingMetadata(cloudProv.InstanceTypes)
 
 		// add some randomness to instance type ordering to ensure we sort everywhere we need to
 		rand.Shuffle(len(cloudProv.InstanceTypes), func(i, j int) {
@@ -525,7 +519,59 @@ var _ = Describe("Instance Type Selection", func() {
 			Expect(overheadHash).To(Equal(overheadHashes[it.Name()]), fmt.Sprintf("expected %s Overhead() to not be modified by scheduling", it.Name()))
 		}
 	})
+	It("should schedule on cheaper on-demand instance even when spot price ordering would place other instance types first", func() {
+		cloudProv.InstanceTypes = []cloudprovider.InstanceType{
+			fake.NewInstanceType(fake.InstanceTypeOptions{
+				Name:             "test-instance1",
+				Architecture:     "amd64",
+				OperatingSystems: sets.NewString("linux"),
+				Resources: v1.ResourceList{
+					v1.ResourceCPU:    resource.MustParse("1"),
+					v1.ResourceMemory: resource.MustParse("1Gi"),
+				},
+				Offerings: []cloudprovider.Offering{
+					fake.NewOffering("on-demand", "test-zone-1a", 1.0),
+					fake.NewOffering("spot", "test-zone-1a", 0.2),
+				},
+			}),
+			fake.NewInstanceType(fake.InstanceTypeOptions{
+				Name:             "test-instance2",
+				Architecture:     "amd64",
+				OperatingSystems: sets.NewString("linux"),
+				Resources: v1.ResourceList{
+					v1.ResourceCPU:    resource.MustParse("1"),
+					v1.ResourceMemory: resource.MustParse("1Gi"),
+				},
+				Offerings: []cloudprovider.Offering{
+					fake.NewOffering("on-demand", "test-zone-1a", 1.3),
+					fake.NewOffering("spot", "test-zone-1a", 0.1),
+				},
+			}),
+		}
+		provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
+			{
+				Key:      v1alpha5.LabelCapacityType,
+				Operator: v1.NodeSelectorOpIn,
+				Values:   []string{"on-demand"},
+			},
+		}
+		instanceTypePrices, minPrice = getPricingMetadata(cloudProv.InstanceTypes)
+		ExpectApplied(ctx, env.Client, provisioner)
+		pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())
+		node := ExpectScheduled(ctx, env.Client, pod[0])
+		Expect(node.Labels[v1.LabelInstanceTypeStable]).To(Equal("test-instance1"))
+	})
 })
+
+func getPricingMetadata(its []cloudprovider.InstanceType) (map[string]float64, float64) {
+	instanceTypePrices := make(map[string]float64)
+	minPrice := math.MaxFloat64
+	for _, it := range its {
+		instanceTypePrices[it.Name()] = it.Price(nil)
+		minPrice = math.Min(it.Price(nil), minPrice)
+	}
+	return instanceTypePrices, minPrice
+}
 
 func filterInstanceTypes(types []cloudprovider.InstanceType, pred func(i cloudprovider.InstanceType) bool) []cloudprovider.InstanceType {
 	var ret []cloudprovider.InstanceType

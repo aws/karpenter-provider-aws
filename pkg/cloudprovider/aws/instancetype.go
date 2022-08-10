@@ -90,12 +90,18 @@ func (i *InstanceType) Resources() v1.ResourceList {
 	return i.resources
 }
 
-func (i *InstanceType) Price() float64 {
-	if len(i.Offerings()) == 0 {
+// Price will get the minimum price of all offerings based on the passed filter
+// so that we can use the cheapest offerings at scheduling time
+func (i *InstanceType) Price(filter func(o cloudprovider.Offering) bool) float64 {
+	opts := i.Offerings()
+	if filter != nil {
+		opts = lo.Filter(opts, func(v cloudprovider.Offering, i int) bool { return filter(v) })
+	}
+	if len(opts) == 0 {
 		return math.MaxFloat64
 	}
-	minPrice := i.Offerings()[0].Price()
-	for _, offering := range i.Offerings()[1:] {
+	minPrice := opts[0].Price()
+	for _, offering := range opts[1:] {
 		minPrice = math.Min(minPrice, offering.Price())
 	}
 	return minPrice

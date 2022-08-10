@@ -17,6 +17,7 @@ package provisioning
 import (
 	"context"
 	"fmt"
+	"sort"
 	"sync"
 	"time"
 
@@ -272,6 +273,14 @@ func (p *Provisioner) launch(ctx context.Context, node *scheduler.Node) error {
 	if err := latest.Spec.Limits.ExceededBy(latest.Status.Resources); err != nil {
 		return err
 	}
+
+	// Order instance types so that we get the cheapest instance types of the available offerings
+	sort.Slice(node.InstanceTypeOptions, func(i, j int) bool {
+		offeringFilter := func(o cloudprovider.Offering) bool {
+			return node.Requirements.Get(v1alpha5.LabelCapacityType).Has(o.CapacityType()) && node.Requirements.Get(v1.LabelTopologyZone).Has(o.Zone())
+		}
+		return node.InstanceTypeOptions[i].Price(offeringFilter) < node.InstanceTypeOptions[j].Price(offeringFilter)
+	})
 
 	k8sNode, err := p.cloudProvider.Create(
 		logging.WithLogger(ctx, logging.FromContext(ctx).Named("cloudprovider")),
