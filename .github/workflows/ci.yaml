@@ -24,7 +24,7 @@ jobs:
           ~/.cache/go-build
           ~/go/pkg/mod
           ~/go/bin/
-          ~/.kubebuilder/bin/k8s
+          ~/.kubebuilder/bin
         key: ${{ runner.os }}-go-cache-${{ hashFiles('**/go.sum') }}
     - name: CI - Verifications and Tests
       run: |
