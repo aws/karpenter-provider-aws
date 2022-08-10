@@ -2,11 +2,11 @@
 
 A Helm chart for Karpenter, an open-source node provisioning project built for Kubernetes.
 
-![Version: 0.14.0-rc.0](https://img.shields.io/badge/Version-0.14.0--rc.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.14.0-rc.0](https://img.shields.io/badge/AppVersion-0.14.0--rc.0-informational?style=flat-square)
+![Version: 0.14.0](https://img.shields.io/badge/Version-0.14.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.14.0](https://img.shields.io/badge/AppVersion-0.14.0-informational?style=flat-square)
 
 ## Documentation
 
-For full Karpenter documentation please checkout [https://karpenter.sh](https://karpenter.sh/v0.14.0-rc.0/).
+For full Karpenter documentation please checkout [https://karpenter.sh](https://karpenter.sh/v0.14.0/).
 
 ## Installing the Chart
 
@@ -17,12 +17,12 @@ helm repo add karpenter https://charts.karpenter.sh/
 helm repo update
 ```
 
-You can follow the detailed installation instruction in the [documentation](https://karpenter.sh/v0.14.0-rc.0/getting-started/getting-started-with-eksctl/#install) which covers the Karpenter prerequisites and installation options. The outcome of these instructions should result in something like the following command.
+You can follow the detailed installation instruction in the [documentation](https://karpenter.sh/v0.14.0/getting-started/getting-started-with-eksctl/#install) which covers the Karpenter prerequisites and installation options. The outcome of these instructions should result in something like the following command.
 
 ```bash
 helm upgrade --install --namespace karpenter --create-namespace \
   karpenter karpenter/karpenter \
-  --version 0.14.0-rc.0 \
+  --version 0.14.0 \
   --set serviceAccount.annotations.eks\.amazonaws\.com/role-arn=${KARPENTER_IAM_ROLE_ARN} \
   --set clusterName=${CLUSTER_NAME} \
   --set clusterEndpoint=${CLUSTER_ENDPOINT} \
@@ -44,7 +44,7 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | controller.batchMaxDuration | string | `"10s"` |  |
 | controller.env | list | `[]` | Additional environment variables for the controller pod. |
 | controller.extraVolumeMounts | list | `[]` | Additional volumeMounts for the controller pod. |
-| controller.image | string | `"public.ecr.aws/karpenter/controller:v0.14.0-rc.0@sha256:f87857bea61b2961ce95933a8a79f656493a5e7fa87434c88a82a8f2f4d4ec05"` | Controller image. |
+| controller.image | string | `"public.ecr.aws/karpenter/controller:v0.14.0@sha256:70dba2afffdbb8a30547a35a546147b121f9e3c4a72253186476bfb12b740e80"` | Controller image. |
 | controller.logEncoding | string | `""` | Controller log encoding, defaults to the global log encoding |
 | controller.logLevel | string | `""` | Controller log level, defaults to the global log level |
 | controller.resources | object | `{"limits":{"cpu":1,"memory":"1Gi"},"requests":{"cpu":1,"memory":"1Gi"}}` | Resources for the controller pod. |
@@ -80,7 +80,7 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | topologySpreadConstraints | list | `[{"maxSkew":1,"topologyKey":"topology.kubernetes.io/zone","whenUnsatisfiable":"ScheduleAnyway"}]` | topologySpreadConstraints to increase the controller resilience |
 | webhook.env | list | `[]` | Additional environment variables for the webhook pod. |
 | webhook.extraVolumeMounts | list | `[]` | Additional volumeMounts for the webhook pod. |
-| webhook.image | string | `"public.ecr.aws/karpenter/webhook:v0.14.0-rc.0@sha256:be351e160b701f6c13c8fce7dcda79779adb657ff5c2cc894220b2bd57fa6184"` | Webhook image. |
+| webhook.image | string | `"public.ecr.aws/karpenter/webhook:v0.14.0@sha256:35dbf731409365127692b6c346193d9564c91ee4e4a58c679222568ff66eb173"` | Webhook image. |
 | webhook.logEncoding | string | `""` | Webhook log encoding, defaults to the global log encoding |
 | webhook.logLevel | string | `""` | Webhook log level, defaults to the global log level |
 | webhook.port | int | `8443` | The container port to use for the webhook. |
