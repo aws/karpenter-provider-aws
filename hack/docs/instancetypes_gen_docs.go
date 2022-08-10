@@ -157,8 +157,8 @@ below are the resources available with some assumptions and after the instance o
 				if !ok {
 					continue
 				}
-				if req.Values().Len() == 1 {
-					fmt.Fprintf(f, " |%s|%s|\n", label, req.Values().List()[0])
+				if len(req.Values()) == 1 {
+					fmt.Fprintf(f, " |%s|%s|\n", label, req.Values()[0])
 				}
 			}
 			fmt.Fprintln(f, "#### Resources")
