@@ -84,27 +84,36 @@ func (p *InstanceTypeProvider) Get(ctx context.Context, provider *v1alpha1.AWS, 
 	}
 	var result []cloudprovider.InstanceType
 	for _, i := range instanceTypes {
-		// TODO: move pricing information from the instance type down into offerings
 		instanceTypeName := aws.StringValue(i.InstanceType)
-		price, err := p.pricingProvider.OnDemandPrice(instanceTypeName)
-		if err != nil {
-			// don't warn as this can occur extremely often
-			price = math.MaxFloat64
-		}
-		instanceType := NewInstanceType(ctx, i, kc, price, provider, p.createOfferings(i, instanceTypeZones[instanceTypeName]))
+		instanceType := NewInstanceType(ctx, i, kc, provider, p.createOfferings(i, instanceTypeZones[instanceTypeName]))
 		result = append(result, instanceType)
 	}
 	return result, nil
 }
 
 func (p *InstanceTypeProvider) createOfferings(instanceType *ec2.InstanceTypeInfo, zones sets.String) []cloudprovider.Offering {
-	offerings := []cloudprovider.Offering{}
+	var offerings []cloudprovider.Offering
 	for zone := range zones {
 		// while usage classes should be a distinct set, there's no guarantee of that
 		for capacityType := range sets.NewString(aws.StringValueSlice(instanceType.SupportedUsageClasses)...) {
 			// exclude any offerings that have recently seen an insufficient capacity error from EC2
 			if _, isUnavailable := p.unavailableOfferings.Get(UnavailableOfferingsCacheKey(*instanceType.InstanceType, zone, capacityType)); !isUnavailable {
-				offerings = append(offerings, cloudprovider.Offering{Zone: zone, CapacityType: capacityType})
+				var price float64
+				var err error
+				switch capacityType {
+				case ec2.UsageClassTypeSpot:
+					price, err = p.pricingProvider.SpotPriceForZone(*instanceType.InstanceType, zone)
+					// We assume that if we don't find a price for a spot instanceType and zone that the offering doesn't exist
+					if err != nil {
+						continue
+					}
+				default:
+					price, err = p.pricingProvider.OnDemandPrice(*instanceType.InstanceType)
+					if err != nil {
+						price = math.MaxFloat64
+					}
+				}
+				offerings = append(offerings, &Offering{zone: zone, capacityType: capacityType, price: price})
 			}
 		}
 	}

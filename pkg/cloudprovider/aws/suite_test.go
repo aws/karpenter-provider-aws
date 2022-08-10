@@ -19,6 +19,8 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/amifamily/bootstrap"
 	"io/ioutil"
 	"math"
 	"strings"
@@ -2246,6 +2248,12 @@ var _ = Describe("Pricing", func() {
 		price, err = p.SpotPrice("c99.large")
 		Expect(err).To(BeNil())
 		Expect(price).To(BeNumerically("==", 1.23))
+	})
+	FIt("should try against the actual pricing api", func() {
+		region := "us-east-1"
+		sess := session.Must(session.NewSession())
+		_ = NewPricingProvider(ctx, NewPricingAPI(sess, region), ec2.New(sess), region, false, make(chan struct{}))
+		time.Sleep(time.Hour)
 	})
 })
 
