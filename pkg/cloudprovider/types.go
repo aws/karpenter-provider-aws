@@ -80,6 +80,9 @@ type InstanceType interface {
 	// Overhead is the amount of resource overhead expected to be used by kubelet and any other system daemons outside
 	// of Kubernetes.
 	Overhead() v1.ResourceList
+	// Price is a metric that is used to optimize pod placement onto nodes.  This can be an actual monetary price per hour
+	// for the instance type, or just a weighting where lower 'prices' are preferred.
+	Price() float64
 }
 
 // An Offering describes where an InstanceType is available to be used, with the expectation that its properties

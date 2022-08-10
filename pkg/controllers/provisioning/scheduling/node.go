@@ -147,8 +147,8 @@ func fits(instanceType cloudprovider.InstanceType, requests v1.ResourceList) boo
 
 func hasOffering(instanceType cloudprovider.InstanceType, requirements scheduling.Requirements) bool {
 	for _, offering := range instanceType.Offerings() {
-		if (!requirements.Has(v1.LabelTopologyZone) || requirements.Get(v1.LabelTopologyZone).Has(offering.Zone)) &&
-			(!requirements.Has(v1alpha5.LabelCapacityType) || requirements.Get(v1alpha5.LabelCapacityType).Has(offering.CapacityType)) {
+		if (!requirements.Has(v1.LabelTopologyZone) || requirements.Get(v1.LabelTopologyZone).Has(offering.Zone())) &&
+			(!requirements.Has(v1alpha5.LabelCapacityType) || requirements.Get(v1alpha5.LabelCapacityType).Has(offering.CapacityType())) {
 			return true
 		}
 	}

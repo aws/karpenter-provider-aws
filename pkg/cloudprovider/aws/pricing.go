@@ -362,6 +362,7 @@ func (p *PricingProvider) onDemandPage(prices map[string]float64) func(output *p
 	}
 }
 
+// nolint: gocyclo
 func (p *PricingProvider) updateSpotPricing(ctx context.Context) error {
 	type pricingInfo struct {
 		timestamp time.Time

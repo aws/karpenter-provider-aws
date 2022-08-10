@@ -12,20 +12,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package aws
+package fake
 
 type Offering struct {
 	capacityType string
 	zone         string
-	price        float64
-}
-
-func NewOffering(capacityType, zone string, price float64) *Offering {
-	return &Offering{
-		capacityType: capacityType,
-		zone:         zone,
-		price:        price,
-	}
 }
 
 func (o *Offering) CapacityType() string {
@@ -37,5 +28,5 @@ func (o *Offering) Zone() string {
 }
 
 func (o *Offering) Price() float64 {
-	return o.price
+	return 0.0
 }

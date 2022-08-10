@@ -90,6 +90,17 @@ func (i *InstanceType) Resources() v1.ResourceList {
 	return i.resources
 }
 
+func (i *InstanceType) Price() float64 {
+	if len(i.Offerings()) == 0 {
+		return math.MaxFloat64
+	}
+	minPrice := i.Offerings()[0].Price()
+	for _, offering := range i.Offerings()[1:] {
+		minPrice = math.Min(minPrice, offering.Price())
+	}
+	return minPrice
+}
+
 // Overhead computes overhead for https://kubernetes.io/docs/tasks/administer-cluster/reserve-compute-resources/#node-allocatable
 // using calculations copied from https://github.com/bottlerocket-os/bottlerocket#kubernetes-settings.
 func (i *InstanceType) Overhead() v1.ResourceList {

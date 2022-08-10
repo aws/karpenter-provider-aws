@@ -248,13 +248,13 @@ func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.Inst
 	var overrides []*ec2.FleetLaunchTemplateOverridesRequest
 	for i, instanceType := range instanceTypeOptions {
 		for _, offering := range instanceType.Offerings() {
-			if capacityType != offering.CapacityType {
+			if capacityType != offering.CapacityType() {
 				continue
 			}
-			if !zones.Has(offering.Zone) {
+			if !zones.Has(offering.Zone()) {
 				continue
 			}
-			subnet, ok := zonalSubnets[offering.Zone]
+			subnet, ok := zonalSubnets[offering.Zone()]
 			if !ok {
 				continue
 			}
@@ -347,7 +347,7 @@ func (p *InstanceProvider) getCapacityType(nodeRequest *cloudprovider.NodeReques
 	if nodeRequest.Template.Requirements.Get(v1alpha5.LabelCapacityType).Has(v1alpha1.CapacityTypeSpot) {
 		for _, instanceType := range nodeRequest.InstanceTypeOptions {
 			for _, offering := range instanceType.Offerings() {
-				if nodeRequest.Template.Requirements.Get(v1.LabelTopologyZone).Has(offering.Zone) && offering.CapacityType == v1alpha1.CapacityTypeSpot {
+				if nodeRequest.Template.Requirements.Get(v1.LabelTopologyZone).Has(offering.Zone()) && offering.CapacityType() == v1alpha1.CapacityTypeSpot {
 					return v1alpha1.CapacityTypeSpot
 				}
 			}

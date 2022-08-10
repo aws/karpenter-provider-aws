@@ -419,7 +419,7 @@ var _ = Describe("Instance Type Selection", func() {
 		// remove all Arm instance types in zone-2
 		cloudProv.InstanceTypes = filterInstanceTypes(cloudProv.InstanceTypes, func(i cloudprovider.InstanceType) bool {
 			for _, off := range i.Offerings() {
-				if off.Zone == "test-zone-2" {
+				if off.Zone() == "test-zone-2" {
 					return i.Requirements().Get(v1.LabelArchStable).Has(v1alpha5.ArchitectureAmd64)
 				}
 			}
@@ -447,7 +447,7 @@ var _ = Describe("Instance Type Selection", func() {
 		// remove all Arm instance types in zone-2
 		cloudProv.InstanceTypes = filterInstanceTypes(cloudProv.InstanceTypes, func(i cloudprovider.InstanceType) bool {
 			for _, off := range i.Offerings() {
-				if off.Zone == "test-zone-2" {
+				if off.Zone() == "test-zone-2" {
 					return i.Requirements().Get(v1.LabelArchStable).Has(v1alpha5.ArchitectureAmd64)
 				}
 			}
@@ -541,7 +541,7 @@ func ExpectInstancesWithOffering(instanceTypes []cloudprovider.InstanceType, cap
 	for _, it := range instanceTypes {
 		matched := false
 		for _, offering := range it.Offerings() {
-			if offering.CapacityType == capacityType && offering.Zone == zone {
+			if offering.CapacityType() == capacityType && offering.Zone() == zone {
 				matched = true
 			}
 		}
@@ -560,7 +560,7 @@ func ExpectInstancesWithLabel(instanceTypes []cloudprovider.InstanceType, label 
 			{
 				matched := false
 				for _, offering := range it.Offerings() {
-					if offering.Zone == value {
+					if offering.Zone() == value {
 						matched = true
 						break
 					}
@@ -571,7 +571,7 @@ func ExpectInstancesWithLabel(instanceTypes []cloudprovider.InstanceType, label 
 			{
 				matched := false
 				for _, offering := range it.Offerings() {
-					if offering.CapacityType == value {
+					if offering.CapacityType() == value {
 						matched = true
 						break
 					}

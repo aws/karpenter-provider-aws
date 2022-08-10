@@ -58,11 +58,12 @@ func NewInstanceType(options InstanceTypeOptions) *InstanceType {
 	}
 	if len(options.Offerings) == 0 {
 		options.Offerings = []cloudprovider.Offering{
-			{CapacityType: "spot", Zone: "test-zone-1"},
-			{CapacityType: "spot", Zone: "test-zone-2"},
-			{CapacityType: "on-demand", Zone: "test-zone-1"},
-			{CapacityType: "on-demand", Zone: "test-zone-2"},
-			{CapacityType: "on-demand", Zone: "test-zone-3"}}
+			&Offering{capacityType: "spot", zone: "test-zone-1"},
+			&Offering{capacityType: "spot", zone: "test-zone-2"},
+			&Offering{capacityType: "on-demand", zone: "test-zone-1"},
+			&Offering{capacityType: "on-demand", zone: "test-zone-2"},
+			&Offering{capacityType: "on-demand", zone: "test-zone-3"},
+		}
 	}
 	if len(options.Architecture) == 0 {
 		options.Architecture = "amd64"
@@ -110,9 +111,9 @@ func InstanceTypesAssorted() []cloudprovider.InstanceType {
 									v1.ResourceMemory: resource.MustParse(fmt.Sprintf("%dGi", mem)),
 								},
 								Offerings: []cloudprovider.Offering{
-									{
-										CapacityType: ct,
-										Zone:         zone,
+									&Offering{
+										capacityType: ct,
+										zone:         zone,
 									},
 								},
 							})
@@ -201,8 +202,8 @@ func (i *InstanceType) Requirements() scheduling.Requirements {
 		scheduling.NewRequirement(v1.LabelInstanceTypeStable, v1.NodeSelectorOpIn, i.options.Name),
 		scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, i.options.Architecture),
 		scheduling.NewRequirement(v1.LabelOSStable, v1.NodeSelectorOpIn, i.options.OperatingSystems.List()...),
-		scheduling.NewRequirement(v1.LabelTopologyZone, v1.NodeSelectorOpIn, lo.Map(i.Offerings(), func(o cloudprovider.Offering, _ int) string { return o.Zone })...),
-		scheduling.NewRequirement(v1alpha5.LabelCapacityType, v1.NodeSelectorOpIn, lo.Map(i.Offerings(), func(o cloudprovider.Offering, _ int) string { return o.CapacityType })...),
+		scheduling.NewRequirement(v1.LabelTopologyZone, v1.NodeSelectorOpIn, lo.Map(i.Offerings(), func(o cloudprovider.Offering, _ int) string { return o.Zone() })...),
+		scheduling.NewRequirement(v1alpha5.LabelCapacityType, v1.NodeSelectorOpIn, lo.Map(i.Offerings(), func(o cloudprovider.Offering, _ int) string { return o.CapacityType() })...),
 		scheduling.NewRequirement(LabelInstanceSize, v1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(ExoticInstanceLabelKey, v1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(IntegerInstanceLabelKey, v1.NodeSelectorOpIn, fmt.Sprint(i.options.Resources.Cpu().Value())),
