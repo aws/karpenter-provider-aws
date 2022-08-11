@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"sort"
 	"sync"
 	"time"
@@ -105,6 +104,7 @@ func (c *Controller) run(ctx context.Context) {
 				if err != nil {
 					logging.FromContext(ctx).Errorf("consolidating cluster, %s", err)
 				} else if result == ProcessResultNothingToDo {
+					logging.FromContext(ctx).Debugf("Attepted consolidation but nothing to consolidate")
 					c.lastConsolidationState = c.cluster.ClusterConsolidationState()
 				}
 			}
@@ -473,7 +473,7 @@ func (c *Controller) nodeConsolidationOptionReplaceOrDelete(ctx context.Context,
 			schedulableCount += len(inflight.Pods)
 		}
 		if len(node.pods) == schedulableCount {
-			savings := node.instanceType.Price(OnDemandPricesFilter)
+			savings := node.instanceType.Price(cloudprovider.CapacityZonePricesFilter(node.capacityType, node.zone))
 			return consolidationAction{
 				oldNodes:       []*v1.Node{node.Node},
 				disruptionCost: disruptionCost(ctx, node.pods),
@@ -490,11 +490,8 @@ func (c *Controller) nodeConsolidationOptionReplaceOrDelete(ctx context.Context,
 
 	// get the current node price based on the offering
 	// fallback if we can't find the specific zonal pricing data
-	nodePrice := node.instanceType.Price(CapacityZonePricesFilter(node.capacityType, node.zone))
-	if nodePrice == math.MaxFloat64 {
-		nodePrice = node.instanceType.Price(CapacityPricesFilter(node.capacityType))
-	}
-	newNodes[0].InstanceTypeOptions = filterByPrice(newNodes[0].InstanceTypeOptions, nodePrice, false)
+	nodePrice := node.instanceType.Price(cloudprovider.CapacityZonePricesFilter(node.capacityType, node.zone))
+	newNodes[0].InstanceTypeOptions = filterByPrice(newNodes[0].InstanceTypeOptions, newNodes[0].Requirements, nodePrice, false)
 	if len(newNodes[0].InstanceTypeOptions) == 0 {
 		// no instance types remain after filtering by price
 		return consolidationAction{result: consolidateResultNotPossible}, nil
@@ -505,12 +502,13 @@ func (c *Controller) nodeConsolidationOptionReplaceOrDelete(ctx context.Context,
 	// a spot node with one that is less available and more likely to be reclaimed).
 	if node.capacityType == v1alpha1.CapacityTypeSpot &&
 		newNodes[0].Requirements.Get(v1alpha5.LabelCapacityType).Has(v1alpha1.CapacityTypeSpot) {
+		logging.FromContext(ctx).Debugf("Ignoring consolidation from spot to spot instance")
 		return consolidationAction{result: consolidateResultNotPossible}, nil
 	}
 
 	savings := nodePrice
 	// savings is reduced by the price of the new node
-	savings -= newNodes[0].InstanceTypeOptions[0].Price(func(o cloudprovider.Offering) bool { return o.CapacityType() == "on-demand" })
+	savings -= newNodes[0].InstanceTypeOptions[0].Price(cloudprovider.NodeRequirementsFilter(newNodes[0].Requirements))
 
 	return consolidationAction{
 		oldNodes:        []*v1.Node{node.Node},

@@ -297,10 +297,7 @@ func (p *Provisioner) launch(ctx context.Context, opts LaunchOptions, node *sche
 
 	// Order instance types so that we get the cheapest instance types of the available offerings
 	sort.Slice(node.InstanceTypeOptions, func(i, j int) bool {
-		offeringFilter := func(o cloudprovider.Offering) bool {
-			return node.Requirements.Get(v1alpha5.LabelCapacityType).Has(o.CapacityType()) && node.Requirements.Get(v1.LabelTopologyZone).Has(o.Zone())
-		}
-		return node.InstanceTypeOptions[i].Price(offeringFilter) < node.InstanceTypeOptions[j].Price(offeringFilter)
+		return node.InstanceTypeOptions[i].Price(cloudprovider.NodeRequirementsFilter(node.Requirements)) < node.InstanceTypeOptions[j].Price(cloudprovider.NodeRequirementsFilter(node.Requirements))
 	})
 
 	k8sNode, err := p.cloudProvider.Create(

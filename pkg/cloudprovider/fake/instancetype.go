@@ -91,6 +91,7 @@ func NewInstanceType(options InstanceTypeOptions) *InstanceType {
 			Resources:        options.Resources,
 			Overhead:         options.Overhead,
 			Price:            options.Price,
+			FallbackPrice:    options.FallbackPrice,
 		},
 	}
 }
@@ -121,6 +122,7 @@ func InstanceTypesAssorted() []cloudprovider.InstanceType {
 									price:        price,
 								},
 							}
+							opts.FallbackPrice = price
 							instanceTypes = append(instanceTypes, NewInstanceType(opts))
 						}
 					}
@@ -159,7 +161,8 @@ type InstanceTypeOptions struct {
 	OperatingSystems utilsets.String
 	Overhead         v1.ResourceList
 	Resources        v1.ResourceList
-	Price            float64
+	Price            float64 // serves as a shortcut override for price
+	FallbackPrice    float64 // fallback price if we are not able to find the price in the offerings
 }
 
 type InstanceType struct {
@@ -170,16 +173,16 @@ func (i *InstanceType) Name() string {
 	return i.options.Name
 }
 
-func (i *InstanceType) Price(f func(o cloudprovider.Offering) bool) float64 {
+func (i *InstanceType) Price(filters ...func(o cloudprovider.Offering) bool) float64 {
 	if i.options.Price != 0 {
 		return i.options.Price
 	}
 	opts := i.options.Offerings
-	if f != nil {
-		opts = lo.Filter(opts, func(off cloudprovider.Offering, i int) bool { return f(off) })
+	for _, filter := range filters {
+		opts = lo.Filter(opts, func(off cloudprovider.Offering, i int) bool { return filter(off) })
 	}
 	if len(opts) == 0 {
-		return math.MaxFloat64
+		return i.options.FallbackPrice
 	}
 	minPrice := opts[0].Price()
 	for _, offering := range opts[1:] {

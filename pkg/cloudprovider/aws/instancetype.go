@@ -44,19 +44,21 @@ var (
 
 type InstanceType struct {
 	*ec2.InstanceTypeInfo
-	offerings    []cloudprovider.Offering
-	overhead     v1.ResourceList
-	requirements scheduling.Requirements
-	resources    v1.ResourceList
-	provider     *v1alpha1.AWS
-	maxPods      *int32
+	offerings     []cloudprovider.Offering
+	overhead      v1.ResourceList
+	requirements  scheduling.Requirements
+	resources     v1.ResourceList
+	provider      *v1alpha1.AWS
+	maxPods       *int32
+	fallbackPrice float64
 }
 
-func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, kc *v1alpha5.KubeletConfiguration, provider *v1alpha1.AWS, offerings []cloudprovider.Offering) *InstanceType {
+func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, kc *v1alpha5.KubeletConfiguration, price float64, provider *v1alpha1.AWS, offerings []cloudprovider.Offering) *InstanceType {
 	instanceType := &InstanceType{
 		InstanceTypeInfo: info,
 		provider:         provider,
 		offerings:        offerings,
+		fallbackPrice:    price,
 	}
 
 	// set max pods before computing resources
@@ -92,13 +94,13 @@ func (i *InstanceType) Resources() v1.ResourceList {
 
 // Price will get the minimum price of all offerings based on the passed filter
 // so that we can use the cheapest offerings at scheduling time
-func (i *InstanceType) Price(filter func(o cloudprovider.Offering) bool) float64 {
+func (i *InstanceType) Price(filters ...func(o cloudprovider.Offering) bool) float64 {
 	opts := i.Offerings()
-	if filter != nil {
+	for _, filter := range filters {
 		opts = lo.Filter(opts, func(v cloudprovider.Offering, i int) bool { return filter(v) })
 	}
 	if len(opts) == 0 {
-		return math.MaxFloat64
+		return i.fallbackPrice
 	}
 	minPrice := opts[0].Price()
 	for _, offering := range opts[1:] {

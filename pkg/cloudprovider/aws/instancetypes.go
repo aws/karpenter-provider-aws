@@ -85,7 +85,12 @@ func (p *InstanceTypeProvider) Get(ctx context.Context, provider *v1alpha1.AWS, 
 	var result []cloudprovider.InstanceType
 	for _, i := range instanceTypes {
 		instanceTypeName := aws.StringValue(i.InstanceType)
-		instanceType := NewInstanceType(ctx, i, kc, provider, p.createOfferings(i, instanceTypeZones[instanceTypeName]))
+		price, err := p.pricingProvider.OnDemandPrice(instanceTypeName)
+		if err != nil {
+			// don't warn as this can occur extremely often
+			price = math.MaxFloat64
+		}
+		instanceType := NewInstanceType(ctx, i, kc, price, provider, p.createOfferings(i, instanceTypeZones[instanceTypeName]))
 		result = append(result, instanceType)
 	}
 	return result, nil

@@ -82,7 +82,7 @@ type InstanceType interface {
 	Overhead() v1.ResourceList
 	// Price is a metric that is used to optimize pod placement onto nodes.  This can be an actual monetary price per hour
 	// for the instance type, or just a weighting where lower 'prices' are preferred.
-	Price(filter func(Offering) bool) float64
+	Price(filters ...func(Offering) bool) float64
 }
 
 // An Offering describes where an InstanceType is available to be used, with the expectation that its properties
@@ -91,4 +91,18 @@ type Offering interface {
 	CapacityType() string
 	Zone() string
 	Price() float64
+}
+
+// Filters for gathering pricing information for instance types
+
+func CapacityZonePricesFilter(ct, zone string) func(Offering) bool {
+	return func(o Offering) bool {
+		return o.CapacityType() == ct && o.Zone() == zone
+	}
+}
+
+func NodeRequirementsFilter(reqs scheduling.Requirements) func(Offering) bool {
+	return func(o Offering) bool {
+		return reqs.Get(v1alpha5.LabelCapacityType).Has(o.CapacityType()) && reqs.Get(v1.LabelTopologyZone).Has(o.Zone())
+	}
 }

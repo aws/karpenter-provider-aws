@@ -96,12 +96,12 @@ var _ = BeforeEach(func() {
 		return false
 	})
 	mostExpensiveInstance = lo.MaxBy(onDemandInstances, func(lhs, rhs cloudprovider.InstanceType) bool {
-		return lhs.Price(nil) > rhs.Price(nil)
+		return lhs.Price() > rhs.Price()
 	})
 	mostExpensiveOffering = mostExpensiveInstance.Offerings()[0] // each of these instances only have a single offering
 	// los MaxBy & MinBy functions are identical.  https://github.com/samber/lo/issues/129
 	leastExpensiveInstance = lo.MaxBy(onDemandInstances, func(lhs, rhs cloudprovider.InstanceType) bool {
-		return lhs.Price(nil) < rhs.Price(nil)
+		return lhs.Price() < rhs.Price()
 	})
 	leastExpensiveOffering = mostExpensiveInstance.Offerings()[0] // each of these instances only have a single offering
 

@@ -19,6 +19,8 @@ import (
 	"math"
 	"strconv"
 
+	"github.com/aws/karpenter/pkg/scheduling"
+
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -50,29 +52,10 @@ func GetPodEvictionCost(ctx context.Context, p *v1.Pod) float64 {
 	return clamp(-10.0, cost, 10.0)
 }
 
-// OnDemandPricesFilter filters out the spot instance pricing
-// from the offerings when getting instance type pricing
-func OnDemandPricesFilter(o cloudprovider.Offering) bool {
-	return o.CapacityType() == "on-demand"
-}
-
-func CapacityZonePricesFilter(ct, zone string) func(cloudprovider.Offering) bool {
-	return func(o cloudprovider.Offering) bool {
-		return o.CapacityType() == ct && o.Zone() == zone
-	}
-}
-
-func CapacityPricesFilter(ct string) func(cloudprovider.Offering) bool {
-	return func(o cloudprovider.Offering) bool {
-		return o.CapacityType() == ct
-	}
-}
-
-func filterByPrice(options []cloudprovider.InstanceType, price float64, inclusive bool) []cloudprovider.InstanceType {
+func filterByPrice(options []cloudprovider.InstanceType, reqs scheduling.Requirements, price float64, inclusive bool) []cloudprovider.InstanceType {
 	var result []cloudprovider.InstanceType
 	for _, it := range options {
-		// TODO: consider spot pricing int he
-		if (it.Price(OnDemandPricesFilter) < price) || (inclusive && it.Price(OnDemandPricesFilter) == price) {
+		if (it.Price(cloudprovider.NodeRequirementsFilter(reqs)) < price) || (inclusive && it.Price(cloudprovider.NodeRequirementsFilter(reqs)) == price) {
 			result = append(result, it)
 		}
 	}

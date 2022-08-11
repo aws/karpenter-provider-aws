@@ -157,7 +157,7 @@ func (p *PricingProvider) OnDemandPrice(instanceType string) (float64, error) {
 	return price, nil
 }
 
-// SpotPrice returns the maximum spot price for a given instance type across zones, returning an error if there is no
+// SpotPrice returns the minimum spot price for a given instance type across zones, returning an error if there is no
 // known spot pricing for the instance type.
 func (p *PricingProvider) SpotPrice(instanceType string) (float64, error) {
 	p.mu.RLock()
@@ -373,6 +373,8 @@ func (p *PricingProvider) updateSpotPricing(ctx context.Context) error {
 		price     float64
 	}
 
+	totalOfferings := 0
+
 	prices := map[string]map[string]*pricingInfo{}
 	if err := p.ec2.DescribeSpotPriceHistoryPagesWithContext(ctx, &ec2.DescribeSpotPriceHistoryInput{
 		ProductDescriptions: []*string{aws.String("Linux/UNIX")},
@@ -418,16 +420,18 @@ func (p *PricingProvider) updateSpotPricing(ctx context.Context) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.spotPrices = make(map[string]map[string]float64)
-	for it, zp := range prices {
-		for k, v := range zp {
-			if _, ok := p.spotPrices[it]; !ok {
-				p.spotPrices[it] = make(map[string]float64)
-			}
-			p.spotPrices[it][k] = v.price
+	for it, zoneData := range prices {
+		if _, ok := p.spotPrices[it]; !ok {
+			p.spotPrices[it] = make(map[string]float64)
 		}
+		for zone, data := range zoneData {
+			p.spotPrices[it][zone] = data.price
+		}
+		totalOfferings += len(zoneData)
 	}
+
 	p.spotUpdateTime = time.Now()
-	logging.FromContext(ctx).Infof("updated spot pricing with %d instance types", len(p.spotPrices))
+	logging.FromContext(ctx).Infof("updated spot pricing with %d instance types and %d offerings", len(p.spotPrices), totalOfferings)
 	return nil
 }
 

@@ -567,8 +567,8 @@ func getPricingMetadata(its []cloudprovider.InstanceType) (map[string]float64, f
 	instanceTypePrices := make(map[string]float64)
 	minPrice := math.MaxFloat64
 	for _, it := range its {
-		instanceTypePrices[it.Name()] = it.Price(nil)
-		minPrice = math.Min(it.Price(nil), minPrice)
+		instanceTypePrices[it.Name()] = it.Price()
+		minPrice = math.Min(it.Price(), minPrice)
 	}
 	return instanceTypePrices, minPrice
 }
