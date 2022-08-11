@@ -44,21 +44,19 @@ var (
 
 type InstanceType struct {
 	*ec2.InstanceTypeInfo
-	offerings     []cloudprovider.Offering
-	overhead      v1.ResourceList
-	requirements  scheduling.Requirements
-	resources     v1.ResourceList
-	provider      *v1alpha1.AWS
-	maxPods       *int32
-	fallbackPrice float64
+	offerings    []cloudprovider.Offering
+	overhead     v1.ResourceList
+	requirements scheduling.Requirements
+	resources    v1.ResourceList
+	provider     *v1alpha1.AWS
+	maxPods      *int32
 }
 
-func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, kc *v1alpha5.KubeletConfiguration, price float64, provider *v1alpha1.AWS, offerings []cloudprovider.Offering) *InstanceType {
+func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, kc *v1alpha5.KubeletConfiguration, provider *v1alpha1.AWS, offerings []cloudprovider.Offering) *InstanceType {
 	instanceType := &InstanceType{
 		InstanceTypeInfo: info,
 		provider:         provider,
 		offerings:        offerings,
-		fallbackPrice:    price,
 	}
 
 	// set max pods before computing resources
@@ -92,23 +90,6 @@ func (i *InstanceType) Resources() v1.ResourceList {
 	return i.resources
 }
 
-// Price will get the minimum price of all offerings based on the passed filter
-// so that we can use the cheapest offerings at scheduling time
-func (i *InstanceType) Price(filters ...func(o cloudprovider.Offering) bool) float64 {
-	opts := i.Offerings()
-	for _, filter := range filters {
-		opts = lo.Filter(opts, func(v cloudprovider.Offering, i int) bool { return filter(v) })
-	}
-	if len(opts) == 0 {
-		return i.fallbackPrice
-	}
-	minPrice := opts[0].Price()
-	for _, offering := range opts[1:] {
-		minPrice = math.Min(minPrice, offering.Price())
-	}
-	return minPrice
-}
-
 // Overhead computes overhead for https://kubernetes.io/docs/tasks/administer-cluster/reserve-compute-resources/#node-allocatable
 // using calculations copied from https://github.com/bottlerocket-os/bottlerocket#kubernetes-settings.
 func (i *InstanceType) Overhead() v1.ResourceList {
@@ -121,9 +102,9 @@ func (i *InstanceType) computeRequirements() scheduling.Requirements {
 		scheduling.NewRequirement(v1.LabelInstanceTypeStable, v1.NodeSelectorOpIn, i.Name()),
 		scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, i.architecture()),
 		scheduling.NewRequirement(v1.LabelOSStable, v1.NodeSelectorOpIn, v1alpha5.OperatingSystemLinux),
-		scheduling.NewRequirement(v1.LabelTopologyZone, v1.NodeSelectorOpIn, lo.Map(i.Offerings(), func(o cloudprovider.Offering, _ int) string { return o.Zone() })...),
+		scheduling.NewRequirement(v1.LabelTopologyZone, v1.NodeSelectorOpIn, lo.Map(i.Offerings(), func(o cloudprovider.Offering, _ int) string { return o.Zone })...),
 		// Well Known to Karpenter
-		scheduling.NewRequirement(v1alpha5.LabelCapacityType, v1.NodeSelectorOpIn, lo.Map(i.Offerings(), func(o cloudprovider.Offering, _ int) string { return o.CapacityType() })...),
+		scheduling.NewRequirement(v1alpha5.LabelCapacityType, v1.NodeSelectorOpIn, lo.Map(i.Offerings(), func(o cloudprovider.Offering, _ int) string { return o.CapacityType })...),
 		// Well Known to AWS
 		scheduling.NewRequirement(v1alpha1.LabelInstanceCPU, v1.NodeSelectorOpIn, fmt.Sprint(aws.Int64Value(i.VCpuInfo.DefaultVCpus))),
 		scheduling.NewRequirement(v1alpha1.LabelInstanceMemory, v1.NodeSelectorOpIn, fmt.Sprint(aws.Int64Value(i.MemoryInfo.SizeInMiB))),

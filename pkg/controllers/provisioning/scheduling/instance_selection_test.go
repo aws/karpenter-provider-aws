@@ -36,9 +36,10 @@ import (
 
 var _ = Describe("Instance Type Selection", func() {
 	var minPrice float64
-	var instanceTypePrices map[string]float64
+	var instanceTypeMap map[string]cloudprovider.InstanceType
 	nodePrice := func(n *v1.Node) float64 {
-		return instanceTypePrices[n.Labels[v1.LabelInstanceTypeStable]]
+		of, _ := cloudprovider.GetOffering(instanceTypeMap[n.Labels[v1.LabelInstanceTypeStable]], n.Labels[v1alpha5.LabelCapacityType], n.Labels[v1.LabelTopologyZone])
+		return of.Price
 	}
 
 	BeforeEach(func() {
@@ -52,7 +53,9 @@ var _ = Describe("Instance Type Selection", func() {
 		}
 		cloudProv.CreateCalls = nil
 		cloudProv.InstanceTypes = fake.InstanceTypesAssorted()
-		instanceTypePrices, minPrice = getPricingMetadata(cloudProv.InstanceTypes)
+
+		instanceTypeMap = getInstanceTypeMap(cloudProv.InstanceTypes)
+		minPrice = getMinPrice(cloudProv.InstanceTypes)
 
 		// add some randomness to instance type ordering to ensure we sort everywhere we need to
 		rand.Shuffle(len(cloudProv.InstanceTypes), func(i, j int) {
@@ -413,7 +416,7 @@ var _ = Describe("Instance Type Selection", func() {
 		// remove all Arm instance types in zone-2
 		cloudProv.InstanceTypes = filterInstanceTypes(cloudProv.InstanceTypes, func(i cloudprovider.InstanceType) bool {
 			for _, off := range i.Offerings() {
-				if off.Zone() == "test-zone-2" {
+				if off.Zone == "test-zone-2" {
 					return i.Requirements().Get(v1.LabelArchStable).Has(v1alpha5.ArchitectureAmd64)
 				}
 			}
@@ -441,7 +444,7 @@ var _ = Describe("Instance Type Selection", func() {
 		// remove all Arm instance types in zone-2
 		cloudProv.InstanceTypes = filterInstanceTypes(cloudProv.InstanceTypes, func(i cloudprovider.InstanceType) bool {
 			for _, off := range i.Offerings() {
-				if off.Zone() == "test-zone-2" {
+				if off.Zone == "test-zone-2" {
 					return i.Requirements().Get(v1.LabelArchStable).Has(v1alpha5.ArchitectureAmd64)
 				}
 			}
@@ -530,8 +533,8 @@ var _ = Describe("Instance Type Selection", func() {
 					v1.ResourceMemory: resource.MustParse("1Gi"),
 				},
 				Offerings: []cloudprovider.Offering{
-					fake.NewOffering("on-demand", "test-zone-1a", 1.0),
-					fake.NewOffering("spot", "test-zone-1a", 0.2),
+					{CapacityType: v1alpha1.CapacityTypeOnDemand, Zone: "test-zone-1a", Price: 1.0},
+					{CapacityType: v1alpha1.CapacityTypeSpot, Zone: "test-zone-1a", Price: 0.2},
 				},
 			}),
 			fake.NewInstanceType(fake.InstanceTypeOptions{
@@ -543,8 +546,8 @@ var _ = Describe("Instance Type Selection", func() {
 					v1.ResourceMemory: resource.MustParse("1Gi"),
 				},
 				Offerings: []cloudprovider.Offering{
-					fake.NewOffering("on-demand", "test-zone-1a", 1.3),
-					fake.NewOffering("spot", "test-zone-1a", 0.1),
+					{CapacityType: v1alpha1.CapacityTypeOnDemand, Zone: "test-zone-1a", Price: 1.3},
+					{CapacityType: v1alpha1.CapacityTypeSpot, Zone: "test-zone-1a", Price: 0.1},
 				},
 			}),
 		}
@@ -555,7 +558,7 @@ var _ = Describe("Instance Type Selection", func() {
 				Values:   []string{"on-demand"},
 			},
 		}
-		instanceTypePrices, minPrice = getPricingMetadata(cloudProv.InstanceTypes)
+
 		ExpectApplied(ctx, env.Client, provisioner)
 		pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())
 		node := ExpectScheduled(ctx, env.Client, pod[0])
@@ -563,14 +566,22 @@ var _ = Describe("Instance Type Selection", func() {
 	})
 })
 
-func getPricingMetadata(its []cloudprovider.InstanceType) (map[string]float64, float64) {
-	instanceTypePrices := make(map[string]float64)
+func getInstanceTypeMap(its []cloudprovider.InstanceType) (map[string]cloudprovider.InstanceType) {
+	m := map[string]cloudprovider.InstanceType{}
+	for _, it := range its {
+		m[it.Name()] = it
+	}
+	return m
+}
+
+func getMinPrice(its []cloudprovider.InstanceType) float64 {
 	minPrice := math.MaxFloat64
 	for _, it := range its {
-		instanceTypePrices[it.Name()] = it.Price()
-		minPrice = math.Min(it.Price(), minPrice)
+		for _, of := range it.Offerings() {
+			minPrice = math.Min(minPrice, of.Price)
+		}
 	}
-	return instanceTypePrices, minPrice
+	return minPrice
 }
 
 func filterInstanceTypes(types []cloudprovider.InstanceType, pred func(i cloudprovider.InstanceType) bool) []cloudprovider.InstanceType {
@@ -587,7 +598,7 @@ func ExpectInstancesWithOffering(instanceTypes []cloudprovider.InstanceType, cap
 	for _, it := range instanceTypes {
 		matched := false
 		for _, offering := range it.Offerings() {
-			if offering.CapacityType() == capacityType && offering.Zone() == zone {
+			if offering.CapacityType == capacityType && offering.Zone == zone {
 				matched = true
 			}
 		}
@@ -606,7 +617,7 @@ func ExpectInstancesWithLabel(instanceTypes []cloudprovider.InstanceType, label 
 			{
 				matched := false
 				for _, offering := range it.Offerings() {
-					if offering.Zone() == value {
+					if offering.Zone == value {
 						matched = true
 						break
 					}
@@ -617,7 +628,7 @@ func ExpectInstancesWithLabel(instanceTypes []cloudprovider.InstanceType, label 
 			{
 				matched := false
 				for _, offering := range it.Offerings() {
-					if offering.CapacityType() == value {
+					if offering.CapacityType == value {
 						matched = true
 						break
 					}

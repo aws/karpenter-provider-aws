@@ -19,6 +19,8 @@ import (
 	"math"
 	"strconv"
 
+	scheduler "github.com/aws/karpenter/pkg/controllers/provisioning/scheduling"
+
 	"github.com/aws/karpenter/pkg/scheduling"
 
 	v1 "k8s.io/api/core/v1"
@@ -55,7 +57,7 @@ func GetPodEvictionCost(ctx context.Context, p *v1.Pod) float64 {
 func filterByPrice(options []cloudprovider.InstanceType, reqs scheduling.Requirements, price float64, inclusive bool) []cloudprovider.InstanceType {
 	var result []cloudprovider.InstanceType
 	for _, it := range options {
-		if (it.Price(cloudprovider.NodeRequirementsFilter(reqs)) < price) || (inclusive && it.Price(cloudprovider.NodeRequirementsFilter(reqs)) == price) {
+		if (scheduler.CheapestOffering(it, reqs) < price) || (inclusive && scheduler.CheapestOffering(it, reqs) == price) {
 			result = append(result, it)
 		}
 	}
@@ -68,4 +70,22 @@ func disruptionCost(ctx context.Context, pods []*v1.Pod) float64 {
 		cost += GetPodEvictionCost(ctx, p)
 	}
 	return cost
+}
+
+// getNodePrice attempts to get an approximate node price for the candidate node
+// This price is used to determine the savings that can be achieved through consolidation
+func getNodePrice(node candidateNode) float64 {
+	// Attempt to get the offering based on capacity type and zone
+	of, err := cloudprovider.GetOffering(node.instanceType, node.capacityType, node.zone)
+	if err == nil {
+		return of.Price
+	}
+	// Fallback to any offering in the same capacity type
+	for _, elem := range node.instanceType.Offerings() {
+		if elem.CapacityType == node.capacityType {
+			return elem.Price
+		}
+	}
+	// Fallback to any offering
+	return node.instanceType.Offerings()[0].Price
 }

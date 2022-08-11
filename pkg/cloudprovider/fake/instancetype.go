@@ -16,7 +16,6 @@ package fake
 
 import (
 	"fmt"
-	"math"
 	"strings"
 
 	"github.com/samber/lo"
@@ -68,11 +67,11 @@ func NewInstanceType(options InstanceTypeOptions) *InstanceType {
 	}
 	if len(options.Offerings) == 0 {
 		options.Offerings = []cloudprovider.Offering{
-			&Offering{capacityType: "spot", zone: "test-zone-1", price: priceFromResources(options.Resources)},
-			&Offering{capacityType: "spot", zone: "test-zone-2", price: priceFromResources(options.Resources)},
-			&Offering{capacityType: "on-demand", zone: "test-zone-1", price: priceFromResources(options.Resources)},
-			&Offering{capacityType: "on-demand", zone: "test-zone-2", price: priceFromResources(options.Resources)},
-			&Offering{capacityType: "on-demand", zone: "test-zone-3", price: priceFromResources(options.Resources)},
+			{CapacityType: "spot", Zone: "test-zone-1", Price: priceFromResources(options.Resources)},
+			{CapacityType: "spot", Zone: "test-zone-2", Price: priceFromResources(options.Resources)},
+			{CapacityType: "on-demand", Zone: "test-zone-1", Price: priceFromResources(options.Resources)},
+			{CapacityType: "on-demand", Zone: "test-zone-2", Price: priceFromResources(options.Resources)},
+			{CapacityType: "on-demand", Zone: "test-zone-3", Price: priceFromResources(options.Resources)},
 		}
 	}
 	if len(options.Architecture) == 0 {
@@ -90,8 +89,6 @@ func NewInstanceType(options InstanceTypeOptions) *InstanceType {
 			OperatingSystems: options.OperatingSystems,
 			Resources:        options.Resources,
 			Overhead:         options.Overhead,
-			Price:            options.Price,
-			FallbackPrice:    options.FallbackPrice,
 		},
 	}
 }
@@ -116,13 +113,12 @@ func InstanceTypesAssorted() []cloudprovider.InstanceType {
 							}
 							price := priceFromResources(opts.Resources)
 							opts.Offerings = []cloudprovider.Offering{
-								&Offering{
-									capacityType: ct,
-									zone:         zone,
-									price:        price,
+								{
+									CapacityType: ct,
+									Zone:         zone,
+									Price:        price,
 								},
 							}
-							opts.FallbackPrice = price
 							instanceTypes = append(instanceTypes, NewInstanceType(opts))
 						}
 					}
@@ -161,8 +157,6 @@ type InstanceTypeOptions struct {
 	OperatingSystems utilsets.String
 	Overhead         v1.ResourceList
 	Resources        v1.ResourceList
-	Price            float64 // serves as a shortcut override for price
-	FallbackPrice    float64 // fallback price if we are not able to find the price in the offerings
 }
 
 type InstanceType struct {
@@ -171,24 +165,6 @@ type InstanceType struct {
 
 func (i *InstanceType) Name() string {
 	return i.options.Name
-}
-
-func (i *InstanceType) Price(filters ...func(o cloudprovider.Offering) bool) float64 {
-	if i.options.Price != 0 {
-		return i.options.Price
-	}
-	opts := i.options.Offerings
-	for _, filter := range filters {
-		opts = lo.Filter(opts, func(off cloudprovider.Offering, i int) bool { return filter(off) })
-	}
-	if len(opts) == 0 {
-		return i.options.FallbackPrice
-	}
-	minPrice := opts[0].Price()
-	for _, offering := range opts[1:] {
-		minPrice = math.Min(minPrice, offering.Price())
-	}
-	return minPrice
 }
 
 func priceFromResources(resources v1.ResourceList) float64 {
@@ -223,8 +199,8 @@ func (i *InstanceType) Requirements() scheduling.Requirements {
 		scheduling.NewRequirement(v1.LabelInstanceTypeStable, v1.NodeSelectorOpIn, i.options.Name),
 		scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, i.options.Architecture),
 		scheduling.NewRequirement(v1.LabelOSStable, v1.NodeSelectorOpIn, i.options.OperatingSystems.List()...),
-		scheduling.NewRequirement(v1.LabelTopologyZone, v1.NodeSelectorOpIn, lo.Map(i.Offerings(), func(o cloudprovider.Offering, _ int) string { return o.Zone() })...),
-		scheduling.NewRequirement(v1alpha5.LabelCapacityType, v1.NodeSelectorOpIn, lo.Map(i.Offerings(), func(o cloudprovider.Offering, _ int) string { return o.CapacityType() })...),
+		scheduling.NewRequirement(v1.LabelTopologyZone, v1.NodeSelectorOpIn, lo.Map(i.Offerings(), func(o cloudprovider.Offering, _ int) string { return o.Zone })...),
+		scheduling.NewRequirement(v1alpha5.LabelCapacityType, v1.NodeSelectorOpIn, lo.Map(i.Offerings(), func(o cloudprovider.Offering, _ int) string { return o.CapacityType })...),
 		scheduling.NewRequirement(LabelInstanceSize, v1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(ExoticInstanceLabelKey, v1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(IntegerInstanceLabelKey, v1.NodeSelectorOpIn, fmt.Sprint(i.options.Resources.Cpu().Value())),

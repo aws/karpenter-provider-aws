@@ -17,6 +17,7 @@ package scheduling
 import (
 	"context"
 	"fmt"
+	"math"
 	"strings"
 	"sync/atomic"
 
@@ -152,10 +153,22 @@ func fits(instanceType cloudprovider.InstanceType, requests v1.ResourceList) boo
 
 func hasOffering(instanceType cloudprovider.InstanceType, requirements scheduling.Requirements) bool {
 	for _, offering := range instanceType.Offerings() {
-		if (!requirements.Has(v1.LabelTopologyZone) || requirements.Get(v1.LabelTopologyZone).Has(offering.Zone())) &&
-			(!requirements.Has(v1alpha5.LabelCapacityType) || requirements.Get(v1alpha5.LabelCapacityType).Has(offering.CapacityType())) {
+		if (!requirements.Has(v1.LabelTopologyZone) || requirements.Get(v1.LabelTopologyZone).Has(offering.Zone)) &&
+			(!requirements.Has(v1alpha5.LabelCapacityType) || requirements.Get(v1alpha5.LabelCapacityType).Has(offering.CapacityType)) {
 			return true
 		}
 	}
 	return false
+}
+
+// CheapestOffering offering grabs the cheapest offering that is available
+// based on the requirements placed on the node
+func CheapestOffering(instanceType cloudprovider.InstanceType, requirements scheduling.Requirements) float64 {
+	minPrice := math.MaxFloat64
+	for _, of := range instanceType.Offerings() {
+		if requirements.Get(v1alpha5.LabelCapacityType).Has(of.CapacityType) && requirements.Get(v1.LabelTopologyZone).Has(of.Zone) {
+			minPrice = math.Min(minPrice, of.Price)
+		}
+	}
+	return minPrice
 }

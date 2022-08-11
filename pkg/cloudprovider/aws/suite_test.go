@@ -392,7 +392,7 @@ var _ = Describe("Allocation", func() {
 				Expect(err).To(BeNil())
 				provisioner := test.Provisioner()
 				for _, info := range instanceInfo {
-					it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, 0, provider, nil)
+					it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, provider, nil)
 					resources := it.Resources()
 					Expect(resources.Pods().Value()).To(BeNumerically("==", 110))
 				}
@@ -403,7 +403,7 @@ var _ = Describe("Allocation", func() {
 				Expect(err).To(BeNil())
 				provisioner := test.Provisioner()
 				for _, info := range instanceInfo {
-					it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, 0, provider, nil)
+					it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, provider, nil)
 					resources := it.Resources()
 					Expect(resources.Pods().Value()).ToNot(BeNumerically("==", 110))
 				}
@@ -415,7 +415,7 @@ var _ = Describe("Allocation", func() {
 					provider.AMIFamily = &awsv1alpha1.AMIFamilyAL2
 					instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 					Expect(err).To(BeNil())
-					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, 0, provider, nil)
+					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, provider, nil)
 					overhead := it.Overhead()
 					Expect(overhead.Memory().String()).To(Equal("1093Mi"))
 				})
@@ -425,7 +425,7 @@ var _ = Describe("Allocation", func() {
 					provider.AMIFamily = &awsv1alpha1.AMIFamilyAL2
 					instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 					Expect(err).To(BeNil())
-					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, 0, provider, nil)
+					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, provider, nil)
 					overhead := it.Overhead()
 					Expect(overhead.Memory().String()).To(Equal("1093Mi"))
 				})
@@ -437,7 +437,7 @@ var _ = Describe("Allocation", func() {
 					provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
 					instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 					Expect(err).To(BeNil())
-					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, 0, provider, nil)
+					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, provider, nil)
 					overhead := it.Overhead()
 					Expect(overhead.Memory().String()).To(Equal("1093Mi"))
 				})
@@ -447,7 +447,7 @@ var _ = Describe("Allocation", func() {
 					provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
 					instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 					Expect(err).To(BeNil())
-					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, 0, provider, nil)
+					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, provider, nil)
 					overhead := it.Overhead()
 					Expect(overhead.Memory().String()).To(Equal("1665Mi"))
 				})
@@ -463,7 +463,7 @@ var _ = Describe("Allocation", func() {
 							},
 						},
 					})
-					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, 0, provider, nil)
+					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, provider, nil)
 					overhead := it.Overhead()
 					Expect(overhead.Cpu().String()).To(Equal("2080m"))
 				})
@@ -477,7 +477,7 @@ var _ = Describe("Allocation", func() {
 							},
 						},
 					})
-					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, 0, provider, nil)
+					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, provider, nil)
 					overhead := it.Overhead()
 					Expect(overhead.Memory().String()).To(Equal("21473Mi"))
 				})
@@ -486,7 +486,7 @@ var _ = Describe("Allocation", func() {
 					Expect(err).To(BeNil())
 					provisioner := test.Provisioner(test.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{MaxPods: ptr.Int32(10)}})
 					for _, info := range instanceInfo {
-						it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, 0, provider, nil)
+						it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, provider, nil)
 						resources := it.Resources()
 						Expect(resources.Pods().Value()).To(BeNumerically("==", 10))
 					}
@@ -497,7 +497,7 @@ var _ = Describe("Allocation", func() {
 					Expect(err).To(BeNil())
 					provisioner := test.Provisioner(test.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{MaxPods: ptr.Int32(10)}})
 					for _, info := range instanceInfo {
-						it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, 0, provider, nil)
+						it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, provider, nil)
 						resources := it.Resources()
 						Expect(resources.Pods().Value()).To(BeNumerically("==", 10))
 					}
@@ -2268,7 +2268,7 @@ var _ = Describe("Pricing", func() {
 	It("should return static spot data if EC2 describeSpotPriceHistory API fails", func() {
 		fakePricingAPI.NextError.Set(fmt.Errorf("failed"))
 		p := NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
-		price, err := p.SpotPrice("c5.large")
+		price, err := p.SpotPrice("c5.large", "test-zone-1a")
 		Expect(err).To(BeNil())
 		Expect(price).To(BeNumerically(">", 0))
 	})
@@ -2333,11 +2333,11 @@ var _ = Describe("Pricing", func() {
 		p := NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
 		Eventually(func() bool { return p.SpotLastUpdated().After(updateStart) }).Should(BeTrue())
 
-		price, err := p.SpotPrice("c98.large")
+		price, err := p.SpotPrice("c98.large", "test-zone-1b")
 		Expect(err).To(BeNil())
 		Expect(price).To(BeNumerically("==", 1.10))
 
-		price, err = p.SpotPrice("c99.large")
+		price, err = p.SpotPrice("c99.large", "test-zone-1a")
 		Expect(err).To(BeNil())
 		Expect(price).To(BeNumerically("==", 1.23))
 	})
@@ -2369,11 +2369,11 @@ var _ = Describe("Pricing", func() {
 		p := NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
 		Eventually(func() bool { return p.SpotLastUpdated().After(updateStart) }).Should(BeTrue())
 
-		price, err := p.SpotPriceForZone("c98.large", "test-zone-1a")
+		price, err := p.SpotPrice("c98.large", "test-zone-1a")
 		Expect(err).To(BeNil())
 		Expect(price).To(BeNumerically("==", 1.20))
 
-		price, err = p.SpotPriceForZone("c98.large", "test-zone-1b")
+		price, err = p.SpotPrice("c98.large", "test-zone-1b")
 		Expect(err).ToNot(BeNil())
 	})
 })

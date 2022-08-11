@@ -16,6 +16,7 @@ package cloudprovider
 
 import (
 	"context"
+	"fmt"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
@@ -80,29 +81,21 @@ type InstanceType interface {
 	// Overhead is the amount of resource overhead expected to be used by kubelet and any other system daemons outside
 	// of Kubernetes.
 	Overhead() v1.ResourceList
-	// Price is a metric that is used to optimize pod placement onto nodes.  This can be an actual monetary price per hour
-	// for the instance type, or just a weighting where lower 'prices' are preferred.
-	Price(filters ...func(Offering) bool) float64
 }
 
 // An Offering describes where an InstanceType is available to be used, with the expectation that its properties
 // may be tightly coupled (e.g. the availability of an instance type in some zone is scoped to a capacity type)
-type Offering interface {
-	CapacityType() string
-	Zone() string
-	Price() float64
+type Offering struct {
+	CapacityType string
+	Zone         string
+	Price        float64
 }
 
-// Filters for gathering pricing information for instance types
-
-func CapacityZonePricesFilter(ct, zone string) func(Offering) bool {
-	return func(o Offering) bool {
-		return o.CapacityType() == ct && o.Zone() == zone
+func GetOffering(it InstanceType, ct, zone string) (Offering, error) {
+	for _, of := range it.Offerings() {
+		if of.CapacityType == ct && of.Zone == zone {
+			return of, nil
+		}
 	}
-}
-
-func NodeRequirementsFilter(reqs scheduling.Requirements) func(Offering) bool {
-	return func(o Offering) bool {
-		return reqs.Get(v1alpha5.LabelCapacityType).Has(o.CapacityType()) && reqs.Get(v1.LabelTopologyZone).Has(o.Zone())
-	}
+	return Offering{}, fmt.Errorf("offering not found")
 }
