@@ -196,6 +196,7 @@ func (env *Environment) GetInstance(nodeName string) ec2.Instance {
 	var node v1.Node
 	Expect(env.Client.Get(env.Context, types.NamespacedName{Name: nodeName}, &node)).To(Succeed())
 	providerIDSplit := strings.Split(node.Spec.ProviderID, "/")
+	Expect(len(providerIDSplit)).ToNot(Equal(0))
 	instanceID := providerIDSplit[len(providerIDSplit)-1]
 	instance, err := env.EC2API.DescribeInstances(&ec2.DescribeInstancesInput{
 		InstanceIds: aws.StringSlice([]string{instanceID}),
