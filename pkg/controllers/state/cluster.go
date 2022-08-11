@@ -22,7 +22,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
@@ -32,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/clock"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
@@ -290,7 +290,7 @@ func (c *Cluster) populateVolumeLimits(ctx context.Context, node *v1.Node, n *No
 		if driver.Allocatable == nil {
 			continue
 		}
-		n.VolumeLimits[driver.Name] = int(aws.Int32Value(driver.Allocatable.Count))
+		n.VolumeLimits[driver.Name] = int(ptr.Int32Value(driver.Allocatable.Count))
 	}
 	return nil
 }

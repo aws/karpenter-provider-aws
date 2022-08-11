@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/avast/retry-go"
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
@@ -31,6 +30,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/clock"
 	"knative.dev/pkg/logging"
+	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
@@ -188,7 +188,7 @@ func (c *Controller) candidateNodes(ctx context.Context) ([]candidateNode, error
 
 		instanceType := instanceTypeMap[n.Node.Labels[v1.LabelInstanceTypeStable]]
 		// skip any nodes that we can't determine the instance of or for which we don't have consolidation enabled
-		if instanceType == nil || provisioner.Spec.Consolidation == nil || !aws.BoolValue(provisioner.Spec.Consolidation.Enabled) {
+		if instanceType == nil || provisioner.Spec.Consolidation == nil || !ptr.BoolValue(provisioner.Spec.Consolidation.Enabled) {
 			return true
 		}
 
@@ -520,7 +520,7 @@ func (c *Controller) replicaSetsReady(ctx context.Context) bool {
 		return true
 	}
 	for _, rs := range rsList.Items {
-		desired := aws.Int32Value(rs.Spec.Replicas)
+		desired := ptr.Int32Value(rs.Spec.Replicas)
 		if rs.Spec.Replicas == nil {
 			// unspecified defaults to 1
 			desired = 1
@@ -539,7 +539,7 @@ func (c *Controller) replicationControllersReady(ctx context.Context) bool {
 		return true
 	}
 	for _, rs := range rsList.Items {
-		desired := aws.Int32Value(rs.Spec.Replicas)
+		desired := ptr.Int32Value(rs.Spec.Replicas)
 		if rs.Spec.Replicas == nil {
 			// unspecified defaults to 1
 			desired = 1
@@ -558,7 +558,7 @@ func (c *Controller) statefulSetsReady(ctx context.Context) bool {
 		return true
 	}
 	for _, rs := range sslist.Items {
-		desired := aws.Int32Value(rs.Spec.Replicas)
+		desired := ptr.Int32Value(rs.Spec.Replicas)
 		if rs.Spec.Replicas == nil {
 			// unspecified defaults to 1
 			desired = 1
