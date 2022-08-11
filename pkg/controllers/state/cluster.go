@@ -255,10 +255,12 @@ func (c *Cluster) populateResourceRequests(ctx context.Context, node *v1.Node, n
 	var daemonsetLimits []v1.ResourceList
 	for i := range pods.Items {
 		pod := &pods.Items[i]
+		if podutils.IsTerminal(pod) {
+			continue
+		}
 		requests := resources.RequestsForPods(pod)
 		podLimits := resources.LimitsForPods(pod)
 		podKey := client.ObjectKeyFromObject(pod)
-
 		n.podRequests[podKey] = requests
 		n.podLimits[podKey] = podLimits
 		c.bindings[podKey] = n.Node.Name
