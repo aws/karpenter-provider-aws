@@ -58,11 +58,6 @@ func NewScheduler(ctx context.Context, kubeClient client.Client, nodeTemplates [
 		}
 	}
 
-	for provisioner := range instanceTypes {
-		sort.Slice(instanceTypes[provisioner], func(i, j int) bool {
-			return instanceTypes[provisioner][i].Price() < instanceTypes[provisioner][j].Price()
-		})
-	}
 	s := &Scheduler{
 		ctx:                ctx,
 		kubeClient:         kubeClient,

@@ -50,10 +50,29 @@ func GetPodEvictionCost(ctx context.Context, p *v1.Pod) float64 {
 	return clamp(-10.0, cost, 10.0)
 }
 
+// OnDemandPricesFilter filters out the spot instance pricing
+// from the offerings when getting instance type pricing
+func OnDemandPricesFilter(o cloudprovider.Offering) bool {
+	return o.CapacityType() == "on-demand"
+}
+
+func CapacityZonePricesFilter(ct, zone string) func(cloudprovider.Offering) bool {
+	return func(o cloudprovider.Offering) bool {
+		return o.CapacityType() == ct && o.Zone() == zone
+	}
+}
+
+func CapacityPricesFilter(ct string) func(cloudprovider.Offering) bool {
+	return func(o cloudprovider.Offering) bool {
+		return o.CapacityType() == ct
+	}
+}
+
 func filterByPrice(options []cloudprovider.InstanceType, price float64, inclusive bool) []cloudprovider.InstanceType {
 	var result []cloudprovider.InstanceType
 	for _, it := range options {
-		if (it.Price() < price) || (inclusive && it.Price() == price) {
+		// TODO: consider spot pricing int he
+		if (it.Price(OnDemandPricesFilter) < price) || (inclusive && it.Price(OnDemandPricesFilter) == price) {
 			result = append(result, it)
 		}
 	}

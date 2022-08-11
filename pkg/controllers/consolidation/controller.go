@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"sort"
 	"sync"
 	"time"
@@ -116,6 +117,8 @@ func (c *Controller) run(ctx context.Context) {
 type candidateNode struct {
 	*v1.Node
 	instanceType   cloudprovider.InstanceType
+	capacityType   string
+	zone           string
 	provisioner    *v1alpha5.Provisioner
 	disruptionCost float64
 	pods           []*v1.Pod
@@ -192,6 +195,18 @@ func (c *Controller) candidateNodes(ctx context.Context) ([]candidateNode, error
 			return true
 		}
 
+		// skip any nodes that we can't determine the capacity type or the topology zone for
+		ct, ok := n.Node.Labels[v1alpha5.LabelCapacityType]
+		if !ok {
+			logging.FromContext(ctx).Errorf("Getting node capacity type, %v", err)
+			return true
+		}
+		az, ok := n.Node.Labels[v1.LabelTopologyZone]
+		if !ok {
+			logging.FromContext(ctx).Errorf("Getting topologzy zone, %v", err)
+			return true
+		}
+
 		// already found one un-initialized node, so we can skip the rest
 		if uninitializedNodeExists {
 			return true
@@ -220,6 +235,8 @@ func (c *Controller) candidateNodes(ctx context.Context) ([]candidateNode, error
 		nodes = append(nodes, candidateNode{
 			Node:           n.Node,
 			instanceType:   instanceType,
+			capacityType:   ct,
+			zone:           az,
 			provisioner:    provisioner,
 			pods:           pods,
 			disruptionCost: disruptionCost(ctx, pods),
@@ -456,7 +473,7 @@ func (c *Controller) nodeConsolidationOptionReplaceOrDelete(ctx context.Context,
 			schedulableCount += len(inflight.Pods)
 		}
 		if len(node.pods) == schedulableCount {
-			savings := node.instanceType.Price()
+			savings := node.instanceType.Price(OnDemandPricesFilter)
 			return consolidationAction{
 				oldNodes:       []*v1.Node{node.Node},
 				disruptionCost: disruptionCost(ctx, node.pods),
@@ -471,7 +488,12 @@ func (c *Controller) nodeConsolidationOptionReplaceOrDelete(ctx context.Context,
 		return consolidationAction{result: consolidateResultNotPossible}, nil
 	}
 
-	nodePrice := node.instanceType.Price()
+	// get the current node price based on the offering
+	// fallback if we can't find the specific zonal pricing data
+	nodePrice := node.instanceType.Price(CapacityZonePricesFilter(node.capacityType, node.zone))
+	if nodePrice == math.MaxFloat64 {
+		nodePrice = node.instanceType.Price(CapacityPricesFilter(node.capacityType))
+	}
 	newNodes[0].InstanceTypeOptions = filterByPrice(newNodes[0].InstanceTypeOptions, nodePrice, false)
 	if len(newNodes[0].InstanceTypeOptions) == 0 {
 		// no instance types remain after filtering by price
@@ -481,14 +503,14 @@ func (c *Controller) nodeConsolidationOptionReplaceOrDelete(ctx context.Context,
 	// If the existing node is spot and the replacement is spot, we don't consolidate.  We don't have a reliable
 	// mechanism to determine if this replacement makes sense given instance type availability (e.g. we may replace
 	// a spot node with one that is less available and more likely to be reclaimed).
-	if node.Labels[v1alpha5.LabelCapacityType] == v1alpha1.CapacityTypeSpot &&
+	if node.capacityType == v1alpha1.CapacityTypeSpot &&
 		newNodes[0].Requirements.Get(v1alpha5.LabelCapacityType).Has(v1alpha1.CapacityTypeSpot) {
 		return consolidationAction{result: consolidateResultNotPossible}, nil
 	}
 
 	savings := nodePrice
 	// savings is reduced by the price of the new node
-	savings -= newNodes[0].InstanceTypeOptions[0].Price()
+	savings -= newNodes[0].InstanceTypeOptions[0].Price(func(o cloudprovider.Offering) bool { return o.CapacityType() == "on-demand" })
 
 	return consolidationAction{
 		oldNodes:        []*v1.Node{node.Node},
