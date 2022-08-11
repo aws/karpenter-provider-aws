@@ -43,7 +43,7 @@ var _ = Describe("LaunchTemplates", func() {
 		env.EventuallyExpectHealthy(pod)
 		env.ExpectCreatedNodeCount("==", 1)
 
-		ExpectInstance(pod.Spec.NodeName).To(HaveField("ImageId", HaveValue(Equal(customAMI))))
+		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("ImageId", HaveValue(Equal(customAMI))))
 	})
 	It("should support Custom AMIFamily with AMI Selectors", func() {
 		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
@@ -61,7 +61,7 @@ var _ = Describe("LaunchTemplates", func() {
 		env.EventuallyExpectHealthy(pod)
 		env.ExpectCreatedNodeCount("==", 1)
 
-		ExpectInstance(pod.Spec.NodeName).To(HaveField("ImageId", HaveValue(Equal(customAMI))))
+		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("ImageId", HaveValue(Equal(customAMI))))
 	})
 	It("should merge UserData contents for AL2 AMIFamily", func() {
 		content, err := ioutil.ReadFile("testdata/al2_userdata_input.golden")
@@ -108,20 +108,6 @@ var _ = Describe("LaunchTemplates", func() {
 		Expect(string(actualUserData)).To(ContainSubstring("kube-api-qps = 30"))
 	})
 })
-
-func ExpectInstance(nodeName string) Assertion {
-	var node v1.Node
-	Expect(env.Client.Get(env.Context, types.NamespacedName{Name: nodeName}, &node)).To(Succeed())
-	providerIDSplit := strings.Split(node.Spec.ProviderID, "/")
-	instanceID := providerIDSplit[len(providerIDSplit)-1]
-	instance, err := env.EC2API.DescribeInstances(&ec2.DescribeInstancesInput{
-		InstanceIds: aws.StringSlice([]string{instanceID}),
-	})
-	Expect(err).ToNot(HaveOccurred())
-	Expect(instance.Reservations).To(HaveLen(1))
-	Expect(instance.Reservations[0].Instances).To(HaveLen(1))
-	return Expect(instance.Reservations[0].Instances[0])
-}
 
 func getInstanceAttribute(nodeName string, attribute string) *ec2.DescribeInstanceAttributeOutput {
 	var node v1.Node

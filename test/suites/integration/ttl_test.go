@@ -1,7 +1,6 @@
-package nodettl_test
+package integration_test
 
 import (
-	"testing"
 	"time"
 
 	"k8s.io/apimachinery/pkg/labels"
@@ -15,26 +14,12 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-
-	"github.com/aws/karpenter/test/pkg/environment"
 )
 
-var env *environment.Environment
-
-func TestNodeTTL(t *testing.T) {
-	RegisterFailHandler(Fail)
-	BeforeSuite(func() {
-		var err error
-		env, err = environment.NewEnvironment(t)
-		Expect(err).ToNot(HaveOccurred())
-	})
-	RunSpecs(t, "NodeTTL")
-}
-
-var _ = BeforeEach(func() { env.BeforeEach() })
-var _ = AfterEach(func() { env.AfterEach() })
-
 var _ = Describe("TTL Empty", func() {
+	BeforeEach(func() { env.BeforeEach() })
+	AfterEach(func() { env.AfterEach() })
+
 	It("should terminate an empty node", func() {
 		beforeNodes := env.Monitor.GetNodes()
 		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
@@ -71,7 +56,7 @@ var _ = Describe("TTL Expired", func() {
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{
-			ProviderRef:            &v1alpha5.ProviderRef{Name: provider.Name},
+			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
 		})
 
 		const numPods = 1
@@ -87,6 +72,6 @@ var _ = Describe("TTL Expired", func() {
 		provisioner.Spec.TTLSecondsUntilExpired = ptr.Int64(10)
 		Expect(env.Client.Patch(env, provisioner, client.MergeFrom(persisted))).To(Succeed())
 
-		env.ExpectNodesEventuallyDeleted(120 * time.Second, createdNodes...)
+		env.ExpectNodesEventuallyDeleted(120*time.Second, createdNodes...)
 	})
 })

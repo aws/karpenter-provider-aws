@@ -18,10 +18,14 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/ec2"
 
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
@@ -182,6 +186,32 @@ func (env *Environment) ExpectNodesEventuallyDeleted(timeout time.Duration, node
 func (env *Environment) ExpectCreatedNodeCount(comparator string, nodeCount int) {
 	Expect(env.Monitor.CreatedNodes()).To(BeNumerically(comparator, nodeCount),
 		fmt.Sprintf("expected %d created nodes, had %d", nodeCount, env.Monitor.CreatedNodes()))
+}
+
+func (env *Environment) ExpectInstance(nodeName string) Assertion {
+	return Expect(env.GetInstance(nodeName))
+}
+
+func (env *Environment) GetInstance(nodeName string) ec2.Instance {
+	var node v1.Node
+	Expect(env.Client.Get(env.Context, types.NamespacedName{Name: nodeName}, &node)).To(Succeed())
+	providerIDSplit := strings.Split(node.Spec.ProviderID, "/")
+	Expect(len(providerIDSplit)).ToNot(Equal(0))
+	instanceID := providerIDSplit[len(providerIDSplit)-1]
+	instance, err := env.EC2API.DescribeInstances(&ec2.DescribeInstancesInput{
+		InstanceIds: aws.StringSlice([]string{instanceID}),
+	})
+	Expect(err).ToNot(HaveOccurred())
+	Expect(instance.Reservations).To(HaveLen(1))
+	Expect(instance.Reservations[0].Instances).To(HaveLen(1))
+	return *instance.Reservations[0].Instances[0]
+}
+
+func (env *Environment) GetVolume(volumeID *string) ec2.Volume {
+	dvo, err := env.EC2API.DescribeVolumes(&ec2.DescribeVolumesInput{VolumeIds: []*string{volumeID}})
+	Expect(err).ToNot(HaveOccurred())
+	Expect(len(dvo.Volumes)).To(Equal(1))
+	return *dvo.Volumes[0]
 }
 
 func (env *Environment) expectNoCrashes() {

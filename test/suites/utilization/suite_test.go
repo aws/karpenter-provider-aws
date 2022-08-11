@@ -43,7 +43,7 @@ var _ = Describe("Utilization", func() {
 		}}})
 
 		deployment := test.Deployment(test.DeploymentOptions{
-			Replicas:   500,
+			Replicas:   100,
 			PodOptions: test.PodOptions{ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1.5")}}}})
 
 		env.ExpectCreated(provisioner, provider, deployment)
