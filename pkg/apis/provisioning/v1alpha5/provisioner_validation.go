@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/aws/aws-sdk-go/aws"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -72,7 +71,7 @@ func (s *ProvisionerSpec) validateTTLSecondsAfterEmpty() (errs *apis.FieldError)
 		return errs.Also(apis.ErrInvalidValue("cannot be negative", "ttlSecondsAfterEmpty"))
 	}
 	// TTLSecondsAfterEmpty and consolidation are mutually exclusive
-	if s.Consolidation != nil && aws.BoolValue(s.Consolidation.Enabled) && s.TTLSecondsAfterEmpty != nil {
+	if s.Consolidation != nil && ptr.BoolValue(s.Consolidation.Enabled) && s.TTLSecondsAfterEmpty != nil {
 		return errs.Also(apis.ErrMultipleOneOf("ttlSecondsAfterEmpty", "consolidation.enabled"))
 	}
 	return errs
