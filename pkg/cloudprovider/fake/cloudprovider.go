@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"sync"
 
+	cputils "github.com/aws/karpenter/pkg/utils/cloudprovider"
+
 	"k8s.io/apimachinery/pkg/util/sets"
 
 	"knative.dev/pkg/apis"
@@ -61,7 +63,7 @@ func (c *CloudProvider) Create(ctx context.Context, nodeRequest *cloudprovider.N
 		}
 	}
 	// Find Offering
-	for _, o := range instanceType.Offerings() {
+	for _, o := range cputils.AvailableOfferings(instanceType) {
 		if nodeRequest.Template.Requirements.Compatible(scheduling.NewRequirements(
 			scheduling.NewRequirement(v1.LabelTopologyZone, v1.NodeSelectorOpIn, o.Zone),
 			scheduling.NewRequirement(v1alpha5.LabelCapacityType, v1.NodeSelectorOpIn, o.CapacityType),

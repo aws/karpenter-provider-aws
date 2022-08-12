@@ -21,6 +21,8 @@ import (
 	"sync"
 	"time"
 
+	cputils "github.com/aws/karpenter/pkg/utils/cloudprovider"
+
 	"github.com/imdario/mergo"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/multierr"
@@ -297,7 +299,9 @@ func (p *Provisioner) launch(ctx context.Context, opts LaunchOptions, node *sche
 
 	// Order instance types so that we get the cheapest instance types of the available offerings
 	sort.Slice(node.InstanceTypeOptions, func(i, j int) bool {
-		return scheduler.CheapestOffering(node.InstanceTypeOptions[i], node.Requirements) < scheduler.CheapestOffering(node.InstanceTypeOptions[j], node.Requirements)
+		iOfferings := cputils.AvailableOfferings(node.InstanceTypeOptions[i])
+		jOfferings := cputils.AvailableOfferings(node.InstanceTypeOptions[j])
+		return cputils.CheapestOfferingWithReqs(iOfferings, node.Requirements).Price < cputils.CheapestOfferingWithReqs(jOfferings, node.Requirements).Price
 	})
 
 	k8sNode, err := p.cloudProvider.Create(

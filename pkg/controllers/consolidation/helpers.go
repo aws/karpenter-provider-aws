@@ -16,10 +16,11 @@ package consolidation
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"strconv"
 
-	scheduler "github.com/aws/karpenter/pkg/controllers/provisioning/scheduling"
+	cputils "github.com/aws/karpenter/pkg/utils/cloudprovider"
 
 	"github.com/aws/karpenter/pkg/scheduling"
 
@@ -54,10 +55,11 @@ func GetPodEvictionCost(ctx context.Context, p *v1.Pod) float64 {
 	return clamp(-10.0, cost, 10.0)
 }
 
-func filterByPrice(options []cloudprovider.InstanceType, reqs scheduling.Requirements, price float64, inclusive bool) []cloudprovider.InstanceType {
+func filterByPrice(options []cloudprovider.InstanceType, reqs scheduling.Requirements, price float64) []cloudprovider.InstanceType {
 	var result []cloudprovider.InstanceType
 	for _, it := range options {
-		if (scheduler.CheapestOffering(it, reqs) < price) || (inclusive && scheduler.CheapestOffering(it, reqs) == price) {
+		cheapestOffering := cputils.CheapestOfferingWithReqs(cputils.AvailableOfferings(it), reqs)
+		if cheapestOffering.Price < price {
 			result = append(result, it)
 		}
 	}
@@ -72,20 +74,20 @@ func disruptionCost(ctx context.Context, pods []*v1.Pod) float64 {
 	return cost
 }
 
-// getNodePrice attempts to get an approximate node price for the candidate node
+// getNodePrice gets the last known node price for the candidate node
 // This price is used to determine the savings that can be achieved through consolidation
-func getNodePrice(node candidateNode) float64 {
-	// Attempt to get the offering based on capacity type and zone
-	of, err := cloudprovider.GetOffering(node.instanceType, node.capacityType, node.zone)
+func getNodePrice(node candidateNode) (float64, error) {
+	// Get the last known offering price from the capacity type and zone
+	of, err := cputils.GetOffering(node.instanceType.Offerings(), node.capacityType, node.zone)
 	if err == nil {
-		return of.Price
+		return of.Price, nil
 	}
-	// Fallback to any offering in the same capacity type
-	for _, elem := range node.instanceType.Offerings() {
-		if elem.CapacityType == node.capacityType {
-			return elem.Price
+
+	// Still need a fallback mechanism if we can't find the offering in our current data
+	for _, offering := range node.instanceType.Offerings() {
+		if offering.CapacityType == node.capacityType {
+			return offering.Price, nil
 		}
 	}
-	// Fallback to any offering
-	return node.instanceType.Offerings()[0].Price
+	return 0, fmt.Errorf("couldn't find an offering price for the passed node")
 }

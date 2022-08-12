@@ -16,7 +16,6 @@ package cloudprovider
 
 import (
 	"context"
-	"fmt"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
@@ -89,13 +88,5 @@ type Offering struct {
 	CapacityType string
 	Zone         string
 	Price        float64
-}
-
-func GetOffering(it InstanceType, ct, zone string) (Offering, error) {
-	for _, of := range it.Offerings() {
-		if of.CapacityType == ct && of.Zone == zone {
-			return of, nil
-		}
-	}
-	return Offering{}, fmt.Errorf("offering not found")
+	Available    bool
 }

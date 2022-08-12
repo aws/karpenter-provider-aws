@@ -26,6 +26,7 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider/fake"
 	"github.com/aws/karpenter/pkg/test"
 	. "github.com/aws/karpenter/pkg/test/expectations"
+	cputils "github.com/aws/karpenter/pkg/utils/cloudprovider"
 	"github.com/aws/karpenter/pkg/utils/resources"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -38,7 +39,7 @@ var _ = Describe("Instance Type Selection", func() {
 	var minPrice float64
 	var instanceTypeMap map[string]cloudprovider.InstanceType
 	nodePrice := func(n *v1.Node) float64 {
-		of, _ := cloudprovider.GetOffering(instanceTypeMap[n.Labels[v1.LabelInstanceTypeStable]], n.Labels[v1alpha5.LabelCapacityType], n.Labels[v1.LabelTopologyZone])
+		of, _ := cputils.GetOffering(instanceTypeMap[n.Labels[v1.LabelInstanceTypeStable]].Offerings(), n.Labels[v1alpha5.LabelCapacityType], n.Labels[v1.LabelTopologyZone])
 		return of.Price
 	}
 
@@ -533,8 +534,8 @@ var _ = Describe("Instance Type Selection", func() {
 					v1.ResourceMemory: resource.MustParse("1Gi"),
 				},
 				Offerings: []cloudprovider.Offering{
-					{CapacityType: v1alpha1.CapacityTypeOnDemand, Zone: "test-zone-1a", Price: 1.0},
-					{CapacityType: v1alpha1.CapacityTypeSpot, Zone: "test-zone-1a", Price: 0.2},
+					{CapacityType: v1alpha1.CapacityTypeOnDemand, Zone: "test-zone-1a", Price: 1.0, Available: true},
+					{CapacityType: v1alpha1.CapacityTypeSpot, Zone: "test-zone-1a", Price: 0.2, Available: true},
 				},
 			}),
 			fake.NewInstanceType(fake.InstanceTypeOptions{
@@ -546,8 +547,8 @@ var _ = Describe("Instance Type Selection", func() {
 					v1.ResourceMemory: resource.MustParse("1Gi"),
 				},
 				Offerings: []cloudprovider.Offering{
-					{CapacityType: v1alpha1.CapacityTypeOnDemand, Zone: "test-zone-1a", Price: 1.3},
-					{CapacityType: v1alpha1.CapacityTypeSpot, Zone: "test-zone-1a", Price: 0.1},
+					{CapacityType: v1alpha1.CapacityTypeOnDemand, Zone: "test-zone-1a", Price: 1.3, Available: true},
+					{CapacityType: v1alpha1.CapacityTypeSpot, Zone: "test-zone-1a", Price: 0.1, Available: true},
 				},
 			}),
 		}
@@ -566,7 +567,7 @@ var _ = Describe("Instance Type Selection", func() {
 	})
 })
 
-func getInstanceTypeMap(its []cloudprovider.InstanceType) (map[string]cloudprovider.InstanceType) {
+func getInstanceTypeMap(its []cloudprovider.InstanceType) map[string]cloudprovider.InstanceType {
 	m := map[string]cloudprovider.InstanceType{}
 	for _, it := range its {
 		m[it.Name()] = it
@@ -602,7 +603,7 @@ func ExpectInstancesWithOffering(instanceTypes []cloudprovider.InstanceType, cap
 				matched = true
 			}
 		}
-		Expect(matched).To(BeTrue(), fmt.Sprintf("expected to find zone %s / capacity type %s in an offering", zone, capacityType))
+		Expect(matched).To(BeTrue(), fmt.Sprintf("expected to find zone %s / capacity type %s in an cloudprovider", zone, capacityType))
 	}
 }
 
@@ -622,7 +623,7 @@ func ExpectInstancesWithLabel(instanceTypes []cloudprovider.InstanceType, label 
 						break
 					}
 				}
-				Expect(matched).To(BeTrue(), fmt.Sprintf("expected to find zone %s in an offering", value))
+				Expect(matched).To(BeTrue(), fmt.Sprintf("expected to find zone %s in an cloudprovider", value))
 			}
 		case v1alpha5.LabelCapacityType:
 			{
@@ -633,7 +634,7 @@ func ExpectInstancesWithLabel(instanceTypes []cloudprovider.InstanceType, label 
 						break
 					}
 				}
-				Expect(matched).To(BeTrue(), fmt.Sprintf("expected to find caapacity type %s in an offering", value))
+				Expect(matched).To(BeTrue(), fmt.Sprintf("expected to find caapacity type %s in an cloudprovider", value))
 			}
 		default:
 			Fail(fmt.Sprintf("unsupported label %s in test", label))

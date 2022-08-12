@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"strings"
 
+	cputils "github.com/aws/karpenter/pkg/utils/cloudprovider"
+
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
@@ -67,11 +69,11 @@ func NewInstanceType(options InstanceTypeOptions) *InstanceType {
 	}
 	if len(options.Offerings) == 0 {
 		options.Offerings = []cloudprovider.Offering{
-			{CapacityType: "spot", Zone: "test-zone-1", Price: priceFromResources(options.Resources)},
-			{CapacityType: "spot", Zone: "test-zone-2", Price: priceFromResources(options.Resources)},
-			{CapacityType: "on-demand", Zone: "test-zone-1", Price: priceFromResources(options.Resources)},
-			{CapacityType: "on-demand", Zone: "test-zone-2", Price: priceFromResources(options.Resources)},
-			{CapacityType: "on-demand", Zone: "test-zone-3", Price: priceFromResources(options.Resources)},
+			{CapacityType: "spot", Zone: "test-zone-1", Price: priceFromResources(options.Resources), Available: true},
+			{CapacityType: "spot", Zone: "test-zone-2", Price: priceFromResources(options.Resources), Available: true},
+			{CapacityType: "on-demand", Zone: "test-zone-1", Price: priceFromResources(options.Resources), Available: true},
+			{CapacityType: "on-demand", Zone: "test-zone-2", Price: priceFromResources(options.Resources), Available: true},
+			{CapacityType: "on-demand", Zone: "test-zone-3", Price: priceFromResources(options.Resources), Available: true},
 		}
 	}
 	if len(options.Architecture) == 0 {
@@ -117,6 +119,7 @@ func InstanceTypesAssorted() []cloudprovider.InstanceType {
 									CapacityType: ct,
 									Zone:         zone,
 									Price:        price,
+									Available:    true,
 								},
 							}
 							instanceTypes = append(instanceTypes, NewInstanceType(opts))
@@ -199,8 +202,8 @@ func (i *InstanceType) Requirements() scheduling.Requirements {
 		scheduling.NewRequirement(v1.LabelInstanceTypeStable, v1.NodeSelectorOpIn, i.options.Name),
 		scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, i.options.Architecture),
 		scheduling.NewRequirement(v1.LabelOSStable, v1.NodeSelectorOpIn, i.options.OperatingSystems.List()...),
-		scheduling.NewRequirement(v1.LabelTopologyZone, v1.NodeSelectorOpIn, lo.Map(i.Offerings(), func(o cloudprovider.Offering, _ int) string { return o.Zone })...),
-		scheduling.NewRequirement(v1alpha5.LabelCapacityType, v1.NodeSelectorOpIn, lo.Map(i.Offerings(), func(o cloudprovider.Offering, _ int) string { return o.CapacityType })...),
+		scheduling.NewRequirement(v1.LabelTopologyZone, v1.NodeSelectorOpIn, lo.Map(cputils.AvailableOfferings(i), func(o cloudprovider.Offering, _ int) string { return o.Zone })...),
+		scheduling.NewRequirement(v1alpha5.LabelCapacityType, v1.NodeSelectorOpIn, lo.Map(cputils.AvailableOfferings(i), func(o cloudprovider.Offering, _ int) string { return o.CapacityType })...),
 		scheduling.NewRequirement(LabelInstanceSize, v1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(ExoticInstanceLabelKey, v1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(IntegerInstanceLabelKey, v1.NodeSelectorOpIn, fmt.Sprint(i.options.Resources.Cpu().Value())),

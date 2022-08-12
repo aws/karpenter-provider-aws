@@ -17,7 +17,6 @@ package aws
 import (
 	"context"
 	"fmt"
-	"math"
 	"sync"
 	"time"
 
@@ -85,36 +84,38 @@ func (p *InstanceTypeProvider) Get(ctx context.Context, provider *v1alpha1.AWS, 
 	var result []cloudprovider.InstanceType
 	for _, i := range instanceTypes {
 		instanceTypeName := aws.StringValue(i.InstanceType)
-		instanceType := NewInstanceType(ctx, i, kc, provider, p.createOfferings(i, instanceTypeZones[instanceTypeName]))
+		instanceType := NewInstanceType(ctx, i, kc, provider, p.createOfferings(ctx, i, instanceTypeZones[instanceTypeName]))
 		result = append(result, instanceType)
 	}
 	return result, nil
 }
 
-func (p *InstanceTypeProvider) createOfferings(instanceType *ec2.InstanceTypeInfo, zones sets.String) []cloudprovider.Offering {
+func (p *InstanceTypeProvider) createOfferings(ctx context.Context, instanceType *ec2.InstanceTypeInfo, zones sets.String) []cloudprovider.Offering {
 	var offerings []cloudprovider.Offering
 	for zone := range zones {
 		// while usage classes should be a distinct set, there's no guarantee of that
 		for capacityType := range sets.NewString(aws.StringValueSlice(instanceType.SupportedUsageClasses)...) {
 			// exclude any offerings that have recently seen an insufficient capacity error from EC2
-			if _, isUnavailable := p.unavailableOfferings.Get(UnavailableOfferingsCacheKey(*instanceType.InstanceType, zone, capacityType)); !isUnavailable {
-				var price float64
-				var err error
-				switch capacityType {
-				case ec2.UsageClassTypeSpot:
-					price, err = p.pricingProvider.SpotPrice(*instanceType.InstanceType, zone)
-					// We assume that if we don't find a price for a spot instanceType and zone that the offering doesn't exist
-					if err != nil {
-						continue
-					}
-				default:
-					price, err = p.pricingProvider.OnDemandPrice(*instanceType.InstanceType)
-					if err != nil {
-						price = math.MaxFloat64
-					}
-				}
-				offerings = append(offerings, cloudprovider.Offering{Zone: zone, CapacityType: capacityType, Price: price})
+			_, isUnavailable := p.unavailableOfferings.Get(UnavailableOfferingsCacheKey(*instanceType.InstanceType, zone, capacityType))
+			var price float64
+			var err error
+			var isCurrent bool
+			switch capacityType {
+			case ec2.UsageClassTypeSpot:
+				price, isCurrent, err = p.pricingProvider.SpotPrice(*instanceType.InstanceType, zone)
+			case ec2.UsageClassTypeOnDemand:
+				price, isCurrent, err = p.pricingProvider.OnDemandPrice(*instanceType.InstanceType)
+			default:
+				logging.FromContext(ctx).Errorf("Received unknown capacity type %s for instance type %s", capacityType, *instanceType.InstanceType)
+				continue
 			}
+			available := !isUnavailable && isCurrent && err == nil
+			offerings = append(offerings, cloudprovider.Offering{
+				Zone:         zone,
+				CapacityType: capacityType,
+				Price:        price,
+				Available:    available,
+			})
 		}
 	}
 	return offerings

@@ -22,6 +22,8 @@ import (
 	"sync"
 	"time"
 
+	cputils "github.com/aws/karpenter/pkg/utils/cloudprovider"
+
 	"github.com/avast/retry-go"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/prometheus/client_golang/prometheus"
@@ -444,6 +446,7 @@ func (c *Controller) calculateLifetimeRemaining(node candidateNode) float64 {
 	return remaining
 }
 
+// nolint:gocyclo
 func (c *Controller) nodeConsolidationOptionReplaceOrDelete(ctx context.Context, node candidateNode) (consolidationAction, error) {
 	defer metrics.Measure(consolidationDurationHistogram.WithLabelValues("Replace/Delete"))()
 
@@ -473,7 +476,10 @@ func (c *Controller) nodeConsolidationOptionReplaceOrDelete(ctx context.Context,
 			schedulableCount += len(inflight.Pods)
 		}
 		if len(node.pods) == schedulableCount {
-			savings := getNodePrice(node)
+			savings, err := getNodePrice(node)
+			if err != nil {
+				return consolidationAction{result: consolidateResultUnknown}, fmt.Errorf("getting offering price from candidate node, %w", err)
+			}
 			return consolidationAction{
 				oldNodes:       []*v1.Node{node.Node},
 				disruptionCost: disruptionCost(ctx, node.pods),
@@ -488,10 +494,13 @@ func (c *Controller) nodeConsolidationOptionReplaceOrDelete(ctx context.Context,
 		return consolidationAction{result: consolidateResultNotPossible}, nil
 	}
 
-	// get the current node price based on the offering
+	// get the current node price based on the cloudprovider
 	// fallback if we can't find the specific zonal pricing data
-	nodePrice := getNodePrice(node)
-	newNodes[0].InstanceTypeOptions = filterByPrice(newNodes[0].InstanceTypeOptions, newNodes[0].Requirements, nodePrice, false)
+	nodePrice, err := getNodePrice(node)
+	if err != nil {
+		return consolidationAction{result: consolidateResultUnknown}, fmt.Errorf("getting offering price from candidate node, %w", err)
+	}
+	newNodes[0].InstanceTypeOptions = filterByPrice(newNodes[0].InstanceTypeOptions, newNodes[0].Requirements, nodePrice)
 	if len(newNodes[0].InstanceTypeOptions) == 0 {
 		// no instance types remain after filtering by price
 		return consolidationAction{result: consolidateResultNotPossible}, nil
@@ -508,8 +517,7 @@ func (c *Controller) nodeConsolidationOptionReplaceOrDelete(ctx context.Context,
 
 	savings := nodePrice
 	// savings is reduced by the price of the new node
-	savings -= scheduling.CheapestOffering(newNodes[0].InstanceTypeOptions[0], newNodes[0].Requirements)
-
+	savings -= cputils.CheapestOfferingWithReqs(cputils.AvailableOfferings(newNodes[0].InstanceTypeOptions[0]), newNodes[0].Requirements).Price
 	return consolidationAction{
 		oldNodes:        []*v1.Node{node.Node},
 		disruptionCost:  disruptionCost(ctx, node.pods),
