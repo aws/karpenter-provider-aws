@@ -27,7 +27,7 @@ spec:
     karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
   securityGroupSelector:
     karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
-  amiFamily: Ubuntu
+  amiFamily: AL2
   blockDeviceMappings:
     - deviceName: /dev/xvda
       ebs:
