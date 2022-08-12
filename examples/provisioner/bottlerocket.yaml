@@ -28,5 +28,5 @@ spec:
     - deviceName: /dev/xvdb
       ebs:
         volumeType: gp3
-        volumeSize: ${volumeSize} # replace with your required disk size
+        volumeSize: 20G # replace with your required disk size
         deleteOnTermination: true
