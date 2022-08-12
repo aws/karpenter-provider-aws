@@ -30,4 +30,3 @@ spec:
         volumeType: gp3
         volumeSize: ${volumeSize} # replace with your required disk size
         deleteOnTermination: true
-  tags: ${tags}
