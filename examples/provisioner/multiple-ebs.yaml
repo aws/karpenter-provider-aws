@@ -43,4 +43,4 @@ spec:
       ebs:
         volumeType: gp3
         volumeSize: 2000Gi
-        deleteOnTermination: false
+        deleteOnTermination: true
