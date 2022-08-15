@@ -19,7 +19,6 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
-	"knative.dev/pkg/apis"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
@@ -52,10 +51,6 @@ type CloudProvider interface {
 	// availability, the GetInstanceTypes method should always return all instance types,
 	// even those with no offerings available.
 	GetInstanceTypes(context.Context, *v1alpha5.Provisioner) ([]InstanceType, error)
-	// Default is a hook for additional defaulting logic at webhook time.
-	Default(context.Context, *v1alpha5.Provisioner)
-	// Validate is a hook for additional validation logic at webhook time.
-	Validate(context.Context, *v1alpha5.Provisioner) *apis.FieldError
 	// Name returns the CloudProvider implementation name.
 	Name() string
 }

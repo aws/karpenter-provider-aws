@@ -104,7 +104,7 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 	pricingProvider := NewPricingProvider(ctx, NewPricingAPI(sess, *sess.Config.Region), ec2api, *sess.Config.Region,
 		injection.GetOptions(ctx).AWSIsolatedVPC, options.StartAsync)
 	instanceTypeProvider := NewInstanceTypeProvider(ec2api, subnetProvider, pricingProvider)
-	return &CloudProvider{
+	cloudprovider := &CloudProvider{
 		instanceTypeProvider: instanceTypeProvider,
 		subnetProvider:       subnetProvider,
 		instanceProvider: NewInstanceProvider(ctx, ec2api, instanceTypeProvider, subnetProvider,
@@ -120,6 +120,9 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 		),
 		kubeClient: options.KubeClient,
 	}
+	v1alpha5.ValidateHook = cloudprovider.Validate
+	v1alpha5.DefaultHook = cloudprovider.Default
+	return cloudprovider
 }
 
 // checkEC2Connectivity makes a dry-run call to DescribeInstanceTypes.  If it fails, we provide an early indicator that we

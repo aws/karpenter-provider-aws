@@ -3,8 +3,7 @@ export KUBEBUILDER_ASSETS ?= ${HOME}/.kubebuilder/bin
 
 ## Inject the app version into project.Version
 LDFLAGS ?= -ldflags=-X=github.com/aws/karpenter/pkg/utils/project.Version=$(shell git describe --tags --always)
-CLOUD_PROVIDER ?= aws
-GOFLAGS ?= -tags=$(CLOUD_PROVIDER) $(LDFLAGS)
+GOFLAGS ?= $(LDFLAGS)
 WITH_GOFLAGS = GOFLAGS="$(GOFLAGS)"
 
 ## Extra helm options
