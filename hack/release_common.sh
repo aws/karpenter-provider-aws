@@ -56,17 +56,6 @@ pullPrivateReplica(){
   RELEASE_IDENTIFIER=$2
   PULL_THROUGH_CACHE_PATH="${PRIVATE_PULL_THROUGH_HOST}/ecr-public/karpenter/"
 
-  pullWithRetry "${PULL_THROUGH_CACHE_PATH}controller:${RELEASE_IDENTIFIER}"
-  pullWithRetry "${PULL_THROUGH_CACHE_PATH}webhook:${RELEASE_IDENTIFIER}"
-}
-
-pullWithRetry(){
-  PULL_PATH=$1
-  n=0
-    until [ "$n" -ge 5 ]
-    do
-       docker pull "${PULL_PATH}" && break
-       n=$((n+1))
-       sleep 10
-    done
+  docker pull "${PULL_THROUGH_CACHE_PATH}controller:${RELEASE_IDENTIFIER}"
+  docker pull "${PULL_THROUGH_CACHE_PATH}webhook:${RELEASE_IDENTIFIER}"
 }
