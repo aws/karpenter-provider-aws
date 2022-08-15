@@ -24,6 +24,7 @@ import (
 	"github.com/go-logr/zapr"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/clock"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -62,7 +63,6 @@ import (
 
 var (
 	scheme    = runtime.NewScheme()
-	opts      = options.New().MustParse()
 	component = "controller"
 	appName   = "karpenter"
 )
@@ -83,6 +83,7 @@ type Controller interface {
 }
 
 func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options) cloudprovider.CloudProvider) {
+	opts := options.New().MustParse()
 	// Setup Client
 	controllerRuntimeConfig := controllerruntime.GetConfigOrDie()
 	controllerRuntimeConfig.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(float32(opts.KubeClientQPS), opts.KubeClientBurst)
@@ -125,18 +126,20 @@ func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options)
 		logging.FromContext(ctx).Errorf("watching configmaps, config changes won't be applied immediately, %s", err)
 	}
 
+	realClock := clock.RealClock{}
 	recorder := events.NewDedupeRecorder(events.NewRecorder(manager.GetEventRecorderFor(appName)))
-	cluster := state.NewCluster(cfg, manager.GetClient(), cloudProvider)
+	cluster := state.NewCluster(realClock, cfg, manager.GetClient(), cloudProvider)
+	provisioner := provisioning.NewProvisioner(ctx, cfg, manager.GetClient(), clientSet.CoreV1(), recorder, cloudProvider, cluster)
 
 	metricsstate.StartMetricScraper(ctx, cluster)
 
 	if err := RegisterControllers(ctx,
 		manager,
-		provisioning.NewController(ctx, cfg, manager.GetClient(), clientSet.CoreV1(), recorder, cloudProvider, cluster),
+		provisioning.NewController(manager.GetClient(), provisioner, recorder),
 		state.NewNodeController(manager.GetClient(), cluster),
 		state.NewPodController(manager.GetClient(), cluster),
-		node.NewController(manager.GetClient(), cloudProvider, cluster),
-		termination.NewController(ctx, manager.GetClient(), clientSet.CoreV1(), recorder, cloudProvider),
+		node.NewController(realClock, manager.GetClient(), cloudProvider, cluster),
+		termination.NewController(ctx, realClock, manager.GetClient(), clientSet.CoreV1(), recorder, cloudProvider),
 		metricspod.NewController(manager.GetClient()),
 		metricsprovisioner.NewController(manager.GetClient()),
 		counter.NewController(manager.GetClient(), cluster),
