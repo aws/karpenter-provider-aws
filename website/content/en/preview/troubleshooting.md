@@ -24,6 +24,70 @@ aws ssm start-session --target $INSTANCE_ID
 # Check Kubelet logs
 sudo journalctl -u kubelet
 ```
+Here are examples of errors from Node NotReady issues that you might see from `journalctl`:
+
+* Providing the wrong block storage device name in a custom launch template can result in an error similar to:
+    ```
+    2022-01-19T18:22:23.366Z ERROR controller.provisioning Could not launch node, launching instances, with fleet error(s), InvalidBlockDeviceMapping: Invalid device name /dev/xvda; ...
+    ```
+* The runtime network not being ready can reflect a problem with IAM role permissions:
+
+  ```
+  KubeletNotReady runtime network not ready: NetworkReady=false reason:NetworkPluginNotReady message:Network plugin returns error: cni plugin not initialized
+    ```
+  See [Amazon EKS node IAM role](https://docs.aws.amazon.com/eks/latest/userguide/create-node-role.html) for details. If you’re using `eksctl`, the VPC CNI pods may be given permissions through IRSA instead. Verify that this set up is working as intended. You can also look at the logs for your CNI plugin from the `aws-node` pod:
+
+  ```bash
+  kubectl get pods -n kube-system | grep aws-node
+  ```
+  ```
+  aws-node-?????             1/1     Running   2          20d
+  ```
+  ```bash
+  kubectl logs aws-node-????? -n kube-system
+  ```
+
+* Not being able to register the node with the Kubernetes API server indicates an error condition like the following:
+    
+  ```
+  Attempting to register node" node="ip-192-168-67-130.ec2.internal"
+  Unable to register node with API server" err="Unauthorized" node="ip-192-168-67-130.ec2.internal"
+  Error getting node" err="node \"ip-192-168-67-130.ec2.internal\" not found
+  Failed to contact API server when waiting for CSINode publishing: Unauthorized
+  ```
+    
+  Check the ConfigMap to check whether or not the correct node role is there. For example:
+
+  ```bash
+  $ kubectl get configmaps -n kube-system aws-auth -o yaml
+  ```
+  ```yaml
+  apiVersion: v1
+  data:
+  mapRoles: |
+     - groups:
+        - system:bootstrappers
+        - system:nodes
+        rolearn: arn:aws:iam::973227887653:role/eksctl-johnw-karpenter-demo-NodeInstanceRole-72CV61KQNOYS
+        username: system:node:{{EC2PrivateDNSName}}
+     - groups:
+        - system:bootstrappers
+        - system:nodes
+        rolearn: arn:aws:iam::973227887653:role/KarpenterNodeRole-johnw-karpenter-demo
+        username: system:node:{{EC2PrivateDNSName}}
+  mapUsers: |
+      []
+  kind: ConfigMap
+  ...
+    ```
+
+If you are not able to resolve the Node NotReady issue on your own, run the [EKS Logs Collector](https://github.com/awslabs/amazon-eks-ami/blob/master/log-collector-script/linux/README.md) (if it’s an EKS optimized AMI) and look in the following places in the log:
+
+* Your UserData (in `/var_log/cloud-init-output.log` and `/var_log/cloud-init.log`)
+* Your kubelets (`/kubelet/kubelet.log`)
+* Your networking pod logs (`/var_log/aws-node`)
+
+Reach out to the Karpenter team on [Slack](https://kubernetes.slack.com/archives/C02SFFZSA2K) or [GitHub](https://github.com/aws/karpenter/) if you are still stuck. 
 
 ## Missing Service Linked Role
 Unless your AWS account has already onboarded to EC2 Spot, you will need to create the service linked role to avoid `ServiceLinkedRoleCreationNotPermitted`.
