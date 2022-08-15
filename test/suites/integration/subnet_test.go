@@ -17,9 +17,6 @@ import (
 )
 
 var _ = Describe("Subnets", func() {
-	BeforeEach(func() {
-
-	})
 
 	It("should use the subnet-id selector", func() {
 		subnets := getSubnets(map[string]string{"karpenter.sh/discovery": env.ClusterName})
