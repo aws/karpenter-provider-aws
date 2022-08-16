@@ -58,6 +58,7 @@ var (
 	// the range of the corresponding values by either provisioner or pods.
 	WellKnownLabels = sets.NewString(
 		v1.LabelTopologyZone,
+		v1.LabelTopologyRegion,
 		v1.LabelInstanceTypeStable,
 		v1.LabelArchStable,
 		v1.LabelOSStable,
@@ -80,11 +81,6 @@ var (
 		v1.LabelInstanceType:            v1.LabelInstanceTypeStable,
 		v1.LabelFailureDomainBetaRegion: v1.LabelTopologyRegion,
 	}
-	// IgnoredLables are not considered in scheduling decisions
-	// and prevent validation errors when specified
-	IgnoredLabels = sets.NewString(
-		v1.LabelTopologyRegion,
-	)
 )
 
 // IsRestrictedLabel returns an error if the label is restricted.
