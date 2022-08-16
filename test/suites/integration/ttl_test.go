@@ -12,7 +12,7 @@ import (
 	"github.com/aws/karpenter/pkg/test"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 

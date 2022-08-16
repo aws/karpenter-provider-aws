@@ -21,7 +21,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/onsi/ginkgo"
+	"github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega" //nolint:revive,stylecheck
 	prometheus "github.com/prometheus/client_model/go"
 	appsv1 "k8s.io/api/apps/v1"

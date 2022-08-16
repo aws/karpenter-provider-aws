@@ -17,9 +17,10 @@ package metrics_test
 import (
 	"context"
 	"fmt"
-	"k8s.io/apimachinery/pkg/util/clock"
 	"testing"
 	"time"
+
+	"k8s.io/apimachinery/pkg/util/clock"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider/fake"
@@ -33,7 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	. "github.com/aws/karpenter/pkg/test/expectations"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
 )

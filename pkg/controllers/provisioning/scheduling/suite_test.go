@@ -17,11 +17,12 @@ package scheduling_test
 import (
 	"context"
 	"fmt"
-	"k8s.io/apimachinery/pkg/util/clock"
 	"math"
 	"math/rand"
 	"testing"
 	"time"
+
+	"k8s.io/apimachinery/pkg/util/clock"
 
 	"github.com/aws/karpenter/pkg/controllers/state"
 
@@ -43,7 +44,7 @@ import (
 	"github.com/aws/karpenter/pkg/test"
 
 	. "github.com/aws/karpenter/pkg/test/expectations"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
 )

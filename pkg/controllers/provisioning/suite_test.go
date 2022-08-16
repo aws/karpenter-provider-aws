@@ -19,25 +19,24 @@ import (
 	"testing"
 	"time"
 
-
-	"knative.dev/pkg/ptr"
-	"k8s.io/apimachinery/pkg/util/clock"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"github.com/aws/karpenter/pkg/controllers/state"
 	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/clock"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"knative.dev/pkg/ptr"
 
-	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider/fake"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
 	"github.com/aws/karpenter/pkg/test"
 
 	. "github.com/aws/karpenter/pkg/test/expectations"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
 )

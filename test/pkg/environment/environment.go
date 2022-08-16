@@ -10,7 +10,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/ssm"
-	ginkgoconfig "github.com/onsi/ginkgo/config"
+
+	// . "github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -50,7 +51,8 @@ func NewEnvironment(t *testing.T) (*Environment, error) {
 	}
 	gomega.SetDefaultEventuallyTimeout(5 * time.Minute)
 	gomega.SetDefaultEventuallyPollingInterval(1 * time.Second)
-	ginkgoconfig.DefaultReporterConfig.Verbose = true
+	// GinkgoConfiguration()
+	// ginkgoconfig.GinkgoConfiguration().Verbose = true
 	session := session.Must(session.NewSessionWithOptions(session.Options{SharedConfigState: session.SharedConfigEnable}))
 
 	return &Environment{Context: ctx,
