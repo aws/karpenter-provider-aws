@@ -255,10 +255,12 @@ func (c *Cluster) populateResourceRequests(ctx context.Context, node *v1.Node, n
 	var daemonsetLimits []v1.ResourceList
 	for i := range pods.Items {
 		pod := &pods.Items[i]
+		if podutils.IsTerminal(pod) {
+			continue
+		}
 		requests := resources.RequestsForPods(pod)
 		podLimits := resources.LimitsForPods(pod)
 		podKey := client.ObjectKeyFromObject(pod)
-
 		n.podRequests[podKey] = requests
 		n.podLimits[podKey] = podLimits
 		c.bindings[podKey] = n.Node.Name
@@ -346,11 +348,11 @@ func (c *Cluster) LastNodeDeletionTime() time.Time {
 // deletePod is called when the pod has been deleted
 func (c *Cluster) deletePod(podKey types.NamespacedName) {
 	c.antiAffinityPods.Delete(podKey)
-	c.updateNodeUsageFromPodDeletion(podKey)
+	c.updateNodeUsageFromPodCompletion(podKey)
 	c.recordConsolidationChange()
 }
 
-func (c *Cluster) updateNodeUsageFromPodDeletion(podKey types.NamespacedName) {
+func (c *Cluster) updateNodeUsageFromPodCompletion(podKey types.NamespacedName) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -383,7 +385,12 @@ func (c *Cluster) updateNodeUsageFromPodDeletion(podKey types.NamespacedName) {
 
 // updatePod is called every time the pod is reconciled
 func (c *Cluster) updatePod(ctx context.Context, pod *v1.Pod) error {
-	err := c.updateNodeUsageFromPod(ctx, pod)
+	var err error
+	if podutils.IsTerminal(pod) {
+		c.updateNodeUsageFromPodCompletion(client.ObjectKeyFromObject(pod))
+	} else {
+		err = c.updateNodeUsageFromPod(ctx, pod)
+	}
 	c.updatePodAntiAffinities(pod)
 	return err
 }

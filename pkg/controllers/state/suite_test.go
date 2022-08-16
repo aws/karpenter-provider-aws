@@ -227,6 +227,44 @@ var _ = Describe("Node Resource Level", func() {
 		ExpectReconcileSucceeded(ctx, podController, client.ObjectKeyFromObject(pod1))
 		ExpectNodeResourceRequest(node, v1.ResourceCPU, "0")
 	})
+	It("should not add requests if the pod is terminal", func() {
+		pod1 := test.UnschedulablePod(test.PodOptions{
+			ResourceRequirements: v1.ResourceRequirements{
+				Requests: map[v1.ResourceName]resource.Quantity{
+					v1.ResourceCPU: resource.MustParse("1.5"),
+				}},
+			Phase: v1.PodFailed,
+		})
+		pod2 := test.UnschedulablePod(test.PodOptions{
+			ResourceRequirements: v1.ResourceRequirements{
+				Requests: map[v1.ResourceName]resource.Quantity{
+					v1.ResourceCPU: resource.MustParse("2"),
+				}},
+			Phase: v1.PodSucceeded,
+		})
+		node := test.Node(test.NodeOptions{
+			ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{
+				v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+				v1.LabelInstanceTypeStable:       cloudProvider.InstanceTypes[0].Name(),
+			}},
+			Allocatable: map[v1.ResourceName]resource.Quantity{
+				v1.ResourceCPU: resource.MustParse("4"),
+			},
+		})
+		ExpectApplied(ctx, env.Client, pod1, pod2)
+		ExpectApplied(ctx, env.Client, node)
+
+		ExpectReconcileSucceeded(ctx, nodeController, client.ObjectKeyFromObject(node))
+		ExpectReconcileSucceeded(ctx, podController, client.ObjectKeyFromObject(pod1))
+		ExpectReconcileSucceeded(ctx, podController, client.ObjectKeyFromObject(pod2))
+
+		ExpectManualBinding(ctx, env.Client, pod1, node)
+		ExpectManualBinding(ctx, env.Client, pod2, node)
+		ExpectReconcileSucceeded(ctx, podController, client.ObjectKeyFromObject(pod1))
+		ExpectReconcileSucceeded(ctx, podController, client.ObjectKeyFromObject(pod2))
+
+		ExpectNodeResourceRequest(node, v1.ResourceCPU, "0")
+	})
 	It("should stop tracking nodes that are deleted", func() {
 		pod1 := test.UnschedulablePod(test.PodOptions{
 			ResourceRequirements: v1.ResourceRequirements{
