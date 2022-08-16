@@ -68,9 +68,13 @@ var _ = Describe("TTL Expired", func() {
 
 		createdNodes := env.GetCreatedNodes(beforeNodes, env.Monitor.GetNodes())
 
-		persisted := provisioner.DeepCopy()
+		persistedDep := deployment.DeepCopy()
+		deployment.Spec.Replicas = ptr.Int32(0)
+		Expect(env.Client.Patch(env, deployment, client.MergeFrom(persistedDep))).To(Succeed())
+
+		persistedProv := provisioner.DeepCopy()
 		provisioner.Spec.TTLSecondsUntilExpired = ptr.Int64(10)
-		Expect(env.Client.Patch(env, provisioner, client.MergeFrom(persisted))).To(Succeed())
+		Expect(env.Client.Patch(env, provisioner, client.MergeFrom(persistedProv))).To(Succeed())
 
 		env.ExpectNodesEventuallyDeleted(120*time.Second, createdNodes...)
 	})
