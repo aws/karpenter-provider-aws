@@ -512,8 +512,10 @@ var _ = Describe("Termination", func() {
 			ExpectNodeExists(ctx, env.Client, node.Name)
 			ExpectEvicted(env.Client, pod)
 
-			// After grace period, node should delete
-			fakeClock.Step(90 * time.Second)
+			// After grace period, node should delete. The deletion timestamps are from etcd which we can't control, so
+			// to eliminate test-flakiness we reset the time to current time + 90 seconds instead of just advancing
+			// the clock by 90 seconds.
+			fakeClock.SetTime(time.Now().Add(90 * time.Second))
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 			ExpectNotFound(ctx, env.Client, node)
 		})
