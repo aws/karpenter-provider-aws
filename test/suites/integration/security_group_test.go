@@ -2,6 +2,7 @@ package integration_test
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -11,6 +12,7 @@ import (
 	"github.com/aws/karpenter/pkg/test"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/samber/lo"
 )
 
 var _ = Describe("Subnets", func() {
@@ -22,9 +24,10 @@ var _ = Describe("Subnets", func() {
 		securityGroups := getSecurityGroups(map[string]string{"karpenter.sh/discovery": env.ClusterName})
 		Expect(len(securityGroups)).ToNot(Equal(0))
 
+		ids := strings.Join(lo.Map(securityGroups, func(sg ec2.GroupIdentifier, _ int) string  {return *sg.GroupId}), ",")
 		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 			AWS: awsv1alpha1.AWS{
-				SecurityGroupSelector: map[string]string{"aws-ids": *securityGroups[0].GroupId},
+				SecurityGroupSelector: map[string]string{"aws-ids": ids},
 				SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			},
 		})
