@@ -26,11 +26,11 @@ import (
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/samber/lo"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/test"
-	"github.com/aws/karpenter/pkg/utils/functional"
 )
 
 type CapacityPool struct {
@@ -234,7 +234,7 @@ func (e *EC2API) DescribeLaunchTemplatesWithContext(_ context.Context, input *ec
 	output := &ec2.DescribeLaunchTemplatesOutput{}
 	e.LaunchTemplates.Range(func(key, value interface{}) bool {
 		launchTemplate := value.(*ec2.LaunchTemplate)
-		if functional.ContainsString(aws.StringValueSlice(input.LaunchTemplateNames), aws.StringValue(launchTemplate.LaunchTemplateName)) {
+		if lo.Contains(aws.StringValueSlice(input.LaunchTemplateNames), aws.StringValue(launchTemplate.LaunchTemplateName)) {
 			output.LaunchTemplates = append(output.LaunchTemplates, launchTemplate)
 		}
 		return true

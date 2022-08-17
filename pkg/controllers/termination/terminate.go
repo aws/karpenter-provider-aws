@@ -28,10 +28,11 @@ import (
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/samber/lo"
+
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/scheduling"
-	"github.com/aws/karpenter/pkg/utils/functional"
 	podutil "github.com/aws/karpenter/pkg/utils/pod"
 	"github.com/aws/karpenter/pkg/utils/ptr"
 )
@@ -107,7 +108,7 @@ func (t *Terminator) terminate(ctx context.Context, node *v1.Node) error {
 	}
 	// 2. Remove finalizer from node in APIServer
 	persisted := node.DeepCopy()
-	node.Finalizers = functional.StringSliceWithout(node.Finalizers, v1alpha5.TerminationFinalizer)
+	node.Finalizers = lo.Without(node.Finalizers, v1alpha5.TerminationFinalizer)
 	if err := t.KubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil

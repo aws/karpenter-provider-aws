@@ -27,6 +27,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
+	"github.com/samber/lo"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/client-go/kubernetes"
@@ -36,7 +37,6 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/amifamily"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injection"
 )
 
@@ -115,7 +115,7 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, provider *v1alpha1.AWS
 		InstanceProfile:         instanceProfile,
 		SecurityGroupsIDs:       securityGroupsIDs,
 		Tags:                    provider.Tags,
-		Labels:                  functional.UnionStringMaps(nodeRequest.Template.Labels, additionalLabels),
+		Labels:                  lo.Assign(nodeRequest.Template.Labels, additionalLabels),
 		CABundle:                p.caBundle,
 		KubernetesVersion:       kubeServerVersion,
 	})
