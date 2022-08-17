@@ -28,7 +28,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/clock"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	"knative.dev/pkg/ptr"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
@@ -749,7 +748,7 @@ var _ = Describe("Multiple Provisioners", func() {
 		node := ExpectScheduled(ctx, env.Client, pod)
 		Expect(node.Labels[v1alpha5.ProvisionerNameLabelKey]).ToNot(Equal(provisioner.Name))
 	})
-	Describe("Weighted Provisioners", func() {
+	Context("Weighted Provisioners", func() {
 		It("should schedule to the provisioner with the highest priority always", func() {
 			provisioners := []client.Object{
 				test.Provisioner(),

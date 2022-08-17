@@ -189,6 +189,12 @@ Karpenter prioritizes Spot offerings if the provisioner allows Spot and on-deman
 
 Karpenter also allows `karpenter.sh/capacity-type` to be used as a topology key for enforcing topology-spread.
 
+## spec.weight
+
+Karpenter allows you to describe provisioner preferences through a `weight` mechanism similar to how weight is described with [pod and node affinities](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity). 
+
+For more information on weighting provisioners, see the [Weighting Provisioners section](../tasks/scheduling#weighting-provisioners) in the scheduling details.
+
 ## spec.kubeletConfiguration
 
 Karpenter provides the ability to specify a few additional Kubelet args. These are all optional and provide support for
