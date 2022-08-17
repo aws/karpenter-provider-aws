@@ -20,7 +20,10 @@ import (
 	"math"
 	"strconv"
 
-	cputils "github.com/aws/karpenter/pkg/utils/cloudprovider"
+	"github.com/samber/lo"
+
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 
 	"github.com/aws/karpenter/pkg/scheduling"
 
@@ -58,8 +61,8 @@ func GetPodEvictionCost(ctx context.Context, p *v1.Pod) float64 {
 func filterByPrice(options []cloudprovider.InstanceType, reqs scheduling.Requirements, price float64) []cloudprovider.InstanceType {
 	var result []cloudprovider.InstanceType
 	for _, it := range options {
-		cheapestOffering := cputils.CheapestOfferingWithReqs(cputils.AvailableOfferings(it), reqs)
-		if cheapestOffering.Price < price {
+		launchPrice := worstLaunchPrice(cloudprovider.AvailableOfferings(it), reqs)
+		if launchPrice < price {
 			result = append(result, it)
 		}
 	}
@@ -78,16 +81,37 @@ func disruptionCost(ctx context.Context, pods []*v1.Pod) float64 {
 // This price is used to determine the savings that can be achieved through consolidation
 func getNodePrice(node candidateNode) (float64, error) {
 	// Get the last known offering price from the capacity type and zone
-	of, err := cputils.GetOffering(node.instanceType.Offerings(), node.capacityType, node.zone)
+	of, err := cloudprovider.GetOffering(node.instanceType.Offerings(), node.capacityType, node.zone)
 	if err == nil {
 		return of.Price, nil
 	}
+	return 0, fmt.Errorf("couldn't find an offering price for the passed node")
+}
 
-	// Still need a fallback mechanism if we can't find the offering in our current data
-	for _, offering := range node.instanceType.Offerings() {
-		if offering.CapacityType == node.capacityType {
-			return offering.Price, nil
+// worstLaunchPrice gets the worst-case launch price from the offerings that are offered
+// on an instance type. If the instance type has a spot offering available, then it uses the spot offering
+// to get the launch price; else, it uses the on-demand launch price
+func worstLaunchPrice(ofs []cloudprovider.Offering, reqs scheduling.Requirements) float64 {
+	// We prefer to launch spot offerings, so we will get the worst price based on the node requirements
+	if reqs.Get(v1alpha5.LabelCapacityType).Has(v1alpha1.CapacityTypeSpot) {
+		spotOfferings := lo.Filter(ofs, func(of cloudprovider.Offering, _ int) bool {
+			return of.CapacityType == v1alpha1.CapacityTypeSpot && reqs.Get(v1.LabelTopologyZone).Has(of.Zone)
+		})
+		if len(spotOfferings) > 0 {
+			return lo.MaxBy(spotOfferings, func(of1, of2 cloudprovider.Offering) bool {
+				return of1.Price > of2.Price
+			}).Price
 		}
 	}
-	return 0, fmt.Errorf("couldn't find an offering price for the passed node")
+	if reqs.Get(v1alpha5.LabelCapacityType).Has(v1alpha1.CapacityTypeOnDemand) {
+		onDemandOfferings := lo.Filter(ofs, func(of cloudprovider.Offering, _ int) bool {
+			return of.CapacityType == v1alpha1.CapacityTypeOnDemand && reqs.Get(v1.LabelTopologyZone).Has(of.Zone)
+		})
+		if len(onDemandOfferings) > 0 {
+			return lo.MaxBy(onDemandOfferings, func(of1, of2 cloudprovider.Offering) bool {
+				return of1.Price > of2.Price
+			}).Price
+		}
+	}
+	return math.MaxFloat64
 }

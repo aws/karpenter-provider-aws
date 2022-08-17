@@ -20,8 +20,6 @@ import (
 	"strings"
 	"sync/atomic"
 
-	cputils "github.com/aws/karpenter/pkg/utils/cloudprovider"
-
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 
@@ -153,7 +151,7 @@ func fits(instanceType cloudprovider.InstanceType, requests v1.ResourceList) boo
 }
 
 func hasOffering(instanceType cloudprovider.InstanceType, requirements scheduling.Requirements) bool {
-	for _, offering := range cputils.AvailableOfferings(instanceType) {
+	for _, offering := range cloudprovider.AvailableOfferings(instanceType) {
 		if (!requirements.Has(v1.LabelTopologyZone) || requirements.Get(v1.LabelTopologyZone).Has(offering.Zone)) &&
 			(!requirements.Has(v1alpha5.LabelCapacityType) || requirements.Get(v1alpha5.LabelCapacityType).Has(offering.CapacityType)) {
 			return true

@@ -26,7 +26,6 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider/fake"
 	"github.com/aws/karpenter/pkg/test"
 	. "github.com/aws/karpenter/pkg/test/expectations"
-	cputils "github.com/aws/karpenter/pkg/utils/cloudprovider"
 	"github.com/aws/karpenter/pkg/utils/resources"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -39,7 +38,7 @@ var _ = Describe("Instance Type Selection", func() {
 	var minPrice float64
 	var instanceTypeMap map[string]cloudprovider.InstanceType
 	nodePrice := func(n *v1.Node) float64 {
-		of, _ := cputils.GetOffering(instanceTypeMap[n.Labels[v1.LabelInstanceTypeStable]].Offerings(), n.Labels[v1alpha5.LabelCapacityType], n.Labels[v1.LabelTopologyZone])
+		of, _ := cloudprovider.GetOffering(instanceTypeMap[n.Labels[v1.LabelInstanceTypeStable]].Offerings(), n.Labels[v1alpha5.LabelCapacityType], n.Labels[v1.LabelTopologyZone])
 		return of.Price
 	}
 

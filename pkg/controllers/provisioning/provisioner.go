@@ -17,11 +17,10 @@ package provisioning
 import (
 	"context"
 	"fmt"
+	"math"
 	"sort"
 	"sync"
 	"time"
-
-	cputils "github.com/aws/karpenter/pkg/utils/cloudprovider"
 
 	"github.com/imdario/mergo"
 	"github.com/prometheus/client_golang/prometheus"
@@ -299,9 +298,9 @@ func (p *Provisioner) launch(ctx context.Context, opts LaunchOptions, node *sche
 
 	// Order instance types so that we get the cheapest instance types of the available offerings
 	sort.Slice(node.InstanceTypeOptions, func(i, j int) bool {
-		iOfferings := cputils.AvailableOfferings(node.InstanceTypeOptions[i])
-		jOfferings := cputils.AvailableOfferings(node.InstanceTypeOptions[j])
-		return cputils.CheapestOfferingWithReqs(iOfferings, node.Requirements).Price < cputils.CheapestOfferingWithReqs(jOfferings, node.Requirements).Price
+		iOfferings := cloudprovider.AvailableOfferings(node.InstanceTypeOptions[i])
+		jOfferings := cloudprovider.AvailableOfferings(node.InstanceTypeOptions[j])
+		return cheapestOfferingPrice(iOfferings, node.Requirements) < cheapestOfferingPrice(jOfferings, node.Requirements)
 	})
 
 	k8sNode, err := p.cloudProvider.Create(
@@ -383,6 +382,20 @@ func (p *Provisioner) injectTopology(ctx context.Context, pods []*v1.Pod) []*v1.
 		}
 	}
 	return schedulablePods
+}
+
+// cheapestOfferingPrice gets the cheapest price of an offering on an instance type given
+// the node requirements
+func cheapestOfferingPrice(ofs []cloudprovider.Offering, requirements scheduling.Requirements) float64 {
+	minPrice := math.MaxFloat64
+	for _, of := range ofs {
+		if requirements.Get(v1alpha5.LabelCapacityType).Has(of.CapacityType) && requirements.Get(v1.LabelTopologyZone).Has(of.Zone) {
+			if of.Price < minPrice {
+				minPrice = math.Min(minPrice, of.Price)
+			}
+		}
+	}
+	return minPrice
 }
 
 func validateAffinity(p *v1.Pod) (errs error) {

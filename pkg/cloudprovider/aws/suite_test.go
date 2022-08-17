@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"github.com/aws/aws-sdk-go/service/pricing"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/amifamily/bootstrap"
-	cputils "github.com/aws/karpenter/pkg/utils/cloudprovider"
 	"github.com/aws/karpenter/pkg/utils/options"
 	"github.com/samber/lo"
 	"io/ioutil"
@@ -681,7 +680,7 @@ var _ = Describe("Allocation", func() {
 					instanceTypeNames.Insert(it.Name())
 					if it.Name() == "m5.xlarge" {
 						// should have no valid offerings
-						Expect(cputils.AvailableOfferings(it)).To(HaveLen(0))
+						Expect(cloudprovider.AvailableOfferings(it)).To(HaveLen(0))
 					}
 				}
 				Expect(instanceTypeNames.Has("m5.xlarge"))

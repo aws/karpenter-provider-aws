@@ -26,7 +26,6 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/test"
 	. "github.com/aws/karpenter/pkg/test/expectations"
-	cputils "github.com/aws/karpenter/pkg/utils/cloudprovider"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
@@ -39,6 +38,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	. "knative.dev/pkg/logging/testing"
+	"math"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sort"
 	"sync"
@@ -91,7 +91,7 @@ var _ = BeforeEach(func() {
 	cloudProvider.CreateCalls = nil
 	cloudProvider.InstanceTypes = fake.InstanceTypesAssorted()
 	onDemandInstances = lo.Filter(cloudProvider.InstanceTypes, func(i cloudprovider.InstanceType, _ int) bool {
-		for _, o := range cputils.AvailableOfferings(i) {
+		for _, o := range cloudprovider.AvailableOfferings(i) {
 			if o.CapacityType == v1alpha1.CapacityTypeOnDemand {
 				return true
 			}
@@ -100,7 +100,7 @@ var _ = BeforeEach(func() {
 	})
 	// Sort the instances by pricing from low to high
 	sort.Slice(onDemandInstances, func(i, j int) bool {
-		return cputils.CheapestOffering(onDemandInstances[i].Offerings()).Price < cputils.CheapestOffering(onDemandInstances[j].Offerings()).Price
+		return cheapestOffering(onDemandInstances[i].Offerings()).Price < cheapestOffering(onDemandInstances[j].Offerings()).Price
 	})
 	leastExpensiveInstance = onDemandInstances[0]
 	leastExpensiveOffering = leastExpensiveInstance.Offerings()[0]
@@ -792,14 +792,18 @@ var _ = Describe("Topology Consideration", func() {
 					},
 				}}})
 
+		testZone1Instance := leastExpensiveInstanceWithZone("test-zone-1")
+		testZone2Instance := mostExpensiveInstanceWithZone("test-zone-2")
+		testZone3Instance := leastExpensiveInstanceWithZone("test-zone-3")
+
 		prov := test.Provisioner(test.ProvisionerOptions{Consolidation: &v1alpha5.Consolidation{Enabled: aws.Bool(true)}})
 		zone1Node := test.Node(test.NodeOptions{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{
 					v1alpha5.ProvisionerNameLabelKey: prov.Name,
 					v1.LabelTopologyZone:             "test-zone-1",
-					v1.LabelInstanceTypeStable:       leastExpensiveInstance.Name(),
-					v1alpha5.LabelCapacityType:       leastExpensiveOffering.CapacityType,
+					v1.LabelInstanceTypeStable:       testZone1Instance.Name(),
+					v1alpha5.LabelCapacityType:       testZone1Instance.Offerings()[0].CapacityType,
 				}},
 			Allocatable: map[v1.ResourceName]resource.Quantity{v1.ResourceCPU: resource.MustParse("1")}})
 
@@ -808,8 +812,8 @@ var _ = Describe("Topology Consideration", func() {
 				Labels: map[string]string{
 					v1alpha5.ProvisionerNameLabelKey: prov.Name,
 					v1.LabelTopologyZone:             "test-zone-2",
-					v1.LabelInstanceTypeStable:       mostExpensiveInstance.Name(),
-					v1alpha5.LabelCapacityType:       mostExpensiveOffering.CapacityType,
+					v1.LabelInstanceTypeStable:       testZone2Instance.Name(),
+					v1alpha5.LabelCapacityType:       testZone2Instance.Offerings()[0].CapacityType,
 				}},
 			Allocatable: map[v1.ResourceName]resource.Quantity{v1.ResourceCPU: resource.MustParse("1")}})
 
@@ -818,8 +822,8 @@ var _ = Describe("Topology Consideration", func() {
 				Labels: map[string]string{
 					v1alpha5.ProvisionerNameLabelKey: prov.Name,
 					v1.LabelTopologyZone:             "test-zone-3",
-					v1.LabelInstanceTypeStable:       leastExpensiveInstance.Name(),
-					v1alpha5.LabelCapacityType:       leastExpensiveOffering.CapacityType,
+					v1.LabelInstanceTypeStable:       testZone3Instance.Name(),
+					v1alpha5.LabelCapacityType:       testZone1Instance.Offerings()[0].CapacityType,
 				}},
 			Allocatable: map[v1.ResourceName]resource.Quantity{v1.ResourceCPU: resource.MustParse("1")}})
 
@@ -1077,11 +1081,32 @@ var _ = Describe("Special Cases", func() {
 
 func leastExpensiveInstanceWithZone(zone string) cloudprovider.InstanceType {
 	for _, elem := range onDemandInstances {
-		if cputils.HasZone(elem.Offerings(), zone) {
+		if hasZone(elem.Offerings(), zone) {
 			return elem
 		}
 	}
 	return onDemandInstances[len(onDemandInstances)-1]
+}
+
+func mostExpensiveInstanceWithZone(zone string) cloudprovider.InstanceType {
+	for i := len(onDemandInstances) - 1; i >= 0; i-- {
+		elem := onDemandInstances[i]
+		if hasZone(elem.Offerings(), zone) {
+			return elem
+		}
+	}
+	return onDemandInstances[0]
+}
+
+// hasZone checks whether any of the passed offerings have a zone matching
+// the passed zone
+func hasZone(ofs []cloudprovider.Offering, zone string) bool {
+	for _, elem := range ofs {
+		if elem.Zone == zone {
+			return true
+		}
+	}
+	return false
 }
 
 func fromInt(i int) *intstr.IntOrString {
@@ -1152,4 +1177,15 @@ func ExpectMakeNodesReady(ctx context.Context, c client.Client, nodes ...*v1.Nod
 		n.Spec.Taints = nil
 		ExpectApplied(ctx, c, &n)
 	}
+}
+
+// cheapestOffering grabs the cheapest offering from the passed offerings
+func cheapestOffering(ofs []cloudprovider.Offering) cloudprovider.Offering {
+	offering := cloudprovider.Offering{Price: math.MaxFloat64}
+	for _, of := range ofs {
+		if of.Price < offering.Price {
+			offering = of
+		}
+	}
+	return offering
 }

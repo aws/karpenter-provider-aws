@@ -16,6 +16,9 @@ package cloudprovider
 
 import (
 	"context"
+	"fmt"
+
+	"github.com/samber/lo"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
@@ -89,4 +92,23 @@ type Offering struct {
 	Zone         string
 	Price        float64
 	Available    bool
+}
+
+// AvailableOfferings filters the offerings on the passed instance type
+// and returns the offerings marked as available
+func AvailableOfferings(it InstanceType) []Offering {
+	return lo.Filter(it.Offerings(), func(o Offering, _ int) bool {
+		return o.Available
+	})
+}
+
+// GetOffering gets the offering from passed offerings that matches the
+// passed zone and capacity type
+func GetOffering(ofs []Offering, ct, zone string) (Offering, error) {
+	for _, of := range ofs {
+		if of.CapacityType == ct && of.Zone == zone {
+			return of, nil
+		}
+	}
+	return Offering{}, fmt.Errorf("offering not found")
 }

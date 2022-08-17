@@ -18,8 +18,6 @@ import (
 	"fmt"
 	"strings"
 
-	cputils "github.com/aws/karpenter/pkg/utils/cloudprovider"
-
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
@@ -202,8 +200,8 @@ func (i *InstanceType) Requirements() scheduling.Requirements {
 		scheduling.NewRequirement(v1.LabelInstanceTypeStable, v1.NodeSelectorOpIn, i.options.Name),
 		scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, i.options.Architecture),
 		scheduling.NewRequirement(v1.LabelOSStable, v1.NodeSelectorOpIn, i.options.OperatingSystems.List()...),
-		scheduling.NewRequirement(v1.LabelTopologyZone, v1.NodeSelectorOpIn, lo.Map(cputils.AvailableOfferings(i), func(o cloudprovider.Offering, _ int) string { return o.Zone })...),
-		scheduling.NewRequirement(v1alpha5.LabelCapacityType, v1.NodeSelectorOpIn, lo.Map(cputils.AvailableOfferings(i), func(o cloudprovider.Offering, _ int) string { return o.CapacityType })...),
+		scheduling.NewRequirement(v1.LabelTopologyZone, v1.NodeSelectorOpIn, lo.Map(cloudprovider.AvailableOfferings(i), func(o cloudprovider.Offering, _ int) string { return o.Zone })...),
+		scheduling.NewRequirement(v1alpha5.LabelCapacityType, v1.NodeSelectorOpIn, lo.Map(cloudprovider.AvailableOfferings(i), func(o cloudprovider.Offering, _ int) string { return o.CapacityType })...),
 		scheduling.NewRequirement(LabelInstanceSize, v1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(ExoticInstanceLabelKey, v1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(IntegerInstanceLabelKey, v1.NodeSelectorOpIn, fmt.Sprint(i.options.Resources.Cpu().Value())),

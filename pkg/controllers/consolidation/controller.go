@@ -22,8 +22,6 @@ import (
 	"sync"
 	"time"
 
-	cputils "github.com/aws/karpenter/pkg/utils/cloudprovider"
-
 	"github.com/avast/retry-go"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/prometheus/client_golang/prometheus"
@@ -517,7 +515,7 @@ func (c *Controller) nodeConsolidationOptionReplaceOrDelete(ctx context.Context,
 
 	savings := nodePrice
 	// savings is reduced by the price of the new node
-	savings -= cputils.CheapestOfferingWithReqs(cputils.AvailableOfferings(newNodes[0].InstanceTypeOptions[0]), newNodes[0].Requirements).Price
+	savings -= worstLaunchPrice(cloudprovider.AvailableOfferings(newNodes[0].InstanceTypeOptions[0]), newNodes[0].Requirements)
 	return consolidationAction{
 		oldNodes:        []*v1.Node{node.Node},
 		disruptionCost:  disruptionCost(ctx, node.pods),

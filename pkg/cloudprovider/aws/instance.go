@@ -22,8 +22,6 @@ import (
 	"strings"
 	"time"
 
-	cputils "github.com/aws/karpenter/pkg/utils/cloudprovider"
-
 	"github.com/avast/retry-go"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -249,7 +247,7 @@ func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.Inst
 	}
 	var overrides []*ec2.FleetLaunchTemplateOverridesRequest
 	for i, instanceType := range instanceTypeOptions {
-		for _, offering := range cputils.AvailableOfferings(instanceType) {
+		for _, offering := range cloudprovider.AvailableOfferings(instanceType) {
 			if capacityType != offering.CapacityType {
 				continue
 			}
@@ -348,7 +346,7 @@ func (p *InstanceProvider) updateUnavailableOfferingsCache(ctx context.Context, 
 func (p *InstanceProvider) getCapacityType(nodeRequest *cloudprovider.NodeRequest) string {
 	if nodeRequest.Template.Requirements.Get(v1alpha5.LabelCapacityType).Has(v1alpha1.CapacityTypeSpot) {
 		for _, instanceType := range nodeRequest.InstanceTypeOptions {
-			for _, offering := range cputils.AvailableOfferings(instanceType) {
+			for _, offering := range cloudprovider.AvailableOfferings(instanceType) {
 				if nodeRequest.Template.Requirements.Get(v1.LabelTopologyZone).Has(offering.Zone) && offering.CapacityType == v1alpha1.CapacityTypeSpot {
 					return v1alpha1.CapacityTypeSpot
 				}
