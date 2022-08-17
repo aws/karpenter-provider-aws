@@ -2,19 +2,141 @@ package integration_test
 
 import (
 	"fmt"
+	"reflect"
+	"runtime"
+	"sync"
 
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/test"
+	. "github.com/aws/karpenter/pkg/test/expectations"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"knative.dev/pkg/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+type Setup func(provisioner *v1alpha5.Provisioner, nodeTemplate *v1alpha1.AWSNodeTemplate) *appsv1.Deployment
+type Expectation func(map[*v1.Pod]*v1.Node)
+
+var _ = FDescribe("Scheduling", func() {
+	It("should schedule pods", func() {
+
+		wg := sync.WaitGroup{}
+		for _, t := range []func() (Setup, Expectation){
+			// WellKnownLabelsTest,
+			SelfAffinityTest,
+			SelfAffinityTest,
+		} {
+			wg.Add(1)
+			go func(t func() (Setup, Expectation)) {
+				defer GinkgoRecover()
+				defer wg.Done()
+				setup, expectations := t()
+				nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
+					SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
+					SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
+				}})
+				provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
+				deployment := setup(provisioner, nodeTemplate)
+				deployment.Spec.Template.Spec.NodeSelector = lo.Assign(
+					deployment.Spec.Template.Spec.NodeSelector,
+					map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name},
+				)
+				env.ExpectCreated(provisioner, nodeTemplate, deployment)
+
+				podList := &v1.PodList{}
+				Eventually(func(g Gomega) {
+					failureDescription := fmt.Sprintf("While running %s", runtime.FuncForPC(reflect.ValueOf(t).Pointer()).Name())
+					g.Expect(env.Client.List(env, podList, client.MatchingLabels(deployment.Spec.Selector.MatchLabels))).To(Succeed(), failureDescription)
+					g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(deployment), deployment)).To(Succeed(), failureDescription)
+					g.Expect(deployment.Status.ReadyReplicas).To(Equal(*deployment.Spec.Replicas), failureDescription)
+				}).Should(Succeed())
+
+				bindings := map[*v1.Pod]*v1.Node{}
+				for _, pod := range podList.Items {
+					node := ExpectScheduled(env.Context, env.Client, &pod)
+					bindings[&pod] = node
+				}
+				expectations(bindings)
+			}(t)
+		}
+		wg.Wait()
+	})
+})
+
+func WellKnownLabelsTest() (Setup, Expectation) {
+	return func(provisioner *v1alpha5.Provisioner, nodeTemplate *v1alpha1.AWSNodeTemplate) *appsv1.Deployment {
+			nodeSelector := map[string]string{
+				// Well Known
+				v1.LabelTopologyRegion:     env.Region,
+				v1.LabelTopologyZone:       fmt.Sprintf("%sa", env.Region),
+				v1.LabelInstanceTypeStable: "g4dn.8xlarge",
+				v1.LabelOSStable:           "linux",
+				v1.LabelArchStable:         "amd64",
+				v1alpha5.LabelCapacityType: "on-demand",
+				// Well Known to AWS
+				awsv1alpha1.LabelInstanceHypervisor:      "nitro",
+				awsv1alpha1.LabelInstanceCategory:        "g",
+				awsv1alpha1.LabelInstanceGeneration:      "4",
+				awsv1alpha1.LabelInstanceFamily:          "g4dn",
+				awsv1alpha1.LabelInstanceSize:            "8xlarge",
+				awsv1alpha1.LabelInstanceCPU:             "32",
+				awsv1alpha1.LabelInstanceMemory:          "131072",
+				awsv1alpha1.LabelInstancePods:            "58", // May vary w/ environment
+				awsv1alpha1.LabelInstanceGPUName:         "t4",
+				awsv1alpha1.LabelInstanceGPUManufacturer: "nvidia",
+				awsv1alpha1.LabelInstanceGPUCount:        "1",
+				awsv1alpha1.LabelInstanceGPUMemory:       "16384",
+				awsv1alpha1.LabelInstanceLocalNVME:       "900",
+				// Deprecated Labels
+				v1.LabelFailureDomainBetaZone:   fmt.Sprintf("%sa", env.Region),
+				v1.LabelFailureDomainBetaRegion: env.Region,
+				"beta.kubernetes.io/arch":       "amd64",
+				"beta.kubernetes.io/os":         "linux",
+				v1.LabelInstanceType:            "g4dn.8xlarge",
+			}
+			Expect(lo.Keys(nodeSelector)).To(ContainElements(append(v1alpha5.WellKnownLabels.UnsortedList(), lo.Keys(v1alpha5.NormalizedLabels)...)))
+			requirements := lo.MapToSlice(nodeSelector, func(key string, value string) v1.NodeSelectorRequirement {
+				return v1.NodeSelectorRequirement{Key: key, Operator: v1.NodeSelectorOpIn, Values: []string{value}}
+			})
+			return test.Deployment(test.DeploymentOptions{Replicas: 1, PodOptions: test.PodOptions{
+				NodeSelector:     nodeSelector,
+				NodePreferences:  requirements,
+				NodeRequirements: requirements,
+			}})
+		},
+		func(bindings map[*v1.Pod]*v1.Node) {
+			for pod, node := range bindings {
+				for key, value := range pod.Spec.NodeSelector {
+					Expect(node.Labels).ToNot(HaveKeyWithValue(key, value))
+				}
+			}
+		}
+}
+
+func SelfAffinityTest() (Setup, Expectation) {
+	return func(provisioner *v1alpha5.Provisioner, nodeTemplate *v1alpha1.AWSNodeTemplate) *appsv1.Deployment {
+			podLabels := map[string]string{"test": "self-affinity"}
+			return test.Deployment(test.DeploymentOptions{Replicas: 2, PodOptions: test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{Labels: podLabels},
+				PodRequirements: []v1.PodAffinityTerm{{
+					LabelSelector: &metav1.LabelSelector{MatchLabels: podLabels},
+					TopologyKey:   v1.LabelHostname,
+				}},
+			}})
+		},
+
+		func(bindings map[*v1.Pod]*v1.Node) {
+			Expect(lo.Uniq(lo.Values(bindings))).To(HaveLen(1))
+		}
+}
 
 var _ = Describe("Scheduling", func() {
 	It("should support well known labels", func() {
