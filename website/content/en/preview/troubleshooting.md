@@ -6,9 +6,29 @@ description: >
   Troubleshoot Karpenter problems
 ---
 
+## Node not created
+In some circumstances, Karpenter controller can fail to start up a node.
+For example, providing the wrong block storage device name in a custom launch template can result in a failure to start the node and an error similar to:
+
+```
+2022-01-19T18:22:23.366Z ERROR controller.provisioning Could not launch node, launching instances, with fleet error(s), InvalidBlockDeviceMapping: Invalid device name /dev/xvda; ...
+```
+
+You can see errors like this by viewing Karpenter controller logs:
+```bash
+kubectl get pods -A | grep karpenter
+```
+```
+karpenter     karpenter-XXXX   2/2     Running   2          21d
+```
+```bash
+kubectl logs karpenter-XXXX -c controller -n karpenter | less
+```
+
 ## Node NotReady
 
-There are many reasons that a node can fail to join the cluster.
+There are cases where the node starts, but fails to join the cluster and is marked "Node NotReady".
+Reasons that a node can fail to join the cluster include:
 - Permissions
 - Security Groups
 - Networking
@@ -26,10 +46,6 @@ sudo journalctl -u kubelet
 ```
 Here are examples of errors from Node NotReady issues that you might see from `journalctl`:
 
-* Providing the wrong block storage device name in a custom launch template can result in an error similar to:
-    ```
-    2022-01-19T18:22:23.366Z ERROR controller.provisioning Could not launch node, launching instances, with fleet error(s), InvalidBlockDeviceMapping: Invalid device name /dev/xvda; ...
-    ```
 * The runtime network not being ready can reflect a problem with IAM role permissions:
 
   ```
