@@ -20,7 +20,7 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/metrics/pod"
 	"github.com/aws/karpenter/pkg/test"
 	. "github.com/aws/karpenter/pkg/test/expectations"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	prometheus "github.com/prometheus/client_model/go"
 	. "knative.dev/pkg/logging/testing"

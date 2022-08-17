@@ -16,12 +16,13 @@ package v1alpha5
 
 import (
 	"context"
-	"github.com/aws/aws-sdk-go/aws"
 	"strings"
 	"testing"
 
+	"github.com/aws/aws-sdk-go/aws"
+
 	"github.com/Pallinder/go-randomdata"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
 	"knative.dev/pkg/ptr"

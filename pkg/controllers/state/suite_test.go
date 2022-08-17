@@ -17,10 +17,11 @@ package state_test
 import (
 	"context"
 	"fmt"
-	"k8s.io/apimachinery/pkg/util/clock"
 	"math/rand"
 	"testing"
 	"time"
+
+	"k8s.io/apimachinery/pkg/util/clock"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 
@@ -37,7 +38,7 @@ import (
 	"github.com/aws/karpenter/pkg/test"
 
 	. "github.com/aws/karpenter/pkg/test/expectations"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
 )
