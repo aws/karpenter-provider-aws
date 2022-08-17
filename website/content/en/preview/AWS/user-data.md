@@ -11,6 +11,16 @@ This document describes how you can customize the UserData and AMIs for your EC2
 ## Configuration
 
 In order to specify custom user data and AMIs, you must include them within a AWSNodeTemplate resource. You can then reference this AWSNodeTemplate resource through `spec.providerRef` in your provisioner.
+```yaml
+apiVersion: karpenter.sh/v1alpha5
+kind: Provisioner
+metadata:
+  name: default
+spec:
+  providerRef:
+    name: bottlerocket-example
+  ...
+```
 
 **Examples**
 
