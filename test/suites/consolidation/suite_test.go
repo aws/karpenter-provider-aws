@@ -196,20 +196,29 @@ var _ = Describe("Consolidation", func() {
 		env.ExpectUpdate(provisioner)
 
 		// With consolidation enabled, we now must replace each node in turn to consolidate due to the anti-affinity
-		// rules on the smaller deployment.  The large nodes should go to a medium
-		env.EventuallyExpectAvgUtilization(v1.ResourceCPU, ">", 0.6)
+		// rules on the smaller deployment.  The 2xl nodes should go to a large
+		env.EventuallyExpectAvgUtilization(v1.ResourceCPU, ">", 0.8)
 
 		var nodes v1.NodeList
 		Expect(env.Client.List(env.Context, &nodes)).To(Succeed())
 		numLargeNodes := 0
+		numOtherNodes := 0
 		for _, n := range nodes.Items {
+			// only count the nodes created by the provisoiner
+			if n.Labels[v1alpha5.ProvisionerNameLabelKey] != provisioner.Name {
+				continue
+			}
 			if strings.HasSuffix(n.Labels[v1.LabelInstanceTypeStable], ".large") {
 				numLargeNodes++
+			} else {
+				numOtherNodes++
 			}
 		}
 
-		// all of the nodes should have been replaced with medium instance types
+		// all of the 2xlarge nodes should have been replaced with large instance types
 		Expect(numLargeNodes).To(Equal(3))
+		// and we should have no other nodes
+		Expect(numOtherNodes).To(Equal(0))
 
 		env.ExpectDeleted(largeDep, smallDep)
 	})
