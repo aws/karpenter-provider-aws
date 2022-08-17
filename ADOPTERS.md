@@ -16,6 +16,7 @@ If you are open to others contacting you about your use of Karpenter on Slack, a
 | Organization | Description | Contacts | Link |
 | --- | --- | --- | --- |
 | Amazon, Inc. | Scaling production workloads and batch jobs in all AWS regions | `@Alex Kestner`, `@Ellis Tarn` | [Introducing Karpenter](https://aws.amazon.com/blogs/aws/introducing-karpenter-an-open-source-high-performance-kubernetes-cluster-autoscaler/) |
+| Airtel Digital Ltd. | Karpenter for all kind of spiky and base workload and to increase spot coverage. | `@Sagar Arora` | [Homepage](https://www.wynk.in)
 | Anthropic | Better utilizing mixes of instance types for more reliable capacity | N/A | [Homepage](https://anthropic.com) |
 | Beeswax | Using Karpenter to scale our high load AdTech platform efficiently | `@James Wojewoda` | [Homepage](https://www.beeswax.com)
 | Codefresh | Juggling workloads for the SAAS CD/GitOps offering | `@Vadim Gusev` | [Codefresh](https://codefresh.io/) |
