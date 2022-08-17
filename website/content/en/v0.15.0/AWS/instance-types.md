@@ -7,7 +7,7 @@ description: >
   Evaluate Instance Type Resources
 ---
 <!-- this document is generated from hack/docs/instancetypes_gen_docs.go -->
-AWS instance types offer varying resources and can be selected by labels. The values provided 
+AWS instance types offer varying resources and can be selected by labels. The values provided
 below are the resources available with some assumptions and after the instance overhead has been subtracted:
 - `blockDeviceMappings` are not configured
 - `aws-eni-limited-pod-density` is assumed to be `true`
@@ -28,7 +28,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|a1.medium|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -51,7 +50,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|a1.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -74,7 +72,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|a1.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -97,7 +94,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|a1.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -120,7 +116,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|a1.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -143,7 +138,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|a1.metal|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -167,7 +161,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c1.medium|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -190,7 +183,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c1.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -214,7 +206,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c3.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -237,7 +228,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c3.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -260,7 +250,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c3.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -283,7 +272,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c3.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -306,7 +294,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c3.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -330,7 +317,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c4.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -353,7 +339,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c4.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -376,7 +361,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c4.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -399,7 +383,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c4.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -422,7 +405,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c4.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -446,7 +428,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c5.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -469,7 +450,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c5.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -492,7 +472,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c5.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -515,7 +494,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c5.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -538,7 +516,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c5.9xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -561,7 +538,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c5.12xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -584,7 +560,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c5.18xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -607,7 +582,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c5.24xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -630,7 +604,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c5.metal|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -654,7 +627,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c5a.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -677,7 +649,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c5a.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -700,7 +671,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c5a.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -723,7 +693,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c5a.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -746,7 +715,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c5a.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -769,7 +737,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c5a.12xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -792,7 +759,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c5a.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -815,7 +781,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c5a.24xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -840,7 +805,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c5ad.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -864,7 +828,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c5ad.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -888,7 +851,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c5ad.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -912,7 +874,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c5ad.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -936,7 +897,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c5ad.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -960,7 +920,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c5ad.12xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -984,7 +943,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c5ad.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -1008,7 +966,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c5ad.24xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -1033,7 +990,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c5d.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -1057,7 +1013,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c5d.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -1081,7 +1036,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c5d.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -1105,7 +1059,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c5d.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -1129,7 +1082,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c5d.9xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -1153,7 +1105,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c5d.12xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -1177,7 +1128,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c5d.18xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -1201,7 +1151,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c5d.24xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -1225,7 +1174,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c5d.metal|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -1249,7 +1197,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c5n.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -1272,7 +1219,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c5n.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -1295,7 +1241,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c5n.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -1318,7 +1263,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c5n.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -1341,7 +1285,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c5n.9xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -1364,7 +1307,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c5n.18xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -1387,7 +1329,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c5n.metal|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -1411,7 +1352,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6a.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -1434,7 +1374,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6a.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -1457,7 +1396,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6a.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -1480,7 +1418,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6a.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -1503,7 +1440,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6a.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -1526,7 +1462,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6a.12xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -1549,7 +1484,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6a.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -1572,7 +1506,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6a.24xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -1595,7 +1528,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6a.32xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -1618,7 +1550,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6a.48xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -1641,7 +1572,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6a.metal|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -1665,7 +1595,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6g.medium|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -1688,7 +1617,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6g.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -1711,7 +1639,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6g.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -1734,7 +1661,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6g.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -1757,7 +1683,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6g.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -1780,7 +1705,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6g.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -1803,7 +1727,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6g.12xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -1826,7 +1749,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6g.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -1849,7 +1771,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6g.metal|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -1874,7 +1795,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6gd.medium|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -1898,7 +1818,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6gd.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -1922,7 +1841,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6gd.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -1946,7 +1864,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6gd.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -1970,7 +1887,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6gd.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -1994,7 +1910,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6gd.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -2018,7 +1933,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6gd.12xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -2042,7 +1956,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6gd.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -2066,7 +1979,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6gd.metal|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -2090,7 +2002,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6gn.medium|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -2113,7 +2024,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6gn.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -2136,7 +2046,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6gn.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -2159,7 +2068,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6gn.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -2182,7 +2090,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6gn.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -2205,7 +2112,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6gn.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -2228,7 +2134,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6gn.12xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -2251,7 +2156,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6gn.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -2275,7 +2179,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6i.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -2298,7 +2201,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6i.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -2321,7 +2223,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6i.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -2344,7 +2245,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6i.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -2367,7 +2267,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6i.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -2390,7 +2289,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6i.12xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -2413,7 +2311,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6i.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -2436,7 +2333,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6i.24xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -2459,7 +2355,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6i.32xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -2482,7 +2377,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6i.metal|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -2507,7 +2401,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6id.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -2531,7 +2424,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6id.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -2555,7 +2447,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6id.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -2579,7 +2470,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6id.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -2603,7 +2493,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6id.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -2627,7 +2516,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6id.12xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -2651,7 +2539,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6id.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -2675,7 +2562,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6id.24xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -2699,7 +2585,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6id.32xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -2723,7 +2608,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c6id.metal|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -2747,7 +2631,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c7g.medium|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -2770,7 +2653,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c7g.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -2793,7 +2675,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c7g.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -2816,7 +2697,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c7g.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -2839,7 +2719,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c7g.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -2862,7 +2741,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c7g.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -2885,7 +2763,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c7g.12xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -2908,7 +2785,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|c7g.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -2932,7 +2808,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|cc2.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -2956,7 +2831,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|d2.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -2979,7 +2853,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|d2.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -3002,7 +2875,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|d2.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -3025,7 +2897,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|d2.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -3050,7 +2921,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|d3.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -3074,7 +2944,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|d3.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -3098,7 +2967,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|d3.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -3122,7 +2990,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|d3.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -3147,7 +3014,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|d3en.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -3171,7 +3037,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|d3en.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -3195,7 +3060,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|d3en.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -3219,7 +3083,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|d3en.6xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -3243,7 +3106,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|d3en.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -3267,7 +3129,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|d3en.12xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -3296,7 +3157,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|dl1.24xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -3324,7 +3184,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g3.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -3352,7 +3211,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g3.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -3380,7 +3238,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g3.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -3409,7 +3266,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g3s.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -3439,7 +3295,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g4ad.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -3468,7 +3323,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g4ad.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -3497,7 +3351,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g4ad.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -3526,7 +3379,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g4ad.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -3555,7 +3407,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g4ad.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -3585,7 +3436,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g4dn.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -3614,7 +3464,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g4dn.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -3643,7 +3492,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g4dn.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -3672,7 +3520,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g4dn.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -3701,7 +3548,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g4dn.12xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -3730,7 +3576,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g4dn.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -3759,7 +3604,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g4dn.metal|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -3789,7 +3633,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g5.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -3818,7 +3661,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g5.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -3847,7 +3689,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g5.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -3876,7 +3717,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g5.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -3905,7 +3745,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g5.12xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -3934,7 +3773,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g5.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -3963,7 +3801,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g5.24xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -3992,7 +3829,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g5.48xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -4021,7 +3857,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g5g.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -4049,7 +3884,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g5g.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -4077,7 +3911,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g5g.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -4105,7 +3938,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g5g.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -4133,7 +3965,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g5g.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -4161,7 +3992,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g5g.metal|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -4186,7 +4016,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|h1.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -4209,7 +4038,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|h1.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -4232,7 +4060,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|h1.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -4255,7 +4082,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|h1.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -4279,7 +4105,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|i2.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -4302,7 +4127,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|i2.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -4325,7 +4149,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|i2.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -4348,7 +4171,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|i2.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -4373,7 +4195,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|i3.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -4397,7 +4218,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|i3.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -4421,7 +4241,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|i3.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -4445,7 +4264,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|i3.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -4469,7 +4287,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|i3.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -4493,7 +4310,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|i3.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -4517,7 +4333,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|i3.metal|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -4542,7 +4357,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|i3en.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -4566,7 +4380,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|i3en.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -4590,7 +4403,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|i3en.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -4614,7 +4426,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|i3en.3xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -4638,7 +4449,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|i3en.6xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -4662,7 +4472,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|i3en.12xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -4686,7 +4495,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|i3en.24xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -4710,7 +4518,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|i3en.metal|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -4735,7 +4542,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|i4i.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -4759,7 +4565,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|i4i.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -4783,7 +4588,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|i4i.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -4807,7 +4611,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|i4i.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -4831,7 +4634,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|i4i.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -4855,7 +4657,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|i4i.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -4879,7 +4680,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|i4i.32xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -4903,7 +4703,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|i4i.metal|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -4928,7 +4727,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|im4gn.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -4952,7 +4750,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|im4gn.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -4976,7 +4773,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|im4gn.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -5000,7 +4796,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|im4gn.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -5024,7 +4819,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|im4gn.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -5048,7 +4842,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|im4gn.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -5072,7 +4865,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|inf1.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -5096,7 +4888,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|inf1.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -5120,7 +4911,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|inf1.6xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -5144,7 +4934,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|inf1.24xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -5170,7 +4959,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|is4gen.medium|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -5194,7 +4982,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|is4gen.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -5218,7 +5005,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|is4gen.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -5242,7 +5028,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|is4gen.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -5266,7 +5051,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|is4gen.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -5290,7 +5074,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|is4gen.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -5314,7 +5097,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m1.small|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -5337,7 +5119,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m1.medium|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -5360,7 +5141,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m1.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -5383,7 +5163,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m1.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -5407,7 +5186,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m2.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -5430,7 +5208,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m2.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -5453,7 +5230,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m2.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -5477,7 +5253,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m3.medium|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -5500,7 +5275,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m3.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -5523,7 +5297,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m3.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -5546,7 +5319,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m3.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -5570,7 +5342,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m4.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -5593,7 +5364,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m4.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -5616,7 +5386,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m4.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -5639,7 +5408,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m4.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -5662,7 +5430,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m4.10xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -5685,7 +5452,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m4.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -5709,7 +5475,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -5732,7 +5497,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -5755,7 +5519,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -5778,7 +5541,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -5801,7 +5563,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -5824,7 +5585,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5.12xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -5847,7 +5607,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -5870,7 +5629,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5.24xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -5893,7 +5651,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5.metal|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -5917,7 +5674,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5a.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -5940,7 +5696,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5a.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -5963,7 +5718,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5a.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -5986,7 +5740,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5a.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -6009,7 +5762,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5a.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -6032,7 +5784,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5a.12xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -6055,7 +5806,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5a.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -6078,7 +5828,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5a.24xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -6103,7 +5852,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5ad.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -6127,7 +5875,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5ad.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -6151,7 +5898,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5ad.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -6175,7 +5921,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5ad.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -6199,7 +5944,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5ad.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -6223,7 +5967,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5ad.12xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -6247,7 +5990,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5ad.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -6271,7 +6013,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5ad.24xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -6296,7 +6037,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5d.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -6320,7 +6060,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5d.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -6344,7 +6083,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5d.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -6368,7 +6106,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5d.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -6392,7 +6129,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5d.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -6416,7 +6152,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5d.12xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -6440,7 +6175,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5d.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -6464,7 +6198,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5d.24xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -6488,7 +6221,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5d.metal|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -6513,7 +6245,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5dn.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -6537,7 +6268,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5dn.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -6561,7 +6291,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5dn.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -6585,7 +6314,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5dn.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -6609,7 +6337,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5dn.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -6633,7 +6360,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5dn.12xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -6657,7 +6383,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5dn.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -6681,7 +6406,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5dn.24xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -6705,7 +6429,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5dn.metal|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -6729,7 +6452,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5n.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -6752,7 +6474,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5n.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -6775,7 +6496,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5n.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -6798,7 +6518,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5n.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -6821,7 +6540,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5n.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -6844,7 +6562,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5n.12xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -6867,7 +6584,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5n.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -6890,7 +6606,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5n.24xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -6913,7 +6628,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5n.metal|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -6937,7 +6651,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5zn.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -6960,7 +6673,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5zn.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -6983,7 +6695,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5zn.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -7006,7 +6717,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5zn.3xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -7029,7 +6739,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5zn.6xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -7052,7 +6761,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5zn.12xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -7075,7 +6783,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m5zn.metal|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -7099,7 +6806,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6a.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -7122,7 +6828,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6a.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -7145,7 +6850,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6a.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -7168,7 +6872,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6a.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -7191,7 +6894,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6a.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -7214,7 +6916,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6a.12xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -7237,7 +6938,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6a.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -7260,7 +6960,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6a.24xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -7283,7 +6982,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6a.32xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -7306,7 +7004,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6a.48xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -7329,7 +7026,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6a.metal|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -7353,7 +7049,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6g.medium|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -7376,7 +7071,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6g.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -7399,7 +7093,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6g.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -7422,7 +7115,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6g.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -7445,7 +7137,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6g.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -7468,7 +7159,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6g.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -7491,7 +7181,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6g.12xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -7514,7 +7203,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6g.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -7537,7 +7225,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6g.metal|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -7562,7 +7249,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6gd.medium|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -7586,7 +7272,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6gd.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -7610,7 +7295,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6gd.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -7634,7 +7318,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6gd.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -7658,7 +7341,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6gd.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -7682,7 +7364,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6gd.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -7706,7 +7387,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6gd.12xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -7730,7 +7410,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6gd.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -7754,7 +7433,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6gd.metal|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -7778,7 +7456,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6i.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -7801,7 +7478,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6i.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -7824,7 +7500,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6i.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -7847,7 +7522,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6i.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -7870,7 +7544,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6i.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -7893,7 +7566,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6i.12xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -7916,7 +7588,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6i.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -7939,7 +7610,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6i.24xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -7962,7 +7632,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6i.32xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -7985,7 +7654,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6i.metal|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -8010,7 +7678,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6id.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -8034,7 +7701,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6id.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -8058,7 +7724,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6id.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -8082,7 +7747,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6id.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -8106,7 +7770,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6id.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -8130,7 +7793,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6id.12xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -8154,7 +7816,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6id.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -8178,7 +7839,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6id.24xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -8202,7 +7862,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6id.32xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -8226,7 +7885,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|m6id.metal|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -8254,7 +7912,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|p2.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -8282,7 +7939,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|p2.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -8310,7 +7966,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|p2.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -8339,7 +7994,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|p3.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -8367,7 +8021,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|p3.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -8395,7 +8048,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|p3.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -8425,7 +8077,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|p3dn.24xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -8455,7 +8106,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|p4d.24xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -8480,7 +8130,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r3.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -8503,7 +8152,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r3.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -8526,7 +8174,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r3.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -8549,7 +8196,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r3.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -8572,7 +8218,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r3.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -8596,7 +8241,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r4.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -8619,7 +8263,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r4.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -8642,7 +8285,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r4.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -8665,7 +8307,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r4.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -8688,7 +8329,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r4.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -8711,7 +8351,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r4.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -8735,7 +8374,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -8758,7 +8396,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -8781,7 +8418,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -8804,7 +8440,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -8827,7 +8462,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -8850,7 +8484,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5.12xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -8873,7 +8506,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -8896,7 +8528,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5.24xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -8919,7 +8550,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5.metal|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -8943,7 +8573,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5a.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -8966,7 +8595,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5a.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -8989,7 +8617,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5a.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -9012,7 +8639,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5a.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -9035,7 +8661,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5a.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -9058,7 +8683,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5a.12xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -9081,7 +8705,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5a.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -9104,7 +8727,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5a.24xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -9129,7 +8751,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5ad.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -9153,7 +8774,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5ad.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -9177,7 +8797,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5ad.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -9201,7 +8820,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5ad.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -9225,7 +8843,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5ad.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -9249,7 +8866,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5ad.12xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -9273,7 +8889,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5ad.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -9297,7 +8912,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5ad.24xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -9321,7 +8935,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5b.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -9344,7 +8957,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5b.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -9367,7 +8979,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5b.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -9390,7 +9001,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5b.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -9413,7 +9023,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5b.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -9436,7 +9045,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5b.12xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -9459,7 +9067,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5b.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -9482,7 +9089,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5b.24xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -9505,7 +9111,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5b.metal|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -9530,7 +9135,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5d.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -9554,7 +9158,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5d.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -9578,7 +9181,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5d.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -9602,7 +9204,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5d.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -9626,7 +9227,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5d.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -9650,7 +9250,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5d.12xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -9674,7 +9273,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5d.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -9698,7 +9296,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5d.24xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -9722,7 +9319,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5d.metal|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -9747,7 +9343,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5dn.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -9771,7 +9366,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5dn.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -9795,7 +9389,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5dn.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -9819,7 +9412,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5dn.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -9843,7 +9435,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5dn.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -9867,7 +9458,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5dn.12xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -9891,7 +9481,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5dn.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -9915,7 +9504,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5dn.24xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -9939,7 +9527,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5dn.metal|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -9963,7 +9550,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5n.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -9986,7 +9572,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5n.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10009,7 +9594,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5n.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10032,7 +9616,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5n.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10055,7 +9638,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5n.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10078,7 +9660,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5n.12xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10101,7 +9682,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5n.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10124,7 +9704,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5n.24xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10147,7 +9726,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r5n.metal|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10171,7 +9749,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6a.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10194,7 +9771,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6a.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10217,7 +9793,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6a.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10240,7 +9815,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6a.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10263,7 +9837,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6a.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10286,7 +9859,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6a.12xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10309,7 +9881,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6a.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10332,7 +9903,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6a.24xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10355,7 +9925,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6a.32xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10378,7 +9947,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6a.48xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10401,7 +9969,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6a.metal|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10425,7 +9992,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6g.medium|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10448,7 +10014,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6g.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10471,7 +10036,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6g.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10494,7 +10058,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6g.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10517,7 +10080,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6g.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10540,7 +10102,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6g.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10563,7 +10124,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6g.12xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10586,7 +10146,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6g.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10609,7 +10168,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6g.metal|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10634,7 +10192,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6gd.medium|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10658,7 +10215,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6gd.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10682,7 +10238,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6gd.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10706,7 +10261,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6gd.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10730,7 +10284,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6gd.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10754,7 +10307,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6gd.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10778,7 +10330,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6gd.12xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10802,7 +10353,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6gd.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10826,7 +10376,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6gd.metal|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10850,7 +10399,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6i.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10873,7 +10421,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6i.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10896,7 +10443,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6i.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10919,7 +10465,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6i.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10942,7 +10487,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6i.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10965,7 +10509,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6i.12xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10988,7 +10531,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6i.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11011,7 +10553,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6i.24xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11034,7 +10575,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6i.32xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11057,7 +10597,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6i.metal|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11082,7 +10621,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6id.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11106,7 +10644,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6id.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11130,7 +10667,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6id.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11154,7 +10690,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6id.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11178,7 +10713,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6id.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11202,7 +10736,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6id.12xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11226,7 +10759,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6id.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11250,7 +10782,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6id.24xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11274,7 +10805,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6id.32xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11298,7 +10828,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|r6id.metal|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11322,7 +10851,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|t1.micro|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11346,7 +10874,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|t2.nano|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11369,7 +10896,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|t2.micro|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11392,7 +10918,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|t2.small|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11415,7 +10940,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|t2.medium|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11438,7 +10962,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|t2.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11461,7 +10984,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|t2.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11484,7 +11006,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|t2.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11508,7 +11029,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|t3.nano|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11531,7 +11051,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|t3.micro|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11554,7 +11073,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|t3.small|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11577,7 +11095,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|t3.medium|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11600,7 +11117,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|t3.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11623,7 +11139,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|t3.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11646,7 +11161,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|t3.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11670,7 +11184,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|t3a.nano|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11693,7 +11206,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|t3a.micro|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11716,7 +11228,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|t3a.small|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11739,7 +11250,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|t3a.medium|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11762,7 +11272,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|t3a.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11785,7 +11294,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|t3a.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11808,7 +11316,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|t3a.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11832,7 +11339,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|t4g.nano|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11855,7 +11361,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|t4g.micro|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11878,7 +11383,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|t4g.small|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11901,7 +11405,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|t4g.medium|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11924,7 +11427,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|t4g.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11947,7 +11449,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|t4g.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11970,7 +11471,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|t4g.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11994,7 +11494,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|u-12tb1.112xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -12018,7 +11517,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|u-3tb1.56xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -12042,7 +11540,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|u-6tb1.56xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -12065,7 +11562,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|u-6tb1.112xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -12089,7 +11585,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|u-9tb1.112xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -12113,7 +11608,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|vt1.3xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -12136,7 +11630,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|vt1.6xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -12159,7 +11652,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|vt1.24xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -12183,7 +11675,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|x1.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -12206,7 +11697,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|x1.32xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -12230,7 +11720,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|x1e.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -12253,7 +11742,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|x1e.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -12276,7 +11764,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|x1e.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -12299,7 +11786,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|x1e.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -12322,7 +11808,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|x1e.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -12345,7 +11830,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|x1e.32xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -12370,7 +11854,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|x2gd.medium|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -12394,7 +11877,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|x2gd.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -12418,7 +11900,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|x2gd.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -12442,7 +11923,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|x2gd.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -12466,7 +11946,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|x2gd.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -12490,7 +11969,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|x2gd.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -12514,7 +11992,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|x2gd.12xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -12538,7 +12015,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|x2gd.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -12562,7 +12038,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|x2gd.metal|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -12587,7 +12062,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|x2idn.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -12611,7 +12085,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|x2idn.24xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -12635,7 +12108,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|x2idn.32xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -12659,7 +12131,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|x2idn.metal|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -12684,7 +12155,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|x2iedn.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -12708,7 +12178,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|x2iedn.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -12732,7 +12201,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|x2iedn.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -12756,7 +12224,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|x2iedn.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -12780,7 +12247,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|x2iedn.16xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -12804,7 +12270,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|x2iedn.24xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -12828,7 +12293,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|x2iedn.32xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -12852,7 +12316,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|x2iedn.metal|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -12876,7 +12339,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|x2iezn.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -12899,7 +12361,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|x2iezn.4xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -12922,7 +12383,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|x2iezn.6xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -12945,7 +12405,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|x2iezn.8xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -12968,7 +12427,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|x2iezn.12xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -12991,7 +12449,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|x2iezn.metal|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -13016,7 +12473,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|z1d.large|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -13040,7 +12496,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|z1d.xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -13064,7 +12519,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|z1d.2xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -13088,7 +12542,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|z1d.3xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -13112,7 +12565,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|z1d.6xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -13136,7 +12588,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|z1d.12xlarge|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -13160,7 +12611,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|z1d.metal|
- |topology.kubernetes.io/region|us-east-1|
 #### Resources
  | Resource | Quantity |
  |--|--|

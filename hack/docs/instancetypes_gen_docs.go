@@ -86,7 +86,7 @@ description: >
 ---
 `)
 	fmt.Fprintln(f, "<!-- this document is generated from hack/docs/instancetypes_gen_docs.go -->")
-	fmt.Fprintln(f, `AWS instance types offer varying resources and can be selected by labels. The values provided 
+	fmt.Fprintln(f, `AWS instance types offer varying resources and can be selected by labels. The values provided
 below are the resources available with some assumptions and after the instance overhead has been subtracted:
 - `+"`blockDeviceMappings` are not configured"+`
 - `+"`aws-eni-limited-pod-density` is assumed to be `true`"+`
@@ -155,6 +155,9 @@ below are the resources available with some assumptions and after the instance o
 			for _, label := range labelNames {
 				req, ok := it.Requirements()[label]
 				if !ok {
+					continue
+				}
+				if req.Key == v1.LabelTopologyRegion {
 					continue
 				}
 				if len(req.Values()) == 1 {
