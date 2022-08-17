@@ -2,6 +2,7 @@
 set -euo pipefail
 
 CURRENT_MAJOR_VERSION="0"
+PRIVATE_PULL_THROUGH_HOST="071440425669.dkr.ecr.us-east-1.amazonaws.com"
 HELM_CHART_VERSION="v${CURRENT_MAJOR_VERSION}-${SNAPSHOT_TAG}"
 RELEASE_VERSION=${RELEASE_VERSION:-"${SNAPSHOT_TAG}"}
 RELEASE_PLATFORM="--platform=linux/amd64,linux/arm64"
@@ -16,15 +17,12 @@ fi
 
 COSIGN_FLAGS="-a GIT_HASH=$(git rev-parse HEAD) -a GIT_VERSION=${RELEASE_VERSION} -a BUILD_DATE=${BUILD_DATE}"
 
-requireCloudProvider(){
-  if [ -z "$CLOUD_PROVIDER" ]; then
-      echo "CLOUD_PROVIDER environment variable is not set: 'export CLOUD_PROVIDER=aws'"
-      exit 1
-  fi
+authenticate() {
+    aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${RELEASE_REPO}
 }
 
-authenticate() {
-  aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${RELEASE_REPO}
+authenticatePrivateRepo() {
+  aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${PRIVATE_PULL_THROUGH_HOST}
 }
 
 buildImages() {
@@ -42,12 +40,22 @@ cosignImages() {
     COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_FLAGS} ${WEBHOOK_DIGEST}
 }
 
-notifyRelease(){
+notifyRelease() {
+    RELEASE_TYPE=$1
+    RELEASE_IDENTIFIER=$2
+    MESSAGE="{\"releaseType\":\"${RELEASE_TYPE}\",\"releaseIdentifier\":\"${RELEASE_IDENTIFIER}\"}"
+    aws sns publish \
+        --topic-arn "arn:aws:sns:us-east-1:071440425669:KarpenterReleases" \
+        --message ${MESSAGE} \
+        --no-cli-pager
+}
+
+pullPrivateReplica(){
+  authenticatePrivateRepo
   RELEASE_TYPE=$1
   RELEASE_IDENTIFIER=$2
-  MESSAGE="{\"releaseType\":\"${RELEASE_TYPE}\",\"releaseIdentifier\":\"${RELEASE_IDENTIFIER}\"}"
-  aws sns publish \
-      --topic-arn "arn:aws:sns:us-east-1:071440425669:KarpenterReleases" \
-      --message ${MESSAGE} \
-      --no-cli-pager
+  PULL_THROUGH_CACHE_PATH="${PRIVATE_PULL_THROUGH_HOST}/ecr-public/karpenter/"
+
+  docker pull "${PULL_THROUGH_CACHE_PATH}controller:${RELEASE_IDENTIFIER}"
+  docker pull "${PULL_THROUGH_CACHE_PATH}webhook:${RELEASE_IDENTIFIER}"
 }

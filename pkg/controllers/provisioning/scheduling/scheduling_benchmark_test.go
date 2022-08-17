@@ -14,11 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package scheduling
+package scheduling_test
 
 import (
 	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/util/clock"
 	"math"
 	"math/rand"
 	"os"
@@ -28,6 +29,7 @@ import (
 	"time"
 
 	"github.com/aws/karpenter/pkg/cloudprovider"
+	pscheduling "github.com/aws/karpenter/pkg/controllers/provisioning/scheduling"
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/test"
@@ -112,15 +114,11 @@ func benchmarkScheduler(b *testing.B, instanceCount, podCount int) {
 
 	instanceTypes := fake.InstanceTypes(instanceCount)
 	cloudProv := &fake.CloudProvider{InstanceTypes: instanceTypes}
-	scheduler := NewScheduler(ctx,
-		nil,
-		[]*scheduling.NodeTemplate{scheduling.NewNodeTemplate(provisioner)},
-		nil,
-		state.NewCluster(test.NewConfig(), nil, cloudProv),
-		&Topology{},
-		map[string][]cloudprovider.InstanceType{provisioner.Name: instanceTypes},
-		map[*scheduling.NodeTemplate]v1.ResourceList{},
-		test.NewEventRecorder())
+	scheduler := pscheduling.NewScheduler(ctx, nil, []*scheduling.NodeTemplate{scheduling.NewNodeTemplate(provisioner)},
+		nil, state.NewCluster(&clock.RealClock{}, test.NewConfig(), nil, cloudProv), nil, &pscheduling.Topology{},
+		map[string][]cloudprovider.InstanceType{provisioner.Name: instanceTypes}, map[*scheduling.NodeTemplate]v1.ResourceList{},
+		test.NewEventRecorder(),
+		pscheduling.SchedulerOptions{})
 
 	pods := makeDiversePods(podCount)
 
@@ -130,7 +128,7 @@ func benchmarkScheduler(b *testing.B, instanceCount, podCount int) {
 	podsScheduledInRound1 := 0
 	nodesInRound1 := 0
 	for i := 0; i < b.N; i++ {
-		nodes, err := scheduler.Solve(ctx, pods)
+		nodes, _, err := scheduler.Solve(ctx, pods)
 		if err != nil {
 			b.FailNow()
 		}

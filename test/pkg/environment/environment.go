@@ -8,8 +8,10 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/ssm"
-	ginkgoconfig "github.com/onsi/ginkgo/config"
+
+	// . "github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -27,10 +29,12 @@ import (
 type Environment struct {
 	context.Context
 	ClusterName string
+	Region      string
 	Client      client.Client
 	KubeClient  kubernetes.Interface
 	EC2API      ec2.EC2
 	SSMAPI      ssm.SSM
+	IAMAPI      iam.IAM
 	Monitor     *Monitor
 }
 
@@ -47,14 +51,18 @@ func NewEnvironment(t *testing.T) (*Environment, error) {
 	}
 	gomega.SetDefaultEventuallyTimeout(5 * time.Minute)
 	gomega.SetDefaultEventuallyPollingInterval(1 * time.Second)
-	ginkgoconfig.DefaultReporterConfig.Verbose = true
-	session := session.Must(session.NewSession())
+	// GinkgoConfiguration()
+	// ginkgoconfig.GinkgoConfiguration().Verbose = true
+	session := session.Must(session.NewSessionWithOptions(session.Options{SharedConfigState: session.SharedConfigEnable}))
+
 	return &Environment{Context: ctx,
 		ClusterName: clusterName,
 		Client:      client,
 		KubeClient:  kubernetes.NewForConfigOrDie(config),
 		EC2API:      *ec2.New(session),
 		SSMAPI:      *ssm.New(session),
+		IAMAPI:      *iam.New(session),
+		Region:      *session.Config.Region,
 		Monitor:     NewMonitor(ctx, client),
 	}, nil
 }

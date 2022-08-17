@@ -21,30 +21,30 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/karpenter/pkg/cloudprovider"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/aws/karpenter/pkg/controllers/state"
-
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/cloudprovider/fake"
-	"github.com/aws/karpenter/pkg/cloudprovider/registry"
-	"github.com/aws/karpenter/pkg/controllers/provisioning"
-	"github.com/aws/karpenter/pkg/test"
 	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/clock"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"knative.dev/pkg/ptr"
+
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/cloudprovider/fake"
+	"github.com/aws/karpenter/pkg/controllers/provisioning"
+	"github.com/aws/karpenter/pkg/test"
 
 	. "github.com/aws/karpenter/pkg/test/expectations"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
 )
 
 var ctx context.Context
+var fakeClock *clock.FakeClock
 var controller *provisioning.Controller
 var env *test.Environment
 var recorder *test.EventRecorder
@@ -60,16 +60,18 @@ func TestAPIs(t *testing.T) {
 var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
 		cloudProvider := &fake.CloudProvider{}
-		registry.RegisterOrDie(ctx, cloudProvider)
 		recorder = test.NewEventRecorder()
 		cfg = test.NewConfig()
+		recorder = test.NewEventRecorder()
+		fakeClock = clock.NewFakeClock(time.Now())
+		cluster := state.NewCluster(fakeClock, cfg, e.Client, cloudProvider)
+		prov := provisioning.NewProvisioner(ctx, cfg, e.Client, corev1.NewForConfigOrDie(e.Config), recorder, cloudProvider, cluster)
+		controller = provisioning.NewController(e.Client, prov, recorder)
 		instanceTypes, _ := cloudProvider.GetInstanceTypes(context.Background(), nil)
 		instanceTypeMap = map[string]cloudprovider.InstanceType{}
 		for _, it := range instanceTypes {
 			instanceTypeMap[it.Name()] = it
 		}
-		cluster := state.NewCluster(cfg, e.Client, cloudProvider)
-		controller = provisioning.NewController(ctx, cfg, e.Client, corev1.NewForConfigOrDie(e.Config), recorder, cloudProvider, cluster)
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })
@@ -154,6 +156,25 @@ var _ = Describe("Provisioning", func() {
 				ResourceRequirements: v1.ResourceRequirements{Limits: v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("1")}},
 			}),
 		) {
+			ExpectScheduled(ctx, env.Client, pod)
+		}
+	})
+	It("should provision multiple nodes when maxPods is set", func() {
+		ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{
+			Kubelet: &v1alpha5.KubeletConfiguration{MaxPods: ptr.Int32(1)},
+			Requirements: []v1.NodeSelectorRequirement{
+				{
+					Key:      v1.LabelInstanceTypeStable,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{"single-pod-instance-type"},
+				},
+			},
+		}))
+		pods := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(), test.UnschedulablePod(), test.UnschedulablePod())
+		nodes := &v1.NodeList{}
+		Expect(env.Client.List(ctx, nodes)).To(Succeed())
+		Expect(len(nodes.Items)).To(Equal(3))
+		for _, pod := range pods {
 			ExpectScheduled(ctx, env.Client, pod)
 		}
 	})
@@ -428,15 +449,28 @@ var _ = Describe("Provisioning", func() {
 	})
 	Context("Labels", func() {
 		It("should label nodes", func() {
-			provisioner := test.Provisioner(test.ProvisionerOptions{Labels: map[string]string{"test-key": "test-value", "test-key-2": "test-value-2"}})
+			provisioner := test.Provisioner(test.ProvisionerOptions{
+				Labels: map[string]string{"test-key-1": "test-value-1"},
+				Requirements: []v1.NodeSelectorRequirement{
+					{Key: "test-key-2", Operator: v1.NodeSelectorOpIn, Values: []string{"test-value-2"}},
+					{Key: "test-key-3", Operator: v1.NodeSelectorOpNotIn, Values: []string{"test-value-3"}},
+					{Key: "test-key-4", Operator: v1.NodeSelectorOpLt, Values: []string{"4"}},
+					{Key: "test-key-5", Operator: v1.NodeSelectorOpGt, Values: []string{"5"}},
+					{Key: "test-key-6", Operator: v1.NodeSelectorOpExists},
+					{Key: "test-key-7", Operator: v1.NodeSelectorOpDoesNotExist},
+				},
+			})
 			ExpectApplied(ctx, env.Client, provisioner)
 			for _, pod := range ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod()) {
 				node := ExpectScheduled(ctx, env.Client, pod)
 				Expect(node.Labels).To(HaveKeyWithValue(v1alpha5.ProvisionerNameLabelKey, provisioner.Name))
-				Expect(node.Labels).To(HaveKeyWithValue("test-key", "test-value"))
+				Expect(node.Labels).To(HaveKeyWithValue("test-key-1", "test-value-1"))
 				Expect(node.Labels).To(HaveKeyWithValue("test-key-2", "test-value-2"))
-				Expect(node.Labels).To(HaveKey(v1.LabelTopologyZone))
-				Expect(node.Labels).To(HaveKey(v1.LabelInstanceTypeStable))
+				Expect(node.Labels).To(And(HaveKey("test-key-3"), Not(HaveValue(Equal("test-value-3")))))
+				Expect(node.Labels).To(And(HaveKey("test-key-4"), Not(HaveValue(Equal("test-value-4")))))
+				Expect(node.Labels).To(And(HaveKey("test-key-5"), Not(HaveValue(Equal("test-value-5")))))
+				Expect(node.Labels).To(HaveKey("test-key-6"))
+				Expect(node.Labels).ToNot(HaveKey("test-key-7"))
 			}
 		})
 		It("should label nodes with labels in the LabelDomainExceptions list", func() {

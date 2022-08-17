@@ -217,14 +217,20 @@ func (v *VolumeLimits) DeletePod(key types.NamespacedName) {
 	}
 }
 
-func (v *VolumeLimits) Copy() *VolumeLimits {
-	cp := &VolumeLimits{
-		kubeClient: v.kubeClient,
-		volumes:    v.volumes.copy(),
-		podVolumes: map[types.NamespacedName]volumeUsage{},
+func (v *VolumeLimits) DeepCopy() *VolumeLimits {
+	if v == nil {
+		return nil
 	}
+	out := &VolumeLimits{}
+	v.DeepCopyInto(out)
+	return out
+}
+
+func (v *VolumeLimits) DeepCopyInto(out *VolumeLimits) {
+	out.kubeClient = v.kubeClient
+	out.volumes = v.volumes.copy()
+	out.podVolumes = map[types.NamespacedName]volumeUsage{}
 	for k, v := range v.podVolumes {
-		cp.podVolumes[k] = v.copy()
+		out.podVolumes[k] = v.copy()
 	}
-	return cp
 }

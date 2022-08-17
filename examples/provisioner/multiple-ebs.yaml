@@ -1,0 +1,46 @@
+# This example provisioner will provision instances
+# with multiple EBS attached
+
+apiVersion: karpenter.sh/v1alpha5
+kind: Provisioner
+metadata:
+  name: default
+spec:
+  requirements:
+    # Include general purpose instance families
+    - key: karpenter.k8s.aws/instance-family
+      operator: In
+      values: [c6g, c7g, c6a, c6i, m6a, m6g, m6i, r6a, r6g, r6i]
+    # Exclude small instance sizes
+    - key: karpenter.k8s.aws/instance-size
+      operator: In
+      values: [medium, large, xlarge, xlarge, 2xlarge, 4xlarge]
+  providerRef:
+    name: my-provider
+---
+apiVersion: karpenter.k8s.aws/v1alpha1
+kind: AWSNodeTemplate
+metadata:
+  name: my-provider
+spec:
+  subnetSelector:
+    karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
+  securityGroupSelector:
+    karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
+  amiFamily: AL2
+  blockDeviceMappings:
+    - deviceName: /dev/xvda
+      ebs:
+        volumeType: gp3
+        volumeSize: 20Gi
+        deleteOnTermination: true
+    - deviceName: /dev/xvdb
+      ebs:
+        volumeType: gp3
+        volumeSize: 100Gi
+        deleteOnTermination: true
+    - deviceName: /dev/xvdc
+      ebs:
+        volumeType: gp3
+        volumeSize: 2000Gi
+        deleteOnTermination: true

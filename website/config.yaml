@@ -66,13 +66,12 @@ params:
         url: 'https://slack.k8s.io/'
         icon: fab fa-slack
         desc: 'Chat with us on Slack in the #aws-provider channel'
-  latest_release_version: v0.13.2
+  latest_release_version: v0.14.0
   versions:
+    - "v0.14.0"
     - "v0.13.2"
     - "v0.12.1"
     - "v0.11.1"
-    - "v0.10.1"
-    - "v0.9.1"
     - "preview"
 menu:
   main:
@@ -82,5 +81,5 @@ menu:
       pre: <i class='fab fa-github'></i>
     - name: Docs
       weight: 20
-      url: '/v0.13.2/'
+      url: '/v0.14.0/'
       pre: <i class='fas fa-book'></i>

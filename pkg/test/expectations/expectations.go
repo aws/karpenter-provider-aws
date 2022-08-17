@@ -21,25 +21,25 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aws/karpenter/pkg/test"
-
-	"github.com/onsi/ginkgo"
+	"github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega" //nolint:revive,stylecheck
 	prometheus "github.com/prometheus/client_model/go"
-	"sigs.k8s.io/controller-runtime/pkg/metrics"
-
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/policy/v1beta1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
+	"github.com/aws/karpenter/pkg/controllers/provisioning/scheduling"
+	"github.com/aws/karpenter/pkg/test"
 )
 
 const (
@@ -209,10 +209,40 @@ func ExpectMetric(prefix string) *prometheus.MetricFamily {
 }
 func ExpectManualBinding(ctx context.Context, c client.Client, pod *v1.Pod, node *v1.Node) {
 	Expect(c.Create(ctx, &v1.Binding{
-		TypeMeta:   pod.TypeMeta,
-		ObjectMeta: pod.ObjectMeta,
+		TypeMeta: pod.TypeMeta,
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      pod.ObjectMeta.Name,
+			Namespace: pod.ObjectMeta.Namespace,
+			UID:       pod.ObjectMeta.UID,
+		},
 		Target: v1.ObjectReference{
 			Name: node.Name,
 		},
 	})).To(Succeed())
+}
+
+func ExpectSkew(ctx context.Context, c client.Client, namespace string, constraint *v1.TopologySpreadConstraint) Assertion {
+	nodes := &v1.NodeList{}
+	Expect(c.List(ctx, nodes)).To(Succeed())
+	pods := &v1.PodList{}
+	Expect(c.List(ctx, pods, scheduling.TopologyListOptions(namespace, constraint.LabelSelector))).To(Succeed())
+	skew := map[string]int{}
+	for i, pod := range pods.Items {
+		if scheduling.IgnoredForTopology(&pods.Items[i]) {
+			continue
+		}
+		for _, node := range nodes.Items {
+			if pod.Spec.NodeName == node.Name {
+				switch constraint.TopologyKey {
+				case v1.LabelHostname:
+					skew[node.Name]++ // Check node name since hostname labels aren't applied
+				default:
+					if key, ok := node.Labels[constraint.TopologyKey]; ok {
+						skew[key]++
+					}
+				}
+			}
+		}
+	}
+	return Expect(skew)
 }

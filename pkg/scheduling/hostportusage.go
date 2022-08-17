@@ -101,11 +101,24 @@ func (u *HostPortUsage) DeletePod(key types.NamespacedName) {
 	u.reserved = remaining
 }
 
-// Copy creates a copy of the HostPortUsage. It's not a deep copy as some of the internal state is reused, but that
-// state is read-only so changes made to the copy or the original don't affect each other.
-func (u *HostPortUsage) Copy() *HostPortUsage {
-	return &HostPortUsage{
-		reserved: append([]entry{}, u.reserved...),
+func (u *HostPortUsage) DeepCopy() *HostPortUsage {
+	if u == nil {
+		return nil
+	}
+	out := &HostPortUsage{}
+	u.DeepCopyInto(out)
+	return out
+}
+
+func (u *HostPortUsage) DeepCopyInto(out *HostPortUsage) {
+	out.reserved = nil
+	for _, v := range u.reserved {
+		out.reserved = append(out.reserved, entry{
+			podName:  v.podName,
+			ip:       v.ip,
+			port:     v.port,
+			protocol: v.protocol,
+		})
 	}
 }
 

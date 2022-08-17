@@ -8,6 +8,23 @@ description: >
 ---
 <!-- this document is generated from hack/docs/metrics_gen_docs.go -->
 Karpenter makes several metrics available in Prometheus format to allow monitoring cluster provisioning status. These metrics are available by default at `karpenter.karpenter.svc.cluster.local:8080/metrics` configurable via the `METRICS_PORT` environment variable documented [here](../configuration)
+## Consolidation Metrics
+
+### `karpenter_consolidation_actions_performed`
+Number of consolidation actions performed. Labeled by action.
+
+### `karpenter_consolidation_evaluation_duration_seconds`
+Duration of the consolidation evaluation process in seconds.
+
+### `karpenter_consolidation_nodes_created`
+Number of nodes created in total by consolidation.
+
+### `karpenter_consolidation_nodes_terminated`
+Number of nodes terminated in total by consolidation.
+
+### `karpenter_consolidation_replacement_node_initialized_seconds`
+Amount of time required for a replacement node to become initialized.
+
 ## Provisioner Metrics
 
 ### `karpenter_provisioner_limit`

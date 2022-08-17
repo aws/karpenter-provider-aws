@@ -22,7 +22,6 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/scheduling"
-	"github.com/aws/karpenter/pkg/utils/sets"
 
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 
@@ -34,14 +33,16 @@ import (
 )
 
 const (
-	LabelInstanceSize      = "size"
-	ExoticInstanceLabelKey = "special"
+	LabelInstanceSize       = "size"
+	ExoticInstanceLabelKey  = "special"
+	IntegerInstanceLabelKey = "integer"
 )
 
 func init() {
 	v1alpha5.WellKnownLabels.Insert(
 		LabelInstanceSize,
 		ExoticInstanceLabelKey,
+		IntegerInstanceLabelKey,
 	)
 }
 
@@ -128,8 +129,9 @@ func InstanceTypesAssorted() []cloudprovider.InstanceType {
 // InstanceTypes creates instance types with incrementing resources
 // 2Gi of RAM and 10 pods for every 1vcpu
 // i.e. 1vcpu, 2Gi mem, 10 pods
-//      2vcpu, 4Gi mem, 20 pods
-//      3vcpu, 6Gi mem, 30 pods
+//
+//	2vcpu, 4Gi mem, 20 pods
+//	3vcpu, 6Gi mem, 30 pods
 func InstanceTypes(total int) []cloudprovider.InstanceType {
 	instanceTypes := []cloudprovider.InstanceType{}
 	for i := 0; i < total; i++ {
@@ -195,21 +197,22 @@ func (i *InstanceType) Overhead() v1.ResourceList {
 }
 
 func (i *InstanceType) Requirements() scheduling.Requirements {
-	requirements := scheduling.Requirements{
-		v1.LabelInstanceTypeStable: sets.NewSet(i.options.Name),
-		v1.LabelArchStable:         sets.NewSet(i.options.Architecture),
-		v1.LabelOSStable:           sets.NewSet(i.options.OperatingSystems.List()...),
-		v1.LabelTopologyZone:       sets.NewSet(lo.Map(i.Offerings(), func(o cloudprovider.Offering, _ int) string { return o.Zone })...),
-		v1alpha5.LabelCapacityType: sets.NewSet(lo.Map(i.Offerings(), func(o cloudprovider.Offering, _ int) string { return o.CapacityType })...),
-		LabelInstanceSize:          sets.NewSet(),
-		ExoticInstanceLabelKey:     sets.NewSet(),
-	}
+	requirements := scheduling.NewRequirements(
+		scheduling.NewRequirement(v1.LabelInstanceTypeStable, v1.NodeSelectorOpIn, i.options.Name),
+		scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, i.options.Architecture),
+		scheduling.NewRequirement(v1.LabelOSStable, v1.NodeSelectorOpIn, i.options.OperatingSystems.List()...),
+		scheduling.NewRequirement(v1.LabelTopologyZone, v1.NodeSelectorOpIn, lo.Map(i.Offerings(), func(o cloudprovider.Offering, _ int) string { return o.Zone })...),
+		scheduling.NewRequirement(v1alpha5.LabelCapacityType, v1.NodeSelectorOpIn, lo.Map(i.Offerings(), func(o cloudprovider.Offering, _ int) string { return o.CapacityType })...),
+		scheduling.NewRequirement(LabelInstanceSize, v1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(ExoticInstanceLabelKey, v1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(IntegerInstanceLabelKey, v1.NodeSelectorOpIn, fmt.Sprint(i.options.Resources.Cpu().Value())),
+	)
 	if i.options.Resources.Cpu().Cmp(resource.MustParse("4")) > 0 &&
 		i.options.Resources.Memory().Cmp(resource.MustParse("8Gi")) > 0 {
-		requirements[LabelInstanceSize] = sets.NewSet("large")
-		requirements[ExoticInstanceLabelKey] = sets.NewSet("optional")
+		requirements.Get(LabelInstanceSize).Insert("large")
+		requirements.Get(ExoticInstanceLabelKey).Insert("optional")
 	} else {
-		requirements[LabelInstanceSize] = sets.NewSet("small")
+		requirements.Get(LabelInstanceSize).Insert("small")
 	}
 	return requirements
 }

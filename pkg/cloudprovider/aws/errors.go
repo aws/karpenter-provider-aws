@@ -41,14 +41,16 @@ var (
 	}
 )
 
-type SpotFallbackError error
+type InstanceTerminatedError struct {
+	error
+}
 
-func isSpotFallback(err error) bool {
+func isInstanceTerminated(err error) bool {
 	if err == nil {
 		return false
 	}
-	var sfbErr SpotFallbackError
-	return errors.As(err, &sfbErr)
+	var itErr InstanceTerminatedError
+	return errors.As(err, &itErr)
 }
 
 // isNotFound returns true if the err is an AWS error (even if it's

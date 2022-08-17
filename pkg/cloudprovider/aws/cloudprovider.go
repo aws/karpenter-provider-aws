@@ -67,9 +67,10 @@ func init() {
 	v1alpha5.NormalizedLabels = functional.UnionStringMaps(v1alpha5.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": v1.LabelTopologyZone})
 }
 
+var _ cloudprovider.CloudProvider = (*CloudProvider)(nil)
+
 type CloudProvider struct {
 	instanceTypeProvider *InstanceTypeProvider
-	subnetProvider       *SubnetProvider
 	instanceProvider     *InstanceProvider
 	kubeClient           k8sClient.Client
 }
@@ -99,12 +100,9 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 		logging.FromContext(ctx).Errorf("Checking EC2 API connectivity, %s", err)
 	}
 	subnetProvider := NewSubnetProvider(ec2api)
-	pricingProvider := NewPricingProvider(ctx, NewPricingAPI(sess, *sess.Config.Region), ec2api, *sess.Config.Region,
-		injection.GetOptions(ctx).AWSIsolatedVPC, options.StartAsync)
-	instanceTypeProvider := NewInstanceTypeProvider(ec2api, subnetProvider, pricingProvider)
-	return &CloudProvider{
+	instanceTypeProvider := NewInstanceTypeProvider(ctx, sess, options, ec2api, subnetProvider)
+	cloudprovider := &CloudProvider{
 		instanceTypeProvider: instanceTypeProvider,
-		subnetProvider:       subnetProvider,
 		instanceProvider: NewInstanceProvider(ctx, ec2api, instanceTypeProvider, subnetProvider,
 			NewLaunchTemplateProvider(
 				ctx,
@@ -118,6 +116,9 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 		),
 		kubeClient: options.KubeClient,
 	}
+	v1alpha5.ValidateHook = cloudprovider.Validate
+	v1alpha5.DefaultHook = cloudprovider.Default
+	return cloudprovider
 }
 
 // checkEC2Connectivity makes a dry-run call to DescribeInstanceTypes.  If it fails, we provide an early indicator that we
@@ -146,7 +147,7 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, provisioner *v1alp
 	if err != nil {
 		return nil, err
 	}
-	instanceTypes, err := c.instanceTypeProvider.Get(ctx, aws)
+	instanceTypes, err := c.instanceTypeProvider.Get(ctx, aws, provisioner.Spec.KubeletConfiguration)
 	if err != nil {
 		return nil, err
 	}
@@ -305,7 +306,7 @@ func (c *CloudProvider) useOpinionatedInstanceFilter(provisionerRequirements ...
 			// v1.NodeSelectorOpExists: provisioner explicitly is asking for no filtering
 			// v1.NodeSelectorOpDoesNotExist: this shouldn't match any instance type at provisioning time, but avoid filtering anyway
 			return false
-		case v1.NodeSelectorOpNotIn:
+		case v1.NodeSelectorOpNotIn, v1.NodeSelectorOpGt, v1.NodeSelectorOpLt:
 			// provisioner further restricts instance types/families, so we can possibly use our list and it will
 			// be filtered more
 		}

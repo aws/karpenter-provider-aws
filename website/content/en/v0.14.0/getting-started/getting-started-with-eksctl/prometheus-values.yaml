@@ -1,0 +1,14 @@
+alertmanager:
+  persistentVolume:
+    enabled: false
+
+server:
+  fullnameOverride: prometheus-server
+  persistentVolume:
+    enabled: false
+
+extraScrapeConfigs: |
+    - job_name: karpenter
+      static_configs:
+      - targets:
+        - karpenter.karpenter:8080

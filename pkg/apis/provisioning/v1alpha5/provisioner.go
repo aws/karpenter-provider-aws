@@ -61,7 +61,7 @@ type ProvisionerSpec struct {
 	// detected to be empty. A Node is considered to be empty when it does not
 	// have pods scheduled to it, excluding daemonsets.
 	//
-	// Termination due to underutilization is disabled if this field is not set.
+	// Termination due to no utilization is disabled if this field is not set.
 	// +optional
 	TTLSecondsAfterEmpty *int64 `json:"ttlSecondsAfterEmpty,omitempty"`
 	// TTLSecondsUntilExpired is the number of seconds the controller will wait
@@ -82,6 +82,14 @@ type ProvisionerSpec struct {
 	// +kubebuilder:validation:Maximum:=100
 	// +optional
 	Weight *int32 `json:"weight,omitempty"`
+	// Consolidation are the consolidation parameters
+	// +optional
+	Consolidation *Consolidation `json:"consolidation,omitempty"`
+}
+
+type Consolidation struct {
+	// Enabled enables consolidation if it has been set
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // +kubebuilder:object:generate=false
@@ -110,6 +118,12 @@ type KubeletConfiguration struct {
 	// ContainerRuntime is the container runtime to be used with your worker nodes.
 	// +optional
 	ContainerRuntime *string `json:"containerRuntime,omitempty"`
+	// MaxPods is an override for the maximum number of pods that can run on
+	// a worker node instance.
+	// +optional
+	MaxPods *int32 `json:"maxPods,omitempty"`
+	// SystemReserved contains resources reserved for OS system daemons and kernel memory.
+	SystemReserved v1.ResourceList `json:"systemReserved,omitempty"`
 }
 
 // Provisioner is the Schema for the Provisioners API

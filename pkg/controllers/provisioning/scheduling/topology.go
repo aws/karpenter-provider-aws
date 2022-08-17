@@ -33,7 +33,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter/pkg/utils/pod"
-	"github.com/aws/karpenter/pkg/utils/sets"
 )
 
 type Topology struct {
@@ -49,7 +48,10 @@ type Topology struct {
 	inverseTopologies map[uint64]*TopologyGroup
 	// The universe of domains by topology key
 	domains map[string]utilsets.String
-	cluster *state.Cluster
+	// excludedPods are the pod UIDs of pods that are excluded from counting.  This is used so we can simulate
+	// moving pods to prevent them from being double counted.
+	excludedPods utilsets.String
+	cluster      *state.Cluster
 }
 
 func NewTopology(ctx context.Context, kubeClient client.Client, cluster *state.Cluster, domains map[string]utilsets.String, pods []*v1.Pod) (*Topology, error) {
@@ -59,7 +61,15 @@ func NewTopology(ctx context.Context, kubeClient client.Client, cluster *state.C
 		domains:           domains,
 		topologies:        map[uint64]*TopologyGroup{},
 		inverseTopologies: map[uint64]*TopologyGroup{},
+		excludedPods:      utilsets.NewString(),
 	}
+
+	// these are the pods that we intend to schedule, so if they are currently in the cluster we shouldn't count them for
+	// topology purposes
+	for _, p := range pods {
+		t.excludedPods.Insert(string(p.UID))
+	}
+
 	errs := t.updateInverseAffinities(ctx)
 	for i := range pods {
 		errs = multierr.Append(errs, t.Update(ctx, pods[i]))
@@ -115,11 +125,11 @@ func (t *Topology) Record(p *v1.Pod, requirements scheduling.Requirements) {
 			domains := requirements.Get(tc.Key)
 			if tc.Type == TopologyTypePodAntiAffinity {
 				// for anti-affinity topologies we need to block out all possible domains that the pod could land in
-				tc.Record(domains.Values().UnsortedList()...)
+				tc.Record(domains.Values()...)
 			} else {
 				// but for affinity & topology spread, we can only record the domain if we know the specific domain we land in
 				if domains.Len() == 1 {
-					tc.Record(domains.Values().UnsortedList()[0])
+					tc.Record(domains.Values()[0])
 				}
 			}
 		}
@@ -128,7 +138,7 @@ func (t *Topology) Record(p *v1.Pod, requirements scheduling.Requirements) {
 	// requirements haven't collapsed to a single value.
 	for _, tc := range t.inverseTopologies {
 		if tc.IsOwnedBy(p.UID) {
-			tc.Record(requirements.Get(tc.Key).Values().UnsortedList()...)
+			tc.Record(requirements.Get(tc.Key).Values()...)
 		}
 	}
 }
@@ -138,21 +148,21 @@ func (t *Topology) Record(p *v1.Pod, requirements scheduling.Requirements) {
 // placing the pod on.  It returns these newly tightened requirements, or an error in the case of a set of requirements that
 // cannot be satisfied.
 func (t *Topology) AddRequirements(podRequirements, nodeRequirements scheduling.Requirements, p *v1.Pod) (scheduling.Requirements, error) {
-	requirements := scheduling.NewRequirements(nodeRequirements)
+	requirements := scheduling.NewRequirements(nodeRequirements.Values()...)
 	for _, topology := range t.getMatchingTopologies(p, nodeRequirements) {
-		podDomains := sets.NewComplementSet()
+		podDomains := scheduling.NewRequirement(topology.Key, v1.NodeSelectorOpExists)
 		if podRequirements.Has(topology.Key) {
 			podDomains = podRequirements.Get(topology.Key)
 		}
-		nodeDomains := sets.NewComplementSet()
+		nodeDomains := scheduling.NewRequirement(topology.Key, v1.NodeSelectorOpExists)
 		if nodeRequirements.Has(topology.Key) {
 			nodeDomains = nodeRequirements.Get(topology.Key)
 		}
 		domains := topology.Get(p, podDomains, nodeDomains)
 		if domains.Len() == 0 {
-			return scheduling.NewRequirements(), fmt.Errorf("unsatisfiable topology constraint for %s, key=%s", topology.Type, topology.Key)
+			return nil, fmt.Errorf("unsatisfiable topology constraint for %s, key=%s", topology.Type, topology.Key)
 		}
-		requirements.Add(scheduling.Requirements{topology.Key: domains})
+		requirements.Add(domains)
 	}
 	return requirements, nil
 }
@@ -176,6 +186,10 @@ func (t *Topology) Register(topologyKey string, domain string) {
 func (t *Topology) updateInverseAffinities(ctx context.Context) error {
 	var errs error
 	t.cluster.ForPodsWithAntiAffinity(func(pod *v1.Pod, node *v1.Node) bool {
+		// don't count the pod we are excluding
+		if t.excludedPods.Has(string(pod.UID)) {
+			return true
+		}
 		if err := t.updateInverseAntiAffinity(ctx, pod, node.Labels); err != nil {
 			errs = multierr.Append(errs, fmt.Errorf("tracking existing pod anti-affinity, %w", err))
 		}
@@ -230,6 +244,10 @@ func (t *Topology) countDomains(ctx context.Context, tg *TopologyGroup) error {
 
 	for i, p := range pods {
 		if IgnoredForTopology(&pods[i]) {
+			continue
+		}
+		// pod is excluded for counting purposes
+		if t.excludedPods.Has(string(p.UID)) {
 			continue
 		}
 		node := &v1.Node{}

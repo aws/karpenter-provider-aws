@@ -29,4 +29,5 @@ tagRelease() {
 
 authenticate
 tagAllRepositories
+pullPrivateReplica $RELEASE_TYPE $NEW_TAG
 notifyRelease $RELEASE_TYPE $NEW_TAG

@@ -38,7 +38,6 @@ import (
 	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/utils/functional"
-	"github.com/aws/karpenter/pkg/utils/sets"
 )
 
 type AMIProvider struct {
@@ -167,7 +166,7 @@ func (p *AMIProvider) getRequirementsFromImage(ec2Image *ec2.Image) scheduling.R
 	requirements := scheduling.NewRequirements()
 	for _, tag := range ec2Image.Tags {
 		if v1alpha5.WellKnownLabels.Has(*tag.Key) {
-			requirements.Add(scheduling.Requirements{*tag.Key: sets.NewSet(*tag.Value)})
+			requirements.Add(scheduling.NewRequirement(*tag.Key, v1.NodeSelectorOpIn, *tag.Value))
 		}
 	}
 	// Always add the architecture of an image as a requirement, irrespective of what's specified in EC2 tags.
@@ -175,6 +174,6 @@ func (p *AMIProvider) getRequirementsFromImage(ec2Image *ec2.Image) scheduling.R
 	if value, ok := awsv1alpha1.AWSToKubeArchitectures[architecture]; ok {
 		architecture = value
 	}
-	requirements.Add(scheduling.Requirements{v1.LabelArchStable: sets.NewSet(architecture)})
+	requirements.Add(scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, architecture))
 	return requirements
 }

@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"time"
 
+	"k8s.io/apimachinery/pkg/util/clock"
+
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -30,8 +32,7 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/utils/functional"
-	"github.com/aws/karpenter/pkg/utils/injectabletime"
-	"github.com/aws/karpenter/pkg/utils/pod"
+	podutil "github.com/aws/karpenter/pkg/utils/pod"
 	"github.com/aws/karpenter/pkg/utils/ptr"
 )
 
@@ -40,6 +41,7 @@ type Terminator struct {
 	KubeClient    client.Client
 	CoreV1Client  corev1.CoreV1Interface
 	CloudProvider cloudprovider.CloudProvider
+	Clock         clock.Clock
 }
 
 type NodeDrainErr error
@@ -79,7 +81,7 @@ func (t *Terminator) drain(ctx context.Context, node *v1.Node) (bool, error) {
 		// if a pod doesn't have owner references then we can't expect a controller to manage its lifecycle
 		if len(p.ObjectMeta.OwnerReferences) == 0 {
 			return false, NodeDrainErr(fmt.Errorf("pod %s/%s does not have any owner references", p.Namespace, p.Name))
-		} else if val := p.Annotations[v1alpha5.DoNotEvictPodAnnotationKey]; val == "true" {
+		} else if podutil.HasDoNotEvict(p) {
 			return false, NodeDrainErr(fmt.Errorf("pod %s/%s has do-not-evict annotation", p.Namespace, p.Name))
 		}
 		// Ignore if unschedulable is tolerated, since they will reschedule
@@ -87,7 +89,7 @@ func (t *Terminator) drain(ctx context.Context, node *v1.Node) (bool, error) {
 			continue
 		}
 		// Ignore static mirror pods
-		if pod.IsOwnedByNode(p) {
+		if podutil.IsOwnedByNode(p) {
 			continue
 		}
 		podsToEvict = append(podsToEvict, p)
@@ -122,10 +124,14 @@ func (t *Terminator) getPods(ctx context.Context, node *v1.Node) ([]*v1.Pod, err
 	if err := t.KubeClient.List(ctx, podList, client.MatchingFields{"spec.nodeName": node.Name}); err != nil {
 		return nil, fmt.Errorf("listing pods on node, %w", err)
 	}
-	pods := []*v1.Pod{}
+	var pods []*v1.Pod
 	for _, p := range podList.Items {
+		// Ignore if the pod is complete and doesn't need to be evicted
+		if podutil.IsTerminal(ptr.Pod(p)) {
+			continue
+		}
 		// Ignore if kubelet is partitioned and pods are beyond graceful termination window
-		if IsStuckTerminating(ptr.Pod(p)) {
+		if t.isStuckTerminating(ptr.Pod(p)) {
 			continue
 		}
 		pods = append(pods, ptr.Pod(p))
@@ -155,9 +161,9 @@ func (t *Terminator) evict(pods []*v1.Pod) {
 	}
 }
 
-func IsStuckTerminating(pod *v1.Pod) bool {
+func (t *Terminator) isStuckTerminating(pod *v1.Pod) bool {
 	if pod.DeletionTimestamp == nil {
 		return false
 	}
-	return injectabletime.Now().After(pod.DeletionTimestamp.Time.Add(1 * time.Minute))
+	return t.Clock.Now().After(pod.DeletionTimestamp.Time.Add(1 * time.Minute))
 }

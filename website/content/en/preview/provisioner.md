@@ -15,6 +15,11 @@ kind: Provisioner
 metadata:
   name: default
 spec:
+  # Enables consolidation which attempts to reduce cluster cost by both removing un-needed nodes and down-sizing those
+  # that can't be removed.  Mutually exclusive with the ttlSecondsAfterEmpty parameter.
+  consolidation:
+    enabled: true
+    
   # If omitted, the feature is disabled and nodes will never expire.  If set to less time than it requires for a node
   # to become ready, the node may expire before any pods successfully start.
   ttlSecondsUntilExpired: 2592000 # 30 Days = 60 * 60 * 24 * 30 Seconds;
@@ -66,6 +71,12 @@ spec:
   # These are all optional and provide support for additional customization and use cases.
   kubeletConfiguration:
     clusterDNS: ["10.0.1.100"]
+    containerRuntime: containerd
+    systemReserved:
+      cpu: 1
+      memory: 5Gi
+      ephemeral-storage: 2Gi
+    maxPods: 20
 
   # Resource limits constrain the total size of the cluster.
   # Limits prevent Karpenter from creating new instances once the limit is exceeded.
@@ -188,6 +199,11 @@ spec:
   kubeletConfiguration:
     clusterDNS: ["10.0.1.100"]
     containerRuntime: containerd
+    systemReserved:
+      cpu: 1
+      memory: 5Gi
+      ephemeral-storage: 2Gi
+    maxPods: 20
 ```
 
 ☁️ **AWS**
@@ -196,6 +212,24 @@ You can specify the container runtime to be either `dockerd` or `containerd`.
 
 * `dockerd` will be chosen by default for [Inferentia instanceTypes](https://aws.amazon.com/ec2/instance-types/inf1/). For all other instances `containerd` is the default.
 * You can only use `containerd` with the Bottlerocket AMI Family.
+
+### System Reserved Resources
+
+Karpenter will automatically configure the system reserved resource requests on the fly on your behalf. These requests are used to configure your node and to make scheduling decisions for your pods. If you have specific requirements or know that you will have additional capacity requirements, you can optionally override the `--system-reserved` configuration defaults with the `.spec.kubeletConfiguration.systemReserved` value.
+
+These values will be accounted for in scheduling and be passed through when your node is bootstrapped to the kubelet.
+
+For more information on the deafult `--system-reserved` configuration refer to the [Kubelet Docs](https://kubernetes.io/docs/tasks/administer-cluster/reserve-compute-resources/#system-reserved)
+
+### Max Pods
+
+By default, AWS will configure the maximum density of pods on a node [based on the node instance type](https://github.com/awslabs/amazon-eks-ami/blob/master/files/eni-max-pods.txt). For small instances that require an increased pod density or large instances that require a reduced pod density, you can override this default value with `.spec.kubeletConfiguration.maxPods`. This value will be used during Karpenter pod scheduling and passed through to `--max-pods` on kubelet startup.
+
+{{% alert title="Note" color="primary" %}}
+When using small instance types, it may be necessary to enable [prefix assignment mode](https://aws.amazon.com/blogs/containers/amazon-vpc-cni-increases-pods-per-node-limits/) in the AWS VPC CNI plugin to support a higher pod density per node.  Prefix assignment mode was introduced in AWS VPC CNI v1.9 and allows ENIs to manage a broader set of IP addresses.  Much higher pod densities are supported as a result.
+{{% /alert %}}
+
+For a more detailed description of pod density considerations, see [Control Pod Density](../tasks/pod-density).
 
 ## spec.limits.resources
 

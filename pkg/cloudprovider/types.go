@@ -19,7 +19,6 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
-	"knative.dev/pkg/apis"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
@@ -30,7 +29,7 @@ import (
 type Options struct {
 	ClientSet  *kubernetes.Clientset
 	KubeClient client.Client
-	// WebhookOnly is true if the cloud provider is being used for its validation/defaulting only by the webhook.  In
+	// WebhookOnly is true if the cloud provider is being used for its validation/defaulting only by the webhook. In
 	// this case it may not need to perform some initialization and the StartAsync channel will not be closed.
 	WebhookOnly bool
 	// StartAsync is a channel that is closed when leader election has been won.  This is a signal to start any  async
@@ -52,10 +51,6 @@ type CloudProvider interface {
 	// availability, the GetInstanceTypes method should always return all instance types,
 	// even those with no offerings available.
 	GetInstanceTypes(context.Context, *v1alpha5.Provisioner) ([]InstanceType, error)
-	// Default is a hook for additional defaulting logic at webhook time.
-	Default(context.Context, *v1alpha5.Provisioner)
-	// Validate is a hook for additional validation logic at webhook time.
-	Validate(context.Context, *v1alpha5.Provisioner) *apis.FieldError
 	// Name returns the CloudProvider implementation name.
 	Name() string
 }
@@ -80,8 +75,8 @@ type InstanceType interface {
 	// Overhead is the amount of resource overhead expected to be used by kubelet and any other system daemons outside
 	// of Kubernetes.
 	Overhead() v1.ResourceList
-	// Price is a metric that is used to optimize pod placement onto nodes.  This can be an actual monetary price per hour
-	// for the instance type, or just a weighting where lower 'prices' are preferred.
+	// Price is a metric that is used to optimize pod placement onto nodes as well as determining if replacing a node with
+	// a cheaper instance type is possible when performing consolidation.
 	Price() float64
 }
 

@@ -3,15 +3,17 @@ package environment
 import (
 	"context"
 	"fmt"
+	"math"
 	"sync"
-	"time"
-
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/util/sets"
 
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/utils/resources"
 )
 
 // Monitor is used to monitor the cluster state during a running test
@@ -20,13 +22,14 @@ type Monitor struct {
 	kubeClient client.Client
 
 	mu                 sync.RWMutex
-	recordings         []recording
 	nodesSeen          sets.String
 	numberNodesAtReset int
 }
-type recording struct {
-	nodes v1.NodeList
-	pods  v1.PodList
+type state struct {
+	pods         v1.PodList
+	nodes        map[string]*v1.Node        // node name -> node
+	nodePods     map[string][]*v1.Pod       // node name -> pods bound to the node
+	nodeRequests map[string]v1.ResourceList // node name -> sum of pod resource requests
 }
 
 func NewMonitor(ctx context.Context, kubeClient client.Client) *Monitor {
@@ -36,24 +39,12 @@ func NewMonitor(ctx context.Context, kubeClient client.Client) *Monitor {
 		nodesSeen:  sets.NewString(),
 	}
 	m.Reset()
-
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-time.After(1 * time.Second):
-				m.poll()
-			}
-		}
-	}()
 	return m
 }
 
 // Reset resets the cluster monitor prior to running a test.
 func (m *Monitor) Reset() {
 	m.mu.Lock()
-	m.recordings = nil
 	m.nodesSeen = map[string]sets.Empty{}
 	m.mu.Unlock()
 	m.poll()
@@ -63,13 +54,12 @@ func (m *Monitor) Reset() {
 // RestartCount returns the containers and number of restarts for that container for all containers in the pods in the
 // given namespace
 func (m *Monitor) RestartCount() map[string]int {
-	m.poll()
+	st := m.poll()
 
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	restarts := map[string]int{}
-	last := m.recordings[len(m.recordings)-1]
-	for _, pod := range last.pods.Items {
+	for _, pod := range st.pods.Items {
 		if pod.Namespace != "karpenter" {
 			continue
 		}
@@ -83,20 +73,16 @@ func (m *Monitor) RestartCount() map[string]int {
 
 // GetNodes returns the most recent recording of nodes
 func (m *Monitor) GetNodes() []v1.Node {
-	m.poll()
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	last := m.recordings[len(m.recordings)-1]
-	return last.nodes.Items
+	var nodes []v1.Node
+	for _, n := range m.poll().nodes {
+		nodes = append(nodes, *n)
+	}
+	return nodes
 }
 
 // NodeCount returns the current number of nodes
 func (m *Monitor) NodeCount() int {
-	m.poll()
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	last := m.recordings[len(m.recordings)-1]
-	return len(last.nodes.Items)
+	return len(m.poll().nodes)
 }
 
 // NodeCountAtReset returns the number of nodes that were running when the monitor was last reset, typically at the
@@ -122,12 +108,8 @@ func (m *Monitor) CreatedNodes() int {
 
 // RunningPods returns the number of running pods matching the given selector
 func (m *Monitor) RunningPods(selector labels.Selector) int {
-	m.poll()
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	last := m.recordings[len(m.recordings)-1]
 	count := 0
-	for _, pod := range last.pods.Items {
+	for _, pod := range m.poll().pods.Items {
 		if pod.Status.Phase != v1.PodRunning {
 			continue
 		}
@@ -138,7 +120,7 @@ func (m *Monitor) RunningPods(selector labels.Selector) int {
 	return count
 }
 
-func (m *Monitor) poll() {
+func (m *Monitor) poll() state {
 	var nodes v1.NodeList
 	if err := m.kubeClient.List(m.ctx, &nodes); err != nil {
 		logging.FromContext(m.ctx).Errorf("listing nodes, %s", err)
@@ -147,13 +129,69 @@ func (m *Monitor) poll() {
 	if err := m.kubeClient.List(m.ctx, &pods); err != nil {
 		logging.FromContext(m.ctx).Errorf("listing pods, %s", err)
 	}
+
 	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.recordings = append(m.recordings, recording{
-		nodes: nodes,
-		pods:  pods,
-	})
 	for _, node := range nodes.Items {
 		m.nodesSeen.Insert(node.Name)
 	}
+	m.mu.Unlock()
+
+	st := state{
+		nodes:        map[string]*v1.Node{},
+		pods:         pods,
+		nodePods:     map[string][]*v1.Pod{},
+		nodeRequests: map[string]v1.ResourceList{},
+	}
+	for i := range nodes.Items {
+		st.nodes[nodes.Items[i].Name] = &nodes.Items[i]
+	}
+
+	// collect pods per node
+	for i := range pods.Items {
+		pod := &pods.Items[i]
+		if pod.Spec.NodeName == "" {
+			continue
+		}
+		st.nodePods[pod.Spec.NodeName] = append(st.nodePods[pod.Spec.NodeName], pod)
+	}
+
+	for _, n := range nodes.Items {
+		st.nodeRequests[n.Name] = resources.RequestsForPods(st.nodePods[n.Name]...)
+	}
+	return st
+}
+
+func (m *Monitor) AvgUtilization(resource v1.ResourceName) float64 {
+	utilization := m.nodeUtilization(resource)
+	sum := 0.0
+	for _, v := range utilization {
+		sum += v
+	}
+	return sum / float64(len(utilization))
+}
+
+func (m *Monitor) MinUtilization(resource v1.ResourceName) float64 {
+	min := math.MaxFloat64
+	for _, v := range m.nodeUtilization(resource) {
+		min = math.Min(v, min)
+	}
+	return min
+}
+
+func (m *Monitor) nodeUtilization(resource v1.ResourceName) []float64 {
+	st := m.poll()
+	var utilization []float64
+	for nodeName, requests := range st.nodeRequests {
+		allocatable := st.nodes[nodeName].Status.Allocatable[resource]
+		// skip any nodes we didn't launch
+		if _, ok := st.nodes[nodeName].Labels[v1alpha5.ProvisionerNameLabelKey]; !ok {
+			continue
+		}
+		if allocatable.IsZero() {
+			continue
+		}
+		requested := requests[resource]
+		utilization = append(utilization, requested.AsApproximateFloat64()/allocatable.AsApproximateFloat64())
+	}
+	return utilization
 }

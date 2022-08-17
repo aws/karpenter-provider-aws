@@ -19,6 +19,9 @@ import (
 	"fmt"
 	"math/rand"
 	"testing"
+	"time"
+
+	"k8s.io/apimachinery/pkg/util/clock"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 
@@ -35,7 +38,7 @@ import (
 	"github.com/aws/karpenter/pkg/test"
 
 	. "github.com/aws/karpenter/pkg/test/expectations"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
 )
@@ -43,6 +46,7 @@ import (
 var ctx context.Context
 var cfg *test.Config
 var env *test.Environment
+var fakeClock *clock.FakeClock
 var cluster *state.Cluster
 var nodeController *state.NodeController
 var podController *state.PodController
@@ -67,7 +71,8 @@ var _ = AfterSuite(func() {
 
 var _ = BeforeEach(func() {
 	cloudProvider = &fake.CloudProvider{InstanceTypes: fake.InstanceTypesAssorted()}
-	cluster = state.NewCluster(cfg, env.Client, cloudProvider)
+	fakeClock = clock.NewFakeClock(time.Now())
+	cluster = state.NewCluster(fakeClock, cfg, env.Client, cloudProvider)
 	nodeController = state.NewNodeController(env.Client, cluster)
 	podController = state.NewPodController(env.Client, cluster)
 	provisioner = test.Provisioner(test.ProvisionerOptions{ObjectMeta: metav1.ObjectMeta{Name: "default"}})
@@ -221,6 +226,44 @@ var _ = Describe("Node Resource Level", func() {
 
 		ExpectDeleted(ctx, env.Client, pod1)
 		ExpectReconcileSucceeded(ctx, podController, client.ObjectKeyFromObject(pod1))
+		ExpectNodeResourceRequest(node, v1.ResourceCPU, "0")
+	})
+	It("should not add requests if the pod is terminal", func() {
+		pod1 := test.UnschedulablePod(test.PodOptions{
+			ResourceRequirements: v1.ResourceRequirements{
+				Requests: map[v1.ResourceName]resource.Quantity{
+					v1.ResourceCPU: resource.MustParse("1.5"),
+				}},
+			Phase: v1.PodFailed,
+		})
+		pod2 := test.UnschedulablePod(test.PodOptions{
+			ResourceRequirements: v1.ResourceRequirements{
+				Requests: map[v1.ResourceName]resource.Quantity{
+					v1.ResourceCPU: resource.MustParse("2"),
+				}},
+			Phase: v1.PodSucceeded,
+		})
+		node := test.Node(test.NodeOptions{
+			ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{
+				v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+				v1.LabelInstanceTypeStable:       cloudProvider.InstanceTypes[0].Name(),
+			}},
+			Allocatable: map[v1.ResourceName]resource.Quantity{
+				v1.ResourceCPU: resource.MustParse("4"),
+			},
+		})
+		ExpectApplied(ctx, env.Client, pod1, pod2)
+		ExpectApplied(ctx, env.Client, node)
+
+		ExpectReconcileSucceeded(ctx, nodeController, client.ObjectKeyFromObject(node))
+		ExpectReconcileSucceeded(ctx, podController, client.ObjectKeyFromObject(pod1))
+		ExpectReconcileSucceeded(ctx, podController, client.ObjectKeyFromObject(pod2))
+
+		ExpectManualBinding(ctx, env.Client, pod1, node)
+		ExpectManualBinding(ctx, env.Client, pod2, node)
+		ExpectReconcileSucceeded(ctx, podController, client.ObjectKeyFromObject(pod1))
+		ExpectReconcileSucceeded(ctx, podController, client.ObjectKeyFromObject(pod2))
+
 		ExpectNodeResourceRequest(node, v1.ResourceCPU, "0")
 	})
 	It("should stop tracking nodes that are deleted", func() {
@@ -635,7 +678,6 @@ var _ = Describe("Pod Anti-Affinity", func() {
 		})
 		Expect(foundPodCount).To(BeNumerically("==", 0))
 	})
-
 })
 
 func ExpectNodeResourceRequest(node *v1.Node, resourceName v1.ResourceName, amount string) {

@@ -8,24 +8,28 @@ import (
 	"sync"
 	"time"
 
-	. "github.com/onsi/ginkgo" //nolint:revive,stylecheck
-	. "github.com/onsi/gomega" //nolint:revive,stylecheck
+	. "github.com/onsi/ginkgo/v2" //nolint:revive,stylecheck
+	. "github.com/onsi/gomega"    //nolint:revive,stylecheck
 	"github.com/samber/lo"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/api/policy/v1beta1"
+	policyv1 "k8s.io/api/policy/v1beta1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/ec2"
+
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/utils/pod"
-	"github.com/aws/karpenter/pkg/utils/sets"
 )
 
 var (
@@ -34,7 +38,7 @@ var (
 		&v1.Pod{},
 		&appsv1.Deployment{},
 		&appsv1.DaemonSet{},
-		&v1beta1.PodDisruptionBudget{},
+		&policyv1.PodDisruptionBudget{},
 		&v1.PersistentVolumeClaim{},
 		&v1.PersistentVolume{},
 		&storagev1.StorageClass{},
@@ -103,6 +107,15 @@ func (env *Environment) ExpectDeleted(objects ...client.Object) {
 	}
 }
 
+func (env *Environment) ExpectUpdate(objects ...client.Object) {
+	for _, o := range objects {
+		current := o.DeepCopyObject().(client.Object)
+		Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(current), current)).To(Succeed())
+		o.SetResourceVersion(current.GetResourceVersion())
+		Expect(env.Client.Update(env.Context, o)).To(Succeed())
+	}
+}
+
 func (env *Environment) EventuallyExpectHealthy(pods ...*v1.Pod) {
 	for _, pod := range pods {
 		Eventually(func(g Gomega) {
@@ -147,7 +160,7 @@ func (env *Environment) eventuallyExpectScaleDown() {
 
 func (env *Environment) GetCreatedNodes(before []v1.Node, after []v1.Node) []*v1.Node {
 	createdNodes := []*v1.Node{}
-	oldList := sets.NewSet()
+	oldList := sets.NewString()
 	for _, node := range before {
 		oldList.Insert(node.Name)
 	}
@@ -173,6 +186,32 @@ func (env *Environment) ExpectNodesEventuallyDeleted(timeout time.Duration, node
 func (env *Environment) ExpectCreatedNodeCount(comparator string, nodeCount int) {
 	Expect(env.Monitor.CreatedNodes()).To(BeNumerically(comparator, nodeCount),
 		fmt.Sprintf("expected %d created nodes, had %d", nodeCount, env.Monitor.CreatedNodes()))
+}
+
+func (env *Environment) ExpectInstance(nodeName string) Assertion {
+	return Expect(env.GetInstance(nodeName))
+}
+
+func (env *Environment) GetInstance(nodeName string) ec2.Instance {
+	var node v1.Node
+	Expect(env.Client.Get(env.Context, types.NamespacedName{Name: nodeName}, &node)).To(Succeed())
+	providerIDSplit := strings.Split(node.Spec.ProviderID, "/")
+	Expect(len(providerIDSplit)).ToNot(Equal(0))
+	instanceID := providerIDSplit[len(providerIDSplit)-1]
+	instance, err := env.EC2API.DescribeInstances(&ec2.DescribeInstancesInput{
+		InstanceIds: aws.StringSlice([]string{instanceID}),
+	})
+	Expect(err).ToNot(HaveOccurred())
+	Expect(instance.Reservations).To(HaveLen(1))
+	Expect(instance.Reservations[0].Instances).To(HaveLen(1))
+	return *instance.Reservations[0].Instances[0]
+}
+
+func (env *Environment) GetVolume(volumeID *string) ec2.Volume {
+	dvo, err := env.EC2API.DescribeVolumes(&ec2.DescribeVolumesInput{VolumeIds: []*string{volumeID}})
+	Expect(err).ToNot(HaveOccurred())
+	Expect(len(dvo.Volumes)).To(Equal(1))
+	return *dvo.Volumes[0]
 }
 
 func (env *Environment) expectNoCrashes() {
@@ -206,4 +245,16 @@ func (env *Environment) printControllerLogs(options *v1.PodLogOptions) {
 	_, err = io.Copy(log, stream)
 	Expect(err).ToNot(HaveOccurred())
 	logging.FromContext(env.Context).Info(log)
+}
+
+func (env *Environment) EventuallyExpectMinUtilization(resource v1.ResourceName, comparator string, value float64) {
+	Eventually(func(g Gomega) {
+		g.Expect(env.Monitor.MinUtilization(resource)).To(BeNumerically(comparator, value))
+	}).Should(Succeed())
+}
+
+func (env *Environment) EventuallyExpectAvgUtilization(resource v1.ResourceName, comparator string, value float64) {
+	Eventually(func(g Gomega) {
+		g.Expect(env.Monitor.AvgUtilization(resource)).To(BeNumerically(comparator, value))
+	}, 10*time.Minute).Should(Succeed())
 }

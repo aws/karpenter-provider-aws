@@ -20,17 +20,17 @@ import (
 	"testing"
 	"time"
 
+	"k8s.io/apimachinery/pkg/util/clock"
+
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider/fake"
-	"github.com/aws/karpenter/pkg/cloudprovider/registry"
 	"github.com/aws/karpenter/pkg/controllers/termination"
 	"github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/pkg/utils/functional"
-	"github.com/aws/karpenter/pkg/utils/injectabletime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	. "github.com/aws/karpenter/pkg/test/expectations"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -46,6 +46,7 @@ var controller *termination.Controller
 var evictionQueue *termination.EvictionQueue
 var env *test.Environment
 var defaultOwnerRefs = []metav1.OwnerReference{{Kind: "ReplicaSet", APIVersion: "appsv1", Name: "rs", UID: "1234567890"}}
+var fakeClock *clock.FakeClock
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -54,9 +55,9 @@ func TestAPIs(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
+	fakeClock = clock.NewFakeClock(time.Now())
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
 		cloudProvider := &fake.CloudProvider{}
-		registry.RegisterOrDie(ctx, cloudProvider)
 		coreV1Client := corev1.NewForConfigOrDie(e.Config)
 		recorder := test.NewEventRecorder()
 		evictionQueue = termination.NewEvictionQueue(ctx, coreV1Client, recorder)
@@ -67,6 +68,7 @@ var _ = BeforeSuite(func() {
 				CoreV1Client:  coreV1Client,
 				CloudProvider: cloudProvider,
 				EvictionQueue: evictionQueue,
+				Clock:         fakeClock,
 			},
 			Recorder:          recorder,
 			TerminationRecord: sets.NewString(),
@@ -88,7 +90,7 @@ var _ = Describe("Termination", func() {
 
 	AfterEach(func() {
 		ExpectCleanedUp(ctx, env.Client)
-		injectabletime.Now = time.Now
+		fakeClock.SetTime(time.Now())
 	})
 
 	Context("Reconciliation", func() {
@@ -298,6 +300,23 @@ var _ = Describe("Termination", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 			ExpectNotFound(ctx, env.Client, node)
 		})
+		It("should delete nodes with terminal pods", func() {
+			podEvictPhaseSucceeded := test.Pod(test.PodOptions{
+				NodeName: node.Name,
+				Phase:    v1.PodSucceeded,
+			})
+			podEvictPhaseFailed := test.Pod(test.PodOptions{
+				NodeName: node.Name,
+				Phase:    v1.PodFailed,
+			})
+
+			ExpectApplied(ctx, env.Client, node, podEvictPhaseSucceeded, podEvictPhaseFailed)
+			Expect(env.Client.Delete(ctx, node)).To(Succeed())
+			node = ExpectNodeExists(ctx, env.Client, node.Name)
+			// Trigger Termination Controller, which should ignore these pods and delete the node
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
+			ExpectNotFound(ctx, env.Client, node)
+		})
 		It("should delete nodes that have do-not-evict on pods for which it does not apply", func() {
 			pods := []*v1.Pod{
 				test.Pod(test.PodOptions{
@@ -329,7 +348,7 @@ var _ = Describe("Termination", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 			node = ExpectNodeExists(ctx, env.Client, node.Name)
 			// Simulate stuck terminating
-			injectabletime.Now = func() time.Time { return time.Now().Add(2 * time.Minute) }
+			fakeClock.Step(2 * time.Minute)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 			ExpectNotFound(ctx, env.Client, node)
 		})
@@ -485,6 +504,7 @@ var _ = Describe("Termination", func() {
 		})
 		It("should wait for pods to terminate", func() {
 			pod := test.Pod(test.PodOptions{NodeName: node.Name, ObjectMeta: metav1.ObjectMeta{OwnerReferences: defaultOwnerRefs}})
+			fakeClock.SetTime(time.Now()) // make our fake clock match the pod creation time
 			ExpectApplied(ctx, env.Client, node, pod)
 
 			// Before grace period, node should not delete
@@ -493,8 +513,10 @@ var _ = Describe("Termination", func() {
 			ExpectNodeExists(ctx, env.Client, node.Name)
 			ExpectEvicted(env.Client, pod)
 
-			// After grace period, node should delete
-			injectabletime.Now = func() time.Time { return time.Now().Add(90 * time.Second) }
+			// After grace period, node should delete. The deletion timestamps are from etcd which we can't control, so
+			// to eliminate test-flakiness we reset the time to current time + 90 seconds instead of just advancing
+			// the clock by 90 seconds.
+			fakeClock.SetTime(time.Now().Add(90 * time.Second))
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 			ExpectNotFound(ctx, env.Client, node)
 		})

@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
         matrix:
-          k8sVersion: ["1.19.x", "1.20.x", "1.21.x", "1.22.x"]
+          k8sVersion: ["1.19.x", "1.20.x", "1.21.x", "1.22.x", "1.23.x"]
     env:
       K8S_VERSION: ${{ matrix.k8sVersion }}
     steps:
@@ -24,7 +24,7 @@ jobs:
           ~/.cache/go-build
           ~/go/pkg/mod
           ~/go/bin/
-          ~/.kubebuilder/bin/k8s
+          ~/.kubebuilder/bin
         key: ${{ runner.os }}-go-cache-${{ hashFiles('**/go.sum') }}
     - name: CI - Verifications and Tests
       run: |

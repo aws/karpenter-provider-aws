@@ -22,6 +22,8 @@ import (
 	"testing"
 	"time"
 
+	"k8s.io/apimachinery/pkg/util/clock"
+
 	"github.com/aws/karpenter/pkg/controllers/state"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -37,13 +39,12 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider/fake"
-	"github.com/aws/karpenter/pkg/cloudprovider/registry"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
 	"github.com/aws/karpenter/pkg/controllers/provisioning/scheduling"
 	"github.com/aws/karpenter/pkg/test"
 
 	. "github.com/aws/karpenter/pkg/test/expectations"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
 )
@@ -52,6 +53,7 @@ var ctx context.Context
 var provisioner *v1alpha5.Provisioner
 var controller *provisioning.Controller
 var env *test.Environment
+var fakeClock *clock.FakeClock
 var cloudProv *fake.CloudProvider
 var cluster *state.Cluster
 var nodeStateController *state.NodeController
@@ -59,7 +61,7 @@ var podStateController *state.PodController
 var recorder *test.EventRecorder
 var cfg *test.Config
 
-func TestAPIs(t *testing.T) {
+func TestScheduling(t *testing.T) {
 	ctx = TestContextWithLogger(t)
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Controllers/Scheduling")
@@ -69,15 +71,17 @@ var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
 		cloudProv = &fake.CloudProvider{}
 		cfg = test.NewConfig()
-		registry.RegisterOrDie(ctx, cloudProv)
 		instanceTypes, _ := cloudProv.GetInstanceTypes(ctx, nil)
 		// set these on the cloud provider so we can manipulate them if needed
 		cloudProv.InstanceTypes = instanceTypes
-		cluster = state.NewCluster(cfg, e.Client, cloudProv)
+		fakeClock = clock.NewFakeClock(time.Now())
+		cluster = state.NewCluster(fakeClock, cfg, e.Client, cloudProv)
 		nodeStateController = state.NewNodeController(e.Client, cluster)
 		podStateController = state.NewPodController(e.Client, cluster)
 		recorder = test.NewEventRecorder()
-		controller = provisioning.NewController(ctx, cfg, e.Client, corev1.NewForConfigOrDie(e.Config), recorder, cloudProv, cluster)
+		cfg = test.NewConfig()
+		prov := provisioning.NewProvisioner(ctx, cfg, e.Client, corev1.NewForConfigOrDie(e.Config), recorder, cloudProv, cluster)
+		controller = provisioning.NewController(e.Client, prov, recorder)
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })
@@ -219,6 +223,24 @@ var _ = Describe("Custom Constraints", func() {
 			))[0]
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelTopologyZone, "test-zone-3"))
+		})
+		It("should schedule compatible requirements with Operator=Gt", func() {
+			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{{
+				Key: fake.IntegerInstanceLabelKey, Operator: v1.NodeSelectorOpGt, Values: []string{"8"},
+			}}
+			ExpectApplied(ctx, env.Client, provisioner)
+			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(node.Labels).To(HaveKeyWithValue(fake.IntegerInstanceLabelKey, "16"))
+		})
+		It("should schedule compatible requirements with Operator=Lt", func() {
+			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{{
+				Key: fake.IntegerInstanceLabelKey, Operator: v1.NodeSelectorOpLt, Values: []string{"8"},
+			}}
+			ExpectApplied(ctx, env.Client, provisioner)
+			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(node.Labels).To(HaveKeyWithValue(fake.IntegerInstanceLabelKey, "2"))
 		})
 		It("should not schedule incompatible preferences and requirements with Operator=In", func() {
 			ExpectApplied(ctx, env.Client, provisioner)
@@ -405,7 +427,7 @@ var _ = Describe("Custom Constraints", func() {
 					{Key: "test-key", Operator: v1.NodeSelectorOpNotIn, Values: []string{"test-value"}},
 				}}))[0]
 			node := ExpectScheduled(ctx, env.Client, pod)
-			Expect(node.Labels).ToNot(HaveKey("test-key"))
+			Expect(node.Labels).ToNot(HaveKeyWithValue("test-key", "test-value"))
 		})
 		It("should not schedule pods that have node selectors with Exists operator and undefined key", func() {
 			ExpectApplied(ctx, env.Client, provisioner)
@@ -3140,7 +3162,7 @@ var _ = Describe("Networking constraints", func() {
 			node2 := ExpectScheduled(ctx, env.Client, pod2)
 			Expect(node1.Name).ToNot(Equal(node2.Name))
 		})
-		It("shouldn't co-locate pods that use the same HostPort but a different IP, where one ip is 0.0.0.0 (inflight)", func() {
+		It("shouldn't co-locate pods that use the same HostPort but a different IP, where one ip is 0.0.0.0 (existingNodes)", func() {
 			port := v1.ContainerPort{
 				Name:          "test-port",
 				HostPort:      80,
@@ -3531,7 +3553,7 @@ var _ = Describe("In-Flight Nodes", func() {
 		node3 := ExpectScheduled(ctx, env.Client, thirdPod[0])
 		Expect(node1.Name).ToNot(Equal(node3.Name))
 	})
-	It("should launch a second node if a pod won't fit on the inflight node", func() {
+	It("should launch a second node if a pod won't fit on the existingNodes node", func() {
 		ExpectApplied(ctx, env.Client, provisioner)
 		opts := test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
 			Limits: map[v1.ResourceName]resource.Quantity{
@@ -3548,7 +3570,7 @@ var _ = Describe("In-Flight Nodes", func() {
 		node2 := ExpectScheduled(ctx, env.Client, secondPod[0])
 		Expect(node1.Name).ToNot(Equal(node2.Name))
 	})
-	It("should launch a second node if a pod isn't compatible with the inflight node (node selector)", func() {
+	It("should launch a second node if a pod isn't compatible with the existingNodes node (node selector)", func() {
 		ExpectApplied(ctx, env.Client, provisioner)
 		opts := test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
 			Limits: map[v1.ResourceName]resource.Quantity{
@@ -3655,7 +3677,7 @@ var _ = Describe("In-Flight Nodes", func() {
 				test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, TopologySpreadConstraints: topology}),
 				test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, TopologySpreadConstraints: topology}),
 			)
-			// we prefer to launch new nodes to satisfy the topology spread even though we could technnically schedule against inflight
+			// we prefer to launch new nodes to satisfy the topology spread even though we could technnically schedule against existingNodes
 			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(1, 1, 1, 1, 1, 1, 1, 1, 1))
 		})
 	})
@@ -3760,6 +3782,30 @@ var _ = Describe("In-Flight Nodes", func() {
 			node2 := ExpectScheduled(ctx, env.Client, secondPod[0])
 			Expect(node1.Name).ToNot(Equal(node2.Name))
 		})
+		It("should consider a tainted NotReady node as in-flight even if initialized", func() {
+			opts := test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
+				Requests: map[v1.ResourceName]resource.Quantity{v1.ResourceCPU: resource.MustParse("10m")},
+			}}
+			ExpectApplied(ctx, env.Client, provisioner)
+
+			// Schedule to New Node
+			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(opts))[0]
+			node1 := ExpectScheduled(ctx, env.Client, pod)
+			ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node1))
+			// Mark Initialized
+			node1.Labels[v1alpha5.LabelNodeInitialized] = "true"
+			node1.Spec.Taints = []v1.Taint{
+				{Key: v1.TaintNodeNotReady, Effect: v1.TaintEffectNoSchedule},
+				{Key: v1.TaintNodeUnreachable, Effect: v1.TaintEffectNoSchedule},
+			}
+			ExpectApplied(ctx, env.Client, node1)
+			// Schedule to In Flight Node
+			pod = ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(opts))[0]
+			node2 := ExpectScheduled(ctx, env.Client, pod)
+			ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node2))
+
+			Expect(node1.Name).To(Equal(node2.Name))
+		})
 	})
 	Context("Daemonsets", func() {
 		It("should track daemonset usage separately so we know how many DS resources are remaining to be scheduled", func() {
@@ -3824,7 +3870,7 @@ var _ = Describe("In-Flight Nodes", func() {
 					v1.ResourceCPU: resource.MustParse("15"),
 				},
 			}}
-			// this pod should schedule on the inflight node as the daemonset pod has already bound, meaning that the
+			// this pod should schedule on the existingNodes node as the daemonset pod has already bound, meaning that the
 			// remaining daemonset resources should be zero leaving 15 CPUs for the pod
 			secondPod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(opts))
 			node2 := ExpectScheduled(ctx, env.Client, secondPod[0])
@@ -3880,7 +3926,7 @@ var _ = Describe("In-Flight Nodes", func() {
 
 		// there was a bug in cluster state where we failed to identify the instance type resources when using a
 		// ProviderRef so modify our provisioner to use the ProviderRef and ensure that the second pod schedules
-		// to the inflight node
+		// to the existingNodes node
 		provisioner.Spec.Provider = nil
 		provisioner.Spec.ProviderRef = &v1alpha5.ProviderRef{}
 
@@ -3926,7 +3972,7 @@ var _ = Describe("No Pre-Binding", func() {
 		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node1))
 		secondPod := ExpectProvisionedNoBinding(ctx, env.Client, controller, test.UnschedulablePod(opts))
 		ExpectNotScheduled(ctx, env.Client, secondPod[0])
-		// shouldn't create a second node as it can bind to the inflight node
+		// shouldn't create a second node as it can bind to the existingNodes node
 		Expect(env.Client.List(ctx, &nodeList)).To(Succeed())
 		Expect(nodeList.Items).To(HaveLen(1))
 	})
@@ -3966,7 +4012,7 @@ var _ = Describe("No Pre-Binding", func() {
 		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node1))
 		secondPod := ExpectProvisionedNoBinding(ctx, env.Client, controller, test.UnschedulablePod(opts))
 		ExpectNotScheduled(ctx, env.Client, secondPod[0])
-		// shouldn't create a second node as it can bind to the inflight node
+		// shouldn't create a second node as it can bind to the existingNodes node
 		Expect(env.Client.List(ctx, &nodeList)).To(Succeed())
 		Expect(nodeList.Items).To(HaveLen(1))
 	})
@@ -4296,36 +4342,10 @@ func ExpectMaxSkew(ctx context.Context, c client.Client, namespace string, const
 	for _, count := range skew {
 		if count < minCount {
 			minCount = count
-
 		}
 		if count > maxCount {
 			maxCount = count
 		}
 	}
 	return Expect(maxCount - minCount)
-}
-func ExpectSkew(ctx context.Context, c client.Client, namespace string, constraint *v1.TopologySpreadConstraint) Assertion {
-	nodes := &v1.NodeList{}
-	Expect(c.List(ctx, nodes)).To(Succeed())
-	pods := &v1.PodList{}
-	Expect(c.List(ctx, pods, scheduling.TopologyListOptions(namespace, constraint.LabelSelector))).To(Succeed())
-	skew := map[string]int{}
-	for i, pod := range pods.Items {
-		if scheduling.IgnoredForTopology(&pods.Items[i]) {
-			continue
-		}
-		for _, node := range nodes.Items {
-			if pod.Spec.NodeName == node.Name {
-				switch constraint.TopologyKey {
-				case v1.LabelHostname:
-					skew[node.Name]++ // Check node name since hostname labels aren't applied
-				default:
-					if key, ok := node.Labels[constraint.TopologyKey]; ok {
-						skew[key]++
-					}
-				}
-			}
-		}
-	}
-	return Expect(skew)
 }

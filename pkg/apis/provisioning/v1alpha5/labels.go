@@ -30,10 +30,11 @@ var (
 	// Karpenter specific domains and labels
 	KarpenterLabelDomain = "karpenter.sh"
 
-	ProvisionerNameLabelKey         = Group + "/provisioner-name"
-	DoNotEvictPodAnnotationKey      = Group + "/do-not-evict"
-	EmptinessTimestampAnnotationKey = Group + "/emptiness-timestamp"
-	TerminationFinalizer            = Group + "/termination"
+	ProvisionerNameLabelKey           = Group + "/provisioner-name"
+	DoNotEvictPodAnnotationKey        = Group + "/do-not-evict"
+	DoNotConsolidateNodeAnnotationKey = KarpenterLabelDomain + "/do-not-consolidate"
+	EmptinessTimestampAnnotationKey   = Group + "/emptiness-timestamp"
+	TerminationFinalizer              = Group + "/termination"
 
 	LabelCapacityType    = KarpenterLabelDomain + "/capacity-type"
 	LabelNodeInitialized = KarpenterLabelDomain + "/initialized"
@@ -57,6 +58,7 @@ var (
 	// the range of the corresponding values by either provisioner or pods.
 	WellKnownLabels = sets.NewString(
 		v1.LabelTopologyZone,
+		v1.LabelTopologyRegion,
 		v1.LabelInstanceTypeStable,
 		v1.LabelArchStable,
 		v1.LabelOSStable,
@@ -64,7 +66,7 @@ var (
 	)
 
 	// RestrictedLabels are labels that should not be used
-	// because they may interfer the internal provisioning logic.
+	// because they may interfere with the internal provisioning logic.
 	RestrictedLabels = sets.NewString(
 		EmptinessTimestampAnnotationKey,
 		v1.LabelHostname,
@@ -79,11 +81,6 @@ var (
 		v1.LabelInstanceType:            v1.LabelInstanceTypeStable,
 		v1.LabelFailureDomainBetaRegion: v1.LabelTopologyRegion,
 	}
-	// IgnoredLables are not considered in scheduling decisions
-	// and prevent validation errors when specified
-	IgnoredLabels = sets.NewString(
-		v1.LabelTopologyRegion,
-	)
 )
 
 // IsRestrictedLabel returns an error if the label is restricted.

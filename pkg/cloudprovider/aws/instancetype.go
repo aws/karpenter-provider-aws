@@ -35,7 +35,6 @@ import (
 	"github.com/aws/karpenter/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/resources"
-	"github.com/aws/karpenter/pkg/utils/sets"
 )
 
 var (
@@ -52,22 +51,29 @@ type InstanceType struct {
 	provider     *v1alpha1.AWS
 	maxPods      *int32
 	price        float64
+	region       string
 }
 
-func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, price float64, provider *v1alpha1.AWS, offerings []cloudprovider.Offering) *InstanceType {
+func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, kc *v1alpha5.KubeletConfiguration, price float64, region string, provider *v1alpha1.AWS, offerings []cloudprovider.Offering) *InstanceType {
 	instanceType := &InstanceType{
 		InstanceTypeInfo: info,
 		provider:         provider,
 		offerings:        offerings,
 		price:            price,
+		region:           region,
 	}
+
 	// set max pods before computing resources
-	if !injection.GetOptions(ctx).AWSENILimitedPodDensity {
+	// backwards compatability for AWSENILimitedPodDensity flag
+	if kc != nil && kc.MaxPods != nil {
+		instanceType.maxPods = kc.MaxPods
+	} else if !injection.GetOptions(ctx).AWSENILimitedPodDensity {
 		instanceType.maxPods = ptr.Int32(110)
 	}
+
 	// Precompute to minimize memory/compute overhead
 	instanceType.resources = instanceType.computeResources(injection.GetOptions(ctx).AWSEnablePodENI)
-	instanceType.overhead = instanceType.computeOverhead(injection.GetOptions(ctx).VMMemoryOverhead)
+	instanceType.overhead = instanceType.computeOverhead(injection.GetOptions(ctx).VMMemoryOverhead, kc)
 	instanceType.requirements = instanceType.computeRequirements()
 	return instanceType
 }
@@ -99,29 +105,30 @@ func (i *InstanceType) Price() float64 {
 }
 
 func (i *InstanceType) computeRequirements() scheduling.Requirements {
-	requirements := scheduling.Requirements{
+	requirements := scheduling.NewRequirements(
 		// Well Known Upstream
-		v1.LabelInstanceTypeStable: sets.NewSet(i.Name()),
-		v1.LabelArchStable:         sets.NewSet(i.architecture()),
-		v1.LabelOSStable:           sets.NewSet(v1alpha5.OperatingSystemLinux),
-		v1.LabelTopologyZone:       sets.NewSet(lo.Map(i.Offerings(), func(o cloudprovider.Offering, _ int) string { return o.Zone })...),
+		scheduling.NewRequirement(v1.LabelInstanceTypeStable, v1.NodeSelectorOpIn, i.Name()),
+		scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, i.architecture()),
+		scheduling.NewRequirement(v1.LabelOSStable, v1.NodeSelectorOpIn, v1alpha5.OperatingSystemLinux),
+		scheduling.NewRequirement(v1.LabelTopologyZone, v1.NodeSelectorOpIn, lo.Map(i.Offerings(), func(o cloudprovider.Offering, _ int) string { return o.Zone })...),
+		scheduling.NewRequirement(v1.LabelTopologyRegion, v1.NodeSelectorOpIn, i.region),
 		// Well Known to Karpenter
-		v1alpha5.LabelCapacityType: sets.NewSet(lo.Map(i.Offerings(), func(o cloudprovider.Offering, _ int) string { return o.CapacityType })...),
+		scheduling.NewRequirement(v1alpha5.LabelCapacityType, v1.NodeSelectorOpIn, lo.Map(i.Offerings(), func(o cloudprovider.Offering, _ int) string { return o.CapacityType })...),
 		// Well Known to AWS
-		v1alpha1.LabelInstanceCPU:             sets.NewSet(fmt.Sprint(aws.Int64Value(i.VCpuInfo.DefaultVCpus))),
-		v1alpha1.LabelInstanceMemory:          sets.NewSet(fmt.Sprint(aws.Int64Value(i.MemoryInfo.SizeInMiB))),
-		v1alpha1.LabelInstancePods:            sets.NewSet(fmt.Sprint(i.pods().Value())),
-		v1alpha1.LabelInstanceCategory:        sets.NewSet(),
-		v1alpha1.LabelInstanceFamily:          sets.NewSet(),
-		v1alpha1.LabelInstanceGeneration:      sets.NewSet(),
-		v1alpha1.LabelInstanceLocalNVME:       sets.NewSet(),
-		v1alpha1.LabelInstanceSize:            sets.NewSet(),
-		v1alpha1.LabelInstanceGPUName:         sets.NewSet(),
-		v1alpha1.LabelInstanceGPUManufacturer: sets.NewSet(),
-		v1alpha1.LabelInstanceGPUCount:        sets.NewSet(),
-		v1alpha1.LabelInstanceGPUMemory:       sets.NewSet(),
-		v1alpha1.LabelInstanceHypervisor:      sets.NewSet(aws.StringValue(i.Hypervisor)),
-	}
+		scheduling.NewRequirement(v1alpha1.LabelInstanceCPU, v1.NodeSelectorOpIn, fmt.Sprint(aws.Int64Value(i.VCpuInfo.DefaultVCpus))),
+		scheduling.NewRequirement(v1alpha1.LabelInstanceMemory, v1.NodeSelectorOpIn, fmt.Sprint(aws.Int64Value(i.MemoryInfo.SizeInMiB))),
+		scheduling.NewRequirement(v1alpha1.LabelInstancePods, v1.NodeSelectorOpIn, fmt.Sprint(i.pods().Value())),
+		scheduling.NewRequirement(v1alpha1.LabelInstanceCategory, v1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(v1alpha1.LabelInstanceFamily, v1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(v1alpha1.LabelInstanceGeneration, v1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(v1alpha1.LabelInstanceLocalNVME, v1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(v1alpha1.LabelInstanceSize, v1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(v1alpha1.LabelInstanceGPUName, v1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(v1alpha1.LabelInstanceGPUManufacturer, v1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(v1alpha1.LabelInstanceGPUCount, v1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(v1alpha1.LabelInstanceGPUMemory, v1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(v1alpha1.LabelInstanceHypervisor, v1.NodeSelectorOpIn, aws.StringValue(i.Hypervisor)),
+	)
 	// Instance Type Labels
 	instanceFamilyParts := instanceTypeScheme.FindStringSubmatch(aws.StringValue(i.InstanceType))
 	if len(instanceFamilyParts) == 4 {
@@ -130,8 +137,8 @@ func (i *InstanceType) computeRequirements() scheduling.Requirements {
 	}
 	instanceTypeParts := strings.Split(aws.StringValue(i.InstanceType), ".")
 	if len(instanceTypeParts) == 2 {
-		requirements[v1alpha1.LabelInstanceFamily].Insert(instanceTypeParts[0])
-		requirements[v1alpha1.LabelInstanceSize].Insert(instanceTypeParts[1])
+		requirements.Get(v1alpha1.LabelInstanceFamily).Insert(instanceTypeParts[0])
+		requirements.Get(v1alpha1.LabelInstanceSize).Insert(instanceTypeParts[1])
 	}
 	if i.InstanceStorageInfo != nil && aws.StringValue(i.InstanceStorageInfo.NvmeSupport) != ec2.EphemeralNvmeSupportUnsupported {
 		requirements[v1alpha1.LabelInstanceLocalNVME].Insert(fmt.Sprint(aws.Int64Value(i.InstanceStorageInfo.TotalSizeInGB)))
@@ -139,10 +146,10 @@ func (i *InstanceType) computeRequirements() scheduling.Requirements {
 	// GPU Labels
 	if i.GpuInfo != nil && len(i.GpuInfo.Gpus) == 1 {
 		gpu := i.GpuInfo.Gpus[0]
-		requirements[v1alpha1.LabelInstanceGPUName].Insert(lowerKabobCase(aws.StringValue(gpu.Name)))
-		requirements[v1alpha1.LabelInstanceGPUManufacturer].Insert(lowerKabobCase(aws.StringValue(gpu.Manufacturer)))
-		requirements[v1alpha1.LabelInstanceGPUCount].Insert(fmt.Sprint(aws.Int64Value(gpu.Count)))
-		requirements[v1alpha1.LabelInstanceGPUMemory].Insert(fmt.Sprint(aws.Int64Value(gpu.MemoryInfo.SizeInMiB)))
+		requirements.Get(v1alpha1.LabelInstanceGPUName).Insert(lowerKabobCase(aws.StringValue(gpu.Name)))
+		requirements.Get(v1alpha1.LabelInstanceGPUManufacturer).Insert(lowerKabobCase(aws.StringValue(gpu.Manufacturer)))
+		requirements.Get(v1alpha1.LabelInstanceGPUCount).Insert(fmt.Sprint(aws.Int64Value(gpu.Count)))
+		requirements.Get(v1alpha1.LabelInstanceGPUMemory).Insert(fmt.Sprint(aws.Int64Value(gpu.MemoryInfo.SizeInMiB)))
 	}
 	return requirements
 }
@@ -249,30 +256,51 @@ func (i *InstanceType) awsNeurons() *resource.Quantity {
 	return resources.Quantity(fmt.Sprint(count))
 }
 
-func (i *InstanceType) computeOverhead(vmMemOverhead float64) v1.ResourceList {
-	memory := i.memory()
+func (i *InstanceType) computeOverhead(vmMemOverhead float64, kc *v1alpha5.KubeletConfiguration) v1.ResourceList {
 	pods := i.pods()
 	amiFamily := amifamily.GetAMIFamily(i.provider.AMIFamily, &amifamily.Options{})
-	memoryOverheadPods := pods.Value()
+	podsQuantity := pods.Value()
 	if amiFamily.ENILimitedMemoryOverhead() {
-		memoryOverheadPods = i.eniLimitedPods()
+		podsQuantity = i.eniLimitedPods()
 	}
 
-	overhead := v1.ResourceList{
-		v1.ResourceCPU: *resource.NewMilliQuantity(
-			100, // system-reserved
-			resource.DecimalSI),
-		v1.ResourceMemory: resource.MustParse(fmt.Sprintf("%dMi",
-			// vm-overhead
-			(int64(math.Ceil(float64(memory.Value())*vmMemOverhead/1024/1024)))+
-				// kube-reserved
-				((11*memoryOverheadPods)+255)+
-				// system-reserved
-				100+
-				// eviction threshold https://github.com/kubernetes/kubernetes/blob/ea0764452222146c47ec826977f49d7001b0ea8c/pkg/kubelet/apis/config/v1beta1/defaults_linux.go#L23
-				100,
-		)),
-		v1.ResourceEphemeralStorage: amiFamily.EphemeralBlockDeviceOverhead(),
+	srr := i.systemReservedResources(kc)
+	krr := i.kubeReservedResources(podsQuantity)
+	misc := i.miscResources(vmMemOverhead)
+	overhead := resources.Merge(srr, krr, misc)
+
+	return overhead
+}
+
+// The number of pods per node is calculated using the formula:
+// max number of ENIs * (IPv4 Addresses per ENI -1) + 2
+// https://github.com/awslabs/amazon-eks-ami/blob/master/files/eni-max-pods.txt#L20
+func (i *InstanceType) eniLimitedPods() int64 {
+	return *i.NetworkInfo.MaximumNetworkInterfaces*(*i.NetworkInfo.Ipv4AddressesPerInterface-1) + 2
+}
+
+func (i *InstanceType) systemReservedResources(kc *v1alpha5.KubeletConfiguration) v1.ResourceList {
+	// default system-reserved resources: https://kubernetes.io/docs/tasks/administer-cluster/reserve-compute-resources/#system-reserved
+	resources := v1.ResourceList{
+		v1.ResourceCPU:              resource.MustParse("100m"),
+		v1.ResourceMemory:           resource.MustParse("100Mi"),
+		v1.ResourceEphemeralStorage: resource.MustParse("1Gi"),
+	}
+
+	if kc != nil && kc.SystemReserved != nil {
+		for _, name := range []v1.ResourceName{v1.ResourceCPU, v1.ResourceMemory, v1.ResourceEphemeralStorage} {
+			if v, ok := kc.SystemReserved[name]; ok {
+				resources[name] = v
+			}
+		}
+	}
+	return resources
+}
+
+func (i *InstanceType) kubeReservedResources(pods int64) v1.ResourceList {
+	resources := v1.ResourceList{
+		v1.ResourceMemory:           resource.MustParse(fmt.Sprintf("%dMi", (11*pods)+255)),
+		v1.ResourceEphemeralStorage: resource.MustParse("1Gi"), // default kube-reserved ephemeral-storage
 	}
 	// kube-reserved Computed from
 	// https://github.com/bottlerocket-os/bottlerocket/pull/1388/files#diff-bba9e4e3e46203be2b12f22e0d654ebd270f0b478dd34f40c31d7aa695620f2fR611
@@ -292,19 +320,24 @@ func (i *InstanceType) computeOverhead(vmMemOverhead float64) v1.ResourceList {
 			if cpu < cpuRange.end {
 				r = float64(cpu - cpuRange.start)
 			}
-			cpuOverhead := overhead[v1.ResourceCPU]
+			cpuOverhead := resources.Cpu()
 			cpuOverhead.Add(*resource.NewMilliQuantity(int64(r*cpuRange.percentage), resource.DecimalSI))
-			overhead[v1.ResourceCPU] = cpuOverhead
+			resources[v1.ResourceCPU] = *cpuOverhead
 		}
 	}
-	return overhead
+	return resources
 }
 
-// The number of pods per node is calculated using the formula:
-// max number of ENIs * (IPv4 Addresses per ENI -1) + 2
-// https://github.com/awslabs/amazon-eks-ami/blob/master/files/eni-max-pods.txt#L20
-func (i *InstanceType) eniLimitedPods() int64 {
-	return *i.NetworkInfo.MaximumNetworkInterfaces*(*i.NetworkInfo.Ipv4AddressesPerInterface-1) + 2
+func (i *InstanceType) miscResources(vmMemOverhead float64) v1.ResourceList {
+	memory := i.memory().Value()
+	return v1.ResourceList{
+		v1.ResourceMemory: resource.MustParse(fmt.Sprintf("%dMi",
+			// vm-overhead
+			(int64(math.Ceil(float64(memory)*vmMemOverhead/1024/1024)))+
+				// eviction threshold https://github.com/kubernetes/kubernetes/blob/ea0764452222146c47ec826977f49d7001b0ea8c/pkg/kubelet/apis/config/v1beta1/defaults_linux.go#L23
+				100,
+		)),
+	}
 }
 
 func lowerKabobCase(s string) string {

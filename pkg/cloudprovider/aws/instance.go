@@ -30,7 +30,7 @@ import (
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	utilsets "k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
@@ -41,11 +41,10 @@ import (
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/options"
 	"github.com/aws/karpenter/pkg/utils/resources"
-	"github.com/aws/karpenter/pkg/utils/sets"
 )
 
 var (
-	safeSpotFallbackThreshold = 5 // falling back to on-demand without flexibility risks insufficient capacity errors
+	instanceTypeFlexibilityThreshold = 5 // falling back to on-demand without flexibility risks insufficient capacity errors
 )
 
 type InstanceProvider struct {
@@ -81,13 +80,6 @@ func (p *InstanceProvider) Create(ctx context.Context, provider *v1alpha1.AWS, n
 		// retry once if launch template is not found. This allows karpenter to generate a new LT if the
 		// cache was out-of-sync on the first try
 		id, err = p.launchInstance(ctx, provider, nodeRequest)
-	} else if isSpotFallback(err) {
-		// constrain capacity type requirements to only spot since required instance type diversity is not met
-		nodeRequest.Template.Requirements.Add(scheduling.NewLabelRequirements(map[string]string{v1alpha5.LabelCapacityType: v1alpha1.CapacityTypeSpot}))
-		// try to launch again with spot
-		var retryErr error
-		id, retryErr = p.launchInstance(ctx, provider, nodeRequest)
-		err = multierr.Append(err, retryErr)
 	}
 	if err != nil {
 		return nil, err
@@ -98,10 +90,9 @@ func (p *InstanceProvider) Create(ctx context.Context, provider *v1alpha1.AWS, n
 		func() (err error) { instance, err = p.getInstance(ctx, aws.StringValue(id)); return err },
 		retry.Delay(1*time.Second),
 		retry.Attempts(6),
+		retry.LastErrorOnly(true),
 	); err != nil {
-		return nil, err
-	} else if err != nil {
-		logging.FromContext(ctx).Errorf("retrieving node name for instance %s", aws.StringValue(instance.InstanceId))
+		return nil, fmt.Errorf("retrieving node name for instance %s, %w", aws.StringValue(instance.InstanceId), err)
 	}
 	logging.FromContext(ctx).Infof("Launched instance: %s, hostname: %s, type: %s, zone: %s, capacityType: %s",
 		aws.StringValue(instance.InstanceId),
@@ -126,6 +117,14 @@ func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
 		if isNotFound(err) {
 			return nil
 		}
+		if _, errMsg := p.getInstance(ctx, aws.StringValue(id)); err != nil {
+			if isInstanceTerminated(errMsg) || isNotFound(errMsg) {
+				logging.FromContext(ctx).Debugf("Instance already terminated, %s", node.Name)
+				return nil
+			}
+			err = multierr.Append(err, errMsg)
+		}
+
 		return fmt.Errorf("terminating instance %s, %w", node.Name, err)
 	}
 	return nil
@@ -138,8 +137,8 @@ func (p *InstanceProvider) launchInstance(ctx context.Context, provider *v1alpha
 	if err != nil {
 		return nil, fmt.Errorf("getting launch template configs, %w", err)
 	}
-	if err = p.checkODFallback(nodeRequest, launchTemplateConfigs); err != nil {
-		return nil, err
+	if err := p.checkODFallback(nodeRequest, launchTemplateConfigs); err != nil {
+		logging.FromContext(ctx).Warn(err.Error())
 	}
 	// Create fleet
 	tags := v1alpha1.MergeTags(ctx, provider.Tags, map[string]string{fmt.Sprintf("kubernetes.io/cluster/%s", injection.GetOptions(ctx).ClusterName): "owned"})
@@ -199,9 +198,9 @@ func (p *InstanceProvider) checkODFallback(nodeRequest *cloudprovider.NodeReques
 			}
 		}
 	}
-	if len(instanceTypes) < safeSpotFallbackThreshold {
-		return SpotFallbackError(fmt.Errorf("at least %d instance types are required to perform spot to on-demand fallback, "+
-			"the current provisioning request only has %d instance type options", safeSpotFallbackThreshold, len(nodeRequest.InstanceTypeOptions)))
+	if len(instanceTypes) < instanceTypeFlexibilityThreshold {
+		return fmt.Errorf("at least %d instance types are recommended when flexible to spot but requesting on-demand, "+
+			"the current provisioning request only has %d instance type options", instanceTypeFlexibilityThreshold, len(nodeRequest.InstanceTypeOptions))
 	}
 	return nil
 }
@@ -237,7 +236,7 @@ func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, provide
 
 // getOverrides creates and returns launch template overrides for the cross product of instanceTypeOptions and subnets (with subnets being constrained by
 // zones and the offerings in instanceTypeOptions)
-func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.InstanceType, subnets []*ec2.Subnet, zones sets.Set, capacityType string) []*ec2.FleetLaunchTemplateOverridesRequest {
+func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.InstanceType, subnets []*ec2.Subnet, zones *scheduling.Requirement, capacityType string) []*ec2.FleetLaunchTemplateOverridesRequest {
 	// sort subnets in ascending order of available IP addresses and populate map with most available subnet per AZ
 	zonalSubnets := map[string]*ec2.Subnet{}
 	sort.Slice(subnets, func(i, j int) bool {
@@ -287,9 +286,12 @@ func (p *InstanceProvider) getInstance(ctx context.Context, id string) (*ec2.Ins
 		return nil, fmt.Errorf("failed to describe ec2 instances, %w", err)
 	}
 	if len(describeInstancesOutput.Reservations) != 1 || len(describeInstancesOutput.Reservations[0].Instances) != 1 {
-		return nil, fmt.Errorf("expected instance but got 0")
+		return nil, InstanceTerminatedError{fmt.Errorf("expected instance but got 0")}
 	}
 	instance := describeInstancesOutput.Reservations[0].Instances[0]
+	if *instance.State.Name == ec2.InstanceStateNameTerminated {
+		return nil, InstanceTerminatedError{fmt.Errorf("instance is in terminated state")}
+	}
 	if injection.GetOptions(ctx).GetAWSNodeNameConvention() == options.ResourceName {
 		return instance, nil
 	}
@@ -309,8 +311,8 @@ func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Ins
 
 			labels := map[string]string{}
 			for key, req := range instanceType.Requirements() {
-				if req.Values().Len() == 1 {
-					labels[key] = req.Any()
+				if req.Len() == 1 {
+					labels[key] = req.Values()[0]
 				}
 			}
 			labels[v1.LabelTopologyZone] = aws.StringValue(instance.Placement.AvailabilityZone)
@@ -395,7 +397,7 @@ func getInstanceID(node *v1.Node) (*string, error) {
 }
 
 func combineFleetErrors(errors []*ec2.CreateFleetError) (errs error) {
-	unique := utilsets.NewString()
+	unique := sets.NewString()
 	for _, err := range errors {
 		unique.Insert(fmt.Sprintf("%s: %s", aws.StringValue(err.ErrorCode), aws.StringValue(err.ErrorMessage)))
 	}

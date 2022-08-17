@@ -21,9 +21,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -32,39 +36,48 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/utils/functional"
+	"github.com/aws/karpenter/pkg/utils/injection"
+	"github.com/aws/karpenter/pkg/utils/pretty"
 )
 
 const (
 	InstanceTypesCacheKey              = "types"
-	InstanceTypeZonesCacheKey          = "zones"
+	InstanceTypeZonesCacheKeyPrefix    = "zones:"
 	InstanceTypesAndZonesCacheTTL      = 5 * time.Minute
 	UnfulfillableCapacityErrorCacheTTL = 3 * time.Minute
 )
 
 type InstanceTypeProvider struct {
 	sync.Mutex
+	region          string
 	ec2api          ec2iface.EC2API
 	subnetProvider  *SubnetProvider
 	pricingProvider *PricingProvider
-	// Has two entries: one for all the instance types and one for all zones; values cached *before* considering insufficient capacity errors
-	// from the unavailableOfferings cache
+	// Has one cache entry for all the instance types (key: InstanceTypesCacheKey)
+	// Has one cache entry for all the zones for each subnet selector (key: InstanceTypesZonesCacheKeyPrefix:<hash_of_selector>)
+	// Values cached *before* considering insufficient capacity errors from the unavailableOfferings cache.
 	cache *cache.Cache
 	// key: <capacityType>:<instanceType>:<zone>, value: struct{}{}
 	unavailableOfferings *cache.Cache
 }
 
-func NewInstanceTypeProvider(ec2api ec2iface.EC2API, subnetProvider *SubnetProvider, pricingProvider *PricingProvider) *InstanceTypeProvider {
+func NewInstanceTypeProvider(ctx context.Context, sess *session.Session, options cloudprovider.Options, ec2api ec2iface.EC2API, subnetProvider *SubnetProvider) *InstanceTypeProvider {
 	return &InstanceTypeProvider{
-		ec2api:               ec2api,
-		subnetProvider:       subnetProvider,
-		pricingProvider:      pricingProvider,
+		ec2api:         ec2api,
+		region:         *sess.Config.Region,
+		subnetProvider: subnetProvider,
+		pricingProvider: NewPricingProvider(ctx,
+			NewPricingAPI(sess, *sess.Config.Region),
+			ec2api,
+			*sess.Config.Region,
+			injection.GetOptions(ctx).AWSIsolatedVPC, options.StartAsync),
 		cache:                cache.New(InstanceTypesAndZonesCacheTTL, CacheCleanupInterval),
 		unavailableOfferings: cache.New(UnfulfillableCapacityErrorCacheTTL, CacheCleanupInterval),
 	}
 }
 
 // Get all instance type options
-func (p *InstanceTypeProvider) Get(ctx context.Context, provider *v1alpha1.AWS) ([]cloudprovider.InstanceType, error) {
+func (p *InstanceTypeProvider) Get(ctx context.Context, provider *v1alpha1.AWS, kc *v1alpha5.KubeletConfiguration) ([]cloudprovider.InstanceType, error) {
 	p.Lock()
 	defer p.Unlock()
 	// Get InstanceTypes from EC2
@@ -86,7 +99,7 @@ func (p *InstanceTypeProvider) Get(ctx context.Context, provider *v1alpha1.AWS) 
 			// don't warn as this can occur extremely often
 			price = math.MaxFloat64
 		}
-		instanceType := NewInstanceType(ctx, i, price, provider, p.createOfferings(i, instanceTypeZones[instanceTypeName]))
+		instanceType := NewInstanceType(ctx, i, kc, price, p.region, provider, p.createOfferings(i, instanceTypeZones[instanceTypeName]))
 		result = append(result, instanceType)
 	}
 	return result, nil
@@ -107,7 +120,12 @@ func (p *InstanceTypeProvider) createOfferings(instanceType *ec2.InstanceTypeInf
 }
 
 func (p *InstanceTypeProvider) getInstanceTypeZones(ctx context.Context, provider *v1alpha1.AWS) (map[string]sets.String, error) {
-	if cached, ok := p.cache.Get(InstanceTypeZonesCacheKey); ok {
+	subnetSelectorHash, err := hashstructure.Hash(provider.SubnetSelector, hashstructure.FormatV2, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to hash the subnet selector: %w", err)
+	}
+	cacheKey := fmt.Sprintf("%s%016x", InstanceTypeZonesCacheKeyPrefix, subnetSelectorHash)
+	if cached, ok := p.cache.Get(cacheKey); ok {
 		return cached.(map[string]sets.String), nil
 	}
 
@@ -136,8 +154,8 @@ func (p *InstanceTypeProvider) getInstanceTypeZones(ctx context.Context, provide
 		}); err != nil {
 		return nil, fmt.Errorf("describing instance type zone offerings, %w", err)
 	}
-	logging.FromContext(ctx).Debugf("Discovered EC2 instance types zonal offerings")
-	p.cache.SetDefault(InstanceTypeZonesCacheKey, instanceTypeZones)
+	logging.FromContext(ctx).Debugf("Discovered EC2 instance types zonal offerings for subnets %s", pretty.Concise(provider.SubnetSelector))
+	p.cache.SetDefault(cacheKey, instanceTypeZones)
 	return instanceTypeZones, nil
 }
 

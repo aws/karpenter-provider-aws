@@ -19,8 +19,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/aws/aws-sdk-go/aws"
+
 	"github.com/Pallinder/go-randomdata"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
 	"knative.dev/pkg/ptr"
@@ -62,6 +64,25 @@ var _ = Describe("Validation", func() {
 	})
 	It("should succeed on a missing empty ttl", func() {
 		provisioner.Spec.TTLSecondsAfterEmpty = nil
+		Expect(provisioner.Validate(ctx)).To(Succeed())
+	})
+	It("should succeed on a valid empty ttl", func() {
+		provisioner.Spec.TTLSecondsAfterEmpty = aws.Int64(30)
+		Expect(provisioner.Validate(ctx)).To(Succeed())
+	})
+	It("should fail if both consolidation and TTLSecondsAfterEmpty are enabled", func() {
+		provisioner.Spec.TTLSecondsAfterEmpty = ptr.Int64(30)
+		provisioner.Spec.Consolidation = &Consolidation{Enabled: aws.Bool(true)}
+		Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+	})
+	It("should succeed if consolidation is off and TTLSecondsAfterEmpty is set", func() {
+		provisioner.Spec.TTLSecondsAfterEmpty = ptr.Int64(30)
+		provisioner.Spec.Consolidation = &Consolidation{Enabled: aws.Bool(false)}
+		Expect(provisioner.Validate(ctx)).To(Succeed())
+	})
+	It("should succeed if consolidation is on and TTLSecondsAfterEmpty is not set", func() {
+		provisioner.Spec.TTLSecondsAfterEmpty = nil
+		provisioner.Spec.Consolidation = &Consolidation{Enabled: aws.Bool(true)}
 		Expect(provisioner.Validate(ctx)).To(Succeed())
 	})
 
@@ -169,13 +190,15 @@ var _ = Describe("Validation", func() {
 		It("should allow supported ops", func() {
 			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
 				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test"}},
+				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpGt, Values: []string{"1"}},
+				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpLt, Values: []string{"1"}},
 				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpNotIn},
 				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpExists},
 			}
 			Expect(provisioner.Validate(ctx)).To(Succeed())
 		})
 		It("should fail for unsupported ops", func() {
-			for _, op := range []v1.NodeSelectorOperator{v1.NodeSelectorOpDoesNotExist, v1.NodeSelectorOpGt, v1.NodeSelectorOpLt} {
+			for _, op := range []v1.NodeSelectorOperator{"unknown"} {
 				provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
 					{Key: v1.LabelTopologyZone, Operator: op, Values: []string{"test"}},
 				}
@@ -217,14 +240,20 @@ var _ = Describe("Validation", func() {
 			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{}
 			Expect(provisioner.Validate(ctx)).To(Succeed())
 		})
-		It("should fail because DoesNotExists conflicting", func() {
-			for _, op := range []v1.NodeSelectorOperator{v1.NodeSelectorOpIn, v1.NodeSelectorOpNotIn, v1.NodeSelectorOpExists} {
-				provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
-					{Key: v1.LabelTopologyZone, Operator: op, Values: []string{"test"}},
-					{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpDoesNotExist},
-				}
+		It("should fail with invalid GT or LT values", func() {
+			for _, requirement := range []v1.NodeSelectorRequirement{
+				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpGt, Values: []string{}},
+				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpGt, Values: []string{"1", "2"}},
+				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpGt, Values: []string{"a"}},
+				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpGt, Values: []string{"-1"}},
+				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpLt, Values: []string{}},
+				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpLt, Values: []string{"1", "2"}},
+				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpLt, Values: []string{"a"}},
+				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpLt, Values: []string{"-1"}},
+			} {
+				provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{requirement}
+				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 			}
-			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 		})
 	})
 })

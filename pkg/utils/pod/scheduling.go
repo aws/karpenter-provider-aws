@@ -17,6 +17,8 @@ package pod
 import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 )
 
 func IsProvisionable(pod *v1.Pod) bool {
@@ -65,6 +67,10 @@ func IsOwnedByNode(pod *v1.Pod) bool {
 	})
 }
 
+func IsNotOwned(pod *v1.Pod) bool {
+	return len(pod.ObjectMeta.OwnerReferences) == 0
+}
+
 func IsOwnedBy(pod *v1.Pod, gvks []schema.GroupVersionKind) bool {
 	for _, ignoredOwner := range gvks {
 		for _, owner := range pod.ObjectMeta.OwnerReferences {
@@ -74,6 +80,13 @@ func IsOwnedBy(pod *v1.Pod, gvks []schema.GroupVersionKind) bool {
 		}
 	}
 	return false
+}
+
+func HasDoNotEvict(pod *v1.Pod) bool {
+	if pod.Annotations == nil {
+		return false
+	}
+	return pod.Annotations[v1alpha5.DoNotEvictPodAnnotationKey] == "true"
 }
 
 // HasRequiredPodAntiAffinity returns true if a non-empty PodAntiAffinity/RequiredDuringSchedulingIgnoredDuringExecution

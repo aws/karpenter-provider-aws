@@ -24,7 +24,7 @@ The following tools are required for contributing to the Karpenter project.
 Based on how you are running your Kubernetes cluster, follow the [Environment specific setup](#environment-specific-setup) to configure your environment before you continue. Once you have your environment set up, to install Karpenter in the Kubernetes cluster specified in your `~/.kube/config`  run the following commands.
 
 ```bash
-CLOUD_PROVIDER="<YOUR_PROVIDER>" make apply # Install Karpenter
+make apply # Install Karpenter
 make delete # Uninstall Karpenter
 ```
 
@@ -37,7 +37,6 @@ make delete # Uninstall Karpenter
     * Make sure you have valid credentials to your development repository.
     * `$KO_DOCKER_REPO` must point to your development repository
     * Your cluster must have permissions to read from the repository
-* It's also a good idea to persist `${CLOUD_PROVIDER}` in your environment variables to simplify the `make apply` command.
 
 ### Build and Deploy
 
@@ -46,6 +45,12 @@ make delete # Uninstall Karpenter
 ```bash
 make apply # quickly deploy changes to your cluster
 make dev # run codegen, lint, and tests
+```
+
+If you are only interested in building the Karpenter images and not deploying the updated release to your cluster immediately with Helm, you can run
+
+```bash
+make build # build and push the karpenter images
 ```
 
 ### Testing
@@ -87,12 +92,6 @@ stern -n karpenter -l app.kubernetes.io/name=karpenter
 ## Environment specific setup
 
 ### AWS
-
-Set the CLOUD_PROVIDER environment variable to build cloud provider specific packages of Karpenter.
-
-```sh
-export CLOUD_PROVIDER="aws"
-```
 
 For local development on Karpenter you will need a Docker repo which can manage your images for Karpenter components.
 You can use the following command to provision an ECR repository.

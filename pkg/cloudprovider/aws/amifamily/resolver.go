@@ -75,7 +75,6 @@ type AMIFamily interface {
 	DefaultBlockDeviceMappings() []*v1alpha1.BlockDeviceMapping
 	DefaultMetadataOptions() *v1alpha1.MetadataOptions
 	EphemeralBlockDevice() *string
-	EphemeralBlockDeviceOverhead() resource.Quantity
 	ENILimitedMemoryOverhead() bool
 }
 

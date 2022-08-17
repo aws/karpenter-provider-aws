@@ -30,32 +30,34 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/pricing"
+	"github.com/patrickmn/go-cache"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/clock"
+	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/client-go/kubernetes"
+	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"knative.dev/pkg/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	. "github.com/aws/karpenter/pkg/test/expectations"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+	. "knative.dev/pkg/logging/testing"
+
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/amifamily"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/amifamily/bootstrap"
 	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/fake"
-	"github.com/aws/karpenter/pkg/cloudprovider/registry"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/options"
-	"github.com/patrickmn/go-cache"
-	"github.com/samber/lo"
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/client-go/kubernetes"
-	"knative.dev/pkg/ptr"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	. "github.com/aws/karpenter/pkg/test/expectations"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
-	. "knative.dev/pkg/logging/testing"
 )
 
 var ctx context.Context
@@ -73,13 +75,14 @@ var instanceTypeProvider *InstanceTypeProvider
 var fakeEC2API *fake.EC2API
 var fakePricingAPI *fake.PricingAPI
 var controller *provisioning.Controller
-var cloudProvider cloudprovider.CloudProvider
+var cloudProvider *CloudProvider
 var clientSet *kubernetes.Clientset
 var cluster *state.Cluster
 var recorder *test.EventRecorder
 var cfg *test.Config
+var fakeClock *clock.FakeClock
 
-func TestAPIs(t *testing.T) {
+func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "CloudProvider/AWS")
@@ -126,7 +129,6 @@ var _ = BeforeSuite(func() {
 		}
 		clientSet = kubernetes.NewForConfigOrDie(e.Config)
 		cloudProvider = &CloudProvider{
-			subnetProvider:       subnetProvider,
 			instanceTypeProvider: instanceTypeProvider,
 			instanceProvider: NewInstanceProvider(ctx, fakeEC2API, instanceTypeProvider, subnetProvider, &LaunchTemplateProvider{
 				ec2api:                fakeEC2API,
@@ -138,12 +140,14 @@ var _ = BeforeSuite(func() {
 			}),
 			kubeClient: e.Client,
 		}
-		registry.RegisterOrDie(ctx, cloudProvider)
+		v1alpha5.DefaultHook = cloudProvider.Default
+		v1alpha5.ValidateHook = cloudProvider.Validate
 		cfg = test.NewConfig()
+		fakeClock = clock.NewFakeClock(time.Now())
+		cluster = state.NewCluster(fakeClock, cfg, e.Client, cloudProvider)
 		recorder = test.NewEventRecorder()
-		cluster = state.NewCluster(cfg, e.Client, cloudProvider)
-		recorder = test.NewEventRecorder()
-		controller = provisioning.NewController(ctx, cfg, e.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+		prov := provisioning.NewProvisioner(ctx, cfg, e.Client, corev1.NewForConfigOrDie(e.Config), recorder, cloudProvider, cluster)
+		controller = provisioning.NewController(e.Client, prov, recorder)
 	})
 
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
@@ -161,8 +165,8 @@ var _ = Describe("Allocation", func() {
 	BeforeEach(func() {
 		provider = &awsv1alpha1.AWS{
 			AMIFamily:             aws.String(awsv1alpha1.AMIFamilyAL2),
-			SubnetSelector:        map[string]string{"foo": "bar"},
-			SecurityGroupSelector: map[string]string{"foo": "bar"},
+			SubnetSelector:        map[string]string{"*": "*"},
+			SecurityGroupSelector: map[string]string{"*": "*"},
 		}
 		provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
 		fakeEC2API.Reset()
@@ -288,7 +292,9 @@ var _ = Describe("Allocation", func() {
 				cancelCtx, cancelFunc := context.WithCancel(injection.WithOptions(ctx, optsCopy))
 				// ensure the provisioner is shut down at the end of this test
 				defer cancelFunc()
-				provisionContoller := provisioning.NewController(cancelCtx, cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+
+				prov := provisioning.NewProvisioner(cancelCtx, cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
+				provisionContoller := provisioning.NewController(env.Client, prov, recorder)
 				ExpectApplied(ctx, env.Client, provisioner)
 				for _, pod := range ExpectProvisioned(cancelCtx, env.Client, provisionContoller,
 					test.UnschedulablePod(test.PodOptions{
@@ -383,8 +389,9 @@ var _ = Describe("Allocation", func() {
 				opts.AWSENILimitedPodDensity = false
 				instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 				Expect(err).To(BeNil())
+				provisioner := test.Provisioner()
 				for _, info := range instanceInfo {
-					it := NewInstanceType(injection.WithOptions(ctx, opts), info, 0, provider, nil)
+					it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, 0, "", provider, nil)
 					resources := it.Resources()
 					Expect(resources.Pods().Value()).To(BeNumerically("==", 110))
 				}
@@ -393,8 +400,9 @@ var _ = Describe("Allocation", func() {
 				opts.AWSENILimitedPodDensity = true
 				instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 				Expect(err).To(BeNil())
+				provisioner := test.Provisioner()
 				for _, info := range instanceInfo {
-					it := NewInstanceType(injection.WithOptions(ctx, opts), info, 0, provider, nil)
+					it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, 0, "", provider, nil)
 					resources := it.Resources()
 					Expect(resources.Pods().Value()).ToNot(BeNumerically("==", 110))
 				}
@@ -406,7 +414,7 @@ var _ = Describe("Allocation", func() {
 					provider.AMIFamily = &awsv1alpha1.AMIFamilyAL2
 					instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 					Expect(err).To(BeNil())
-					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], 0, provider, nil)
+					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, 0, "", provider, nil)
 					overhead := it.Overhead()
 					Expect(overhead.Memory().String()).To(Equal("1093Mi"))
 				})
@@ -416,7 +424,7 @@ var _ = Describe("Allocation", func() {
 					provider.AMIFamily = &awsv1alpha1.AMIFamilyAL2
 					instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 					Expect(err).To(BeNil())
-					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], 0, provider, nil)
+					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, 0, "", provider, nil)
 					overhead := it.Overhead()
 					Expect(overhead.Memory().String()).To(Equal("1093Mi"))
 				})
@@ -428,7 +436,7 @@ var _ = Describe("Allocation", func() {
 					provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
 					instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 					Expect(err).To(BeNil())
-					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], 0, provider, nil)
+					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, 0, "", provider, nil)
 					overhead := it.Overhead()
 					Expect(overhead.Memory().String()).To(Equal("1093Mi"))
 				})
@@ -438,9 +446,60 @@ var _ = Describe("Allocation", func() {
 					provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
 					instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 					Expect(err).To(BeNil())
-					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], 0, provider, nil)
+					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, 0, "", provider, nil)
 					overhead := it.Overhead()
 					Expect(overhead.Memory().String()).To(Equal("1665Mi"))
+				})
+			})
+			Context("KubeletConfiguration Overrides", func() {
+				It("should override system reserved cpus when specified", func() {
+					instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
+					Expect(err).To(BeNil())
+					provisioner = test.Provisioner(test.ProvisionerOptions{
+						Kubelet: &v1alpha5.KubeletConfiguration{
+							SystemReserved: v1.ResourceList{
+								v1.ResourceCPU: resource.MustParse("2"),
+							},
+						},
+					})
+					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, 0, "", provider, nil)
+					overhead := it.Overhead()
+					Expect(overhead.Cpu().String()).To(Equal("2080m"))
+				})
+				It("should override system reserved memory when specified", func() {
+					instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
+					Expect(err).To(BeNil())
+					provisioner = test.Provisioner(test.ProvisionerOptions{
+						Kubelet: &v1alpha5.KubeletConfiguration{
+							SystemReserved: v1.ResourceList{
+								v1.ResourceMemory: resource.MustParse("20Gi"),
+							},
+						},
+					})
+					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, 0, "", provider, nil)
+					overhead := it.Overhead()
+					Expect(overhead.Memory().String()).To(Equal("21473Mi"))
+				})
+				It("should set max-pods to user-defined value if specified", func() {
+					instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
+					Expect(err).To(BeNil())
+					provisioner := test.Provisioner(test.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{MaxPods: ptr.Int32(10)}})
+					for _, info := range instanceInfo {
+						it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, 0, "", provider, nil)
+						resources := it.Resources()
+						Expect(resources.Pods().Value()).To(BeNumerically("==", 10))
+					}
+				})
+				It("should override max-pods value when AWSENILimitedPodDensity is set", func() {
+					opts.AWSENILimitedPodDensity = false
+					instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
+					Expect(err).To(BeNil())
+					provisioner := test.Provisioner(test.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{MaxPods: ptr.Int32(10)}})
+					for _, info := range instanceInfo {
+						it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, 0, "", provider, nil)
+						resources := it.Resources()
+						Expect(resources.Pods().Value()).To(BeNumerically("==", 10))
+					}
 				})
 			})
 		})
@@ -488,8 +547,8 @@ var _ = Describe("Allocation", func() {
 				pod.Spec.Affinity = &v1.Affinity{NodeAffinity: &v1.NodeAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []v1.PreferredSchedulingTerm{
 					{
 						Weight: 1, Preference: v1.NodeSelectorTerm{MatchExpressions: []v1.NodeSelectorRequirement{
-							{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
-						}},
+						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
+					}},
 					},
 				}}}
 				ExpectApplied(ctx, env.Client, provisioner)
@@ -555,8 +614,7 @@ var _ = Describe("Allocation", func() {
 				node := ExpectScheduled(ctx, env.Client, pod)
 				Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "inf1.6xlarge"))
 			})
-			It("should launch on-demand capacity if flexible to both spot and on-demand, but spot if unavailable", func() {
-				safeSpotFallbackThreshold = 4
+			It("should launch on-demand capacity if flexible to both spot and on-demand, but spot is unavailable", func() {
 				fakeEC2API.DescribeInstanceTypesPagesWithContext(ctx, &ec2.DescribeInstanceTypesInput{}, func(dito *ec2.DescribeInstanceTypesOutput, b bool) bool {
 					for _, it := range dito.InstanceTypes {
 						fakeEC2API.InsufficientCapacityPools.Add(fake.CapacityPool{CapacityType: awsv1alpha1.CapacityTypeSpot, InstanceType: aws.StringValue(it.InstanceType), Zone: "test-zone-1a"})
@@ -640,29 +698,6 @@ var _ = Describe("Allocation", func() {
 				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 				node := ExpectScheduled(ctx, env.Client, pod)
 				Expect(node.Labels).To(HaveKeyWithValue(v1alpha5.LabelCapacityType, awsv1alpha1.CapacityTypeSpot))
-			})
-			It("should not launch spot capacity if flexible to both spot and on demand but only flexible to 1 instance types", func() {
-				provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
-					{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{awsv1alpha1.CapacityTypeSpot, awsv1alpha1.CapacityTypeOnDemand}},
-					{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
-					{Key: v1.LabelInstanceTypeStable, Operator: v1.NodeSelectorOpIn, Values: []string{"m5.large"}},
-				}
-				var m5large *ec2.InstanceTypeInfo
-				fakeEC2API.DescribeInstanceTypesPagesWithContext(ctx, &ec2.DescribeInstanceTypesInput{}, func(dito *ec2.DescribeInstanceTypesOutput, b bool) bool {
-					var ok bool
-					if m5large, ok = lo.Find(dito.InstanceTypes, func(it *ec2.InstanceTypeInfo) bool { return *it.InstanceType == "m5.large" }); !ok {
-						return true
-					}
-					return false
-				})
-				fakeEC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
-					InstanceTypes: []*ec2.InstanceTypeInfo{m5large},
-				})
-				unavailableOfferingsCache.SetDefault(UnavailableOfferingsCacheKey("m5.large", "test-zone-1a", awsv1alpha1.CapacityTypeSpot), struct{}{})
-				ExpectApplied(ctx, env.Client, provisioner)
-				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
-				unscheduledPod := ExpectNotScheduled(ctx, env.Client, pod)
-				Expect(unscheduledPod.Name).To(Equal(pod.Name))
 			})
 		})
 		Context("LaunchTemplates", func() {
@@ -876,10 +911,34 @@ var _ = Describe("Allocation", func() {
 					{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1a"), AvailableIpAddressCount: aws.Int64(100),
 						Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
 				}})
-				ExpectApplied(ctx, env.Client, provisioner)
+				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
 				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}}))[0]
 				ExpectScheduled(ctx, env.Client, pod)
 				createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop()
+				Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-2"))
+			})
+			It("should launch instances into subnets that are excluded by another provisioner", func() {
+				fakeEC2API.DescribeSubnetsOutput.Set(&ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{
+					{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a"), AvailableIpAddressCount: aws.Int64(10),
+						Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1")}}},
+					{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1b"), AvailableIpAddressCount: aws.Int64(100),
+						Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
+				}})
+				provider.SubnetSelector = map[string]string{"Name": "test-subnet-1"}
+				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
+				podSubnet1 := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				ExpectScheduled(ctx, env.Client, podSubnet1)
+				createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop()
+				Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-1"))
+
+				provisioner = test.Provisioner(test.ProvisionerOptions{Provider: &awsv1alpha1.AWS{
+					SubnetSelector:        map[string]string{"Name": "test-subnet-2"},
+					SecurityGroupSelector: map[string]string{"*": "*"},
+				}})
+				ExpectApplied(ctx, env.Client, provisioner)
+				podSubnet2 := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name}}))[0]
+				ExpectScheduled(ctx, env.Client, podSubnet2)
+				createFleetInput = fakeEC2API.CalledWithCreateFleetInput.Pop()
 				Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-2"))
 			})
 			It("should discover subnet by ID", func() {
@@ -1001,7 +1060,8 @@ var _ = Describe("Allocation", func() {
 		Context("User Data", func() {
 			It("should not specify --use-max-pods=false when using ENI-based pod density", func() {
 				opts.AWSENILimitedPodDensity = true
-				controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+				prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
+				controller := provisioning.NewController(env.Client, prov, recorder)
 				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
 				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
@@ -1012,8 +1072,8 @@ var _ = Describe("Allocation", func() {
 			})
 			It("should specify --use-max-pods=false when not using ENI-based pod density", func() {
 				opts.AWSENILimitedPodDensity = false
-				controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
-
+				prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
+				controller := provisioning.NewController(env.Client, prov, recorder)
 				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
 				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
@@ -1022,6 +1082,48 @@ var _ = Describe("Allocation", func() {
 				userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 				Expect(string(userData)).To(ContainSubstring("--use-max-pods false"))
 				Expect(string(userData)).To(ContainSubstring("--max-pods=110"))
+			})
+			It("should specify --use-max-pods=false and --max-pods user value when user specifies maxPods in Provisioner", func() {
+				prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
+				controller := provisioning.NewController(env.Client, prov, recorder)
+
+				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider, Kubelet: &v1alpha5.KubeletConfiguration{MaxPods: ptr.Int32(10)}}))
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+				userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+				Expect(string(userData)).To(ContainSubstring("--use-max-pods false"))
+				Expect(string(userData)).To(ContainSubstring("--max-pods=10"))
+			})
+			It("should specify --system-reserved when overriding system reserved values", func() {
+				prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
+				controller := provisioning.NewController(env.Client, prov, recorder)
+
+				newProvisioner := test.Provisioner(test.ProvisionerOptions{
+					Kubelet: &v1alpha5.KubeletConfiguration{
+						SystemReserved: v1.ResourceList{
+							v1.ResourceCPU:              resource.MustParse("500m"),
+							v1.ResourceMemory:           resource.MustParse("1Gi"),
+							v1.ResourceEphemeralStorage: resource.MustParse("2Gi"),
+						},
+					},
+				})
+				ExpectApplied(ctx, env.Client, newProvisioner)
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+				userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+
+				// Check whether the arguments are there for --system-reserved
+				arg := "--system-reserved="
+				i := strings.Index(string(userData), arg)
+				rem := string(userData)[(i + len(arg)):]
+				i = strings.Index(rem, "'")
+				for k, v := range newProvisioner.Spec.KubeletConfiguration.SystemReserved {
+					Expect(rem[:i]).To(ContainSubstring(fmt.Sprintf("%v=%v", k.String(), v.String())))
+				}
 			})
 			It("should specify --container-runtime containerd by default", func() {
 				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
@@ -1093,7 +1195,8 @@ var _ = Describe("Allocation", func() {
 						AWS:      *provider,
 					})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
-					controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+					controller := provisioning.NewController(env.Client,
+						provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster), recorder)
 					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
 					ExpectApplied(ctx, env.Client, newProvisioner)
 					env.Client.Get(ctx, client.ObjectKeyFromObject(newProvisioner), newProvisioner)
@@ -1117,9 +1220,11 @@ var _ = Describe("Allocation", func() {
 						AWS:      *provider,
 					})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
-					controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+					controller := provisioning.NewController(env.Client,
+						provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster), recorder)
 					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
 					ExpectApplied(ctx, env.Client, newProvisioner)
+					env.Client.Get(ctx, client.ObjectKeyFromObject(newProvisioner), newProvisioner)
 					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 					ExpectScheduled(ctx, env.Client, pod)
 					Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
@@ -1134,7 +1239,6 @@ var _ = Describe("Allocation", func() {
 					opts.AWSENILimitedPodDensity = false
 					provider, _ := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
 					provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
-					controller := provisioning.NewController(ctx, cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: "doesnotexist"}})
 					ExpectApplied(ctx, env.Client, newProvisioner)
 					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
@@ -1149,12 +1253,64 @@ var _ = Describe("Allocation", func() {
 						AWS:      *provider,
 					})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
-					controller := provisioning.NewController(ctx, cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
 					ExpectApplied(ctx, env.Client, newProvisioner)
 					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 					// This will not be scheduled since userData cannot be generated for the prospective node.
 					ExpectNotScheduled(ctx, env.Client, pod)
+				})
+				It("should override system reserved values in user data", func() {
+					provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
+					provider, _ := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
+					nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+						UserData: nil,
+						AWS:      *provider,
+					})
+					ExpectApplied(ctx, env.Client, nodeTemplate)
+					prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
+					controller := provisioning.NewController(env.Client, prov, recorder)
+					newProvisioner := test.Provisioner(test.ProvisionerOptions{
+						ProviderRef: &v1alpha5.ProviderRef{
+							Name: nodeTemplate.Name,
+						},
+						Kubelet: &v1alpha5.KubeletConfiguration{
+							SystemReserved: v1.ResourceList{
+								v1.ResourceCPU:              resource.MustParse("2"),
+								v1.ResourceMemory:           resource.MustParse("3Gi"),
+								v1.ResourceEphemeralStorage: resource.MustParse("10Gi"),
+							},
+						},
+					})
+					ExpectApplied(ctx, env.Client, newProvisioner)
+					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+					ExpectScheduled(ctx, env.Client, pod)
+					Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+					input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+					userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+					config := &bootstrap.BottlerocketConfig{}
+					config.UnmarshalTOML(userData)
+					Expect(len(config.Settings.Kubernetes.SystemReserved)).To(Equal(3))
+					Expect(config.Settings.Kubernetes.SystemReserved[v1.ResourceCPU.String()]).To(Equal("2"))
+					Expect(config.Settings.Kubernetes.SystemReserved[v1.ResourceMemory.String()]).To(Equal("3Gi"))
+					Expect(config.Settings.Kubernetes.SystemReserved[v1.ResourceEphemeralStorage.String()]).To(Equal("10Gi"))
+				})
+				It("should specify max pods value when passing maxPods in configuration", func() {
+					prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
+					controller := provisioning.NewController(env.Client, prov, recorder)
+
+					bottlerocketProvider := provider.DeepCopy()
+					bottlerocketProvider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
+					ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: bottlerocketProvider, Kubelet: &v1alpha5.KubeletConfiguration{MaxPods: ptr.Int32(10)}}))
+					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+					ExpectScheduled(ctx, env.Client, pod)
+					Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+					input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+					userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+					config := &bootstrap.BottlerocketConfig{}
+					config.UnmarshalTOML(userData)
+					Expect(config.Settings.Kubernetes.MaxPods).ToNot(BeNil())
+					Expect(*config.Settings.Kubernetes.MaxPods).To(BeNumerically("==", 10))
 				})
 			})
 			Context("AL2 Custom UserData", func() {
@@ -1167,7 +1323,9 @@ var _ = Describe("Allocation", func() {
 						AWS:      *provider,
 					})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
-					controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+					controller := provisioning.NewController(env.Client,
+						provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster),
+						recorder)
 					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
 					ExpectApplied(ctx, env.Client, newProvisioner)
 					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
@@ -1187,7 +1345,9 @@ var _ = Describe("Allocation", func() {
 						AWS:      *provider,
 					})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
-					controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+					controller := provisioning.NewController(env.Client,
+						provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster),
+						recorder)
 					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
 					ExpectApplied(ctx, env.Client, newProvisioner)
 					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
@@ -1207,7 +1367,9 @@ var _ = Describe("Allocation", func() {
 						AWS:      *provider,
 					})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
-					controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+					controller := provisioning.NewController(env.Client,
+						provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster),
+						recorder)
 					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
 					ExpectApplied(ctx, env.Client, newProvisioner)
 					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
