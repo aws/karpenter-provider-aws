@@ -74,8 +74,8 @@ following metrics will be instrumented to implement these visualizations:
 
 | Name                                                   | Type      | Labels | Description                                        |
 |--------------------------------------------------------|-----------|--------|----------------------------------------------------|
-| `karpenter_nodes_termination_time_seconds`             | Summary   | None   | [Measurement Definitions](#measurment-definitions) | 
-| `karpenter_pods_startup_time_seconds`                  | Summary   | None   | [Measurement Definitions](#measurment-definitions) |
+| `karpenter_nodes_termination_time_seconds`             | Summary   | None   | [Measurement Definitions](#measurement-definitions) | 
+| `karpenter_pods_startup_time_seconds`                  | Summary   | None   | [Measurement Definitions](#measurement-definitions) |
 
 API statistics will consist of API call latency, call rate, call method, return code, and payload size. These statistics will be
 separated into Kubernetes API and cloudprovider API statistics. Call latency and call rate will be represented the same
@@ -104,7 +104,7 @@ computation but works better for unbounded data.
 Prometheus `Summary` metric types compute running quantiles for a given metric for given label values. Unlike 
 histograms, summaries cannot be aggregated since it can result in statistically non-sensical results. Theoretically,
 summaries can be tracked for many labels, but we would need a number of summary metrics equal to the size of the 
-cartesian product of all the labels, which is not viable. 
+cartesian product of all the labels, which is not viable.
 
 ### Cluster State
 
@@ -210,8 +210,8 @@ node.
 | `controller_runtime_reconcile_errors_total`       | Counter   | `controller`                                                                                           | Total number of reconciliation errors per controller
 | `controller_runtime_reconcile_time_seconds`       | Histogram | `controller`                                                                                           | Length of time per reconciliation per controller
 | `controller_runtime_reconcile_total`              | Counter   | `controller`                                                                                           | Total number of reconciliations per controller
-| `karpenter_nodes_termination_time_seconds`        | Summary   | None                                                                                                   | [Measurement Definitions](#measurment-definitions)
-| `karpenter_pods_startup_time_seconds`             | Summary   | None                                                                                                   | [Measurement Definitions](#measurment-definitions)
+| `karpenter_nodes_termination_time_seconds`        | Summary   | None                                                                                                   | [Measurement Definitions](#measurement-definitions)
+| `karpenter_pods_startup_time_seconds`             | Summary   | None                                                                                                   | [Measurement Definitions](#measurement-definitions)
 | `karpenter_kube_api_time_seconds`                 | Summary   | `object`, `verb`, `code`                                                                               | The duration of a call the API server
 | `karpenter_kube_api_payload_total_bytes`          | Gauge     | `object`, `verb`, `code`                                                                               | The total payload size transferred to/from the API server
 | `karpenter_cloudprovider_api_time_seconds`        | Summary   | `verb`, `code`                                                                                         | The duration of an API call to a cloudprovider
@@ -240,7 +240,7 @@ node.
 | `controller_runtime_reconcile_total`                          | Counter   | `controller`                                                                                                   | Total number of reconciliations per controller
 | `workqueue_adds_total`                                        | Counter   | `name`                                                                                                         | Total number of adds handled by workqueue
 | `workqueue_depth`                                             | Gauge     | `name`                                                                                                         | Current depth of workqueue
-| `workqueue_longest_running_processor_seconds`                 | Gauge     | `name`                                                                                                         | How many seconds has the longest rugnning processor for workqueue been running
+| `workqueue_longest_running_processor_seconds`                 | Gauge     | `name`                                                                                                         | How many seconds has the longest running processor for workqueue been running
 | `workqueue_queue_duration_seconds`                            | Histogram | `name`                                                                                                         | How long in seconds an item stays in the workqueue before being requested
 | `workqueue_retries_total`                                     | Counter   | `name`                                                                                                         | Total number of retries handled by workqueue
 | `workqueue_unfinished_work_seconds`                           | Gauge     | `name`                                                                                                         | How many seconds of work has been done that is in progress and hasn't been observed by work_duration.
