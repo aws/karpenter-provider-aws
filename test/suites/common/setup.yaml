@@ -74,7 +74,7 @@ spec:
       addons:
       - name: ebs-csi-driver
         wellKnownPolicies: 
-          ebsCSIController: trues
+          ebsCSIController: true
       EOF
 
       eksctl create iamidentitymapping \
