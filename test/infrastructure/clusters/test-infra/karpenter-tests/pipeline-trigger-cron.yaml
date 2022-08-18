@@ -42,7 +42,7 @@ data:
      apiVersion: tekton.dev/v1beta1
      kind: PipelineRun
      metadata:
-       generateName: "${suite}-"
+       generateName: "$(echo ${suite} | tr '[:upper:]' '[:lower:]')-"
        namespace: karpenter-tests
      spec:
        params:
