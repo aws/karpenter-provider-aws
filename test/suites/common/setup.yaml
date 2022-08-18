@@ -36,6 +36,7 @@ spec:
     image: public.ecr.aws/karpenter-testing/tools:latest
     workingDir: $(workspaces.ws.path)
     script: |
+      aws iam create-service-linked-role --aws-service-name spot.amazonaws.com || true
       aws cloudformation deploy \
         --stack-name KarpenterIAM-$(params.cluster-name) \
         --template-file website/content/en/preview/getting-started/getting-started-with-eksctl/cloudformation.yaml \
@@ -70,6 +71,10 @@ spec:
             effect: NoSchedule
       iam:
         withOIDC: true
+      addons:
+      - name: ebs-csi-driver
+        wellKnownPolicies: 
+          ebsCSIController: trues
       EOF
 
       eksctl create iamidentitymapping \

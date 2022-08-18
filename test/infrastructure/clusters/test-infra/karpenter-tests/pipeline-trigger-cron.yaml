@@ -31,7 +31,7 @@ subjects:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: pipeline-runs
+  name: pipelines-trigger
   namespace: karpenter-tests
 data:
   pipeline-runs.sh: |+
@@ -42,7 +42,7 @@ data:
      apiVersion: tekton.dev/v1beta1
      kind: PipelineRun
      metadata:
-       generateName: "suite-run-"
+       generateName: "${suite}-"
        namespace: karpenter-tests
      spec:
        params:
@@ -54,11 +54,23 @@ data:
     EOF
     echo "CREATED PIPELINE RUN for ${suite}"
     done
+    cat <<EOF | kubectl create -f -
+     apiVersion: tekton.dev/v1beta1
+     kind: PipelineRun
+     metadata:
+       generateName: "upgrade-suite"
+       namespace: karpenter-tests
+     spec:
+       pipelineRef:
+         name: upgrade
+       serviceAccountName: karpenter-tests
+    EOF
+    echo "CREATED PIPELINE RUN for upgrade-suite"
 ---
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: pipeline-runs
+  name: pipelines-trigger
   namespace: karpenter-tests
 spec:
   concurrencyPolicy: Forbid
@@ -68,22 +80,22 @@ spec:
       template:
         spec:
           volumes:
-            - name: pipeline-runs
+            - name: pipelines-trigger
               configMap:
-                name: pipeline-runs
+                name: pipelines-trigger
                 defaultMode: 0777
           containers:
           - command:
             - /bin/sh
             - -c
-            - /bin/pipeline-runs.sh
+            - /bin/pipelines-trigger.sh
             image: public.ecr.aws/bitnami/kubectl:1.22
             imagePullPolicy: IfNotPresent
             volumeMounts:
-            - name: pipeline-runs
-              mountPath: /bin/pipeline-runs.sh
-              subPath: pipeline-runs.sh
-            name: pipeline-runs
+            - name: pipelines-trigger
+              mountPath: /bin/pipelines-trigger.sh
+              subPath: pipelines-trigger.sh
+            name: pipelines-trigger
             resources:
               requests:
                 cpu: 250m
