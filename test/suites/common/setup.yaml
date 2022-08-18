@@ -72,7 +72,7 @@ spec:
       iam:
         withOIDC: true
       addons:
-      - name: ebs-csi-driver
+      - name: aws-ebs-csi-driver
         wellKnownPolicies: 
           ebsCSIController: true
       EOF
