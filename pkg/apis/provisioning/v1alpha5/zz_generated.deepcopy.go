@@ -239,6 +239,11 @@ func (in *ProvisionerSpec) DeepCopyInto(out *ProvisionerSpec) {
 		*out = new(Limits)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.Weight != nil {
+		in, out := &in.Weight, &out.Weight
+		*out = new(int32)
+		**out = **in
+	}
 	if in.Consolidation != nil {
 		in, out := &in.Consolidation, &out.Consolidation
 		*out = new(Consolidation)
