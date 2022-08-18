@@ -34,7 +34,7 @@ metadata:
   name: pipelines-trigger
   namespace: karpenter-tests
 data:
-  pipeline-runs.sh: |+
+  pipelines-trigger.sh: |+
     #!/usr/bin/env bash
     set -euo pipefail
     for suite in "Integration" "Consolidation" "Utilization"; do
