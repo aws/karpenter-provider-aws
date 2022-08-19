@@ -376,6 +376,199 @@ var _ = Describe("Replace Nodes", func() {
 		// we should delete the non-annotated node
 		ExpectNotFound(ctx, env.Client, regularNode)
 	})
+	It("won't replace node if any spot replacement is more expensive", func() {
+		currentInstance := fake.NewInstanceType(fake.InstanceTypeOptions{
+			Name: "current-on-demand",
+			Offerings: []cloudprovider.Offering{
+				{
+					CapacityType: v1alpha1.CapacityTypeOnDemand,
+					Zone:         "test-zone-1a",
+					Price:        0.5,
+					Available:    false,
+				},
+			},
+		})
+		replacementInstance := fake.NewInstanceType(fake.InstanceTypeOptions{
+			Name: "potential-spot-replacement",
+			Offerings: []cloudprovider.Offering{
+				{
+					CapacityType: v1alpha1.CapacityTypeSpot,
+					Zone:         "test-zone-1a",
+					Price:        1.0,
+					Available:    true,
+				},
+				{
+					CapacityType: v1alpha1.CapacityTypeSpot,
+					Zone:         "test-zone-1b",
+					Price:        0.2,
+					Available:    true,
+				},
+				{
+					CapacityType: v1alpha1.CapacityTypeSpot,
+					Zone:         "test-zone-1c",
+					Price:        0.4,
+					Available:    true,
+				},
+			},
+		})
+		cloudProvider.InstanceTypes = []cloudprovider.InstanceType{
+			currentInstance,
+			replacementInstance,
+		}
+
+		labels := map[string]string{
+			"app": "test",
+		}
+		// create our RS so we can link a pod to it
+		rs := test.ReplicaSet()
+		ExpectApplied(ctx, env.Client, rs)
+		Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(rs), rs)).To(Succeed())
+
+		pod := test.Pod(test.PodOptions{
+			ObjectMeta: metav1.ObjectMeta{Labels: labels,
+				OwnerReferences: []metav1.OwnerReference{
+					{
+						APIVersion:         "apps/v1",
+						Kind:               "ReplicaSet",
+						Name:               rs.Name,
+						UID:                rs.UID,
+						Controller:         aws.Bool(true),
+						BlockOwnerDeletion: aws.Bool(true),
+					},
+				}}})
+
+		prov := test.Provisioner(test.ProvisionerOptions{Consolidation: &v1alpha5.Consolidation{Enabled: aws.Bool(true)}})
+		node := test.Node(test.NodeOptions{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					v1alpha5.ProvisionerNameLabelKey: prov.Name,
+					v1.LabelInstanceTypeStable:       currentInstance.Name(),
+					v1alpha5.LabelCapacityType:       currentInstance.Offerings()[0].CapacityType,
+					v1.LabelTopologyZone:             currentInstance.Offerings()[0].Zone,
+				}},
+			Allocatable: map[v1.ResourceName]resource.Quantity{v1.ResourceCPU: resource.MustParse("32")}})
+
+		ExpectApplied(ctx, env.Client, rs, pod, node, prov)
+		ExpectMakeNodesReady(ctx, env.Client, node)
+		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node))
+		ExpectManualBinding(ctx, env.Client, pod, node)
+		ExpectScheduled(ctx, env.Client, pod)
+		Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(node), node)).To(Succeed())
+
+		// we'll wait for 10 seconds but no new nodes should be scheduled
+		wg := ExpectMakeNewNodesReady(ctx, env.Client, 1, node)
+		fakeClock.Step(10 * time.Minute)
+		controller.ProcessCluster(ctx)
+		wg.Wait()
+
+		Expect(cloudProvider.CreateCalls).To(HaveLen(0))
+		ExpectNodeExists(ctx, env.Client, node.Name)
+	})
+	It("won't replace on-demand node if on-demand replacement is more expensive", func() {
+		currentInstance := fake.NewInstanceType(fake.InstanceTypeOptions{
+			Name: "current-on-demand",
+			Offerings: []cloudprovider.Offering{
+				{
+					CapacityType: v1alpha1.CapacityTypeOnDemand,
+					Zone:         "test-zone-1a",
+					Price:        0.5,
+					Available:    false,
+				},
+			},
+		})
+		replacementInstance := fake.NewInstanceType(fake.InstanceTypeOptions{
+			Name: "on-demand-replacement",
+			Offerings: []cloudprovider.Offering{
+				{
+					CapacityType: v1alpha1.CapacityTypeOnDemand,
+					Zone:         "test-zone-1a",
+					Price:        0.6,
+					Available:    true,
+				},
+				{
+					CapacityType: v1alpha1.CapacityTypeOnDemand,
+					Zone:         "test-zone-1b",
+					Price:        0.6,
+					Available:    true,
+				},
+				{
+					CapacityType: v1alpha1.CapacityTypeSpot,
+					Zone:         "test-zone-1b",
+					Price:        0.2,
+					Available:    true,
+				},
+				{
+					CapacityType: v1alpha1.CapacityTypeSpot,
+					Zone:         "test-zone-1c",
+					Price:        0.3,
+					Available:    true,
+				},
+			},
+		})
+
+		cloudProvider.InstanceTypes = []cloudprovider.InstanceType{
+			currentInstance,
+			replacementInstance,
+		}
+
+		labels := map[string]string{
+			"app": "test",
+		}
+		// create our RS so we can link a pod to it
+		rs := test.ReplicaSet()
+		ExpectApplied(ctx, env.Client, rs)
+		Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(rs), rs)).To(Succeed())
+
+		pod := test.Pod(test.PodOptions{
+			ObjectMeta: metav1.ObjectMeta{Labels: labels,
+				OwnerReferences: []metav1.OwnerReference{
+					{
+						APIVersion:         "apps/v1",
+						Kind:               "ReplicaSet",
+						Name:               rs.Name,
+						UID:                rs.UID,
+						Controller:         aws.Bool(true),
+						BlockOwnerDeletion: aws.Bool(true),
+					},
+				}}})
+
+		// provisioner should require on-demand instance for this test case
+		prov := test.Provisioner(test.ProvisionerOptions{
+			Consolidation: &v1alpha5.Consolidation{Enabled: aws.Bool(true)},
+			Requirements: []v1.NodeSelectorRequirement{
+				{
+					Key:      v1alpha5.LabelCapacityType,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{v1alpha1.CapacityTypeOnDemand},
+				},
+			},
+		})
+		node := test.Node(test.NodeOptions{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					v1alpha5.ProvisionerNameLabelKey: prov.Name,
+					v1.LabelInstanceTypeStable:       currentInstance.Name(),
+					v1alpha5.LabelCapacityType:       currentInstance.Offerings()[0].CapacityType,
+					v1.LabelTopologyZone:             currentInstance.Offerings()[0].Zone,
+				}},
+			Allocatable: map[v1.ResourceName]resource.Quantity{v1.ResourceCPU: resource.MustParse("32")}})
+
+		ExpectApplied(ctx, env.Client, rs, pod, node, prov)
+		ExpectMakeNodesReady(ctx, env.Client, node)
+		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node))
+		ExpectManualBinding(ctx, env.Client, pod, node)
+		ExpectScheduled(ctx, env.Client, pod)
+		Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(node), node)).To(Succeed())
+
+		// we'll wait for 10 seconds but no new nodes should be scheduled
+		wg := ExpectMakeNewNodesReady(ctx, env.Client, 1, node)
+		fakeClock.Step(10 * time.Minute)
+		controller.ProcessCluster(ctx)
+		wg.Wait()
+
+		Expect(cloudProvider.CreateCalls).To(HaveLen(0))
+		ExpectNodeExists(ctx, env.Client, node.Name)
+	})
 })
 
 var _ = Describe("Delete Node", func() {

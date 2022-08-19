@@ -390,9 +390,7 @@ func cheapestOfferingPrice(ofs []cloudprovider.Offering, requirements scheduling
 	minPrice := math.MaxFloat64
 	for _, of := range ofs {
 		if requirements.Get(v1alpha5.LabelCapacityType).Has(of.CapacityType) && requirements.Get(v1.LabelTopologyZone).Has(of.Zone) {
-			if of.Price < minPrice {
-				minPrice = math.Min(minPrice, of.Price)
-			}
+			minPrice = math.Min(minPrice, of.Price)
 		}
 	}
 	return minPrice

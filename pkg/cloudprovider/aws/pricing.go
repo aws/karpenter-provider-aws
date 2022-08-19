@@ -52,27 +52,23 @@ type PricingProvider struct {
 
 	mu                 sync.RWMutex
 	onDemandUpdateTime time.Time
-	onDemandPrices     map[string]priceData
+	onDemandPrices     map[string]float64
 	spotUpdateTime     time.Time
 	spotPrices         map[string]zonalPricing
 }
 
+// zonalPricing is used to capture the per-zone price
+// for spot data as well as the default price
+// based on on-demand price when the controller first
+// comes up
 type zonalPricing struct {
 	defaultPrice float64 // Used until we get the spot pricing data
-	prices       map[string]priceData
-}
-
-// priceData captures the last known price for an offering
-// and tells us whether this data was retrieved in the last pricing update loop
-// or whether it is stale data
-type priceData struct {
-	lastKnownPrice float64
-	isCurrent      bool
+	prices       map[string]float64
 }
 
 func newZonalPricing(defaultPrice *float64) zonalPricing {
 	z := zonalPricing{
-		prices: map[string]priceData{},
+		prices: map[string]float64{},
 	}
 	if defaultPrice != nil {
 		z.defaultPrice = ptr.Float64Value(defaultPrice)
@@ -102,7 +98,7 @@ func NewPricingProvider(ctx context.Context, pricing pricingiface.PricingAPI, ec
 	p := &PricingProvider{
 		region:             region,
 		onDemandUpdateTime: initialPriceUpdate,
-		onDemandPrices:     populateInitialOnDemandPricing(initialOnDemandPrices),
+		onDemandPrices:     initialOnDemandPrices,
 		spotUpdateTime:     initialPriceUpdate,
 		// default our spot pricing to the same as the on-demand pricing until a price update
 		spotPrices: populateInitialSpotPricing(initialOnDemandPrices),
@@ -167,31 +163,31 @@ func (p *PricingProvider) SpotLastUpdated() time.Time {
 
 // OnDemandPrice returns the last known on-demand price for a given instance type, returning an error if there is no
 // known on-demand pricing for the instance type.
-func (p *PricingProvider) OnDemandPrice(instanceType string) (float64, bool, error) {
+func (p *PricingProvider) OnDemandPrice(instanceType string) (float64, error) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	price, ok := p.onDemandPrices[instanceType]
 	if !ok {
-		return 0.0, false, fmt.Errorf("instance type %s not found", instanceType)
+		return 0.0, fmt.Errorf("instance type %s not found", instanceType)
 	}
-	return price.lastKnownPrice, price.isCurrent, nil
+	return price, nil
 }
 
 // SpotPrice returns the last known spot price for a given instance type and zone, returning an error
 // if there is no known spot pricing for that instance type or zone
-func (p *PricingProvider) SpotPrice(instanceType string, zone string) (float64, bool, error) {
+func (p *PricingProvider) SpotPrice(instanceType string, zone string) (float64, error) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	if val, ok := p.spotPrices[instanceType]; ok {
 		if p.spotUpdateTime.Equal(initialPriceUpdate) {
-			return val.defaultPrice, true, nil
+			return val.defaultPrice, nil
 		}
 		if price, ok := p.spotPrices[instanceType].prices[zone]; ok {
-			return price.lastKnownPrice, price.isCurrent, nil
+			return price, nil
 		}
-		return 0.0, false, fmt.Errorf("instance type %s not found in zone %s", instanceType, zone)
+		return 0.0, fmt.Errorf("instance type %s not found in zone %s", instanceType, zone)
 	}
-	return 0.0, false, fmt.Errorf("instance type %s not found", instanceType)
+	return 0.0, fmt.Errorf("instance type %s not found", instanceType)
 }
 
 func (p *PricingProvider) updatePricing(ctx context.Context) {
@@ -268,15 +264,7 @@ func (p *PricingProvider) updateOnDemandPricing(ctx context.Context) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	p.markODNotCurrent()
-	currentODPrices := lo.Assign(onDemandPrices, onDemandMetalPrices)
-	for k, v := range currentODPrices {
-		p.onDemandPrices[k] = priceData{
-			lastKnownPrice: v,
-			isCurrent:      true,
-		}
-	}
-
+	p.onDemandPrices = lo.Assign(onDemandPrices, onDemandMetalPrices)
 	p.onDemandUpdateTime = time.Now()
 	logging.FromContext(ctx).Infof("updated on-demand pricing with %d instance types", len(p.onDemandPrices))
 	return nil
@@ -377,18 +365,13 @@ func (p *PricingProvider) onDemandPage(prices map[string]float64) func(output *p
 
 // nolint: gocyclo
 func (p *PricingProvider) updateSpotPricing(ctx context.Context) error {
-	type pricingInfo struct {
-		timestamp time.Time
-		price     float64
-	}
-
 	totalOfferings := 0
 
-	prices := map[string]map[string]*pricingInfo{}
+	prices := map[string]map[string]float64{}
 	if err := p.ec2.DescribeSpotPriceHistoryPagesWithContext(ctx, &ec2.DescribeSpotPriceHistoryInput{
 		ProductDescriptions: []*string{aws.String("Linux/UNIX")},
-		// look for spot prices for the past day
-		StartTime: aws.Time(time.Now().Add(24 * time.Hour)),
+		// get the latest spot price for each instance type
+		StartTime: aws.Time(time.Now()),
 	}, func(output *ec2.DescribeSpotPriceHistoryOutput, b bool) bool {
 		for _, sph := range output.SpotPriceHistory {
 			spotPriceStr := aws.StringValue(sph.SpotPrice)
@@ -403,21 +386,11 @@ func (p *PricingProvider) updateSpotPricing(ctx context.Context) error {
 			}
 			instanceType := aws.StringValue(sph.InstanceType)
 			az := aws.StringValue(sph.AvailabilityZone)
-			timeStamp := *sph.Timestamp
-
-			// pricing can vary based on the sph.AvailabilityZone, but we just currently take the latest update
-			// on a per-zone basis
 			_, ok := prices[instanceType]
 			if !ok {
-				prices[instanceType] = make(map[string]*pricingInfo)
+				prices[instanceType] = map[string]float64{}
 			}
-			existing, ok := prices[instanceType][az]
-			if !ok || timeStamp.After(existing.timestamp) {
-				prices[instanceType][az] = &pricingInfo{
-					timestamp: timeStamp,
-					price:     spotPrice,
-				}
-			}
+			prices[instanceType][az] = spotPrice
 		}
 		return true
 	}); err != nil {
@@ -429,16 +402,12 @@ func (p *PricingProvider) updateSpotPricing(ctx context.Context) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	p.markSpotNotCurrent()
 	for it, zoneData := range prices {
 		if _, ok := p.spotPrices[it]; !ok {
 			p.spotPrices[it] = newZonalPricing(nil)
 		}
-		for zone, data := range zoneData {
-			p.spotPrices[it].prices[zone] = priceData{
-				lastKnownPrice: data.price,
-				isCurrent:      true,
-			}
+		for zone, price := range zoneData {
+			p.spotPrices[it].prices[zone] = price
 		}
 		totalOfferings += len(zoneData)
 	}
@@ -446,41 +415,6 @@ func (p *PricingProvider) updateSpotPricing(ctx context.Context) error {
 	p.spotUpdateTime = time.Now()
 	logging.FromContext(ctx).Infof("updated spot pricing with %d instance types and %d offerings", len(p.spotPrices), totalOfferings)
 	return nil
-}
-
-func (p *PricingProvider) markODNotCurrent() {
-	for k, v := range p.onDemandPrices {
-		p.onDemandPrices[k] = priceData{
-			lastKnownPrice: v.lastKnownPrice,
-			isCurrent:      false,
-		}
-	}
-}
-
-func (p *PricingProvider) markSpotNotCurrent() {
-	for it := range p.spotPrices {
-		m := map[string]priceData{}
-		for z, v := range p.spotPrices[it].prices {
-			m[z] = priceData{
-				lastKnownPrice: v.lastKnownPrice,
-				isCurrent:      false,
-			}
-		}
-		p.spotPrices[it] = zonalPricing{
-			prices: m,
-		}
-	}
-}
-
-func populateInitialOnDemandPricing(pricing map[string]float64) map[string]priceData {
-	m := map[string]priceData{}
-	for k, v := range pricing {
-		m[k] = priceData{
-			lastKnownPrice: v,
-			isCurrent:      true,
-		}
-	}
-	return m
 }
 
 func populateInitialSpotPricing(pricing map[string]float64) map[string]zonalPricing {

@@ -17,6 +17,7 @@ package scheduling_test
 import (
 	"fmt"
 	"github.com/mitchellh/hashstructure/v2"
+	"github.com/samber/lo"
 	"math"
 	"math/rand"
 
@@ -567,11 +568,9 @@ var _ = Describe("Instance Type Selection", func() {
 })
 
 func getInstanceTypeMap(its []cloudprovider.InstanceType) map[string]cloudprovider.InstanceType {
-	m := map[string]cloudprovider.InstanceType{}
-	for _, it := range its {
-		m[it.Name()] = it
-	}
-	return m
+	return lo.SliceToMap(its, func(it cloudprovider.InstanceType) (string, cloudprovider.InstanceType) {
+		return it.Name(), it
+	})
 }
 
 func getMinPrice(its []cloudprovider.InstanceType) float64 {
