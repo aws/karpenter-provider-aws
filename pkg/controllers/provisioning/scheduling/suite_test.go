@@ -2840,6 +2840,20 @@ var _ = Describe("Taints", func() {
 		node := ExpectScheduled(ctx, env.Client, pod)
 		Expect(node.Spec.Taints).To(HaveLen(1)) // Expect no taints generated beyond the default
 	})
+	It("should create a node with a taint value when provisioner taint is flexible", func() {
+		provisioner.Spec.Taints = []v1.Taint{{Key: "team-name", Effect: v1.TaintEffectNoSchedule}}
+		ExpectApplied(ctx, env.Client, provisioner)
+		pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(
+			test.PodOptions{Tolerations: []v1.Toleration{{Key: "team-name", Effect: v1.TaintEffectNoSchedule, Operator: v1.TolerationOpEqual, Value: "team-a"}}},
+		))[0]
+		node := ExpectScheduled(ctx, env.Client, pod)
+		Expect(node.Spec.Taints).To(ContainElement(v1.Taint{
+			Key:    "team-name",
+			Effect: v1.TaintEffectNoSchedule,
+			Value:  "team-a",
+		}))
+	})
+	It("should fail to schedule pods when provisioner has taints", func())
 })
 
 var _ = Describe("Instance Type Compatibility", func() {

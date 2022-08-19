@@ -125,7 +125,7 @@ func (s *ProvisionerSpec) validateTaintsField(taints []v1.Taint, existing map[ta
 			errs = errs.Also(apis.ErrInvalidArrayValue(err, fieldName, i))
 		}
 		// Validate Value
-		if len(taint.Value) != 0 {
+		if len(taint.Value) != 0 && taint.Value != "*" {
 			for _, err := range validation.IsQualifiedName(taint.Value) {
 				errs = errs.Also(apis.ErrInvalidArrayValue(err, fieldName, i))
 			}

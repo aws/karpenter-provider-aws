@@ -33,7 +33,23 @@ func (ts Taints) Tolerates(pod *v1.Pod) (errs error) {
 			tolerates = tolerates || t.ToleratesTaint(&taint)
 		}
 		if !tolerates {
-			errs = multierr.Append(errs, fmt.Errorf("did not tolerate %s=%s:%s", taint.Key, taint.Value, taint.Effect))
+			// See if we can loosen the taint on the node template to be more flexible
+			// If there are multiple toleration values to choose from, we pick randomly
+			if taint.Value == "*" {
+				for _, t := range pod.Spec.Tolerations {
+					// If there was a toleration with an empty key, pod would have tolerated already
+					// If there was a toleration with an empty effect, pod would have tolerated already
+					if t.Key == taint.Key && t.Effect == taint.Effect {
+						ts[i].Value = t.Value
+						tolerates = true
+						break
+					}
+				}
+			}
+			// If after attempting to loosen, we still don't tolerate, then we should log an error for not tolerating
+			if !tolerates {
+				errs = multierr.Append(errs, fmt.Errorf("did not tolerate %s=%s:%s", taint.Key, taint.Value, taint.Effect))
+			}
 		}
 	}
 	return errs
