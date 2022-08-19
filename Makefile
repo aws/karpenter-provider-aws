@@ -20,7 +20,7 @@ TEST_FILTER ?= .*
 
 # CR for local builds of Karpenter
 KO_DOCKER_REPO ?= ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/karpenter
-WEBSITE_SCRIPT_DIR = website/content/en/preview/getting-started/getting-started-with-eksctl/scripts
+GETTING_STARTED_SCRIPT_DIR = website/content/en/preview/getting-started/getting-started-with-eksctl/scripts
 
 help: ## Display help
 	@awk 'BEGIN {FS = ":.*##"; printf "Usage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
@@ -67,14 +67,14 @@ licenses: ## Verifies dependency licenses
 	! go-licenses csv ./... | grep -v -e 'MIT' -e 'Apache-2.0' -e 'BSD-3-Clause' -e 'BSD-2-Clause' -e 'ISC' -e 'MPL-2.0'
 
 setup: ## Sets up the IAM roles needed prior to deploying the karpenter-controller. This command only needs to be run once
-	./$(WEBSITE_SCRIPT_DIR)/setup-roles.sh $(KARPENTER_VERSION)
+	./$(GETTING_STARTED_SCRIPT_DIR)/add-roles.sh $(KARPENTER_VERSION)
 
 build: ## Build the Karpenter controller and webhook images using ko build
 	$(eval CONTROLLER_IMG=$(shell $(WITH_GOFLAGS) ko build -B github.com/aws/karpenter/cmd/controller))
 	$(eval WEBHOOK_IMG=$(shell $(WITH_GOFLAGS) ko build -B github.com/aws/karpenter/cmd/webhook))
 
 apply: build ## Deploy the controller from the current state of your git repository into your ~/.kube/config cluster
-	helm upgrade --create-namespace --install karpenter charts/karpenter --namespace karpenter \
+	helm upgrade --install karpenter charts/karpenter --namespace karpenter \
 		$(HELM_OPTS) \
 		--set controller.image=$(CONTROLLER_IMG) \
 		--set webhook.image=$(WEBHOOK_IMG)
