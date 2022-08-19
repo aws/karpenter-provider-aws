@@ -63,6 +63,7 @@ var (
 		v1.LabelArchStable,
 		v1.LabelOSStable,
 		LabelCapacityType,
+		ProvisionerNameLabelKey,
 	)
 
 	// RestrictedLabels are labels that should not be used
