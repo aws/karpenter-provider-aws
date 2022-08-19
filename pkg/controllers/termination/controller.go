@@ -37,12 +37,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/samber/lo"
 
 	provisioning "github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/events"
 	"github.com/aws/karpenter/pkg/metrics"
-	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injection"
 )
 
@@ -104,7 +104,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	// 2. Check if node is terminable
-	if node.DeletionTimestamp.IsZero() || !functional.ContainsString(node.Finalizers, provisioning.TerminationFinalizer) {
+	if node.DeletionTimestamp.IsZero() || !lo.Contains(node.Finalizers, provisioning.TerminationFinalizer) {
 		return reconcile.Result{}, nil
 	}
 	// 3. Cordon node

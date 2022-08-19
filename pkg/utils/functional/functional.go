@@ -18,40 +18,6 @@ import (
 	"strings"
 )
 
-// UnionStringMaps merges all key value pairs into a single map, last write wins.
-func UnionStringMaps(maps ...map[string]string) map[string]string {
-	result := map[string]string{}
-	for _, m := range maps {
-		for k, v := range m {
-			result[k] = v
-		}
-	}
-	return result
-}
-
-func StringSliceWithout(vals []string, remove ...string) []string {
-	if vals == nil {
-		return nil
-	}
-	var without []string
-	for _, val := range vals {
-		if ContainsString(remove, val) {
-			continue
-		}
-		without = append(without, val)
-	}
-	return without
-}
-
-func ContainsString(strings []string, candidate string) bool {
-	for _, s := range strings {
-		if candidate == s {
-			return true
-		}
-	}
-	return false
-}
-
 // HasAnyPrefix returns true if any of the provided prefixes match the given string s
 func HasAnyPrefix(s string, prefixes ...string) bool {
 	for _, prefix := range prefixes {

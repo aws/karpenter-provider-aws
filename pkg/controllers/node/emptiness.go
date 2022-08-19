@@ -27,9 +27,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/samber/lo"
+
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/controllers/state"
-	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/pod"
 )
 
@@ -72,7 +73,7 @@ func (r *Emptiness) Reconcile(ctx context.Context, provisioner *v1alpha5.Provisi
 		return reconcile.Result{}, nil
 	}
 	// 3. Set TTL if not set
-	n.Annotations = functional.UnionStringMaps(n.Annotations)
+	n.Annotations = lo.Assign(n.Annotations)
 	ttl := time.Duration(ptr.Int64Value(provisioner.Spec.TTLSecondsAfterEmpty)) * time.Second
 	if !hasEmptinessTimestamp {
 		n.Annotations[v1alpha5.EmptinessTimestampAnnotationKey] = r.clock.Now().Format(time.RFC3339)
