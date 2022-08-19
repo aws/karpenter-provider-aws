@@ -3876,6 +3876,92 @@ var _ = Describe("In-Flight Nodes", func() {
 			node2 := ExpectScheduled(ctx, env.Client, secondPod[0])
 			Expect(node1.Name).To(Equal(node2.Name))
 		})
+		It("should handle unexpected daemonset pods binding to the node", func() {
+			ds1 := test.DaemonSet(
+				test.DaemonSetOptions{PodOptions: test.PodOptions{
+					NodeSelector: map[string]string{
+						"my-node-label": "value",
+					},
+					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{
+						v1.ResourceCPU:    resource.MustParse("1"),
+						v1.ResourceMemory: resource.MustParse("1Gi")}},
+				}},
+			)
+			ds2 := test.DaemonSet(
+				test.DaemonSetOptions{PodOptions: test.PodOptions{
+					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{
+						v1.ResourceCPU: resource.MustParse("1m"),
+					}}}})
+			ExpectApplied(ctx, env.Client, provisioner, ds1, ds2)
+			Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(ds1), ds1)).To(Succeed())
+
+			opts := test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
+				Limits: map[v1.ResourceName]resource.Quantity{
+					v1.ResourceCPU: resource.MustParse("8"),
+				},
+			}}
+			initialPod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(opts))
+			node1 := ExpectScheduled(ctx, env.Client, initialPod[0])
+			// this label appears on the node for some reason that Karpenter can't track
+			node1.Labels["my-node-label"] = "value"
+			ExpectApplied(ctx, env.Client, node1)
+
+			// create our daemonset pod and manually bind it to the node
+			dsPod := test.UnschedulablePod(test.PodOptions{
+				NodeSelector: map[string]string{
+					"my-node-label": "value",
+				},
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: map[v1.ResourceName]resource.Quantity{
+						v1.ResourceCPU:    resource.MustParse("1"),
+						v1.ResourceMemory: resource.MustParse("2Gi"),
+					}},
+			})
+			dsPod.OwnerReferences = append(dsPod.OwnerReferences, metav1.OwnerReference{
+				APIVersion:         "apps/v1",
+				Kind:               "DaemonSet",
+				Name:               ds1.Name,
+				UID:                ds1.UID,
+				Controller:         aws.Bool(true),
+				BlockOwnerDeletion: aws.Bool(true),
+			})
+
+			// delete the pod so that the node is empty
+			ExpectDeleted(ctx, env.Client, initialPod[0])
+			ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node1))
+
+			ExpectApplied(ctx, env.Client, provisioner, dsPod)
+			cluster.ForEachNode(func(f *state.Node) bool {
+				Expect(f.DaemonSetRequested.Cpu().AsApproximateFloat64()).To(BeNumerically("~", 0))
+				// no pods so we have the full 16 CPU
+				Expect(f.Available.Cpu().AsApproximateFloat64()).To(BeNumerically("~", 16))
+				return true
+			})
+			ExpectManualBinding(ctx, env.Client, dsPod, node1)
+			ExpectReconcileSucceeded(ctx, podStateController, client.ObjectKeyFromObject(dsPod))
+
+			cluster.ForEachNode(func(f *state.Node) bool {
+				Expect(f.DaemonSetRequested.Cpu().AsApproximateFloat64()).To(BeNumerically("~", 1))
+				// only the DS pod is bound, so available is reduced by one and the DS requested is incremented by one
+				Expect(f.Available.Cpu().AsApproximateFloat64()).To(BeNumerically("~", 15))
+				return true
+			})
+
+			opts = test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
+				Limits: map[v1.ResourceName]resource.Quantity{
+					v1.ResourceCPU: resource.MustParse("15.5"),
+				},
+			}}
+			// This pod should not schedule on the inflight node as it requires more CPU than we have.  This verifies
+			// we don't reintroduce a bug where more daemonsets scheduled than anticipated due to unexepected labels
+			// appearing on the node which caused us to compute a negative amount of resources remaining for daemonsets
+			// which in turn caused us to mis-calculate the amount of resources that were free on the node.
+			secondPod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(opts))
+			node2 := ExpectScheduled(ctx, env.Client, secondPod[0])
+			// must create a new node
+			Expect(node1.Name).ToNot(Equal(node2.Name))
+		})
+
 	})
 	It("should pack in-flight nodes before launching new nodes", func() {
 		cloudProv.InstanceTypes = []cloudprovider.InstanceType{
