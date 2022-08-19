@@ -1,8 +1,17 @@
+[settings.kubernetes]
+"unknown-setting" = "unknown"
+api-server = 'replaceme'
+cluster-certificate = "replaceme"
+cluster-name = 'replaceme'
+max-pods = 9999999999 # replaceme
+
 [settings.kubernetes.eviction-hard]
 "memory.available" = "12%"
 
-[settings.kubernetes]
-"unknown-setting" = "unknown"
+[settings.kubernetes.labels]
+"replace" = "me"
+[settings.kubernetes.node-taints]
+"replace" = ["me:Schedule"]
 
 [settings.network]
 hostname = "test.local"

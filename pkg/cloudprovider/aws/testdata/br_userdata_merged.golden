@@ -10,6 +10,8 @@ max-pods = 110
 'karpenter.sh/provisioner-name' = '%s'
 
 [settings.kubernetes.node-taints]
+baz = ['bin:NoExecute']
+foo = ['bar:NoExecute']
 
 [settings.kubernetes.eviction-hard]
 'memory.available' = '12%%'

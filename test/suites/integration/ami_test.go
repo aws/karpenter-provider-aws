@@ -73,13 +73,19 @@ var _ = Describe("LaunchTemplates", func() {
 		},
 			UserData: aws.String(string(content)),
 		})
-		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
-		pod := test.Pod()
+		provisioner := test.Provisioner(test.ProvisionerOptions{
+			ProviderRef:   &v1alpha5.ProviderRef{Name: provider.Name},
+			Taints:        []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoExecute"}},
+			StartupTaints: []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoSchedule"}},
+		})
+		pod := test.Pod(test.PodOptions{Tolerations: []v1.Toleration{{Key: "example.com", Operator: v1.TolerationOpExists}}})
 
 		env.ExpectCreated(pod, provider, provisioner)
 		env.EventuallyExpectHealthy(pod)
-		env.ExpectCreatedNodeCount("==", 1)
-
+		Expect(env.GetNode(pod.Spec.NodeName).Spec.Taints).To(ContainElements(
+			v1.Taint{Key: "example.com", Value: "value", Effect: "NoExecute"},
+			v1.Taint{Key: "example.com", Value: "value", Effect: "NoSchedule"},
+		))
 		actualUserData, err := base64.StdEncoding.DecodeString(*getInstanceAttribute(pod.Spec.NodeName, "userData").UserData.Value)
 		Expect(err).ToNot(HaveOccurred())
 		// Since the node has joined the cluster, we know our bootstrapping was correct.
@@ -96,13 +102,19 @@ var _ = Describe("LaunchTemplates", func() {
 		},
 			UserData: aws.String(string(content)),
 		})
-		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
-		pod := test.Pod()
+		provisioner := test.Provisioner(test.ProvisionerOptions{
+			ProviderRef:   &v1alpha5.ProviderRef{Name: provider.Name},
+			Taints:        []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoExecute"}},
+			StartupTaints: []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoSchedule"}},
+		})
+		pod := test.Pod(test.PodOptions{Tolerations: []v1.Toleration{{Key: "example.com", Operator: v1.TolerationOpExists}}})
 
 		env.ExpectCreated(pod, provider, provisioner)
 		env.EventuallyExpectHealthy(pod)
-		env.ExpectCreatedNodeCount("==", 1)
-
+		Expect(env.GetNode(pod.Spec.NodeName).Spec.Taints).To(ContainElements(
+			v1.Taint{Key: "example.com", Value: "value", Effect: "NoExecute"},
+			v1.Taint{Key: "example.com", Value: "value", Effect: "NoSchedule"},
+		))
 		actualUserData, err := base64.StdEncoding.DecodeString(*getInstanceAttribute(pod.Spec.NodeName, "userData").UserData.Value)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(string(actualUserData)).To(ContainSubstring("kube-api-qps = 30"))

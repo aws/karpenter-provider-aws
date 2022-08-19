@@ -2,7 +2,6 @@ package integration_test
 
 import (
 	"fmt"
-	"knative.dev/pkg/ptr"
 
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
@@ -14,6 +13,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"knative.dev/pkg/ptr"
 )
 
 var _ = Describe("Scheduling", func() {
