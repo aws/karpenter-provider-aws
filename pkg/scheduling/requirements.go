@@ -41,7 +41,7 @@ func NewRequirements(requirements ...*Requirement) Requirements {
 
 // NewRequirements constructs requirements from NodeSelectorRequirements
 func NewNodeSelectorRequirements(requirements ...v1.NodeSelectorRequirement) Requirements {
-	r := Requirements{}
+	r := NewRequirements()
 	for _, requirement := range requirements {
 		r.Add(NewRequirement(requirement.Key, requirement.Operator, requirement.Values...))
 	}
@@ -50,7 +50,7 @@ func NewNodeSelectorRequirements(requirements ...v1.NodeSelectorRequirement) Req
 
 // NewLabelRequirements constructs requirements from labels
 func NewLabelRequirements(labels map[string]string) Requirements {
-	requirements := Requirements{}
+	requirements := NewRequirements()
 	for key, value := range labels {
 		requirements.Add(NewRequirement(key, v1.NodeSelectorOpIn, value))
 	}

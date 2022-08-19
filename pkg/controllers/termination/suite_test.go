@@ -17,20 +17,20 @@ package termination_test
 import (
 	"context"
 	"fmt"
-	"k8s.io/apimachinery/pkg/util/clock"
 	"testing"
 	"time"
 
+	"k8s.io/apimachinery/pkg/util/clock"
+
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider/fake"
-	"github.com/aws/karpenter/pkg/cloudprovider/registry"
 	"github.com/aws/karpenter/pkg/controllers/termination"
 	"github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	. "github.com/aws/karpenter/pkg/test/expectations"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -58,7 +58,6 @@ var _ = BeforeSuite(func() {
 	fakeClock = clock.NewFakeClock(time.Now())
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
 		cloudProvider := &fake.CloudProvider{}
-		registry.RegisterOrDie(ctx, cloudProvider)
 		coreV1Client := corev1.NewForConfigOrDie(e.Config)
 		recorder := test.NewEventRecorder()
 		evictionQueue = termination.NewEvictionQueue(ctx, coreV1Client, recorder)
@@ -514,8 +513,10 @@ var _ = Describe("Termination", func() {
 			ExpectNodeExists(ctx, env.Client, node.Name)
 			ExpectEvicted(env.Client, pod)
 
-			// After grace period, node should delete
-			fakeClock.Step(90 * time.Second)
+			// After grace period, node should delete. The deletion timestamps are from etcd which we can't control, so
+			// to eliminate test-flakiness we reset the time to current time + 90 seconds instead of just advancing
+			// the clock by 90 seconds.
+			fakeClock.SetTime(time.Now().Add(90 * time.Second))
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 			ExpectNotFound(ctx, env.Client, node)
 		})

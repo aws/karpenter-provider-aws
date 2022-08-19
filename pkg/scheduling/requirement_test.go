@@ -18,8 +18,9 @@ import (
 	"math"
 	"strconv"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
@@ -39,6 +40,44 @@ var _ = Describe("Requirement", func() {
 	greaterThan9 := NewRequirement("key", v1.NodeSelectorOpGt, "9")
 	lessThan1 := NewRequirement("key", v1.NodeSelectorOpLt, "1")
 	lessThan9 := NewRequirement("key", v1.NodeSelectorOpLt, "9")
+
+	Context("NewRequirements", func() {
+		It("should normalize labels", func() {
+			nodeSelector := map[string]string{
+				v1.LabelFailureDomainBetaZone:   "test",
+				v1.LabelFailureDomainBetaRegion: "test",
+				"beta.kubernetes.io/arch":       "test",
+				"beta.kubernetes.io/os":         "test",
+				v1.LabelInstanceType:            "test",
+			}
+			requirements := lo.MapToSlice(nodeSelector, func(key string, value string) v1.NodeSelectorRequirement {
+				return v1.NodeSelectorRequirement{Key: key, Operator: v1.NodeSelectorOpIn, Values: []string{value}}
+			})
+			for _, r := range []Requirements{
+				NewLabelRequirements(nodeSelector),
+				NewNodeSelectorRequirements(requirements...),
+				NewPodRequirements(&v1.Pod{
+					Spec: v1.PodSpec{
+						NodeSelector: nodeSelector,
+						Affinity: &v1.Affinity{
+							NodeAffinity: &v1.NodeAffinity{
+								RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{NodeSelectorTerms: []v1.NodeSelectorTerm{{MatchExpressions: requirements}}},
+								PreferredDuringSchedulingIgnoredDuringExecution: []v1.PreferredSchedulingTerm{{Weight: 1, Preference: v1.NodeSelectorTerm{MatchExpressions: requirements}}},
+							},
+						},
+					},
+				}),
+			} {
+				Expect(r.Keys().List()).To(ConsistOf(
+					v1.LabelArchStable,
+					v1.LabelOSStable,
+					v1.LabelInstanceTypeStable,
+					v1.LabelTopologyRegion,
+					v1.LabelTopologyZone,
+				))
+			}
+		})
+	})
 
 	Context("Intersection", func() {
 		It("should intersect sets", func() {

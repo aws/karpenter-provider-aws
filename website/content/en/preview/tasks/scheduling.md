@@ -366,6 +366,93 @@ The EBS CSI driver uses `topology.ebs.csi.aws.com/zone` instead of the standard 
 The topology key `topology.kubernetes.io/region` is not supported. Legacy in-tree CSI providers specify this label. Instead, install an out-of-tree CSI provider. [Learn more about moving to CSI providers.](https://kubernetes.io/blog/2021/12/10/storage-in-tree-to-csi-migration-status-update/#quick-recap-what-is-csi-migration-and-why-migrate)
 {{% /alert %}}
 
+## Weighting Provisioners
+
+Karpenter allows you to order your provisioners so that you can describe priority across provisioners as the Karpenter dry-runs scheduling to understand which nodes to launch. By ordering provisioners, Karpenter can support the following common example use-cases for your cluster infrastructure.
+
+### Reserved Instances
+
+If you have reserved a certain amount of on-demand instances from EC2 to get a significant discount on EC2, capacity, you may want to tell Karpenter to use this capacity first prior to launching other capacity. 
+
+To tell Karpenter to prioritize capacity as well as limit the capacity that it launches up to the amount that you have reserved, you will need to specify both `.spec.weight` and `spec.limits` on the reserved instance provisioner. An example is shown below of specifying two provisioners: one that is used specifically for reserved instances and another to allow other capacity to go to all other instance types.
+
+#### Reserved Capacity Provisioner
+
+```yaml
+apiVersion: karpenter.sh/v1alpha5
+kind: Provisioner
+metadata:
+  name: reserved-capacity
+spec:
+  weight: 50
+  requirements:
+  - key: "node.kubernetes.io/instance-type"
+    operator: In
+    values: ["c4.large"]
+  limits:
+    cpu: 100
+```
+
+#### Default Provisioner
+
+```yaml
+apiVersion: karpenter.sh/v1alpha5
+kind: Provisioner
+metadata:
+  name: default
+spec:
+  requirements:
+  - key: karpenter.sh/capacity-type
+    operator: In
+    values: ["spot", "on-demand"]
+  - key: kubernetes.io/arch
+    operator: In
+    values: ["amd64"]
+```
+
+### Setting Defaults for Pods without Node Selectors
+
+There may be cases where you have pods that you expect to schedule to a specific capacity type or architecture. In the case of a cluster with a large number of workloads, you may not be able to assign the relevant node selectors or node affinities to the workload pods. In this case, you can assign a higher `.spec.weight` to a provisioner with these specific requirements and Karpenter will attempt to schedule to these nodes first.
+
+#### Default Provisioner
+
+```yaml
+apiVersion: karpenter.sh/v1alpha5
+kind: Provisioner
+metadata:
+  name: default
+spec:
+  weight: 50
+  requirements:
+  - key: karpenter.sh/capacity-type
+    operator: In
+    values: ["spot", "on-demand"]
+  - key: kubernetes.io/arch
+    operator: In
+    values: ["amd64"]
+```
+
+#### ARM-64 Specific Provisioner
+
+```yaml
+apiVersion: karpenter.sh/v1alpha5
+kind: Provisioner
+metadata:
+  name: armd64-specific
+spec:
+  requirements:
+  - key: karpenter.sh/capacity-type
+    operator: In
+    values: ["spot", "on-demand"]
+  - key: kubernetes.io/arch
+    operator: In
+    values: ["arm64"]
+```
+
+{{% alert title="Note" color="primary" %}}
+Based on the way that Karpenter does pod batching and bin packing, it is not guaranteed that Karpenter will always choose the highest priority provisioner given specific requirements. For example, it is possible that a pod that has a node selector on a an `arm64` architecture may be provisioned first and all other workload pods from that batch may also schedule on that node. The behavior may also occur if existing capacity is available, as the kube-scheduler will schedule the pods instead of allowing Karpenter to provision a new node.
+{{% /alert %}}
+
 ## Advanced Scheduling Techniques
 
 ### `Exists` Operator

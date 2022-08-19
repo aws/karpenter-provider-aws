@@ -1,0 +1,111 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: karpenter-tests-trigger
+  namespace: karpenter-tests
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: karpenter-tests-trigger-role
+  namespace: karpenter-tests
+rules:
+- apiGroups: ["tekton.dev"]
+  resources: ["pipelineruns"]
+  verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: karpenter-tests-trigger-role-binding
+  namespace: karpenter-tests
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: karpenter-tests-trigger-role
+subjects:
+- kind: ServiceAccount
+  name: karpenter-tests-trigger
+  namespace: karpenter-tests
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pipelines-trigger
+  namespace: karpenter-tests
+data:
+  pipelines-trigger.sh: |+
+    #!/usr/bin/env bash
+    set -euo pipefail
+    for suite in "Integration" "Consolidation" "Utilization"; do
+       cat <<EOF | kubectl create -f -
+     apiVersion: tekton.dev/v1beta1
+     kind: PipelineRun
+     metadata:
+       generateName: "$(echo ${suite} | tr '[:upper:]' '[:lower:]')-"
+       namespace: karpenter-tests
+     spec:
+       params:
+       - name: test-filter
+         value: "${suite}"
+       pipelineRef:
+         name: suite
+       serviceAccountName: karpenter-tests
+    EOF
+    echo "CREATED PIPELINE RUN for ${suite}"
+    done
+    cat <<EOF | kubectl create -f -
+     apiVersion: tekton.dev/v1beta1
+     kind: PipelineRun
+     metadata:
+       generateName: "upgrade-suite"
+       namespace: karpenter-tests
+     spec:
+       pipelineRef:
+         name: upgrade
+       serviceAccountName: karpenter-tests
+    EOF
+    echo "CREATED PIPELINE RUN for upgrade-suite"
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pipelines-trigger
+  namespace: karpenter-tests
+spec:
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          volumes:
+            - name: pipelines-trigger
+              configMap:
+                name: pipelines-trigger
+                defaultMode: 0777
+          containers:
+          - command:
+            - /bin/sh
+            - -c
+            - /bin/pipelines-trigger.sh
+            image: public.ecr.aws/bitnami/kubectl:1.22
+            imagePullPolicy: IfNotPresent
+            volumeMounts:
+            - name: pipelines-trigger
+              mountPath: /bin/pipelines-trigger.sh
+              subPath: pipelines-trigger.sh
+            name: pipelines-trigger
+            resources:
+              requests:
+                cpu: 250m
+                memory: 256Mi
+              limits:
+                memory: 256Mi
+          restartPolicy: OnFailure
+          serviceAccountName: karpenter-tests-trigger
+      ttlSecondsAfterFinished: 300
+  # every 4 hours starting at the 7th minute
+  schedule: '7 */4 * * *'
+  successfulJobsHistoryLimit: 3
+  suspend: false

@@ -17,15 +17,8 @@ fi
 
 COSIGN_FLAGS="-a GIT_HASH=$(git rev-parse HEAD) -a GIT_VERSION=${RELEASE_VERSION} -a BUILD_DATE=${BUILD_DATE}"
 
-requireCloudProvider(){
-  if [ -z "$CLOUD_PROVIDER" ]; then
-      echo "CLOUD_PROVIDER environment variable is not set: 'export CLOUD_PROVIDER=aws'"
-      exit 1
-  fi
-}
-
 authenticate() {
-  aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${RELEASE_REPO}
+    aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${RELEASE_REPO}
 }
 
 authenticatePrivateRepo() {
@@ -47,14 +40,14 @@ cosignImages() {
     COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_FLAGS} ${WEBHOOK_DIGEST}
 }
 
-notifyRelease(){
-  RELEASE_TYPE=$1
-  RELEASE_IDENTIFIER=$2
-  MESSAGE="{\"releaseType\":\"${RELEASE_TYPE}\",\"releaseIdentifier\":\"${RELEASE_IDENTIFIER}\"}"
-  aws sns publish \
-      --topic-arn "arn:aws:sns:us-east-1:071440425669:KarpenterReleases" \
-      --message ${MESSAGE} \
-      --no-cli-pager
+notifyRelease() {
+    RELEASE_TYPE=$1
+    RELEASE_IDENTIFIER=$2
+    MESSAGE="{\"releaseType\":\"${RELEASE_TYPE}\",\"releaseIdentifier\":\"${RELEASE_IDENTIFIER}\"}"
+    aws sns publish \
+        --topic-arn "arn:aws:sns:us-east-1:071440425669:KarpenterReleases" \
+        --message ${MESSAGE} \
+        --no-cli-pager
 }
 
 pullPrivateReplica(){
@@ -63,17 +56,6 @@ pullPrivateReplica(){
   RELEASE_IDENTIFIER=$2
   PULL_THROUGH_CACHE_PATH="${PRIVATE_PULL_THROUGH_HOST}/ecr-public/karpenter/"
 
-  pullWithRetry "${PULL_THROUGH_CACHE_PATH}controller:${RELEASE_IDENTIFIER}"
-  pullWithRetry "${PULL_THROUGH_CACHE_PATH}webhook:${RELEASE_IDENTIFIER}"
-}
-
-pullWithRetry(){
-  PULL_PATH=$1
-  n=0
-    until [ "$n" -ge 5 ]
-    do
-       docker pull "${PULL_PATH}" && break
-       n=$((n+1))
-       sleep 10
-    done
+  docker pull "${PULL_THROUGH_CACHE_PATH}controller:${RELEASE_IDENTIFIER}"
+  docker pull "${PULL_THROUGH_CACHE_PATH}webhook:${RELEASE_IDENTIFIER}"
 }

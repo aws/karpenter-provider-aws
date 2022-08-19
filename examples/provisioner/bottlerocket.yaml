@@ -19,3 +19,14 @@ spec:
     karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
   securityGroupSelector:
     karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
+  blockDeviceMappings:
+    - deviceName: /dev/xvda
+      ebs:
+        volumeType: gp3
+        volumeSize: 2Gi
+        deleteOnTermination: true
+    - deviceName: /dev/xvdb
+      ebs:
+        volumeType: gp3
+        volumeSize: 20G # replace with your required disk size
+        deleteOnTermination: true

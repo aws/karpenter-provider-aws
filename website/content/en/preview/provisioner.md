@@ -25,7 +25,12 @@ spec:
   ttlSecondsUntilExpired: 2592000 # 30 Days = 60 * 60 * 24 * 30 Seconds;
 
   # If omitted, the feature is disabled, nodes will never scale down due to low utilization
-  # ttlSecondsAfterEmpty: 30
+  ttlSecondsAfterEmpty: 30
+  
+  # Priority given to the provisioner when the scheduler considers which provisioner
+  # to select. Higher weights indicate higher priority when comparing provisioners.
+  # Specifying no weight is equivalent to specifying a weight of 0.
+  weight: 10
 
   # Provisioned nodes will have these taints
   # Taints may prevent pods from scheduling if they are not tolerated by the pod.
@@ -183,6 +188,12 @@ Karpenter supports specifying capacity type, which is analogous to [EC2 purchase
 Karpenter prioritizes Spot offerings if the provisioner allows Spot and on-demand instances. If the provider API (e.g. EC2 Fleet's API) indicates Spot capacity is unavailable, Karpenter caches that result across all attempts to provision EC2 capacity for that instance type and zone for the next 45 seconds. If there are no other possible offerings available for Spot, Karpenter will attempt to provision on-demand instances, generally within milliseconds.
 
 Karpenter also allows `karpenter.sh/capacity-type` to be used as a topology key for enforcing topology-spread.
+
+## spec.weight
+
+Karpenter allows you to describe provisioner preferences through a `weight` mechanism similar to how weight is described with [pod and node affinities](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity). 
+
+For more information on weighting provisioners, see the [Weighting Provisioners section](../tasks/scheduling#weighting-provisioners) in the scheduling details.
 
 ## spec.kubeletConfiguration
 

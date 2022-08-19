@@ -8,7 +8,7 @@ import (
 	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/test/pkg/environment"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -43,7 +43,7 @@ var _ = Describe("Utilization", func() {
 		}}})
 
 		deployment := test.Deployment(test.DeploymentOptions{
-			Replicas:   500,
+			Replicas:   100,
 			PodOptions: test.PodOptions{ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1.5")}}}})
 
 		env.ExpectCreated(provisioner, provider, deployment)

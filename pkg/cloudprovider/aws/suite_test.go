@@ -19,14 +19,15 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"github.com/aws/aws-sdk-go/service/pricing"
-	"github.com/aws/karpenter/pkg/cloudprovider/aws/amifamily/bootstrap"
-	"github.com/aws/karpenter/pkg/utils/options"
 	"io/ioutil"
 	"math"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/aws/aws-sdk-go/service/pricing"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/amifamily/bootstrap"
+	"github.com/aws/karpenter/pkg/utils/options"
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/aws-sdk-go/aws"
@@ -38,7 +39,6 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/amifamily"
 	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/fake"
-	"github.com/aws/karpenter/pkg/cloudprovider/registry"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/test"
@@ -55,7 +55,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	. "github.com/aws/karpenter/pkg/test/expectations"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
 )
@@ -75,7 +75,7 @@ var instanceTypeProvider *InstanceTypeProvider
 var fakeEC2API *fake.EC2API
 var fakePricingAPI *fake.PricingAPI
 var controller *provisioning.Controller
-var cloudProvider cloudprovider.CloudProvider
+var cloudProvider *CloudProvider
 var clientSet *kubernetes.Clientset
 var cluster *state.Cluster
 var recorder *test.EventRecorder
@@ -130,7 +130,6 @@ var _ = BeforeSuite(func() {
 		}
 		clientSet = kubernetes.NewForConfigOrDie(e.Config)
 		cloudProvider = &CloudProvider{
-			subnetProvider:       subnetProvider,
 			instanceTypeProvider: instanceTypeProvider,
 			instanceProvider: NewInstanceProvider(ctx, fakeEC2API, instanceTypeProvider, subnetProvider, &LaunchTemplateProvider{
 				ec2api:                fakeEC2API,
@@ -142,7 +141,8 @@ var _ = BeforeSuite(func() {
 			}),
 			kubeClient: e.Client,
 		}
-		registry.RegisterOrDie(ctx, cloudProvider)
+		v1alpha5.DefaultHook = cloudProvider.Default
+		v1alpha5.ValidateHook = cloudProvider.Validate
 		cfg = test.NewConfig()
 		fakeClock = clock.NewFakeClock(time.Now())
 		cluster = state.NewCluster(fakeClock, cfg, e.Client, cloudProvider)
@@ -392,7 +392,7 @@ var _ = Describe("Allocation", func() {
 				Expect(err).To(BeNil())
 				provisioner := test.Provisioner()
 				for _, info := range instanceInfo {
-					it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, provider, nil)
+					it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, "", provider, nil)
 					resources := it.Resources()
 					Expect(resources.Pods().Value()).To(BeNumerically("==", 110))
 				}
@@ -403,7 +403,7 @@ var _ = Describe("Allocation", func() {
 				Expect(err).To(BeNil())
 				provisioner := test.Provisioner()
 				for _, info := range instanceInfo {
-					it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, provider, nil)
+					it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, "", provider, nil)
 					resources := it.Resources()
 					Expect(resources.Pods().Value()).ToNot(BeNumerically("==", 110))
 				}
@@ -415,7 +415,7 @@ var _ = Describe("Allocation", func() {
 					provider.AMIFamily = &awsv1alpha1.AMIFamilyAL2
 					instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 					Expect(err).To(BeNil())
-					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, provider, nil)
+					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
 					overhead := it.Overhead()
 					Expect(overhead.Memory().String()).To(Equal("1093Mi"))
 				})
@@ -425,7 +425,7 @@ var _ = Describe("Allocation", func() {
 					provider.AMIFamily = &awsv1alpha1.AMIFamilyAL2
 					instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 					Expect(err).To(BeNil())
-					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, provider, nil)
+					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
 					overhead := it.Overhead()
 					Expect(overhead.Memory().String()).To(Equal("1093Mi"))
 				})
@@ -437,7 +437,7 @@ var _ = Describe("Allocation", func() {
 					provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
 					instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 					Expect(err).To(BeNil())
-					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, provider, nil)
+					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
 					overhead := it.Overhead()
 					Expect(overhead.Memory().String()).To(Equal("1093Mi"))
 				})
@@ -447,7 +447,7 @@ var _ = Describe("Allocation", func() {
 					provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
 					instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 					Expect(err).To(BeNil())
-					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, provider, nil)
+					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
 					overhead := it.Overhead()
 					Expect(overhead.Memory().String()).To(Equal("1665Mi"))
 				})
@@ -463,7 +463,7 @@ var _ = Describe("Allocation", func() {
 							},
 						},
 					})
-					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, provider, nil)
+					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
 					overhead := it.Overhead()
 					Expect(overhead.Cpu().String()).To(Equal("2080m"))
 				})
@@ -477,7 +477,7 @@ var _ = Describe("Allocation", func() {
 							},
 						},
 					})
-					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, provider, nil)
+					it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
 					overhead := it.Overhead()
 					Expect(overhead.Memory().String()).To(Equal("21473Mi"))
 				})
@@ -486,7 +486,7 @@ var _ = Describe("Allocation", func() {
 					Expect(err).To(BeNil())
 					provisioner := test.Provisioner(test.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{MaxPods: ptr.Int32(10)}})
 					for _, info := range instanceInfo {
-						it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, provider, nil)
+						it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, "", provider, nil)
 						resources := it.Resources()
 						Expect(resources.Pods().Value()).To(BeNumerically("==", 10))
 					}
@@ -497,7 +497,7 @@ var _ = Describe("Allocation", func() {
 					Expect(err).To(BeNil())
 					provisioner := test.Provisioner(test.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{MaxPods: ptr.Int32(10)}})
 					for _, info := range instanceInfo {
-						it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, provider, nil)
+						it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, "", provider, nil)
 						resources := it.Resources()
 						Expect(resources.Pods().Value()).To(BeNumerically("==", 10))
 					}

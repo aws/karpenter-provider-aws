@@ -16,5 +16,4 @@ jobs:
           aws-region: us-east-1
       - run: make nightly
         env:
-          CLOUD_PROVIDER: aws
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

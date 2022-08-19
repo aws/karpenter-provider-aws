@@ -16,6 +16,13 @@ package consolidation_test
 
 import (
 	"context"
+	"sync"
+	"testing"
+	"time"
+
+	"math"
+	"sort"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
@@ -26,7 +33,7 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/test"
 	. "github.com/aws/karpenter/pkg/test/expectations"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
@@ -38,12 +45,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	. "knative.dev/pkg/logging/testing"
-	"math"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sort"
-	"sync"
-	"testing"
-	"time"
 )
 
 var ctx context.Context
@@ -455,12 +457,8 @@ var _ = Describe("Replace Nodes", func() {
 		ExpectScheduled(ctx, env.Client, pod)
 		Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(node), node)).To(Succeed())
 
-		// we'll wait for 10 seconds but no new nodes should be scheduled
-		wg := ExpectMakeNewNodesReady(ctx, env.Client, 1, node)
 		fakeClock.Step(10 * time.Minute)
 		controller.ProcessCluster(ctx)
-		wg.Wait()
-
 		Expect(cloudProvider.CreateCalls).To(HaveLen(0))
 		ExpectNodeExists(ctx, env.Client, node.Name)
 	})
@@ -560,12 +558,8 @@ var _ = Describe("Replace Nodes", func() {
 		ExpectScheduled(ctx, env.Client, pod)
 		Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(node), node)).To(Succeed())
 
-		// we'll wait for 10 seconds but no new nodes should be scheduled
-		wg := ExpectMakeNewNodesReady(ctx, env.Client, 1, node)
 		fakeClock.Step(10 * time.Minute)
 		controller.ProcessCluster(ctx)
-		wg.Wait()
-
 		Expect(cloudProvider.CreateCalls).To(HaveLen(0))
 		ExpectNodeExists(ctx, env.Client, node.Name)
 	})
@@ -1317,7 +1311,7 @@ func ExpectMakeNewNodesReady(ctx context.Context, client client.Client, numNewNo
 	go func() {
 		defer GinkgoRecover()
 		wg.Add(1)
-		defer wg.Add(-1)
+		defer wg.Done()
 		start := time.Now()
 		for {
 			select {

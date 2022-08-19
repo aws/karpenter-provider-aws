@@ -12,6 +12,7 @@ import (
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/utils/resources"
 )
 
@@ -182,6 +183,10 @@ func (m *Monitor) nodeUtilization(resource v1.ResourceName) []float64 {
 	var utilization []float64
 	for nodeName, requests := range st.nodeRequests {
 		allocatable := st.nodes[nodeName].Status.Allocatable[resource]
+		// skip any nodes we didn't launch
+		if _, ok := st.nodes[nodeName].Labels[v1alpha5.ProvisionerNameLabelKey]; !ok {
+			continue
+		}
 		if allocatable.IsZero() {
 			continue
 		}

@@ -15,8 +15,7 @@ limitations under the License.
 package scheduling
 
 import (
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
 )
@@ -25,13 +24,8 @@ var _ = Describe("Requirements", func() {
 	Context("Compatibility", func() {
 		It("should normalize aliased labels", func() {
 			requirements := NewRequirements(NewRequirement(v1.LabelFailureDomainBetaZone, v1.NodeSelectorOpIn, "test"))
+			Expect(requirements.Has(v1.LabelFailureDomainBetaZone)).To(BeFalse())
 			Expect(requirements.Get(v1.LabelTopologyZone).Has("test")).To(BeTrue())
-		})
-		It("should ignore labels in IgnoredLabels", func() {
-			for label := range v1alpha5.IgnoredLabels {
-				requirements := NewRequirements(NewRequirement(v1.LabelFailureDomainBetaZone, v1.NodeSelectorOpIn, "test"))
-				Expect(requirements.Has(label)).To(BeFalse())
-			}
 		})
 
 		// Use a well known label like zone, because it behaves differently than custom labels

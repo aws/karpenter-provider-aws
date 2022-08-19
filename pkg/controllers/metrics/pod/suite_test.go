@@ -17,12 +17,10 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/aws/karpenter/pkg/cloudprovider/fake"
-	"github.com/aws/karpenter/pkg/cloudprovider/registry"
 	"github.com/aws/karpenter/pkg/controllers/metrics/pod"
 	"github.com/aws/karpenter/pkg/test"
 	. "github.com/aws/karpenter/pkg/test/expectations"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	prometheus "github.com/prometheus/client_model/go"
 	. "knative.dev/pkg/logging/testing"
@@ -41,8 +39,6 @@ func TestAPIs(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
-		cloudProvider := &fake.CloudProvider{}
-		registry.RegisterOrDie(ctx, cloudProvider)
 		controller = pod.NewController(env.Client)
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")

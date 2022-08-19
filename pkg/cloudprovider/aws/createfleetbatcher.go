@@ -42,7 +42,7 @@ func NewCreateFleetBatcher(ctx context.Context, ec2api ec2iface.EC2API) *CreateF
 		ctx:      ctx,
 		ec2api:   ec2api,
 		requests: map[uint64][]*createFleetRequest{},
-		trigger:  make(chan struct{}, 1),
+		trigger:  make(chan struct{}),
 	}
 	go b.run()
 	return b
@@ -75,10 +75,13 @@ func (b *CreateFleetBatcher) CreateFleet(ctx context.Context, createFleetInput *
 
 func (b *CreateFleetBatcher) createFleet(ctx context.Context, hash uint64, createFleetInput *ec2.CreateFleetInput) chan createFleetResult {
 	request := &createFleetRequest{
-		ctx:       ctx,
-		hash:      hash,
-		input:     createFleetInput,
-		requestor: make(chan createFleetResult),
+		ctx:   ctx,
+		hash:  hash,
+		input: createFleetInput,
+		// The requestor channel is buffered to ensure that the exec runner can always write the result out preventing
+		// any single caller from blocking the others. Specifically since we register our request and then trigger, the
+		// request may be processed while the triggering blocks.
+		requestor: make(chan createFleetResult, 1),
 	}
 	b.mu.Lock()
 	b.requests[hash] = append(b.requests[hash], request)

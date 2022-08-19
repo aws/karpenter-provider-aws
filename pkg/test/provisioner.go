@@ -41,6 +41,7 @@ type ProvisionerOptions struct {
 	Requirements           []v1.NodeSelectorRequirement
 	Status                 v1alpha5.ProvisionerStatus
 	TTLSecondsUntilExpired *int64
+	Weight                 *int32
 	TTLSecondsAfterEmpty   *int64
 	Consolidation          *v1alpha5.Consolidation
 }
@@ -73,6 +74,7 @@ func Provisioner(overrides ...ProvisionerOptions) *v1alpha5.Provisioner {
 			Limits:                 &v1alpha5.Limits{Resources: options.Limits},
 			TTLSecondsAfterEmpty:   options.TTLSecondsAfterEmpty,
 			TTLSecondsUntilExpired: options.TTLSecondsUntilExpired,
+			Weight:                 options.Weight,
 			Consolidation:          options.Consolidation,
 		},
 		Status: options.Status,

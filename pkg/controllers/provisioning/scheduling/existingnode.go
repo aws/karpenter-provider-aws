@@ -44,6 +44,15 @@ func NewExistingNode(n *state.Node, topology *Topology, startupTaints []v1.Taint
 	// The state node passed in here must be a deep copy from cluster state as we modify it
 	// the remaining daemonResources to schedule are the total daemonResources minus what has already scheduled
 	remainingDaemonResources := resources.Subtract(daemonResources, n.DaemonSetRequested)
+	// If unexpected daemonset pods schedule to the node due to labels appearing on the node which cause the
+	// DS to be able to schedule, we need to ensure that we don't let our remainingDaemonResources go negative as
+	// it will cause us to mis-calculate the amount of remaining resources
+	for k, v := range remainingDaemonResources {
+		if v.AsApproximateFloat64() < 0 {
+			v.Set(0)
+			remainingDaemonResources[k] = v
+		}
+	}
 	node := &ExistingNode{
 		Node:          n.Node,
 		available:     n.Available,

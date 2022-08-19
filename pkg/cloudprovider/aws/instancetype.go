@@ -50,13 +50,15 @@ type InstanceType struct {
 	resources    v1.ResourceList
 	provider     *v1alpha1.AWS
 	maxPods      *int32
+	region       string
 }
 
-func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, kc *v1alpha5.KubeletConfiguration, provider *v1alpha1.AWS, offerings []cloudprovider.Offering) *InstanceType {
+func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, kc *v1alpha5.KubeletConfiguration, region string, provider *v1alpha1.AWS, offerings []cloudprovider.Offering) *InstanceType {
 	instanceType := &InstanceType{
 		InstanceTypeInfo: info,
 		provider:         provider,
 		offerings:        offerings,
+		region:           region,
 	}
 
 	// set max pods before computing resources
@@ -103,6 +105,7 @@ func (i *InstanceType) computeRequirements() scheduling.Requirements {
 		scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, i.architecture()),
 		scheduling.NewRequirement(v1.LabelOSStable, v1.NodeSelectorOpIn, v1alpha5.OperatingSystemLinux),
 		scheduling.NewRequirement(v1.LabelTopologyZone, v1.NodeSelectorOpIn, lo.Map(cloudprovider.AvailableOfferings(i), func(o cloudprovider.Offering, _ int) string { return o.Zone })...),
+		scheduling.NewRequirement(v1.LabelTopologyRegion, v1.NodeSelectorOpIn, i.region),
 		// Well Known to Karpenter
 		scheduling.NewRequirement(v1alpha5.LabelCapacityType, v1.NodeSelectorOpIn, lo.Map(cloudprovider.AvailableOfferings(i), func(o cloudprovider.Offering, _ int) string { return o.CapacityType })...),
 		// Well Known to AWS

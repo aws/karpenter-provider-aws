@@ -23,6 +23,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/mitchellh/hashstructure/v2"
@@ -34,6 +35,7 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/utils/functional"
+	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/pretty"
 )
 
@@ -46,6 +48,7 @@ const (
 
 type InstanceTypeProvider struct {
 	sync.Mutex
+	region          string
 	ec2api          ec2iface.EC2API
 	subnetProvider  *SubnetProvider
 	pricingProvider *PricingProvider
@@ -57,11 +60,16 @@ type InstanceTypeProvider struct {
 	unavailableOfferings *cache.Cache
 }
 
-func NewInstanceTypeProvider(ec2api ec2iface.EC2API, subnetProvider *SubnetProvider, pricingProvider *PricingProvider) *InstanceTypeProvider {
+func NewInstanceTypeProvider(ctx context.Context, sess *session.Session, options cloudprovider.Options, ec2api ec2iface.EC2API, subnetProvider *SubnetProvider) *InstanceTypeProvider {
 	return &InstanceTypeProvider{
-		ec2api:               ec2api,
-		subnetProvider:       subnetProvider,
-		pricingProvider:      pricingProvider,
+		ec2api:         ec2api,
+		region:         *sess.Config.Region,
+		subnetProvider: subnetProvider,
+		pricingProvider: NewPricingProvider(ctx,
+			NewPricingAPI(sess, *sess.Config.Region),
+			ec2api,
+			*sess.Config.Region,
+			injection.GetOptions(ctx).AWSIsolatedVPC, options.StartAsync),
 		cache:                cache.New(InstanceTypesAndZonesCacheTTL, CacheCleanupInterval),
 		unavailableOfferings: cache.New(UnfulfillableCapacityErrorCacheTTL, CacheCleanupInterval),
 	}
@@ -84,7 +92,7 @@ func (p *InstanceTypeProvider) Get(ctx context.Context, provider *v1alpha1.AWS, 
 	var result []cloudprovider.InstanceType
 	for _, i := range instanceTypes {
 		instanceTypeName := aws.StringValue(i.InstanceType)
-		instanceType := NewInstanceType(ctx, i, kc, provider, p.createOfferings(ctx, i, instanceTypeZones[instanceTypeName]))
+		instanceType := NewInstanceType(ctx, i, kc, p.region, provider, p.createOfferings(ctx, i, instanceTypeZones[instanceTypeName]))
 		result = append(result, instanceType)
 	}
 	return result, nil
