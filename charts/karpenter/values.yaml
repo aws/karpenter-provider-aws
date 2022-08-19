@@ -28,12 +28,11 @@ serviceMonitor:
   # -- Endpoint configuration for the ServiceMonitor.
   endpointConfig: {}
 # -- Number of replicas.
-replicas: 1
+replicas: 2
 # -- The number of old ReplicaSets to retain to allow rollback.
 revisionHistoryLimit: 10
 # -- Strategy for updating the pod.
-strategy:
-  type: Recreate
+strategy: {}
 # -- Additional labels for the pod.
 podLabels: {}
 # -- Additional annotations for the pod.
