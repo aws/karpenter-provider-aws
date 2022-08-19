@@ -2,6 +2,7 @@ package integration_test
 
 import (
 	"fmt"
+	"knative.dev/pkg/ptr"
 
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
@@ -55,8 +56,8 @@ var _ = Describe("Scheduling", func() {
 		})
 		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
 		deployment := test.Deployment(test.DeploymentOptions{Replicas: 1, PodOptions: test.PodOptions{
-			NodeSelector: nodeSelector,
-			NodePreferences: requirements,
+			NodeSelector:     nodeSelector,
+			NodePreferences:  requirements,
 			NodeRequirements: requirements,
 		}})
 		// Ensure that we're exercising all well known labels
@@ -145,5 +146,41 @@ var _ = Describe("Scheduling", func() {
 		env.ExpectCreated(provisioner, provider, deployment)
 		env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(podLabels), 3)
 		env.ExpectCreatedNodeCount("==", 3)
+	})
+	It("should provision a node using a provisioner with higher priority", func() {
+		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
+		}})
+
+		provisionerLowPri := test.Provisioner(test.ProvisionerOptions{
+			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
+			Weight:      ptr.Int32(10),
+			Requirements: []v1.NodeSelectorRequirement{
+				{
+					Key:      v1.LabelInstanceTypeStable,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{"t3.nano"},
+				},
+			},
+		})
+		provisionerHighPri := test.Provisioner(test.ProvisionerOptions{
+			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
+			Weight:      ptr.Int32(100),
+			Requirements: []v1.NodeSelectorRequirement{
+				{
+					Key:      v1.LabelInstanceTypeStable,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{"c4.large"},
+				},
+			},
+		})
+
+		pod := test.Pod()
+		env.ExpectCreated(pod, provider, provisionerLowPri, provisionerHighPri)
+		env.EventuallyExpectHealthy(pod)
+		env.ExpectCreatedNodeCount("==", 1)
+		Expect(ptr.StringValue(env.GetInstance(pod.Spec.NodeName).InstanceType)).To(Equal("c4.large"))
+		Expect(env.GetNode(pod.Spec.NodeName).Labels[v1alpha5.ProvisionerNameLabelKey]).To(Equal(provisionerHighPri.Name))
 	})
 })

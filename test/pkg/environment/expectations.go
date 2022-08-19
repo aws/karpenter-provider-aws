@@ -188,13 +188,18 @@ func (env *Environment) ExpectCreatedNodeCount(comparator string, nodeCount int)
 		fmt.Sprintf("expected %d created nodes, had %d", nodeCount, env.Monitor.CreatedNodes()))
 }
 
+func (env *Environment) GetNode(nodeName string) v1.Node {
+	var node v1.Node
+	Expect(env.Client.Get(env.Context, types.NamespacedName{Name: nodeName}, &node)).To(Succeed())
+	return node
+}
+
 func (env *Environment) ExpectInstance(nodeName string) Assertion {
 	return Expect(env.GetInstance(nodeName))
 }
 
 func (env *Environment) GetInstance(nodeName string) ec2.Instance {
-	var node v1.Node
-	Expect(env.Client.Get(env.Context, types.NamespacedName{Name: nodeName}, &node)).To(Succeed())
+	node := env.GetNode(nodeName)
 	providerIDSplit := strings.Split(node.Spec.ProviderID, "/")
 	Expect(len(providerIDSplit)).ToNot(Equal(0))
 	instanceID := providerIDSplit[len(providerIDSplit)-1]
