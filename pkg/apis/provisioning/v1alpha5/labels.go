@@ -57,6 +57,7 @@ var (
 	// Karpenter is aware of these labels, and they can be used to further narrow down
 	// the range of the corresponding values by either provisioner or pods.
 	WellKnownLabels = sets.NewString(
+		ProvisionerNameLabelKey,
 		v1.LabelTopologyZone,
 		v1.LabelTopologyRegion,
 		v1.LabelInstanceTypeStable,

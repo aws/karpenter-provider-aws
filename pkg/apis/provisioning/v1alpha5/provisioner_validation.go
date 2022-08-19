@@ -89,6 +89,9 @@ func (s *ProvisionerSpec) Validate(ctx context.Context) (errs *apis.FieldError) 
 
 func (s *ProvisionerSpec) validateLabels() (errs *apis.FieldError) {
 	for key, value := range s.Labels {
+		if key == ProvisionerNameLabelKey {
+			errs = errs.Also(apis.ErrInvalidKeyName(key, "labels", "restricted"))
+		}
 		for _, err := range validation.IsQualifiedName(key) {
 			errs = errs.Also(apis.ErrInvalidKeyName(key, "labels", err))
 		}
@@ -153,6 +156,9 @@ func (s *ProvisionerSpec) validateTaintsField(taints []v1.Taint, existing map[ta
 // Provisioner requirements only support well known labels.
 func (s *ProvisionerSpec) validateRequirements() (errs *apis.FieldError) {
 	for i, requirement := range s.Requirements {
+		if requirement.Key == ProvisionerNameLabelKey {
+			errs = errs.Also(apis.ErrInvalidArrayValue(fmt.Sprintf("%s is restricted", requirement.Key), "requirements", i))
+		}
 		if err := ValidateRequirement(requirement); err != nil {
 			errs = errs.Also(apis.ErrInvalidArrayValue(err, "requirements", i))
 		}
