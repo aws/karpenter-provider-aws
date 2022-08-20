@@ -54,7 +54,11 @@ type AMIProvider struct {
 // If AMI overrides are specified in the AWSNodeTemplate, then only those AMIs will be chosen.
 func (p *AMIProvider) Get(ctx context.Context, provider *awsv1alpha1.AWS, nodeRequest *cloudprovider.NodeRequest, options *Options, amiFamily AMIFamily) (map[string][]cloudprovider.InstanceType, error) {
 	amiIDs := map[string][]cloudprovider.InstanceType{}
-	amiRequirements, err := p.getAMIRequirements(ctx, nodeRequest.Template.ProviderRef)
+	amiSelector, err := p.getAMISelector(ctx, nodeRequest.Template.ProviderRef)
+	if err != nil {
+		return nil, err
+	}
+	amiRequirements, amis, err := p.getAMIRequirements(ctx, amiSelector)
 	if err != nil {
 		return nil, err
 	}
@@ -68,6 +72,11 @@ func (p *AMIProvider) Get(ctx context.Context, provider *awsv1alpha1.AWS, nodeRe
 		}
 		if len(amiIDs) == 0 {
 			return nil, fmt.Errorf("no instance types satisfy requirements of amis %v,", lo.Keys(amiRequirements))
+		}
+		if _, exists := amiSelector["aws-ids"]; exists {
+			return amiIDs, nil
+		} else {
+			return getMostRecentCompatibleAMI(amiIDs, amis), nil
 		}
 	} else {
 		for _, instanceType := range nodeRequest.InstanceTypeOptions {
@@ -95,42 +104,37 @@ func (p *AMIProvider) getDefaultAMIFromSSM(ctx context.Context, instanceType clo
 	return ami, nil
 }
 
-func (p *AMIProvider) getAMIRequirements(ctx context.Context, providerRef *v1alpha5.ProviderRef) (map[string]scheduling.Requirements, error) {
-	amiRequirements := map[string]scheduling.Requirements{}
+func (p *AMIProvider) getAMISelector(ctx context.Context, providerRef *v1alpha5.ProviderRef) (map[string]string, error) {
+	amiSelector := map[string]string{}
 	if providerRef != nil {
 		var ant v1alpha1.AWSNodeTemplate
 		if err := p.kubeClient.Get(ctx, types.NamespacedName{Name: providerRef.Name}, &ant); err != nil {
-			return amiRequirements, fmt.Errorf("retrieving provider reference, %w", err)
+			return amiSelector, fmt.Errorf("retrieving provider reference, %w", err)
 		}
 		if len(ant.Spec.AMISelector) == 0 {
-			return amiRequirements, nil
+			return amiSelector, nil
 		}
-		return p.selectAMIs(ctx, ant.Spec.AMISelector)
+		return ant.Spec.AMISelector, nil
 	}
-	return amiRequirements, nil
+	return amiSelector, nil
 }
 
-func (p *AMIProvider) selectAMIs(ctx context.Context, amiSelector map[string]string) (map[string]scheduling.Requirements, error) {
-	var amis []*ec2.Image
-	ec2AMIs, err := p.fetchAMIsFromEC2(ctx, amiSelector)
-	if err != nil {
-		return nil, err
+func (p *AMIProvider) getAMIRequirements(ctx context.Context, amiSelector map[string]string) (map[string]scheduling.Requirements, []*ec2.Image, error) {
+	if len(amiSelector) > 0 {
+		ec2AMIs, err := p.fetchAMIsFromEC2(ctx, amiSelector)
+		if err != nil {
+			return nil, nil, err
+		}
+		if len(ec2AMIs) == 0 {
+			return nil, nil, fmt.Errorf("no amis exist given constraints")
+		}
+		var amiIDs = map[string]scheduling.Requirements{}
+		for _, ec2AMI := range ec2AMIs {
+			amiIDs[*ec2AMI.ImageId] = p.getRequirementsFromImage(ec2AMI)
+		}
+		return amiIDs, ec2AMIs, nil
 	}
-	if len(ec2AMIs) == 0 {
-		return nil, fmt.Errorf("no amis exist given constraints")
-	}
-	if _, exists := amiSelector["aws-ids"]; exists {
-		amis = ec2AMIs
-	} else {
-		mostRecentAMI := getMostRecentAMI(ec2AMIs)
-		amis = append(amis, mostRecentAMI)
-		logging.FromContext(ctx).Debugf("Using most recent image: %s", *mostRecentAMI.ImageId)
-	}
-	var amiIDs = map[string]scheduling.Requirements{}
-	for _, ami := range amis {
-		amiIDs[*ami.ImageId] = p.getRequirementsFromImage(ami)
-	}
-	return amiIDs, nil
+	return nil, nil, nil
 }
 
 func (p *AMIProvider) fetchAMIsFromEC2(ctx context.Context, amiSelector map[string]string) ([]*ec2.Image, error) {
@@ -147,10 +151,11 @@ func (p *AMIProvider) fetchAMIsFromEC2(ctx context.Context, amiSelector map[stri
 	if err != nil {
 		return nil, fmt.Errorf("describing images %+v, %w", filters, err)
 	}
-	p.ec2Cache.SetDefault(fmt.Sprint(hash), output.Images)
-	amiIDs := lo.Map(output.Images, func(ami *ec2.Image, _ int) string { return *ami.ImageId })
+	images := sortAMIsByCreationDate(output.Images)
+	p.ec2Cache.SetDefault(fmt.Sprint(hash), images)
+	amiIDs := lo.Map(images, func(ami *ec2.Image, _ int) string { return *ami.ImageId })
 	logging.FromContext(ctx).Debugf("Discovered images: %s", amiIDs)
-	return output.Images, nil
+	return images, nil
 }
 
 func getFilters(amiSelector map[string]string) []*ec2.Filter {
@@ -177,7 +182,7 @@ func getFilters(amiSelector map[string]string) []*ec2.Filter {
 	return filters
 }
 
-func getMostRecentAMI(amis []*ec2.Image) *ec2.Image {
+func sortAMIsByCreationDate(amis []*ec2.Image) []*ec2.Image {
 	if len(amis) > 1 {
 		sort.Slice(amis, func(i, j int) bool {
 			itime, _ := time.Parse(time.RFC3339, aws.StringValue(amis[i].CreationDate))
@@ -185,7 +190,18 @@ func getMostRecentAMI(amis []*ec2.Image) *ec2.Image {
 			return itime.Unix() > jtime.Unix()
 		})
 	}
-	return amis[0]
+	return amis
+}
+
+func getMostRecentCompatibleAMI(compatibleAMIs map[string][]cloudprovider.InstanceType, amis []*ec2.Image) map[string][]cloudprovider.InstanceType {
+	mostRecent := map[string][]cloudprovider.InstanceType{}
+	for _, ami := range amis {
+		if _, exists := compatibleAMIs[*ami.ImageId]; exists {
+			mostRecent[*ami.ImageId] = compatibleAMIs[*ami.ImageId]
+			return mostRecent
+		}
+	}
+	return mostRecent
 }
 
 func (p *AMIProvider) getRequirementsFromImage(ec2Image *ec2.Image) scheduling.Requirements {
