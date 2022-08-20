@@ -17,6 +17,8 @@ package amifamily
 import (
 	"context"
 	"fmt"
+	"sort"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -112,6 +114,7 @@ func (p *AMIProvider) getAMIRequirements(ctx context.Context, providerRef *v1alp
 }
 
 func (p *AMIProvider) selectAMIs(ctx context.Context, amiSelector map[string]string) (map[string]scheduling.Requirements, error) {
+	var amis []*ec2.Image
 	ec2AMIs, err := p.fetchAMIsFromEC2(ctx, amiSelector)
 	if err != nil {
 		return nil, err
@@ -119,9 +122,16 @@ func (p *AMIProvider) selectAMIs(ctx context.Context, amiSelector map[string]str
 	if len(ec2AMIs) == 0 {
 		return nil, fmt.Errorf("no amis exist given constraints")
 	}
+	if _, exists := amiSelector["aws-ids"]; exists {
+		amis = ec2AMIs
+	} else {
+		mostRecentAMI := getMostRecentAMI(ec2AMIs)
+		amis = append(amis, mostRecentAMI)
+		logging.FromContext(ctx).Debugf("Using most recent image: %s", *mostRecentAMI.ImageId)
+	}
 	var amiIDs = map[string]scheduling.Requirements{}
-	for _, ec2AMI := range ec2AMIs {
-		amiIDs[*ec2AMI.ImageId] = p.getRequirementsFromImage(ec2AMI)
+	for _, ami := range amis {
+		amiIDs[*ami.ImageId] = p.getRequirementsFromImage(ami)
 	}
 	return amiIDs, nil
 }
@@ -157,6 +167,11 @@ func getFilters(amiSelector map[string]string) []*ec2.Filter {
 				Name:   aws.String("image-id"),
 				Values: aws.StringSlice(filterValues),
 			})
+		} else if key == "name" {
+			filters = append(filters, &ec2.Filter{
+				Name:   aws.String("name"),
+				Values: []*string{aws.String(value)},
+			})
 		} else {
 			filters = append(filters, &ec2.Filter{
 				Name:   aws.String(fmt.Sprintf("tag:%s", key)),
@@ -165,6 +180,17 @@ func getFilters(amiSelector map[string]string) []*ec2.Filter {
 		}
 	}
 	return filters
+}
+
+func getMostRecentAMI(amis []*ec2.Image) *ec2.Image {
+	if len(amis) > 1 {
+		sort.Slice(amis, func(i, j int) bool {
+			itime, _ := time.Parse(time.RFC3339, aws.StringValue(amis[i].CreationDate))
+			jtime, _ := time.Parse(time.RFC3339, aws.StringValue(amis[j].CreationDate))
+			return itime.Unix() > jtime.Unix()
+		})
+	}
+	return amis[0]
 }
 
 func (p *AMIProvider) getRequirementsFromImage(ec2Image *ec2.Image) scheduling.Requirements {
