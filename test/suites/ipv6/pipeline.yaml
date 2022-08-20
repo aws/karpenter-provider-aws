@@ -1,7 +1,7 @@
 apiVersion: tekton.dev/v1beta1
 kind: Pipeline
 metadata:
-  name: suite
+  name: ipv6
   namespace: karpenter-tests
 spec:
   params:
@@ -11,6 +11,9 @@ spec:
     - name: kubernetes-version
       description: Kubernetes version to deploy
       default: "1.21"
+    - name: ip-family
+      default: IPv6
+      description: IP Family of the cluster. Valid values are IPv4 or IPv6
     - name: git-repo-url
       description: the git repo url can be used to run tests on a fork
       default: "https://github.com/aws/karpenter"
@@ -19,6 +22,7 @@ spec:
       description: Git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release.
     - name: test-filter
       description: Test filter passed to `go test -run`
+      default: "IPv6"
     - name: cleanup
       default: "true"
       description: If true, clean up resources
@@ -32,6 +36,8 @@ spec:
       value: $(params.cluster-name)
     - name: kubernetes-version
       value: $(params.kubernetes-version)
+    - name: ip-family
+      value: $(params.ip-family)
     - name: git-repo-url
       value: $(params.git-repo-url)
     - name: git-ref
@@ -64,27 +70,3 @@ spec:
       operator: in
       values:
         - "true"
-  - name: notify-build-failure
-    when:
-      - input: $(tasks.status)
-        operator: in
-        values: ["Failed"]
-    taskRef:
-      name: notify-slack
-    params:
-    - name: webhook-secret
-      value: slack-webhook-secret
-    - name: message
-      value: ":x: $(context.pipelineRun.name) has failed"
-  - name: notify-build-success
-    when:
-      - input: $(tasks.status)
-        operator: in
-        values: ["Succeeded", "Completed"]
-    taskRef:
-      name: notify-slack
-    params:
-      - name: webhook-secret
-        value: slack-webhook-secret
-      - name: message
-        value: ":white_check_mark: $(context.pipelineRun.name) has succeeded"

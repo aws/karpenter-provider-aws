@@ -22,6 +22,10 @@ metadata:
     app.kubernetes.io/part-of: tekton-dashboard
   name: tekton-pipelines-executor
 rules:
+- apiGroups: [""]
+  resources: ["services"]
+  resourceNames: ["kube-dns"]
+  verbs: ["get"]
 - apiGroups: ["kit.k8s.sh"]
   resources: ["controlplanes", "dataplanes"]
   verbs: ["get", "list", "watch", "create", "update", "delete", "patch"]
