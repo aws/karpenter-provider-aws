@@ -45,7 +45,6 @@ data:
        generateName: "$(echo ${suite} | tr '[:upper:]' '[:lower:]')-"
        namespace: karpenter-tests
      spec:
-       timeout: 180
        params:
        - name: test-filter
          value: "${suite}"
