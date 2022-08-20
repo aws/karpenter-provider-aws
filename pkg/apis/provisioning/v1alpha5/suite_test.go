@@ -29,6 +29,7 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 var ctx context.Context
@@ -108,6 +109,10 @@ var _ = Describe("Validation", func() {
 			provisioner.Spec.Labels = map[string]string{"foo": randomdata.SillyName()}
 			Expect(provisioner.Validate(ctx)).To(Succeed())
 		})
+		It("should fail for the provisioner name label", func() {
+			provisioner.Spec.Labels = map[string]string{ProvisionerNameLabelKey: randomdata.SillyName()}
+			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+		})
 		It("should fail for invalid label keys", func() {
 			provisioner.Spec.Labels = map[string]string{"spaces are not allowed": randomdata.SillyName()}
 			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
@@ -186,7 +191,13 @@ var _ = Describe("Validation", func() {
 			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 		})
 	})
-	Context("Validation", func() {
+	Context("Requirements", func() {
+		It("should fail for the provisioner name label", func() {
+			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
+				{Key: ProvisionerNameLabelKey, Operator: v1.NodeSelectorOpIn, Values: []string{randomdata.SillyName()}},
+			}
+			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+		})
 		It("should allow supported ops", func() {
 			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
 				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test"}},
@@ -222,7 +233,7 @@ var _ = Describe("Validation", func() {
 			}
 		})
 		It("should allow well known label exceptions", func() {
-			for label := range WellKnownLabels {
+			for label := range WellKnownLabels.Difference(sets.NewString(ProvisionerNameLabelKey)) {
 				provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
 					{Key: label, Operator: v1.NodeSelectorOpIn, Values: []string{"test"}},
 				}
