@@ -65,7 +65,6 @@ type consolidationAction struct {
 	disruptionCost  float64
 	result          consolidateResult
 	replacementNode *scheduling.Node
-	savings         float64
 }
 
 func (o consolidationAction) String() string {

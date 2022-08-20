@@ -90,6 +90,7 @@ func (p *InstanceTypeProvider) Get(ctx context.Context, provider *v1alpha1.AWS, 
 		return nil, err
 	}
 	var result []cloudprovider.InstanceType
+
 	for _, i := range instanceTypes {
 		instanceTypeName := aws.StringValue(i.InstanceType)
 		instanceType := NewInstanceType(ctx, i, kc, p.region, provider, p.createOfferings(ctx, i, instanceTypeZones[instanceTypeName]))

@@ -104,7 +104,6 @@ func (c *Controller) run(ctx context.Context) {
 				if err != nil {
 					logging.FromContext(ctx).Errorf("consolidating cluster, %s", err)
 				} else if result == ProcessResultNothingToDo {
-					logging.FromContext(ctx).Debugf("Attepted consolidation but nothing to consolidate")
 					c.lastConsolidationState = c.cluster.ClusterConsolidationState()
 				}
 			}
@@ -198,12 +197,10 @@ func (c *Controller) candidateNodes(ctx context.Context) ([]candidateNode, error
 		// skip any nodes that we can't determine the capacity type or the topology zone for
 		ct, ok := n.Node.Labels[v1alpha5.LabelCapacityType]
 		if !ok {
-			logging.FromContext(ctx).Errorf("Getting node capacity type, %v", err)
 			return true
 		}
 		az, ok := n.Node.Labels[v1.LabelTopologyZone]
 		if !ok {
-			logging.FromContext(ctx).Errorf("Getting topology zone, %v", err)
 			return true
 		}
 
@@ -420,14 +417,14 @@ func (c *Controller) nodeConsolidationActions(ctx context.Context, node candidat
 	// disruption cost is highest and it approaches zero as the node ages towards its expiration time.
 	lifetimeRemaining := c.calculateLifetimeRemaining(node)
 
-	cost, err := c.nodeConsolidationOptionReplaceOrDelete(ctx, node)
+	action, err := c.nodeConsolidationOptionReplaceOrDelete(ctx, node)
 	if err != nil {
 		logging.FromContext(ctx).Errorf("Consolidating node (replace), %s", err)
 	}
-	cost.disruptionCost *= lifetimeRemaining
+	action.disruptionCost *= lifetimeRemaining
 
 	// we only care about possibly successful consolidations
-	return cost
+	return action
 }
 
 // calculateLifetimeRemaining calculates the fraction of node lifetime remaining in the range [0.0, 1.0].  If the TTLSecondsUntilExpired
@@ -474,14 +471,9 @@ func (c *Controller) nodeConsolidationOptionReplaceOrDelete(ctx context.Context,
 			schedulableCount += len(inflight.Pods)
 		}
 		if len(node.pods) == schedulableCount {
-			savings, err := getNodePrice(node)
-			if err != nil {
-				return consolidationAction{result: consolidateResultUnknown}, fmt.Errorf("getting offering price from candidate node, %w", err)
-			}
 			return consolidationAction{
 				oldNodes:       []*v1.Node{node.Node},
 				disruptionCost: disruptionCost(ctx, node.pods),
-				savings:        savings,
 				result:         consolidateResultDelete,
 			}, nil
 		}
@@ -492,13 +484,13 @@ func (c *Controller) nodeConsolidationOptionReplaceOrDelete(ctx context.Context,
 		return consolidationAction{result: consolidateResultNotPossible}, nil
 	}
 
-	// get the current node price based on the cloudprovider
+	// get the current node price based on the offering
 	// fallback if we can't find the specific zonal pricing data
-	nodePrice, err := getNodePrice(node)
-	if err != nil {
+	offering, ok := cloudprovider.GetOffering(node.instanceType, node.capacityType, node.zone)
+	if !ok {
 		return consolidationAction{result: consolidateResultUnknown}, fmt.Errorf("getting offering price from candidate node, %w", err)
 	}
-	newNodes[0].InstanceTypeOptions = filterByPrice(newNodes[0].InstanceTypeOptions, newNodes[0].Requirements, nodePrice)
+	newNodes[0].InstanceTypeOptions = filterByPrice(newNodes[0].InstanceTypeOptions, newNodes[0].Requirements, offering.Price)
 	if len(newNodes[0].InstanceTypeOptions) == 0 {
 		// no instance types remain after filtering by price
 		return consolidationAction{result: consolidateResultNotPossible}, nil
@@ -509,17 +501,12 @@ func (c *Controller) nodeConsolidationOptionReplaceOrDelete(ctx context.Context,
 	// a spot node with one that is less available and more likely to be reclaimed).
 	if node.capacityType == v1alpha1.CapacityTypeSpot &&
 		newNodes[0].Requirements.Get(v1alpha5.LabelCapacityType).Has(v1alpha1.CapacityTypeSpot) {
-		logging.FromContext(ctx).Debugf("Ignoring consolidation from spot to spot instance")
 		return consolidationAction{result: consolidateResultNotPossible}, nil
 	}
 
-	savings := nodePrice
-	// savings is reduced by the price of the new node
-	savings -= worstLaunchPrice(cloudprovider.AvailableOfferings(newNodes[0].InstanceTypeOptions[0]), newNodes[0].Requirements)
 	return consolidationAction{
 		oldNodes:        []*v1.Node{node.Node},
 		disruptionCost:  disruptionCost(ctx, node.pods),
-		savings:         savings,
 		result:          consolidateResultReplace,
 		replacementNode: newNodes[0],
 	}, nil

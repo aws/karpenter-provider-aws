@@ -16,7 +16,6 @@ package consolidation
 
 import (
 	"context"
-	"fmt"
 	"math"
 	"strconv"
 
@@ -75,17 +74,6 @@ func disruptionCost(ctx context.Context, pods []*v1.Pod) float64 {
 		cost += GetPodEvictionCost(ctx, p)
 	}
 	return cost
-}
-
-// getNodePrice gets the last known node price for the candidate node
-// This price is used to determine the savings that can be achieved through consolidation
-func getNodePrice(node candidateNode) (float64, error) {
-	// Get the last known offering price from the capacity type and zone
-	of, err := cloudprovider.GetOffering(node.instanceType.Offerings(), node.capacityType, node.zone)
-	if err == nil {
-		return of.Price, nil
-	}
-	return 0, fmt.Errorf("couldn't find an offering price for the passed node")
 }
 
 // worstLaunchPrice gets the worst-case launch price from the offerings that are offered

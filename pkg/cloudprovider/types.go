@@ -16,7 +16,6 @@ package cloudprovider
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/samber/lo"
 
@@ -86,7 +85,9 @@ type Offering struct {
 	CapacityType string
 	Zone         string
 	Price        float64
-	Available    bool
+	// Available is added so that Offerings() can return all offerings that have ever existing for an instance type
+	// so we can get historical pricing data for calculating savings in consolidation
+	Available bool
 }
 
 // AvailableOfferings filters the offerings on the passed instance type
@@ -99,11 +100,8 @@ func AvailableOfferings(it InstanceType) []Offering {
 
 // GetOffering gets the offering from passed offerings that matches the
 // passed zone and capacity type
-func GetOffering(ofs []Offering, ct, zone string) (Offering, error) {
-	for _, of := range ofs {
-		if of.CapacityType == ct && of.Zone == zone {
-			return of, nil
-		}
-	}
-	return Offering{}, fmt.Errorf("offering not found")
+func GetOffering(it InstanceType, ct, zone string) (Offering, bool) {
+	return lo.Find(it.Offerings(), func(of Offering) bool {
+		return of.CapacityType == ct && of.Zone == zone
+	})
 }

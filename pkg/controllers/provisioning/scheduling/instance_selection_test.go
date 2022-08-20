@@ -39,7 +39,7 @@ var _ = Describe("Instance Type Selection", func() {
 	var minPrice float64
 	var instanceTypeMap map[string]cloudprovider.InstanceType
 	nodePrice := func(n *v1.Node) float64 {
-		of, _ := cloudprovider.GetOffering(instanceTypeMap[n.Labels[v1.LabelInstanceTypeStable]].Offerings(), n.Labels[v1alpha5.LabelCapacityType], n.Labels[v1.LabelTopologyZone])
+		of, _ := cloudprovider.GetOffering(instanceTypeMap[n.Labels[v1.LabelInstanceTypeStable]], n.Labels[v1alpha5.LabelCapacityType], n.Labels[v1.LabelTopologyZone])
 		return of.Price
 	}
 
