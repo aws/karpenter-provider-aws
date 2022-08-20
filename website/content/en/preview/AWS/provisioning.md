@@ -254,14 +254,14 @@ If you need to specify a launch template in addition to UserData, then review th
 
 ### AMISelector
 
-AMISelector is used to configure custom AMIs for Karpenter to use, where the AMIs are discovered through [AWS tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html), similar to `subnetSelector`. This field is optional, and Karpenter will use the latest EKS-optimized AMIs if an amiSelector is not specified.
+AMISelector is used to configure custom AMIs for Karpenter to use, where the AMIs are discovered through [AWS tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html), literal AWS IDs and the AMI name. This field is optional, and Karpenter will use the latest EKS-optimized AMIs if an amiSelector is not specified.
 
-EC2 AMIs may be specified by any AWS tag, including `Name`. Selecting tag values using wildcards (`*`) is supported.
+EC2 AMIs may be specified by any AWS tag or the AMI name. Selecting tag values using wildcards (`*`) is supported.
 
 EC2 AMI IDs may be specified by using the key `aws-ids` and then passing the IDs as a comma-separated string value.
 
 * When launching nodes, Karpenter automatically determines which architecture a custom AMI is compatible with and will use images that match an instanceType's requirements.
-* If multiple AMIs are found that can be used, Karpenter will randomly choose any one.
+* If multiple AMIs are found that can be used, Karpenter will select the most recently built one unless `aws-ids` is used in which case it will use one of the AMIs provided at random.
 * If no AMIs are found that can be used, then no nodes will be provisioned.
 
 For additional data on how UserData is configured for Custom AMIs, and how more requirements can be specified for custom AMIs, follow [this documentation](../user-data/#custom-amis).
@@ -277,7 +277,7 @@ Select all AMIs with a specified tag:
 Select AMIs by name:
 ```
   amiSelector:
-    Name: my-ami
+    name: eks*
 ```
 
 Select AMIs by an arbitrary AWS tag key/value pair:
