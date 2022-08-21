@@ -77,7 +77,7 @@ func (p *AMIProvider) Get(ctx context.Context, provider *awsv1alpha1.AWS, nodeRe
 		if _, exists := amiSelector["aws-ids"]; exists {
 			return amiIDs, nil
 		} else {
-			return getMostRecentCompatibleAMI(amiIDs, amis), nil
+			return getMostRecentCompatibleAMI(ctx, amiIDs, amis), nil
 		}
 	} else {
 		for _, instanceType := range nodeRequest.InstanceTypeOptions {
@@ -199,11 +199,12 @@ func sortAMIsByCreationDate(amis []*ec2.Image) []*ec2.Image {
 	return amis
 }
 
-func getMostRecentCompatibleAMI(compatibleAMIs map[string][]cloudprovider.InstanceType, amis []*ec2.Image) map[string][]cloudprovider.InstanceType {
+func getMostRecentCompatibleAMI(ctx context.Context, compatibleAMIs map[string][]cloudprovider.InstanceType, amis []*ec2.Image) map[string][]cloudprovider.InstanceType {
 	mostRecent := map[string][]cloudprovider.InstanceType{}
 	for _, ami := range amis {
 		if _, exists := compatibleAMIs[*ami.ImageId]; exists {
 			mostRecent[*ami.ImageId] = compatibleAMIs[*ami.ImageId]
+			logging.FromContext(ctx).Debugf("Using most recent compatible AMI: %s", *ami.ImageId)
 			break
 		}
 	}
