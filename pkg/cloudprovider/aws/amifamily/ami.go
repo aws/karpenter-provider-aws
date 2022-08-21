@@ -204,7 +204,7 @@ func getMostRecentCompatibleAMI(compatibleAMIs map[string][]cloudprovider.Instan
 	for _, ami := range amis {
 		if _, exists := compatibleAMIs[*ami.ImageId]; exists {
 			mostRecent[*ami.ImageId] = compatibleAMIs[*ami.ImageId]
-			return mostRecent
+			break
 		}
 	}
 	return mostRecent
