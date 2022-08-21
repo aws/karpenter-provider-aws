@@ -30,6 +30,7 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/amifamily/bootstrap"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/utils/pretty"
 )
 
 var DefaultEBS = v1alpha1.BlockDevice{
@@ -87,6 +88,7 @@ func New(ctx context.Context, ssm ssmiface.SSMAPI, ec2api ec2iface.EC2API, ssmCa
 			ec2Cache:   ec2Cache,
 			kubeClient: client,
 			ec2api:     ec2api,
+			cm:         pretty.NewChangeMonitor(),
 		},
 		UserDataProvider: NewUserDataProvider(client),
 	}
