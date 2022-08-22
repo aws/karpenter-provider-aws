@@ -46,6 +46,7 @@ import (
 	"github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/options"
+	"github.com/aws/karpenter/pkg/utils/pretty"
 )
 
 var ctx context.Context
@@ -104,6 +105,7 @@ var _ = BeforeSuite(func() {
 		subnetProvider := &SubnetProvider{
 			ec2api: fakeEC2API,
 			cache:  subnetCache,
+			cm:     pretty.NewChangeMonitor(),
 		}
 		instanceTypeProvider = &InstanceTypeProvider{
 			ec2api:               fakeEC2API,
@@ -111,10 +113,12 @@ var _ = BeforeSuite(func() {
 			cache:                instanceTypeCache,
 			pricingProvider:      pricing,
 			unavailableOfferings: unavailableOfferingsCache,
+			cm:                   pretty.NewChangeMonitor(),
 		}
 		securityGroupProvider := &SecurityGroupProvider{
 			ec2api: fakeEC2API,
 			cache:  securityGroupCache,
+			cm:     pretty.NewChangeMonitor(),
 		}
 		clientSet = kubernetes.NewForConfigOrDie(e.Config)
 		cloudProvider = &CloudProvider{
@@ -126,6 +130,7 @@ var _ = BeforeSuite(func() {
 				securityGroupProvider: securityGroupProvider,
 				cache:                 launchTemplateCache,
 				caBundle:              ptr.String("ca-bundle"),
+				cm:                    pretty.NewChangeMonitor(),
 			}),
 			kubeClient: e.Client,
 		}

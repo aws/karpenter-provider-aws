@@ -38,6 +38,7 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/amifamily"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/utils/injection"
+	"github.com/aws/karpenter/pkg/utils/pretty"
 )
 
 const (
@@ -55,6 +56,7 @@ type LaunchTemplateProvider struct {
 	cache                 *cache.Cache
 	logger                *zap.SugaredLogger
 	caBundle              *string
+	cm                    *pretty.ChangeMonitor
 }
 
 func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, clientSet *kubernetes.Clientset, amiFamily *amifamily.Resolver, securityGroupProvider *SecurityGroupProvider, caBundle *string, startAsync <-chan struct{}) *LaunchTemplateProvider {
@@ -66,6 +68,7 @@ func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, clie
 		securityGroupProvider: securityGroupProvider,
 		cache:                 cache.New(CacheTTL, CacheCleanupInterval),
 		caBundle:              caBundle,
+		cm:                    pretty.NewChangeMonitor(),
 	}
 	l.cache.OnEvicted(l.onCacheEvicted)
 	go func() {
@@ -301,6 +304,8 @@ func (p *LaunchTemplateProvider) kubeServerVersion(ctx context.Context) (string,
 	}
 	version := fmt.Sprintf("%s.%s", serverVersion.Major, strings.TrimSuffix(serverVersion.Minor, "+"))
 	p.cache.SetDefault(kubernetesVersionCacheKey, version)
-	logging.FromContext(ctx).Debugf("Discovered kubernetes version %s", version)
+	if p.cm.HasChanged("kubernete-version", version) {
+		logging.FromContext(ctx).Debugf("Discovered kubernetes version %s", version)
+	}
 	return version, nil
 }

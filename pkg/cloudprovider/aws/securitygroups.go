@@ -28,17 +28,20 @@ import (
 
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/utils/functional"
+	"github.com/aws/karpenter/pkg/utils/pretty"
 )
 
 type SecurityGroupProvider struct {
 	sync.Mutex
 	ec2api ec2iface.EC2API
 	cache  *cache.Cache
+	cm     *pretty.ChangeMonitor
 }
 
 func NewSecurityGroupProvider(ec2api ec2iface.EC2API) *SecurityGroupProvider {
 	return &SecurityGroupProvider{
 		ec2api: ec2api,
+		cm:     pretty.NewChangeMonitor(),
 		cache:  cache.New(CacheTTL, CacheCleanupInterval),
 	}
 }
@@ -95,7 +98,9 @@ func (p *SecurityGroupProvider) getSecurityGroups(ctx context.Context, filters [
 		return nil, fmt.Errorf("describing security groups %+v, %w", filters, err)
 	}
 	p.cache.SetDefault(fmt.Sprint(hash), output.SecurityGroups)
-	logging.FromContext(ctx).Debugf("Discovered security groups: %s", p.securityGroupIds(output.SecurityGroups))
+	if p.cm.HasChanged("security-groups", output.SecurityGroups) {
+		logging.FromContext(ctx).Debugf("Discovered security groups: %s", p.securityGroupIds(output.SecurityGroups))
+	}
 	return output.SecurityGroups, nil
 }
 
