@@ -30,6 +30,7 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/amifamily/bootstrap"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/utils/pretty"
 )
 
 var DefaultEBS = v1alpha1.BlockDevice{
@@ -87,6 +88,7 @@ func New(ctx context.Context, ssm ssmiface.SSMAPI, ec2api ec2iface.EC2API, ssmCa
 			ec2Cache:   ec2Cache,
 			kubeClient: client,
 			ec2api:     ec2api,
+			cm:         pretty.NewChangeMonitor(),
 		},
 		UserDataProvider: NewUserDataProvider(client),
 	}
@@ -107,8 +109,15 @@ func (r Resolver) Resolve(ctx context.Context, provider *v1alpha1.AWS, nodeReque
 	var resolvedTemplates []*LaunchTemplate
 	for amiID, instanceTypes := range amiIDs {
 		resolved := &LaunchTemplate{
-			Options:             options,
-			UserData:            amiFamily.UserData(nodeRequest.Template.KubeletConfiguration, nodeRequest.Template.Taints, options.Labels, options.CABundle, instanceTypes, aws.String(userDataString)),
+			Options: options,
+			UserData: amiFamily.UserData(
+				nodeRequest.Template.KubeletConfiguration,
+				append(nodeRequest.Template.Taints, nodeRequest.Template.StartupTaints...),
+				options.Labels,
+				options.CABundle,
+				instanceTypes,
+				aws.String(userDataString),
+			),
 			BlockDeviceMappings: provider.BlockDeviceMappings,
 			MetadataOptions:     provider.MetadataOptions,
 			AMIID:               amiID,

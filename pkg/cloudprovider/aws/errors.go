@@ -17,8 +17,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
-
-	"github.com/aws/karpenter/pkg/utils/functional"
+	"github.com/samber/lo"
 )
 
 const (
@@ -62,7 +61,7 @@ func isNotFound(err error) bool {
 	}
 	var awsError awserr.Error
 	if errors.As(err, &awsError) {
-		return functional.ContainsString(notFoundErrorCodes, awsError.Code())
+		return lo.Contains(notFoundErrorCodes, awsError.Code())
 	}
 	return false
 }
@@ -71,7 +70,7 @@ func isNotFound(err error) bool {
 // capacity is temporarily unavailable for launching.
 // This could be due to account limits, insufficient ec2 capacity, etc.
 func isUnfulfillableCapacity(err *ec2.CreateFleetError) bool {
-	return functional.ContainsString(unfulfillableCapacityErrorCodes, *err.ErrorCode)
+	return lo.Contains(unfulfillableCapacityErrorCodes, *err.ErrorCode)
 }
 
 func isLaunchTemplateNotFound(err error) bool {

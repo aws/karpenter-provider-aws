@@ -64,7 +64,7 @@ const (
 )
 
 func init() {
-	v1alpha5.NormalizedLabels = functional.UnionStringMaps(v1alpha5.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": v1.LabelTopologyZone})
+	v1alpha5.NormalizedLabels = lo.Assign(v1alpha5.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": v1.LabelTopologyZone})
 }
 
 var _ cloudprovider.CloudProvider = (*CloudProvider)(nil)

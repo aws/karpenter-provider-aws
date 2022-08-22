@@ -601,7 +601,7 @@ func ExpectInstancesWithOffering(instanceTypes []cloudprovider.InstanceType, cap
 				matched = true
 			}
 		}
-		Expect(matched).To(BeTrue(), fmt.Sprintf("expected to find zone %s / capacity type %s in an cloudprovider", zone, capacityType))
+		Expect(matched).To(BeTrue(), fmt.Sprintf("expected to find zone %s / capacity type %s in an offering", zone, capacityType))
 	}
 }
 
@@ -621,7 +621,7 @@ func ExpectInstancesWithLabel(instanceTypes []cloudprovider.InstanceType, label 
 						break
 					}
 				}
-				Expect(matched).To(BeTrue(), fmt.Sprintf("expected to find zone %s in an cloudprovider", value))
+				Expect(matched).To(BeTrue(), fmt.Sprintf("expected to find zone %s in an offering", value))
 			}
 		case v1alpha5.LabelCapacityType:
 			{
@@ -632,7 +632,7 @@ func ExpectInstancesWithLabel(instanceTypes []cloudprovider.InstanceType, label 
 						break
 					}
 				}
-				Expect(matched).To(BeTrue(), fmt.Sprintf("expected to find caapacity type %s in an cloudprovider", value))
+				Expect(matched).To(BeTrue(), fmt.Sprintf("expected to find caapacity type %s in an offering", value))
 			}
 		default:
 			Fail(fmt.Sprintf("unsupported label %s in test", label))

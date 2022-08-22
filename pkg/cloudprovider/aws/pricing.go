@@ -27,8 +27,6 @@ import (
 
 	"knative.dev/pkg/ptr"
 
-	"go.uber.org/multierr"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -36,7 +34,10 @@ import (
 	"github.com/aws/aws-sdk-go/service/pricing"
 	"github.com/aws/aws-sdk-go/service/pricing/pricingiface"
 	"github.com/samber/lo"
+	"go.uber.org/multierr"
 	"knative.dev/pkg/logging"
+
+	"github.com/aws/karpenter/pkg/utils/pretty"
 )
 
 // PricingProvider provides actual pricing data to the AWS cloud provider to allow it to make more informed decisions
@@ -49,6 +50,7 @@ type PricingProvider struct {
 	ec2     ec2iface.EC2API
 	pricing pricingiface.PricingAPI
 	region  string
+	cm      *pretty.ChangeMonitor
 
 	mu                 sync.RWMutex
 	onDemandUpdateTime time.Time
@@ -104,6 +106,7 @@ func NewPricingProvider(ctx context.Context, pricing pricingiface.PricingAPI, ec
 		spotPrices: populateInitialSpotPricing(initialOnDemandPrices),
 		ec2:        ec2Api,
 		pricing:    pricing,
+		cm:         pretty.NewChangeMonitor(),
 	}
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("pricing"))
 
@@ -191,8 +194,6 @@ func (p *PricingProvider) SpotPrice(instanceType string, zone string) (float64, 
 }
 
 func (p *PricingProvider) updatePricing(ctx context.Context) {
-	logging.FromContext(ctx).Infof("Updating EC2 pricing information")
-
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
@@ -266,7 +267,9 @@ func (p *PricingProvider) updateOnDemandPricing(ctx context.Context) error {
 
 	p.onDemandPrices = lo.Assign(onDemandPrices, onDemandMetalPrices)
 	p.onDemandUpdateTime = time.Now()
-	logging.FromContext(ctx).Infof("updated on-demand pricing with %d instance types", len(p.onDemandPrices))
+	if p.cm.HasChanged("on-demand-prices", p.onDemandPrices) {
+		logging.FromContext(ctx).Infof("updated on-demand pricing with %d instance types", len(p.onDemandPrices))
+	}
 	return nil
 }
 
@@ -413,7 +416,9 @@ func (p *PricingProvider) updateSpotPricing(ctx context.Context) error {
 	}
 
 	p.spotUpdateTime = time.Now()
-	logging.FromContext(ctx).Infof("updated spot pricing with %d instance types and %d offerings", len(p.spotPrices), totalOfferings)
+	if p.cm.HasChanged("spot-prices", p.spotPrices) {
+		logging.FromContext(ctx).Infof("updated spot pricing with %d instance types and %d offerings", len(p.spotPrices), totalOfferings)
+	}
 	return nil
 }
 

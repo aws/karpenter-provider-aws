@@ -58,6 +58,7 @@ type InstanceTypeProvider struct {
 	cache *cache.Cache
 	// key: <capacityType>:<instanceType>:<zone>, value: struct{}{}
 	unavailableOfferings *cache.Cache
+	cm                   *pretty.ChangeMonitor
 }
 
 func NewInstanceTypeProvider(ctx context.Context, sess *session.Session, options cloudprovider.Options, ec2api ec2iface.EC2API, subnetProvider *SubnetProvider) *InstanceTypeProvider {
@@ -72,6 +73,7 @@ func NewInstanceTypeProvider(ctx context.Context, sess *session.Session, options
 			injection.GetOptions(ctx).AWSIsolatedVPC, options.StartAsync),
 		cache:                cache.New(InstanceTypesAndZonesCacheTTL, CacheCleanupInterval),
 		unavailableOfferings: cache.New(UnfulfillableCapacityErrorCacheTTL, CacheCleanupInterval),
+		cm:                   pretty.NewChangeMonitor(),
 	}
 }
 
@@ -164,7 +166,9 @@ func (p *InstanceTypeProvider) getInstanceTypeZones(ctx context.Context, provide
 		}); err != nil {
 		return nil, fmt.Errorf("describing instance type zone offerings, %w", err)
 	}
-	logging.FromContext(ctx).Debugf("Discovered EC2 instance types zonal offerings for subnets %s", pretty.Concise(provider.SubnetSelector))
+	if p.cm.HasChanged("zonal-offerings", provider.SubnetSelector) {
+		logging.FromContext(ctx).Debugf("Discovered EC2 instance types zonal offerings for subnets %s", pretty.Concise(provider.SubnetSelector))
+	}
 	p.cache.SetDefault(cacheKey, instanceTypeZones)
 	return instanceTypeZones, nil
 }
@@ -196,7 +200,9 @@ func (p *InstanceTypeProvider) getInstanceTypes(ctx context.Context) (map[string
 	}); err != nil {
 		return nil, fmt.Errorf("fetching instance types using ec2.DescribeInstanceTypes, %w", err)
 	}
-	logging.FromContext(ctx).Debugf("Discovered %d EC2 instance types", len(instanceTypes))
+	if p.cm.HasChanged("instance-types", instanceTypes) {
+		logging.FromContext(ctx).Debugf("Discovered %d EC2 instance types", len(instanceTypes))
+	}
 	p.cache.SetDefault(InstanceTypesCacheKey, instanceTypes)
 	return instanceTypes, nil
 }

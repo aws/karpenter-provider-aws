@@ -309,6 +309,7 @@ func (p *Provisioner) launch(ctx context.Context, opts LaunchOptions, node *sche
 		return cheapestOfferingPrice(iOfferings, node.Requirements) < cheapestOfferingPrice(jOfferings, node.Requirements)
 	})
 
+	logging.FromContext(ctx).Infof("Launching %s", node)
 	k8sNode, err := p.cloudProvider.Create(
 		logging.WithLogger(ctx, logging.FromContext(ctx).Named("cloudprovider")),
 		&cloudprovider.NodeRequest{InstanceTypeOptions: node.InstanceTypeOptions, Template: &node.NodeTemplate},
@@ -335,7 +336,6 @@ func (p *Provisioner) launch(ctx context.Context, opts LaunchOptions, node *sche
 			return "", fmt.Errorf("creating node %s, %w", k8sNode.Name, err)
 		}
 	}
-	logging.FromContext(ctx).Infof("Created %s", node)
 	p.cluster.NominateNodeForPod(k8sNode.Name)
 	if opts.RecordPodNomination {
 		for _, pod := range node.Pods {
