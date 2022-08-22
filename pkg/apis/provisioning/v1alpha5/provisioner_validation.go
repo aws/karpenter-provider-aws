@@ -125,6 +125,8 @@ func (s *ProvisionerSpec) validateTaintsField(taints []v1.Taint, existing map[ta
 			errs = errs.Also(apis.ErrInvalidArrayValue(err, fieldName, i))
 		}
 		// Validate Value
+		// We allow a wildcard value ('*') to support flexible taints
+		// This wildcard value is not natively supported by K8s
 		if len(taint.Value) != 0 && taint.Value != "*" {
 			for _, err := range validation.IsQualifiedName(taint.Value) {
 				errs = errs.Also(apis.ErrInvalidArrayValue(err, fieldName, i))
@@ -149,7 +151,7 @@ func (s *ProvisionerSpec) validateTaintsField(taints []v1.Taint, existing map[ta
 }
 
 // This function is used by the provisioner validation webhook to verify the provisioner requirements.
-// When this function is called, the provisioner's requirments do not include the requirements from labels.
+// When this function is called, the provisioner's requirements do not include the requirements from labels.
 // Provisioner requirements only support well known labels.
 func (s *ProvisionerSpec) validateRequirements() (errs *apis.FieldError) {
 	for i, requirement := range s.Requirements {

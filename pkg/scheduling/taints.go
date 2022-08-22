@@ -22,7 +22,12 @@ import (
 )
 
 // Taints is a decorated alias type for []v1.Taint
-type Taints []v1.Taint
+type Taints []Taint
+
+type Taint struct {
+	v1.Taint
+	Flexible bool
+}
 
 // Tolerates returns true if the pod tolerates all taints.
 func (ts Taints) Tolerates(pod *v1.Pod) (errs error) {
