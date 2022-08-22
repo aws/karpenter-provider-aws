@@ -17,6 +17,7 @@ package aws
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -70,6 +71,13 @@ func (p *SubnetProvider) Get(ctx context.Context, provider *v1alpha1.AWS) ([]*ec
 		logging.FromContext(ctx).Debugf("Discovered subnets: %s", subnetLog)
 	}
 	return output.Subnets, nil
+}
+
+func (p *SubnetProvider) LivenessProbe(req *http.Request) error {
+	p.Lock()
+	//nolint: staticcheck
+	p.Unlock()
+	return nil
 }
 
 func getFilters(provider *v1alpha1.AWS) []*ec2.Filter {

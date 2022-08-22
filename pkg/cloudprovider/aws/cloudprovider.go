@@ -17,6 +17,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -139,6 +140,13 @@ func (c *CloudProvider) Create(ctx context.Context, nodeRequest *cloudprovider.N
 		return nil, err
 	}
 	return c.instanceProvider.Create(ctx, aws, nodeRequest)
+}
+
+func (c *CloudProvider) LivenessProbe(req *http.Request) error {
+	if err := c.instanceTypeProvider.LivenessProbe(req); err != nil {
+		return err
+	}
+	return nil
 }
 
 // GetInstanceTypes returns all available InstanceTypes

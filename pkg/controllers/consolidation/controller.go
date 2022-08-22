@@ -165,6 +165,7 @@ func (c *Controller) ProcessCluster(ctx context.Context) (ProcessResult, error) 
 }
 
 // candidateNodes returns nodes that appear to be currently consolidatable based off of their provisioner
+//
 //gocyclo:ignore
 func (c *Controller) candidateNodes(ctx context.Context) ([]candidateNode, error) {
 	provisioners, instanceTypesByProvisioner, err := c.buildProvisionerMap(ctx)
