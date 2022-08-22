@@ -61,9 +61,9 @@ func (p *SubnetProvider) Get(ctx context.Context, provider *v1alpha1.AWS) ([]*ec
 	if err != nil {
 		return nil, fmt.Errorf("describing subnets %s, %w", pretty.Concise(filters), err)
 	}
-	if len(output.Subnets) == 0 {
-		return nil, fmt.Errorf("no subnets matched selector %v", provider.SubnetSelector)
-	}
+	// if len(output.Subnets) == 0 {
+	// 	return nil, fmt.Errorf("no subnets matched selector %v", provider.SubnetSelector)
+	// }
 	p.cache.SetDefault(fmt.Sprint(hash), output.Subnets)
 	subnetLog := prettySubnets(output.Subnets)
 	if p.cm.HasChanged("subnets", subnetLog) {

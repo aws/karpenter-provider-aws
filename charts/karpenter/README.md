@@ -2,11 +2,11 @@
 
 A Helm chart for Karpenter, an open-source node provisioning project built for Kubernetes.
 
-![Version: 0.15.0](https://img.shields.io/badge/Version-0.15.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.15.0](https://img.shields.io/badge/AppVersion-0.15.0-informational?style=flat-square)
+![Version: 0.15.1](https://img.shields.io/badge/Version-0.15.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.15.1](https://img.shields.io/badge/AppVersion-0.15.1-informational?style=flat-square)
 
 ## Documentation
 
-For full Karpenter documentation please checkout [https://karpenter.sh](https://karpenter.sh/v0.15.0/).
+For full Karpenter documentation please checkout [https://karpenter.sh](https://karpenter.sh/v0.15.1/).
 
 ## Installing the Chart
 
@@ -17,12 +17,12 @@ helm repo add karpenter https://charts.karpenter.sh/
 helm repo update
 ```
 
-You can follow the detailed installation instruction in the [documentation](https://karpenter.sh/v0.15.0/getting-started/getting-started-with-eksctl/#install) which covers the Karpenter prerequisites and installation options. The outcome of these instructions should result in something like the following command.
+You can follow the detailed installation instruction in the [documentation](https://karpenter.sh/v0.15.1/getting-started/getting-started-with-eksctl/#install) which covers the Karpenter prerequisites and installation options. The outcome of these instructions should result in something like the following command.
 
 ```bash
 helm upgrade --install --namespace karpenter --create-namespace \
   karpenter karpenter/karpenter \
-  --version 0.15.0 \
+  --version 0.15.1 \
   --set serviceAccount.annotations.eks\.amazonaws\.com/role-arn=${KARPENTER_IAM_ROLE_ARN} \
   --set clusterName=${CLUSTER_NAME} \
   --set clusterEndpoint=${CLUSTER_ENDPOINT} \
@@ -44,7 +44,7 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | controller.batchMaxDuration | string | `"10s"` |  |
 | controller.env | list | `[]` | Additional environment variables for the controller pod. |
 | controller.extraVolumeMounts | list | `[]` | Additional volumeMounts for the controller pod. |
-| controller.image | string | `"public.ecr.aws/karpenter/controller:v0.15.0@sha256:7fc8a4bd3c2a7eea29e40c0db287eeb9deab0797987f0089c08c71da91c98523"` | Controller image. |
+| controller.image | string | `"public.ecr.aws/karpenter/controller:v0.15.1@sha256:77d01b9d95f53e9aeebfa6d7cdf45772e67e470c7845d7b154e470f2cfc045da"` | Controller image. |
 | controller.logEncoding | string | `""` | Controller log encoding, defaults to the global log encoding |
 | controller.logLevel | string | `""` | Controller log level, defaults to the global log level |
 | controller.resources | object | `{"limits":{"cpu":1,"memory":"1Gi"},"requests":{"cpu":1,"memory":"1Gi"}}` | Resources for the controller pod. |
@@ -66,7 +66,7 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | podLabels | object | `{}` | Additional labels for the pod. |
 | podSecurityContext | object | `{"fsGroup":1000}` | SecurityContext for the pod. |
 | priorityClassName | string | `"system-cluster-critical"` | PriorityClass name for the pod. |
-| replicas | int | `1` | Number of replicas. |
+| replicas | int | `2` | Number of replicas. |
 | revisionHistoryLimit | int | `10` | The number of old ReplicaSets to retain to allow rollback. |
 | serviceAccount.annotations | object | `{}` | Additional annotations for the ServiceAccount. |
 | serviceAccount.create | bool | `true` | Specifies if a ServiceAccount should be created. |
@@ -74,13 +74,13 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | serviceMonitor.additionalLabels | object | `{}` | Additional labels for the ServiceMonitor. |
 | serviceMonitor.enabled | bool | `false` | Specifies whether a ServiceMonitor should be created. |
 | serviceMonitor.endpointConfig | object | `{}` | Endpoint configuration for the ServiceMonitor. |
-| strategy | object | `{"type":"Recreate"}` | Strategy for updating the pod. |
+| strategy | object | `{}` | Strategy for updating the pod. |
 | terminationGracePeriodSeconds | string | `nil` | Override the default termination grace period for the pod. |
 | tolerations | list | `[{"key":"CriticalAddonsOnly","operator":"Exists"}]` | Tolerations to allow the pod to be scheduled to nodes with taints. |
 | topologySpreadConstraints | list | `[{"maxSkew":1,"topologyKey":"topology.kubernetes.io/zone","whenUnsatisfiable":"ScheduleAnyway"}]` | topologySpreadConstraints to increase the controller resilience |
 | webhook.env | list | `[]` | Additional environment variables for the webhook pod. |
 | webhook.extraVolumeMounts | list | `[]` | Additional volumeMounts for the webhook pod. |
-| webhook.image | string | `"public.ecr.aws/karpenter/webhook:v0.15.0@sha256:e046a8810150ce145c737e3330259ab297ad11fb32cf70dc50c97622b7d500d8"` | Webhook image. |
+| webhook.image | string | `"public.ecr.aws/karpenter/webhook:v0.15.1@sha256:d9e0ede7830ee1b74777c5743836dcfe18a3c54c76a8c1895648dfa10fb906d8"` | Webhook image. |
 | webhook.logEncoding | string | `""` | Webhook log encoding, defaults to the global log encoding |
 | webhook.logLevel | string | `""` | Webhook log level, defaults to the global log level |
 | webhook.port | int | `8443` | The container port to use for the webhook. |
