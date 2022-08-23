@@ -19,7 +19,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -158,28 +157,12 @@ func (env *Environment) eventuallyExpectScaleDown() {
 	}).Should(Succeed(), fmt.Sprintf("expected scale down to %d nodes, had %d", env.Monitor.NodeCountAtReset(), env.Monitor.NodeCount()))
 }
 
-func (env *Environment) GetCreatedNodes(before []v1.Node, after []v1.Node) []*v1.Node {
-	createdNodes := []*v1.Node{}
-	oldList := sets.NewString()
-	for _, node := range before {
-		oldList.Insert(node.Name)
-	}
-	for i := range after {
-		if !oldList.Has(after[i].Name) {
-			createdNodes = append(createdNodes, &after[i])
-		}
-	}
-	return createdNodes
-}
-
-func (env *Environment) ExpectNodesEventuallyDeleted(timeout time.Duration, nodes ...*v1.Node) {
-	for _, node := range nodes {
+func (env *Environment) EventuallyExpectNotFound(objects ...client.Object) {
+	for _, object := range objects {
 		Eventually(func(g Gomega) {
-			n := &v1.Node{}
-			err := env.Client.Get(env, client.ObjectKeyFromObject(node), n)
-			g.Expect(err).ToNot(BeNil())
+			err := env.Client.Get(env, client.ObjectKeyFromObject(object), object)
 			g.Expect(errors.IsNotFound(err)).To(BeTrue())
-		}).WithTimeout(timeout).Should(Succeed(), fmt.Sprintf("expcted nodes %s to be deleted", nodes))
+		}).WithOffset(1).Should(Succeed(), fmt.Sprintf("expcted %s to be deleted", client.ObjectKeyFromObject(object)))
 	}
 }
 
