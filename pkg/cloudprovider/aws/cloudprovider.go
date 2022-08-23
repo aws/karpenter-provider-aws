@@ -163,7 +163,7 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, provisioner *v1alp
 
 			// c3, m3 and r3 aren't current generation but are fine for general workloads
 			if functional.HasAnyPrefix(*cit.InstanceType, "c3", "m3", "r3") {
-				return false
+				return true
 			}
 
 			// filter out all non-current generation
