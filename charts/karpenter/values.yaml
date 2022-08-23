@@ -32,7 +32,9 @@ replicas: 2
 # -- The number of old ReplicaSets to retain to allow rollback.
 revisionHistoryLimit: 10
 # -- Strategy for updating the pod.
-strategy: {}
+strategy:
+  rollingUpdate:
+    maxUnavailable: 1
 # -- Additional labels for the pod.
 podLabels: {}
 # -- Additional annotations for the pod.
