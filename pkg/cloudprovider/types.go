@@ -85,7 +85,7 @@ type Offering struct {
 	CapacityType string
 	Zone         string
 	Price        float64
-	// Available is added so that Offerings() can return all offerings that have ever existing for an instance type
+	// Available is added so that Offerings() can return all offerings that have ever existed for an instance type
 	// so we can get historical pricing data for calculating savings in consolidation
 	Available bool
 }
@@ -98,7 +98,7 @@ func AvailableOfferings(it InstanceType) []Offering {
 	})
 }
 
-// GetOffering gets the offering from passed offerings that matches the
+// GetOffering gets the offering from passed instance type that matches the
 // passed zone and capacity type
 func GetOffering(it InstanceType, ct, zone string) (Offering, bool) {
 	return lo.Find(it.Offerings(), func(of Offering) bool {

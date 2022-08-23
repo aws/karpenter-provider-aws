@@ -25,8 +25,6 @@ import (
 	"sync"
 	"time"
 
-	"knative.dev/pkg/ptr"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -68,13 +66,11 @@ type zonalPricing struct {
 	prices       map[string]float64
 }
 
-func newZonalPricing(defaultPrice *float64) zonalPricing {
+func newZonalPricing(defaultPrice float64) zonalPricing {
 	z := zonalPricing{
 		prices: map[string]float64{},
 	}
-	if defaultPrice != nil {
-		z.defaultPrice = ptr.Float64Value(defaultPrice)
-	}
+	z.defaultPrice = defaultPrice
 	return z
 }
 
@@ -171,7 +167,7 @@ func (p *PricingProvider) OnDemandPrice(instanceType string) (float64, error) {
 	defer p.mu.RUnlock()
 	price, ok := p.onDemandPrices[instanceType]
 	if !ok {
-		return 0.0, fmt.Errorf("instance type %s not found", instanceType)
+		return 0.0, PricingNotFoundError{fmt.Errorf("instance type %s not found", instanceType)}
 	}
 	return price, nil
 }
@@ -188,9 +184,9 @@ func (p *PricingProvider) SpotPrice(instanceType string, zone string) (float64, 
 		if price, ok := p.spotPrices[instanceType].prices[zone]; ok {
 			return price, nil
 		}
-		return 0.0, fmt.Errorf("instance type %s not found in zone %s", instanceType, zone)
+		return 0.0, PricingNotFoundError{fmt.Errorf("instance type %s not found in zone %s", instanceType, zone)}
 	}
-	return 0.0, fmt.Errorf("instance type %s not found", instanceType)
+	return 0.0, PricingNotFoundError{fmt.Errorf("instance type %s not found", instanceType)}
 }
 
 func (p *PricingProvider) updatePricing(ctx context.Context) {
@@ -407,7 +403,7 @@ func (p *PricingProvider) updateSpotPricing(ctx context.Context) error {
 
 	for it, zoneData := range prices {
 		if _, ok := p.spotPrices[it]; !ok {
-			p.spotPrices[it] = newZonalPricing(nil)
+			p.spotPrices[it] = newZonalPricing(0)
 		}
 		for zone, price := range zoneData {
 			p.spotPrices[it].prices[zone] = price
@@ -425,7 +421,7 @@ func (p *PricingProvider) updateSpotPricing(ctx context.Context) error {
 func populateInitialSpotPricing(pricing map[string]float64) map[string]zonalPricing {
 	m := map[string]zonalPricing{}
 	for it, price := range pricing {
-		m[it] = newZonalPricing(ptr.Float64(price))
+		m[it] = newZonalPricing(price)
 	}
 	return m
 }

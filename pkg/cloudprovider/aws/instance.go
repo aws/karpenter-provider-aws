@@ -22,6 +22,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/samber/lo"
+
 	"github.com/avast/retry-go"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -245,34 +247,55 @@ func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.Inst
 	for _, subnet := range subnets {
 		zonalSubnets[*subnet.AvailabilityZone] = subnet
 	}
+
+	// Unwrap all the offerings to a flat slice that includes a pointer
+	// to the parent instance type name
+	type offeringWithParentName struct {
+		cloudprovider.Offering
+		parentInstanceTypeName string
+	}
+	var unwrappedOfferings []offeringWithParentName
+	for _, it := range instanceTypeOptions {
+		ofs := lo.Map(cloudprovider.AvailableOfferings(it), func(of cloudprovider.Offering, _ int) offeringWithParentName {
+			return offeringWithParentName{
+				Offering:               of,
+				parentInstanceTypeName: it.Name(),
+			}
+		})
+		unwrappedOfferings = append(unwrappedOfferings, ofs...)
+	}
+
+	// Sort all the potential offerings by each individual offering price
+	sort.Slice(unwrappedOfferings, func(i, j int) bool {
+		return unwrappedOfferings[i].Price < unwrappedOfferings[j].Price
+	})
+
 	var overrides []*ec2.FleetLaunchTemplateOverridesRequest
-	for i, instanceType := range instanceTypeOptions {
-		for _, offering := range cloudprovider.AvailableOfferings(instanceType) {
-			if capacityType != offering.CapacityType {
-				continue
-			}
-			if !zones.Has(offering.Zone) {
-				continue
-			}
-			subnet, ok := zonalSubnets[offering.Zone]
-			if !ok {
-				continue
-			}
-			override := &ec2.FleetLaunchTemplateOverridesRequest{
-				InstanceType: aws.String(instanceType.Name()),
-				SubnetId:     subnet.SubnetId,
-				// This is technically redundant, but is useful if we have to parse insufficient capacity errors from
-				// CreateFleet so that we can figure out the zone rather than additional API calls to look up the subnet
-				AvailabilityZone: subnet.AvailabilityZone,
-			}
-			// Add a priority for spot requests since we are using the capacity-optimized-prioritized spot allocation strategy
-			// to reduce the likelihood of getting an excessively large instance type.
-			// instanceTypeOptions are sorted by vcpus and memory so this prioritizes smaller instance types.
-			if capacityType == v1alpha1.CapacityTypeSpot {
-				override.Priority = aws.Float64(float64(i))
-			}
-			overrides = append(overrides, override)
+	for i, offering := range unwrappedOfferings {
+		if capacityType != offering.CapacityType {
+			continue
 		}
+		if !zones.Has(offering.Zone) {
+			continue
+		}
+		subnet, ok := zonalSubnets[offering.Zone]
+		if !ok {
+			continue
+		}
+		override := &ec2.FleetLaunchTemplateOverridesRequest{
+			InstanceType: aws.String(offering.parentInstanceTypeName),
+			SubnetId:     subnet.SubnetId,
+			// This is technically redundant, but is useful if we have to parse insufficient capacity errors from
+			// CreateFleet so that we can figure out the zone rather than additional API calls to look up the subnet
+			AvailabilityZone: subnet.AvailabilityZone,
+		}
+		// Add a priority for spot requests since we are using the capacity-optimized-prioritized spot allocation strategy
+		// to reduce the likelihood of getting an excessively large instance type.
+		// instanceTypeOptions are sorted by vcpus and memory so this prioritizes smaller instance types.
+		if capacityType == v1alpha1.CapacityTypeSpot {
+			override.Priority = aws.Float64(float64(i))
+		}
+		overrides = append(overrides, override)
 	}
 	return overrides
 }

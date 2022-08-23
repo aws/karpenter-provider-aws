@@ -21,6 +21,14 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/sets"
+	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"knative.dev/pkg/ptr"
+
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
@@ -29,13 +37,6 @@ import (
 	"github.com/aws/karpenter/pkg/test"
 	. "github.com/aws/karpenter/pkg/test/expectations"
 	"github.com/aws/karpenter/pkg/utils/injection"
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/apimachinery/pkg/util/sets"
-	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	"knative.dev/pkg/ptr"
 )
 
 var _ = Describe("Instance Types", func() {
@@ -240,6 +241,7 @@ var _ = Describe("Instance Types", func() {
 			Expect(resources.Pods().Value()).ToNot(BeNumerically("==", 110))
 		}
 	})
+
 	Context("KubeletConfiguration Overrides", func() {
 		It("should override system reserved cpus when specified", func() {
 			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
@@ -291,7 +293,6 @@ var _ = Describe("Instance Types", func() {
 			}
 		})
 	})
-
 	Context("Insufficient Capacity Error Cache", func() {
 		It("should launch instances of different type on second reconciliation attempt with Insufficient Capacity Error Cache fallback", func() {
 			fakeEC2API.InsufficientCapacityPools.Set([]fake.CapacityPool{{CapacityType: awsv1alpha1.CapacityTypeOnDemand, InstanceType: "inf1.6xlarge", Zone: "test-zone-1a"}})
@@ -498,12 +499,6 @@ var _ = Describe("Instance Types", func() {
 						SpotPrice:        aws.String("0.004"),
 						Timestamp:        &now,
 					},
-					{
-						AvailabilityZone: aws.String("test-zone-1a"),
-						InstanceType:     aws.String("m5.large"),
-						SpotPrice:        aws.String("0.002"),
-						Timestamp:        &now,
-					},
 				},
 			})
 			pricingProvider.updateSpotPricing(ctx)
@@ -512,7 +507,7 @@ var _ = Describe("Instance Types", func() {
 			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
 				{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{awsv1alpha1.CapacityTypeSpot}},
 				{Key: v1.LabelInstanceTypeStable, Operator: v1.NodeSelectorOpIn, Values: []string{"m5.large"}},
-				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1c"}},
+				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1b"}},
 			}
 
 			// Instance type with no zonal availability for spot shouldn't be scheduled
@@ -528,12 +523,6 @@ var _ = Describe("Instance Types", func() {
 						AvailabilityZone: aws.String("test-zone-1a"),
 						InstanceType:     aws.String("m5.large"),
 						SpotPrice:        aws.String("0.004"),
-						Timestamp:        &now,
-					},
-					{
-						AvailabilityZone: aws.String("test-zone-1b"),
-						InstanceType:     aws.String("m5.large"),
-						SpotPrice:        aws.String("0.002"),
 						Timestamp:        &now,
 					},
 				},

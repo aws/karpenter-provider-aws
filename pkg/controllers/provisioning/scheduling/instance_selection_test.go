@@ -16,10 +16,16 @@ package scheduling_test
 
 import (
 	"fmt"
-	"github.com/mitchellh/hashstructure/v2"
-	"github.com/samber/lo"
 	"math"
 	"math/rand"
+
+	"github.com/mitchellh/hashstructure/v2"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+	"github.com/samber/lo"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/sets"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
@@ -28,11 +34,6 @@ import (
 	"github.com/aws/karpenter/pkg/test"
 	. "github.com/aws/karpenter/pkg/test/expectations"
 	"github.com/aws/karpenter/pkg/utils/resources"
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 var _ = Describe("Instance Type Selection", func() {

@@ -20,8 +20,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/karpenter/pkg/utils/options"
-
 	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -33,10 +31,11 @@ import (
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"knative.dev/pkg/ptr"
 
-	. "github.com/aws/karpenter/pkg/test/expectations"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
+
+	. "github.com/aws/karpenter/pkg/test/expectations"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
@@ -47,6 +46,7 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/pkg/utils/injection"
+	"github.com/aws/karpenter/pkg/utils/options"
 	"github.com/aws/karpenter/pkg/utils/pretty"
 )
 
@@ -185,7 +185,6 @@ var _ = Describe("Allocation", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(constraints.InstanceProfile).To(BeNil())
 		})
-
 		It("should default requirements", func() {
 			provisioner.SetDefaults(ctx)
 			Expect(provisioner.Spec.Requirements).To(ContainElement(v1.NodeSelectorRequirement{

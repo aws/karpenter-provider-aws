@@ -119,6 +119,9 @@ func (p *InstanceTypeProvider) createOfferings(ctx context.Context, instanceType
 				logging.FromContext(ctx).Errorf("Received unknown capacity type %s for instance type %s", capacityType, *instanceType.InstanceType)
 				continue
 			}
+			if err != nil && !isPricingNotFound(err) {
+				logging.FromContext(ctx).Errorf("Getting pricing from internal pricing cache, %v", err)
+			}
 			available := !isUnavailable && err == nil
 			offerings = append(offerings, cloudprovider.Offering{
 				Zone:         zone,

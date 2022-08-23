@@ -21,9 +21,10 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/pricing"
-	"github.com/aws/karpenter/pkg/cloudprovider/aws/fake"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/fake"
 )
 
 var _ = Describe("Pricing", func() {
@@ -148,5 +149,30 @@ var _ = Describe("Pricing", func() {
 
 		price, err = p.SpotPrice("c98.large", "test-zone-1b")
 		Expect(err).ToNot(BeNil())
+	})
+	It("should respond with PricingNotFoundError if price doesn't exist in zone", func() {
+		now := time.Now()
+		fakeEC2API.DescribeSpotPriceHistoryOutput.Set(&ec2.DescribeSpotPriceHistoryOutput{
+			SpotPriceHistory: []*ec2.SpotPrice{
+				{
+					AvailabilityZone: aws.String("test-zone-1a"),
+					InstanceType:     aws.String("c99.large"),
+					SpotPrice:        aws.String("1.23"),
+					Timestamp:        &now,
+				},
+			},
+		})
+		fakePricingAPI.GetProductsOutput.Set(&pricing.GetProductsOutput{
+			PriceList: []aws.JSONValue{
+				fake.NewOnDemandPrice("c98.large", 1.20),
+				fake.NewOnDemandPrice("c99.large", 1.23),
+			},
+		})
+		updateStart := time.Now()
+		p := NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
+		Eventually(func() bool { return p.SpotLastUpdated().After(updateStart) }).Should(BeTrue())
+
+		_, err := p.SpotPrice("c99.large", "test-zone-1b")
+		Expect(isPricingNotFound(err)).To(BeTrue())
 	})
 })
