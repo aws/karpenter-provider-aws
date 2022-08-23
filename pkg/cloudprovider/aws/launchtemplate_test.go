@@ -93,8 +93,8 @@ var _ = Describe("LaunchTemplates", func() {
 		})
 		lastPrice := -math.MaxFloat64
 		for _, override := range overrides {
-			offeringPrice, err := pricingProvider.SpotPrice(*override.InstanceType, *override.AvailabilityZone)
-			Expect(err).NotTo(HaveOccurred())
+			offeringPrice, ok := pricingProvider.SpotPrice(*override.InstanceType, *override.AvailabilityZone)
+			Expect(ok).To(BeTrue())
 			Expect(offeringPrice).To(BeNumerically(">=", lastPrice))
 			lastPrice = offeringPrice
 		}

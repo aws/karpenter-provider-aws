@@ -19,7 +19,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -162,31 +161,31 @@ func (p *PricingProvider) SpotLastUpdated() time.Time {
 
 // OnDemandPrice returns the last known on-demand price for a given instance type, returning an error if there is no
 // known on-demand pricing for the instance type.
-func (p *PricingProvider) OnDemandPrice(instanceType string) (float64, error) {
+func (p *PricingProvider) OnDemandPrice(instanceType string) (float64, bool) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	price, ok := p.onDemandPrices[instanceType]
 	if !ok {
-		return 0.0, PricingNotFoundError{fmt.Errorf("instance type %s not found", instanceType)}
+		return 0.0, false
 	}
-	return price, nil
+	return price, true
 }
 
 // SpotPrice returns the last known spot price for a given instance type and zone, returning an error
 // if there is no known spot pricing for that instance type or zone
-func (p *PricingProvider) SpotPrice(instanceType string, zone string) (float64, error) {
+func (p *PricingProvider) SpotPrice(instanceType string, zone string) (float64, bool) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	if val, ok := p.spotPrices[instanceType]; ok {
 		if p.spotUpdateTime.Equal(initialPriceUpdate) {
-			return val.defaultPrice, nil
+			return val.defaultPrice, true
 		}
 		if price, ok := p.spotPrices[instanceType].prices[zone]; ok {
-			return price, nil
+			return price, true
 		}
-		return 0.0, PricingNotFoundError{fmt.Errorf("instance type %s not found in zone %s", instanceType, zone)}
+		return 0.0, false
 	}
-	return 0.0, PricingNotFoundError{fmt.Errorf("instance type %s not found", instanceType)}
+	return 0.0, false
 }
 
 func (p *PricingProvider) updatePricing(ctx context.Context) {

@@ -52,18 +52,6 @@ func isInstanceTerminated(err error) bool {
 	return errors.As(err, &itErr)
 }
 
-type PricingNotFoundError struct {
-	error
-}
-
-func isPricingNotFound(err error) bool {
-	if err == nil {
-		return false
-	}
-	var pErr PricingNotFoundError
-	return errors.As(err, &pErr)
-}
-
 // isNotFound returns true if the err is an AWS error (even if it's
 // wrapped) and is a known to mean "not found" (as opposed to a more
 // serious or unexpected error)

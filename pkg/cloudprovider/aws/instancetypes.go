@@ -109,20 +109,17 @@ func (p *InstanceTypeProvider) createOfferings(ctx context.Context, instanceType
 			// exclude any offerings that have recently seen an insufficient capacity error from EC2
 			_, isUnavailable := p.unavailableOfferings.Get(UnavailableOfferingsCacheKey(*instanceType.InstanceType, zone, capacityType))
 			var price float64
-			var err error
+			var ok bool
 			switch capacityType {
 			case ec2.UsageClassTypeSpot:
-				price, err = p.pricingProvider.SpotPrice(*instanceType.InstanceType, zone)
+				price, ok = p.pricingProvider.SpotPrice(*instanceType.InstanceType, zone)
 			case ec2.UsageClassTypeOnDemand:
-				price, err = p.pricingProvider.OnDemandPrice(*instanceType.InstanceType)
+				price, ok = p.pricingProvider.OnDemandPrice(*instanceType.InstanceType)
 			default:
 				logging.FromContext(ctx).Errorf("Received unknown capacity type %s for instance type %s", capacityType, *instanceType.InstanceType)
 				continue
 			}
-			if err != nil && !isPricingNotFound(err) {
-				logging.FromContext(ctx).Errorf("Getting pricing from internal pricing cache, %v", err)
-			}
-			available := !isUnavailable && err == nil
+			available := !isUnavailable && ok
 			offerings = append(offerings, cloudprovider.Offering{
 				Zone:         zone,
 				CapacityType: capacityType,
