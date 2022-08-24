@@ -140,11 +140,11 @@ webhook:
   # -- Resources for the webhook pod.
   resources:
     requests:
-      cpu: 100m
-      memory: 50Mi
+      cpu: 200m
+      memory: 100Mi
     limits:
-      cpu: 100m
-      memory: 50Mi
+      cpu: 200m
+      memory: 100Mi
   # -- Webhook log level, defaults to the global log level
   logLevel: ""
   # -- Webhook log encoding, defaults to the global log encoding
