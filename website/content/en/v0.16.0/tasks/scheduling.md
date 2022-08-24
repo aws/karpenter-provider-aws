@@ -368,13 +368,13 @@ The topology key `topology.kubernetes.io/region` is not supported. Legacy in-tre
 
 ## Weighting Provisioners
 
-Karpenter allows you to order your provisioners so that you can describe priority across provisioners as the Karpenter dry-runs scheduling to understand which nodes to launch. By ordering provisioners, Karpenter can support the following common example use-cases for your cluster infrastructure.
+Karpenter allows you to order your provisioners using the `.spec.weight` field so that the node scheduler will deterministically attempt to schedule with one provisioner before another. Below are a few example use-cases that are now supported with the provisioner weighting semantic.
 
 ### Reserved Instances
 
-If you have reserved a certain amount of on-demand instances from EC2 to get a significant discount on EC2, capacity, you may want to tell Karpenter to use this capacity first prior to launching other capacity. 
+If you have reserved on-demand instances from EC2 at a discount, you may want to tell Karpenter to prioritize this reserved capacity ahead of other instance types.
 
-To tell Karpenter to prioritize capacity as well as limit the capacity that it launches up to the amount that you have reserved, you will need to specify both `.spec.weight` and `spec.limits` on the reserved instance provisioner. An example is shown below of specifying two provisioners: one that is used specifically for reserved instances and another to allow other capacity to go to all other instance types.
+To enable this, you will need to tell the Karpenter controllers which instance types to prioritize and what is the maximum amount of capacity that should be provisioned using those instance types. We can set the `.spec.limits` on the provisioner to limit the capacity that can be launched by this provisioner. Combined with the `.spec.weight` value, we can tell Karpenter to pull from instance types in the reserved provisioner before defaulting to generic instance types.
 
 #### Reserved Capacity Provisioner
 
@@ -410,9 +410,11 @@ spec:
     values: ["amd64"]
 ```
 
-### Setting Defaults for Pods without Node Selectors
+### Default Node Configuration
 
-There may be cases where you have pods that you expect to schedule to a specific capacity type or architecture. In the case of a cluster with a large number of workloads, you may not be able to assign the relevant node selectors or node affinities to the workload pods. In this case, you can assign a higher `.spec.weight` to a provisioner with these specific requirements and Karpenter will attempt to schedule to these nodes first.
+Pods that contain no node selectors, node affinites, or tolerations can potentially be assigned to any node with any configuration. There may be cases where you require these pods to schedule to a specific capacity type or architecture but assigning the relevant node selectors or affinities to all these workload pods may be too tedious or infeasible. Instead, we want to define a cluster-wide default configuration for nodes launched using Karpenter.
+
+By assigning a higher `.spec.weight` value and restricting a provisioner to a specific capacity type or architecture, we can set default configuration for the nodes launched by pods that don't have node configuration restrictions.
 
 #### Default Provisioner
 
@@ -447,10 +449,13 @@ spec:
   - key: kubernetes.io/arch
     operator: In
     values: ["arm64"]
+  - key: node.kubernetes.io/instance-type
+    operator: In
+    values: ["c4.large", "c4.xlarge"]
 ```
 
 {{% alert title="Note" color="primary" %}}
-Based on the way that Karpenter does pod batching and bin packing, it is not guaranteed that Karpenter will always choose the highest priority provisioner given specific requirements. For example, it is possible that a pod that has a node selector on a an `arm64` architecture may be provisioned first and all other workload pods from that batch may also schedule on that node. The behavior may also occur if existing capacity is available, as the kube-scheduler will schedule the pods instead of allowing Karpenter to provision a new node.
+Based on the way that Karpenter does pod batching and bin packing, it is not guaranteed that Karpenter will always choose the highest priority provisioner given specific requirements. For example, it is possible that a pod that has a node selector on a an `arm64` architecture to be provisioned, causing all other workload pods from that batch to also schedule on that node (even if those pods had no explicit requirement for `arm64` architecture). The behavior may also occur if existing capacity is available, as the kube-scheduler will schedule the pods instead of allowing Karpenter to provision a new node.
 {{% /alert %}}
 
 ## Advanced Scheduling Techniques
