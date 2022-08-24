@@ -19,6 +19,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/http"
 	"strconv"
 	"strings"
 	"sync"
@@ -414,6 +415,14 @@ func (p *PricingProvider) updateSpotPricing(ctx context.Context) error {
 	if p.cm.HasChanged("spot-prices", p.spotPrices) {
 		logging.FromContext(ctx).Infof("updated spot pricing with %d instance types and %d offerings", len(p.spotPrices), totalOfferings)
 	}
+	return nil
+}
+
+func (p *PricingProvider) LivenessProbe(req *http.Request) error {
+	// ensure we don't deadlock and nolint for the empty critical section
+	p.mu.Lock()
+	//nolint: staticcheck
+	p.mu.Unlock()
 	return nil
 }
 

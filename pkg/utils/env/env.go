@@ -33,6 +33,20 @@ func WithDefaultInt(key string, def int) int {
 	return i
 }
 
+// WithDefaultInt64 returns the int value of the supplied environment variable or, if not present,
+// the supplied default value. If the int conversion fails, returns the default
+func WithDefaultInt64(key string, def int64) int64 {
+	val, ok := os.LookupEnv(key)
+	if !ok {
+		return def
+	}
+	i, err := strconv.ParseInt(val, 10, 64)
+	if err != nil {
+		return def
+	}
+	return i
+}
+
 // WithDefaultFloat64 returns the float64 value of the supplied environment variable or, if not present,
 // the supplied default value. If the float64 conversion fails, returns the default
 func WithDefaultFloat64(key string, def float64) float64 {

@@ -91,7 +91,11 @@ var _ = AfterSuite(func() {
 })
 
 var _ = BeforeEach(func() {
-	provisioner = test.Provisioner()
+	provisioner = test.Provisioner(test.ProvisionerOptions{Requirements: []v1.NodeSelectorRequirement{{
+		Key:      v1alpha5.LabelCapacityType,
+		Operator: v1.NodeSelectorOpIn,
+		Values:   []string{v1alpha1.CapacityTypeSpot, v1alpha1.CapacityTypeOnDemand},
+	}}})
 	// reset instance types
 	newCP := fake.CloudProvider{}
 	cloudProv.InstanceTypes, _ = newCP.GetInstanceTypes(context.Background(), nil)

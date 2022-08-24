@@ -12,6 +12,8 @@ import (
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/samber/lo"
+
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/utils/resources"
 )
@@ -104,6 +106,12 @@ func (m *Monitor) TotalNodesSeen() int {
 // CreatedNodes returns the number of nodes created since the last reset
 func (m *Monitor) CreatedNodes() int {
 	return m.TotalNodesSeen() - m.numberNodesAtReset
+}
+
+func (m *Monitor) GetCreatedNodes() []v1.Node {
+	return lo.Filter(m.GetNodes(), func(node v1.Node, _ int) bool {
+		return node.Labels[v1alpha5.ProvisionerNameLabelKey] != ""
+	})
 }
 
 // RunningPods returns the number of running pods matching the given selector

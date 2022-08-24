@@ -17,6 +17,7 @@ package aws
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"sync"
 	"time"
 
@@ -101,8 +102,21 @@ func (p *InstanceTypeProvider) Get(ctx context.Context, provider *v1alpha1.AWS, 
 	return result, nil
 }
 
+func (p *InstanceTypeProvider) LivenessProbe(req *http.Request) error {
+	p.Lock()
+	//nolint: staticcheck
+	p.Unlock()
+	if err := p.subnetProvider.LivenessProbe(req); err != nil {
+		return err
+	}
+	if err := p.pricingProvider.LivenessProbe(req); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (p *InstanceTypeProvider) createOfferings(ctx context.Context, instanceType *ec2.InstanceTypeInfo, zones sets.String) []cloudprovider.Offering {
-	var offerings []cloudprovider.Offering
+	offerings := []cloudprovider.Offering{}
 	for zone := range zones {
 		// while usage classes should be a distinct set, there's no guarantee of that
 		for capacityType := range sets.NewString(aws.StringValueSlice(instanceType.SupportedUsageClasses)...) {

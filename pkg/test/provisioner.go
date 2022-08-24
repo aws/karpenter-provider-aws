@@ -20,12 +20,14 @@ import (
 	"fmt"
 
 	"github.com/imdario/mergo"
+	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 )
 
 // ProvisionerOptions customizes a Provisioner.
@@ -60,6 +62,15 @@ func Provisioner(overrides ...ProvisionerOptions) *v1alpha5.Provisioner {
 	}
 	if options.Limits == nil {
 		options.Limits = v1.ResourceList{v1.ResourceCPU: resource.MustParse("2000")}
+	}
+
+	// Default to on-demand capacity-type if not specified, rather than spot & OD
+	if len(lo.Filter(options.Requirements, func(req v1.NodeSelectorRequirement, _ int) bool { return req.Key == v1alpha5.LabelCapacityType })) == 0 {
+		options.Requirements = append(options.Requirements, v1.NodeSelectorRequirement{
+			Key:      v1alpha5.LabelCapacityType,
+			Operator: v1.NodeSelectorOpIn,
+			Values:   []string{v1alpha1.CapacityTypeOnDemand},
+		})
 	}
 
 	provisioner := &v1alpha5.Provisioner{
