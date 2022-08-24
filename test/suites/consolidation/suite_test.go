@@ -3,20 +3,23 @@ package consolidation
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
-	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/test"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 
-	"github.com/aws/karpenter/test/pkg/environment"
+	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/test"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
+	"github.com/aws/karpenter/test/pkg/environment"
 )
 
 var env *environment.Environment
@@ -106,7 +109,7 @@ var _ = Describe("Consolidation", func() {
 
 		env.ExpectDeleted(dep)
 	})
-	It("should consolidate nodes (replace)", func() {
+	It("should consolidate on-demand nodes (replace)", func() {
 		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
@@ -221,5 +224,105 @@ var _ = Describe("Consolidation", func() {
 		Expect(numOtherNodes).To(Equal(0))
 
 		env.ExpectDeleted(largeDep, smallDep)
+	})
+	It("should consolidate on-demand nodes to spot (replace)", func() {
+		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
+		}})
+		provisioner := test.Provisioner(test.ProvisionerOptions{
+			Requirements: []v1.NodeSelectorRequirement{
+				{
+					Key:      v1alpha5.LabelCapacityType,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{"on-demand"},
+				},
+				{
+					Key:      v1.LabelInstanceTypeStable,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{"c4.large"},
+				},
+			},
+			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
+		})
+
+		var numPods int32 = 2
+		smallDep := test.Deployment(test.DeploymentOptions{
+			Replicas: numPods,
+			PodOptions: test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "small-app"},
+				},
+				TopologySpreadConstraints: []v1.TopologySpreadConstraint{
+					{
+						MaxSkew:           1,
+						TopologyKey:       v1.LabelHostname,
+						WhenUnsatisfiable: v1.DoNotSchedule,
+						LabelSelector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								"app": "small-app",
+							},
+						},
+					},
+				},
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1.5")},
+				},
+			},
+		})
+
+		selector := labels.SelectorFromSet(smallDep.Spec.Selector.MatchLabels)
+		env.ExpectCreatedNodeCount("==", 0)
+		env.ExpectCreated(provisioner, provider, smallDep)
+
+		env.EventuallyExpectHealthyPodCount(selector, int(numPods))
+		env.ExpectCreatedNodeCount("==", int(numPods))
+
+		// Enable spot capacity type after the on-demand node is provisioned
+		// Expect the node to consolidate to a spot instance as it will be a cheaper
+		// instance than on-demand
+		provisioner.Spec.TTLSecondsAfterEmpty = nil
+		provisioner.Spec.Consolidation = &v1alpha5.Consolidation{
+			Enabled: aws.Bool(true),
+		}
+		provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
+			{
+				Key:      v1alpha5.LabelCapacityType,
+				Operator: v1.NodeSelectorOpIn,
+				Values:   []string{"on-demand", "spot"},
+			},
+			{
+				Key:      v1.LabelInstanceTypeStable,
+				Operator: v1.NodeSelectorOpIn,
+				Values:   []string{"c4.large"},
+			},
+		}
+		env.ExpectUpdate(provisioner)
+
+		// Eventually expect the on-demand nodes to be consolidated into
+		// spot nodes after some time
+		Eventually(func(g Gomega) {
+			var nodes v1.NodeList
+			Expect(env.Client.List(env.Context, &nodes)).To(Succeed())
+			numSpotNodes := 0
+			numOtherNodes := 0
+			for _, n := range nodes.Items {
+				// only count the nodes created by the provisioner
+				if n.Labels[v1alpha5.ProvisionerNameLabelKey] != provisioner.Name {
+					continue
+				}
+				if n.Labels[v1alpha5.LabelCapacityType] == awsv1alpha1.CapacityTypeSpot {
+					numSpotNodes++
+				} else {
+					numOtherNodes++
+				}
+			}
+			// all the on-demand nodes should have been replaced with spot nodes
+			g.Expect(numSpotNodes).To(BeNumerically("==", numPods))
+			// and we should have no other nodes
+			g.Expect(numOtherNodes).To(BeNumerically("==", 0))
+		}, time.Minute*10).Should(Succeed())
+
+		env.ExpectDeleted(smallDep)
 	})
 })
