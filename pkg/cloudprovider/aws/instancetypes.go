@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"net/http"
 	"sync"
 	"time"
 
@@ -105,6 +106,19 @@ func (p *InstanceTypeProvider) Get(ctx context.Context, provider *v1alpha1.AWS, 
 		result = append(result, instanceType)
 	}
 	return result, nil
+}
+
+func (p *InstanceTypeProvider) LivenessProbe(req *http.Request) error {
+	p.Lock()
+	//nolint: staticcheck
+	p.Unlock()
+	if err := p.subnetProvider.LivenessProbe(req); err != nil {
+		return err
+	}
+	if err := p.pricingProvider.LivenessProbe(req); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (p *InstanceTypeProvider) createOfferings(instanceType *ec2.InstanceTypeInfo, zones sets.String) []cloudprovider.Offering {

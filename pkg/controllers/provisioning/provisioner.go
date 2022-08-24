@@ -17,6 +17,7 @@ package provisioning
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"sync"
 	"time"
 
@@ -379,6 +380,13 @@ func (p *Provisioner) injectTopology(ctx context.Context, pods []*v1.Pod) []*v1.
 		}
 	}
 	return schedulablePods
+}
+
+func (p *Provisioner) LivenessProbe(req *http.Request) error {
+	p.mu.Lock()
+	//nolint: staticcheck
+	p.mu.Unlock()
+	return nil
 }
 
 func validateAffinity(p *v1.Pod) (errs error) {
