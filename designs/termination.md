@@ -57,7 +57,7 @@ A termination is allowed if at least minAvailable nodes selected by a selector w
 
 Note that this is an experimental idea, and will require robustness improvements for future features such as defragmentation, over-provisioning, and more.
 
-[PodDisruptionBudgetSpec](https://pkg.go.dev/k8s.io/api/policy/v1beta1#PodDisruptionBudgetSpec) for reference.
+[PodDisruptionBudgetSpec](https://pkg.go.dev/k8s.io/api/policy/v1#PodDisruptionBudgetSpec) for reference.
 
 ```{go}
 // .go

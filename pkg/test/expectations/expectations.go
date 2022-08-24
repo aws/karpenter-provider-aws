@@ -26,7 +26,7 @@ import (
 	prometheus "github.com/prometheus/client_model/go"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/api/policy/v1beta1"
+	policyv1 "k8s.io/api/policy/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -130,7 +130,7 @@ func ExpectCleanedUp(ctx context.Context, c client.Client) {
 		&v1.Pod{},
 		&v1.Node{},
 		&appsv1.DaemonSet{},
-		&v1beta1.PodDisruptionBudget{},
+		&policyv1.PodDisruptionBudget{},
 		&v1.PersistentVolumeClaim{},
 		&v1.PersistentVolume{},
 		&storagev1.StorageClass{},
