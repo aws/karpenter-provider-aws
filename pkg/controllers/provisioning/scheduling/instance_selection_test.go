@@ -20,6 +20,12 @@ import (
 	"math/rand"
 
 	"github.com/mitchellh/hashstructure/v2"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+	"github.com/samber/lo"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/sets"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
@@ -28,18 +34,14 @@ import (
 	"github.com/aws/karpenter/pkg/test"
 	. "github.com/aws/karpenter/pkg/test/expectations"
 	"github.com/aws/karpenter/pkg/utils/resources"
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 var _ = Describe("Instance Type Selection", func() {
 	var minPrice float64
-	var instanceTypePrices map[string]float64
+	var instanceTypeMap map[string]cloudprovider.InstanceType
 	nodePrice := func(n *v1.Node) float64 {
-		return instanceTypePrices[n.Labels[v1.LabelInstanceTypeStable]]
+		of, _ := cloudprovider.GetOffering(instanceTypeMap[n.Labels[v1.LabelInstanceTypeStable]], n.Labels[v1alpha5.LabelCapacityType], n.Labels[v1.LabelTopologyZone])
+		return of.Price
 	}
 
 	BeforeEach(func() {
@@ -53,12 +55,9 @@ var _ = Describe("Instance Type Selection", func() {
 		}
 		cloudProv.CreateCalls = nil
 		cloudProv.InstanceTypes = fake.InstanceTypesAssorted()
-		minPrice = math.MaxFloat64
-		instanceTypePrices = map[string]float64{}
-		for _, it := range cloudProv.InstanceTypes {
-			instanceTypePrices[it.Name()] = it.Price()
-			minPrice = math.Min(it.Price(), minPrice)
-		}
+
+		instanceTypeMap = getInstanceTypeMap(cloudProv.InstanceTypes)
+		minPrice = getMinPrice(cloudProv.InstanceTypes)
 
 		// add some randomness to instance type ordering to ensure we sort everywhere we need to
 		rand.Shuffle(len(cloudProv.InstanceTypes), func(i, j int) {
@@ -525,7 +524,65 @@ var _ = Describe("Instance Type Selection", func() {
 			Expect(overheadHash).To(Equal(overheadHashes[it.Name()]), fmt.Sprintf("expected %s Overhead() to not be modified by scheduling", it.Name()))
 		}
 	})
+	It("should schedule on cheaper on-demand instance even when spot price ordering would place other instance types first", func() {
+		cloudProv.InstanceTypes = []cloudprovider.InstanceType{
+			fake.NewInstanceType(fake.InstanceTypeOptions{
+				Name:             "test-instance1",
+				Architecture:     "amd64",
+				OperatingSystems: sets.NewString("linux"),
+				Resources: v1.ResourceList{
+					v1.ResourceCPU:    resource.MustParse("1"),
+					v1.ResourceMemory: resource.MustParse("1Gi"),
+				},
+				Offerings: []cloudprovider.Offering{
+					{CapacityType: v1alpha1.CapacityTypeOnDemand, Zone: "test-zone-1a", Price: 1.0, Available: true},
+					{CapacityType: v1alpha1.CapacityTypeSpot, Zone: "test-zone-1a", Price: 0.2, Available: true},
+				},
+			}),
+			fake.NewInstanceType(fake.InstanceTypeOptions{
+				Name:             "test-instance2",
+				Architecture:     "amd64",
+				OperatingSystems: sets.NewString("linux"),
+				Resources: v1.ResourceList{
+					v1.ResourceCPU:    resource.MustParse("1"),
+					v1.ResourceMemory: resource.MustParse("1Gi"),
+				},
+				Offerings: []cloudprovider.Offering{
+					{CapacityType: v1alpha1.CapacityTypeOnDemand, Zone: "test-zone-1a", Price: 1.3, Available: true},
+					{CapacityType: v1alpha1.CapacityTypeSpot, Zone: "test-zone-1a", Price: 0.1, Available: true},
+				},
+			}),
+		}
+		provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
+			{
+				Key:      v1alpha5.LabelCapacityType,
+				Operator: v1.NodeSelectorOpIn,
+				Values:   []string{"on-demand"},
+			},
+		}
+
+		ExpectApplied(ctx, env.Client, provisioner)
+		pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())
+		node := ExpectScheduled(ctx, env.Client, pod[0])
+		Expect(node.Labels[v1.LabelInstanceTypeStable]).To(Equal("test-instance1"))
+	})
 })
+
+func getInstanceTypeMap(its []cloudprovider.InstanceType) map[string]cloudprovider.InstanceType {
+	return lo.SliceToMap(its, func(it cloudprovider.InstanceType) (string, cloudprovider.InstanceType) {
+		return it.Name(), it
+	})
+}
+
+func getMinPrice(its []cloudprovider.InstanceType) float64 {
+	minPrice := math.MaxFloat64
+	for _, it := range its {
+		for _, of := range it.Offerings() {
+			minPrice = math.Min(minPrice, of.Price)
+		}
+	}
+	return minPrice
+}
 
 func filterInstanceTypes(types []cloudprovider.InstanceType, pred func(i cloudprovider.InstanceType) bool) []cloudprovider.InstanceType {
 	var ret []cloudprovider.InstanceType

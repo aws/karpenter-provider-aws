@@ -116,6 +116,8 @@ func (c *Controller) run(ctx context.Context) {
 type candidateNode struct {
 	*v1.Node
 	instanceType   cloudprovider.InstanceType
+	capacityType   string
+	zone           string
 	provisioner    *v1alpha5.Provisioner
 	disruptionCost float64
 	pods           []*v1.Pod
@@ -193,6 +195,16 @@ func (c *Controller) candidateNodes(ctx context.Context) ([]candidateNode, error
 			return true
 		}
 
+		// skip any nodes that we can't determine the capacity type or the topology zone for
+		ct, ok := n.Node.Labels[v1alpha5.LabelCapacityType]
+		if !ok {
+			return true
+		}
+		az, ok := n.Node.Labels[v1.LabelTopologyZone]
+		if !ok {
+			return true
+		}
+
 		// already found one un-initialized node, so we can skip the rest
 		if uninitializedNodeExists {
 			return true
@@ -221,6 +233,8 @@ func (c *Controller) candidateNodes(ctx context.Context) ([]candidateNode, error
 		nodes = append(nodes, candidateNode{
 			Node:           n.Node,
 			instanceType:   instanceType,
+			capacityType:   ct,
+			zone:           az,
 			provisioner:    provisioner,
 			pods:           pods,
 			disruptionCost: disruptionCost(ctx, pods),
@@ -404,14 +418,14 @@ func (c *Controller) nodeConsolidationActions(ctx context.Context, node candidat
 	// disruption cost is highest and it approaches zero as the node ages towards its expiration time.
 	lifetimeRemaining := c.calculateLifetimeRemaining(node)
 
-	cost, err := c.nodeConsolidationOptionReplaceOrDelete(ctx, node)
+	action, err := c.nodeConsolidationOptionReplaceOrDelete(ctx, node)
 	if err != nil {
 		logging.FromContext(ctx).Errorf("Consolidating node (replace), %s", err)
 	}
-	cost.disruptionCost *= lifetimeRemaining
+	action.disruptionCost *= lifetimeRemaining
 
 	// we only care about possibly successful consolidations
-	return cost
+	return action
 }
 
 // calculateLifetimeRemaining calculates the fraction of node lifetime remaining in the range [0.0, 1.0].  If the TTLSecondsUntilExpired
@@ -428,6 +442,7 @@ func (c *Controller) calculateLifetimeRemaining(node candidateNode) float64 {
 	return remaining
 }
 
+// nolint:gocyclo
 func (c *Controller) nodeConsolidationOptionReplaceOrDelete(ctx context.Context, node candidateNode) (consolidationAction, error) {
 	defer metrics.Measure(consolidationDurationHistogram.WithLabelValues("Replace/Delete"))()
 
@@ -457,11 +472,9 @@ func (c *Controller) nodeConsolidationOptionReplaceOrDelete(ctx context.Context,
 			schedulableCount += len(inflight.Pods)
 		}
 		if len(node.pods) == schedulableCount {
-			savings := node.instanceType.Price()
 			return consolidationAction{
 				oldNodes:       []*v1.Node{node.Node},
 				disruptionCost: disruptionCost(ctx, node.pods),
-				savings:        savings,
 				result:         consolidateResultDelete,
 			}, nil
 		}
@@ -472,8 +485,13 @@ func (c *Controller) nodeConsolidationOptionReplaceOrDelete(ctx context.Context,
 		return consolidationAction{result: consolidateResultNotPossible}, nil
 	}
 
-	nodePrice := node.instanceType.Price()
-	newNodes[0].InstanceTypeOptions = filterByPrice(newNodes[0].InstanceTypeOptions, nodePrice, false)
+	// get the current node price based on the offering
+	// fallback if we can't find the specific zonal pricing data
+	offering, ok := cloudprovider.GetOffering(node.instanceType, node.capacityType, node.zone)
+	if !ok {
+		return consolidationAction{result: consolidateResultUnknown}, fmt.Errorf("getting offering price from candidate node, %w", err)
+	}
+	newNodes[0].InstanceTypeOptions = filterByPrice(newNodes[0].InstanceTypeOptions, newNodes[0].Requirements, offering.Price)
 	if len(newNodes[0].InstanceTypeOptions) == 0 {
 		// no instance types remain after filtering by price
 		return consolidationAction{result: consolidateResultNotPossible}, nil
@@ -482,19 +500,14 @@ func (c *Controller) nodeConsolidationOptionReplaceOrDelete(ctx context.Context,
 	// If the existing node is spot and the replacement is spot, we don't consolidate.  We don't have a reliable
 	// mechanism to determine if this replacement makes sense given instance type availability (e.g. we may replace
 	// a spot node with one that is less available and more likely to be reclaimed).
-	if node.Labels[v1alpha5.LabelCapacityType] == v1alpha1.CapacityTypeSpot &&
+	if node.capacityType == v1alpha1.CapacityTypeSpot &&
 		newNodes[0].Requirements.Get(v1alpha5.LabelCapacityType).Has(v1alpha1.CapacityTypeSpot) {
 		return consolidationAction{result: consolidateResultNotPossible}, nil
 	}
 
-	savings := nodePrice
-	// savings is reduced by the price of the new node
-	savings -= newNodes[0].InstanceTypeOptions[0].Price()
-
 	return consolidationAction{
 		oldNodes:        []*v1.Node{node.Node},
 		disruptionCost:  disruptionCost(ctx, node.pods),
-		savings:         savings,
 		result:          consolidateResultReplace,
 		replacementNode: newNodes[0],
 	}, nil

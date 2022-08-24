@@ -21,9 +21,10 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/pricing"
-	"github.com/aws/karpenter/pkg/cloudprovider/aws/fake"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/fake"
 )
 
 var _ = Describe("Pricing", func() {
@@ -34,15 +35,15 @@ var _ = Describe("Pricing", func() {
 	It("should return static on-demand data if pricing API fails", func() {
 		fakePricingAPI.NextError.Set(fmt.Errorf("failed"))
 		p := NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
-		price, err := p.OnDemandPrice("c5.large")
-		Expect(err).To(BeNil())
+		price, ok := p.OnDemandPrice("c5.large")
+		Expect(ok).To(BeTrue())
 		Expect(price).To(BeNumerically(">", 0))
 	})
 	It("should return static spot data if EC2 describeSpotPriceHistory API fails", func() {
 		fakePricingAPI.NextError.Set(fmt.Errorf("failed"))
 		p := NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
-		price, err := p.SpotPrice("c5.large")
-		Expect(err).To(BeNil())
+		price, ok := p.SpotPrice("c5.large", "test-zone-1a")
+		Expect(ok).To(BeTrue())
 		Expect(price).To(BeNumerically(">", 0))
 	})
 	It("should update on-demand pricing with response from the pricing API", func() {
@@ -58,15 +59,63 @@ var _ = Describe("Pricing", func() {
 		p := NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
 		Eventually(func() bool { return p.OnDemandLastUpdated().After(updateStart) }).Should(BeTrue())
 
-		price, err := p.OnDemandPrice("c98.large")
-		Expect(err).To(BeNil())
+		price, ok := p.OnDemandPrice("c98.large")
+		Expect(ok).To(BeTrue())
 		Expect(price).To(BeNumerically("==", 1.20))
 
-		price, err = p.OnDemandPrice("c99.large")
-		Expect(err).To(BeNil())
+		price, ok = p.OnDemandPrice("c99.large")
+		Expect(ok).To(BeTrue())
 		Expect(price).To(BeNumerically("==", 1.23))
 	})
 	It("should update spot pricing with response from the pricing API", func() {
+		now := time.Now()
+		fakeEC2API.DescribeSpotPriceHistoryOutput.Set(&ec2.DescribeSpotPriceHistoryOutput{
+			SpotPriceHistory: []*ec2.SpotPrice{
+				{
+					AvailabilityZone: aws.String("test-zone-1a"),
+					InstanceType:     aws.String("c99.large"),
+					SpotPrice:        aws.String("1.23"),
+					Timestamp:        &now,
+				},
+				{
+					AvailabilityZone: aws.String("test-zone-1a"),
+					InstanceType:     aws.String("c98.large"),
+					SpotPrice:        aws.String("1.20"),
+					Timestamp:        &now,
+				},
+				{
+					AvailabilityZone: aws.String("test-zone-1b"),
+					InstanceType:     aws.String("c99.large"),
+					SpotPrice:        aws.String("1.50"),
+					Timestamp:        &now,
+				},
+				{
+					AvailabilityZone: aws.String("test-zone-1b"),
+					InstanceType:     aws.String("c98.large"),
+					SpotPrice:        aws.String("1.10"),
+					Timestamp:        &now,
+				},
+			},
+		})
+		fakePricingAPI.GetProductsOutput.Set(&pricing.GetProductsOutput{
+			PriceList: []aws.JSONValue{
+				fake.NewOnDemandPrice("c98.large", 1.20),
+				fake.NewOnDemandPrice("c99.large", 1.23),
+			},
+		})
+		updateStart := time.Now()
+		p := NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
+		Eventually(func() bool { return p.SpotLastUpdated().After(updateStart) }).Should(BeTrue())
+
+		price, ok := p.SpotPrice("c98.large", "test-zone-1b")
+		Expect(ok).To(BeTrue())
+		Expect(price).To(BeNumerically("==", 1.10))
+
+		price, ok = p.SpotPrice("c99.large", "test-zone-1a")
+		Expect(ok).To(BeTrue())
+		Expect(price).To(BeNumerically("==", 1.23))
+	})
+	It("should update zonal pricing with data from the spot pricing API", func() {
 		now := time.Now()
 		fakeEC2API.DescribeSpotPriceHistoryOutput.Set(&ec2.DescribeSpotPriceHistoryOutput{
 			SpotPriceHistory: []*ec2.SpotPrice{
@@ -94,12 +143,36 @@ var _ = Describe("Pricing", func() {
 		p := NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
 		Eventually(func() bool { return p.SpotLastUpdated().After(updateStart) }).Should(BeTrue())
 
-		price, err := p.SpotPrice("c98.large")
-		Expect(err).To(BeNil())
+		price, ok := p.SpotPrice("c98.large", "test-zone-1a")
+		Expect(ok).To(BeTrue())
 		Expect(price).To(BeNumerically("==", 1.20))
 
-		price, err = p.SpotPrice("c99.large")
-		Expect(err).To(BeNil())
-		Expect(price).To(BeNumerically("==", 1.23))
+		price, ok = p.SpotPrice("c98.large", "test-zone-1b")
+		Expect(ok).ToNot(BeTrue())
+	})
+	It("should respond with false if price doesn't exist in zone", func() {
+		now := time.Now()
+		fakeEC2API.DescribeSpotPriceHistoryOutput.Set(&ec2.DescribeSpotPriceHistoryOutput{
+			SpotPriceHistory: []*ec2.SpotPrice{
+				{
+					AvailabilityZone: aws.String("test-zone-1a"),
+					InstanceType:     aws.String("c99.large"),
+					SpotPrice:        aws.String("1.23"),
+					Timestamp:        &now,
+				},
+			},
+		})
+		fakePricingAPI.GetProductsOutput.Set(&pricing.GetProductsOutput{
+			PriceList: []aws.JSONValue{
+				fake.NewOnDemandPrice("c98.large", 1.20),
+				fake.NewOnDemandPrice("c99.large", 1.23),
+			},
+		})
+		updateStart := time.Now()
+		p := NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
+		Eventually(func() bool { return p.SpotLastUpdated().After(updateStart) }).Should(BeTrue())
+
+		_, ok := p.SpotPrice("c99.large", "test-zone-1b")
+		Expect(ok).To(BeFalse())
 	})
 })

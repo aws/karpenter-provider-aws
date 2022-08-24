@@ -17,16 +17,10 @@ package aws
 import (
 	"context"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
-	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/cloudprovider/aws/fake"
-	"github.com/aws/karpenter/pkg/controllers/provisioning"
-	"github.com/aws/karpenter/pkg/test"
-	. "github.com/aws/karpenter/pkg/test/expectations"
-	"github.com/aws/karpenter/pkg/utils/injection"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
@@ -34,6 +28,15 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"knative.dev/pkg/ptr"
+
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/cloudprovider"
+	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/fake"
+	"github.com/aws/karpenter/pkg/controllers/provisioning"
+	"github.com/aws/karpenter/pkg/test"
+	. "github.com/aws/karpenter/pkg/test/expectations"
+	"github.com/aws/karpenter/pkg/utils/injection"
 )
 
 var _ = Describe("Instance Types", func() {
@@ -222,7 +225,7 @@ var _ = Describe("Instance Types", func() {
 		Expect(err).To(BeNil())
 		provisioner := test.Provisioner()
 		for _, info := range instanceInfo {
-			it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, 0, "", provider, nil)
+			it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, "", provider, nil)
 			resources := it.Resources()
 			Expect(resources.Pods().Value()).To(BeNumerically("==", 110))
 		}
@@ -233,11 +236,12 @@ var _ = Describe("Instance Types", func() {
 		Expect(err).To(BeNil())
 		provisioner := test.Provisioner()
 		for _, info := range instanceInfo {
-			it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, 0, "", provider, nil)
+			it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, "", provider, nil)
 			resources := it.Resources()
 			Expect(resources.Pods().Value()).ToNot(BeNumerically("==", 110))
 		}
 	})
+
 	Context("KubeletConfiguration Overrides", func() {
 		It("should override system reserved cpus when specified", func() {
 			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
@@ -249,7 +253,7 @@ var _ = Describe("Instance Types", func() {
 					},
 				},
 			})
-			it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, 0, "", provider, nil)
+			it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
 			overhead := it.Overhead()
 			Expect(overhead.Cpu().String()).To(Equal("2080m"))
 		})
@@ -263,7 +267,7 @@ var _ = Describe("Instance Types", func() {
 					},
 				},
 			})
-			it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, 0, "", provider, nil)
+			it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
 			overhead := it.Overhead()
 			Expect(overhead.Memory().String()).To(Equal("21473Mi"))
 		})
@@ -272,7 +276,7 @@ var _ = Describe("Instance Types", func() {
 			Expect(err).To(BeNil())
 			provisioner := test.Provisioner(test.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{MaxPods: ptr.Int32(10)}})
 			for _, info := range instanceInfo {
-				it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, 0, "", provider, nil)
+				it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, "", provider, nil)
 				resources := it.Resources()
 				Expect(resources.Pods().Value()).To(BeNumerically("==", 10))
 			}
@@ -283,13 +287,12 @@ var _ = Describe("Instance Types", func() {
 			Expect(err).To(BeNil())
 			provisioner := test.Provisioner(test.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{MaxPods: ptr.Int32(10)}})
 			for _, info := range instanceInfo {
-				it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, 0, "", provider, nil)
+				it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, "", provider, nil)
 				resources := it.Resources()
 				Expect(resources.Pods().Value()).To(BeNumerically("==", 10))
 			}
 		})
 	})
-
 	Context("Insufficient Capacity Error Cache", func() {
 		It("should launch instances of different type on second reconciliation attempt with Insufficient Capacity Error Cache fallback", func() {
 			fakeEC2API.InsufficientCapacityPools.Set([]fake.CapacityPool{{CapacityType: awsv1alpha1.CapacityTypeOnDemand, InstanceType: "inf1.6xlarge", Zone: "test-zone-1a"}})
@@ -465,7 +468,7 @@ var _ = Describe("Instance Types", func() {
 				instanceTypeNames.Insert(it.Name())
 				if it.Name() == "m5.xlarge" {
 					// should have no valid offerings
-					Expect(it.Offerings()).To(HaveLen(0))
+					Expect(cloudprovider.AvailableOfferings(it)).To(HaveLen(0))
 				}
 			}
 			Expect(instanceTypeNames.Has("m5.xlarge"))
@@ -485,6 +488,58 @@ var _ = Describe("Instance Types", func() {
 			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(HaveKeyWithValue(v1alpha5.LabelCapacityType, awsv1alpha1.CapacityTypeSpot))
+		})
+		It("should fail to launch capacity when there is no zonal availability for spot", func() {
+			now := time.Now()
+			fakeEC2API.DescribeSpotPriceHistoryOutput.Set(&ec2.DescribeSpotPriceHistoryOutput{
+				SpotPriceHistory: []*ec2.SpotPrice{
+					{
+						AvailabilityZone: aws.String("test-zone-1a"),
+						InstanceType:     aws.String("m5.large"),
+						SpotPrice:        aws.String("0.004"),
+						Timestamp:        &now,
+					},
+				},
+			})
+			pricingProvider.updateSpotPricing(ctx)
+			Eventually(func() bool { return pricingProvider.SpotLastUpdated().After(now) }).Should(BeTrue())
+
+			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
+				{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{awsv1alpha1.CapacityTypeSpot}},
+				{Key: v1.LabelInstanceTypeStable, Operator: v1.NodeSelectorOpIn, Values: []string{"m5.large"}},
+				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1b"}},
+			}
+
+			// Instance type with no zonal availability for spot shouldn't be scheduled
+			ExpectApplied(ctx, env.Client, provisioner)
+			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+			ExpectNotScheduled(ctx, env.Client, pod)
+		})
+		It("should succeed to launch spot instance when zonal availability exists", func() {
+			now := time.Now()
+			fakeEC2API.DescribeSpotPriceHistoryOutput.Set(&ec2.DescribeSpotPriceHistoryOutput{
+				SpotPriceHistory: []*ec2.SpotPrice{
+					{
+						AvailabilityZone: aws.String("test-zone-1a"),
+						InstanceType:     aws.String("m5.large"),
+						SpotPrice:        aws.String("0.004"),
+						Timestamp:        &now,
+					},
+				},
+			})
+			pricingProvider.updateSpotPricing(ctx)
+			Eventually(func() bool { return pricingProvider.SpotLastUpdated().After(now) }).Should(BeTrue())
+
+			// not restricting to the zone so we can get any zone
+			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
+				{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{awsv1alpha1.CapacityTypeSpot}},
+				{Key: v1.LabelInstanceTypeStable, Operator: v1.NodeSelectorOpIn, Values: []string{"m5.large"}},
+			}
+
+			ExpectApplied(ctx, env.Client, provisioner)
+			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(node.Labels).To(HaveKeyWithValue(v1alpha5.ProvisionerNameLabelKey, provisioner.Name))
 		})
 	})
 	Context("Metadata Options", func() {

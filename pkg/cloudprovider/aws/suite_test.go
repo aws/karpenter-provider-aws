@@ -31,10 +31,11 @@ import (
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"knative.dev/pkg/ptr"
 
-	. "github.com/aws/karpenter/pkg/test/expectations"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
+
+	. "github.com/aws/karpenter/pkg/test/expectations"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
@@ -72,6 +73,7 @@ var cfg *test.Config
 var fakeClock *clock.FakeClock
 var provisioner *v1alpha5.Provisioner
 var provider *awsv1alpha1.AWS
+var pricingProvider *PricingProvider
 
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -101,7 +103,7 @@ var _ = BeforeSuite(func() {
 		instanceTypeCache = cache.New(InstanceTypesAndZonesCacheTTL, CacheCleanupInterval)
 		fakeEC2API = &fake.EC2API{}
 		fakePricingAPI = &fake.PricingAPI{}
-		pricing := NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
+		pricingProvider = NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
 		subnetProvider := &SubnetProvider{
 			ec2api: fakeEC2API,
 			cache:  subnetCache,
@@ -111,7 +113,7 @@ var _ = BeforeSuite(func() {
 			ec2api:               fakeEC2API,
 			subnetProvider:       subnetProvider,
 			cache:                instanceTypeCache,
-			pricingProvider:      pricing,
+			pricingProvider:      pricingProvider,
 			unavailableOfferings: unavailableOfferingsCache,
 			cm:                   pretty.NewChangeMonitor(),
 		}
@@ -183,7 +185,6 @@ var _ = Describe("Allocation", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(constraints.InstanceProfile).To(BeNil())
 		})
-
 		It("should default requirements", func() {
 			provisioner.SetDefaults(ctx)
 			Expect(provisioner.Spec.Requirements).To(ContainElement(v1.NodeSelectorRequirement{

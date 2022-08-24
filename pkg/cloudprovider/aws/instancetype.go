@@ -50,16 +50,14 @@ type InstanceType struct {
 	resources    v1.ResourceList
 	provider     *v1alpha1.AWS
 	maxPods      *int32
-	price        float64
 	region       string
 }
 
-func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, kc *v1alpha5.KubeletConfiguration, price float64, region string, provider *v1alpha1.AWS, offerings []cloudprovider.Offering) *InstanceType {
+func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, kc *v1alpha5.KubeletConfiguration, region string, provider *v1alpha1.AWS, offerings []cloudprovider.Offering) *InstanceType {
 	instanceType := &InstanceType{
 		InstanceTypeInfo: info,
 		provider:         provider,
 		offerings:        offerings,
-		price:            price,
 		region:           region,
 	}
 
@@ -100,20 +98,16 @@ func (i *InstanceType) Overhead() v1.ResourceList {
 	return i.overhead
 }
 
-func (i *InstanceType) Price() float64 {
-	return i.price
-}
-
 func (i *InstanceType) computeRequirements() scheduling.Requirements {
 	requirements := scheduling.NewRequirements(
 		// Well Known Upstream
 		scheduling.NewRequirement(v1.LabelInstanceTypeStable, v1.NodeSelectorOpIn, i.Name()),
 		scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, i.architecture()),
 		scheduling.NewRequirement(v1.LabelOSStable, v1.NodeSelectorOpIn, v1alpha5.OperatingSystemLinux),
-		scheduling.NewRequirement(v1.LabelTopologyZone, v1.NodeSelectorOpIn, lo.Map(i.Offerings(), func(o cloudprovider.Offering, _ int) string { return o.Zone })...),
+		scheduling.NewRequirement(v1.LabelTopologyZone, v1.NodeSelectorOpIn, lo.Map(cloudprovider.AvailableOfferings(i), func(o cloudprovider.Offering, _ int) string { return o.Zone })...),
 		scheduling.NewRequirement(v1.LabelTopologyRegion, v1.NodeSelectorOpIn, i.region),
 		// Well Known to Karpenter
-		scheduling.NewRequirement(v1alpha5.LabelCapacityType, v1.NodeSelectorOpIn, lo.Map(i.Offerings(), func(o cloudprovider.Offering, _ int) string { return o.CapacityType })...),
+		scheduling.NewRequirement(v1alpha5.LabelCapacityType, v1.NodeSelectorOpIn, lo.Map(cloudprovider.AvailableOfferings(i), func(o cloudprovider.Offering, _ int) string { return o.CapacityType })...),
 		// Well Known to AWS
 		scheduling.NewRequirement(v1alpha1.LabelInstanceCPU, v1.NodeSelectorOpIn, fmt.Sprint(aws.Int64Value(i.VCpuInfo.DefaultVCpus))),
 		scheduling.NewRequirement(v1alpha1.LabelInstanceMemory, v1.NodeSelectorOpIn, fmt.Sprint(aws.Int64Value(i.MemoryInfo.SizeInMiB))),

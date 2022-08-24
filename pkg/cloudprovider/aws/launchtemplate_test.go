@@ -20,19 +20,13 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math"
+	"sort"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter/pkg/cloudprovider/aws/amifamily/bootstrap"
-	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/controllers/provisioning"
-	"github.com/aws/karpenter/pkg/test"
-	. "github.com/aws/karpenter/pkg/test/expectations"
-	"github.com/aws/karpenter/pkg/utils/injection"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
@@ -43,6 +37,15 @@ import (
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/amifamily/bootstrap"
+	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/controllers/provisioning"
+	"github.com/aws/karpenter/pkg/test"
+	. "github.com/aws/karpenter/pkg/test/expectations"
+	"github.com/aws/karpenter/pkg/utils/injection"
 )
 
 var _ = Describe("LaunchTemplates", func() {
@@ -66,6 +69,35 @@ var _ = Describe("LaunchTemplates", func() {
 			To(Equal(*firstLt.LaunchTemplateName))
 		Expect(firstLt.LaunchTemplateData.BlockDeviceMappings[0].Ebs.Encrypted).To(Equal(aws.Bool(true)))
 		Expect(*launchTemplate.Version).To(Equal("$Latest"))
+	})
+	It("should order spot launch template overrides by offering pricing", func() {
+		ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Requirements: []v1.NodeSelectorRequirement{
+			{
+				Key:      v1alpha5.LabelCapacityType,
+				Operator: v1.NodeSelectorOpIn,
+				Values:   []string{awsv1alpha1.CapacityTypeSpot},
+			},
+		}}))
+		pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+		ExpectScheduled(ctx, env.Client, pod)
+
+		Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+
+		Expect(fakeEC2API.CalledWithCreateFleetInput.Len()).To(Equal(1))
+		createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop()
+
+		// Expect these values to be correctly ordered by price
+		overrides := createFleetInput.LaunchTemplateConfigs[0].Overrides
+		sort.Slice(overrides, func(i, j int) bool {
+			return ptr.Float64Value(overrides[i].Priority) < ptr.Float64Value(overrides[j].Priority)
+		})
+		lastPrice := -math.MaxFloat64
+		for _, override := range overrides {
+			offeringPrice, ok := pricingProvider.SpotPrice(*override.InstanceType, *override.AvailabilityZone)
+			Expect(ok).To(BeTrue())
+			Expect(offeringPrice).To(BeNumerically(">=", lastPrice))
+			lastPrice = offeringPrice
+		}
 	})
 	Context("LaunchTemplateName", func() {
 		It("should allow a launch template to be specified", func() {
@@ -490,7 +522,7 @@ var _ = Describe("LaunchTemplates", func() {
 			provider.AMIFamily = &awsv1alpha1.AMIFamilyAL2
 			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 			Expect(err).To(BeNil())
-			it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, 0, "", provider, nil)
+			it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
 			overhead := it.Overhead()
 			Expect(overhead.Memory().String()).To(Equal("1093Mi"))
 		})
@@ -500,7 +532,7 @@ var _ = Describe("LaunchTemplates", func() {
 			provider.AMIFamily = &awsv1alpha1.AMIFamilyAL2
 			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 			Expect(err).To(BeNil())
-			it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, 0, "", provider, nil)
+			it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
 			overhead := it.Overhead()
 			Expect(overhead.Memory().String()).To(Equal("1093Mi"))
 		})
@@ -512,7 +544,7 @@ var _ = Describe("LaunchTemplates", func() {
 			provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
 			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 			Expect(err).To(BeNil())
-			it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, 0, "", provider, nil)
+			it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
 			overhead := it.Overhead()
 			Expect(overhead.Memory().String()).To(Equal("1093Mi"))
 		})
@@ -522,7 +554,7 @@ var _ = Describe("LaunchTemplates", func() {
 			provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
 			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 			Expect(err).To(BeNil())
-			it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, 0, "", provider, nil)
+			it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
 			overhead := it.Overhead()
 			Expect(overhead.Memory().String()).To(Equal("1665Mi"))
 		})
