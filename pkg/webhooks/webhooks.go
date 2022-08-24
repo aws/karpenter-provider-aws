@@ -18,6 +18,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"runtime/debug"
 
 	"k8s.io/client-go/kubernetes"
 	"knative.dev/pkg/configmap"
@@ -41,6 +42,7 @@ import (
 type WebhookOpts struct {
 	KarpenterService string
 	WebhookPort      int
+	MemoryLimit      int64
 }
 
 var opts = WebhookOpts{}
@@ -48,6 +50,7 @@ var opts = WebhookOpts{}
 func init() {
 	flag.StringVar(&opts.KarpenterService, "karpenter-service", env.WithDefaultString("KARPENTER_SERVICE", ""), "The Karpenter Service name for the dynamic webhook certificate")
 	flag.IntVar(&opts.WebhookPort, "port", env.WithDefaultInt("PORT", 8443), "The port the webhook endpoint binds to for validation and mutation of resources")
+	flag.Int64Var(&opts.MemoryLimit, "memory-limit", env.WithDefaultInt64("MEMORY_LIMIT", -1), "Memory limit on the container running the webhook. The GC soft memory limit is set to 90% of this value.")
 }
 
 func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options) cloudprovider.CloudProvider) {
@@ -64,6 +67,12 @@ func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options)
 		ClientSet:   kubernetes.NewForConfigOrDie(config),
 		WebhookOnly: true,
 	})
+
+	if opts.MemoryLimit > 0 {
+		newLimit := int64(float64(opts.MemoryLimit) * 0.9)
+		logging.FromContext(ctx).Infof("Setting GC memory limit to %d, container limit = %d", newLimit, opts.MemoryLimit)
+		debug.SetMemoryLimit(newLimit)
+	}
 
 	// Controllers and webhook
 	sharedmain.MainWithConfig(ctx, "webhook", config,

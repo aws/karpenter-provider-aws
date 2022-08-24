@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/pprof"
+	"runtime/debug"
 
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zapr"
@@ -98,6 +99,12 @@ func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options)
 	ctx = injection.WithOptions(ctx, opts)
 
 	logging.FromContext(ctx).Infof("Initializing with version %s", project.Version)
+
+	if opts.MemoryLimit > 0 {
+		newLimit := int64(float64(opts.MemoryLimit) * 0.9)
+		logging.FromContext(ctx).Infof("Setting GC memory limit to %d, container limit = %d", newLimit, opts.MemoryLimit)
+		debug.SetMemoryLimit(newLimit)
+	}
 
 	manager := NewManagerOrDie(ctx, controllerRuntimeConfig, controllerruntime.Options{
 		Logger:                     ignoreDebugEvents(zapr.NewLogger(logging.FromContext(ctx).Desugar())),
