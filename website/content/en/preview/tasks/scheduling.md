@@ -370,19 +370,19 @@ The topology key `topology.kubernetes.io/region` is not supported. Legacy in-tre
 
 Karpenter allows you to order your provisioners using the `.spec.weight` field so that the node scheduler will deterministically attempt to schedule with one provisioner before another. Below are a few example use-cases that are now supported with the provisioner weighting semantic.
 
-### Reserved Instances
+### Savings Plans and Reserved Instances
 
-If you have reserved on-demand instances from EC2 at a discount, you may want to tell Karpenter to prioritize this reserved capacity ahead of other instance types.
+If you have purchased a [Savings Plan](https://aws.amazon.com/savingsplans/) or [Reserved Instances](https://aws.amazon.com/ec2/pricing/reserved-instances/), you may want to tell Karpenter to prioritize this reserved capacity ahead of other instance types.
 
 To enable this, you will need to tell the Karpenter controllers which instance types to prioritize and what is the maximum amount of capacity that should be provisioned using those instance types. We can set the `.spec.limits` on the provisioner to limit the capacity that can be launched by this provisioner. Combined with the `.spec.weight` value, we can tell Karpenter to pull from instance types in the reserved provisioner before defaulting to generic instance types.
 
-#### Reserved Capacity Provisioner
+#### Reserved Instance Provisioner
 
 ```yaml
 apiVersion: karpenter.sh/v1alpha5
 kind: Provisioner
 metadata:
-  name: reserved-capacity
+  name: reserved-instance
 spec:
   weight: 50
   requirements:
@@ -412,7 +412,7 @@ spec:
 
 ### Default Node Configuration
 
-Pods that contain no node selectors, node affinites, or tolerations can potentially be assigned to any node with any configuration. There may be cases where you require these pods to schedule to a specific capacity type or architecture but assigning the relevant node selectors or affinities to all these workload pods may be too tedious or infeasible. Instead, we want to define a cluster-wide default configuration for nodes launched using Karpenter.
+Pods that do not specify node selectors or affinities can potentially be assigned to any node with any configuration. There may be cases where you require these pods to schedule to a specific capacity type or architecture but assigning the relevant node selectors or affinities to all these workload pods may be too tedious or infeasible. Instead, we want to define a cluster-wide default configuration for nodes launched using Karpenter.
 
 By assigning a higher `.spec.weight` value and restricting a provisioner to a specific capacity type or architecture, we can set default configuration for the nodes launched by pods that don't have node configuration restrictions.
 
@@ -455,7 +455,7 @@ spec:
 ```
 
 {{% alert title="Note" color="primary" %}}
-Based on the way that Karpenter does pod batching and bin packing, it is not guaranteed that Karpenter will always choose the highest priority provisioner given specific requirements. For example, it is possible that a pod that has a node selector on a an `arm64` architecture to be provisioned, causing all other workload pods from that batch to also schedule on that node (even if those pods had no explicit requirement for `arm64` architecture). The behavior may also occur if existing capacity is available, as the kube-scheduler will schedule the pods instead of allowing Karpenter to provision a new node.
+Based on the way that Karpenter performs pod batching and bin packing, it is not guaranteed that Karpenter will always choose the highest priority provisioner given specific requirements. For example, if a pod can't be scheduled with the highest priority provisioner it will force creation of a node using a lower priority provisioner which may allow other pods from that batch to also schedule on that node. The behavior may also occur if existing capacity is available, as the kube-scheduler will schedule the pods instead of allowing Karpenter to provision a new node.
 {{% /alert %}}
 
 ## Advanced Scheduling Techniques
