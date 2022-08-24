@@ -24,6 +24,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
+const TaintWildcardValue string = "*"
+
 // ProvisionerSpec is the top level provisioner specification. Provisioners
 // launch nodes in response to pods that are unschedulable. A single provisioner
 // is capable of managing a diverse set of nodes. Node properties are determined

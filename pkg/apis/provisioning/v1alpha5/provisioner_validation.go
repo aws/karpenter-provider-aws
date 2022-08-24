@@ -127,7 +127,7 @@ func (s *ProvisionerSpec) validateTaintsField(taints []v1.Taint, existing map[ta
 		// Validate Value
 		// We allow a wildcard value ('*') to support flexible taints
 		// This wildcard value is not natively supported by K8s
-		if len(taint.Value) != 0 && taint.Value != "*" {
+		if len(taint.Value) != 0 && taint.Value != TaintWildcardValue {
 			for _, err := range validation.IsQualifiedName(taint.Value) {
 				errs = errs.Also(apis.ErrInvalidArrayValue(err, fieldName, i))
 			}

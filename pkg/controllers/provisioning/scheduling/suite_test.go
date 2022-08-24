@@ -43,10 +43,11 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/provisioning/scheduling"
 	"github.com/aws/karpenter/pkg/test"
 
-	. "github.com/aws/karpenter/pkg/test/expectations"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
+
+	. "github.com/aws/karpenter/pkg/test/expectations"
 )
 
 var ctx context.Context
@@ -2840,21 +2841,97 @@ var _ = Describe("Taints", func() {
 		node := ExpectScheduled(ctx, env.Client, pod)
 		Expect(node.Spec.Taints).To(HaveLen(1)) // Expect no taints generated beyond the default
 	})
-	It("should create a node with a taint value when provisioner taint is flexible", func() {
-		provisioner.Spec.Taints = []v1.Taint{{Key: "team-name", Effect: v1.TaintEffectNoSchedule, Value: "*"}}
-		ExpectApplied(ctx, env.Client, provisioner)
-		pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(
-			test.PodOptions{Tolerations: []v1.Toleration{{Key: "team-name", Effect: v1.TaintEffectNoSchedule, Operator: v1.TolerationOpEqual, Value: "team-a"}}},
-		))[0]
-		node := ExpectScheduled(ctx, env.Client, pod)
-		Expect(node.Spec.Taints).To(ContainElement(v1.Taint{
-			Key:    "team-name",
-			Effect: v1.TaintEffectNoSchedule,
-			Value:  "team-a",
-		}))
-	})
-	It("should create a separate node without taints for generic workloads with provisioner taints are flexible", func() {
+	Context("Wildcard/Optional Taints", func() {
+		It("should generate taint values when provisioner taint is flexible", func() {
+			provisioner.Spec.Taints = []v1.Taint{{Key: "team-name", Effect: v1.TaintEffectNoSchedule, Value: "*"}}
+			ExpectApplied(ctx, env.Client, provisioner)
+			pod := ExpectProvisioned(ctx, env.Client, controller,
+				test.UnschedulablePod(test.PodOptions{Tolerations: []v1.Toleration{{Key: "team-name", Effect: v1.TaintEffectNoSchedule, Operator: v1.TolerationOpEqual, Value: "team-a"}}}),
+			)[0]
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(node.Spec.Taints).To(ContainElement(v1.Taint{
+				Key:    "team-name",
+				Effect: v1.TaintEffectNoSchedule,
+				Value:  "team-a",
+			}))
+		})
+		It("should add the taint value when the toleration is the Exists operator", func() {
+			provisioner.Spec.Taints = []v1.Taint{{Key: "team-name", Effect: v1.TaintEffectNoSchedule, Value: "*"}}
+			ExpectApplied(ctx, env.Client, provisioner)
+			pod := ExpectProvisioned(ctx, env.Client, controller,
+				test.UnschedulablePod(test.PodOptions{Tolerations: []v1.Toleration{{Key: "team-name", Operator: v1.TolerationOpExists}}}),
+			)[0]
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(node.Spec.Taints).To(ContainElement(v1.Taint{
+				Key:    "team-name",
+				Effect: v1.TaintEffectNoSchedule,
+				Value:  "",
+			}))
+		})
+		It("should assign pods with different toleration values to different nodes", func() {
+			provisioner.Spec.Taints = []v1.Taint{{Key: "team-name", Effect: v1.TaintEffectNoSchedule, Value: "*"}}
+			ExpectApplied(ctx, env.Client, provisioner)
+			pods := []*v1.Pod{
+				test.UnschedulablePod(
+					test.PodOptions{Tolerations: []v1.Toleration{{Key: "team-name", Effect: v1.TaintEffectNoSchedule, Operator: v1.TolerationOpEqual, Value: "team-a"}}},
+				),
+				test.UnschedulablePod(
+					test.PodOptions{Tolerations: []v1.Toleration{{Key: "team-name", Effect: v1.TaintEffectNoSchedule, Operator: v1.TolerationOpEqual, Value: "team-b"}}},
+				),
+			}
+			nodeNames := sets.NewString()
+			for _, p := range ExpectProvisioned(ctx, env.Client, controller, pods...) {
+				node := ExpectScheduled(ctx, env.Client, p)
+				nodeNames.Insert(node.Name)
+			}
+			Expect(len(nodeNames)).To(Equal(2))
+		})
+		It("should not include the taint on the node when the pod has no matching toleration", func() {
+			provisioner.Spec.Taints = []v1.Taint{{Key: "team-name", Effect: v1.TaintEffectNoSchedule, Value: "*"}}
+			ExpectApplied(ctx, env.Client, provisioner)
+			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+			node := ExpectScheduled(ctx, env.Client, pod)
 
+			// Node does not contain the flexible taint, only not-ready taint
+			Expect(len(node.Spec.Taints)).To(Equal(1))
+		})
+		It("should generate a valid taint when the matching toleration has not effect", func() {
+			provisioner.Spec.Taints = []v1.Taint{{Key: "team-name", Effect: v1.TaintEffectNoSchedule, Value: "*"}}
+			ExpectApplied(ctx, env.Client, provisioner)
+			pod := ExpectProvisioned(ctx, env.Client, controller,
+				test.UnschedulablePod(test.PodOptions{Tolerations: []v1.Toleration{{Key: "team-name", Operator: v1.TolerationOpEqual, Value: "team-a"}}}),
+			)[0]
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(node.Spec.Taints).To(ContainElement(v1.Taint{
+				Key:    "team-name",
+				Effect: v1.TaintEffectNoSchedule,
+				Value:  "team-a",
+			}))
+		})
+		It("should generate a constrained taint on a single node when receiving two pods, one with operator=Exists and other with operator=Equal", func() {
+			provisioner.Spec.Taints = []v1.Taint{{Key: "team-name", Effect: v1.TaintEffectNoSchedule, Value: "*"}}
+			ExpectApplied(ctx, env.Client, provisioner)
+			pods := []*v1.Pod{
+				test.UnschedulablePod(
+					test.PodOptions{Tolerations: []v1.Toleration{{Key: "team-name", Effect: v1.TaintEffectNoSchedule, Operator: v1.TolerationOpExists}}},
+				),
+				test.UnschedulablePod(
+					test.PodOptions{Tolerations: []v1.Toleration{{Key: "team-name", Effect: v1.TaintEffectNoSchedule, Operator: v1.TolerationOpEqual, Value: "team-b"}}},
+				),
+			}
+			nodeNames := sets.NewString()
+			for _, p := range ExpectProvisioned(ctx, env.Client, controller, pods...) {
+				node := ExpectScheduled(ctx, env.Client, p)
+				nodeNames.Insert(node.Name)
+			}
+			Expect(len(nodeNames)).To(Equal(1))
+			node := ExpectScheduled(ctx, env.Client, pods[0])
+			Expect(node.Spec.Taints).To(ContainElement(v1.Taint{
+				Key:    "team-name",
+				Effect: v1.TaintEffectNoSchedule,
+				Value:  "team-b",
+			}))
+		})
 	})
 })
 
