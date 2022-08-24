@@ -16,6 +16,7 @@ package provisioning
 
 import (
 	"context"
+	"net/http"
 	"time"
 
 	"github.com/aws/karpenter/pkg/events"
@@ -68,6 +69,13 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	c.provisioner.Trigger()
 	// TODO: This is only necessary due to a bug in the batcher. Ideally we should retrigger on provisioning error instead
 	return reconcile.Result{RequeueAfter: 5 * time.Second}, nil
+}
+
+func (c *Controller) LivenessProbe(req *http.Request) error {
+	if err := c.provisioner.LivenessProbe(req); err != nil {
+		return err
+	}
+	return nil
 }
 
 // Deprecated: TriggerAndWait is used for unit testing purposes only

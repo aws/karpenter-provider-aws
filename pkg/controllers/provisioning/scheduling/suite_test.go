@@ -92,7 +92,11 @@ var _ = AfterSuite(func() {
 })
 
 var _ = BeforeEach(func() {
-	provisioner = test.Provisioner()
+	provisioner = test.Provisioner(test.ProvisionerOptions{Requirements: []v1.NodeSelectorRequirement{{
+		Key:      v1alpha5.LabelCapacityType,
+		Operator: v1.NodeSelectorOpIn,
+		Values:   []string{v1alpha1.CapacityTypeSpot, v1alpha1.CapacityTypeOnDemand},
+	}}})
 	// reset instance types
 	newCP := fake.CloudProvider{}
 	cloudProv.InstanceTypes, _ = newCP.GetInstanceTypes(context.Background(), nil)
@@ -3539,27 +3543,48 @@ var _ = Describe("Binpacking", func() {
 		// are valid before preferring the cheapest one 'large'
 		cloudProv.InstanceTypes = []cloudprovider.InstanceType{
 			fake.NewInstanceType(fake.InstanceTypeOptions{
-				Name:  "medium",
-				Price: 3.00,
+				Name: "medium",
 				Resources: v1.ResourceList{
 					v1.ResourceCPU:    resource.MustParse("2"),
 					v1.ResourceMemory: resource.MustParse("2Gi"),
 				},
+				Offerings: []cloudprovider.Offering{
+					{
+						CapacityType: v1alpha1.CapacityTypeOnDemand,
+						Zone:         "test-zone-1a",
+						Price:        3.00,
+						Available:    true,
+					},
+				},
 			}),
 			fake.NewInstanceType(fake.InstanceTypeOptions{
-				Name:  "small",
-				Price: 2.00,
+				Name: "small",
 				Resources: v1.ResourceList{
 					v1.ResourceCPU:    resource.MustParse("1"),
 					v1.ResourceMemory: resource.MustParse("1Gi"),
 				},
+				Offerings: []cloudprovider.Offering{
+					{
+						CapacityType: v1alpha1.CapacityTypeOnDemand,
+						Zone:         "test-zone-1a",
+						Price:        2.00,
+						Available:    true,
+					},
+				},
 			}),
 			fake.NewInstanceType(fake.InstanceTypeOptions{
-				Name:  "large",
-				Price: 1.00,
+				Name: "large",
 				Resources: v1.ResourceList{
 					v1.ResourceCPU:    resource.MustParse("4"),
 					v1.ResourceMemory: resource.MustParse("4Gi"),
+				},
+				Offerings: []cloudprovider.Offering{
+					{
+						CapacityType: v1alpha1.CapacityTypeOnDemand,
+						Zone:         "test-zone-1a",
+						Price:        1.00,
+						Available:    true,
+					},
 				},
 			}),
 		}
@@ -4059,8 +4084,7 @@ var _ = Describe("In-Flight Nodes", func() {
 	It("should pack in-flight nodes before launching new nodes", func() {
 		cloudProv.InstanceTypes = []cloudprovider.InstanceType{
 			fake.NewInstanceType(fake.InstanceTypeOptions{
-				Name:  "medium",
-				Price: 3.00,
+				Name: "medium",
 				Resources: v1.ResourceList{
 					// enough CPU for four pods + a bit of overhead
 					v1.ResourceCPU:  resource.MustParse("4.25"),

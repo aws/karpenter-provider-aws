@@ -17,6 +17,9 @@ package provisioning
 import (
 	"context"
 	"fmt"
+	"math"
+	"net/http"
+	"sort"
 	"sync"
 	"time"
 
@@ -300,6 +303,14 @@ func (p *Provisioner) launch(ctx context.Context, opts LaunchOptions, node *sche
 		return "", err
 	}
 
+	// Order instance types so that we get the cheapest instance types of the available offerings
+	sort.Slice(node.InstanceTypeOptions, func(i, j int) bool {
+		iOfferings := cloudprovider.AvailableOfferings(node.InstanceTypeOptions[i])
+		jOfferings := cloudprovider.AvailableOfferings(node.InstanceTypeOptions[j])
+		return cheapestOfferingPrice(iOfferings, node.Requirements) < cheapestOfferingPrice(jOfferings, node.Requirements)
+	})
+
+	logging.FromContext(ctx).Infof("Launching %s", node)
 	k8sNode, err := p.cloudProvider.Create(
 		logging.WithLogger(ctx, logging.FromContext(ctx).Named("cloudprovider")),
 		&cloudprovider.NodeRequest{InstanceTypeOptions: node.InstanceTypeOptions, Template: &node.NodeTemplate},
@@ -326,7 +337,6 @@ func (p *Provisioner) launch(ctx context.Context, opts LaunchOptions, node *sche
 			return "", fmt.Errorf("creating node %s, %w", k8sNode.Name, err)
 		}
 	}
-	logging.FromContext(ctx).Infof("Created %s", node)
 	p.cluster.NominateNodeForPod(k8sNode.Name)
 	if opts.RecordPodNomination {
 		for _, pod := range node.Pods {
@@ -379,6 +389,25 @@ func (p *Provisioner) injectTopology(ctx context.Context, pods []*v1.Pod) []*v1.
 		}
 	}
 	return schedulablePods
+}
+
+func (p *Provisioner) LivenessProbe(req *http.Request) error {
+	p.mu.Lock()
+	//nolint: staticcheck
+	p.mu.Unlock()
+	return nil
+}
+
+// cheapestOfferingPrice gets the cheapest price of an offering on an instance type given
+// the node requirements
+func cheapestOfferingPrice(ofs []cloudprovider.Offering, requirements scheduling.Requirements) float64 {
+	minPrice := math.MaxFloat64
+	for _, of := range ofs {
+		if requirements.Get(v1alpha5.LabelCapacityType).Has(of.CapacityType) && requirements.Get(v1.LabelTopologyZone).Has(of.Zone) {
+			minPrice = math.Min(minPrice, of.Price)
+		}
+	}
+	return minPrice
 }
 
 func validateAffinity(p *v1.Pod) (errs error) {

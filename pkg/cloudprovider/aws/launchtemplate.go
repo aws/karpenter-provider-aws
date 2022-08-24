@@ -27,6 +27,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
+	"github.com/samber/lo"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/client-go/kubernetes"
@@ -36,8 +37,8 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/amifamily"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injection"
+	"github.com/aws/karpenter/pkg/utils/pretty"
 )
 
 const (
@@ -55,6 +56,7 @@ type LaunchTemplateProvider struct {
 	cache                 *cache.Cache
 	logger                *zap.SugaredLogger
 	caBundle              *string
+	cm                    *pretty.ChangeMonitor
 }
 
 func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, clientSet *kubernetes.Clientset, amiFamily *amifamily.Resolver, securityGroupProvider *SecurityGroupProvider, caBundle *string, startAsync <-chan struct{}) *LaunchTemplateProvider {
@@ -66,6 +68,7 @@ func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, clie
 		securityGroupProvider: securityGroupProvider,
 		cache:                 cache.New(CacheTTL, CacheCleanupInterval),
 		caBundle:              caBundle,
+		cm:                    pretty.NewChangeMonitor(),
 	}
 	l.cache.OnEvicted(l.onCacheEvicted)
 	go func() {
@@ -115,7 +118,7 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, provider *v1alpha1.AWS
 		InstanceProfile:         instanceProfile,
 		SecurityGroupsIDs:       securityGroupsIDs,
 		Tags:                    provider.Tags,
-		Labels:                  functional.UnionStringMaps(nodeRequest.Template.Labels, additionalLabels),
+		Labels:                  lo.Assign(nodeRequest.Template.Labels, additionalLabels),
 		CABundle:                p.caBundle,
 		KubernetesVersion:       kubeServerVersion,
 	})
@@ -301,6 +304,8 @@ func (p *LaunchTemplateProvider) kubeServerVersion(ctx context.Context) (string,
 	}
 	version := fmt.Sprintf("%s.%s", serverVersion.Major, strings.TrimSuffix(serverVersion.Minor, "+"))
 	p.cache.SetDefault(kubernetesVersionCacheKey, version)
-	logging.FromContext(ctx).Debugf("Discovered kubernetes version %s", version)
+	if p.cm.HasChanged("kubernete-version", version) {
+		logging.FromContext(ctx).Debugf("Discovered kubernetes version %s", version)
+	}
 	return version, nil
 }

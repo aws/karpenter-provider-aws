@@ -26,7 +26,7 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider/fake"
 	"github.com/aws/karpenter/pkg/controllers/termination"
 	"github.com/aws/karpenter/pkg/test"
-	"github.com/aws/karpenter/pkg/utils/functional"
+	"github.com/samber/lo"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	. "github.com/aws/karpenter/pkg/test/expectations"
@@ -542,7 +542,7 @@ func ExpectEvicted(c client.Client, pods ...*v1.Pod) {
 func ExpectNodeDraining(c client.Client, nodeName string) *v1.Node {
 	node := ExpectNodeExists(ctx, c, nodeName)
 	Expect(node.Spec.Unschedulable).To(BeTrue())
-	Expect(functional.ContainsString(node.Finalizers, v1alpha5.TerminationFinalizer)).To(BeTrue())
+	Expect(lo.Contains(node.Finalizers, v1alpha5.TerminationFinalizer)).To(BeTrue())
 	Expect(node.DeletionTimestamp.IsZero()).To(BeFalse())
 	return node
 }

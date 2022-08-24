@@ -2,7 +2,6 @@ package integration_test
 
 import (
 	"fmt"
-	"knative.dev/pkg/ptr"
 
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
@@ -14,6 +13,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"knative.dev/pkg/ptr"
 )
 
 var _ = Describe("Scheduling", func() {
@@ -22,14 +22,16 @@ var _ = Describe("Scheduling", func() {
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 		}})
+		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
 		nodeSelector := map[string]string{
 			// Well Known
-			v1.LabelTopologyRegion:     env.Region,
-			v1.LabelTopologyZone:       fmt.Sprintf("%sa", env.Region),
-			v1.LabelInstanceTypeStable: "g4dn.8xlarge",
-			v1.LabelOSStable:           "linux",
-			v1.LabelArchStable:         "amd64",
-			v1alpha5.LabelCapacityType: "on-demand",
+			v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+			v1.LabelTopologyRegion:           env.Region,
+			v1.LabelTopologyZone:             fmt.Sprintf("%sa", env.Region),
+			v1.LabelInstanceTypeStable:       "g4dn.8xlarge",
+			v1.LabelOSStable:                 "linux",
+			v1.LabelArchStable:               "amd64",
+			v1alpha5.LabelCapacityType:       "on-demand",
 			// Well Known to AWS
 			awsv1alpha1.LabelInstanceHypervisor:      "nitro",
 			awsv1alpha1.LabelInstanceCategory:        "g",
@@ -54,7 +56,6 @@ var _ = Describe("Scheduling", func() {
 		requirements := lo.MapToSlice(nodeSelector, func(key string, value string) v1.NodeSelectorRequirement {
 			return v1.NodeSelectorRequirement{Key: key, Operator: v1.NodeSelectorOpIn, Values: []string{value}}
 		})
-		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
 		deployment := test.Deployment(test.DeploymentOptions{Replicas: 1, PodOptions: test.PodOptions{
 			NodeSelector:     nodeSelector,
 			NodePreferences:  requirements,

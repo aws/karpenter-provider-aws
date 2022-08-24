@@ -19,13 +19,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
-
-	"go.uber.org/multierr"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -34,7 +32,10 @@ import (
 	"github.com/aws/aws-sdk-go/service/pricing"
 	"github.com/aws/aws-sdk-go/service/pricing/pricingiface"
 	"github.com/samber/lo"
+	"go.uber.org/multierr"
 	"knative.dev/pkg/logging"
+
+	"github.com/aws/karpenter/pkg/utils/pretty"
 )
 
 // PricingProvider provides actual pricing data to the AWS cloud provider to allow it to make more informed decisions
@@ -47,12 +48,30 @@ type PricingProvider struct {
 	ec2     ec2iface.EC2API
 	pricing pricingiface.PricingAPI
 	region  string
+	cm      *pretty.ChangeMonitor
 
 	mu                 sync.RWMutex
 	onDemandUpdateTime time.Time
 	onDemandPrices     map[string]float64
 	spotUpdateTime     time.Time
-	spotPrices         map[string]float64
+	spotPrices         map[string]zonalPricing
+}
+
+// zonalPricing is used to capture the per-zone price
+// for spot data as well as the default price
+// based on on-demand price when the controller first
+// comes up
+type zonalPricing struct {
+	defaultPrice float64 // Used until we get the spot pricing data
+	prices       map[string]float64
+}
+
+func newZonalPricing(defaultPrice float64) zonalPricing {
+	z := zonalPricing{
+		prices: map[string]float64{},
+	}
+	z.defaultPrice = defaultPrice
+	return z
 }
 
 // pricingUpdatePeriod is how often we try to update our pricing information after the initial update on startup
@@ -80,9 +99,10 @@ func NewPricingProvider(ctx context.Context, pricing pricingiface.PricingAPI, ec
 		onDemandPrices:     initialOnDemandPrices,
 		spotUpdateTime:     initialPriceUpdate,
 		// default our spot pricing to the same as the on-demand pricing until a price update
-		spotPrices: initialOnDemandPrices,
+		spotPrices: populateInitialSpotPricing(initialOnDemandPrices),
 		ec2:        ec2Api,
 		pricing:    pricing,
+		cm:         pretty.NewChangeMonitor(),
 	}
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("pricing"))
 
@@ -137,39 +157,39 @@ func (p *PricingProvider) OnDemandLastUpdated() time.Time {
 func (p *PricingProvider) SpotLastUpdated() time.Time {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	return p.onDemandUpdateTime
+	return p.spotUpdateTime
 }
 
 // OnDemandPrice returns the last known on-demand price for a given instance type, returning an error if there is no
 // known on-demand pricing for the instance type.
-func (p *PricingProvider) OnDemandPrice(instanceType string) (float64, error) {
+func (p *PricingProvider) OnDemandPrice(instanceType string) (float64, bool) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	price, ok := p.onDemandPrices[instanceType]
 	if !ok {
-		return 0.0, fmt.Errorf("instance type %s not found", instanceType)
+		return 0.0, false
 	}
-	return price, nil
+	return price, true
 }
 
-// SpotPrice returns the last known spot price for a given instance type, returning an error if there is no
-// known spot pricing for the instance type.
-func (p *PricingProvider) SpotPrice(instanceType string) (float64, error) {
+// SpotPrice returns the last known spot price for a given instance type and zone, returning an error
+// if there is no known spot pricing for that instance type or zone
+func (p *PricingProvider) SpotPrice(instanceType string, zone string) (float64, bool) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	if price, ok := p.spotPrices[instanceType]; ok {
-		return price, nil
+	if val, ok := p.spotPrices[instanceType]; ok {
+		if p.spotUpdateTime.Equal(initialPriceUpdate) {
+			return val.defaultPrice, true
+		}
+		if price, ok := p.spotPrices[instanceType].prices[zone]; ok {
+			return price, true
+		}
+		return 0.0, false
 	}
-	// if there is no spot price available, fall back to the on-demand price
-	if price, ok := p.onDemandPrices[instanceType]; ok {
-		return price, nil
-	}
-	return 0.0, fmt.Errorf("instance type %s not found", instanceType)
+	return 0.0, false
 }
 
 func (p *PricingProvider) updatePricing(ctx context.Context) {
-	logging.FromContext(ctx).Infof("Updating EC2 pricing information")
-
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
@@ -240,9 +260,12 @@ func (p *PricingProvider) updateOnDemandPricing(ctx context.Context) error {
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
+
 	p.onDemandPrices = lo.Assign(onDemandPrices, onDemandMetalPrices)
 	p.onDemandUpdateTime = time.Now()
-	logging.FromContext(ctx).Infof("updated on-demand pricing with %d instance types", len(p.onDemandPrices))
+	if p.cm.HasChanged("on-demand-prices", p.onDemandPrices) {
+		logging.FromContext(ctx).Infof("updated on-demand pricing with %d instance types", len(p.onDemandPrices))
+	}
 	return nil
 }
 
@@ -339,17 +362,15 @@ func (p *PricingProvider) onDemandPage(prices map[string]float64) func(output *p
 	}
 }
 
+// nolint: gocyclo
 func (p *PricingProvider) updateSpotPricing(ctx context.Context) error {
-	type pricingInfo struct {
-		timestamp time.Time
-		price     float64
-	}
+	totalOfferings := 0
 
-	prices := map[string]*pricingInfo{}
+	prices := map[string]map[string]float64{}
 	if err := p.ec2.DescribeSpotPriceHistoryPagesWithContext(ctx, &ec2.DescribeSpotPriceHistoryInput{
 		ProductDescriptions: []*string{aws.String("Linux/UNIX")},
-		// look for spot prices for the past day
-		StartTime: aws.Time(time.Now().Add(24 * time.Hour)),
+		// get the latest spot price for each instance type
+		StartTime: aws.Time(time.Now()),
 	}, func(output *ec2.DescribeSpotPriceHistoryOutput, b bool) bool {
 		for _, sph := range output.SpotPriceHistory {
 			spotPriceStr := aws.StringValue(sph.SpotPrice)
@@ -363,16 +384,12 @@ func (p *PricingProvider) updateSpotPricing(ctx context.Context) error {
 				continue
 			}
 			instanceType := aws.StringValue(sph.InstanceType)
-			timeStamp := *sph.Timestamp
-
-			// pricing can vary based on the sph.AvailabilityZone, but we just currently take the latest update
-			existing, ok := prices[instanceType]
-			if !ok || timeStamp.After(existing.timestamp) {
-				prices[instanceType] = &pricingInfo{
-					timestamp: timeStamp,
-					price:     spotPrice,
-				}
+			az := aws.StringValue(sph.AvailabilityZone)
+			_, ok := prices[instanceType]
+			if !ok {
+				prices[instanceType] = map[string]float64{}
 			}
+			prices[instanceType][az] = spotPrice
 		}
 		return true
 	}); err != nil {
@@ -383,11 +400,36 @@ func (p *PricingProvider) updateSpotPricing(ctx context.Context) error {
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.spotPrices = map[string]float64{}
-	for k, v := range prices {
-		p.spotPrices[k] = v.price
+
+	for it, zoneData := range prices {
+		if _, ok := p.spotPrices[it]; !ok {
+			p.spotPrices[it] = newZonalPricing(0)
+		}
+		for zone, price := range zoneData {
+			p.spotPrices[it].prices[zone] = price
+		}
+		totalOfferings += len(zoneData)
 	}
+
 	p.spotUpdateTime = time.Now()
-	logging.FromContext(ctx).Infof("updated spot pricing with %d instance types", len(p.spotPrices))
+	if p.cm.HasChanged("spot-prices", p.spotPrices) {
+		logging.FromContext(ctx).Infof("updated spot pricing with %d instance types and %d offerings", len(p.spotPrices), totalOfferings)
+	}
 	return nil
+}
+
+func (p *PricingProvider) LivenessProbe(req *http.Request) error {
+	// ensure we don't deadlock and nolint for the empty critical section
+	p.mu.Lock()
+	//nolint: staticcheck
+	p.mu.Unlock()
+	return nil
+}
+
+func populateInitialSpotPricing(pricing map[string]float64) map[string]zonalPricing {
+	m := map[string]zonalPricing{}
+	for it, price := range pricing {
+		m[it] = newZonalPricing(price)
+	}
+	return m
 }

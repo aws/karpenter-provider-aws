@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/pprof"
+	"runtime/debug"
 
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zapr"
@@ -99,6 +100,12 @@ func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options)
 
 	logging.FromContext(ctx).Infof("Initializing with version %s", project.Version)
 
+	if opts.MemoryLimit > 0 {
+		newLimit := int64(float64(opts.MemoryLimit) * 0.9)
+		logging.FromContext(ctx).Infof("Setting GC memory limit to %d, container limit = %d", newLimit, opts.MemoryLimit)
+		debug.SetMemoryLimit(newLimit)
+	}
+
 	manager := NewManagerOrDie(ctx, controllerRuntimeConfig, controllerruntime.Options{
 		Logger:                     ignoreDebugEvents(zapr.NewLogger(logging.FromContext(ctx).Desugar())),
 		LeaderElection:             true,
@@ -113,9 +120,11 @@ func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options)
 		utilruntime.Must(registerPprof(manager))
 	}
 
-	cloudProvider := cloudprovidermetrics.Decorate(
-		injectCloudProvider(ctx, cloudprovider.Options{ClientSet: clientSet, KubeClient: manager.GetClient(), StartAsync: manager.Elected()}),
-	)
+	cloudProvider := injectCloudProvider(ctx, cloudprovider.Options{ClientSet: clientSet, KubeClient: manager.GetClient(), StartAsync: manager.Elected()})
+	if hp, ok := cloudProvider.(HealthCheck); ok {
+		utilruntime.Must(manager.AddHealthzCheck("cloud-provider", hp.LivenessProbe))
+	}
+	cloudProvider = cloudprovidermetrics.Decorate(cloudProvider)
 
 	cfg, err := config.New(ctx, clientSet, cmw)
 	if err != nil {
@@ -164,11 +173,19 @@ func NewManagerOrDie(ctx context.Context, config *rest.Config, options controlle
 	return newManager
 }
 
+type HealthCheck interface {
+	LivenessProbe(req *http.Request) error
+}
+
 // RegisterControllers registers a set of controllers to the controller manager
 func RegisterControllers(ctx context.Context, m manager.Manager, controllers ...Controller) manager.Manager {
 	for _, c := range controllers {
 		if err := c.Register(ctx, m); err != nil {
 			panic(err)
+		}
+		// if the controller implements a liveness check, connect it
+		if lp, ok := c.(HealthCheck); ok {
+			utilruntime.Must(m.AddHealthzCheck(fmt.Sprintf("%T", c), lp.LivenessProbe))
 		}
 	}
 	if err := m.AddHealthzCheck("healthz", healthz.Ping); err != nil {

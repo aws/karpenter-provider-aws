@@ -17,6 +17,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -64,7 +65,7 @@ const (
 )
 
 func init() {
-	v1alpha5.NormalizedLabels = functional.UnionStringMaps(v1alpha5.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": v1.LabelTopologyZone})
+	v1alpha5.NormalizedLabels = lo.Assign(v1alpha5.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": v1.LabelTopologyZone})
 }
 
 var _ cloudprovider.CloudProvider = (*CloudProvider)(nil)
@@ -141,6 +142,13 @@ func (c *CloudProvider) Create(ctx context.Context, nodeRequest *cloudprovider.N
 	return c.instanceProvider.Create(ctx, aws, nodeRequest)
 }
 
+func (c *CloudProvider) LivenessProbe(req *http.Request) error {
+	if err := c.instanceTypeProvider.LivenessProbe(req); err != nil {
+		return err
+	}
+	return nil
+}
+
 // GetInstanceTypes returns all available InstanceTypes
 func (c *CloudProvider) GetInstanceTypes(ctx context.Context, provisioner *v1alpha5.Provisioner) ([]cloudprovider.InstanceType, error) {
 	aws, err := c.getProvider(ctx, provisioner.Spec.Provider, provisioner.Spec.ProviderRef)
@@ -163,7 +171,7 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, provisioner *v1alp
 
 			// c3, m3 and r3 aren't current generation but are fine for general workloads
 			if functional.HasAnyPrefix(*cit.InstanceType, "c3", "m3", "r3") {
-				return false
+				return true
 			}
 
 			// filter out all non-current generation

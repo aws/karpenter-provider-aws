@@ -25,12 +25,11 @@ import (
 	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
+	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/samber/lo"
 
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
@@ -38,6 +37,7 @@ import (
 	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/utils/functional"
+	"github.com/aws/karpenter/pkg/utils/pretty"
 )
 
 type AMIProvider struct {
@@ -46,6 +46,7 @@ type AMIProvider struct {
 	ssm        ssmiface.SSMAPI
 	kubeClient client.Client
 	ec2api     ec2iface.EC2API
+	cm         *pretty.ChangeMonitor
 }
 
 // Get returns a set of AMIIDs and corresponding instance types. AMI may vary due to architecture, accelerator, etc
@@ -89,7 +90,9 @@ func (p *AMIProvider) getDefaultAMIFromSSM(ctx context.Context, instanceType clo
 	}
 	ami := aws.StringValue(output.Parameter.Value)
 	p.ssmCache.SetDefault(ssmQuery, ami)
-	logging.FromContext(ctx).Debugf("Discovered %s for query %q", ami, ssmQuery)
+	if p.cm.HasChanged("ssmquery", ami+ssmQuery) {
+		logging.FromContext(ctx).Debugf("Discovered %s for query %q", ami, ssmQuery)
+	}
 	return ami, nil
 }
 
@@ -139,7 +142,9 @@ func (p *AMIProvider) fetchAMIsFromEC2(ctx context.Context, amiSelector map[stri
 	}
 	p.ec2Cache.SetDefault(fmt.Sprint(hash), output.Images)
 	amiIDs := lo.Map(output.Images, func(ami *ec2.Image, _ int) string { return *ami.ImageId })
-	logging.FromContext(ctx).Debugf("Discovered images: %s", amiIDs)
+	if p.cm.HasChanged("amiIDs", amiIDs) {
+		logging.FromContext(ctx).Debugf("Discovered images: %s", amiIDs)
+	}
 	return output.Images, nil
 }
 

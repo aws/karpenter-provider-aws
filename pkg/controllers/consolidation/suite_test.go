@@ -20,9 +20,13 @@ import (
 	"testing"
 	"time"
 
+	"math"
+	"sort"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider/fake"
 	"github.com/aws/karpenter/pkg/controllers/consolidation"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
@@ -55,8 +59,11 @@ var recorder *test.EventRecorder
 var nodeStateController *state.NodeController
 var fakeClock *clock.FakeClock
 var cfg *test.Config
+var onDemandInstances []cloudprovider.InstanceType
 var mostExpensiveInstance cloudprovider.InstanceType
+var mostExpensiveOffering cloudprovider.Offering
 var leastExpensiveInstance cloudprovider.InstanceType
+var leastExpensiveOffering cloudprovider.Offering
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -85,13 +92,22 @@ var _ = AfterSuite(func() {
 var _ = BeforeEach(func() {
 	cloudProvider.CreateCalls = nil
 	cloudProvider.InstanceTypes = fake.InstanceTypesAssorted()
-	mostExpensiveInstance = lo.MaxBy(cloudProvider.InstanceTypes, func(lhs, rhs cloudprovider.InstanceType) bool {
-		return lhs.Price() > rhs.Price()
+	onDemandInstances = lo.Filter(cloudProvider.InstanceTypes, func(i cloudprovider.InstanceType, _ int) bool {
+		for _, o := range cloudprovider.AvailableOfferings(i) {
+			if o.CapacityType == v1alpha1.CapacityTypeOnDemand {
+				return true
+			}
+		}
+		return false
 	})
-	// los MaxBy & MinBy functions are identical.  https://github.com/samber/lo/issues/129
-	leastExpensiveInstance = lo.MaxBy(cloudProvider.InstanceTypes, func(lhs, rhs cloudprovider.InstanceType) bool {
-		return lhs.Price() < rhs.Price()
+	// Sort the instances by pricing from low to high
+	sort.Slice(onDemandInstances, func(i, j int) bool {
+		return cheapestOffering(onDemandInstances[i].Offerings()).Price < cheapestOffering(onDemandInstances[j].Offerings()).Price
 	})
+	leastExpensiveInstance = onDemandInstances[0]
+	leastExpensiveOffering = leastExpensiveInstance.Offerings()[0]
+	mostExpensiveInstance = onDemandInstances[len(onDemandInstances)-1]
+	mostExpensiveOffering = mostExpensiveInstance.Offerings()[0]
 
 	recorder.Reset()
 	fakeClock.SetTime(time.Now())
@@ -195,6 +211,8 @@ var _ = Describe("Replace Nodes", func() {
 				Labels: map[string]string{
 					v1alpha5.ProvisionerNameLabelKey: prov.Name,
 					v1.LabelInstanceTypeStable:       mostExpensiveInstance.Name(),
+					v1alpha5.LabelCapacityType:       mostExpensiveOffering.CapacityType,
+					v1.LabelTopologyZone:             mostExpensiveOffering.Zone,
 				}},
 			Allocatable: map[v1.ResourceName]resource.Quantity{v1.ResourceCPU: resource.MustParse("32")}})
 
@@ -257,6 +275,8 @@ var _ = Describe("Replace Nodes", func() {
 				Labels: map[string]string{
 					v1alpha5.ProvisionerNameLabelKey: prov.Name,
 					v1.LabelInstanceTypeStable:       mostExpensiveInstance.Name(),
+					v1alpha5.LabelCapacityType:       mostExpensiveOffering.CapacityType,
+					v1.LabelTopologyZone:             mostExpensiveOffering.Zone,
 				}},
 			Allocatable: map[v1.ResourceName]resource.Quantity{
 				v1.ResourceCPU:  resource.MustParse("32"),
@@ -313,6 +333,8 @@ var _ = Describe("Replace Nodes", func() {
 				Labels: map[string]string{
 					v1alpha5.ProvisionerNameLabelKey: prov.Name,
 					v1.LabelInstanceTypeStable:       mostExpensiveInstance.Name(),
+					v1alpha5.LabelCapacityType:       mostExpensiveOffering.CapacityType,
+					v1.LabelTopologyZone:             mostExpensiveOffering.Zone,
 				}},
 			Allocatable: map[v1.ResourceName]resource.Quantity{
 				v1.ResourceCPU:  resource.MustParse("32"),
@@ -327,6 +349,8 @@ var _ = Describe("Replace Nodes", func() {
 				Labels: map[string]string{
 					v1alpha5.ProvisionerNameLabelKey: prov.Name,
 					v1.LabelInstanceTypeStable:       mostExpensiveInstance.Name(),
+					v1alpha5.LabelCapacityType:       mostExpensiveOffering.CapacityType,
+					v1.LabelTopologyZone:             mostExpensiveOffering.Zone,
 				}},
 			Allocatable: map[v1.ResourceName]resource.Quantity{
 				v1.ResourceCPU:  resource.MustParse("32"),
@@ -353,6 +377,191 @@ var _ = Describe("Replace Nodes", func() {
 		Expect(cloudProvider.CreateCalls).To(HaveLen(0))
 		// we should delete the non-annotated node
 		ExpectNotFound(ctx, env.Client, regularNode)
+	})
+	It("won't replace node if any spot replacement is more expensive", func() {
+		currentInstance := fake.NewInstanceType(fake.InstanceTypeOptions{
+			Name: "current-on-demand",
+			Offerings: []cloudprovider.Offering{
+				{
+					CapacityType: v1alpha1.CapacityTypeOnDemand,
+					Zone:         "test-zone-1a",
+					Price:        0.5,
+					Available:    false,
+				},
+			},
+		})
+		replacementInstance := fake.NewInstanceType(fake.InstanceTypeOptions{
+			Name: "potential-spot-replacement",
+			Offerings: []cloudprovider.Offering{
+				{
+					CapacityType: v1alpha1.CapacityTypeSpot,
+					Zone:         "test-zone-1a",
+					Price:        1.0,
+					Available:    true,
+				},
+				{
+					CapacityType: v1alpha1.CapacityTypeSpot,
+					Zone:         "test-zone-1b",
+					Price:        0.2,
+					Available:    true,
+				},
+				{
+					CapacityType: v1alpha1.CapacityTypeSpot,
+					Zone:         "test-zone-1c",
+					Price:        0.4,
+					Available:    true,
+				},
+			},
+		})
+		cloudProvider.InstanceTypes = []cloudprovider.InstanceType{
+			currentInstance,
+			replacementInstance,
+		}
+
+		labels := map[string]string{
+			"app": "test",
+		}
+		// create our RS so we can link a pod to it
+		rs := test.ReplicaSet()
+		ExpectApplied(ctx, env.Client, rs)
+		Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(rs), rs)).To(Succeed())
+
+		pod := test.Pod(test.PodOptions{
+			ObjectMeta: metav1.ObjectMeta{Labels: labels,
+				OwnerReferences: []metav1.OwnerReference{
+					{
+						APIVersion:         "apps/v1",
+						Kind:               "ReplicaSet",
+						Name:               rs.Name,
+						UID:                rs.UID,
+						Controller:         aws.Bool(true),
+						BlockOwnerDeletion: aws.Bool(true),
+					},
+				}}})
+
+		prov := test.Provisioner(test.ProvisionerOptions{Consolidation: &v1alpha5.Consolidation{Enabled: aws.Bool(true)}})
+		node := test.Node(test.NodeOptions{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					v1alpha5.ProvisionerNameLabelKey: prov.Name,
+					v1.LabelInstanceTypeStable:       currentInstance.Name(),
+					v1alpha5.LabelCapacityType:       currentInstance.Offerings()[0].CapacityType,
+					v1.LabelTopologyZone:             currentInstance.Offerings()[0].Zone,
+				}},
+			Allocatable: map[v1.ResourceName]resource.Quantity{v1.ResourceCPU: resource.MustParse("32")}})
+
+		ExpectApplied(ctx, env.Client, rs, pod, node, prov)
+		ExpectMakeNodesReady(ctx, env.Client, node)
+		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node))
+		ExpectManualBinding(ctx, env.Client, pod, node)
+		ExpectScheduled(ctx, env.Client, pod)
+		Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(node), node)).To(Succeed())
+
+		fakeClock.Step(10 * time.Minute)
+		controller.ProcessCluster(ctx)
+		Expect(cloudProvider.CreateCalls).To(HaveLen(0))
+		ExpectNodeExists(ctx, env.Client, node.Name)
+	})
+	It("won't replace on-demand node if on-demand replacement is more expensive", func() {
+		currentInstance := fake.NewInstanceType(fake.InstanceTypeOptions{
+			Name: "current-on-demand",
+			Offerings: []cloudprovider.Offering{
+				{
+					CapacityType: v1alpha1.CapacityTypeOnDemand,
+					Zone:         "test-zone-1a",
+					Price:        0.5,
+					Available:    false,
+				},
+			},
+		})
+		replacementInstance := fake.NewInstanceType(fake.InstanceTypeOptions{
+			Name: "on-demand-replacement",
+			Offerings: []cloudprovider.Offering{
+				{
+					CapacityType: v1alpha1.CapacityTypeOnDemand,
+					Zone:         "test-zone-1a",
+					Price:        0.6,
+					Available:    true,
+				},
+				{
+					CapacityType: v1alpha1.CapacityTypeOnDemand,
+					Zone:         "test-zone-1b",
+					Price:        0.6,
+					Available:    true,
+				},
+				{
+					CapacityType: v1alpha1.CapacityTypeSpot,
+					Zone:         "test-zone-1b",
+					Price:        0.2,
+					Available:    true,
+				},
+				{
+					CapacityType: v1alpha1.CapacityTypeSpot,
+					Zone:         "test-zone-1c",
+					Price:        0.3,
+					Available:    true,
+				},
+			},
+		})
+
+		cloudProvider.InstanceTypes = []cloudprovider.InstanceType{
+			currentInstance,
+			replacementInstance,
+		}
+
+		labels := map[string]string{
+			"app": "test",
+		}
+		// create our RS so we can link a pod to it
+		rs := test.ReplicaSet()
+		ExpectApplied(ctx, env.Client, rs)
+		Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(rs), rs)).To(Succeed())
+
+		pod := test.Pod(test.PodOptions{
+			ObjectMeta: metav1.ObjectMeta{Labels: labels,
+				OwnerReferences: []metav1.OwnerReference{
+					{
+						APIVersion:         "apps/v1",
+						Kind:               "ReplicaSet",
+						Name:               rs.Name,
+						UID:                rs.UID,
+						Controller:         aws.Bool(true),
+						BlockOwnerDeletion: aws.Bool(true),
+					},
+				}}})
+
+		// provisioner should require on-demand instance for this test case
+		prov := test.Provisioner(test.ProvisionerOptions{
+			Consolidation: &v1alpha5.Consolidation{Enabled: aws.Bool(true)},
+			Requirements: []v1.NodeSelectorRequirement{
+				{
+					Key:      v1alpha5.LabelCapacityType,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{v1alpha1.CapacityTypeOnDemand},
+				},
+			},
+		})
+		node := test.Node(test.NodeOptions{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					v1alpha5.ProvisionerNameLabelKey: prov.Name,
+					v1.LabelInstanceTypeStable:       currentInstance.Name(),
+					v1alpha5.LabelCapacityType:       currentInstance.Offerings()[0].CapacityType,
+					v1.LabelTopologyZone:             currentInstance.Offerings()[0].Zone,
+				}},
+			Allocatable: map[v1.ResourceName]resource.Quantity{v1.ResourceCPU: resource.MustParse("32")}})
+
+		ExpectApplied(ctx, env.Client, rs, pod, node, prov)
+		ExpectMakeNodesReady(ctx, env.Client, node)
+		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node))
+		ExpectManualBinding(ctx, env.Client, pod, node)
+		ExpectScheduled(ctx, env.Client, pod)
+		Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(node), node)).To(Succeed())
+
+		fakeClock.Step(10 * time.Minute)
+		controller.ProcessCluster(ctx)
+		Expect(cloudProvider.CreateCalls).To(HaveLen(0))
+		ExpectNodeExists(ctx, env.Client, node.Name)
 	})
 })
 
@@ -385,6 +594,8 @@ var _ = Describe("Delete Node", func() {
 				Labels: map[string]string{
 					v1alpha5.ProvisionerNameLabelKey: prov.Name,
 					v1.LabelInstanceTypeStable:       mostExpensiveInstance.Name(),
+					v1alpha5.LabelCapacityType:       mostExpensiveOffering.CapacityType,
+					v1.LabelTopologyZone:             mostExpensiveOffering.Zone,
 				}},
 			Allocatable: map[v1.ResourceName]resource.Quantity{
 				v1.ResourceCPU:  resource.MustParse("32"),
@@ -396,6 +607,8 @@ var _ = Describe("Delete Node", func() {
 				Labels: map[string]string{
 					v1alpha5.ProvisionerNameLabelKey: prov.Name,
 					v1.LabelInstanceTypeStable:       mostExpensiveInstance.Name(),
+					v1alpha5.LabelCapacityType:       mostExpensiveOffering.CapacityType,
+					v1.LabelTopologyZone:             mostExpensiveOffering.Zone,
 				}},
 			Allocatable: map[v1.ResourceName]resource.Quantity{
 				v1.ResourceCPU:  resource.MustParse("32"),
@@ -468,6 +681,8 @@ var _ = Describe("Delete Node", func() {
 				Labels: map[string]string{
 					v1alpha5.ProvisionerNameLabelKey: prov.Name,
 					v1.LabelInstanceTypeStable:       mostExpensiveInstance.Name(),
+					v1alpha5.LabelCapacityType:       mostExpensiveOffering.CapacityType,
+					v1.LabelTopologyZone:             mostExpensiveOffering.Zone,
 				}},
 			Allocatable: map[v1.ResourceName]resource.Quantity{
 				v1.ResourceCPU:  resource.MustParse("32"),
@@ -479,6 +694,8 @@ var _ = Describe("Delete Node", func() {
 				Labels: map[string]string{
 					v1alpha5.ProvisionerNameLabelKey: prov.Name,
 					v1.LabelInstanceTypeStable:       mostExpensiveInstance.Name(),
+					v1alpha5.LabelCapacityType:       mostExpensiveOffering.CapacityType,
+					v1.LabelTopologyZone:             mostExpensiveOffering.Zone,
 				}},
 			Allocatable: map[v1.ResourceName]resource.Quantity{
 				v1.ResourceCPU:  resource.MustParse("32"),
@@ -538,6 +755,8 @@ var _ = Describe("Delete Node", func() {
 				Labels: map[string]string{
 					v1alpha5.ProvisionerNameLabelKey: prov.Name,
 					v1.LabelInstanceTypeStable:       mostExpensiveInstance.Name(),
+					v1alpha5.LabelCapacityType:       mostExpensiveOffering.CapacityType,
+					v1.LabelTopologyZone:             mostExpensiveOffering.Zone,
 				}},
 			Allocatable: map[v1.ResourceName]resource.Quantity{
 				v1.ResourceCPU:  resource.MustParse("32"),
@@ -549,6 +768,8 @@ var _ = Describe("Delete Node", func() {
 				Labels: map[string]string{
 					v1alpha5.ProvisionerNameLabelKey: prov.Name,
 					v1.LabelInstanceTypeStable:       mostExpensiveInstance.Name(),
+					v1alpha5.LabelCapacityType:       mostExpensiveOffering.CapacityType,
+					v1.LabelTopologyZone:             mostExpensiveOffering.Zone,
 				}},
 			Allocatable: map[v1.ResourceName]resource.Quantity{
 				v1.ResourceCPU:  resource.MustParse("32"),
@@ -605,6 +826,8 @@ var _ = Describe("Delete Node", func() {
 				Labels: map[string]string{
 					v1alpha5.ProvisionerNameLabelKey: prov.Name,
 					v1.LabelInstanceTypeStable:       mostExpensiveInstance.Name(),
+					v1alpha5.LabelCapacityType:       mostExpensiveOffering.CapacityType,
+					v1.LabelTopologyZone:             mostExpensiveOffering.Zone,
 				}},
 			Allocatable: map[v1.ResourceName]resource.Quantity{
 				v1.ResourceCPU:  resource.MustParse("32"),
@@ -616,6 +839,8 @@ var _ = Describe("Delete Node", func() {
 				Labels: map[string]string{
 					v1alpha5.ProvisionerNameLabelKey: prov.Name,
 					v1.LabelInstanceTypeStable:       mostExpensiveInstance.Name(),
+					v1alpha5.LabelCapacityType:       mostExpensiveOffering.CapacityType,
+					v1.LabelTopologyZone:             mostExpensiveOffering.Zone,
 				}},
 			Allocatable: map[v1.ResourceName]resource.Quantity{
 				v1.ResourceCPU:  resource.MustParse("32"),
@@ -676,6 +901,8 @@ var _ = Describe("Node Lifetime Consideration", func() {
 				Labels: map[string]string{
 					v1alpha5.ProvisionerNameLabelKey: prov.Name,
 					v1.LabelInstanceTypeStable:       mostExpensiveInstance.Name(),
+					v1alpha5.LabelCapacityType:       mostExpensiveOffering.CapacityType,
+					v1.LabelTopologyZone:             mostExpensiveOffering.Zone,
 				}},
 			Allocatable: map[v1.ResourceName]resource.Quantity{
 				v1.ResourceCPU:  resource.MustParse("32"),
@@ -687,6 +914,8 @@ var _ = Describe("Node Lifetime Consideration", func() {
 				Labels: map[string]string{
 					v1alpha5.ProvisionerNameLabelKey: prov.Name,
 					v1.LabelInstanceTypeStable:       mostExpensiveInstance.Name(),
+					v1alpha5.LabelCapacityType:       mostExpensiveOffering.CapacityType,
+					v1.LabelTopologyZone:             mostExpensiveOffering.Zone,
 				}},
 			Allocatable: map[v1.ResourceName]resource.Quantity{
 				v1.ResourceCPU:  resource.MustParse("32"),
@@ -750,13 +979,18 @@ var _ = Describe("Topology Consideration", func() {
 					},
 				}}})
 
+		testZone1Instance := leastExpensiveInstanceWithZone("test-zone-1")
+		testZone2Instance := mostExpensiveInstanceWithZone("test-zone-2")
+		testZone3Instance := leastExpensiveInstanceWithZone("test-zone-3")
+
 		prov := test.Provisioner(test.ProvisionerOptions{Consolidation: &v1alpha5.Consolidation{Enabled: aws.Bool(true)}})
 		zone1Node := test.Node(test.NodeOptions{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{
 					v1alpha5.ProvisionerNameLabelKey: prov.Name,
 					v1.LabelTopologyZone:             "test-zone-1",
-					v1.LabelInstanceTypeStable:       leastExpensiveInstance.Name(),
+					v1.LabelInstanceTypeStable:       testZone1Instance.Name(),
+					v1alpha5.LabelCapacityType:       testZone1Instance.Offerings()[0].CapacityType,
 				}},
 			Allocatable: map[v1.ResourceName]resource.Quantity{v1.ResourceCPU: resource.MustParse("1")}})
 
@@ -765,7 +999,8 @@ var _ = Describe("Topology Consideration", func() {
 				Labels: map[string]string{
 					v1alpha5.ProvisionerNameLabelKey: prov.Name,
 					v1.LabelTopologyZone:             "test-zone-2",
-					v1.LabelInstanceTypeStable:       mostExpensiveInstance.Name(),
+					v1.LabelInstanceTypeStable:       testZone2Instance.Name(),
+					v1alpha5.LabelCapacityType:       testZone2Instance.Offerings()[0].CapacityType,
 				}},
 			Allocatable: map[v1.ResourceName]resource.Quantity{v1.ResourceCPU: resource.MustParse("1")}})
 
@@ -774,7 +1009,8 @@ var _ = Describe("Topology Consideration", func() {
 				Labels: map[string]string{
 					v1alpha5.ProvisionerNameLabelKey: prov.Name,
 					v1.LabelTopologyZone:             "test-zone-3",
-					v1.LabelInstanceTypeStable:       leastExpensiveInstance.Name(),
+					v1.LabelInstanceTypeStable:       testZone3Instance.Name(),
+					v1alpha5.LabelCapacityType:       testZone1Instance.Offerings()[0].CapacityType,
 				}},
 			Allocatable: map[v1.ResourceName]resource.Quantity{v1.ResourceCPU: resource.MustParse("1")}})
 
@@ -844,13 +1080,18 @@ var _ = Describe("Topology Consideration", func() {
 					},
 				}}})
 
+		testZone1Instance := leastExpensiveInstanceWithZone("test-zone-1")
+		testZone2Instance := leastExpensiveInstanceWithZone("test-zone-2")
+		testZone3Instance := leastExpensiveInstanceWithZone("test-zone-3")
+
 		prov := test.Provisioner(test.ProvisionerOptions{Consolidation: &v1alpha5.Consolidation{Enabled: aws.Bool(true)}})
 		zone1Node := test.Node(test.NodeOptions{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{
 					v1alpha5.ProvisionerNameLabelKey: prov.Name,
 					v1.LabelTopologyZone:             "test-zone-1",
-					v1.LabelInstanceTypeStable:       leastExpensiveInstance.Name(),
+					v1.LabelInstanceTypeStable:       testZone1Instance.Name(),
+					v1alpha5.LabelCapacityType:       testZone1Instance.Offerings()[0].CapacityType,
 				}},
 			Allocatable: map[v1.ResourceName]resource.Quantity{v1.ResourceCPU: resource.MustParse("1")}})
 
@@ -859,7 +1100,8 @@ var _ = Describe("Topology Consideration", func() {
 				Labels: map[string]string{
 					v1alpha5.ProvisionerNameLabelKey: prov.Name,
 					v1.LabelTopologyZone:             "test-zone-2",
-					v1.LabelInstanceTypeStable:       leastExpensiveInstance.Name(),
+					v1.LabelInstanceTypeStable:       testZone2Instance.Name(),
+					v1alpha5.LabelCapacityType:       testZone2Instance.Offerings()[0].CapacityType,
 				}},
 			Allocatable: map[v1.ResourceName]resource.Quantity{v1.ResourceCPU: resource.MustParse("1")}})
 
@@ -868,7 +1110,8 @@ var _ = Describe("Topology Consideration", func() {
 				Labels: map[string]string{
 					v1alpha5.ProvisionerNameLabelKey: prov.Name,
 					v1.LabelTopologyZone:             "test-zone-3",
-					v1.LabelInstanceTypeStable:       leastExpensiveInstance.Name(),
+					v1.LabelInstanceTypeStable:       testZone3Instance.Name(),
+					v1alpha5.LabelCapacityType:       testZone3Instance.Offerings()[0].CapacityType,
 				}},
 			Allocatable: map[v1.ResourceName]resource.Quantity{v1.ResourceCPU: resource.MustParse("1")}})
 
@@ -907,6 +1150,8 @@ var _ = Describe("Empty Nodes", func() {
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{
 					v1alpha5.ProvisionerNameLabelKey: prov.Name,
+					v1alpha5.LabelCapacityType:       mostExpensiveOffering.CapacityType,
+					v1.LabelTopologyZone:             mostExpensiveOffering.Zone,
 					v1.LabelInstanceTypeStable:       mostExpensiveInstance.Name(),
 					v1alpha5.LabelNodeInitialized:    "true",
 				},
@@ -936,6 +1181,8 @@ var _ = Describe("Empty Nodes", func() {
 				Labels: map[string]string{
 					v1alpha5.ProvisionerNameLabelKey: prov.Name,
 					v1.LabelInstanceTypeStable:       mostExpensiveInstance.Name(),
+					v1alpha5.LabelCapacityType:       mostExpensiveOffering.CapacityType,
+					v1.LabelTopologyZone:             mostExpensiveOffering.Zone,
 				}},
 			Allocatable: map[v1.ResourceName]resource.Quantity{
 				v1.ResourceCPU:  resource.MustParse("32"),
@@ -946,6 +1193,8 @@ var _ = Describe("Empty Nodes", func() {
 				Labels: map[string]string{
 					v1alpha5.ProvisionerNameLabelKey: prov.Name,
 					v1.LabelInstanceTypeStable:       mostExpensiveInstance.Name(),
+					v1alpha5.LabelCapacityType:       mostExpensiveOffering.CapacityType,
+					v1.LabelTopologyZone:             mostExpensiveOffering.Zone,
 				}},
 			Allocatable: map[v1.ResourceName]resource.Quantity{
 				v1.ResourceCPU:  resource.MustParse("32"),
@@ -978,6 +1227,8 @@ var _ = Describe("Special Cases", func() {
 				Labels: map[string]string{
 					v1alpha5.ProvisionerNameLabelKey: prov.Name,
 					v1.LabelInstanceTypeStable:       mostExpensiveInstance.Name(),
+					v1alpha5.LabelCapacityType:       mostExpensiveOffering.CapacityType,
+					v1.LabelTopologyZone:             mostExpensiveOffering.Zone,
 				},
 			},
 			Allocatable: map[v1.ResourceName]resource.Quantity{
@@ -990,6 +1241,8 @@ var _ = Describe("Special Cases", func() {
 				Labels: map[string]string{
 					v1alpha5.ProvisionerNameLabelKey: prov.Name,
 					v1.LabelInstanceTypeStable:       mostExpensiveInstance.Name(),
+					v1alpha5.LabelCapacityType:       mostExpensiveOffering.CapacityType,
+					v1.LabelTopologyZone:             mostExpensiveOffering.Zone,
 					v1alpha5.LabelNodeInitialized:    "true",
 				},
 			},
@@ -1013,6 +1266,36 @@ var _ = Describe("Special Cases", func() {
 	})
 })
 
+func leastExpensiveInstanceWithZone(zone string) cloudprovider.InstanceType {
+	for _, elem := range onDemandInstances {
+		if hasZone(elem.Offerings(), zone) {
+			return elem
+		}
+	}
+	return onDemandInstances[len(onDemandInstances)-1]
+}
+
+func mostExpensiveInstanceWithZone(zone string) cloudprovider.InstanceType {
+	for i := len(onDemandInstances) - 1; i >= 0; i-- {
+		elem := onDemandInstances[i]
+		if hasZone(elem.Offerings(), zone) {
+			return elem
+		}
+	}
+	return onDemandInstances[0]
+}
+
+// hasZone checks whether any of the passed offerings have a zone matching
+// the passed zone
+func hasZone(ofs []cloudprovider.Offering, zone string) bool {
+	for _, elem := range ofs {
+		if elem.Zone == zone {
+			return true
+		}
+	}
+	return false
+}
+
 func fromInt(i int) *intstr.IntOrString {
 	v := intstr.FromInt(i)
 	return &v
@@ -1028,7 +1311,7 @@ func ExpectMakeNewNodesReady(ctx context.Context, client client.Client, numNewNo
 	go func() {
 		defer GinkgoRecover()
 		wg.Add(1)
-		defer wg.Add(-1)
+		defer wg.Done()
 		start := time.Now()
 		for {
 			select {
@@ -1081,4 +1364,15 @@ func ExpectMakeNodesReady(ctx context.Context, c client.Client, nodes ...*v1.Nod
 		n.Spec.Taints = nil
 		ExpectApplied(ctx, c, &n)
 	}
+}
+
+// cheapestOffering grabs the cheapest offering from the passed offerings
+func cheapestOffering(ofs []cloudprovider.Offering) cloudprovider.Offering {
+	offering := cloudprovider.Offering{Price: math.MaxFloat64}
+	for _, of := range ofs {
+		if of.Price < offering.Price {
+			offering = of
+		}
+	}
+	return offering
 }

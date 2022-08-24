@@ -20,9 +20,9 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/samber/lo"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injection"
 )
 
@@ -33,7 +33,7 @@ func MergeTags(ctx context.Context, custom ...map[string]string) (result []*ec2.
 	}
 	// Custom tags may override defaults (e.g. Name)
 	for _, t := range custom {
-		tags = functional.UnionStringMaps(tags, t)
+		tags = lo.Assign(tags, t)
 	}
 	for key, value := range tags {
 		result = append(result, &ec2.Tag{Key: aws.String(key), Value: aws.String(value)})

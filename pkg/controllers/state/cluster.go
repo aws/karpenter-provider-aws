@@ -17,6 +17,7 @@ package state
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -511,4 +512,11 @@ func (c *Cluster) Synchronized(ctx context.Context) error {
 
 func (c *Cluster) recordConsolidationChange() {
 	atomic.StoreInt64(&c.consolidationState, c.clock.Now().UnixMilli())
+}
+
+func (c *Cluster) LivenessProbe(req *http.Request) error {
+	c.mu.Lock()
+	//nolint: staticcheck
+	c.mu.Unlock()
+	return nil
 }

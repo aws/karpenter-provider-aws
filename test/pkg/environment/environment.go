@@ -51,8 +51,6 @@ func NewEnvironment(t *testing.T) (*Environment, error) {
 	}
 	gomega.SetDefaultEventuallyTimeout(5 * time.Minute)
 	gomega.SetDefaultEventuallyPollingInterval(1 * time.Second)
-	// GinkgoConfiguration()
-	// ginkgoconfig.GinkgoConfiguration().Verbose = true
 	session := session.Must(session.NewSessionWithOptions(session.Options{SharedConfigState: session.SharedConfigEnable}))
 
 	return &Environment{Context: ctx,

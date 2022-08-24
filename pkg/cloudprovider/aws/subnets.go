@@ -17,6 +17,7 @@ package aws
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -35,11 +36,13 @@ type SubnetProvider struct {
 	sync.Mutex
 	ec2api ec2iface.EC2API
 	cache  *cache.Cache
+	cm     *pretty.ChangeMonitor
 }
 
 func NewSubnetProvider(ec2api ec2iface.EC2API) *SubnetProvider {
 	return &SubnetProvider{
 		ec2api: ec2api,
+		cm:     pretty.NewChangeMonitor(),
 		cache:  cache.New(CacheTTL, CacheCleanupInterval),
 	}
 }
@@ -63,8 +66,18 @@ func (p *SubnetProvider) Get(ctx context.Context, provider *v1alpha1.AWS) ([]*ec
 		return nil, fmt.Errorf("no subnets matched selector %v", provider.SubnetSelector)
 	}
 	p.cache.SetDefault(fmt.Sprint(hash), output.Subnets)
-	logging.FromContext(ctx).Debugf("Discovered subnets: %s", prettySubnets(output.Subnets))
+	subnetLog := prettySubnets(output.Subnets)
+	if p.cm.HasChanged("subnets", subnetLog) {
+		logging.FromContext(ctx).Debugf("Discovered subnets: %s", subnetLog)
+	}
 	return output.Subnets, nil
+}
+
+func (p *SubnetProvider) LivenessProbe(req *http.Request) error {
+	p.Lock()
+	//nolint: staticcheck
+	p.Unlock()
+	return nil
 }
 
 func getFilters(provider *v1alpha1.AWS) []*ec2.Filter {

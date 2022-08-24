@@ -59,7 +59,7 @@ func (c *CloudProvider) Create(ctx context.Context, nodeRequest *cloudprovider.N
 		}
 	}
 	// Find Offering
-	for _, o := range instanceType.Offerings() {
+	for _, o := range cloudprovider.AvailableOfferings(instanceType) {
 		if nodeRequest.Template.Requirements.Compatible(scheduling.NewRequirements(
 			scheduling.NewRequirement(v1.LabelTopologyZone, v1.NodeSelectorOpIn, o.Zone),
 			scheduling.NewRequirement(v1alpha5.LabelCapacityType, v1.NodeSelectorOpIn, o.CapacityType),
