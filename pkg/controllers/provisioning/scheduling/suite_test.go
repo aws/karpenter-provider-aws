@@ -2845,8 +2845,8 @@ var _ = Describe("Taints", func() {
 		node := ExpectScheduled(ctx, env.Client, pod)
 		Expect(node.Spec.Taints).To(HaveLen(1)) // Expect no taints generated beyond the default
 	})
-	Context("Wildcard/Optional Taints", func() {
-		It("should generate taint values when provisioner taint is flexible", func() {
+	Context("Dynamic Taints", func() {
+		It("should generate taint values when provisioner taint is dynamic", func() {
 			provisioner.Spec.Taints = []v1.Taint{{Key: "team-name", Effect: v1.TaintEffectNoSchedule, Value: "*"}}
 			ExpectApplied(ctx, env.Client, provisioner)
 			pod := ExpectProvisioned(ctx, env.Client, controller,
@@ -2934,6 +2934,30 @@ var _ = Describe("Taints", func() {
 				Key:    "team-name",
 				Effect: v1.TaintEffectNoSchedule,
 				Value:  "team-b",
+			}))
+		})
+		It("should handle a pod having a toleration with no operator and no value specified (defaulting to Equal and empty string)", func() {
+			provisioner.Spec.Taints = []v1.Taint{{Key: "team-name", Effect: v1.TaintEffectNoSchedule, Value: "*"}}
+			ExpectApplied(ctx, env.Client, provisioner)
+			pods := []*v1.Pod{
+				test.UnschedulablePod(
+					test.PodOptions{Tolerations: []v1.Toleration{{Key: "team-name", Effect: v1.TaintEffectNoSchedule, Operator: v1.TolerationOpExists}}},
+				),
+				test.UnschedulablePod(
+					test.PodOptions{Tolerations: []v1.Toleration{{Key: "team-name", Effect: v1.TaintEffectNoSchedule}}},
+				),
+			}
+			nodeNames := sets.NewString()
+			for _, p := range ExpectProvisioned(ctx, env.Client, controller, pods...) {
+				node := ExpectScheduled(ctx, env.Client, p)
+				nodeNames.Insert(node.Name)
+			}
+			Expect(len(nodeNames)).To(Equal(1))
+			node := ExpectScheduled(ctx, env.Client, pods[0])
+			Expect(node.Spec.Taints).To(ContainElement(v1.Taint{
+				Key:    "team-name",
+				Effect: v1.TaintEffectNoSchedule,
+				Value:  "",
 			}))
 		})
 	})

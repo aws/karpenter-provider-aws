@@ -33,7 +33,7 @@ type NodeTemplate struct {
 	Labels               map[string]string
 	Taints               Taints
 	StartupTaints        Taints
-	OptionalTaints       Taints
+	DynamicTaints        Taints
 	Requirements         Requirements
 	KubeletConfiguration *v1alpha5.KubeletConfiguration
 }
@@ -51,7 +51,7 @@ func NewNodeTemplate(provisioner *v1alpha5.Provisioner) *NodeTemplate {
 		Labels:               labels,
 		Taints:               lo.Filter(provisioner.Spec.Taints, func(t v1.Taint, _ int) bool { return t.Value != "*" }),
 		StartupTaints:        provisioner.Spec.StartupTaints,
-		OptionalTaints:       lo.Filter(provisioner.Spec.Taints, func(t v1.Taint, _ int) bool { return t.Value == "*" }),
+		DynamicTaints:        lo.Filter(provisioner.Spec.Taints, func(t v1.Taint, _ int) bool { return t.Value == "*" }),
 		Requirements:         requirements,
 	}
 }

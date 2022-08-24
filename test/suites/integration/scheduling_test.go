@@ -3,10 +3,6 @@ package integration_test
 import (
 	"fmt"
 
-	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
-	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/test"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
@@ -14,6 +10,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"knative.dev/pkg/ptr"
+
+	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/test"
 )
 
 var _ = Describe("Scheduling", func() {
@@ -183,5 +184,110 @@ var _ = Describe("Scheduling", func() {
 		env.ExpectCreatedNodeCount("==", 1)
 		Expect(ptr.StringValue(env.GetInstance(pod.Spec.NodeName).InstanceType)).To(Equal("c4.large"))
 		Expect(env.GetNode(pod.Spec.NodeName).Labels[v1alpha5.ProvisionerNameLabelKey]).To(Equal(provisionerHighPri.Name))
+	})
+	Context("Dynamic Taints", func() {
+		It("should provision a node with flexible taints from pod tolerations", func() {
+			provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
+				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
+				SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
+			}})
+			provisioner := test.Provisioner(test.ProvisionerOptions{
+				ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
+				Taints: []v1.Taint{
+					{
+						Key:    "example.com/team-name",
+						Effect: v1.TaintEffectNoSchedule,
+						Value:  v1alpha5.TaintWildcardValue,
+					},
+					{
+						Key:    "example.com/product",
+						Effect: v1.TaintEffectNoSchedule,
+						Value:  v1alpha5.TaintWildcardValue,
+					},
+					{
+						Key:    "example.com/service",
+						Effect: v1.TaintEffectNoSchedule,
+						Value:  v1alpha5.TaintWildcardValue,
+					},
+				},
+			})
+			pod := test.Pod(test.PodOptions{
+				Tolerations: []v1.Toleration{
+					{
+						Key:      "example.com/team-name",
+						Operator: v1.TolerationOpEqual,
+						Value:    "team-a",
+					},
+					{
+						Key:      "example.com/product",
+						Operator: v1.TolerationOpEqual,
+						Value:    "product-6",
+					},
+					{
+						Key:      "example.com/service",
+						Operator: v1.TolerationOpEqual,
+						Value:    "service-2",
+					},
+				},
+			})
+
+			env.ExpectCreated(provisioner, provider, pod)
+			env.EventuallyExpectHealthy(pod)
+			env.ExpectCreatedNodeCount("==", 1)
+			node := env.GetNode(pod.Spec.NodeName)
+			Expect(node.Spec.Taints).To(ContainElements(
+				v1.Taint{Key: "example.com/team-name", Effect: v1.TaintEffectNoSchedule, Value: "team-a"},
+				v1.Taint{Key: "example.com/product", Effect: v1.TaintEffectNoSchedule, Value: "product-6"},
+				v1.Taint{Key: "example.com/service", Effect: v1.TaintEffectNoSchedule, Value: "service-2"},
+			))
+		})
+		It("should provision a node with a subset of taints and support the Exists operator", func() {
+			provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
+				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
+				SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
+			}})
+			provisioner := test.Provisioner(test.ProvisionerOptions{
+				ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
+				Taints: []v1.Taint{
+					{
+						Key:    "example.com/team-name",
+						Effect: v1.TaintEffectNoSchedule,
+						Value:  v1alpha5.TaintWildcardValue,
+					},
+					{
+						Key:    "example.com/product",
+						Effect: v1.TaintEffectNoSchedule,
+						Value:  v1alpha5.TaintWildcardValue,
+					},
+					{
+						Key:    "example.com/service",
+						Effect: v1.TaintEffectNoSchedule,
+						Value:  v1alpha5.TaintWildcardValue,
+					},
+				},
+			})
+			pod := test.Pod(test.PodOptions{
+				Tolerations: []v1.Toleration{
+					{
+						Key:      "example.com/team-name",
+						Operator: v1.TolerationOpEqual,
+						Value:    "team-a",
+					},
+					{
+						Key:      "example.com/product",
+						Operator: v1.TolerationOpExists,
+					},
+				},
+			})
+
+			env.ExpectCreated(provisioner, provider, pod)
+			env.EventuallyExpectHealthy(pod)
+			env.ExpectCreatedNodeCount("==", 1)
+			node := env.GetNode(pod.Spec.NodeName)
+			Expect(node.Spec.Taints).To(ContainElements(
+				v1.Taint{Key: "example.com/team-name", Effect: v1.TaintEffectNoSchedule, Value: "team-a"},
+				v1.Taint{Key: "example.com/product", Effect: v1.TaintEffectNoSchedule, Value: ""},
+			))
+		})
 	})
 })

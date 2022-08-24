@@ -140,7 +140,7 @@ func (n *Node) constrainExistingTaints(pod *v1.Pod) {
 		taint := n.Taints[i]
 		if taint.Value == v1alpha5.TaintWildcardValue {
 			for _, t := range pod.Spec.Tolerations {
-				if t.Key == taint.Key && t.Operator == v1.TolerationOpEqual && (t.Effect == "" || t.Effect == taint.Effect) {
+				if t.Key == taint.Key && (t.Operator == "" || t.Operator == v1.TolerationOpEqual) && (t.Effect == "" || t.Effect == taint.Effect) {
 					n.Taints[i].Value = t.Value
 					break
 				}
@@ -156,7 +156,7 @@ func (n *Node) constrainExistingTaints(pod *v1.Pod) {
 // taint with an unconstrained value
 func (n *Node) constrainOptionalTaints(pod *v1.Pod) {
 	var updatedOptionalTaints []v1.Taint
-	for i, taint := range n.OptionalTaints {
+	for i, taint := range n.DynamicTaints {
 		addedTaint := false
 
 		relevantTolerations := lo.Filter(pod.Spec.Tolerations, func(t v1.Toleration, _ int) bool {
@@ -189,12 +189,12 @@ func (n *Node) constrainOptionalTaints(pod *v1.Pod) {
 			}
 		}
 		if !addedTaint {
-			updatedOptionalTaints = append(updatedOptionalTaints, n.OptionalTaints[i])
+			updatedOptionalTaints = append(updatedOptionalTaints, n.DynamicTaints[i])
 		}
 	}
 	// Finally update the optional taints with the remaining ones that weren't added as
 	// required taints to the node template
-	n.OptionalTaints = updatedOptionalTaints
+	n.DynamicTaints = updatedOptionalTaints
 }
 
 func InstanceTypeList(instanceTypeOptions []cloudprovider.InstanceType) string {
