@@ -149,6 +149,7 @@ func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options)
 		provisioning.NewController(manager.GetClient(), provisioner, recorder),
 		state.NewNodeController(manager.GetClient(), cluster),
 		state.NewPodController(manager.GetClient(), cluster),
+		state.NewProvisionerController(manager.GetClient(), cluster),
 		node.NewController(realClock, manager.GetClient(), cloudProvider, cluster),
 		termination.NewController(ctx, realClock, manager.GetClient(), clientSet.CoreV1(), recorder, cloudProvider),
 		metricspod.NewController(manager.GetClient()),

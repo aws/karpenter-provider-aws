@@ -22,25 +22,28 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/util/clock"
+	"knative.dev/pkg/ptr"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 
 	"github.com/aws/karpenter/pkg/cloudprovider/fake"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/karpenter/pkg/controllers/state"
-	"github.com/aws/karpenter/pkg/utils/resources"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/aws/karpenter/pkg/controllers/state"
+	"github.com/aws/karpenter/pkg/utils/resources"
+
 	"github.com/aws/karpenter/pkg/test"
 
-	. "github.com/aws/karpenter/pkg/test/expectations"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
+
+	. "github.com/aws/karpenter/pkg/test/expectations"
 )
 
 var ctx context.Context
@@ -50,6 +53,7 @@ var fakeClock *clock.FakeClock
 var cluster *state.Cluster
 var nodeController *state.NodeController
 var podController *state.PodController
+var provisionerController *state.ProvisionerController
 var cloudProvider *fake.CloudProvider
 var provisioner *v1alpha5.Provisioner
 
@@ -75,6 +79,7 @@ var _ = BeforeEach(func() {
 	cluster = state.NewCluster(fakeClock, cfg, env.Client, cloudProvider)
 	nodeController = state.NewNodeController(env.Client, cluster)
 	podController = state.NewPodController(env.Client, cluster)
+	provisionerController = state.NewProvisionerController(env.Client, cluster)
 	provisioner = test.Provisioner(test.ProvisionerOptions{ObjectMeta: metav1.ObjectMeta{Name: "default"}})
 	ExpectApplied(ctx, env.Client, provisioner)
 })
@@ -677,6 +682,18 @@ var _ = Describe("Pod Anti-Affinity", func() {
 			return true
 		})
 		Expect(foundPodCount).To(BeNumerically("==", 0))
+	})
+})
+
+var _ = Describe("Provisioner Spec Updates", func() {
+	It("should cause consolidation state to change when a provisioner is updated", func() {
+		oldConsolidationState := cluster.ClusterConsolidationState()
+		fakeClock.Step(time.Minute)
+		provisioner.Spec.Consolidation = &v1alpha5.Consolidation{Enabled: ptr.Bool(true)}
+		ExpectApplied(ctx, env.Client, provisioner)
+		ExpectReconcileSucceeded(ctx, provisionerController, client.ObjectKeyFromObject(provisioner))
+
+		Expect(oldConsolidationState).To(BeNumerically("<", cluster.ClusterConsolidationState()))
 	})
 })
 
