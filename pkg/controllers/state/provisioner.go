@@ -30,7 +30,7 @@ import (
 
 const provisionerControllerName = "provisioner-state"
 
-// ProvisionerController reconciles pods for the purpose of maintaining state regarding pods that is expensive to compute.
+// ProvisionerController reconciles provisioners to re-trigger consolidation on change.
 type ProvisionerController struct {
 	kubeClient client.Client
 	cluster    *Cluster
@@ -54,14 +54,8 @@ func (c *ProvisionerController) Register(ctx context.Context, m manager.Manager)
 		NewControllerManagedBy(m).
 		Named(provisionerControllerName).
 		WithOptions(controller.Options{MaxConcurrentReconciles: 10}).
-		WithEventFilter(predicate.Funcs{
-			UpdateFunc: func(e event.UpdateEvent) bool {
-				return e.ObjectNew.GetGeneration() != e.ObjectOld.GetGeneration()
-			},
-			DeleteFunc: func(_ event.DeleteEvent) bool {
-				return false
-			},
-		}).
+		WithEventFilter(predicate.GenerationChangedPredicate{}).
+		WithEventFilter(predicate.Funcs{DeleteFunc: func(event event.DeleteEvent) bool { return false }}).
 		For(&v1alpha5.Provisioner{}).
 		Complete(c)
 }
