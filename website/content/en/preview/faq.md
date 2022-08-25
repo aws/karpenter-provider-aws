@@ -39,7 +39,7 @@ Yes, as long as the controller has network and IAM/RBAC access to the Kubernetes
 ## Compatibility
 
 ### Which versions of Kubernetes does Karpenter support?
-Karpenter is tested with Kubernetes v1.19 and later.
+Karpenter is tested with Kubernetes v1.20 and later.
 
 ### What Kubernetes distributions are supported?
 Karpenter documents integration with a fresh install of the latest AWS Elastic Kubernetes Service (EKS).
