@@ -238,9 +238,9 @@ var _ = Describe("Consolidation", func() {
 					Values:   []string{"on-demand"},
 				},
 				{
-					Key:      v1.LabelInstanceTypeStable,
+					Key:      awsv1alpha1.LabelInstanceSize,
 					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{"c4.large"},
+					Values:   []string{"large"},
 				},
 			},
 			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
@@ -292,9 +292,9 @@ var _ = Describe("Consolidation", func() {
 				Values:   []string{"on-demand", "spot"},
 			},
 			{
-				Key:      v1.LabelInstanceTypeStable,
+				Key:      awsv1alpha1.LabelInstanceSize,
 				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{"c4.large"},
+				Values:   []string{"large"},
 			},
 		}
 		env.ExpectUpdate(provisioner)
