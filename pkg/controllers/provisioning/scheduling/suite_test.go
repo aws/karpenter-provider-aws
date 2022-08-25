@@ -2960,6 +2960,46 @@ var _ = Describe("Taints", func() {
 				Value:  "",
 			}))
 		})
+		It("should handle a generic pod and another pod with tolerations", func() {
+			provisioner.Spec.Taints = []v1.Taint{{Key: "team-name", Effect: v1.TaintEffectNoSchedule, Value: "*"}}
+			ExpectApplied(ctx, env.Client, provisioner)
+			pods := []*v1.Pod{
+				test.UnschedulablePod(),
+				test.UnschedulablePod(
+					test.PodOptions{Tolerations: []v1.Toleration{{Key: "team-name", Effect: v1.TaintEffectNoSchedule, Value: "team-a"}}},
+				),
+			}
+			nodeNames := sets.NewString()
+			for _, p := range ExpectProvisioned(ctx, env.Client, controller, pods...) {
+				node := ExpectScheduled(ctx, env.Client, p)
+				nodeNames.Insert(node.Name)
+			}
+			Expect(len(nodeNames)).To(BeNumerically("<=", 2))
+		})
+		It("should schedule to one node with two pods where one tolerates all taints", func() {
+			provisioner.Spec.Taints = []v1.Taint{{Key: "team-name", Effect: v1.TaintEffectNoSchedule, Value: "*"}}
+			ExpectApplied(ctx, env.Client, provisioner)
+			pods := []*v1.Pod{
+				test.UnschedulablePod(
+					test.PodOptions{Tolerations: []v1.Toleration{{Operator: v1.TolerationOpExists}}},
+				),
+				test.UnschedulablePod(
+					test.PodOptions{Tolerations: []v1.Toleration{{Key: "team-name", Effect: v1.TaintEffectNoSchedule, Value: "team-a"}}},
+				),
+			}
+			nodeNames := sets.NewString()
+			for _, p := range ExpectProvisioned(ctx, env.Client, controller, pods...) {
+				node := ExpectScheduled(ctx, env.Client, p)
+				nodeNames.Insert(node.Name)
+			}
+			Expect(len(nodeNames)).To(Equal(1))
+			node := ExpectScheduled(ctx, env.Client, pods[0])
+			Expect(node.Spec.Taints).To(ContainElement(v1.Taint{
+				Key:    "team-name",
+				Effect: v1.TaintEffectNoSchedule,
+				Value:  "team-a",
+			}))
+		})
 	})
 })
 

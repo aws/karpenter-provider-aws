@@ -67,7 +67,7 @@ func (n *Node) Add(ctx context.Context, pod *v1.Pod) error {
 		return err
 	}
 	n.constrainExistingTaints(pod)
-	n.constrainOptionalTaints(pod)
+	n.constrainDynamicTaints(pod)
 
 	// exposed host ports on the node
 	if err := n.hostPortUsage.Validate(pod); err != nil {
@@ -149,16 +149,14 @@ func (n *Node) constrainExistingTaints(pod *v1.Pod) {
 	}
 }
 
-// constrainOptionalTaints add required taints to the node template when we find a toleration on
+// constrainDynamicTaints add required taints to the node template when we find a toleration on
 // a pod that has the matching key and effect for the wildcard taint. In this case, we do one of two things:
 // 1. If the pod has any toleration with operator=Equal, we match the taint to that value
 // 2. If the pod has no tolerations with operator=Equal but has a toleration with operator=Exists, we add the
 // taint with an unconstrained value
-func (n *Node) constrainOptionalTaints(pod *v1.Pod) {
-	var updatedOptionalTaints []v1.Taint
-	for i, taint := range n.DynamicTaints {
-		addedTaint := false
-
+func (n *Node) constrainDynamicTaints(pod *v1.Pod) {
+	var updatedDynamicTaints []v1.Taint
+	for _, taint := range n.DynamicTaints {
 		relevantTolerations := lo.Filter(pod.Spec.Tolerations, func(t v1.Toleration, _ int) bool {
 			return t.Key == taint.Key && (t.Effect == taint.Effect || t.Effect == "")
 		})
@@ -166,35 +164,28 @@ func (n *Node) constrainOptionalTaints(pod *v1.Pod) {
 			equalTolerations := lo.Filter(relevantTolerations, func(t v1.Toleration, _ int) bool {
 				return t.Operator == v1.TolerationOpEqual || t.Operator == ""
 			})
-			// If we have a toleration that matches the flexible taint, then we constrain it
+			// If we have a toleration that matches the flexible taint, then we constrain it with the value
+			// We pick the first value that we see that matches the taint key and operator
 			if len(equalTolerations) > 0 {
 				n.Taints = append(n.Taints, v1.Taint{
 					Key:    taint.Key,
 					Effect: taint.Effect,
 					Value:  equalTolerations[0].Value,
 				})
-				addedTaint = true
 			} else {
-				existsTolerations := lo.Filter(relevantTolerations, func(t v1.Toleration, _ int) bool {
-					return t.Operator == v1.TolerationOpExists
+				n.Taints = append(n.Taints, v1.Taint{
+					Key:    taint.Key,
+					Effect: taint.Effect,
+					Value:  v1alpha5.TaintWildcardValue,
 				})
-				if len(existsTolerations) > 0 {
-					n.Taints = append(n.Taints, v1.Taint{
-						Key:    taint.Key,
-						Effect: taint.Effect,
-						Value:  v1alpha5.TaintWildcardValue,
-					})
-					addedTaint = true
-				}
 			}
-		}
-		if !addedTaint {
-			updatedOptionalTaints = append(updatedOptionalTaints, n.DynamicTaints[i])
+		} else if scheduling.Taint(taint).Tolerates(pod) {
+			// Basically, if there is something like an empty key toleration that allows the pod to tolerate this taint
+			// but it doesn't directly match the key, we can leave it in the dynamic taints list
+			updatedDynamicTaints = append(updatedDynamicTaints, taint)
 		}
 	}
-	// Finally update the optional taints with the remaining ones that weren't added as
-	// required taints to the node template
-	n.DynamicTaints = updatedOptionalTaints
+	n.DynamicTaints = updatedDynamicTaints
 }
 
 func InstanceTypeList(instanceTypeOptions []cloudprovider.InstanceType) string {
