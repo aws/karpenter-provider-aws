@@ -55,8 +55,8 @@ type Options struct {
 }
 
 // New creates an Options struct and registers CLI flags and environment variables to fill-in the Options struct fields
-func New() Options {
-	opts := Options{}
+func New() *Options {
+	opts := &Options{}
 	f := flag.NewFlagSet("karpenter", flag.ContinueOnError)
 	opts.FlagSet = f
 
@@ -82,7 +82,7 @@ func New() Options {
 
 // MustParse reads the user passed flags, environment variables, and default values.
 // Options are valided and panics if an error is returned
-func (o Options) MustParse() Options {
+func (o *Options) MustParse() *Options {
 	err := o.Parse(os.Args[1:])
 
 	if errors.Is(err, flag.ErrHelp) {
