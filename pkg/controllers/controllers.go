@@ -96,7 +96,7 @@ func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options)
 	cmw := informer.NewInformedWatcher(clientSet, system.Namespace())
 	ctx := LoggingContextOrDie(controllerRuntimeConfig, cmw)
 	ctx = injection.WithConfig(ctx, controllerRuntimeConfig)
-	ctx = injection.WithOptions(ctx, opts)
+	ctx = injection.WithOptions(ctx, *opts)
 
 	logging.FromContext(ctx).Infof("Initializing with version %s", project.Version)
 
