@@ -27,6 +27,7 @@ Constraints you can request include:
 * **Node affinity**: Draws a pod to run on nodes with particular attributes (affinity).
 * **Topology spread**: Use topology spread to help ensure availability of the application.
 * **Pod affinity/anti-affinity**: Draws pods towards or away from topology domains based on the scheduling of other pods.
+* **Taints/Tolerations**: Disallow pods from scheduling on a node unless they contain explicit permission to do so (tolerations).
 
 Karpenter supports standard Kubernetes scheduling constraints.
 This allows you to define a single set of rules that apply to both existing and provisioned capacity.
@@ -187,7 +188,7 @@ If they all fail, Karpenter will fail to provision the pod.
 Karpenter will backoff and retry over time.
 So if capacity becomes available, it will schedule the pod without user intervention.
 
-## Taints and tolerations
+## Taints and Tolerations
 
 Taints are the opposite of affinity.
 Setting a taint on a node tells the scheduler to not run a pod on it unless the pod has explicitly said it can tolerate that taint.
@@ -232,6 +233,257 @@ spec:
     operator: "Exists"
     effect: "NoSchedule"
 ```
+
+### Dynamic Taints
+
+Karpenter supports the notion of dynamic taints, where your pod's tolerations can control the taints that are generated
+onto a given node. Dynamic taints are specified by setting the `value` of taint to the wildcard character `*`. 
+
+```yaml
+apiVersion: karpenter.sh/v1alpha5
+kind: Provisioner
+metadata:
+  name: 
+spec:
+  requirements:
+  - key: karpenter.sh/capacity-type
+    operator: In
+    values: ["spot", "on-demand"]
+  taints:
+  - key: example.com/team-name
+    value: *
+    effect: "NoSchedule"
+```
+
+When specifying a dynamic taint, Karpenter will only generate the dynamic taint onto a node when it knows that the pods that will schedule to that node can tolerate it. This means if a pod has a toleration with a matching key to the dynamic taint, the generated node for that pod will contain the same taint value. Likewise, if a pod cannot support a taint that contains a wildcard value, no toleration with that key will be generated onto the node that pod is scheduled to.
+
+__Pending Pod__
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-pod
+spec:
+  ...
+  tolerations:
+  - key: "example.com/team-name"
+    operator: "Equal"
+    effect: "NoSchedule"
+    value: "team-a"
+```
+
+__Generated Node__
+
+```yaml
+apiVersion: v1
+kind: Node
+metadata:
+  name: generated-node
+spec:
+  taints:
+  - key: "example.com/team-name"
+    effect: "NoSchedule"
+    value: "team-a"
+...
+```
+
+Some examples are outlined below for leveraging the dynamic taints feature for isolating workloads
+
+#### Example: Isolating Teams with Dynamic Taints
+
+Workload isolation should be achieved through a combination of `taints` and `nodeSelectors`. Leveraging dynamic taints is a good first step toward using a single provisioner to perform workload isolation across teams.
+
+__Dynamic Taint Provisioner__
+
+```yaml
+apiVersion: karpenter.sh/v1alpha5
+kind: Provisioner
+metadata:
+  name: dynamic-taints
+spec:
+  requirements:
+  - key: karpenter.sh/capacity-type
+    operator: In
+    values: ["spot", "on-demand"]
+  taints:
+  - key: example.com/team-name
+    value: *
+    effect: "NoSchedule"
+```
+
+__Pending Pods__
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: team-a-pod
+spec:
+  ...
+  tolerations:
+  - key: "example.com/team-name"
+    operator: "Equal"
+    effect: "NoSchedule"
+    value: "team-a"
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: team-b-pod
+spec:
+  ...
+  tolerations:
+  - key: "example.com/team-name"
+    operator: "Equal"
+    effect: "NoSchedule"
+    value: "team-b"
+```
+
+__Generated Nodes__
+
+```yaml
+apiVersion: v1
+kind: Node
+metadata:
+  name: team-a-node
+spec:
+  taints:
+  - key: "example.com/team-name"
+    effect: "NoSchedule"
+    value: "team-a"
+...
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: team-b-node
+spec:
+  taints:
+  - key: "example.com/team-name"
+    effect: "NoSchedule"
+    value: "team-b"
+...
+```
+
+#### Example: Generating Subsets of Taints onto Nodes
+
+You may require workload isolation at different levels but don't want to have to specify every subset combination of taints within a different provisioner. By using dynamic taints, you can collapse all of these subsets of taints into a single provisioner and have Karpenter handle generating the required taint subset based on the tolerations in the workload pods.  
+
+__Dynamic Taint Provisioner__
+
+```yaml
+apiVersion: karpenter.sh/v1alpha5
+kind: Provisioner
+metadata:
+  name: 
+spec:
+  requirements:
+  - key: karpenter.sh/capacity-type
+    operator: In
+    values: ["spot", "on-demand"]
+  taints:
+  - key: example.com/team-name
+    value: *
+    effect: "NoSchedule"
+  - key: example.com/environment
+    value: *
+    effect: "NoSchedule"
+  - key: example.com/service
+    value: *
+    effect: "NoSchedule"
+```
+
+__Pending Pods__
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: team-a-prod-pod
+spec:
+  ...
+  tolerations:
+  - key: "example.com/team-name"
+    operator: "Equal"
+    effect: "NoSchedule"
+    value: "team-a"
+  - key: "example.com/environment"
+    operator: "Equal"
+    effect: "NoSchedule"
+    value: "prod"
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: team-a-qa-pod
+spec:
+  ...
+  tolerations:
+  - key: "example.com/team-name"
+    operator: "Equal"
+    effect: "NoSchedule"
+    value: "team-a"
+  - key: "example.com/environment"
+    operator: "Equal"
+    effect: "NoSchedule"
+    value: "qa"
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: team-b-pod
+spec:
+  ...
+  tolerations:
+  - key: "example.com/team-name"
+    operator: "Equal"
+    effect: "NoSchedule"
+    value: "team-b"
+```
+
+__Generated Nodes__
+
+```yaml
+apiVersion: v1
+kind: Node
+metadata:
+  name: team-a-prod-node
+spec:
+  taints:
+  - key: "example.com/team-name"
+    effect: "NoSchedule"
+    value: "team-a"
+  - key: "example.com/environment"
+    effect: "NoSchedule"
+    value: "prod"
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: team-a-qa-node
+spec:
+  taints:
+  - key: "example.com/team-name"
+    effect: "NoSchedule"
+    value: "team-a"
+  - key: "example.com/environment"
+    effect: "NoSchedule"
+    value: "qa"
+...
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: team-b-node
+spec:
+  taints:
+  - key: "example.com/team-name"
+    effect: "NoSchedule"
+    value: "team-b"
+...
+```
+
 See [Taints and Tolerations](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/) in the Kubernetes documentation for details.
 
 ## Topology Spread
