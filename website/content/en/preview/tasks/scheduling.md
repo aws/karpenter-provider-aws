@@ -440,7 +440,7 @@ spec:
 apiVersion: karpenter.sh/v1alpha5
 kind: Provisioner
 metadata:
-  name: armd64-specific
+  name: arm64-specific
 spec:
   requirements:
   - key: karpenter.sh/capacity-type
