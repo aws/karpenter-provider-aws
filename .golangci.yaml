@@ -25,6 +25,7 @@ linters:
     - govet
     - goimports
     - goheader
+    - misspell
   disable:
     - prealloc
 
