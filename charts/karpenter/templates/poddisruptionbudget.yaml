@@ -1,7 +1,7 @@
 apiVersion: {{ include "karpenter.pdb.apiVersion" . }}
 kind: PodDisruptionBudget
 metadata:
-  name: {{ .Values.podDisruptionBudget.name }}
+  name: {{ include "karpenter.fullname" . }}
   namespace: {{ .Release.Namespace }}
 spec:
   maxUnavailable: {{ .Values.podDisruptionBudget.maxUnavailable }}
