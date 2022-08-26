@@ -324,7 +324,7 @@ func (c *Controller) waitForDeletion(ctx context.Context, node *v1.Node) {
 	if err := retry.Do(func() error {
 		var n v1.Node
 		nerr := c.kubeClient.Get(ctx, client.ObjectKey{Name: node.Name}, &n)
-		// We expect the node found error, at which point we know the node is deleted.
+		// We expect the not node found error, at which point we know the node is deleted.
 		if errors.IsNotFound(nerr) {
 			return nil
 		}
