@@ -62,7 +62,7 @@ func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, kc *v1alph
 	}
 
 	// set max pods before computing resources
-	// backwards compatability for AWSENILimitedPodDensity flag
+	// backwards compatibility for AWSENILimitedPodDensity flag
 	if kc != nil && kc.MaxPods != nil {
 		instanceType.maxPods = kc.MaxPods
 	} else if !injection.GetOptions(ctx).AWSENILimitedPodDensity {

@@ -41,7 +41,7 @@ func (b Bottlerocket) Script() (string, error) {
 	s.Settings.Kubernetes.ClusterCertificate = b.CABundle
 	s.Settings.Kubernetes.NodeLabels = b.Labels
 
-	// Backwards compatability for AWSENILimitedPodDensity flag
+	// Backwards compatibility for AWSENILimitedPodDensity flag
 	if b.KubeletConfig != nil && b.KubeletConfig.MaxPods != nil {
 		s.Settings.Kubernetes.MaxPods = aws.Int(int(ptr.Int32Value(b.KubeletConfig.MaxPods)))
 	} else if !b.AWSENILimitedPodDensity {
