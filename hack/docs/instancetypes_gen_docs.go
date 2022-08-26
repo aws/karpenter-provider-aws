@@ -37,7 +37,9 @@ func main() {
 	os.Setenv("CLUSTER_ENDPOINT", "https://docs-gen.aws")
 	os.Setenv("AWS_ISOLATED_VPC", "true") // disable pricing lookup
 
-	ctx := injection.WithOptions(context.Background(), options.New().MustParse())
+	opts := options.New()
+	opts = opts.MustParse()
+	ctx := injection.WithOptions(context.Background(), *opts)
 
 	cp := aws.NewCloudProvider(ctx, cloudprovider.Options{
 		ClientSet:  nil,

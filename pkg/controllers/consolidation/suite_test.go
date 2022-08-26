@@ -953,7 +953,7 @@ var _ = Describe("Node Lifetime Consideration", func() {
 		ExpectApplied(ctx, env.Client, rs)
 		Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(rs), rs)).To(Succeed())
 
-		pods := test.Pods(2, test.PodOptions{
+		pods := test.Pods(3, test.PodOptions{
 			ObjectMeta: metav1.ObjectMeta{Labels: labels,
 				OwnerReferences: []metav1.OwnerReference{
 					{
@@ -966,7 +966,7 @@ var _ = Describe("Node Lifetime Consideration", func() {
 					},
 				}}})
 
-		prov := test.Provisioner(test.ProvisionerOptions{TTLSecondsUntilExpired: aws.Int64(30), Consolidation: &v1alpha5.Consolidation{Enabled: aws.Bool(true)}})
+		prov := test.Provisioner(test.ProvisionerOptions{TTLSecondsUntilExpired: aws.Int64(3), Consolidation: &v1alpha5.Consolidation{Enabled: aws.Bool(true)}})
 		node1 := test.Node(test.NodeOptions{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{
@@ -993,25 +993,28 @@ var _ = Describe("Node Lifetime Consideration", func() {
 				v1.ResourcePods: resource.MustParse("100"),
 			}})
 
-		ExpectApplied(ctx, env.Client, rs, pods[0], pods[1], prov)
+		ExpectApplied(ctx, env.Client, rs, pods[0], pods[1], pods[2], prov)
 		ExpectApplied(ctx, env.Client, node1) // ensure node1 is the oldest node
-		time.Sleep(1 * time.Second)           // this sleep is unfortunate, but necessary.  The creation time is from etcd and we can't mock it, so we
+		time.Sleep(2 * time.Second)           // this sleep is unfortunate, but necessary.  The creation time is from etcd and we can't mock it, so we
 		// need to sleep to force the second node to be created a bit after the first node.
 		ExpectApplied(ctx, env.Client, node2)
 		ExpectMakeNodesReady(ctx, env.Client, node1, node2)
+		// two pods on node 1, one on node 2
 		ExpectManualBinding(ctx, env.Client, pods[0], node1)
-		ExpectManualBinding(ctx, env.Client, pods[1], node2)
+		ExpectManualBinding(ctx, env.Client, pods[1], node1)
+		ExpectManualBinding(ctx, env.Client, pods[2], node2)
 		ExpectScheduled(ctx, env.Client, pods[0])
 		ExpectScheduled(ctx, env.Client, pods[1])
+		ExpectScheduled(ctx, env.Client, pods[2])
 
 		// inform cluster state about the nodes
 		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node1))
 		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node2))
-		fakeClock.Step(10 * time.Minute)
+		fakeClock.SetTime(time.Now())
 		controller.ProcessCluster(ctx)
 
-		// the nodes are identical (same size, price, disruption cost, etc.) except for age.  We should prefer to
-		// delete the older one
+		// the second node has more pods so it would normally not be picked for consolidation, except it very little
+		// lifetime remaining so it should be deleted
 		Expect(cloudProvider.CreateCalls).To(HaveLen(0))
 		ExpectNotFound(ctx, env.Client, node1)
 	})
