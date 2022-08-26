@@ -1,3 +1,17 @@
+/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package integration_test
 
 import (
@@ -6,13 +20,14 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+	"github.com/samber/lo"
+
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/test"
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
-	"github.com/samber/lo"
 )
 
 var _ = Describe("Subnets", func() {
@@ -24,7 +39,7 @@ var _ = Describe("Subnets", func() {
 		securityGroups := getSecurityGroups(map[string]string{"karpenter.sh/discovery": env.ClusterName})
 		Expect(len(securityGroups)).ToNot(Equal(0))
 
-		ids := strings.Join(lo.Map(securityGroups, func(sg ec2.GroupIdentifier, _ int) string  {return *sg.GroupId}), ",")
+		ids := strings.Join(lo.Map(securityGroups, func(sg ec2.GroupIdentifier, _ int) string { return *sg.GroupId }), ",")
 		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 			AWS: awsv1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"aws-ids": ids},
