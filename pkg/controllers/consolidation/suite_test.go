@@ -621,7 +621,8 @@ var _ = Describe("Replace Nodes", func() {
 		// and consolidation should still be running waiting on the node's deletion
 		Expect(consolidationFinished.Load()).To(BeFalse())
 
-		// remove the finalizer
+		// fetch the latest node object and remove the finalizer
+		Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(node), node)).To(Succeed())
 		node.Finalizers = nil
 		ExpectApplied(ctx, env.Client, node)
 
