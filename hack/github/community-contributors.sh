@@ -2,7 +2,7 @@
 set -euo pipefail
 
 USAGE='Usage: '.$0.' [<previous release> <latest release>]'
-TOKEN=$(cat $HOME/.git/token)
+TOKEN=${GITHUB_TOKEN:-$(cat $HOME/.git/token)}
 
 if [ ! $# -gt 0 ];
 then
