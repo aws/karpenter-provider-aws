@@ -1,15 +1,27 @@
-#!/bin/bash -u
+#!/usr/bin/env bash
+set -euo pipefail
 
-TOKEN=$(cat $HOME/.git/token)
+USAGE='Usage: '.$0.' [<previous release> <latest release>]'
+TOKEN=${GITHUB_TOKEN:-$(cat $HOME/.git/token)}
 
-RELEASES=$(
-    curl -s \
-        -H "Accept: application/vnd.github+json" \
-        -H "Authorization: token $TOKEN" \
-        https://api.github.com/repos/aws/karpenter/releases
-)
-LATEST=$(echo $RELEASES | jq -r ".[0].tag_name")
-PREVIOUS=$(echo $RELEASES | jq -r ".[1].tag_name")
+if [ ! $# -gt 0 ];
+then
+    RELEASES=$(
+        curl -s \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: token $TOKEN" \
+            https://api.github.com/repos/aws/karpenter/releases
+    )
+    LATEST=$(echo $RELEASES | jq -r ".[0].tag_name")
+    PREVIOUS=$(echo $RELEASES | jq -r ".[1].tag_name")
+elif [ $# -eq 2 ];
+then
+    PREVIOUS=$1
+    LATEST=$2
+else
+    echo $USAGE
+    exit
+fi
 
 COMMITS=$(curl -s \
     -H "Accept: application/vnd.github+json" \
@@ -33,13 +45,26 @@ COMMUNITY_CONTRIBUTIONS=$(
         .author != "Ellis Tarn" and
         .author != "Suket Sharma" and
         .author != "Todd Neal" and
+        .author != "Todd" and
         .author != "Nick Tran" and
         .author != "Jason Deal" and
         .author != "Ryan Maleki" and
         .author != "Jonathan Innis" and
         .author != "Brandon Wagner" and
+        .author != "Brandon" and
         .author != "Chris Negus" and
         .author != "Jim DeWaard" and
+        .author != "Felix Zhe Huang" and
+        .author != "Raghav Tripathi" and
+        .author != "Justin Garrison" and
+        .author != "Alex Kestner" and
+        .author != "Geoffrey Cline" and
+        .author != "Bill Rayburn" and
+        .author != "Elton" and
+        .author != "Prateek Gogia" and
+        .author != "njtran" and
+        .author != "dewjam" and
+        .author != "suket22" and
         .author != "dependabot[bot]"
     )
 ' | jq -s
