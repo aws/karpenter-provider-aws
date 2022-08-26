@@ -30,12 +30,12 @@ dev: verify test ## Run all steps in the developer loop
 
 ci: toolchain verify licenses battletest coverage ## Run all steps used by continuous integration
 
-run: ## Run Karpenter controllers against your local cluster
+run: ## Run Karpenter controller binary against your local cluster
 	SYSTEM_NAMESPACE=${SYSTEM_NAMESPACE} go run ./cmd/controller/main.go \
 		--cluster-name=${CLUSTER_NAME} \
 		--cluster-endpoint=${CLUSTER_ENDPOINT} \
 		--aws-default-instance-profile=KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
-		--disable-leader-election
+		--leader-elect=false
 
 test: ## Run tests
 	go test -run=${TEST_FILTER} ./pkg/...

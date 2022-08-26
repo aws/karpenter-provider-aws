@@ -108,7 +108,7 @@ func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options)
 
 	manager := NewManagerOrDie(ctx, controllerRuntimeConfig, controllerruntime.Options{
 		Logger:                     ignoreDebugEvents(zapr.NewLogger(logging.FromContext(ctx).Desugar())),
-		LeaderElection:             !opts.DisableLeaderElection,
+		LeaderElection:             opts.EnableLeaderElection,
 		LeaderElectionID:           "karpenter-leader-election",
 		LeaderElectionResourceLock: resourcelock.LeasesResourceLock,
 		Scheme:                     scheme,

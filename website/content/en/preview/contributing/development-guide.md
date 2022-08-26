@@ -21,11 +21,11 @@ The following tools are required for contributing to the Karpenter project.
 
 ### Setup / Teardown
 
-Based on how you are running your Kubernetes cluster, follow the [Environment specific setup](#environment-specific-setup) to configure your environment before you continue. You can choose to either run the Karpenter controllers locally on your machine, pointing to the Kubernetes cluster specified in your `~/kube/config` or inside the Kubernetes cluster specified in your `~/kube/config` deployed with [Helm](https://helm.sh/).
+Based on how you are running your Kubernetes cluster, follow the [Environment specific setup](#environment-specific-setup) to configure your environment before you continue. You can choose to either run the Karpenter controller locally on your machine, pointing to the Kubernetes cluster specified in your `~/.kube/config` or inside the Kubernetes cluster specified in your `~/.kube/config` deployed with [Helm](https://helm.sh/).
 
 #### Locally
 
-One you have your environment set up, run the following commands to run the Karpenter Go binary against the Kubernetes cluster specified in your `~/kube/config`
+Once you have your environment set up, run the following commands to run the Karpenter Go binary against the Kubernetes cluster specified in your `~/.kube/config`
 
 ```bash
 make run

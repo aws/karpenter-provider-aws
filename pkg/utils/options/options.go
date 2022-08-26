@@ -37,13 +37,13 @@ const (
 type Options struct {
 	*flag.FlagSet
 	// Vendor Neutral
-	MetricsPort           int
-	HealthProbePort       int
-	KubeClientQPS         int
-	KubeClientBurst       int
-	EnableProfiling       bool
-	DisableLeaderElection bool
-	MemoryLimit           int64
+	MetricsPort          int
+	HealthProbePort      int
+	KubeClientQPS        int
+	KubeClientBurst      int
+	EnableProfiling      bool
+	EnableLeaderElection bool
+	MemoryLimit          int64
 	// AWS Specific
 	ClusterName               string
 	ClusterEndpoint           string
@@ -67,7 +67,7 @@ func New() *Options {
 	f.IntVar(&opts.KubeClientQPS, "kube-client-qps", env.WithDefaultInt("KUBE_CLIENT_QPS", 200), "The smoothed rate of qps to kube-apiserver")
 	f.IntVar(&opts.KubeClientBurst, "kube-client-burst", env.WithDefaultInt("KUBE_CLIENT_BURST", 300), "The maximum allowed burst of queries to the kube-apiserver")
 	f.BoolVar(&opts.EnableProfiling, "enable-profiling", env.WithDefaultBool("ENABLE_PROFILING", false), "Enable the profiling on the metric endpoint")
-	f.BoolVar(&opts.DisableLeaderElection, "disable-leader-election", env.WithDefaultBool("DISABLE_LEADER_ELECTION", false), "Disable leader election for replicas. WARNING: This flag is for development only and should not be enabled in production")
+	f.BoolVar(&opts.EnableLeaderElection, "leader-elect", env.WithDefaultBool("LEADER_ELECT", true), "Start leader election client and gain leadership before executing the main loop. Enable this when running replicated components for high availability.")
 	f.Int64Var(&opts.MemoryLimit, "memory-limit", env.WithDefaultInt64("MEMORY_LIMIT", -1), "Memory limit on the container running the controller. The GC soft memory limit is set to 90% of this value.")
 
 	// AWS Specific
