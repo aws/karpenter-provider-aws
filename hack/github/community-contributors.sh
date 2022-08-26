@@ -1,4 +1,5 @@
-#!/bin/bash -u
+#!/usr/bin/env bash
+set -euo pipefail
 
 USAGE='Usage: '.$0.' [<previous release> <latest release>]'
 TOKEN=$(cat $HOME/.git/token)
