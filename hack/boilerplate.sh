@@ -2,7 +2,7 @@
 set -eu -o pipefail
 
 for i in $(
-  find ./cmd ./pkg -name "*.go"
+  find ./cmd ./pkg ./test -name "*.go"
 ); do
   if ! grep -q "Apache License" $i; then
     cat hack/boilerplate.go.txt $i >$i.new && mv $i.new $i
