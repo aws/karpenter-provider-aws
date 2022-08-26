@@ -176,7 +176,7 @@ karpenter.sh/provisioner-name: <provisioner-name>
 kubernetes.io/cluster/<cluster-name>: owned
 ```
 
-Additional tags can be added in the providerRef tags section which are merged with and can override the default tag values.
+Additional tags can be added in the AWSNodeTemplate tags section which are merged with and can override the default tag values.
 ```
 spec:
   tags:
