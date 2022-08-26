@@ -17,6 +17,7 @@ package consolidation_test
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -562,6 +563,75 @@ var _ = Describe("Replace Nodes", func() {
 		controller.ProcessCluster(ctx)
 		Expect(cloudProvider.CreateCalls).To(HaveLen(0))
 		ExpectNodeExists(ctx, env.Client, node.Name)
+	})
+	It("waits for node deletion to finish", func() {
+		labels := map[string]string{
+			"app": "test",
+		}
+		// create our RS so we can link a pod to it
+		rs := test.ReplicaSet()
+		ExpectApplied(ctx, env.Client, rs)
+		Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(rs), rs)).To(Succeed())
+
+		pod := test.Pod(test.PodOptions{
+			ObjectMeta: metav1.ObjectMeta{Labels: labels,
+				OwnerReferences: []metav1.OwnerReference{
+					{
+						APIVersion:         "apps/v1",
+						Kind:               "ReplicaSet",
+						Name:               rs.Name,
+						UID:                rs.UID,
+						Controller:         aws.Bool(true),
+						BlockOwnerDeletion: aws.Bool(true),
+					},
+				}}})
+
+		prov := test.Provisioner(test.ProvisionerOptions{Consolidation: &v1alpha5.Consolidation{Enabled: aws.Bool(true)}})
+		node := test.Node(test.NodeOptions{
+			ObjectMeta: metav1.ObjectMeta{
+				Finalizers: []string{"unit-test.com/block-deletion"},
+				Labels: map[string]string{
+					v1alpha5.ProvisionerNameLabelKey: prov.Name,
+					v1.LabelInstanceTypeStable:       mostExpensiveInstance.Name(),
+					v1alpha5.LabelCapacityType:       mostExpensiveOffering.CapacityType,
+					v1.LabelTopologyZone:             mostExpensiveOffering.Zone,
+				}},
+			Allocatable: map[v1.ResourceName]resource.Quantity{v1.ResourceCPU: resource.MustParse("32")}})
+
+		ExpectApplied(ctx, env.Client, rs, pod, node, prov)
+		ExpectMakeNodesReady(ctx, env.Client, node)
+		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node))
+		ExpectManualBinding(ctx, env.Client, pod, node)
+		ExpectScheduled(ctx, env.Client, pod)
+		Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(node), node)).To(Succeed())
+
+		// consolidation won't delete the old node until the new node is ready
+		wg := ExpectMakeNewNodesReady(ctx, env.Client, 1, node)
+		fakeClock.Step(10 * time.Minute)
+
+		var consolidationFinished atomic.Bool
+		go func() {
+			controller.ProcessCluster(ctx)
+			consolidationFinished.Store(true)
+		}()
+		wg.Wait()
+
+		// node should still exist
+		ExpectNodeExists(ctx, env.Client, node.Name)
+		// and consolidation should still be running waiting on the node's deletion
+		Expect(consolidationFinished.Load()).To(BeFalse())
+
+		// remove the finalizer
+		node.Finalizers = nil
+		ExpectApplied(ctx, env.Client, node)
+
+		// consolidation should complete now that the finalizer on the node is gone and it can
+		// was actually deleted
+		Eventually(consolidationFinished.Load, 10*time.Second).Should(BeTrue())
+		ExpectNotFound(ctx, env.Client, node)
+
+		// should create a new node as there is a cheaper one that can hold the pod
+		Expect(cloudProvider.CreateCalls).To(HaveLen(1))
 	})
 })
 
@@ -1218,54 +1288,6 @@ var _ = Describe("Empty Nodes", func() {
 	})
 })
 
-var _ = Describe("Special Cases", func() {
-	It("doesn't consolidate in the presence of uninitialized nodes", func() {
-		prov := test.Provisioner(test.ProvisionerOptions{Consolidation: &v1alpha5.Consolidation{Enabled: aws.Bool(true)}})
-
-		uninitializedNode := test.Node(test.NodeOptions{
-			ObjectMeta: metav1.ObjectMeta{
-				Labels: map[string]string{
-					v1alpha5.ProvisionerNameLabelKey: prov.Name,
-					v1.LabelInstanceTypeStable:       mostExpensiveInstance.Name(),
-					v1alpha5.LabelCapacityType:       mostExpensiveOffering.CapacityType,
-					v1.LabelTopologyZone:             mostExpensiveOffering.Zone,
-				},
-			},
-			Allocatable: map[v1.ResourceName]resource.Quantity{
-				v1.ResourceCPU:  resource.MustParse("32"),
-				v1.ResourcePods: resource.MustParse("100"),
-			}})
-
-		emptyNode := test.Node(test.NodeOptions{
-			ObjectMeta: metav1.ObjectMeta{
-				Labels: map[string]string{
-					v1alpha5.ProvisionerNameLabelKey: prov.Name,
-					v1.LabelInstanceTypeStable:       mostExpensiveInstance.Name(),
-					v1alpha5.LabelCapacityType:       mostExpensiveOffering.CapacityType,
-					v1.LabelTopologyZone:             mostExpensiveOffering.Zone,
-					v1alpha5.LabelNodeInitialized:    "true",
-				},
-			},
-			Allocatable: map[v1.ResourceName]resource.Quantity{
-				v1.ResourceCPU:  resource.MustParse("32"),
-				v1.ResourcePods: resource.MustParse("100"),
-			}})
-
-		ExpectApplied(ctx, env.Client, emptyNode, uninitializedNode, prov)
-
-		// inform cluster state about the nodes
-		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(emptyNode))
-		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(uninitializedNode))
-		fakeClock.Step(10 * time.Minute)
-		controller.ProcessCluster(ctx)
-
-		// we don't need any new nodes
-		Expect(cloudProvider.CreateCalls).To(HaveLen(0))
-		// and shouldn't delete the empty one due to the un-initialized node
-		ExpectNodeExists(ctx, env.Client, emptyNode.Name)
-	})
-})
-
 func leastExpensiveInstanceWithZone(zone string) cloudprovider.InstanceType {
 	for _, elem := range onDemandInstances {
 		if hasZone(elem.Offerings(), zone) {
@@ -1308,9 +1330,9 @@ func ExpectMakeNewNodesReady(ctx context.Context, client client.Client, numNewNo
 	for _, existing := range existingNodes {
 		existingNodeNames.Insert(existing.Name)
 	}
+	wg.Add(1)
 	go func() {
 		defer GinkgoRecover()
-		wg.Add(1)
 		defer wg.Done()
 		start := time.Now()
 		for {

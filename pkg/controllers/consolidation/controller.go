@@ -16,7 +16,6 @@ package consolidation
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sort"
 	"sync"
@@ -28,6 +27,8 @@ import (
 	"go.uber.org/multierr"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+
 	"k8s.io/apimachinery/pkg/util/clock"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
@@ -58,6 +59,16 @@ type Controller struct {
 
 // pollingPeriod that we inspect cluster to look for opportunities to consolidate
 const pollingPeriod = 10 * time.Second
+
+// waitRetryOptions are the retry options used when waiting on a node to become ready or to be deleted
+// readiness can take some time as the node needs to come up, have any daemonset extended resoruce plugins register, etc.
+// deletion can take some time in the case of restrictive PDBs that throttle the rate at which the node is drained
+var waitRetryOptions = []retry.Option{
+	retry.Delay(2 * time.Second),
+	retry.LastErrorOnly(true),
+	retry.Attempts(60),
+	retry.MaxDelay(10 * time.Second), // 22 + (60-5)*10 =~ 9.5 minutes in total
+}
 
 func NewController(ctx context.Context, clk clock.Clock, kubeClient client.Client, provisioner *provisioning.Provisioner,
 	cp cloudprovider.CloudProvider, recorder events.Recorder, cluster *state.Cluster, startAsync <-chan struct{}) *Controller {
@@ -176,7 +187,6 @@ func (c *Controller) candidateNodes(ctx context.Context) ([]candidateNode, error
 	}
 
 	var nodes []candidateNode
-	uninitializedNodeExists := false
 	c.cluster.ForEachNode(func(n *state.Node) bool {
 		var provisioner *v1alpha5.Provisioner
 		var instanceTypeMap map[string]cloudprovider.InstanceType
@@ -205,15 +215,15 @@ func (c *Controller) candidateNodes(ctx context.Context) ([]candidateNode, error
 			return true
 		}
 
-		// already found one un-initialized node, so we can skip the rest
-		if uninitializedNodeExists {
+		// Skip nodes that aren't initialized
+		if n.Node.Labels[v1alpha5.LabelNodeInitialized] != "true" {
 			return true
 		}
 
-		if n.Node.Labels[v1alpha5.LabelNodeInitialized] != "true" {
-			uninitializedNodeExists = true
+		if c.cluster.IsNodeNominated(n.Node.Name) {
 			return true
 		}
+
 		// skip nodes that are annotated as do-not-consolidate
 		if n.Node.Annotations[v1alpha5.DoNotConsolidateNodeAnnotationKey] == "true" {
 			return true
@@ -242,10 +252,6 @@ func (c *Controller) candidateNodes(ctx context.Context) ([]candidateNode, error
 		return true
 	})
 
-	// we have some node that hasn't fully become ready yet, so don't perform any consolidation
-	if uninitializedNodeExists {
-		return nil, nil
-	}
 	return nodes, nil
 }
 
@@ -303,6 +309,36 @@ func (c *Controller) performConsolidation(ctx context.Context, action consolidat
 			consolidationNodesTerminatedCounter.Add(1)
 		}
 	}
+
+	// We wait for nodes to delete to ensure we don't start another round of consolidation until this node is fully
+	// deleted.
+	for _, oldnode := range action.oldNodes {
+		c.waitForDeletion(ctx, oldnode)
+	}
+}
+
+// waitForDeletion waits for the specified node to be removed from the API server. This deletion can take some period
+// of time if there are PDBs that govern pods on the node as we need to  wait until the node drains before
+// it's actually deleted.
+func (c *Controller) waitForDeletion(ctx context.Context, node *v1.Node) {
+	if err := retry.Do(func() error {
+		var n v1.Node
+		nerr := c.kubeClient.Get(ctx, client.ObjectKey{Name: node.Name}, &n)
+		// We expect the node found error, at which point we know the node is deleted.
+		if errors.IsNotFound(nerr) {
+			return nil
+		}
+		// make the user aware of why consolidation is paused
+		c.recorder.WaitingOnDeletionForConsolidation(node)
+		if nerr != nil {
+			return fmt.Errorf("expected node to be not found, %w", nerr)
+		}
+		// the node still exists
+		return fmt.Errorf("expected node to be not found")
+	}, waitRetryOptions...,
+	); err != nil {
+		logging.FromContext(ctx).Errorf("Waiting on node deletion, %s", err)
+	}
 }
 
 func byNodeDisruptionCost(nodes []candidateNode) func(i int, j int) bool {
@@ -351,14 +387,10 @@ func (c *Controller) launchReplacementNode(ctx context.Context, minCost consolid
 		if _, ok := k8Node.Labels[v1alpha5.LabelNodeInitialized]; !ok {
 			// make the user aware of why consolidation is paused
 			c.recorder.WaitingOnReadinessForConsolidation(&k8Node)
-			return errors.New("node is not initialized")
+			return fmt.Errorf("node is not initialized")
 		}
 		return nil
-	}, retry.Delay(2*time.Second),
-		retry.LastErrorOnly(true),
-		retry.Attempts(30),
-		retry.MaxDelay(10*time.Second), // ~ 4.5 minutes in total
-	); err != nil {
+	}, waitRetryOptions...); err != nil {
 		// node never become ready, so uncordon the node we were trying to delete and report the error
 		return multierr.Combine(c.setNodeUnschedulable(ctx, minCost.oldNodes[0].Name, false),
 			fmt.Errorf("timed out checking node readiness, %w", err))
