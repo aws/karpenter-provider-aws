@@ -19,8 +19,8 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"math"
+	"os"
 	"sort"
 	"strings"
 
@@ -273,7 +273,6 @@ var _ = Describe("LaunchTemplates", func() {
 	})
 	Context("Block Device Mappings", func() {
 		It("should default AL2 block device mappings", func() {
-			provider, _ := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
 			provider.AMIFamily = &awsv1alpha1.AMIFamilyAL2
 			ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
 			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
@@ -286,7 +285,6 @@ var _ = Describe("LaunchTemplates", func() {
 			Expect(input.LaunchTemplateData.BlockDeviceMappings[0].Ebs.Iops).To(BeNil())
 		})
 		It("should use custom block device mapping", func() {
-			provider, _ := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
 			provider.AMIFamily = &awsv1alpha1.AMIFamilyAL2
 			provider.BlockDeviceMappings = []*awsv1alpha1.BlockDeviceMapping{
 				{
@@ -315,7 +313,6 @@ var _ = Describe("LaunchTemplates", func() {
 			Expect(*input.LaunchTemplateData.BlockDeviceMappings[0].Ebs.KmsKeyId).To(Equal("arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab"))
 		})
 		It("should default bottlerocket second volume with root volume size", func() {
-			provider, _ := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
 			provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
 			ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
 			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
@@ -333,7 +330,6 @@ var _ = Describe("LaunchTemplates", func() {
 			Expect(input.LaunchTemplateData.BlockDeviceMappings[1].Ebs.Iops).To(BeNil())
 		})
 		It("should not default block device mappings for custom AMIFamilies", func() {
-			provider, _ := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
 			provider.AMIFamily = &awsv1alpha1.AMIFamilyCustom
 			ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
 			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
@@ -343,7 +339,6 @@ var _ = Describe("LaunchTemplates", func() {
 			Expect(len(input.LaunchTemplateData.BlockDeviceMappings)).To(Equal(0))
 		})
 		It("should use custom block device mapping for custom AMIFamilies", func() {
-			provider, _ := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
 			provider.AMIFamily = &awsv1alpha1.AMIFamilyCustom
 			provider.BlockDeviceMappings = []*awsv1alpha1.BlockDeviceMapping{
 				{
@@ -465,7 +460,6 @@ var _ = Describe("LaunchTemplates", func() {
 			ExpectNotScheduled(ctx, env.Client, pod)
 		})
 		It("should pack pods using the blockdevicemappings from the provider spec when defined", func() {
-			provider, _ = awsv1alpha1.Deserialize(provisioner.Spec.Provider)
 			provider.BlockDeviceMappings = []*awsv1alpha1.BlockDeviceMapping{{
 				DeviceName: aws.String("/dev/xvda"),
 				EBS: &awsv1alpha1.BlockDevice{
@@ -485,7 +479,6 @@ var _ = Describe("LaunchTemplates", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 		})
 		It("should pack pods using blockdevicemappings for Custom AMIFamily", func() {
-			provider, _ = awsv1alpha1.Deserialize(provisioner.Spec.Provider)
 			provider.AMIFamily = &awsv1alpha1.AMIFamilyCustom
 			provider.BlockDeviceMappings = []*awsv1alpha1.BlockDeviceMapping{
 				{
@@ -505,7 +498,7 @@ var _ = Describe("LaunchTemplates", func() {
 			pod := ExpectProvisioned(ctx, env.Client, controller,
 				test.UnschedulablePod(test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
 					Requests: map[v1.ResourceName]resource.Quantity{
-						// this pod can only be satisifed if `/dev/xvdb` will house all the pods.
+						// this pod can only be satisfied if `/dev/xvdb` will house all the pods.
 						v1.ResourceEphemeralStorage: resource.MustParse("25Gi"),
 					},
 				},
@@ -563,9 +556,9 @@ var _ = Describe("LaunchTemplates", func() {
 		It("should not specify --use-max-pods=false when using ENI-based pod density", func() {
 			opts.AWSENILimitedPodDensity = true
 			prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
-			controller := provisioning.NewController(env.Client, prov, recorder)
+			controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
 			ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
-			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+			pod := ExpectProvisioned(ctx, env.Client, controllerWithOpts, test.UnschedulablePod())[0]
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
@@ -575,9 +568,9 @@ var _ = Describe("LaunchTemplates", func() {
 		It("should specify --use-max-pods=false when not using ENI-based pod density", func() {
 			opts.AWSENILimitedPodDensity = false
 			prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
-			controller := provisioning.NewController(env.Client, prov, recorder)
+			controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
 			ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
-			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+			pod := ExpectProvisioned(ctx, env.Client, controllerWithOpts, test.UnschedulablePod())[0]
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
@@ -586,9 +579,6 @@ var _ = Describe("LaunchTemplates", func() {
 			Expect(string(userData)).To(ContainSubstring("--max-pods=110"))
 		})
 		It("should specify --use-max-pods=false and --max-pods user value when user specifies maxPods in Provisioner", func() {
-			prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
-			controller := provisioning.NewController(env.Client, prov, recorder)
-
 			ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider, Kubelet: &v1alpha5.KubeletConfiguration{MaxPods: ptr.Int32(10)}}))
 			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 			ExpectScheduled(ctx, env.Client, pod)
@@ -599,9 +589,6 @@ var _ = Describe("LaunchTemplates", func() {
 			Expect(string(userData)).To(ContainSubstring("--max-pods=10"))
 		})
 		It("should specify --system-reserved when overriding system reserved values", func() {
-			prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
-			controller := provisioning.NewController(env.Client, prov, recorder)
-
 			newProvisioner := test.Provisioner(test.ProvisionerOptions{
 				Kubelet: &v1alpha5.KubeletConfiguration{
 					SystemReserved: v1.ResourceList{
@@ -689,31 +676,31 @@ var _ = Describe("LaunchTemplates", func() {
 		Context("Bottlerocket", func() {
 			It("should merge in custom user data", func() {
 				opts.AWSENILimitedPodDensity = false
-				provider, _ := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
+				prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
+				controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
+
 				provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
-				content, _ := ioutil.ReadFile("testdata/br_userdata_input.golden")
+				content, _ := os.ReadFile("testdata/br_userdata_input.golden")
 				nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 					UserData: aws.String(string(content)),
 					AWS:      *provider,
 				})
 				ExpectApplied(ctx, env.Client, nodeTemplate)
-				controller := provisioning.NewController(env.Client,
-					provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster), recorder)
 				newProvisioner := test.Provisioner(test.ProvisionerOptions{
 					Taints:        []v1.Taint{{Key: "foo", Value: "bar", Effect: v1.TaintEffectNoExecute}},
 					StartupTaints: []v1.Taint{{Key: "baz", Value: "bin", Effect: v1.TaintEffectNoExecute}},
 					ProviderRef:   &v1alpha5.ProviderRef{Name: nodeTemplate.Name},
 				})
 				ExpectApplied(ctx, env.Client, newProvisioner)
-				env.Client.Get(ctx, client.ObjectKeyFromObject(newProvisioner), newProvisioner)
-				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(test.PodOptions{
+				Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(newProvisioner), newProvisioner)).To(Succeed())
+				pod := ExpectProvisioned(ctx, env.Client, controllerWithOpts, test.UnschedulablePod(test.PodOptions{
 					Tolerations: []v1.Toleration{{Operator: v1.TolerationOpExists}},
 				}))[0]
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 				userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
-				content, _ = ioutil.ReadFile("testdata/br_userdata_merged.golden")
+				content, _ = os.ReadFile("testdata/br_userdata_merged.golden")
 				// Newlines are always added for missing TOML fields, so strip them out before comparisons.
 				actualUserData := strings.Replace(string(userData), "\n", "", -1)
 				expectedUserData := strings.Replace(fmt.Sprintf(string(content), newProvisioner.Name), "\n", "", -1)
@@ -723,46 +710,47 @@ var _ = Describe("LaunchTemplates", func() {
 			})
 			It("should bootstrap when custom user data is empty", func() {
 				opts.AWSENILimitedPodDensity = false
-				provider, _ := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
+				prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
+				controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
+
 				provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
 				nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 					UserData: nil,
 					AWS:      *provider,
 				})
 				ExpectApplied(ctx, env.Client, nodeTemplate)
-				controller := provisioning.NewController(env.Client,
-					provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster), recorder)
 				newProvisioner := test.Provisioner(test.ProvisionerOptions{
 					Taints:        []v1.Taint{{Key: "foo", Value: "bar", Effect: v1.TaintEffectNoExecute}},
 					StartupTaints: []v1.Taint{{Key: "baz", Value: "bin", Effect: v1.TaintEffectNoExecute}},
 					ProviderRef:   &v1alpha5.ProviderRef{Name: nodeTemplate.Name},
 				})
 				ExpectApplied(ctx, env.Client, newProvisioner)
-				env.Client.Get(ctx, client.ObjectKeyFromObject(newProvisioner), newProvisioner)
-				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(test.PodOptions{
+				Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(newProvisioner), newProvisioner)).To(Succeed())
+				pod := ExpectProvisioned(ctx, env.Client, controllerWithOpts, test.UnschedulablePod(test.PodOptions{
 					Tolerations: []v1.Toleration{{Operator: v1.TolerationOpExists}},
 				}))[0]
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 				userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
-				content, _ := ioutil.ReadFile("testdata/br_userdata_unmerged.golden")
+				content, _ := os.ReadFile("testdata/br_userdata_unmerged.golden")
 				actualUserData := strings.Replace(string(userData), "\n", "", -1)
 				expectedUserData := strings.Replace(fmt.Sprintf(string(content), newProvisioner.Name), "\n", "", -1)
 				Expect(expectedUserData).To(Equal(actualUserData))
 			})
 			It("should not bootstrap when provider ref points to a non-existent resource", func() {
 				opts.AWSENILimitedPodDensity = false
-				provider, _ := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
+				prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
+				controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
+
 				provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
 				newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: "doesnotexist"}})
 				ExpectApplied(ctx, env.Client, newProvisioner)
-				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				pod := ExpectProvisioned(ctx, env.Client, controllerWithOpts, test.UnschedulablePod())[0]
 				// This will not be scheduled since we were pointed to a non-existent awsnodetemplate resource.
 				ExpectNotScheduled(ctx, env.Client, pod)
 			})
 			It("should not bootstrap on invalid toml user data", func() {
-				provider, _ := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
 				provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
 				nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 					UserData: aws.String("#/bin/bash\n ./not-toml.sh"),
@@ -777,15 +765,11 @@ var _ = Describe("LaunchTemplates", func() {
 			})
 			It("should override system reserved values in user data", func() {
 				provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
-				provider, _ := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
-				provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
 				nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 					UserData: nil,
 					AWS:      *provider,
 				})
 				ExpectApplied(ctx, env.Client, nodeTemplate)
-				prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
-				controller := provisioning.NewController(env.Client, prov, recorder)
 				newProvisioner := test.Provisioner(test.ProvisionerOptions{
 					ProviderRef: &v1alpha5.ProviderRef{
 						Name: nodeTemplate.Name,
@@ -805,16 +789,13 @@ var _ = Describe("LaunchTemplates", func() {
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 				userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 				config := &bootstrap.BottlerocketConfig{}
-				config.UnmarshalTOML(userData)
+				Expect(config.UnmarshalTOML(userData)).To(Succeed())
 				Expect(len(config.Settings.Kubernetes.SystemReserved)).To(Equal(3))
 				Expect(config.Settings.Kubernetes.SystemReserved[v1.ResourceCPU.String()]).To(Equal("2"))
 				Expect(config.Settings.Kubernetes.SystemReserved[v1.ResourceMemory.String()]).To(Equal("3Gi"))
 				Expect(config.Settings.Kubernetes.SystemReserved[v1.ResourceEphemeralStorage.String()]).To(Equal("10Gi"))
 			})
 			It("should specify max pods value when passing maxPods in configuration", func() {
-				prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
-				controller := provisioning.NewController(env.Client, prov, recorder)
-
 				bottlerocketProvider := provider.DeepCopy()
 				bottlerocketProvider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
 				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: bottlerocketProvider, Kubelet: &v1alpha5.KubeletConfiguration{MaxPods: ptr.Int32(10)}}))
@@ -824,7 +805,7 @@ var _ = Describe("LaunchTemplates", func() {
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 				userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 				config := &bootstrap.BottlerocketConfig{}
-				config.UnmarshalTOML(userData)
+				Expect(config.UnmarshalTOML(userData)).To(Succeed())
 				Expect(config.Settings.Kubernetes.MaxPods).ToNot(BeNil())
 				Expect(*config.Settings.Kubernetes.MaxPods).To(BeNumerically("==", 10))
 			})
@@ -832,60 +813,53 @@ var _ = Describe("LaunchTemplates", func() {
 		Context("AL2 Custom UserData", func() {
 			It("should merge in custom user data", func() {
 				opts.AWSENILimitedPodDensity = false
-				provider, _ := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
-				content, _ := ioutil.ReadFile("testdata/al2_userdata_input.golden")
+				prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
+				controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
+
+				content, _ := os.ReadFile("testdata/al2_userdata_input.golden")
 				nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 					UserData: aws.String(string(content)),
 					AWS:      *provider,
 				})
 				ExpectApplied(ctx, env.Client, nodeTemplate)
-				controller := provisioning.NewController(env.Client,
-					provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster),
-					recorder)
 				newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
 				ExpectApplied(ctx, env.Client, newProvisioner)
-				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				pod := ExpectProvisioned(ctx, env.Client, controllerWithOpts, test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 				userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
-				content, _ = ioutil.ReadFile("testdata/al2_userdata_merged.golden")
+				content, _ = os.ReadFile("testdata/al2_userdata_merged.golden")
 				expectedUserData := fmt.Sprintf(string(content), newProvisioner.Name)
 				Expect(expectedUserData).To(Equal(string(userData)))
 			})
 			It("should handle empty custom user data", func() {
 				opts.AWSENILimitedPodDensity = false
-				provider, _ := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
+				prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
+				controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
 				nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 					UserData: nil,
 					AWS:      *provider,
 				})
 				ExpectApplied(ctx, env.Client, nodeTemplate)
-				controller := provisioning.NewController(env.Client,
-					provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster),
-					recorder)
 				newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
 				ExpectApplied(ctx, env.Client, newProvisioner)
-				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				pod := ExpectProvisioned(ctx, env.Client, controllerWithOpts, test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 				userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
-				content, _ := ioutil.ReadFile("testdata/al2_userdata_unmerged.golden")
+				content, _ := os.ReadFile("testdata/al2_userdata_unmerged.golden")
 				expectedUserData := fmt.Sprintf(string(content), newProvisioner.Name)
 				Expect(expectedUserData).To(Equal(string(userData)))
 			})
 			It("should not bootstrap invalid MIME UserData", func() {
 				opts.AWSENILimitedPodDensity = false
-				provider, _ := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
 				nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 					UserData: aws.String("#/bin/bash\n ./not-mime.sh"),
 					AWS:      *provider,
 				})
 				ExpectApplied(ctx, env.Client, nodeTemplate)
-				controller := provisioning.NewController(env.Client,
-					provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster),
-					recorder)
 				newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
 				ExpectApplied(ctx, env.Client, newProvisioner)
 				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
@@ -896,7 +870,6 @@ var _ = Describe("LaunchTemplates", func() {
 		Context("Custom AMI Selector", func() {
 			It("should use ami selector specified in AWSNodeTemplate", func() {
 				opts.AWSENILimitedPodDensity = false
-				provider, _ := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
 				nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 					UserData:    nil,
 					AMISelector: map[string]string{"karpenter.sh/discovery": "my-cluster"},
@@ -916,7 +889,6 @@ var _ = Describe("LaunchTemplates", func() {
 			})
 			It("should copy over userData untouched when AMIFamily is Custom", func() {
 				opts.AWSENILimitedPodDensity = false
-				provider, _ := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
 				provider.AMIFamily = &awsv1alpha1.AMIFamilyCustom
 				nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 					UserData:    aws.String("special user data"),
@@ -938,7 +910,6 @@ var _ = Describe("LaunchTemplates", func() {
 			})
 			It("should correctly use ami selector with specific IDs in AWSNodeTemplate", func() {
 				opts.AWSENILimitedPodDensity = false
-				provider, _ := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
 				nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 					UserData:    nil,
 					AMISelector: map[string]string{"aws-ids": "ami-123,ami-456"},
@@ -973,7 +944,6 @@ var _ = Describe("LaunchTemplates", func() {
 			})
 			It("should create multiple launch templates when multiple amis are discovered", func() {
 				opts.AWSENILimitedPodDensity = false
-				provider, _ := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
 				fakeEC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
 					{
 						ImageId:      aws.String("ami-123"),
@@ -1006,7 +976,6 @@ var _ = Describe("LaunchTemplates", func() {
 			})
 			It("should fail if no amis match selector.", func() {
 				opts.AWSENILimitedPodDensity = false
-				provider, _ := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
 				fakeEC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{}})
 				nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 					UserData:    nil,
@@ -1022,7 +991,6 @@ var _ = Describe("LaunchTemplates", func() {
 			})
 			It("should fail if no instanceType matches ami requirements.", func() {
 				opts.AWSENILimitedPodDensity = false
-				provider, _ := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
 				fakeEC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
 					{ImageId: aws.String("ami-123"), Architecture: aws.String("newnew")},
 				}})
@@ -1040,7 +1008,6 @@ var _ = Describe("LaunchTemplates", func() {
 			})
 			It("should choose amis from SSM if no selector specified in AWSNodeTemplate", func() {
 				opts.AWSENILimitedPodDensity = false
-				provider, _ := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
 				nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 					UserData: nil,
 					AWS:      *provider,

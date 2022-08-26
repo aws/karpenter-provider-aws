@@ -16,18 +16,20 @@ package provisioning_test
 
 import (
 	"context"
-	"knative.dev/pkg/ptr"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"testing"
 	"time"
 
-	"github.com/aws/karpenter/pkg/controllers/state"
+	"knative.dev/pkg/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/clock"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+
+	"github.com/aws/karpenter/pkg/controllers/state"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
@@ -36,10 +38,11 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
 	"github.com/aws/karpenter/pkg/test"
 
-	. "github.com/aws/karpenter/pkg/test/expectations"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
+
+	. "github.com/aws/karpenter/pkg/test/expectations"
 )
 
 var ctx context.Context

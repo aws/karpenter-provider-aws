@@ -17,7 +17,7 @@ package integration_test
 import (
 	"encoding/base64"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strconv"
 	"strings"
 
@@ -79,7 +79,7 @@ var _ = Describe("LaunchTemplates", func() {
 		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("ImageId", HaveValue(Equal(customAMI))))
 	})
 	It("should merge UserData contents for AL2 AMIFamily", func() {
-		content, err := ioutil.ReadFile("testdata/al2_userdata_input.golden")
+		content, err := os.ReadFile("testdata/al2_userdata_input.golden")
 		Expect(err).ToNot(HaveOccurred())
 		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
@@ -108,7 +108,7 @@ var _ = Describe("LaunchTemplates", func() {
 		Expect(string(actualUserData)).To(ContainSubstring("Running custom user data script"))
 	})
 	It("should merge UserData contents for Bottlerocket AMIFamily", func() {
-		content, err := ioutil.ReadFile("testdata/br_userdata_input.golden")
+		content, err := os.ReadFile("testdata/br_userdata_input.golden")
 		Expect(err).ToNot(HaveOccurred())
 		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},

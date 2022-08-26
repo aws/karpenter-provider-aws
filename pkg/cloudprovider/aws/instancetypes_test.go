@@ -223,7 +223,7 @@ var _ = Describe("Instance Types", func() {
 		opts.AWSENILimitedPodDensity = false
 		instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 		Expect(err).To(BeNil())
-		provisioner := test.Provisioner()
+		provisioner = test.Provisioner()
 		for _, info := range instanceInfo {
 			it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, "", provider, nil)
 			resources := it.Resources()
@@ -234,7 +234,7 @@ var _ = Describe("Instance Types", func() {
 		opts.AWSENILimitedPodDensity = true
 		instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 		Expect(err).To(BeNil())
-		provisioner := test.Provisioner()
+		provisioner = test.Provisioner()
 		for _, info := range instanceInfo {
 			it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, "", provider, nil)
 			resources := it.Resources()
@@ -274,7 +274,7 @@ var _ = Describe("Instance Types", func() {
 		It("should set max-pods to user-defined value if specified", func() {
 			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 			Expect(err).To(BeNil())
-			provisioner := test.Provisioner(test.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{MaxPods: ptr.Int32(10)}})
+			provisioner = test.Provisioner(test.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{MaxPods: ptr.Int32(10)}})
 			for _, info := range instanceInfo {
 				it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, "", provider, nil)
 				resources := it.Resources()
@@ -285,7 +285,7 @@ var _ = Describe("Instance Types", func() {
 			opts.AWSENILimitedPodDensity = false
 			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 			Expect(err).To(BeNil())
-			provisioner := test.Provisioner(test.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{MaxPods: ptr.Int32(10)}})
+			provisioner = test.Provisioner(test.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{MaxPods: ptr.Int32(10)}})
 			for _, info := range instanceInfo {
 				it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, "", provider, nil)
 				resources := it.Resources()
@@ -405,12 +405,12 @@ var _ = Describe("Instance Types", func() {
 			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "inf1.6xlarge"))
 		})
 		It("should launch on-demand capacity if flexible to both spot and on-demand, but spot is unavailable", func() {
-			fakeEC2API.DescribeInstanceTypesPagesWithContext(ctx, &ec2.DescribeInstanceTypesInput{}, func(dito *ec2.DescribeInstanceTypesOutput, b bool) bool {
+			Expect(fakeEC2API.DescribeInstanceTypesPagesWithContext(ctx, &ec2.DescribeInstanceTypesInput{}, func(dito *ec2.DescribeInstanceTypesOutput, b bool) bool {
 				for _, it := range dito.InstanceTypes {
 					fakeEC2API.InsufficientCapacityPools.Add(fake.CapacityPool{CapacityType: awsv1alpha1.CapacityTypeSpot, InstanceType: aws.StringValue(it.InstanceType), Zone: "test-zone-1a"})
 				}
 				return true
-			})
+			})).To(Succeed())
 			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
 				{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{awsv1alpha1.CapacityTypeSpot, awsv1alpha1.CapacityTypeOnDemand}},
 				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
@@ -501,7 +501,7 @@ var _ = Describe("Instance Types", func() {
 					},
 				},
 			})
-			pricingProvider.updateSpotPricing(ctx)
+			Expect(pricingProvider.updateSpotPricing(ctx)).To(Succeed())
 			Eventually(func() bool { return pricingProvider.SpotLastUpdated().After(now) }).Should(BeTrue())
 
 			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
@@ -527,7 +527,7 @@ var _ = Describe("Instance Types", func() {
 					},
 				},
 			})
-			pricingProvider.updateSpotPricing(ctx)
+			Expect(pricingProvider.updateSpotPricing(ctx)).To(Succeed())
 			Eventually(func() bool { return pricingProvider.SpotLastUpdated().After(now) }).Should(BeTrue())
 
 			// not restricting to the zone so we can get any zone
@@ -555,7 +555,8 @@ var _ = Describe("Instance Types", func() {
 			Expect(*input.LaunchTemplateData.MetadataOptions.HttpTokens).To(Equal(ec2.LaunchTemplateHttpTokensStateRequired))
 		})
 		It("should set metadata options on generated launch template from provisioner configuration", func() {
-			provider, err := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
+			var err error
+			provider, err = awsv1alpha1.Deserialize(provisioner.Spec.Provider)
 			Expect(err).ToNot(HaveOccurred())
 			provider.MetadataOptions = &awsv1alpha1.MetadataOptions{
 				HTTPEndpoint:            aws.String(ec2.LaunchTemplateInstanceMetadataEndpointStateDisabled),

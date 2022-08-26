@@ -54,7 +54,8 @@ var _ = Describe("TTL Empty", func() {
 		deployment.Spec.Replicas = ptr.Int32(0)
 		Expect(env.Client.Patch(env, deployment, client.MergeFrom(persisted))).To(Succeed())
 
-		for _, node := range env.Monitor.GetCreatedNodes() {
+		for i := range env.Monitor.GetCreatedNodes() {
+			node := env.Monitor.GetCreatedNodes()[i]
 			env.EventuallyExpectNotFound(&node)
 		}
 	})
@@ -85,7 +86,8 @@ var _ = Describe("TTL Expired", func() {
 		provisioner.Spec.TTLSecondsUntilExpired = ptr.Int64(10)
 		Expect(env.Client.Patch(env, provisioner, client.MergeFrom(persistedProv))).To(Succeed())
 
-		for _, node := range env.Monitor.GetCreatedNodes() {
+		for i := range env.Monitor.GetCreatedNodes() {
+			node := env.Monitor.GetCreatedNodes()[i]
 			env.EventuallyExpectNotFound(&node)
 		}
 	})

@@ -1,6 +1,6 @@
 # See https://github.com/golangci/golangci-lint/blob/master/.golangci.example.yml
 run:
-  tests: false
+  tests: true
 
   timeout: 5m
 
