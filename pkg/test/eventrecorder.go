@@ -18,6 +18,8 @@ import (
 	"sync"
 
 	v1 "k8s.io/api/core/v1"
+
+	"github.com/aws/karpenter/pkg/events"
 )
 
 // Binding is a potential binding that was reported through event recording.
@@ -32,6 +34,8 @@ type EventRecorder struct {
 	bindings []Binding
 }
 
+var _ events.Recorder = (*EventRecorder)(nil)
+
 func NewEventRecorder() *EventRecorder {
 	return &EventRecorder{}
 }
@@ -39,6 +43,7 @@ func NewEventRecorder() *EventRecorder {
 func (e *EventRecorder) WaitingOnReadinessForConsolidation(v *v1.Node)                {}
 func (e *EventRecorder) TerminatingNodeForConsolidation(node *v1.Node, reason string) {}
 func (e *EventRecorder) LaunchingNodeForConsolidation(node *v1.Node, reason string)   {}
+func (e *EventRecorder) WaitingOnDeletionForConsolidation(node *v1.Node)              {}
 
 func (e *EventRecorder) NominatePod(pod *v1.Pod, node *v1.Node) {
 	e.mu.Lock()

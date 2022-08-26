@@ -39,6 +39,9 @@ type Recorder interface {
 	// WaitingOnReadinessForConsolidation is called when consolidation is waiting on a node to become ready prior to
 	// continuing consolidation
 	WaitingOnReadinessForConsolidation(v *v1.Node)
+	// WaitingOnDeletionForConsolidation is called when consolidation is waiting on a node to be deleted prior to
+	// continuing consolidation
+	WaitingOnDeletionForConsolidation(oldnode *v1.Node)
 }
 
 type recorder struct {
@@ -49,6 +52,9 @@ func NewRecorder(rec record.EventRecorder) Recorder {
 	return &recorder{rec: rec}
 }
 
+func (r recorder) WaitingOnDeletionForConsolidation(node *v1.Node) {
+	r.rec.Eventf(node, "Normal", "ConsolidateWaiting", "Waiting on deletion to continue consolidation")
+}
 func (r recorder) WaitingOnReadinessForConsolidation(node *v1.Node) {
 	r.rec.Eventf(node, "Normal", "ConsolidateWaiting", "Waiting on readiness to continue consolidation")
 }

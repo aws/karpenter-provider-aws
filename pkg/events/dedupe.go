@@ -34,8 +34,15 @@ type dedupe struct {
 	cache *cache.Cache
 }
 
+func (d *dedupe) WaitingOnDeletionForConsolidation(node *v1.Node) {
+	if !d.shouldCreateEvent(fmt.Sprintf("wait-node-consolidate-delete-%s", node.UID)) {
+		return
+	}
+	d.rec.WaitingOnDeletionForConsolidation(node)
+}
+
 func (d *dedupe) WaitingOnReadinessForConsolidation(node *v1.Node) {
-	if !d.shouldCreateEvent(fmt.Sprintf("wait-node-consolidate-%s", node.UID)) {
+	if !d.shouldCreateEvent(fmt.Sprintf("wait-node-consolidate-ready-%s", node.UID)) {
 		return
 	}
 	d.rec.WaitingOnReadinessForConsolidation(node)

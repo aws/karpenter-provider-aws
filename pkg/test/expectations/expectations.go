@@ -61,7 +61,7 @@ func ExpectNodeExists(ctx context.Context, c client.Client, name string) *v1.Nod
 
 func ExpectNotFound(ctx context.Context, c client.Client, objects ...client.Object) {
 	for _, object := range objects {
-		Eventually(func() bool {
+		EventuallyWithOffset(1, func() bool {
 			return errors.IsNotFound(c.Get(ctx, types.NamespacedName{Name: object.GetName(), Namespace: object.GetNamespace()}, object))
 		}, ReconcilerPropagationTime, RequestInterval).Should(BeTrue(), func() string {
 			return fmt.Sprintf("expected %s to be deleted, but it still exists", client.ObjectKeyFromObject(object))
@@ -89,20 +89,20 @@ func ExpectApplied(ctx context.Context, c client.Client, objects ...client.Objec
 		// Create or Update
 		if err := c.Get(ctx, client.ObjectKeyFromObject(current), current); err != nil {
 			if errors.IsNotFound(err) {
-				Expect(c.Create(ctx, object)).To(Succeed())
+				ExpectWithOffset(1, c.Create(ctx, object)).To(Succeed())
 			} else {
-				Expect(err).ToNot(HaveOccurred())
+				ExpectWithOffset(1, err).ToNot(HaveOccurred())
 			}
 		} else {
 			object.SetResourceVersion(current.GetResourceVersion())
-			Expect(c.Update(ctx, object)).To(Succeed())
+			ExpectWithOffset(1, c.Update(ctx, object)).To(Succeed())
 		}
 		// Update status
 		statuscopy.SetResourceVersion(object.GetResourceVersion())
-		Expect(c.Status().Update(ctx, statuscopy)).To(Or(Succeed(), MatchError("the server could not find the requested resource"))) // Some objects do not have a status
+		ExpectWithOffset(1, c.Status().Update(ctx, statuscopy)).To(Or(Succeed(), MatchError("the server could not find the requested resource"))) // Some objects do not have a status
 		// Delete if timestamp set
 		if deletecopy.GetDeletionTimestamp() != nil {
-			Expect(c.Delete(ctx, deletecopy)).To(Succeed())
+			ExpectWithOffset(1, c.Delete(ctx, deletecopy)).To(Succeed())
 		}
 	}
 }

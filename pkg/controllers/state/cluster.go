@@ -70,7 +70,7 @@ func NewCluster(clk clock.Clock, cfg config.Config, client client.Client, cp clo
 	// The nominationPeriod is how long we consider a node as 'likely to be used' after a pending pod was
 	// nominated for it. This time can very depending on the batching window size + time spent scheduling
 	// so we try to adjust based off the window size.
-	nominationPeriod := time.Duration(1.5*cfg.BatchMaxDuration().Seconds()) * time.Second
+	nominationPeriod := time.Duration(2*cfg.BatchMaxDuration().Seconds()) * time.Second
 	if nominationPeriod < 10*time.Second {
 		nominationPeriod = 10 * time.Second
 	}
@@ -315,6 +315,14 @@ func (c *Cluster) updateNode(ctx context.Context, node *v1.Node) error {
 		delete(c.nodes, node.Name)
 		return err
 	}
+
+	oldNode, ok := c.nodes[node.Name]
+	// If the old node existed and its initialization status changed, we want to reconsider consolidation.  This handles
+	// a situation where we re-start with an unready node and it becomes ready later.
+	if ok && oldNode.Node.Labels[v1alpha5.LabelNodeInitialized] != n.Node.Labels[v1alpha5.LabelNodeInitialized] {
+		c.recordConsolidationChange()
+	}
+
 	c.nodes[node.Name] = n
 
 	if node.DeletionTimestamp != nil {
