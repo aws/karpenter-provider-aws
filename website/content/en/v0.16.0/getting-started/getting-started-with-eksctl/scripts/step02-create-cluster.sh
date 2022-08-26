@@ -12,7 +12,7 @@ managedNodeGroups:
   - instanceType: m5.large
     amiFamily: AmazonLinux2
     name: ${CLUSTER_NAME}-ng
-    desiredCapacity: 1
+    desiredCapacity: 2
     minSize: 1
     maxSize: 10
 iam:
