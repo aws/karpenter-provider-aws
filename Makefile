@@ -19,6 +19,7 @@ HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${K
 TEST_FILTER ?= .*
 
 # CR for local builds of Karpenter
+SYSTEM_NAMESPACE ?= karpenter
 KO_DOCKER_REPO ?= ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/karpenter
 GETTING_STARTED_SCRIPT_DIR = website/content/en/preview/getting-started/getting-started-with-eksctl/scripts
 
@@ -28,6 +29,13 @@ help: ## Display help
 dev: verify test ## Run all steps in the developer loop
 
 ci: toolchain verify licenses battletest coverage ## Run all steps used by continuous integration
+
+run: ## Run Karpenter controller binary against your local cluster
+	SYSTEM_NAMESPACE=${SYSTEM_NAMESPACE} go run ./cmd/controller/main.go \
+		--cluster-name=${CLUSTER_NAME} \
+		--cluster-endpoint=${CLUSTER_ENDPOINT} \
+		--aws-default-instance-profile=KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
+		--leader-elect=false
 
 test: ## Run tests
 	go test -run=${TEST_FILTER} ./pkg/...

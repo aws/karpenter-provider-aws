@@ -21,7 +21,19 @@ The following tools are required for contributing to the Karpenter project.
 
 ### Setup / Teardown
 
-Based on how you are running your Kubernetes cluster, follow the [Environment specific setup](#environment-specific-setup) to configure your environment before you continue. Once you have your environment set up, to install Karpenter in the Kubernetes cluster specified in your `~/.kube/config`  run the following commands.
+Based on how you are running your Kubernetes cluster, follow the [Environment specific setup](#environment-specific-setup) to configure your environment before you continue. You can choose to either run the Karpenter controller locally on your machine, pointing to the Kubernetes cluster specified in your `~/.kube/config` or inside the Kubernetes cluster specified in your `~/.kube/config` deployed with [Helm](https://helm.sh/).
+
+#### Locally
+
+Once you have your environment set up, run the following commands to run the Karpenter Go binary against the Kubernetes cluster specified in your `~/.kube/config`
+
+```bash
+make run
+```
+
+#### Inside a Kubernetes Cluster
+
+Once you have your environment set up, to install Karpenter in the Kubernetes cluster specified in your `~/.kube/config`  run the following commands.
 
 ```bash
 make apply # Install Karpenter
@@ -112,6 +124,12 @@ Once you have your ECR repository provisioned, configure your Docker daemon to a
 ```bash
 export KO_DOCKER_REPO="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/karpenter"
 aws ecr get-login-password --region "${AWS_DEFAULT_REGION}" | docker login --username AWS --password-stdin "${KO_DOCKER_REPO}"
+```
+
+Finally, to deploy the correct IAM permissions, including the instance profile for provisioned nodes, run
+
+```bash
+make setup
 ```
 
 ## Profiling memory
