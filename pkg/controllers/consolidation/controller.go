@@ -380,9 +380,12 @@ func (c *Controller) launchReplacementNode(ctx context.Context, minCost consolid
 
 	nodeNames, err := c.provisioner.LaunchNodes(ctx, provisioning.LaunchOptions{RecordPodNomination: false}, minCost.replacementNode)
 	if err != nil {
+		// uncordon the node as the launch may fail (e.g. ICE or incompatible AMI)
+		err = multierr.Append(err, c.setNodeUnschedulable(ctx, minCost.oldNodes[0].Name, false))
 		return err
 	}
 	if len(nodeNames) != 1 {
+		// shouldn't ever occur as we are only launching a single node
 		return fmt.Errorf("expected a single node name, got %d", len(nodeNames))
 	}
 
