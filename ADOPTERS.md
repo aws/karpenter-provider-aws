@@ -21,6 +21,7 @@ If you are open to others contacting you about your use of Karpenter on Slack, a
 | Beeswax | Using Karpenter to scale our high load AdTech platform efficiently | `@James Wojewoda` | [Homepage](https://www.beeswax.com)
 | Codefresh | Juggling workloads for the SAAS CD/GitOps offering | `@Vadim Gusev` | [Codefresh](https://codefresh.io/) |
 | Cordial   | Using Karpenter to scale multiple EKS clusters quickly | `@dschaaff` | [Cordial](https://cordial.com) |
+| H2O.ai | Dynamically scaling CPU and GPU nodes for AI workloads  | `@Ophir Zahavi` | [H2o.ai](https://h2o.ai/) |
 | idealo | Scaling multi-arch IPv6 clusters hosting web and event-driven applications | `@Heiko Rothe` | [Homepage](https://www.idealo.de) |
 | Nirvana Money | Building healthy, happy financial lives - Using Karpenter to manage all-Spot clusters | `@DWSR` | [Homepage](https://www.nirvana.money/) |
 | Omaze | Intelligently using Karpenter's autoscaling to power our platforms | `@devopsidiot` | [Homepage](https://www.omaze.com/) |
