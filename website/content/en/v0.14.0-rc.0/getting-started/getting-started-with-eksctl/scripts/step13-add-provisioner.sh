@@ -11,10 +11,17 @@ spec:
   limits:
     resources:
       cpu: 1000
-  provider:
-    subnetSelector:
-      karpenter.sh/discovery: ${CLUSTER_NAME}
-    securityGroupSelector:
-      karpenter.sh/discovery: ${CLUSTER_NAME}
+  providerRef:
+    name: default
   ttlSecondsAfterEmpty: 30
+---
+apiVersion: karpenter.k8s.aws/v1alpha1
+kind: AWSNodeTemplate
+metadata:
+  name: default
+spec:
+  subnetSelector:
+    karpenter.sh/discovery: ${CLUSTER_NAME}
+  securityGroupSelector:
+    karpenter.sh/discovery: ${CLUSTER_NAME}
 EOF
