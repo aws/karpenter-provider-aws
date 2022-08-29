@@ -16,24 +16,14 @@ package consolidation_test
 
 import (
 	"context"
+	"math"
+	"sort"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
-	"math"
-	"sort"
-
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter/pkg/cloudprovider"
-	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/cloudprovider/fake"
-	"github.com/aws/karpenter/pkg/controllers/consolidation"
-	"github.com/aws/karpenter/pkg/controllers/provisioning"
-	"github.com/aws/karpenter/pkg/controllers/state"
-	"github.com/aws/karpenter/pkg/test"
-	. "github.com/aws/karpenter/pkg/test/expectations"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
@@ -47,6 +37,16 @@ import (
 	"k8s.io/client-go/kubernetes"
 	. "knative.dev/pkg/logging/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/cloudprovider/fake"
+	"github.com/aws/karpenter/pkg/controllers/consolidation"
+	"github.com/aws/karpenter/pkg/controllers/provisioning"
+	"github.com/aws/karpenter/pkg/controllers/state"
+	"github.com/aws/karpenter/pkg/test"
+	. "github.com/aws/karpenter/pkg/test/expectations"
 )
 
 var ctx context.Context
@@ -227,7 +227,8 @@ var _ = Describe("Replace Nodes", func() {
 		// consolidation won't delete the old node until the new node is ready
 		wg := ExpectMakeNewNodesReady(ctx, env.Client, 1, node)
 		fakeClock.Step(10 * time.Minute)
-		controller.ProcessCluster(ctx)
+		_, err := controller.ProcessCluster(ctx)
+		Expect(err).ToNot(HaveOccurred())
 		wg.Wait()
 
 		// should create a new node as there is a cheaper one that can hold the pod
@@ -298,7 +299,8 @@ var _ = Describe("Replace Nodes", func() {
 		// inform cluster state about the nodes
 		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node1))
 		fakeClock.Step(10 * time.Minute)
-		controller.ProcessCluster(ctx)
+		_, err := controller.ProcessCluster(ctx)
+		Expect(err).ToNot(HaveOccurred())
 
 		// we don't need a new node
 		Expect(cloudProvider.CreateCalls).To(HaveLen(0))
@@ -373,7 +375,8 @@ var _ = Describe("Replace Nodes", func() {
 		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(regularNode))
 		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(annotatedNode))
 		fakeClock.Step(10 * time.Minute)
-		controller.ProcessCluster(ctx)
+		_, err := controller.ProcessCluster(ctx)
+		Expect(err).ToNot(HaveOccurred())
 
 		Expect(cloudProvider.CreateCalls).To(HaveLen(0))
 		// we should delete the non-annotated node
@@ -459,7 +462,8 @@ var _ = Describe("Replace Nodes", func() {
 		Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(node), node)).To(Succeed())
 
 		fakeClock.Step(10 * time.Minute)
-		controller.ProcessCluster(ctx)
+		_, err := controller.ProcessCluster(ctx)
+		Expect(err).ToNot(HaveOccurred())
 		Expect(cloudProvider.CreateCalls).To(HaveLen(0))
 		ExpectNodeExists(ctx, env.Client, node.Name)
 	})
@@ -560,7 +564,8 @@ var _ = Describe("Replace Nodes", func() {
 		Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(node), node)).To(Succeed())
 
 		fakeClock.Step(10 * time.Minute)
-		controller.ProcessCluster(ctx)
+		_, err := controller.ProcessCluster(ctx)
+		Expect(err).ToNot(HaveOccurred())
 		Expect(cloudProvider.CreateCalls).To(HaveLen(0))
 		ExpectNodeExists(ctx, env.Client, node.Name)
 	})
@@ -611,7 +616,8 @@ var _ = Describe("Replace Nodes", func() {
 
 		var consolidationFinished atomic.Bool
 		go func() {
-			controller.ProcessCluster(ctx)
+			_, err := controller.ProcessCluster(ctx)
+			Expect(err).ToNot(HaveOccurred())
 			consolidationFinished.Store(true)
 		}()
 		wg.Wait()
@@ -700,7 +706,8 @@ var _ = Describe("Delete Node", func() {
 		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node1))
 		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node2))
 		fakeClock.Step(10 * time.Minute)
-		controller.ProcessCluster(ctx)
+		_, err := controller.ProcessCluster(ctx)
+		Expect(err).ToNot(HaveOccurred())
 
 		// we don't need a new node, but we should evict everything off one of node2 which only has a single pod
 		Expect(cloudProvider.CreateCalls).To(HaveLen(0))
@@ -788,7 +795,8 @@ var _ = Describe("Delete Node", func() {
 		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node1))
 		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node2))
 		fakeClock.Step(10 * time.Minute)
-		controller.ProcessCluster(ctx)
+		_, err := controller.ProcessCluster(ctx)
+		Expect(err).ToNot(HaveOccurred())
 
 		// we don't need a new node
 		Expect(cloudProvider.CreateCalls).To(HaveLen(0))
@@ -862,7 +870,8 @@ var _ = Describe("Delete Node", func() {
 		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node1))
 		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node2))
 		fakeClock.Step(10 * time.Minute)
-		controller.ProcessCluster(ctx)
+		_, err := controller.ProcessCluster(ctx)
+		Expect(err).ToNot(HaveOccurred())
 
 		// we don't need a new node
 		Expect(cloudProvider.CreateCalls).To(HaveLen(0))
@@ -933,7 +942,8 @@ var _ = Describe("Delete Node", func() {
 		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node1))
 		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node2))
 		fakeClock.Step(10 * time.Minute)
-		controller.ProcessCluster(ctx)
+		_, err := controller.ProcessCluster(ctx)
+		Expect(err).ToNot(HaveOccurred())
 
 		// we don't need a new node
 		Expect(cloudProvider.CreateCalls).To(HaveLen(0))
@@ -1011,7 +1021,8 @@ var _ = Describe("Node Lifetime Consideration", func() {
 		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node1))
 		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node2))
 		fakeClock.SetTime(time.Now())
-		controller.ProcessCluster(ctx)
+		_, err := controller.ProcessCluster(ctx)
+		Expect(err).ToNot(HaveOccurred())
 
 		// the second node has more pods so it would normally not be picked for consolidation, except it very little
 		// lifetime remaining so it should be deleted
@@ -1105,7 +1116,8 @@ var _ = Describe("Topology Consideration", func() {
 		// consolidation won't delete the old node until the new node is ready
 		wg := ExpectMakeNewNodesReady(ctx, env.Client, 1, zone1Node, zone2Node, zone3Node)
 		fakeClock.Step(10 * time.Minute)
-		controller.ProcessCluster(ctx)
+		_, err := controller.ProcessCluster(ctx)
+		Expect(err).ToNot(HaveOccurred())
 		wg.Wait()
 
 		// should create a new node as there is a cheaper one that can hold the pod
@@ -1203,7 +1215,8 @@ var _ = Describe("Topology Consideration", func() {
 
 		wg := ExpectMakeNewNodesReady(ctx, env.Client, 1, zone1Node, zone2Node, zone3Node)
 		fakeClock.Step(10 * time.Minute)
-		controller.ProcessCluster(ctx)
+		_, err := controller.ProcessCluster(ctx)
+		Expect(err).ToNot(HaveOccurred())
 		wg.Wait()
 
 		// our nodes are already the cheapest available, so we can't replace them.  If we delete, it would
@@ -1240,7 +1253,8 @@ var _ = Describe("Empty Nodes", func() {
 		// inform cluster state about the nodes
 		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node1))
 		fakeClock.Step(10 * time.Minute)
-		controller.ProcessCluster(ctx)
+		_, err := controller.ProcessCluster(ctx)
+		Expect(err).ToNot(HaveOccurred())
 
 		// we don't need any new nodes
 		Expect(cloudProvider.CreateCalls).To(HaveLen(0))
@@ -1282,7 +1296,8 @@ var _ = Describe("Empty Nodes", func() {
 		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node1))
 		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node2))
 		fakeClock.Step(10 * time.Minute)
-		controller.ProcessCluster(ctx)
+		_, err := controller.ProcessCluster(ctx)
+		Expect(err).ToNot(HaveOccurred())
 
 		// we don't need any new nodes
 		Expect(cloudProvider.CreateCalls).To(HaveLen(0))
@@ -1347,7 +1362,10 @@ func ExpectMakeNewNodesReady(ctx context.Context, client client.Client, numNewNo
 					return
 				}
 				var nodeList v1.NodeList
-				client.List(ctx, &nodeList)
+				err := client.List(ctx, &nodeList)
+				if err != nil {
+					continue
+				}
 				nodesMadeReady := 0
 				for i := range nodeList.Items {
 					n := &nodeList.Items[i]

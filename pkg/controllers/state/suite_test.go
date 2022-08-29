@@ -385,6 +385,7 @@ var _ = Describe("Node Resource Level", func() {
 		})
 
 	})
+	// nolint:gosec
 	It("should maintain a correct count of resource usage as pods are deleted/added", func() {
 		var pods []*v1.Pod
 		for i := 0; i < 100; i++ {

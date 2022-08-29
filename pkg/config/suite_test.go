@@ -22,17 +22,19 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/karpenter/pkg/config"
-	"github.com/aws/karpenter/pkg/test"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"knative.dev/pkg/configmap/informer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	. "github.com/aws/karpenter/pkg/test/expectations"
+	"github.com/aws/karpenter/pkg/config"
+	"github.com/aws/karpenter/pkg/test"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
+
+	. "github.com/aws/karpenter/pkg/test/expectations"
 )
 
 var ctx context.Context
@@ -72,11 +74,11 @@ var _ = BeforeEach(func() {
 	var cm v1.ConfigMap
 	cm.Namespace = "default"
 	cm.Name = "karpenter-global-settings"
-	env.Client.Delete(ctx, &cm)
+	err := env.Client.Delete(ctx, &cm)
+	Expect(err).ToNot(HaveOccurred())
 
-	var err error
 	cfg, err = config.New(ctx, clientSet, cmw)
-	Expect(err).To(BeNil())
+	Expect(err).ToNot(HaveOccurred())
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -118,7 +120,7 @@ var _ = Describe("Batch Parameter", func() {
 		cm.Data = map[string]string{}
 		cm.Data["batchIdleDuration"] = "2s"
 		cm.Data["batchMaxDuration"] = "15s"
-		env.Client.Update(ctx, &cm)
+		Expect(env.Client.Update(ctx, &cm)).To(Succeed())
 
 		// we should read the new changes
 		Eventually(func() bool {

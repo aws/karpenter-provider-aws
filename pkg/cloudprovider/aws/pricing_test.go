@@ -147,7 +147,7 @@ var _ = Describe("Pricing", func() {
 		Expect(ok).To(BeTrue())
 		Expect(price).To(BeNumerically("==", 1.20))
 
-		price, ok = p.SpotPrice("c98.large", "test-zone-1b")
+		_, ok = p.SpotPrice("c98.large", "test-zone-1b")
 		Expect(ok).ToNot(BeTrue())
 	})
 	It("should respond with false if price doesn't exist in zone", func() {
