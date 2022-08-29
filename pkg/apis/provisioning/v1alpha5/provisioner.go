@@ -123,6 +123,7 @@ type KubeletConfiguration struct {
 	// +optional
 	MaxPods *int32 `json:"maxPods,omitempty"`
 	// SystemReserved contains resources reserved for OS system daemons and kernel memory.
+	// +optional
 	SystemReserved v1.ResourceList `json:"systemReserved,omitempty"`
 }
 
