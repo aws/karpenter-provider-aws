@@ -59,8 +59,7 @@ or on the controller, node provisioning will fail. The KarpenterControllerPolicy
 
 ```
 spec:
-  provider:
-    instanceProfile: MyInstanceProfile
+  instanceProfile: MyInstanceProfile
 ```
 
 ### LaunchTemplate
@@ -73,8 +72,7 @@ Review the [Launch Template documentation](../launch-templates/) to learn how to
 
 ```
 spec:
-  provider:
-    launchTemplate: MyLaunchTemplate
+  launchTemplate: MyLaunchTemplate
 ```
 
 ### SubnetSelector (required)
@@ -146,9 +144,8 @@ If multiple securityGroups are printed, you will need a more targeted securityGr
 Select all security groups with a specified tag:
 ```
 spec:
-  provider:
-    securityGroupSelector:
-      karpenter.sh/discovery/MyClusterName: '*'
+  securityGroupSelector:
+    karpenter.sh/discovery/MyClusterName: '*'
 ```
 
 Select security groups by name, or another tag (all criteria must match):
@@ -180,14 +177,13 @@ karpenter.sh/provisioner-name: <provisioner-name>
 kubernetes.io/cluster/<cluster-name>: owned
 ```
 
-Additional tags can be added in the provider tags section which are merged with and can override the default tag values.
+Additional tags can be added in the AWSNodeTemplate tags section which are merged with and can override the default tag values.
 ```
 spec:
-  provider:
-    tags:
-      InternalAccountingTag: 1234
-      dev.corp.net/app: Calculator
-      dev.corp.net/team: MyTeam
+  tags:
+    InternalAccountingTag: 1234
+    dev.corp.net/app: Calculator
+    dev.corp.net/team: MyTeam
 ```
 
 ### Metadata Options
@@ -200,12 +196,11 @@ If metadataOptions are omitted from this provisioner, the following default sett
 
 ```
 spec:
-  provider:
-    metadataOptions:
-      httpEndpoint: enabled
-      httpProtocolIPv6: disabled
-      httpPutResponseHopLimit: 2
-      httpTokens: required
+  metadataOptions:
+    httpEndpoint: enabled
+    httpProtocolIPv6: disabled
+    httpPutResponseHopLimit: 2
+    httpTokens: required
 ```
 
 ### Amazon Machine Image (AMI) Family
@@ -219,8 +214,7 @@ Note: If a custom launch template is specified, then the AMI value in the launch
 
 ```
 spec:
-  provider:
-    amiFamily: Bottlerocket
+  amiFamily: Bottlerocket
 ```
 
 ### Block Device Mappings
@@ -233,18 +227,17 @@ Note: If a custom launch template is specified, then the `BlockDeviceMappings` f
 
 ```
 spec:
-  provider:
-    blockDeviceMappings:
-      - deviceName: /dev/xvda
-        ebs:
-          volumeSize: 100Gi
-          volumeType: gp3
-          iops: 10000
-          encrypted: true
-          kmsKeyID: "arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab"
-          deleteOnTermination: true
-          throughput: 125
-          snapshotID: snap-0123456789
+  blockDeviceMappings:
+    - deviceName: /dev/xvda
+      ebs:
+        volumeSize: 100Gi
+        volumeType: gp3
+        iops: 10000
+        encrypted: true
+        kmsKeyID: "arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab"
+        deleteOnTermination: true
+        throughput: 125
+        snapshotID: snap-0123456789
 ```
 
 ### UserData
