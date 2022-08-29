@@ -158,14 +158,15 @@ func (i *InstanceType) architecture() string {
 
 func (i *InstanceType) computeResources(enablePodENI bool) v1.ResourceList {
 	return v1.ResourceList{
-		v1.ResourceCPU:              *i.cpu(),
-		v1.ResourceMemory:           *i.memory(),
-		v1.ResourceEphemeralStorage: *i.ephemeralStorage(),
-		v1.ResourcePods:             *i.pods(),
-		v1alpha1.ResourceAWSPodENI:  *i.awsPodENI(enablePodENI),
-		v1alpha1.ResourceNVIDIAGPU:  *i.nvidiaGPUs(),
-		v1alpha1.ResourceAMDGPU:     *i.amdGPUs(),
-		v1alpha1.ResourceAWSNeuron:  *i.awsNeurons(),
+		v1.ResourceCPU:                  *i.cpu(),
+		v1.ResourceMemory:               *i.memory(),
+		v1.ResourceEphemeralStorage:     *i.ephemeralStorage(),
+		v1.ResourcePods:                 *i.pods(),
+		v1alpha1.ResourceAWSPodENI:      *i.awsPodENI(enablePodENI),
+		v1alpha1.ResourceAWSPrivateIPv4: *i.awsPodPrivateIPv4(),
+		v1alpha1.ResourceNVIDIAGPU:      *i.nvidiaGPUs(),
+		v1alpha1.ResourceAMDGPU:         *i.amdGPUs(),
+		v1alpha1.ResourceAWSNeuron:      *i.awsNeurons(),
 	}
 }
 
@@ -207,6 +208,16 @@ func (i *InstanceType) awsPodENI(enablePodENI bool) *resource.Quantity {
 	limits, ok := Limits[aws.StringValue(i.InstanceType)]
 	if enablePodENI && ok && limits.IsTrunkingCompatible {
 		return resources.Quantity(fmt.Sprint(limits.BranchInterface))
+	}
+	return resources.Quantity("0")
+}
+
+func (i *InstanceType) awsPodPrivateIPv4() *resource.Quantity {
+	// Resource automatically added to Windows resources by the AWS VPC Resource Controller:
+	// https://github.com/aws/amazon-vpc-resource-controller-k8s/blob/master/docs/windows/workflow.md
+	limits, ok := Limits[aws.StringValue(i.InstanceType)]
+	if ok {
+		return resources.Quantity(fmt.Sprint(limits.IPv4PerInterface - 1))
 	}
 	return resources.Quantity("0")
 }
