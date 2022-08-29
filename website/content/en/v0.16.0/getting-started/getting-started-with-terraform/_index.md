@@ -160,9 +160,10 @@ module "eks" {
       # Not required nor used - avoid tagging two security groups with same tag as well
       create_security_group = false
 
-      min_size     = 1
-      max_size     = 1
-      desired_size = 1
+      # Ensure enough capacity to run 2 Karpenter pods
+      min_size     = 2
+      max_size     = 2
+      desired_size = 2
 
       iam_role_additional_policies = [
         # Required by Karpenter
