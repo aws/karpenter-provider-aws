@@ -110,12 +110,15 @@ func (c *Controller) run(ctx context.Context) {
 
 			// don't consolidate as we recently scaled down too soon
 			stabilizationTime := c.clock.Now().Add(-c.stabilizationWindow(ctx))
+			// capture the state before we process so if something changes during consolidation we'll re-look
+			// immediately
+			clusterState := c.cluster.ClusterConsolidationState()
 			if c.cluster.LastNodeDeletionTime().Before(stabilizationTime) {
 				result, err := c.ProcessCluster(ctx)
 				if err != nil {
 					logging.FromContext(ctx).Errorf("consolidating cluster, %s", err)
 				} else if result == ProcessResultNothingToDo {
-					c.lastConsolidationState = c.cluster.ClusterConsolidationState()
+					c.lastConsolidationState = clusterState
 				}
 			}
 		}
@@ -167,7 +170,12 @@ func (c *Controller) ProcessCluster(ctx context.Context) (ProcessResult, error) 
 		if err = c.canBeTerminated(node, pdbs); err != nil {
 			continue
 		}
-		action := c.nodeConsolidationActions(ctx, node)
+
+		action, err := c.nodeConsolidationOptionReplaceOrDelete(ctx, node)
+		if err != nil {
+			logging.FromContext(ctx).Errorf("calculating consolidation option, %s", err)
+			continue
+		}
 		if action.result == consolidateResultDelete || action.result == consolidateResultReplace {
 			// perform the first consolidation we can since we are looking at nodes in ascending order of disruption cost
 			c.performConsolidation(ctx, action)
@@ -240,7 +248,7 @@ func (c *Controller) candidateNodes(ctx context.Context) ([]candidateNode, error
 			return true
 		}
 
-		nodes = append(nodes, candidateNode{
+		cn := candidateNode{
 			Node:           n.Node,
 			instanceType:   instanceType,
 			capacityType:   ct,
@@ -248,7 +256,14 @@ func (c *Controller) candidateNodes(ctx context.Context) ([]candidateNode, error
 			provisioner:    provisioner,
 			pods:           pods,
 			disruptionCost: disruptionCost(ctx, pods),
-		})
+		}
+		// lifetimeRemaining is the fraction of node lifetime remaining in the range [0.0, 1.0].  If the TTLSecondsUntilExpired
+		// is non-zero, we use it to scale down the disruption costs of nodes that are going to expire.  Just after creation, the
+		// disruption cost is highest and it approaches zero as the node ages towards its expiration time.
+		lifetimeRemaining := c.calculateLifetimeRemaining(cn)
+		cn.disruptionCost *= lifetimeRemaining
+
+		nodes = append(nodes, cn)
 		return true
 	})
 
@@ -365,9 +380,12 @@ func (c *Controller) launchReplacementNode(ctx context.Context, minCost consolid
 
 	nodeNames, err := c.provisioner.LaunchNodes(ctx, provisioning.LaunchOptions{RecordPodNomination: false}, minCost.replacementNode)
 	if err != nil {
+		// uncordon the node as the launch may fail (e.g. ICE or incompatible AMI)
+		err = multierr.Append(err, c.setNodeUnschedulable(ctx, minCost.oldNodes[0].Name, false))
 		return err
 	}
 	if len(nodeNames) != 1 {
+		// shouldn't ever occur as we are only launching a single node
 		return fmt.Errorf("expected a single node name, got %d", len(nodeNames))
 	}
 
@@ -442,22 +460,6 @@ func (c *Controller) podsPreventEviction(node candidateNode) error {
 		}
 	}
 	return nil
-}
-
-func (c *Controller) nodeConsolidationActions(ctx context.Context, node candidateNode) consolidationAction {
-	// lifetimeRemaining is the fraction of node lifetime remaining in the range [0.0, 1.0].  If the TTLSecondsUntilExpired
-	// is non-zero, we use it to scale down the disruption costs of nodes that are going to expire.  Just after creation, the
-	// disruption cost is highest and it approaches zero as the node ages towards its expiration time.
-	lifetimeRemaining := c.calculateLifetimeRemaining(node)
-
-	action, err := c.nodeConsolidationOptionReplaceOrDelete(ctx, node)
-	if err != nil {
-		logging.FromContext(ctx).Errorf("Consolidating node (replace), %s", err)
-	}
-	action.disruptionCost *= lifetimeRemaining
-
-	// we only care about possibly successful consolidations
-	return action
 }
 
 // calculateLifetimeRemaining calculates the fraction of node lifetime remaining in the range [0.0, 1.0].  If the TTLSecondsUntilExpired
