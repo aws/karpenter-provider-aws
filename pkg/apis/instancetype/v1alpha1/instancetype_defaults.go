@@ -19,5 +19,5 @@ import (
 )
 
 // SetDefaults for the InstanceType
-func (a *InstanceType) SetDefaults(ctx context.Context) {
+func (in *InstanceType) SetDefaults(_ context.Context) {
 }

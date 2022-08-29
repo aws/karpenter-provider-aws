@@ -269,6 +269,8 @@ func (p *InstanceTypeProvider) CacheUnavailable(ctx context.Context, fleetErr *e
 	p.unavailableOfferings.SetDefault(UnavailableOfferingsCacheKey(instanceType, zone, capacityType), struct{}{})
 }
 
+// makeOverrideMap creates an in-memory version of the List of InstancType CRDs on the Kubernetes API server
+// for overriding instance type details after the instance type has been created
 func (p *InstanceTypeProvider) makeOverrideMap(ctx context.Context) (map[string]instancetypev1alpha1.InstanceType, error) {
 	overrides := &instancetypev1alpha1.InstanceTypeList{}
 	err := p.kubeClient.List(ctx, overrides)
@@ -284,10 +286,13 @@ func UnavailableOfferingsCacheKey(instanceType string, zone string, capacityType
 	return fmt.Sprintf("%s:%s:%s", capacityType, instanceType, zone)
 }
 
+// mergeInstanceTypeOverrides merges the values from the InstanceType CRs with the resources currently
+// pulled from the EC2 APIs. Resources should already be validated when they get here, so we will automatically
+// add them to the instance type resources and its requirements
 func mergeInstanceTypeOverrides(it *InstanceType, instanceType instancetypev1alpha1.InstanceType) *InstanceType {
 	for name, quantity := range instanceType.Spec.Resources {
 		it.resources[name] = quantity
-		it.requirements.Upsert(scheduling.NewRequirement(string(name), v1.NodeSelectorOpIn, fmt.Sprint(quantity.Value())))
+		it.requirements.Upsert(scheduling.NewRequirement(name.String(), v1.NodeSelectorOpIn, fmt.Sprint(quantity.Value())))
 	}
 	return it
 }

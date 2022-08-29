@@ -17,8 +17,18 @@ package resources
 import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/sets"
 
 	"github.com/aws/karpenter/pkg/utils/pretty"
+)
+
+var (
+	WellKnownResourceNames = sets.NewString(
+		v1.ResourcePods.String(),
+		v1.ResourceMemory.String(),
+		v1.ResourceEphemeralStorage.String(),
+		v1.ResourceCPU.String(),
+	)
 )
 
 // RequestsForPods returns the total resources of a variadic list of podspecs.
