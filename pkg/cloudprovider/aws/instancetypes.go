@@ -21,6 +21,9 @@ import (
 	"sync"
 	"time"
 
+	k8sClient "sigs.k8s.io/controller-runtime/pkg/client"
+
+	instancetypev1alpha1 "github.com/aws/karpenter/pkg/apis/instancetype/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -60,6 +63,7 @@ type InstanceTypeProvider struct {
 	// key: <capacityType>:<instanceType>:<zone>, value: struct{}{}
 	unavailableOfferings *cache.Cache
 	cm                   *pretty.ChangeMonitor
+	kubeClient           k8sClient.Client
 }
 
 func NewInstanceTypeProvider(ctx context.Context, sess *session.Session, options cloudprovider.Options, ec2api ec2iface.EC2API, subnetProvider *SubnetProvider) *InstanceTypeProvider {
@@ -75,6 +79,7 @@ func NewInstanceTypeProvider(ctx context.Context, sess *session.Session, options
 		cache:                cache.New(InstanceTypesAndZonesCacheTTL, CacheCleanupInterval),
 		unavailableOfferings: cache.New(UnfulfillableCapacityErrorCacheTTL, CacheCleanupInterval),
 		cm:                   pretty.NewChangeMonitor(),
+		kubeClient:           options.KubeClient,
 	}
 }
 
@@ -94,9 +99,20 @@ func (p *InstanceTypeProvider) Get(ctx context.Context, provider *v1alpha1.AWS, 
 	}
 	var result []cloudprovider.InstanceType
 
+	// Grab the instance type override values when grabbing instance type details
+	overrideMap, err := p.makeOverrideMap(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create instance type override map, %w", err)
+	}
 	for _, i := range instanceTypes {
 		instanceTypeName := aws.StringValue(i.InstanceType)
 		instanceType := NewInstanceType(ctx, i, kc, p.region, provider, p.createOfferings(ctx, i, instanceTypeZones[instanceTypeName]))
+
+		// Check if there are instance type overrides for this name
+		// If there are, then we override them
+		if v, ok := overrideMap[instanceType.Name()]; ok {
+			instanceType = mergeInstanceTypeOverrides(instanceType, v)
+		}
 		result = append(result, instanceType)
 	}
 	return result, nil
@@ -251,6 +267,24 @@ func (p *InstanceTypeProvider) CacheUnavailable(ctx context.Context, fleetErr *e
 	p.unavailableOfferings.SetDefault(UnavailableOfferingsCacheKey(instanceType, zone, capacityType), struct{}{})
 }
 
+func (p *InstanceTypeProvider) makeOverrideMap(ctx context.Context) (map[string]instancetypev1alpha1.InstanceType, error) {
+	overrides := &instancetypev1alpha1.InstanceTypeList{}
+	err := p.kubeClient.List(ctx, overrides)
+	if err != nil {
+		return nil, err
+	}
+	return lo.SliceToMap(overrides.Items, func(it instancetypev1alpha1.InstanceType) (string, instancetypev1alpha1.InstanceType) {
+		return it.Name, it
+	}), nil
+}
+
 func UnavailableOfferingsCacheKey(instanceType string, zone string, capacityType string) string {
 	return fmt.Sprintf("%s:%s:%s", capacityType, instanceType, zone)
+}
+
+func mergeInstanceTypeOverrides(it *InstanceType, instanceType instancetypev1alpha1.InstanceType) *InstanceType {
+	for name, quantity := range instanceType.Spec.Resources {
+		it.resources[name] = quantity
+	}
+	return it
 }
