@@ -36,7 +36,8 @@ linters-settings:
     check-shadowing: true
   misspell:
     locale: US
-    ignore-words: []
+    ignore-words:
+      - Karpenter
   goimports:
     local-prefixes: github.com/aws/karpenter
   goheader:

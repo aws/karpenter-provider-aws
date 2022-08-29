@@ -11,7 +11,7 @@ metadata:
 rules:
   # Read
   - apiGroups: ["karpenter.sh"]
-    resources: ["provisioners", "provisioners/status"]
+    resources: ["provisioners", "provisioners/status", "instancetypes", "instancetypes/status"]
     verbs: ["get", "list", "watch"]
   - apiGroups: ["karpenter.k8s.aws"]
     resources: ["awsnodetemplates"]

@@ -1,0 +1,12 @@
+# This example instance type override will
+# override allocatable capacity for c5.large instance types
+# provisioned by Karpenter
+
+apiVersion: karpenter.sh/v1alpha1
+kind: InstanceType
+metadata:
+  name: c5.large
+spec:
+  resources:
+    cpu: 2
+    memory: 2Gi

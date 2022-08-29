@@ -20,8 +20,6 @@ import (
 	"knative.dev/pkg/apis"
 )
 
-func (a *InstanceType) Validate(ctx context.Context) (errs *apis.FieldError) {
-	return errs.Also(
-		apis.ValidateObjectMetadata(a).ViaField("metadata"),
-	)
+func (it *InstanceType) Validate(_ context.Context) (errs *apis.FieldError) {
+	return nil
 }

@@ -5,15 +5,15 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.8.0
   creationTimestamp: null
-  name: instancetype.karpenter.k8s.aws
+  name: instancetypes.karpenter.sh
 spec:
-  group: karpenter.k8s.aws
+  group: karpenter.sh
   names:
     categories:
     - karpenter
     kind: InstanceType
     listKind: InstanceTypeList
-    plural: instancetype
+    plural: instancetypes
     singular: instancetype
   scope: Cluster
   versions:
@@ -39,6 +39,18 @@ spec:
               for specifying custom values on a per-instance type basis for scheduling
               and launching of nodes
             properties:
+              overhead:
+                additionalProperties:
+                  anyOf:
+                  - type: integer
+                  - type: string
+                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                  x-kubernetes-int-or-string: true
+                description: Overhead contains a map of overhead values that are subtracted
+                  from the list of allocatable resources. This map is used during
+                  scheduling and does not subtract from the allocatable resources
+                  that kubelet is aware of
+                type: object
               resources:
                 additionalProperties:
                   anyOf:
@@ -46,7 +58,7 @@ spec:
                   - type: string
                   pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                   x-kubernetes-int-or-string: true
-                description: Resources contains a list of allocatable resources for
+                description: Resources contains a map of allocatable resources for
                   the instance type used by the scheduler. This resource list can
                   contain known resources (cpu, memory, etc.) or it may also contain
                   unknown custom device resources for custom device plugins

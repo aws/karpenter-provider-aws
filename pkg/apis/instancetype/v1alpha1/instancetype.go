@@ -23,16 +23,22 @@ import (
 // for specifying custom values on a per-instance type basis for scheduling and
 // launching of nodes
 type InstanceTypeSpec struct {
-	// Resources contains a list of allocatable resources for the instance type
+	// Resources contains a map of allocatable resources for the instance type
 	// used by the scheduler. This resource list can contain known resources (cpu, memory, etc.)
 	// or it may also contain unknown custom device resources for custom device plugins
 	// +optional
 	Resources v1.ResourceList `json:"resources,omitempty"`
+
+	// Overhead contains a map of overhead values that are subtracted from the list of allocatable
+	// resources. This map is used during scheduling and does not subtract from the allocatable
+	// resources that kubelet is aware of
+	// +optional
+	Overhead v1.ResourceList `json:"overhead,omitempty"`
 }
 
 // InstanceType is the Schema for the InstanceType API
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:path=instancetype,scope=Cluster,categories=karpenter
+// +kubebuilder:resource:path=instancetypes,scope=Cluster,categories=karpenter
 // +kubebuilder:subresource:status
 type InstanceType struct {
 	metav1.TypeMeta   `json:",inline"`

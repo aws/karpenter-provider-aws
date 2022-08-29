@@ -20,7 +20,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"knative.dev/pkg/webhook/resourcesemantics"
 
-	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
+	awsv1alpha1 "github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
+	instancetypev1alpha1 "github.com/aws/karpenter/pkg/apis/instancetype/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 )
 
@@ -28,13 +29,15 @@ var (
 	// Builder includes all types within the apis package
 	Builder = runtime.NewSchemeBuilder(
 		v1alpha5.SchemeBuilder.AddToScheme,
-		v1alpha1.SchemeBuilder.AddToScheme,
+		awsv1alpha1.SchemeBuilder.AddToScheme,
+		instancetypev1alpha1.SchemeBuilder.AddToScheme,
 	)
 	// AddToScheme may be used to add all resources defined in the project to a Scheme
 	AddToScheme = Builder.AddToScheme
 	// Resources defined in the project
 	Resources = map[schema.GroupVersionKind]resourcesemantics.GenericCRD{
-		v1alpha5.SchemeGroupVersion.WithKind("Provisioner"):     &v1alpha5.Provisioner{},
-		v1alpha1.SchemeGroupVersion.WithKind("AWSNodeTemplate"): &v1alpha1.AWSNodeTemplate{},
+		v1alpha5.SchemeGroupVersion.WithKind("Provisioner"):              &v1alpha5.Provisioner{},
+		awsv1alpha1.SchemeGroupVersion.WithKind("AWSNodeTemplate"):       &awsv1alpha1.AWSNodeTemplate{},
+		instancetypev1alpha1.SchemeGroupVersion.WithKind("InstanceType"): &instancetypev1alpha1.InstanceType{},
 	}
 )

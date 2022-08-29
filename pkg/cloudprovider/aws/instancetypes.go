@@ -21,10 +21,12 @@ import (
 	"sync"
 	"time"
 
+	v1 "k8s.io/api/core/v1"
 	k8sClient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	instancetypev1alpha1 "github.com/aws/karpenter/pkg/apis/instancetype/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/scheduling"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -285,6 +287,7 @@ func UnavailableOfferingsCacheKey(instanceType string, zone string, capacityType
 func mergeInstanceTypeOverrides(it *InstanceType, instanceType instancetypev1alpha1.InstanceType) *InstanceType {
 	for name, quantity := range instanceType.Spec.Resources {
 		it.resources[name] = quantity
+		it.requirements.Upsert(scheduling.NewRequirement(string(name), v1.NodeSelectorOpIn, fmt.Sprint(quantity.Value())))
 	}
 	return it
 }
