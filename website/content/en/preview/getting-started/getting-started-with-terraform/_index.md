@@ -162,7 +162,7 @@ module "eks" {
 
       # Ensure enough capacity to run 2 Karpenter pods
       min_size     = 2
-      max_size     = 2
+      max_size     = 3
       desired_size = 2
 
       iam_role_additional_policies = [
