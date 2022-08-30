@@ -60,9 +60,22 @@ var (
 	}
 )
 
+// if set, logs additional information that may be useful in debugging an E2E test failure
+var debugE2E = true
+
 func (env *Environment) BeforeEach() {
+	if debugE2E {
+		fmt.Println("BeforeEach Begin")
+		defer fmt.Println("BeforeEach End")
+	}
+
 	var nodes v1.NodeList
 	Expect(env.Client.List(env.Context, &nodes)).To(Succeed())
+	if debugE2E {
+		for _, node := range nodes.Items {
+			fmt.Printf("node %s taints = %v\n", node.Name, node.Spec.Taints)
+		}
+	}
 	for _, node := range nodes.Items {
 		if len(node.Spec.Taints) == 0 && !node.Spec.Unschedulable {
 			Fail(fmt.Sprintf("expected system pool node %s to be tainted", node.Name))
@@ -71,6 +84,11 @@ func (env *Environment) BeforeEach() {
 
 	var pods v1.PodList
 	Expect(env.Client.List(env.Context, &pods)).To(Succeed())
+	if debugE2E {
+		for i, p := range pods.Items {
+			fmt.Printf("pods %s/%s provisionable=%v nodename=%s\n", p.Namespace, p.Name, pod.IsProvisionable(&pods.Items[i]), p.Spec.NodeName)
+		}
+	}
 	for i := range pods.Items {
 		Expect(pod.IsProvisionable(&pods.Items[i])).To(BeFalse(),
 			fmt.Sprintf("expected to have no provisionable pods, found %s/%s", pods.Items[i].Namespace, pods.Items[i].Name))
