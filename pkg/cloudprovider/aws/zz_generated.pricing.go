@@ -14,14 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-//nolint:goheader
 package aws
 
 import "time"
 
-// generated at 2022-08-30T20:20:47Z for us-east-1
+// generated at 2022-08-30T23:03:01Z for us-east-1
 
-var initialPriceUpdate, _ = time.Parse(time.RFC3339, "2022-08-30T20:20:47Z")
+var initialPriceUpdate, _ = time.Parse(time.RFC3339, "2022-08-30T23:03:01Z")
 var initialOnDemandPrices = map[string]float64{
 	// a1 family
 	"a1.2xlarge": 0.204000, "a1.4xlarge": 0.408000, "a1.large": 0.051000, "a1.medium": 0.025500,
