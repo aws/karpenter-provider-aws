@@ -74,10 +74,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	// Determine resource usage and update provisioner.status.resources
-	resourceCounts, err := c.resourceCountsFor(provisioner.Name)
-	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("computing resource usage, %w", err)
-	}
+	resourceCounts := c.resourceCountsFor(provisioner.Name)
 	provisioner.Status.Resources = resourceCounts
 	if err := c.kubeClient.Status().Patch(ctx, provisioner, client.MergeFrom(persisted)); err != nil {
 		// provisioner was deleted
@@ -89,7 +86,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	return reconcile.Result{}, nil
 }
 
-func (c *Controller) resourceCountsFor(provisionerName string) (v1.ResourceList, error) {
+func (c *Controller) resourceCountsFor(provisionerName string) v1.ResourceList {
 	var provisioned []v1.ResourceList
 	// Record all resources provisioned by the provisioners, we look at the cluster state nodes as their capacity
 	// is accurately reported even for nodes that haven't fully started yet. This allows us to update our provisioner
@@ -109,7 +106,7 @@ func (c *Controller) resourceCountsFor(provisionerName string) (v1.ResourceList,
 		}
 		result[key] = value
 	}
-	return result, nil
+	return result
 }
 
 // Register the controller to the manager
