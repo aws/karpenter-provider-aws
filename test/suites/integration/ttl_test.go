@@ -86,9 +86,9 @@ var _ = Describe("TTL Expired", func() {
 		provisioner.Spec.TTLSecondsUntilExpired = ptr.Int64(10)
 		Expect(env.Client.Patch(env, provisioner, client.MergeFrom(persistedProv))).To(Succeed())
 
-		for i := range env.Monitor.GetCreatedNodes() {
-			node := env.Monitor.GetCreatedNodes()[i]
-			env.EventuallyExpectNotFound(&node)
+		nodes := env.Monitor.GetCreatedNodes()
+		for i := range nodes {
+			env.EventuallyExpectNotFound(&nodes[i])
 		}
 	})
 })
