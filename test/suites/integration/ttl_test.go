@@ -54,9 +54,9 @@ var _ = Describe("TTL Empty", func() {
 		deployment.Spec.Replicas = ptr.Int32(0)
 		Expect(env.Client.Patch(env, deployment, client.MergeFrom(persisted))).To(Succeed())
 
-		for i := range env.Monitor.GetCreatedNodes() {
-			node := env.Monitor.GetCreatedNodes()[i]
-			env.EventuallyExpectNotFound(&node)
+		nodes := env.Monitor.GetCreatedNodes()
+		for i := range nodes {
+			env.EventuallyExpectNotFound(&nodes[i])
 		}
 	})
 })
