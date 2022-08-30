@@ -19,9 +19,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/aws/aws-sdk-go/aws/session"
-	ec22 "github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/karpenter/pkg/cloudprovider/aws"
 	"go/format"
 	"io/ioutil"
 	"log"
@@ -31,6 +28,11 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/aws/aws-sdk-go/aws/session"
+	ec22 "github.com/aws/aws-sdk-go/service/ec2"
+
+	"github.com/aws/karpenter/pkg/cloudprovider/aws"
 )
 
 func main() {
@@ -90,7 +92,7 @@ func main() {
 	}
 }
 
-func writePricing(src *bytes.Buffer, instanceNames []string, varName string, getPrice func(instanceType string) (float64, error)) {
+func writePricing(src *bytes.Buffer, instanceNames []string, varName string, getPrice func(instanceType string) (float64, bool)) {
 	fmt.Fprintf(src, "var %s = map[string]float64{\n", varName)
 	lineLen := 0
 	sort.Strings(instanceNames)
@@ -100,8 +102,8 @@ func writePricing(src *bytes.Buffer, instanceNames []string, varName string, get
 		if len(segs) != 2 {
 			log.Fatalf("parsing instance family %s, got %v", instanceName, segs)
 		}
-		price, err := getPrice(instanceName)
-		if err != nil {
+		price, ok := getPrice(instanceName)
+		if !ok {
 			continue
 		}
 

@@ -69,6 +69,8 @@ verify: codegen ## Verify code. Includes dependencies, linting, formatting, etc
 		if [ $(MAKECMDGOALS) = 'ci' ]; then\
 			exit 1;\
 		fi;}
+	@echo "Validating codegen/docgen build scripts succeed..."
+	@find hack/code hack/docs -name "*.go" -type f -exec go build -o /dev/null {} \;
 
 licenses: ## Verifies dependency licenses
 	go mod download
