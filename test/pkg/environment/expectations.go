@@ -22,6 +22,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	. "github.com/onsi/ginkgo/v2" //nolint:revive,stylecheck
 	. "github.com/onsi/gomega"    //nolint:revive,stylecheck
 	"github.com/samber/lo"
@@ -37,10 +39,8 @@ import (
 	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
-
-	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
+	awsv1alpha1 "github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
+	instancetypev1alpha1 "github.com/aws/karpenter/pkg/apis/instancetype/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/utils/pod"
 )
@@ -55,7 +55,8 @@ var (
 		&v1.PersistentVolumeClaim{},
 		&v1.PersistentVolume{},
 		&storagev1.StorageClass{},
-		&v1alpha1.AWSNodeTemplate{},
+		&awsv1alpha1.AWSNodeTemplate{},
+		&instancetypev1alpha1.InstanceType{},
 		&v1alpha5.Provisioner{},
 	}
 )
@@ -89,6 +90,11 @@ func (env *Environment) BeforeEach() {
 	var provisioners v1alpha5.ProvisionerList
 	Expect(env.Client.List(env.Context, &provisioners)).To(Succeed())
 	Expect(provisioners.Items).To(HaveLen(0), "expected no provisioners to exist")
+
+	var instanceTypes instancetypev1alpha1.InstanceTypeList
+	Expect(env.Client.List(env.Context, &instanceTypes)).To(Succeed())
+	Expect(instanceTypes.Items).To(HaveLen(0), "expected no instance types to exist")
+
 	env.Monitor.Reset()
 }
 
@@ -158,6 +164,15 @@ func (env *Environment) ExpectUpdate(objects ...client.Object) {
 	}
 }
 
+func (env *Environment) ExpectStatusUpdate(objects ...client.Object) {
+	for _, o := range objects {
+		current := o.DeepCopyObject().(client.Object)
+		Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(current), current)).To(Succeed())
+		o.SetResourceVersion(current.GetResourceVersion())
+		Expect(env.Client.Status().Update(env.Context, o)).To(Succeed())
+	}
+}
+
 func (env *Environment) EventuallyExpectHealthy(pods ...*v1.Pod) {
 	for _, pod := range pods {
 		Eventually(func(g Gomega) {
@@ -213,9 +228,25 @@ func (env *Environment) EventuallyExpectNotFound(objects ...client.Object) {
 	}
 }
 
+func (env *Environment) EventuallyExpectReadyNodeCount(comparator string, nodeCount int) {
+	Eventually(func(g Gomega) {
+		nodes := env.Monitor.GetCreatedNodes()
+		g.Expect(lo.CountBy(nodes, func(node v1.Node) bool {
+			if node.Status.Conditions == nil {
+				return false
+			}
+			return getCondition(node.Status.Conditions, v1.NodeReady).Status == v1.ConditionTrue
+		})).To(BeNumerically(comparator, nodeCount))
+	}).Should(Succeed(), fmt.Sprintf("expected %d created nodes, had %d", nodeCount, env.Monitor.CreatedNodes()))
+}
+
 func (env *Environment) ExpectCreatedNodeCount(comparator string, nodeCount int) {
 	Expect(env.Monitor.CreatedNodes()).To(BeNumerically(comparator, nodeCount),
 		fmt.Sprintf("expected %d created nodes, had %d", nodeCount, env.Monitor.CreatedNodes()))
+}
+
+func (env *Environment) ExpectNode(nodeName string) Assertion {
+	return Expect(env.GetNode(nodeName))
 }
 
 func (env *Environment) GetNode(nodeName string) v1.Node {
@@ -313,4 +344,13 @@ func (env *Environment) EventuallyExpectAvgUtilization(resource v1.ResourceName,
 	Eventually(func(g Gomega) {
 		g.Expect(env.Monitor.AvgUtilization(resource)).To(BeNumerically(comparator, value))
 	}, 10*time.Minute).Should(Succeed())
+}
+
+func getCondition(conditions []v1.NodeCondition, match v1.NodeConditionType) v1.NodeCondition {
+	for _, condition := range conditions {
+		if condition.Type == match {
+			return condition
+		}
+	}
+	return v1.NodeCondition{}
 }

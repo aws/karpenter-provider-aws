@@ -14,6 +14,9 @@ spec:
     kind: InstanceType
     listKind: InstanceTypeList
     plural: instancetypes
+    shortNames:
+    - it
+    - its
     singular: instancetype
   scope: Cluster
   versions:

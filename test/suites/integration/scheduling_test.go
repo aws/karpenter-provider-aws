@@ -21,9 +21,12 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"knative.dev/pkg/ptr"
+
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
@@ -81,6 +84,50 @@ var _ = Describe("Scheduling", func() {
 		env.ExpectCreated(provisioner, provider, deployment)
 		env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
 		env.ExpectCreatedNodeCount("==", 1)
+	})
+	It("should support custom resource requests", func() {
+		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
+		}})
+		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
+		instanceTypes := []client.Object{
+			test.InstanceType("c5.large", test.InstanceTypeOptions{
+				Resources: v1.ResourceList{
+					"hardware.vendor.com/resource": resource.MustParse("5"),
+				},
+			}),
+			test.InstanceType("c4.large", test.InstanceTypeOptions{
+				Resources: v1.ResourceList{
+					"hardware.vendor.com/resource": resource.MustParse("5"),
+				},
+			}),
+		}
+
+		pod := test.Pod(test.PodOptions{
+			ResourceRequirements: v1.ResourceRequirements{
+				Requests: v1.ResourceList{
+					"hardware.vendor.com/resource": resource.MustParse("3"),
+				},
+				Limits: v1.ResourceList{
+					"hardware.vendor.com/resource": resource.MustParse("3"),
+				},
+			},
+		})
+
+		env.ExpectCreated(provisioner, pod, provider)
+		env.ExpectCreated(instanceTypes...)
+		env.EventuallyExpectReadyNodeCount("==", 1)
+
+		node := env.Monitor.GetCreatedNodes()[0]
+		Expect(node.Labels).To(HaveKeyWithValue("hardware.vendor.com/resource", "5"))
+
+		// Update the allocatable and capacity as if we are a device plugin
+		node.Status.Allocatable["hardware.vendor.com/resource"] = resource.MustParse("5")
+		node.Status.Capacity["hardware.vendor.com/resource"] = resource.MustParse("5")
+		env.ExpectStatusUpdate(&node)
+
+		env.EventuallyExpectHealthy(pod)
 	})
 	It("should provision a node for naked pods", func() {
 		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{

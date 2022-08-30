@@ -32,7 +32,7 @@ type InstanceTypeSpec struct {
 
 // InstanceType is the Schema for the InstanceType API
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:path=instancetypes,scope=Cluster,categories=karpenter
+// +kubebuilder:resource:path=instancetypes,scope=Cluster,categories=karpenter,shortName={it,its}
 // +kubebuilder:subresource:status
 type InstanceType struct {
 	metav1.TypeMeta   `json:",inline"`
