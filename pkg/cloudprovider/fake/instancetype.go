@@ -22,6 +22,7 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/scheduling"
+	"github.com/aws/karpenter/pkg/utils/resources"
 
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 
@@ -152,12 +153,13 @@ func InstanceTypes(total int) []cloudprovider.InstanceType {
 }
 
 type InstanceTypeOptions struct {
-	Name             string
-	Offerings        []cloudprovider.Offering
-	Architecture     string
-	OperatingSystems utilsets.String
-	Overhead         v1.ResourceList
-	Resources        v1.ResourceList
+	Name               string
+	Offerings          []cloudprovider.Offering
+	Architecture       string
+	OperatingSystems   utilsets.String
+	Overhead           v1.ResourceList
+	Resources          v1.ResourceList
+	CustomRequirements []*scheduling.Requirement
 }
 
 type InstanceType struct {
@@ -212,6 +214,13 @@ func (i *InstanceType) Requirements() scheduling.Requirements {
 		requirements.Get(ExoticInstanceLabelKey).Insert("optional")
 	} else {
 		requirements.Get(LabelInstanceSize).Insert("small")
+	}
+
+	// Add custom resources as requirements values on the node
+	for k, v := range i.options.Resources {
+		if !resources.WellKnownResourceNames.Has(k.String()) && !v1alpha5.WellKnownLabels.Has(k.String()) {
+			requirements.Upsert(scheduling.NewRequirement(k.String(), v1.NodeSelectorOpIn, fmt.Sprint(v.Value())))
+		}
 	}
 	return requirements
 }

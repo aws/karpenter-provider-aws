@@ -20,6 +20,7 @@ import (
 	"time"
 
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/clock"
 	"knative.dev/pkg/ptr"
@@ -78,7 +79,59 @@ var _ = Describe("Controller", func() {
 		ExpectCleanedUp(ctx, env.Client)
 	})
 
-	Context("Expiration", func() {
+	Describe("Initialization", func() {
+		It("should not initialize nodes that have extended resources not yet updated", func() {
+			node := test.Node(test.NodeOptions{
+				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{
+					v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+					v1.LabelInstanceTypeStable:       "custom-hardware-instance-type",
+				}},
+				ReadyStatus: v1.ConditionTrue,
+				Capacity: v1.ResourceList{
+					v1.ResourceCPU:    resource.MustParse("2"),
+					v1.ResourceMemory: resource.MustParse("2Gi"),
+					v1.ResourcePods:   resource.MustParse("5"),
+				},
+				Allocatable: v1.ResourceList{
+					v1.ResourceCPU:    resource.MustParse("2"),
+					v1.ResourceMemory: resource.MustParse("2Gi"),
+					v1.ResourcePods:   resource.MustParse("5"),
+				},
+			})
+			ExpectApplied(ctx, env.Client, provisioner, node)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
+
+			node = ExpectNodeExists(ctx, env.Client, node.Name)
+			Expect(node.Labels).ToNot(HaveKeyWithValue(v1alpha5.LabelNodeInitialized, "true"))
+		})
+		It("should initialize nodes that have extended resources updated", func() {
+			node := test.Node(test.NodeOptions{
+				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{
+					v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+					v1.LabelInstanceTypeStable:       "custom-hardware-instance-type",
+				}},
+				ReadyStatus: v1.ConditionTrue,
+				Capacity: v1.ResourceList{
+					"hardware.vendor.com/resource": resource.MustParse("4"),
+					v1.ResourceCPU:                 resource.MustParse("2"),
+					v1.ResourceMemory:              resource.MustParse("2Gi"),
+					v1.ResourcePods:                resource.MustParse("5"),
+				},
+				Allocatable: v1.ResourceList{
+					"hardware.vendor.com/resource": resource.MustParse("4"),
+					v1.ResourceCPU:                 resource.MustParse("2"),
+					v1.ResourceMemory:              resource.MustParse("2Gi"),
+					v1.ResourcePods:                resource.MustParse("5"),
+				},
+			})
+			ExpectApplied(ctx, env.Client, provisioner, node)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
+
+			node = ExpectNodeExists(ctx, env.Client, node.Name)
+			Expect(node.Labels).To(HaveKeyWithValue(v1alpha5.LabelNodeInitialized, "true"))
+		})
+	})
+	Describe("Expiration", func() {
 		It("should ignore nodes without TTLSecondsUntilExpired", func() {
 			n := test.Node(test.NodeOptions{
 				ObjectMeta: metav1.ObjectMeta{
@@ -126,7 +179,6 @@ var _ = Describe("Controller", func() {
 			Expect(n.DeletionTimestamp.IsZero()).To(BeFalse())
 		})
 	})
-
 	Describe("Emptiness", func() {
 		It("should not TTL nodes that have ready status unknown", func() {
 			provisioner.Spec.TTLSecondsAfterEmpty = ptr.Int64(30)
@@ -237,7 +289,7 @@ var _ = Describe("Controller", func() {
 			Expect(node.DeletionTimestamp.IsZero()).To(BeTrue())
 		})
 	})
-	Context("Finalizer", func() {
+	Describe("Finalizer", func() {
 		It("should add the termination finalizer if missing", func() {
 			n := test.Node(test.NodeOptions{ObjectMeta: metav1.ObjectMeta{
 				Labels:     map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name},

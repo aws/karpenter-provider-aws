@@ -134,6 +134,14 @@ func (c *CloudProvider) GetInstanceTypes(_ context.Context, provisioner *v1alpha
 				v1.ResourcePods: resource.MustParse("1"),
 			},
 		}),
+		NewInstanceType(InstanceTypeOptions{
+			Name: "custom-hardware-instance-type",
+			Resources: map[v1.ResourceName]resource.Quantity{
+				v1.ResourceCPU:                 resource.MustParse("2"),
+				v1.ResourceMemory:              resource.MustParse("2Gi"),
+				"hardware.vendor.com/resource": resource.MustParse("4"),
+			},
+		}),
 	}, nil
 }
 

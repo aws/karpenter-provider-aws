@@ -29,6 +29,7 @@ type NodeOptions struct {
 	Conditions    []v1.NodeCondition
 	Unschedulable bool
 	Taints        []v1.Taint
+	Capacity      v1.ResourceList
 	Allocatable   v1.ResourceList
 }
 

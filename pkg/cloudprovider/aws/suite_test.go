@@ -116,6 +116,7 @@ var _ = BeforeSuite(func() {
 			pricingProvider:      pricingProvider,
 			unavailableOfferings: unavailableOfferingsCache,
 			cm:                   pretty.NewChangeMonitor(),
+			kubeClient:           e.Client,
 		}
 		securityGroupProvider := &SecurityGroupProvider{
 			ec2api: fakeEC2API,

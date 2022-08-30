@@ -219,6 +219,43 @@ var _ = Describe("Instance Types", func() {
 		}
 		Expect(nodeNames.Len()).To(Equal(2))
 	})
+	It("should launch instances for custom resource requests", func() {
+		nodeNames := sets.NewString()
+		vendorResourceName := v1.ResourceName("hardware.vendor.com/resource")
+		instanceType := test.InstanceType("m5.large", test.InstanceTypeOptions{
+			Resources: v1.ResourceList{
+				vendorResourceName: resource.MustParse("4"),
+			},
+		})
+		ExpectApplied(ctx, env.Client, provisioner, instanceType)
+		for _, pod := range ExpectProvisioned(ctx, env.Client, controller,
+			test.UnschedulablePod(test.PodOptions{
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{vendorResourceName: resource.MustParse("1")},
+					Limits:   v1.ResourceList{vendorResourceName: resource.MustParse("1")},
+				},
+			}),
+			// Should pack onto same instance
+			test.UnschedulablePod(test.PodOptions{
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{vendorResourceName: resource.MustParse("2")},
+					Limits:   v1.ResourceList{vendorResourceName: resource.MustParse("2")},
+				},
+			}),
+			// Should pack onto a separate instance
+			test.UnschedulablePod(test.PodOptions{
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{vendorResourceName: resource.MustParse("4")},
+					Limits:   v1.ResourceList{vendorResourceName: resource.MustParse("4")},
+				},
+			}),
+		) {
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "m5.large"))
+			nodeNames.Insert(node.Name)
+		}
+		Expect(nodeNames.Len()).To(Equal(2))
+	})
 	It("should set pods to 110 if not using ENI-based pod density", func() {
 		opts.AWSENILimitedPodDensity = false
 		instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)

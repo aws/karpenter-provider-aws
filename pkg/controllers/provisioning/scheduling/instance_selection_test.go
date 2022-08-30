@@ -566,6 +566,112 @@ var _ = Describe("Instance Type Selection", func() {
 		node := ExpectScheduled(ctx, env.Client, pod[0])
 		Expect(node.Labels[v1.LabelInstanceTypeStable]).To(Equal("test-instance1"))
 	})
+	Context("LT/GT Operator", func() {
+		It("should schedule on instance type with custom resources with GT operator", func() {
+			cloudProv.InstanceTypes = []cloudprovider.InstanceType{
+				fake.NewInstanceType(fake.InstanceTypeOptions{
+					Name: "small-vendor-hardware-instance",
+					Resources: v1.ResourceList{
+						"hardware.vendor.com/resource": resource.MustParse("2"),
+					},
+				}),
+				fake.NewInstanceType(fake.InstanceTypeOptions{
+					Name: "medium-vendor-hardware-instance",
+					Resources: v1.ResourceList{
+						"hardware.vendor.com/resource": resource.MustParse("5"),
+					},
+				}),
+				fake.NewInstanceType(fake.InstanceTypeOptions{
+					Name: "large-vendor-hardware-instance",
+					Resources: v1.ResourceList{
+						"hardware.vendor.com/resource": resource.MustParse("10"),
+					},
+				}),
+			}
+			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
+				{
+					Key:      "hardware.vendor.com/resource",
+					Operator: v1.NodeSelectorOpGt,
+					Values:   []string{"3"},
+				},
+			}
+			ExpectApplied(ctx, env.Client, provisioner)
+			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
+				Requests: v1.ResourceList{
+					"hardware.vendor.com/resource": resource.MustParse("1"),
+				},
+				Limits: v1.ResourceList{
+					"hardware.vendor.com/resource": resource.MustParse("1"),
+				},
+			}}))
+			node := ExpectScheduled(ctx, env.Client, pod[0])
+			Expect(node.Labels[v1.LabelInstanceTypeStable]).To(Equal("medium-vendor-hardware-instance"))
+		})
+		It("should schedule to cheapest instance that meets LT requirement", func() {
+			cloudProv.InstanceTypes = []cloudprovider.InstanceType{
+				fake.NewInstanceType(fake.InstanceTypeOptions{
+					Name: "small-vendor-hardware-instance",
+					Resources: v1.ResourceList{
+						"hardware.vendor.com/resource": resource.MustParse("2"),
+					},
+					Offerings: []cloudprovider.Offering{
+						{
+							CapacityType: v1alpha1.CapacityTypeSpot,
+							Zone:         "test-zone-1a",
+							Price:        0.6,
+							Available:    true,
+						},
+					},
+				}),
+				fake.NewInstanceType(fake.InstanceTypeOptions{
+					Name: "medium-vendor-hardware-instance",
+					Resources: v1.ResourceList{
+						"hardware.vendor.com/resource": resource.MustParse("5"),
+					},
+					Offerings: []cloudprovider.Offering{
+						{
+							CapacityType: v1alpha1.CapacityTypeSpot,
+							Zone:         "test-zone-1a",
+							Price:        0.8,
+							Available:    true,
+						},
+					},
+				}),
+				fake.NewInstanceType(fake.InstanceTypeOptions{
+					Name: "large-vendor-hardware-instance",
+					Resources: v1.ResourceList{
+						"hardware.vendor.com/resource": resource.MustParse("10"),
+					},
+					Offerings: []cloudprovider.Offering{
+						{
+							CapacityType: v1alpha1.CapacityTypeSpot,
+							Zone:         "test-zone-1a",
+							Price:        0.2,
+							Available:    true,
+						},
+					},
+				}),
+			}
+			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
+				{
+					Key:      "hardware.vendor.com/resource",
+					Operator: v1.NodeSelectorOpLt,
+					Values:   []string{"7"},
+				},
+			}
+			ExpectApplied(ctx, env.Client, provisioner)
+			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
+				Requests: v1.ResourceList{
+					"hardware.vendor.com/resource": resource.MustParse("3"),
+				},
+				Limits: v1.ResourceList{
+					"hardware.vendor.com/resource": resource.MustParse("3"),
+				},
+			}}))
+			node := ExpectScheduled(ctx, env.Client, pod[0])
+			Expect(node.Labels[v1.LabelInstanceTypeStable]).To(Equal("medium-vendor-hardware-instance"))
+		})
+	})
 })
 
 func getInstanceTypeMap(its []cloudprovider.InstanceType) map[string]cloudprovider.InstanceType {
