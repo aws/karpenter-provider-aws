@@ -17,7 +17,7 @@ spec:
   - name: delete-cluster
     image: public.ecr.aws/karpenter-testing/tools:latest
     script: |
-      eksctl delete cluster --name $(params.cluster-name) --wait || true
+      eksctl delete cluster --name $(params.cluster-name) --timeout 60m --wait || true
 
   - name: delete-iam-policies
     image: public.ecr.aws/karpenter-testing/tools:latest
