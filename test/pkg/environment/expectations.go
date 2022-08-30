@@ -165,14 +165,18 @@ func (env *Environment) EventuallyExpectKarpenterWithEnvVar(envVar v1.EnvVar) {
 		listOptions := metav1.ListOptions{LabelSelector: labels.SelectorFromSet(labelMap).String()}
 		podList, err := env.KubeClient.CoreV1().Pods("karpenter").List(env.Context, listOptions)
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(podList.Items[0].Spec.Containers[0].Env).To(ContainElement(And(
-			HaveField("Name", Equal(envVar.Name)),
-			HaveField("Value", Equal(envVar.Value)),
-		)))
-		g.Expect(podList.Items[0].Status.Conditions).To(ContainElement(And(
-			HaveField("Type", Equal(v1.PodReady)),
-			HaveField("Status", Equal(v1.ConditionTrue)),
-		)))
+		// we need all of the karpenter pods to have the new environment variable so that we don't return early
+		// while some pods are still terminating
+		for i := range podList.Items {
+			g.Expect(podList.Items[i].Spec.Containers[0].Env).To(ContainElement(And(
+				HaveField("Name", Equal(envVar.Name)),
+				HaveField("Value", Equal(envVar.Value)),
+			)))
+			g.Expect(podList.Items[i].Status.Conditions).To(ContainElement(And(
+				HaveField("Type", Equal(v1.PodReady)),
+				HaveField("Status", Equal(v1.ConditionTrue)),
+			)))
+		}
 	}).Should(Succeed())
 }
 
@@ -260,8 +264,11 @@ func (env *Environment) printControllerLogs(options *v1.PodLogOptions) {
 	nameid := strings.Split(*lease.Spec.HolderIdentity, "_")
 	Expect(nameid).To(HaveLen(2), fmt.Sprintf("invalid lease HolderIdentity, %s", *lease.Spec.HolderIdentity))
 	stream, err := env.KubeClient.CoreV1().Pods("karpenter").GetLogs(nameid[0], options).Stream(env.Context)
-	Expect(err).ToNot(HaveOccurred())
-	log := new(bytes.Buffer)
+	if err != nil {
+		logging.FromContext(env.Context).Errorf("fetching controller logs: %s", err)
+		return
+	}
+	log := &bytes.Buffer{}
 	_, err = io.Copy(log, stream)
 	Expect(err).ToNot(HaveOccurred())
 	logging.FromContext(env.Context).Info(log)
