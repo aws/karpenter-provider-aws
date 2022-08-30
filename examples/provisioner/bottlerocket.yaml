@@ -23,7 +23,7 @@ spec:
     - deviceName: /dev/xvda
       ebs:
         volumeType: gp3
-        volumeSize: 2G # if using GPU, replace with 3G since the GPU bottlerocket AMI requires at least 3G
+        volumeSize: 2G # if using GPU, replace with 4G since the GPU bottlerocket AMI requires at least 4G
         deleteOnTermination: true
     - deviceName: /dev/xvdb
       ebs:
