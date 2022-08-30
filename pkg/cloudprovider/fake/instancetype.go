@@ -153,13 +153,12 @@ func InstanceTypes(total int) []cloudprovider.InstanceType {
 }
 
 type InstanceTypeOptions struct {
-	Name               string
-	Offerings          []cloudprovider.Offering
-	Architecture       string
-	OperatingSystems   utilsets.String
-	Overhead           v1.ResourceList
-	Resources          v1.ResourceList
-	CustomRequirements []*scheduling.Requirement
+	Name             string
+	Offerings        []cloudprovider.Offering
+	Architecture     string
+	OperatingSystems utilsets.String
+	Overhead         v1.ResourceList
+	Resources        v1.ResourceList
 }
 
 type InstanceType struct {

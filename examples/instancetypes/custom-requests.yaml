@@ -9,3 +9,4 @@ metadata:
 spec:
   resources:
     hardware.vendor.com/resource: 2
+    hardware.vendor.com/other-resource: 10

@@ -28,12 +28,6 @@ type InstanceTypeSpec struct {
 	// or it may also contain unknown custom device resources for custom device plugins
 	// +optional
 	Resources v1.ResourceList `json:"resources,omitempty"`
-
-	// Overhead contains a map of overhead values that are subtracted from the list of allocatable
-	// resources. This map is used during scheduling and does not subtract from the allocatable
-	// resources that kubelet is aware of
-	// +optional
-	Overhead v1.ResourceList `json:"overhead,omitempty"`
 }
 
 // InstanceType is the Schema for the InstanceType API
