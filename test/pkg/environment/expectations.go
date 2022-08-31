@@ -64,17 +64,10 @@ var (
 var debugE2E = true
 
 func (env *Environment) BeforeEach() {
-	if debugE2E {
-		fmt.Println("BeforeEach Begin")
-		defer fmt.Println("BeforeEach End")
-	}
-
 	var nodes v1.NodeList
 	Expect(env.Client.List(env.Context, &nodes)).To(Succeed())
 	if debugE2E {
-		for _, node := range nodes.Items {
-			fmt.Printf("node %s taints = %v\n", node.Name, node.Spec.Taints)
-		}
+		env.dumpNodeInformation(nodes)
 	}
 	for _, node := range nodes.Items {
 		if len(node.Spec.Taints) == 0 && !node.Spec.Unschedulable {
@@ -85,19 +78,7 @@ func (env *Environment) BeforeEach() {
 	var pods v1.PodList
 	Expect(env.Client.List(env.Context, &pods)).To(Succeed())
 	if debugE2E {
-		for i, p := range pods.Items {
-
-			var containerInfo strings.Builder
-			for _, c := range p.Status.ContainerStatuses {
-				if containerInfo.Len() > 0 {
-					fmt.Fprintf(&containerInfo, ", ")
-				}
-				fmt.Fprintf(&containerInfo, "%s restarts=%d", c.Name, c.RestartCount)
-			}
-
-			fmt.Printf("pods %s/%s provisionable=%v nodename=%s [%s]\n", p.Namespace, p.Name,
-				pod.IsProvisionable(&pods.Items[i]), p.Spec.NodeName, containerInfo.String())
-		}
+		env.dumpPodInformation(pods)
 	}
 	for i := range pods.Items {
 		Expect(pod.IsProvisionable(&pods.Items[i])).To(BeFalse(),
@@ -109,6 +90,26 @@ func (env *Environment) BeforeEach() {
 	Expect(env.Client.List(env.Context, &provisioners)).To(Succeed())
 	Expect(provisioners.Items).To(HaveLen(0), "expected no provisioners to exist")
 	env.Monitor.Reset()
+}
+
+func (env *Environment) dumpNodeInformation(nodes v1.NodeList) {
+	for _, node := range nodes.Items {
+		fmt.Printf("node %s taints = %v\n", node.Name, node.Spec.Taints)
+	}
+}
+
+func (env *Environment) dumpPodInformation(pods v1.PodList) {
+	for i, p := range pods.Items {
+		var containerInfo strings.Builder
+		for _, c := range p.Status.ContainerStatuses {
+			if containerInfo.Len() > 0 {
+				fmt.Fprintf(&containerInfo, ", ")
+			}
+			fmt.Fprintf(&containerInfo, "%s restarts=%d", c.Name, c.RestartCount)
+		}
+		fmt.Printf("pods %s/%s provisionable=%v nodename=%s [%s]\n", p.Namespace, p.Name,
+			pod.IsProvisionable(&pods.Items[i]), p.Spec.NodeName, containerInfo.String())
+	}
 }
 
 func (env *Environment) AfterEach() {
