@@ -27,6 +27,7 @@ import (
 	instancetypev1alpha1 "github.com/aws/karpenter/pkg/apis/instancetype/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/scheduling"
+	"github.com/aws/karpenter/pkg/utils/resources"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -287,12 +288,14 @@ func UnavailableOfferingsCacheKey(instanceType string, zone string, capacityType
 }
 
 // mergeInstanceTypeOverrides merges the values from the InstanceType CRs with the resources currently
-// pulled from the EC2 APIs. Resources should already be validated when they get here, so we will automatically
+// pulled from the EC2 APIs. Capacity should already be validated when they get here, so we will automatically
 // add them to the instance type resources and its requirements
 func mergeInstanceTypeOverrides(it *InstanceType, instanceType instancetypev1alpha1.InstanceType) *InstanceType {
-	for name, quantity := range instanceType.Spec.Resources {
+	for name, quantity := range instanceType.Spec.Capacity {
 		it.resources[name] = quantity
-		it.requirements.Upsert(scheduling.NewRequirement(name.String(), v1.NodeSelectorOpIn, fmt.Sprint(quantity.Value())))
+		if !resources.WellKnownResourceNames.Has(name.String()) && !v1alpha5.WellKnownLabels.Has(name.String()) {
+			it.requirements.Add(scheduling.NewRequirement(name.String(), v1.NodeSelectorOpIn, fmt.Sprint(quantity.Value())))
+		}
 	}
 	return it
 }

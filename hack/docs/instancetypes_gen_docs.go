@@ -25,6 +25,11 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/samber/lo"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/sets"
+
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws"
@@ -32,10 +37,6 @@ import (
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/options"
 	"github.com/aws/karpenter/pkg/utils/resources"
-	"github.com/samber/lo"
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 func main() {
@@ -98,7 +99,7 @@ linkTitle: "Instance Types"
 weight: 100
 
 description: >
-  Evaluate Instance Type Resources
+  Evaluate Instance Type Capacity
 ---
 `)
 	fmt.Fprintln(f, "<!-- this document is generated from hack/docs/instancetypes_gen_docs.go -->")
@@ -180,7 +181,7 @@ below are the resources available with some assumptions and after the instance o
 					fmt.Fprintf(f, " |%s|%s|\n", label, req.Values()[0])
 				}
 			}
-			fmt.Fprintln(f, "#### Resources")
+			fmt.Fprintln(f, "#### Capacity")
 			fmt.Fprintln(f, " | Resource | Quantity |")
 			fmt.Fprintln(f, " |--|--|")
 			for _, resourceName := range resourceNames {

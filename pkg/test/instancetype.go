@@ -28,7 +28,7 @@ import (
 // InstanceTypeOptions customizes an InstanceType.
 type InstanceTypeOptions struct {
 	metav1.ObjectMeta
-	Resources v1.ResourceList
+	Capacity v1.ResourceList
 }
 
 // InstanceType creates a test instance type with defaults that can be overridden by InstanceTypeOptions.
@@ -51,7 +51,7 @@ func InstanceType(name string, overrides ...InstanceTypeOptions) *v1alpha1.Insta
 	instanceType := &v1alpha1.InstanceType{
 		ObjectMeta: ObjectMeta(options.ObjectMeta),
 		Spec: v1alpha1.InstanceTypeSpec{
-			Resources: options.Resources,
+			Capacity: options.Capacity,
 		},
 	}
 	instanceType.SetDefaults(context.Background())

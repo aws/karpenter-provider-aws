@@ -23,11 +23,11 @@ import (
 // for specifying custom values on a per-instance type basis for scheduling and
 // launching of nodes
 type InstanceTypeSpec struct {
-	// Resources contains a map of allocatable resources for the instance type
+	// Capacity contains a map of allocatable resources for the instance type
 	// used by the scheduler. This resource list can contain known resources (cpu, memory, etc.)
-	// or it may also contain unknown custom device resources for custom device plugins
+	// or it may also contain unknown custom device resources for custom device plugins.
 	// +optional
-	Resources v1.ResourceList `json:"resources,omitempty"`
+	Capacity v1.ResourceList `json:"capacity,omitempty"`
 }
 
 // InstanceType is the Schema for the InstanceType API

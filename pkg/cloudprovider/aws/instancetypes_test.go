@@ -223,7 +223,7 @@ var _ = Describe("Instance Types", func() {
 		nodeNames := sets.NewString()
 		vendorResourceName := v1.ResourceName("hardware.vendor.com/resource")
 		instanceType := test.InstanceType("m5.large", test.InstanceTypeOptions{
-			Resources: v1.ResourceList{
+			Capacity: v1.ResourceList{
 				vendorResourceName: resource.MustParse("4"),
 			},
 		})

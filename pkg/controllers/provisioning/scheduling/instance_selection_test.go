@@ -475,7 +475,7 @@ var _ = Describe("Instance Type Selection", func() {
 	})
 	It("should schedule on an instance with enough resources", func() {
 		// this is a pretty thorough exercise of scheduling, so we also check an invariant that scheduling doesn't
-		// modify the instance type's Overhead() or Resources() maps so they can return the same map every time instead
+		// modify the instance type's Overhead() or Capacity() maps so they can return the same map every time instead
 		// of re-alllocating a new one per call
 		resourceHashes := map[string]uint64{}
 		overheadHashes := map[string]uint64{}
@@ -520,7 +520,7 @@ var _ = Describe("Instance Type Selection", func() {
 			Expect(err).To(BeNil())
 			overheadHash, err := hashstructure.Hash(it.Overhead(), hashstructure.FormatV2, nil)
 			Expect(err).To(BeNil())
-			Expect(resourceHash).To(Equal(resourceHashes[it.Name()]), fmt.Sprintf("expected %s Resources() to not be modified by scheduling", it.Name()))
+			Expect(resourceHash).To(Equal(resourceHashes[it.Name()]), fmt.Sprintf("expected %s Capacity() to not be modified by scheduling", it.Name()))
 			Expect(overheadHash).To(Equal(overheadHashes[it.Name()]), fmt.Sprintf("expected %s Overhead() to not be modified by scheduling", it.Name()))
 		}
 	})

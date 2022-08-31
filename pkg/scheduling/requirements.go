@@ -87,13 +87,6 @@ func (r Requirements) Add(requirements ...*Requirement) {
 	}
 }
 
-// Upsert replaces the requirements set with all existing requirements
-func (r Requirements) Upsert(requirements ...*Requirement) {
-	for _, requirement := range requirements {
-		r[requirement.Key] = requirement
-	}
-}
-
 // Keys returns unique set of the label keys from the requirements
 func (r Requirements) Keys() sets.String {
 	keys := sets.NewString()

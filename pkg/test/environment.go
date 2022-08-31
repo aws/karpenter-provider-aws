@@ -47,7 +47,7 @@ and a controller-runtime manager. It's possible to run multiple environments
 simultaneously, as the ports are randomized. A common use case for this is
 parallel tests using ginkgo's parallelization functionality. The environment is
 typically instantiated once in a test file and re-used between different test
-cases. Resources for each test should be isolated into its own namespace.
+cases. Capacity for each test should be isolated into its own namespace.
 
 	env := new Local(func(local *Local) {
 		// Register test controller with manager

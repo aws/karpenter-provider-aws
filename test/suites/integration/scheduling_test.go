@@ -93,12 +93,12 @@ var _ = Describe("Scheduling", func() {
 		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
 		instanceTypes := []client.Object{
 			test.InstanceType("c5.large", test.InstanceTypeOptions{
-				Resources: v1.ResourceList{
+				Capacity: v1.ResourceList{
 					"hardware.vendor.com/resource": resource.MustParse("5"),
 				},
 			}),
 			test.InstanceType("c4.large", test.InstanceTypeOptions{
-				Resources: v1.ResourceList{
+				Capacity: v1.ResourceList{
 					"hardware.vendor.com/resource": resource.MustParse("5"),
 				},
 			}),

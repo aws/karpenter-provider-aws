@@ -8,5 +8,4 @@ metadata:
   name: c5.large
 spec:
   allocatable:
-    hardware.vendor.com/resource: 2
-    hardware.vendor.com/other-resource: 10
+    memory: 3876Mi

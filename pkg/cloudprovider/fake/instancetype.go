@@ -21,10 +21,9 @@ import (
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/utils/resources"
-
-	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -218,7 +217,7 @@ func (i *InstanceType) Requirements() scheduling.Requirements {
 	// Add custom resources as requirements values on the node
 	for k, v := range i.options.Resources {
 		if !resources.WellKnownResourceNames.Has(k.String()) && !v1alpha5.WellKnownLabels.Has(k.String()) {
-			requirements.Upsert(scheduling.NewRequirement(k.String(), v1.NodeSelectorOpIn, fmt.Sprint(v.Value())))
+			requirements.Add(scheduling.NewRequirement(k.String(), v1.NodeSelectorOpIn, fmt.Sprint(v.Value())))
 		}
 	}
 	return requirements

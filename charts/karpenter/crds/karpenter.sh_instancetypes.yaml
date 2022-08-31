@@ -42,17 +42,17 @@ spec:
               for specifying custom values on a per-instance type basis for scheduling
               and launching of nodes
             properties:
-              resources:
+              capacity:
                 additionalProperties:
                   anyOf:
                   - type: integer
                   - type: string
                   pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                   x-kubernetes-int-or-string: true
-                description: Resources contains a map of allocatable resources for
+                description: Capacity contains a map of allocatable resources for
                   the instance type used by the scheduler. This resource list can
                   contain known resources (cpu, memory, etc.) or it may also contain
-                  unknown custom device resources for custom device plugins
+                  unknown custom device resources for custom device plugins.
                 type: object
             type: object
         type: object
