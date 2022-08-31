@@ -218,7 +218,6 @@ func (*CloudProvider) Default(ctx context.Context, provisioner *v1alpha5.Provisi
 }
 
 func defaultLabels(provisioner *v1alpha5.Provisioner) {
-	logging.FromContext(context.Background()).Infof("set default labels on %s", provisioner.Name)
 	for key, value := range map[string]string{
 		v1alpha5.LabelCapacityType: ec2.DefaultTargetCapacityTypeOnDemand,
 		v1.LabelArchStable:         v1alpha5.ArchitectureAmd64,
