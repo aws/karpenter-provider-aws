@@ -23,8 +23,17 @@ website() {
     find website/content/en/${RELEASE_VERSION}/*/*/*.yaml -type f | xargs perl -i -p -e "s/preview/${RELEASE_VERSION}/g;"
 }
 
+editWebsiteConfig() {
+    yq -i ".params.latest_release_version = \"${RELEASE_VERSION}\"" website/config.yaml
+    yq -i ".menu.main[] |=select(.name == \"Docs\") .url = \"${RELEASE_VERSION}\"" website/config.yaml
+
+    sed -i '' '/^\/docs\/\*/d' website/static/_redirects
+    echo "/docs/*     	                /${RELEASE_VERSION}/:splat" >> website/static/_redirects
+}
+
 authenticate
 buildImages $RELEASE_VERSION
 cosignImages
 chart
 website
+editWebsiteConfig
