@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"math"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -35,6 +36,10 @@ import (
 	"github.com/aws/karpenter/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/resources"
+)
+
+const (
+	memoryAvailable = "memory.available"
 )
 
 var (
@@ -259,9 +264,10 @@ func (i *InstanceType) computeOverhead(vmMemOverhead float64, kc *v1alpha5.Kubel
 	}
 
 	srr := i.systemReservedResources(kc)
-	krr := i.kubeReservedResources(podsQuantity)
+	krr := i.kubeReservedResources(podsQuantity, kc)
 	misc := i.miscResources(vmMemOverhead)
-	overhead := resources.Merge(srr, krr, misc)
+	et := i.evictionThreshold(kc, misc[v1.ResourceMemory])
+	overhead := resources.Merge(srr, krr, et, misc)
 
 	return overhead
 }
@@ -280,18 +286,13 @@ func (i *InstanceType) systemReservedResources(kc *v1alpha5.KubeletConfiguration
 		v1.ResourceMemory:           resource.MustParse("100Mi"),
 		v1.ResourceEphemeralStorage: resource.MustParse("1Gi"),
 	}
-
 	if kc != nil && kc.SystemReserved != nil {
-		for _, name := range []v1.ResourceName{v1.ResourceCPU, v1.ResourceMemory, v1.ResourceEphemeralStorage} {
-			if v, ok := kc.SystemReserved[name]; ok {
-				resources[name] = v
-			}
-		}
+		return lo.Assign(resources, kc.SystemReserved)
 	}
 	return resources
 }
 
-func (i *InstanceType) kubeReservedResources(pods int64) v1.ResourceList {
+func (i *InstanceType) kubeReservedResources(pods int64, kc *v1alpha5.KubeletConfiguration) v1.ResourceList {
 	resources := v1.ResourceList{
 		v1.ResourceMemory:           resource.MustParse(fmt.Sprintf("%dMi", (11*pods)+255)),
 		v1.ResourceEphemeralStorage: resource.MustParse("1Gi"), // default kube-reserved ephemeral-storage
@@ -319,18 +320,40 @@ func (i *InstanceType) kubeReservedResources(pods int64) v1.ResourceList {
 			resources[v1.ResourceCPU] = *cpuOverhead
 		}
 	}
+	if kc != nil && kc.KubeReserved != nil {
+		return lo.Assign(resources, kc.KubeReserved)
+	}
 	return resources
 }
 
-func (i *InstanceType) miscResources(vmMemOverhead float64) v1.ResourceList {
+func (i *InstanceType) evictionThreshold(kc *v1alpha5.KubeletConfiguration, vmMemoryOverhead resource.Quantity) v1.ResourceList {
+	overhead := v1.ResourceList{
+		v1.ResourceMemory: resource.MustParse("100Mi"),
+	}
+	if kc != nil && kc.EvictionHard != nil {
+		if v, ok := kc.EvictionHard[memoryAvailable]; ok {
+			if strings.Contains(v, "%") {
+				p, err := strconv.ParseFloat(strings.Trim(v, "%"), 64)
+				if err != nil {
+					panic(fmt.Sprintf("expected percentage value to be a float but got %s, %v", v, err))
+				}
+				// Calculation is node.capacity * evictionHard[memory.available] if percentage
+				// From https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/#eviction-signals
+				totalAllocatable := i.resources.Memory().DeepCopy()
+				totalAllocatable.Sub(vmMemoryOverhead)
+				overhead[v1.ResourceMemory] = resource.MustParse(fmt.Sprint(math.Ceil(float64(totalAllocatable.Value()) / 100 * p)))
+			} else {
+				overhead[v1.ResourceMemory] = resource.MustParse(v)
+			}
+		}
+	}
+	return overhead
+}
+
+func (i *InstanceType) miscResources(overheadPercentage float64) v1.ResourceList {
 	memory := i.memory().Value()
 	return v1.ResourceList{
-		v1.ResourceMemory: resource.MustParse(fmt.Sprintf("%dMi",
-			// vm-overhead
-			(int64(math.Ceil(float64(memory)*vmMemOverhead/1024/1024)))+
-				// eviction threshold https://github.com/kubernetes/kubernetes/blob/ea0764452222146c47ec826977f49d7001b0ea8c/pkg/kubelet/apis/config/v1beta1/defaults_linux.go#L23
-				100,
-		)),
+		v1.ResourceMemory: resource.MustParse(fmt.Sprintf("%dMi", int64(math.Ceil(float64(memory)*overheadPercentage/1024/1024)))),
 	}
 }
 

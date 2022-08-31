@@ -154,6 +154,9 @@ func String(list v1.ResourceList) string {
 
 // StringMap returns the string map representation of the resource list
 func StringMap(list v1.ResourceList) map[string]string {
+	if list == nil {
+		return nil
+	}
 	m := make(map[string]string)
 	for k, v := range list {
 		m[k.String()] = v.String()

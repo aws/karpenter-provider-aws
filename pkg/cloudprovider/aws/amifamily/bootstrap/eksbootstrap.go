@@ -69,6 +69,8 @@ func (e EKS) Script() (string, error) {
 	}
 	if e.KubeletConfig != nil {
 		kubeletExtraArgs += e.systemReservedArg()
+		kubeletExtraArgs += e.kubeReservedArg()
+		kubeletExtraArgs += e.evictionThresholdArg()
 	}
 	if e.ContainerRuntime != "" {
 		userData.WriteString(fmt.Sprintf(" \\\n--container-runtime %s", e.ContainerRuntime))
@@ -127,6 +129,36 @@ func (e EKS) systemReservedArg() string {
 	}
 	if len(args) > 0 {
 		return " --system-reserved=" + strings.Join(args, ",")
+	}
+	return ""
+}
+
+// kubeReservedArg gets the kubelet-defined arguments for any valid resource
+// values that are specified within the kube reserved resource list
+func (e EKS) kubeReservedArg() string {
+	var args []string
+	if e.KubeletConfig.KubeReserved != nil {
+		for k, v := range e.KubeletConfig.KubeReserved {
+			args = append(args, fmt.Sprintf("%v=%v", k.String(), v.String()))
+		}
+	}
+	if len(args) > 0 {
+		return " --kube-reserved=" + strings.Join(args, ",")
+	}
+	return ""
+}
+
+// evictionThresholdArg gets the kubelet-defined arguments for eviction
+// threshold values that are specified within the eviction threshold list
+func (e EKS) evictionThresholdArg() string {
+	var args []string
+	if e.KubeletConfig.EvictionHard != nil {
+		for k, v := range e.KubeletConfig.EvictionHard {
+			args = append(args, fmt.Sprintf("%v<%v", k, v))
+		}
+	}
+	if len(args) > 0 {
+		return " --eviction-hard=" + strings.Join(args, ",")
 	}
 	return ""
 }

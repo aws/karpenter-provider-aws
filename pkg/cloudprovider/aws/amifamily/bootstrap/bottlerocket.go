@@ -53,6 +53,8 @@ func (b Bottlerocket) Script() (string, error) {
 	}
 	if b.KubeletConfig != nil {
 		s.Settings.Kubernetes.SystemReserved = resources.StringMap(b.KubeletConfig.SystemReserved)
+		s.Settings.Kubernetes.KubeReserved = resources.StringMap(b.KubeletConfig.KubeReserved)
+		s.Settings.Kubernetes.EvictionHard = b.KubeletConfig.EvictionHard
 	}
 
 	s.Settings.Kubernetes.NodeTaints = map[string][]string{}

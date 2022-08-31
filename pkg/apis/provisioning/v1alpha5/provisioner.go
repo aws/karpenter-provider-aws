@@ -123,7 +123,14 @@ type KubeletConfiguration struct {
 	// +optional
 	MaxPods *int32 `json:"maxPods,omitempty"`
 	// SystemReserved contains resources reserved for OS system daemons and kernel memory.
+	// +optional
 	SystemReserved v1.ResourceList `json:"systemReserved,omitempty"`
+	// KubeReserved contains resources reserved for Kubernetes system components.
+	// +optional
+	KubeReserved v1.ResourceList `json:"kubeReserved,omitempty"`
+	// EvictionHard is the map of signal names to quantities that define hard eviction thresholds
+	// +optional
+	EvictionHard map[string]string `json:"evictionHard,omitempty"`
 }
 
 // Provisioner is the Schema for the Provisioners API
