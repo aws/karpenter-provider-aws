@@ -86,7 +86,17 @@ func (env *Environment) BeforeEach() {
 	Expect(env.Client.List(env.Context, &pods)).To(Succeed())
 	if debugE2E {
 		for i, p := range pods.Items {
-			fmt.Printf("pods %s/%s provisionable=%v nodename=%s\n", p.Namespace, p.Name, pod.IsProvisionable(&pods.Items[i]), p.Spec.NodeName)
+
+			var containerInfo strings.Builder
+			for _, c := range p.Status.ContainerStatuses {
+				if containerInfo.Len() > 0 {
+					fmt.Fprintf(&containerInfo, ", ")
+				}
+				fmt.Fprintf(&containerInfo, "%s restarts=%d", c.Name, c.RestartCount)
+			}
+
+			fmt.Printf("pods %s/%s provisionable=%v nodename=%s [%s]\n", p.Namespace, p.Name,
+				pod.IsProvisionable(&pods.Items[i]), p.Spec.NodeName, containerInfo.String())
 		}
 	}
 	for i := range pods.Items {
@@ -240,13 +250,31 @@ func (env *Environment) GetVolume(volumeID *string) ec2.Volume {
 
 func (env *Environment) expectNoCrashes() {
 	crashed := false
+	var crashInfo strings.Builder
 	for name, restartCount := range env.Monitor.RestartCount() {
 		if restartCount > 0 {
 			crashed = true
 			env.printControllerLogs(&v1.PodLogOptions{Container: strings.Split(name, "/")[1], Previous: true})
+			if crashInfo.Len() > 0 {
+				fmt.Fprintf(&crashInfo, ", ")
+			}
+			fmt.Fprintf(&crashInfo, "%s restart count = %d", name, restartCount)
 		}
 	}
-	Expect(crashed).To(BeFalse(), "expected karpenter containers to not crash")
+
+	// print any events in the karpenter namespace which may indicate liveness probes failing, etc.
+	var events v1.EventList
+	Expect(env.Client.List(env.Context, &events)).To(Succeed())
+	for _, ev := range events.Items {
+		if ev.InvolvedObject.Namespace == "karpenter" {
+			if crashInfo.Len() > 0 {
+				fmt.Fprintf(&crashInfo, ", ")
+			}
+			fmt.Fprintf(&crashInfo, "<%s/%s %s %s>", ev.InvolvedObject.Namespace, ev.InvolvedObject.Name, ev.Reason, ev.Message)
+		}
+	}
+
+	Expect(crashed).To(BeFalse(), fmt.Sprintf("expected karpenter containers to not crash: %s", crashInfo.String()))
 }
 
 var (

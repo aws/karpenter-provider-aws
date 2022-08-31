@@ -101,10 +101,12 @@ spec:
               protocol: TCP
           livenessProbe:
             initialDelaySeconds: 30
+            timeoutSeconds: 30
             httpGet:
               path: /healthz
               port: http
           readinessProbe:
+            timeoutSeconds: 30
             httpGet:
               path: /readyz
               port: http
