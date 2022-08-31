@@ -36,12 +36,11 @@ spec:
       karpenter.sh/price: 0.40
     - karpenter.sh/capacity-type: spot
       topology.kubernetes.io/zone: us-west-2c
-  resources: # This defines the resources that the instance has for bin-packing, will be merged with known resource quantities
+  capacity: # This defines the resources that the instance has for bin-packing, will be merged with known resource quantities
     hardware-vendor.example/foo: "2"
     hardware-vendor.example/bar: "20"
     pods: 10
-  overhead: # Any overhead that should be subtracted from the instance type away from resources
-    memory: 200Mi    
+    memory: 3865Mi 
 ```
 
 
@@ -83,7 +82,7 @@ spec:
 
 ## Instance Type Setting Examples
 
-1. Configure the VM memory overhead values for `c5.large`
+1. Configure the VM memory capacity value for `c5.large`
 
 ```yaml
 apiVersion: karpenter.sh/v1alpha1
@@ -91,7 +90,7 @@ kind: InstanceType
 metadata:
    name: "c5.large"
 spec:
-   overhead:
+   capacity:
       memory: 200Mi
 ```
 
@@ -103,7 +102,7 @@ kind: InstanceType
 metadata:
   name: "c4.large"
 spec:
-   resources:
+   capacity:
       hardware-vendor.example/foo: "2"
 ```
 
@@ -247,7 +246,7 @@ Based on these two categories, we can tackle user-defined overhead/resource valu
     3. In the meantime, while most users may not be using either mechanism to achieve system-wide pod overheads, we will still calculate the `kubeReserved` values based on pod density. There are still some open questions based on whether we should open up the ability to specify the strategy type (see below)
 3. Max Pods
     1. In general, it appears to be an anti-pattern in the Kubernetes community to strictly fix maxPods values (for kubeletConfiguration) on a per-instance type level. Users should be restricting the number of pods on their instances based on pod requests and size of instances as opposed to strict pod density sizing. If users are concerned with Provisioners creating instances that are too large, there is now the option to specify GT or LT operators for setting limits for how large an instance type that is provisioned can get.
-    2. 🔑 For users that continue to utilize and/or need `--max-pods`, we will surface a `pods` value in the `.spec.resources` of the `InstanceType`. This `pods` value will be used for pod density for bin-packing and scheduling. Since there would now be a `max-pods` value surfaced at both the `InstanceType` level and at the `Provisioner` level, we will take the `min(provisioner.maxPods, instanceType.maxPods)` to be the pod density for the instance. 
+    2. 🔑 For users that continue to utilize and/or need `--max-pods`, we will surface a `pods` value in the `.spec.capacity` of the `InstanceType`. This `pods` value will be used for pod density for bin-packing and scheduling. Since there would now be a `max-pods` value surfaced at both the `InstanceType` level and at the `Provisioner` level, we will take the `min(provisioner.maxPods, instanceType.maxPods)` to be the pod density for the instance. 
        1. These per-instance type pod density values will be passed into the userData that is used to bootstrap the node. Instance type discovery will be performed in the userData script to determine the max pods value to pass to `bootstrap.sh`.
 
 **🔑 Open Questions**
@@ -268,10 +267,10 @@ kind: InstanceType
 metadata:
   name: "c5.large"
 spec:
-  resources: # This defines the starting resources that the instance has
+  allocatable: # This defines the starting resources that the instance has
     custom-device.com/resource: "2"
     memory: 1Gi
-    cpu: 2Gi
+    cpu: 2
   provider:
     blockDeviceMappings:
     - deviceName: /dev/xvda
