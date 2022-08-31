@@ -5,4 +5,4 @@ helm upgrade --install --namespace karpenter --create-namespace \
   --set clusterName=${CLUSTER_NAME} \
   --set clusterEndpoint=${CLUSTER_ENDPOINT} \
   --set aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
-  --wait # for the defaulting webhook to install before creating a Provisioner
+  --wait
