@@ -82,7 +82,10 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 	// if performing validation only, then only the Validate()/Default() methods will be called which
 	// don't require any other setup
 	if options.WebhookOnly {
-		return &CloudProvider{}
+		cp := &CloudProvider{}
+		v1alpha5.ValidateHook = cp.Validate
+		v1alpha5.DefaultHook = cp.Default
+		return cp
 	}
 
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("aws"))
@@ -215,6 +218,7 @@ func (*CloudProvider) Default(ctx context.Context, provisioner *v1alpha5.Provisi
 }
 
 func defaultLabels(provisioner *v1alpha5.Provisioner) {
+	logging.FromContext(context.Background()).Infof("set default labels on %s", provisioner.Name)
 	for key, value := range map[string]string{
 		v1alpha5.LabelCapacityType: ec2.DefaultTargetCapacityTypeOnDemand,
 		v1.LabelArchStable:         v1alpha5.ArchitectureAmd64,
