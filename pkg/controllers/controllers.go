@@ -137,7 +137,10 @@ func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options)
 	}
 
 	realClock := clock.RealClock{}
-	recorder := events.NewDedupeRecorder(events.NewRecorder(manager.GetEventRecorderFor(appName)))
+	recorder := events.NewRecorder(manager.GetEventRecorderFor(appName))
+	recorder = events.NewLoadSheddingRecorder(recorder)
+	recorder = events.NewDedupeRecorder(recorder)
+
 	cluster := state.NewCluster(realClock, cfg, manager.GetClient(), cloudProvider)
 	provisioner := provisioning.NewProvisioner(ctx, cfg, manager.GetClient(), clientSet.CoreV1(), recorder, cloudProvider, cluster)
 	consolidation.NewController(ctx, realClock, manager.GetClient(), provisioner, cloudProvider, recorder, cluster, manager.Elected())
