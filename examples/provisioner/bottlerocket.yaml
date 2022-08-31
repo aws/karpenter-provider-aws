@@ -23,10 +23,10 @@ spec:
     - deviceName: /dev/xvda
       ebs:
         volumeType: gp3
-        volumeSize: 2Gi
+        volumeSize: 4Gi
         deleteOnTermination: true
     - deviceName: /dev/xvdb
       ebs:
         volumeType: gp3
-        volumeSize: 20G # replace with your required disk size
+        volumeSize: 20Gi # replace with your required disk size
         deleteOnTermination: true
