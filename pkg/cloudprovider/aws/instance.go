@@ -105,7 +105,7 @@ func (p *InstanceProvider) Create(ctx context.Context, provider *v1alpha1.AWS, n
 	)
 
 	// Convert Instance to Node
-	return p.instanceToNode(ctx, instance, nodeRequest.InstanceTypeOptions, provider.AMIFamily), nil
+	return p.instanceToNode(ctx, instance, nodeRequest.InstanceTypeOptions), nil
 }
 
 func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
@@ -324,7 +324,7 @@ func (p *InstanceProvider) getInstance(ctx context.Context, id string) (*ec2.Ins
 	return instance, nil
 }
 
-func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Instance, instanceTypes []cloudprovider.InstanceType, amiFamily *string) *v1.Node {
+func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Instance, instanceTypes []cloudprovider.InstanceType) *v1.Node {
 	for _, instanceType := range instanceTypes {
 		if instanceType.Name() == aws.StringValue(instance.InstanceType) {
 			nodeName := strings.ToLower(aws.StringValue(instance.PrivateDnsName))

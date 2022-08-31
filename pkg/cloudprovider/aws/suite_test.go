@@ -198,6 +198,22 @@ var _ = Describe("Allocation", func() {
 				Values:   []string{v1alpha5.ArchitectureAmd64},
 			}))
 		})
+		It("should default requirements hooks in webhook mode", func() {
+			// clear our hook to ensure that creating the cloud provider in webhook mode sets it
+			v1alpha5.DefaultHook = func(ctx context.Context, provisoner *v1alpha5.Provisioner) {}
+			NewCloudProvider(ctx, cloudprovider.Options{WebhookOnly: true})
+			v1alpha5.DefaultHook(ctx, provisioner)
+			Expect(provisioner.Spec.Requirements).To(ContainElement(v1.NodeSelectorRequirement{
+				Key:      v1alpha5.LabelCapacityType,
+				Operator: v1.NodeSelectorOpIn,
+				Values:   []string{awsv1alpha1.CapacityTypeOnDemand},
+			}))
+			Expect(provisioner.Spec.Requirements).To(ContainElement(v1.NodeSelectorRequirement{
+				Key:      v1.LabelArchStable,
+				Operator: v1.NodeSelectorOpIn,
+				Values:   []string{v1alpha5.ArchitectureAmd64},
+			}))
+		})
 	})
 	Context("Validation", func() {
 		It("should validate", func() {

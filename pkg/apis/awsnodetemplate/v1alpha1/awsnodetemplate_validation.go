@@ -42,7 +42,7 @@ func (a *AWSNodeTemplate) Validate(ctx context.Context) (errs *apis.FieldError) 
 	)
 }
 
-func (a *AWSNodeTemplateSpec) validate(ctx context.Context) (errs *apis.FieldError) {
+func (a *AWSNodeTemplateSpec) validate(_ context.Context) (errs *apis.FieldError) {
 	return errs.Also(
 		a.AWS.Validate(),
 		a.validateUserData(),
