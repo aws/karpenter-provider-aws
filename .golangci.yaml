@@ -55,3 +55,8 @@ linters-settings:
 issues:
   fix: true
   exclude: ['declaration of "(err|ctx)" shadows declaration at']
+  exclude-rules:
+  - linters:
+    - goheader
+    path: 'zz_(.+)\.go' 
+    
