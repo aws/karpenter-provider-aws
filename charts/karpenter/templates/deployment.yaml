@@ -83,6 +83,12 @@ spec:
             - name: AWS_DEFAULT_INSTANCE_PROFILE
               value: {{ .Values.aws.defaultInstanceProfile }}
           {{- end }}
+            - name: MEMORY_LIMIT
+              valueFrom:
+                resourceFieldRef:
+                  containerName: controller
+                  divisor: "0"
+                  resource: limits.memory
           {{- with .Values.controller.env }}
             {{- toYaml . | nindent 12 }}
           {{- end }}
@@ -95,10 +101,12 @@ spec:
               protocol: TCP
           livenessProbe:
             initialDelaySeconds: 30
+            timeoutSeconds: 30
             httpGet:
               path: /healthz
               port: http
           readinessProbe:
+            timeoutSeconds: 30
             httpGet:
               path: /readyz
               port: http
@@ -134,6 +142,12 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
+            - name: MEMORY_LIMIT
+              valueFrom:
+                resourceFieldRef:
+                  containerName: webhook
+                  divisor: "0"
+                  resource: limits.memory
             {{- if .Values.aws.defaultInstanceProfile }}
             - name: AWS_DEFAULT_INSTANCE_PROFILE
               value: {{ .Values.aws.defaultInstanceProfile }}
