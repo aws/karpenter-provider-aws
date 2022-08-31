@@ -33,17 +33,34 @@ Reasons that a node can fail to join the cluster include:
 - Security Groups
 - Networking
 
-The easiest way to start debugging is to connect to the instance
-```sh
+The easiest way to start debugging is to connect to the instance and get the Kubelet logs.  For an AL2 based node:
+```bash
 # List the nodes managed by Karpenter
 kubectl get node -l karpenter.sh/provisioner-name
-# Extract the instance ID
-INSTANCE_ID=$(kubectl get node -l karpenter.sh/provisioner-name -ojson | jq -r ".items[0].spec.providerID" | cut -d \/ -f5)
+# Extract the instance ID (replace <node-name> with a node name from the above listing)
+INSTANCE_ID=$(kubectl get node <node-name> -ojson | jq -r ".spec.providerID" | cut -d \/ -f5)
 # Connect to the instance
 aws ssm start-session --target $INSTANCE_ID
 # Check Kubelet logs
 sudo journalctl -u kubelet
 ```
+
+For Bottlerocket, you'll need to get access to the root filesystem:
+```bash
+# List the nodes managed by Karpenter
+kubectl get node -l karpenter.sh/provisioner-name
+# Extract the instance ID (replace <node-name> with a node name from the above listing)
+INSTANCE_ID=$(kubectl get node <node-name> -ojson | jq -r ".spec.providerID" | cut -d \/ -f5)
+# Connect to the instance
+aws ssm start-session --target $INSTANCE_ID
+# Enter the admin container
+enter-admin-container
+# Run sheltie
+sudo sheltie
+# Check Kubelet logs
+journalctl -u kubelet
+```
+
 Here are examples of errors from Node NotReady issues that you might see from `journalctl`:
 
 * The runtime network not being ready can reflect a problem with IAM role permissions:
