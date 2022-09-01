@@ -24,11 +24,30 @@ website() {
 }
 
 editWebsiteConfig() {
-    yq -i ".params.latest_release_version = \"${RELEASE_VERSION}\"" website/config.yaml
-    yq -i ".menu.main[] |=select(.name == \"Docs\") .url = \"${RELEASE_VERSION}\"" website/config.yaml
+  sed -i '' '/^\/docs\/\*/d' website/static/_redirects
+  echo "/docs/*     	                /${RELEASE_VERSION}/:splat" >>website/static/_redirects
 
-    sed -i '' '/^\/docs\/\*/d' website/static/_redirects
-    echo "/docs/*     	                /${RELEASE_VERSION}/:splat" >> website/static/_redirects
+  yq -i ".params.latest_release_version = \"${RELEASE_VERSION}\"" website/config.yaml
+  yq -i ".menu.main[] |=select(.name == \"Docs\") .url = \"${RELEASE_VERSION}\"" website/config.yaml
+
+  editWebsiteVersionsMenu
+}
+
+# editWebsiteVersionsMenu sets relevant releases in the version dropdown menu of the website
+# without increasing the size of the set
+editWebsiteVersionsMenu() {
+  VERSIONS=(${RELEASE_VERSION})
+  while IFS= read -r LINE; do
+    SANITIZED_VERSION=$(echo "${LINE}" | sed -e 's/["-]//g' -e 's/ *//g')
+    VERSIONS+=("${SANITIZED_VERSION}")
+  done < <(yq '.params.versions' website/config.yaml)
+  unset VERSIONS[${#VERSIONS[@]}-2]
+
+  yq -i '.params.versions = []' website/config.yaml
+
+  for VERSION in "${VERSIONS[@]}"; do
+    yq -i ".params.versions += \"${VERSION}\"" website/config.yaml
+  done
 }
 
 authenticate
