@@ -236,9 +236,12 @@ func (kc *KubeletConfiguration) validateEvictionHard() (errs *apis.FieldError) {
 			errs = errs.Also(apis.ErrInvalidValue("unsupported eviction signal", fmt.Sprintf("evictionHard[%s]", k)))
 		}
 		if strings.Contains(v, "%") {
-			p, err := strconv.ParseFloat(v, 64)
-			if err != nil || p > 100 || p < 0 {
+			p, err := strconv.ParseFloat(strings.Trim(v, "%"), 64)
+			if err != nil {
 				errs = errs.Also(apis.ErrInvalidValue("percentage value is in an invalid format", fmt.Sprintf("evictionHard[%s]", k), err.Error()))
+			}
+			if p > 100 || p < 0 {
+				errs = errs.Also(apis.ErrInvalidValue("percentage value is in an invalid format", fmt.Sprintf("evictionHard[%s]", k)))
 			}
 		} else {
 			_, err := resource.ParseQuantity(v)
