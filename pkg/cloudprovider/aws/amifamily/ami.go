@@ -80,7 +80,7 @@ func (p *AMIProvider) Get(ctx context.Context, provider *awsv1alpha1.AWS, nodeRe
 	return amiIDs, nil
 }
 
-func (p *AMIProvider) getDefaultAMIFromSSM(ctx context.Context, instanceType cloudprovider.InstanceType, ssmQuery string) (string, error) {
+func (p *AMIProvider) getDefaultAMIFromSSM(ctx context.Context, _ cloudprovider.InstanceType, ssmQuery string) (string, error) {
 	if id, ok := p.ssmCache.Get(ssmQuery); ok {
 		return id.(string), nil
 	}

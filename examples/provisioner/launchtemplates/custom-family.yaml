@@ -25,7 +25,7 @@ spec:
   securityGroupSelector:
     karpenter.sh/discovery: my-cluster
   amiSelector:
-    ami-ids: ami-123,ami456
+    aws-ids: ami-123,ami456
   userData: |
     MIME-Version: 1.0
     Content-Type: multipart/mixed; boundary="BOUNDARY"

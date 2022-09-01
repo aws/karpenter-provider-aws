@@ -208,7 +208,7 @@ func ExpectMetric(prefix string) *prometheus.MetricFamily {
 	return selected
 }
 func ExpectManualBinding(ctx context.Context, c client.Client, pod *v1.Pod, node *v1.Node) {
-	Expect(c.Create(ctx, &v1.Binding{
+	ExpectWithOffset(1, c.Create(ctx, &v1.Binding{
 		TypeMeta: pod.TypeMeta,
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      pod.ObjectMeta.Name,

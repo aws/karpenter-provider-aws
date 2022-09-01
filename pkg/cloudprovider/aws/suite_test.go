@@ -198,6 +198,22 @@ var _ = Describe("Allocation", func() {
 				Values:   []string{v1alpha5.ArchitectureAmd64},
 			}))
 		})
+		It("should default requirements hooks in webhook mode", func() {
+			// clear our hook to ensure that creating the cloud provider in webhook mode sets it
+			v1alpha5.DefaultHook = func(ctx context.Context, provisoner *v1alpha5.Provisioner) {}
+			NewCloudProvider(ctx, cloudprovider.Options{WebhookOnly: true})
+			v1alpha5.DefaultHook(ctx, provisioner)
+			Expect(provisioner.Spec.Requirements).To(ContainElement(v1.NodeSelectorRequirement{
+				Key:      v1alpha5.LabelCapacityType,
+				Operator: v1.NodeSelectorOpIn,
+				Values:   []string{awsv1alpha1.CapacityTypeOnDemand},
+			}))
+			Expect(provisioner.Spec.Requirements).To(ContainElement(v1.NodeSelectorRequirement{
+				Key:      v1.LabelArchStable,
+				Operator: v1.NodeSelectorOpIn,
+				Values:   []string{v1alpha5.ArchitectureAmd64},
+			}))
+		})
 	})
 	Context("Validation", func() {
 		It("should validate", func() {
@@ -217,7 +233,7 @@ var _ = Describe("Allocation", func() {
 					"key": "",
 				} {
 					provider.SubnetSelector = map[string]string{key: value}
-					provisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
+					provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 				}
 			})
@@ -228,7 +244,7 @@ var _ = Describe("Allocation", func() {
 				Expect(err).ToNot(HaveOccurred())
 				provider.LaunchTemplateName = aws.String("my-lt")
 				provider.SecurityGroupSelector = map[string]string{"key": "value"}
-				provisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
+				provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
 				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 			})
 			It("should not allow empty string keys or values", func() {
@@ -239,7 +255,7 @@ var _ = Describe("Allocation", func() {
 					"key": "",
 				} {
 					provider.SecurityGroupSelector = map[string]string{key: value}
-					provisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
+					provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 				}
 			})
@@ -249,7 +265,7 @@ var _ = Describe("Allocation", func() {
 				provider, err := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
 				Expect(err).ToNot(HaveOccurred())
 				provider.Context = aws.String("context-1234")
-				provisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
+				provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
 				provisioner.SetDefaults(ctx)
 				ExpectApplied(ctx, env.Client, provisioner)
 				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
@@ -296,25 +312,26 @@ var _ = Describe("Allocation", func() {
 				Expect(err).ToNot(HaveOccurred())
 				provider.LaunchTemplateName = aws.String("my-lt")
 				provider.MetadataOptions = &awsv1alpha1.MetadataOptions{}
-				provisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
+				provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
 				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 			})
 			It("should allow missing values", func() {
 				provider, err := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
 				Expect(err).ToNot(HaveOccurred())
 				provider.MetadataOptions = &awsv1alpha1.MetadataOptions{}
-				provisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
+				provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
 				Expect(provisioner.Validate(ctx)).To(Succeed())
 			})
 			Context("HTTPEndpoint", func() {
 				It("should allow enum values", func() {
 					provider, err := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
 					Expect(err).ToNot(HaveOccurred())
-					for _, value := range ec2.LaunchTemplateInstanceMetadataEndpointState_Values() {
+					for i := range ec2.LaunchTemplateInstanceMetadataEndpointState_Values() {
+						value := ec2.LaunchTemplateInstanceMetadataEndpointState_Values()[i]
 						provider.MetadataOptions = &awsv1alpha1.MetadataOptions{
 							HTTPEndpoint: &value,
 						}
-						provisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
+						provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
 						Expect(provisioner.Validate(ctx)).To(Succeed())
 					}
 				})
@@ -324,7 +341,7 @@ var _ = Describe("Allocation", func() {
 					provider.MetadataOptions = &awsv1alpha1.MetadataOptions{
 						HTTPEndpoint: aws.String(randomdata.SillyName()),
 					}
-					provisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
+					provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 				})
 			})
@@ -332,11 +349,12 @@ var _ = Describe("Allocation", func() {
 				It("should allow enum values", func() {
 					provider, err := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
 					Expect(err).ToNot(HaveOccurred())
-					for _, value := range ec2.LaunchTemplateInstanceMetadataProtocolIpv6_Values() {
+					for i := range ec2.LaunchTemplateInstanceMetadataProtocolIpv6_Values() {
+						value := ec2.LaunchTemplateInstanceMetadataProtocolIpv6_Values()[i]
 						provider.MetadataOptions = &awsv1alpha1.MetadataOptions{
 							HTTPProtocolIPv6: &value,
 						}
-						provisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
+						provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
 						Expect(provisioner.Validate(ctx)).To(Succeed())
 					}
 				})
@@ -346,7 +364,7 @@ var _ = Describe("Allocation", func() {
 					provider.MetadataOptions = &awsv1alpha1.MetadataOptions{
 						HTTPProtocolIPv6: aws.String(randomdata.SillyName()),
 					}
-					provisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
+					provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 				})
 			})
@@ -357,7 +375,7 @@ var _ = Describe("Allocation", func() {
 					provider.MetadataOptions = &awsv1alpha1.MetadataOptions{
 						HTTPPutResponseHopLimit: aws.Int64(int64(randomdata.Number(1, 65))),
 					}
-					provisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
+					provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					Expect(provisioner.Validate(ctx)).To(Succeed())
 				})
 				It("should not validate outside accepted range", func() {
@@ -370,7 +388,7 @@ var _ = Describe("Allocation", func() {
 					// the random number range. So we divide the range
 					// approximately in half and test on both halves.
 					provider.MetadataOptions.HTTPPutResponseHopLimit = aws.Int64(int64(randomdata.Number(math.MinInt64, math.MinInt64/2)))
-					provisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
+					provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 					provider.MetadataOptions.HTTPPutResponseHopLimit = aws.Int64(int64(randomdata.Number(math.MinInt64/2, 1)))
 					provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
@@ -389,7 +407,7 @@ var _ = Describe("Allocation", func() {
 						provider.MetadataOptions = &awsv1alpha1.MetadataOptions{
 							HTTPTokens: aws.String(value),
 						}
-						provisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
+						provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
 						Expect(provisioner.Validate(ctx)).To(Succeed())
 					}
 				})
@@ -399,7 +417,7 @@ var _ = Describe("Allocation", func() {
 					provider.MetadataOptions = &awsv1alpha1.MetadataOptions{
 						HTTPTokens: aws.String(randomdata.SillyName()),
 					}
-					provisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
+					provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 				})
 			})
@@ -414,7 +432,7 @@ var _ = Describe("Allocation", func() {
 							VolumeSize: resource.NewScaledQuantity(1, resource.Giga),
 						},
 					}}
-					provisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
+					provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 				})
 				It("should validate minimal device mapping", func() {
@@ -426,7 +444,7 @@ var _ = Describe("Allocation", func() {
 							VolumeSize: resource.NewScaledQuantity(1, resource.Giga),
 						},
 					}}
-					provisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
+					provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					Expect(provisioner.Validate(ctx)).To(Succeed())
 				})
 				It("should validate ebs device mapping with snapshotID only", func() {
@@ -438,7 +456,7 @@ var _ = Describe("Allocation", func() {
 							SnapshotID: aws.String("snap-0123456789"),
 						},
 					}}
-					provisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
+					provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					Expect(provisioner.Validate(ctx)).To(Succeed())
 				})
 				It("should not allow volume size below minimum", func() {
@@ -450,7 +468,7 @@ var _ = Describe("Allocation", func() {
 							VolumeSize: resource.NewScaledQuantity(100, resource.Mega),
 						},
 					}}
-					provisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
+					provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 				})
 				It("should not allow volume size above max", func() {
@@ -462,7 +480,7 @@ var _ = Describe("Allocation", func() {
 							VolumeSize: resource.NewScaledQuantity(65, resource.Tera),
 						},
 					}}
-					provisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
+					provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 				})
 				It("should not allow nil device name", func() {
@@ -473,7 +491,7 @@ var _ = Describe("Allocation", func() {
 							VolumeSize: resource.NewScaledQuantity(65, resource.Tera),
 						},
 					}}
-					provisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
+					provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 				})
 				It("should not allow nil volume size", func() {
@@ -483,7 +501,7 @@ var _ = Describe("Allocation", func() {
 						DeviceName: aws.String("/dev/xvda"),
 						EBS:        &awsv1alpha1.BlockDevice{},
 					}}
-					provisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
+					provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 				})
 				It("should not allow empty ebs block", func() {
@@ -492,7 +510,7 @@ var _ = Describe("Allocation", func() {
 					provider.BlockDeviceMappings = []*awsv1alpha1.BlockDeviceMapping{{
 						DeviceName: aws.String("/dev/xvda"),
 					}}
-					provisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
+					provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 				})
 			})

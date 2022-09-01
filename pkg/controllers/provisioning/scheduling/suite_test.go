@@ -43,10 +43,11 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/provisioning/scheduling"
 	"github.com/aws/karpenter/pkg/test"
 
-	. "github.com/aws/karpenter/pkg/test/expectations"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
+
+	. "github.com/aws/karpenter/pkg/test/expectations"
 )
 
 var ctx context.Context
@@ -881,7 +882,7 @@ var _ = Describe("Topology", func() {
 			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(3))
 
 			// Create 3 more pods, skew should recover
-			pods = ExpectProvisioned(ctx, env.Client, controller, createPods(3)...)
+			_ = ExpectProvisioned(ctx, env.Client, controller, createPods(3)...)
 			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(3, 1, 2))
 		})
 		It("should not violate max-skew when unsat = do not schedule", func() {
@@ -3988,6 +3989,7 @@ var _ = Describe("In-Flight Nodes", func() {
 		})
 
 	})
+	// nolint:gosec
 	It("should pack in-flight nodes before launching new nodes", func() {
 		cloudProv.InstanceTypes = []cloudprovider.InstanceType{
 			fake.NewInstanceType(fake.InstanceTypeOptions{
@@ -4348,7 +4350,7 @@ var _ = Describe("Volume Limits", func() {
 			}))
 		}
 		ExpectApplied(ctx, env.Client, provisioner)
-		pods = ExpectProvisioned(ctx, env.Client, controller, pods...)
+		_ = ExpectProvisioned(ctx, env.Client, controller, pods...)
 
 		var nodeList v1.NodeList
 		Expect(env.Client.List(ctx, &nodeList)).To(Succeed())
@@ -4397,7 +4399,7 @@ var _ = Describe("Volume Limits", func() {
 			}))
 		}
 		ExpectApplied(ctx, env.Client, provisioner)
-		pods = ExpectProvisioned(ctx, env.Client, controller, pods...)
+		_ = ExpectProvisioned(ctx, env.Client, controller, pods...)
 
 		var nodeList v1.NodeList
 		Expect(env.Client.List(ctx, &nodeList)).To(Succeed())
@@ -4413,6 +4415,7 @@ func MakePods(count int, options test.PodOptions) (pods []*v1.Pod) {
 	return pods
 }
 
+// nolint:gocyclo
 func ExpectMaxSkew(ctx context.Context, c client.Client, namespace string, constraint *v1.TopologySpreadConstraint) Assertion {
 	nodes := &v1.NodeList{}
 	Expect(c.List(ctx, nodes)).To(Succeed())

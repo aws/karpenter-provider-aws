@@ -1,0 +1,55 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: notify-slack
+  namespace: karpenter-tests
+  labels:
+    app.kubernetes.io/version: "0.1"
+  annotations:
+    tekton.dev/pipelines.minVersion: "0.12.1"
+    tekton.dev/categories: Messaging
+    tekton.dev/tags: messaging
+    tekton.dev/displayName: "Send message to Slack Channel"
+    tekton.dev/platforms: "linux/amd64,linux/s390x,linux/ppc64le"
+spec:
+  description: >-
+    These tasks post a simple message to a slack channel.
+
+    This task uses Incoming Webhooks of slack to send the message.
+
+  params:
+    - name: webhook-secret
+      type: string
+      description: secret name of the slack app webhook URL (key is url)
+    - name: message
+      type: string
+      description: plain text message
+    - name: bot-name
+      type: string
+      description: plain text message
+      default: 'Tekton Bot'
+    - name: icon-emoji
+      type: string
+      description: plain text message
+      default: ':robot_face:'
+  steps:
+    - name: post
+      image: docker.io/curlimages/curl:7.70.0@sha256:031df77a11e5edded840bc761a845eab6e3c2edee22669fb8ad6d59484b6a1c4 #tag: 7.70.0
+      script: |
+        #!/usr/bin/env sh
+        MESSAGE=$(echo "${MESSAGE}" | sed -e 's/\"/\\\\"/g')
+        BOTNAME=$(echo "${BOTNAME}" | sed -e 's/\"/\\\\"/g')
+        JSON="{\"text\": \"${MESSAGE}\", \"username\": \"${BOTNAME}\", \"icon_emoji\": \"${EMOJI}\"}"
+        curl -X POST -H 'Content-Type: application/json' --data "${JSON}" "${URL}"
+      env:
+        - name: URL
+          valueFrom:
+            secretKeyRef:
+              name: $(params.webhook-secret)
+              key: url
+        - name: MESSAGE
+          value: $(params.message)
+        - name: BOTNAME
+          value: $(params.bot-name)
+        - name: EMOJI
+          value: $(params.icon-emoji)

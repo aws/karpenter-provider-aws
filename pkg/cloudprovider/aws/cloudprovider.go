@@ -82,7 +82,10 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 	// if performing validation only, then only the Validate()/Default() methods will be called which
 	// don't require any other setup
 	if options.WebhookOnly {
-		return &CloudProvider{}
+		cp := &CloudProvider{}
+		v1alpha5.ValidateHook = cp.Validate
+		v1alpha5.DefaultHook = cp.Default
+		return cp
 	}
 
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("aws"))

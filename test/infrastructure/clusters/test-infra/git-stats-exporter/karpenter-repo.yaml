@@ -1,9 +1,0 @@
-apiVersion: src.bwag.me/v1
-kind: Repo
-metadata:
-  name: aws-karpenter
-  namespace: git-stats-exporter
-spec:
-  owner: aws
-  name: karpenter
-  ghTokenSecretRef: gh-token

@@ -60,9 +60,15 @@ var (
 	}
 )
 
+// if set, logs additional information that may be useful in debugging an E2E test failure
+var debugE2E = true
+
 func (env *Environment) BeforeEach() {
 	var nodes v1.NodeList
 	Expect(env.Client.List(env.Context, &nodes)).To(Succeed())
+	if debugE2E {
+		env.dumpNodeInformation(nodes)
+	}
 	for _, node := range nodes.Items {
 		if len(node.Spec.Taints) == 0 && !node.Spec.Unschedulable {
 			Fail(fmt.Sprintf("expected system pool node %s to be tainted", node.Name))
@@ -71,6 +77,9 @@ func (env *Environment) BeforeEach() {
 
 	var pods v1.PodList
 	Expect(env.Client.List(env.Context, &pods)).To(Succeed())
+	if debugE2E {
+		env.dumpPodInformation(pods)
+	}
 	for i := range pods.Items {
 		Expect(pod.IsProvisionable(&pods.Items[i])).To(BeFalse(),
 			fmt.Sprintf("expected to have no provisionable pods, found %s/%s", pods.Items[i].Namespace, pods.Items[i].Name))
@@ -81,6 +90,26 @@ func (env *Environment) BeforeEach() {
 	Expect(env.Client.List(env.Context, &provisioners)).To(Succeed())
 	Expect(provisioners.Items).To(HaveLen(0), "expected no provisioners to exist")
 	env.Monitor.Reset()
+}
+
+func (env *Environment) dumpNodeInformation(nodes v1.NodeList) {
+	for _, node := range nodes.Items {
+		fmt.Printf("node %s taints = %v\n", node.Name, node.Spec.Taints)
+	}
+}
+
+func (env *Environment) dumpPodInformation(pods v1.PodList) {
+	for i, p := range pods.Items {
+		var containerInfo strings.Builder
+		for _, c := range p.Status.ContainerStatuses {
+			if containerInfo.Len() > 0 {
+				fmt.Fprintf(&containerInfo, ", ")
+			}
+			fmt.Fprintf(&containerInfo, "%s restarts=%d", c.Name, c.RestartCount)
+		}
+		fmt.Printf("pods %s/%s provisionable=%v nodename=%s [%s]\n", p.Namespace, p.Name,
+			pod.IsProvisionable(&pods.Items[i]), p.Spec.NodeName, containerInfo.String())
+	}
 }
 
 func (env *Environment) AfterEach() {
@@ -147,14 +176,18 @@ func (env *Environment) EventuallyExpectKarpenterWithEnvVar(envVar v1.EnvVar) {
 		listOptions := metav1.ListOptions{LabelSelector: labels.SelectorFromSet(labelMap).String()}
 		podList, err := env.KubeClient.CoreV1().Pods("karpenter").List(env.Context, listOptions)
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(podList.Items[0].Spec.Containers[0].Env).To(ContainElement(And(
-			HaveField("Name", Equal(envVar.Name)),
-			HaveField("Value", Equal(envVar.Value)),
-		)))
-		g.Expect(podList.Items[0].Status.Conditions).To(ContainElement(And(
-			HaveField("Type", Equal(v1.PodReady)),
-			HaveField("Status", Equal(v1.ConditionTrue)),
-		)))
+		// we need all of the karpenter pods to have the new environment variable so that we don't return early
+		// while some pods are still terminating
+		for i := range podList.Items {
+			g.Expect(podList.Items[i].Spec.Containers[0].Env).To(ContainElement(And(
+				HaveField("Name", Equal(envVar.Name)),
+				HaveField("Value", Equal(envVar.Value)),
+			)))
+			g.Expect(podList.Items[i].Status.Conditions).To(ContainElement(And(
+				HaveField("Type", Equal(v1.PodReady)),
+				HaveField("Status", Equal(v1.ConditionTrue)),
+			)))
+		}
 	}).Should(Succeed())
 }
 
@@ -218,13 +251,31 @@ func (env *Environment) GetVolume(volumeID *string) ec2.Volume {
 
 func (env *Environment) expectNoCrashes() {
 	crashed := false
+	var crashInfo strings.Builder
 	for name, restartCount := range env.Monitor.RestartCount() {
 		if restartCount > 0 {
 			crashed = true
 			env.printControllerLogs(&v1.PodLogOptions{Container: strings.Split(name, "/")[1], Previous: true})
+			if crashInfo.Len() > 0 {
+				fmt.Fprintf(&crashInfo, ", ")
+			}
+			fmt.Fprintf(&crashInfo, "%s restart count = %d", name, restartCount)
 		}
 	}
-	Expect(crashed).To(BeFalse(), "expected karpenter containers to not crash")
+
+	// print any events in the karpenter namespace which may indicate liveness probes failing, etc.
+	var events v1.EventList
+	Expect(env.Client.List(env.Context, &events)).To(Succeed())
+	for _, ev := range events.Items {
+		if ev.InvolvedObject.Namespace == "karpenter" {
+			if crashInfo.Len() > 0 {
+				fmt.Fprintf(&crashInfo, ", ")
+			}
+			fmt.Fprintf(&crashInfo, "<%s/%s %s %s>", ev.InvolvedObject.Namespace, ev.InvolvedObject.Name, ev.Reason, ev.Message)
+		}
+	}
+
+	Expect(crashed).To(BeFalse(), fmt.Sprintf("expected karpenter containers to not crash: %s", crashInfo.String()))
 }
 
 var (
@@ -242,8 +293,11 @@ func (env *Environment) printControllerLogs(options *v1.PodLogOptions) {
 	nameid := strings.Split(*lease.Spec.HolderIdentity, "_")
 	Expect(nameid).To(HaveLen(2), fmt.Sprintf("invalid lease HolderIdentity, %s", *lease.Spec.HolderIdentity))
 	stream, err := env.KubeClient.CoreV1().Pods("karpenter").GetLogs(nameid[0], options).Stream(env.Context)
-	Expect(err).ToNot(HaveOccurred())
-	log := new(bytes.Buffer)
+	if err != nil {
+		logging.FromContext(env.Context).Errorf("fetching controller logs: %s", err)
+		return
+	}
+	log := &bytes.Buffer{}
 	_, err = io.Copy(log, stream)
 	Expect(err).ToNot(HaveOccurred())
 	logging.FromContext(env.Context).Info(log)

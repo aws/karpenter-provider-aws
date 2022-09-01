@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"k8s.io/apimachinery/pkg/api/resource"
 
@@ -112,11 +113,10 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 		return reconcile.Result{}, err
 	}
-	if err := c.record(ctx, provisioner); err != nil {
-		logging.FromContext(ctx).Errorf("Failed to update gauges: %s", err)
-		return reconcile.Result{}, err
-	}
-	return reconcile.Result{}, nil
+
+	c.record(ctx, provisioner)
+	// periodically update our metrics per provisioner even if nothing has changed
+	return reconcile.Result{RequeueAfter: 5 * time.Minute}, nil
 }
 
 func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
@@ -145,16 +145,17 @@ func (c *Controller) labels(provisioner *v1alpha5.Provisioner, resourceTypeName 
 	return metricLabels
 }
 
-func (c *Controller) record(ctx context.Context, provisioner *v1alpha5.Provisioner) error {
-	if provisioner.Spec.Limits == nil {
-		return nil
-	}
-
-	if err := c.set(provisioner.Spec.Limits.Resources, provisioner, limitGaugeVec); err != nil {
+func (c *Controller) record(ctx context.Context, provisioner *v1alpha5.Provisioner) {
+	if err := c.set(provisioner.Status.Resources, provisioner, usageGaugeVec); err != nil {
 		logging.FromContext(ctx).Errorf("Failed to generate gauge: %s", err)
 	}
 
-	if err := c.set(provisioner.Status.Resources, provisioner, usageGaugeVec); err != nil {
+	if provisioner.Spec.Limits == nil {
+		// can't generate our limits or usagePct gauges if there are no limits
+		return
+	}
+
+	if err := c.set(provisioner.Spec.Limits.Resources, provisioner, limitGaugeVec); err != nil {
 		logging.FromContext(ctx).Errorf("Failed to generate gauge: %s", err)
 	}
 
@@ -172,8 +173,6 @@ func (c *Controller) record(ctx context.Context, provisioner *v1alpha5.Provision
 	if err := c.set(usage, provisioner, usagePctGaugeVec); err != nil {
 		logging.FromContext(ctx).Errorf("Failed to generate gauge: %s", err)
 	}
-
-	return nil
 }
 
 // set sets the value for the node gauge

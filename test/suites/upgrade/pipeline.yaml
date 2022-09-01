@@ -77,3 +77,15 @@ spec:
       operator: in
       values:
         - "true"
+  - name: notify-build-failure
+    when:
+      - input: $(tasks.status)
+        operator: in
+        values: ["Failed"]
+    taskRef:
+      name: notify-slack
+    params:
+    - name: webhook-secret
+      value: slack-webhook-secret
+    - name: message
+      value: $(context.pipelineRun.name) has failed

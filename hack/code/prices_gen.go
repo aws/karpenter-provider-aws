@@ -1,3 +1,17 @@
+/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package main
 
 import (
@@ -5,9 +19,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/aws/aws-sdk-go/aws/session"
-	ec22 "github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/karpenter/pkg/cloudprovider/aws"
 	"go/format"
 	"io/ioutil"
 	"log"
@@ -17,6 +28,10 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/aws/aws-sdk-go/aws/session"
+	ec22 "github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws"
 )
 
 func main() {
@@ -76,7 +91,7 @@ func main() {
 	}
 }
 
-func writePricing(src *bytes.Buffer, instanceNames []string, varName string, getPrice func(instanceType string) (float64, error)) {
+func writePricing(src *bytes.Buffer, instanceNames []string, varName string, getPrice func(instanceType string) (float64, bool)) {
 	fmt.Fprintf(src, "var %s = map[string]float64{\n", varName)
 	lineLen := 0
 	sort.Strings(instanceNames)
@@ -86,8 +101,8 @@ func writePricing(src *bytes.Buffer, instanceNames []string, varName string, get
 		if len(segs) != 2 {
 			log.Fatalf("parsing instance family %s, got %v", instanceName, segs)
 		}
-		price, err := getPrice(instanceName)
-		if err != nil {
+		price, ok := getPrice(instanceName)
+		if !ok {
 			continue
 		}
 
