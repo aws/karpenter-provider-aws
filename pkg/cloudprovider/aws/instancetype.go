@@ -363,7 +363,8 @@ func getMaxPods(ctx context.Context, cores int64, kc *v1alpha5.KubeletConfigurat
 				mp = ptr.Int64(int64(ptr.Int32Value(kc.MaxPods)))
 			}
 		}
-	} else if !injection.GetOptions(ctx).AWSENILimitedPodDensity {
+	}
+	if mp == nil && !injection.GetOptions(ctx).AWSENILimitedPodDensity {
 		mp = ptr.Int64(110)
 	}
 	return mp
