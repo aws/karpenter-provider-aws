@@ -6,6 +6,18 @@ description: >
   Troubleshoot Karpenter problems
 ---
 
+## Unable to schedule pod due to insufficient node group instances
+
+v0.16 changed the default replicas from 1 to 2. 
+
+Karpenter won't launch capacity to run itself (log related to the `karpenter.sh/provisioner-name DoesNotExist requirement`) 
+so it can't provision for the second Karpenter pod. 
+
+To solve this you can either reduce the replicas back from 2 to 1, or ensure there is enough capacity that isn't being managed by Karpenter 
+(these are instances with the name `karpenter.sh/provisioner-name/<PROVIDER_NAME>`) to run both pods.
+
+To do so on AWS increase the `minimum` and `desired` parameters on the node group autoscaling group to launch at lease 2 instances.
+
 ## Node not created
 In some circumstances, Karpenter controller can fail to start up a node.
 For example, providing the wrong block storage device name in a custom launch template can result in a failure to start the node and an error similar to:
