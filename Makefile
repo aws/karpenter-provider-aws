@@ -99,7 +99,7 @@ delete: ## Delete the controller from your ~/.kube/config cluster
 
 codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 	controller-gen \
-		object:headerFile="hack/license-boilerplacte.txt" \
+		object:headerFile="hack/license-boilerplate.txt" \
 		crd \
 		paths="./pkg/..." \
 		output:crd:artifacts:config=charts/karpenter/crds
