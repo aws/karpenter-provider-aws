@@ -120,8 +120,15 @@ type KubeletConfiguration struct {
 	ContainerRuntime *string `json:"containerRuntime,omitempty"`
 	// MaxPods is an override for the maximum number of pods that can run on
 	// a worker node instance.
+	// +kubebuilder:validation:Minimum:=0
 	// +optional
 	MaxPods *int32 `json:"maxPods,omitempty"`
+	// PodsPerCore is an override for the number of pods that can run on a worker node
+	// instance based on the number of cpu cores. This value cannot exceed MaxPods, so, if
+	// MaxPods is a lower value, that value will be used.
+	// +kubebuilder:validation:Minimum:=0
+	// +optional
+	PodsPerCore *int32 `json:"podsPerCore,omitempty"`
 	// SystemReserved contains resources reserved for OS system daemons and kernel memory.
 	// +optional
 	SystemReserved v1.ResourceList `json:"systemReserved,omitempty"`

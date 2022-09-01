@@ -63,6 +63,11 @@ func (in *KubeletConfiguration) DeepCopyInto(out *KubeletConfiguration) {
 		*out = new(int32)
 		**out = **in
 	}
+	if in.PodsPerCore != nil {
+		in, out := &in.PodsPerCore, &out.PodsPerCore
+		*out = new(int32)
+		**out = **in
+	}
 	if in.SystemReserved != nil {
 		in, out := &in.SystemReserved, &out.SystemReserved
 		*out = make(v1.ResourceList, len(*in))

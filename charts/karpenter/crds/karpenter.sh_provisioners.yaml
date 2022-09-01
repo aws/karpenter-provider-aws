@@ -82,6 +82,15 @@ spec:
                     description: MaxPods is an override for the maximum number of
                       pods that can run on a worker node instance.
                     format: int32
+                    minimum: 0
+                    type: integer
+                  podsPerCore:
+                    description: PodsPerCore is an override for the number of pods
+                      that can run on a worker node instance based on the number of
+                      cpu cores. This value cannot exceed MaxPods, so, if MaxPods
+                      is a lower value, that value will be used.
+                    format: int32
+                    minimum: 0
                     type: integer
                   systemReserved:
                     additionalProperties:

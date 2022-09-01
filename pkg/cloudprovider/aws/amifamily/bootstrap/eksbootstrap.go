@@ -28,9 +28,8 @@ import (
 	"strings"
 	"sync"
 
-	"knative.dev/pkg/ptr"
-
 	"github.com/samber/lo"
+	"knative.dev/pkg/ptr"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 )
@@ -46,6 +45,7 @@ const (
 	MIMEContentTypeHeaderTemplate = "Content-Type: multipart/mixed; boundary=\"%s\""
 )
 
+//nolint:gocyclo
 func (e EKS) Script() (string, error) {
 	var caBundleArg string
 	if e.CABundle != nil {
@@ -59,7 +59,6 @@ func (e EKS) Script() (string, error) {
 
 	kubeletExtraArgs := strings.Join([]string{e.nodeLabelArg(), e.nodeTaintArg()}, " ")
 
-	// Backwards compatibility for AWSENILimitedPodDensity flag
 	if e.KubeletConfig != nil && e.KubeletConfig.MaxPods != nil {
 		userData.WriteString(" \\\n--use-max-pods false")
 		kubeletExtraArgs += fmt.Sprintf(" --max-pods=%d", ptr.Int32Value(e.KubeletConfig.MaxPods))
@@ -67,6 +66,10 @@ func (e EKS) Script() (string, error) {
 		userData.WriteString(" \\\n--use-max-pods false")
 		kubeletExtraArgs += " --max-pods=110"
 	}
+	if e.KubeletConfig != nil && e.KubeletConfig.PodsPerCore != nil {
+		kubeletExtraArgs += fmt.Sprintf(" --pods-per-core=%d", ptr.Int32Value(e.KubeletConfig.PodsPerCore))
+	}
+
 	if e.KubeletConfig != nil {
 		kubeletExtraArgs += e.systemReservedArg()
 		kubeletExtraArgs += e.kubeReservedArg()

@@ -18,9 +18,11 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"knative.dev/pkg/apis"
@@ -35,6 +37,22 @@ var (
 		string(v1.NodeSelectorOpLt),
 		string(v1.NodeSelectorOpExists),
 		string(v1.NodeSelectorOpDoesNotExist),
+	)
+
+	SupportedReservedResources = sets.NewString(
+		v1.ResourceCPU.String(),
+		v1.ResourceMemory.String(),
+		v1.ResourceEphemeralStorage.String(),
+		"pid",
+	)
+
+	SupportedEvictionSignals = sets.NewString(
+		"memory.available",
+		"nodefs.available",
+		"nodefs.inodesFree",
+		"imagefs.available",
+		"imagefs.inodesFree",
+		"pid.available",
 	)
 )
 
@@ -84,6 +102,7 @@ func (s *ProvisionerSpec) Validate(ctx context.Context) (errs *apis.FieldError) 
 		s.validateLabels(),
 		s.validateTaints(),
 		s.validateRequirements(),
+		s.validateKubeletConfiguration(),
 	)
 }
 
@@ -171,6 +190,64 @@ func (s *ProvisionerSpec) validateProvider() *apis.FieldError {
 		return apis.ErrMultipleOneOf(providerPath, providerRefPath)
 	}
 	return nil
+}
+
+func (s *ProvisionerSpec) validateKubeletConfiguration() (errs *apis.FieldError) {
+	if s.KubeletConfiguration == nil {
+		return
+	}
+	return errs.Also(
+		s.KubeletConfiguration.validateEvictionHard(),
+		s.KubeletConfiguration.validateKubeReserved(),
+		s.KubeletConfiguration.validateSystemReserved(),
+	)
+}
+
+func (kc *KubeletConfiguration) validateKubeReserved() (errs *apis.FieldError) {
+	if kc.KubeReserved == nil {
+		return
+	}
+	for k := range kc.KubeReserved {
+		if !SupportedReservedResources.Has(k.String()) {
+			errs = errs.Also(apis.ErrInvalidValue("unsupported kubeReserved resource key", fmt.Sprintf("evictionHard[%s]", k)))
+		}
+	}
+	return errs
+}
+
+func (kc *KubeletConfiguration) validateSystemReserved() (errs *apis.FieldError) {
+	if kc.SystemReserved == nil {
+		return
+	}
+	for k := range kc.SystemReserved {
+		if !SupportedReservedResources.Has(k.String()) {
+			errs = errs.Also(apis.ErrInvalidValue("unsupported systemReserved resource key", fmt.Sprintf("evictionHard[%s]", k)))
+		}
+	}
+	return errs
+}
+
+func (kc *KubeletConfiguration) validateEvictionHard() (errs *apis.FieldError) {
+	if kc.EvictionHard == nil {
+		return
+	}
+	for k, v := range kc.EvictionHard {
+		if !SupportedEvictionSignals.Has(k) {
+			errs = errs.Also(apis.ErrInvalidValue("unsupported eviction signal", fmt.Sprintf("evictionHard[%s]", k)))
+		}
+		if strings.Contains(v, "%") {
+			p, err := strconv.ParseFloat(v, 64)
+			if err != nil || p > 100 || p < 0 {
+				errs = errs.Also(apis.ErrInvalidValue("percentage value is in an invalid format", fmt.Sprintf("evictionHard[%s]", k), err.Error()))
+			}
+		} else {
+			_, err := resource.ParseQuantity(v)
+			if err != nil {
+				errs = errs.Also(apis.ErrInvalidValue("resource quantity is in an invalid format", fmt.Sprintf("evictionHard[%s]", k), err.Error()))
+			}
+		}
+	}
+	return errs
 }
 
 func ValidateRequirement(requirement v1.NodeSelectorRequirement) error { //nolint:gocyclo

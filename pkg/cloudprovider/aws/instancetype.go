@@ -54,7 +54,7 @@ type InstanceType struct {
 	requirements scheduling.Requirements
 	resources    v1.ResourceList
 	provider     *v1alpha1.AWS
-	maxPods      *int32
+	maxPods      *int64
 	region       string
 }
 
@@ -64,14 +64,7 @@ func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, kc *v1alph
 		provider:         provider,
 		offerings:        offerings,
 		region:           region,
-	}
-
-	// set max pods before computing resources
-	// backwards compatibility for AWSENILimitedPodDensity flag
-	if kc != nil && kc.MaxPods != nil {
-		instanceType.maxPods = kc.MaxPods
-	} else if !injection.GetOptions(ctx).AWSENILimitedPodDensity {
-		instanceType.maxPods = ptr.Int32(110)
+		maxPods:          getMaxPods(ctx, ptr.Int64Value(info.VCpuInfo.DefaultVCpus), kc),
 	}
 
 	// Precompute to minimize memory/compute overhead
@@ -207,7 +200,7 @@ func (i *InstanceType) ephemeralStorage() *resource.Quantity {
 
 func (i *InstanceType) pods() *resource.Quantity {
 	if i.maxPods != nil {
-		return resources.Quantity(fmt.Sprint(ptr.Int32Value(i.maxPods)))
+		return resources.Quantity(fmt.Sprint(ptr.Int64Value(i.maxPods)))
 	}
 	return resources.Quantity(fmt.Sprint(i.eniLimitedPods()))
 }
@@ -256,7 +249,7 @@ func (i *InstanceType) awsNeurons() *resource.Quantity {
 }
 
 func (i *InstanceType) computeOverhead(vmMemOverhead float64, kc *v1alpha5.KubeletConfiguration) v1.ResourceList {
-	pods := i.pods()
+	pods := i.resources[v1.ResourcePods]
 	amiFamily := amifamily.GetAMIFamily(i.provider.AMIFamily, &amifamily.Options{})
 	podsQuantity := pods.Value()
 	if amiFamily.ENILimitedMemoryOverhead() {
@@ -355,6 +348,25 @@ func (i *InstanceType) miscResources(overheadPercentage float64) v1.ResourceList
 	return v1.ResourceList{
 		v1.ResourceMemory: resource.MustParse(fmt.Sprintf("%dMi", int64(math.Ceil(float64(memory)*overheadPercentage/1024/1024)))),
 	}
+}
+
+func getMaxPods(ctx context.Context, cores int64, kc *v1alpha5.KubeletConfiguration) *int64 {
+	var mp *int64
+	if kc != nil {
+		if ptr.Int32Value(kc.PodsPerCore) > 0 {
+			mp = ptr.Int64(int64(ptr.Int32Value(kc.PodsPerCore)) * cores)
+		}
+		if kc.MaxPods != nil {
+			if mp == nil {
+				mp = ptr.Int64(int64(ptr.Int32Value(kc.MaxPods)))
+			} else if int64(ptr.Int32Value(kc.MaxPods)) < ptr.Int64Value(mp) {
+				mp = ptr.Int64(int64(ptr.Int32Value(kc.MaxPods)))
+			}
+		}
+	} else if !injection.GetOptions(ctx).AWSENILimitedPodDensity {
+		mp = ptr.Int64(110)
+	}
+	return mp
 }
 
 func lowerKabobCase(s string) string {
