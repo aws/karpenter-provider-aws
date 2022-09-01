@@ -219,38 +219,37 @@ func registerPprof(manager manager.Manager) error {
 	return nil
 }
 
-type ignoreDebugEventsLogger struct {
-	level  int
-	name   string
-	logger logr.Logger
+type ignoreDebugEventsSink struct {
+	name string
+	sink logr.LogSink
 }
 
-func (i ignoreDebugEventsLogger) Enabled() bool { return i.logger.Enabled() }
-func (i ignoreDebugEventsLogger) Info(msg string, keysAndValues ...interface{}) {
+func (i ignoreDebugEventsSink) Init(ri logr.RuntimeInfo) {
+	i.sink.Init(ri)
+}
+func (i ignoreDebugEventsSink) Enabled(level int) bool { return i.sink.Enabled(level) }
+func (i ignoreDebugEventsSink) Info(level int, msg string, keysAndValues ...interface{}) {
 	// ignore debug "events" logs
-	if i.level == 1 && i.name == "events" {
+	if level == 1 && i.name == "events" {
 		return
 	}
-	i.logger.Info(msg, keysAndValues...)
+	i.sink.Info(level, msg, keysAndValues...)
 }
-func (i ignoreDebugEventsLogger) Error(err error, msg string, keysAndValues ...interface{}) {
-	i.logger.Error(err, msg, keysAndValues...)
+func (i ignoreDebugEventsSink) Error(err error, msg string, keysAndValues ...interface{}) {
+	i.sink.Error(err, msg, keysAndValues...)
 }
-func (i ignoreDebugEventsLogger) V(level int) logr.Logger {
-	return &ignoreDebugEventsLogger{level: level, name: i.name, logger: i.logger.V(level)}
+func (i ignoreDebugEventsSink) WithValues(keysAndValues ...interface{}) logr.LogSink {
+	return i.sink.WithValues(keysAndValues...)
 }
-func (i ignoreDebugEventsLogger) WithValues(keysAndValues ...interface{}) logr.Logger {
-	return i.logger.WithValues(keysAndValues...)
-}
-func (i ignoreDebugEventsLogger) WithName(name string) logr.Logger {
-	return &ignoreDebugEventsLogger{level: i.level, name: name, logger: i.logger.WithName(name)}
+func (i ignoreDebugEventsSink) WithName(name string) logr.LogSink {
+	return &ignoreDebugEventsSink{name: name, sink: i.sink.WithName(name)}
 }
 
 // ignoreDebugEvents wraps the logger with one that ignores any debug logs coming from a logger named "events".  This
 // prevents every event we write from creating a debug log which spams the log file during scale-ups due to recording
 // pod scheduling decisions as events for visibility.
 func ignoreDebugEvents(logger logr.Logger) logr.Logger {
-	return &ignoreDebugEventsLogger{logger: logger}
+	return logr.New(&ignoreDebugEventsSink{sink: logger.GetSink()})
 }
 
 // LoggingContextOrDie injects a logger into the returned context. The logger is
