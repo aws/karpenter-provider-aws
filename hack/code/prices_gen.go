@@ -37,8 +37,7 @@ import (
 func main() {
 	flag.Parse()
 	if flag.NArg() != 1 {
-		log.Printf("Usage: %s pkg/cloudprovider/aws/zz_generated.pricing.go", os.Args[0])
-		os.Exit(1)
+		log.Fatalf("Usage: %s pkg/cloudprovider/aws/zz_generated.pricing.go", os.Args[0])
 	}
 
 	f, err := os.Create("pricing.heapprofile")
