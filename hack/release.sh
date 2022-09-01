@@ -34,7 +34,10 @@ editWebsiteConfig() {
 }
 
 # editWebsiteVersionsMenu sets relevant releases in the version dropdown menu of the website
-# without increasing the size of the set
+# without increasing the size of the set.
+# TODO: We need to maintain a list of latest minors here only. This is not currently
+# easy to achieve, however when we have a major release and we decide to maintain
+# a selected minor releases we can maintain that list in the repo and use it in here
 editWebsiteVersionsMenu() {
   VERSIONS=(${RELEASE_VERSION})
   while IFS= read -r LINE; do
