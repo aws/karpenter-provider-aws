@@ -335,6 +335,26 @@ var _ = Describe("Instance Types", func() {
 			overhead := it.Overhead()
 			Expect(overhead.Memory().String()).To(Equal("33930241639"))
 		})
+		It("should consider the eviction threshold (hard) disabled when specified as 100%", func() {
+			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
+			Expect(err).To(BeNil())
+			provisioner = test.Provisioner(test.ProvisionerOptions{
+				Kubelet: &v1alpha5.KubeletConfiguration{
+					SystemReserved: v1.ResourceList{
+						v1.ResourceMemory: resource.MustParse("20Gi"),
+					},
+					KubeReserved: v1.ResourceList{
+						v1.ResourceMemory: resource.MustParse("10Gi"),
+					},
+					EvictionHard: map[string]string{
+						memoryAvailable: "100%",
+					},
+				},
+			})
+			it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
+			overhead := it.Overhead()
+			Expect(overhead.Memory().String()).To(Equal("30Gi"))
+		})
 		It("should set max-pods to user-defined value if specified", func() {
 			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 			Expect(err).To(BeNil())
@@ -443,8 +463,8 @@ var _ = Describe("Instance Types", func() {
 			pod.Spec.Affinity = &v1.Affinity{NodeAffinity: &v1.NodeAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []v1.PreferredSchedulingTerm{
 				{
 					Weight: 1, Preference: v1.NodeSelectorTerm{MatchExpressions: []v1.NodeSelectorRequirement{
-						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
-					}},
+					{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
+				}},
 				},
 			}}}
 			ExpectApplied(ctx, env.Client, provisioner)

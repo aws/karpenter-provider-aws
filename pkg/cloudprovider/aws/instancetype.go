@@ -199,10 +199,7 @@ func (i *InstanceType) ephemeralStorage() *resource.Quantity {
 }
 
 func (i *InstanceType) pods() *resource.Quantity {
-	if i.maxPods != nil {
-		return resources.Quantity(fmt.Sprint(ptr.Int64Value(i.maxPods)))
-	}
-	return resources.Quantity(fmt.Sprint(i.eniLimitedPods()))
+	return resources.Quantity(fmt.Sprint(ptr.Int64Value(i.maxPods)))
 }
 
 func (i *InstanceType) awsPodENI(enablePodENI bool) *resource.Quantity {
@@ -332,6 +329,11 @@ func (i *InstanceType) evictionThreshold(kc *v1alpha5.KubeletConfiguration, vmMe
 				if err != nil {
 					panic(fmt.Sprintf("expected percentage value to be a float but got %s, %v", v, err))
 				}
+				// Setting percentage value to 100% is considered disabling the threshold according to
+				// https://kubernetes.io/docs/reference/config-api/kubelet-config.v1beta1/
+				if p == 100 {
+					p = 0
+				}
 				// Calculation is node.capacity * evictionHard[memory.available] if percentage
 				// From https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/#eviction-signals
 				totalAllocatable := i.resources.Memory().DeepCopy()
@@ -367,8 +369,13 @@ func (i *InstanceType) computeMaxPods(ctx context.Context, kc *v1alpha5.KubeletC
 			}
 		}
 	}
-	if mp == nil && (!injection.GetOptions(ctx).AWSENILimitedPodDensity) {
-		mp = ptr.Int64(110)
+	// If we still haven't set an override get the default --max-pods
+	if mp == nil {
+		if !injection.GetOptions(ctx).AWSENILimitedPodDensity {
+			mp = ptr.Int64(110)
+		} else {
+			mp = ptr.Int64(i.eniLimitedPods())
+		}
 	}
 	return mp
 }
