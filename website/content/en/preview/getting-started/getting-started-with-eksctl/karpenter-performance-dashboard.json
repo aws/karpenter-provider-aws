@@ -3,10 +3,7 @@
         "list": [
             {
                 "builtIn": 1,
-                "datasource": {
-                    "type": "grafana",
-                    "uid": "-- Grafana --"
-                },
+                "datasource": "-- Grafana --",
                 "enable": true,
                 "hide": true,
                 "iconColor": "rgba(0, 211, 255, 1)",
@@ -25,14 +22,13 @@
     "fiscalYearStartMonth": 0,
     "graphTooltip": 0,
     "id": 7,
-    "iteration": 1659113139050,
     "links": [],
     "liveNow": true,
     "panels": [
         {
             "datasource": {
                 "type": "prometheus",
-                "uid": "PBFA97CFB590B2093"
+                "uid": "${datasource}"
             },
             "fieldConfig": {
                 "defaults": {
@@ -107,7 +103,7 @@
                 {
                     "datasource": {
                         "type": "prometheus",
-                        "uid": "PBFA97CFB590B2093"
+                        "uid": "${datasource}"
                     },
                     "editorMode": "code",
                     "expr": "karpenter_nodes_termination_time_seconds{quantile=\"0\"}",
@@ -118,7 +114,7 @@
                 {
                     "datasource": {
                         "type": "prometheus",
-                        "uid": "PBFA97CFB590B2093"
+                        "uid": "${datasource}"
                     },
                     "editorMode": "code",
                     "expr": "karpenter_nodes_termination_time_seconds{quantile=\"0.5\"}",
@@ -130,7 +126,7 @@
                 {
                     "datasource": {
                         "type": "prometheus",
-                        "uid": "PBFA97CFB590B2093"
+                        "uid": "${datasource}"
                     },
                     "editorMode": "code",
                     "expr": "karpenter_nodes_termination_time_seconds{quantile=\"0.9\"}",
@@ -142,7 +138,7 @@
                 {
                     "datasource": {
                         "type": "prometheus",
-                        "uid": "PBFA97CFB590B2093"
+                        "uid": "${datasource}"
                     },
                     "editorMode": "code",
                     "expr": "karpenter_nodes_termination_time_seconds{quantile=\"0.99\"}",
@@ -154,7 +150,7 @@
                 {
                     "datasource": {
                         "type": "prometheus",
-                        "uid": "PBFA97CFB590B2093"
+                        "uid": "${datasource}"
                     },
                     "editorMode": "code",
                     "expr": "karpenter_nodes_termination_time_seconds{quantile=\"1\"}",
@@ -170,7 +166,7 @@
         {
             "datasource": {
                 "type": "prometheus",
-                "uid": "PBFA97CFB590B2093"
+                "uid": "${datasource}"
             },
             "fieldConfig": {
                 "defaults": {
@@ -246,7 +242,7 @@
                 {
                     "datasource": {
                         "type": "prometheus",
-                        "uid": "PBFA97CFB590B2093"
+                        "uid": "${datasource}"
                     },
                     "editorMode": "code",
                     "expr": "karpenter_pods_startup_time_seconds{quantile=\"0\"}",
@@ -258,7 +254,7 @@
                 {
                     "datasource": {
                         "type": "prometheus",
-                        "uid": "PBFA97CFB590B2093"
+                        "uid": "${datasource}"
                     },
                     "editorMode": "code",
                     "expr": "karpenter_pods_startup_time_seconds{quantile=\"0.5\"}",
@@ -270,7 +266,7 @@
                 {
                     "datasource": {
                         "type": "prometheus",
-                        "uid": "PBFA97CFB590B2093"
+                        "uid": "${datasource}"
                     },
                     "editorMode": "code",
                     "expr": "karpenter_pods_startup_time_seconds{quantile=\"0.9\"}",
@@ -282,7 +278,7 @@
                 {
                     "datasource": {
                         "type": "prometheus",
-                        "uid": "PBFA97CFB590B2093"
+                        "uid": "${datasource}"
                     },
                     "editorMode": "code",
                     "expr": "karpenter_pods_startup_time_seconds{quantile=\"0.99\"}",
@@ -294,7 +290,7 @@
                 {
                     "datasource": {
                         "type": "prometheus",
-                        "uid": "PBFA97CFB590B2093"
+                        "uid": "${datasource}"
                     },
                     "editorMode": "code",
                     "expr": "karpenter_pods_startup_time_seconds{quantile=\"1\"}",
@@ -310,7 +306,7 @@
         {
             "datasource": {
                 "type": "prometheus",
-                "uid": "PBFA97CFB590B2093"
+                "uid": "${datasource}"
             },
             "fieldConfig": {
                 "defaults": {
@@ -385,7 +381,7 @@
                 {
                     "datasource": {
                         "type": "prometheus",
-                        "uid": "PBFA97CFB590B2093"
+                        "uid": "${datasource}"
                     },
                     "editorMode": "code",
                     "expr": "histogram_quantile(0, rate(controller_runtime_reconcile_time_seconds_bucket{controller=\"$controller\"}[10m]))",
@@ -397,7 +393,7 @@
                 {
                     "datasource": {
                         "type": "prometheus",
-                        "uid": "PBFA97CFB590B2093"
+                        "uid": "${datasource}"
                     },
                     "editorMode": "code",
                     "expr": "histogram_quantile(0.5, rate(controller_runtime_reconcile_time_seconds_bucket{controller=\"$controller\"}[10m]))",
@@ -408,7 +404,7 @@
                 {
                     "datasource": {
                         "type": "prometheus",
-                        "uid": "PBFA97CFB590B2093"
+                        "uid": "${datasource}"
                     },
                     "editorMode": "code",
                     "expr": "histogram_quantile(0.9, rate(controller_runtime_reconcile_time_seconds_bucket{controller=\"$controller\"}[10m]))",
@@ -420,7 +416,7 @@
                 {
                     "datasource": {
                         "type": "prometheus",
-                        "uid": "PBFA97CFB590B2093"
+                        "uid": "${datasource}"
                     },
                     "editorMode": "code",
                     "expr": "histogram_quantile(0.99, rate(controller_runtime_reconcile_time_seconds_bucket{controller=\"$controller\"}[10m]))",
@@ -432,7 +428,7 @@
                 {
                     "datasource": {
                         "type": "prometheus",
-                        "uid": "PBFA97CFB590B2093"
+                        "uid": "${datasource}"
                     },
                     "editorMode": "code",
                     "expr": "histogram_quantile(1, rate(controller_runtime_reconcile_time_seconds_bucket{controller=\"$controller\"}[10m]))",
@@ -448,7 +444,7 @@
         {
             "datasource": {
                 "type": "prometheus",
-                "uid": "PBFA97CFB590B2093"
+                "uid": "${datasource}"
             },
             "fieldConfig": {
                 "defaults": {
@@ -494,12 +490,12 @@
                 },
                 "showUnfilled": true
             },
-            "pluginVersion": "9.0.1",
+            "pluginVersion": "9.0.5",
             "targets": [
                 {
                     "datasource": {
                         "type": "prometheus",
-                        "uid": "PBFA97CFB590B2093"
+                        "uid": "${datasource}"
                     },
                     "editorMode": "code",
                     "expr": "sum(rate(controller_runtime_reconcile_total[10m])) by (controller)",
@@ -526,7 +522,7 @@
                 },
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "PBFA97CFB590B2093"
+                    "uid": "${datasource}"
                 },
                 "definition": "label_values(controller_runtime_reconcile_time_seconds_count, controller)",
                 "hide": 0,
@@ -543,6 +539,24 @@
                 "skipUrlSync": false,
                 "sort": 0,
                 "type": "query"
+            },
+            {
+                "current": {
+                    "selected": false,
+                    "text": "Prometheus",
+                    "value": "Prometheus"
+                },
+                "hide": 2,
+                "includeAll": false,
+                "label": "Data Source",
+                "multi": false,
+                "name": "datasource",
+                "options": [],
+                "query": "prometheus",
+                "refresh": 1,
+                "regex": "",
+                "skipUrlSync": false,
+                "type": "datasource"
             }
         ]
     },
@@ -554,6 +568,6 @@
     "timezone": "",
     "title": "Karpenter Performance",
     "uid": "_bdgC2g4z",
-    "version": 2,
+    "version": 3,
     "weekStart": ""
 }
