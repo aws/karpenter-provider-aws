@@ -85,3 +85,7 @@ func (b Bottlerocket) EphemeralBlockDevice() *string {
 func (b Bottlerocket) ENILimitedMemoryOverhead() bool {
 	return false
 }
+
+func (b Bottlerocket) PodsPerCoreEnabled() bool {
+	return false
+}

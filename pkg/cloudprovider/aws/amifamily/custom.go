@@ -55,3 +55,7 @@ func (c Custom) EphemeralBlockDevice() *string {
 func (c Custom) ENILimitedMemoryOverhead() bool {
 	return true
 }
+
+func (c Custom) PodsPerCoreEnabled() bool {
+	return true
+}

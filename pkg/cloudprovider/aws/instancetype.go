@@ -64,8 +64,8 @@ func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, kc *v1alph
 		provider:         provider,
 		offerings:        offerings,
 		region:           region,
-		maxPods:          getMaxPods(ctx, ptr.Int64Value(info.VCpuInfo.DefaultVCpus), kc),
 	}
+	instanceType.maxPods = instanceType.computeMaxPods(ctx, kc)
 
 	// Precompute to minimize memory/compute overhead
 	instanceType.resources = instanceType.computeResources(injection.GetOptions(ctx).AWSEnablePodENI)
@@ -249,15 +249,8 @@ func (i *InstanceType) awsNeurons() *resource.Quantity {
 }
 
 func (i *InstanceType) computeOverhead(vmMemOverhead float64, kc *v1alpha5.KubeletConfiguration) v1.ResourceList {
-	pods := i.resources[v1.ResourcePods]
-	amiFamily := amifamily.GetAMIFamily(i.provider.AMIFamily, &amifamily.Options{})
-	podsQuantity := pods.Value()
-	if amiFamily.ENILimitedMemoryOverhead() {
-		podsQuantity = i.eniLimitedPods()
-	}
-
 	srr := i.systemReservedResources(kc)
-	krr := i.kubeReservedResources(podsQuantity, kc)
+	krr := i.kubeReservedResources(kc)
 	misc := i.miscResources(vmMemOverhead)
 	et := i.evictionThreshold(kc, misc[v1.ResourceMemory])
 	overhead := resources.Merge(srr, krr, et, misc)
@@ -285,7 +278,16 @@ func (i *InstanceType) systemReservedResources(kc *v1alpha5.KubeletConfiguration
 	return resources
 }
 
-func (i *InstanceType) kubeReservedResources(pods int64, kc *v1alpha5.KubeletConfiguration) v1.ResourceList {
+func (i *InstanceType) kubeReservedResources(kc *v1alpha5.KubeletConfiguration) v1.ResourceList {
+	// We reserve memory based off of --max-pods unless we are using the EKS-optimized AMI
+	// which relies on ENI-limited pod density regardless of the --max-pods value
+	// https://github.com/awslabs/amazon-eks-ami/issues/782
+	amiFamily := amifamily.GetAMIFamily(i.provider.AMIFamily, &amifamily.Options{})
+	pods := i.pods().Value()
+	if amiFamily.ENILimitedMemoryOverhead() {
+		pods = i.eniLimitedPods()
+	}
+
 	resources := v1.ResourceList{
 		v1.ResourceMemory:           resource.MustParse(fmt.Sprintf("%dMi", (11*pods)+255)),
 		v1.ResourceEphemeralStorage: resource.MustParse("1Gi"), // default kube-reserved ephemeral-storage
@@ -350,11 +352,12 @@ func (i *InstanceType) miscResources(overheadPercentage float64) v1.ResourceList
 	}
 }
 
-func getMaxPods(ctx context.Context, cores int64, kc *v1alpha5.KubeletConfiguration) *int64 {
+func (i *InstanceType) computeMaxPods(ctx context.Context, kc *v1alpha5.KubeletConfiguration) *int64 {
+	amiFamily := amifamily.GetAMIFamily(i.provider.AMIFamily, &amifamily.Options{})
 	var mp *int64
 	if kc != nil {
-		if ptr.Int32Value(kc.PodsPerCore) > 0 {
-			mp = ptr.Int64(int64(ptr.Int32Value(kc.PodsPerCore)) * cores)
+		if ptr.Int32Value(kc.PodsPerCore) > 0 && amiFamily.PodsPerCoreEnabled() {
+			mp = ptr.Int64(int64(ptr.Int32Value(kc.PodsPerCore)) * ptr.Int64Value(i.VCpuInfo.DefaultVCpus))
 		}
 		if kc.MaxPods != nil {
 			if mp == nil {
@@ -364,7 +367,7 @@ func getMaxPods(ctx context.Context, cores int64, kc *v1alpha5.KubeletConfigurat
 			}
 		}
 	}
-	if mp == nil && !injection.GetOptions(ctx).AWSENILimitedPodDensity {
+	if mp == nil && (!injection.GetOptions(ctx).AWSENILimitedPodDensity) {
 		mp = ptr.Int64(110)
 	}
 	return mp

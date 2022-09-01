@@ -376,6 +376,17 @@ var _ = Describe("Instance Types", func() {
 				Expect(resources.Pods().Value()).To(BeNumerically("==", lo.Min([]int64{20, ptr.Int64Value(info.VCpuInfo.DefaultVCpus) * 4})))
 			}
 		})
+		It("should ignore pods-per-core when using BottleRocket AMI", func() {
+			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
+			Expect(err).To(BeNil())
+			provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
+			provisioner = test.Provisioner(test.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{PodsPerCore: ptr.Int32(1)}, Provider: provider})
+			for _, info := range instanceInfo {
+				it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, "", provider, nil)
+				resources := it.Resources()
+				Expect(resources.Pods().Value()).To(BeNumerically("==", it.eniLimitedPods()))
+			}
+		})
 		It("should take 110 to be the default pods number when pods-per-core is 0 and AWSENILimitedPodDensity is unset", func() {
 			opts.AWSENILimitedPodDensity = false
 			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
