@@ -5,6 +5,6 @@ for i in $(
   find ./cmd ./pkg ./test ./hack -name "*.go"
 ); do
   if ! grep -q "Apache License" $i; then
-    cat hack/boilerplate.go.txt $i >$i.new && mv $i.new $i
+    cat hack/license-boilerplacte.txt $i >$i.new && mv $i.new $i
   fi
 done

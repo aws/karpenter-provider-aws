@@ -99,11 +99,11 @@ delete: ## Delete the controller from your ~/.kube/config cluster
 
 codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 	controller-gen \
-		object:headerFile="hack/boilerplate.go.txt" \
+		object:headerFile="hack/license-boilerplacte.txt" \
 		crd \
 		paths="./pkg/..." \
 		output:crd:artifacts:config=charts/karpenter/crds
-	hack/boilerplate.sh
+	hack/license-check.sh
 
 docgen: ## Generate docs
 	go run hack/docs/metrics_gen_docs.go pkg/ website/content/en/preview/tasks/metrics.md
@@ -115,7 +115,7 @@ release-gen: docgen ## Generate any materials which should be updated prior to r
 	go run hack/code/vpc_limits_gen.go -- \
 		--url=https://raw.githubusercontent.com/aws/amazon-vpc-resource-controller-k8s/master/pkg/aws/vpc/limits.go \
 		--output=pkg/cloudprovider/aws/zz_generated.vpclimits.go
-	hack/boilerplate.sh
+	hack/license-check.sh
 	go mod tidy
 	go mod download
 	golangci-lint run
