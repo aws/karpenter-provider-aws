@@ -376,7 +376,7 @@ var _ = Describe("Instance Types", func() {
 				Expect(resources.Pods().Value()).To(BeNumerically("==", lo.Min([]int64{20, ptr.Int64Value(info.VCpuInfo.DefaultVCpus) * 4})))
 			}
 		})
-		It("should ignore pods-per-core when using BottleRocket AMI", func() {
+		It("should ignore pods-per-core when using Bottlerocket AMI", func() {
 			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 			Expect(err).To(BeNil())
 			provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket

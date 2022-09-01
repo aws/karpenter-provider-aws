@@ -62,4 +62,34 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		env.EventuallyExpectHealthy(pods...)
 		env.ExpectCreatedNodeCount("==", 2)
 	})
+	FIt("should ignore podsPerCore value when Bottlerocket is used", func() {
+		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
+			AMIFamily:             &awsv1alpha1.AMIFamilyBottlerocket,
+		}})
+		// All pods should schedule to a single node since we are ignoring podsPerCore value
+		// This would normally schedule to 3 nodes if not using Bottlerocket
+		provisioner := test.Provisioner(test.ProvisionerOptions{
+			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
+			Kubelet: &v1alpha5.KubeletConfiguration{
+				PodsPerCore: ptr.Int32(2),
+			},
+			Requirements: []v1.NodeSelectorRequirement{
+				{
+					Key:      awsv1alpha1.LabelInstanceCPU,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{"2"},
+				},
+			},
+		})
+
+		pods := []*v1.Pod{test.Pod(), test.Pod(), test.Pod(), test.Pod(), test.Pod(), test.Pod()}
+		env.ExpectCreated(provisioner, provider)
+		for _, pod := range pods {
+			env.ExpectCreated(pod)
+		}
+		env.EventuallyExpectHealthy(pods...)
+		env.ExpectCreatedNodeCount("<=", 2) // should probably all land on a single node, but at worst two depending on batching
+	})
 })
