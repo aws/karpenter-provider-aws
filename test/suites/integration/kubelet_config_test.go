@@ -62,7 +62,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		env.EventuallyExpectHealthy(pods...)
 		env.ExpectCreatedNodeCount("==", 2)
 	})
-	FIt("should ignore podsPerCore value when Bottlerocket is used", func() {
+	It("should ignore podsPerCore value when Bottlerocket is used", func() {
 		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},

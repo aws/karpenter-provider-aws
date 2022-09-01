@@ -207,9 +207,12 @@ func (kc *KubeletConfiguration) validateKubeReserved() (errs *apis.FieldError) {
 	if kc.KubeReserved == nil {
 		return
 	}
-	for k := range kc.KubeReserved {
+	for k, v := range kc.KubeReserved {
 		if !SupportedReservedResources.Has(k.String()) {
-			errs = errs.Also(apis.ErrInvalidValue("unsupported kubeReserved resource key", fmt.Sprintf("evictionHard[%s]", k)))
+			errs = errs.Also(apis.ErrInvalidKeyName(k.String(), "systemReserved"))
+		}
+		if v.Value() < 0 {
+			errs = errs.Also(apis.ErrInvalidValue(v.String(), fmt.Sprintf("kubeReserved[\"%s\"]", k), "value cannot be a negative resource quantity"))
 		}
 	}
 	return errs
@@ -219,9 +222,12 @@ func (kc *KubeletConfiguration) validateSystemReserved() (errs *apis.FieldError)
 	if kc.SystemReserved == nil {
 		return
 	}
-	for k := range kc.SystemReserved {
+	for k, v := range kc.SystemReserved {
 		if !SupportedReservedResources.Has(k.String()) {
-			errs = errs.Also(apis.ErrInvalidValue("unsupported systemReserved resource key", fmt.Sprintf("evictionHard[%s]", k)))
+			errs = errs.Also(apis.ErrInvalidKeyName(k.String(), "systemReserved"))
+		}
+		if v.Value() < 0 {
+			errs = errs.Also(apis.ErrInvalidValue(v.String(), fmt.Sprintf("systemReserved[\"%s\"]", k), "value cannot be a negative resource quantity"))
 		}
 	}
 	return errs
@@ -233,20 +239,23 @@ func (kc *KubeletConfiguration) validateEvictionHard() (errs *apis.FieldError) {
 	}
 	for k, v := range kc.EvictionHard {
 		if !SupportedEvictionSignals.Has(k) {
-			errs = errs.Also(apis.ErrInvalidValue("unsupported eviction signal", fmt.Sprintf("evictionHard[%s]", k)))
+			errs = errs.Also(apis.ErrInvalidKeyName(k, "evictionHard"))
 		}
 		if strings.Contains(v, "%") {
 			p, err := strconv.ParseFloat(strings.Trim(v, "%"), 64)
 			if err != nil {
-				errs = errs.Also(apis.ErrInvalidValue("percentage value is in an invalid format", fmt.Sprintf("evictionHard[%s]", k), err.Error()))
+				errs = errs.Also(apis.ErrInvalidValue(v, fmt.Sprintf("evictionHard[\"%s\"]", k), fmt.Sprintf("couldn't parse percentage value, %v", err.Error())))
 			}
-			if p > 100 || p < 0 {
-				errs = errs.Also(apis.ErrInvalidValue("percentage value is in an invalid format", fmt.Sprintf("evictionHard[%s]", k)))
+			if p < 0 {
+				errs = errs.Also(apis.ErrInvalidValue(v, fmt.Sprintf("evictionHard[\"%s\"]", k), "percentage values cannot be negative"))
+			}
+			if p > 100 {
+				errs = errs.Also(apis.ErrInvalidValue(v, fmt.Sprintf("evictionHard[\"%s\"]", k), "percentage values cannot be greater than 100"))
 			}
 		} else {
 			_, err := resource.ParseQuantity(v)
 			if err != nil {
-				errs = errs.Also(apis.ErrInvalidValue("resource quantity is in an invalid format", fmt.Sprintf("evictionHard[%s]", k), err.Error()))
+				errs = errs.Also(apis.ErrInvalidValue(v, fmt.Sprintf("evictionHard[%s]", k), fmt.Sprintf("value could not be parsed as a resource quantity, %v", err.Error())))
 			}
 		}
 	}
