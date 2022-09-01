@@ -45,8 +45,7 @@ func (i metricInfo) qualifiedName() string {
 func main() {
 	flag.Parse()
 	if flag.NArg() != 2 {
-		log.Printf("Usage: %s path/to/metrics/controller path/to/markdown.md", os.Args[0])
-		os.Exit(1)
+		log.Fatalf("Usage: %s path/to/metrics/controller path/to/markdown.md", os.Args[0])
 	}
 	fset := token.NewFileSet()
 	var packages []*ast.Package

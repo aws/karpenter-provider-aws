@@ -26,8 +26,7 @@ import (
 
 func main() {
 	if len(os.Args) != 2 {
-		log.Printf("Usage: %s path/to/markdown.md", os.Args[0])
-		os.Exit(1)
+		log.Fatalf("Usage: %s path/to/markdown.md", os.Args[0])
 	}
 	outputFileName := os.Args[1]
 	mdFile, err := os.ReadFile(outputFileName)

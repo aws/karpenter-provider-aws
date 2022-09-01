@@ -41,8 +41,7 @@ import (
 func main() {
 	flag.Parse()
 	if flag.NArg() != 1 {
-		log.Printf("Usage: %s path/to/markdown.md", os.Args[0])
-		os.Exit(1)
+		log.Fatalf("Usage: %s path/to/markdown.md", os.Args[0])
 	}
 
 	os.Setenv("AWS_SDK_LOAD_CONFIG", "true")
