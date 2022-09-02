@@ -25,13 +25,13 @@ import (
 	"github.com/go-logr/zapr"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/clock"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/client-go/util/flowcontrol"
+	"k8s.io/utils/clock"
 	"knative.dev/pkg/configmap/informer"
 	knativeinjection "knative.dev/pkg/injection"
 	"knative.dev/pkg/injection/sharedmain"
@@ -114,6 +114,7 @@ func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options)
 		Scheme:                     scheme,
 		MetricsBindAddress:         fmt.Sprintf(":%d", opts.MetricsPort),
 		HealthProbeBindAddress:     fmt.Sprintf(":%d", opts.HealthProbePort),
+		BaseContext:                func() context.Context { return ctx },
 	})
 
 	if opts.EnableProfiling {
