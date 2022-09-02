@@ -5,19 +5,19 @@ go 1.19
 require (
 	github.com/Pallinder/go-randomdata v1.2.0
 	github.com/avast/retry-go v3.0.0+incompatible
-	github.com/aws/aws-sdk-go v1.44.90
+	github.com/aws/aws-sdk-go v1.44.91
 	github.com/deckarep/golang-set v1.8.0
 	github.com/go-logr/logr v0.4.0
 	github.com/go-logr/zapr v0.4.0
 	github.com/imdario/mergo v0.3.13
 	github.com/mitchellh/hashstructure/v2 v2.0.2
-	github.com/onsi/ginkgo/v2 v2.1.4
-	github.com/onsi/gomega v1.20.0
+	github.com/onsi/ginkgo/v2 v2.1.6
+	github.com/onsi/gomega v1.20.2
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pelletier/go-toml/v2 v2.0.2
 	github.com/prometheus/client_golang v1.12.2
 	github.com/prometheus/client_model v0.2.0
-	github.com/samber/lo v1.27.0
+	github.com/samber/lo v1.27.1
 	go.uber.org/multierr v1.7.0
 	go.uber.org/zap v1.21.0
 	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac
@@ -69,10 +69,10 @@ require (
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/automaxprocs v1.4.0 // indirect
 	golang.org/x/exp v0.0.0-20220303212507-bbda1eaf7a17 // indirect
-	golang.org/x/net v0.0.0-20220425223048-2871e0cb64e4 // indirect
+	golang.org/x/net v0.0.0-20220722155237-a158d28d115b // indirect
 	golang.org/x/oauth2 v0.0.0-20211028175245-ba495a64dcb5 // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
-	golang.org/x/sys v0.0.0-20220422013727-9388b58f7150 // indirect
+	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f // indirect
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
