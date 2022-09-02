@@ -15,7 +15,9 @@ limitations under the License.
 package aws
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
@@ -132,8 +134,16 @@ func (b *CreateFleetBatcher) runCalls() {
 		// we know that these create fleet calls are identical so we can just run the first one and increase the number
 		// of instances that we request
 		call := requestBatch[0]
-		call.input.TargetCapacitySpecification.SetTotalTargetCapacity(int64(len(requestBatch)))
-		outputs, err := b.ec2api.CreateFleetWithContext(call.ctx, call.input)
+		// deep copy the input we are about to modify so that we don't modify any caller's input parameter
+		input, err := deepCopy(call.input)
+		if err != nil {
+			// shouldn't occur, but if it does we log an error and just modify the caller's input so we
+			// can continue to launch instances
+			logging.FromContext(context.Background()).Infof("error copying input, %s", err)
+			input = call.input
+		}
+		input.TargetCapacitySpecification.SetTotalTargetCapacity(int64(len(requestBatch)))
+		outputs, err := b.ec2api.CreateFleetWithContext(call.ctx, input)
 
 		// error occurred at the CreateFleet call level, so notify all requestors of the same error
 		if err != nil {
@@ -194,4 +204,18 @@ func (b *CreateFleetBatcher) runCalls() {
 			}
 		}
 	}
+}
+
+func deepCopy(v *ec2.CreateFleetInput) (*ec2.CreateFleetInput, error) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	if err := enc.Encode(v); err != nil {
+		return nil, err
+	}
+	dec := json.NewDecoder(&buf)
+	var cp ec2.CreateFleetInput
+	if err := dec.Decode(&cp); err != nil {
+		return nil, err
+	}
+	return &cp, nil
 }
