@@ -414,7 +414,7 @@ var _ = Describe("Requirement", func() {
 			Expect(inA.Any()).To(Equal("A"))
 			Expect(inB.Any()).To(Equal("B"))
 			Expect(inAB.Any()).To(Or(Equal("A"), Equal("B")))
-			Expect(notInA.Any()).ToNot(Or(BeEmpty()), Equal("A"))
+			Expect(notInA.Any()).ToNot(Or(BeEmpty(), Equal("A")))
 			Expect(in1.Any()).To(Equal("1"))
 			Expect(in9.Any()).To(Equal("9"))
 			Expect(in19.Any()).To(Or(Equal("1"), Equal("9")))
