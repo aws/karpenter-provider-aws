@@ -112,11 +112,20 @@ If the instance type is unavailable for some reason, then fleet will move on to 
 If you are using the spot capacity type, Karpenter uses the capacity-optimized-prioritized allocation strategy which tells fleet to find the instance type that EC2 has the most capacity of which will decrease the probability of a spot interruption happening in the near term.
 See [Choose the appropriate allocation strategy](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-fleet-allocation-strategy.html#ec2-fleet-allocation-use-cases) for information on fleet optimization.
 
-### What if there is no spot capacity? Will Karpenter use on-demand?
+### What if there is no Spot capacity? Will Karpenter use On-Demand?
 
-Karpenter will use on-demand, if your provisioner specifies both spot and on-demand and you are flexible to at least 5 instance types. 
+The best defense against running out of Spot capacity is to allow Karpenter to provision as many different instance types as possible.
+Even instance types that have higher specs, e.g. vCPU, memory, etc., than what you need can still be cheaper in the Spot market than using On-Demand instances.
+When Spot capacity is constrained, On-Demand capacity can also be constrained since Spot is fundamentally spare On-Demand capacity.
+Allowing Karpenter to provision nodes from a large, diverse set of instance types will help you to stay on Spot longer and lower your costs due to Spot’s discounted pricing. 
+Moreover, if Spot capacity becomes constrained, this diversity will also increase the chances that you’ll be able to continue to launch On-Demand capacity for your workloads.
 
-More specifically, Karpenter maintains a concept of "offerings" for each instance type, which is a combination of zone and capacity type (equivalent in the AWS cloud provider to an EC2 purchase option). Spot offerings are prioritized, if they're available. Whenever the Fleet API returns an insufficient capacity error for Spot instances, those particular offerings are temporarily removed from consideration (across the entire provisioner) so that Karpenter can make forward progress with different options. The retry will happen immediately within milliseconds.
+If your Karpenter Provisioner specifies flexibility to both Spot and On-Demand capacity, Karpenter will attempt to provision On-Demand capacity if there is no Spot capacity available.
+However, it’s strongly recommended that you specify at least 20 instance types in your Provisioner (or none and allow Karpenter to pick the best instance types) as our research indicates that this additional diversity increases the chances that your workloads will not need to launch On-Demand capacity at all.
+Today, Karpenter will warn you if the number of instances in your Provisioner isn’t sufficiently diverse.
+
+Technically, Karpenter has a concept of an “offering” for each instance type, which is a combination of zone and capacity type (equivalent in the AWS cloud provider to an EC2 purchase option – Spot or On-Demand).
+Whenever the Fleet API returns an insufficient capacity error for Spot instances, those particular offerings are temporarily removed from consideration (across the entire provisioner) so that Karpenter can make forward progress with different options.
 
 ## Workloads
 
