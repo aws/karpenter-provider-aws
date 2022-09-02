@@ -220,26 +220,54 @@ var _ = Describe("Instance Types", func() {
 		Expect(nodeNames.Len()).To(Equal(2))
 	})
 	It("should set pods to 110 if not using ENI-based pod density", func() {
-		opts.AWSENILimitedPodDensity = false
+		optsCopy := opts
+		optsCopy.AWSENILimitedPodDensity = false
 		instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 		Expect(err).To(BeNil())
 		provisioner = test.Provisioner()
 		for _, info := range instanceInfo {
-			it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, "", provider, nil)
+			it := NewInstanceType(injection.WithOptions(ctx, optsCopy), info, provisioner.Spec.KubeletConfiguration, "", provider, nil)
 			resources := it.Resources()
 			Expect(resources.Pods().Value()).To(BeNumerically("==", 110))
 		}
 	})
 	It("should not set pods to 110 if using ENI-based pod density", func() {
-		opts.AWSENILimitedPodDensity = true
+		optsCopy := opts
+		optsCopy.AWSENILimitedPodDensity = true
 		instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 		Expect(err).To(BeNil())
 		provisioner = test.Provisioner()
 		for _, info := range instanceInfo {
-			it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, "", provider, nil)
+			it := NewInstanceType(injection.WithOptions(ctx, optsCopy), info, provisioner.Spec.KubeletConfiguration, "", provider, nil)
 			resources := it.Resources()
 			Expect(resources.Pods().Value()).ToNot(BeNumerically("==", 110))
 		}
+	})
+	It("should calculate pod capacity based on eni limits", func() {
+		optsCopy := opts
+		optsCopy.AWSENILimitedPodDensity = true
+		optsCopy.AWSCniCustomNetworking = false
+		instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
+		Expect(err).To(BeNil())
+		provisioner = test.Provisioner()
+
+		it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.large"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
+
+		resources := it.Resources()
+		Expect(resources.Pods().Value()).To(Equal(int64(29)))
+	})
+	It("should take worker subnet eni into account when using custom networking", func() {
+		optsCopy := opts
+		optsCopy.AWSENILimitedPodDensity = true
+		optsCopy.AWSCniCustomNetworking = true
+		instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
+		Expect(err).To(BeNil())
+		provisioner = test.Provisioner()
+
+		it := NewInstanceType(injection.WithOptions(ctx, optsCopy), instanceInfo["m5.large"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
+
+		resources := it.Resources()
+		Expect(resources.Pods().Value()).To(Equal(int64(20)))
 	})
 
 	Context("KubeletConfiguration Overrides", func() {
@@ -282,12 +310,13 @@ var _ = Describe("Instance Types", func() {
 			}
 		})
 		It("should override max-pods value when AWSENILimitedPodDensity is set", func() {
-			opts.AWSENILimitedPodDensity = false
+			optsCopy := opts
+			optsCopy.AWSENILimitedPodDensity = false
 			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 			Expect(err).To(BeNil())
 			provisioner = test.Provisioner(test.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{MaxPods: ptr.Int32(10)}})
 			for _, info := range instanceInfo {
-				it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, "", provider, nil)
+				it := NewInstanceType(injection.WithOptions(ctx, optsCopy), info, provisioner.Spec.KubeletConfiguration, "", provider, nil)
 				resources := it.Resources()
 				Expect(resources.Pods().Value()).To(BeNumerically("==", 10))
 			}

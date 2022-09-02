@@ -51,6 +51,7 @@ type InstanceType struct {
 	provider     *v1alpha1.AWS
 	maxPods      *int32
 	region       string
+	reservedEnis *int64
 }
 
 func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, kc *v1alpha5.KubeletConfiguration, region string, provider *v1alpha1.AWS, offerings []cloudprovider.Offering) *InstanceType {
@@ -69,10 +70,15 @@ func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, kc *v1alph
 		instanceType.maxPods = ptr.Int32(110)
 	}
 
+	if injection.GetOptions(ctx).AWSCniCustomNetworking {
+		instanceType.reservedEnis = ptr.Int64(1)
+	}
+
 	// Precompute to minimize memory/compute overhead
 	instanceType.resources = instanceType.computeResources(injection.GetOptions(ctx).AWSEnablePodENI)
 	instanceType.overhead = instanceType.computeOverhead(injection.GetOptions(ctx).VMMemoryOverhead, kc)
 	instanceType.requirements = instanceType.computeRequirements()
+
 	return instanceType
 }
 
@@ -270,7 +276,10 @@ func (i *InstanceType) computeOverhead(vmMemOverhead float64, kc *v1alpha5.Kubel
 // max number of ENIs * (IPv4 Addresses per ENI -1) + 2
 // https://github.com/awslabs/amazon-eks-ami/blob/master/files/eni-max-pods.txt#L20
 func (i *InstanceType) eniLimitedPods() int64 {
-	return *i.NetworkInfo.MaximumNetworkInterfaces*(*i.NetworkInfo.Ipv4AddressesPerInterface-1) + 2
+	if i.reservedEnis == nil {
+		return (*i.NetworkInfo.MaximumNetworkInterfaces)*(*i.NetworkInfo.Ipv4AddressesPerInterface-1) + 2
+	}
+	return (*i.NetworkInfo.MaximumNetworkInterfaces-*i.reservedEnis)*(*i.NetworkInfo.Ipv4AddressesPerInterface-1) + 2
 }
 
 func (i *InstanceType) systemReservedResources(kc *v1alpha5.KubeletConfiguration) v1.ResourceList {

@@ -90,6 +90,7 @@ var _ = BeforeSuite(func() {
 			AWSENILimitedPodDensity:   true,
 			AWSEnablePodENI:           true,
 			AWSDefaultInstanceProfile: "test-instance-profile",
+			AWSCniCustomNetworking:    false,
 		}
 		Expect(opts.Validate()).To(Succeed(), "Failed to validate options")
 		ctx = injection.WithOptions(ctx, opts)

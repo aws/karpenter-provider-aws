@@ -391,7 +391,7 @@ func (e *EC2API) DescribeInstanceTypesPagesWithContext(_ context.Context, _ *ec2
 				},
 				NetworkInfo: &ec2.NetworkInfo{
 					MaximumNetworkInterfaces:  aws.Int64(3),
-					Ipv4AddressesPerInterface: aws.Int64(30),
+					Ipv4AddressesPerInterface: aws.Int64(10),
 				},
 			},
 			{
