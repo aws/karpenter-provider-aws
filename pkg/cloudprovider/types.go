@@ -18,12 +18,12 @@ import (
 	"context"
 
 	"github.com/samber/lo"
-
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/events"
 	"github.com/aws/karpenter/pkg/scheduling"
 )
 
@@ -31,10 +31,11 @@ import (
 type Options struct {
 	ClientSet  *kubernetes.Clientset
 	KubeClient client.Client
+	Recorder   events.Recorder
 	// WebhookOnly is true if the cloud provider is being used for its validation/defaulting only by the webhook. In
 	// this case it may not need to perform some initialization and the StartAsync channel will not be closed.
 	WebhookOnly bool
-	// StartAsync is a channel that is closed when leader election has been won.  This is a signal to start any  async
+	// StartAsync is a channel that is closed when leader election has been won.  This is a signal to start any async
 	// processing that should only occur while the cloud provider is the leader.
 	StartAsync <-chan struct{}
 }
