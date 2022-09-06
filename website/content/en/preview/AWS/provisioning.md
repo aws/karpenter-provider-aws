@@ -289,6 +289,42 @@ Specify AMIs explicitly by ID:
 
 Prior to the introduction of `spec.providerRef`, parameters for the AWS Cloud Provider could be specified within the Provisioner itself through the `spec.provider` field. This field in the Provisioners has now been deprecated, and all fields previously specified through the ProvisionerSpec can now be specified in the `AWSNodeTemplate` CRD instead. See the [upgrade guide for more information](../../upgrade-guide). New parameters can only be specified in the `AWSNodeTemplate` CRD.
 
+## AWS Specific Labels
+
+The AWS cloud provider adds several labels to nodes that describe the node resources to make filtering instance types easier. These work at either the provisioner level as requirements or the pod level as node selectors or node affinities.  The complete list, including the instance types they are applied to, is available in the [Instance Types](../instance-types/) documentation.  A sampling of these include:
+- `karpenter.k8s.aws/instance-cpu`
+- `karpenter.k8s.aws/instance-memory`
+- `karpenter.k8s.aws/instance-gpu-name`
+
+The `karpenter.k8s.aws/instance-cpu` and `karpenter.k8s.aws/instance-memory` values are numeric which also allows constructing requirements for them using the `Gt` and `Lt` operators.  
+
+The standard rules for `Gt` and `Lt` apply:
+
+1. There can be only one value in the requirement
+2. The value must be an integer
+
+These requirements can be useful to select nodes of a particular "shape". For example the following filters out all instance types with more than 8 CPUs or more than 16 GiB of memory::
+
+```yaml
+  - key: karpenter.k8s.aws/instance-cpu
+    operator: Lt
+    values:
+    - "9"
+  - key: karpenter.k8s.aws/instance-memory
+    operator: Lt
+    values:
+    - "16385"
+```
+
+A requirement that specifies a specific value for `karpenter.k8s.aws/instance-gpu-name` can be used to select for all instance types that have a particular GPU type. 
+
+```yaml
+  - key: karpenter.k8s.aws/instance-gpu-name
+    operator: In
+    values:
+      - "v100"
+```
+
 ## Other Resources
 
 ### Accelerators, GPU
