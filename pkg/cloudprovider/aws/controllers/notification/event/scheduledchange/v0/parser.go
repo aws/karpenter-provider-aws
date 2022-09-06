@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1
+package v0
 
 import (
 	"context"
@@ -26,7 +26,7 @@ import (
 const (
 	source                    = "aws.health"
 	detailType                = "AWS Health Event"
-	version                   = "1"
+	version                   = "0"
 	acceptedService           = "EC2"
 	acceptedEventTypeCategory = "scheduledChange"
 )

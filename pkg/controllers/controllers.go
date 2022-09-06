@@ -84,7 +84,16 @@ type Controller interface {
 	Register(context.Context, manager.Manager) error
 }
 
-func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options) cloudprovider.CloudProvider) {
+type ControllerOptions struct {
+	Cluster     *state.Cluster
+	KubeClient  client.Client
+	Provisioner *provisioning.Provisioner
+	Recorder    events.Recorder
+	StartAsync  <-chan struct{}
+	Clock       clock.Clock
+}
+
+func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options) (cloudprovider.CloudProvider, func(context.Context, *ControllerOptions))) {
 	opts := options.New().MustParse()
 	// Setup Client
 	controllerRuntimeConfig := controllerruntime.GetConfigOrDie()
@@ -121,7 +130,7 @@ func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options)
 		utilruntime.Must(registerPprof(manager))
 	}
 
-	cloudProvider := injectCloudProvider(ctx, cloudprovider.Options{ClientSet: clientSet, KubeClient: manager.GetClient(), StartAsync: manager.Elected()})
+	cloudProvider, injectControllers := injectCloudProvider(ctx, cloudprovider.Options{ClientSet: clientSet, KubeClient: manager.GetClient(), StartAsync: manager.Elected()})
 	if hp, ok := cloudProvider.(HealthCheck); ok {
 		utilruntime.Must(manager.AddHealthzCheck("cloud-provider", hp.LivenessProbe))
 	}
@@ -145,6 +154,10 @@ func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options)
 	cluster := state.NewCluster(realClock, cfg, manager.GetClient(), cloudProvider)
 	provisioner := provisioning.NewProvisioner(ctx, cfg, manager.GetClient(), clientSet.CoreV1(), recorder, cloudProvider, cluster)
 	consolidation.NewController(ctx, realClock, manager.GetClient(), provisioner, cloudProvider, recorder, cluster, manager.Elected())
+
+	// Inject cloudprovider-specific controllers into the controller-set using the injectControllers function
+	// Inject the base cloud provider into the injection function rather than the decorated interface
+	injectControllers(ctx, &ControllerOptions{Cluster: cluster, KubeClient: manager.GetClient(), Provisioner: provisioner, Recorder: recorder, StartAsync: manager.Elected(), Clock: realClock})
 
 	metricsstate.StartMetricScraper(ctx, cluster)
 

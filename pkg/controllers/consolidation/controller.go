@@ -165,6 +165,7 @@ func (c *Controller) ProcessCluster(ctx context.Context) (ProcessResult, error) 
 
 	// the remaining nodes are all non-empty, so we just consolidate the first one that we can
 	sort.Slice(candidates, byNodeDisruptionCost(candidates))
+
 	for _, node := range candidates {
 		// is this a node that we can terminate?  This check is meant to be fast so we can save the expense of simulated
 		// scheduling unless its really needed
@@ -381,13 +382,13 @@ func (c *Controller) launchReplacementNode(ctx context.Context, action consolida
 
 	// cordon the node before we launch the replacement to prevent new pods from scheduling to the node
 	if err := c.setNodeUnschedulable(ctx, action.oldNodes[0].Name, true); err != nil {
-		return fmt.Errorf("cordoning node %s, %w", oldNode.Name, err)
+		return fmt.Errorf("cordoning node %s, %w", action.oldNodes[0].Name, err)
 	}
 
-	nodeNames, err := c.provisioner.LaunchNodes(ctx, provisioning.LaunchOptions{RecordPodNomination: false}, action.replacementNode)
+	nodeNames, err := c.provisioner.LaunchNodes(ctx, provisioning.LaunchOptions{RecordPodNomination: false}, action.replacementNodes...)
 	if err != nil {
 		// uncordon the node as the launch may fail (e.g. ICE or incompatible AMI)
-		err = multierr.Append(err, c.setNodeUnschedulable(ctx, oldNode.Name, false))
+		err = multierr.Append(err, c.setNodeUnschedulable(ctx, action.oldNodes[0].Name, false))
 		return err
 	}
 	if len(nodeNames) != 1 {
@@ -419,8 +420,7 @@ func (c *Controller) launchReplacementNode(ctx context.Context, action consolida
 		return nil
 	}, waitRetryOptions...); err != nil {
 		// node never become ready, so uncordon the node we were trying to delete and report the error
-		c.cluster.UnmarkForDeletion(oldNode.Name)
-		return multierr.Combine(c.setNodeUnschedulable(ctx, oldNode.Name, false),
+		return multierr.Combine(c.setNodeUnschedulable(ctx, action.oldNodes[0].Name, false),
 			fmt.Errorf("timed out checking node readiness, %w", err))
 	}
 	return nil
@@ -466,6 +466,54 @@ func (c *Controller) calculateLifetimeRemaining(node candidateNode) float64 {
 		remaining = clamp(0.0, lifetimeRemainingSeconds/totalLifetimeSeconds, 1.0)
 	}
 	return remaining
+}
+
+func (c *Controller) spotTerminationOptionReplace(ctx context.Context, nodes []candidateNode) (consolidationAction, error) {
+	var stateNodes []*state.Node
+	c.cluster.ForEachNode(func(n *state.Node) bool {
+		stateNodes = append(stateNodes, n.DeepCopy())
+		return true
+	})
+	var nodeNames []string
+	var pods []*v1.Pod
+	for _, node := range nodes {
+		nodeNames = append(nodeNames, node.Name)
+		pods = append(pods, node.pods...)
+	}
+	scheduler, err := c.provisioner.NewScheduler(ctx, pods, stateNodes, scheduling.SchedulerOptions{
+		SimulationMode: true,
+		ExcludeNodes:   nodeNames,
+	})
+	if err != nil {
+		return consolidationAction{result: consolidateResultUnknown}, fmt.Errorf("creating scheduler, %w", err)
+	}
+
+	newNodes, inflightNodes, err := scheduler.Solve(ctx, pods)
+	if err != nil {
+		return consolidationAction{result: consolidateResultUnknown}, fmt.Errorf("simulating scheduling, %w", err)
+	}
+
+	// were we able to schedule all the pods on the inflight nodes?
+	// delete all the nodes that are going to be deleted by spot interruption
+	if len(newNodes) == 0 {
+		schedulableCount := 0
+		for _, inflight := range inflightNodes {
+			schedulableCount += len(inflight.Pods)
+		}
+		if len(pods) == schedulableCount {
+			return consolidationAction{
+				oldNodes:       lo.Map(nodes, func(n candidateNode, _ int) *v1.Node { return n.Node }),
+				disruptionCost: disruptionCost(ctx, pods),
+				result:         consolidateResultDelete,
+			}, nil
+		}
+	}
+	return consolidationAction{
+		oldNodes:         lo.Map(nodes, func(n candidateNode, _ int) *v1.Node { return n.Node }),
+		disruptionCost:   disruptionCost(ctx, pods),
+		result:           consolidateResultReplace,
+		replacementNodes: newNodes,
+	}, nil
 }
 
 // nolint:gocyclo
@@ -555,11 +603,12 @@ func (c *Controller) nodeConsolidationOptionReplaceOrDelete(ctx context.Context,
 		return consolidationAction{result: consolidateResultNotPossible}, nil
 	}
 
+	// We know the length of newNodes is 1 from above so this should only launch a single node
 	return consolidationAction{
-		oldNodes:        []*v1.Node{node.Node},
-		disruptionCost:  disruptionCost(ctx, node.pods),
-		result:          consolidateResultReplace,
-		replacementNode: newNodes[0],
+		oldNodes:         []*v1.Node{node.Node},
+		disruptionCost:   disruptionCost(ctx, node.pods),
+		result:           consolidateResultReplace,
+		replacementNodes: newNodes,
 	}, nil
 }
 

@@ -19,11 +19,22 @@ import (
 
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws"
+	awscontrollers "github.com/aws/karpenter/pkg/cloudprovider/aws/controllers"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/infrastructure"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification"
 	"github.com/aws/karpenter/pkg/controllers"
 )
 
 func main() {
-	controllers.Initialize(func(ctx context.Context, options cloudprovider.Options) cloudprovider.CloudProvider {
-		return aws.NewCloudProvider(ctx, options)
+	controllers.Initialize(func(ctx context.Context, options cloudprovider.Options) (cloudprovider.CloudProvider, func(context.Context, *controllers.ControllerOptions)) {
+		provider := aws.NewCloudProvider(ctx, options)
+		injectControllers := func(ctx context.Context, opts *controllers.ControllerOptions) {
+			recorder := awscontrollers.NewRecorder(opts.Recorder)
+
+			// Injecting the controllers that will start when opts.StartAsync is triggered
+			notification.NewController(ctx, opts.Clock, opts.KubeClient, provider.SQSProvider, recorder, opts.Provisioner, opts.Cluster, opts.StartAsync)
+			infrastructure.NewController(ctx, opts.Clock, opts.KubeClient, recorder, opts.Cluster, opts.StartAsync)
+		}
+		return provider, injectControllers
 	})
 }

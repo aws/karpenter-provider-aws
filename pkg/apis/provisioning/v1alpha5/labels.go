@@ -33,6 +33,7 @@ var (
 	ProvisionerNameLabelKey           = Group + "/provisioner-name"
 	DoNotEvictPodAnnotationKey        = Group + "/do-not-evict"
 	DoNotConsolidateNodeAnnotationKey = KarpenterLabelDomain + "/do-not-consolidate"
+	MarkedForDeletionAnnotationKey    = KarpenterLabelDomain + "/marked-for-delete"
 	EmptinessTimestampAnnotationKey   = Group + "/emptiness-timestamp"
 	TerminationFinalizer              = Group + "/termination"
 

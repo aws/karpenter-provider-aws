@@ -64,10 +64,10 @@ func (r consolidateResult) String() string {
 }
 
 type consolidationAction struct {
-	oldNodes        []*v1.Node
-	disruptionCost  float64
-	result          consolidateResult
-	replacementNode *scheduling.Node
+	oldNodes         []*v1.Node
+	disruptionCost   float64
+	result           consolidateResult
+	replacementNodes []*scheduling.Node
 }
 
 func (o consolidationAction) String() string {
@@ -82,9 +82,14 @@ func (o consolidationAction) String() string {
 			fmt.Fprintf(&buf, "/%s", instanceType)
 		}
 	}
-	if o.replacementNode != nil {
-		fmt.Fprintf(&buf, " and replacing with a node from types %s",
-			scheduling.InstanceTypeList(o.replacementNode.InstanceTypeOptions))
+	// TODO: Improve the stringify method here for getting all the nodes
+	if o.replacementNodes != nil {
+		if len(o.replacementNodes) == 1 {
+			fmt.Fprintf(&buf, " and replacing with a node from types %s",
+				scheduling.InstanceTypeList(o.replacementNodes[0].InstanceTypeOptions))
+		} else {
+			fmt.Fprintf(&buf, " and replacing with multiple nodes")
+		}
 	}
 	return buf.String()
 }

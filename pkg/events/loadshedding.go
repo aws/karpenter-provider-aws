@@ -21,13 +21,13 @@ import (
 
 func NewLoadSheddingRecorder(r Recorder) Recorder {
 	return &loadshedding{
-		rec:              r,
+		Recorder:         r,
 		nominationBucket: flowcontrol.NewTokenBucketRateLimiter(5, 10),
 	}
 }
 
 type loadshedding struct {
-	rec              Recorder
+	Recorder
 	nominationBucket flowcontrol.RateLimiter
 }
 
@@ -39,33 +39,33 @@ func (l *loadshedding) NominatePod(pod *v1.Pod, node *v1.Node) {
 	if !l.nominationBucket.TryAccept() {
 		return
 	}
-	l.rec.NominatePod(pod, node)
+	l.Recorder.NominatePod(pod, node)
 }
 
 func (l *loadshedding) EvictPod(pod *v1.Pod) {
-	l.rec.EvictPod(pod)
+	l.Recorder.EvictPod(pod)
 }
 
 func (l *loadshedding) PodFailedToSchedule(pod *v1.Pod, err error) {
-	l.rec.PodFailedToSchedule(pod, err)
+	l.Recorder.PodFailedToSchedule(pod, err)
 }
 
 func (l *loadshedding) NodeFailedToDrain(node *v1.Node, err error) {
-	l.rec.NodeFailedToDrain(node, err)
+	l.Recorder.NodeFailedToDrain(node, err)
 }
 
 func (l *loadshedding) TerminatingNodeForConsolidation(node *v1.Node, reason string) {
-	l.rec.TerminatingNodeForConsolidation(node, reason)
+	l.Recorder.TerminatingNodeForConsolidation(node, reason)
 }
 
 func (l *loadshedding) LaunchingNodeForConsolidation(node *v1.Node, reason string) {
-	l.rec.LaunchingNodeForConsolidation(node, reason)
+	l.Recorder.LaunchingNodeForConsolidation(node, reason)
 }
 
 func (l *loadshedding) WaitingOnReadinessForConsolidation(node *v1.Node) {
-	l.rec.WaitingOnReadinessForConsolidation(node)
+	l.Recorder.WaitingOnReadinessForConsolidation(node)
 }
 
 func (l *loadshedding) WaitingOnDeletionForConsolidation(node *v1.Node) {
-	l.rec.WaitingOnDeletionForConsolidation(node)
+	l.Recorder.WaitingOnDeletionForConsolidation(node)
 }

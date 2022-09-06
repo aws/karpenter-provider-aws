@@ -12,11 +12,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1
+package v0
 
 import (
 	"context"
 	"encoding/json"
+	"strings"
 
 	"knative.dev/pkg/logging"
 
@@ -24,25 +25,33 @@ import (
 )
 
 const (
-	source     = "aws.ec2"
-	detailType = "EC2 Spot Instance Interruption Warning"
-	version    = "1"
+	source         = "aws.ec2"
+	detailType     = "EC2 Instance State-change Notification"
+	version        = "0"
+	acceptedStates = "stopping,stopped,shutting-down,terminated"
 )
+
+var acceptedStatesList = strings.Split(acceptedStates, ",")
 
 type Parser struct{}
 
 func (Parser) Parse(ctx context.Context, str string) event.Interface {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("spotInterruption.v1"))
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("stateChange.v1"))
 
-	evt := EC2SpotInstanceInterruptionWarning{}
+	evt := EC2InstanceStateChangeNotification{}
 	if err := json.Unmarshal([]byte(str), &evt); err != nil {
 		logging.FromContext(ctx).
 			With("error", err).
-			Error("failed to unmarshal EC2 spot instance interruption event")
+			Error("failed to unmarshal EC2 state-change event")
 		return nil
 	}
 
 	if evt.Source != source || evt.DetailType != detailType || evt.Version != version {
+		return nil
+	}
+
+	// Do not log the information on instance state change if it isn't in accepted states
+	if !strings.Contains(acceptedStates, strings.ToLower(evt.Detail.State)) {
 		return nil
 	}
 

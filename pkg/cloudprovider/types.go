@@ -23,7 +23,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter/pkg/events"
 	"github.com/aws/karpenter/pkg/scheduling"
 )
 
@@ -31,7 +30,6 @@ import (
 type Options struct {
 	ClientSet  *kubernetes.Clientset
 	KubeClient client.Client
-	Recorder   events.Recorder
 	// WebhookOnly is true if the cloud provider is being used for its validation/defaulting only by the webhook. In
 	// this case it may not need to perform some initialization and the StartAsync channel will not be closed.
 	WebhookOnly bool

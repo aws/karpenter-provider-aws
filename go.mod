@@ -29,7 +29,7 @@ require (
 	sigs.k8s.io/controller-runtime v0.13.0
 )
 
-require k8s.io/utils v0.0.0-20210802155522-efc7438f0176
+require k8s.io/utils v0.0.0-20210802155522-efc7438f0176 // indirect
 
 require (
 	contrib.go.opencensus.io/exporter/ocagent v0.7.1-0.20200907061046-05415f1de66d // indirect

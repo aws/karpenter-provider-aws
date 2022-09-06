@@ -18,6 +18,7 @@ import (
 	"sync"
 
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/tools/record"
 
 	"github.com/aws/karpenter/pkg/events"
 )
@@ -30,6 +31,7 @@ type Binding struct {
 
 // EventRecorder is a mock event recorder that is used to facilitate testing.
 type EventRecorder struct {
+	record.EventRecorder
 	mu       sync.Mutex
 	bindings []Binding
 }

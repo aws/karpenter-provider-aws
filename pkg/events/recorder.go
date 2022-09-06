@@ -22,10 +22,12 @@ import (
 // Recorder is used to record events that occur about pods so they can be viewed by looking at the pod's events so our
 // actions are more observable without requiring log inspection
 type Recorder interface {
+	record.EventRecorder
+
 	// NominatePod is called when we have determined that a pod should schedule against an existing node and don't
 	// currently need to provision new capacity for the pod.
 	NominatePod(*v1.Pod, *v1.Node)
-	// EvictedPod is called when a pod is evicted
+	// EvictPod is called when a pod is evicted
 	EvictPod(*v1.Pod)
 	// PodFailedToSchedule is called when a pod has failed to schedule entirely.
 	PodFailedToSchedule(*v1.Pod, error)
@@ -45,40 +47,40 @@ type Recorder interface {
 }
 
 type recorder struct {
-	rec record.EventRecorder
+	record.EventRecorder
 }
 
 func NewRecorder(rec record.EventRecorder) Recorder {
-	return &recorder{rec: rec}
+	return &recorder{EventRecorder: rec}
 }
 
 func (r recorder) WaitingOnDeletionForConsolidation(node *v1.Node) {
-	r.rec.Eventf(node, "Normal", "ConsolidateWaiting", "Waiting on deletion to continue consolidation")
+	r.Eventf(node, "Normal", "ConsolidateWaiting", "Waiting on deletion to continue consolidation")
 }
 func (r recorder) WaitingOnReadinessForConsolidation(node *v1.Node) {
-	r.rec.Eventf(node, "Normal", "ConsolidateWaiting", "Waiting on readiness to continue consolidation")
+	r.Eventf(node, "Normal", "ConsolidateWaiting", "Waiting on readiness to continue consolidation")
 }
 
 func (r recorder) TerminatingNodeForConsolidation(node *v1.Node, reason string) {
-	r.rec.Eventf(node, "Normal", "ConsolidateTerminateNode", "Consolidating node via %s", reason)
+	r.Eventf(node, "Normal", "ConsolidateTerminateNode", "Consolidating node via %s", reason)
 }
 
 func (r recorder) LaunchingNodeForConsolidation(node *v1.Node, reason string) {
-	r.rec.Eventf(node, "Normal", "ConsolidateLaunchNode", "Launching node for %s", reason)
+	r.Eventf(node, "Normal", "ConsolidateLaunchNode", "Launching node for %s", reason)
 }
 
 func (r recorder) NominatePod(pod *v1.Pod, node *v1.Node) {
-	r.rec.Eventf(pod, "Normal", "Nominate", "Pod should schedule on %s", node.Name)
+	r.Eventf(pod, "Normal", "Nominate", "Pod should schedule on %s", node.Name)
 }
 
 func (r recorder) EvictPod(pod *v1.Pod) {
-	r.rec.Eventf(pod, "Normal", "Evict", "Evicted pod")
+	r.Eventf(pod, "Normal", "Evict", "Evicted pod")
 }
 
 func (r recorder) PodFailedToSchedule(pod *v1.Pod, err error) {
-	r.rec.Eventf(pod, "Warning", "FailedProvisioning", "Failed to provision new node, %s", err)
+	r.Eventf(pod, "Warning", "FailedProvisioning", "Failed to provision new node, %s", err)
 }
 
 func (r recorder) NodeFailedToDrain(node *v1.Node, err error) {
-	r.rec.Eventf(node, "Warning", "FailedDraining", "Failed to drain node, %s", err)
+	r.Eventf(node, "Warning", "FailedDraining", "Failed to drain node, %s", err)
 }

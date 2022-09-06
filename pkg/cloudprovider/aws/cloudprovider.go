@@ -38,7 +38,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/transport"
-	"k8s.io/utils/clock"
 	"knative.dev/pkg/apis"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
@@ -49,8 +48,6 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/amifamily"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification"
-	"github.com/aws/karpenter/pkg/events"
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/project"
@@ -79,9 +76,8 @@ var _ cloudprovider.CloudProvider = (*CloudProvider)(nil)
 type CloudProvider struct {
 	instanceTypeProvider *InstanceTypeProvider
 	instanceProvider     *InstanceProvider
-	sqsProvider          *notification.SQSProvider
 	kubeClient           k8sClient.Client
-	recorder             events.Recorder
+	SQSProvider          *SQSProvider
 }
 
 func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *CloudProvider {
@@ -116,7 +112,7 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 	instanceTypeProvider := NewInstanceTypeProvider(ctx, sess, options, ec2api, subnetProvider)
 
 	// TODO: Change this queue url value to a useful value
-	sqsProvider := notification.NewSQSProvider(sqsapi, "dummyqueueurl")
+	sqsProvider := NewSQSProvider(sqsapi, "https://sqs.us-west-2.amazonaws.com/330700974597/test-stack-Queue-VimlxX8fIySZ")
 	cloudprovider := &CloudProvider{
 		instanceTypeProvider: instanceTypeProvider,
 		instanceProvider: NewInstanceProvider(ctx, ec2api, instanceTypeProvider, subnetProvider,
@@ -130,15 +126,11 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 				options.StartAsync,
 			),
 		),
-		sqsProvider: sqsProvider,
+		SQSProvider: sqsProvider,
 		kubeClient:  options.KubeClient,
 	}
 	v1alpha5.ValidateHook = cloudprovider.Validate
 	v1alpha5.DefaultHook = cloudprovider.Default
-
-	// Inject all the controllers for this cloudprovider
-	// Controllers will start when signaled by the StartAsync channel
-	cloudprovider.injectControllers(ctx, options.StartAsync)
 
 	return cloudprovider
 }
@@ -152,10 +144,6 @@ func checkEC2Connectivity(api *ec2.EC2) error {
 		return nil
 	}
 	return err
-}
-
-func (c *CloudProvider) injectControllers(ctx context.Context, startAsync <-chan struct{}) {
-	notification.NewController(ctx, clock.RealClock{}, c.kubeClient, c.sqsProvider, c.recorder, startAsync)
 }
 
 // Create a node given the constraints.

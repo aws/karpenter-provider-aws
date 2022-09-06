@@ -12,36 +12,35 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1
+package v0
 
 import (
-	"time"
-
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event"
 )
 
-type EC2SpotInstanceInterruptionWarning AWSEvent
+// AWSEvent contains the properties defined in AWS EventBridge schema
+// aws.ec2@EC2InstanceStateChangeNotification v1.
+type AWSEvent struct {
+	event.AWSMetadata
 
-func (e EC2SpotInstanceInterruptionWarning) EventID() string {
-	return e.ID
+	Detail EC2InstanceStateChangeNotificationDetail `json:"detail"`
 }
 
-func (e EC2SpotInstanceInterruptionWarning) EC2InstanceIDs() []string {
-	return []string{e.Detail.InstanceID}
+func (e AWSEvent) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	zap.Inline(e.AWSMetadata).AddTo(enc)
+	return enc.AddObject("detail", e.Detail)
 }
 
-func (EC2SpotInstanceInterruptionWarning) Kind() event.Kind {
-	return event.Kinds.SpotInterruption
+type EC2InstanceStateChangeNotificationDetail struct {
+	InstanceID string `json:"instance-id"`
+	State      string `json:"state"`
 }
 
-func (e EC2SpotInstanceInterruptionWarning) MarshalLogObject(enc zapcore.ObjectEncoder) error {
-	zap.Inline(AWSEvent(e)).AddTo(enc)
+func (e EC2InstanceStateChangeNotificationDetail) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	enc.AddString("instance-id", e.InstanceID)
+	enc.AddString("state", e.State)
 	return nil
-}
-
-func (e EC2SpotInstanceInterruptionWarning) StartTime() time.Time {
-	return e.Time
 }

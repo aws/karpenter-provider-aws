@@ -45,6 +45,10 @@ type CloudProvider struct {
 var _ cloudprovider.CloudProvider = (*CloudProvider)(nil)
 var _ cloudprovider.InstanceType = (*InstanceType)(nil)
 
+func (c *CloudProvider) InjectControllers(ctx context.Context, opts cloudprovider.ControllerOptions) error {
+	return nil
+}
+
 func (c *CloudProvider) Create(ctx context.Context, nodeRequest *cloudprovider.NodeRequest) (*v1.Node, error) {
 	c.mu.Lock()
 	c.CreateCalls = append(c.CreateCalls, nodeRequest)

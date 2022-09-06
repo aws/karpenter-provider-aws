@@ -24,13 +24,13 @@ import (
 
 func NewDedupeRecorder(r Recorder) Recorder {
 	return &dedupe{
-		rec:   r,
-		cache: cache.New(120*time.Second, 10*time.Second),
+		Recorder: r,
+		cache:    cache.New(120*time.Second, 10*time.Second),
 	}
 }
 
 type dedupe struct {
-	rec   Recorder
+	Recorder
 	cache *cache.Cache
 }
 
@@ -38,35 +38,35 @@ func (d *dedupe) WaitingOnDeletionForConsolidation(node *v1.Node) {
 	if !d.shouldCreateEvent(fmt.Sprintf("wait-node-consolidate-delete-%s", node.UID)) {
 		return
 	}
-	d.rec.WaitingOnDeletionForConsolidation(node)
+	d.Recorder.WaitingOnDeletionForConsolidation(node)
 }
 
 func (d *dedupe) WaitingOnReadinessForConsolidation(node *v1.Node) {
 	if !d.shouldCreateEvent(fmt.Sprintf("wait-node-consolidate-ready-%s", node.UID)) {
 		return
 	}
-	d.rec.WaitingOnReadinessForConsolidation(node)
+	d.Recorder.WaitingOnReadinessForConsolidation(node)
 }
 
 func (d *dedupe) TerminatingNodeForConsolidation(node *v1.Node, reason string) {
 	if !d.shouldCreateEvent(fmt.Sprintf("terminate-node-consolidate-%s-%s", node.UID, reason)) {
 		return
 	}
-	d.rec.TerminatingNodeForConsolidation(node, reason)
+	d.Recorder.TerminatingNodeForConsolidation(node, reason)
 }
 
 func (d *dedupe) LaunchingNodeForConsolidation(node *v1.Node, reason string) {
 	if !d.shouldCreateEvent(fmt.Sprintf("launch-node-consolidate-%s-%s", node.UID, reason)) {
 		return
 	}
-	d.rec.LaunchingNodeForConsolidation(node, reason)
+	d.Recorder.LaunchingNodeForConsolidation(node, reason)
 }
 
 func (d *dedupe) NominatePod(pod *v1.Pod, node *v1.Node) {
 	if !d.shouldCreateEvent(fmt.Sprintf("nominate-node-%s-%s", pod.UID, node.UID)) {
 		return
 	}
-	d.rec.NominatePod(pod, node)
+	d.Recorder.NominatePod(pod, node)
 }
 
 func (d *dedupe) EvictPod(pod *v1.Pod) {
@@ -75,21 +75,21 @@ func (d *dedupe) EvictPod(pod *v1.Pod) {
 		return
 	}
 	d.cache.SetDefault(key, nil)
-	d.rec.EvictPod(pod)
+	d.Recorder.EvictPod(pod)
 }
 
 func (d *dedupe) PodFailedToSchedule(pod *v1.Pod, err error) {
 	if !d.shouldCreateEvent(fmt.Sprintf("failed-to-schedule-%s-%s", pod.UID, err)) {
 		return
 	}
-	d.rec.PodFailedToSchedule(pod, err)
+	d.Recorder.PodFailedToSchedule(pod, err)
 }
 
 func (d *dedupe) NodeFailedToDrain(node *v1.Node, err error) {
 	if !d.shouldCreateEvent(fmt.Sprintf("failed-to-drain-%s", node.Name)) {
 		return
 	}
-	d.rec.NodeFailedToDrain(node, err)
+	d.Recorder.NodeFailedToDrain(node, err)
 }
 
 func (d *dedupe) shouldCreateEvent(key string) bool {

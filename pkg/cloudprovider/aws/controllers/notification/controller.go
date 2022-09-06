@@ -17,40 +17,62 @@ package notification
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"time"
 
 	sqsapi "github.com/aws/aws-sdk-go/service/sqs"
 	"go.uber.org/multierr"
-	"k8s.io/utils/clock"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/clock"
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/aggregatedparser"
-	"github.com/aws/karpenter/pkg/events"
+	"github.com/aws/karpenter/pkg/controllers/provisioning"
+	"github.com/aws/karpenter/pkg/controllers/state"
 )
+
+type Action = string
+
+var Actions = struct {
+	CordonAndDrain,
+	Cordon,
+	NoAction Action
+}{
+	CordonAndDrain: "CordonAndDrain",
+	Cordon:         "Cordon",
+	NoAction:       "NoAction",
+}
 
 // Controller is the consolidation controller.  It is not a standard controller-runtime controller in that it doesn't
 // have a reconcile method.
 type Controller struct {
-	kubeClient client.Client
-	recorder   events.Recorder
-	clock      clock.Clock
-	provider   *SQSProvider
-	parser     event.Parser
+	kubeClient  client.Client
+	provisioner *provisioning.Provisioner
+	cluster     *state.Cluster
+	recorder    controllers.Recorder
+	clock       clock.Clock
+	provider    *aws.SQSProvider
+	parser      event.Parser
 }
 
 // pollingPeriod that we go to the SQS queue to check if there are any new events
 const pollingPeriod = 2 * time.Second
 
-func NewController(ctx context.Context, clk clock.Clock, kubeClient client.Client,
-	sqsProvider *SQSProvider, recorder events.Recorder, startAsync <-chan struct{}) *Controller {
+func NewController(ctx context.Context, clk clock.Clock, kubeClient client.Client, sqsProvider *aws.SQSProvider,
+	recorder controllers.Recorder, provisioner *provisioning.Provisioner, cluster *state.Cluster, startAsync <-chan struct{}) *Controller {
 	c := &Controller{
-		clock:      clk,
-		kubeClient: kubeClient,
-		recorder:   recorder,
-		provider:   sqsProvider,
-		parser:     aggregatedparser.NewAggregatedParser(aggregatedparser.DefaultParsers...),
+		kubeClient:  kubeClient,
+		provisioner: provisioner,
+		cluster:     cluster,
+		recorder:    recorder,
+		clock:       clk,
+		provider:    sqsProvider,
+		parser:      aggregatedparser.NewAggregatedParser(aggregatedparser.DefaultParsers...),
 	}
 
 	go func() {
@@ -74,27 +96,32 @@ func (c *Controller) run(ctx context.Context) {
 			logger.Infof("Shutting down")
 			return
 		case <-time.After(pollingPeriod):
-			logging.FromContext(ctx).Info("Here")
+			err := c.pollSQS(ctx)
+			if err != nil {
+				logging.FromContext(ctx).Errorf("Handling notification messages from SQS queue, %v", err)
+			}
 		}
 	}
 }
 
-func (c *Controller) Poll(ctx context.Context) error {
+func (c *Controller) pollSQS(ctx context.Context) error {
 	sqsMessages, err := c.provider.GetSQSMessages(ctx)
 	if err != nil {
 		return err
 	}
+	if len(sqsMessages) == 0 {
+		return nil
+	}
 
+	instanceIDMap := c.makeInstanceIDMap()
 	for _, msg := range sqsMessages {
-		e := c.handleMessage(ctx, msg)
+		e := c.handleMessage(ctx, instanceIDMap, msg)
 		err = multierr.Append(err, e)
 	}
 	return nil
 }
 
-func (c *Controller) handleMessage(ctx context.Context, msg *sqsapi.Message) (err error) {
-	fmt.Printf("Handling the message for %#v\n", msg)
-
+func (c *Controller) handleMessage(ctx context.Context, instanceIDMap map[string]*v1.Node, msg *sqsapi.Message) (err error) {
 	// No message to parse in this case
 	if msg == nil || msg.Body == nil {
 		return nil
@@ -102,24 +129,54 @@ func (c *Controller) handleMessage(ctx context.Context, msg *sqsapi.Message) (er
 	evt := c.parser.Parse(ctx, *msg.Body)
 	evtAction := actionForEvent(evt)
 
-	// TODO: hand some of this work off to a batcher that will handle the spinning up of a new node
-	// and the deletion of the old node separate from this reconciliation loop
-	if evtAction != Actions.NoAction {
-		for _, ec2InstanceID := range evt.EC2InstanceIDs() {
-			e := c.handleInstance(ctx, ec2InstanceID, evtAction)
+	nodes := getInvolvedNodes(evt.EC2InstanceIDs(), instanceIDMap)
+	action := actionForEvent(evt)
+
+	for i := range nodes {
+		node := nodes[i]
+		c.notificationForEvent(evt, node)
+
+		if action != Actions.NoAction {
+			e := c.handleInstance(ctx, node, evtAction)
 			err = multierr.Append(err, e)
 		}
 	}
+
+	// If everything is successful, we can delete the notification associated with this event
 	if err != nil {
 		return err
 	}
 	return c.provider.DeleteSQSMessage(ctx, msg)
 }
 
-// TODO: Handle the instance appropriately, this should be handled with a batcher
-func (c *Controller) handleInstance(ctx context.Context, ec2InstanceID string, evtAction Action) error {
-	logging.FromContext(ctx).Infof("Got a message for ec2 instance id %s", ec2InstanceID)
+// TODO: Handle the instance appropriately, this should be handled with a batcher potentially
+func (c *Controller) handleInstance(ctx context.Context, node *v1.Node, _ Action) error {
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("node", node.Name))
+	logging.FromContext(ctx).Infof("Terminating node due to spot interruption warning")
+	if err := c.kubeClient.Delete(ctx, node); err != nil {
+		return fmt.Errorf("deleting the spot interrupted node, %w", err)
+	}
 	return nil
+}
+
+func (c *Controller) notificationForEvent(evt event.Interface, n *v1.Node) {
+	switch evt.Kind() {
+	case event.Kinds.RebalanceRecommendation:
+		c.recorder.EC2SpotRebalanceRecommendation(n)
+
+	case event.Kinds.ScheduledChange:
+		c.recorder.EC2HealthWarning(n)
+
+	case event.Kinds.SpotInterruption:
+		c.recorder.EC2SpotInterruptionWarning(n)
+
+	// For now, we won't do anything with the state change action
+	case event.Kinds.StateChange:
+		return
+
+	default:
+		return
+	}
 }
 
 func actionForEvent(evt event.Interface) Action {
@@ -140,4 +197,47 @@ func actionForEvent(evt event.Interface) Action {
 	default:
 		return Actions.NoAction
 	}
+}
+
+func getInvolvedNodes(instanceIDs []string, instanceIDMap map[string]*v1.Node) []*v1.Node {
+	var nodes []*v1.Node
+	for _, id := range instanceIDs {
+		if node, ok := instanceIDMap[id]; ok {
+			nodes = append(nodes, node)
+		}
+	}
+	return nodes
+}
+
+// buildInstanceIDMap builds a map between the instance name that is stored in the
+// node .spec.providerID and the node name stored on the host
+func (c *Controller) makeInstanceIDMap() map[string]*v1.Node {
+	m := map[string]*v1.Node{}
+	c.cluster.ForEachNode(func(n *state.Node) bool {
+		// If this node isn't owned by a provisioner, we shouldn't handle it
+		if _, ok := n.Node.Labels[v1alpha5.ProvisionerNameLabelKey]; !ok {
+			return true
+		}
+		id := parseProviderID(n.Node.Spec.ProviderID)
+		if id == "" {
+			return true
+		}
+		m[id] = n.Node
+		return true
+	})
+	return m
+}
+
+func parseProviderID(pid string) string {
+	r := regexp.MustCompile(`aws:///(?P<AZ>.*)/(?P<InstanceID>.*)`)
+	matches := r.FindStringSubmatch(pid)
+	if matches == nil {
+		return ""
+	}
+	for i, name := range r.SubexpNames() {
+		if name == "InstanceID" {
+			return matches[i]
+		}
+	}
+	return ""
 }
