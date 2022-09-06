@@ -20,37 +20,28 @@ import (
 
 	"k8s.io/apimachinery/pkg/util/clock"
 	"knative.dev/pkg/logging"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/aws/karpenter/pkg/cloudprovider/aws"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers"
-	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event"
-	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/aggregatedparser"
-	"github.com/aws/karpenter/pkg/controllers/provisioning"
-	"github.com/aws/karpenter/pkg/controllers/state"
 )
 
-// Controller is the consolidation controller.  It is not a standard controller-runtime controller in that it doesn't
+// Controller is the AWS infrastructure controller.  It is not a standard controller-runtime controller in that it doesn't
 // have a reconcile method.
 type Controller struct {
-	kubeClient  client.Client
-	provisioner *provisioning.Provisioner
-	cluster     *state.Cluster
+	sqsProvider *aws.SQSProvider
 	recorder    controllers.Recorder
 	clock       clock.Clock
-	parser      event.Parser
 }
 
-// pollingPeriod that we go to the SQS queue to check if there are any new events
-const pollingPeriod = 2 * time.Second
+// pollingPeriod that we go to AWS APIs to ensure that the appropriate AWS infrastructure is provisioned
+const pollingPeriod = 15 * time.Minute
 
-func NewController(ctx context.Context, clk clock.Clock, kubeClient client.Client, recorder controllers.Recorder,
-	cluster *state.Cluster, startAsync <-chan struct{}) *Controller {
+func NewController(ctx context.Context, clk clock.Clock, recorder controllers.Recorder,
+	sqsProvider *aws.SQSProvider, startAsync <-chan struct{}) *Controller {
 	c := &Controller{
-		kubeClient: kubeClient,
-		cluster:    cluster,
-		recorder:   recorder,
-		clock:      clk,
-		parser:     aggregatedparser.NewAggregatedParser(aggregatedparser.DefaultParsers...),
+		recorder:    recorder,
+		clock:       clk,
+		sqsProvider: sqsProvider,
 	}
 
 	go func() {
@@ -66,7 +57,7 @@ func NewController(ctx context.Context, clk clock.Clock, kubeClient client.Clien
 }
 
 func (c *Controller) run(ctx context.Context) {
-	logger := logging.FromContext(ctx).Named("notification")
+	logger := logging.FromContext(ctx).Named("infrastructure")
 	ctx = logging.WithLogger(ctx, logger)
 	for {
 		select {
@@ -74,7 +65,11 @@ func (c *Controller) run(ctx context.Context) {
 			logger.Infof("Shutting down")
 			return
 		case <-time.After(pollingPeriod):
-			logging.FromContext(ctx).Infof("polled after the polling period")
+			c.ensureInfrastructure(ctx)
 		}
 	}
+}
+
+func (c *Controller) ensureInfrastructure(ctx context.Context) error {
+	return nil
 }

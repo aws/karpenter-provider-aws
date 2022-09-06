@@ -15,9 +15,7 @@ limitations under the License.
 package aws
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
@@ -204,18 +202,4 @@ func (b *CreateFleetBatcher) runCalls() {
 			}
 		}
 	}
-}
-
-func deepCopy(v *ec2.CreateFleetInput) (*ec2.CreateFleetInput, error) {
-	var buf bytes.Buffer
-	enc := json.NewEncoder(&buf)
-	if err := enc.Encode(v); err != nil {
-		return nil, err
-	}
-	dec := json.NewDecoder(&buf)
-	var cp ec2.CreateFleetInput
-	if err := dec.Decode(&cp); err != nil {
-		return nil, err
-	}
-	return &cp, nil
 }

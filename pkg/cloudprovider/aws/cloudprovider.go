@@ -77,7 +77,7 @@ type CloudProvider struct {
 	instanceTypeProvider *InstanceTypeProvider
 	instanceProvider     *InstanceProvider
 	kubeClient           k8sClient.Client
-	SQSProvider          *SQSProvider
+	sqsProvider          *SQSProvider
 }
 
 func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *CloudProvider {
@@ -112,7 +112,7 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 	instanceTypeProvider := NewInstanceTypeProvider(ctx, sess, options, ec2api, subnetProvider)
 
 	// TODO: Change this queue url value to a useful value
-	sqsProvider := NewSQSProvider(sqsapi, "https://sqs.us-west-2.amazonaws.com/330700974597/test-stack-Queue-VimlxX8fIySZ")
+	sqsProvider := NewSQSProvider(sqsapi, "test-stack-Queue-VimlxX8fIySZ")
 	cloudprovider := &CloudProvider{
 		instanceTypeProvider: instanceTypeProvider,
 		instanceProvider: NewInstanceProvider(ctx, ec2api, instanceTypeProvider, subnetProvider,
@@ -126,7 +126,7 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 				options.StartAsync,
 			),
 		),
-		SQSProvider: sqsProvider,
+		sqsProvider: sqsProvider,
 		kubeClient:  options.KubeClient,
 	}
 	v1alpha5.ValidateHook = cloudprovider.Validate
@@ -218,6 +218,10 @@ func (*CloudProvider) Validate(ctx context.Context, provisioner *v1alpha5.Provis
 		return apis.ErrGeneric(err.Error())
 	}
 	return provider.Validate()
+}
+
+func (c *CloudProvider) SQSProvider() *SQSProvider {
+	return c.sqsProvider
 }
 
 // Default the provisioner

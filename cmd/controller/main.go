@@ -17,6 +17,8 @@ package main
 import (
 	"context"
 
+	"knative.dev/pkg/logging"
+
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws"
 	awscontrollers "github.com/aws/karpenter/pkg/cloudprovider/aws/controllers"
@@ -30,6 +32,7 @@ func main() {
 		provider := aws.NewCloudProvider(ctx, options)
 		injectControllers := func(ctx context.Context, opts *controllers.ControllerOptions) {
 			recorder := awscontrollers.NewRecorder(opts.Recorder)
+			ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("aws"))
 
 			// Injecting the controllers that will start when opts.StartAsync is triggered
 			notification.NewController(ctx, opts.Clock, opts.KubeClient, provider.SQSProvider, recorder, opts.Provisioner, opts.Cluster, opts.StartAsync)

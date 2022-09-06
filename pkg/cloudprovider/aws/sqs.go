@@ -15,10 +15,9 @@ limitations under the License.
 package aws
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
+	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/sqs"
@@ -27,14 +26,25 @@ import (
 )
 
 type SQSProvider struct {
+	createQueueInput    *sqs.CreateQueueInput
+	getQueueURLInput    *sqs.GetQueueUrlInput
 	receiveMessageInput *sqs.ReceiveMessageInput
-	deleteMessageInput  *sqs.DeleteMessageInput
 	client              sqsiface.SQSAPI
+	mutex               *sync.RWMutex
+	queueURL            string
 }
 
-func NewSQSProvider(client sqsiface.SQSAPI, queueURL string) *SQSProvider {
+func NewSQSProvider(client sqsiface.SQSAPI, queueName string) *SQSProvider {
+	createQueueInput := &sqs.CreateQueueInput{
+		Attributes: map[string]*string{
+			sqs.QueueAttributeNameMessageRetentionPeriod: aws.String("300"),
+		},
+		QueueName: aws.String(queueName),
+	}
+	getQueueURLInput := &sqs.GetQueueUrlInput{
+		QueueName: aws.String(queueName),
+	}
 	receiveMessageInput := &sqs.ReceiveMessageInput{
-		QueueUrl:            aws.String(queueURL),
 		MaxNumberOfMessages: aws.Int64(10),
 		VisibilityTimeout:   aws.Int64(20), // Seconds
 		WaitTimeSeconds:     aws.Int64(20), // Seconds, maximum for long polling
@@ -46,21 +56,47 @@ func NewSQSProvider(client sqsiface.SQSAPI, queueURL string) *SQSProvider {
 		},
 	}
 
-	deleteMessageInput := &sqs.DeleteMessageInput{
-		QueueUrl: aws.String(queueURL),
-	}
-
 	return &SQSProvider{
+		createQueueInput:    createQueueInput,
+		getQueueURLInput:    getQueueURLInput,
 		receiveMessageInput: receiveMessageInput,
-		deleteMessageInput:  deleteMessageInput,
 		client:              client,
+		mutex:               &sync.RWMutex{},
 	}
+}
+
+func (s *SQSProvider) DiscoverQueueURL(ctx context.Context) (string, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	if s.queueURL != "" {
+		return s.queueURL, nil
+	}
+	result, err := s.client.GetQueueUrlWithContext(ctx, s.getQueueURLInput)
+	if err != nil {
+		return "", fmt.Errorf("failed fetching queue url, %w", err)
+	}
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	s.queueURL = aws.StringValue(result.QueueUrl)
+	return aws.StringValue(result.QueueUrl), nil
 }
 
 func (s *SQSProvider) GetSQSMessages(ctx context.Context) ([]*sqs.Message, error) {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("sqsClient.getMessages"))
 
-	result, err := s.client.ReceiveMessageWithContext(ctx, s.receiveMessageInput)
+	queueURL, err := s.DiscoverQueueURL(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed getting sqs messages, %w", err)
+	}
+
+	// Copy the input template and add the discovered queue url
+	input, err := deepCopy(s.receiveMessageInput)
+	if err != nil {
+		return nil, fmt.Errorf("error copying input, %w", err)
+	}
+	input.QueueUrl = aws.String(queueURL)
+
+	result, err := s.client.ReceiveMessageWithContext(ctx, input)
 	if err != nil {
 		logging.FromContext(ctx).
 			With("error", err).
@@ -74,11 +110,15 @@ func (s *SQSProvider) GetSQSMessages(ctx context.Context) ([]*sqs.Message, error
 func (s *SQSProvider) DeleteSQSMessage(ctx context.Context, msg *sqs.Message) error {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("sqsClient.deleteMessage"))
 
-	input, err := deepCopyDeleteMessage(s.deleteMessageInput)
+	queueURL, err := s.DiscoverQueueURL(ctx)
 	if err != nil {
-		return fmt.Errorf("error copying delete message input, %w", err)
+		return fmt.Errorf("failed getting sqs messages, %w", err)
 	}
-	input.ReceiptHandle = msg.ReceiptHandle
+
+	input := &sqs.DeleteMessageInput{
+		QueueUrl:      aws.String(queueURL),
+		ReceiptHandle: msg.ReceiptHandle,
+	}
 
 	_, err = s.client.DeleteMessageWithContext(ctx, input)
 	if err != nil {
@@ -89,18 +129,4 @@ func (s *SQSProvider) DeleteSQSMessage(ctx context.Context, msg *sqs.Message) er
 	}
 
 	return nil
-}
-
-func deepCopyDeleteMessage(input *sqs.DeleteMessageInput) (*sqs.DeleteMessageInput, error) {
-	var buf bytes.Buffer
-	enc := json.NewEncoder(&buf)
-	if err := enc.Encode(input); err != nil {
-		return nil, err
-	}
-	dec := json.NewDecoder(&buf)
-	var cp sqs.DeleteMessageInput
-	if err := dec.Decode(&cp); err != nil {
-		return nil, err
-	}
-	return &cp, nil
 }

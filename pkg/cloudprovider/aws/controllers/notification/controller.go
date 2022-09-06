@@ -48,7 +48,7 @@ var Actions = struct {
 	NoAction:       "NoAction",
 }
 
-// Controller is the consolidation controller.  It is not a standard controller-runtime controller in that it doesn't
+// Controller is the notification controller. It is not a standard controller-runtime controller in that it doesn't
 // have a reconcile method.
 type Controller struct {
 	kubeClient  client.Client
@@ -112,7 +112,6 @@ func (c *Controller) pollSQS(ctx context.Context) error {
 	if len(sqsMessages) == 0 {
 		return nil
 	}
-
 	instanceIDMap := c.makeInstanceIDMap()
 	for _, msg := range sqsMessages {
 		e := c.handleMessage(ctx, instanceIDMap, msg)
@@ -134,15 +133,13 @@ func (c *Controller) handleMessage(ctx context.Context, instanceIDMap map[string
 
 	for i := range nodes {
 		node := nodes[i]
-		c.notificationForEvent(evt, node)
+		c.notifyForEvent(evt, node)
 
 		if action != Actions.NoAction {
 			e := c.handleInstance(ctx, node, evtAction)
 			err = multierr.Append(err, e)
 		}
 	}
-
-	// If everything is successful, we can delete the notification associated with this event
 	if err != nil {
 		return err
 	}
@@ -159,7 +156,7 @@ func (c *Controller) handleInstance(ctx context.Context, node *v1.Node, _ Action
 	return nil
 }
 
-func (c *Controller) notificationForEvent(evt event.Interface, n *v1.Node) {
+func (c *Controller) notifyForEvent(evt event.Interface, n *v1.Node) {
 	switch evt.Kind() {
 	case event.Kinds.RebalanceRecommendation:
 		c.recorder.EC2SpotRebalanceRecommendation(n)
