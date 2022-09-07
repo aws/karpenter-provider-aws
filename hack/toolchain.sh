@@ -19,6 +19,7 @@ tools() {
     go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.8.0
     go install github.com/sigstore/cosign/cmd/cosign@v1.10.0
     go install github.com/gohugoio/hugo@v0.97.3+extended
+    go install golang.org/x/vuln/cmd/govulncheck@v0.0.0-20220902211423-27dd78d2ca39
 
     if ! echo "$PATH" | grep -q "${GOPATH:-undefined}/bin\|$HOME/go/bin"; then
         echo "Go workspace's \"bin\" directory is not in PATH. Run 'export PATH=\"\$PATH:\${GOPATH:-\$HOME/go}/bin\"'."
