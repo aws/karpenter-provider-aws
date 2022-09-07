@@ -357,25 +357,18 @@ func (i *InstanceType) miscResources(overheadPercentage float64) v1.ResourceList
 func (i *InstanceType) computeMaxPods(ctx context.Context, kc *v1alpha5.KubeletConfiguration) *int64 {
 	amiFamily := amifamily.GetAMIFamily(i.provider.AMIFamily, &amifamily.Options{})
 	var mp *int64
-	if kc != nil {
-		if ptr.Int32Value(kc.PodsPerCore) > 0 && amiFamily.PodsPerCoreEnabled() {
-			mp = ptr.Int64(int64(ptr.Int32Value(kc.PodsPerCore)) * ptr.Int64Value(i.VCpuInfo.DefaultVCpus))
-		}
-		if kc.MaxPods != nil {
-			if mp == nil {
-				mp = ptr.Int64(int64(ptr.Int32Value(kc.MaxPods)))
-			} else if int64(ptr.Int32Value(kc.MaxPods)) < ptr.Int64Value(mp) {
-				mp = ptr.Int64(int64(ptr.Int32Value(kc.MaxPods)))
-			}
-		}
+
+	switch {
+	case kc != nil && kc.MaxPods != nil:
+		mp = ptr.Int64(int64(ptr.Int32Value(kc.MaxPods)))
+	case !injection.GetOptions(ctx).AWSENILimitedPodDensity:
+		mp = ptr.Int64(110)
+	default:
+		mp = ptr.Int64(i.eniLimitedPods())
 	}
-	// If we still haven't set an override get the default --max-pods
-	if mp == nil {
-		if !injection.GetOptions(ctx).AWSENILimitedPodDensity {
-			mp = ptr.Int64(110)
-		} else {
-			mp = ptr.Int64(i.eniLimitedPods())
-		}
+
+	if kc != nil && ptr.Int32Value(kc.PodsPerCore) > 0 && amiFamily.PodsPerCoreEnabled() {
+		mp = ptr.Int64(lo.Min([]int64{int64(ptr.Int32Value(kc.PodsPerCore)) * ptr.Int64Value(i.VCpuInfo.DefaultVCpus), ptr.Int64Value(mp)}))
 	}
 	return mp
 }
