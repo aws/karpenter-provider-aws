@@ -71,6 +71,7 @@ verify: codegen ## Verify code. Includes dependencies, linting, formatting, etc
 		fi;}
 	@echo "Validating codegen/docgen build scripts..."
 	@find hack/code hack/docs -name "*.go" -type f -exec go build -o /dev/null {} \;
+	@govulncheck ./pkg/...
 
 licenses: ## Verifies dependency licenses
 	go mod download
