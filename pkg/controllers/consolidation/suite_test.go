@@ -53,6 +53,7 @@ var ctx context.Context
 var env *test.Environment
 var cluster *state.Cluster
 var controller *consolidation.Controller
+var provisioningController *provisioning.Controller
 var provisioner *provisioning.Provisioner
 var cloudProvider *fake.CloudProvider
 var clientSet *kubernetes.Clientset
@@ -82,6 +83,7 @@ var _ = BeforeSuite(func() {
 		clientSet = kubernetes.NewForConfigOrDie(e.Config)
 		recorder = test.NewEventRecorder()
 		provisioner = provisioning.NewProvisioner(ctx, cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+		provisioningController = provisioning.NewController(env.Client, provisioner, recorder)
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })
@@ -639,6 +641,72 @@ var _ = Describe("Replace Nodes", func() {
 
 		// should create a new node as there is a cheaper one that can hold the pod
 		Expect(cloudProvider.CreateCalls).To(HaveLen(1))
+	})
+	It("schedule an additional node when receiving pending pods while consolidating", func() {
+		labels := map[string]string{
+			"app": "test",
+		}
+		// create our RS so we can link a pod to it
+		rs := test.ReplicaSet()
+		ExpectApplied(ctx, env.Client, rs)
+		Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(rs), rs)).To(Succeed())
+
+		pod := test.Pod(test.PodOptions{
+			ObjectMeta: metav1.ObjectMeta{Labels: labels,
+				OwnerReferences: []metav1.OwnerReference{
+					{
+						APIVersion:         "apps/v1",
+						Kind:               "ReplicaSet",
+						Name:               rs.Name,
+						UID:                rs.UID,
+						Controller:         aws.Bool(true),
+						BlockOwnerDeletion: aws.Bool(true),
+					},
+				}}})
+
+		prov := test.Provisioner(test.ProvisionerOptions{Consolidation: &v1alpha5.Consolidation{Enabled: aws.Bool(true)}})
+
+		// Add a finalizer to the node so that it sticks around for the scheduling loop
+		node := test.Node(test.NodeOptions{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					v1alpha5.ProvisionerNameLabelKey: prov.Name,
+					v1.LabelInstanceTypeStable:       mostExpensiveInstance.Name(),
+					v1alpha5.LabelCapacityType:       mostExpensiveOffering.CapacityType,
+					v1.LabelTopologyZone:             mostExpensiveOffering.Zone,
+				},
+				Finalizers: []string{"karpenter.sh/test-finalizer"},
+			},
+			Allocatable: map[v1.ResourceName]resource.Quantity{v1.ResourceCPU: resource.MustParse("32")}})
+
+		ExpectApplied(ctx, env.Client, rs, pod, node, prov)
+		ExpectMakeNodesReady(ctx, env.Client, node)
+		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node))
+		ExpectManualBinding(ctx, env.Client, pod, node)
+		ExpectScheduled(ctx, env.Client, pod)
+		Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(node), node)).To(Succeed())
+
+		fakeClock.Step(10 * time.Minute)
+
+		// Run the processing loop in parallel in the background with environment context
+		go func() {
+			_, err := controller.ProcessCluster(env.Ctx)
+			Expect(err).ToNot(HaveOccurred())
+		}()
+
+		Eventually(func(g Gomega) {
+			// should create a new node as there is a cheaper one that can hold the pod
+			nodes := &v1.NodeList{}
+			g.Expect(env.Client.List(ctx, nodes)).To(Succeed())
+			g.Expect(len(nodes.Items)).To(Equal(2))
+		}).Should(Succeed())
+
+		// Add a new pending pod that should schedule while node is not yet deleted
+		pods := ExpectProvisionedNoBinding(ctx, env.Client, provisioningController, test.UnschedulablePod())
+		nodes := &v1.NodeList{}
+		Expect(env.Client.List(ctx, nodes)).To(Succeed())
+		Expect(len(nodes.Items)).To(Equal(3))
+		Expect(pods[0].Spec.NodeName).NotTo(Equal(node.Name))
 	})
 })
 

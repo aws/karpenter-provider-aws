@@ -82,7 +82,7 @@ var _ = BeforeSuite(func() {
 })
 
 var _ = BeforeEach(func() {
-	cloudProvider = &fake.CloudProvider{}
+	recorder.Reset()
 	cluster = state.NewCluster(fakeClock, cfg, env.Client, cloudProvider)
 })
 
@@ -206,13 +206,11 @@ var _ = Describe("Provisioning", func() {
 		ExpectApplied(ctx, env.Client, node, provisioner)
 		ExpectReconcileSucceeded(ctx, nodeController, client.ObjectKeyFromObject(node))
 
-		var scheduledPods []*v1.Pod
-		// Schedule 10 pods to the node that currently exists
-		for i := 0; i < 5; i++ {
+		// Schedule 3 pods to the node that currently exists
+		for i := 0; i < 3; i++ {
 			pod := test.UnschedulablePod()
 			ExpectApplied(ctx, env.Client, pod)
 			ExpectManualBinding(ctx, env.Client, pod, node)
-			scheduledPods = append(scheduledPods, pod)
 		}
 
 		// Node shouldn't fully delete since it has a finalizer
@@ -221,7 +219,7 @@ var _ = Describe("Provisioning", func() {
 
 		// Provision without a binding since some pods will already be bound
 		// Should all schedule to the new node, ignoring the old node
-		ExpectProvisionedNoBinding(ctx, env.Client, controller, test.UnschedulablePod(), test.UnschedulablePod(), test.UnschedulablePod())
+		ExpectProvisionedNoBinding(ctx, env.Client, controller, test.UnschedulablePod(), test.UnschedulablePod())
 		nodes := &v1.NodeList{}
 		Expect(env.Client.List(ctx, nodes)).To(Succeed())
 		Expect(len(nodes.Items)).To(Equal(2))

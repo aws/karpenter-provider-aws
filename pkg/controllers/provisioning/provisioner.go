@@ -25,6 +25,7 @@ import (
 
 	"github.com/imdario/mergo"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -141,9 +142,12 @@ func (p *Provisioner) Provision(ctx context.Context) error {
 	// scheduling loop when we launch a new node.  When this order is reversed, our node capacity may be reduced by pods
 	// that have bound which we then provision new un-needed capacity for.
 	var stateNodes []*state.Node
+	var markedForDeletionNodes []*state.Node
 	p.cluster.ForEachNode(func(node *state.Node) bool {
 		if !node.MarkedForDeletion {
 			stateNodes = append(stateNodes, node.DeepCopy())
+		} else {
+			markedForDeletionNodes = append(markedForDeletionNodes, node.DeepCopy())
 		}
 		return true
 	})
@@ -153,9 +157,11 @@ func (p *Provisioner) Provision(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	// Get pods from nodes that are preparing for deletion or are
-	// actively being deleted
-	deletingNodePods, err := p.getDeletingNodePods(ctx)
+	// Get pods from nodes that are preparing for deletion
+	// We do this after getting the pending pods so that we undershoot if pods are
+	// actively migrating from a node that is being deleted
+	// NOTE: The assumption is that these nodes are cordoned and no additional pods will schedule to them
+	deletingNodePods, err := p.getDeletingNodePods(ctx, markedForDeletionNodes)
 	if err != nil {
 		return err
 	}
@@ -226,18 +232,10 @@ func (p *Provisioner) getPendingPods(ctx context.Context) ([]*v1.Pod, error) {
 	return pods, nil
 }
 
-func (p *Provisioner) getDeletingNodePods(ctx context.Context) ([]*v1.Pod, error) {
-	var nodeNames []string
+func (p *Provisioner) getDeletingNodePods(ctx context.Context, nodes []*state.Node) ([]*v1.Pod, error) {
 	var pods []*v1.Pod
 
-	// Get the node names of the nodes that are marked for deletion
-	p.cluster.ForEachNode(func(n *state.Node) bool {
-		if n.MarkedForDeletion {
-			nodeNames = append(nodeNames, n.Node.Name)
-		}
-		return true
-	})
-
+	nodeNames := lo.Map(nodes, func(n *state.Node, _ int) string { return n.Node.Name })
 	for _, name := range nodeNames {
 		nodePods, err := node.GetNodePods(ctx, p.kubeClient, name)
 		if err != nil {

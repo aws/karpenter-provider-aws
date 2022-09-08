@@ -180,6 +180,15 @@ func (c *Cluster) NominateNodeForPod(nodeName string) {
 	c.nominatedNodes.SetDefault(nodeName, nil)
 }
 
+// UnmarkForDeletion removes the marking on the node as a node the controller intends to delete
+func (c *Cluster) UnmarkForDeletion(nodeName string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if _, ok := c.nodes[nodeName]; ok {
+		c.nodes[nodeName].MarkedForDeletion = false
+	}
+}
+
 // MarkForDeletion marks the node as pending deletion in the internal cluster state
 func (c *Cluster) MarkForDeletion(nodeName string) {
 	c.mu.Lock()

@@ -508,7 +508,7 @@ var _ = Describe("Node Resource Level", func() {
 		ExpectNodeResourceRequest(node, v1.ResourceCPU, "2.5")
 		ExpectNodeResourceRequest(node, v1.ResourceMemory, "2Gi")
 	})
-	FIt("should mark node for deletion when node is deleted", func() {
+	It("should mark node for deletion when node is deleted", func() {
 		node := test.Node(test.NodeOptions{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{

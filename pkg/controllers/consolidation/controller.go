@@ -368,21 +368,22 @@ func byNodeDisruptionCost(nodes []candidateNode) func(i int, j int) bool {
 }
 
 // launchReplacementNode launches a replacement node and blocks until it is ready
-func (c *Controller) launchReplacementNode(ctx context.Context, minCost consolidationAction) error {
+func (c *Controller) launchReplacementNode(ctx context.Context, action consolidationAction) error {
 	defer metrics.Measure(consolidationReplacementNodeInitializedHistogram)()
-	if len(minCost.oldNodes) != 1 {
-		return fmt.Errorf("expected a single node to replace, found %d", len(minCost.oldNodes))
+	if len(action.oldNodes) != 1 {
+		return fmt.Errorf("expected a single node to replace, found %d", len(action.oldNodes))
 	}
+	oldNode := action.oldNodes[0]
 
 	// cordon the node before we launch the replacement to prevent new pods from scheduling to the node
-	if err := c.setNodeUnschedulable(ctx, minCost.oldNodes[0].Name, true); err != nil {
-		return fmt.Errorf("cordoning node %s, %w", minCost.oldNodes[0].Name, err)
+	if err := c.setNodeUnschedulable(ctx, action.oldNodes[0].Name, true); err != nil {
+		return fmt.Errorf("cordoning node %s, %w", oldNode.Name, err)
 	}
 
-	nodeNames, err := c.provisioner.LaunchNodes(ctx, provisioning.LaunchOptions{RecordPodNomination: false}, minCost.replacementNode)
+	nodeNames, err := c.provisioner.LaunchNodes(ctx, provisioning.LaunchOptions{RecordPodNomination: false}, action.replacementNode)
 	if err != nil {
 		// uncordon the node as the launch may fail (e.g. ICE or incompatible AMI)
-		err = multierr.Append(err, c.setNodeUnschedulable(ctx, minCost.oldNodes[0].Name, false))
+		err = multierr.Append(err, c.setNodeUnschedulable(ctx, oldNode.Name, false))
 		return err
 	}
 	if len(nodeNames) != 1 {
@@ -392,6 +393,9 @@ func (c *Controller) launchReplacementNode(ctx context.Context, minCost consolid
 
 	consolidationNodesCreatedCounter.Add(1)
 
+	// We have the new node created at the API server so mark the old node for deletion
+	c.cluster.MarkForDeletion(oldNode.Name)
+
 	var k8Node v1.Node
 	// Wait for the node to be ready
 	var once sync.Once
@@ -400,7 +404,7 @@ func (c *Controller) launchReplacementNode(ctx context.Context, minCost consolid
 			return fmt.Errorf("getting node, %w", err)
 		}
 		once.Do(func() {
-			c.recorder.LaunchingNodeForConsolidation(&k8Node, minCost.String())
+			c.recorder.LaunchingNodeForConsolidation(&k8Node, action.String())
 		})
 
 		if _, ok := k8Node.Labels[v1alpha5.LabelNodeInitialized]; !ok {
@@ -411,7 +415,8 @@ func (c *Controller) launchReplacementNode(ctx context.Context, minCost consolid
 		return nil
 	}, waitRetryOptions...); err != nil {
 		// node never become ready, so uncordon the node we were trying to delete and report the error
-		return multierr.Combine(c.setNodeUnschedulable(ctx, minCost.oldNodes[0].Name, false),
+		c.cluster.UnmarkForDeletion(oldNode.Name)
+		return multierr.Combine(c.setNodeUnschedulable(ctx, oldNode.Name, false),
 			fmt.Errorf("timed out checking node readiness, %w", err))
 	}
 	return nil
