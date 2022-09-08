@@ -77,11 +77,12 @@ func (p *InstanceProvider) Create(ctx context.Context, provider *v1alpha1.AWS, n
 		nodeRequest.InstanceTypeOptions = nodeRequest.InstanceTypeOptions[0:MaxInstanceTypes]
 	}
 
-	id, err := p.launchInstance(ctx, provider, nodeRequest)
+	tags := v1alpha1.ToEC2Tags(v1alpha1.MergeProviderTags(ctx, injection.GetNamespacedName(ctx).Name, provider))
+	id, err := p.launchInstance(ctx, provider, nodeRequest, tags)
 	if isLaunchTemplateNotFound(err) {
 		// retry once if launch template is not found. This allows karpenter to generate a new LT if the
 		// cache was out-of-sync on the first try
-		id, err = p.launchInstance(ctx, provider, nodeRequest)
+		id, err = p.launchInstance(ctx, provider, nodeRequest, tags)
 	}
 	if err != nil {
 		return nil, err
@@ -105,7 +106,7 @@ func (p *InstanceProvider) Create(ctx context.Context, provider *v1alpha1.AWS, n
 	)
 
 	// Convert Instance to Node
-	return p.instanceToNode(ctx, instance, nodeRequest.InstanceTypeOptions), nil
+	return p.instanceToNode(ctx, instance, nodeRequest.InstanceTypeOptions, tags), nil
 }
 
 func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
@@ -132,7 +133,60 @@ func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
 	return nil
 }
 
-func (p *InstanceProvider) launchInstance(ctx context.Context, provider *v1alpha1.AWS, nodeRequest *cloudprovider.NodeRequest) (*string, error) {
+func (p *InstanceProvider) ReconcileTags(ctx context.Context, tags map[string]string, node *v1.Node) error {
+	id, err := getInstanceID(node)
+	if err != nil {
+		return fmt.Errorf("getting instance ID for node %s, %w", node.Name, err)
+	}
+
+	oldTags, err := p.ec2api.DescribeTagsWithContext(ctx, &ec2.DescribeTagsInput{
+		Filters: []*ec2.Filter{
+			{
+				Name:   aws.String("resource-id"),
+				Values: []*string{id},
+			},
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("listing tags on instance id %s, %w", aws.StringValue(id), err)
+	}
+
+	removeTags := lo.FilterMap(oldTags.Tags, func(tag *ec2.TagDescription, _ int) (*ec2.Tag, bool) {
+		key := aws.StringValue(tag.Key)
+		_, ok := tags[key]
+		if !ok && !strings.HasPrefix(key, "aws") {
+			return &ec2.Tag{
+				Key: tag.Key,
+			}, true
+		}
+		return &ec2.Tag{}, false
+	})
+
+	ec2Tags := v1alpha1.ToEC2Tags(tags)
+	_, err = p.ec2api.CreateTagsWithContext(ctx, &ec2.CreateTagsInput{
+		Tags:      ec2Tags,
+		Resources: []*string{id},
+	})
+
+	if err != nil {
+		return fmt.Errorf("setting tags on instance id %s, %w", aws.StringValue(id), err)
+	}
+
+	if len(removeTags) > 0 {
+		_, err = p.ec2api.DeleteTagsWithContext(ctx, &ec2.DeleteTagsInput{
+			Tags:      removeTags,
+			Resources: []*string{id},
+		})
+
+		if err != nil {
+			return fmt.Errorf("removing tags on instance id %s, %w", aws.StringValue(id), err)
+		}
+	}
+
+	return nil
+}
+
+func (p *InstanceProvider) launchInstance(ctx context.Context, provider *v1alpha1.AWS, nodeRequest *cloudprovider.NodeRequest, tags []*ec2.Tag) (*string, error) {
 	capacityType := p.getCapacityType(nodeRequest)
 	// Get Launch Template Configs, which may differ due to GPU or Architecture requirements
 	launchTemplateConfigs, err := p.getLaunchTemplateConfigs(ctx, provider, nodeRequest, capacityType)
@@ -143,7 +197,6 @@ func (p *InstanceProvider) launchInstance(ctx context.Context, provider *v1alpha
 		logging.FromContext(ctx).Warn(err.Error())
 	}
 	// Create fleet
-	tags := v1alpha1.MergeTags(ctx, provider.Tags, map[string]string{fmt.Sprintf("kubernetes.io/cluster/%s", injection.GetOptions(ctx).ClusterName): "owned"})
 	createFleetInput := &ec2.CreateFleetInput{
 		Type:                  aws.String(ec2.FleetTypeInstant),
 		Context:               provider.Context,
@@ -324,7 +377,7 @@ func (p *InstanceProvider) getInstance(ctx context.Context, id string) (*ec2.Ins
 	return instance, nil
 }
 
-func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Instance, instanceTypes []cloudprovider.InstanceType) *v1.Node {
+func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Instance, instanceTypes []cloudprovider.InstanceType, tags []*ec2.Tag) *v1.Node {
 	for _, instanceType := range instanceTypes {
 		if instanceType.Name() == aws.StringValue(instance.InstanceType) {
 			nodeName := strings.ToLower(aws.StringValue(instance.PrivateDnsName))
@@ -340,6 +393,7 @@ func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Ins
 			}
 			labels[v1.LabelTopologyZone] = aws.StringValue(instance.Placement.AvailabilityZone)
 			labels[v1alpha5.LabelCapacityType] = getCapacityType(instance)
+			labels[v1alpha5.TagsVersionKey] = v1alpha1.GetTagsHash(tags)
 
 			return &v1.Node{
 				ObjectMeta: metav1.ObjectMeta{

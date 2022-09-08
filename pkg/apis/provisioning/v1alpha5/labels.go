@@ -35,6 +35,7 @@ var (
 	DoNotConsolidateNodeAnnotationKey = KarpenterLabelDomain + "/do-not-consolidate"
 	EmptinessTimestampAnnotationKey   = Group + "/emptiness-timestamp"
 	TerminationFinalizer              = Group + "/termination"
+	TagsVersionKey                    = Group + "/tags-version"
 
 	LabelCapacityType    = KarpenterLabelDomain + "/capacity-type"
 	LabelNodeInitialized = KarpenterLabelDomain + "/initialized"
@@ -46,7 +47,7 @@ var (
 		KarpenterLabelDomain,
 	)
 
-	// LabelDomainException are sub-domains of the RestrictedLabelDomains but allowed because
+	// LabelDomainExceptions are sub-domains of the RestrictedLabelDomains but allowed because
 	// they are not used in a context where they may be passed as argument to kubelet.
 	LabelDomainExceptions = sets.NewString(
 		"kops.k8s.io",

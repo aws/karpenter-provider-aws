@@ -172,6 +172,7 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, optio
 	if err != nil {
 		return nil, err
 	}
+	provisionerName := injection.GetNamespacedName(ctx).Name
 	output, err := p.ec2api.CreateLaunchTemplateWithContext(ctx, &ec2.CreateLaunchTemplateInput{
 		LaunchTemplateName: aws.String(launchTemplateName(options)),
 		LaunchTemplateData: &ec2.RequestLaunchTemplateData{
@@ -189,13 +190,13 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, optio
 				HttpTokens:              options.MetadataOptions.HTTPTokens,
 			},
 			TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{
-				{ResourceType: aws.String(ec2.ResourceTypeNetworkInterface), Tags: v1alpha1.MergeTags(ctx, options.Tags)},
+				{ResourceType: aws.String(ec2.ResourceTypeNetworkInterface), Tags: v1alpha1.ToEC2Tags(v1alpha1.MergeTags(provisionerName, options.Tags))},
 			},
 		},
 		TagSpecifications: []*ec2.TagSpecification{
 			{
 				ResourceType: aws.String(ec2.ResourceTypeLaunchTemplate),
-				Tags:         v1alpha1.MergeTags(ctx, options.Tags, map[string]string{karpenterManagedTagKey: options.ClusterName}),
+				Tags:         v1alpha1.ToEC2Tags(v1alpha1.MergeTags(provisionerName, options.Tags, map[string]string{karpenterManagedTagKey: options.ClusterName})),
 			},
 		},
 	})

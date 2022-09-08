@@ -48,6 +48,9 @@ type CloudProvider interface {
 	Create(context.Context, *NodeRequest) (*v1.Node, error)
 	// Delete node in cloudprovider
 	Delete(context.Context, *v1.Node) error
+	// ReconcileTags will reconcile a node with the most current versions of the tags specified by its provisioner. If
+	// successful, it will return the computed hash of the set of tags that has been applied to the node.
+	ReconcileTags(context.Context, *v1alpha5.Provisioner, *v1.Node) (string, error)
 	// GetInstanceTypes returns instance types supported by the cloudprovider.
 	// Availability of types or zone may vary by provisioner or over time.  Regardless of
 	// availability, the GetInstanceTypes method should always return all instance types,

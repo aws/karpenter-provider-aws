@@ -17,6 +17,8 @@ package node
 import (
 	"context"
 	"fmt"
+	awsv1alpha1 "github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
+	"github.com/samber/lo"
 
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
@@ -48,6 +50,7 @@ func NewController(clk clock.Clock, kubeClient client.Client, cloudProvider clou
 		initialization: &Initialization{kubeClient: kubeClient, cloudProvider: cloudProvider},
 		emptiness:      &Emptiness{kubeClient: kubeClient, clock: clk, cluster: cluster},
 		expiration:     &Expiration{kubeClient: kubeClient, clock: clk},
+		tags:           &Tags{cloudProvider: cloudProvider},
 	}
 }
 
@@ -59,6 +62,7 @@ type Controller struct {
 	emptiness      *Emptiness
 	expiration     *Expiration
 	finalizer      *Finalizer
+	tags           *Tags
 }
 
 // Reconcile executes a reallocation control loop for the resource
@@ -99,6 +103,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		c.expiration,
 		c.emptiness,
 		c.finalizer,
+		c.tags,
 	} {
 		res, err := reconciler.Reconcile(ctx, provisioner, node)
 		errs = multierr.Append(errs, err)
@@ -145,6 +150,34 @@ func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
 				if name := o.(*v1.Pod).Spec.NodeName; name != "" {
 					requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Name: name}})
 				}
+				return requests
+			}),
+		).
+		Watches(
+			// Reconcile all nodes related to a nodetemplate when it changes.
+			&source.Kind{Type: &awsv1alpha1.AWSNodeTemplate{}},
+			handler.EnqueueRequestsFromMapFunc(func(o client.Object) (requests []reconcile.Request) {
+				var provisionerList v1alpha5.ProvisionerList
+				if err := c.kubeClient.List(ctx, &provisionerList); err != nil {
+					logging.FromContext(ctx).Errorf("Failed to list provisioners when mapping node template watch events, %s", err)
+					return requests
+				}
+
+				provisioners := lo.Filter(provisionerList.Items, func(p v1alpha5.Provisioner, _ int) bool {
+					return o.GetName() == p.Spec.ProviderRef.Name
+				})
+
+				for _, provisioner := range provisioners {
+					nodes := &v1.NodeList{}
+					if err := c.kubeClient.List(ctx, nodes, client.MatchingLabels(map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name})); err != nil {
+						logging.FromContext(ctx).Errorf("Failed to list nodes when mapping node template watch events, %s", err)
+						return requests
+					}
+					for _, node := range nodes.Items {
+						requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Name: node.Name}})
+					}
+				}
+
 				return requests
 			}),
 		).

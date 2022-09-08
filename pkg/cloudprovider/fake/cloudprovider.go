@@ -42,6 +42,16 @@ type CloudProvider struct {
 	CreateCalls []*cloudprovider.NodeRequest
 }
 
+func (c *CloudProvider) ReconcileTags(ctx context.Context, provisioner *v1alpha5.Provisioner, node *v1.Node) (string, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (c *CloudProvider) GetCurrentTagsVersion(ctx context.Context, provisioner *v1alpha5.Provisioner) (string, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
 var _ cloudprovider.CloudProvider = (*CloudProvider)(nil)
 var _ cloudprovider.InstanceType = (*InstanceType)(nil)
 

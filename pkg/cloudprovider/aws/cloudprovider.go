@@ -147,6 +147,25 @@ func (c *CloudProvider) Create(ctx context.Context, nodeRequest *cloudprovider.N
 	return c.instanceProvider.Create(ctx, aws, nodeRequest)
 }
 
+func (c *CloudProvider) ReconcileTags(ctx context.Context, provisioner *v1alpha5.Provisioner, node *v1.Node) (string, error) {
+	aws, err := c.getProvider(ctx, provisioner.Spec.Provider, provisioner.Spec.ProviderRef)
+	if err != nil {
+		return "", err
+	}
+
+	tags := v1alpha1.MergeProviderTags(ctx, node.Labels[v1alpha5.ProvisionerNameLabelKey], aws)
+	tagsHash := v1alpha1.GetTagsHash(v1alpha1.ToEC2Tags(tags))
+
+	if tagsHash != node.Labels[v1alpha5.TagsVersionKey] {
+		err := c.instanceProvider.ReconcileTags(ctx, tags, node)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	return tagsHash, nil
+}
+
 func (c *CloudProvider) LivenessProbe(req *http.Request) error {
 	if err := c.instanceTypeProvider.LivenessProbe(req); err != nil {
 		return err
