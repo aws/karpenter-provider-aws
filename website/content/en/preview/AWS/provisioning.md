@@ -303,7 +303,7 @@ The standard rules for `Gt` and `Lt` apply:
 1. There can be only one value in the requirement
 2. The value must be an integer
 
-These requirements can be useful to select nodes of a particular "shape". For example the following filters out all instance types with more than 8 CPUs or more than 16 GiB of memory::
+These requirements can be useful to select nodes of a particular "shape". For example the following filters out all instance types with more than 8 CPUs or more than 16 GiB of memory:
 
 ```yaml
   - key: karpenter.k8s.aws/instance-cpu
@@ -337,7 +337,7 @@ Accelerator (e.g., GPU) values include
 Karpenter supports accelerators, such as GPUs.
 
 
-Additionally, include a resource requirement in the workload manifest. This will cause the GPU dependent pod will be scheduled onto the appropriate node.
+Additionally, include a resource requirement in the workload manifest. This will cause the GPU dependent pod to be scheduled onto the appropriate node.
 
 Here is an example of an accelerator resource in a workload manifest (e.g., pod):
 
