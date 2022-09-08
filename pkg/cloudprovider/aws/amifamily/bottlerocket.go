@@ -86,6 +86,11 @@ func (b Bottlerocket) ENILimitedMemoryOverhead() bool {
 	return false
 }
 
+// PodsPerCoreEnabled is currently disabled for Bottlerocket AMIFamily because it does
+// not currently support the podsPerCore parameter passed through the kubernetes settings TOML userData
+// If a Provisioner sets the podsPerCore value when using the Bottlerocket AMIFamily in the provider,
+// podsPerCore will be ignored
+// https://github.com/bottlerocket-os/bottlerocket/issues/1721
 func (b Bottlerocket) PodsPerCoreEnabled() bool {
 	return false
 }

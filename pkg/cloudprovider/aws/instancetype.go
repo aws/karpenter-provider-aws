@@ -322,26 +322,28 @@ func (i *InstanceType) evictionThreshold(kc *v1alpha5.KubeletConfiguration, vmMe
 	overhead := v1.ResourceList{
 		v1.ResourceMemory: resource.MustParse("100Mi"),
 	}
-	if kc != nil && kc.EvictionHard != nil {
-		if v, ok := kc.EvictionHard[memoryAvailable]; ok {
-			if strings.Contains(v, "%") {
-				p, err := strconv.ParseFloat(strings.Trim(v, "%"), 64)
-				if err != nil {
-					panic(fmt.Sprintf("expected percentage value to be a float but got %s, %v", v, err))
-				}
-				// Setting percentage value to 100% is considered disabling the threshold according to
-				// https://kubernetes.io/docs/reference/config-api/kubelet-config.v1beta1/
-				if p == 100 {
-					p = 0
-				}
-				// Calculation is node.capacity * evictionHard[memory.available] if percentage
-				// From https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/#eviction-signals
-				totalAllocatable := i.resources.Memory().DeepCopy()
-				totalAllocatable.Sub(vmMemoryOverhead)
-				overhead[v1.ResourceMemory] = resource.MustParse(fmt.Sprint(math.Ceil(float64(totalAllocatable.Value()) / 100 * p)))
-			} else {
-				overhead[v1.ResourceMemory] = resource.MustParse(v)
+	if kc == nil || kc.EvictionHard == nil {
+		return overhead
+	}
+
+	if v, ok := kc.EvictionHard[memoryAvailable]; ok {
+		if strings.HasSuffix(v, "%") {
+			p, err := strconv.ParseFloat(strings.Trim(v, "%"), 64)
+			if err != nil {
+				panic(fmt.Sprintf("expected percentage value to be a float but got %s, %v", v, err))
 			}
+			// Setting percentage value to 100% is considered disabling the threshold according to
+			// https://kubernetes.io/docs/reference/config-api/kubelet-config.v1beta1/
+			if p == 100 {
+				p = 0
+			}
+			// Calculation is node.capacity * evictionHard[memory.available] if percentage
+			// From https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/#eviction-signals
+			totalAllocatable := i.resources.Memory().DeepCopy()
+			totalAllocatable.Sub(vmMemoryOverhead)
+			overhead[v1.ResourceMemory] = resource.MustParse(fmt.Sprint(math.Ceil(float64(totalAllocatable.Value()) / 100 * p)))
+		} else {
+			overhead[v1.ResourceMemory] = resource.MustParse(v)
 		}
 	}
 	return overhead
