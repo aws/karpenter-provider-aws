@@ -22,26 +22,31 @@ import (
 	"knative.dev/pkg/logging"
 
 	"github.com/aws/karpenter/pkg/cloudprovider/aws"
-	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/events"
 )
 
 // Controller is the AWS infrastructure controller.  It is not a standard controller-runtime controller in that it doesn't
 // have a reconcile method.
 type Controller struct {
 	sqsProvider *aws.SQSProvider
-	recorder    controllers.Recorder
+	recorder    events.Recorder
 	clock       clock.Clock
 }
 
 // pollingPeriod that we go to AWS APIs to ensure that the appropriate AWS infrastructure is provisioned
 const pollingPeriod = 15 * time.Minute
 
-func NewController(ctx context.Context, clk clock.Clock, recorder controllers.Recorder,
+func NewController(ctx context.Context, clk clock.Clock, recorder events.Recorder,
 	sqsProvider *aws.SQSProvider, startAsync <-chan struct{}) *Controller {
 	c := &Controller{
 		recorder:    recorder,
 		clock:       clk,
 		sqsProvider: sqsProvider,
+	}
+
+	err := sqsProvider.CreateQueue(ctx)
+	if err != nil {
+		logging.FromContext(ctx).Errorf("Creating SQS queue with policy, %v", err)
 	}
 
 	go func() {

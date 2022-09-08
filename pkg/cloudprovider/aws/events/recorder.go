@@ -12,11 +12,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controllers
+package events
 
 import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/record"
+
+	"github.com/aws/karpenter/pkg/events"
 )
 
 type recorder struct {
@@ -34,7 +36,7 @@ type Recorder interface {
 	EC2HealthWarning(*v1.Node)
 }
 
-func NewRecorder(r record.EventRecorder) Recorder {
+func NewRecorder(r events.Recorder) Recorder {
 	return recorder{
 		EventRecorder: r,
 	}

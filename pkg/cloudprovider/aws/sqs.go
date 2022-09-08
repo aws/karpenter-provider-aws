@@ -16,12 +16,14 @@ package aws
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
+	"github.com/samber/lo"
 	"knative.dev/pkg/logging"
 )
 
@@ -32,19 +34,50 @@ type SQSProvider struct {
 	client              sqsiface.SQSAPI
 	mutex               *sync.RWMutex
 	queueURL            string
+	queueName           string
+	metadata            *AccountMetadata
 }
 
-func NewSQSProvider(client sqsiface.SQSAPI, queueName string) *SQSProvider {
-	createQueueInput := &sqs.CreateQueueInput{
-		Attributes: map[string]*string{
-			sqs.QueueAttributeNameMessageRetentionPeriod: aws.String("300"),
+type AccountMetadata struct {
+	region    string
+	accountID string
+}
+
+type QueuePolicy struct {
+	Version   string                 `json:"Version"`
+	Id        string                 `json:"Id"`
+	Statement []QueuePolicyStatement `json:"Statement"`
+}
+
+type QueuePolicyStatement struct {
+	Effect    string    `json:"Effect"`
+	Principal Principal `json:"Principal"`
+	Action    []string  `json:"Action"`
+	Resource  string    `json:"Resource"`
+}
+
+type Principal struct {
+	Service []string `json:"Service"`
+}
+
+func NewSQSProvider(client sqsiface.SQSAPI, queueName, region, accountID string) *SQSProvider {
+	provider := &SQSProvider{
+		client:    client,
+		mutex:     &sync.RWMutex{},
+		queueName: queueName,
+		metadata: &AccountMetadata{
+			region:    region,
+			accountID: accountID,
 		},
+	}
+	provider.createQueueInput = &sqs.CreateQueueInput{
+		Attributes: provider.getQueueAttributes(),
+		QueueName:  aws.String(queueName),
+	}
+	provider.getQueueURLInput = &sqs.GetQueueUrlInput{
 		QueueName: aws.String(queueName),
 	}
-	getQueueURLInput := &sqs.GetQueueUrlInput{
-		QueueName: aws.String(queueName),
-	}
-	receiveMessageInput := &sqs.ReceiveMessageInput{
+	provider.receiveMessageInput = &sqs.ReceiveMessageInput{
 		MaxNumberOfMessages: aws.Int64(10),
 		VisibilityTimeout:   aws.Int64(20), // Seconds
 		WaitTimeSeconds:     aws.Int64(20), // Seconds, maximum for long polling
@@ -55,15 +88,37 @@ func NewSQSProvider(client sqsiface.SQSAPI, queueName string) *SQSProvider {
 			aws.String(sqs.QueueAttributeNameAll),
 		},
 	}
-
-	return &SQSProvider{
-		createQueueInput:    createQueueInput,
-		getQueueURLInput:    getQueueURLInput,
-		receiveMessageInput: receiveMessageInput,
-		client:              client,
-		mutex:               &sync.RWMutex{},
-	}
+	return provider
 }
+
+func (s *SQSProvider) CreateQueue(ctx context.Context) error {
+	result, err := s.client.CreateQueueWithContext(ctx, s.createQueueInput)
+	if err != nil {
+		return fmt.Errorf("failed to create SQS queue, %w", err)
+	}
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	s.queueURL = aws.StringValue(result.QueueUrl)
+	return nil
+}
+
+func (s *SQSProvider) SetQueueAttributes(ctx context.Context) error {
+	return nil
+}
+
+//func (s *SQSProvider) CreateQueuePolicy(ctx context.Context) error {
+//	queueURL, err := s.DiscoverQueueURL(ctx)
+//	if err != nil {
+//		return fmt.Errorf("failed getting sqs messages, %w", err)
+//	}
+//	_, err = s.client.SetQueueAttributesWithContext(ctx, &sqs.SetQueueAttributesInput{
+//		Attributes:
+//	})
+//	if err != nil {
+//		return fmt.Errorf("failed to create SQS policy, %w", err)
+//	}
+//	return nil
+//}
 
 func (s *SQSProvider) DiscoverQueueURL(ctx context.Context) (string, error) {
 	s.mutex.RLock()
@@ -129,4 +184,32 @@ func (s *SQSProvider) DeleteSQSMessage(ctx context.Context, msg *sqs.Message) er
 	}
 
 	return nil
+}
+
+func (s *SQSProvider) getQueueAttributes() map[string]*string {
+	policy := lo.Must(json.Marshal(s.getQueuePolicy()))
+	return map[string]*string{
+		sqs.QueueAttributeNameMessageRetentionPeriod: aws.String("300"),
+		sqs.QueueAttributeNamePolicy:                 aws.String(string(policy)),
+	}
+}
+
+func (s *SQSProvider) getQueuePolicy() *QueuePolicy {
+	return &QueuePolicy{
+		Version: "2008-10-17",
+		Id:      "EC2NotificationPolicy",
+		Statement: []QueuePolicyStatement{
+			{
+				Effect: "Allow",
+				Principal: Principal{
+					Service: []string{
+						"events.amazonaws.com",
+						"sqs.amazonaws.com",
+					},
+				},
+				Action:   []string{"sqs:SendMessage"},
+				Resource: fmt.Sprintf("arn:aws:sqs:%s:%s:%s", s.metadata.region, s.metadata.accountID, s.queueName),
+			},
+		},
+	}
 }

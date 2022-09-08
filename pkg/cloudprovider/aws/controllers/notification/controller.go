@@ -29,9 +29,9 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws"
-	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/aggregatedparser"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/events"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
 	"github.com/aws/karpenter/pkg/controllers/state"
 )
@@ -54,7 +54,7 @@ type Controller struct {
 	kubeClient  client.Client
 	provisioner *provisioning.Provisioner
 	cluster     *state.Cluster
-	recorder    controllers.Recorder
+	recorder    events.Recorder
 	clock       clock.Clock
 	provider    *aws.SQSProvider
 	parser      event.Parser
@@ -64,7 +64,7 @@ type Controller struct {
 const pollingPeriod = 2 * time.Second
 
 func NewController(ctx context.Context, clk clock.Clock, kubeClient client.Client, sqsProvider *aws.SQSProvider,
-	recorder controllers.Recorder, provisioner *provisioning.Provisioner, cluster *state.Cluster, startAsync <-chan struct{}) *Controller {
+	recorder events.Recorder, provisioner *provisioning.Provisioner, cluster *state.Cluster, startAsync <-chan struct{}) *Controller {
 	c := &Controller{
 		kubeClient:  kubeClient,
 		provisioner: provisioner,
