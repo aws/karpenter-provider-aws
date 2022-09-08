@@ -117,6 +117,9 @@ type Node struct {
 	PodTotalRequests v1.ResourceList
 	// PodTotalLimits is the total resource limits scheduled to this node
 	PodTotalLimits v1.ResourceList
+	// MarkedForDeletion marks this node to say that there is some controller that is
+	// planning to delete this node so consider pods that are present on it available for scheduling
+	MarkedForDeletion bool
 }
 
 // ForPodsWithAntiAffinity calls the supplied function once for each pod with required anti affinity terms that is
@@ -177,18 +180,28 @@ func (c *Cluster) NominateNodeForPod(nodeName string) {
 	c.nominatedNodes.SetDefault(nodeName, nil)
 }
 
+// MarkForDeletion marks the node as pending deletion in the internal cluster state
+func (c *Cluster) MarkForDeletion(nodeName string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if _, ok := c.nodes[nodeName]; ok {
+		c.nodes[nodeName].MarkedForDeletion = true
+	}
+}
+
 // newNode always returns a node, even if some portion of the update has failed
 func (c *Cluster) newNode(ctx context.Context, node *v1.Node) (*Node, error) {
 	n := &Node{
-		Node:          node,
-		Capacity:      v1.ResourceList{},
-		Allocatable:   v1.ResourceList{},
-		Available:     v1.ResourceList{},
-		HostPortUsage: scheduling.NewHostPortUsage(),
-		VolumeUsage:   scheduling.NewVolumeLimits(c.kubeClient),
-		VolumeLimits:  scheduling.VolumeCount{},
-		podRequests:   map[types.NamespacedName]v1.ResourceList{},
-		podLimits:     map[types.NamespacedName]v1.ResourceList{},
+		Node:              node,
+		Capacity:          v1.ResourceList{},
+		Allocatable:       v1.ResourceList{},
+		Available:         v1.ResourceList{},
+		HostPortUsage:     scheduling.NewHostPortUsage(),
+		VolumeUsage:       scheduling.NewVolumeLimits(c.kubeClient),
+		VolumeLimits:      scheduling.VolumeCount{},
+		MarkedForDeletion: !node.DeletionTimestamp.IsZero(),
+		podRequests:       map[types.NamespacedName]v1.ResourceList{},
+		podLimits:         map[types.NamespacedName]v1.ResourceList{},
 	}
 	if err := multierr.Combine(
 		c.populateCapacity(ctx, node, n),
@@ -319,10 +332,14 @@ func (c *Cluster) updateNode(ctx context.Context, node *v1.Node) error {
 	oldNode, ok := c.nodes[node.Name]
 	// If the old node existed and its initialization status changed, we want to reconsider consolidation.  This handles
 	// a situation where we re-start with an unready node and it becomes ready later.
-	if ok && oldNode.Node.Labels[v1alpha5.LabelNodeInitialized] != n.Node.Labels[v1alpha5.LabelNodeInitialized] {
-		c.recordConsolidationChange()
+	if ok {
+		if oldNode.Node.Labels[v1alpha5.LabelNodeInitialized] != n.Node.Labels[v1alpha5.LabelNodeInitialized] {
+			c.recordConsolidationChange()
+		}
+		if oldNode.MarkedForDeletion {
+			n.MarkedForDeletion = true
+		}
 	}
-
 	c.nodes[node.Name] = n
 
 	if node.DeletionTimestamp != nil {

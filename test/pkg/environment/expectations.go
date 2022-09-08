@@ -218,6 +218,13 @@ func (env *Environment) ExpectCreatedNodeCount(comparator string, nodeCount int)
 		fmt.Sprintf("expected %d created nodes, had %d", nodeCount, env.Monitor.CreatedNodes()))
 }
 
+func (env *Environment) EventuallyExpectCreatedNodeCount(comparator string, nodeCount int) {
+	Eventually(func(g Gomega) {
+		g.Expect(env.Monitor.CreatedNodes()).To(BeNumerically(comparator, nodeCount),
+			fmt.Sprintf("expected %d created nodes, had %d", nodeCount, env.Monitor.CreatedNodes()))
+	}).Should(Succeed())
+}
+
 func (env *Environment) GetNode(nodeName string) v1.Node {
 	var node v1.Node
 	Expect(env.Client.Get(env.Context, types.NamespacedName{Name: nodeName}, &node)).To(Succeed())

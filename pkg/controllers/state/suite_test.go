@@ -508,6 +508,28 @@ var _ = Describe("Node Resource Level", func() {
 		ExpectNodeResourceRequest(node, v1.ResourceCPU, "2.5")
 		ExpectNodeResourceRequest(node, v1.ResourceMemory, "2Gi")
 	})
+	FIt("should mark node for deletion when node is deleted", func() {
+		node := test.Node(test.NodeOptions{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+					v1.LabelInstanceTypeStable:       cloudProvider.InstanceTypes[0].Name(),
+				},
+				Finalizers: []string{v1alpha5.TerminationFinalizer},
+			},
+			Allocatable: map[v1.ResourceName]resource.Quantity{
+				v1.ResourceCPU: resource.MustParse("4"),
+			}},
+		)
+		ExpectApplied(ctx, env.Client, node)
+
+		ExpectReconcileSucceeded(ctx, nodeController, client.ObjectKeyFromObject(node))
+		Expect(env.Client.Delete(ctx, node)).To(Succeed())
+
+		ExpectReconcileSucceeded(ctx, nodeController, client.ObjectKeyFromObject(node))
+		ExpectNodeExists(ctx, env.Client, node.Name)
+		ExpectNodeDeletionMarked(node)
+	})
 })
 
 var _ = Describe("Pod Anti-Affinity", func() {
@@ -719,6 +741,16 @@ func ExpectNodeDaemonSetRequested(node *v1.Node, resourceName v1.ResourceName, a
 		dsReq := n.DaemonSetRequested[resourceName]
 		expected := resource.MustParse(amount)
 		Expect(dsReq.AsApproximateFloat64()).To(BeNumerically("~", expected.AsApproximateFloat64(), 0.001))
+		return false
+	})
+}
+
+func ExpectNodeDeletionMarked(node *v1.Node) {
+	cluster.ForEachNode(func(n *state.Node) bool {
+		if n.Node.Name != node.Name {
+			return true
+		}
+		Expect(n.MarkedForDeletion).To(BeTrue())
 		return false
 	})
 }

@@ -47,6 +47,9 @@ func (r *Expiration) Reconcile(ctx context.Context, provisioner *v1alpha5.Provis
 	expirationTime := node.CreationTimestamp.Add(expirationTTL)
 	if r.clock.Now().After(expirationTime) {
 		logging.FromContext(ctx).Infof("Triggering termination for expired node after %s (+%s)", expirationTTL, time.Since(expirationTime))
+
+		// The delete operation implicitly marks the node for deletion for handling with scheduling
+		// This also implicitly triggers provisioning of the new node since at least one pod should go pending
 		if err := r.kubeClient.Delete(ctx, node); err != nil {
 			return reconcile.Result{}, fmt.Errorf("deleting node, %w", err)
 		}

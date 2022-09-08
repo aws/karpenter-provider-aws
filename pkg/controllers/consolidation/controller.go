@@ -42,6 +42,7 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/events"
 	"github.com/aws/karpenter/pkg/metrics"
+	"github.com/aws/karpenter/pkg/utils/node"
 	"github.com/aws/karpenter/pkg/utils/pod"
 )
 
@@ -242,7 +243,7 @@ func (c *Controller) candidateNodes(ctx context.Context) ([]candidateNode, error
 			return true
 		}
 
-		pods, err := c.getNodePods(ctx, n.Node.Name)
+		pods, err := node.GetNodePods(ctx, c.kubeClient, n.Node.Name)
 		if err != nil {
 			logging.FromContext(ctx).Errorf("Determining node pods, %s", err)
 			return true
@@ -414,24 +415,6 @@ func (c *Controller) launchReplacementNode(ctx context.Context, minCost consolid
 			fmt.Errorf("timed out checking node readiness, %w", err))
 	}
 	return nil
-}
-
-func (c *Controller) getNodePods(ctx context.Context, nodeName string) ([]*v1.Pod, error) {
-	var podList v1.PodList
-	if err := c.kubeClient.List(ctx, &podList, client.MatchingFields{"spec.nodeName": nodeName}); err != nil {
-		return nil, fmt.Errorf("listing pods, %w", err)
-	}
-	var pods []*v1.Pod
-	for i := range podList.Items {
-		// these pods don't need to be rescheduled
-		if pod.IsOwnedByNode(&podList.Items[i]) ||
-			pod.IsOwnedByDaemonSet(&podList.Items[i]) ||
-			pod.IsTerminal(&podList.Items[i]) {
-			continue
-		}
-		pods = append(pods, &podList.Items[i])
-	}
-	return pods, nil
 }
 
 func (c *Controller) canBeTerminated(node candidateNode, pdbs *PDBLimits) error {

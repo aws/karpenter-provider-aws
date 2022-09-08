@@ -47,6 +47,7 @@ import (
 	"github.com/aws/karpenter/pkg/metrics"
 	"github.com/aws/karpenter/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/utils/injection"
+	"github.com/aws/karpenter/pkg/utils/node"
 	"github.com/aws/karpenter/pkg/utils/pod"
 	"github.com/aws/karpenter/pkg/utils/resources"
 )
@@ -141,15 +142,24 @@ func (p *Provisioner) Provision(ctx context.Context) error {
 	// that have bound which we then provision new un-needed capacity for.
 	var stateNodes []*state.Node
 	p.cluster.ForEachNode(func(node *state.Node) bool {
-		stateNodes = append(stateNodes, node.DeepCopy())
+		if !node.MarkedForDeletion {
+			stateNodes = append(stateNodes, node.DeepCopy())
+		}
 		return true
 	})
 
 	// Get pods, exit if nothing to do
-	pods, err := p.getPods(ctx)
+	pendingPods, err := p.getPendingPods(ctx)
 	if err != nil {
 		return err
 	}
+	// Get pods from nodes that are preparing for deletion or are
+	// actively being deleted
+	deletingNodePods, err := p.getDeletingNodePods(ctx)
+	if err != nil {
+		return err
+	}
+	pods := append(pendingPods, deletingNodePods...)
 	if len(pods) == 0 {
 		return nil
 	}
@@ -194,7 +204,7 @@ func (p *Provisioner) LaunchNodes(ctx context.Context, opts LaunchOptions, nodes
 	return nodeNames, nil
 }
 
-func (p *Provisioner) getPods(ctx context.Context) ([]*v1.Pod, error) {
+func (p *Provisioner) getPendingPods(ctx context.Context) ([]*v1.Pod, error) {
 	var podList v1.PodList
 	if err := p.kubeClient.List(ctx, &podList, client.MatchingFields{"spec.nodeName": ""}); err != nil {
 		return nil, fmt.Errorf("listing pods, %w", err)
@@ -212,6 +222,28 @@ func (p *Provisioner) getPods(ctx context.Context) ([]*v1.Pod, error) {
 			continue
 		}
 		pods = append(pods, &po)
+	}
+	return pods, nil
+}
+
+func (p *Provisioner) getDeletingNodePods(ctx context.Context) ([]*v1.Pod, error) {
+	var nodeNames []string
+	var pods []*v1.Pod
+
+	// Get the node names of the nodes that are marked for deletion
+	p.cluster.ForEachNode(func(n *state.Node) bool {
+		if n.MarkedForDeletion {
+			nodeNames = append(nodeNames, n.Node.Name)
+		}
+		return true
+	})
+
+	for _, name := range nodeNames {
+		nodePods, err := node.GetNodePods(ctx, p.kubeClient, name)
+		if err != nil {
+			return nil, fmt.Errorf("listing pods on node %v, %w", name, err)
+		}
+		pods = append(pods, nodePods...)
 	}
 	return pods, nil
 }
