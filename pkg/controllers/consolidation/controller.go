@@ -576,11 +576,30 @@ func (c *Controller) hasPendingPods(ctx context.Context) bool {
 	return false
 }
 
+func (c *Controller) deploymentsReady(ctx context.Context) bool {
+	var depList appsv1.DeploymentList
+	if err := c.kubeClient.List(ctx, &depList); err != nil {
+		// failed to list, assume there must be one non-ready as it's harmless and just ensures we wait longer
+		return false
+	}
+	for _, ds := range depList.Items {
+		desired := ptr.Int32Value(ds.Spec.Replicas)
+		if ds.Spec.Replicas == nil {
+			// unspecified defaults to 1
+			desired = 1
+		}
+		if ds.Status.ReadyReplicas < desired || ds.Status.UpdatedReplicas < desired {
+			return false
+		}
+	}
+	return true
+}
+
 func (c *Controller) replicaSetsReady(ctx context.Context) bool {
 	var rsList appsv1.ReplicaSetList
 	if err := c.kubeClient.List(ctx, &rsList); err != nil {
 		// failed to list, assume there must be one non-ready as it's harmless and just ensures we wait longer
-		return true
+		return false
 	}
 	for _, rs := range rsList.Items {
 		desired := ptr.Int32Value(rs.Spec.Replicas)
@@ -599,7 +618,7 @@ func (c *Controller) replicationControllersReady(ctx context.Context) bool {
 	var rsList v1.ReplicationControllerList
 	if err := c.kubeClient.List(ctx, &rsList); err != nil {
 		// failed to list, assume there must be one non-ready as it's harmless and just ensures we wait longer
-		return true
+		return false
 	}
 	for _, rs := range rsList.Items {
 		desired := ptr.Int32Value(rs.Spec.Replicas)
@@ -626,7 +645,7 @@ func (c *Controller) statefulSetsReady(ctx context.Context) bool {
 			// unspecified defaults to 1
 			desired = 1
 		}
-		if rs.Status.ReadyReplicas < desired {
+		if rs.Status.ReadyReplicas < desired || rs.Status.UpdatedReplicas < desired {
 			return false
 		}
 	}
@@ -635,7 +654,7 @@ func (c *Controller) statefulSetsReady(ctx context.Context) bool {
 
 func (c *Controller) stabilizationWindow(ctx context.Context) time.Duration {
 	// no pending pods, and all replica sets/replication controllers are reporting ready so quickly consider another consolidation
-	if !c.hasPendingPods(ctx) && c.replicaSetsReady(ctx) &&
+	if !c.hasPendingPods(ctx) && c.deploymentsReady(ctx) && c.replicaSetsReady(ctx) &&
 		c.replicationControllersReady(ctx) && c.statefulSetsReady(ctx) {
 		return 0
 	}
