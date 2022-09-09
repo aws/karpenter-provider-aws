@@ -144,6 +144,9 @@ func (p *Provisioner) Provision(ctx context.Context) error {
 	var stateNodes []*state.Node
 	var markedForDeletionNodes []*state.Node
 	p.cluster.ForEachNode(func(node *state.Node) bool {
+		// We don't consider the nodes that are MarkedForDeletion since this capacity shouldn't be considered
+		// as persistent capacity for the cluster (since it will soon be removed). Additionally, we are scheduling for
+		// the pods that are on these nodes so the MarkedForDeletion node capacity can't be considered.
 		if !node.MarkedForDeletion {
 			stateNodes = append(stateNodes, node.DeepCopy())
 		} else {

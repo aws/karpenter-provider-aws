@@ -345,9 +345,10 @@ func (c *Cluster) updateNode(ctx context.Context, node *v1.Node) error {
 		if oldNode.Node.Labels[v1alpha5.LabelNodeInitialized] != n.Node.Labels[v1alpha5.LabelNodeInitialized] {
 			c.recordConsolidationChange()
 		}
-		if oldNode.MarkedForDeletion {
-			n.MarkedForDeletion = true
-		}
+		// We mark the node for deletion either:
+		// 1. If the DeletionTimestamp is set (the node is explicitly being deleted)
+		// 2. If the last state of the node has the node MarkedForDeletion
+		n.MarkedForDeletion = n.MarkedForDeletion || oldNode.MarkedForDeletion
 	}
 	c.nodes[node.Name] = n
 
