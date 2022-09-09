@@ -20,7 +20,7 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/apimachinery/pkg/util/clock"
+	clock "k8s.io/utils/clock/testing"
 
 	io_prometheus_client "github.com/prometheus/client_model/go"
 	v1 "k8s.io/api/core/v1"
