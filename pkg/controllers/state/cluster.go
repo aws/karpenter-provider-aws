@@ -64,6 +64,7 @@ type Cluster struct {
 	// it previously couldn't occur.
 	consolidationState   int64
 	lastNodeDeletionTime int64
+	lastNodeCreationTime int64
 }
 
 func NewCluster(clk clock.Clock, cfg config.Config, client client.Client, cp cloudprovider.CloudProvider) *Cluster {
@@ -358,6 +359,10 @@ func (c *Cluster) updateNode(ctx context.Context, node *v1.Node) error {
 			atomic.StoreInt64(&c.lastNodeDeletionTime, nodeDeletionTime)
 		}
 	}
+	nodeCreationTime := node.CreationTimestamp.UnixMilli()
+	if nodeCreationTime > atomic.LoadInt64(&c.lastNodeCreationTime) {
+		atomic.StoreInt64(&c.lastNodeCreationTime, nodeCreationTime)
+	}
 	return nil
 }
 
@@ -379,6 +384,11 @@ func (c *Cluster) ClusterConsolidationState() int64 {
 // LastNodeDeletionTime returns the last time that at a node was marked for deletion.
 func (c *Cluster) LastNodeDeletionTime() time.Time {
 	return time.UnixMilli(atomic.LoadInt64(&c.lastNodeDeletionTime))
+}
+
+// LastNodeCreationTime returns the last time that at a node was created.
+func (c *Cluster) LastNodeCreationTime() time.Time {
+	return time.UnixMilli(atomic.LoadInt64(&c.lastNodeCreationTime))
 }
 
 // deletePod is called when the pod has been deleted

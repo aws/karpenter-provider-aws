@@ -109,12 +109,13 @@ func (c *Controller) run(ctx context.Context) {
 				continue
 			}
 
-			// don't consolidate as we recently scaled down too soon
+			// don't consolidate as we recently scaled up/down too soon
 			stabilizationTime := c.clock.Now().Add(-c.stabilizationWindow(ctx))
 			// capture the state before we process so if something changes during consolidation we'll re-look
 			// immediately
 			clusterState := c.cluster.ClusterConsolidationState()
-			if c.cluster.LastNodeDeletionTime().Before(stabilizationTime) {
+			if c.cluster.LastNodeDeletionTime().Before(stabilizationTime) &&
+				c.cluster.LastNodeCreationTime().Before(stabilizationTime) {
 				result, err := c.ProcessCluster(ctx)
 				if err != nil {
 					logging.FromContext(ctx).Errorf("consolidating cluster, %s", err)
