@@ -31,9 +31,9 @@ var (
 	KarpenterLabelDomain = "karpenter.sh"
 
 	ProvisionerNameLabelKey           = Group + "/provisioner-name"
+	DiscoveryLabelKey                 = Group + "/discovery"
 	DoNotEvictPodAnnotationKey        = Group + "/do-not-evict"
 	DoNotConsolidateNodeAnnotationKey = KarpenterLabelDomain + "/do-not-consolidate"
-	MarkedForDeletionAnnotationKey    = KarpenterLabelDomain + "/marked-for-delete"
 	EmptinessTimestampAnnotationKey   = Group + "/emptiness-timestamp"
 	TerminationFinalizer              = Group + "/termination"
 

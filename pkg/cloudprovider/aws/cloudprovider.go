@@ -29,7 +29,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/iam"
+	"github.com/aws/aws-sdk-go/service/eventbridge"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/patrickmn/go-cache"
@@ -78,7 +78,12 @@ type CloudProvider struct {
 	instanceProvider     *InstanceProvider
 	kubeClient           k8sClient.Client
 	sqsProvider          *SQSProvider
-	iamProvider          *IAMProvider
+	eventBridgeProvider  *EventBridgeProvider
+}
+
+type Metadata struct {
+	region    string
+	accountID string
 }
 
 func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *CloudProvider {
@@ -109,13 +114,15 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 	if err := checkEC2Connectivity(ec2api); err != nil {
 		logging.FromContext(ctx).Errorf("Checking EC2 API connectivity, %s", err)
 	}
-	sqsapi := sqs.New(sess)
-	iamapi := iam.New(sess)
 	subnetProvider := NewSubnetProvider(ec2api)
 	instanceTypeProvider := NewInstanceTypeProvider(ctx, sess, options, ec2api, subnetProvider)
 
-	sqsProvider := NewSQSProvider(sqsapi, "new-queue5", *sess.Config.Region, metadata.AccountID(ctx))
-	iamProvider := NewIAMProvider(iamapi)
+	m := &Metadata{
+		region:    *sess.Config.Region,
+		accountID: metadata.AccountID(ctx),
+	}
+	sqsProvider := NewSQSProvider(ctx, sqs.New(sess), m)
+	eventBridgeProvider := NewEventBridgeProvider(eventbridge.New(sess), m, sqsProvider.queueName)
 	cloudprovider := &CloudProvider{
 		instanceTypeProvider: instanceTypeProvider,
 		instanceProvider: NewInstanceProvider(ctx, ec2api, instanceTypeProvider, subnetProvider,
@@ -129,9 +136,9 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 				options.StartAsync,
 			),
 		),
-		sqsProvider: sqsProvider,
-		iamProvider: iamProvider,
-		kubeClient:  options.KubeClient,
+		sqsProvider:         sqsProvider,
+		eventBridgeProvider: eventBridgeProvider,
+		kubeClient:          options.KubeClient,
 	}
 	v1alpha5.ValidateHook = cloudprovider.Validate
 	v1alpha5.DefaultHook = cloudprovider.Default
@@ -226,6 +233,10 @@ func (*CloudProvider) Validate(ctx context.Context, provisioner *v1alpha5.Provis
 
 func (c *CloudProvider) SQSProvider() *SQSProvider {
 	return c.sqsProvider
+}
+
+func (c *CloudProvider) EventBridgeProvider() *EventBridgeProvider {
+	return c.eventBridgeProvider
 }
 
 // Default the provisioner

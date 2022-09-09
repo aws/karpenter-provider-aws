@@ -18,5 +18,5 @@ func Register(ctx context.Context, provider *aws.CloudProvider, opts *controller
 
 	// Injecting the controllers that will start when opts.StartAsync is triggered
 	notification.NewController(ctx, opts.Clock, opts.KubeClient, provider.SQSProvider(), rec, opts.Provisioner, opts.Cluster, opts.StartAsync)
-	infrastructure.NewController(ctx, opts.Clock, rec, provider.SQSProvider(), opts.StartAsync)
+	infrastructure.NewController(ctx, opts.Clock, rec, provider.SQSProvider(), provider.EventBridgeProvider(), opts.StartAsync)
 }

@@ -28,25 +28,31 @@ import (
 // Controller is the AWS infrastructure controller.  It is not a standard controller-runtime controller in that it doesn't
 // have a reconcile method.
 type Controller struct {
-	sqsProvider *aws.SQSProvider
-	recorder    events.Recorder
-	clock       clock.Clock
+	sqsProvider         *aws.SQSProvider
+	eventBridgeProvider *aws.EventBridgeProvider
+	recorder            events.Recorder
+	clock               clock.Clock
 }
 
 // pollingPeriod that we go to AWS APIs to ensure that the appropriate AWS infrastructure is provisioned
 const pollingPeriod = 15 * time.Minute
 
 func NewController(ctx context.Context, clk clock.Clock, recorder events.Recorder,
-	sqsProvider *aws.SQSProvider, startAsync <-chan struct{}) *Controller {
+	sqsProvider *aws.SQSProvider, eventBridgeProvider *aws.EventBridgeProvider, startAsync <-chan struct{}) *Controller {
 	c := &Controller{
-		recorder:    recorder,
-		clock:       clk,
-		sqsProvider: sqsProvider,
+		recorder:            recorder,
+		clock:               clk,
+		sqsProvider:         sqsProvider,
+		eventBridgeProvider: eventBridgeProvider,
 	}
 
 	err := sqsProvider.CreateQueue(ctx)
 	if err != nil {
 		logging.FromContext(ctx).Errorf("Creating SQS queue with policy, %v", err)
+	}
+	err = eventBridgeProvider.CreateEC2NotificationRules(ctx)
+	if err != nil {
+		logging.FromContext(ctx).Errorf("Creating event bridge notification rules, %v", err)
 	}
 
 	go func() {

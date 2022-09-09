@@ -21,31 +21,37 @@ import (
 	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/sqs"
-	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
 	"github.com/samber/lo"
 	"knative.dev/pkg/logging"
+
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/utils/injection"
 )
 
+type SQSClient interface {
+	CreateQueueWithContext(context.Context, *sqs.CreateQueueInput, ...request.Option) (*sqs.CreateQueueOutput, error)
+	GetQueueUrlWithContext(context.Context, *sqs.GetQueueUrlInput, ...request.Option) (*sqs.GetQueueUrlOutput, error)
+	ReceiveMessageWithContext(context.Context, *sqs.ReceiveMessageInput, ...request.Option) (*sqs.ReceiveMessageOutput, error)
+	DeleteMessageWithContext(context.Context, *sqs.DeleteMessageInput, ...request.Option) (*sqs.DeleteMessageOutput, error)
+}
+
 type SQSProvider struct {
+	SQSClient
+
 	createQueueInput    *sqs.CreateQueueInput
 	getQueueURLInput    *sqs.GetQueueUrlInput
 	receiveMessageInput *sqs.ReceiveMessageInput
-	client              sqsiface.SQSAPI
 	mutex               *sync.RWMutex
 	queueURL            string
 	queueName           string
-	metadata            *AccountMetadata
-}
-
-type AccountMetadata struct {
-	region    string
-	accountID string
+	metadata            *Metadata
 }
 
 type QueuePolicy struct {
 	Version   string                 `json:"Version"`
-	Id        string                 `json:"Id"`
+	ID        string                 `json:"Id"`
 	Statement []QueuePolicyStatement `json:"Statement"`
 }
 
@@ -60,22 +66,22 @@ type Principal struct {
 	Service []string `json:"Service"`
 }
 
-func NewSQSProvider(client sqsiface.SQSAPI, queueName, region, accountID string) *SQSProvider {
+func NewSQSProvider(ctx context.Context, client SQSClient, metadata *Metadata) *SQSProvider {
 	provider := &SQSProvider{
-		client:    client,
+		SQSClient: client,
 		mutex:     &sync.RWMutex{},
-		queueName: queueName,
-		metadata: &AccountMetadata{
-			region:    region,
-			accountID: accountID,
-		},
+		queueName: getName(ctx),
+		metadata:  metadata,
 	}
 	provider.createQueueInput = &sqs.CreateQueueInput{
 		Attributes: provider.getQueueAttributes(),
-		QueueName:  aws.String(queueName),
+		QueueName:  aws.String(provider.queueName),
+		Tags: map[string]*string{
+			v1alpha5.DiscoveryLabelKey: aws.String(injection.GetOptions(ctx).ClusterName),
+		},
 	}
 	provider.getQueueURLInput = &sqs.GetQueueUrlInput{
-		QueueName: aws.String(queueName),
+		QueueName: aws.String(provider.queueName),
 	}
 	provider.receiveMessageInput = &sqs.ReceiveMessageInput{
 		MaxNumberOfMessages: aws.Int64(10),
@@ -92,7 +98,7 @@ func NewSQSProvider(client sqsiface.SQSAPI, queueName, region, accountID string)
 }
 
 func (s *SQSProvider) CreateQueue(ctx context.Context) error {
-	result, err := s.client.CreateQueueWithContext(ctx, s.createQueueInput)
+	result, err := s.CreateQueueWithContext(ctx, s.createQueueInput)
 	if err != nil {
 		return fmt.Errorf("failed to create SQS queue, %w", err)
 	}
@@ -106,27 +112,13 @@ func (s *SQSProvider) SetQueueAttributes(ctx context.Context) error {
 	return nil
 }
 
-//func (s *SQSProvider) CreateQueuePolicy(ctx context.Context) error {
-//	queueURL, err := s.DiscoverQueueURL(ctx)
-//	if err != nil {
-//		return fmt.Errorf("failed getting sqs messages, %w", err)
-//	}
-//	_, err = s.client.SetQueueAttributesWithContext(ctx, &sqs.SetQueueAttributesInput{
-//		Attributes:
-//	})
-//	if err != nil {
-//		return fmt.Errorf("failed to create SQS policy, %w", err)
-//	}
-//	return nil
-//}
-
 func (s *SQSProvider) DiscoverQueueURL(ctx context.Context) (string, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	if s.queueURL != "" {
 		return s.queueURL, nil
 	}
-	result, err := s.client.GetQueueUrlWithContext(ctx, s.getQueueURLInput)
+	result, err := s.GetQueueUrlWithContext(ctx, s.getQueueURLInput)
 	if err != nil {
 		return "", fmt.Errorf("failed fetching queue url, %w", err)
 	}
@@ -151,7 +143,7 @@ func (s *SQSProvider) GetSQSMessages(ctx context.Context) ([]*sqs.Message, error
 	}
 	input.QueueUrl = aws.String(queueURL)
 
-	result, err := s.client.ReceiveMessageWithContext(ctx, input)
+	result, err := s.ReceiveMessageWithContext(ctx, input)
 	if err != nil {
 		logging.FromContext(ctx).
 			With("error", err).
@@ -175,7 +167,7 @@ func (s *SQSProvider) DeleteSQSMessage(ctx context.Context, msg *sqs.Message) er
 		ReceiptHandle: msg.ReceiptHandle,
 	}
 
-	_, err = s.client.DeleteMessageWithContext(ctx, input)
+	_, err = s.DeleteMessageWithContext(ctx, input)
 	if err != nil {
 		logging.FromContext(ctx).
 			With("error", err).
@@ -197,7 +189,7 @@ func (s *SQSProvider) getQueueAttributes() map[string]*string {
 func (s *SQSProvider) getQueuePolicy() *QueuePolicy {
 	return &QueuePolicy{
 		Version: "2008-10-17",
-		Id:      "EC2NotificationPolicy",
+		ID:      "EC2NotificationPolicy",
 		Statement: []QueuePolicyStatement{
 			{
 				Effect: "Allow",
@@ -208,8 +200,16 @@ func (s *SQSProvider) getQueuePolicy() *QueuePolicy {
 					},
 				},
 				Action:   []string{"sqs:SendMessage"},
-				Resource: fmt.Sprintf("arn:aws:sqs:%s:%s:%s", s.metadata.region, s.metadata.accountID, s.queueName),
+				Resource: s.getQueueARN(),
 			},
 		},
 	}
+}
+
+func (s *SQSProvider) getQueueARN() string {
+	return fmt.Sprintf("arn:aws:sqs:%s:%s:%s", s.metadata.region, s.metadata.accountID, s.queueName)
+}
+
+func getName(ctx context.Context) string {
+	return fmt.Sprintf("Karpenter-%s-Queue", injection.GetOptions(ctx).ClusterName)
 }
