@@ -23,6 +23,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zapr"
+	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -114,7 +115,7 @@ func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options)
 		Scheme:                     scheme,
 		MetricsBindAddress:         fmt.Sprintf(":%d", opts.MetricsPort),
 		HealthProbeBindAddress:     fmt.Sprintf(":%d", opts.HealthProbePort),
-		BaseContext:                func() context.Context { return ctx },
+		BaseContext:                newRunnableContext(controllerRuntimeConfig, opts, logging.FromContext(ctx)),
 	})
 
 	if opts.EnableProfiling {
@@ -266,4 +267,14 @@ func LoggingContextOrDie(config *rest.Config, cmw *informer.InformedWatcher) con
 	sharedmain.WatchLoggingConfigOrDie(ctx, cmw, logger, atomicLevel, component)
 	startinformers()
 	return ctx
+}
+
+func newRunnableContext(config *rest.Config, options *options.Options, logger *zap.SugaredLogger) func() context.Context {
+	return func() context.Context {
+		ctx := context.Background()
+		ctx = logging.WithLogger(ctx, logger)
+		ctx = injection.WithConfig(ctx, config)
+		ctx = injection.WithOptions(ctx, *options)
+		return ctx
+	}
 }
