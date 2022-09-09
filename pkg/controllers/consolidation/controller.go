@@ -203,6 +203,10 @@ func (c *Controller) candidateNodes(ctx context.Context) ([]candidateNode, error
 			provisioner = provisioners[provName]
 			instanceTypeMap = instanceTypesByProvisioner[provName]
 		}
+		// skip any nodes that are already marked for deletion and being handled
+		if n.MarkedForDeletion {
+			return true
+		}
 		// skip any nodes where we can't determine the provisioner
 		if provisioner == nil || instanceTypeMap == nil {
 			return true
@@ -469,10 +473,22 @@ func (c *Controller) nodeConsolidationOptionReplaceOrDelete(ctx context.Context,
 	defer metrics.Measure(consolidationDurationHistogram.WithLabelValues("Replace/Delete"))()
 
 	var stateNodes []*state.Node
+	nodeIsDeleting := false
 	c.cluster.ForEachNode(func(n *state.Node) bool {
-		stateNodes = append(stateNodes, n.DeepCopy())
+		if node.Name == n.Node.Name && n.MarkedForDeletion {
+			nodeIsDeleting = true
+		}
+		if !n.MarkedForDeletion {
+			stateNodes = append(stateNodes, n.DeepCopy())
+		}
 		return true
 	})
+	// We do one final check to ensure that the node that we are attempting to consolidate isn't
+	// already handled for deletion by some other controller. This could happen if the node was markedForDeletion
+	// between returning the candidateNodes and getting the stateNodes above
+	if nodeIsDeleting {
+		return consolidationAction{result: consolidateResultNoAction}, nil
+	}
 	scheduler, err := c.provisioner.NewScheduler(ctx, node.pods, stateNodes, scheduling.SchedulerOptions{
 		SimulationMode: true,
 		ExcludeNodes:   []string{node.Name},
