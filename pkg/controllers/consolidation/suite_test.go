@@ -642,72 +642,6 @@ var _ = Describe("Replace Nodes", func() {
 		// should create a new node as there is a cheaper one that can hold the pod
 		Expect(cloudProvider.CreateCalls).To(HaveLen(1))
 	})
-	It("schedule an additional node when receiving pending pods while consolidating", func() {
-		labels := map[string]string{
-			"app": "test",
-		}
-		// create our RS so we can link a pod to it
-		rs := test.ReplicaSet()
-		ExpectApplied(ctx, env.Client, rs)
-		Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(rs), rs)).To(Succeed())
-
-		pod := test.Pod(test.PodOptions{
-			ObjectMeta: metav1.ObjectMeta{Labels: labels,
-				OwnerReferences: []metav1.OwnerReference{
-					{
-						APIVersion:         "apps/v1",
-						Kind:               "ReplicaSet",
-						Name:               rs.Name,
-						UID:                rs.UID,
-						Controller:         aws.Bool(true),
-						BlockOwnerDeletion: aws.Bool(true),
-					},
-				}}})
-
-		prov := test.Provisioner(test.ProvisionerOptions{Consolidation: &v1alpha5.Consolidation{Enabled: aws.Bool(true)}})
-
-		// Add a finalizer to the node so that it sticks around for the scheduling loop
-		node := test.Node(test.NodeOptions{
-			ObjectMeta: metav1.ObjectMeta{
-				Labels: map[string]string{
-					v1alpha5.ProvisionerNameLabelKey: prov.Name,
-					v1.LabelInstanceTypeStable:       mostExpensiveInstance.Name(),
-					v1alpha5.LabelCapacityType:       mostExpensiveOffering.CapacityType,
-					v1.LabelTopologyZone:             mostExpensiveOffering.Zone,
-				},
-				Finalizers: []string{"karpenter.sh/test-finalizer"},
-			},
-			Allocatable: map[v1.ResourceName]resource.Quantity{v1.ResourceCPU: resource.MustParse("32")}})
-
-		ExpectApplied(ctx, env.Client, rs, pod, node, prov)
-		ExpectMakeNodesReady(ctx, env.Client, node)
-		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node))
-		ExpectManualBinding(ctx, env.Client, pod, node)
-		ExpectScheduled(ctx, env.Client, pod)
-		Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(node), node)).To(Succeed())
-
-		fakeClock.Step(10 * time.Minute)
-
-		// Run the processing loop in parallel in the background with environment context
-		go func() {
-			_, err := controller.ProcessCluster(env.Ctx)
-			Expect(err).ToNot(HaveOccurred())
-		}()
-
-		Eventually(func(g Gomega) {
-			// should create a new node as there is a cheaper one that can hold the pod
-			nodes := &v1.NodeList{}
-			g.Expect(env.Client.List(ctx, nodes)).To(Succeed())
-			g.Expect(len(nodes.Items)).To(Equal(2))
-		}).Should(Succeed())
-
-		// Add a new pending pod that should schedule while node is not yet deleted
-		pods := ExpectProvisionedNoBinding(ctx, env.Client, provisioningController, test.UnschedulablePod())
-		nodes := &v1.NodeList{}
-		Expect(env.Client.List(ctx, nodes)).To(Succeed())
-		Expect(len(nodes.Items)).To(Equal(3))
-		Expect(pods[0].Spec.NodeName).NotTo(Equal(node.Name))
-	})
 })
 
 var _ = Describe("Delete Node", func() {
@@ -1372,6 +1306,158 @@ var _ = Describe("Empty Nodes", func() {
 		// and should delete both empty ones
 		ExpectNotFound(ctx, env.Client, node1)
 		ExpectNotFound(ctx, env.Client, node2)
+	})
+})
+
+var _ = Describe("Parallelization", func() {
+	It("should schedule an additional node when receiving pending pods while consolidating", func() {
+		labels := map[string]string{
+			"app": "test",
+		}
+		// create our RS so we can link a pod to it
+		rs := test.ReplicaSet()
+		ExpectApplied(ctx, env.Client, rs)
+		Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(rs), rs)).To(Succeed())
+
+		pod := test.Pod(test.PodOptions{
+			ObjectMeta: metav1.ObjectMeta{Labels: labels,
+				OwnerReferences: []metav1.OwnerReference{
+					{
+						APIVersion:         "apps/v1",
+						Kind:               "ReplicaSet",
+						Name:               rs.Name,
+						UID:                rs.UID,
+						Controller:         aws.Bool(true),
+						BlockOwnerDeletion: aws.Bool(true),
+					},
+				}}})
+
+		prov := test.Provisioner(test.ProvisionerOptions{Consolidation: &v1alpha5.Consolidation{Enabled: aws.Bool(true)}})
+
+		// Add a finalizer to the node so that it sticks around for the scheduling loop
+		node := test.Node(test.NodeOptions{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					v1alpha5.ProvisionerNameLabelKey: prov.Name,
+					v1.LabelInstanceTypeStable:       mostExpensiveInstance.Name(),
+					v1alpha5.LabelCapacityType:       mostExpensiveOffering.CapacityType,
+					v1.LabelTopologyZone:             mostExpensiveOffering.Zone,
+				},
+				Finalizers: []string{"karpenter.sh/test-finalizer"},
+			},
+			Allocatable: map[v1.ResourceName]resource.Quantity{v1.ResourceCPU: resource.MustParse("32")}})
+
+		ExpectApplied(ctx, env.Client, rs, pod, node, prov)
+		ExpectMakeNodesReady(ctx, env.Client, node)
+		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node))
+		ExpectManualBinding(ctx, env.Client, pod, node)
+		ExpectScheduled(ctx, env.Client, pod)
+		Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(node), node)).To(Succeed())
+
+		fakeClock.Step(10 * time.Minute)
+
+		// Run the processing loop in parallel in the background with environment context
+		go func() {
+			_, err := controller.ProcessCluster(env.Ctx)
+			Expect(err).ToNot(HaveOccurred())
+		}()
+
+		Eventually(func(g Gomega) {
+			// should create a new node as there is a cheaper one that can hold the pod
+			nodes := &v1.NodeList{}
+			g.Expect(env.Client.List(ctx, nodes)).To(Succeed())
+			g.Expect(len(nodes.Items)).To(Equal(2))
+		}).Should(Succeed())
+
+		// Add a new pending pod that should schedule while node is not yet deleted
+		pods := ExpectProvisionedNoBinding(ctx, env.Client, provisioningController, test.UnschedulablePod())
+		nodes := &v1.NodeList{}
+		Expect(env.Client.List(ctx, nodes)).To(Succeed())
+		Expect(len(nodes.Items)).To(Equal(3))
+		Expect(pods[0].Spec.NodeName).NotTo(Equal(node.Name))
+	})
+	It("should not consolidate a node that is launched for pods on a deleting node", func() {
+		labels := map[string]string{
+			"app": "test",
+		}
+		// create our RS so we can link a pod to it
+		rs := test.ReplicaSet()
+		ExpectApplied(ctx, env.Client, rs)
+		Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(rs), rs)).To(Succeed())
+
+		prov := test.Provisioner(test.ProvisionerOptions{Consolidation: &v1alpha5.Consolidation{Enabled: aws.Bool(true)}})
+		podOpts := test.PodOptions{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: labels,
+				OwnerReferences: []metav1.OwnerReference{
+					{
+						APIVersion:         "apps/v1",
+						Kind:               "ReplicaSet",
+						Name:               rs.Name,
+						UID:                rs.UID,
+						Controller:         aws.Bool(true),
+						BlockOwnerDeletion: aws.Bool(true),
+					},
+				},
+			},
+			ResourceRequirements: v1.ResourceRequirements{
+				Requests: v1.ResourceList{
+					v1.ResourceCPU: resource.MustParse("1"),
+				},
+			},
+		}
+
+		var pods []*v1.Pod
+		for i := 0; i < 5; i++ {
+			pod := test.UnschedulablePod(podOpts)
+			pods = append(pods, pod)
+		}
+		ExpectApplied(ctx, env.Client, rs, prov)
+		ExpectProvisioned(ctx, env.Client, provisioningController, pods...)
+
+		nodeList := &v1.NodeList{}
+		Expect(env.Client.List(ctx, nodeList)).To(Succeed())
+		Expect(len(nodeList.Items)).To(Equal(1))
+
+		// Update cluster state with new node
+		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(&nodeList.Items[0]))
+
+		// Reset the bindings so we can re-record bindings
+		recorder.ResetBindings()
+
+		// Mark the node for deletion and re-trigger reconciliation
+		oldNodeName := nodeList.Items[0].Name
+		cluster.MarkForDeletion(nodeList.Items[0].Name)
+		ExpectProvisionedNoBinding(ctx, env.Client, provisioningController)
+
+		// Make sure that the cluster state is aware of the current node state
+		Expect(env.Client.List(ctx, nodeList)).To(Succeed())
+		Expect(len(nodeList.Items)).To(Equal(2))
+		newNode, _ := lo.Find(nodeList.Items, func(n v1.Node) bool { return n.Name != oldNodeName })
+
+		for i := range nodeList.Items {
+			node := nodeList.Items[i]
+			ExpectMakeNodesReady(ctx, env.Client, &node)
+			ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(&node))
+		}
+
+		// Wait for the nomination cache to expire
+		time.Sleep(time.Second * 11)
+
+		// Re-create the pods to re-bind them
+		for i := 0; i < 2; i++ {
+			ExpectDeleted(ctx, env.Client, pods[i])
+			pod := test.UnschedulablePod(podOpts)
+			ExpectApplied(ctx, env.Client, pod)
+			ExpectManualBinding(ctx, env.Client, pod, &newNode)
+		}
+
+		// Trigger a reconciliation run which should take into account the deleting node
+		// Consolidation shouldn't trigger additional actions
+		fakeClock.Step(10 * time.Minute)
+		result, err := controller.ProcessCluster(env.Ctx)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(result).To(Equal(consolidation.ProcessResultNothingToDo))
 	})
 })
 

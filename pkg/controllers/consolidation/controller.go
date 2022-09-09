@@ -42,7 +42,7 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/events"
 	"github.com/aws/karpenter/pkg/metrics"
-	"github.com/aws/karpenter/pkg/utils/node"
+	nodeutils "github.com/aws/karpenter/pkg/utils/node"
 	"github.com/aws/karpenter/pkg/utils/pod"
 )
 
@@ -247,7 +247,7 @@ func (c *Controller) candidateNodes(ctx context.Context) ([]candidateNode, error
 			return true
 		}
 
-		pods, err := node.GetNodePods(ctx, c.kubeClient, n.Node.Name)
+		pods, err := nodeutils.GetNodePods(ctx, c.kubeClient, n.Node)
 		if err != nil {
 			logging.FromContext(ctx).Errorf("Determining node pods, %s", err)
 			return true
@@ -473,23 +473,34 @@ func (c *Controller) nodeConsolidationOptionReplaceOrDelete(ctx context.Context,
 	defer metrics.Measure(consolidationDurationHistogram.WithLabelValues("Replace/Delete"))()
 
 	var stateNodes []*state.Node
-	nodeIsDeleting := false
+	var markedForDeletionNodes []*state.Node
+	candidateNodeIsDeleting := false
+
 	c.cluster.ForEachNode(func(n *state.Node) bool {
 		if node.Name == n.Node.Name && n.MarkedForDeletion {
-			nodeIsDeleting = true
+			candidateNodeIsDeleting = true
 		}
 		if !n.MarkedForDeletion {
 			stateNodes = append(stateNodes, n.DeepCopy())
+		} else {
+			markedForDeletionNodes = append(markedForDeletionNodes, n.DeepCopy())
 		}
 		return true
 	})
 	// We do one final check to ensure that the node that we are attempting to consolidate isn't
 	// already handled for deletion by some other controller. This could happen if the node was markedForDeletion
 	// between returning the candidateNodes and getting the stateNodes above
-	if nodeIsDeleting {
+	if candidateNodeIsDeleting {
 		return consolidationAction{result: consolidateResultNoAction}, nil
 	}
-	scheduler, err := c.provisioner.NewScheduler(ctx, node.pods, stateNodes, scheduling.SchedulerOptions{
+
+	// We get the pods that are on nodes that are deleting
+	deletingNodePods, err := nodeutils.GetNodePods(ctx, c.kubeClient, lo.Map(markedForDeletionNodes, func(n *state.Node, _ int) *v1.Node { return n.Node })...)
+	if err != nil {
+		return consolidationAction{result: consolidateResultUnknown}, fmt.Errorf("failed to get pods from deleting nodes, %w", err)
+	}
+	pods := append(node.pods, deletingNodePods...)
+	scheduler, err := c.provisioner.NewScheduler(ctx, pods, stateNodes, scheduling.SchedulerOptions{
 		SimulationMode: true,
 		ExcludeNodes:   []string{node.Name},
 	})
@@ -498,7 +509,7 @@ func (c *Controller) nodeConsolidationOptionReplaceOrDelete(ctx context.Context,
 		return consolidationAction{result: consolidateResultUnknown}, fmt.Errorf("creating scheduler, %w", err)
 	}
 
-	newNodes, inflightNodes, err := scheduler.Solve(ctx, node.pods)
+	newNodes, inflightNodes, err := scheduler.Solve(ctx, pods)
 	if err != nil {
 		return consolidationAction{result: consolidateResultUnknown}, fmt.Errorf("simulating scheduling, %w", err)
 	}

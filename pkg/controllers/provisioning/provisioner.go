@@ -164,7 +164,7 @@ func (p *Provisioner) Provision(ctx context.Context) error {
 	// We do this after getting the pending pods so that we undershoot if pods are
 	// actively migrating from a node that is being deleted
 	// NOTE: The assumption is that these nodes are cordoned and no additional pods will schedule to them
-	deletingNodePods, err := p.getDeletingNodePods(ctx, markedForDeletionNodes)
+	deletingNodePods, err := node.GetNodePods(ctx, p.kubeClient, lo.Map(markedForDeletionNodes, func(n *state.Node, _ int) *v1.Node { return n.Node })...)
 	if err != nil {
 		return err
 	}
@@ -231,20 +231,6 @@ func (p *Provisioner) getPendingPods(ctx context.Context) ([]*v1.Pod, error) {
 			continue
 		}
 		pods = append(pods, &po)
-	}
-	return pods, nil
-}
-
-func (p *Provisioner) getDeletingNodePods(ctx context.Context, nodes []*state.Node) ([]*v1.Pod, error) {
-	var pods []*v1.Pod
-
-	nodeNames := lo.Map(nodes, func(n *state.Node, _ int) string { return n.Node.Name })
-	for _, name := range nodeNames {
-		nodePods, err := node.GetNodePods(ctx, p.kubeClient, name)
-		if err != nil {
-			return nil, fmt.Errorf("listing pods on node %v, %w", name, err)
-		}
-		pods = append(pods, nodePods...)
 	}
 	return pods, nil
 }
