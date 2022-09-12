@@ -66,3 +66,7 @@ func (u Ubuntu) EphemeralBlockDevice() *string {
 func (u Ubuntu) ENILimitedMemoryOverhead() bool {
 	return true
 }
+
+func (u Ubuntu) PodsPerCoreEnabled() bool {
+	return true
+}

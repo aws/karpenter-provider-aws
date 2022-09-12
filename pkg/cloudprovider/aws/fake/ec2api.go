@@ -363,6 +363,7 @@ func (e *EC2API) DescribeInstanceTypesPagesWithContext(_ context.Context, _ *ec2
 					SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
 				},
 				VCpuInfo: &ec2.VCpuInfo{
+					DefaultCores: aws.Int64(1),
 					DefaultVCpus: aws.Int64(2),
 				},
 				MemoryInfo: &ec2.MemoryInfo{
@@ -384,6 +385,7 @@ func (e *EC2API) DescribeInstanceTypesPagesWithContext(_ context.Context, _ *ec2
 					SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
 				},
 				VCpuInfo: &ec2.VCpuInfo{
+					DefaultCores: aws.Int64(1),
 					DefaultVCpus: aws.Int64(2),
 				},
 				MemoryInfo: &ec2.MemoryInfo{
@@ -405,6 +407,7 @@ func (e *EC2API) DescribeInstanceTypesPagesWithContext(_ context.Context, _ *ec2
 					SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
 				},
 				VCpuInfo: &ec2.VCpuInfo{
+					DefaultCores: aws.Int64(2),
 					DefaultVCpus: aws.Int64(4),
 				},
 				MemoryInfo: &ec2.MemoryInfo{
@@ -426,6 +429,7 @@ func (e *EC2API) DescribeInstanceTypesPagesWithContext(_ context.Context, _ *ec2
 					SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
 				},
 				VCpuInfo: &ec2.VCpuInfo{
+					DefaultCores: aws.Int64(16),
 					DefaultVCpus: aws.Int64(32),
 				},
 				MemoryInfo: &ec2.MemoryInfo{
@@ -457,6 +461,7 @@ func (e *EC2API) DescribeInstanceTypesPagesWithContext(_ context.Context, _ *ec2
 					SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
 				},
 				VCpuInfo: &ec2.VCpuInfo{
+					DefaultCores: aws.Int64(16),
 					DefaultVCpus: aws.Int64(32),
 				},
 				MemoryInfo: &ec2.MemoryInfo{
@@ -492,6 +497,7 @@ func (e *EC2API) DescribeInstanceTypesPagesWithContext(_ context.Context, _ *ec2
 					SupportedArchitectures: aws.StringSlice([]string{v1alpha5.ArchitectureArm64}),
 				},
 				VCpuInfo: &ec2.VCpuInfo{
+					DefaultCores: aws.Int64(2),
 					DefaultVCpus: aws.Int64(2),
 				},
 				MemoryInfo: &ec2.MemoryInfo{
@@ -513,6 +519,7 @@ func (e *EC2API) DescribeInstanceTypesPagesWithContext(_ context.Context, _ *ec2
 					SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
 				},
 				VCpuInfo: &ec2.VCpuInfo{
+					DefaultCores: aws.Int64(4),
 					DefaultVCpus: aws.Int64(8),
 				},
 				MemoryInfo: &ec2.MemoryInfo{
@@ -539,6 +546,7 @@ func (e *EC2API) DescribeInstanceTypesPagesWithContext(_ context.Context, _ *ec2
 					SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
 				},
 				VCpuInfo: &ec2.VCpuInfo{
+					DefaultCores: aws.Int64(12),
 					DefaultVCpus: aws.Int64(24),
 				},
 				MemoryInfo: &ec2.MemoryInfo{
@@ -565,6 +573,7 @@ func (e *EC2API) DescribeInstanceTypesPagesWithContext(_ context.Context, _ *ec2
 					SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
 				},
 				VCpuInfo: &ec2.VCpuInfo{
+					DefaultCores: aws.Int64(48),
 					DefaultVCpus: aws.Int64(96),
 				},
 				MemoryInfo: &ec2.MemoryInfo{

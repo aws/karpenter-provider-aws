@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/Pallinder/go-randomdata"
 	. "github.com/onsi/ginkgo/v2"
@@ -265,6 +266,69 @@ var _ = Describe("Validation", func() {
 				provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{requirement}
 				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 			}
+		})
+	})
+	Context("KubeletConfiguration", func() {
+		It("should fail on kubeReserved with invalid keys", func() {
+			provisioner.Spec.KubeletConfiguration = &KubeletConfiguration{
+				KubeReserved: v1.ResourceList{
+					v1.ResourcePods: resource.MustParse("2"),
+				},
+			}
+			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+		})
+		It("should fail on systemReserved with invalid keys", func() {
+			provisioner.Spec.KubeletConfiguration = &KubeletConfiguration{
+				SystemReserved: v1.ResourceList{
+					v1.ResourcePods: resource.MustParse("2"),
+				},
+			}
+			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+		})
+		It("should succeed on evictionHard with valid keys", func() {
+			provisioner.Spec.KubeletConfiguration = &KubeletConfiguration{
+				EvictionHard: map[string]string{
+					"memory.available":   "5%",
+					"nodefs.available":   "10%",
+					"nodefs.inodesFree":  "15%",
+					"imagefs.available":  "5%",
+					"imagefs.inodesFree": "5%",
+					"pid.available":      "5%",
+				},
+			}
+			Expect(provisioner.Validate(ctx)).To(Succeed())
+		})
+		It("should fail on evictionHard with invalid keys", func() {
+			provisioner.Spec.KubeletConfiguration = &KubeletConfiguration{
+				EvictionHard: map[string]string{
+					"memory": "5%",
+				},
+			}
+			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+		})
+		It("should fail on invalid formatted percentage value in evictionHard", func() {
+			provisioner.Spec.KubeletConfiguration = &KubeletConfiguration{
+				EvictionHard: map[string]string{
+					"memory.available": "5%3",
+				},
+			}
+			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+		})
+		It("should fail on invalid percentage value (too large) in evictionHard", func() {
+			provisioner.Spec.KubeletConfiguration = &KubeletConfiguration{
+				EvictionHard: map[string]string{
+					"memory.available": "110%",
+				},
+			}
+			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+		})
+		It("should fail on invalid quantity value in evictionHard", func() {
+			provisioner.Spec.KubeletConfiguration = &KubeletConfiguration{
+				EvictionHard: map[string]string{
+					"memory.available": "110GB",
+				},
+			}
+			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 		})
 	})
 })

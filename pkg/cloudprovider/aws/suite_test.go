@@ -75,6 +75,15 @@ var provisioner *v1alpha5.Provisioner
 var provider *awsv1alpha1.AWS
 var pricingProvider *PricingProvider
 
+var defaultOpts = options.Options{
+	ClusterName:               "test-cluster",
+	ClusterEndpoint:           "https://test-cluster",
+	AWSNodeNameConvention:     string(options.IPName),
+	AWSENILimitedPodDensity:   true,
+	AWSEnablePodENI:           true,
+	AWSDefaultInstanceProfile: "test-instance-profile",
+}
+
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
 	RegisterFailHandler(Fail)
@@ -83,14 +92,7 @@ func TestAWS(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
-		opts = options.Options{
-			ClusterName:               "test-cluster",
-			ClusterEndpoint:           "https://test-cluster",
-			AWSNodeNameConvention:     string(options.IPName),
-			AWSENILimitedPodDensity:   true,
-			AWSEnablePodENI:           true,
-			AWSDefaultInstanceProfile: "test-instance-profile",
-		}
+		opts = defaultOpts
 		Expect(opts.Validate()).To(Succeed(), "Failed to validate options")
 		ctx = injection.WithOptions(ctx, opts)
 		ctx, stop = context.WithCancel(ctx)
@@ -161,6 +163,7 @@ var _ = BeforeEach(func() {
 		SecurityGroupSelector: map[string]string{"*": "*"},
 	}
 	provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
+	opts = defaultOpts
 	fakeEC2API.Reset()
 	fakePricingAPI.Reset()
 	launchTemplateCache.Flush()

@@ -589,7 +589,7 @@ var _ = Describe("LaunchTemplates", func() {
 			Expect(string(userData)).To(ContainSubstring("--max-pods=10"))
 		})
 		It("should specify --system-reserved when overriding system reserved values", func() {
-			newProvisioner := test.Provisioner(test.ProvisionerOptions{
+			provisioner = test.Provisioner(test.ProvisionerOptions{
 				Kubelet: &v1alpha5.KubeletConfiguration{
 					SystemReserved: v1.ResourceList{
 						v1.ResourceCPU:              resource.MustParse("500m"),
@@ -598,7 +598,7 @@ var _ = Describe("LaunchTemplates", func() {
 					},
 				},
 			})
-			ExpectApplied(ctx, env.Client, newProvisioner)
+			ExpectApplied(ctx, env.Client, provisioner)
 			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
@@ -610,9 +610,91 @@ var _ = Describe("LaunchTemplates", func() {
 			i := strings.Index(string(userData), arg)
 			rem := string(userData)[(i + len(arg)):]
 			i = strings.Index(rem, "'")
-			for k, v := range newProvisioner.Spec.KubeletConfiguration.SystemReserved {
+			for k, v := range provisioner.Spec.KubeletConfiguration.SystemReserved {
 				Expect(rem[:i]).To(ContainSubstring(fmt.Sprintf("%v=%v", k.String(), v.String())))
 			}
+		})
+		It("should specify --kube-reserved when overriding system reserved values", func() {
+			provisioner = test.Provisioner(test.ProvisionerOptions{
+				Kubelet: &v1alpha5.KubeletConfiguration{
+					KubeReserved: v1.ResourceList{
+						v1.ResourceCPU:              resource.MustParse("500m"),
+						v1.ResourceMemory:           resource.MustParse("1Gi"),
+						v1.ResourceEphemeralStorage: resource.MustParse("2Gi"),
+					},
+				},
+			})
+			ExpectApplied(ctx, env.Client, provisioner)
+			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+			userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+
+			// Check whether the arguments are there for --kube-reserved
+			arg := "--kube-reserved="
+			i := strings.Index(string(userData), arg)
+			rem := string(userData)[(i + len(arg)):]
+			i = strings.Index(rem, "'")
+			for k, v := range provisioner.Spec.KubeletConfiguration.KubeReserved {
+				Expect(rem[:i]).To(ContainSubstring(fmt.Sprintf("%v=%v", k.String(), v.String())))
+			}
+		})
+		It("should pass eviction threshold hard values when specified", func() {
+			provisioner = test.Provisioner(test.ProvisionerOptions{
+				Kubelet: &v1alpha5.KubeletConfiguration{
+					EvictionHard: map[string]string{
+						"memory.available":  "10%",
+						"nodefs.available":  "15%",
+						"nodefs.inodesFree": "5%",
+					},
+				},
+			})
+			ExpectApplied(ctx, env.Client, provisioner)
+			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+			userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+
+			// Check whether the arguments are there for --kube-reserved
+			arg := "--eviction-hard="
+			i := strings.Index(string(userData), arg)
+			rem := string(userData)[(i + len(arg)):]
+			i = strings.Index(rem, "'")
+			for k, v := range provisioner.Spec.KubeletConfiguration.EvictionHard {
+				Expect(rem[:i]).To(ContainSubstring(fmt.Sprintf("%v<%v", k, v)))
+			}
+		})
+		It("should specify --pods-per-core", func() {
+			provisioner = test.Provisioner(test.ProvisionerOptions{
+				Kubelet: &v1alpha5.KubeletConfiguration{
+					PodsPerCore: ptr.Int32(2),
+				},
+			})
+			ExpectApplied(ctx, env.Client, provisioner)
+			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+			userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+			Expect(string(userData)).To(ContainSubstring(fmt.Sprintf("--pods-per-core=%d", 2)))
+		})
+		It("should specify --pods-per-core with --max-pods enabled", func() {
+			provisioner = test.Provisioner(test.ProvisionerOptions{
+				Kubelet: &v1alpha5.KubeletConfiguration{
+					PodsPerCore: ptr.Int32(2),
+					MaxPods:     ptr.Int32(100),
+				},
+			})
+			ExpectApplied(ctx, env.Client, provisioner)
+			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+			userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+			Expect(string(userData)).To(ContainSubstring(fmt.Sprintf("--pods-per-core=%d", 2)))
+			Expect(string(userData)).To(ContainSubstring(fmt.Sprintf("--max-pods=%d", 100)))
 		})
 		It("should specify --container-runtime containerd by default", func() {
 			ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
@@ -770,7 +852,7 @@ var _ = Describe("LaunchTemplates", func() {
 					AWS:      *provider,
 				})
 				ExpectApplied(ctx, env.Client, nodeTemplate)
-				newProvisioner := test.Provisioner(test.ProvisionerOptions{
+				provisioner = test.Provisioner(test.ProvisionerOptions{
 					ProviderRef: &v1alpha5.ProviderRef{
 						Name: nodeTemplate.Name,
 					},
@@ -782,7 +864,7 @@ var _ = Describe("LaunchTemplates", func() {
 						},
 					},
 				})
-				ExpectApplied(ctx, env.Client, newProvisioner)
+				ExpectApplied(ctx, env.Client, provisioner)
 				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
@@ -794,6 +876,70 @@ var _ = Describe("LaunchTemplates", func() {
 				Expect(config.Settings.Kubernetes.SystemReserved[v1.ResourceCPU.String()]).To(Equal("2"))
 				Expect(config.Settings.Kubernetes.SystemReserved[v1.ResourceMemory.String()]).To(Equal("3Gi"))
 				Expect(config.Settings.Kubernetes.SystemReserved[v1.ResourceEphemeralStorage.String()]).To(Equal("10Gi"))
+			})
+			It("should override kube reserved values in user data", func() {
+				provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
+				nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+					UserData: nil,
+					AWS:      *provider,
+				})
+				ExpectApplied(ctx, env.Client, nodeTemplate)
+				provisioner = test.Provisioner(test.ProvisionerOptions{
+					ProviderRef: &v1alpha5.ProviderRef{
+						Name: nodeTemplate.Name,
+					},
+					Kubelet: &v1alpha5.KubeletConfiguration{
+						KubeReserved: v1.ResourceList{
+							v1.ResourceCPU:              resource.MustParse("2"),
+							v1.ResourceMemory:           resource.MustParse("3Gi"),
+							v1.ResourceEphemeralStorage: resource.MustParse("10Gi"),
+						},
+					},
+				})
+				ExpectApplied(ctx, env.Client, provisioner)
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+				userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+				config := &bootstrap.BottlerocketConfig{}
+				Expect(config.UnmarshalTOML(userData)).To(Succeed())
+				Expect(len(config.Settings.Kubernetes.KubeReserved)).To(Equal(3))
+				Expect(config.Settings.Kubernetes.KubeReserved[v1.ResourceCPU.String()]).To(Equal("2"))
+				Expect(config.Settings.Kubernetes.KubeReserved[v1.ResourceMemory.String()]).To(Equal("3Gi"))
+				Expect(config.Settings.Kubernetes.KubeReserved[v1.ResourceEphemeralStorage.String()]).To(Equal("10Gi"))
+			})
+			It("should override kube reserved values in user data", func() {
+				provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
+				nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+					UserData: nil,
+					AWS:      *provider,
+				})
+				ExpectApplied(ctx, env.Client, nodeTemplate)
+				provisioner = test.Provisioner(test.ProvisionerOptions{
+					ProviderRef: &v1alpha5.ProviderRef{
+						Name: nodeTemplate.Name,
+					},
+					Kubelet: &v1alpha5.KubeletConfiguration{
+						EvictionHard: map[string]string{
+							"memory.available":  "10%",
+							"nodefs.available":  "15%",
+							"nodefs.inodesFree": "5%",
+						},
+					},
+				})
+				ExpectApplied(ctx, env.Client, provisioner)
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+				userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+				config := &bootstrap.BottlerocketConfig{}
+				Expect(config.UnmarshalTOML(userData)).To(Succeed())
+				Expect(len(config.Settings.Kubernetes.EvictionHard)).To(Equal(3))
+				Expect(config.Settings.Kubernetes.EvictionHard["memory.available"]).To(Equal("10%"))
+				Expect(config.Settings.Kubernetes.EvictionHard["nodefs.available"]).To(Equal("15%"))
+				Expect(config.Settings.Kubernetes.EvictionHard["nodefs.inodesFree"]).To(Equal("5%"))
 			})
 			It("should specify max pods value when passing maxPods in configuration", func() {
 				bottlerocketProvider := provider.DeepCopy()

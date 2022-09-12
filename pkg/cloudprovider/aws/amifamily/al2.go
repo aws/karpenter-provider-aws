@@ -92,3 +92,7 @@ func (a AL2) EphemeralBlockDevice() *string {
 func (a AL2) ENILimitedMemoryOverhead() bool {
 	return true
 }
+
+func (a AL2) PodsPerCoreEnabled() bool {
+	return true
+}

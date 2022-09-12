@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"math"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -37,6 +38,10 @@ import (
 	"github.com/aws/karpenter/pkg/utils/resources"
 )
 
+const (
+	memoryAvailable = "memory.available"
+)
+
 var (
 	_                  cloudprovider.InstanceType = (*InstanceType)(nil)
 	instanceTypeScheme                            = regexp.MustCompile(`(^[a-z]+)(\-[0-9]+tb)?([0-9]+).*\.`)
@@ -49,7 +54,7 @@ type InstanceType struct {
 	requirements scheduling.Requirements
 	resources    v1.ResourceList
 	provider     *v1alpha1.AWS
-	maxPods      *int32
+	maxPods      *int64
 	region       string
 }
 
@@ -60,14 +65,7 @@ func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, kc *v1alph
 		offerings:        offerings,
 		region:           region,
 	}
-
-	// set max pods before computing resources
-	// backwards compatibility for AWSENILimitedPodDensity flag
-	if kc != nil && kc.MaxPods != nil {
-		instanceType.maxPods = kc.MaxPods
-	} else if !injection.GetOptions(ctx).AWSENILimitedPodDensity {
-		instanceType.maxPods = ptr.Int32(110)
-	}
+	instanceType.maxPods = instanceType.computeMaxPods(ctx, kc)
 
 	// Precompute to minimize memory/compute overhead
 	instanceType.resources = instanceType.computeResources(injection.GetOptions(ctx).AWSEnablePodENI)
@@ -201,10 +199,7 @@ func (i *InstanceType) ephemeralStorage() *resource.Quantity {
 }
 
 func (i *InstanceType) pods() *resource.Quantity {
-	if i.maxPods != nil {
-		return resources.Quantity(fmt.Sprint(ptr.Int32Value(i.maxPods)))
-	}
-	return resources.Quantity(fmt.Sprint(i.eniLimitedPods()))
+	return resources.Quantity(fmt.Sprint(ptr.Int64Value(i.maxPods)))
 }
 
 func (i *InstanceType) awsPodENI(enablePodENI bool) *resource.Quantity {
@@ -251,17 +246,11 @@ func (i *InstanceType) awsNeurons() *resource.Quantity {
 }
 
 func (i *InstanceType) computeOverhead(vmMemOverhead float64, kc *v1alpha5.KubeletConfiguration) v1.ResourceList {
-	pods := i.pods()
-	amiFamily := amifamily.GetAMIFamily(i.provider.AMIFamily, &amifamily.Options{})
-	podsQuantity := pods.Value()
-	if amiFamily.ENILimitedMemoryOverhead() {
-		podsQuantity = i.eniLimitedPods()
-	}
-
 	srr := i.systemReservedResources(kc)
-	krr := i.kubeReservedResources(podsQuantity)
+	krr := i.kubeReservedResources(kc)
 	misc := i.miscResources(vmMemOverhead)
-	overhead := resources.Merge(srr, krr, misc)
+	et := i.evictionThreshold(kc, misc[v1.ResourceMemory])
+	overhead := resources.Merge(srr, krr, et, misc)
 
 	return overhead
 }
@@ -280,18 +269,22 @@ func (i *InstanceType) systemReservedResources(kc *v1alpha5.KubeletConfiguration
 		v1.ResourceMemory:           resource.MustParse("100Mi"),
 		v1.ResourceEphemeralStorage: resource.MustParse("1Gi"),
 	}
-
 	if kc != nil && kc.SystemReserved != nil {
-		for _, name := range []v1.ResourceName{v1.ResourceCPU, v1.ResourceMemory, v1.ResourceEphemeralStorage} {
-			if v, ok := kc.SystemReserved[name]; ok {
-				resources[name] = v
-			}
-		}
+		return lo.Assign(resources, kc.SystemReserved)
 	}
 	return resources
 }
 
-func (i *InstanceType) kubeReservedResources(pods int64) v1.ResourceList {
+func (i *InstanceType) kubeReservedResources(kc *v1alpha5.KubeletConfiguration) v1.ResourceList {
+	// We reserve memory based off of --max-pods unless we are using the EKS-optimized AMI
+	// which relies on ENI-limited pod density regardless of the --max-pods value
+	// https://github.com/awslabs/amazon-eks-ami/issues/782
+	amiFamily := amifamily.GetAMIFamily(i.provider.AMIFamily, &amifamily.Options{})
+	pods := i.pods().Value()
+	if amiFamily.ENILimitedMemoryOverhead() {
+		pods = i.eniLimitedPods()
+	}
+
 	resources := v1.ResourceList{
 		v1.ResourceMemory:           resource.MustParse(fmt.Sprintf("%dMi", (11*pods)+255)),
 		v1.ResourceEphemeralStorage: resource.MustParse("1Gi"), // default kube-reserved ephemeral-storage
@@ -319,19 +312,67 @@ func (i *InstanceType) kubeReservedResources(pods int64) v1.ResourceList {
 			resources[v1.ResourceCPU] = *cpuOverhead
 		}
 	}
+	if kc != nil && kc.KubeReserved != nil {
+		return lo.Assign(resources, kc.KubeReserved)
+	}
 	return resources
 }
 
-func (i *InstanceType) miscResources(vmMemOverhead float64) v1.ResourceList {
+func (i *InstanceType) evictionThreshold(kc *v1alpha5.KubeletConfiguration, vmMemoryOverhead resource.Quantity) v1.ResourceList {
+	overhead := v1.ResourceList{
+		v1.ResourceMemory: resource.MustParse("100Mi"),
+	}
+	if kc == nil || kc.EvictionHard == nil {
+		return overhead
+	}
+
+	if v, ok := kc.EvictionHard[memoryAvailable]; ok {
+		if strings.HasSuffix(v, "%") {
+			p, err := strconv.ParseFloat(strings.Trim(v, "%"), 64)
+			if err != nil {
+				panic(fmt.Sprintf("expected percentage value to be a float but got %s, %v", v, err))
+			}
+			// Setting percentage value to 100% is considered disabling the threshold according to
+			// https://kubernetes.io/docs/reference/config-api/kubelet-config.v1beta1/
+			if p == 100 {
+				p = 0
+			}
+			// Calculation is node.capacity * evictionHard[memory.available] if percentage
+			// From https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/#eviction-signals
+			totalAllocatable := i.resources.Memory().DeepCopy()
+			totalAllocatable.Sub(vmMemoryOverhead)
+			overhead[v1.ResourceMemory] = resource.MustParse(fmt.Sprint(math.Ceil(float64(totalAllocatable.Value()) / 100 * p)))
+		} else {
+			overhead[v1.ResourceMemory] = resource.MustParse(v)
+		}
+	}
+	return overhead
+}
+
+func (i *InstanceType) miscResources(overheadPercentage float64) v1.ResourceList {
 	memory := i.memory().Value()
 	return v1.ResourceList{
-		v1.ResourceMemory: resource.MustParse(fmt.Sprintf("%dMi",
-			// vm-overhead
-			(int64(math.Ceil(float64(memory)*vmMemOverhead/1024/1024)))+
-				// eviction threshold https://github.com/kubernetes/kubernetes/blob/ea0764452222146c47ec826977f49d7001b0ea8c/pkg/kubelet/apis/config/v1beta1/defaults_linux.go#L23
-				100,
-		)),
+		v1.ResourceMemory: resource.MustParse(fmt.Sprintf("%dMi", int64(math.Ceil(float64(memory)*overheadPercentage/1024/1024)))),
 	}
+}
+
+func (i *InstanceType) computeMaxPods(ctx context.Context, kc *v1alpha5.KubeletConfiguration) *int64 {
+	amiFamily := amifamily.GetAMIFamily(i.provider.AMIFamily, &amifamily.Options{})
+	var mp *int64
+
+	switch {
+	case kc != nil && kc.MaxPods != nil:
+		mp = ptr.Int64(int64(ptr.Int32Value(kc.MaxPods)))
+	case !injection.GetOptions(ctx).AWSENILimitedPodDensity:
+		mp = ptr.Int64(110)
+	default:
+		mp = ptr.Int64(i.eniLimitedPods())
+	}
+
+	if kc != nil && ptr.Int32Value(kc.PodsPerCore) > 0 && amiFamily.PodsPerCoreEnabled() {
+		mp = ptr.Int64(lo.Min([]int64{int64(ptr.Int32Value(kc.PodsPerCore)) * ptr.Int64Value(i.VCpuInfo.DefaultVCpus), ptr.Int64Value(mp)}))
+	}
+	return mp
 }
 
 func lowerKabobCase(s string) string {

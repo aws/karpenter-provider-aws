@@ -63,11 +63,30 @@ func (in *KubeletConfiguration) DeepCopyInto(out *KubeletConfiguration) {
 		*out = new(int32)
 		**out = **in
 	}
+	if in.PodsPerCore != nil {
+		in, out := &in.PodsPerCore, &out.PodsPerCore
+		*out = new(int32)
+		**out = **in
+	}
 	if in.SystemReserved != nil {
 		in, out := &in.SystemReserved, &out.SystemReserved
 		*out = make(v1.ResourceList, len(*in))
 		for key, val := range *in {
 			(*out)[key] = val.DeepCopy()
+		}
+	}
+	if in.KubeReserved != nil {
+		in, out := &in.KubeReserved, &out.KubeReserved
+		*out = make(v1.ResourceList, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val.DeepCopy()
+		}
+	}
+	if in.EvictionHard != nil {
+		in, out := &in.EvictionHard, &out.EvictionHard
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
 		}
 	}
 }
