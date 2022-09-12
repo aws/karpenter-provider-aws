@@ -17,6 +17,7 @@ package consolidation
 import (
 	"context"
 	"fmt"
+	appsv1 "k8s.io/api/apps/v1"
 	"sort"
 	"sync"
 	"time"
@@ -25,7 +26,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
-	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 
@@ -481,10 +481,12 @@ func (c *Controller) nodeConsolidationOptionReplaceOrDelete(ctx context.Context,
 		if node.Name == n.Node.Name && n.MarkedForDeletion {
 			candidateNodeIsDeleting = true
 		}
-		if !n.MarkedForDeletion {
-			stateNodes = append(stateNodes, n.DeepCopy())
-		} else {
-			markedForDeletionNodes = append(markedForDeletionNodes, n.DeepCopy())
+		if n.Node.Name != node.Name {
+			if !n.MarkedForDeletion {
+				stateNodes = append(stateNodes, n.DeepCopy())
+			} else {
+				markedForDeletionNodes = append(markedForDeletionNodes, n.DeepCopy())
+			}
 		}
 		return true
 	})
@@ -503,7 +505,6 @@ func (c *Controller) nodeConsolidationOptionReplaceOrDelete(ctx context.Context,
 	pods := append(node.pods, deletingNodePods...)
 	scheduler, err := c.provisioner.NewScheduler(ctx, pods, stateNodes, scheduling.SchedulerOptions{
 		SimulationMode: true,
-		ExcludeNodes:   []string{node.Name},
 	})
 
 	if err != nil {

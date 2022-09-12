@@ -160,7 +160,7 @@ func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, optio
 	} else if len(output.LaunchTemplates) != 1 {
 		return nil, fmt.Errorf("expected to find one launch template, but found %d", len(output.LaunchTemplates))
 	} else {
-		if p.cm.HasChanged("launchtemplate"+name, name) {
+		if p.cm.HasChanged("launchtemplate-"+name, name) {
 			logging.FromContext(ctx).Debugf("Discovered launch template %s", name)
 		}
 		launchTemplate = output.LaunchTemplates[0]
