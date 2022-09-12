@@ -8,7 +8,7 @@ description: >
 
 ## Unable to schedule pod due to insufficient node group instances
 
-v0.16 changed the default replicas from 1 to 2. 
+v0.16.0 changed the default replicas from 1 to 2. 
 
 Karpenter won't launch capacity to run itself (log related to the `karpenter.sh/provisioner-name DoesNotExist requirement`) 
 so it can't provision for the second Karpenter pod. 
