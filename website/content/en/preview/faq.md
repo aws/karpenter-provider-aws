@@ -91,7 +91,7 @@ However, you can use Session Manager (SSM) or EC2 Instance Connect to gain shell
 See [Node NotReady](https://karpenter.sh/preview/troubleshooting/#node-notready) troubleshooting for an example of starting an SSM session from the command line or [EC2 Instance Connect](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-set-up.html) documentation to connect to nodes through the AWS console.
 
 Though not recommended, if you need to access Karpenter-managed nodes without AWS credentials, you can add SSH keys to Launch Templates through [Custom User Data](https://karpenter.sh/preview/aws/user-data/).
-Here is an example of userData to add SSH keys to a Launch Template (replace *keysfile* with your key file):
+Here is an example of userData to add SSH keys to a Launch Template (replace *my-authorized_keys* with your key file):
 
 ```bash
 userData: |
@@ -104,7 +104,7 @@ Content-Type: text/x-shellscript; charset="us-ascii"
 mkdir -p ~ec2-user/.ssh/
 touch ~ec2-user/.ssh/authorized_keys
 cat >> ~ec2-user/.ssh/authorized_keys <<EOF
- keyfile "../../../../docker-eks/terraform/keys/master-authorized_keys" | indent 4 
+{{ insertFile "../my-authorized_keys" | indent 4  }}
 EOF
 chmod -R go-w ~ec2-user/.ssh/authorized_keys
 chown -R ec2-user ~ec2-user/.ssh
