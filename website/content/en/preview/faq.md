@@ -84,6 +84,33 @@ If this were to occur, a node could remain non-empty and have its lifetime exten
 
 We recommend using Kubernetes native scheduling constraints to achieve namespace based scheduling segregation. Using native scheduling constraints ensures that Karpenter, `kube-scheduler` and any other scheduling or auto-provisioning mechanism all have an identical understanding of which pods can be scheduled on which nodes.  This can be enforced via policy agents, an example of which can be seen [here](https://blog.mikesir87.io/2022/01/creating-tenant-node-pools-with-karpenter/).
 
+### Can I add SSH keys to a provisioner?
+
+Karpenter does not offer a way to add SSH keys via provisioners or secrets to the nodes it manages.
+However, you can use Session Manager (SSM) or EC2 Instance Connect to gain shell access to Karpenter nodes.
+See [Node NotReady](https://karpenter.sh/preview/troubleshooting/#node-notready) troubleshooting for an example of starting an SSM session from the command line or [EC2 Instance Connect](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-set-up.html) documentation to connect to nodes through the AWS console.
+
+Though not recommended, if you need to access Karpenter-managed nodes without AWS credentials, you can add SSH keys to Launch Templates through [Custom User Data](https://karpenter.sh/preview/aws/user-data/).
+Here is an example of userData to add SSH keys to a Launch Template (replace *my-authorized_keys* with your key file):
+
+```bash
+userData: |
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="BOUNDARY"
+--BOUNDARY
+Content-Type: text/x-shellscript; charset="us-ascii"
+
+#!/bin/bash
+mkdir -p ~ec2-user/.ssh/
+touch ~ec2-user/.ssh/authorized_keys
+cat >> ~ec2-user/.ssh/authorized_keys <<EOF
+{{ insertFile "../my-authorized_keys" | indent 4  }}
+EOF
+chmod -R go-w ~ec2-user/.ssh/authorized_keys
+chown -R ec2-user ~ec2-user/.ssh
+--BOUNDARY--
+```
+
 ### Can I set total limits of CPU and memory for a provisioner?
 Yes, the setting is provider-specific.
 See examples in [Accelerators, GPU]({{< ref "./aws/provisioning/#accelerators-gpu" >}}) Karpenter documentation.
