@@ -276,7 +276,7 @@ Select AMIs by name:
 Select AMIs by an arbitrary AWS tag key/value pair:
 ```
   amiSelector:
-    MySubnetTag: value
+    MyAMITag: value
 ```
 
 Specify AMIs explicitly by ID:
