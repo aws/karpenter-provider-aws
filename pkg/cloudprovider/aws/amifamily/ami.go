@@ -90,7 +90,7 @@ func (p *AMIProvider) getDefaultAMIFromSSM(ctx context.Context, _ cloudprovider.
 	}
 	ami := aws.StringValue(output.Parameter.Value)
 	p.ssmCache.SetDefault(ssmQuery, ami)
-	if p.cm.HasChanged("ssmquery", ami+ssmQuery) {
+	if p.cm.HasChanged("ssmquery-"+ssmQuery, ami) {
 		logging.FromContext(ctx).Debugf("Discovered %s for query %q", ami, ssmQuery)
 	}
 	return ami, nil

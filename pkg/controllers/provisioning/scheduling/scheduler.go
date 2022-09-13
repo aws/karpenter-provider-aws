@@ -22,7 +22,6 @@ import (
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -38,8 +37,6 @@ import (
 type SchedulerOptions struct {
 	// SimulationMode if true will prevent recording of the pod nomination decisions as events
 	SimulationMode bool
-	// ExcludeNodes are a list of node names that are excluded from existingNodes nodes for scheduling purposes.
-	ExcludeNodes []string
 }
 
 func NewScheduler(ctx context.Context, kubeClient client.Client, nodeTemplates []*scheduling.NodeTemplate,
@@ -82,7 +79,7 @@ func NewScheduler(ctx context.Context, kubeClient client.Client, nodeTemplates [
 		}
 	}
 
-	s.calculateExistingNodes(opts, namedNodeTemplates, stateNodes)
+	s.calculateExistingNodes(namedNodeTemplates, stateNodes)
 	return s
 }
 
@@ -228,14 +225,9 @@ func (s *Scheduler) add(ctx context.Context, pod *v1.Pod) error {
 	return errs
 }
 
-func (s *Scheduler) calculateExistingNodes(opts SchedulerOptions, namedNodeTemplates map[string]*scheduling.NodeTemplate, stateNodes []*state.Node) {
-	// create our in-flight nodes
-	excluded := sets.NewString(opts.ExcludeNodes...)
+func (s *Scheduler) calculateExistingNodes(namedNodeTemplates map[string]*scheduling.NodeTemplate, stateNodes []*state.Node) {
+	// create our existing nodes
 	for _, node := range stateNodes {
-		// skip any nodes that have been excluded
-		if excluded.Has(node.Node.Name) {
-			continue
-		}
 		name, ok := node.Node.Labels[v1alpha5.ProvisionerNameLabelKey]
 		if !ok {
 			// ignoring this node as it wasn't launched by us

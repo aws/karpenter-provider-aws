@@ -28,7 +28,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-
 	"k8s.io/utils/clock"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
@@ -109,12 +108,13 @@ func (c *Controller) run(ctx context.Context) {
 				continue
 			}
 
-			// don't consolidate as we recently scaled down too soon
+			// don't consolidate as we recently scaled up/down too soon
 			stabilizationTime := c.clock.Now().Add(-c.stabilizationWindow(ctx))
 			// capture the state before we process so if something changes during consolidation we'll re-look
 			// immediately
 			clusterState := c.cluster.ClusterConsolidationState()
-			if c.cluster.LastNodeDeletionTime().Before(stabilizationTime) {
+			if c.cluster.LastNodeDeletionTime().Before(stabilizationTime) &&
+				c.cluster.LastNodeCreationTime().Before(stabilizationTime) {
 				result, err := c.ProcessCluster(ctx)
 				if err != nil {
 					logging.FromContext(ctx).Errorf("consolidating cluster, %s", err)
@@ -480,10 +480,12 @@ func (c *Controller) nodeConsolidationOptionReplaceOrDelete(ctx context.Context,
 		if node.Name == n.Node.Name && n.MarkedForDeletion {
 			candidateNodeIsDeleting = true
 		}
-		if !n.MarkedForDeletion {
-			stateNodes = append(stateNodes, n.DeepCopy())
-		} else {
-			markedForDeletionNodes = append(markedForDeletionNodes, n.DeepCopy())
+		if n.Node.Name != node.Name {
+			if !n.MarkedForDeletion {
+				stateNodes = append(stateNodes, n.DeepCopy())
+			} else {
+				markedForDeletionNodes = append(markedForDeletionNodes, n.DeepCopy())
+			}
 		}
 		return true
 	})
@@ -502,7 +504,6 @@ func (c *Controller) nodeConsolidationOptionReplaceOrDelete(ctx context.Context,
 	pods := append(node.pods, deletingNodePods...)
 	scheduler, err := c.provisioner.NewScheduler(ctx, pods, stateNodes, scheduling.SchedulerOptions{
 		SimulationMode: true,
-		ExcludeNodes:   []string{node.Name},
 	})
 
 	if err != nil {
@@ -576,11 +577,30 @@ func (c *Controller) hasPendingPods(ctx context.Context) bool {
 	return false
 }
 
+func (c *Controller) deploymentsReady(ctx context.Context) bool {
+	var depList appsv1.DeploymentList
+	if err := c.kubeClient.List(ctx, &depList); err != nil {
+		// failed to list, assume there must be one non-ready as it's harmless and just ensures we wait longer
+		return false
+	}
+	for _, ds := range depList.Items {
+		desired := ptr.Int32Value(ds.Spec.Replicas)
+		if ds.Spec.Replicas == nil {
+			// unspecified defaults to 1
+			desired = 1
+		}
+		if ds.Status.ReadyReplicas < desired || ds.Status.UpdatedReplicas < desired {
+			return false
+		}
+	}
+	return true
+}
+
 func (c *Controller) replicaSetsReady(ctx context.Context) bool {
 	var rsList appsv1.ReplicaSetList
 	if err := c.kubeClient.List(ctx, &rsList); err != nil {
 		// failed to list, assume there must be one non-ready as it's harmless and just ensures we wait longer
-		return true
+		return false
 	}
 	for _, rs := range rsList.Items {
 		desired := ptr.Int32Value(rs.Spec.Replicas)
@@ -599,7 +619,7 @@ func (c *Controller) replicationControllersReady(ctx context.Context) bool {
 	var rsList v1.ReplicationControllerList
 	if err := c.kubeClient.List(ctx, &rsList); err != nil {
 		// failed to list, assume there must be one non-ready as it's harmless and just ensures we wait longer
-		return true
+		return false
 	}
 	for _, rs := range rsList.Items {
 		desired := ptr.Int32Value(rs.Spec.Replicas)
@@ -618,7 +638,7 @@ func (c *Controller) statefulSetsReady(ctx context.Context) bool {
 	var sslist appsv1.StatefulSetList
 	if err := c.kubeClient.List(ctx, &sslist); err != nil {
 		// failed to list, assume there must be one non-ready as it's harmless and just ensures we wait longer
-		return true
+		return false
 	}
 	for _, rs := range sslist.Items {
 		desired := ptr.Int32Value(rs.Spec.Replicas)
@@ -626,7 +646,7 @@ func (c *Controller) statefulSetsReady(ctx context.Context) bool {
 			// unspecified defaults to 1
 			desired = 1
 		}
-		if rs.Status.ReadyReplicas < desired {
+		if rs.Status.ReadyReplicas < desired || rs.Status.UpdatedReplicas < desired {
 			return false
 		}
 	}
@@ -635,7 +655,7 @@ func (c *Controller) statefulSetsReady(ctx context.Context) bool {
 
 func (c *Controller) stabilizationWindow(ctx context.Context) time.Duration {
 	// no pending pods, and all replica sets/replication controllers are reporting ready so quickly consider another consolidation
-	if !c.hasPendingPods(ctx) && c.replicaSetsReady(ctx) &&
+	if !c.hasPendingPods(ctx) && c.deploymentsReady(ctx) && c.replicaSetsReady(ctx) &&
 		c.replicationControllersReady(ctx) && c.statefulSetsReady(ctx) {
 		return 0
 	}
