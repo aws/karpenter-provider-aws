@@ -85,8 +85,9 @@ spec:
       cpu: "1000"
       memory: 1000Gi
 
-  # These fields vary per cloud provider, see your cloud provider specific documentation
-  provider: {}
+  # References cloud provider-specific custom resource, see your cloud provider specific documentation
+  providerRef:
+    name: default
 ```
 
 ## Node deprovisioning
@@ -251,8 +252,8 @@ Karpenter limits instance types when scheduling to those that will not exceed th
 
 Review the [resource limit task](../tasks/set-resource-limits) for more information.
 
-## spec.provider
+## spec.providerRef
 
-This section is cloud provider specific. Reference the appropriate documentation:
+This field points to the cloud provider-specific custom resource. Reference the appropriate documentation:
 
 - [AWS](../aws/provisioning/)
