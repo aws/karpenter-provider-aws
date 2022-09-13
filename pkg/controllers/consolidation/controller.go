@@ -17,7 +17,6 @@ package consolidation
 import (
 	"context"
 	"fmt"
-	appsv1 "k8s.io/api/apps/v1"
 	"sort"
 	"sync"
 	"time"
@@ -26,9 +25,9 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-
 	"k8s.io/utils/clock"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
@@ -639,7 +638,7 @@ func (c *Controller) statefulSetsReady(ctx context.Context) bool {
 	var sslist appsv1.StatefulSetList
 	if err := c.kubeClient.List(ctx, &sslist); err != nil {
 		// failed to list, assume there must be one non-ready as it's harmless and just ensures we wait longer
-		return true
+		return false
 	}
 	for _, rs := range sslist.Items {
 		desired := ptr.Int32Value(rs.Spec.Replicas)

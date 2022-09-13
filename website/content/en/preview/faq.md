@@ -193,6 +193,6 @@ The `startupTaints` parameter was added in v0.10.0.  Helm upgrades do not upgrad
 
 ## Consolidation
 
-### Why do I sometimes see an extra node get launched when updating a deployment that then remains empty and is removed?
+### Why do I sometimes see an extra node get launched when updating a deployment that remains empty and is later removed?
 
-Consolidation packs pods tightly onto nodes which can leave little free allocatable CPU/memory on your nodes.  If a deployment uses a deployment strategy with a non-zero `maxSurge`, such as the default 25%, those surge pods may not have anywhere to run. In this case Karpenter will launch a new node so that the surge pods can run and then remove it soon after if it's not needed.
+Consolidation packs pods tightly onto nodes which can leave little free allocatable CPU/memory on your nodes.  If a deployment uses a deployment strategy with a non-zero `maxSurge`, such as the default 25%, those surge pods may not have anywhere to run. In this case, Karpenter will launch a new node so that the surge pods can run and then remove it soon after if it's not needed.
