@@ -25,6 +25,7 @@ import (
 
 	"github.com/imdario/mergo"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -47,6 +48,7 @@ import (
 	"github.com/aws/karpenter/pkg/metrics"
 	"github.com/aws/karpenter/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/utils/injection"
+	"github.com/aws/karpenter/pkg/utils/node"
 	"github.com/aws/karpenter/pkg/utils/pod"
 	"github.com/aws/karpenter/pkg/utils/resources"
 )
@@ -140,16 +142,33 @@ func (p *Provisioner) Provision(ctx context.Context) error {
 	// scheduling loop when we launch a new node.  When this order is reversed, our node capacity may be reduced by pods
 	// that have bound which we then provision new un-needed capacity for.
 	var stateNodes []*state.Node
+	var markedForDeletionNodes []*state.Node
 	p.cluster.ForEachNode(func(node *state.Node) bool {
-		stateNodes = append(stateNodes, node.DeepCopy())
+		// We don't consider the nodes that are MarkedForDeletion since this capacity shouldn't be considered
+		// as persistent capacity for the cluster (since it will soon be removed). Additionally, we are scheduling for
+		// the pods that are on these nodes so the MarkedForDeletion node capacity can't be considered.
+		if !node.MarkedForDeletion {
+			stateNodes = append(stateNodes, node.DeepCopy())
+		} else {
+			markedForDeletionNodes = append(markedForDeletionNodes, node.DeepCopy())
+		}
 		return true
 	})
 
 	// Get pods, exit if nothing to do
-	pods, err := p.getPods(ctx)
+	pendingPods, err := p.getPendingPods(ctx)
 	if err != nil {
 		return err
 	}
+	// Get pods from nodes that are preparing for deletion
+	// We do this after getting the pending pods so that we undershoot if pods are
+	// actively migrating from a node that is being deleted
+	// NOTE: The assumption is that these nodes are cordoned and no additional pods will schedule to them
+	deletingNodePods, err := node.GetNodePods(ctx, p.kubeClient, lo.Map(markedForDeletionNodes, func(n *state.Node, _ int) *v1.Node { return n.Node })...)
+	if err != nil {
+		return err
+	}
+	pods := append(pendingPods, deletingNodePods...)
 	if len(pods) == 0 {
 		return nil
 	}
@@ -194,7 +213,7 @@ func (p *Provisioner) LaunchNodes(ctx context.Context, opts LaunchOptions, nodes
 	return nodeNames, nil
 }
 
-func (p *Provisioner) getPods(ctx context.Context) ([]*v1.Pod, error) {
+func (p *Provisioner) getPendingPods(ctx context.Context) ([]*v1.Pod, error) {
 	var podList v1.PodList
 	if err := p.kubeClient.List(ctx, &podList, client.MatchingFields{"spec.nodeName": ""}); err != nil {
 		return nil, fmt.Errorf("listing pods, %w", err)

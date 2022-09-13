@@ -41,6 +41,7 @@ const (
 	consolidateResultDelete
 	consolidateResultDeleteEmpty
 	consolidateResultReplace
+	consolidateResultNoAction
 )
 
 func (r consolidateResult) String() string {
@@ -55,6 +56,8 @@ func (r consolidateResult) String() string {
 		return "Delete (empty node)"
 	case consolidateResultReplace:
 		return "Replace"
+	case consolidateResultNoAction:
+		return "NoAction"
 	default:
 		return fmt.Sprintf("Unknown (%d)", r)
 	}

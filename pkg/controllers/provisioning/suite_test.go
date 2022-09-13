@@ -47,6 +47,9 @@ import (
 
 var ctx context.Context
 var fakeClock *clock.FakeClock
+var cluster *state.Cluster
+var nodeController *state.NodeController
+var cloudProvider cloudprovider.CloudProvider
 var controller *provisioning.Controller
 var env *test.Environment
 var recorder *test.EventRecorder
@@ -61,12 +64,12 @@ func TestAPIs(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
-		cloudProvider := &fake.CloudProvider{}
-		recorder = test.NewEventRecorder()
+		cloudProvider = &fake.CloudProvider{}
 		cfg = test.NewConfig()
 		recorder = test.NewEventRecorder()
 		fakeClock = clock.NewFakeClock(time.Now())
-		cluster := state.NewCluster(fakeClock, cfg, e.Client, cloudProvider)
+		cluster = state.NewCluster(fakeClock, cfg, e.Client, cloudProvider)
+		nodeController = state.NewNodeController(e.Client, cluster)
 		prov := provisioning.NewProvisioner(ctx, cfg, e.Client, corev1.NewForConfigOrDie(e.Config), recorder, cloudProvider, cluster)
 		controller = provisioning.NewController(e.Client, prov, recorder)
 		instanceTypes, _ := cloudProvider.GetInstanceTypes(context.Background(), nil)
@@ -76,6 +79,11 @@ var _ = BeforeSuite(func() {
 		}
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
+})
+
+var _ = BeforeEach(func() {
+	recorder.Reset()
+	cluster = state.NewCluster(fakeClock, cfg, env.Client, cloudProvider)
 })
 
 var _ = AfterSuite(func() {
@@ -181,6 +189,45 @@ var _ = Describe("Provisioning", func() {
 		for _, pod := range pods {
 			ExpectScheduled(ctx, env.Client, pod)
 		}
+	})
+	It("should schedule all pods on one node when node is in deleting state", func() {
+		provisioner := test.Provisioner()
+		its, err := cloudProvider.GetInstanceTypes(ctx, provisioner)
+		Expect(err).To(BeNil())
+		node := test.Node(test.NodeOptions{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+					v1.LabelInstanceTypeStable:       its[0].Name(),
+				},
+				Finalizers: []string{v1alpha5.TerminationFinalizer},
+			}},
+		)
+		ExpectApplied(ctx, env.Client, node, provisioner)
+		ExpectReconcileSucceeded(ctx, nodeController, client.ObjectKeyFromObject(node))
+
+		// Schedule 3 pods to the node that currently exists
+		for i := 0; i < 3; i++ {
+			pod := test.UnschedulablePod()
+			ExpectApplied(ctx, env.Client, pod)
+			ExpectManualBinding(ctx, env.Client, pod, node)
+		}
+
+		// Node shouldn't fully delete since it has a finalizer
+		Expect(env.Client.Delete(ctx, node)).To(Succeed())
+		ExpectReconcileSucceeded(ctx, nodeController, client.ObjectKeyFromObject(node))
+
+		// Provision without a binding since some pods will already be bound
+		// Should all schedule to the new node, ignoring the old node
+		ExpectProvisionedNoBinding(ctx, env.Client, controller, test.UnschedulablePod(), test.UnschedulablePod())
+		nodes := &v1.NodeList{}
+		Expect(env.Client.List(ctx, nodes)).To(Succeed())
+		Expect(len(nodes.Items)).To(Equal(2))
+
+		// Scheduler should attempt to schedule all the pods to the new node
+		recorder.ForEachBinding(func(p *v1.Pod, n *v1.Node) {
+			Expect(n.Name).ToNot(Equal(node.Name))
+		})
 	})
 	Context("Resource Limits", func() {
 		It("should not schedule when limits are exceeded", func() {

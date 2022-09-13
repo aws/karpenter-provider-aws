@@ -42,6 +42,7 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/events"
 	"github.com/aws/karpenter/pkg/metrics"
+	nodeutils "github.com/aws/karpenter/pkg/utils/node"
 	"github.com/aws/karpenter/pkg/utils/pod"
 )
 
@@ -202,6 +203,10 @@ func (c *Controller) candidateNodes(ctx context.Context) ([]candidateNode, error
 			provisioner = provisioners[provName]
 			instanceTypeMap = instanceTypesByProvisioner[provName]
 		}
+		// skip any nodes that are already marked for deletion and being handled
+		if n.MarkedForDeletion {
+			return true
+		}
 		// skip any nodes where we can't determine the provisioner
 		if provisioner == nil || instanceTypeMap == nil {
 			return true
@@ -242,7 +247,7 @@ func (c *Controller) candidateNodes(ctx context.Context) ([]candidateNode, error
 			return true
 		}
 
-		pods, err := c.getNodePods(ctx, n.Node.Name)
+		pods, err := nodeutils.GetNodePods(ctx, c.kubeClient, n.Node)
 		if err != nil {
 			logging.FromContext(ctx).Errorf("Determining node pods, %s", err)
 			return true
@@ -367,21 +372,22 @@ func byNodeDisruptionCost(nodes []candidateNode) func(i int, j int) bool {
 }
 
 // launchReplacementNode launches a replacement node and blocks until it is ready
-func (c *Controller) launchReplacementNode(ctx context.Context, minCost consolidationAction) error {
+func (c *Controller) launchReplacementNode(ctx context.Context, action consolidationAction) error {
 	defer metrics.Measure(consolidationReplacementNodeInitializedHistogram)()
-	if len(minCost.oldNodes) != 1 {
-		return fmt.Errorf("expected a single node to replace, found %d", len(minCost.oldNodes))
+	if len(action.oldNodes) != 1 {
+		return fmt.Errorf("expected a single node to replace, found %d", len(action.oldNodes))
 	}
+	oldNode := action.oldNodes[0]
 
 	// cordon the node before we launch the replacement to prevent new pods from scheduling to the node
-	if err := c.setNodeUnschedulable(ctx, minCost.oldNodes[0].Name, true); err != nil {
-		return fmt.Errorf("cordoning node %s, %w", minCost.oldNodes[0].Name, err)
+	if err := c.setNodeUnschedulable(ctx, action.oldNodes[0].Name, true); err != nil {
+		return fmt.Errorf("cordoning node %s, %w", oldNode.Name, err)
 	}
 
-	nodeNames, err := c.provisioner.LaunchNodes(ctx, provisioning.LaunchOptions{RecordPodNomination: false}, minCost.replacementNode)
+	nodeNames, err := c.provisioner.LaunchNodes(ctx, provisioning.LaunchOptions{RecordPodNomination: false}, action.replacementNode)
 	if err != nil {
 		// uncordon the node as the launch may fail (e.g. ICE or incompatible AMI)
-		err = multierr.Append(err, c.setNodeUnschedulable(ctx, minCost.oldNodes[0].Name, false))
+		err = multierr.Append(err, c.setNodeUnschedulable(ctx, oldNode.Name, false))
 		return err
 	}
 	if len(nodeNames) != 1 {
@@ -391,6 +397,9 @@ func (c *Controller) launchReplacementNode(ctx context.Context, minCost consolid
 
 	consolidationNodesCreatedCounter.Add(1)
 
+	// We have the new node created at the API server so mark the old node for deletion
+	c.cluster.MarkForDeletion(oldNode.Name)
+
 	var k8Node v1.Node
 	// Wait for the node to be ready
 	var once sync.Once
@@ -399,7 +408,7 @@ func (c *Controller) launchReplacementNode(ctx context.Context, minCost consolid
 			return fmt.Errorf("getting node, %w", err)
 		}
 		once.Do(func() {
-			c.recorder.LaunchingNodeForConsolidation(&k8Node, minCost.String())
+			c.recorder.LaunchingNodeForConsolidation(&k8Node, action.String())
 		})
 
 		if _, ok := k8Node.Labels[v1alpha5.LabelNodeInitialized]; !ok {
@@ -410,28 +419,11 @@ func (c *Controller) launchReplacementNode(ctx context.Context, minCost consolid
 		return nil
 	}, waitRetryOptions...); err != nil {
 		// node never become ready, so uncordon the node we were trying to delete and report the error
-		return multierr.Combine(c.setNodeUnschedulable(ctx, minCost.oldNodes[0].Name, false),
+		c.cluster.UnmarkForDeletion(oldNode.Name)
+		return multierr.Combine(c.setNodeUnschedulable(ctx, oldNode.Name, false),
 			fmt.Errorf("timed out checking node readiness, %w", err))
 	}
 	return nil
-}
-
-func (c *Controller) getNodePods(ctx context.Context, nodeName string) ([]*v1.Pod, error) {
-	var podList v1.PodList
-	if err := c.kubeClient.List(ctx, &podList, client.MatchingFields{"spec.nodeName": nodeName}); err != nil {
-		return nil, fmt.Errorf("listing pods, %w", err)
-	}
-	var pods []*v1.Pod
-	for i := range podList.Items {
-		// these pods don't need to be rescheduled
-		if pod.IsOwnedByNode(&podList.Items[i]) ||
-			pod.IsOwnedByDaemonSet(&podList.Items[i]) ||
-			pod.IsTerminal(&podList.Items[i]) {
-			continue
-		}
-		pods = append(pods, &podList.Items[i])
-	}
-	return pods, nil
 }
 
 func (c *Controller) canBeTerminated(node candidateNode, pdbs *PDBLimits) error {
@@ -481,11 +473,34 @@ func (c *Controller) nodeConsolidationOptionReplaceOrDelete(ctx context.Context,
 	defer metrics.Measure(consolidationDurationHistogram.WithLabelValues("Replace/Delete"))()
 
 	var stateNodes []*state.Node
+	var markedForDeletionNodes []*state.Node
+	candidateNodeIsDeleting := false
+
 	c.cluster.ForEachNode(func(n *state.Node) bool {
-		stateNodes = append(stateNodes, n.DeepCopy())
+		if node.Name == n.Node.Name && n.MarkedForDeletion {
+			candidateNodeIsDeleting = true
+		}
+		if !n.MarkedForDeletion {
+			stateNodes = append(stateNodes, n.DeepCopy())
+		} else {
+			markedForDeletionNodes = append(markedForDeletionNodes, n.DeepCopy())
+		}
 		return true
 	})
-	scheduler, err := c.provisioner.NewScheduler(ctx, node.pods, stateNodes, scheduling.SchedulerOptions{
+	// We do one final check to ensure that the node that we are attempting to consolidate isn't
+	// already handled for deletion by some other controller. This could happen if the node was markedForDeletion
+	// between returning the candidateNodes and getting the stateNodes above
+	if candidateNodeIsDeleting {
+		return consolidationAction{result: consolidateResultNoAction}, nil
+	}
+
+	// We get the pods that are on nodes that are deleting
+	deletingNodePods, err := nodeutils.GetNodePods(ctx, c.kubeClient, lo.Map(markedForDeletionNodes, func(n *state.Node, _ int) *v1.Node { return n.Node })...)
+	if err != nil {
+		return consolidationAction{result: consolidateResultUnknown}, fmt.Errorf("failed to get pods from deleting nodes, %w", err)
+	}
+	pods := append(node.pods, deletingNodePods...)
+	scheduler, err := c.provisioner.NewScheduler(ctx, pods, stateNodes, scheduling.SchedulerOptions{
 		SimulationMode: true,
 		ExcludeNodes:   []string{node.Name},
 	})
@@ -494,7 +509,7 @@ func (c *Controller) nodeConsolidationOptionReplaceOrDelete(ctx context.Context,
 		return consolidationAction{result: consolidateResultUnknown}, fmt.Errorf("creating scheduler, %w", err)
 	}
 
-	newNodes, inflightNodes, err := scheduler.Solve(ctx, node.pods)
+	newNodes, inflightNodes, err := scheduler.Solve(ctx, pods)
 	if err != nil {
 		return consolidationAction{result: consolidateResultUnknown}, fmt.Errorf("simulating scheduling, %w", err)
 	}
