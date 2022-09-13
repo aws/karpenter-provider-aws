@@ -49,7 +49,7 @@ battletest: ## Run randomized, racing, code coveraged, tests
 
 e2etests: ## Run the e2e suite against your local cluster
 	go clean -testcache
-	go test -p 1 -timeout 180m -v ./test/suites/... -run=${TEST_FILTER}
+	CLUSTER_NAME=${CLUSTER_NAME} go test -p 1 -timeout 180m -v ./test/suites/... -run=${TEST_FILTER}
 
 benchmark:
 	go test -tags=test_performance -run=NoTests -bench=. ./...
