@@ -26,9 +26,9 @@ import (
 	"github.com/patrickmn/go-cache"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/apimachinery/pkg/util/clock"
 	"k8s.io/client-go/kubernetes"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	clock "k8s.io/utils/clock/testing"
 	"knative.dev/pkg/ptr"
 
 	. "github.com/onsi/ginkgo/v2"

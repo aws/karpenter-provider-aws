@@ -23,15 +23,16 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zapr"
+	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/clock"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/client-go/util/flowcontrol"
+	"k8s.io/utils/clock"
 	"knative.dev/pkg/configmap/informer"
 	knativeinjection "knative.dev/pkg/injection"
 	"knative.dev/pkg/injection/sharedmain"
@@ -114,6 +115,7 @@ func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options)
 		Scheme:                     scheme,
 		MetricsBindAddress:         fmt.Sprintf(":%d", opts.MetricsPort),
 		HealthProbeBindAddress:     fmt.Sprintf(":%d", opts.HealthProbePort),
+		BaseContext:                newRunnableContext(controllerRuntimeConfig, opts, logging.FromContext(ctx)),
 	})
 
 	if opts.EnableProfiling {
@@ -222,38 +224,37 @@ func registerPprof(manager manager.Manager) error {
 	return nil
 }
 
-type ignoreDebugEventsLogger struct {
-	level  int
-	name   string
-	logger logr.Logger
+type ignoreDebugEventsSink struct {
+	name string
+	sink logr.LogSink
 }
 
-func (i ignoreDebugEventsLogger) Enabled() bool { return i.logger.Enabled() }
-func (i ignoreDebugEventsLogger) Info(msg string, keysAndValues ...interface{}) {
+func (i ignoreDebugEventsSink) Init(ri logr.RuntimeInfo) {
+	i.sink.Init(ri)
+}
+func (i ignoreDebugEventsSink) Enabled(level int) bool { return i.sink.Enabled(level) }
+func (i ignoreDebugEventsSink) Info(level int, msg string, keysAndValues ...interface{}) {
 	// ignore debug "events" logs
-	if i.level == 1 && i.name == "events" {
+	if level == 1 && i.name == "events" {
 		return
 	}
-	i.logger.Info(msg, keysAndValues...)
+	i.sink.Info(level, msg, keysAndValues...)
 }
-func (i ignoreDebugEventsLogger) Error(err error, msg string, keysAndValues ...interface{}) {
-	i.logger.Error(err, msg, keysAndValues...)
+func (i ignoreDebugEventsSink) Error(err error, msg string, keysAndValues ...interface{}) {
+	i.sink.Error(err, msg, keysAndValues...)
 }
-func (i ignoreDebugEventsLogger) V(level int) logr.Logger {
-	return &ignoreDebugEventsLogger{level: level, name: i.name, logger: i.logger.V(level)}
+func (i ignoreDebugEventsSink) WithValues(keysAndValues ...interface{}) logr.LogSink {
+	return i.sink.WithValues(keysAndValues...)
 }
-func (i ignoreDebugEventsLogger) WithValues(keysAndValues ...interface{}) logr.Logger {
-	return i.logger.WithValues(keysAndValues...)
-}
-func (i ignoreDebugEventsLogger) WithName(name string) logr.Logger {
-	return &ignoreDebugEventsLogger{level: i.level, name: name, logger: i.logger.WithName(name)}
+func (i ignoreDebugEventsSink) WithName(name string) logr.LogSink {
+	return &ignoreDebugEventsSink{name: name, sink: i.sink.WithName(name)}
 }
 
 // ignoreDebugEvents wraps the logger with one that ignores any debug logs coming from a logger named "events".  This
 // prevents every event we write from creating a debug log which spams the log file during scale-ups due to recording
 // pod scheduling decisions as events for visibility.
 func ignoreDebugEvents(logger logr.Logger) logr.Logger {
-	return &ignoreDebugEventsLogger{logger: logger}
+	return logr.New(&ignoreDebugEventsSink{sink: logger.GetSink()})
 }
 
 // LoggingContextOrDie injects a logger into the returned context. The logger is
@@ -266,4 +267,14 @@ func LoggingContextOrDie(config *rest.Config, cmw *informer.InformedWatcher) con
 	sharedmain.WatchLoggingConfigOrDie(ctx, cmw, logger, atomicLevel, component)
 	startinformers()
 	return ctx
+}
+
+func newRunnableContext(config *rest.Config, options *options.Options, logger *zap.SugaredLogger) func() context.Context {
+	return func() context.Context {
+		ctx := context.Background()
+		ctx = logging.WithLogger(ctx, logger)
+		ctx = injection.WithConfig(ctx, config)
+		ctx = injection.WithOptions(ctx, *options)
+		return ctx
+	}
 }

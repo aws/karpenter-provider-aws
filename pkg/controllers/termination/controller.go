@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"time"
 
-	"k8s.io/apimachinery/pkg/util/clock"
+	"k8s.io/utils/clock"
 
 	"golang.org/x/time/rate"
 	"knative.dev/pkg/logging"

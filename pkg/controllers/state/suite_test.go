@@ -21,7 +21,7 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/apimachinery/pkg/util/clock"
+	clock "k8s.io/utils/clock/testing"
 	"knative.dev/pkg/ptr"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"

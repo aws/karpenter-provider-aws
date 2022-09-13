@@ -19,7 +19,6 @@ package scheduling_test
 import (
 	"context"
 	"fmt"
-	"k8s.io/apimachinery/pkg/util/clock"
 	"math"
 	"math/rand"
 	"os"
@@ -28,19 +27,23 @@ import (
 	"text/tabwriter"
 	"time"
 
+	clock "k8s.io/utils/clock/testing"
+
+	"k8s.io/apimachinery/pkg/api/resource"
+
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	pscheduling "github.com/aws/karpenter/pkg/controllers/provisioning/scheduling"
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/test"
-	"k8s.io/apimachinery/pkg/api/resource"
 
 	"go.uber.org/zap"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"knative.dev/pkg/logging"
 
-	"github.com/aws/karpenter/pkg/cloudprovider/fake"
 	v1 "k8s.io/api/core/v1"
+
+	"github.com/aws/karpenter/pkg/cloudprovider/fake"
 )
 
 const MinPodsPerSec = 100.0
