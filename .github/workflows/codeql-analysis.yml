@@ -22,7 +22,7 @@ jobs:
         language: [ 'go' ]
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     # Initializes the CodeQL tools for scanning.
     - uses: github/codeql-action/init@v1
