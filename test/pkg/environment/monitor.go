@@ -103,7 +103,7 @@ func (m *Monitor) NodeCount() int {
 
 // NodeCountAtReset returns the number of nodes that were running when the monitor was last reset, typically at the
 // beginning of a test
-func (m *Monitor) NodeCountAtReset() interface{} {
+func (m *Monitor) NodeCountAtReset() int {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.numberNodesAtReset
