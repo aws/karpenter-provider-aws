@@ -29,7 +29,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("TTL Empty", func() {
+var _ = Describe("Emptiness", func() {
 	BeforeEach(func() { env.BeforeEach() })
 	AfterEach(func() { env.AfterEach() })
 
@@ -53,38 +53,6 @@ var _ = Describe("TTL Empty", func() {
 		persisted := deployment.DeepCopy()
 		deployment.Spec.Replicas = ptr.Int32(0)
 		Expect(env.Client.Patch(env, deployment, client.MergeFrom(persisted))).To(Succeed())
-
-		nodes := env.Monitor.GetCreatedNodes()
-		for i := range nodes {
-			env.EventuallyExpectNotFound(&nodes[i])
-		}
-	})
-})
-
-var _ = Describe("TTL Expired", func() {
-	It("should terminate an expired node", func() {
-		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
-		}})
-		provisioner := test.Provisioner(test.ProvisionerOptions{
-			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
-		})
-
-		const numPods = 1
-		deployment := test.Deployment(test.DeploymentOptions{Replicas: numPods})
-
-		env.ExpectCreated(provisioner, provider, deployment)
-		env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), numPods)
-		env.ExpectCreatedNodeCount("==", 1)
-
-		persistedDep := deployment.DeepCopy()
-		deployment.Spec.Replicas = ptr.Int32(0)
-		Expect(env.Client.Patch(env, deployment, client.MergeFrom(persistedDep))).To(Succeed())
-
-		persistedProv := provisioner.DeepCopy()
-		provisioner.Spec.TTLSecondsUntilExpired = ptr.Int64(10)
-		Expect(env.Client.Patch(env, provisioner, client.MergeFrom(persistedProv))).To(Succeed())
 
 		nodes := env.Monitor.GetCreatedNodes()
 		for i := range nodes {
