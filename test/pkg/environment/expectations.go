@@ -90,6 +90,7 @@ func (env *Environment) BeforeEach() {
 	Expect(env.Client.List(env.Context, &provisioners)).To(Succeed())
 	Expect(provisioners.Items).To(HaveLen(0), "expected no provisioners to exist")
 	env.Monitor.Reset()
+	env.StartingNodeCount = env.Monitor.NodeCountAtReset()
 }
 
 func (env *Environment) dumpNodeInformation(nodes v1.NodeList) {
@@ -121,12 +122,12 @@ func (env *Environment) AfterEach() {
 			wg.Add(1)
 			go func(object client.Object, namespace string) {
 				defer GinkgoRecover()
+				defer wg.Done()
 				Expect(env.Client.DeleteAllOf(env, object,
 					client.InNamespace(namespace),
 					client.HasLabels([]string{TestLabelName}),
 					client.PropagationPolicy(metav1.DeletePropagationForeground),
-				)).Should(Succeed())
-				wg.Done()
+				)).To(Succeed())
 			}(object, namespace.Name)
 		}
 	}
@@ -200,8 +201,8 @@ func (env *Environment) EventuallyExpectHealthyPodCount(selector labels.Selector
 func (env *Environment) eventuallyExpectScaleDown() {
 	Eventually(func(g Gomega) {
 		// expect the current node count to be what it was when the test started
-		g.Expect(env.Monitor.NodeCount()).To(Equal(env.Monitor.NodeCountAtReset()))
-	}).Should(Succeed(), fmt.Sprintf("expected scale down to %d nodes, had %d", env.Monitor.NodeCountAtReset(), env.Monitor.NodeCount()))
+		g.Expect(env.Monitor.NodeCount()).To(Equal(env.StartingNodeCount))
+	}).Should(Succeed(), fmt.Sprintf("expected scale down to %d nodes, had %d", env.StartingNodeCount, env.Monitor.NodeCount()))
 }
 
 func (env *Environment) EventuallyExpectNotFound(objects ...client.Object) {

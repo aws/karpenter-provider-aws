@@ -42,14 +42,15 @@ import (
 
 type Environment struct {
 	context.Context
-	ClusterName string
-	Region      string
-	Client      client.Client
-	KubeClient  kubernetes.Interface
-	EC2API      ec2.EC2
-	SSMAPI      ssm.SSM
-	IAMAPI      iam.IAM
-	Monitor     *Monitor
+	ClusterName       string
+	Region            string
+	Client            client.Client
+	KubeClient        kubernetes.Interface
+	EC2API            ec2.EC2
+	SSMAPI            ssm.SSM
+	IAMAPI            iam.IAM
+	Monitor           *Monitor
+	StartingNodeCount int
 }
 
 func NewEnvironment(t *testing.T) (*Environment, error) {

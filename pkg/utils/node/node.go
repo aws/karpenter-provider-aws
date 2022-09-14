@@ -25,6 +25,8 @@ import (
 )
 
 // GetNodePods gets the list of schedulable pods from a variadic list of nodes
+// It ignores pods that are owned by the node, a daemonset or are in a terminal
+// or terminating state
 func GetNodePods(ctx context.Context, kubeClient client.Client, nodes ...*v1.Node) ([]*v1.Pod, error) {
 	var pods []*v1.Pod
 	for _, node := range nodes {
@@ -36,7 +38,8 @@ func GetNodePods(ctx context.Context, kubeClient client.Client, nodes ...*v1.Nod
 			// these pods don't need to be rescheduled
 			if pod.IsOwnedByNode(&podList.Items[i]) ||
 				pod.IsOwnedByDaemonSet(&podList.Items[i]) ||
-				pod.IsTerminal(&podList.Items[i]) {
+				pod.IsTerminal(&podList.Items[i]) ||
+				pod.IsTerminating(&podList.Items[i]) {
 				continue
 			}
 			pods = append(pods, &podList.Items[i])
