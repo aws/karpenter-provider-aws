@@ -1,5 +1,6 @@
 export K8S_VERSION ?= 1.23.x
 export KUBEBUILDER_ASSETS ?= ${HOME}/.kubebuilder/bin
+export CLUSTER_NAME ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].name}' | rev | cut -d"/" -f1 | rev | cut -d"." -f1)
 
 ## Inject the app version into project.Version
 LDFLAGS ?= -ldflags=-X=github.com/aws/karpenter/pkg/utils/project.Version=$(shell git describe --tags --always)
@@ -7,7 +8,6 @@ GOFLAGS ?= $(LDFLAGS)
 WITH_GOFLAGS = GOFLAGS="$(GOFLAGS)"
 
 ## Extra helm options
-CLUSTER_NAME ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].name}' | rev | cut -d"/" -f1 | rev | cut -d"." -f1)
 CLUSTER_ENDPOINT ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].cluster.server}')
 AWS_ACCOUNT_ID ?= $(shell aws sts get-caller-identity --query Account --output text)
 KARPENTER_IAM_ROLE_ARN ?= arn:aws:iam::${AWS_ACCOUNT_ID}:role/${CLUSTER_NAME}-karpenter
@@ -20,6 +20,7 @@ TEST_FILTER ?= .*
 
 # CR for local builds of Karpenter
 SYSTEM_NAMESPACE ?= karpenter
+KARPENTER_VERSION ?= $(shell git tag --sort=committerdate | tail -1)
 KO_DOCKER_REPO ?= ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/karpenter
 GETTING_STARTED_SCRIPT_DIR = website/content/en/preview/getting-started/getting-started-with-eksctl/scripts
 
@@ -49,7 +50,7 @@ battletest: ## Run randomized, racing, code coveraged, tests
 
 e2etests: ## Run the e2e suite against your local cluster
 	go clean -testcache
-	CLUSTER_NAME=${CLUSTER_NAME} go test -p 1 -timeout 180m -v ./test/suites/... -run=${TEST_FILTER}
+	go test -p 1 -timeout 180m -v ./test/suites/... -run=${TEST_FILTER}
 
 benchmark:
 	go test -tags=test_performance -run=NoTests -bench=. ./...

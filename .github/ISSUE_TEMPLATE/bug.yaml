@@ -2,13 +2,17 @@ name: Bug Report
 description: Report a bug in Karpenter
 labels: bug
 body:
-  - type: input
+  - type: textarea
     id: version
     attributes:
       label: Version
       description: |
         https://github.com/aws/karpenter/releases
-      placeholder: ex. kubectl version | grep Server
+      value: |
+        <!-- helm ls -A --all -o json | jq '.[] | select(.name=="karpenter") | .app_version' -r -->
+        __Karpenter Version:__ v0.0.0
+        <!-- kubectl version | grep Server -->
+        __Kubernetes Version:__ v1.0.0
     validations:
       required: true
 
