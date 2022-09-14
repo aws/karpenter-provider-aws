@@ -73,9 +73,18 @@ spec:
     clusterDNS: ["10.0.1.100"]
     containerRuntime: containerd
     systemReserved:
-      cpu: 1
-      memory: 5Gi
-      ephemeral-storage: 2Gi
+      cpu: 100m
+      memory: 100Mi
+      ephemeral-storage: 1Gi
+    kubeReserved:
+      cpu: 200m
+      memory: 100Mi
+      ephemeral-storage: 3Gi
+    evictionHard:
+      memory.available: 5%
+      nodefs.available: 10%
+      nodefs.inodesFree: 10%
+    podsPerCore: 2
     maxPods: 20
 
   # Resource limits constrain the total size of the cluster.
@@ -202,13 +211,23 @@ additional customization and use cases. Adjust these only if you know you need t
 
 ```yaml
 spec:
+  ...
   kubeletConfiguration:
     clusterDNS: ["10.0.1.100"]
     containerRuntime: containerd
     systemReserved:
-      cpu: 1
-      memory: 5Gi
-      ephemeral-storage: 2Gi
+      cpu: 100m
+      memory: 100Mi
+      ephemeral-storage: 1Gi
+    kubeReserved:
+      cpu: 200m
+      memory: 100Mi
+      ephemeral-storage: 3Gi
+    evictionHard:
+      memory.available: 5%
+      nodefs.available: 10%
+      nodefs.inodesFree: 10%
+    podsPerCore: 2
     maxPods: 20
 ```
 
@@ -219,15 +238,51 @@ You can specify the container runtime to be either `dockerd` or `containerd`.
 * `dockerd` will be chosen by default for [Inferentia instanceTypes](https://aws.amazon.com/ec2/instance-types/inf1/). For all other instances `containerd` is the default.
 * You can only use `containerd` with the Bottlerocket AMI Family.
 
-### System Reserved Resources
+### Reserved Resources
 
-Karpenter will automatically configure the system reserved resource requests on the fly on your behalf. These requests are used to configure your node and to make scheduling decisions for your pods. If you have specific requirements or know that you will have additional capacity requirements, you can optionally override the `--system-reserved` configuration defaults with the `.spec.kubeletConfiguration.systemReserved` value.
+Karpenter will automatically configure the system and kube reserved resource requests on the fly on your behalf. These requests are used to configure your node and to make scheduling decisions for your pods. If you have specific requirements or know that you will have additional capacity requirements, you can optionally override the `--system-reserved` configuration defaults with the `.spec.kubeletConfiguration.systemReserved` values and the `--kube-reserved` configuration defaults with the `.spec.kubeletConfiguration.kubeReserved` values.
 
-These values will be accounted for in scheduling and be passed through when your node is bootstrapped to the kubelet.
+For more information on the default `--system-reserved` and `--kube-reserved` configuration refer to the [Kubelet Docs](https://kubernetes.io/docs/tasks/administer-cluster/reserve-compute-resources/#kube-reserved)
 
-For more information on the default `--system-reserved` configuration refer to the [Kubelet Docs](https://kubernetes.io/docs/tasks/administer-cluster/reserve-compute-resources/#system-reserved)
+### Eviction Thresholds
 
-### Max Pods
+The kubelet supports eviction thresholds by default. When enough memory or file system pressure is exerted on the node, the kubelet will begin to evict pods to ensure that system daemons and other system processes can continue to run in a healthy manner. 
+
+Kubelet has the notion of [hard evictions](https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/#hard-eviction-thresholds) and [soft evictions](https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/#soft-eviction-thresholds). In hard evictions, pods are evicted as soon as a threshold is met, with no grace period to terminate. Soft evictions, on the other hand, provide an opportunity for pods to be terminated gracefully. They do so by sending a termination signal to pods that are planning to be evicted and allowing those pods to terminate up to their grace period.
+
+{{% alert title="Note" color="primary" %}}
+Karpenter currently only supports [hard evictions](https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/#hard-eviction-thresholds) through the `.spec.kubeletConfiguration.evictionHard` field. `evictionHard` is configured by listing [signal names](https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/#eviction-signals) with either a percentage value or a resource value.
+{{% /alert %}}
+
+```yaml
+spec:
+  ...
+  kubeletConfiguration:
+    evictionHard:
+      memory.available: 500Mi
+      nodefs.available: 10%
+      nodefs.inodesFree: 10%
+      imagefs.available: 5%
+      imagefs.inodesFree: 5%
+      pid.available: 7%
+```
+
+#### Supported Eviction Signals
+
+| Eviction Signal | Description |
+| --------------- | ----------- |
+| memory.available | memory.available := node.status.capacity[memory] - node.stats.memory.workingSet |
+| nodefs.available | nodefs.available := node.stats.fs.available |
+| nodefs.inodesFree | nodefs.inodesFree := node.stats.fs.inodesFree |
+| imagefs.available | imagefs.available := node.stats.runtime.imagefs.available |
+| imagefs.inodesFree | imagefs.inodesFree := node.stats.runtime.imagefs.inodesFree |
+| pid.available | pid.available := node.stats.rlimit.maxpid - node.stats.rlimit.curproc |
+
+For more information on eviction threshold, view the [Node-pressure Eviction](https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction) section of the official Kubernetes docs.
+
+### Pod Density
+
+#### Max Pods
 
 By default, AWS will configure the maximum density of pods on a node [based on the node instance type](https://github.com/awslabs/amazon-eks-ami/blob/master/files/eni-max-pods.txt). For small instances that require an increased pod density or large instances that require a reduced pod density, you can override this default value with `.spec.kubeletConfiguration.maxPods`. This value will be used during Karpenter pod scheduling and passed through to `--max-pods` on kubelet startup.
 
@@ -235,7 +290,19 @@ By default, AWS will configure the maximum density of pods on a node [based on t
 When using small instance types, it may be necessary to enable [prefix assignment mode](https://aws.amazon.com/blogs/containers/amazon-vpc-cni-increases-pods-per-node-limits/) in the AWS VPC CNI plugin to support a higher pod density per node.  Prefix assignment mode was introduced in AWS VPC CNI v1.9 and allows ENIs to manage a broader set of IP addresses.  Much higher pod densities are supported as a result.
 {{% /alert %}}
 
-For a more detailed description of pod density considerations, see [Control Pod Density](../tasks/pod-density).
+#### Pods Per Core
+
+An alternative way to dynamically set the maximum density of pods on a node is to use the `.spec.kubeletConfiguration.podsPerCore` value. Karpenter will calculate the pod density during scheduling by multiplying this value by the number of logical cores (vCPUs) on an instance type. This value will also be passed through to the `--pods-per-core` value on kubelet startup to configure the number of allocatable pods the kubelet can assign to the node instance.
+
+The value generated from `podsPerCore` cannot exceed `maxPods`, meaning, if both are set, the minimum of the `podsPerCore` dynamic pod density and the static `maxPods` value will be used for scheduling.
+
+{{% alert title="Note" color="primary" %}}
+`maxPods` may not be set in the `kubeletConfiguration` of a Provisioner, but may still be restricted by the `ENI_LIMITED_POD_DENSITY` value. You may want to ensure that the `podsPerCore` value that will be used for instance families associated with the Provisioner will not cause unexpected behavior by exceeding the `maxPods` value.
+{{% /alert %}}
+
+{{% alert title="Pods Per Core on Bottlerocket" color="warning" %}}
+Bottlerocket AMIFamily currently does not support `podsPerCore` configuration. If a Provisioner contains a `provider` or `providerRef` to a node template that will launch a Bottlerocket instance, the `podsPerCore` value will be ignored for scheduling and for configuring the kubelet.
+{{% /alert %}}
 
 ## spec.limits.resources
 
