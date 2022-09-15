@@ -1367,7 +1367,7 @@ var _ = Describe("Parallelization", func() {
 			nodes := &v1.NodeList{}
 			g.Expect(env.Client.List(ctx, nodes)).To(Succeed())
 			g.Expect(len(nodes.Items)).To(Equal(2))
-		}).Should(Succeed())
+		}, time.Second*10).Should(Succeed())
 
 		// Add a new pending pod that should schedule while node is not yet deleted
 		pods := ExpectProvisionedNoBinding(ctx, env.Client, provisioningController, test.UnschedulablePod())
