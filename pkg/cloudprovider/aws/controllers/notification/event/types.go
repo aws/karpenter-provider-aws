@@ -41,10 +41,10 @@ var Kinds = struct {
 	StateChange,
 	Noop Kind
 }{
-	AutoScalingTermination:  Kind("autoScalingTermination"),
-	RebalanceRecommendation: Kind("rebalanceRecommendation"),
-	ScheduledChange:         Kind("scheduledChange"),
-	SpotInterruption:        Kind("spotInterruption"),
-	StateChange:             Kind("stateChange"),
-	Noop:                    Kind("noop"),
+	AutoScalingTermination:  "autoScalingTermination",
+	RebalanceRecommendation: "rebalanceRecommendation",
+	ScheduledChange:         "scheduledChange",
+	SpotInterruption:        "spotInterruption",
+	StateChange:             "stateChange",
+	Noop:                    "noop",
 }

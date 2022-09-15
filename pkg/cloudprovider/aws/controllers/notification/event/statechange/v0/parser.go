@@ -31,7 +31,7 @@ const (
 	acceptedStates = "stopping,stopped,shutting-down,terminated"
 )
 
-var acceptedStatesList = strings.Split(acceptedStates, ",")
+//var acceptedStatesList = strings.Split(acceptedStates, ",")
 
 type Parser struct{}
 

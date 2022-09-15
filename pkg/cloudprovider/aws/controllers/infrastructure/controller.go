@@ -18,7 +18,7 @@ import (
 	"context"
 	"time"
 
-	"k8s.io/apimachinery/pkg/util/clock"
+	"k8s.io/utils/clock"
 	"knative.dev/pkg/logging"
 
 	"github.com/aws/karpenter/pkg/cloudprovider/aws"
@@ -81,6 +81,5 @@ func (c *Controller) run(ctx context.Context) {
 	}
 }
 
-func (c *Controller) ensureInfrastructure(ctx context.Context) error {
-	return nil
+func (c *Controller) ensureInfrastructure(ctx context.Context) {
 }

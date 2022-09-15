@@ -23,7 +23,7 @@ import (
 	sqsapi "github.com/aws/aws-sdk-go/service/sqs"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/util/clock"
+	"k8s.io/utils/clock"
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -40,11 +40,9 @@ type Action = string
 
 var Actions = struct {
 	CordonAndDrain,
-	Cordon,
 	NoAction Action
 }{
 	CordonAndDrain: "CordonAndDrain",
-	Cordon:         "Cordon",
 	NoAction:       "NoAction",
 }
 
@@ -126,7 +124,7 @@ func (c *Controller) handleMessage(ctx context.Context, instanceIDMap map[string
 		return nil
 	}
 	evt := c.parser.Parse(ctx, *msg.Body)
-	evtAction := actionForEvent(evt)
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("event", evt.Kind()))
 
 	nodes := getInvolvedNodes(evt.EC2InstanceIDs(), instanceIDMap)
 	action := actionForEvent(evt)
@@ -134,9 +132,8 @@ func (c *Controller) handleMessage(ctx context.Context, instanceIDMap map[string
 	for i := range nodes {
 		node := nodes[i]
 		c.notifyForEvent(evt, node)
-
 		if action != Actions.NoAction {
-			e := c.handleInstance(ctx, node, evtAction)
+			e := c.deleteInstance(ctx, node)
 			err = multierr.Append(err, e)
 		}
 	}
@@ -146,10 +143,10 @@ func (c *Controller) handleMessage(ctx context.Context, instanceIDMap map[string
 	return c.provider.DeleteSQSMessage(ctx, msg)
 }
 
-// TODO: Handle the instance appropriately, this should be handled with a batcher potentially
-func (c *Controller) handleInstance(ctx context.Context, node *v1.Node, _ Action) error {
+func (c *Controller) deleteInstance(ctx context.Context, node *v1.Node) error {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("node", node.Name))
-	logging.FromContext(ctx).Infof("Terminating node due to spot interruption warning")
+	logging.FromContext(ctx).Infof("Queue notification triggered ")
+
 	if err := c.kubeClient.Delete(ctx, node); err != nil {
 		return fmt.Errorf("deleting the spot interrupted node, %w", err)
 	}
@@ -187,7 +184,6 @@ func actionForEvent(evt event.Interface) Action {
 	case event.Kinds.SpotInterruption:
 		return Actions.CordonAndDrain
 
-		// TODO: understand what the state change action is
 	case event.Kinds.StateChange:
 		return Actions.NoAction
 
@@ -196,6 +192,8 @@ func actionForEvent(evt event.Interface) Action {
 	}
 }
 
+// getInvolvedNodes gets all the nodes that are involved in an event based
+// on the instanceIDs passed in from the event
 func getInvolvedNodes(instanceIDs []string, instanceIDMap map[string]*v1.Node) []*v1.Node {
 	var nodes []*v1.Node
 	for _, id := range instanceIDs {
