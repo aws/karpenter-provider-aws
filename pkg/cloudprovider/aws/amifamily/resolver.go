@@ -78,6 +78,7 @@ type AMIFamily interface {
 	EphemeralBlockDevice() *string
 	ENILimitedMemoryOverhead() bool
 	PodsPerCoreEnabled() bool
+	EvictionSoftEnabled() bool
 }
 
 // New constructs a new launch template Resolver

@@ -18,6 +18,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -285,50 +286,124 @@ var _ = Describe("Validation", func() {
 			}
 			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 		})
-		It("should succeed on evictionHard with valid keys", func() {
-			provisioner.Spec.KubeletConfiguration = &KubeletConfiguration{
-				EvictionHard: map[string]string{
-					"memory.available":   "5%",
-					"nodefs.available":   "10%",
-					"nodefs.inodesFree":  "15%",
-					"imagefs.available":  "5%",
-					"imagefs.inodesFree": "5%",
-					"pid.available":      "5%",
-				},
-			}
-			Expect(provisioner.Validate(ctx)).To(Succeed())
+		Context("Eviction Signals", func() {
+			Context("Eviction Hard", func() {
+				It("should succeed on evictionHard with valid keys", func() {
+					provisioner.Spec.KubeletConfiguration = &KubeletConfiguration{
+						EvictionHard: map[string]string{
+							"memory.available":   "5%",
+							"nodefs.available":   "10%",
+							"nodefs.inodesFree":  "15%",
+							"imagefs.available":  "5%",
+							"imagefs.inodesFree": "5%",
+							"pid.available":      "5%",
+						},
+					}
+					Expect(provisioner.Validate(ctx)).To(Succeed())
+				})
+				It("should fail on evictionHard with invalid keys", func() {
+					provisioner.Spec.KubeletConfiguration = &KubeletConfiguration{
+						EvictionHard: map[string]string{
+							"memory": "5%",
+						},
+					}
+					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+				})
+				It("should fail on invalid formatted percentage value in evictionHard", func() {
+					provisioner.Spec.KubeletConfiguration = &KubeletConfiguration{
+						EvictionHard: map[string]string{
+							"memory.available": "5%3",
+						},
+					}
+					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+				})
+				It("should fail on invalid percentage value (too large) in evictionHard", func() {
+					provisioner.Spec.KubeletConfiguration = &KubeletConfiguration{
+						EvictionHard: map[string]string{
+							"memory.available": "110%",
+						},
+					}
+					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+				})
+				It("should fail on invalid quantity value in evictionHard", func() {
+					provisioner.Spec.KubeletConfiguration = &KubeletConfiguration{
+						EvictionHard: map[string]string{
+							"memory.available": "110GB",
+						},
+					}
+					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+				})
+			})
 		})
-		It("should fail on evictionHard with invalid keys", func() {
-			provisioner.Spec.KubeletConfiguration = &KubeletConfiguration{
-				EvictionHard: map[string]string{
-					"memory": "5%",
-				},
-			}
-			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+		Context("Eviction Soft", func() {
+			It("should succeed on evictionSoft with valid keys", func() {
+				provisioner.Spec.KubeletConfiguration = &KubeletConfiguration{
+					EvictionSoft: map[string]string{
+						"memory.available":   "5%",
+						"nodefs.available":   "10%",
+						"nodefs.inodesFree":  "15%",
+						"imagefs.available":  "5%",
+						"imagefs.inodesFree": "5%",
+						"pid.available":      "5%",
+					},
+				}
+				Expect(provisioner.Validate(ctx)).To(Succeed())
+			})
+			It("should fail on evictionSoft with invalid keys", func() {
+				provisioner.Spec.KubeletConfiguration = &KubeletConfiguration{
+					EvictionSoft: map[string]string{
+						"memory": "5%",
+					},
+				}
+				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+			})
+			It("should fail on invalid formatted percentage value in evictionSoft", func() {
+				provisioner.Spec.KubeletConfiguration = &KubeletConfiguration{
+					EvictionSoft: map[string]string{
+						"memory.available": "5%3",
+					},
+				}
+				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+			})
+			It("should fail on invalid percentage value (too large) in evictionSoft", func() {
+				provisioner.Spec.KubeletConfiguration = &KubeletConfiguration{
+					EvictionSoft: map[string]string{
+						"memory.available": "110%",
+					},
+				}
+				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+			})
+			It("should fail on invalid quantity value in evictionSoft", func() {
+				provisioner.Spec.KubeletConfiguration = &KubeletConfiguration{
+					EvictionSoft: map[string]string{
+						"memory.available": "110GB",
+					},
+				}
+				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+			})
 		})
-		It("should fail on invalid formatted percentage value in evictionHard", func() {
-			provisioner.Spec.KubeletConfiguration = &KubeletConfiguration{
-				EvictionHard: map[string]string{
-					"memory.available": "5%3",
-				},
-			}
-			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
-		})
-		It("should fail on invalid percentage value (too large) in evictionHard", func() {
-			provisioner.Spec.KubeletConfiguration = &KubeletConfiguration{
-				EvictionHard: map[string]string{
-					"memory.available": "110%",
-				},
-			}
-			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
-		})
-		It("should fail on invalid quantity value in evictionHard", func() {
-			provisioner.Spec.KubeletConfiguration = &KubeletConfiguration{
-				EvictionHard: map[string]string{
-					"memory.available": "110GB",
-				},
-			}
-			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+		Context("Eviction Soft Grace Period", func() {
+			It("should succeed on evictionSoftGracePeriod with valid keys", func() {
+				provisioner.Spec.KubeletConfiguration = &KubeletConfiguration{
+					EvictionSoftGracePeriod: map[string]metav1.Duration{
+						"memory.available":   {Duration: time.Minute},
+						"nodefs.available":   {Duration: time.Second * 90},
+						"nodefs.inodesFree":  {Duration: time.Minute * 5},
+						"imagefs.available":  {Duration: time.Hour},
+						"imagefs.inodesFree": {Duration: time.Hour * 24},
+						"pid.available":      {Duration: time.Minute},
+					},
+				}
+				Expect(provisioner.Validate(ctx)).To(Succeed())
+			})
+			It("should fail on evictionSoftGracePeriodf with invalid keys", func() {
+				provisioner.Spec.KubeletConfiguration = &KubeletConfiguration{
+					EvictionSoftGracePeriod: map[string]metav1.Duration{
+						"memory": {Duration: time.Minute},
+					},
+				}
+				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+			})
 		})
 	})
 })

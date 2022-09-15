@@ -94,3 +94,11 @@ func (b Bottlerocket) ENILimitedMemoryOverhead() bool {
 func (b Bottlerocket) PodsPerCoreEnabled() bool {
 	return false
 }
+
+// EvictionSoftEnabled is currently disabled for Bottlerocket AMIFamily because it does
+// not currently support the evictionSoft parameter passed through the kubernetes settings TOML userData
+// If a Provisioner sets the evictionSoft value when using the Bottlerocket AMIFamily in the provider,
+// evictionSoft will be ignored
+func (b Bottlerocket) EvictionSoftEnabled() bool {
+	return false
+}

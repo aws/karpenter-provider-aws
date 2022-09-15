@@ -138,6 +138,16 @@ type KubeletConfiguration struct {
 	// EvictionHard is the map of signal names to quantities that define hard eviction thresholds
 	// +optional
 	EvictionHard map[string]string `json:"evictionHard,omitempty"`
+	// EvictionSoft is the map of signal names to quantities that define soft eviction thresholds
+	// +optional
+	EvictionSoft map[string]string `json:"evictionSoft,omitempty"`
+	// EvictionGracePeriod is the map of signal names to quantities that define grace periods for each eviction signal
+	// +optional
+	EvictionSoftGracePeriod map[string]metav1.Duration `json:"evictionSoftGracePeriod,omitempty"`
+	// EvictionMaxPodGracePeriod is the maximum allowed grace period (in seconds) to use when terminating pods in
+	// response to soft eviction thresholds being met.
+	// +optional
+	EvictionMaxPodGracePeriod *int32 `json:"evictionMaxPodGracePeriod,omitempty"`
 }
 
 // Provisioner is the Schema for the Provisioners API

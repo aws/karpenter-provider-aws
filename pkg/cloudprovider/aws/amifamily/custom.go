@@ -59,3 +59,7 @@ func (c Custom) ENILimitedMemoryOverhead() bool {
 func (c Custom) PodsPerCoreEnabled() bool {
 	return true
 }
+
+func (c Custom) EvictionSoftEnabled() bool {
+	return true
+}

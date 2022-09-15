@@ -68,6 +68,24 @@ spec:
                     description: EvictionHard is the map of signal names to quantities
                       that define hard eviction thresholds
                     type: object
+                  evictionMaxPodGracePeriod:
+                    description: EvictionMaxPodGracePeriod is the maximum allowed
+                      grace period (in seconds) to use when terminating pods in response
+                      to soft eviction thresholds being met.
+                    format: int32
+                    type: integer
+                  evictionSoft:
+                    additionalProperties:
+                      type: string
+                    description: EvictionSoft is the map of signal names to quantities
+                      that define soft eviction thresholds
+                    type: object
+                  evictionSoftGracePeriod:
+                    additionalProperties:
+                      type: string
+                    description: EvictionGracePeriod is the map of signal names to
+                      quantities that define grace periods for each eviction signal
+                    type: object
                   kubeReserved:
                     additionalProperties:
                       anyOf:

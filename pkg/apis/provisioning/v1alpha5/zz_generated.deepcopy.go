@@ -21,6 +21,7 @@ package v1alpha5
 
 import (
 	"k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"knative.dev/pkg/apis"
 )
@@ -88,6 +89,25 @@ func (in *KubeletConfiguration) DeepCopyInto(out *KubeletConfiguration) {
 		for key, val := range *in {
 			(*out)[key] = val
 		}
+	}
+	if in.EvictionSoft != nil {
+		in, out := &in.EvictionSoft, &out.EvictionSoft
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
+	if in.EvictionSoftGracePeriod != nil {
+		in, out := &in.EvictionSoftGracePeriod, &out.EvictionSoftGracePeriod
+		*out = make(map[string]metav1.Duration, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
+	if in.EvictionMaxPodGracePeriod != nil {
+		in, out := &in.EvictionMaxPodGracePeriod, &out.EvictionMaxPodGracePeriod
+		*out = new(int32)
+		**out = **in
 	}
 }
 

@@ -96,3 +96,7 @@ func (a AL2) ENILimitedMemoryOverhead() bool {
 func (a AL2) PodsPerCoreEnabled() bool {
 	return true
 }
+
+func (a AL2) EvictionSoftEnabled() bool {
+	return true
+}

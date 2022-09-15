@@ -23,6 +23,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -640,7 +641,7 @@ var _ = Describe("LaunchTemplates", func() {
 				Expect(rem[:i]).To(ContainSubstring(fmt.Sprintf("%v=%v", k.String(), v.String())))
 			}
 		})
-		It("should pass eviction threshold hard values when specified", func() {
+		It("should pass eviction hard threshold values when specified", func() {
 			provisioner = test.Provisioner(test.ProvisionerOptions{
 				Kubelet: &v1alpha5.KubeletConfiguration{
 					EvictionHard: map[string]string{
@@ -665,6 +666,73 @@ var _ = Describe("LaunchTemplates", func() {
 			for k, v := range provisioner.Spec.KubeletConfiguration.EvictionHard {
 				Expect(rem[:i]).To(ContainSubstring(fmt.Sprintf("%v<%v", k, v)))
 			}
+		})
+		It("should pass eviction soft threshold values when specified", func() {
+			provisioner = test.Provisioner(test.ProvisionerOptions{
+				Kubelet: &v1alpha5.KubeletConfiguration{
+					EvictionSoft: map[string]string{
+						"memory.available":  "10%",
+						"nodefs.available":  "15%",
+						"nodefs.inodesFree": "5%",
+					},
+				},
+			})
+			ExpectApplied(ctx, env.Client, provisioner)
+			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+			userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+
+			// Check whether the arguments are there for --kube-reserved
+			arg := "--eviction-soft="
+			i := strings.Index(string(userData), arg)
+			rem := string(userData)[(i + len(arg)):]
+			i = strings.Index(rem, "'")
+			for k, v := range provisioner.Spec.KubeletConfiguration.EvictionSoft {
+				Expect(rem[:i]).To(ContainSubstring(fmt.Sprintf("%v<%v", k, v)))
+			}
+		})
+		It("should pass eviction soft grace period values when specified", func() {
+			provisioner = test.Provisioner(test.ProvisionerOptions{
+				Kubelet: &v1alpha5.KubeletConfiguration{
+					EvictionSoftGracePeriod: map[string]metav1.Duration{
+						"memory.available":  {Duration: time.Minute},
+						"nodefs.available":  {Duration: time.Second * 180},
+						"nodefs.inodesFree": {Duration: time.Minute * 5},
+					},
+				},
+			})
+			ExpectApplied(ctx, env.Client, provisioner)
+			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+			userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+
+			// Check whether the arguments are there for --kube-reserved
+			arg := "--eviction-soft-grace-period="
+			i := strings.Index(string(userData), arg)
+			rem := string(userData)[(i + len(arg)):]
+			i = strings.Index(rem, "'")
+			for k, v := range provisioner.Spec.KubeletConfiguration.EvictionSoftGracePeriod {
+				Expect(rem[:i]).To(ContainSubstring(fmt.Sprintf("%v=%v", k, v.Duration.String())))
+			}
+		})
+		It("should pass eviction max pod grace period when specified", func() {
+			provisioner = test.Provisioner(test.ProvisionerOptions{
+				Kubelet: &v1alpha5.KubeletConfiguration{
+					EvictionMaxPodGracePeriod: ptr.Int32(300),
+				},
+			})
+			ExpectApplied(ctx, env.Client, provisioner)
+			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+			userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+
+			Expect(string(userData)).To(ContainSubstring(fmt.Sprintf("--eviction-max-pod-grace-period=%d", 300)))
 		})
 		It("should specify --pods-per-core", func() {
 			provisioner = test.Provisioner(test.ProvisionerOptions{

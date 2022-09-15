@@ -70,3 +70,7 @@ func (u Ubuntu) ENILimitedMemoryOverhead() bool {
 func (u Ubuntu) PodsPerCoreEnabled() bool {
 	return true
 }
+
+func (u Ubuntu) EvictionSoftEnabled() bool {
+	return true
+}

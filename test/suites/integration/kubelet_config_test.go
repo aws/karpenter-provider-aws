@@ -16,6 +16,7 @@ package integration_test
 
 import (
 	"math"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -34,6 +35,62 @@ import (
 )
 
 var _ = Describe("KubeletConfiguration Overrides", func() {
+	It("should startup successfully with all kubelet configuration set", func() {
+		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
+		}})
+
+		// MaxPods needs to account for the daemonsets that will run on the nodes
+		provisioner := test.Provisioner(test.ProvisionerOptions{
+			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
+			Kubelet: &v1alpha5.KubeletConfiguration{
+				ContainerRuntime: ptr.String("containerd"),
+				MaxPods:          ptr.Int32(110),
+				PodsPerCore:      ptr.Int32(10),
+				SystemReserved: v1.ResourceList{
+					v1.ResourceCPU:              resource.MustParse("200m"),
+					v1.ResourceMemory:           resource.MustParse("200Mi"),
+					v1.ResourceEphemeralStorage: resource.MustParse("1Gi"),
+				},
+				KubeReserved: v1.ResourceList{
+					v1.ResourceCPU:              resource.MustParse("200m"),
+					v1.ResourceMemory:           resource.MustParse("200Mi"),
+					v1.ResourceEphemeralStorage: resource.MustParse("1Gi"),
+				},
+				EvictionHard: map[string]string{
+					"memory.available":   "5%",
+					"nodefs.available":   "5%",
+					"nodefs.inodesFree":  "5%",
+					"imagefs.available":  "5%",
+					"imagefs.inodesFree": "5%",
+					"pid.available":      "3%",
+				},
+				EvictionSoft: map[string]string{
+					"memory.available":   "10%",
+					"nodefs.available":   "10%",
+					"nodefs.inodesFree":  "10%",
+					"imagefs.available":  "10%",
+					"imagefs.inodesFree": "10%",
+					"pid.available":      "6%",
+				},
+				EvictionSoftGracePeriod: map[string]metav1.Duration{
+					"memory.available":   {Duration: time.Minute * 2},
+					"nodefs.available":   {Duration: time.Minute * 2},
+					"nodefs.inodesFree":  {Duration: time.Minute * 2},
+					"imagefs.available":  {Duration: time.Minute * 2},
+					"imagefs.inodesFree": {Duration: time.Minute * 2},
+					"pid.available":      {Duration: time.Minute * 2},
+				},
+				EvictionMaxPodGracePeriod: ptr.Int32(120),
+			},
+		})
+
+		pod := test.Pod()
+		env.ExpectCreated(provisioner, provider, pod)
+		env.EventuallyExpectHealthy(pod)
+		env.ExpectCreatedNodeCount("==", 1)
+	})
 	It("should schedule pods onto separate nodes when maxPods is set", func() {
 		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},

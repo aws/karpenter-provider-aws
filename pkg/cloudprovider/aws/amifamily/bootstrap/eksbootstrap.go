@@ -29,9 +29,11 @@ import (
 	"sync"
 
 	"github.com/samber/lo"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"knative.dev/pkg/ptr"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/utils/resources"
 )
 
 type EKS struct {
@@ -52,34 +54,42 @@ func (e EKS) Script() (string, error) {
 		caBundleArg = fmt.Sprintf("--b64-cluster-ca '%s'", *e.CABundle)
 	}
 	var userData bytes.Buffer
+	var kubeletExtraArgs strings.Builder
 	userData.WriteString("#!/bin/bash -xe\n")
 	userData.WriteString("exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1\n")
 	// Due to the way bootstrap.sh is written, parameters should not be passed to it with an equal sign
 	userData.WriteString(fmt.Sprintf("/etc/eks/bootstrap.sh '%s' --apiserver-endpoint '%s' %s", e.ClusterName, e.ClusterEndpoint, caBundleArg))
 
-	kubeletExtraArgs := strings.Join([]string{e.nodeLabelArg(), e.nodeTaintArg()}, " ")
+	kubeletExtraArgs.WriteString(strings.Join([]string{e.nodeLabelArg(), e.nodeTaintArg()}, " "))
 
 	if e.KubeletConfig != nil && e.KubeletConfig.MaxPods != nil {
 		userData.WriteString(" \\\n--use-max-pods false")
-		kubeletExtraArgs += fmt.Sprintf(" --max-pods=%d", ptr.Int32Value(e.KubeletConfig.MaxPods))
+		kubeletExtraArgs.WriteString(fmt.Sprintf(" --max-pods=%d", ptr.Int32Value(e.KubeletConfig.MaxPods)))
 	} else if !e.AWSENILimitedPodDensity {
 		userData.WriteString(" \\\n--use-max-pods false")
-		kubeletExtraArgs += " --max-pods=110"
+		kubeletExtraArgs.WriteString(" --max-pods=110")
 	}
 	if e.KubeletConfig != nil && e.KubeletConfig.PodsPerCore != nil {
-		kubeletExtraArgs += fmt.Sprintf(" --pods-per-core=%d", ptr.Int32Value(e.KubeletConfig.PodsPerCore))
+		kubeletExtraArgs.WriteString(fmt.Sprintf(" --pods-per-core=%d", ptr.Int32Value(e.KubeletConfig.PodsPerCore)))
 	}
 
 	if e.KubeletConfig != nil {
-		kubeletExtraArgs += e.systemReservedArg()
-		kubeletExtraArgs += e.kubeReservedArg()
-		kubeletExtraArgs += e.evictionThresholdArg()
+		// We have to convert some of these maps so that their values return the correct string
+		kubeletExtraArgs.WriteString(joinParameterArgs("--system-reserved", resources.StringMap(e.KubeletConfig.SystemReserved), "="))
+		kubeletExtraArgs.WriteString(joinParameterArgs("--kube-reserved", resources.StringMap(e.KubeletConfig.KubeReserved), "="))
+		kubeletExtraArgs.WriteString(joinParameterArgs("--eviction-hard", e.KubeletConfig.EvictionHard, "<"))
+		kubeletExtraArgs.WriteString(joinParameterArgs("--eviction-soft", e.KubeletConfig.EvictionSoft, "<"))
+		kubeletExtraArgs.WriteString(joinParameterArgs("--eviction-soft-grace-period", lo.MapValues(e.KubeletConfig.EvictionSoftGracePeriod, func(v metav1.Duration, _ string) string { return v.Duration.String() }), "="))
+
+		if e.KubeletConfig.EvictionMaxPodGracePeriod != nil {
+			kubeletExtraArgs.WriteString(fmt.Sprintf(" --eviction-max-pod-grace-period=%d", ptr.Int32Value(e.KubeletConfig.EvictionMaxPodGracePeriod)))
+		}
 	}
 	if e.ContainerRuntime != "" {
 		userData.WriteString(fmt.Sprintf(" \\\n--container-runtime %s", e.ContainerRuntime))
 	}
-	if kubeletExtraArgs = strings.Trim(kubeletExtraArgs, " "); len(kubeletExtraArgs) > 0 {
-		userData.WriteString(fmt.Sprintf(" \\\n--kubelet-extra-args '%s'", kubeletExtraArgs))
+	if kubeletExtraArgsStr := strings.Trim(kubeletExtraArgs.String(), " "); len(kubeletExtraArgsStr) > 0 {
+		userData.WriteString(fmt.Sprintf(" \\\n--kubelet-extra-args '%s'", kubeletExtraArgsStr))
 	}
 	if e.KubeletConfig != nil && len(e.KubeletConfig.ClusterDNS) > 0 {
 		userData.WriteString(fmt.Sprintf(" \\\n--dns-cluster-ip '%s'", e.KubeletConfig.ClusterDNS[0]))
@@ -121,47 +131,16 @@ func (e EKS) nodeLabelArg() string {
 	return fmt.Sprintf("%s%s", nodeLabelArg, strings.Join(labelStrings, ","))
 }
 
-// systemReservedArg gets the kubelet-defined arguments for any valid resource
-// values that are specified within the system reserved resource list
-func (e EKS) systemReservedArg() string {
+// joinParameterArgs joins a map of keys and values by their separator. The separate will sit between the
+// arguments in a comma-separated list i.e. arg1<sep>val1,arg2<sep>val2
+func joinParameterArgs[K comparable, V any](name string, m map[K]V, separator string) string {
 	var args []string
-	if e.KubeletConfig.SystemReserved != nil {
-		for k, v := range e.KubeletConfig.SystemReserved {
-			args = append(args, fmt.Sprintf("%v=%v", k.String(), v.String()))
-		}
-	}
-	if len(args) > 0 {
-		return " --system-reserved=" + strings.Join(args, ",")
-	}
-	return ""
-}
 
-// kubeReservedArg gets the kubelet-defined arguments for any valid resource
-// values that are specified within the kube reserved resource list
-func (e EKS) kubeReservedArg() string {
-	var args []string
-	if e.KubeletConfig.KubeReserved != nil {
-		for k, v := range e.KubeletConfig.KubeReserved {
-			args = append(args, fmt.Sprintf("%v=%v", k.String(), v.String()))
-		}
+	for k, v := range m {
+		args = append(args, fmt.Sprintf("%v%s%v", k, separator, v))
 	}
 	if len(args) > 0 {
-		return " --kube-reserved=" + strings.Join(args, ",")
-	}
-	return ""
-}
-
-// evictionThresholdArg gets the kubelet-defined arguments for eviction
-// threshold values that are specified within the eviction threshold list
-func (e EKS) evictionThresholdArg() string {
-	var args []string
-	if e.KubeletConfig.EvictionHard != nil {
-		for k, v := range e.KubeletConfig.EvictionHard {
-			args = append(args, fmt.Sprintf("%v<%v", k, v))
-		}
-	}
-	if len(args) > 0 {
-		return " --eviction-hard=" + strings.Join(args, ",")
+		return fmt.Sprintf(" %s=%s", name, strings.Join(args, ","))
 	}
 	return ""
 }
