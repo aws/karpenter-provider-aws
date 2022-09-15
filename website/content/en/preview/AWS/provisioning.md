@@ -46,12 +46,12 @@ spec:
 Refer to [Provisioner API]({{<ref "../provisioner.md" >}}) for settings that are not specific to AWS.
 See below for other AWS provider-specific parameters.
 
-## spec.providerRef
+## AWSNodeTemplate
 
-The ProviderRef is a reference to the AWSNodeTemplate resource that contains all the parameters needed by the AWS Cloud Provider.
-You can review these fields [in the code](https://github.com/aws/karpenter/blob{{< githubRelRef >}}pkg/apis/awsnodetemplate/v1alpha1/awsnodetemplate.go).
+In the AWS Cloud Provider, the providerRef is a reference to an AWSNodeTemplate resource that contains all the necessary parameters to launch an instance. You can review these fields [in the code](https://github.com/aws/karpenter/blob{{< githubRelRef >}}pkg/apis/awsnodetemplate/v1alpha1/awsnodetemplate.go).
 
 ### InstanceProfile
+
 An `InstanceProfile` is a way to pass a single IAM role to an EC2 instance. Karpenter will not create one automatically.
 A default profile may be specified on the controller, allowing it to be omitted here. If not specified as either a default
 or on the controller, node provisioning will fail. The KarpenterControllerPolicy will also need to have permissions for
@@ -60,19 +60,6 @@ or on the controller, node provisioning will fail. The KarpenterControllerPolicy
 ```
 spec:
   instanceProfile: MyInstanceProfile
-```
-
-### LaunchTemplate
-
-A launch template is a set of configuration values sufficient for launching an EC2 instance (e.g., AMI, storage spec).
-
-A custom launch template is specified by name. If none is specified, Karpenter will automatically create a launch template.
-
-Review the [Launch Template documentation](../launch-templates/) to learn how to create a custom one.
-
-```
-spec:
-  launchTemplate: MyLaunchTemplate
 ```
 
 ### SubnetSelector (required)
@@ -285,6 +272,19 @@ Specify AMIs explicitly by ID:
     aws-ids: "ami-123,ami-456"
 ```
 
+### LaunchTemplate (Deprecated)
+
+A launch template is a set of configuration values sufficient for launching an EC2 instance (e.g., AMI, storage spec).
+
+Karpenter automatically generates Launch Templates given the other values set in the AWSNodeTemplate. If specified, Karpenter will replace the generated launch template with the one given.
+
+Review the [Launch Template documentation]({{<ref "./launch-templates.md" >}}) to learn how to create a custom one.
+
+```
+spec:
+  launchTemplate: MyLaunchTemplate
+```
+
 ## spec.provider (Deprecated)
 
 Prior to the introduction of `spec.providerRef`, parameters for the AWS Cloud Provider could be specified within the Provisioner itself through the `spec.provider` field. This field in the Provisioners has now been deprecated, and all fields previously specified through the ProvisionerSpec can now be specified in the `AWSNodeTemplate` CRD instead. See the [upgrade guide for more information](../../upgrade-guide). New parameters can only be specified in the `AWSNodeTemplate` CRD.
@@ -296,7 +296,7 @@ The AWS cloud provider adds several labels to nodes that describe the node resou
 - `karpenter.k8s.aws/instance-memory`
 - `karpenter.k8s.aws/instance-gpu-name`
 
-The `karpenter.k8s.aws/instance-cpu` and `karpenter.k8s.aws/instance-memory` values are numeric which also allows constructing requirements for them using the `Gt` and `Lt` operators.  
+The `karpenter.k8s.aws/instance-cpu` and `karpenter.k8s.aws/instance-memory` values are numeric which also allows constructing requirements for them using the `Gt` and `Lt` operators.
 
 The standard rules for `Gt` and `Lt` apply:
 
@@ -316,7 +316,7 @@ These requirements can be useful to select nodes of a particular "shape". For ex
     - "16385"
 ```
 
-A requirement that specifies a specific value for `karpenter.k8s.aws/instance-gpu-name` can be used to select for all instance types that have a particular GPU type. 
+A requirement that specifies a specific value for `karpenter.k8s.aws/instance-gpu-name` can be used to select for all instance types that have a particular GPU type.
 
 ```yaml
   - key: karpenter.k8s.aws/instance-gpu-name

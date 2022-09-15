@@ -46,9 +46,9 @@ spec:
 Refer to [Provisioner API]({{<ref "../provisioner.md" >}}) for settings that are not specific to AWS.
 See below for other AWS provider-specific parameters.
 
-## spec.providerRef
+## AWSNodeTemplate
 
-The ProviderRef is a reference to the AWSNodeTemplate resource that contains all the parameters needed by the AWS Cloud Provider.
+In the AWS Cloud Provider, the providerRef is a reference to an AWSNodeTemplate resource that contains all the necessary parameters to launch an instance.
 You can review these fields [in the code](https://github.com/aws/karpenter/blob{{< githubRelRef >}}pkg/apis/awsnodetemplate/v1alpha1/awsnodetemplate.go).
 
 ### InstanceProfile
@@ -62,18 +62,6 @@ spec:
   instanceProfile: MyInstanceProfile
 ```
 
-### LaunchTemplate
-
-A launch template is a set of configuration values sufficient for launching an EC2 instance (e.g., AMI, storage spec).
-
-A custom launch template is specified by name. If none is specified, Karpenter will automatically create a launch template.
-
-Review the [Launch Template documentation](../launch-templates/) to learn how to create a custom one.
-
-```
-spec:
-  launchTemplate: MyLaunchTemplate
-```
 
 ### SubnetSelector (required)
 
@@ -283,6 +271,19 @@ Specify AMIs explicitly by ID:
 ```yaml
   amiSelector:
     aws-ids: "ami-123,ami-456"
+```
+
+### LaunchTemplate (Deprecated)
+
+A launch template is a set of configuration values sufficient for launching an EC2 instance (e.g., AMI, storage spec).
+
+A custom launch template is specified by name. If none is specified, Karpenter will automatically create a launch template.
+
+Review the [Launch Template documentation](../launch-templates/) to learn how to create a custom one.
+
+```
+spec:
+  launchTemplate: MyLaunchTemplate
 ```
 
 ## spec.provider (Deprecated)

@@ -40,11 +40,10 @@ spec:
 Refer to [Provisioner API]({{<ref "../provisioner.md" >}}) for settings that are not specific to AWS.
 See below for other AWS provider-specific parameters.
 
-## spec.provider
+## AWSNodeTemplate
 
-This section covers parameters of the AWS Cloud Provider.
-
-[Review these fields in the code.](https://github.com/aws/karpenter/blob{{< githubRelRef >}}pkg/cloudprovider/aws/apis/v1alpha1/provider.go)
+In the AWS Cloud Provider, the providerRef is a reference to an AWSNodeTemplate resource that contains all the necessary parameters to launch an instance.
+You can review these fields [in the code](https://github.com/aws/karpenter/blob{{< githubRelRef >}}pkg/apis/awsnodetemplate/v1alpha1/awsnodetemplate.go).
 
 ### InstanceProfile
 An `InstanceProfile` is a way to pass a single IAM role to an EC2 instance. Karpenter will not create one automatically.
@@ -57,7 +56,7 @@ spec:
     instanceProfile: MyInstanceProfile
 ```
 
-### LaunchTemplate
+### LaunchTemplate (Deprecated)
 
 A launch template is a set of configuration values sufficient for launching an EC2 instance (e.g., AMI, storage spec).
 
