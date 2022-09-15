@@ -29,6 +29,7 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/infrastructure"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/aggregatedparser"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/events"
@@ -56,21 +57,25 @@ type Controller struct {
 	clock       clock.Clock
 	provider    *aws.SQSProvider
 	parser      event.Parser
+
+	infraController *infrastructure.Controller
 }
 
 // pollingPeriod that we go to the SQS queue to check if there are any new events
-const pollingPeriod = 2 * time.Second
+const pollingPeriod = 5 * time.Second
 
 func NewController(ctx context.Context, clk clock.Clock, kubeClient client.Client, sqsProvider *aws.SQSProvider,
-	recorder events.Recorder, provisioner *provisioning.Provisioner, cluster *state.Cluster, startAsync <-chan struct{}) *Controller {
+	recorder events.Recorder, provisioner *provisioning.Provisioner, infraController *infrastructure.Controller,
+	cluster *state.Cluster, startAsync <-chan struct{}) *Controller {
 	c := &Controller{
-		kubeClient:  kubeClient,
-		provisioner: provisioner,
-		cluster:     cluster,
-		recorder:    recorder,
-		clock:       clk,
-		provider:    sqsProvider,
-		parser:      aggregatedparser.NewAggregatedParser(aggregatedparser.DefaultParsers...),
+		kubeClient:      kubeClient,
+		provisioner:     provisioner,
+		cluster:         cluster,
+		recorder:        recorder,
+		clock:           clk,
+		provider:        sqsProvider,
+		parser:          aggregatedparser.NewAggregatedParser(aggregatedparser.DefaultParsers...),
+		infraController: infraController,
 	}
 
 	go func() {
@@ -89,20 +94,23 @@ func (c *Controller) run(ctx context.Context) {
 	logger := logging.FromContext(ctx).Named("notification")
 	ctx = logging.WithLogger(ctx, logger)
 	for {
+		<-c.infraController.Ready() // block until the infrastructure is up and ready
+		err := c.pollSQS(ctx)
+		if err != nil {
+			logging.FromContext(ctx).Errorf("Handling notification messages from SQS queue, %v", err)
+		}
+
 		select {
 		case <-ctx.Done():
 			logger.Infof("Shutting down")
 			return
-		case <-time.After(pollingPeriod):
-			err := c.pollSQS(ctx)
-			if err != nil {
-				logging.FromContext(ctx).Errorf("Handling notification messages from SQS queue, %v", err)
-			}
+		case <-c.clock.After(pollingPeriod):
 		}
 	}
 }
 
 func (c *Controller) pollSQS(ctx context.Context) error {
+	logging.FromContext(ctx).Infof("Polling SQS")
 	sqsMessages, err := c.provider.GetSQSMessages(ctx)
 	if err != nil {
 		return err

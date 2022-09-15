@@ -16,8 +16,11 @@ package infrastructure
 
 import (
 	"context"
+	"fmt"
+	"sync"
 	"time"
 
+	"golang.org/x/sync/errgroup"
 	"k8s.io/utils/clock"
 	"knative.dev/pkg/logging"
 
@@ -32,10 +35,17 @@ type Controller struct {
 	eventBridgeProvider *aws.EventBridgeProvider
 	recorder            events.Recorder
 	clock               clock.Clock
+
+	ready         bool
+	mutex         *sync.RWMutex
+	readinessChan chan struct{} // A signal to other controllers that infrastructure is in a good state
 }
 
-// pollingPeriod that we go to AWS APIs to ensure that the appropriate AWS infrastructure is provisioned
-const pollingPeriod = 15 * time.Minute
+// pollingPeriod is the period that we go to AWS APIs to ensure that the appropriate AWS infrastructure is provisioned
+const pollingPeriod = time.Hour
+
+// backoffPeriod is the period that we go to AWS APIs if we fail to ensure the infrastructure exists
+const backoffPeriod = time.Minute
 
 func NewController(ctx context.Context, clk clock.Clock, recorder events.Recorder,
 	sqsProvider *aws.SQSProvider, eventBridgeProvider *aws.EventBridgeProvider, startAsync <-chan struct{}) *Controller {
@@ -44,15 +54,9 @@ func NewController(ctx context.Context, clk clock.Clock, recorder events.Recorde
 		clock:               clk,
 		sqsProvider:         sqsProvider,
 		eventBridgeProvider: eventBridgeProvider,
-	}
-
-	err := sqsProvider.CreateQueue(ctx)
-	if err != nil {
-		logging.FromContext(ctx).Errorf("Creating SQS queue with policy, %v", err)
-	}
-	err = eventBridgeProvider.CreateEC2NotificationRules(ctx)
-	if err != nil {
-		logging.FromContext(ctx).Errorf("Creating event bridge notification rules, %v", err)
+		ready:               false,
+		mutex:               &sync.RWMutex{},
+		readinessChan:       make(chan struct{}),
 	}
 
 	go func() {
@@ -70,16 +74,72 @@ func NewController(ctx context.Context, clk clock.Clock, recorder events.Recorde
 func (c *Controller) run(ctx context.Context) {
 	logger := logging.FromContext(ctx).Named("infrastructure")
 	ctx = logging.WithLogger(ctx, logger)
+
+	defer func() {
+		logger.Infof("Shutting down")
+	}()
 	for {
+		if err := c.ensureInfrastructure(ctx); err != nil {
+			logging.FromContext(ctx).Errorf("ensuring infrastructure established, %v", err)
+			c.setReady(false)
+
+			// Backoff with a shorter polling interval if we fail to ensure the infrastructure
+			select {
+			case <-ctx.Done():
+				return
+			case <-c.clock.After(backoffPeriod):
+				continue
+			}
+		}
+		c.setReady(true)
 		select {
 		case <-ctx.Done():
-			logger.Infof("Shutting down")
 			return
-		case <-time.After(pollingPeriod):
-			c.ensureInfrastructure(ctx)
+		case <-c.clock.After(pollingPeriod):
 		}
 	}
 }
 
-func (c *Controller) ensureInfrastructure(ctx context.Context) {
+func (c *Controller) Ready() <-chan struct{} {
+	c.mutex.RLock()
+	defer c.mutex.RUnlock()
+	return c.readinessChan
+}
+
+func (c *Controller) setReady(ready bool) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	c.ready = ready
+	if ready {
+		close(c.readinessChan)
+	} else {
+		c.readinessChan = make(chan struct{})
+	}
+}
+
+func (c *Controller) ensureInfrastructure(ctx context.Context) error {
+	g, ctx := errgroup.WithContext(ctx)
+	g.Go(func() error { return c.ensureQueue(ctx) })
+	g.Go(func() error { return c.ensureEventBridge(ctx) })
+	if err := g.Wait(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *Controller) ensureQueue(ctx context.Context) error {
+	if err := c.sqsProvider.CreateQueue(ctx); err != nil {
+		return fmt.Errorf("creating SQS queue with policy, %w", err)
+	}
+	if err := c.sqsProvider.SetQueueAttributes(ctx); err != nil {
+		return fmt.Errorf("setting queue attributes for queue, %w", err)
+	}
+	return nil
+}
+
+func (c *Controller) ensureEventBridge(ctx context.Context) error {
+	if err := c.eventBridgeProvider.CreateEC2NotificationRules(ctx); err != nil {
+		return fmt.Errorf("creating event bridge notification rules, %w", err)
+	}
+	return nil
 }

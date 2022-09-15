@@ -33,6 +33,7 @@ import (
 type SQSClient interface {
 	CreateQueueWithContext(context.Context, *sqs.CreateQueueInput, ...request.Option) (*sqs.CreateQueueOutput, error)
 	GetQueueUrlWithContext(context.Context, *sqs.GetQueueUrlInput, ...request.Option) (*sqs.GetQueueUrlOutput, error)
+	SetQueueAttributesWithContext(context.Context, *sqs.SetQueueAttributesInput, ...request.Option) (*sqs.SetQueueAttributesOutput, error)
 	ReceiveMessageWithContext(context.Context, *sqs.ReceiveMessageInput, ...request.Option) (*sqs.ReceiveMessageOutput, error)
 	DeleteMessageWithContext(context.Context, *sqs.DeleteMessageInput, ...request.Option) (*sqs.DeleteMessageOutput, error)
 }
@@ -109,6 +110,19 @@ func (s *SQSProvider) CreateQueue(ctx context.Context) error {
 }
 
 func (s *SQSProvider) SetQueueAttributes(ctx context.Context) error {
+	queueURL, err := s.DiscoverQueueURL(ctx)
+	if err != nil {
+		return fmt.Errorf("failed setting queue attributes, %w", err)
+	}
+
+	setQueueAttributesInput := &sqs.SetQueueAttributesInput{
+		Attributes: s.getQueueAttributes(),
+		QueueUrl:   aws.String(queueURL),
+	}
+	_, err = s.SetQueueAttributesWithContext(ctx, setQueueAttributesInput)
+	if err != nil {
+		return fmt.Errorf("failed setting queue attributes, %w", err)
+	}
 	return nil
 }
 
