@@ -61,6 +61,11 @@ func (t *Terminator) cordon(ctx context.Context, node *v1.Node) error {
 	// 2. Cordon node
 	persisted := node.DeepCopy()
 	node.Spec.Unschedulable = true
+	// Handle nil map
+	if node.Labels == nil {
+		node.Labels = map[string]string{}
+	}
+	node.Labels[v1.LabelNodeExcludeBalancers] = "karpenter"
 	if err := t.KubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil {
 		return fmt.Errorf("patching node %s, %w", node.Name, err)
 	}

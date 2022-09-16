@@ -103,6 +103,25 @@ var _ = Describe("Termination", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 			ExpectNotFound(ctx, env.Client, node)
 		})
+		It("should exclude nodes from load balancers when terminating", func() {
+			// This is a kludge to prevent the node from being deleted before we can
+			// inspect its labels
+			podNoEvict := test.Pod(test.PodOptions{
+				NodeName: node.Name,
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations:     map[string]string{v1alpha5.DoNotEvictPodAnnotationKey: "true"},
+					OwnerReferences: defaultOwnerRefs,
+				},
+			})
+
+			ExpectApplied(ctx, env.Client, node, podNoEvict)
+
+			Expect(env.Client.Delete(ctx, node)).To(Succeed())
+			node = ExpectNodeExists(ctx, env.Client, node.Name)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
+			node = ExpectNodeExists(ctx, env.Client, node.Name)
+			Expect(node.Labels[v1.LabelNodeExcludeBalancers]).Should(Equal("karpenter"))
+		})
 		It("should not evict pods that tolerate unschedulable taint", func() {
 			podEvict := test.Pod(test.PodOptions{NodeName: node.Name, ObjectMeta: metav1.ObjectMeta{OwnerReferences: defaultOwnerRefs}})
 			podSkip := test.Pod(test.PodOptions{
