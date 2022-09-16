@@ -6,6 +6,18 @@ description: >
   Troubleshoot Karpenter problems
 ---
 
+## Unknown field in Provisioner spec
+
+If you are upgrading from an older version of Karpenter, there may have been changes in the CRD between versions. Attempting to utilize newer functionality which is surfaced in newer versions of the CRD may result in the following error message:
+
+```
+error: error validating "STDIN": error validating data: ValidationError(Provisioner.spec): unknown field "<fieldName>" in sh.karpenter.v1alpha5.Provisioner.spec; if you choose to ignore these errors, turn validation off with --validate=false
+```
+
+If you see this error, you can solve the problem by following the [Custom Resource Definition Upgrade Guidance](../upgrade-guide/#custom-resource-definition-crd-upgrades).
+
+Info on whether there has been a change to the CRD between versions of Karpenter can be found in the [Release Notes](../upgrade-guide/#released-upgrade-notes)
+
 ## Unable to schedule pod due to insufficient node group instances
 
 v0.16.0 changed the default replicas from 1 to 2. 
@@ -19,6 +31,7 @@ To solve this you can either reduce the replicas back from 2 to 1, or ensure the
 To do so on AWS increase the `minimum` and `desired` parameters on the node group autoscaling group to launch at lease 2 instances.
 
 ## Node not created
+
 In some circumstances, Karpenter controller can fail to start up a node.
 For example, providing the wrong block storage device name in a custom launch template can result in a failure to start the node and an error similar to:
 

@@ -59,6 +59,7 @@ See [Kubernetes cluster autoscaler]({{< ref "./concepts/#kubernetes-cluster-auto
 See [Scheduling]({{< ref "./concepts/#scheduling" >}}) for details on how Karpenter interacts with the Kubernetes scheduler.
 
 ## Provisioning
+
 ### What features does the Karpenter provisioner support?
 See [Provisioner API]({{< ref "./provisioner" >}}) for provisioner examples and descriptions of features.
 
