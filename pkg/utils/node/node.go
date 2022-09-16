@@ -47,3 +47,12 @@ func GetNodePods(ctx context.Context, kubeClient client.Client, nodes ...*v1.Nod
 	}
 	return pods, nil
 }
+
+func GetCondition(n *v1.Node, match v1.NodeConditionType) v1.NodeCondition {
+	for _, condition := range n.Status.Conditions {
+		if condition.Type == match {
+			return condition
+		}
+	}
+	return v1.NodeCondition{}
+}
