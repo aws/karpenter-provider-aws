@@ -25,6 +25,7 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/utils/node"
 	"github.com/aws/karpenter/pkg/utils/resources"
 )
 
@@ -69,19 +70,10 @@ func (r *Initialization) getInstanceType(ctx context.Context, provisioner *v1alp
 // b) all the startup taints have been removed from the node
 // c) all extended resources have been registered
 // This method handles both nil provisioners and nodes without extended resources gracefully.
-func (r *Initialization) isInitialized(node *v1.Node, provisioner *v1alpha5.Provisioner, instanceType cloudprovider.InstanceType) bool {
+func (r *Initialization) isInitialized(n *v1.Node, provisioner *v1alpha5.Provisioner, instanceType cloudprovider.InstanceType) bool {
 	// fast checks first
-	return getCondition(node.Status.Conditions, v1.NodeReady).Status == v1.ConditionTrue &&
-		isStartupTaintRemoved(node, provisioner) && isExtendedResourceRegistered(node, instanceType)
-}
-
-func getCondition(conditions []v1.NodeCondition, match v1.NodeConditionType) v1.NodeCondition {
-	for _, condition := range conditions {
-		if condition.Type == match {
-			return condition
-		}
-	}
-	return v1.NodeCondition{}
+	return node.GetCondition(n, v1.NodeReady).Status == v1.ConditionTrue &&
+		isStartupTaintRemoved(n, provisioner) && isExtendedResourceRegistered(n, instanceType)
 }
 
 // isStartupTaintRemoved returns true if there are no startup taints registered for the provisioner, or if all startup

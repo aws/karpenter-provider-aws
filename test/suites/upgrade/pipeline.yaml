@@ -9,7 +9,7 @@ spec:
       default: $(context.pipelineRun.namespace)-$(context.pipelineRun.name)
       description: Uniquely identifies a cluster name for the suite.
     - name: from-git-ref
-      default: v0.15.0
+      default: v0.16.1
       description: Git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release.
     - name: to-git-ref
       default: HEAD

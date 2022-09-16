@@ -42,6 +42,7 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	nodeutils "github.com/aws/karpenter/pkg/utils/node"
 	"github.com/aws/karpenter/pkg/utils/pod"
 )
 
@@ -94,8 +95,10 @@ func (env *Environment) BeforeEach() {
 }
 
 func (env *Environment) dumpNodeInformation(nodes v1.NodeList) {
-	for _, node := range nodes.Items {
-		fmt.Printf("node %s taints = %v\n", node.Name, node.Spec.Taints)
+	for i := range nodes.Items {
+		node := nodes.Items[i]
+		pods, _ := nodeutils.GetNodePods(env, env.Client, &node)
+		fmt.Printf("node %s ready=%s initialized=%s pods=%d taints = %v\n", node.Name, nodeutils.GetCondition(&node, v1.NodeReady).Status, node.Labels[v1alpha5.LabelNodeInitialized], len(pods), node.Spec.Taints)
 	}
 }
 
