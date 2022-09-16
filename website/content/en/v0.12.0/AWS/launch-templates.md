@@ -1,21 +1,21 @@
 ---
-title: "Launch Templates and Custom Images"
-linkTitle: "Launch Templates"
-weight: 80
+title: "Launch Templates and Custom Images (Deprecated)"
+linkTitle: "Launch Templates (Deprecated)"
+weight: 0
 description: >
   Create custom launch templates for Karpenter
 ---
+**Karpenter recommends using generated launch templates by specifying requirements in the [Provisioner and ProviderRef]({{<ref "./provisioning.md" >}}) natively.**
 
 By default, Karpenter generates launch templates with the following features:
 - [EKS Optimized AMI](https://docs.aws.amazon.com/eks/latest/userguide/eks-optimized-ami.html) for nodes.
 - Encrypted EBS root volumes with the default (AWS managed) KMS key for nodes.
 
-If these features are not sufficient for your use case (customizing node image, customizing EBS KMS key, etc), you need a custom launch template.
+In addition, Karpenter also fills the generated launch templates with the values in the [referenced AWSNodeTemplate]({{<ref "./provisioning.md" >}}).
 
-Karpenter supports using custom launch templates.
+If these features are not sufficient for your use case (customizing node image, customizing EBS KMS key, etc), [you may need a custom launch template]({{<ref "./launch-templates/#creating-the-launch-template" >}}).
 
 Note: When using a custom launch template, **you are taking responsibility** for maintaining the launch template, including updating which AMI is used (i.e., for security updates). In the default configuration, Karpenter will use the latest version of the EKS optimized AMI, which is maintained by AWS. Without a custom launch template, Karpenter will create its own. If these launch templates aren't used for sixty seconds, Karpenter will clean them up.
-
 
 ## Introduction
 
@@ -226,16 +226,16 @@ aws cloudformation create-stack \
 
 ### Define LaunchTemplate for Provisioner
 
-The LaunchTemplate is ready to be used. Specify it by name in the [Provisioner
-CRD](../../provisioner/). Karpenter will use this template when creating new instances.
-The following is an example of a provisioner using the new template. Please replace the `CLUSTER_NAME` with the correct value.
+Now the launch template is ready to be used. Specify it by name in the [AWSNodeTemplate CRD]({{<ref "./provisioning.md#awsnodetemplate" >}}). Karpenter will use this template when creating new instances.
+The following is an example of a provisioner using the new template. Please replace the `${CLUSTER_NAME}` with the correct value.
 
 ```yaml
-apiVersion: karpenter.sh/v1alpha5
-kind: Provisioner
+apiVersion: karpenter.k8s.aws/v1alpha1
+kind: AWSNodeTemplate
+metadata:
+  name: default
 spec:
-  provider:
-    launchTemplate: KarpenterCustomLaunchTemplate
-    subnetSelector:
-      karpenter.sh/discovery: CLUSTER_NAME
+  launchTemplate: KarpenterCustomLaunchTemplate
+  subnetSelector:
+    karpenter.sh/discovery: ${CLUSTER_NAME}
 ```

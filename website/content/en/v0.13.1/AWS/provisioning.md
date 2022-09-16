@@ -46,9 +46,9 @@ spec:
 Refer to [Provisioner API]({{<ref "../provisioner.md" >}}) for settings that are not specific to AWS.
 See below for other AWS provider-specific parameters.
 
-## spec.providerRef
+## AWSNodeTemplate
 
-The ProviderRef is a reference to the AWSNodeTemplate resource that contains all the parameters needed by the AWS Cloud Provider.
+In the AWS Cloud Provider, the providerRef is a reference to an AWSNodeTemplate resource that contains all the necessary parameters to launch an instance.
 You can review these fields [in the code](https://github.com/aws/karpenter/blob{{< githubRelRef >}}pkg/apis/awsnodetemplate/v1alpha1/awsnodetemplate.go).
 
 ### InstanceProfile
@@ -59,19 +59,6 @@ or on the controller, node provisioning will fail.
 ```
 spec:
   instanceProfile: MyInstanceProfile
-```
-
-### LaunchTemplate
-
-A launch template is a set of configuration values sufficient for launching an EC2 instance (e.g., AMI, storage spec).
-
-A custom launch template is specified by name. If none is specified, Karpenter will automatically create a launch template.
-
-Review the [Launch Template documentation](../launch-templates/) to learn how to create a custom one.
-
-```
-spec:
-  launchTemplate: MyLaunchTemplate
 ```
 
 ### SubnetSelector (required)
@@ -243,6 +230,19 @@ spec:
 
 You can control the UserData that needs to be applied to your worker nodes via this field. Review the [Custom UserData documentation](../user-data/) to learn the necessary steps
 If you need to specify a launch template in addition to UserData, then review the [Launch Template documentation](../launch-templates/) instead and utilize the `spec.providerRef.launchTemplate` field.
+
+### LaunchTemplate (Deprecated)
+
+A launch template is a set of configuration values sufficient for launching an EC2 instance (e.g., AMI, storage spec).
+
+A custom launch template is specified by name. If none is specified, Karpenter will automatically create a launch template.
+
+Review the [Launch Template documentation](../launch-templates/) to learn how to create a custom one.
+
+```
+spec:
+  launchTemplate: MyLaunchTemplate
+```
 
 ## spec.provider (Deprecated)
 

@@ -37,7 +37,7 @@ spec:
 
 ### SubnetSelector
 
-Karpenter discovers subnets using [AWS tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html). 
+Karpenter discovers subnets using [AWS tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html).
 
 Subnets may be specified by any AWS tag, including `Name`. Selecting tag values using wildcards ("\*") is supported.
 
@@ -66,7 +66,7 @@ Select subnets by an arbitrary AWS tag key/value pair:
 Select subnets using wildcards:
 ```
   subnetSelector:
-    Name: *public* 
+    Name: *public*
 
 ```
 
