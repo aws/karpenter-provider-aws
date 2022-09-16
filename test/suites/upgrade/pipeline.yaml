@@ -41,7 +41,7 @@ spec:
     runAfter:
     - setup
 
-  - name: upgrade
+  - name: upgrade-chart
     taskRef:
       name: setup
     params:
@@ -51,6 +51,15 @@ spec:
       value: $(params.to-git-ref)
     runAfter:
     - run-test
+
+  - name: upgrade-crds
+    taskRef:
+      name: upgrade-crds
+    params:
+    - name: git-ref
+      value: $(params.to-git-ref)
+    runAfter:
+    - upgrade-chart
 
   - name: run-test-again
     taskRef:
@@ -63,7 +72,7 @@ spec:
     - name: test-filter
       value: TestIntegration
     runAfter:
-    - upgrade
+    - upgrade-crds
 
   finally:
   - name: cleanup

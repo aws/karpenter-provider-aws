@@ -1,0 +1,18 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: upgrade-crds
+  namespace: karpenter-tests
+spec:
+  description: |
+    Upgrade Karpenter CRDs
+  params:
+    - name: git-ref
+      description: Git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release.
+  workspaces:
+    - name: ws
+  steps:
+  - name: upgrade-crds
+    script: |
+      kubectl replace -f https://raw.githubusercontent.com/aws/karpenter/$(params.git-ref)/charts/karpenter/crds/karpenter.sh_provisioners.yaml
+      kubectl replace -f https://raw.githubusercontent.com/aws/karpenter/$(params.git-ref)/charts/karpenter/crds/karpenter.k8s.aws_awsnodetemplates.yaml
