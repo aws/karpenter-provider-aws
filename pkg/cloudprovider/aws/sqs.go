@@ -110,7 +110,7 @@ func (s *SQSProvider) CreateQueue(ctx context.Context) error {
 }
 
 func (s *SQSProvider) SetQueueAttributes(ctx context.Context) error {
-	queueURL, err := s.DiscoverQueueURL(ctx)
+	queueURL, err := s.DiscoverQueueURL(ctx, false)
 	if err != nil {
 		return fmt.Errorf("failed setting queue attributes, %w", err)
 	}
@@ -126,10 +126,10 @@ func (s *SQSProvider) SetQueueAttributes(ctx context.Context) error {
 	return nil
 }
 
-func (s *SQSProvider) DiscoverQueueURL(ctx context.Context) (string, error) {
+func (s *SQSProvider) DiscoverQueueURL(ctx context.Context, ignoreCache bool) (string, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	if s.queueURL != "" {
+	if s.queueURL != "" && !ignoreCache {
 		return s.queueURL, nil
 	}
 	result, err := s.GetQueueUrlWithContext(ctx, s.getQueueURLInput)
@@ -145,7 +145,7 @@ func (s *SQSProvider) DiscoverQueueURL(ctx context.Context) (string, error) {
 func (s *SQSProvider) GetSQSMessages(ctx context.Context) ([]*sqs.Message, error) {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("sqsClient.getMessages"))
 
-	queueURL, err := s.DiscoverQueueURL(ctx)
+	queueURL, err := s.DiscoverQueueURL(ctx, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed getting sqs messages, %w", err)
 	}
@@ -171,7 +171,7 @@ func (s *SQSProvider) GetSQSMessages(ctx context.Context) ([]*sqs.Message, error
 func (s *SQSProvider) DeleteSQSMessage(ctx context.Context, msg *sqs.Message) error {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("sqsClient.deleteMessage"))
 
-	queueURL, err := s.DiscoverQueueURL(ctx)
+	queueURL, err := s.DiscoverQueueURL(ctx, false)
 	if err != nil {
 		return fmt.Errorf("failed getting sqs messages, %w", err)
 	}

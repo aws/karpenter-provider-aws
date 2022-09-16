@@ -16,10 +16,13 @@ package infrastructure
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/service/sqs"
 	"golang.org/x/sync/errgroup"
 	"k8s.io/utils/clock"
 	"knative.dev/pkg/logging"
@@ -36,16 +39,12 @@ type Controller struct {
 	recorder            events.Recorder
 	clock               clock.Clock
 
-	ready         bool
 	mutex         *sync.RWMutex
 	readinessChan chan struct{} // A signal to other controllers that infrastructure is in a good state
 }
 
 // pollingPeriod is the period that we go to AWS APIs to ensure that the appropriate AWS infrastructure is provisioned
 const pollingPeriod = time.Hour
-
-// backoffPeriod is the period that we go to AWS APIs if we fail to ensure the infrastructure exists
-const backoffPeriod = time.Minute
 
 func NewController(ctx context.Context, clk clock.Clock, recorder events.Recorder,
 	sqsProvider *aws.SQSProvider, eventBridgeProvider *aws.EventBridgeProvider, startAsync <-chan struct{}) *Controller {
@@ -54,7 +53,6 @@ func NewController(ctx context.Context, clk clock.Clock, recorder events.Recorde
 		clock:               clk,
 		sqsProvider:         sqsProvider,
 		eventBridgeProvider: eventBridgeProvider,
-		ready:               false,
 		mutex:               &sync.RWMutex{},
 		readinessChan:       make(chan struct{}),
 	}
@@ -82,6 +80,7 @@ func (c *Controller) run(ctx context.Context) {
 		if err := c.ensureInfrastructure(ctx); err != nil {
 			logging.FromContext(ctx).Errorf("ensuring infrastructure established, %v", err)
 			c.setReady(false)
+			backoffPeriod := c.getBackoff(err)
 
 			// Backoff with a shorter polling interval if we fail to ensure the infrastructure
 			select {
@@ -109,7 +108,10 @@ func (c *Controller) Ready() <-chan struct{} {
 func (c *Controller) setReady(ready bool) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	c.ready = ready
+
+	// If the infrastructure we close the readiness channel to let all
+	// other channels that are waiting on Ready() proceed; otherwise, open
+	// a channel to tell the other goroutines to wait
 	if ready {
 		close(c.readinessChan)
 	} else {
@@ -128,8 +130,25 @@ func (c *Controller) ensureInfrastructure(ctx context.Context) error {
 }
 
 func (c *Controller) ensureQueue(ctx context.Context) error {
-	if err := c.sqsProvider.CreateQueue(ctx); err != nil {
-		return fmt.Errorf("creating SQS queue with policy, %w", err)
+	// Attempt to find the queue. If we can't find it, assume it isn't created and try to create it
+	// If we did find it, then just set the queue attributes on the existing queue
+	if _, err := c.sqsProvider.DiscoverQueueURL(ctx, true); err != nil {
+		var awsErr awserr.Error
+		if !errors.As(err, &awsErr) {
+			// This shouldn't happen, but if it does we should capture it
+			return fmt.Errorf("failed conversion to AWS error, %w", err)
+		}
+		switch awsErr.Code() {
+		case sqs.ErrCodeQueueDoesNotExist:
+			if err := c.sqsProvider.CreateQueue(ctx); err != nil {
+				return fmt.Errorf("creating sqs queue with policy, %w", err)
+			}
+			return nil
+		case aws.AccessDeniedCode:
+			return fmt.Errorf("failed obtaining permission to discover sqs queue url, %w", err)
+		default:
+			return fmt.Errorf("failed discovering sqs queue url, %w", err)
+		}
 	}
 	if err := c.sqsProvider.SetQueueAttributes(ctx); err != nil {
 		return fmt.Errorf("setting queue attributes for queue, %w", err)
@@ -139,7 +158,32 @@ func (c *Controller) ensureQueue(ctx context.Context) error {
 
 func (c *Controller) ensureEventBridge(ctx context.Context) error {
 	if err := c.eventBridgeProvider.CreateEC2NotificationRules(ctx); err != nil {
-		return fmt.Errorf("creating event bridge notification rules, %w", err)
+		var awsErr awserr.Error
+		if !errors.As(err, &awsErr) {
+			// This shouldn't happen, but if it does we should capture it
+			return fmt.Errorf("failed conversion to AWS error, %w", err)
+		}
+		switch awsErr.Code() {
+		case aws.AccessDeniedCode:
+			return fmt.Errorf("obtaining permission to eventbridge, %w", err)
+		default:
+			return fmt.Errorf("creating event bridge notification rules, %w", err)
+		}
 	}
 	return nil
+}
+
+// getBackoff gets a dynamic backoff timeframe based on the error
+// that we receive from the AWS API
+func (c *Controller) getBackoff(err error) time.Duration {
+	var awsErr awserr.Error
+	if !errors.As(err, &awsErr) {
+		return time.Minute
+	}
+	switch awsErr.Code() {
+	case aws.AccessDeniedCode:
+		return time.Minute * 10
+	default:
+		return time.Minute
+	}
 }

@@ -72,22 +72,24 @@ Resources:
         Version: "2012-10-17"
         Statement:
           - Effect: Allow
-            Resource: "*"
+            Resource: !Sub "arn:${AWS::Partition}:sqs:${AWS::Region}:${AWS::AccountId}:Karpenter-${ClusterName}-Queue"
             Action:
               # Write Operations
               - sqs:CreateQueue
+              - sqs:TagResource
+              - sqs:SetQueueAttributes
               - sqs:DeleteMessage
               - sqs:DeleteQueue
-              - events:PutRule
-              - events:PutTargets
-              - events:DeleteRule
-              - events:RemoveTargets
               # Read Operations
               - sqs:GetQueueUrl
               - sqs:ReceiveMessage
+          - Effect: Allow
+            Resource: !Sub "arn:${AWS::Partition}:events:${AWS::Region}:${AWS::AccountId}:Karpenter-${ClusterName}-*"
+              - events:PutRule
+              - events:PutTargets
+              - events:TagResource
+              - events:DeleteRule
+              - events:RemoveTargets
+              # Read Operations
               - events:ListRules
               - events:DescribeRule
-          - Effect: Allow
-            Action:
-              - iam:PassRole
-            Resource: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/KarpenterNodeRole-${ClusterName}"

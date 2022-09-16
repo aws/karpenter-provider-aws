@@ -20,33 +20,33 @@ import (
 
 	"knative.dev/pkg/logging"
 
-	event2 "github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event"
 	rebalancerecommendationv0 "github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/rebalancerecommendation/v0"
-	scheduledchangev1 "github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/scheduledchange/v0"
-	spotinterruptionv1 "github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/spotinterruption/v0"
-	statechangev1 "github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/statechange/v0"
+	scheduledchangev0 "github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/scheduledchange/v0"
+	spotinterruptionv0 "github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/spotinterruption/v0"
+	statechangev0 "github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/statechange/v0"
 )
 
 var (
-	DefaultParsers = []event2.Parser{
-		statechangev1.Parser{},
-		spotinterruptionv1.Parser{},
-		scheduledchangev1.Parser{},
+	DefaultParsers = []event.Parser{
+		statechangev0.Parser{},
+		spotinterruptionv0.Parser{},
+		scheduledchangev0.Parser{},
 		rebalancerecommendationv0.Parser{},
 	}
 )
 
-type AggregatedParser []event2.Parser
+type AggregatedParser []event.Parser
 
-func NewAggregatedParser(parsers ...event2.Parser) AggregatedParser {
+func NewAggregatedParser(parsers ...event.Parser) AggregatedParser {
 	return parsers
 }
 
-func (p AggregatedParser) Parse(ctx context.Context, str string) event2.Interface {
+func (p AggregatedParser) Parse(ctx context.Context, str string) event.Interface {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("event.parser"))
 
 	if str == "" {
-		return event2.NoOp{}
+		return event.NoOp{}
 	}
 
 	// We will go through all the parsers to see if we can parse
@@ -57,12 +57,12 @@ func (p AggregatedParser) Parse(ctx context.Context, str string) event2.Interfac
 		}
 	}
 
-	md := event2.AWSMetadata{}
+	md := event.AWSMetadata{}
 	if err := json.Unmarshal([]byte(str), &md); err != nil {
 		logging.FromContext(ctx).
 			With("error", err).
 			Error("failed to unmarshal message metadata")
-		return event2.NoOp{}
+		return event.NoOp{}
 	}
-	return event2.NoOp(md)
+	return event.NoOp(md)
 }
