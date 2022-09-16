@@ -358,3 +358,14 @@ spec:
       karpenter.sh/discovery: karpenter-demo
   ttlSecondsAfterEmpty: 30
 ```
+## Stale pricing data on isolated subnet
+
+The following pricing-related error occurs if you are running Karpenter in an isolated private subnet (no Internet egress via IGW or NAT gateways):
+
+```text
+ERROR   controller.aws.pricing  updating on-demand pricing, RequestError: send request failed
+caused by: Post "https://api.pricing.us-east-1.amazonaws.com/": dial tcp 52.94.231.236:443: i/o timeout; RequestError: send request failed
+caused by: Post "https://api.pricing.us-east-1.amazonaws.com/": dial tcp 52.94.231.236:443: i/o timeout, using existing pricing data from 2022-08-17T00:19:52Z  {"commit": "4b5f953"}
+```
+This network timeout occurs because there is no VPC endpoint available for the [Price List Query API.](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/using-pelong.html).
+To workaround this issue, Karpenter ships updated on-demand pricing data as part of the Karpenter binary; however, this means that pricing data will only be updated on Karpenter version upgrades.
