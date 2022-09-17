@@ -33,6 +33,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/informers"
+	"k8s.io/client-go/tools/cache"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -61,14 +63,29 @@ var (
 	}
 )
 
+const (
+	NoWatch = "NoWatch"
+)
+
 // if set, logs additional information that may be useful in debugging an E2E test failure
 var debugE2E = true
+var stop chan struct{}
 
+// nolint:gocyclo
 func (env *Environment) BeforeEach() {
+	stop = make(chan struct{})
+
+	if debugE2E {
+		fmt.Println("------- START BEFORE -------")
+		defer fmt.Println("------- END BEFORE -------")
+	}
+
 	var nodes v1.NodeList
 	Expect(env.Client.List(env.Context, &nodes)).To(Succeed())
 	if debugE2E {
-		env.dumpNodeInformation(nodes)
+		for i := range nodes.Items {
+			fmt.Println(env.getNodeInformation(&nodes.Items[i]))
+		}
 	}
 	for _, node := range nodes.Items {
 		if len(node.Spec.Taints) == 0 && !node.Spec.Unschedulable {
@@ -79,13 +96,21 @@ func (env *Environment) BeforeEach() {
 	var pods v1.PodList
 	Expect(env.Client.List(env.Context, &pods)).To(Succeed())
 	if debugE2E {
-		env.dumpPodInformation(pods)
+		for i := range pods.Items {
+			fmt.Println(env.getPodInformation(&pods.Items[i]))
+		}
 	}
 	for i := range pods.Items {
 		Expect(pod.IsProvisionable(&pods.Items[i])).To(BeFalse(),
 			fmt.Sprintf("expected to have no provisionable pods, found %s/%s", pods.Items[i].Namespace, pods.Items[i].Name))
 		Expect(pods.Items[i].Namespace).ToNot(Equal("default"),
 			fmt.Sprintf("expected no pods in the `default` namespace, found %s/%s", pods.Items[i].Namespace, pods.Items[i].Name))
+	}
+	// If the test is labeled as NoWatch, then the node/pod monitor will just list at the beginning
+	// of the test rather than perform a watch during it
+	if debugE2E && !lo.Contains(CurrentSpecReport().Labels(), NoWatch) {
+		env.startNodeMonitor(stop)
+		env.startPodMonitor(stop)
 	}
 	var provisioners v1alpha5.ProvisionerList
 	Expect(env.Client.List(env.Context, &provisioners)).To(Succeed())
@@ -94,26 +119,69 @@ func (env *Environment) BeforeEach() {
 	env.StartingNodeCount = env.Monitor.NodeCountAtReset()
 }
 
-func (env *Environment) dumpNodeInformation(nodes v1.NodeList) {
-	for i := range nodes.Items {
-		node := nodes.Items[i]
-		pods, _ := nodeutils.GetNodePods(env, env.Client, &node)
-		fmt.Printf("node %s ready=%s initialized=%s pods=%d taints = %v\n", node.Name, nodeutils.GetCondition(&node, v1.NodeReady).Status, node.Labels[v1alpha5.LabelNodeInitialized], len(pods), node.Spec.Taints)
-	}
+func (env *Environment) getNodeInformation(n *v1.Node) string {
+	pods, _ := nodeutils.GetNodePods(env, env.Client, n)
+	return fmt.Sprintf("node %s ready=%s initialized=%s pods=%d taints=%v", n.Name, nodeutils.GetCondition(n, v1.NodeReady).Status, n.Labels[v1alpha5.LabelNodeInitialized], len(pods), n.Spec.Taints)
 }
 
-func (env *Environment) dumpPodInformation(pods v1.PodList) {
-	for i, p := range pods.Items {
-		var containerInfo strings.Builder
-		for _, c := range p.Status.ContainerStatuses {
-			if containerInfo.Len() > 0 {
-				fmt.Fprintf(&containerInfo, ", ")
-			}
-			fmt.Fprintf(&containerInfo, "%s restarts=%d", c.Name, c.RestartCount)
+func (env *Environment) getPodInformation(p *v1.Pod) string {
+	var containerInfo strings.Builder
+	for _, c := range p.Status.ContainerStatuses {
+		if containerInfo.Len() > 0 {
+			fmt.Fprintf(&containerInfo, ", ")
 		}
-		fmt.Printf("pods %s/%s provisionable=%v nodename=%s [%s]\n", p.Namespace, p.Name,
-			pod.IsProvisionable(&pods.Items[i]), p.Spec.NodeName, containerInfo.String())
+		fmt.Fprintf(&containerInfo, "%s restarts=%d", c.Name, c.RestartCount)
 	}
+	return fmt.Sprintf("pods %s/%s provisionable=%v phase=%s nodename=%s [%s]", p.Namespace, p.Name,
+		pod.IsProvisionable(p), p.Status.Phase, p.Spec.NodeName, containerInfo.String())
+}
+
+// startPodMonitor monitors all pods that are provisioned in a namespace outside kube-system
+// and karpenter namespaces during a test
+func (env *Environment) startPodMonitor(stop <-chan struct{}) {
+	factory := informers.NewSharedInformerFactoryWithOptions(env.KubeClient, time.Second*30,
+		informers.WithTweakListOptions(func(l *metav1.ListOptions) {
+			l.FieldSelector = "metadata.namespace!=kube-system,metadata.namespace!=karpenter"
+		}))
+	podInformer := factory.Core().V1().Pods().Informer()
+	podInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			fmt.Printf("[CREATED] %s\n", env.getPodInformation(obj.(*v1.Pod)))
+		},
+		UpdateFunc: func(oldObj interface{}, newObj interface{}) {
+			if env.getPodInformation(oldObj.(*v1.Pod)) != env.getPodInformation(newObj.(*v1.Pod)) {
+				fmt.Printf("[UPDATED] %s\n", env.getPodInformation(newObj.(*v1.Pod)))
+			}
+		},
+		DeleteFunc: func(obj interface{}) {
+			fmt.Printf("[DELETED] %s\n", env.getPodInformation(obj.(*v1.Pod)))
+		},
+	})
+	factory.Start(stop)
+}
+
+// startNodeMonitor monitors all nodes that are provisioned by any provisioners during a test
+func (env *Environment) startNodeMonitor(stop <-chan struct{}) {
+	factory := informers.NewSharedInformerFactoryWithOptions(env.KubeClient, time.Second*30,
+		informers.WithTweakListOptions(func(l *metav1.ListOptions) { l.LabelSelector = v1alpha5.ProvisionerNameLabelKey }))
+	podInformer := factory.Core().V1().Nodes().Informer()
+	podInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			node := obj.(*v1.Node)
+			if _, ok := node.Labels[TestLabelName]; ok {
+				fmt.Printf("[CREATED] %s\n", env.getNodeInformation(obj.(*v1.Node)))
+			}
+		},
+		UpdateFunc: func(oldObj interface{}, newObj interface{}) {
+			if env.getNodeInformation(oldObj.(*v1.Node)) != env.getNodeInformation(newObj.(*v1.Node)) {
+				fmt.Printf("[UPDATED] %s\n", env.getNodeInformation(newObj.(*v1.Node)))
+			}
+		},
+		DeleteFunc: func(obj interface{}) {
+			fmt.Printf("[DELETED] %s\n", env.getNodeInformation(obj.(*v1.Node)))
+		},
+	})
+	factory.Start(stop)
 }
 
 func (env *Environment) AfterEach() {
@@ -137,6 +205,7 @@ func (env *Environment) AfterEach() {
 	wg.Wait()
 	env.eventuallyExpectScaleDown()
 	env.expectNoCrashes()
+	close(stop) // close the pod/node monitor watch channel
 	env.printControllerLogs(&v1.PodLogOptions{Container: "controller"})
 }
 

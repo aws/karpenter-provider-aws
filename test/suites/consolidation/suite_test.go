@@ -57,7 +57,7 @@ var _ = AfterEach(func() {
 })
 
 var _ = Describe("Consolidation", func() {
-	It("should consolidate nodes (delete)", func() {
+	It("should consolidate nodes (delete)", Label(environment.NoWatch), func() {
 		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
