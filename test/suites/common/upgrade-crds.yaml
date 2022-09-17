@@ -7,6 +7,8 @@ spec:
   description: |
     Upgrade Karpenter CRDs
   params:
+    - name: cluster-name
+      description: Name of the cluster under test.
     - name: git-ref
       description: Git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release.
   workspaces:
@@ -15,5 +17,6 @@ spec:
   - name: upgrade-crds
     image: public.ecr.aws/karpenter-testing/tools:latest
     script: |
+      aws eks update-kubeconfig --name $(params.cluster-name)
       kubectl replace -f https://raw.githubusercontent.com/aws/karpenter/$(params.git-ref)/charts/karpenter/crds/karpenter.sh_provisioners.yaml
       kubectl replace -f https://raw.githubusercontent.com/aws/karpenter/$(params.git-ref)/charts/karpenter/crds/karpenter.k8s.aws_awsnodetemplates.yaml
