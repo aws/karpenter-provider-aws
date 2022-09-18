@@ -185,6 +185,11 @@ func (env *Environment) startNodeMonitor(stop <-chan struct{}) {
 }
 
 func (env *Environment) AfterEach() {
+	if debugE2E {
+		fmt.Println("------- START AFTER -------")
+		defer fmt.Println("------- END AFTER -------")
+	}
+
 	namespaces := &v1.NamespaceList{}
 	Expect(env.Client.List(env, namespaces)).To(Succeed())
 	wg := sync.WaitGroup{}
