@@ -282,28 +282,28 @@ func (env *Environment) dumpPodEvents(testStartTime time.Time) {
 func (env *Environment) ExpectCreated(objects ...client.Object) {
 	for _, object := range objects {
 		object.SetLabels(lo.Assign(object.GetLabels(), map[string]string{TestLabelName: env.ClusterName}))
-		Expect(env.Client.Create(env, object)).To(Succeed())
+		ExpectWithOffset(1, env.Client.Create(env, object)).To(Succeed())
 	}
 }
 
 func (env *Environment) ExpectDeleted(objects ...client.Object) {
 	for _, object := range objects {
-		Expect(env.Client.Delete(env, object, &client.DeleteOptions{GracePeriodSeconds: ptr.Int64(0)})).To(Succeed())
+		ExpectWithOffset(1, env.Client.Delete(env, object, &client.DeleteOptions{GracePeriodSeconds: ptr.Int64(0)})).To(Succeed())
 	}
 }
 
 func (env *Environment) ExpectUpdate(objects ...client.Object) {
 	for _, o := range objects {
 		current := o.DeepCopyObject().(client.Object)
-		Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(current), current)).To(Succeed())
+		ExpectWithOffset(1, env.Client.Get(env.Context, client.ObjectKeyFromObject(current), current)).To(Succeed())
 		o.SetResourceVersion(current.GetResourceVersion())
-		Expect(env.Client.Update(env.Context, o)).To(Succeed())
+		ExpectWithOffset(1, env.Client.Update(env.Context, o)).To(Succeed())
 	}
 }
 
 func (env *Environment) EventuallyExpectHealthy(pods ...*v1.Pod) {
 	for _, pod := range pods {
-		Eventually(func(g Gomega) {
+		EventuallyWithOffset(1, func(g Gomega) {
 			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(pod), pod)).To(Succeed())
 			g.Expect(pod.Status.Conditions).To(ContainElement(And(
 				HaveField("Type", Equal(v1.PodReady)),
@@ -314,7 +314,7 @@ func (env *Environment) EventuallyExpectHealthy(pods ...*v1.Pod) {
 }
 
 func (env *Environment) EventuallyExpectKarpenterWithEnvVar(envVar v1.EnvVar) {
-	Eventually(func(g Gomega) {
+	EventuallyWithOffset(1, func(g Gomega) {
 		labelMap := map[string]string{"app.kubernetes.io/instance": "karpenter"}
 		listOptions := metav1.ListOptions{LabelSelector: labels.SelectorFromSet(labelMap).String()}
 		podList, err := env.KubeClient.CoreV1().Pods("karpenter").List(env.Context, listOptions)
@@ -335,7 +335,7 @@ func (env *Environment) EventuallyExpectKarpenterWithEnvVar(envVar v1.EnvVar) {
 }
 
 func (env *Environment) EventuallyExpectHealthyPodCount(selector labels.Selector, numPods int) {
-	Eventually(func(g Gomega) {
+	EventuallyWithOffset(1, func(g Gomega) {
 		g.Expect(env.Monitor.RunningPodsCount(selector)).To(Equal(numPods))
 	}).Should(Succeed())
 }
@@ -350,7 +350,7 @@ func (env *Environment) ExpectUniqueNodeNames(selector labels.Selector, uniqueNa
 }
 
 func (env *Environment) eventuallyExpectScaleDown() {
-	Eventually(func(g Gomega) {
+	EventuallyWithOffset(1, func(g Gomega) {
 		// expect the current node count to be what it was when the test started
 		g.Expect(env.Monitor.NodeCount()).To(Equal(env.StartingNodeCount))
 	}).Should(Succeed(), fmt.Sprintf("expected scale down to %d nodes, had %d", env.StartingNodeCount, env.Monitor.NodeCount()))
@@ -358,20 +358,20 @@ func (env *Environment) eventuallyExpectScaleDown() {
 
 func (env *Environment) EventuallyExpectNotFound(objects ...client.Object) {
 	for _, object := range objects {
-		Eventually(func(g Gomega) {
+		EventuallyWithOffset(1, func(g Gomega) {
 			err := env.Client.Get(env, client.ObjectKeyFromObject(object), object)
 			g.Expect(errors.IsNotFound(err)).To(BeTrue())
-		}).WithOffset(1).Should(Succeed(), fmt.Sprintf("expcted %s to be deleted", client.ObjectKeyFromObject(object)))
+		}).Should(Succeed(), fmt.Sprintf("expcted %s to be deleted", client.ObjectKeyFromObject(object)))
 	}
 }
 
 func (env *Environment) ExpectCreatedNodeCount(comparator string, nodeCount int) {
-	Expect(env.Monitor.CreatedNodes()).To(BeNumerically(comparator, nodeCount),
+	ExpectWithOffset(1, env.Monitor.CreatedNodes()).To(BeNumerically(comparator, nodeCount),
 		fmt.Sprintf("expected %d created nodes, had %d", nodeCount, env.Monitor.CreatedNodes()))
 }
 
 func (env *Environment) EventuallyExpectCreatedNodeCount(comparator string, nodeCount int) {
-	Eventually(func(g Gomega) {
+	EventuallyWithOffset(1, func(g Gomega) {
 		g.Expect(env.Monitor.CreatedNodes()).To(BeNumerically(comparator, nodeCount),
 			fmt.Sprintf("expected %d created nodes, had %d", nodeCount, env.Monitor.CreatedNodes()))
 	}).Should(Succeed())
@@ -379,7 +379,7 @@ func (env *Environment) EventuallyExpectCreatedNodeCount(comparator string, node
 
 func (env *Environment) GetNode(nodeName string) v1.Node {
 	var node v1.Node
-	Expect(env.Client.Get(env.Context, types.NamespacedName{Name: nodeName}, &node)).To(Succeed())
+	ExpectWithOffset(1, env.Client.Get(env.Context, types.NamespacedName{Name: nodeName}, &node)).To(Succeed())
 	return node
 }
 
@@ -466,11 +466,11 @@ func (env *Environment) printControllerLogs(options *v1.PodLogOptions) {
 func (env *Environment) EventuallyExpectMinUtilization(resource v1.ResourceName, comparator string, value float64) {
 	Eventually(func(g Gomega) {
 		g.Expect(env.Monitor.MinUtilization(resource)).To(BeNumerically(comparator, value))
-	}).Should(Succeed())
+	}).WithOffset(1).Should(Succeed())
 }
 
 func (env *Environment) EventuallyExpectAvgUtilization(resource v1.ResourceName, comparator string, value float64) {
 	Eventually(func(g Gomega) {
 		g.Expect(env.Monitor.AvgUtilization(resource)).To(BeNumerically(comparator, value))
-	}, 10*time.Minute).Should(Succeed())
+	}, 10*time.Minute).WithOffset(1).Should(Succeed())
 }
