@@ -29,6 +29,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/test"
+	"github.com/aws/karpenter/test/pkg/environment"
 )
 
 var _ = Describe("Scheduling", func() {
@@ -94,7 +95,7 @@ var _ = Describe("Scheduling", func() {
 		env.EventuallyExpectHealthy(pod)
 		env.ExpectCreatedNodeCount("==", 1)
 	})
-	It("should provision a node for a deployment", func() {
+	It("should provision a node for a deployment", Label(environment.NoWatch), func() {
 		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},

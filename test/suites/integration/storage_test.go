@@ -36,9 +36,6 @@ import (
 
 // This test requires the EBS CSI driver to be installed
 var _ = Describe("Dynamic PVC", func() {
-	BeforeEach(func() { env.BeforeEach() })
-	AfterEach(func() { env.AfterEach() })
-
 	It("should run a pod with a dynamic persistent volume", func() {
 		// Ensure that the EBS driver is installed, or we can't run the test.
 		var ds appsv1.DaemonSet

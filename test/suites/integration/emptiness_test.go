@@ -30,9 +30,6 @@ import (
 )
 
 var _ = Describe("Emptiness", func() {
-	BeforeEach(func() { env.BeforeEach() })
-	AfterEach(func() { env.AfterEach() })
-
 	It("should terminate an empty node", func() {
 		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
