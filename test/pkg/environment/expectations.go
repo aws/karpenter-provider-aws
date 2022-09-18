@@ -101,7 +101,7 @@ func (env *Environment) BeforeEach() {
 	Expect(env.Client.List(env.Context, &pods)).To(Succeed())
 	if debugE2E {
 		for i := range pods.Items {
-			fmt.Println(env.getPodInformation(&pods.Items[i]))
+			fmt.Println(getPodInformation(&pods.Items[i]))
 		}
 	}
 	for i := range pods.Items {
@@ -125,10 +125,10 @@ func (env *Environment) BeforeEach() {
 
 func (env *Environment) getNodeInformation(n *v1.Node) string {
 	pods, _ := nodeutils.GetNodePods(env, env.Client, n)
-	return fmt.Sprintf("node %s ready=%s initialized=%s pods=%d taints=%v", n.Name, nodeutils.GetCondition(n, v1.NodeReady).Status, n.Labels[v1alpha5.LabelNodeInitialized], len(pods), n.Spec.Taints)
+	return fmt.Sprintf("node %s ready=%s schedulable=%t initialized=%s pods=%d taints=%v", n.Name, nodeutils.GetCondition(n, v1.NodeReady).Status, !n.Spec.Unschedulable, n.Labels[v1alpha5.LabelNodeInitialized], len(pods), n.Spec.Taints)
 }
 
-func (env *Environment) getPodInformation(p *v1.Pod) string {
+func getPodInformation(p *v1.Pod) string {
 	var containerInfo strings.Builder
 	for _, c := range p.Status.ContainerStatuses {
 		if containerInfo.Len() > 0 {
@@ -153,7 +153,12 @@ func getEventInformation(k types.NamespacedName, el *v1.EventList) string {
 		if source == "" {
 			source = e.ReportingController
 		}
-		sb.WriteString(fmt.Sprintf("type=%s reason=%s from=%s message=%s\n",
+		eventTime := e.EventTime
+		if eventTime.IsZero() {
+			eventTime = metav1.NewMicroTime(e.FirstTimestamp.Time)
+		}
+		sb.WriteString(fmt.Sprintf("time=%s type=%s reason=%s from=%s message=%s\n",
+			eventTime.Format(time.RFC3339),
 			e.Type,
 			e.Reason,
 			source,
@@ -173,15 +178,15 @@ func (env *Environment) startPodMonitor(stop <-chan struct{}) {
 	podInformer := factory.Core().V1().Pods().Informer()
 	podInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			fmt.Printf("[CREATED] %s\n", env.getPodInformation(obj.(*v1.Pod)))
+			fmt.Printf("[CREATED %s] %s\n", time.Now().Format(time.RFC3339), getPodInformation(obj.(*v1.Pod)))
 		},
 		UpdateFunc: func(oldObj interface{}, newObj interface{}) {
-			if env.getPodInformation(oldObj.(*v1.Pod)) != env.getPodInformation(newObj.(*v1.Pod)) {
-				fmt.Printf("[UPDATED] %s\n", env.getPodInformation(newObj.(*v1.Pod)))
+			if getPodInformation(oldObj.(*v1.Pod)) != getPodInformation(newObj.(*v1.Pod)) {
+				fmt.Printf("[UPDATED %s] %s\n", time.Now().Format(time.RFC3339), getPodInformation(newObj.(*v1.Pod)))
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
-			fmt.Printf("[DELETED] %s\n", env.getPodInformation(obj.(*v1.Pod)))
+			fmt.Printf("[DELETED %s] %s\n", time.Now().Format(time.RFC3339), getPodInformation(obj.(*v1.Pod)))
 		},
 	})
 	factory.Start(stop)
@@ -196,16 +201,16 @@ func (env *Environment) startNodeMonitor(stop <-chan struct{}) {
 		AddFunc: func(obj interface{}) {
 			node := obj.(*v1.Node)
 			if _, ok := node.Labels[TestLabelName]; ok {
-				fmt.Printf("[CREATED] %s\n", env.getNodeInformation(obj.(*v1.Node)))
+				fmt.Printf("[CREATED %s] %s\n", time.Now().Format(time.RFC3339), env.getNodeInformation(obj.(*v1.Node)))
 			}
 		},
 		UpdateFunc: func(oldObj interface{}, newObj interface{}) {
 			if env.getNodeInformation(oldObj.(*v1.Node)) != env.getNodeInformation(newObj.(*v1.Node)) {
-				fmt.Printf("[UPDATED] %s\n", env.getNodeInformation(newObj.(*v1.Node)))
+				fmt.Printf("[UPDATED %s] %s\n", time.Now().Format(time.RFC3339), env.getNodeInformation(newObj.(*v1.Node)))
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
-			fmt.Printf("[DELETED] %s\n", env.getNodeInformation(obj.(*v1.Node)))
+			fmt.Printf("[DELETED %s] %s\n", time.Now().Format(time.RFC3339), env.getNodeInformation(obj.(*v1.Node)))
 		},
 	})
 	factory.Start(stop)
@@ -390,21 +395,21 @@ func (env *Environment) ExpectInstance(nodeName string) Assertion {
 func (env *Environment) GetInstance(nodeName string) ec2.Instance {
 	node := env.GetNode(nodeName)
 	providerIDSplit := strings.Split(node.Spec.ProviderID, "/")
-	Expect(len(providerIDSplit)).ToNot(Equal(0))
+	ExpectWithOffset(1, len(providerIDSplit)).ToNot(Equal(0))
 	instanceID := providerIDSplit[len(providerIDSplit)-1]
 	instance, err := env.EC2API.DescribeInstances(&ec2.DescribeInstancesInput{
 		InstanceIds: aws.StringSlice([]string{instanceID}),
 	})
-	Expect(err).ToNot(HaveOccurred())
-	Expect(instance.Reservations).To(HaveLen(1))
-	Expect(instance.Reservations[0].Instances).To(HaveLen(1))
+	ExpectWithOffset(1, err).ToNot(HaveOccurred())
+	ExpectWithOffset(1, instance.Reservations).To(HaveLen(1))
+	ExpectWithOffset(1, instance.Reservations[0].Instances).To(HaveLen(1))
 	return *instance.Reservations[0].Instances[0]
 }
 
 func (env *Environment) GetVolume(volumeID *string) ec2.Volume {
 	dvo, err := env.EC2API.DescribeVolumes(&ec2.DescribeVolumesInput{VolumeIds: []*string{volumeID}})
-	Expect(err).ToNot(HaveOccurred())
-	Expect(len(dvo.Volumes)).To(Equal(1))
+	ExpectWithOffset(1, err).ToNot(HaveOccurred())
+	ExpectWithOffset(1, len(dvo.Volumes)).To(Equal(1))
 	return *dvo.Volumes[0]
 }
 
@@ -424,7 +429,7 @@ func (env *Environment) expectNoCrashes() {
 
 	// print any events in the karpenter namespace which may indicate liveness probes failing, etc.
 	var events v1.EventList
-	Expect(env.Client.List(env.Context, &events)).To(Succeed())
+	ExpectWithOffset(1, env.Client.List(env.Context, &events)).To(Succeed())
 	for _, ev := range events.Items {
 		if ev.InvolvedObject.Namespace == "karpenter" {
 			if crashInfo.Len() > 0 {
@@ -434,7 +439,7 @@ func (env *Environment) expectNoCrashes() {
 		}
 	}
 
-	Expect(crashed).To(BeFalse(), fmt.Sprintf("expected karpenter containers to not crash: %s", crashInfo.String()))
+	ExpectWithOffset(1, crashed).To(BeFalse(), fmt.Sprintf("expected karpenter containers to not crash: %s", crashInfo.String()))
 }
 
 var (
@@ -464,13 +469,13 @@ func (env *Environment) printControllerLogs(options *v1.PodLogOptions) {
 }
 
 func (env *Environment) EventuallyExpectMinUtilization(resource v1.ResourceName, comparator string, value float64) {
-	Eventually(func(g Gomega) {
+	EventuallyWithOffset(1, func(g Gomega) {
 		g.Expect(env.Monitor.MinUtilization(resource)).To(BeNumerically(comparator, value))
-	}).WithOffset(1).Should(Succeed())
+	}).Should(Succeed())
 }
 
 func (env *Environment) EventuallyExpectAvgUtilization(resource v1.ResourceName, comparator string, value float64) {
-	Eventually(func(g Gomega) {
+	EventuallyWithOffset(1, func(g Gomega) {
 		g.Expect(env.Monitor.AvgUtilization(resource)).To(BeNumerically(comparator, value))
-	}, 10*time.Minute).WithOffset(1).Should(Succeed())
+	}, 10*time.Minute).Should(Succeed())
 }
