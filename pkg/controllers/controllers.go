@@ -109,8 +109,7 @@ func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options)
 	// Set up logger and watch for changes to log level
 	cmw := informer.NewInformedWatcher(clientSet, system.Namespace())
 	ctx := injection.LoggingContextOrDie(component, controllerRuntimeConfig, cmw)
-	ctx = injection.WithConfig(ctx, controllerRuntimeConfig)
-	ctx = injection.WithOptions(ctx, *opts)
+	ctx = newRunnableContext(controllerRuntimeConfig, opts, logging.FromContext(ctx))()
 
 	logging.FromContext(ctx).Infof("Initializing with version %s", project.Version)
 

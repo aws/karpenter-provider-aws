@@ -27,32 +27,40 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"go.uber.org/multierr"
+	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/clock"
 	"knative.dev/pkg/logging"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter/pkg/cloudprovider/aws"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/events"
+	"github.com/aws/karpenter/pkg/utils/injection"
 )
 
 // Controller is the AWS infrastructure controller.  It is not a standard controller-runtime controller in that it doesn't
 // have a reconcile method.
 type Controller struct {
+	kubeClient client.Client
+	recorder   events.Recorder
+	clock      clock.Clock
+
 	sqsProvider         *aws.SQSProvider
 	eventBridgeProvider *aws.EventBridgeProvider
-	recorder            events.Recorder
-	clock               clock.Clock
 
 	mutex         *sync.RWMutex
 	readinessChan chan struct{} // A signal to other controllers that infrastructure is in a good state
 }
 
 // pollingPeriod is the period that we go to AWS APIs to ensure that the appropriate AWS infrastructure is provisioned
+// This period can be reduced to a backoffPeriod if there is an error in ensuring the infrastructure
 const pollingPeriod = time.Hour
 
-func NewController(ctx context.Context, cleanupCtx context.Context, clk clock.Clock, recorder events.Recorder,
-	sqsProvider *aws.SQSProvider, eventBridgeProvider *aws.EventBridgeProvider,
+func NewController(ctx context.Context, cleanupCtx context.Context, kubeClient client.Client, clk clock.Clock,
+	recorder events.Recorder, sqsProvider *aws.SQSProvider, eventBridgeProvider *aws.EventBridgeProvider,
 	startAsync <-chan struct{}, cleanupAsync <-chan os.Signal) *Controller {
 	c := &Controller{
+		kubeClient:          kubeClient,
 		recorder:            recorder,
 		clock:               clk,
 		sqsProvider:         sqsProvider,
@@ -111,24 +119,27 @@ func (c *Controller) run(ctx context.Context) {
 	}
 }
 
-func (c *Controller) cleanup(ctx context.Context) (err error) {
-	wg := &sync.WaitGroup{}
-	m := &sync.Mutex{}
+func (c *Controller) cleanup(ctx context.Context) {
+	logging.WithLogger(ctx, logging.FromContext(ctx).Named("infrastructure.cleanup"))
 
-	go func() {
-		e := c.sqsProvider.DeleteQueue(ctx)
-		m.Lock()
-		err = multierr.Append(err, e)
-		m.Unlock()
-	}()
-	go func() {
-		e := c.eventBridgeProvider.DeleteEC2NotificationRules(ctx)
-		m.Lock()
-		err = multierr.Append(err, e)
-		m.Unlock()
-	}()
-	wg.Wait()
-	return err
+	dep := &appsv1.Deployment{}
+	nn := types.NamespacedName{
+		Name:      injection.GetOptions(ctx).DeploymentName,
+		Namespace: injection.GetOptions(ctx).DeploymentNamespace,
+	}
+
+	err := c.kubeClient.Get(ctx, nn, dep)
+	if err != nil {
+		logging.FromContext(ctx).Errorf("Getting the deployment %s for cleanup, %v", nn, err)
+	}
+
+	// Deployment is deleting so we should cleanup the infrastructure
+	if !dep.DeletionTimestamp.IsZero() {
+		err = c.deleteInfrastructure(ctx)
+		if err != nil {
+			logging.FromContext(ctx).Errorf("Deleting the infrastructure, %v", err)
+		}
+	}
 }
 
 func (c *Controller) Ready() <-chan struct{} {
@@ -171,6 +182,27 @@ func (c *Controller) ensureInfrastructure(ctx context.Context) (err error) {
 	return err
 }
 
+func (c *Controller) deleteInfrastructure(ctx context.Context) (err error) {
+	logging.FromContext(ctx).Infof("Deprovisioning the infrastructure...")
+	wg := &sync.WaitGroup{}
+	m := &sync.Mutex{}
+
+	go func() {
+		e := c.sqsProvider.DeleteQueue(ctx)
+		m.Lock()
+		err = multierr.Append(err, e)
+		m.Unlock()
+	}()
+	go func() {
+		e := c.eventBridgeProvider.DeleteEC2NotificationRules(ctx)
+		m.Lock()
+		err = multierr.Append(err, e)
+		m.Unlock()
+	}()
+	wg.Wait()
+	return err
+}
+
 func (c *Controller) ensureQueue(ctx context.Context) error {
 	// Attempt to find the queue. If we can't find it, assume it isn't created and try to create it
 	// If we did find it, then just set the queue attributes on the existing queue
@@ -202,7 +234,7 @@ func (c *Controller) ensureEventBridge(ctx context.Context) error {
 	if err := c.eventBridgeProvider.CreateEC2NotificationRules(ctx); err != nil {
 		var awsErr awserr.Error
 		if !errors.As(err, &awsErr) {
-			// This shouldn't happen, but if it does we should capture it
+			// This shouldn't happen, but if it does, we should capture it
 			return fmt.Errorf("failed conversion to AWS error, %w", err)
 		}
 		switch awsErr.Code() {

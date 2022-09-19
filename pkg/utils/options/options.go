@@ -22,6 +22,7 @@ import (
 	"os"
 
 	"go.uber.org/multierr"
+	"knative.dev/pkg/system"
 
 	"github.com/aws/karpenter/pkg/utils/env"
 )
@@ -44,6 +45,9 @@ type Options struct {
 	EnableProfiling      bool
 	EnableLeaderElection bool
 	MemoryLimit          int64
+	// Metadata information
+	DeploymentName      string
+	DeploymentNamespace string
 	// AWS Specific
 	ClusterName               string
 	ClusterEndpoint           string
@@ -96,6 +100,8 @@ func (o *Options) MustParse() *Options {
 	if err := o.Validate(); err != nil {
 		panic(err)
 	}
+	o.DeploymentName = env.WithDefaultString("DEPLOYMENT_NAME", "karpenter")
+	o.DeploymentNamespace = system.Namespace()
 	return o
 }
 

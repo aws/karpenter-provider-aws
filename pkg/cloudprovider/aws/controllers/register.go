@@ -29,10 +29,9 @@ import (
 func Register(ctx context.Context, provider *aws.CloudProvider, opts *controllers.ControllerOptions) {
 	rec := events.NewRecorder(opts.Recorder)
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("aws"))
-	cleanupContext := opts.BaseContext()
-	cleanupContext = logging.WithLogger(ctx, logging.FromContext(ctx).Named("aws"))
+	cleanupContext := logging.WithLogger(opts.BaseContext(), logging.FromContext(ctx).Named("aws"))
 
 	// Injecting the controllers that will start when opts.StartAsync is triggered
-	infraController := infrastructure.NewController(ctx, cleanupContext, opts.Clock, rec, provider.SQSProvider(), provider.EventBridgeProvider(), opts.StartAsync, opts.CleanupAsync)
-	notification.NewController(ctx, opts.Clock, opts.KubeClient, provider.SQSProvider(), rec, opts.Provisioner, infraController, opts.Cluster, opts.StartAsync)
+	infraController := infrastructure.NewController(ctx, cleanupContext, opts.KubeClient, opts.Clock, rec, provider.SQSProvider(), provider.EventBridgeProvider(), opts.StartAsync, opts.CleanupAsync)
+	notification.NewController(ctx, opts.KubeClient, opts.Clock, provider.SQSProvider(), rec, opts.Provisioner, opts.Cluster, opts.StartAsync, infraController.Ready)
 }
