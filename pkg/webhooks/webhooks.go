@@ -22,11 +22,11 @@ import (
 
 	"k8s.io/client-go/kubernetes"
 	"knative.dev/pkg/configmap"
+	"knative.dev/pkg/configmap/informer"
 	"knative.dev/pkg/controller"
 	knativeinjection "knative.dev/pkg/injection"
 	"knative.dev/pkg/injection/sharedmain"
 	"knative.dev/pkg/logging"
-	"knative.dev/pkg/signals"
 	"knative.dev/pkg/system"
 	"knative.dev/pkg/webhook"
 	"knative.dev/pkg/webhook/certificates"
@@ -37,6 +37,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/utils/env"
+	"github.com/aws/karpenter/pkg/utils/injection"
 )
 
 type WebhookOpts struct {
@@ -45,7 +46,10 @@ type WebhookOpts struct {
 	MemoryLimit      int64
 }
 
-var opts = WebhookOpts{}
+var (
+	component = "webhook"
+	opts      = WebhookOpts{}
+)
 
 func init() {
 	flag.StringVar(&opts.KarpenterService, "karpenter-service", env.WithDefaultString("KARPENTER_SERVICE", ""), "The Karpenter Service name for the dynamic webhook certificate")
@@ -55,7 +59,14 @@ func init() {
 
 func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options) cloudprovider.CloudProvider) {
 	config := knativeinjection.ParseAndGetRESTConfigOrDie()
-	ctx := webhook.WithOptions(knativeinjection.WithNamespaceScope(signals.NewContext(), system.Namespace()), webhook.Options{
+
+	// Set up logger and watch for changes to log level
+	clientSet := kubernetes.NewForConfigOrDie(config)
+	cmw := informer.NewInformedWatcher(clientSet, system.Namespace())
+	ctx := injection.LoggingContextOrDie(component, config, cmw)
+	ctx = knativeinjection.WithNamespaceScope(ctx, system.Namespace())
+
+	ctx = webhook.WithOptions(ctx, webhook.Options{
 		Port:        opts.WebhookPort,
 		ServiceName: opts.KarpenterService,
 		SecretName:  fmt.Sprintf("%s-cert", opts.KarpenterService),
