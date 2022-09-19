@@ -19,7 +19,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/pprof"
+	"os"
+	"os/signal"
 	"runtime/debug"
+	"syscall"
 
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zapr"
@@ -85,12 +88,14 @@ type Controller interface {
 }
 
 type ControllerOptions struct {
-	Cluster     *state.Cluster
-	KubeClient  client.Client
-	Provisioner *provisioning.Provisioner
-	Recorder    events.Recorder
-	StartAsync  <-chan struct{}
-	Clock       clock.Clock
+	BaseContext  func() context.Context
+	Cluster      *state.Cluster
+	KubeClient   client.Client
+	Provisioner  *provisioning.Provisioner
+	Recorder     events.Recorder
+	StartAsync   <-chan struct{}
+	CleanupAsync <-chan os.Signal
+	Clock        clock.Clock
 }
 
 func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options) (cloudprovider.CloudProvider, func(context.Context, *ControllerOptions))) {
@@ -129,7 +134,6 @@ func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options)
 	if opts.EnableProfiling {
 		utilruntime.Must(registerPprof(manager))
 	}
-
 	cloudProvider, injectControllers := injectCloudProvider(ctx, cloudprovider.Options{ClientSet: clientSet, KubeClient: manager.GetClient(), StartAsync: manager.Elected()})
 	if hp, ok := cloudProvider.(HealthCheck); ok {
 		utilruntime.Must(manager.AddHealthzCheck("cloud-provider", hp.LivenessProbe))
@@ -157,7 +161,17 @@ func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options)
 
 	// Inject cloudprovider-specific controllers into the controller-set using the injectControllers function
 	// Inject the base cloud provider into the injection function rather than the decorated interface
-	injectControllers(ctx, &ControllerOptions{Cluster: cluster, KubeClient: manager.GetClient(), Provisioner: provisioner, Recorder: recorder, StartAsync: manager.Elected(), Clock: realClock})
+	controllerOptions := &ControllerOptions{
+		BaseContext:  newRunnableContext(controllerRuntimeConfig, opts, logging.FromContext(ctx)),
+		Cluster:      cluster,
+		KubeClient:   manager.GetClient(),
+		Provisioner:  provisioner,
+		Recorder:     recorder,
+		StartAsync:   manager.Elected(),
+		CleanupAsync: Cleanup(),
+		Clock:        realClock,
+	}
+	injectControllers(ctx, controllerOptions)
 
 	metricsstate.StartMetricScraper(ctx, cluster)
 
@@ -267,6 +281,12 @@ func (i ignoreDebugEventsSink) WithName(name string) logr.LogSink {
 // pod scheduling decisions as events for visibility.
 func ignoreDebugEvents(logger logr.Logger) logr.Logger {
 	return logr.New(&ignoreDebugEventsSink{sink: logger.GetSink()})
+}
+
+func Cleanup() <-chan os.Signal {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, syscall.SIGINT)
+	return c
 }
 
 func newRunnableContext(config *rest.Config, options *options.Options, logger *zap.SugaredLogger) func() context.Context {

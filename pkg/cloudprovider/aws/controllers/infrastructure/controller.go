@@ -18,7 +18,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -46,8 +49,9 @@ type Controller struct {
 // pollingPeriod is the period that we go to AWS APIs to ensure that the appropriate AWS infrastructure is provisioned
 const pollingPeriod = time.Hour
 
-func NewController(ctx context.Context, clk clock.Clock, recorder events.Recorder,
-	sqsProvider *aws.SQSProvider, eventBridgeProvider *aws.EventBridgeProvider, startAsync <-chan struct{}) *Controller {
+func NewController(ctx context.Context, cleanupCtx context.Context, clk clock.Clock, recorder events.Recorder,
+	sqsProvider *aws.SQSProvider, eventBridgeProvider *aws.EventBridgeProvider,
+	startAsync <-chan struct{}, cleanupAsync <-chan os.Signal) *Controller {
 	c := &Controller{
 		recorder:            recorder,
 		clock:               clk,
@@ -56,6 +60,14 @@ func NewController(ctx context.Context, clk clock.Clock, recorder events.Recorde
 		mutex:               &sync.RWMutex{},
 		readinessChan:       make(chan struct{}),
 	}
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT)
+
+	go func() {
+		<-cleanupAsync
+		c.cleanup(cleanupCtx)
+	}()
 
 	go func() {
 		select {
