@@ -21,7 +21,9 @@ import (
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"knative.dev/pkg/ptr"
 
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
@@ -56,19 +58,24 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 			MaxPods: ptr.Int32(1 + int32(dsCount)),
 		}
 
-		pods := []*v1.Pod{test.Pod(), test.Pod(), test.Pod()}
-		env.ExpectCreated(provisioner, provider)
-		for _, pod := range pods {
-			env.ExpectCreated(pod)
-		}
-		env.EventuallyExpectHealthy(pods...)
-		env.ExpectCreatedNodeCount("==", 3)
+		numPods := 3
+		dep := test.Deployment(test.DeploymentOptions{
+			Replicas: int32(numPods),
+			PodOptions: test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "large-app"},
+				},
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("100m")},
+				},
+			},
+		})
+		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
+		env.ExpectCreated(provisioner, provider, dep)
 
-		nodeNames := sets.NewString()
-		for _, pod := range pods {
-			nodeNames.Insert(pod.Spec.NodeName)
-		}
-		Expect(len(nodeNames)).To(BeNumerically("==", 3))
+		env.EventuallyExpectHealthyPodCount(selector, numPods)
+		env.ExpectCreatedNodeCount("==", 3)
+		env.ExpectUniqueNodeNames(selector, 3)
 	})
 	It("should schedule pods onto separate nodes when podsPerCore is set", func() {
 		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
@@ -92,6 +99,19 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 				},
 			},
 		})
+		numPods := 4
+		dep := test.Deployment(test.DeploymentOptions{
+			Replicas: int32(numPods),
+			PodOptions: test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "large-app"},
+				},
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("100m")},
+				},
+			},
+		})
+		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 
 		// Get the DS pod count and use it to calculate the DS pod overhead
 		// We calculate podsPerCore to split the test pods and the DS pods between two nodes:
@@ -106,19 +126,10 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 			PodsPerCore: ptr.Int32(int32(math.Ceil(float64(2+dsCount) / 2))),
 		}
 
-		pods := []*v1.Pod{test.Pod(), test.Pod(), test.Pod(), test.Pod()}
-		env.ExpectCreated(provisioner, provider)
-		for _, pod := range pods {
-			env.ExpectCreated(pod)
-		}
-		env.EventuallyExpectHealthy(pods...)
+		env.ExpectCreated(provisioner, provider, dep)
+		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 2)
-
-		nodeNames := sets.NewString()
-		for _, pod := range pods {
-			nodeNames.Insert(pod.Spec.NodeName)
-		}
-		Expect(len(nodeNames)).To(BeNumerically("==", 2))
+		env.ExpectUniqueNodeNames(selector, 2)
 	})
 	It("should ignore podsPerCore value when Bottlerocket is used", func() {
 		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
@@ -141,14 +152,24 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 				},
 			},
 		})
+		numPods := 6
+		dep := test.Deployment(test.DeploymentOptions{
+			Replicas: int32(numPods),
+			PodOptions: test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "large-app"},
+				},
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("100m")},
+				},
+			},
+		})
+		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 
-		pods := []*v1.Pod{test.Pod(), test.Pod(), test.Pod(), test.Pod(), test.Pod(), test.Pod()}
-		env.ExpectCreated(provisioner, provider)
-		for _, pod := range pods {
-			env.ExpectCreated(pod)
-		}
-		env.EventuallyExpectHealthy(pods...)
+		env.ExpectCreated(provisioner, provider, dep)
+		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 1)
+		env.ExpectUniqueNodeNames(selector, 1)
 	})
 })
 

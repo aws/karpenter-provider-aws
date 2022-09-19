@@ -45,7 +45,7 @@ func TestUtilization(t *testing.T) {
 var _ = BeforeEach(func() { env.BeforeEach() })
 var _ = AfterEach(func() { env.AfterEach() })
 
-var _ = Describe("Utilization", Label(environment.NoWatch), func() {
+var _ = Describe("Utilization", Label(environment.NoWatch), Label(environment.NoEvents), func() {
 	It("should provision one pod per node", func() {
 		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},

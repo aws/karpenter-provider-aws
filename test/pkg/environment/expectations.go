@@ -33,6 +33,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
 	"knative.dev/pkg/logging"
@@ -64,16 +65,19 @@ var (
 )
 
 const (
-	NoWatch = "NoWatch"
+	NoWatch  = "NoWatch"
+	NoEvents = "NoEvents"
 )
 
 // if set, logs additional information that may be useful in debugging an E2E test failure
 var debugE2E = true
+var testStartTime time.Time
 var stop chan struct{}
 
 // nolint:gocyclo
 func (env *Environment) BeforeEach() {
 	stop = make(chan struct{})
+	testStartTime = time.Now()
 
 	if debugE2E {
 		fmt.Println("------- START BEFORE -------")
@@ -134,6 +138,29 @@ func (env *Environment) getPodInformation(p *v1.Pod) string {
 	}
 	return fmt.Sprintf("pods %s/%s provisionable=%v phase=%s nodename=%s [%s]", p.Namespace, p.Name,
 		pod.IsProvisionable(p), p.Status.Phase, p.Spec.NodeName, containerInfo.String())
+}
+
+// Partially copied from
+// https://github.com/kubernetes/kubernetes/blob/04ee339c7a4d36b4037ce3635993e2a9e395ebf3/staging/src/k8s.io/kubectl/pkg/describe/describe.go#L4232
+func getEventInformation(k types.NamespacedName, el *v1.EventList) string {
+	sb := strings.Builder{}
+	sb.WriteString(fmt.Sprintf("------- %s EVENTS -------\n", k))
+	if len(el.Items) == 0 {
+		return sb.String()
+	}
+	for _, e := range el.Items {
+		source := e.Source.Component
+		if source == "" {
+			source = e.ReportingController
+		}
+		sb.WriteString(fmt.Sprintf("type=%s reason=%s from=%s message=%s\n",
+			e.Type,
+			e.Reason,
+			source,
+			strings.TrimSpace(e.Message)),
+		)
+	}
+	return sb.String()
 }
 
 // startPodMonitor monitors all pods that are provisioned in a namespace outside kube-system
@@ -211,7 +238,45 @@ func (env *Environment) AfterEach() {
 	env.eventuallyExpectScaleDown()
 	env.expectNoCrashes()
 	close(stop) // close the pod/node monitor watch channel
+	if debugE2E && !lo.Contains(CurrentSpecReport().Labels(), NoEvents) {
+		env.dumpPodEvents(testStartTime)
+	}
 	env.printControllerLogs(&v1.PodLogOptions{Container: "controller"})
+}
+
+func (env *Environment) dumpPodEvents(testStartTime time.Time) {
+	el := &v1.EventList{}
+	ExpectWithOffset(1, env.Client.List(env, el)).To(Succeed())
+
+	eventMap := map[types.NamespacedName]*v1.EventList{}
+
+	filteredEvents := lo.Filter(el.Items, func(e v1.Event, _ int) bool {
+		if !e.EventTime.IsZero() {
+			if e.EventTime.BeforeTime(&metav1.Time{Time: testStartTime}) {
+				return false
+			}
+		} else if e.FirstTimestamp.Before(&metav1.Time{Time: testStartTime}) {
+			return false
+		}
+		if e.InvolvedObject.Kind != "Pod" {
+			return false
+		}
+		if e.InvolvedObject.Namespace == "kube-system" || e.InvolvedObject.Namespace == "karpenter" {
+			return false
+		}
+		return true
+	})
+	for i := range filteredEvents {
+		elem := filteredEvents[i]
+		objectKey := types.NamespacedName{Namespace: elem.InvolvedObject.Namespace, Name: elem.InvolvedObject.Name}
+		if _, ok := eventMap[objectKey]; !ok {
+			eventMap[objectKey] = &v1.EventList{}
+		}
+		eventMap[objectKey].Items = append(eventMap[objectKey].Items, elem)
+	}
+	for k, v := range eventMap {
+		fmt.Print(getEventInformation(k, v))
+	}
 }
 
 func (env *Environment) ExpectCreated(objects ...client.Object) {
@@ -271,8 +336,17 @@ func (env *Environment) EventuallyExpectKarpenterWithEnvVar(envVar v1.EnvVar) {
 
 func (env *Environment) EventuallyExpectHealthyPodCount(selector labels.Selector, numPods int) {
 	Eventually(func(g Gomega) {
-		g.Expect(env.Monitor.RunningPods(selector)).To(Equal(numPods))
+		g.Expect(env.Monitor.RunningPodsCount(selector)).To(Equal(numPods))
 	}).Should(Succeed())
+}
+
+func (env *Environment) ExpectUniqueNodeNames(selector labels.Selector, uniqueNames int) {
+	pods := env.Monitor.RunningPods(selector)
+	nodeNames := sets.NewString()
+	for _, pod := range pods {
+		nodeNames.Insert(pod.Spec.NodeName)
+	}
+	ExpectWithOffset(1, len(nodeNames)).To(BeNumerically("==", uniqueNames))
 }
 
 func (env *Environment) eventuallyExpectScaleDown() {
@@ -368,6 +442,7 @@ var (
 )
 
 func (env *Environment) printControllerLogs(options *v1.PodLogOptions) {
+	fmt.Println("------- START CONTROLLER LOGS -------")
 	if options.SinceTime == nil {
 		options.SinceTime = lastLogged.DeepCopy()
 		lastLogged = metav1.Now()

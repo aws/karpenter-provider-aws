@@ -95,7 +95,7 @@ var _ = Describe("Scheduling", func() {
 		env.EventuallyExpectHealthy(pod)
 		env.ExpectCreatedNodeCount("==", 1)
 	})
-	It("should provision a node for a deployment", Label(environment.NoWatch), func() {
+	It("should provision a node for a deployment", Label(environment.NoWatch), Label(environment.NoEvents), func() {
 		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
