@@ -129,17 +129,22 @@ func (m *Monitor) GetCreatedNodes() []v1.Node {
 }
 
 // RunningPods returns the number of running pods matching the given selector
-func (m *Monitor) RunningPods(selector labels.Selector) int {
-	count := 0
+func (m *Monitor) RunningPods(selector labels.Selector) []*v1.Pod {
+	var pods []*v1.Pod
 	for _, pod := range m.poll().pods.Items {
+		pod := pod
 		if pod.Status.Phase != v1.PodRunning {
 			continue
 		}
 		if selector.Matches(labels.Set(pod.Labels)) {
-			count++
+			pods = append(pods, &pod)
 		}
 	}
-	return count
+	return pods
+}
+
+func (m *Monitor) RunningPodsCount(selector labels.Selector) int {
+	return len(m.RunningPods(selector))
 }
 
 func (m *Monitor) poll() state {
