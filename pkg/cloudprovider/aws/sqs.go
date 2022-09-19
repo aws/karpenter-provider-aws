@@ -24,7 +24,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/samber/lo"
-	"knative.dev/pkg/logging"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/utils/injection"
@@ -36,6 +35,7 @@ type SQSClient interface {
 	SetQueueAttributesWithContext(context.Context, *sqs.SetQueueAttributesInput, ...request.Option) (*sqs.SetQueueAttributesOutput, error)
 	ReceiveMessageWithContext(context.Context, *sqs.ReceiveMessageInput, ...request.Option) (*sqs.ReceiveMessageOutput, error)
 	DeleteMessageWithContext(context.Context, *sqs.DeleteMessageInput, ...request.Option) (*sqs.DeleteMessageOutput, error)
+	DeleteQueueWithContext(context.Context, *sqs.DeleteQueueInput, ...request.Option) (*sqs.DeleteQueueOutput, error)
 }
 
 type SQSProvider struct {
@@ -101,7 +101,7 @@ func NewSQSProvider(ctx context.Context, client SQSClient, metadata *Metadata) *
 func (s *SQSProvider) CreateQueue(ctx context.Context) error {
 	result, err := s.CreateQueueWithContext(ctx, s.createQueueInput)
 	if err != nil {
-		return fmt.Errorf("failed to create SQS queue, %w", err)
+		return fmt.Errorf("failed creating sqs queue, %w", err)
 	}
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -112,7 +112,7 @@ func (s *SQSProvider) CreateQueue(ctx context.Context) error {
 func (s *SQSProvider) SetQueueAttributes(ctx context.Context) error {
 	queueURL, err := s.DiscoverQueueURL(ctx, false)
 	if err != nil {
-		return fmt.Errorf("failed setting queue attributes, %w", err)
+		return fmt.Errorf("failed fetching queue url, %w", err)
 	}
 
 	setQueueAttributesInput := &sqs.SetQueueAttributesInput{
@@ -143,37 +143,30 @@ func (s *SQSProvider) DiscoverQueueURL(ctx context.Context, ignoreCache bool) (s
 }
 
 func (s *SQSProvider) GetSQSMessages(ctx context.Context) ([]*sqs.Message, error) {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("sqsClient.getMessages"))
-
 	queueURL, err := s.DiscoverQueueURL(ctx, false)
 	if err != nil {
-		return nil, fmt.Errorf("failed getting sqs messages, %w", err)
+		return nil, fmt.Errorf("failed fetching queue url, %w", err)
 	}
 
 	// Copy the input template and add the discovered queue url
 	input, err := deepCopy(s.receiveMessageInput)
 	if err != nil {
-		return nil, fmt.Errorf("error copying input, %w", err)
+		return nil, fmt.Errorf("failed copying input, %w", err)
 	}
 	input.QueueUrl = aws.String(queueURL)
 
 	result, err := s.ReceiveMessageWithContext(ctx, input)
 	if err != nil {
-		logging.FromContext(ctx).
-			With("error", err).
-			Error("failed to fetch messages")
-		return nil, err
+		return nil, fmt.Errorf("failed receiving sqs messages, %w", err)
 	}
 
 	return result.Messages, nil
 }
 
 func (s *SQSProvider) DeleteSQSMessage(ctx context.Context, msg *sqs.Message) error {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("sqsClient.deleteMessage"))
-
 	queueURL, err := s.DiscoverQueueURL(ctx, false)
 	if err != nil {
-		return fmt.Errorf("failed getting sqs messages, %w", err)
+		return fmt.Errorf("failed fetching queue url, %w", err)
 	}
 
 	input := &sqs.DeleteMessageInput{
@@ -183,12 +176,24 @@ func (s *SQSProvider) DeleteSQSMessage(ctx context.Context, msg *sqs.Message) er
 
 	_, err = s.DeleteMessageWithContext(ctx, input)
 	if err != nil {
-		logging.FromContext(ctx).
-			With("error", err).
-			Error("failed to delete message")
-		return err
+		return fmt.Errorf("failed deleting messages from sqs queue, %w", err)
+	}
+	return nil
+}
+
+func (s *SQSProvider) DeleteQueue(ctx context.Context) error {
+	queueURL, err := s.DiscoverQueueURL(ctx, false)
+	if err != nil {
+		return fmt.Errorf("failed fetching queue url, %w", err)
 	}
 
+	input := &sqs.DeleteQueueInput{
+		QueueUrl: aws.String(queueURL),
+	}
+	_, err = s.DeleteQueueWithContext(ctx, input)
+	if err != nil {
+		return fmt.Errorf("failed deleting sqs queue, %w", err)
+	}
 	return nil
 }
 

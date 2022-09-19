@@ -23,7 +23,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/sqs"
-	"golang.org/x/sync/errgroup"
+	"go.uber.org/multierr"
 	"k8s.io/utils/clock"
 	"knative.dev/pkg/logging"
 
@@ -99,6 +99,26 @@ func (c *Controller) run(ctx context.Context) {
 	}
 }
 
+func (c *Controller) cleanup(ctx context.Context) (err error) {
+	wg := &sync.WaitGroup{}
+	m := &sync.Mutex{}
+
+	go func() {
+		e := c.sqsProvider.DeleteQueue(ctx)
+		m.Lock()
+		err = multierr.Append(err, e)
+		m.Unlock()
+	}()
+	go func() {
+		e := c.eventBridgeProvider.DeleteEC2NotificationRules(ctx)
+		m.Lock()
+		err = multierr.Append(err, e)
+		m.Unlock()
+	}()
+	wg.Wait()
+	return err
+}
+
 func (c *Controller) Ready() <-chan struct{} {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
@@ -119,14 +139,24 @@ func (c *Controller) setReady(ready bool) {
 	}
 }
 
-func (c *Controller) ensureInfrastructure(ctx context.Context) error {
-	g, ctx := errgroup.WithContext(ctx)
-	g.Go(func() error { return c.ensureQueue(ctx) })
-	g.Go(func() error { return c.ensureEventBridge(ctx) })
-	if err := g.Wait(); err != nil {
-		return err
-	}
-	return nil
+func (c *Controller) ensureInfrastructure(ctx context.Context) (err error) {
+	wg := &sync.WaitGroup{}
+	m := &sync.Mutex{}
+
+	go func() {
+		e := c.ensureQueue(ctx)
+		m.Lock()
+		err = multierr.Append(err, e)
+		m.Unlock()
+	}()
+	go func() {
+		e := c.ensureEventBridge(ctx)
+		m.Lock()
+		err = multierr.Append(err, e)
+		m.Unlock()
+	}()
+	wg.Wait()
+	return err
 }
 
 func (c *Controller) ensureQueue(ctx context.Context) error {
