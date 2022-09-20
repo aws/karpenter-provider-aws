@@ -69,7 +69,7 @@ func (r recorder) EC2HealthWarning(node *v1.Node) {
 }
 
 func (r recorder) TerminatingNodeOnNotification(node *v1.Node) {
-	r.Eventf(node, "Normal", "NotificationTerminateNode", "Node %s event: Notification triggered termination for the node", node.Name)
+	r.Eventf(node, "Normal", "AWSNotificationTerminateNode", "Node %s event: Notification triggered termination for the node", node.Name)
 }
 
 func (r recorder) InfrastructureHealthy(ctx context.Context, kubeClient client.Client) {
@@ -81,7 +81,7 @@ func (r recorder) InfrastructureHealthy(ctx context.Context, kubeClient client.C
 		logging.FromContext(ctx).Errorf("Sending InfrastructureHealthy event, %v", err)
 		return
 	}
-	r.Eventf(dep, "Normal", "InfrastructureHealthy", "Karpenter infrastructure reconciliation is healthy")
+	r.Eventf(dep, "Normal", "AWSInfrastructureHealthy", "Karpenter infrastructure reconciliation is healthy")
 }
 
 func (r recorder) InfrastructureUnhealthy(ctx context.Context, kubeClient client.Client) {
@@ -93,5 +93,5 @@ func (r recorder) InfrastructureUnhealthy(ctx context.Context, kubeClient client
 		logging.FromContext(ctx).Errorf("Sending InfrastructureUnhealthy event, %v", err)
 		return
 	}
-	r.Eventf(dep, "Warning", "InfrastructureUnhealthy", "Karpenter infrastructure reconciliation is unhealthy")
+	r.Eventf(dep, "Warning", "AWSInfrastructureUnhealthy", "Karpenter infrastructure reconciliation is unhealthy")
 }

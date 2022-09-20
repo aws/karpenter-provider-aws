@@ -64,7 +64,7 @@ type Controller struct {
 }
 
 // pollingPeriod that we go to the SQS queue to check if there are any new events
-const pollingPeriod = 5 * time.Second
+const pollingPeriod = 2 * time.Second
 
 func NewController(ctx context.Context, kubeClient client.Client, clk clock.Clock, sqsProvider *aws.SQSProvider,
 	recorder events.Recorder, provisioner *provisioning.Provisioner, cluster *state.Cluster,
@@ -97,7 +97,6 @@ func (c *Controller) run(ctx context.Context) {
 	ctx = logging.WithLogger(ctx, logger)
 	for {
 		<-c.infraReady() // block until the infrastructure is up and ready
-		logging.FromContext(ctx).Infof("Infrastructure is healthy so proceeding with polling")
 		err := c.pollSQS(ctx)
 		if err != nil {
 			logging.FromContext(ctx).Errorf("Handling notification messages from SQS queue, %v", err)
@@ -115,7 +114,6 @@ func (c *Controller) run(ctx context.Context) {
 func (c *Controller) pollSQS(ctx context.Context) error {
 	defer metrics.Measure(reconcileDuration.WithLabelValues())()
 
-	logging.FromContext(ctx).Infof("polling SQS queue for messages")
 	sqsMessages, err := c.provider.GetSQSMessages(ctx)
 	if err != nil {
 		return err
@@ -149,7 +147,7 @@ func (c *Controller) handleMessage(ctx context.Context, instanceIDMap map[string
 
 	action := actionForEvent(evt)
 	nodeNames := lo.Map(nodes, func(n *v1.Node, _ int) string { return n.Name })
-	logging.FromContext(ctx).Infof("Received actionable event from SQS queue for nodes [%s%s]",
+	logging.FromContext(ctx).Infof("Received actionable event from SQS queue for node(s) [%s%s]",
 		strings.Join(lo.Slice(nodeNames, 0, 3), ","),
 		lo.Ternary(len(nodeNames) > 3, "...", ""))
 

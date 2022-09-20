@@ -87,8 +87,8 @@ func NewProvider(ctx context.Context, client SQSClient, metadata *Metadata) *SQS
 	}
 	provider.receiveMessageInput = &sqs.ReceiveMessageInput{
 		MaxNumberOfMessages: aws.Int64(10),
-		VisibilityTimeout:   aws.Int64(20), // Seconds
-		WaitTimeSeconds:     aws.Int64(20), // Seconds, maximum for long polling
+		VisibilityTimeout:   aws.Int64(10), // Seconds
+		WaitTimeSeconds:     aws.Int64(10), // Seconds, maximum for long polling
 		AttributeNames: []*string{
 			aws.String(sqs.MessageSystemAttributeNameSentTimestamp),
 		},
