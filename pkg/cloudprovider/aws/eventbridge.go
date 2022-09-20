@@ -55,7 +55,7 @@ type EventTarget struct {
 
 type EventPattern struct {
 	Source     []string `json:"source,omitempty"`
-	DetailType []string `json:"detailType,omitempty"`
+	DetailType []string `json:"detail-type,omitempty"`
 }
 
 func (ep *EventPattern) Serialize() []byte {

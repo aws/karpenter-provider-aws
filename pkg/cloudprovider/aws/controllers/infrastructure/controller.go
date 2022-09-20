@@ -134,8 +134,10 @@ func (c *Controller) cleanup(ctx context.Context) {
 		logging.FromContext(ctx).Errorf("Getting the deployment %s for cleanup, %v", nn, err)
 	}
 
-	// Deployment is deleting so we should cleanup the infrastructure
+	// Deployment is deleting so we should clean-up the infrastructure
+	logging.FromContext(ctx).Infof("Checking on the state of the Karpenter deployment")
 	if !dep.DeletionTimestamp.IsZero() {
+		logging.FromContext(ctx).Infof("Karpenter deployment is deleted")
 		err = c.deleteInfrastructure(ctx)
 		if err != nil {
 			logging.FromContext(ctx).Errorf("Deleting the infrastructure, %v", err)

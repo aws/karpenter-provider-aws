@@ -42,6 +42,8 @@ type Recorder interface {
 	EC2SpotRebalanceRecommendation(*v1.Node)
 	// EC2HealthWarning is called when EC2 sends a health warning notification for a health issue for the node from the SQS queue
 	EC2HealthWarning(*v1.Node)
+	// TerminatingNodeOnNotification is called when a notification that is sent to the notification controller triggers node deletion
+	TerminatingNodeOnNotification(*v1.Node)
 	// InfrastructureUnhealthy event is called when infrastructure reconciliation errors and the controller enters an unhealthy state
 	InfrastructureUnhealthy(context.Context, client.Client)
 	// InfrastructureHealthy event is called when infrastructure reconciliation succeeds and the controller enters a healthy state
@@ -66,6 +68,10 @@ func (r recorder) EC2HealthWarning(node *v1.Node) {
 	r.Eventf(node, "Normal", "EC2HealthWarning", "Node %s event: EC2 triggered a health warning for the node", node.Name)
 }
 
+func (r recorder) TerminatingNodeOnNotification(node *v1.Node) {
+	r.Eventf(node, "Normal", "NotificationTerminateNode", "Node %s event: Notification triggered termination for the node", node.Name)
+}
+
 func (r recorder) InfrastructureHealthy(ctx context.Context, kubeClient client.Client) {
 	dep := &appsv1.Deployment{}
 	err := retry.Do(func() error {
@@ -87,5 +93,5 @@ func (r recorder) InfrastructureUnhealthy(ctx context.Context, kubeClient client
 		logging.FromContext(ctx).Errorf("Sending InfrastructureUnhealthy event, %v", err)
 		return
 	}
-	r.Eventf(dep, "Normal", "InfrastructureUnhealthy", "Karpenter infrastructure reconciliation is unhealthy")
+	r.Eventf(dep, "Warning", "InfrastructureUnhealthy", "Karpenter infrastructure reconciliation is unhealthy")
 }

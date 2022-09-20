@@ -18,9 +18,11 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strings"
 	"time"
 
 	sqsapi "github.com/aws/aws-sdk-go/service/sqs"
+	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/utils/clock"
@@ -95,6 +97,7 @@ func (c *Controller) run(ctx context.Context) {
 	ctx = logging.WithLogger(ctx, logger)
 	for {
 		<-c.infraReady() // block until the infrastructure is up and ready
+		logging.FromContext(ctx).Infof("Infrastructure is healthy so proceeding with polling")
 		err := c.pollSQS(ctx)
 		if err != nil {
 			logging.FromContext(ctx).Errorf("Handling notification messages from SQS queue, %v", err)
@@ -112,6 +115,7 @@ func (c *Controller) run(ctx context.Context) {
 func (c *Controller) pollSQS(ctx context.Context) error {
 	defer metrics.Measure(reconcileDuration.WithLabelValues())()
 
+	logging.FromContext(ctx).Infof("polling SQS queue for messages")
 	sqsMessages, err := c.provider.GetSQSMessages(ctx)
 	if err != nil {
 		return err
@@ -141,14 +145,19 @@ func (c *Controller) handleMessage(ctx context.Context, instanceIDMap map[string
 		receivedMessages.WithLabelValues(evt.Kind(), "false").Inc()
 		return
 	}
+	receivedMessages.WithLabelValues(evt.Kind(), "true").Inc()
+
 	action := actionForEvent(evt)
+	nodeNames := lo.Map(nodes, func(n *v1.Node, _ int) string { return n.Name })
+	logging.FromContext(ctx).Infof("Received actionable event from SQS queue for nodes [%s%s]",
+		strings.Join(lo.Slice(nodeNames, 0, 3), ","),
+		lo.Ternary(len(nodeNames) > 3, "...", ""))
 
 	for i := range nodes {
 		node := nodes[i]
 
-		// Record metrics and events for this action
+		// Record metric and event for this action
 		c.notifyForEvent(evt, node)
-		receivedMessages.WithLabelValues(evt.Kind(), "true").Inc()
 		actionsTaken.WithLabelValues(action).Inc()
 
 		if action != Actions.NoAction {
@@ -157,7 +166,9 @@ func (c *Controller) handleMessage(ctx context.Context, instanceIDMap map[string
 		}
 	}
 	if err != nil {
-		return fmt.Errorf("failed to act on nodes [%s], %w", nodes[:3], err)
+		return fmt.Errorf("failed to act on nodes [%s%s], %w",
+			strings.Join(lo.Slice(nodeNames, 0, 3), ","),
+			lo.Ternary(len(nodeNames) > 3, "...", ""), err)
 	}
 	err = c.provider.DeleteSQSMessage(ctx, msg)
 	if err != nil {
@@ -169,8 +180,7 @@ func (c *Controller) handleMessage(ctx context.Context, instanceIDMap map[string
 
 func (c *Controller) deleteInstance(ctx context.Context, node *v1.Node) error {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("node", node.Name))
-	logging.FromContext(ctx).Infof("Queue notification triggered ")
-
+	c.recorder.TerminatingNodeOnNotification(node)
 	if err := c.kubeClient.Delete(ctx, node); err != nil {
 		return fmt.Errorf("deleting the spot interrupted node, %w", err)
 	}
@@ -244,6 +254,8 @@ func (c *Controller) makeInstanceIDMap() map[string]*v1.Node {
 	return m
 }
 
+// parseProviderID parses the provider ID stored on the node to get the instance ID
+// associated with a node
 func parseProviderID(pid string) string {
 	r := regexp.MustCompile(`aws:///(?P<AZ>.*)/(?P<InstanceID>.*)`)
 	matches := r.FindStringSubmatch(pid)
