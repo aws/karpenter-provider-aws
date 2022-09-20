@@ -33,7 +33,7 @@ import (
 
 	"github.com/aws/karpenter/pkg/cloudprovider/aws"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/events"
-	sqs2 "github.com/aws/karpenter/pkg/cloudprovider/aws/sqs"
+	"github.com/aws/karpenter/pkg/metrics"
 	"github.com/aws/karpenter/pkg/utils/injection"
 )
 
@@ -44,11 +44,12 @@ type Controller struct {
 	recorder   events.Recorder
 	clock      clock.Clock
 
-	sqsProvider         *sqs2.SQSProvider
+	sqsProvider         *aws.SQSProvider
 	eventBridgeProvider *aws.EventBridgeProvider
 
 	mutex         *sync.RWMutex
 	readinessChan chan struct{} // A signal to other controllers that infrastructure is in a good state
+	ready         bool
 }
 
 // pollingPeriod is the period that we go to AWS APIs to ensure that the appropriate AWS infrastructure is provisioned
@@ -60,7 +61,7 @@ const pollingPeriod = time.Hour
 const defaultBackoffPeriod = time.Minute * 10
 
 func NewController(ctx context.Context, cleanupCtx context.Context, kubeClient client.Client, clk clock.Clock,
-	recorder events.Recorder, sqsProvider *sqs2.SQSProvider, eventBridgeProvider *aws.EventBridgeProvider,
+	recorder events.Recorder, sqsProvider *aws.SQSProvider, eventBridgeProvider *aws.EventBridgeProvider,
 	startAsync <-chan struct{}, cleanupAsync <-chan os.Signal) *Controller {
 	c := &Controller{
 		kubeClient:          kubeClient,
@@ -156,15 +157,26 @@ func (c *Controller) setReady(ctx context.Context, ready bool) {
 	// other channels that are waiting on Ready() proceed; otherwise, open
 	// a channel to tell the other goroutines to wait
 	if ready {
-		logging.FromContext(ctx).Infof("Reconciled infrastructure is healthy")
+		healthy.Set(1)
+		if c.ready != ready {
+			logging.FromContext(ctx).Infof("Infrastructure is healthy")
+			c.recorder.InfrastructureHealthy(ctx, c.kubeClient)
+		}
 		close(c.readinessChan)
 	} else {
-		logging.FromContext(ctx).Infof("Reconciled infrastructure is unhealthy")
+		healthy.Set(0)
+		if c.ready != ready {
+			logging.FromContext(ctx).Infof("Infrastructure is unhealthy")
+			c.recorder.InfrastructureUnhealthy(ctx, c.kubeClient)
+		}
 		c.readinessChan = make(chan struct{})
 	}
+	c.ready = ready
 }
 
 func (c *Controller) ensureInfrastructure(ctx context.Context) (err error) {
+	defer metrics.Measure(reconcileDuration)()
+
 	wg := &sync.WaitGroup{}
 	m := &sync.Mutex{}
 

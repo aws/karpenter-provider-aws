@@ -28,12 +28,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/aggregatedparser"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/events"
-	"github.com/aws/karpenter/pkg/cloudprovider/aws/sqs"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
 	"github.com/aws/karpenter/pkg/controllers/state"
+	"github.com/aws/karpenter/pkg/metrics"
 )
 
 type Action = string
@@ -54,7 +55,7 @@ type Controller struct {
 	cluster     *state.Cluster
 	recorder    events.Recorder
 	clock       clock.Clock
-	provider    *sqs.SQSProvider
+	provider    *aws.SQSProvider
 	parser      event.Parser
 
 	infraReady func() <-chan struct{}
@@ -63,7 +64,7 @@ type Controller struct {
 // pollingPeriod that we go to the SQS queue to check if there are any new events
 const pollingPeriod = 5 * time.Second
 
-func NewController(ctx context.Context, kubeClient client.Client, clk clock.Clock, sqsProvider *sqs.SQSProvider,
+func NewController(ctx context.Context, kubeClient client.Client, clk clock.Clock, sqsProvider *aws.SQSProvider,
 	recorder events.Recorder, provisioner *provisioning.Provisioner, cluster *state.Cluster,
 	startAsync <-chan struct{}, infraReady func() <-chan struct{}) *Controller {
 	c := &Controller{
@@ -109,7 +110,8 @@ func (c *Controller) run(ctx context.Context) {
 }
 
 func (c *Controller) pollSQS(ctx context.Context) error {
-	logging.FromContext(ctx).Infof("Polling SQS")
+	defer metrics.Measure(reconcileDuration.WithLabelValues())()
+
 	sqsMessages, err := c.provider.GetSQSMessages(ctx)
 	if err != nil {
 		return err
@@ -134,20 +136,35 @@ func (c *Controller) handleMessage(ctx context.Context, instanceIDMap map[string
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("event", evt.Kind()))
 
 	nodes := getInvolvedNodes(evt.EC2InstanceIDs(), instanceIDMap)
+	// There's no action to take here since the event doesn't pertain to any of our instances
+	if len(nodes) == 0 {
+		receivedMessages.WithLabelValues(evt.Kind(), "false").Inc()
+		return
+	}
 	action := actionForEvent(evt)
 
 	for i := range nodes {
 		node := nodes[i]
+
+		// Record metrics and events for this action
 		c.notifyForEvent(evt, node)
+		receivedMessages.WithLabelValues(evt.Kind(), "true").Inc()
+		actionsTaken.WithLabelValues(action).Inc()
+
 		if action != Actions.NoAction {
 			e := c.deleteInstance(ctx, node)
 			err = multierr.Append(err, e)
 		}
 	}
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to act on nodes [%s], %w", nodes[:3], err)
 	}
-	return c.provider.DeleteSQSMessage(ctx, msg)
+	err = c.provider.DeleteSQSMessage(ctx, msg)
+	if err != nil {
+		return fmt.Errorf("failed to delete message from queue, %w", err)
+	}
+	deletedMessages.WithLabelValues().Inc()
+	return nil
 }
 
 func (c *Controller) deleteInstance(ctx context.Context, node *v1.Node) error {
@@ -173,10 +190,7 @@ func (c *Controller) notifyForEvent(evt event.Interface, n *v1.Node) {
 
 	// For now, we won't do anything with the state change action
 	case event.Kinds.StateChange:
-		return
-
 	default:
-		return
 	}
 }
 

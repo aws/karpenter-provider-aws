@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package metadata
+package aws
 
 import (
 	"context"
@@ -25,20 +25,40 @@ import (
 	"github.com/aws/aws-sdk-go/service/sts/stsiface"
 )
 
-type Provider struct {
+type Metadata struct {
+	region    string
+	accountID string
+}
+
+func NewMetadata(region, accountID string) *Metadata {
+	return &Metadata{
+		region:    region,
+		accountID: accountID,
+	}
+}
+
+func (i *Metadata) Region() string {
+	return i.region
+}
+
+func (i *Metadata) AccountID() string {
+	return i.accountID
+}
+
+type MetadataProvider struct {
 	imdsClient *ec2metadata.EC2Metadata
 	stsClient  stsiface.STSAPI
 }
 
-func NewMetadataProvider(sess *session.Session) *Provider {
-	return &Provider{
+func NewMetadataProvider(sess *session.Session) *MetadataProvider {
+	return &MetadataProvider{
 		imdsClient: ec2metadata.New(sess),
 		stsClient:  sts.New(sess),
 	}
 }
 
 // Region gets the current region from EC2 IMDS
-func (i *Provider) Region(ctx context.Context) string {
+func (i *MetadataProvider) Region(ctx context.Context) string {
 	region, err := i.imdsClient.RegionWithContext(ctx)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to call the metadata server's region API, %s", err))
@@ -46,7 +66,7 @@ func (i *Provider) Region(ctx context.Context) string {
 	return region
 }
 
-func (i *Provider) AccountID(ctx context.Context) string {
+func (i *MetadataProvider) AccountID(ctx context.Context) string {
 	doc, err := i.imdsClient.GetInstanceIdentityDocumentWithContext(ctx)
 	if err != nil {
 		// Fallback to using the STS provider if IMDS fails

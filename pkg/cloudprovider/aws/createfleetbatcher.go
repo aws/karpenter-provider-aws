@@ -25,6 +25,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/mitchellh/hashstructure/v2"
 	"knative.dev/pkg/logging"
+
+	"github.com/aws/karpenter/pkg/utils/functional"
 )
 
 // CreateFleetBatcher is used to batch CreateFleet calls from the cloud provider with identical parameters into a single
@@ -133,7 +135,7 @@ func (b *CreateFleetBatcher) runCalls() {
 		// of instances that we request
 		call := requestBatch[0]
 		// deep copy the input we are about to modify so that we don't modify any caller's input parameter
-		input, err := deepCopy(call.input)
+		input, err := functional.DeepCopy(call.input)
 		if err != nil {
 			// shouldn't occur, but if it does we log an error and just modify the caller's input so we
 			// can continue to launch instances

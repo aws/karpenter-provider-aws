@@ -15,10 +15,18 @@ limitations under the License.
 package events
 
 import (
+	"context"
+
+	"github.com/avast/retry-go"
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
+	"knative.dev/pkg/logging"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter/pkg/events"
+	"github.com/aws/karpenter/pkg/utils/injection"
 )
 
 type recorder struct {
@@ -34,6 +42,10 @@ type Recorder interface {
 	EC2SpotRebalanceRecommendation(*v1.Node)
 	// EC2HealthWarning is called when EC2 sends a health warning notification for a health issue for the node from the SQS queue
 	EC2HealthWarning(*v1.Node)
+	// InfrastructureUnhealthy event is called when infrastructure reconciliation errors and the controller enters an unhealthy state
+	InfrastructureUnhealthy(context.Context, client.Client)
+	// InfrastructureHealthy event is called when infrastructure reconciliation succeeds and the controller enters a healthy state
+	InfrastructureHealthy(context.Context, client.Client)
 }
 
 func NewRecorder(r events.Recorder) Recorder {
@@ -52,4 +64,28 @@ func (r recorder) EC2SpotRebalanceRecommendation(node *v1.Node) {
 
 func (r recorder) EC2HealthWarning(node *v1.Node) {
 	r.Eventf(node, "Normal", "EC2HealthWarning", "Node %s event: EC2 triggered a health warning for the node", node.Name)
+}
+
+func (r recorder) InfrastructureHealthy(ctx context.Context, kubeClient client.Client) {
+	dep := &appsv1.Deployment{}
+	err := retry.Do(func() error {
+		return kubeClient.Get(ctx, types.NamespacedName{Namespace: injection.GetOptions(ctx).DeploymentNamespace, Name: injection.GetOptions(ctx).DeploymentName}, dep)
+	})
+	if err != nil {
+		logging.FromContext(ctx).Errorf("Sending InfrastructureHealthy event, %v", err)
+		return
+	}
+	r.Eventf(dep, "Normal", "InfrastructureHealthy", "Karpenter infrastructure reconciliation is healthy")
+}
+
+func (r recorder) InfrastructureUnhealthy(ctx context.Context, kubeClient client.Client) {
+	dep := &appsv1.Deployment{}
+	err := retry.Do(func() error {
+		return kubeClient.Get(ctx, types.NamespacedName{Namespace: injection.GetOptions(ctx).DeploymentNamespace, Name: injection.GetOptions(ctx).DeploymentName}, dep)
+	})
+	if err != nil {
+		logging.FromContext(ctx).Errorf("Sending InfrastructureUnhealthy event, %v", err)
+		return
+	}
+	r.Eventf(dep, "Normal", "InfrastructureUnhealthy", "Karpenter infrastructure reconciliation is unhealthy")
 }

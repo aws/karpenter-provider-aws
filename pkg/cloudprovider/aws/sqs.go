@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package sqs
+package aws
 
 import (
 	"context"
@@ -21,17 +21,55 @@ import (
 	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter/pkg/cloudprovider/aws/metadata"
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injection"
 )
 
-func NewProvider(ctx context.Context, client Client, metadata *metadata.Info) *Provider {
-	provider := &Provider{
+type SQSClient interface {
+	CreateQueueWithContext(context.Context, *sqs.CreateQueueInput, ...request.Option) (*sqs.CreateQueueOutput, error)
+	GetQueueUrlWithContext(context.Context, *sqs.GetQueueUrlInput, ...request.Option) (*sqs.GetQueueUrlOutput, error)
+	SetQueueAttributesWithContext(context.Context, *sqs.SetQueueAttributesInput, ...request.Option) (*sqs.SetQueueAttributesOutput, error)
+	ReceiveMessageWithContext(context.Context, *sqs.ReceiveMessageInput, ...request.Option) (*sqs.ReceiveMessageOutput, error)
+	DeleteMessageWithContext(context.Context, *sqs.DeleteMessageInput, ...request.Option) (*sqs.DeleteMessageOutput, error)
+	DeleteQueueWithContext(context.Context, *sqs.DeleteQueueInput, ...request.Option) (*sqs.DeleteQueueOutput, error)
+}
+
+type QueuePolicy struct {
+	Version   string                 `json:"Version"`
+	ID        string                 `json:"Id"`
+	Statement []QueuePolicyStatement `json:"Statement"`
+}
+
+type QueuePolicyStatement struct {
+	Effect    string    `json:"Effect"`
+	Principal Principal `json:"Principal"`
+	Action    []string  `json:"Action"`
+	Resource  string    `json:"Resource"`
+}
+
+type Principal struct {
+	Service []string `json:"Service"`
+}
+
+type SQSProvider struct {
+	client SQSClient
+
+	createQueueInput    *sqs.CreateQueueInput
+	getQueueURLInput    *sqs.GetQueueUrlInput
+	receiveMessageInput *sqs.ReceiveMessageInput
+	mutex               *sync.RWMutex
+	queueURL            string
+	queueName           string
+	metadata            *Metadata
+}
+
+func NewProvider(ctx context.Context, client SQSClient, metadata *Metadata) *SQSProvider {
+	provider := &SQSProvider{
 		client:    client,
 		mutex:     &sync.RWMutex{},
 		metadata:  metadata,
@@ -61,11 +99,11 @@ func NewProvider(ctx context.Context, client Client, metadata *metadata.Info) *P
 	return provider
 }
 
-func (s *Provider) QueueName() string {
+func (s *SQSProvider) QueueName() string {
 	return s.queueName
 }
 
-func (s *Provider) CreateQueue(ctx context.Context) error {
+func (s *SQSProvider) CreateQueue(ctx context.Context) error {
 	result, err := s.client.CreateQueueWithContext(ctx, s.createQueueInput)
 	if err != nil {
 		return fmt.Errorf("failed creating sqs queue, %w", err)
@@ -76,7 +114,7 @@ func (s *Provider) CreateQueue(ctx context.Context) error {
 	return nil
 }
 
-func (s *Provider) SetQueueAttributes(ctx context.Context) error {
+func (s *SQSProvider) SetQueueAttributes(ctx context.Context) error {
 	queueURL, err := s.DiscoverQueueURL(ctx, false)
 	if err != nil {
 		return fmt.Errorf("failed fetching queue url, %w", err)
@@ -93,7 +131,7 @@ func (s *Provider) SetQueueAttributes(ctx context.Context) error {
 	return nil
 }
 
-func (s *Provider) DiscoverQueueURL(ctx context.Context, ignoreCache bool) (string, error) {
+func (s *SQSProvider) DiscoverQueueURL(ctx context.Context, ignoreCache bool) (string, error) {
 	s.mutex.RLock()
 	queueURL := s.queueURL
 	s.mutex.RUnlock()
@@ -114,7 +152,7 @@ func (s *Provider) DiscoverQueueURL(ctx context.Context, ignoreCache bool) (stri
 	return aws.StringValue(result.QueueUrl), nil
 }
 
-func (s *Provider) GetSQSMessages(ctx context.Context) ([]*sqs.Message, error) {
+func (s *SQSProvider) GetSQSMessages(ctx context.Context) ([]*sqs.Message, error) {
 	queueURL, err := s.DiscoverQueueURL(ctx, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed fetching queue url, %w", err)
@@ -135,7 +173,7 @@ func (s *Provider) GetSQSMessages(ctx context.Context) ([]*sqs.Message, error) {
 	return result.Messages, nil
 }
 
-func (s *Provider) DeleteSQSMessage(ctx context.Context, msg *sqs.Message) error {
+func (s *SQSProvider) DeleteSQSMessage(ctx context.Context, msg *sqs.Message) error {
 	queueURL, err := s.DiscoverQueueURL(ctx, false)
 	if err != nil {
 		return fmt.Errorf("failed fetching queue url, %w", err)
@@ -153,7 +191,7 @@ func (s *Provider) DeleteSQSMessage(ctx context.Context, msg *sqs.Message) error
 	return nil
 }
 
-func (s *Provider) DeleteQueue(ctx context.Context) error {
+func (s *SQSProvider) DeleteQueue(ctx context.Context) error {
 	queueURL, err := s.DiscoverQueueURL(ctx, false)
 	if err != nil {
 		return fmt.Errorf("failed fetching queue url, %w", err)
@@ -169,7 +207,7 @@ func (s *Provider) DeleteQueue(ctx context.Context) error {
 	return nil
 }
 
-func (s *Provider) getQueueAttributes() map[string]*string {
+func (s *SQSProvider) getQueueAttributes() map[string]*string {
 	policy := lo.Must(json.Marshal(s.getQueuePolicy()))
 	return map[string]*string{
 		sqs.QueueAttributeNameMessageRetentionPeriod: aws.String("300"),
@@ -177,7 +215,7 @@ func (s *Provider) getQueueAttributes() map[string]*string {
 	}
 }
 
-func (s *Provider) getQueuePolicy() *QueuePolicy {
+func (s *SQSProvider) getQueuePolicy() *QueuePolicy {
 	return &QueuePolicy{
 		Version: "2008-10-17",
 		ID:      "EC2NotificationPolicy",
@@ -197,7 +235,7 @@ func (s *Provider) getQueuePolicy() *QueuePolicy {
 	}
 }
 
-func (s *Provider) getQueueARN() string {
+func (s *SQSProvider) getQueueARN() string {
 	return fmt.Sprintf("arn:aws:sqs:%s:%s:%s", s.metadata.Region(), s.metadata.AccountID(), s.queueName)
 }
 

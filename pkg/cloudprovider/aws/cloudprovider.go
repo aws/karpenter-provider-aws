@@ -48,8 +48,6 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/amifamily"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/cloudprovider/aws/metadata"
-	cloudprovidersqs "github.com/aws/karpenter/pkg/cloudprovider/aws/sqs"
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/project"
@@ -79,7 +77,7 @@ type CloudProvider struct {
 	instanceTypeProvider *InstanceTypeProvider
 	instanceProvider     *InstanceProvider
 	kubeClient           k8sClient.Client
-	sqsProvider          *cloudprovidersqs.Provider
+	sqsProvider          *SQSProvider
 	eventBridgeProvider  *EventBridgeProvider
 }
 
@@ -100,7 +98,7 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 			client.DefaultRetryer{NumMaxRetries: client.DefaultRetryerMaxNumRetries},
 		),
 	)))
-	metadataProvider := metadata.NewMetadataProvider(sess)
+	metadataProvider := NewMetadataProvider(sess)
 	if *sess.Config.Region == "" {
 		logging.FromContext(ctx).Debug("AWS region not configured, asking EC2 Instance Metadata Service")
 		*sess.Config.Region = metadataProvider.Region(ctx)
@@ -114,8 +112,8 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 	subnetProvider := NewSubnetProvider(ec2api)
 	instanceTypeProvider := NewInstanceTypeProvider(ctx, sess, options, ec2api, subnetProvider)
 
-	m := metadata.NewInfo(*sess.Config.Region, metadataProvider.AccountID(ctx))
-	sqsProvider := cloudprovidersqs.NewProvider(ctx, sqs.New(sess), m)
+	m := NewMetadata(*sess.Config.Region, metadataProvider.AccountID(ctx))
+	sqsProvider := NewProvider(ctx, sqs.New(sess), m)
 	eventBridgeProvider := NewEventBridgeProvider(eventbridge.New(sess), m, sqsProvider.QueueName())
 	cloudprovider := &CloudProvider{
 		instanceTypeProvider: instanceTypeProvider,
@@ -225,7 +223,7 @@ func (*CloudProvider) Validate(ctx context.Context, provisioner *v1alpha5.Provis
 	return provider.Validate()
 }
 
-func (c *CloudProvider) SQSProvider() *sqs2.SQSProvider {
+func (c *CloudProvider) SQSProvider() *SQSProvider {
 	return c.sqsProvider
 }
 
