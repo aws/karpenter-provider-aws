@@ -39,6 +39,7 @@ echo '{
                 "ec2:CreateLaunchTemplate",
                 "ec2:CreateFleet",
                 "ec2:DescribeSpotPriceHistory",
+                "ec2:DescribeImages",
                 "pricing:GetProducts"
             ],
             "Effect": "Allow",
