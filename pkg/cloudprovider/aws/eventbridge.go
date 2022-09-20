@@ -131,7 +131,7 @@ func (eb *EventBridgeProvider) DeleteEC2NotificationRules(ctx context.Context) (
 func (eb *EventBridgeProvider) getEC2NotificationEventRules(ctx context.Context) []EventRule {
 	return []EventRule{
 		{
-			Name: fmt.Sprintf("%s-ScheduledChangeRule", injection.GetOptions(ctx).ClusterName),
+			Name: fmt.Sprintf("Karpenter-%s-ScheduledChangeRule", injection.GetOptions(ctx).ClusterName),
 			Pattern: &EventPattern{
 				Source:     []string{"aws.health"},
 				DetailType: []string{"AWS Health Event"},
@@ -142,7 +142,7 @@ func (eb *EventBridgeProvider) getEC2NotificationEventRules(ctx context.Context)
 			},
 		},
 		{
-			Name: fmt.Sprintf("%s-SpotTerminationRule", injection.GetOptions(ctx).ClusterName),
+			Name: fmt.Sprintf("Karpenter-%s-SpotTerminationRule", injection.GetOptions(ctx).ClusterName),
 			Pattern: &EventPattern{
 				Source:     []string{"aws.ec2"},
 				DetailType: []string{"EC2 Spot Instance Interruption Warning"},
@@ -153,7 +153,7 @@ func (eb *EventBridgeProvider) getEC2NotificationEventRules(ctx context.Context)
 			},
 		},
 		{
-			Name: fmt.Sprintf("%s-RebalanceRule", injection.GetOptions(ctx).ClusterName),
+			Name: fmt.Sprintf("Karpenter-%s-RebalanceRule", injection.GetOptions(ctx).ClusterName),
 			Pattern: &EventPattern{
 				Source:     []string{"aws.ec2"},
 				DetailType: []string{"EC2 Instance Rebalance Recommendation"},
@@ -164,7 +164,7 @@ func (eb *EventBridgeProvider) getEC2NotificationEventRules(ctx context.Context)
 			},
 		},
 		{
-			Name: fmt.Sprintf("%s-InstanceStateChangeRule", injection.GetOptions(ctx).ClusterName),
+			Name: fmt.Sprintf("Karpenter-%s-InstanceStateChangeRule", injection.GetOptions(ctx).ClusterName),
 			Pattern: &EventPattern{
 				Source:     []string{"aws.ec2"},
 				DetailType: []string{"EC2 Instance State-change Notification"},

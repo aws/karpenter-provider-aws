@@ -25,6 +25,7 @@ import (
 const (
 	launchTemplateNotFoundCode = "InvalidLaunchTemplateName.NotFoundException"
 	AccessDeniedCode           = "AccessDenied"
+	AccessDeniedException      = "AccessDeniedException"
 )
 
 var (

@@ -76,7 +76,7 @@ Resources:
             Action:
               # Write Operations
               - sqs:CreateQueue
-              - sqs:TagResource
+              - sqs:TagQueue
               - sqs:SetQueueAttributes
               - sqs:DeleteMessage
               - sqs:DeleteQueue
@@ -84,7 +84,7 @@ Resources:
               - sqs:GetQueueUrl
               - sqs:ReceiveMessage
           - Effect: Allow
-            Resource: !Sub "arn:${AWS::Partition}:events:${AWS::Region}:${AWS::AccountId}:Karpenter-${ClusterName}-*"
+            Resource: !Sub "arn:${AWS::Partition}:events:${AWS::Region}:${AWS::AccountId}:rule/Karpenter-${ClusterName}-*"
               - events:PutRule
               - events:PutTargets
               - events:TagResource

@@ -238,7 +238,7 @@ func (c *Controller) ensureEventBridge(ctx context.Context) error {
 			return fmt.Errorf("failed conversion to AWS error, %w", err)
 		}
 		switch awsErr.Code() {
-		case aws.AccessDeniedCode:
+		case aws.AccessDeniedException:
 			return fmt.Errorf("obtaining permission to eventbridge, %w", err)
 		default:
 			return fmt.Errorf("creating event bridge notification rules, %w", err)
@@ -255,6 +255,8 @@ func (c *Controller) getBackoff(err error) time.Duration {
 		return time.Minute
 	}
 	switch awsErr.Code() {
+	case aws.AccessDeniedException:
+		return time.Minute * 10
 	case aws.AccessDeniedCode:
 		return time.Minute * 10
 	default:
