@@ -26,6 +26,7 @@ echo '{
             "Action": [
                 "ssm:GetParameter",
                 "iam:PassRole",
+                "ec2:DescribeImages",
                 "ec2:RunInstances",
                 "ec2:DescribeSubnets",
                 "ec2:DescribeSecurityGroups",
