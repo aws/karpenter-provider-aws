@@ -19,9 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/signal"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -35,6 +33,7 @@ import (
 
 	"github.com/aws/karpenter/pkg/cloudprovider/aws"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/events"
+	sqs2 "github.com/aws/karpenter/pkg/cloudprovider/aws/sqs"
 	"github.com/aws/karpenter/pkg/utils/injection"
 )
 
@@ -45,7 +44,7 @@ type Controller struct {
 	recorder   events.Recorder
 	clock      clock.Clock
 
-	sqsProvider         *aws.SQSProvider
+	sqsProvider         *sqs2.SQSProvider
 	eventBridgeProvider *aws.EventBridgeProvider
 
 	mutex         *sync.RWMutex
@@ -56,8 +55,12 @@ type Controller struct {
 // This period can be reduced to a backoffPeriod if there is an error in ensuring the infrastructure
 const pollingPeriod = time.Hour
 
+// defaultBackoffPeriod is the default period that we go to AWS APIs to ensure that the appropriate AWS infrastructure
+// is provisioned if there is an error in the reconciliation loop
+const defaultBackoffPeriod = time.Minute * 10
+
 func NewController(ctx context.Context, cleanupCtx context.Context, kubeClient client.Client, clk clock.Clock,
-	recorder events.Recorder, sqsProvider *aws.SQSProvider, eventBridgeProvider *aws.EventBridgeProvider,
+	recorder events.Recorder, sqsProvider *sqs2.SQSProvider, eventBridgeProvider *aws.EventBridgeProvider,
 	startAsync <-chan struct{}, cleanupAsync <-chan os.Signal) *Controller {
 	c := &Controller{
 		kubeClient:          kubeClient,
@@ -68,9 +71,6 @@ func NewController(ctx context.Context, cleanupCtx context.Context, kubeClient c
 		mutex:               &sync.RWMutex{},
 		readinessChan:       make(chan struct{}),
 	}
-
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT)
 
 	go func() {
 		<-cleanupAsync
@@ -99,7 +99,7 @@ func (c *Controller) run(ctx context.Context) {
 	for {
 		if err := c.ensureInfrastructure(ctx); err != nil {
 			logging.FromContext(ctx).Errorf("ensuring infrastructure established, %v", err)
-			c.setReady(false)
+			c.setReady(ctx, false)
 			backoffPeriod := c.getBackoff(err)
 
 			// Backoff with a shorter polling interval if we fail to ensure the infrastructure
@@ -110,7 +110,7 @@ func (c *Controller) run(ctx context.Context) {
 				continue
 			}
 		}
-		c.setReady(true)
+		c.setReady(ctx, true)
 		select {
 		case <-ctx.Done():
 			return
@@ -148,7 +148,7 @@ func (c *Controller) Ready() <-chan struct{} {
 	return c.readinessChan
 }
 
-func (c *Controller) setReady(ready bool) {
+func (c *Controller) setReady(ctx context.Context, ready bool) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
@@ -156,8 +156,10 @@ func (c *Controller) setReady(ready bool) {
 	// other channels that are waiting on Ready() proceed; otherwise, open
 	// a channel to tell the other goroutines to wait
 	if ready {
+		logging.FromContext(ctx).Infof("Reconciled infrastructure is healthy")
 		close(c.readinessChan)
 	} else {
+		logging.FromContext(ctx).Infof("Reconciled infrastructure is unhealthy")
 		c.readinessChan = make(chan struct{})
 	}
 }
@@ -166,13 +168,16 @@ func (c *Controller) ensureInfrastructure(ctx context.Context) (err error) {
 	wg := &sync.WaitGroup{}
 	m := &sync.Mutex{}
 
+	wg.Add(2)
 	go func() {
+		defer wg.Done()
 		e := c.ensureQueue(ctx)
 		m.Lock()
 		err = multierr.Append(err, e)
 		m.Unlock()
 	}()
 	go func() {
+		defer wg.Done()
 		e := c.ensureEventBridge(ctx)
 		m.Lock()
 		err = multierr.Append(err, e)
@@ -187,19 +192,23 @@ func (c *Controller) deleteInfrastructure(ctx context.Context) (err error) {
 	wg := &sync.WaitGroup{}
 	m := &sync.Mutex{}
 
+	wg.Add(2)
 	go func() {
+		defer wg.Done()
 		e := c.sqsProvider.DeleteQueue(ctx)
 		m.Lock()
 		err = multierr.Append(err, e)
 		m.Unlock()
 	}()
 	go func() {
+		defer wg.Done()
 		e := c.eventBridgeProvider.DeleteEC2NotificationRules(ctx)
 		m.Lock()
 		err = multierr.Append(err, e)
 		m.Unlock()
 	}()
 	wg.Wait()
+	time.Sleep(time.Minute)
 	return err
 }
 
@@ -209,11 +218,12 @@ func (c *Controller) ensureQueue(ctx context.Context) error {
 	if _, err := c.sqsProvider.DiscoverQueueURL(ctx, true); err != nil {
 		var awsErr awserr.Error
 		if !errors.As(err, &awsErr) {
-			// This shouldn't happen, but if it does we should capture it
+			// This shouldn't happen, but if it does, we should capture it
 			return fmt.Errorf("failed conversion to AWS error, %w", err)
 		}
 		switch awsErr.Code() {
 		case sqs.ErrCodeQueueDoesNotExist:
+			logging.FromContext(ctx).Infof("Creating the SQS queue for EC2 notifications...")
 			if err := c.sqsProvider.CreateQueue(ctx); err != nil {
 				return fmt.Errorf("creating sqs queue with policy, %w", err)
 			}
@@ -252,14 +262,12 @@ func (c *Controller) ensureEventBridge(ctx context.Context) error {
 func (c *Controller) getBackoff(err error) time.Duration {
 	var awsErr awserr.Error
 	if !errors.As(err, &awsErr) {
-		return time.Minute
+		return defaultBackoffPeriod
 	}
 	switch awsErr.Code() {
-	case aws.AccessDeniedException:
-		return time.Minute * 10
-	case aws.AccessDeniedCode:
-		return time.Minute * 10
+	case sqs.ErrCodeQueueDeletedRecently:
+		return time.Minute * 2
 	default:
-		return time.Minute
+		return defaultBackoffPeriod
 	}
 }

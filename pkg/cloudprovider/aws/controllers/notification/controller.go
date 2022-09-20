@@ -28,10 +28,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter/pkg/cloudprovider/aws"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/aggregatedparser"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/events"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/sqs"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
 	"github.com/aws/karpenter/pkg/controllers/state"
 )
@@ -54,7 +54,7 @@ type Controller struct {
 	cluster     *state.Cluster
 	recorder    events.Recorder
 	clock       clock.Clock
-	provider    *aws.SQSProvider
+	provider    *sqs.SQSProvider
 	parser      event.Parser
 
 	infraReady func() <-chan struct{}
@@ -63,7 +63,7 @@ type Controller struct {
 // pollingPeriod that we go to the SQS queue to check if there are any new events
 const pollingPeriod = 5 * time.Second
 
-func NewController(ctx context.Context, kubeClient client.Client, clk clock.Clock, sqsProvider *aws.SQSProvider,
+func NewController(ctx context.Context, kubeClient client.Client, clk clock.Clock, sqsProvider *sqs.SQSProvider,
 	recorder events.Recorder, provisioner *provisioning.Provisioner, cluster *state.Cluster,
 	startAsync <-chan struct{}, infraReady func() <-chan struct{}) *Controller {
 	c := &Controller{

@@ -48,6 +48,8 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/amifamily"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/metadata"
+	cloudprovidersqs "github.com/aws/karpenter/pkg/cloudprovider/aws/sqs"
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/project"
@@ -77,13 +79,8 @@ type CloudProvider struct {
 	instanceTypeProvider *InstanceTypeProvider
 	instanceProvider     *InstanceProvider
 	kubeClient           k8sClient.Client
-	sqsProvider          *SQSProvider
+	sqsProvider          *cloudprovidersqs.Provider
 	eventBridgeProvider  *EventBridgeProvider
-}
-
-type Metadata struct {
-	region    string
-	accountID string
 }
 
 func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *CloudProvider {
@@ -103,10 +100,10 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 			client.DefaultRetryer{NumMaxRetries: client.DefaultRetryerMaxNumRetries},
 		),
 	)))
-	metadata := NewMetadataProvider(sess)
+	metadataProvider := metadata.NewMetadataProvider(sess)
 	if *sess.Config.Region == "" {
 		logging.FromContext(ctx).Debug("AWS region not configured, asking EC2 Instance Metadata Service")
-		*sess.Config.Region = metadata.Region(ctx)
+		*sess.Config.Region = metadataProvider.Region(ctx)
 	}
 	logging.FromContext(ctx).Debugf("Using AWS region %s", *sess.Config.Region)
 
@@ -117,12 +114,9 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 	subnetProvider := NewSubnetProvider(ec2api)
 	instanceTypeProvider := NewInstanceTypeProvider(ctx, sess, options, ec2api, subnetProvider)
 
-	m := &Metadata{
-		region:    *sess.Config.Region,
-		accountID: metadata.AccountID(ctx),
-	}
-	sqsProvider := NewSQSProvider(ctx, sqs.New(sess), m)
-	eventBridgeProvider := NewEventBridgeProvider(eventbridge.New(sess), m, sqsProvider.queueName)
+	m := metadata.NewInfo(*sess.Config.Region, metadataProvider.AccountID(ctx))
+	sqsProvider := cloudprovidersqs.NewProvider(ctx, sqs.New(sess), m)
+	eventBridgeProvider := NewEventBridgeProvider(eventbridge.New(sess), m, sqsProvider.QueueName())
 	cloudprovider := &CloudProvider{
 		instanceTypeProvider: instanceTypeProvider,
 		instanceProvider: NewInstanceProvider(ctx, ec2api, instanceTypeProvider, subnetProvider,
@@ -231,7 +225,7 @@ func (*CloudProvider) Validate(ctx context.Context, provisioner *v1alpha5.Provis
 	return provider.Validate()
 }
 
-func (c *CloudProvider) SQSProvider() *SQSProvider {
+func (c *CloudProvider) SQSProvider() *sqs2.SQSProvider {
 	return c.sqsProvider
 }
 

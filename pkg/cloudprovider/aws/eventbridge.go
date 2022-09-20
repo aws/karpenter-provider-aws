@@ -27,6 +27,7 @@ import (
 	"go.uber.org/multierr"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/metadata"
 	"github.com/aws/karpenter/pkg/utils/injection"
 )
 
@@ -39,7 +40,7 @@ type EventBridgeClient interface {
 type EventBridgeProvider struct {
 	EventBridgeClient
 	queueName string
-	metadata  *Metadata
+	metadata  *metadata.Info
 }
 
 type EventRule struct {
@@ -62,7 +63,7 @@ func (ep *EventPattern) Serialize() []byte {
 	return lo.Must(json.Marshal(ep))
 }
 
-func NewEventBridgeProvider(eb EventBridgeClient, metadata *Metadata, queueName string) *EventBridgeProvider {
+func NewEventBridgeProvider(eb EventBridgeClient, metadata *metadata.Info, queueName string) *EventBridgeProvider {
 	return &EventBridgeProvider{
 		EventBridgeClient: eb,
 		metadata:          metadata,
