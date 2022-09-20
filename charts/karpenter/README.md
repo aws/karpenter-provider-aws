@@ -2,11 +2,11 @@
 
 A Helm chart for Karpenter, an open-source node provisioning project built for Kubernetes.
 
-![Version: 0.16.1](https://img.shields.io/badge/Version-0.16.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.16.1](https://img.shields.io/badge/AppVersion-0.16.1-informational?style=flat-square)
+![Version: 0.16.2](https://img.shields.io/badge/Version-0.16.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.16.2](https://img.shields.io/badge/AppVersion-0.16.2-informational?style=flat-square)
 
 ## Documentation
 
-For full Karpenter documentation please checkout [https://karpenter.sh](https://karpenter.sh/v0.16.1/).
+For full Karpenter documentation please checkout [https://karpenter.sh](https://karpenter.sh/v0.16.2/).
 
 ## Installing the Chart
 
@@ -17,12 +17,12 @@ helm repo add karpenter https://charts.karpenter.sh/
 helm repo update
 ```
 
-You can follow the detailed installation instruction in the [documentation](https://karpenter.sh/v0.16.1/getting-started/getting-started-with-eksctl/#install) which covers the Karpenter prerequisites and installation options. The outcome of these instructions should result in something like the following command.
+You can follow the detailed installation instruction in the [documentation](https://karpenter.sh/v0.16.2/getting-started/getting-started-with-eksctl/#install) which covers the Karpenter prerequisites and installation options. The outcome of these instructions should result in something like the following command.
 
 ```bash
 helm upgrade --install --namespace karpenter --create-namespace \
   karpenter karpenter/karpenter \
-  --version 0.16.1 \
+  --version 0.16.2 \
   --set serviceAccount.annotations.eks\.amazonaws\.com/role-arn=${KARPENTER_IAM_ROLE_ARN} \
   --set clusterName=${CLUSTER_NAME} \
   --set clusterEndpoint=${CLUSTER_ENDPOINT} \
@@ -44,7 +44,7 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | controller.batchMaxDuration | string | `"10s"` |  |
 | controller.env | list | `[]` | Additional environment variables for the controller pod. |
 | controller.extraVolumeMounts | list | `[]` | Additional volumeMounts for the controller pod. |
-| controller.image | string | `"public.ecr.aws/karpenter/controller:v0.16.1@sha256:ed1f97bc2cd67e63b45546955cf763890182f1f97586fca5e6cbd25f175b9c56"` | Controller image. |
+| controller.image | string | `"public.ecr.aws/karpenter/controller:v0.16.2@sha256:fc66e0ba44a69cf22ca5732f885d4c8ab69bd46e3c8758788a7f446103270a32"` | Controller image. |
 | controller.logEncoding | string | `""` | Controller log encoding, defaults to the global log encoding |
 | controller.logLevel | string | `""` | Controller log level, defaults to the global log level |
 | controller.resources | object | `{"limits":{"cpu":1,"memory":"1Gi"},"requests":{"cpu":1,"memory":"1Gi"}}` | Resources for the controller pod. |
@@ -80,7 +80,7 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | topologySpreadConstraints | list | `[{"maxSkew":1,"topologyKey":"topology.kubernetes.io/zone","whenUnsatisfiable":"ScheduleAnyway"}]` | topologySpreadConstraints to increase the controller resilience |
 | webhook.env | list | `[]` | Additional environment variables for the webhook pod. |
 | webhook.extraVolumeMounts | list | `[]` | Additional volumeMounts for the webhook pod. |
-| webhook.image | string | `"public.ecr.aws/karpenter/webhook:v0.16.1@sha256:47860d69da18ada7567c6c6485ec8b79b270756fbf664f019d53a4375181fea7"` | Webhook image. |
+| webhook.image | string | `"public.ecr.aws/karpenter/webhook:v0.16.2@sha256:47a74a4ba3437e022faae7ed8823cf501f489e860a8200a365f1c994290ea027"` | Webhook image. |
 | webhook.logEncoding | string | `""` | Webhook log encoding, defaults to the global log encoding |
 | webhook.logLevel | string | `""` | Webhook log level, defaults to the global log level |
 | webhook.port | int | `8443` | The container port to use for the webhook. |

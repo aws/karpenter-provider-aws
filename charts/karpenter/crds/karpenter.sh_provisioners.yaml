@@ -62,10 +62,35 @@ spec:
                     description: ContainerRuntime is the container runtime to be used
                       with your worker nodes.
                     type: string
+                  evictionHard:
+                    additionalProperties:
+                      type: string
+                    description: EvictionHard is the map of signal names to quantities
+                      that define hard eviction thresholds
+                    type: object
+                  kubeReserved:
+                    additionalProperties:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                      x-kubernetes-int-or-string: true
+                    description: KubeReserved contains resources reserved for Kubernetes
+                      system components.
+                    type: object
                   maxPods:
                     description: MaxPods is an override for the maximum number of
                       pods that can run on a worker node instance.
                     format: int32
+                    minimum: 0
+                    type: integer
+                  podsPerCore:
+                    description: PodsPerCore is an override for the number of pods
+                      that can run on a worker node instance based on the number of
+                      cpu cores. This value cannot exceed MaxPods, so, if MaxPods
+                      is a lower value, that value will be used.
+                    format: int32
+                    minimum: 0
                     type: integer
                   systemReserved:
                     additionalProperties:
