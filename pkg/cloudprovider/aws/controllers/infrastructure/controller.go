@@ -18,14 +18,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"sync"
 	"time"
 
+	"github.com/avast/retry-go"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"go.uber.org/multierr"
 	appsv1 "k8s.io/api/apps/v1"
+	errors2 "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/clock"
 	"knative.dev/pkg/logging"
@@ -62,7 +63,7 @@ const defaultBackoffPeriod = time.Minute * 10
 
 func NewController(ctx context.Context, cleanupCtx context.Context, kubeClient client.Client, clk clock.Clock,
 	recorder events.Recorder, sqsProvider *aws.SQSProvider, eventBridgeProvider *aws.EventBridgeProvider,
-	startAsync <-chan struct{}, cleanupAsync <-chan os.Signal) *Controller {
+	startAsync <-chan struct{}, cleanupAsync <-chan struct{}) *Controller {
 	c := &Controller{
 		kubeClient:          kubeClient,
 		recorder:            recorder,
@@ -75,6 +76,7 @@ func NewController(ctx context.Context, cleanupCtx context.Context, kubeClient c
 
 	go func() {
 		<-cleanupAsync
+		logging.FromContext(cleanupCtx).Infof("Cleanup was triggered for the Karpenter deployment")
 		c.cleanup(cleanupCtx)
 	}()
 
@@ -129,19 +131,26 @@ func (c *Controller) cleanup(ctx context.Context) {
 		Namespace: injection.GetOptions(ctx).DeploymentNamespace,
 	}
 
-	err := c.kubeClient.Get(ctx, nn, dep)
+	notFound := false
+	err := retry.Do(func() error {
+		err := c.kubeClient.Get(ctx, nn, dep)
+		if errors2.IsNotFound(err) {
+			notFound = true
+		}
+		return client.IgnoreNotFound(err)
+	})
 	if err != nil {
 		logging.FromContext(ctx).Errorf("Getting the deployment %s for cleanup, %v", nn, err)
 	}
 
-	// Deployment is deleting so we should clean-up the infrastructure
-	logging.FromContext(ctx).Infof("Checking on the state of the Karpenter deployment")
-	if !dep.DeletionTimestamp.IsZero() {
-		logging.FromContext(ctx).Infof("Karpenter deployment is deleted")
+	// Deployment is already deleted or currently deleting, so we should clean-up the infrastructure
+	if notFound || !dep.DeletionTimestamp.IsZero() {
 		err = c.deleteInfrastructure(ctx)
 		if err != nil {
-			logging.FromContext(ctx).Errorf("Deleting the infrastructure, %v", err)
+			logging.FromContext(ctx).Errorf("Deprovisioning the infrastructure, %v", err)
+			return
 		}
+		logging.FromContext(ctx).Infof("Successfully deprovisioned the infrastructure, %v", err)
 	}
 }
 
@@ -222,7 +231,6 @@ func (c *Controller) deleteInfrastructure(ctx context.Context) (err error) {
 		m.Unlock()
 	}()
 	wg.Wait()
-	time.Sleep(time.Minute)
 	return err
 }
 

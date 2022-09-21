@@ -94,7 +94,7 @@ type ControllerOptions struct {
 	Provisioner  *provisioning.Provisioner
 	Recorder     events.Recorder
 	StartAsync   <-chan struct{}
-	CleanupAsync <-chan os.Signal
+	CleanupAsync <-chan struct{}
 	Clock        clock.Clock
 }
 
@@ -110,6 +110,18 @@ func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options)
 	cmw := informer.NewInformedWatcher(clientSet, system.Namespace())
 	ctx := injection.LoggingContextOrDie(component, controllerRuntimeConfig, cmw)
 	ctx = newRunnableContext(controllerRuntimeConfig, opts, logging.FromContext(ctx))()
+	ctx, cancel := context.WithCancel(ctx)
+
+	// Setup the cleanup logic for teardown on SIGINT or SIGTERM
+	cleanup := make(chan struct{}) // This is a channel to broadcast to controllers cleanup can start
+	go func() {
+		sigs := make(chan os.Signal, 1)
+		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+		<-sigs
+		logging.FromContext(context.Background()).Infof("Got a signal to react to")
+		close(cleanup)
+		cancel()
+	}()
 
 	logging.FromContext(ctx).Infof("Initializing with version %s", project.Version)
 
@@ -133,7 +145,7 @@ func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options)
 	if opts.EnableProfiling {
 		utilruntime.Must(registerPprof(manager))
 	}
-	cloudProvider, injectControllers := injectCloudProvider(ctx, cloudprovider.Options{ClientSet: clientSet, KubeClient: manager.GetClient(), StartAsync: manager.Elected()})
+	cloudProvider, injectControllers := injectCloudProvider(ctx, cloudprovider.Options{ClientSet: clientSet, KubeClient: manager.GetClient(), StartAsync: manager.Elected(), CleanupAsync: cleanup})
 	if hp, ok := cloudProvider.(HealthCheck); ok {
 		utilruntime.Must(manager.AddHealthzCheck("cloud-provider", hp.LivenessProbe))
 	}
@@ -167,7 +179,7 @@ func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options)
 		Provisioner:  provisioner,
 		Recorder:     recorder,
 		StartAsync:   manager.Elected(),
-		CleanupAsync: Cleanup(),
+		CleanupAsync: cleanup,
 		Clock:        realClock,
 	}
 	injectControllers(ctx, controllerOptions)
