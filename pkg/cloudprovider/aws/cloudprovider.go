@@ -113,7 +113,7 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 	instanceTypeProvider := NewInstanceTypeProvider(ctx, sess, options, ec2api, subnetProvider)
 
 	m := NewMetadata(*sess.Config.Region, metadataProvider.AccountID(ctx))
-	sqsProvider := NewProvider(ctx, sqs.New(sess), m)
+	sqsProvider := NewSQSProvider(ctx, sqs.New(sess), m)
 	eventBridgeProvider := NewEventBridgeProvider(eventbridge.New(sess), m, sqsProvider.QueueName())
 	cloudprovider := &CloudProvider{
 		instanceTypeProvider: instanceTypeProvider,

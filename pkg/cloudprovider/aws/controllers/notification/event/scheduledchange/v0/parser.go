@@ -34,7 +34,7 @@ const (
 type Parser struct{}
 
 func (Parser) Parse(ctx context.Context, str string) event.Interface {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("scheduledChange.v1"))
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("scheduledChange.v0"))
 
 	evt := AWSHealthEvent{}
 	if err := json.Unmarshal([]byte(str), &evt); err != nil {
@@ -52,7 +52,7 @@ func (Parser) Parse(ctx context.Context, str string) event.Interface {
 		logging.FromContext(ctx).
 			With("eventDetails", evt).
 			With("acceptedService", acceptedService).
-			Warn("ignoring AWS health event")
+			Debug("ignoring AWS health event")
 		return nil
 	}
 
@@ -60,9 +60,8 @@ func (Parser) Parse(ctx context.Context, str string) event.Interface {
 		logging.FromContext(ctx).
 			With("eventDetails", evt).
 			With("acceptedEventTypeCategory", acceptedEventTypeCategory).
-			Warn("ignoring AWS health event")
+			Debug("ignoring AWS health event")
 		return nil
 	}
-
 	return evt
 }

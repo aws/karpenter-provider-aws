@@ -45,6 +45,5 @@ func (Parser) Parse(ctx context.Context, str string) event.Interface {
 	if evt.Source != source || evt.DetailType != detailType || evt.Version != version {
 		return nil
 	}
-
 	return evt
 }

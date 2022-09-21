@@ -32,7 +32,7 @@ const (
 type Parser struct{}
 
 func (Parser) Parse(ctx context.Context, str string) event.Interface {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("spotInterruption.v1"))
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("spotInterruption.v0"))
 
 	evt := EC2SpotInstanceInterruptionWarning{}
 	if err := json.Unmarshal([]byte(str), &evt); err != nil {
@@ -45,6 +45,5 @@ func (Parser) Parse(ctx context.Context, str string) event.Interface {
 	if evt.Source != source || evt.DetailType != detailType || evt.Version != version {
 		return nil
 	}
-
 	return evt
 }

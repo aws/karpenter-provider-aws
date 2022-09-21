@@ -69,7 +69,7 @@ type SQSProvider struct {
 	metadata            *Metadata
 }
 
-func NewProvider(ctx context.Context, client SQSClient, metadata *Metadata) *SQSProvider {
+func NewSQSProvider(ctx context.Context, client SQSClient, metadata *Metadata) *SQSProvider {
 	provider := &SQSProvider{
 		client:    client,
 		mutex:     &sync.RWMutex{},

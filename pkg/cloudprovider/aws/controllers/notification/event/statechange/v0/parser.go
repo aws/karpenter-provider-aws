@@ -36,7 +36,7 @@ const (
 type Parser struct{}
 
 func (Parser) Parse(ctx context.Context, str string) event.Interface {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("stateChange.v1"))
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("stateChange.v0"))
 
 	evt := EC2InstanceStateChangeNotification{}
 	if err := json.Unmarshal([]byte(str), &evt); err != nil {
@@ -52,8 +52,11 @@ func (Parser) Parse(ctx context.Context, str string) event.Interface {
 
 	// Do not log the information on instance state change if it isn't in accepted states
 	if !strings.Contains(acceptedStates, strings.ToLower(evt.Detail.State)) {
+		logging.FromContext(ctx).
+			With("eventDetails", evt).
+			With("acceptedStates", acceptedStates).
+			Debug("ignoring AWS state change event")
 		return nil
 	}
-
 	return evt
 }

@@ -129,6 +129,8 @@ func (c *Controller) pollSQS(ctx context.Context) error {
 	return nil
 }
 
+// handleMessage gets the node names of the instances involved in the queue message and takes the
+// assigned action on the instances based on the message event
 func (c *Controller) handleMessage(ctx context.Context, instanceIDMap map[string]*v1.Node, msg *sqsapi.Message) (err error) {
 	// No message to parse in this case
 	if msg == nil || msg.Body == nil {
@@ -153,13 +155,14 @@ func (c *Controller) handleMessage(ctx context.Context, instanceIDMap map[string
 
 	for i := range nodes {
 		node := nodes[i]
+		nodeCtx := logging.WithLogger(ctx, logging.FromContext(ctx).With("node", node.Name))
 
 		// Record metric and event for this action
 		c.notifyForEvent(evt, node)
 		actionsTaken.WithLabelValues(action).Inc()
 
 		if action != Actions.NoAction {
-			e := c.deleteInstance(ctx, node)
+			e := c.deleteInstance(nodeCtx, node)
 			err = multierr.Append(err, e)
 		}
 	}
@@ -177,7 +180,6 @@ func (c *Controller) handleMessage(ctx context.Context, instanceIDMap map[string
 }
 
 func (c *Controller) deleteInstance(ctx context.Context, node *v1.Node) error {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("node", node.Name))
 	c.recorder.TerminatingNodeOnNotification(node)
 	if err := c.kubeClient.Delete(ctx, node); err != nil {
 		return fmt.Errorf("deleting the spot interrupted node, %w", err)

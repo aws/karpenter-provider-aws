@@ -20,7 +20,7 @@ HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${K
       		--set clusterName=${CLUSTER_NAME} \
 			--set clusterEndpoint=${CLUSTER_ENDPOINT} \
 			--set aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
-			--set terminationGracePeriodSeconds=300 --create-namespace
+			--create-namespace
 TEST_FILTER ?= .*
 
 # CR for local builds of Karpenter

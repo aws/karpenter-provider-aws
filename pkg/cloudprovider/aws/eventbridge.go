@@ -25,7 +25,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/eventbridge"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
-	"knative.dev/pkg/logging"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/utils/injection"
@@ -132,7 +131,6 @@ func (eb *EventBridgeProvider) DeleteEC2NotificationRules(ctx context.Context) (
 				Name: aws.String(r.Name),
 			}
 			_, e = eb.DeleteRuleWithContext(ctx, ruleInput)
-			logging.FromContext(ctx).Errorf("Might have got an error here, %v", e)
 			m.Lock()
 			err = multierr.Append(err, e)
 			m.Unlock()
