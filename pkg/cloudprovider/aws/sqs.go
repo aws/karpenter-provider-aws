@@ -24,6 +24,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/samber/lo"
+	"knative.dev/pkg/logging"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/utils/functional"
@@ -202,6 +203,7 @@ func (s *SQSProvider) DeleteQueue(ctx context.Context) error {
 	}
 	_, err = s.client.DeleteQueueWithContext(ctx, input)
 	if err != nil {
+		logging.FromContext(ctx).Errorf("Might have got an error here in the queue, %v", err)
 		return fmt.Errorf("failed deleting sqs queue, %w", err)
 	}
 	return nil

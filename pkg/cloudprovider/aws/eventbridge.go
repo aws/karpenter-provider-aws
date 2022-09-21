@@ -25,6 +25,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/eventbridge"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
+	"knative.dev/pkg/logging"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/utils/injection"
@@ -34,6 +35,7 @@ type EventBridgeClient interface {
 	PutRuleWithContext(context.Context, *eventbridge.PutRuleInput, ...request.Option) (*eventbridge.PutRuleOutput, error)
 	PutTargetsWithContext(context.Context, *eventbridge.PutTargetsInput, ...request.Option) (*eventbridge.PutTargetsOutput, error)
 	DeleteRuleWithContext(context.Context, *eventbridge.DeleteRuleInput, ...request.Option) (*eventbridge.DeleteRuleOutput, error)
+	RemoveTargetsWithContext(context.Context, *eventbridge.RemoveTargetsInput, ...request.Option) (*eventbridge.RemoveTargetsOutput, error)
 }
 
 type EventBridgeProvider struct {
@@ -115,10 +117,22 @@ func (eb *EventBridgeProvider) DeleteEC2NotificationRules(ctx context.Context) (
 		wg.Add(1)
 		go func(r EventRule) {
 			defer wg.Done()
-			input := &eventbridge.DeleteRuleInput{
+			targetInput := &eventbridge.RemoveTargetsInput{
+				Ids:  []*string{aws.String(r.Target.ID)},
+				Rule: aws.String(r.Name),
+			}
+			_, e := eb.RemoveTargetsWithContext(ctx, targetInput)
+			m.Lock()
+			err = multierr.Append(err, e)
+			m.Unlock()
+			if e != nil {
+				return
+			}
+			ruleInput := &eventbridge.DeleteRuleInput{
 				Name: aws.String(r.Name),
 			}
-			_, e := eb.DeleteRuleWithContext(ctx, input)
+			_, e = eb.DeleteRuleWithContext(ctx, ruleInput)
+			logging.FromContext(ctx).Errorf("Might have got an error here, %v", e)
 			m.Lock()
 			err = multierr.Append(err, e)
 			m.Unlock()

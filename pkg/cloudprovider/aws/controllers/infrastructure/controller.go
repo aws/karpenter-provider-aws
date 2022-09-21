@@ -51,6 +51,8 @@ type Controller struct {
 	mutex         *sync.RWMutex
 	readinessChan chan struct{} // A signal to other controllers that infrastructure is in a good state
 	ready         bool
+
+	done chan struct{}
 }
 
 // pollingPeriod is the period that we go to AWS APIs to ensure that the appropriate AWS infrastructure is provisioned
@@ -72,12 +74,14 @@ func NewController(ctx context.Context, cleanupCtx context.Context, kubeClient c
 		eventBridgeProvider: eventBridgeProvider,
 		mutex:               &sync.RWMutex{},
 		readinessChan:       make(chan struct{}),
+		done:                make(chan struct{}),
 	}
 
 	go func() {
 		<-cleanupAsync
 		logging.FromContext(cleanupCtx).Infof("Cleanup was triggered for the Karpenter deployment")
 		c.cleanup(cleanupCtx)
+		close(c.done)
 	}()
 
 	go func() {
@@ -123,7 +127,7 @@ func (c *Controller) run(ctx context.Context) {
 }
 
 func (c *Controller) cleanup(ctx context.Context) {
-	logging.WithLogger(ctx, logging.FromContext(ctx).Named("infrastructure.cleanup"))
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("infrastructure"))
 
 	dep := &appsv1.Deployment{}
 	nn := types.NamespacedName{
@@ -132,6 +136,7 @@ func (c *Controller) cleanup(ctx context.Context) {
 	}
 
 	notFound := false
+	logging.FromContext(ctx).Infof("Getting the deployment from the api server")
 	err := retry.Do(func() error {
 		err := c.kubeClient.Get(ctx, nn, dep)
 		if errors2.IsNotFound(err) {
@@ -142,6 +147,7 @@ func (c *Controller) cleanup(ctx context.Context) {
 	if err != nil {
 		logging.FromContext(ctx).Errorf("Getting the deployment %s for cleanup, %v", nn, err)
 	}
+	logging.FromContext(ctx).Infof("Successfully got the deployment from the api server")
 
 	// Deployment is already deleted or currently deleting, so we should clean-up the infrastructure
 	if notFound || !dep.DeletionTimestamp.IsZero() {
@@ -158,6 +164,14 @@ func (c *Controller) Ready() <-chan struct{} {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
 	return c.readinessChan
+}
+
+func (c *Controller) Done() <-chan struct{} {
+	return c.done
+}
+
+func (c *Controller) deploymentWatcher() {
+
 }
 
 func (c *Controller) setReady(ctx context.Context, ready bool) {
@@ -218,14 +232,18 @@ func (c *Controller) deleteInfrastructure(ctx context.Context) (err error) {
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
+		logging.FromContext(ctx).Infof("Started deleting the queue")
 		e := c.sqsProvider.DeleteQueue(ctx)
+		logging.FromContext(ctx).Infof("Finished deleting the queue")
 		m.Lock()
 		err = multierr.Append(err, e)
 		m.Unlock()
 	}()
 	go func() {
 		defer wg.Done()
+		logging.FromContext(ctx).Infof("Started deleting the eventbridge rules")
 		e := c.eventBridgeProvider.DeleteEC2NotificationRules(ctx)
+		logging.FromContext(ctx).Infof("Finished deleting the eventbridge rules")
 		m.Lock()
 		err = multierr.Append(err, e)
 		m.Unlock()

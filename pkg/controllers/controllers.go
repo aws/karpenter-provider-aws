@@ -77,6 +77,8 @@ func init() {
 	metrics.MustRegister() // Registers cross-controller metrics
 }
 
+type ControllerInitFunc func(context.Context, *ControllerOptions) <-chan struct{}
+
 // Controller is an interface implemented by Karpenter custom resources.
 type Controller interface {
 	// Reconcile hands a hydrated kubernetes resource to the controller for
@@ -98,7 +100,7 @@ type ControllerOptions struct {
 	Clock        clock.Clock
 }
 
-func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options) (cloudprovider.CloudProvider, func(context.Context, *ControllerOptions))) {
+func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options) (cloudprovider.CloudProvider, ControllerInitFunc)) {
 	opts := options.New().MustParse()
 	// Setup Client
 	controllerRuntimeConfig := controllerruntime.GetConfigOrDie()
@@ -182,7 +184,7 @@ func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options)
 		CleanupAsync: cleanup,
 		Clock:        realClock,
 	}
-	injectControllers(ctx, controllerOptions)
+	done := injectControllers(ctx, controllerOptions)
 
 	metricsstate.StartMetricScraper(ctx, cluster)
 
@@ -200,6 +202,7 @@ func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options)
 	).Start(ctx); err != nil {
 		panic(fmt.Sprintf("Unable to start manager, %s", err))
 	}
+	<-done // Wait for controller cleanup to also be completed
 }
 
 // NewManagerOrDie instantiates a controller manager or panics
