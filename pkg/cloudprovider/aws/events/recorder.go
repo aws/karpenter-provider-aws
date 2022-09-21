@@ -42,12 +42,18 @@ type Recorder interface {
 	EC2SpotRebalanceRecommendation(*v1.Node)
 	// EC2HealthWarning is called when EC2 sends a health warning notification for a health issue for the node from the SQS queue
 	EC2HealthWarning(*v1.Node)
+	// EC2StateChange is called when EC2 sends a state change notification for a node that is changing to a stopping/terminating state
+	EC2StateChange(*v1.Node)
 	// TerminatingNodeOnNotification is called when a notification that is sent to the notification controller triggers node deletion
 	TerminatingNodeOnNotification(*v1.Node)
 	// InfrastructureUnhealthy event is called when infrastructure reconciliation errors and the controller enters an unhealthy state
 	InfrastructureUnhealthy(context.Context, client.Client)
 	// InfrastructureHealthy event is called when infrastructure reconciliation succeeds and the controller enters a healthy state
 	InfrastructureHealthy(context.Context, client.Client)
+	// InfrastructureDeletionSucceeded event is called when infrastructure deletion fails
+	InfrastructureDeletionSucceeded(context.Context, client.Client)
+	// InfrastructureDeletionFailed event is called when infrastructure deletion succeeds
+	InfrastructureDeletionFailed(context.Context, client.Client)
 }
 
 func NewRecorder(r events.Recorder) Recorder {
@@ -66,6 +72,10 @@ func (r recorder) EC2SpotRebalanceRecommendation(node *v1.Node) {
 
 func (r recorder) EC2HealthWarning(node *v1.Node) {
 	r.Eventf(node, "Normal", "EC2HealthWarning", "Node %s event: EC2 triggered a health warning for the node", node.Name)
+}
+
+func (r recorder) EC2StateChange(node *v1.Node) {
+	r.Eventf(node, "Normal", "EC2StateTerminating", `Node %s event: EC2 node is stopping or terminating"`, node.Name)
 }
 
 func (r recorder) TerminatingNodeOnNotification(node *v1.Node) {
@@ -94,4 +104,28 @@ func (r recorder) InfrastructureUnhealthy(ctx context.Context, kubeClient client
 		return
 	}
 	r.Eventf(dep, "Warning", "AWSInfrastructureUnhealthy", "Karpenter infrastructure reconciliation is unhealthy")
+}
+
+func (r recorder) InfrastructureDeletionSucceeded(ctx context.Context, kubeClient client.Client) {
+	dep := &appsv1.Deployment{}
+	err := retry.Do(func() error {
+		return kubeClient.Get(ctx, types.NamespacedName{Namespace: injection.GetOptions(ctx).DeploymentNamespace, Name: injection.GetOptions(ctx).DeploymentName}, dep)
+	})
+	if err != nil {
+		logging.FromContext(ctx).Errorf("Sending InfrastructureUnhealthy event, %v", err)
+		return
+	}
+	r.Eventf(dep, "Warning", "InfrastructureDeletionSucceeded", "Karpenter infrastructure deletion succeeded")
+}
+
+func (r recorder) InfrastructureDeletionFailed(ctx context.Context, kubeClient client.Client) {
+	dep := &appsv1.Deployment{}
+	err := retry.Do(func() error {
+		return kubeClient.Get(ctx, types.NamespacedName{Namespace: injection.GetOptions(ctx).DeploymentNamespace, Name: injection.GetOptions(ctx).DeploymentName}, dep)
+	})
+	if err != nil {
+		logging.FromContext(ctx).Errorf("Sending InfrastructureUnhealthy event, %v", err)
+		return
+	}
+	r.Eventf(dep, "Warning", "InfrastructureDeletionFailed", "Karpenter infrastructure deletion failed")
 }

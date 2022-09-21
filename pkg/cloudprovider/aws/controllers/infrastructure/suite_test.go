@@ -21,41 +21,43 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"k8s.io/client-go/kubernetes"
 	clock "k8s.io/utils/clock/testing"
 	. "knative.dev/pkg/logging/testing"
 
-	"github.com/aws/karpenter/pkg/cloudprovider/fake"
-	"github.com/aws/karpenter/pkg/controllers/provisioning"
-	"github.com/aws/karpenter/pkg/controllers/state"
+	. "github.com/aws/karpenter/pkg/test/expectations"
+
+	"github.com/aws/karpenter/pkg/cloudprovider/aws"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/infrastructure"
+	awsfake "github.com/aws/karpenter/pkg/cloudprovider/aws/fake"
 	"github.com/aws/karpenter/pkg/test"
 )
 
 var ctx context.Context
 var env *test.Environment
-var cluster *state.Cluster
-var provisioner *provisioning.Provisioner
-var cloudProvider *fake.CloudProvider
-var clientSet *kubernetes.Clientset
-var recorder *test.EventRecorder
+var sqsapi *awsfake.SQSAPI
+var sqsProvider *aws.SQSProvider
+var eventbridgeapi *awsfake.EventBridgeAPI
+var eventBridgeProvider *aws.EventBridgeProvider
+var recorder *awsfake.EventRecorder
 var fakeClock *clock.FakeClock
-var cfg *test.Config
+var controller *infrastructure.Controller
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "AWS Infrastructure")
+	RunSpecs(t, "AWS Notification")
 }
 
 var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
-		cloudProvider = &fake.CloudProvider{}
-		cfg = test.NewConfig()
 		fakeClock = clock.NewFakeClock(time.Now())
-		cluster = state.NewCluster(fakeClock, cfg, env.Client, cloudProvider)
-		clientSet = kubernetes.NewForConfigOrDie(e.Config)
-		recorder = test.NewEventRecorder()
-		provisioner = provisioning.NewProvisioner(ctx, cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+		recorder = awsfake.NewEventRecorder()
+		metadata := aws.NewMetadata("us-east-1", "000000000000")
+
+		sqsapi = &awsfake.SQSAPI{}
+		eventbridgeapi = &awsfake.EventBridgeAPI{}
+		sqsProvider = aws.NewSQSProvider(ctx, sqsapi, metadata)
+		eventBridgeProvider = aws.NewEventBridgeProvider(eventbridgeapi, metadata, sqsProvider.QueueName())
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })
@@ -65,6 +67,10 @@ var _ = AfterSuite(func() {
 })
 
 var _ = BeforeEach(func() {
+	sqsapi.Reset()
+	eventbridgeapi.Reset()
+	controller = infrastructure.NewController(env.Ctx, env.Client, fakeClock, recorder, sqsProvider, eventBridgeProvider, nil)
 })
 var _ = AfterEach(func() {
+	ExpectCleanedUp(ctx, env.Client)
 })

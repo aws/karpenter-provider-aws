@@ -19,13 +19,13 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/eventbridge"
+	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/samber/lo"
 )
 
 const (
 	launchTemplateNotFoundCode = "InvalidLaunchTemplateName.NotFoundException"
-	AccessDeniedCode           = "AccessDenied"
-	AccessDeniedException      = "AccessDeniedException"
 )
 
 var (
@@ -33,6 +33,8 @@ var (
 	notFoundErrorCodes = []string{
 		"InvalidInstanceID.NotFound",
 		launchTemplateNotFoundCode,
+		sqs.ErrCodeQueueDoesNotExist,
+		(&eventbridge.ResourceNotFoundException{}).Code(),
 	}
 	// unfulfillableCapacityErrorCodes signify that capacity is temporarily unable to be launched
 	unfulfillableCapacityErrorCodes = []string{
@@ -41,6 +43,10 @@ var (
 		"VcpuLimitExceeded",
 		"UnfulfillableCapacity",
 		"Unsupported",
+	}
+	accessDeniedErrorCodes = []string{
+		"AccessDenied",
+		"AccessDeniedException",
 	}
 )
 
@@ -56,16 +62,30 @@ func isInstanceTerminated(err error) bool {
 	return errors.As(err, &itErr)
 }
 
-// isNotFound returns true if the err is an AWS error (even if it's
+// IsNotFound returns true if the err is an AWS error (even if it's
 // wrapped) and is a known to mean "not found" (as opposed to a more
 // serious or unexpected error)
-func isNotFound(err error) bool {
+func IsNotFound(err error) bool {
 	if err == nil {
 		return false
 	}
 	var awsError awserr.Error
 	if errors.As(err, &awsError) {
 		return lo.Contains(notFoundErrorCodes, awsError.Code())
+	}
+	return false
+}
+
+// IsAccessDenied returns true if the err is an AWS error (even if it's
+// wrapped) and is a known to mean "access denied" (as opposed to a more
+// serious or unexpected error)
+func IsAccessDenied(err error) bool {
+	if err == nil {
+		return false
+	}
+	var awsError awserr.Error
+	if errors.As(err, &awsError) {
+		return lo.Contains(accessDeniedErrorCodes, awsError.Code())
 	}
 	return false
 }

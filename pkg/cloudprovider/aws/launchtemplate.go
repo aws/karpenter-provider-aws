@@ -151,7 +151,7 @@ func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, optio
 		LaunchTemplateNames: []*string{aws.String(name)},
 	})
 	// Create LT if one doesn't exist
-	if isNotFound(err) {
+	if IsNotFound(err) {
 		launchTemplate, err = p.createLaunchTemplate(ctx, options)
 		if err != nil {
 			return nil, fmt.Errorf("creating launch template, %w", err)

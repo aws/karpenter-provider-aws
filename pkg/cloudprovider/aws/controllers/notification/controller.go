@@ -34,7 +34,6 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/aggregatedparser"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/events"
-	"github.com/aws/karpenter/pkg/controllers/provisioning"
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/metrics"
 )
@@ -52,13 +51,12 @@ var Actions = struct {
 // Controller is the notification controller. It is not a standard controller-runtime controller in that it doesn't
 // have a reconcile method.
 type Controller struct {
-	kubeClient  client.Client
-	provisioner *provisioning.Provisioner
-	cluster     *state.Cluster
-	recorder    events.Recorder
-	clock       clock.Clock
-	provider    *aws.SQSProvider
-	parser      event.Parser
+	kubeClient client.Client
+	cluster    *state.Cluster
+	recorder   events.Recorder
+	clock      clock.Clock
+	provider   *aws.SQSProvider
+	parser     event.Parser
 
 	infraReady func() <-chan struct{}
 }
@@ -66,18 +64,17 @@ type Controller struct {
 // pollingPeriod that we go to the SQS queue to check if there are any new events
 const pollingPeriod = 2 * time.Second
 
-func NewController(ctx context.Context, kubeClient client.Client, clk clock.Clock, sqsProvider *aws.SQSProvider,
-	recorder events.Recorder, provisioner *provisioning.Provisioner, cluster *state.Cluster,
+func NewController(ctx context.Context, kubeClient client.Client, clk clock.Clock,
+	recorder events.Recorder, cluster *state.Cluster, sqsProvider *aws.SQSProvider,
 	startAsync <-chan struct{}, infraReady func() <-chan struct{}) *Controller {
 	c := &Controller{
-		kubeClient:  kubeClient,
-		provisioner: provisioner,
-		cluster:     cluster,
-		recorder:    recorder,
-		clock:       clk,
-		provider:    sqsProvider,
-		parser:      aggregatedparser.NewAggregatedParser(aggregatedparser.DefaultParsers...),
-		infraReady:  infraReady,
+		kubeClient: kubeClient,
+		cluster:    cluster,
+		recorder:   recorder,
+		clock:      clk,
+		provider:   sqsProvider,
+		parser:     aggregatedparser.NewAggregatedParser(aggregatedparser.DefaultParsers...),
+		infraReady: infraReady,
 	}
 
 	go func() {
@@ -198,8 +195,8 @@ func (c *Controller) notifyForEvent(evt event.Interface, n *v1.Node) {
 	case event.Kinds.SpotInterruption:
 		c.recorder.EC2SpotInterruptionWarning(n)
 
-	// For now, we won't do anything with the state change action
 	case event.Kinds.StateChange:
+		c.recorder.EC2StateChange(n)
 	default:
 	}
 }
@@ -216,7 +213,7 @@ func actionForEvent(evt event.Interface) Action {
 		return Actions.CordonAndDrain
 
 	case event.Kinds.StateChange:
-		return Actions.NoAction
+		return Actions.CordonAndDrain
 
 	default:
 		return Actions.NoAction

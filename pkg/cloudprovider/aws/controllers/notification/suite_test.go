@@ -21,12 +21,15 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"k8s.io/client-go/kubernetes"
 	clock "k8s.io/utils/clock/testing"
 	. "knative.dev/pkg/logging/testing"
 
+	. "github.com/aws/karpenter/pkg/test/expectations"
+
+	"github.com/aws/karpenter/pkg/cloudprovider/aws"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification"
+	awsfake "github.com/aws/karpenter/pkg/cloudprovider/aws/fake"
 	"github.com/aws/karpenter/pkg/cloudprovider/fake"
-	"github.com/aws/karpenter/pkg/controllers/provisioning"
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/test"
 )
@@ -34,12 +37,14 @@ import (
 var ctx context.Context
 var env *test.Environment
 var cluster *state.Cluster
-var provisioner *provisioning.Provisioner
+var sqsapi *awsfake.SQSAPI
 var cloudProvider *fake.CloudProvider
-var clientSet *kubernetes.Clientset
-var recorder *test.EventRecorder
+var sqsProvider *aws.SQSProvider
+var recorder *awsfake.EventRecorder
 var fakeClock *clock.FakeClock
 var cfg *test.Config
+var controller *notification.Controller
+var ready func() <-chan struct{}
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -49,13 +54,15 @@ func TestAPIs(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
-		cloudProvider = &fake.CloudProvider{}
 		cfg = test.NewConfig()
 		fakeClock = clock.NewFakeClock(time.Now())
+		cloudProvider = &fake.CloudProvider{}
 		cluster = state.NewCluster(fakeClock, cfg, env.Client, cloudProvider)
-		clientSet = kubernetes.NewForConfigOrDie(e.Config)
-		recorder = test.NewEventRecorder()
-		provisioner = provisioning.NewProvisioner(ctx, cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+		recorder = awsfake.NewEventRecorder()
+		metadata := aws.NewMetadata("us-east-1", "000000000000")
+
+		sqsapi = &awsfake.SQSAPI{}
+		sqsProvider = aws.NewSQSProvider(ctx, sqsapi, metadata)
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })
@@ -65,6 +72,10 @@ var _ = AfterSuite(func() {
 })
 
 var _ = BeforeEach(func() {
+	sqsapi.Reset()
+	ready = func() <-chan struct{} { return make(chan struct{}) }
+	controller = notification.NewController(env.Ctx, env.Client, fakeClock, recorder, cluster, sqsProvider, nil, ready)
 })
 var _ = AfterEach(func() {
+	ExpectCleanedUp(ctx, env.Client)
 })

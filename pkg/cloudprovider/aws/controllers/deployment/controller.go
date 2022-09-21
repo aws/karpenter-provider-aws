@@ -20,7 +20,7 @@ import (
 
 	"go.uber.org/multierr"
 	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"knative.dev/pkg/logging"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -31,6 +31,7 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/events"
 	"github.com/aws/karpenter/pkg/utils/injection"
 )
 
@@ -42,16 +43,18 @@ const controllerName = "deployment"
 type Controller struct {
 	kubeClient client.Client
 	cancel     context.CancelFunc
+	recorder   events.Recorder
 
 	sqsProvider         *aws.SQSProvider
 	eventBridgeProvider *aws.EventBridgeProvider
 }
 
-func NewController(kubeClient client.Client, cancel context.CancelFunc,
+func NewController(kubeClient client.Client, cancel context.CancelFunc, recorder events.Recorder,
 	sqsProvider *aws.SQSProvider, eventBridgeProvider *aws.EventBridgeProvider) *Controller {
 	return &Controller{
 		kubeClient:          kubeClient,
 		cancel:              cancel,
+		recorder:            recorder,
 		sqsProvider:         sqsProvider,
 		eventBridgeProvider: eventBridgeProvider,
 	}
@@ -62,7 +65,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	deployment := &appsv1.Deployment{}
 	if err := c.kubeClient.Get(ctx, req.NamespacedName, deployment); err != nil {
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return reconcile.Result{}, nil
 		}
 		return reconcile.Result{}, err
@@ -71,8 +74,10 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// and we should perform the cleanup actions associated with the Karpenter deployment
 	if !deployment.DeletionTimestamp.IsZero() {
 		if err := c.deleteInfrastructure(ctx); err != nil {
+			c.recorder.InfrastructureDeletionFailed(ctx, c.kubeClient)
 			return reconcile.Result{}, err
 		}
+		c.recorder.InfrastructureDeletionSucceeded(ctx, c.kubeClient)
 		patch := client.MergeFrom(deployment.DeepCopy())
 		controllerutil.RemoveFinalizer(deployment, v1alpha5.TerminationFinalizer)
 		if err := c.kubeClient.Patch(ctx, deployment, patch); err != nil {
@@ -123,21 +128,33 @@ func (c *Controller) deleteInfrastructure(ctx context.Context) (err error) {
 	go func() {
 		defer wg.Done()
 		e := c.sqsProvider.DeleteQueue(ctx)
-		m.Lock()
-		err = multierr.Append(err, e)
-		m.Unlock()
+
+		// If we get access denied, nothing we can do so just log and don't return the error
+		if aws.IsAccessDenied(e) {
+			logging.FromContext(ctx).Errorf("Access denied while trying to delete SQS queue, %v", err)
+		} else if err != nil {
+			m.Lock()
+			err = multierr.Append(err, e)
+			m.Unlock()
+		}
 	}()
 	go func() {
 		defer wg.Done()
 		e := c.eventBridgeProvider.DeleteEC2NotificationRules(ctx)
-		m.Lock()
-		err = multierr.Append(err, e)
-		m.Unlock()
+
+		// If we get access denied, nothing we can do so just log and don't return the error
+		if aws.IsAccessDenied(e) {
+			logging.FromContext(ctx).Errorf("Access denied while trying to delete notification rules, %v", err)
+		} else if err != nil {
+			m.Lock()
+			err = multierr.Append(err, e)
+			m.Unlock()
+		}
 	}()
 	wg.Wait()
 	if err != nil {
 		return err
 	}
-	logging.FromContext(ctx).Infof("Successfully deprovisioned the infrastructure")
+	logging.FromContext(ctx).Infof("Completed deprovisioning the infrastructure")
 	return nil
 }

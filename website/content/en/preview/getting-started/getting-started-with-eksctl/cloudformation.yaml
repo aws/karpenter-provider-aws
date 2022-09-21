@@ -90,6 +90,3 @@ Resources:
               - events:TagResource
               - events:DeleteRule
               - events:RemoveTargets
-              # Read Operations
-              - events:ListRules
-              - events:DescribeRule

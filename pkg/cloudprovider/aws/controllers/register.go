@@ -35,9 +35,9 @@ func Register(ctx context.Context, provider *aws.CloudProvider, manager manager.
 	// Injecting the cloudprovider-specific controllers that will start when opts.StartAsync is triggered
 	// All these controllers should run with the same context since they rely on each other
 	infraCtx, cancel := context.WithCancel(ctx)
-	deploymentController := deployment.NewController(opts.KubeClient, cancel, provider.SQSProvider(), provider.EventBridgeProvider())
+	deploymentController := deployment.NewController(opts.KubeClient, cancel, rec, provider.SQSProvider(), provider.EventBridgeProvider())
 	infraController := infrastructure.NewController(infraCtx, opts.KubeClient, opts.Clock, rec, provider.SQSProvider(), provider.EventBridgeProvider(), opts.StartAsync)
-	notification.NewController(infraCtx, opts.KubeClient, opts.Clock, provider.SQSProvider(), rec, opts.Provisioner, opts.Cluster, opts.StartAsync, infraController.Ready)
+	notification.NewController(infraCtx, opts.KubeClient, opts.Clock, rec, opts.Cluster, provider.SQSProvider(), opts.StartAsync, infraController.Ready)
 
 	// Register the controller-runtime controller with the global manager
 	if err := deploymentController.Register(infraCtx, manager); err != nil {

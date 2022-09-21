@@ -116,11 +116,11 @@ func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
 	if _, err = p.ec2api.TerminateInstancesWithContext(ctx, &ec2.TerminateInstancesInput{
 		InstanceIds: []*string{id},
 	}); err != nil {
-		if isNotFound(err) {
+		if IsNotFound(err) {
 			return nil
 		}
 		if _, errMsg := p.getInstance(ctx, aws.StringValue(id)); err != nil {
-			if isInstanceTerminated(errMsg) || isNotFound(errMsg) {
+			if isInstanceTerminated(errMsg) || IsNotFound(errMsg) {
 				logging.FromContext(ctx).Debugf("Instance already terminated, %s", node.Name)
 				return nil
 			}
@@ -302,7 +302,7 @@ func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.Inst
 
 func (p *InstanceProvider) getInstance(ctx context.Context, id string) (*ec2.Instance, error) {
 	describeInstancesOutput, err := p.ec2api.DescribeInstancesWithContext(ctx, &ec2.DescribeInstancesInput{InstanceIds: aws.StringSlice([]string{id})})
-	if isNotFound(err) {
+	if IsNotFound(err) {
 		return nil, err
 	}
 	if err != nil {

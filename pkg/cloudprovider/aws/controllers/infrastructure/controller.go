@@ -176,19 +176,14 @@ func (c *Controller) ensureQueue(ctx context.Context) error {
 	// Attempt to find the queue. If we can't find it, assume it isn't created and try to create it
 	// If we did find it, then just set the queue attributes on the existing queue
 	if _, err := c.sqsProvider.DiscoverQueueURL(ctx, true); err != nil {
-		var awsErr awserr.Error
-		if !errors.As(err, &awsErr) {
-			// This shouldn't happen, but if it does, we should capture it
-			return fmt.Errorf("failed conversion to AWS error, %w", err)
-		}
-		switch awsErr.Code() {
-		case sqs.ErrCodeQueueDoesNotExist:
+		switch {
+		case aws.IsNotFound(err):
 			logging.FromContext(ctx).Infof("Creating the SQS queue for EC2 notifications...")
 			if err := c.sqsProvider.CreateQueue(ctx); err != nil {
 				return fmt.Errorf("creating sqs queue with policy, %w", err)
 			}
 			return nil
-		case aws.AccessDeniedCode:
+		case aws.IsAccessDenied(err):
 			return fmt.Errorf("failed obtaining permission to discover sqs queue url, %w", err)
 		default:
 			return fmt.Errorf("failed discovering sqs queue url, %w", err)
@@ -203,13 +198,8 @@ func (c *Controller) ensureQueue(ctx context.Context) error {
 // ensureEventBridge reconciles the Eventbridge rules with the configuration prescribed by Karpenter
 func (c *Controller) ensureEventBridge(ctx context.Context) error {
 	if err := c.eventBridgeProvider.CreateEC2NotificationRules(ctx); err != nil {
-		var awsErr awserr.Error
-		if !errors.As(err, &awsErr) {
-			// This shouldn't happen, but if it does, we should capture it
-			return fmt.Errorf("failed conversion to AWS error, %w", err)
-		}
-		switch awsErr.Code() {
-		case aws.AccessDeniedException:
+		switch {
+		case aws.IsAccessDenied(err):
 			return fmt.Errorf("obtaining permission to eventbridge, %w", err)
 		default:
 			return fmt.Errorf("creating event bridge notification rules, %w", err)

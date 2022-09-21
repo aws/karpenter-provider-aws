@@ -21,24 +21,14 @@ import (
 	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/sqs"
+	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
 	"github.com/samber/lo"
-	"knative.dev/pkg/logging"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injection"
 )
-
-type SQSClient interface {
-	CreateQueueWithContext(context.Context, *sqs.CreateQueueInput, ...request.Option) (*sqs.CreateQueueOutput, error)
-	GetQueueUrlWithContext(context.Context, *sqs.GetQueueUrlInput, ...request.Option) (*sqs.GetQueueUrlOutput, error)
-	SetQueueAttributesWithContext(context.Context, *sqs.SetQueueAttributesInput, ...request.Option) (*sqs.SetQueueAttributesOutput, error)
-	ReceiveMessageWithContext(context.Context, *sqs.ReceiveMessageInput, ...request.Option) (*sqs.ReceiveMessageOutput, error)
-	DeleteMessageWithContext(context.Context, *sqs.DeleteMessageInput, ...request.Option) (*sqs.DeleteMessageOutput, error)
-	DeleteQueueWithContext(context.Context, *sqs.DeleteQueueInput, ...request.Option) (*sqs.DeleteQueueOutput, error)
-}
 
 type QueuePolicy struct {
 	Version   string                 `json:"Version"`
@@ -58,7 +48,7 @@ type Principal struct {
 }
 
 type SQSProvider struct {
-	client SQSClient
+	client sqsiface.SQSAPI
 
 	createQueueInput    *sqs.CreateQueueInput
 	getQueueURLInput    *sqs.GetQueueUrlInput
@@ -69,7 +59,7 @@ type SQSProvider struct {
 	metadata            *Metadata
 }
 
-func NewSQSProvider(ctx context.Context, client SQSClient, metadata *Metadata) *SQSProvider {
+func NewSQSProvider(ctx context.Context, client sqsiface.SQSAPI, metadata *Metadata) *SQSProvider {
 	provider := &SQSProvider{
 		client:    client,
 		mutex:     &sync.RWMutex{},
@@ -195,6 +185,9 @@ func (s *SQSProvider) DeleteSQSMessage(ctx context.Context, msg *sqs.Message) er
 func (s *SQSProvider) DeleteQueue(ctx context.Context) error {
 	queueURL, err := s.DiscoverQueueURL(ctx, false)
 	if err != nil {
+		if IsNotFound(err) {
+			return nil
+		}
 		return fmt.Errorf("failed fetching queue url, %w", err)
 	}
 
@@ -202,8 +195,7 @@ func (s *SQSProvider) DeleteQueue(ctx context.Context) error {
 		QueueUrl: aws.String(queueURL),
 	}
 	_, err = s.client.DeleteQueueWithContext(ctx, input)
-	if err != nil {
-		logging.FromContext(ctx).Errorf("Might have got an error here in the queue, %v", err)
+	if err != nil && !IsNotFound(err) {
 		return fmt.Errorf("failed deleting sqs queue, %w", err)
 	}
 	return nil
