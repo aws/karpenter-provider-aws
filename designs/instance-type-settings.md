@@ -4,7 +4,7 @@
 
 Allow users to:
 
-* Define [custom device resources](https://kubernetes.io/docs/concepts/extend-kubernetes/compute-storage-net/device-plugins/) on an instance type
+* Define [extended resources](https://kubernetes.io/docs/concepts/extend-kubernetes/compute-storage-net/device-plugins/) on an instance type
 * Define allocatable memory, cpu, ephemeral storage, pods on an instance type
 * Define pricing overrides for enterprise pricing support on an instance type or instance family
 * Define pricing discounts as raw values and percentages off of the default pricing on an instance type or instance family
@@ -94,7 +94,7 @@ spec:
       memory: 200Mi
 ```
 
-1. Configure custom device resources for custom device resources for `c4.large`
+1. Configure extended resources for `c4.large`
 
 ```yaml
 apiVersion: karpenter.sh/v1alpha1
@@ -126,35 +126,35 @@ spec:
 
 ### Instance Type Overrides for Other Cloud Providers (Azure/CAPI/etc.)
 
-Because Karpenter is intended to be cloud-agnostic, we need to keep this in mind when adding changes to the API surface. For the initial iteration of the `InstanceType` CRD, we will assume that the instance type will be selected by the `.metadata.name` field which will map to the well-defined Kubernetes node field `node.kubernetes.io/instance-type`.
+Because Karpenter is cloud-agnostic, we need to keep this in mind when adding changes to the API surface. For the initial iteration of the `InstanceType` CRD, we will assume that the instance type will be selected by the `.metadata.name` field which will map to the well-defined Kubernetes node field `node.kubernetes.io/instance-type`.
 
 For other clouds, this is expected to be mapped on the nodes as it is in AWS and the `GetInstanceType` call for other cloud providers is expected to retrieve and return all the instance type values that map to the `node.kubernetes.io/instance-type` value. In this way, Karpenter can perform instance type overrides for other clouds when instance types are surfaced.
 
 ### Custom Resource Cardinality
 
-One of the primary questions presented is whether we should create a 1-1 mapping between settings and a given instance type or whether we should allow the ability to create more complex structures using set relationships and label selectors. Options are listed below combined with the pros and cons for each:
+One of the primary questions presented is whether we should create a one-to-one mapping between settings and a given instance type or whether we should allow the ability to create more complex structures using set relationships and label selectors. Options are listed below combined with the pros and cons for each:
 
 **Options**
 
-1. Create an `InstanceType` CRD that specifies a 1-1 relationship between the settings and the instance type
+1. Create an `InstanceType` CRD that specifies a one-to-one relationship between the settings and the instance type
     1. Pros
         1. Clearly defined relationship between an instance type and the settings that are defined for it
         2. Users that only have a few instance types will not have an issue configuring the instance types with these values
         3. We can consider adding an `InstanceTypeClass` or similar at a later date that would allow a grouping of instance types to be assigned the same settings
     2. Cons
         1. May not scale well as users that have high levels of customizations across large numbers of instance types may have to maintain a large number of `InstanceType` CRDs
-        2. I may want to define settings over an instance family without having to individually configure the instances that exist within that family
-2. Create an `InstanceTypeSetting` CRD that contains a list of instance types that allow a 1-many relationship between settings and instance types. These instance types could be selected either with a `selector` or `regex`
+        2. A user may want to define settings over an instance family without having to individually configure the instances that exist within that family
+2. Create an `InstanceTypeSetting` CRD that contains a list of instance types that allow a one-to-many relationship between settings and instance types. These instance types could be selected either with a `selector` or `regex`
     1. Pros
         1. Allows users who want to apply the same instance type settings across a wide range of instance types or across an instance type family to do so
-        2. Lower maintenance burden from maintaining less `InstanceTypeSetting` CRDs
+        2. Lower maintenance burden from maintaining fewer `InstanceTypeSetting` CRDs
     2. Cons
         1. Can create complex relationships that may be difficult to track for users
         2. If we were to allow overlapping `InstanceTypeSettings`, we would have to create a `weight` on the `InstanceTypeSettings` which would further convolute details for the user
-        3. If we were to deny overlapping `InstanceTypeSettings` , then the feature of specifying a group of instance types may not be used that often as configuration between instance types may rarely be shared
+        3. If we were to deny overlapping `InstanceTypeSettings`, then specifying a group of instance types may not be used often since configuration between instance types may rarely be shared
         4. It’s unclear whether users would want have enough common configuration that they would assign across instance types. It makes more sense to iterate on a grouping mechanism later if there is a user ask for it
 
-**Recommendation:** Use `InstanceType` CRD for initial iteration for 1-1 mappings before considering introducing more complex constructs to the user. While specifying rulesets might reduce the overhead burden for customers to keep track of separate `InstanceTypeSettings` , ultimately without an API surface to view exactly what settings that ruleset will produce, it will ultimately be confusing for users.
+**Recommendation:** Use `InstanceType` CRD for initial iteration for one-to-one mappings before considering introducing more complex constructs to the user. While specifying rulesets might reduce the overhead burden for customers to keep track of separate `InstanceTypeSettings` , ultimately without an API surface to view exactly what settings that ruleset will produce, it will ultimately be confusing for users.
 
 ### 🔑 Modeling Offerings as Requirements
 
@@ -236,13 +236,13 @@ Thus, we can break down resource overhead into two main categories:
 Based on these two categories, we can tackle user-defined overhead/resource values in the following way:
 
 1. Flat Resource Overhead
-    1. `kubeletConfiguration` can live at the `Provisioner` level. If there is need to specify flat `kubeReserved` or `systemReserved` values based on the user’s knowledge of the OS/AMI, they are able to set this at the Provisioner-level
+    1. `kubeletConfiguration` can live at the `Provisioner` level. If there is need to specify flat `kubeReserved` or `systemReserved` values based on the user’s knowledge of the OS/AMI, they are able to set this at the Provisioner level
     2. Hard eviction thresholds can be set within the `kubeletConfiguration` at the `Provisioner` level as this will often be some globally defaulted value or vary based on knowledge of the OS or the system daemons
     3. OS memory overhead (**VM_MEMORY_OVERHEAD**) can be moved into this `InstanceType` CRD. Since this overhead in bytes will vary on a per-instance type level, we can allow the user to set a custom value to reserve for VM_OVERHEAD rather than defaulting to the percentage value that is currently reserved for overhead.
 2. Dynamic Resource Overhead (per-pod overhead)
     1. [RuntimeClass](https://kubernetes.io/docs/concepts/containers/runtime-class/) provides a mechanism for users to specify per-pod overhead values that can be reserved for each pod. This is the recommended way that Kubernetes provides for specifying any pod overhead values that are dynamic and based on the CRI.
        1. 🔑 Dynamic pod overhead that is tied to the container runtime should move to a `RuntimeClass` if there is pod overhead unique to the CRI that is used by your nodes.
-    2. Other per-pod overhead that may be tied to things like image size can be tied to the pod `ephemeral-stroage` requests which will help Karpenter ensure that it accurately provisions pods to nodes while also ensuring that there is parity between the scheduling decisions of Karpenter and the kube-scheduler.
+    2. Other per-pod overhead that may be tied to things like image size can be tied to the pod `ephemeral-storage` requests which will help Karpenter ensure that it accurately provisions pods to nodes while also ensuring that there is parity between the scheduling decisions of Karpenter and the kube-scheduler.
     3. In the meantime, while most users may not be using either mechanism to achieve system-wide pod overheads, we will still calculate the `kubeReserved` values based on pod density. There are still some open questions based on whether we should open up the ability to specify the strategy type (see below)
 3. Max Pods
     1. In general, it appears to be an anti-pattern in the Kubernetes community to strictly fix maxPods values (for kubeletConfiguration) on a per-instance type level. Users should be restricting the number of pods on their instances based on pod requests and size of instances as opposed to strict pod density sizing. If users are concerned with Provisioners creating instances that are too large, there is now the option to specify GT or LT operators for setting limits for how large an instance type that is provisioned can get.
@@ -251,7 +251,7 @@ Based on these two categories, we can tackle user-defined overhead/resource valu
 
 **🔑 Open Questions**
 
-1. There is still [users asks](https://github.com/aws/karpenter/issues/1803) for calculating the kubeReserved resources value based on the GKE calculation of the kubeReserved resources value as opposed to the EKS default which is based on pod density. Should we allow some flag on the provisioner that can determine which way to base the calculation on? i.e. `kubeReservedMemoryStrategy`
+1. There is still [users asks](https://github.com/aws/karpenter/issues/1803) for calculating the kubeReserved resources value based on the GKE calculation of the kubeReserved resources value as opposed to the EKS default which is based on pod density. Should we allow some flag on the provisioner that can determine which way to base the calculation on i.e. `kubeReservedMemoryStrategy`?
 
 ### Extending Ephemeral Storage
 
@@ -286,7 +286,7 @@ spec:
 ```
 
 
-**🔑 Recommendation:** Based on the additional overhead and muddiness of putting `blockDeviceMappings` in the `InstanceType` CR, we will punt on block device mappings for now. For now, we will consider extending ephermal-storage through some dynamic mechanism out of scope, though the hope is that we will have some mechanism as a future feature that calculates the combined needed ephemeral-storage based off of the pod requests, kubeReserved and systemReserved.
+**🔑 Recommendation:** Based on the additional overhead and muddiness of putting `blockDeviceMappings` in the `InstanceType` CR, we will punt on block device mappings for now. For now, we will consider extending ephemeral-storage through some dynamic mechanism out of scope, though the hope is that we will have some mechanism as a future feature that calculates the combined needed ephemeral-storage based off of the pod requests, kubeReserved and systemReserved.
 
 ### Launch Templates
 
@@ -296,7 +296,7 @@ For now, we are avoiding the need for Instance Type changes to affect launch tem
 Allocatable = Instance Type Resources - kubeReserved - systemReserved - evictionThreshhold
 ```
 
-By configuring the `InstanceType` CRD this way, we allow users to solve things like custom VM_OVERHEAD values to be more accurate on VM overhead and custom device requests to tell the scheduler to be aware of custom resources requests.
+By configuring the `InstanceType` CRD this way, we allow users to solve things like custom VM_OVERHEAD values to be more accurate on VM overhead and extended resources to tell the scheduler to be aware of resources that are not known by the scheduler by default.
 
 ### Pricing Information
 
@@ -313,7 +313,7 @@ An ask is to allow users to override the pricing information for instance types 
         1. Maintains all instance-specific information in one location
         2. Less CRDs for the user to maintain
     2. Cons
-        1. Pricing information is instance-type specific which means we are necessarily requiring a 1-1 mapping between some CRD and an instance type. This creates less flexibility if a user wants to describe common settings across an instance family or across an architecture type.
+        1. Pricing information is instance-type specific which means we are necessarily requiring a one-to-one mapping between some CRD and an instance type. This creates less flexibility if a user wants to describe common settings across an instance family or across an architecture type.
 
 **🔑 Recommendation:** Pricing information should live within the InstanceType offering requirements as it naturally fits that pricing is directly associated with a given instance type.
 
