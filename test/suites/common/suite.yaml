@@ -63,4 +63,16 @@ spec:
     - name: webhook-secret
       value: slack-webhook-secret
     - name: message
-      value: $(context.pipelineRun.name) has failed
+      value: ":x: $(context.pipelineRun.name) has failed"
+  - name: notify-build-success
+    when:
+      - input: $(tasks.status)
+        operator: in
+        values: ["Succeeded", "Completed"]
+    taskRef:
+      name: notify-slack
+    params:
+      - name: webhook-secret
+        value: slack-webhook-secret
+      - name: message
+        value: ":white_check_mark: $(context.pipelineRun.name) has succeeded"
