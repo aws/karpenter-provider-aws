@@ -10,7 +10,6 @@ permissions:
   pull-requests: write
   contents: write
 
-// TODO add     if: github.repository == 'aws/karpenter'
 jobs:
   on-success:
     runs-on: ubuntu-latest

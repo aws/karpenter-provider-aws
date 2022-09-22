@@ -3,8 +3,6 @@ on:
   push:
     tags: ['v*']
 
-// TODO add     if: github.repository == 'aws/karpenter'
-
 jobs:
   release:
     runs-on: ubuntu-latest
