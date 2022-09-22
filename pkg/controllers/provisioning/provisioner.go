@@ -128,7 +128,9 @@ func (p *Provisioner) Provision(ctx context.Context) error {
 
 	// wait to ensure that our cluster state is synced with the current known nodes to prevent over-provisioning
 	for WaitForClusterSync {
-		if err := p.cluster.Synchronized(ctx); err != nil {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		} else if err := p.cluster.Synchronized(ctx); err != nil {
 			logging.FromContext(ctx).Infof("waiting for cluster state to catch up, %s", err)
 			time.Sleep(1 * time.Second)
 		} else {

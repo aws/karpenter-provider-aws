@@ -41,6 +41,7 @@ var eventBridgeProvider *aws.EventBridgeProvider
 var recorder *awsfake.EventRecorder
 var fakeClock *clock.FakeClock
 var controller *infrastructure.Controller
+var cleanupChan chan struct{}
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -58,18 +59,20 @@ var _ = BeforeSuite(func() {
 		eventbridgeapi = &awsfake.EventBridgeAPI{}
 		sqsProvider = aws.NewSQSProvider(ctx, sqsapi, metadata)
 		eventBridgeProvider = aws.NewEventBridgeProvider(eventbridgeapi, metadata, sqsProvider.QueueName())
+		cleanupChan = make(chan struct{})
+		infrastructure.NewController(env.Ctx, env.Ctx, env.Client, fakeClock, recorder, sqsProvider, eventBridgeProvider, nil, cleanupChan)
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })
 
 var _ = AfterSuite(func() {
+	close(cleanupChan)
 	Expect(env.Stop()).To(Succeed(), "Failed to stop environment")
 })
 
 var _ = BeforeEach(func() {
 	sqsapi.Reset()
 	eventbridgeapi.Reset()
-	controller = infrastructure.NewController(env.Ctx, env.Client, fakeClock, recorder, sqsProvider, eventBridgeProvider, nil)
 })
 var _ = AfterEach(func() {
 	ExpectCleanedUp(ctx, env.Client)

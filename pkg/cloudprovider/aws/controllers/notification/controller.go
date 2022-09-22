@@ -31,6 +31,7 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/infrastructure"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/aggregatedparser"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/events"
@@ -58,7 +59,7 @@ type Controller struct {
 	provider   *aws.SQSProvider
 	parser     event.Parser
 
-	infraReady func() <-chan struct{}
+	infraController *infrastructure.Controller
 }
 
 // pollingPeriod that we go to the SQS queue to check if there are any new events
@@ -66,15 +67,15 @@ const pollingPeriod = 2 * time.Second
 
 func NewController(ctx context.Context, kubeClient client.Client, clk clock.Clock,
 	recorder events.Recorder, cluster *state.Cluster, sqsProvider *aws.SQSProvider,
-	startAsync <-chan struct{}, infraReady func() <-chan struct{}) *Controller {
+	infraController *infrastructure.Controller, startAsync <-chan struct{}) *Controller {
 	c := &Controller{
-		kubeClient: kubeClient,
-		cluster:    cluster,
-		recorder:   recorder,
-		clock:      clk,
-		provider:   sqsProvider,
-		parser:     aggregatedparser.NewAggregatedParser(aggregatedparser.DefaultParsers...),
-		infraReady: infraReady,
+		kubeClient:      kubeClient,
+		cluster:         cluster,
+		recorder:        recorder,
+		clock:           clk,
+		provider:        sqsProvider,
+		parser:          aggregatedparser.NewAggregatedParser(aggregatedparser.DefaultParsers...),
+		infraController: infraController,
 	}
 
 	go func() {
@@ -93,7 +94,7 @@ func (c *Controller) run(ctx context.Context) {
 	logger := logging.FromContext(ctx).Named("notification")
 	ctx = logging.WithLogger(ctx, logger)
 	for {
-		<-c.infraReady() // block until the infrastructure is up and ready
+		<-c.infraController.Ready() // block until the infrastructure is up and ready
 		err := c.pollSQS(ctx)
 		if err != nil {
 			logging.FromContext(ctx).Errorf("Handling notification messages from SQS queue, %v", err)
@@ -113,6 +114,10 @@ func (c *Controller) pollSQS(ctx context.Context) error {
 
 	sqsMessages, err := c.provider.GetSQSMessages(ctx)
 	if err != nil {
+		// If the queue isn't found, we should trigger the infrastructure controller to re-reconcile
+		if aws.IsNotFound(err) {
+			c.infraController.Trigger()
+		}
 		return err
 	}
 	if len(sqsMessages) == 0 {

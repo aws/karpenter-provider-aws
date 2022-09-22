@@ -18,29 +18,20 @@ import (
 	"context"
 
 	"knative.dev/pkg/logging"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/aws/karpenter/pkg/cloudprovider/aws"
-	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/deployment"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/infrastructure"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/events"
 	"github.com/aws/karpenter/pkg/controllers"
 )
 
-func Register(ctx context.Context, provider *aws.CloudProvider, manager manager.Manager, opts *controllers.ControllerOptions) {
+func Register(ctx context.Context, provider *aws.CloudProvider, opts *controllers.ControllerOptions) <-chan struct{} {
 	rec := events.NewRecorder(opts.Recorder)
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("aws"))
 
 	// Injecting the cloudprovider-specific controllers that will start when opts.StartAsync is triggered
-	// All these controllers should run with the same context since they rely on each other
-	infraCtx, cancel := context.WithCancel(ctx)
-	deploymentController := deployment.NewController(opts.KubeClient, cancel, rec, provider.SQSProvider(), provider.EventBridgeProvider())
-	infraController := infrastructure.NewController(infraCtx, opts.KubeClient, opts.Clock, rec, provider.SQSProvider(), provider.EventBridgeProvider(), opts.StartAsync)
-	notification.NewController(infraCtx, opts.KubeClient, opts.Clock, rec, opts.Cluster, provider.SQSProvider(), opts.StartAsync, infraController.Ready)
-
-	// Register the controller-runtime controller with the global manager
-	if err := deploymentController.Register(infraCtx, manager); err != nil {
-		panic(err)
-	}
+	infraController := infrastructure.NewController(ctx, opts.BaseContext(), opts.KubeClient, opts.Clock, rec, provider.SQSProvider(), provider.EventBridgeProvider(), opts.StartAsync, opts.CleanupAsync)
+	notification.NewController(ctx, opts.KubeClient, opts.Clock, rec, opts.Cluster, provider.SQSProvider(), infraController, opts.StartAsync)
+	return infraController.Done()
 }

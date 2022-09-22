@@ -19,7 +19,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/pprof"
+	"os"
+	"os/signal"
 	"runtime/debug"
+	"syscall"
 
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zapr"
@@ -74,7 +77,7 @@ func init() {
 	metrics.MustRegister() // Registers cross-controller metrics
 }
 
-type ControllerInitFunc func(context.Context, manager.Manager, *ControllerOptions)
+type ControllerInitFunc func(context.Context, *ControllerOptions) <-chan struct{}
 
 // Controller is an interface implemented by Karpenter custom resources.
 type Controller interface {
@@ -87,12 +90,14 @@ type Controller interface {
 }
 
 type ControllerOptions struct {
-	Cluster    *state.Cluster
-	KubeClient client.Client
-	Recorder   events.Recorder
-	Clock      clock.Clock
+	BaseContext func() context.Context
+	Cluster     *state.Cluster
+	KubeClient  client.Client
+	Recorder    events.Recorder
+	Clock       clock.Clock
 
-	StartAsync <-chan struct{}
+	StartAsync   <-chan struct{}
+	CleanupAsync <-chan struct{}
 }
 
 func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options) (cloudprovider.CloudProvider, ControllerInitFunc)) {
@@ -107,6 +112,18 @@ func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options)
 	cmw := informer.NewInformedWatcher(clientSet, system.Namespace())
 	ctx := injection.LoggingContextOrDie(component, controllerRuntimeConfig, cmw)
 	ctx = newRunnableContext(controllerRuntimeConfig, opts, logging.FromContext(ctx))()
+	ctx, cancel := context.WithCancel(ctx)
+
+	// Setup the cleanup logic for teardown on SIGINT or SIGTERM
+	cleanup := make(chan struct{}) // This is a channel to broadcast to controllers cleanup can start
+	go func() {
+		sigs := make(chan os.Signal, 1)
+		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+		<-sigs
+		logging.FromContext(context.Background()).Infof("Got a signal to react to")
+		close(cleanup)
+		cancel()
+	}()
 
 	logging.FromContext(ctx).Infof("Initializing with version %s", project.Version)
 
@@ -158,13 +175,15 @@ func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options)
 	// Inject cloudprovider-specific controllers into the controller-set using the injectControllers function
 	// Inject the base cloud provider into the injection function rather than the decorated interface
 	controllerOptions := &ControllerOptions{
-		Cluster:    cluster,
-		KubeClient: manager.GetClient(),
-		Recorder:   recorder,
-		StartAsync: manager.Elected(),
-		Clock:      realClock,
+		BaseContext:  newRunnableContext(controllerRuntimeConfig, opts, logging.FromContext(ctx)),
+		Cluster:      cluster,
+		KubeClient:   manager.GetClient(),
+		Recorder:     recorder,
+		StartAsync:   manager.Elected(),
+		CleanupAsync: cleanup,
+		Clock:        realClock,
 	}
-	injectControllers(ctx, manager, controllerOptions)
+	done := injectControllers(ctx, controllerOptions)
 
 	metricsstate.StartMetricScraper(ctx, cluster)
 
@@ -182,6 +201,7 @@ func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options)
 	).Start(ctx); err != nil {
 		panic(fmt.Sprintf("Unable to start manager, %s", err))
 	}
+	<-done
 }
 
 // NewManagerOrDie instantiates a controller manager or panics
