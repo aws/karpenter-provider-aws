@@ -112,11 +112,10 @@ docgen: ## Generate docs
 	go run hack/docs/instancetypes_gen_docs.go website/content/en/preview/AWS/instance-types.md
 	go run hack/docs/configuration_gen_docs.go website/content/en/preview/tasks/configuration.md
 
+api-code-gen: ## Auto generate files based on AWS APIs response
+	$(WITH_GOFLAGS) ./hack/api-code-gen.sh
+
 release-gen: docgen ## Generate any materials which should be updated prior to release
-	go run hack/code/prices_gen.go -- pkg/cloudprovider/aws/zz_generated.pricing.go
-	go run hack/code/vpc_limits_gen.go -- \
-		--url=https://raw.githubusercontent.com/aws/amazon-vpc-resource-controller-k8s/master/pkg/aws/vpc/limits.go \
-		--output=pkg/cloudprovider/aws/zz_generated.vpclimits.go
 	hack/boilerplate.sh
 	go mod tidy
 	go mod download
