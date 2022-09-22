@@ -1,7 +1,7 @@
 name: Create Release
 on:
   workflow_run:
-    workflows: [release]
+    workflows: [Create Release]
     types: [completed]
     branches: [main]
 
