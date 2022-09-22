@@ -1,0 +1,31 @@
+name: Create Release
+on:
+  workflow_run:
+
+// TODO add     if: github.repository == 'aws/karpenter'
+jobs:
+  stable-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: sed -En 's/^go[[:space:]]+([[:digit:].]+)$/GO_VERSION=\1/p' go.mod >> $GITHUB_ENV
+      - uses: actions/setup-go@v3
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          check-latest: true
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+            ~/go/bin/
+            ~/.kubebuilder/bin/k8s
+          key: ${{ runner.os }}-go-cache-${{ hashFiles('**/go.sum') }}
+      - uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: arn:aws:iam::339104714817:role/Github
+          aws-region: us-east-1
+      - run: make toolchain
+      - run: make release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
