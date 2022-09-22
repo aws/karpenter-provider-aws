@@ -1,6 +1,9 @@
 name: Create Release
 on:
   workflow_run:
+    workflows: [release]
+    types: [completed]
+    branches: [main]
 
 permissions:
   id-token: write
@@ -9,8 +12,9 @@ permissions:
 
 // TODO add     if: github.repository == 'aws/karpenter'
 jobs:
-  stable-release:
+  on-success:
     runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
       - uses: actions/checkout@v3
       - run: sed -En 's/^go[[:space:]]+([[:digit:].]+)$/GO_VERSION=\1/p' go.mod >> $GITHUB_ENV
@@ -30,10 +34,34 @@ jobs:
         with:
           role-to-assume: arn:aws:iam::339104714817:role/Github
           aws-region: us-east-1
-      - run: make toolchain
-      - run: make release
+      - run: |
+          make release
+          make toolchain
+          make stablerelease
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download artifact
+        uses: actions/github-script@v6
+        with:
+          script: |
+            let allArtifacts = await github.rest.actions.listWorkflowRunArtifacts({
+               owner: context.repo.owner,
+               repo: context.repo.repo,
+               run_id: context.payload.workflow_run.id,
+            });
+            let matchArtifact = allArtifacts.data.artifacts.filter((artifact) => {
+              return artifact.name == "stable_version"
+            })[0];
+            let download = await github.rest.actions.downloadArtifact({
+               owner: context.repo.owner,
+               repo: context.repo.repo,
+               artifact_id: matchArtifact.id,
+               archive_format: 'zip',
+            });
+            let fs = require('fs');
+            fs.writeFileSync(`${process.env.GITHUB_WORKSPACE}/stable_version.zip`, Buffer.from(download.data));
+      - run: unzip stable_version.zip
 
       - name: Create Pull Request
         if: env.APICodeGenUpdate == 'true'
