@@ -26,6 +26,8 @@ import (
 
 const (
 	launchTemplateNotFoundCode = "InvalidLaunchTemplateName.NotFoundException"
+	AccessDeniedCode           = "AccessDenied"
+	AccessDeniedExceptionCode  = "AccessDeniedException"
 )
 
 var (
@@ -45,8 +47,8 @@ var (
 		"Unsupported",
 	}
 	accessDeniedErrorCodes = []string{
-		"AccessDenied",
-		"AccessDeniedException",
+		AccessDeniedCode,
+		AccessDeniedExceptionCode,
 	}
 )
 

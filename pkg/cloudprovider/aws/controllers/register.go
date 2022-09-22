@@ -30,7 +30,7 @@ func Register(ctx context.Context, provider *aws.CloudProvider, opts *controller
 	rec := events.NewRecorder(opts.Recorder)
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("aws"))
 
-	// Injecting the cloudprovider-specific controllers that will start when opts.StartAsync is triggered
+	// Injecting the AWS-specific controllers that will start when opts.StartAsync is triggered
 	infraController := infrastructure.NewController(ctx, opts.BaseContext(), opts.KubeClient, opts.Clock, rec, provider.SQSProvider(), provider.EventBridgeProvider(), opts.StartAsync, opts.CleanupAsync)
 	notification.NewController(ctx, opts.KubeClient, opts.Clock, rec, opts.Cluster, provider.SQSProvider(), infraController, opts.StartAsync)
 	return infraController.Done()

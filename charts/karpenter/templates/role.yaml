@@ -28,11 +28,6 @@ rules:
     resourceNames:
       - karpenter-global-settings
       - config-logging
-  - apiGroups: ["apps"]
-    resources: ["deployments"]
-    verbs: ["get", "list", "watch", "patch", "update"]
-    resourceNames:
-      - {{ include "karpenter.fullname" . }}
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]
     verbs: ["patch", "update"]

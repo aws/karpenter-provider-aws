@@ -16,15 +16,34 @@ package notification_test
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"math/rand"
 	"testing"
 	"time"
 
+	awssdk "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/service/sqs"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/samber/lo"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clock "k8s.io/utils/clock/testing"
 	. "knative.dev/pkg/logging/testing"
 
+	"github.com/google/uuid"
+
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/infrastructure"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event"
+	scheduledchangev0 "github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/scheduledchange/v0"
+	spotinterruptionv0 "github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/spotinterruption/v0"
+	statechangev0 "github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/statechange/v0"
 	. "github.com/aws/karpenter/pkg/test/expectations"
+
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter/pkg/cloudprovider/aws"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification"
@@ -34,48 +53,359 @@ import (
 	"github.com/aws/karpenter/pkg/test"
 )
 
+const (
+	defaultAccountID  = "000000000000"
+	defaultInstanceID = "i-08c6fdb11e28c8c90"
+	defaultRegion     = "us-west-2"
+	ec2Source         = "aws.ec2"
+	healthSource      = "aws.health"
+)
+
 var ctx context.Context
 var env *test.Environment
 var cluster *state.Cluster
 var sqsapi *awsfake.SQSAPI
+var eventbridgeapi *awsfake.EventBridgeAPI
 var cloudProvider *fake.CloudProvider
 var sqsProvider *aws.SQSProvider
+var eventBridgeProvider *aws.EventBridgeProvider
 var recorder *awsfake.EventRecorder
 var fakeClock *clock.FakeClock
 var cfg *test.Config
 var controller *notification.Controller
-var ready func() <-chan struct{}
+var infraController *infrastructure.Controller
+var nodeStateController *state.NodeController
+var infraStartChan chan struct{}
+var notificationStartChan chan struct{}
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
 	RegisterFailHandler(Fail)
+	SetDefaultEventuallyTimeout(time.Second * 5)
 	RunSpecs(t, "AWS Notification")
 }
 
-var _ = BeforeSuite(func() {
+var _ = BeforeEach(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
 		cfg = test.NewConfig()
 		fakeClock = clock.NewFakeClock(time.Now())
 		cloudProvider = &fake.CloudProvider{}
 		cluster = state.NewCluster(fakeClock, cfg, env.Client, cloudProvider)
+		nodeStateController = state.NewNodeController(env.Client, cluster)
 		recorder = awsfake.NewEventRecorder()
 		metadata := aws.NewMetadata("us-east-1", "000000000000")
 
 		sqsapi = &awsfake.SQSAPI{}
 		sqsProvider = aws.NewSQSProvider(ctx, sqsapi, metadata)
+		eventbridgeapi = &awsfake.EventBridgeAPI{}
+		eventBridgeProvider = aws.NewEventBridgeProvider(eventbridgeapi, metadata, sqsProvider.QueueName())
+
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
+	sqsapi.Reset()
+	infraStartChan = make(chan struct{})
+	notificationStartChan = make(chan struct{})
+	infraController = infrastructure.NewController(env.Ctx, env.Ctx, env.Client, fakeClock, recorder, sqsProvider, eventBridgeProvider, infraStartChan, env.Ctx.Done())
+	controller = notification.NewController(env.Ctx, env.Client, fakeClock, recorder, cluster, sqsProvider, infraController, notificationStartChan)
 })
 
-var _ = AfterSuite(func() {
+var _ = AfterEach(func() {
+	ExpectCleanedUp(ctx, env.Client)
 	Expect(env.Stop()).To(Succeed(), "Failed to stop environment")
 })
 
-var _ = BeforeEach(func() {
-	sqsapi.Reset()
-	ready = func() <-chan struct{} { return make(chan struct{}) }
-	controller = notification.NewController(env.Ctx, env.Client, fakeClock, recorder, cluster, sqsProvider, nil, ready)
+var _ = Describe("Processing Messages", func() {
+	It("should delete the node when receiving a spot interruption warning", func() {
+		node := test.Node(test.NodeOptions{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					v1alpha5.ProvisionerNameLabelKey: "default",
+				},
+			},
+			ProviderID: makeProviderID(defaultInstanceID),
+		})
+		ExpectMessagesCreated(spotInterruptionMessage(defaultInstanceID))
+		ExpectApplied(env.Ctx, env.Client, node)
+		ExpectReconcileSucceeded(env.Ctx, nodeStateController, client.ObjectKeyFromObject(node))
+
+		Expect(controller.PollSQS(env.Ctx)).To(Succeed())
+		ExpectNotFound(env.Ctx, env.Client, node)
+		Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
+	})
+	It("should delete the node when receiving a scheduled change message", func() {
+		node := test.Node(test.NodeOptions{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					v1alpha5.ProvisionerNameLabelKey: "default",
+				},
+			},
+			ProviderID: makeProviderID(defaultInstanceID),
+		})
+		ExpectMessagesCreated(scheduledChangeMessage(defaultInstanceID))
+		ExpectApplied(env.Ctx, env.Client, node)
+		ExpectReconcileSucceeded(env.Ctx, nodeStateController, client.ObjectKeyFromObject(node))
+
+		Expect(controller.PollSQS(env.Ctx)).To(Succeed())
+		ExpectNotFound(env.Ctx, env.Client, node)
+		Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
+	})
+	It("should delete the node when receiving a state change message", func() {
+		var nodes []*v1.Node
+		var messages []*sqs.Message
+		for _, state := range []string{"terminated", "stopped", "stopping", "shutting-down"} {
+			instanceID := makeInstanceID()
+			nodes = append(nodes, test.Node(test.NodeOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						v1alpha5.ProvisionerNameLabelKey: "default",
+					},
+				},
+				ProviderID: makeProviderID(instanceID),
+			}))
+			messages = append(messages, stateChangeMessage(instanceID, state))
+		}
+		ExpectMessagesCreated(messages...)
+		ExpectApplied(env.Ctx, env.Client, lo.Map(nodes, func(n *v1.Node, _ int) client.Object { return n })...)
+
+		// Wait for the nodes to reconcile with the cluster state
+		ExpectReconcileSucceeded(env.Ctx, nodeStateController, lo.Map(nodes, func(n *v1.Node, _ int) client.ObjectKey { return client.ObjectKeyFromObject(n) })...)
+		Expect(controller.PollSQS(env.Ctx)).To(Succeed())
+		ExpectNotFound(env.Ctx, env.Client, lo.Map(nodes, func(n *v1.Node, _ int) client.Object { return n })...)
+		Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(4))
+	})
+	It("should handle multiple messages that cause node deletion", func() {
+		var nodes []*v1.Node
+		var instanceIDs []string
+		for i := 0; i < 100; i++ {
+			instanceIDs = append(instanceIDs, makeInstanceID())
+			nodes = append(nodes, test.Node(test.NodeOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						v1alpha5.ProvisionerNameLabelKey: "default",
+					},
+				},
+				ProviderID: makeProviderID(instanceIDs[len(instanceIDs)-1]),
+			}))
+
+		}
+
+		var messages []*sqs.Message
+		for _, id := range instanceIDs {
+			messages = append(messages, spotInterruptionMessage(id))
+		}
+		ExpectMessagesCreated(messages...)
+		ExpectApplied(env.Ctx, env.Client, lo.Map(nodes, func(n *v1.Node, _ int) client.Object { return n })...)
+
+		// Wait for the nodes to reconcile with the cluster state
+		ExpectReconcileSucceeded(env.Ctx, nodeStateController, lo.Map(nodes, func(n *v1.Node, _ int) client.ObjectKey { return client.ObjectKeyFromObject(n) })...)
+		Expect(controller.PollSQS(env.Ctx)).To(Succeed())
+		ExpectNotFound(env.Ctx, env.Client, lo.Map(nodes, func(n *v1.Node, _ int) client.Object { return n })...)
+		Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(100))
+	})
+	It("should not delete a node when not owned by provisioner", func() {
+		node := test.Node(test.NodeOptions{
+			ProviderID: makeProviderID(uuid.NewString()),
+		})
+		ExpectMessagesCreated(spotInterruptionMessage(node.Spec.ProviderID))
+		ExpectApplied(env.Ctx, env.Client, node)
+		ExpectReconcileSucceeded(env.Ctx, nodeStateController, client.ObjectKeyFromObject(node))
+
+		Expect(controller.PollSQS(env.Ctx)).To(Succeed())
+		ExpectNodeExists(env.Ctx, env.Client, node.Name)
+		Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
+	})
+	It("should delete a message when the message can't be parsed", func() {
+		badMessage := &sqs.Message{
+			Body: awssdk.String(string(lo.Must(json.Marshal(map[string]string{
+				"field1": "value1",
+				"field2": "value2",
+			})))),
+			MessageId: awssdk.String(uuid.NewString()),
+		}
+
+		ExpectMessagesCreated(badMessage)
+		Expect(controller.PollSQS(env.Ctx)).To(Succeed())
+		Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
+	})
+	It("should delete a state change message when the state isn't in accepted states", func() {
+		node := test.Node(test.NodeOptions{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					v1alpha5.ProvisionerNameLabelKey: "default",
+				},
+			},
+			ProviderID: makeProviderID(defaultInstanceID),
+		})
+		ExpectMessagesCreated(stateChangeMessage(defaultInstanceID, "creating"))
+		ExpectApplied(env.Ctx, env.Client, node)
+		ExpectReconcileSucceeded(env.Ctx, nodeStateController, client.ObjectKeyFromObject(node))
+
+		Expect(controller.PollSQS(env.Ctx)).To(Succeed())
+		ExpectNodeExists(env.Ctx, env.Client, node.Name)
+		Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
+	})
 })
-var _ = AfterEach(func() {
-	ExpectCleanedUp(ctx, env.Client)
+
+var _ = Describe("Error Handling", func() {
+	BeforeEach(func() {
+		// This ensures that the readiness gate is set to ready when we start the test
+		ExpectClosed(infraStartChan)
+	})
+
+	It("should send an error on polling when AccessDenied", func() {
+		sqsapi.ReceiveMessageBehavior.Error.Set(awsErrWithCode(aws.AccessDeniedCode), awsfake.MaxCalls(0))
+		Expect(controller.PollSQS(env.Ctx)).ToNot(Succeed())
+	})
+	It("should trigger a infrastructure reconciliation on SQS queue doesn't exist", func() {
+		sqsapi.GetQueueURLBehavior.Error.Set(awsErrWithCode(sqs.ErrCodeQueueDoesNotExist), awsfake.MaxCalls(0)) // This mocks the queue not existing
+
+		// Infrastructure reconciliation loop has completed
+		Eventually(func(g Gomega) {
+			g.Expect(sqsapi.CreateQueueBehavior.SuccessfulCalls()).To(Equal(1))
+			g.Expect(eventbridgeapi.PutRuleBehavior.SuccessfulCalls()).To(Equal(4))
+			g.Expect(eventbridgeapi.PutTargetsBehavior.SuccessfulCalls()).To(Equal(4))
+			g.Expect(IsClosed(infraController.Ready())).To(BeTrue())
+		}).Should(Succeed())
+
+		sqsapi.ReceiveMessageBehavior.Error.Set(awsErrWithCode(sqs.ErrCodeQueueDoesNotExist)) // This mocks the queue being deleted manually after infra reconciliation
+
+		// This should fail with an error since the queue doesn't exist
+		Expect(controller.PollSQS(env.Ctx)).ToNot(Succeed())
+
+		Eventually(func(g Gomega) {
+			g.Expect(sqsapi.CreateQueueBehavior.SuccessfulCalls()).To(Equal(2))
+			g.Expect(eventbridgeapi.PutRuleBehavior.SuccessfulCalls()).To(Equal(8))
+			g.Expect(eventbridgeapi.PutTargetsBehavior.SuccessfulCalls()).To(Equal(8))
+			g.Expect(IsClosed(infraController.Ready())).To(BeTrue())
+		}).Should(Succeed())
+	})
 })
+
+var _ = Describe("Infrastructure Coordination", func() {
+	It("should wait for the infrastructure to be ready before polling SQS", func() {
+		ExpectClosed(notificationStartChan)
+		Expect(IsClosed(infraController.Ready())).To(BeFalse())
+		Consistently(func(g Gomega) {
+			g.Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(Equal(0))
+			g.Expect(sqsapi.ReceiveMessageBehavior.FailedCalls()).To(Equal(0))
+		}, time.Second*10).Should(Succeed())
+
+		ExpectClosed(infraStartChan)
+
+		Eventually(func(g Gomega) {
+			g.Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(BeNumerically(">", 0))
+		}, time.Second*10).Should(Succeed())
+	})
+})
+
+func ExpectMessagesCreated(messages ...*sqs.Message) {
+	sqsapi.ReceiveMessageBehavior.Output.Set(
+		&sqs.ReceiveMessageOutput{
+			Messages: messages,
+		},
+	)
+}
+
+func awsErrWithCode(code string) awserr.Error {
+	return awserr.New(code, "", fmt.Errorf(""))
+}
+
+func spotInterruptionMessage(involvedInstanceID string) *sqs.Message {
+	evt := spotinterruptionv0.AWSEvent{
+		AWSMetadata: event.AWSMetadata{
+			Version:    "0",
+			Account:    defaultAccountID,
+			DetailType: "EC2 Spot Instance Interruption Warning",
+			ID:         uuid.NewString(),
+			Region:     defaultRegion,
+			Resources: []string{
+				fmt.Sprintf("arn:aws:ec2:%s:instance/%s", defaultRegion, involvedInstanceID),
+			},
+			Source: ec2Source,
+			Time:   time.Now(),
+		},
+		Detail: spotinterruptionv0.EC2SpotInstanceInterruptionWarningDetail{
+			InstanceID:     involvedInstanceID,
+			InstanceAction: "terminate",
+		},
+	}
+	return &sqs.Message{
+		Body:      awssdk.String(string(lo.Must(json.Marshal(evt)))),
+		MessageId: awssdk.String(uuid.NewString()),
+	}
+}
+
+func stateChangeMessage(involvedInstanceID, state string) *sqs.Message {
+	evt := statechangev0.AWSEvent{
+		AWSMetadata: event.AWSMetadata{
+			Version:    "0",
+			Account:    defaultAccountID,
+			DetailType: "EC2 Instance State-change Notification",
+			ID:         uuid.NewString(),
+			Region:     defaultRegion,
+			Resources: []string{
+				fmt.Sprintf("arn:aws:ec2:%s:instance/%s", defaultRegion, involvedInstanceID),
+			},
+			Source: ec2Source,
+			Time:   time.Now(),
+		},
+		Detail: statechangev0.EC2InstanceStateChangeNotificationDetail{
+			InstanceID: involvedInstanceID,
+			State:      state,
+		},
+	}
+	return &sqs.Message{
+		Body:      awssdk.String(string(lo.Must(json.Marshal(evt)))),
+		MessageId: awssdk.String(uuid.NewString()),
+	}
+}
+
+// TODO: Update the scheudled change message to accurately reflect a real health event
+func scheduledChangeMessage(involvedInstanceID string) *sqs.Message {
+	evt := scheduledchangev0.AWSEvent{
+		AWSMetadata: event.AWSMetadata{
+			Version:    "0",
+			Account:    defaultAccountID,
+			DetailType: "AWS Health Event",
+			ID:         uuid.NewString(),
+			Region:     defaultRegion,
+			Resources: []string{
+				fmt.Sprintf("arn:aws:ec2:%s:instance/%s", defaultRegion, involvedInstanceID),
+			},
+			Source: healthSource,
+			Time:   time.Now(),
+		},
+		Detail: scheduledchangev0.AWSHealthEventDetail{
+			Service:           "EC2",
+			EventTypeCategory: "scheduledChange",
+			AffectedEntities: []scheduledchangev0.AffectedEntity{
+				{
+					EntityValue: involvedInstanceID,
+				},
+			},
+		},
+	}
+	return &sqs.Message{
+		Body:      awssdk.String(string(lo.Must(json.Marshal(evt)))),
+		MessageId: awssdk.String(uuid.NewString()),
+	}
+}
+
+func makeProviderID(instanceID string) string {
+	return fmt.Sprintf("aws:///%s/%s", defaultRegion, instanceID)
+}
+
+var runes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+
+// nolint:gosec
+func randStringRunes(n int) string {
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = runes[rand.Intn(len(runes))]
+	}
+	return string(b)
+}
+
+func makeInstanceID() string {
+	return fmt.Sprintf("i-%s", randStringRunes(17))
+}

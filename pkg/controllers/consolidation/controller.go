@@ -381,14 +381,14 @@ func (c *Controller) launchReplacementNode(ctx context.Context, action consolida
 	oldNode := action.oldNodes[0]
 
 	// cordon the node before we launch the replacement to prevent new pods from scheduling to the node
-	if err := c.setNodeUnschedulable(ctx, action.oldNodes[0].Name, true); err != nil {
-		return fmt.Errorf("cordoning node %s, %w", action.oldNodes[0].Name, err)
+	if err := c.setNodeUnschedulable(ctx, oldNode.Name, true); err != nil {
+		return fmt.Errorf("cordoning node %s, %w", oldNode.Name, err)
 	}
 
-	nodeNames, err := c.provisioner.LaunchNodes(ctx, provisioning.LaunchOptions{RecordPodNomination: false}, action.replacementNodes...)
+	nodeNames, err := c.provisioner.LaunchNodes(ctx, provisioning.LaunchOptions{RecordPodNomination: false}, action.replacementNode)
 	if err != nil {
 		// uncordon the node as the launch may fail (e.g. ICE or incompatible AMI)
-		err = multierr.Append(err, c.setNodeUnschedulable(ctx, action.oldNodes[0].Name, false))
+		err = multierr.Append(err, c.setNodeUnschedulable(ctx, oldNode.Name, false))
 		return err
 	}
 	if len(nodeNames) != 1 {
@@ -420,7 +420,8 @@ func (c *Controller) launchReplacementNode(ctx context.Context, action consolida
 		return nil
 	}, waitRetryOptions...); err != nil {
 		// node never become ready, so uncordon the node we were trying to delete and report the error
-		return multierr.Combine(c.setNodeUnschedulable(ctx, action.oldNodes[0].Name, false),
+		c.cluster.UnmarkForDeletion(oldNode.Name)
+		return multierr.Combine(c.setNodeUnschedulable(ctx, oldNode.Name, false),
 			fmt.Errorf("timed out checking node readiness, %w", err))
 	}
 	return nil
@@ -555,12 +556,11 @@ func (c *Controller) nodeConsolidationOptionReplaceOrDelete(ctx context.Context,
 		return consolidationAction{result: consolidateResultNotPossible}, nil
 	}
 
-	// We know the length of newNodes is 1 from above so this should only launch a single node
 	return consolidationAction{
-		oldNodes:         []*v1.Node{node.Node},
-		disruptionCost:   disruptionCost(ctx, node.pods),
-		result:           consolidateResultReplace,
-		replacementNodes: newNodes,
+		oldNodes:        []*v1.Node{node.Node},
+		disruptionCost:  disruptionCost(ctx, node.pods),
+		result:          consolidateResultReplace,
+		replacementNode: newNodes[0],
 	}, nil
 }
 

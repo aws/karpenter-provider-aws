@@ -29,6 +29,8 @@ import (
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/cenkalti/backoff/v4"
+
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/infrastructure"
@@ -43,9 +45,11 @@ type Action = string
 
 var Actions = struct {
 	CordonAndDrain,
+	Cordon,
 	NoAction Action
 }{
 	CordonAndDrain: "CordonAndDrain",
+	Cordon:         "Cordon",
 	NoAction:       "NoAction",
 }
 
@@ -60,6 +64,7 @@ type Controller struct {
 	parser     event.Parser
 
 	infraController *infrastructure.Controller
+	backoff         *backoff.ExponentialBackOff
 }
 
 // pollingPeriod that we go to the SQS queue to check if there are any new events
@@ -68,6 +73,7 @@ const pollingPeriod = 2 * time.Second
 func NewController(ctx context.Context, kubeClient client.Client, clk clock.Clock,
 	recorder events.Recorder, cluster *state.Cluster, sqsProvider *aws.SQSProvider,
 	infraController *infrastructure.Controller, startAsync <-chan struct{}) *Controller {
+
 	c := &Controller{
 		kubeClient:      kubeClient,
 		cluster:         cluster,
@@ -76,6 +82,7 @@ func NewController(ctx context.Context, kubeClient client.Client, clk clock.Cloc
 		provider:        sqsProvider,
 		parser:          aggregatedparser.NewAggregatedParser(aggregatedparser.DefaultParsers...),
 		infraController: infraController,
+		backoff:         newBackoff(),
 	}
 
 	go func() {
@@ -90,26 +97,42 @@ func NewController(ctx context.Context, kubeClient client.Client, clk clock.Cloc
 	return c
 }
 
+func newBackoff() *backoff.ExponentialBackOff {
+	b := backoff.NewExponentialBackOff()
+	b.InitialInterval = time.Second * 2
+	b.MaxElapsedTime = time.Minute * 30
+	return b
+}
+
 func (c *Controller) run(ctx context.Context) {
 	logger := logging.FromContext(ctx).Named("notification")
 	ctx = logging.WithLogger(ctx, logger)
+
+	defer func() {
+		logger.Infof("Shutting down")
+	}()
 	for {
 		<-c.infraController.Ready() // block until the infrastructure is up and ready
-		err := c.pollSQS(ctx)
+		err := c.PollSQS(ctx)
 		if err != nil {
 			logging.FromContext(ctx).Errorf("Handling notification messages from SQS queue, %v", err)
+			select {
+			case <-ctx.Done():
+				return
+			case <-c.clock.After(c.backoff.NextBackOff()):
+				continue
+			}
 		}
-
+		c.backoff.Reset() // We succeeded so reset the backoff period
 		select {
 		case <-ctx.Done():
-			logger.Infof("Shutting down")
 			return
 		case <-c.clock.After(pollingPeriod):
 		}
 	}
 }
 
-func (c *Controller) pollSQS(ctx context.Context) error {
+func (c *Controller) PollSQS(ctx context.Context) error {
 	defer metrics.Measure(reconcileDuration.WithLabelValues())()
 
 	sqsMessages, err := c.provider.GetSQSMessages(ctx)
@@ -145,6 +168,13 @@ func (c *Controller) handleMessage(ctx context.Context, instanceIDMap map[string
 	// There's no action to take here since the event doesn't pertain to any of our instances
 	if len(nodes) == 0 {
 		receivedMessages.WithLabelValues(evt.Kind(), "false").Inc()
+
+		// Since there's no action, just delete the message
+		err = c.provider.DeleteSQSMessage(ctx, msg)
+		if err != nil {
+			return fmt.Errorf("failed to delete message from queue, %w", err)
+		}
+		deletedMessages.WithLabelValues().Inc()
 		return
 	}
 	receivedMessages.WithLabelValues(evt.Kind(), "true").Inc()

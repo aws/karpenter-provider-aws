@@ -25,14 +25,10 @@ import (
 // EventBridgeBehavior must be reset between tests otherwise tests will
 // pollute each other.
 type EventBridgeBehavior struct {
-	PutRuleOutput    AtomicPtr[eventbridge.PutRuleOutput]
-	PutTargetsOutput AtomicPtr[eventbridge.PutTargetsOutput]
-
-	CalledWithPutRuleInput       AtomicPtrSlice[eventbridge.PutRuleInput]
-	CalledWithPutTargetsInput    AtomicPtrSlice[eventbridge.PutTargetsInput]
-	CalledWithDeleteRuleInput    AtomicPtrSlice[eventbridge.DeleteRuleInput]
-	CalledWithRemoveTargetsInput AtomicPtrSlice[eventbridge.RemoveTargetsInput]
-	NextError                    AtomicError
+	PutRuleBehavior       MockedFunction[eventbridge.PutRuleInput, eventbridge.PutRuleOutput]
+	PutTargetsBehavior    MockedFunction[eventbridge.PutTargetsInput, eventbridge.PutTargetsOutput]
+	DeleteRuleBehavior    MockedFunction[eventbridge.DeleteRuleInput, eventbridge.DeleteRuleOutput]
+	RemoveTargetsBehavior MockedFunction[eventbridge.RemoveTargetsInput, eventbridge.RemoveTargetsOutput]
 }
 
 type EventBridgeAPI struct {
@@ -43,59 +39,26 @@ type EventBridgeAPI struct {
 // Reset must be called between tests otherwise tests will pollute
 // each other.
 func (eb *EventBridgeAPI) Reset() {
-	eb.PutTargetsOutput.Reset()
-	eb.PutTargetsOutput.Reset()
-	eb.CalledWithPutRuleInput.Reset()
-	eb.CalledWithPutTargetsInput.Reset()
-	eb.CalledWithDeleteRuleInput.Reset()
-	eb.CalledWithRemoveTargetsInput.Reset()
-	eb.NextError.Reset()
+	eb.PutRuleBehavior.Reset()
+	eb.PutTargetsBehavior.Reset()
+	eb.DeleteRuleBehavior.Reset()
+	eb.RemoveTargetsBehavior.Reset()
 }
 
 // TODO: Create a dummy rule ARN for the default that is returned from this function
 func (eb *EventBridgeAPI) PutRuleWithContext(_ context.Context, input *eventbridge.PutRuleInput, _ ...request.Option) (*eventbridge.PutRuleOutput, error) {
-	if !eb.NextError.IsNil() {
-		defer eb.NextError.Reset()
-		return nil, eb.NextError.Get()
-	}
-	eb.CalledWithPutRuleInput.Add(input)
-
-	if !eb.PutRuleOutput.IsNil() {
-		return eb.PutRuleOutput.Clone(), nil
-	}
-	return &eventbridge.PutRuleOutput{}, nil
+	return eb.PutRuleBehavior.Invoke(input)
 }
 
 // TODO: Create a default response that returns failed entries
 func (eb *EventBridgeAPI) PutTargetsWithContext(_ context.Context, input *eventbridge.PutTargetsInput, _ ...request.Option) (*eventbridge.PutTargetsOutput, error) {
-	if !eb.NextError.IsNil() {
-		defer eb.NextError.Reset()
-		return nil, eb.NextError.Get()
-	}
-	eb.CalledWithPutTargetsInput.Add(input)
-
-	if !eb.PutTargetsOutput.IsNil() {
-		return eb.PutTargetsOutput.Clone(), nil
-	}
-	return &eventbridge.PutTargetsOutput{}, nil
+	return eb.PutTargetsBehavior.Invoke(input)
 }
 
 func (eb *EventBridgeAPI) DeleteRuleWithContext(_ context.Context, input *eventbridge.DeleteRuleInput, _ ...request.Option) (*eventbridge.DeleteRuleOutput, error) {
-	if !eb.NextError.IsNil() {
-		defer eb.NextError.Reset()
-		return nil, eb.NextError.Get()
-	}
-	eb.CalledWithDeleteRuleInput.Add(input)
-
-	return &eventbridge.DeleteRuleOutput{}, nil
+	return eb.DeleteRuleBehavior.Invoke(input)
 }
 
 func (eb *EventBridgeAPI) RemoveTargetsWithContext(_ context.Context, input *eventbridge.RemoveTargetsInput, _ ...request.Option) (*eventbridge.RemoveTargetsOutput, error) {
-	if !eb.NextError.IsNil() {
-		defer eb.NextError.Reset()
-		return nil, eb.NextError.Get()
-	}
-	eb.CalledWithRemoveTargetsInput.Add(input)
-
-	return &eventbridge.RemoveTargetsOutput{}, nil
+	return eb.RemoveTargetsBehavior.Invoke(input)
 }

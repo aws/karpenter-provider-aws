@@ -147,7 +147,12 @@ func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options)
 	if opts.EnableProfiling {
 		utilruntime.Must(registerPprof(manager))
 	}
-	cloudProvider, injectControllers := injectCloudProvider(ctx, cloudprovider.Options{ClientSet: clientSet, KubeClient: manager.GetClient(), StartAsync: manager.Elected()})
+	cloudProvider, injectControllers := injectCloudProvider(ctx, cloudprovider.Options{
+		ClientSet:    clientSet,
+		KubeClient:   manager.GetClient(),
+		StartAsync:   manager.Elected(),
+		CleanupAsync: cleanup,
+	})
 	if hp, ok := cloudProvider.(HealthCheck); ok {
 		utilruntime.Must(manager.AddHealthzCheck("cloud-provider", hp.LivenessProbe))
 	}

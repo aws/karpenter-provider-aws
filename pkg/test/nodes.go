@@ -28,6 +28,7 @@ type NodeOptions struct {
 	ReadyReason   string
 	Conditions    []v1.NodeCondition
 	Unschedulable bool
+	ProviderID    string
 	Taints        []v1.Taint
 	Allocatable   v1.ResourceList
 }
@@ -47,6 +48,7 @@ func Node(overrides ...NodeOptions) *v1.Node {
 		Spec: v1.NodeSpec{
 			Unschedulable: options.Unschedulable,
 			Taints:        options.Taints,
+			ProviderID:    options.ProviderID,
 		},
 		Status: v1.NodeStatus{
 			Allocatable: options.Allocatable,

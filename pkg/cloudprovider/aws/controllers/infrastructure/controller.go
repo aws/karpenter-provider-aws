@@ -24,6 +24,7 @@ import (
 	"github.com/avast/retry-go"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/sqs"
+	"github.com/cenkalti/backoff/v4"
 	"go.uber.org/multierr"
 	appsv1 "k8s.io/api/apps/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -49,6 +50,7 @@ type Controller struct {
 	eventBridgeProvider *aws.EventBridgeProvider
 
 	mutex         *sync.RWMutex
+	backoff       *backoff.ExponentialBackOff
 	readinessChan chan struct{} // A signal to other controllers that infrastructure is in a good state
 	ready         bool
 	trigger       chan struct{}
@@ -58,10 +60,6 @@ type Controller struct {
 // pollingPeriod is the period that we go to AWS APIs to ensure that the appropriate AWS infrastructure is provisioned
 // This period can be reduced to a backoffPeriod if there is an error in ensuring the infrastructure
 const pollingPeriod = time.Hour
-
-// defaultBackoffPeriod is the default period that we go to AWS APIs to ensure that the appropriate AWS infrastructure
-// is provisioned if there is an error in the reconciliation loop
-const defaultBackoffPeriod = time.Minute * 10
 
 func NewController(ctx context.Context, cleanupCtx context.Context, kubeClient client.Client, clk clock.Clock,
 	recorder events.Recorder, sqsProvider *aws.SQSProvider, eventBridgeProvider *aws.EventBridgeProvider,
@@ -73,14 +71,18 @@ func NewController(ctx context.Context, cleanupCtx context.Context, kubeClient c
 		sqsProvider:         sqsProvider,
 		eventBridgeProvider: eventBridgeProvider,
 		mutex:               &sync.RWMutex{},
+		backoff:             newBackoff(),
 		readinessChan:       make(chan struct{}),
 		trigger:             make(chan struct{}, 1),
 		done:                make(chan struct{}),
 	}
 
 	go func() {
-		<-cleanupAsync
-		c.cleanup(cleanupCtx)
+		select {
+		case <-cleanupAsync:
+			c.cleanup(cleanupCtx)
+		case <-cleanupCtx.Done():
+		}
 		close(c.done)
 	}()
 
@@ -95,6 +97,13 @@ func NewController(ctx context.Context, cleanupCtx context.Context, kubeClient c
 	return c
 }
 
+func newBackoff() *backoff.ExponentialBackOff {
+	b := backoff.NewExponentialBackOff()
+	b.InitialInterval = time.Minute
+	b.MaxElapsedTime = time.Minute * 20
+	return b
+}
+
 func (c *Controller) run(ctx context.Context) {
 	logger := logging.FromContext(ctx).Named("infrastructure")
 	ctx = logging.WithLogger(ctx, logger)
@@ -103,7 +112,7 @@ func (c *Controller) run(ctx context.Context) {
 		logger.Infof("Shutting down")
 	}()
 	for {
-		if err := c.ensureInfrastructure(ctx); err != nil {
+		if err := c.EnsureInfrastructure(ctx); err != nil {
 			logging.FromContext(ctx).Errorf("ensuring infrastructure established, %v", err)
 			c.setReady(ctx, false)
 			backoffPeriod := c.getBackoff(err)
@@ -119,6 +128,7 @@ func (c *Controller) run(ctx context.Context) {
 			}
 		}
 		c.setReady(ctx, true)
+		c.backoff.Reset()
 		select {
 		case <-ctx.Done():
 			return
@@ -150,7 +160,7 @@ func (c *Controller) cleanup(ctx context.Context) {
 
 	// Deployment is already deleted or currently deleting, so we should cleanup the infrastructure
 	if notFound || !dep.DeletionTimestamp.IsZero() {
-		if err := retry.Do(func() error { return c.deleteInfrastructure(ctx) }); err != nil {
+		if err := retry.Do(func() error { return c.DeleteInfrastructure(ctx) }); err != nil {
 			logging.FromContext(ctx).Errorf("Deprovisioning the infrastructure, %v", err)
 		}
 	}
@@ -185,8 +195,8 @@ func (c *Controller) setReady(ctx context.Context, ready bool) {
 		if c.ready != ready {
 			logging.FromContext(ctx).Infof("Infrastructure is healthy")
 			c.recorder.InfrastructureHealthy(ctx, c.kubeClient)
+			close(c.readinessChan)
 		}
-		close(c.readinessChan)
 	} else {
 		healthy.Set(0)
 		if c.ready != ready {
@@ -198,9 +208,9 @@ func (c *Controller) setReady(ctx context.Context, ready bool) {
 	c.ready = ready
 }
 
-// ensureInfrastructure reconciles the SQS queue and the EventBridge rules with the expected
+// EnsureInfrastructure reconciles the SQS queue and the EventBridge rules with the expected
 // configuration prescribed by Karpenter
-func (c *Controller) ensureInfrastructure(ctx context.Context) (err error) {
+func (c *Controller) EnsureInfrastructure(ctx context.Context) (err error) {
 	defer metrics.Measure(reconcileDuration)()
 
 	wg := &sync.WaitGroup{}
@@ -225,9 +235,9 @@ func (c *Controller) ensureInfrastructure(ctx context.Context) (err error) {
 	return err
 }
 
-// Delete infrastructure removes the infrastructure that was stood up and reconciled
+// DeleteInfrastructure removes the infrastructure that was stood up and reconciled
 // by the infrastructure controller for SQS message polling
-func (c *Controller) deleteInfrastructure(ctx context.Context) (err error) {
+func (c *Controller) DeleteInfrastructure(ctx context.Context) (err error) {
 	logging.FromContext(ctx).Infof("Deprovisioning the infrastructure...")
 	wg := &sync.WaitGroup{}
 	m := &sync.Mutex{}
@@ -314,12 +324,13 @@ func (c *Controller) ensureEventBridge(ctx context.Context) error {
 func (c *Controller) getBackoff(err error) time.Duration {
 	var awsErr awserr.Error
 	if !errors.As(err, &awsErr) {
-		return defaultBackoffPeriod
+		return c.backoff.NextBackOff()
 	}
 	switch awsErr.Code() {
 	case sqs.ErrCodeQueueDeletedRecently:
+		// We special-case this error since the queue can be created here much quicker
 		return time.Minute
 	default:
-		return defaultBackoffPeriod
+		return c.backoff.NextBackOff()
 	}
 }

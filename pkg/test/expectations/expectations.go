@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"math/rand"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/onsi/ginkgo/v2"
@@ -145,6 +146,7 @@ func ExpectCleanedUp(ctx context.Context, c client.Client) {
 	}
 	for _, object := range []client.Object{
 		&v1.Pod{},
+		&appsv1.Deployment{},
 		&v1.Node{},
 		&appsv1.DaemonSet{},
 		&v1beta1.PodDisruptionBudget{},
@@ -210,10 +212,21 @@ func ExpectProvisionedNoBindingWithOffset(offset int, ctx context.Context, c cli
 	return
 }
 
-func ExpectReconcileSucceeded(ctx context.Context, reconciler reconcile.Reconciler, key client.ObjectKey) reconcile.Result {
-	result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
-	ExpectWithOffset(1, err).ToNot(HaveOccurred())
-	return result
+func ExpectReconcileSucceeded(ctx context.Context, reconciler reconcile.Reconciler, keys ...client.ObjectKey) reconcile.Result {
+	// Return the result of the last key for backwards-compatibility
+	var lastResult atomic.Pointer[reconcile.Result]
+	wg := &sync.WaitGroup{}
+	for _, key := range keys {
+		wg.Add(1)
+		go func(k client.ObjectKey) {
+			defer wg.Done()
+			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: k})
+			ExpectWithOffset(1, err).ToNot(HaveOccurred())
+			lastResult.Store(&result)
+		}(key)
+	}
+	wg.Wait()
+	return *lastResult.Load()
 }
 
 func ExpectMetric(prefix string) *prometheus.MetricFamily {
@@ -271,4 +284,29 @@ func ExpectSkew(ctx context.Context, c client.Client, namespace string, constrai
 		}
 	}
 	return ExpectWithOffset(1, skew)
+}
+
+type Completable[T any] interface {
+	Done() <-chan T
+}
+
+// ExpectDone waits on a done channel until the Completable is done
+func ExpectDone[T any](c Completable[T]) {
+	<-c.Done()
+}
+
+// ExpectClosed closes a channel if it isn't already closed
+func ExpectClosed[T any](ch chan T) {
+	if !IsClosed(ch) {
+		close(ch)
+	}
+}
+
+func IsClosed[T any](ch <-chan T) bool {
+	select {
+	case <-ch:
+		return true
+	default:
+	}
+	return false
 }

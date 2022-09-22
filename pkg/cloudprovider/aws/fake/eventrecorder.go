@@ -15,15 +15,36 @@ limitations under the License.
 package fake
 
 import (
-	"github.com/aws/karpenter/pkg/cloudprovider/aws/events"
+	"context"
+
+	v1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	"github.com/aws/karpenter/pkg/test"
 )
 
 // EventRecorder is a mock event recorder that is used to facilitate testing.
 type EventRecorder struct {
-	events.Recorder
 	test.EventRecorder
 }
+
+func (e *EventRecorder) EC2SpotInterruptionWarning(_ *v1.Node) {}
+
+func (e *EventRecorder) EC2SpotRebalanceRecommendation(_ *v1.Node) {}
+
+func (e *EventRecorder) EC2HealthWarning(_ *v1.Node) {}
+
+func (e *EventRecorder) EC2StateChange(_ *v1.Node) {}
+
+func (e *EventRecorder) TerminatingNodeOnNotification(_ *v1.Node) {}
+
+func (e *EventRecorder) InfrastructureUnhealthy(_ context.Context, _ client.Client) {}
+
+func (e *EventRecorder) InfrastructureHealthy(_ context.Context, _ client.Client) {}
+
+func (e *EventRecorder) InfrastructureDeletionSucceeded(_ context.Context, _ client.Client) {}
+
+func (e *EventRecorder) InfrastructureDeletionFailed(_ context.Context, _ client.Client) {}
 
 func NewEventRecorder() *EventRecorder {
 	return &EventRecorder{

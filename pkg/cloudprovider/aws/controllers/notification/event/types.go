@@ -34,14 +34,12 @@ type Interface interface {
 type Kind = string
 
 var Kinds = struct {
-	AutoScalingTermination,
 	RebalanceRecommendation,
 	ScheduledChange,
 	SpotInterruption,
 	StateChange,
 	Noop Kind
 }{
-	AutoScalingTermination:  "autoScalingTermination",
 	RebalanceRecommendation: "rebalanceRecommendation",
 	ScheduledChange:         "scheduledChange",
 	SpotInterruption:        "spotInterruption",
