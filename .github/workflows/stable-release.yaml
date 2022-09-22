@@ -1,7 +1,7 @@
-name: Create Release
+name: StableRelease
 on:
   workflow_run:
-    workflows: [Create Release]
+    workflows: [ReleaseTag]
     types: [completed]
     branches: [main]
 

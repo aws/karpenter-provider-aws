@@ -1,10 +1,10 @@
-name: Create Release
+name: ReleaseTag
 on:
   push:
     tags: ['v*']
 
 jobs:
-  release:
+  release-tag:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
