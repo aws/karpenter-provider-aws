@@ -1,9 +1,10 @@
 name: StableRelease
+
 on:
   workflow_run:
     workflows: [ReleaseTag]
-    types: [completed]
-    branches: [main]
+    types:
+      - completed
 
 permissions:
   id-token: write
@@ -11,9 +12,9 @@ permissions:
   contents: write
 
 jobs:
-  on-success:
-    runs-on: ubuntu-latest
+  stable-release:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - run: sed -En 's/^go[[:space:]]+([[:digit:].]+)$/GO_VERSION=\1/p' go.mod >> $GITHUB_ENV

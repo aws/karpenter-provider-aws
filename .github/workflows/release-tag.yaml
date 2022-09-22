@@ -1,4 +1,5 @@
 name: ReleaseTag
+
 on:
   push:
     tags: ['v*']
