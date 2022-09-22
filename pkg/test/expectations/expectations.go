@@ -12,6 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+//nolint:revive
 package expectations
 
 import (
@@ -48,20 +49,32 @@ const (
 )
 
 func ExpectPodExists(ctx context.Context, c client.Client, name string, namespace string) *v1.Pod {
+	return ExpectPodExistsWithOffset(1, ctx, c, name, namespace)
+}
+
+func ExpectPodExistsWithOffset(offset int, ctx context.Context, c client.Client, name string, namespace string) *v1.Pod {
 	pod := &v1.Pod{}
-	Expect(c.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, pod)).To(Succeed())
+	ExpectWithOffset(offset+1, c.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, pod)).To(Succeed())
 	return pod
 }
 
 func ExpectNodeExists(ctx context.Context, c client.Client, name string) *v1.Node {
+	return ExpectNodeExistsWithOffset(1, ctx, c, name)
+}
+
+func ExpectNodeExistsWithOffset(offset int, ctx context.Context, c client.Client, name string) *v1.Node {
 	node := &v1.Node{}
-	Expect(c.Get(ctx, client.ObjectKey{Name: name}, node)).To(Succeed())
+	ExpectWithOffset(offset+1, c.Get(ctx, client.ObjectKey{Name: name}, node)).To(Succeed())
 	return node
 }
 
 func ExpectNotFound(ctx context.Context, c client.Client, objects ...client.Object) {
+	ExpectNotFoundWithOffset(1, ctx, c, objects...)
+}
+
+func ExpectNotFoundWithOffset(offset int, ctx context.Context, c client.Client, objects ...client.Object) {
 	for _, object := range objects {
-		EventuallyWithOffset(1, func() bool {
+		EventuallyWithOffset(offset+1, func() bool {
 			return errors.IsNotFound(c.Get(ctx, types.NamespacedName{Name: object.GetName(), Namespace: object.GetNamespace()}, object))
 		}, ReconcilerPropagationTime, RequestInterval).Should(BeTrue(), func() string {
 			return fmt.Sprintf("expected %s to be deleted, but it still exists", client.ObjectKeyFromObject(object))
@@ -70,18 +83,22 @@ func ExpectNotFound(ctx context.Context, c client.Client, objects ...client.Obje
 }
 
 func ExpectScheduled(ctx context.Context, c client.Client, pod *v1.Pod) *v1.Node {
-	p := ExpectPodExists(ctx, c, pod.Name, pod.Namespace)
+	p := ExpectPodExistsWithOffset(1, ctx, c, pod.Name, pod.Namespace)
 	Expect(p.Spec.NodeName).ToNot(BeEmpty(), fmt.Sprintf("expected %s/%s to be scheduled", pod.Namespace, pod.Name))
-	return ExpectNodeExists(ctx, c, p.Spec.NodeName)
+	return ExpectNodeExistsWithOffset(1, ctx, c, p.Spec.NodeName)
 }
 
 func ExpectNotScheduled(ctx context.Context, c client.Client, pod *v1.Pod) *v1.Pod {
-	p := ExpectPodExists(ctx, c, pod.Name, pod.Namespace)
-	Eventually(p.Spec.NodeName).Should(BeEmpty(), fmt.Sprintf("expected %s/%s to not be scheduled", pod.Namespace, pod.Name))
+	p := ExpectPodExistsWithOffset(1, ctx, c, pod.Name, pod.Namespace)
+	EventuallyWithOffset(1, p.Spec.NodeName).Should(BeEmpty(), fmt.Sprintf("expected %s/%s to not be scheduled", pod.Namespace, pod.Name))
 	return p
 }
 
 func ExpectApplied(ctx context.Context, c client.Client, objects ...client.Object) {
+	ExpectAppliedWithOffset(1, ctx, c, objects...)
+}
+
+func ExpectAppliedWithOffset(offset int, ctx context.Context, c client.Client, objects ...client.Object) {
 	for _, object := range objects {
 		current := object.DeepCopyObject().(client.Object)
 		statuscopy := object.DeepCopyObject().(client.Object) // Snapshot the status, since create/update may override
@@ -89,20 +106,20 @@ func ExpectApplied(ctx context.Context, c client.Client, objects ...client.Objec
 		// Create or Update
 		if err := c.Get(ctx, client.ObjectKeyFromObject(current), current); err != nil {
 			if errors.IsNotFound(err) {
-				ExpectWithOffset(1, c.Create(ctx, object)).To(Succeed())
+				ExpectWithOffset(offset+1, c.Create(ctx, object)).To(Succeed())
 			} else {
-				ExpectWithOffset(1, err).ToNot(HaveOccurred())
+				ExpectWithOffset(offset+1, err).ToNot(HaveOccurred())
 			}
 		} else {
 			object.SetResourceVersion(current.GetResourceVersion())
-			ExpectWithOffset(1, c.Update(ctx, object)).To(Succeed())
+			ExpectWithOffset(offset+1, c.Update(ctx, object)).To(Succeed())
 		}
 		// Update status
 		statuscopy.SetResourceVersion(object.GetResourceVersion())
-		ExpectWithOffset(1, c.Status().Update(ctx, statuscopy)).To(Or(Succeed(), MatchError("the server could not find the requested resource"))) // Some objects do not have a status
+		ExpectWithOffset(offset+1, c.Status().Update(ctx, statuscopy)).To(Or(Succeed(), MatchError("the server could not find the requested resource"))) // Some objects do not have a status
 		// Delete if timestamp set
 		if deletecopy.GetDeletionTimestamp() != nil {
-			ExpectWithOffset(1, c.Delete(ctx, deletecopy)).To(Succeed())
+			ExpectWithOffset(offset+1, c.Delete(ctx, deletecopy)).To(Succeed())
 		}
 	}
 }
@@ -110,21 +127,21 @@ func ExpectApplied(ctx context.Context, c client.Client, objects ...client.Objec
 func ExpectDeleted(ctx context.Context, c client.Client, objects ...client.Object) {
 	for _, object := range objects {
 		if err := c.Delete(ctx, object, &client.DeleteOptions{GracePeriodSeconds: ptr.Int64(0)}); !errors.IsNotFound(err) {
-			Expect(err).To(BeNil())
+			ExpectWithOffset(1, err).To(BeNil())
 		}
-		ExpectNotFound(ctx, c, object)
+		ExpectNotFoundWithOffset(1, ctx, c, object)
 	}
 }
 
 func ExpectCleanedUp(ctx context.Context, c client.Client) {
 	wg := sync.WaitGroup{}
 	namespaces := &v1.NamespaceList{}
-	Expect(c.List(ctx, namespaces)).To(Succeed())
+	ExpectWithOffset(1, c.List(ctx, namespaces)).To(Succeed())
 	nodes := &v1.NodeList{}
-	Expect(c.List(ctx, nodes)).To(Succeed())
+	ExpectWithOffset(1, c.List(ctx, nodes)).To(Succeed())
 	for i := range nodes.Items {
 		nodes.Items[i].SetFinalizers([]string{})
-		Expect(c.Update(ctx, &nodes.Items[i])).To(Succeed())
+		ExpectWithOffset(1, c.Update(ctx, &nodes.Items[i])).To(Succeed())
 	}
 	for _, object := range []client.Object{
 		&v1.Pod{},
@@ -139,7 +156,7 @@ func ExpectCleanedUp(ctx context.Context, c client.Client) {
 		for _, namespace := range namespaces.Items {
 			wg.Add(1)
 			go func(object client.Object, namespace string) {
-				Expect(c.DeleteAllOf(ctx, object, client.InNamespace(namespace),
+				ExpectWithOffset(1, c.DeleteAllOf(ctx, object, client.InNamespace(namespace),
 					&client.DeleteAllOfOptions{DeleteOptions: client.DeleteOptions{GracePeriodSeconds: ptr.Int64(0)}})).ToNot(HaveOccurred())
 				wg.Done()
 			}(object, namespace.Name)
@@ -149,26 +166,30 @@ func ExpectCleanedUp(ctx context.Context, c client.Client) {
 }
 
 func ExpectProvisioned(ctx context.Context, c client.Client, controller *provisioning.Controller, pods ...*v1.Pod) (result []*v1.Pod) {
-	ExpectProvisionedNoBinding(ctx, c, controller, pods...)
+	ExpectProvisionedNoBindingWithOffset(1, ctx, c, controller, pods...)
 
 	recorder := controller.Recorder().(*test.EventRecorder)
 	recorder.ForEachBinding(func(pod *v1.Pod, node *v1.Node) {
-		ExpectManualBinding(ctx, c, pod, node)
+		ExpectManualBindingWithOffset(1, ctx, c, pod, node)
 	})
 	// reset bindings so we don't try to bind these same pods again if a new provisioning is performed in the same test
 	recorder.ResetBindings()
 
 	// Update objects after reconciling
 	for _, pod := range pods {
-		result = append(result, ExpectPodExists(ctx, c, pod.GetName(), pod.GetNamespace()))
+		result = append(result, ExpectPodExistsWithOffset(1, ctx, c, pod.GetName(), pod.GetNamespace()))
 	}
 	return
 }
 
 func ExpectProvisionedNoBinding(ctx context.Context, c client.Client, controller *provisioning.Controller, pods ...*v1.Pod) (result []*v1.Pod) {
+	return ExpectProvisionedNoBindingWithOffset(1, ctx, c, controller, pods...)
+}
+
+func ExpectProvisionedNoBindingWithOffset(offset int, ctx context.Context, c client.Client, controller *provisioning.Controller, pods ...*v1.Pod) (result []*v1.Pod) {
 	// Persist objects
 	for _, pod := range pods {
-		ExpectApplied(ctx, c, pod)
+		ExpectAppliedWithOffset(offset+1, ctx, c, pod)
 	}
 
 	// shuffle the pods to try to detect any issues where we rely on pod order within a batch, we shuffle a copy of
@@ -184,31 +205,36 @@ func ExpectProvisionedNoBinding(ctx context.Context, c client.Client, controller
 
 	// Update objects after reconciling
 	for _, pod := range pods {
-		result = append(result, ExpectPodExists(ctx, c, pod.GetName(), pod.GetNamespace()))
+		result = append(result, ExpectPodExistsWithOffset(offset+1, ctx, c, pod.GetName(), pod.GetNamespace()))
 	}
 	return
 }
 
 func ExpectReconcileSucceeded(ctx context.Context, reconciler reconcile.Reconciler, key client.ObjectKey) reconcile.Result {
 	result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
-	Expect(err).ToNot(HaveOccurred())
+	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 	return result
 }
 
 func ExpectMetric(prefix string) *prometheus.MetricFamily {
 	metrics, err := metrics.Registry.Gather()
-	Expect(err).To(BeNil())
+	ExpectWithOffset(1, err).To(BeNil())
 	var selected *prometheus.MetricFamily
 	for _, mf := range metrics {
 		if mf.GetName() == prefix {
 			selected = mf
 		}
 	}
-	Expect(selected).ToNot(BeNil(), fmt.Sprintf("expected to find a '%s' metric", prefix))
+	ExpectWithOffset(1, selected).ToNot(BeNil(), fmt.Sprintf("expected to find a '%s' metric", prefix))
 	return selected
 }
+
 func ExpectManualBinding(ctx context.Context, c client.Client, pod *v1.Pod, node *v1.Node) {
-	ExpectWithOffset(1, c.Create(ctx, &v1.Binding{
+	ExpectManualBindingWithOffset(1, ctx, c, pod, node)
+}
+
+func ExpectManualBindingWithOffset(offset int, ctx context.Context, c client.Client, pod *v1.Pod, node *v1.Node) {
+	ExpectWithOffset(offset+1, c.Create(ctx, &v1.Binding{
 		TypeMeta: pod.TypeMeta,
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      pod.ObjectMeta.Name,
@@ -223,9 +249,9 @@ func ExpectManualBinding(ctx context.Context, c client.Client, pod *v1.Pod, node
 
 func ExpectSkew(ctx context.Context, c client.Client, namespace string, constraint *v1.TopologySpreadConstraint) Assertion {
 	nodes := &v1.NodeList{}
-	Expect(c.List(ctx, nodes)).To(Succeed())
+	ExpectWithOffset(1, c.List(ctx, nodes)).To(Succeed())
 	pods := &v1.PodList{}
-	Expect(c.List(ctx, pods, scheduling.TopologyListOptions(namespace, constraint.LabelSelector))).To(Succeed())
+	ExpectWithOffset(1, c.List(ctx, pods, scheduling.TopologyListOptions(namespace, constraint.LabelSelector))).To(Succeed())
 	skew := map[string]int{}
 	for i, pod := range pods.Items {
 		if scheduling.IgnoredForTopology(&pods.Items[i]) {
@@ -244,5 +270,5 @@ func ExpectSkew(ctx context.Context, c client.Client, namespace string, constrai
 			}
 		}
 	}
-	return Expect(skew)
+	return ExpectWithOffset(1, skew)
 }
