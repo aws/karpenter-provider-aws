@@ -1514,6 +1514,34 @@ var _ = Describe("Topology", func() {
 		})
 	})
 
+	Context("Combined Hostname and Zonal Topology", func() {
+		It("should spread pods while respecting both constraints", func() {
+			topology := []v1.TopologySpreadConstraint{{
+				TopologyKey:       v1.LabelTopologyZone,
+				WhenUnsatisfiable: v1.DoNotSchedule,
+				LabelSelector:     &metav1.LabelSelector{MatchLabels: labels},
+				MaxSkew:           1,
+			}, {
+				TopologyKey:       v1.LabelHostname,
+				WhenUnsatisfiable: v1.ScheduleAnyway,
+				LabelSelector:     &metav1.LabelSelector{MatchLabels: labels},
+				MaxSkew:           1,
+			}}
+			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
+				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1", "test-zone-2"}}}
+
+			ExpectApplied(ctx, env.Client, provisioner)
+			ExpectProvisioned(ctx, env.Client, controller,
+				MakePods(10, test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, TopologySpreadConstraints: topology})...,
+			)
+
+			// should get one pod per zone, can't schedule to test-zone-3
+			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(1, 1))
+			// and one pod per node
+			ExpectSkew(ctx, env.Client, "default", &topology[1]).To(ConsistOf(1, 1))
+		})
+	})
+
 	Context("Combined Hostname and Capacity Type Topology", func() {
 		It("should spread pods while respecting both constraints", func() {
 			topology := []v1.TopologySpreadConstraint{{

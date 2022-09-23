@@ -93,7 +93,7 @@ func (p *Preferences) removeTopologySpreadScheduleAnyway(pod *v1.Pod) *string {
 		if tsc.WhenUnsatisfiable == v1.ScheduleAnyway {
 			msg := fmt.Sprintf("removing: spec.topologySpreadConstraints = %s", pretty.Concise(tsc))
 			pod.Spec.TopologySpreadConstraints[i] = pod.Spec.TopologySpreadConstraints[len(pod.Spec.TopologySpreadConstraints)-1]
-			pod.Spec.TopologySpreadConstraints = pod.Spec.TopologySpreadConstraints[1:]
+			pod.Spec.TopologySpreadConstraints = pod.Spec.TopologySpreadConstraints[:len(pod.Spec.TopologySpreadConstraints)-1]
 			return ptr.String(msg)
 		}
 	}
