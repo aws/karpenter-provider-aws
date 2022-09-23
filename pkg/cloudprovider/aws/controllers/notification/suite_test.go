@@ -103,6 +103,7 @@ var _ = BeforeEach(func() {
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 	sqsapi.Reset()
+	eventbridgeapi.Reset()
 	infraStartChan = make(chan struct{})
 	notificationStartChan = make(chan struct{})
 	infraController = infrastructure.NewController(env.Ctx, env.Ctx, env.Client, fakeClock, recorder, sqsProvider, eventBridgeProvider, infraStartChan, env.Ctx.Done())

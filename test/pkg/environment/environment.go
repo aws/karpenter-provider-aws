@@ -20,10 +20,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aws/amazon-ec2-spot-interrupter/pkg/itn"
+	cfg "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/ssm"
+	"github.com/samber/lo"
 
 	// . "github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
@@ -49,6 +52,7 @@ type Environment struct {
 	EC2API            ec2.EC2
 	SSMAPI            ssm.SSM
 	IAMAPI            iam.IAM
+	InterruptionAPI   *itn.ITN
 	Monitor           *Monitor
 	StartingNodeCount int
 }
@@ -69,14 +73,15 @@ func NewEnvironment(t *testing.T) (*Environment, error) {
 	session := session.Must(session.NewSessionWithOptions(session.Options{SharedConfigState: session.SharedConfigEnable}))
 
 	return &Environment{Context: ctx,
-		ClusterName: clusterName,
-		Client:      client,
-		KubeClient:  kubernetes.NewForConfigOrDie(config),
-		EC2API:      *ec2.New(session),
-		SSMAPI:      *ssm.New(session),
-		IAMAPI:      *iam.New(session),
-		Region:      *session.Config.Region,
-		Monitor:     NewMonitor(ctx, client),
+		ClusterName:     clusterName,
+		Client:          client,
+		KubeClient:      kubernetes.NewForConfigOrDie(config),
+		EC2API:          *ec2.New(session),
+		SSMAPI:          *ssm.New(session),
+		IAMAPI:          *iam.New(session),
+		InterruptionAPI: itn.New(lo.Must(cfg.LoadDefaultConfig(ctx))),
+		Region:          *session.Config.Region,
+		Monitor:         NewMonitor(ctx, client),
 	}, nil
 }
 

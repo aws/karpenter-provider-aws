@@ -34,6 +34,8 @@ func (m *MockedFunction[I, O]) Reset() {
 	m.Output.Reset()
 	m.CalledWithInput.Reset()
 	m.Error.Reset()
+
+	m.defaultOutput.Reset()
 	m.successfulCalls.Store(0)
 	m.failedCalls.Store(0)
 }
