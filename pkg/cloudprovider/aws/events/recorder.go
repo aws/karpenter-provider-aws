@@ -42,8 +42,10 @@ type Recorder interface {
 	EC2SpotRebalanceRecommendation(*v1.Node)
 	// EC2HealthWarning is called when EC2 sends a health warning notification for a health issue for the node from the SQS queue
 	EC2HealthWarning(*v1.Node)
-	// EC2StateChange is called when EC2 sends a state change notification for a node that is changing to a stopping/terminating state
-	EC2StateChange(*v1.Node)
+	// EC2StateTerminating is called when EC2 sends a state change notification for a node that is changing to a terminating/shutting-down state
+	EC2StateTerminating(*v1.Node)
+	// EC2StateStopping is called when EC2 sends a state change notification for a node that is changing to a stopping/stopped state
+	EC2StateStopping(*v1.Node)
 	// TerminatingNodeOnNotification is called when a notification that is sent to the notification controller triggers node deletion
 	TerminatingNodeOnNotification(*v1.Node)
 	// InfrastructureUnhealthy event is called when infrastructure reconciliation errors and the controller enters an unhealthy state
@@ -74,8 +76,12 @@ func (r recorder) EC2HealthWarning(node *v1.Node) {
 	r.Eventf(node, "Normal", "EC2HealthWarning", "Node %s event: EC2 triggered a health warning for the node", node.Name)
 }
 
-func (r recorder) EC2StateChange(node *v1.Node) {
-	r.Eventf(node, "Normal", "EC2StateTerminating", `Node %s event: EC2 node is stopping or terminating"`, node.Name)
+func (r recorder) EC2StateTerminating(node *v1.Node) {
+	r.Eventf(node, "Normal", "EC2StateTerminating", `Node %s event: EC2 node is terminating"`, node.Name)
+}
+
+func (r recorder) EC2StateStopping(node *v1.Node) {
+	r.Eventf(node, "Normal", "EC2StateStopping", `Node %s event: EC2 node is stopping"`, node.Name)
 }
 
 func (r recorder) TerminatingNodeOnNotification(node *v1.Node) {

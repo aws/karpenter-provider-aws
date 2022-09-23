@@ -34,7 +34,9 @@ func (e *EventRecorder) EC2SpotRebalanceRecommendation(_ *v1.Node) {}
 
 func (e *EventRecorder) EC2HealthWarning(_ *v1.Node) {}
 
-func (e *EventRecorder) EC2StateChange(_ *v1.Node) {}
+func (e *EventRecorder) EC2StateTerminating(_ *v1.Node) {}
+
+func (e *EventRecorder) EC2StateStopping(_ *v1.Node) {}
 
 func (e *EventRecorder) TerminatingNodeOnNotification(_ *v1.Node) {}
 

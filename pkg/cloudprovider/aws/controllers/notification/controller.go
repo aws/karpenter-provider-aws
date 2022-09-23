@@ -36,6 +36,7 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/infrastructure"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/aggregatedparser"
+	statechangev0 "github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/statechange/v0"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/events"
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/metrics"
@@ -231,7 +232,13 @@ func (c *Controller) notifyForEvent(evt event.Interface, n *v1.Node) {
 		c.recorder.EC2SpotInterruptionWarning(n)
 
 	case event.Kinds.StateChange:
-		c.recorder.EC2StateChange(n)
+		typed := evt.(statechangev0.EC2InstanceStateChangeNotification)
+		if lo.Contains([]string{"stopping", "stopped"}, typed.State()) {
+			c.recorder.EC2StateStopping(n)
+		} else {
+			c.recorder.EC2StateTerminating(n)
+		}
+
 	default:
 	}
 }

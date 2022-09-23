@@ -65,7 +65,7 @@ var defaultOpts = options.Options{
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
 	RegisterFailHandler(Fail)
-	SetDefaultEventuallyTimeout(time.Second * 5)
+	SetDefaultEventuallyTimeout(time.Minute)
 	RunSpecs(t, "AWS Notification")
 }
 
@@ -174,13 +174,16 @@ var _ = Describe("Reconciliation", func() {
 		ExpectClosed(startChan)
 		Eventually(func(g Gomega) {
 			g.Expect(sqsapi.CreateQueueBehavior.FailedCalls()).To(Equal(1))
+			g.Expect(eventbridgeapi.PutRuleBehavior.SuccessfulCalls()).To(Equal(4))
+			g.Expect(eventbridgeapi.PutTargetsBehavior.SuccessfulCalls()).To(Equal(4))
+
 			g.Expect(IsClosed(controller.Ready())).To(BeFalse())
 		}).Should(Succeed())
 
-		// Backoff is 2 minutes, so we set the fake clock forward 3 minutes
+		// Backoff is 1 minute, so we set the fake clock forward 2 minutes
 		// Access denied has now been resolved
 		sqsapi.CreateQueueBehavior.Reset()
-		fakeClock.Step(time.Minute * 3)
+		fakeClock.Step(time.Minute * 2)
 
 		// Should reconcile again after failed access denied calls
 		Eventually(func(g Gomega) {

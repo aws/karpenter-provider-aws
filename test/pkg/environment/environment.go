@@ -25,7 +25,9 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/iam"
+	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/aws/aws-sdk-go/service/ssm"
+	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/samber/lo"
 
 	// . "github.com/onsi/ginkgo/v2"
@@ -39,22 +41,51 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter/pkg/apis"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws"
 	"github.com/aws/karpenter/pkg/utils/env"
+	"github.com/aws/karpenter/pkg/utils/injection"
+	"github.com/aws/karpenter/pkg/utils/options"
 	"github.com/aws/karpenter/pkg/utils/project"
 )
+
+type AWSEnvironment struct {
+	*Environment
+
+	Metadata *aws.Metadata
+	EC2API   ec2.EC2
+	SSMAPI   ssm.SSM
+	STSAPI   sts.STS
+	IAMAPI   iam.IAM
+
+	SQSProvider     *aws.SQSProvider
+	InterruptionAPI *itn.ITN
+}
 
 type Environment struct {
 	context.Context
 	ClusterName       string
-	Region            string
 	Client            client.Client
 	KubeClient        kubernetes.Interface
-	EC2API            ec2.EC2
-	SSMAPI            ssm.SSM
-	IAMAPI            iam.IAM
-	InterruptionAPI   *itn.ITN
 	Monitor           *Monitor
 	StartingNodeCount int
+}
+
+func NewAWSEnvironment(env *Environment, err error) (*AWSEnvironment, error) {
+	if err != nil {
+		return nil, err
+	}
+	session := session.Must(session.NewSessionWithOptions(session.Options{SharedConfigState: session.SharedConfigEnable}))
+	metadata := aws.NewMetadata(*session.Config.Region, aws.NewMetadataProvider(session).AccountID(env.Context))
+
+	return &AWSEnvironment{
+		Environment:     env,
+		Metadata:        metadata,
+		EC2API:          *ec2.New(session),
+		SSMAPI:          *ssm.New(session),
+		IAMAPI:          *iam.New(session),
+		InterruptionAPI: itn.New(lo.Must(cfg.LoadDefaultConfig(env.Context))),
+		SQSProvider:     aws.NewSQSProvider(env.Context, sqs.New(session), metadata),
+	}, nil
 }
 
 func NewEnvironment(t *testing.T) (*Environment, error) {
@@ -70,18 +101,17 @@ func NewEnvironment(t *testing.T) (*Environment, error) {
 	}
 	gomega.SetDefaultEventuallyTimeout(5 * time.Minute)
 	gomega.SetDefaultEventuallyPollingInterval(1 * time.Second)
-	session := session.Must(session.NewSessionWithOptions(session.Options{SharedConfigState: session.SharedConfigEnable}))
 
-	return &Environment{Context: ctx,
-		ClusterName:     clusterName,
-		Client:          client,
-		KubeClient:      kubernetes.NewForConfigOrDie(config),
-		EC2API:          *ec2.New(session),
-		SSMAPI:          *ssm.New(session),
-		IAMAPI:          *iam.New(session),
-		InterruptionAPI: itn.New(lo.Must(cfg.LoadDefaultConfig(ctx))),
-		Region:          *session.Config.Region,
-		Monitor:         NewMonitor(ctx, client),
+	opts := options.Options{
+		ClusterName: clusterName,
+	}
+	ctx = injection.WithOptions(ctx, opts)
+	return &Environment{
+		Context:     ctx,
+		ClusterName: clusterName,
+		Client:      client,
+		KubeClient:  kubernetes.NewForConfigOrDie(config),
+		Monitor:     NewMonitor(ctx, client),
 	}, nil
 }
 

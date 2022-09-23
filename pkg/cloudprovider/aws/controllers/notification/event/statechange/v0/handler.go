@@ -33,6 +33,10 @@ func (e EC2InstanceStateChangeNotification) EC2InstanceIDs() []string {
 	return []string{e.Detail.InstanceID}
 }
 
+func (e EC2InstanceStateChangeNotification) State() string {
+	return e.Detail.State
+}
+
 func (EC2InstanceStateChangeNotification) Kind() event.Kind {
 	return event.Kinds.StateChange
 }

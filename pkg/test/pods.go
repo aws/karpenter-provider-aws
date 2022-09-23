@@ -27,25 +27,26 @@ import (
 // PodOptions customizes a Pod.
 type PodOptions struct {
 	metav1.ObjectMeta
-	Image                     string
-	InitImage                 string
-	NodeName                  string
-	PriorityClassName         string
-	InitResourceRequirements  v1.ResourceRequirements
-	ResourceRequirements      v1.ResourceRequirements
-	NodeSelector              map[string]string
-	NodeRequirements          []v1.NodeSelectorRequirement
-	NodePreferences           []v1.NodeSelectorRequirement
-	PodRequirements           []v1.PodAffinityTerm
-	PodPreferences            []v1.WeightedPodAffinityTerm
-	PodAntiRequirements       []v1.PodAffinityTerm
-	PodAntiPreferences        []v1.WeightedPodAffinityTerm
-	TopologySpreadConstraints []v1.TopologySpreadConstraint
-	Tolerations               []v1.Toleration
-	PersistentVolumeClaims    []string
-	Conditions                []v1.PodCondition
-	Phase                     v1.PodPhase
-	RestartPolicy             v1.RestartPolicy
+	Image                         string
+	InitImage                     string
+	NodeName                      string
+	PriorityClassName             string
+	InitResourceRequirements      v1.ResourceRequirements
+	ResourceRequirements          v1.ResourceRequirements
+	NodeSelector                  map[string]string
+	NodeRequirements              []v1.NodeSelectorRequirement
+	NodePreferences               []v1.NodeSelectorRequirement
+	PodRequirements               []v1.PodAffinityTerm
+	PodPreferences                []v1.WeightedPodAffinityTerm
+	PodAntiRequirements           []v1.PodAffinityTerm
+	PodAntiPreferences            []v1.WeightedPodAffinityTerm
+	TopologySpreadConstraints     []v1.TopologySpreadConstraint
+	Tolerations                   []v1.Toleration
+	PersistentVolumeClaims        []string
+	Conditions                    []v1.PodCondition
+	Phase                         v1.PodPhase
+	RestartPolicy                 v1.RestartPolicy
+	TerminationGracePeriodSeconds *int64
 }
 
 type PDBOptions struct {
@@ -87,10 +88,11 @@ func Pod(overrides ...PodOptions) *v1.Pod {
 				Image:     options.Image,
 				Resources: options.ResourceRequirements,
 			}},
-			NodeName:          options.NodeName,
-			Volumes:           volumes,
-			PriorityClassName: options.PriorityClassName,
-			RestartPolicy:     options.RestartPolicy,
+			NodeName:                      options.NodeName,
+			Volumes:                       volumes,
+			PriorityClassName:             options.PriorityClassName,
+			RestartPolicy:                 options.RestartPolicy,
+			TerminationGracePeriodSeconds: options.TerminationGracePeriodSeconds,
 		},
 		Status: v1.PodStatus{
 			Conditions: options.Conditions,

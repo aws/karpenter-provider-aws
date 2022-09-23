@@ -81,7 +81,6 @@ var notificationStartChan chan struct{}
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
 	RegisterFailHandler(Fail)
-	SetDefaultEventuallyTimeout(time.Second * 5)
 	RunSpecs(t, "AWS Notification")
 }
 
@@ -248,17 +247,14 @@ var _ = Describe("Processing Messages", func() {
 })
 
 var _ = Describe("Error Handling", func() {
-	BeforeEach(func() {
-		// This ensures that the readiness gate is set to ready when we start the test
-		ExpectClosed(infraStartChan)
-	})
-
 	It("should send an error on polling when AccessDenied", func() {
+		ExpectClosed(infraStartChan)
 		sqsapi.ReceiveMessageBehavior.Error.Set(awsErrWithCode(aws.AccessDeniedCode), awsfake.MaxCalls(0))
 		Expect(controller.PollSQS(env.Ctx)).ToNot(Succeed())
 	})
-	It("should trigger a infrastructure reconciliation on SQS queue doesn't exist", func() {
+	It("should trigger an infrastructure reconciliation on an SQS queue when it doesn't exist", func() {
 		sqsapi.GetQueueURLBehavior.Error.Set(awsErrWithCode(sqs.ErrCodeQueueDoesNotExist), awsfake.MaxCalls(0)) // This mocks the queue not existing
+		ExpectClosed(infraStartChan)
 
 		// Infrastructure reconciliation loop has completed
 		Eventually(func(g Gomega) {
@@ -361,7 +357,7 @@ func stateChangeMessage(involvedInstanceID, state string) *sqs.Message {
 	}
 }
 
-// TODO: Update the scheudled change message to accurately reflect a real health event
+// TODO: Update the scheduled change message to accurately reflect a real health event
 func scheduledChangeMessage(involvedInstanceID string) *sqs.Message {
 	evt := scheduledchangev0.AWSEvent{
 		AWSMetadata: event.AWSMetadata{

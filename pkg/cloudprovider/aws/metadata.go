@@ -57,6 +57,13 @@ func NewMetadataProvider(sess *session.Session) *MetadataProvider {
 	}
 }
 
+func (i *MetadataProvider) Metadata(ctx context.Context) *Metadata {
+	return &Metadata{
+		region:    i.Region(ctx),
+		accountID: i.AccountID(ctx),
+	}
+}
+
 // Region gets the current region from EC2 IMDS
 func (i *MetadataProvider) Region(ctx context.Context) string {
 	region, err := i.imdsClient.RegionWithContext(ctx)

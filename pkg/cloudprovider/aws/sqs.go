@@ -97,7 +97,7 @@ func (s *SQSProvider) QueueName() string {
 func (s *SQSProvider) CreateQueue(ctx context.Context) error {
 	result, err := s.client.CreateQueueWithContext(ctx, s.createQueueInput)
 	if err != nil {
-		return fmt.Errorf("failed creating sqs queue, %w", err)
+		return fmt.Errorf("creating sqs queue, %w", err)
 	}
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -108,7 +108,7 @@ func (s *SQSProvider) CreateQueue(ctx context.Context) error {
 func (s *SQSProvider) SetQueueAttributes(ctx context.Context) error {
 	queueURL, err := s.DiscoverQueueURL(ctx, false)
 	if err != nil {
-		return fmt.Errorf("failed fetching queue url, %w", err)
+		return fmt.Errorf("fetching queue url, %w", err)
 	}
 
 	setQueueAttributesInput := &sqs.SetQueueAttributesInput{
@@ -117,7 +117,7 @@ func (s *SQSProvider) SetQueueAttributes(ctx context.Context) error {
 	}
 	_, err = s.client.SetQueueAttributesWithContext(ctx, setQueueAttributesInput)
 	if err != nil {
-		return fmt.Errorf("failed setting queue attributes, %w", err)
+		return fmt.Errorf("setting queue attributes, %w", err)
 	}
 	return nil
 }
@@ -137,7 +137,7 @@ func (s *SQSProvider) DiscoverQueueURL(ctx context.Context, ignoreCache bool) (s
 	}
 	result, err := s.client.GetQueueUrlWithContext(ctx, s.getQueueURLInput)
 	if err != nil {
-		return "", fmt.Errorf("failed fetching queue url, %w", err)
+		return "", fmt.Errorf("fetching queue url, %w", err)
 	}
 	s.queueURL = aws.StringValue(result.QueueUrl)
 	return aws.StringValue(result.QueueUrl), nil
@@ -146,22 +146,42 @@ func (s *SQSProvider) DiscoverQueueURL(ctx context.Context, ignoreCache bool) (s
 func (s *SQSProvider) GetSQSMessages(ctx context.Context) ([]*sqs.Message, error) {
 	queueURL, err := s.DiscoverQueueURL(ctx, false)
 	if err != nil {
-		return nil, fmt.Errorf("failed fetching queue url, %w", err)
+		return nil, fmt.Errorf("fetching queue url, %w", err)
 	}
 
 	// Copy the input template and add the discovered queue url
 	input, err := functional.DeepCopy(s.receiveMessageInput)
 	if err != nil {
-		return nil, fmt.Errorf("failed copying input, %w", err)
+		return nil, fmt.Errorf("copying input, %w", err)
 	}
 	input.QueueUrl = aws.String(queueURL)
 
 	result, err := s.client.ReceiveMessageWithContext(ctx, input)
 	if err != nil {
-		return nil, fmt.Errorf("failed receiving sqs messages, %w", err)
+		return nil, fmt.Errorf("receiving sqs messages, %w", err)
 	}
 
 	return result.Messages, nil
+}
+
+func (s *SQSProvider) SendMessage(ctx context.Context, body interface{}) (string, error) {
+	raw, err := json.Marshal(body)
+	if err != nil {
+		return "", fmt.Errorf("marshaling the passed body as json, %w", err)
+	}
+	queueURL, err := s.DiscoverQueueURL(ctx, false)
+	if err != nil {
+		return "", fmt.Errorf("fetching queue url, %w", err)
+	}
+	input := &sqs.SendMessageInput{
+		MessageBody: aws.String(string(raw)),
+		QueueUrl:    aws.String(queueURL),
+	}
+	result, err := s.client.SendMessage(input)
+	if err != nil {
+		return "", fmt.Errorf("sending messages to sqs queue, %w", err)
+	}
+	return aws.StringValue(result.MessageId), nil
 }
 
 func (s *SQSProvider) DeleteSQSMessage(ctx context.Context, msg *sqs.Message) error {
@@ -177,7 +197,7 @@ func (s *SQSProvider) DeleteSQSMessage(ctx context.Context, msg *sqs.Message) er
 
 	_, err = s.client.DeleteMessageWithContext(ctx, input)
 	if err != nil {
-		return fmt.Errorf("failed deleting messages from sqs queue, %w", err)
+		return fmt.Errorf("deleting messages from sqs queue, %w", err)
 	}
 	return nil
 }
@@ -188,7 +208,7 @@ func (s *SQSProvider) DeleteQueue(ctx context.Context) error {
 		if IsNotFound(err) {
 			return nil
 		}
-		return fmt.Errorf("failed fetching queue url, %w", err)
+		return fmt.Errorf("fetching queue url, %w", err)
 	}
 
 	input := &sqs.DeleteQueueInput{
@@ -196,7 +216,7 @@ func (s *SQSProvider) DeleteQueue(ctx context.Context) error {
 	}
 	_, err = s.client.DeleteQueueWithContext(ctx, input)
 	if err != nil && !IsNotFound(err) {
-		return fmt.Errorf("failed deleting sqs queue, %w", err)
+		return fmt.Errorf("deleting sqs queue, %w", err)
 	}
 	return nil
 }

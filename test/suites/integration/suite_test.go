@@ -23,13 +23,13 @@ import (
 	"github.com/aws/karpenter/test/pkg/environment"
 )
 
-var env *environment.Environment
+var env *environment.AWSEnvironment
 
 func TestIntegration(t *testing.T) {
 	RegisterFailHandler(Fail)
 	BeforeSuite(func() {
 		var err error
-		env, err = environment.NewEnvironment(t)
+		env, err = environment.NewAWSEnvironment(environment.NewEnvironment(t))
 		Expect(err).ToNot(HaveOccurred())
 	})
 	RunSpecs(t, "Integration")

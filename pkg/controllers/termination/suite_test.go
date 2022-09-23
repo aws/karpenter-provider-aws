@@ -574,13 +574,13 @@ var _ = Describe("Termination", func() {
 
 func ExpectNotEnqueuedForEviction(e *termination.EvictionQueue, pods ...*v1.Pod) {
 	for _, pod := range pods {
-		Expect(e.Contains(client.ObjectKeyFromObject(pod))).To(BeFalse())
+		ExpectWithOffset(1, e.Contains(client.ObjectKeyFromObject(pod))).To(BeFalse())
 	}
 }
 
 func ExpectEvicted(c client.Client, pods ...*v1.Pod) {
 	for _, pod := range pods {
-		Eventually(func() bool {
+		EventuallyWithOffset(1, func() bool {
 			return ExpectPodExists(ctx, c, pod.Name, pod.Namespace).GetDeletionTimestamp().IsZero()
 		}, ReconcilerPropagationTime, RequestInterval).Should(BeFalse(), func() string {
 			return fmt.Sprintf("expected %s/%s to be evicting, but it isn't", pod.Namespace, pod.Name)
@@ -589,9 +589,9 @@ func ExpectEvicted(c client.Client, pods ...*v1.Pod) {
 }
 
 func ExpectNodeDraining(c client.Client, nodeName string) *v1.Node {
-	node := ExpectNodeExists(ctx, c, nodeName)
-	Expect(node.Spec.Unschedulable).To(BeTrue())
-	Expect(lo.Contains(node.Finalizers, v1alpha5.TerminationFinalizer)).To(BeTrue())
-	Expect(node.DeletionTimestamp.IsZero()).To(BeFalse())
+	node := ExpectNodeExistsWithOffset(1, ctx, c, nodeName)
+	ExpectWithOffset(1, node.Spec.Unschedulable).To(BeTrue())
+	ExpectWithOffset(1, lo.Contains(node.Finalizers, v1alpha5.TerminationFinalizer)).To(BeTrue())
+	ExpectWithOffset(1, node.DeletionTimestamp.IsZero()).To(BeFalse())
 	return node
 }

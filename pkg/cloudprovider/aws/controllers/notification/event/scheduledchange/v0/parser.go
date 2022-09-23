@@ -18,8 +18,6 @@ import (
 	"context"
 	"encoding/json"
 
-	"knative.dev/pkg/logging"
-
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event"
 )
 
@@ -34,33 +32,18 @@ const (
 type Parser struct{}
 
 func (Parser) Parse(ctx context.Context, str string) event.Interface {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("scheduledChange.v0"))
-
 	evt := AWSHealthEvent{}
 	if err := json.Unmarshal([]byte(str), &evt); err != nil {
-		logging.FromContext(ctx).
-			With("error", err).
-			Error("failed to unmarshal AWS health event")
 		return nil
 	}
 
 	if evt.Source != source || evt.DetailType != detailType || evt.Version != version {
 		return nil
 	}
-
 	if evt.Detail.Service != acceptedService {
-		logging.FromContext(ctx).
-			With("eventDetails", evt).
-			With("acceptedService", acceptedService).
-			Debug("ignoring AWS health event")
 		return nil
 	}
-
 	if evt.Detail.EventTypeCategory != acceptedEventTypeCategory {
-		logging.FromContext(ctx).
-			With("eventDetails", evt).
-			With("acceptedEventTypeCategory", acceptedEventTypeCategory).
-			Debug("ignoring AWS health event")
 		return nil
 	}
 	return evt
