@@ -124,6 +124,9 @@ release-gen: docgen ## Generate any materials which should be updated prior to r
 release: release-gen ## Generate release manifests and publish a versioned container image.
 	$(WITH_GOFLAGS) ./hack/release.sh
 
+stable-release-pr: ## Generate PR for stable release
+	$(WITH_GOFLAGS) ./hack/stable-release-pr.sh
+
 nightly: ## Tag the latest snapshot release with timestamp
 	./hack/add-snapshot-tag.sh $(shell git rev-parse HEAD) $(shell date +"%Y%m%d") "nightly"
 

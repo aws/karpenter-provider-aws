@@ -21,10 +21,4 @@ jobs:
           branch: gh-pages
           folder: charts
           target-folder: charts
-      - run: |
-          mkdir -p ./version
-          echo $VERSION > ./version/stable_version
-      - uses: actions/upload-artifact@v3
-        with:
-          name: stable_version
-          path: version/
+
