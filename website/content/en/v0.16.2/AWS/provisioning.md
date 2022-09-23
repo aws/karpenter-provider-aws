@@ -206,13 +206,13 @@ spec:
 
 ### Block Device Mappings
 
-The `blockDeviceMappings` field in a Provisioner can be used to control the Elastic Block Storage (EBS) volumes that Karpenter attaches to provisioned nodes. Karpenter uses default block device mappings for the AMI Family specified. For example, the `Bottlerocket` AMI Family defaults with two block device mappings, one for Bottlerocket's control volume and the other for container resources such as images and logs.
+The `blockDeviceMappings` field in an AWSNodeTemplate can be used to control the Elastic Block Storage (EBS) volumes that Karpenter attaches to provisioned nodes. Karpenter uses default block device mappings for the AMI Family specified. For example, the `Bottlerocket` AMI Family defaults with two block device mappings, one for Bottlerocket's control volume and the other for container resources such as images and logs.
 
 Learn more about [block device mappings](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/block-device-mapping-concepts.html).
 
-Note: If a custom launch template is specified, then the `BlockDeviceMappings` field in the launch template is used rather than the provisioner's `blockDeviceMappings`.
-
 ```
+apiVersion: karpenter.k8s.aws/v1alpha1
+kind: AWSNodeTemplate
 spec:
   blockDeviceMappings:
     - deviceName: /dev/xvda

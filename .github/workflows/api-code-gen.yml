@@ -2,7 +2,7 @@ name: "APICodeGen"
 
 on:
   schedule:
-    - cron: '0 * * * *'
+    - cron: '0 13 * * MON'
 
 permissions:
   id-token: write
