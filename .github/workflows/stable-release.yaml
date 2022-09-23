@@ -35,8 +35,8 @@ jobs:
           role-to-assume: arn:aws:iam::339104714817:role/Github
           aws-region: us-east-1
       - run: |
-          make release
           make toolchain
+          make release
           make stablerelease
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
