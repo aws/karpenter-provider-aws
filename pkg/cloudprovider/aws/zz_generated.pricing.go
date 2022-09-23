@@ -225,6 +225,7 @@ var initialOnDemandPrices = map[string]float64{
 	"r5dn.4xlarge": 1.336000, "r5dn.8xlarge": 2.672000, "r5dn.large": 0.167000, "r5dn.metal": 8.016000,
 	"r5dn.xlarge": 0.334000,
 	// r5n family
+	// TODO: Remove to not cause a diff when testing
 	"r5n.12xlarge": 3.576000, "r5n.16xlarge": 4.768000, "r5n.24xlarge": 7.152000, "r5n.2xlarge": 0.596000,
 	"r5n.4xlarge": 1.192000, "r5n.8xlarge": 2.384000, "r5n.large": 0.149000, "r5n.metal": 7.152000,
 	"r5n.xlarge": 0.298000,
