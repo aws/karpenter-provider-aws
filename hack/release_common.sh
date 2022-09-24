@@ -35,6 +35,15 @@ buildImages() {
     yq e -i ".version = \"${HELM_CHART_VERSION#v}\"" charts/karpenter/Chart.yaml
 }
 
+notifyIfStableRelease() {
+  COMMIT_TAG=$(git describe --tags --exact-match || echo "none")
+  if [[ "${COMMIT_TAG}" == "none" || "${COMMIT_TAG}" != v* ]]; then
+    echo "Not sending a stable release message since no valid stable tag releases found in tags of this commit: '${COMMIT_TAG}'"
+    return
+  fi
+  notifyRelease "stable" $COMMIT_TAG
+}
+
 cosignImages() {
     COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_FLAGS} ${CONTROLLER_DIGEST}
     COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_FLAGS} ${WEBHOOK_DIGEST}
@@ -58,4 +67,14 @@ pullPrivateReplica(){
 
   docker pull "${PULL_THROUGH_CACHE_PATH}controller:${RELEASE_IDENTIFIER}"
   docker pull "${PULL_THROUGH_CACHE_PATH}webhook:${RELEASE_IDENTIFIER}"
+}
+
+publishHelmChart() {
+    HELM_CHART_FILE_NAME="karpenter-${HELM_CHART_VERSION}.tgz"
+
+    cd charts
+    helm lint karpenter
+    helm package karpenter --version $HELM_CHART_VERSION
+    helm push "${HELM_CHART_FILE_NAME}" "oci://${RELEASE_REPO}"
+    rm "${HELM_CHART_FILE_NAME}"
 }

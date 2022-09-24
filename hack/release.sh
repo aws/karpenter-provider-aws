@@ -1,21 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SNAPSHOT_TAG=$(git describe --tags --always)
+SNAPSHOT_TAG=$(git describe --tags --exact-match)
 RELEASE_REPO=${RELEASE_REPO:-public.ecr.aws/d1w0j9s0}
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 source "${SCRIPT_DIR}/release_common.sh"
 
-chart() {
-    (
-        cd charts
-        helm lint karpenter
-        helm package karpenter
-        helm repo index .
-        helm-docs
-    )
-}
+env
 
 website() {
     mkdir -p website/content/en/${RELEASE_VERSION} && cp -r website/content/en/preview/* website/content/en/${RELEASE_VERSION}/
@@ -54,8 +46,9 @@ editWebsiteVersionsMenu() {
 }
 
 authenticate
+echo "Building images for version ${RELEASE_VERSION}"
 buildImages $RELEASE_VERSION
 cosignImages
-chart
+publishHelmChart
 website
 editWebsiteConfig
