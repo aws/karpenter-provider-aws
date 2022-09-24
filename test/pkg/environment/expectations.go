@@ -306,6 +306,10 @@ func (env *Environment) ExpectUpdate(objects ...client.Object) {
 	}
 }
 
+func (env *Environment) ExpectFound(obj client.Object) {
+	ExpectWithOffset(1, env.Client.Get(env, client.ObjectKeyFromObject(obj), obj)).To(Succeed())
+}
+
 func (env *Environment) EventuallyExpectHealthy(pods ...*v1.Pod) {
 	for _, pod := range pods {
 		EventuallyWithOffset(1, func(g Gomega) {
