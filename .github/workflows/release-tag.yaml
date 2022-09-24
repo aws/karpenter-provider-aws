@@ -2,23 +2,10 @@ name: ReleaseTag
 
 on:
   push:
-    tags: ['v*']
+    tags: ['^v([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+)?$']
 
 jobs:
   release-tag:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: "marvinpinto/action-automatic-releases@latest"
-        if: github.repository == 'aws/karpenter'
-        with:
-          repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          prerelease: false
-      - name: Deploy Helm Charts to GH Pages
-        if: github.repository == 'aws/karpenter'
-        uses: JamesIves/github-pages-deploy-action@v4.2.3
-        with:
-          branch: gh-pages
-          folder: charts
-          target-folder: charts
-
