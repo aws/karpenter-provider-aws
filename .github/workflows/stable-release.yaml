@@ -3,8 +3,8 @@ name: StableRelease
 on:
   workflow_run:
     workflows: [ReleaseTag]
-    types:
-      - completed
+    branches: [main]
+    types: [completed]
 
 permissions:
   id-token: write
