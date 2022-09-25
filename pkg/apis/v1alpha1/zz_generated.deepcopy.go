@@ -233,6 +233,11 @@ func (in *BlockDeviceMapping) DeepCopyInto(out *BlockDeviceMapping) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.VirtualName != nil {
+		in, out := &in.VirtualName, &out.VirtualName
+		*out = new(string)
+		**out = **in
+	}
 	if in.EBS != nil {
 		in, out := &in.EBS, &out.EBS
 		*out = new(BlockDevice)

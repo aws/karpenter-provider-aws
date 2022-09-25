@@ -222,7 +222,8 @@ func (p *LaunchTemplateProvider) blockDeviceMappings(blockDeviceMappings []*v1al
 	blockDeviceMappingsRequest := []*ec2.LaunchTemplateBlockDeviceMappingRequest{}
 	for _, blockDeviceMapping := range blockDeviceMappings {
 		blockDeviceMappingsRequest = append(blockDeviceMappingsRequest, &ec2.LaunchTemplateBlockDeviceMappingRequest{
-			DeviceName: blockDeviceMapping.DeviceName,
+			DeviceName:  blockDeviceMapping.DeviceName,
+			VirtualName: blockDeviceMapping.VirtualName,
 			Ebs: &ec2.LaunchTemplateEbsBlockDeviceRequest{
 				DeleteOnTermination: blockDeviceMapping.EBS.DeleteOnTermination,
 				Encrypted:           blockDeviceMapping.EBS.Encrypted,

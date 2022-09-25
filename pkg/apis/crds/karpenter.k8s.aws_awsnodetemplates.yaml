@@ -121,6 +121,10 @@ spec:
                             in the Amazon Elastic Compute Cloud User Guide.
                           type: string
                       type: object
+                    virtualName:
+                      description: The device name for instance store volumes (for
+                        example, ephermal1)
+                      type: string
                   type: object
                 type: array
               context:
