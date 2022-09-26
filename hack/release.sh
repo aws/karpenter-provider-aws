@@ -4,12 +4,14 @@ set -euo pipefail
 echo "running release2"
 
 SNAPSHOT_TAG=$(git describe --tags --exact-match)
+echo "running release3"
 RELEASE_REPO=${RELEASE_REPO:-public.ecr.aws/d1w0j9s0}
+echo "running release4"
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
+echo "running release5"
 source "${SCRIPT_DIR}/release_common.sh"
-
-echo "running release3"
+echo "running release6"
 env
 
 website() {

@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+echo "running release7"
+
 CURRENT_MAJOR_VERSION="0"
 PRIVATE_PULL_THROUGH_HOST="339104714817.dkr.ecr.us-east-1.amazonaws.com"
 HELM_CHART_VERSION="v${CURRENT_MAJOR_VERSION}-${SNAPSHOT_TAG}"
 RELEASE_VERSION=${RELEASE_VERSION:-"${SNAPSHOT_TAG}"}
 RELEASE_PLATFORM="--platform=linux/amd64,linux/arm64"
+
+echo "running release8"
 
 # TODO restore https://reproducible-builds.org/docs/source-date-epoch/
 DATE_FMT="+%Y-%m-%dT%H:%M:%SZ"
@@ -15,9 +19,11 @@ else
     BUILD_DATE=$(date -u -d "${SOURCE_DATE_EPOCH}" "${DATE_FMT}" 2>/dev/null || date -u -r "${SOURCE_DATE_EPOCH}" "$(DATE_FMT)" 2>/dev/null || date -u "$(DATE_FMT)")
 fi
 
+echo "running release9"
+
 COSIGN_FLAGS="-a GIT_HASH=$(git rev-parse HEAD) -a GIT_VERSION=${RELEASE_VERSION} -a BUILD_DATE=${BUILD_DATE}"
 
-echo "running release4"
+echo "running release10"
 
 authenticate() {
     aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${RELEASE_REPO}
