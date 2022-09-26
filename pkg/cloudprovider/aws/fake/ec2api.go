@@ -31,6 +31,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/test"
+	"github.com/aws/karpenter/pkg/utils/atomic"
 )
 
 type CapacityPool struct {
@@ -57,7 +58,7 @@ type EC2Behavior struct {
 	CalledWithDescribeImagesInput       AtomicPtrSlice[ec2.DescribeImagesInput]
 	Instances                           sync.Map
 	LaunchTemplates                     sync.Map
-	InsufficientCapacityPools           AtomicSlice[CapacityPool]
+	InsufficientCapacityPools           atomic.Slice[CapacityPool]
 	NextError                           AtomicError
 }
 
