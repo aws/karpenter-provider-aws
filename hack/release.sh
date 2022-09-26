@@ -2,7 +2,8 @@
 set -euo pipefail
 
 echo "running release2"
-
+git describe --tags --always
+git log
 SNAPSHOT_TAG=$(git describe --tags --exact-match)
 echo "running release3"
 RELEASE_REPO=${RELEASE_REPO:-public.ecr.aws/d1w0j9s0}
