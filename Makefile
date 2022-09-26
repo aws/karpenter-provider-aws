@@ -122,6 +122,7 @@ release-gen: docgen ## Generate any materials which should be updated prior to r
 	golangci-lint run
 
 release: release-gen ## Generate release manifests and publish a versioned container image.
+	echo "running release"
 	$(WITH_GOFLAGS) ./hack/release.sh
 
 stable-release-pr: ## Generate PR for stable release

@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+echo "running release2"
+
 SNAPSHOT_TAG=$(git describe --tags --exact-match)
 RELEASE_REPO=${RELEASE_REPO:-public.ecr.aws/d1w0j9s0}
 
