@@ -33,7 +33,7 @@ jobs:
         with:
           role-to-assume: arn:aws:iam::339104714817:role/Github
           aws-region: us-east-1
-      - run: git log
+      - run: git log -n 5
       - run: git describe --tags --always
       - run: git describe --tags --exact-match
       - run: make toolchain

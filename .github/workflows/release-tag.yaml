@@ -9,4 +9,5 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - run: git log -n 5
       - run: git describe --tags --exact-match
