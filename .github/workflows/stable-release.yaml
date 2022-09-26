@@ -3,7 +3,6 @@ name: StableRelease
 on:
   workflow_run:
     workflows: [ReleaseTag]
-    branches: [main]
     types: [completed]
 
 permissions:
