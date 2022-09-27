@@ -19,8 +19,6 @@ import (
 	"encoding/json"
 	"log"
 	"sync"
-
-	set "github.com/deckarep/golang-set"
 )
 
 // AtomicPtr is intended for use in mocks to easily expose variables for use in testing.  It makes setting and retrieving
@@ -130,47 +128,4 @@ func (a *AtomicPtrSlice[T]) Pop() *T {
 	last := a.values[len(a.values)-1]
 	a.values = a.values[0 : len(a.values)-1]
 	return last
-}
-
-// AtomicSlice exposes a slice of a type in a race-free manner.
-type AtomicSlice[T any] struct {
-	mu     sync.Mutex
-	values []T
-}
-
-func (a *AtomicSlice[T]) Reset() {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	a.values = nil
-}
-
-func (a *AtomicSlice[T]) Add(input T) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	a.values = append(a.values, input)
-
-	b := set.NewSet()
-	b.Cardinality()
-}
-
-func (a *AtomicSlice[T]) Range(f func(pool T) bool) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	for _, v := range a.values {
-		if !f(v) {
-			return
-		}
-	}
-}
-
-func (a *AtomicSlice[T]) Set(values []T) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	a.values = values
-}
-
-func (a *AtomicSlice[T]) Len() int {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	return len(a.values)
 }

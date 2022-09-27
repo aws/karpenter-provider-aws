@@ -22,12 +22,14 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/clock"
 	"knative.dev/pkg/logging"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -45,6 +47,7 @@ const controllerName = "node"
 func NewController(clk clock.Clock, kubeClient client.Client, cloudProvider cloudprovider.CloudProvider, cluster *state.Cluster) *Controller {
 	return &Controller{
 		kubeClient:     kubeClient,
+		cluster:        cluster,
 		initialization: &Initialization{kubeClient: kubeClient, cloudProvider: cloudProvider},
 		emptiness:      &Emptiness{kubeClient: kubeClient, clock: clk, cluster: cluster},
 		expiration:     &Expiration{kubeClient: kubeClient, clock: clk},
@@ -55,6 +58,7 @@ func NewController(clk clock.Clock, kubeClient client.Client, cloudProvider clou
 // taints, labels, finalizers.
 type Controller struct {
 	kubeClient     client.Client
+	cluster        *state.Cluster
 	initialization *Initialization
 	emptiness      *Emptiness
 	expiration     *Expiration
@@ -119,6 +123,14 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 }
 
 func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
+	// Enqueues a reconcile request when nominated node expiration is triggered
+	ch := make(chan event.GenericEvent, 300)
+	c.cluster.AddNominatedNodeEvictionObserver(func(nodeName string) {
+		ch <- event.GenericEvent{Object: &v1.Node{
+			ObjectMeta: metav1.ObjectMeta{Name: nodeName},
+		}}
+	})
+
 	return controllerruntime.
 		NewControllerManagedBy(m).
 		Named(controllerName).
@@ -148,6 +160,7 @@ func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
 				return requests
 			}),
 		).
+		Watches(&source.Channel{Source: ch}, &handler.EnqueueRequestForObject{}).
 		WithOptions(controller.Options{MaxConcurrentReconciles: 10}).
 		Complete(c)
 }

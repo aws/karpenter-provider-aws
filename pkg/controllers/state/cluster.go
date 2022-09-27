@@ -39,9 +39,12 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/config"
 	"github.com/aws/karpenter/pkg/scheduling"
+	atomicutils "github.com/aws/karpenter/pkg/utils/atomic"
 	podutils "github.com/aws/karpenter/pkg/utils/pod"
 	"github.com/aws/karpenter/pkg/utils/resources"
 )
+
+type observerFunc func(string)
 
 // Cluster maintains cluster state that is often needed but expensive to compute.
 type Cluster struct {
@@ -52,7 +55,8 @@ type Cluster struct {
 	// Pod Specific Tracking
 	antiAffinityPods sync.Map // mapping of pod namespaced name to *v1.Pod of pods that have required anti affinities
 
-	nominatedNodes *cache.Cache
+	nominatedNodes         *cache.Cache
+	nominatedNodeObservers atomicutils.Slice[observerFunc]
 
 	// Node Status & Pod -> Node Binding
 	mu       sync.RWMutex
@@ -84,6 +88,7 @@ func NewCluster(clk clock.Clock, cfg config.Config, client client.Client, cp clo
 		nodes:          map[string]*Node{},
 		bindings:       map[types.NamespacedName]string{},
 	}
+	c.nominatedNodes.OnEvicted(c.onNominatedNodeEviction)
 	return c
 }
 
@@ -179,6 +184,27 @@ func (c *Cluster) IsNodeNominated(nodeName string) bool {
 // NominateNodeForPod records that a node was the target of a pending pod during a scheduling batch
 func (c *Cluster) NominateNodeForPod(nodeName string) {
 	c.nominatedNodes.SetDefault(nodeName, nil)
+}
+
+// AddNominatedNodeEvictionObserver adds an observer function to be called when any cache entry from the
+// nominatedNodes cache expires
+func (c *Cluster) AddNominatedNodeEvictionObserver(f observerFunc) {
+	c.nominatedNodeObservers.Add(f)
+}
+
+// onNominatedNodeEviction is registered as the function called when a nominatedNode cache
+// entry expires. It will alert all registered observer functions by calling the registered function
+func (c *Cluster) onNominatedNodeEviction(key string, _ interface{}) {
+	wg := &sync.WaitGroup{}
+	c.nominatedNodeObservers.Range(func(observer observerFunc) bool {
+		wg.Add(1)
+		go func(f observerFunc) {
+			defer wg.Done()
+			f(key)
+		}(observer)
+		return true
+	})
+	wg.Wait()
 }
 
 // UnmarkForDeletion removes the marking on the node as a node the controller intends to delete
