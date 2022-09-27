@@ -1,6 +1,6 @@
 export K8S_VERSION ?= 1.23.x
 export KUBEBUILDER_ASSETS ?= ${HOME}/.kubebuilder/bin
-export CLUSTER_NAME ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].name}' | rev | cut -d"/" -f1 | rev | cut -d"." -f1)
+CLUSTER_NAME ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].name}' | rev | cut -d"/" -f1 | rev | cut -d"." -f1)
 
 ## Inject the app version into project.Version
 LDFLAGS ?= -ldflags=-X=github.com/aws/karpenter/pkg/utils/project.Version=$(shell git describe --tags --always)

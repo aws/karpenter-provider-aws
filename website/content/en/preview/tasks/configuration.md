@@ -6,7 +6,7 @@ description: >
   Configure Karpenter
 ---
 
-There are two main configuration mechanisms that can be used to configure Karpenter: Environment Variables / CLI parameters to the controller and webhook binaries and the `karpenter-global-settings` config-map. 
+There are two main configuration mechanisms that can be used to configure Karpenter: Environment Variables / CLI parameters to the controller and webhook binaries and the `karpenter-global-settings` config-map.
 
 ## Environment Variables / CLI Flags
 
@@ -20,7 +20,7 @@ There are two main configuration mechanisms that can be used to configure Karpen
 | AWS_ISOLATED_VPC | \-\-aws-isolated-vpc | If true then assume we can't reach AWS services which don't have a VPC endpoint (default = false)|
 | AWS_NODE_NAME_CONVENTION | \-\-aws-node-name-convention | The node naming convention used by the AWS cloud provider. DEPRECATION WARNING: this field may be deprecated at any time (default = ip-name)|
 | CLUSTER_ENDPOINT | \-\-cluster-endpoint | The external kubernetes cluster endpoint for new nodes to connect with|
-| CLUSTER_NAME | \-\-cluster-name | The kubernetes cluster name for resource discovery (default = release-cluster)|
+| CLUSTER_NAME | \-\-cluster-name | The kubernetes cluster name for resource discovery|
 | ENABLE_PROFILING | \-\-enable-profiling | Enable the profiling on the metric endpoint (default = false)|
 | HEALTH_PROBE_PORT | \-\-health-probe-port | The port the health probe endpoint binds to for reporting controller health (default = 8081)|
 | KUBE_CLIENT_BURST | \-\-kube-client-burst | The maximum allowed burst of queries to the kube-apiserver (default = 300)|
@@ -57,13 +57,12 @@ For a standard deployment scale-up, the pods arrive at the QPS setting of the `k
 
 #### `batchIdleDuration`
 
-The `batchIdleDuration` is the period of time that a new pending pod extends the current batching window. This can be increased to handle scenarios where pods arrive slower than one second part, but it would be preferable if they were batched together onto a single larger node.   
+The `batchIdleDuration` is the period of time that a new pending pod extends the current batching window. This can be increased to handle scenarios where pods arrive slower than one second part, but it would be preferable if they were batched together onto a single larger node.
 
 This value is expressed as a string value like `10s`, `1m` or `2h45m`. The valid time units are `ns`, `us` (or `µs`), `ms`, `s`, `m`, `h`.
 
 #### `batchMaxDuration`
 
-The `batchMaxDuration` is the maximum period of time a batching window can be extended to. Increasing this value will allow the maximum batch window size to increase to collect more pending pods into a single batch at the expense of a longer delay from when the first pending pod was created. 
+The `batchMaxDuration` is the maximum period of time a batching window can be extended to. Increasing this value will allow the maximum batch window size to increase to collect more pending pods into a single batch at the expense of a longer delay from when the first pending pod was created.
 
 This value is expressed as a string value like `10s`, `1m` or `2h45m`. The valid time units are `ns`, `us` (or `µs`), `ms`, `s`, `m`, `h`.
-
