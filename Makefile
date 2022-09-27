@@ -1,6 +1,6 @@
 export K8S_VERSION ?= 1.23.x
 export KUBEBUILDER_ASSETS ?= ${HOME}/.kubebuilder/bin
-export CLUSTER_NAME ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].name}' | rev | cut -d"/" -f1 | rev | cut -d"." -f1)
+CLUSTER_NAME ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].name}' | rev | cut -d"/" -f1 | rev | cut -d"." -f1)
 
 ## Inject the app version into project.Version
 LDFLAGS ?= -ldflags=-X=github.com/aws/karpenter/pkg/utils/project.Version=$(shell git describe --tags --always)
@@ -50,7 +50,7 @@ battletest: ## Run randomized, racing, code coveraged, tests
 
 e2etests: ## Run the e2e suite against your local cluster
 	go clean -testcache
-	go test -p 1 -timeout 180m -v ./test/suites/... -run=${TEST_FILTER}
+	CLUSTER_NAME=${CLUSTER_NAME} go test -p 1 -timeout 180m -v ./test/suites/... -run=${TEST_FILTER}
 
 benchmark:
 	go test -tags=test_performance -run=NoTests -bench=. ./...
@@ -79,7 +79,7 @@ licenses: ## Verifies dependency licenses
 	! go-licenses csv ./... | grep -v -e 'MIT' -e 'Apache-2.0' -e 'BSD-3-Clause' -e 'BSD-2-Clause' -e 'ISC' -e 'MPL-2.0'
 
 setup: ## Sets up the IAM roles needed prior to deploying the karpenter-controller. This command only needs to be run once
-	./$(GETTING_STARTED_SCRIPT_DIR)/add-roles.sh $(KARPENTER_VERSION)
+	CLUSTER_NAME=${CLUSTER_NAME} ./$(GETTING_STARTED_SCRIPT_DIR)/add-roles.sh $(KARPENTER_VERSION)
 
 build: ## Build the Karpenter controller and webhook images using ko build
 	$(eval CONTROLLER_IMG=$(shell $(WITH_GOFLAGS) ko build -B github.com/aws/karpenter/cmd/controller))
