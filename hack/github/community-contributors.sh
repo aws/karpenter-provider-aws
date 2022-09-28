@@ -65,7 +65,8 @@ COMMUNITY_CONTRIBUTIONS=$(
         .author != "njtran" and
         .author != "dewjam" and
         .author != "suket22" and
-        .author != "dependabot[bot]"
+        .author != "dependabot[bot]" and
+        .author != "github-actions[bot]"
     )
 ' | jq -s
 )
