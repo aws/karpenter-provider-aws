@@ -32,7 +32,7 @@ func (NoOp) EC2InstanceIDs() []string {
 }
 
 func (NoOp) Kind() Kind {
-	return Kinds.Noop
+	return Kinds.NoOp
 }
 
 func (n NoOp) MarshalLogObject(enc zapcore.ObjectEncoder) error {

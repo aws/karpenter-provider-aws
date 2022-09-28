@@ -247,7 +247,10 @@ func (p *InstanceTypeProvider) CacheUnavailable(ctx context.Context, fleetErr *e
 		zone,
 		capacityType,
 		UnfulfillableCapacityErrorCacheTTL)
-	// even if the key is already in the cache, we still need to call Set to extend the cached entry's TTL
+	p.MarkOfferingUnavailable(instanceType, zone, capacityType)
+}
+
+func (p *InstanceTypeProvider) MarkOfferingUnavailable(instanceType, zone, capacityType string) {
 	p.unavailableOfferings.SetDefault(UnavailableOfferingsCacheKey(instanceType, zone, capacityType), struct{}{})
 }
 

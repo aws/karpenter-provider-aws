@@ -85,6 +85,7 @@ Resources:
               - sqs:ReceiveMessage
           - Effect: Allow
             Resource: !Sub "arn:${AWS::Partition}:events:${AWS::Region}:${AWS::AccountId}:rule/Karpenter-${ClusterName}-*"
+            Action:
               - events:PutRule
               - events:PutTargets
               - events:TagResource

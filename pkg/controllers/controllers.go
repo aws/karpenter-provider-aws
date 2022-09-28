@@ -114,17 +114,6 @@ func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options)
 	ctx = newRunnableContext(controllerRuntimeConfig, opts, logging.FromContext(ctx))()
 	ctx, cancel := context.WithCancel(ctx)
 
-	// Setup the cleanup logic for teardown on SIGINT or SIGTERM
-	cleanup := make(chan struct{}) // This is a channel to broadcast to controllers cleanup can start
-	go func() {
-		sigs := make(chan os.Signal, 1)
-		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-		<-sigs
-		logging.FromContext(context.Background()).Infof("Got a signal to react to")
-		close(cleanup)
-		cancel()
-	}()
-
 	logging.FromContext(ctx).Infof("Initializing with version %s", project.Version)
 
 	if opts.MemoryLimit > 0 {
@@ -143,6 +132,7 @@ func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options)
 		HealthProbeBindAddress:     fmt.Sprintf(":%d", opts.HealthProbePort),
 		BaseContext:                newRunnableContext(controllerRuntimeConfig, opts, logging.FromContext(ctx)),
 	})
+	cleanupAsync := make(chan struct{}) // This is a channel to broadcast to controllers cleanup can start
 
 	if opts.EnableProfiling {
 		utilruntime.Must(registerPprof(manager))
@@ -151,7 +141,7 @@ func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options)
 		ClientSet:    clientSet,
 		KubeClient:   manager.GetClient(),
 		StartAsync:   manager.Elected(),
-		CleanupAsync: cleanup,
+		CleanupAsync: cleanupAsync,
 	})
 	if hp, ok := cloudProvider.(HealthCheck); ok {
 		utilruntime.Must(manager.AddHealthzCheck("cloud-provider", hp.LivenessProbe))
@@ -185,13 +175,14 @@ func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options)
 		KubeClient:   manager.GetClient(),
 		Recorder:     recorder,
 		StartAsync:   manager.Elected(),
-		CleanupAsync: cleanup,
+		CleanupAsync: cleanupAsync,
 		Clock:        realClock,
 	}
-	done := injectControllers(ctx, controllerOptions)
+	cleanupDone := injectControllers(ctx, controllerOptions)
 
 	metricsstate.StartMetricScraper(ctx, cluster)
 
+	StartCleanupWatcher(ctx, cancel, manager.Elected(), cleanupAsync, cleanupDone)
 	if err := RegisterControllers(ctx,
 		manager,
 		provisioning.NewController(manager.GetClient(), provisioner, recorder),
@@ -206,7 +197,6 @@ func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options)
 	).Start(ctx); err != nil {
 		panic(fmt.Sprintf("Unable to start manager, %s", err))
 	}
-	<-done
 }
 
 // NewManagerOrDie instantiates a controller manager or panics
@@ -245,6 +235,28 @@ func RegisterControllers(ctx context.Context, m manager.Manager, controllers ...
 		panic(fmt.Sprintf("Failed to add ready probe, %s", err))
 	}
 	return m
+}
+
+// StartCleanupWatcher monitors the signal channel for termination, closes the cleanupAsync channel when
+// there is a signal for pod termination, waits for the cleanup operation to complete, and then cancels all contexts
+// Only the leader will perform the cleanup operation
+func StartCleanupWatcher(ctx context.Context, cancel context.CancelFunc, elected <-chan struct{},
+	cleanupAsync chan<- struct{}, cleanupDone ...<-chan struct{}) {
+	go func() {
+		sigs := make(chan os.Signal, 1)
+		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+		select {
+		case <-elected:
+			<-sigs
+			logging.FromContext(ctx).Infof("Initiating cleanup processes")
+			close(cleanupAsync)
+			for _, c := range cleanupDone {
+				<-c
+			}
+		case <-sigs:
+		}
+		cancel()
+	}()
 }
 
 func registerPprof(manager manager.Manager) error {

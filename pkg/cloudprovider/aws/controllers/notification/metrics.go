@@ -29,7 +29,7 @@ const (
 )
 
 var (
-	reconcileDuration = prometheus.NewHistogramVec(
+	reconcileDuration = prometheus.NewHistogram(
 		prometheus.HistogramOpts{
 			Namespace: metrics.Namespace,
 			Subsystem: subSystem,
@@ -37,7 +37,6 @@ var (
 			Help:      "Duration of notification reconciliation process in seconds.",
 			Buckets:   metrics.DurationBuckets(),
 		},
-		[]string{},
 	)
 	receivedMessages = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
@@ -48,26 +47,25 @@ var (
 		},
 		[]string{messageTypeLabel, actionableTypeLabel},
 	)
-	deletedMessages = prometheus.NewCounterVec(
+	deletedMessages = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Namespace: metrics.Namespace,
 			Subsystem: subSystem,
 			Name:      "deleted_messages",
 			Help:      "Count of messages deleted from the SQS queue.",
 		},
-		[]string{},
 	)
-	actionsTaken = prometheus.NewCounterVec(
+	actionsPerformed = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metrics.Namespace,
 			Subsystem: subSystem,
-			Name:      "actions_taken",
-			Help:      "Count of actions taken based on notifications from the SQS queue. Broken down by action type",
+			Name:      "actions_performed",
+			Help:      "Number of notification actions performed. Labeled by action",
 		},
 		[]string{actionTypeLabel},
 	)
 )
 
 func init() {
-	crmetrics.Registry.MustRegister(reconcileDuration, receivedMessages, deletedMessages, actionsTaken)
+	crmetrics.Registry.MustRegister(reconcileDuration, receivedMessages, deletedMessages, actionsPerformed)
 }

@@ -24,6 +24,7 @@ import (
 
 	awssdk "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/awstesting/mock"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -32,25 +33,29 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clock "k8s.io/utils/clock/testing"
 	. "knative.dev/pkg/logging/testing"
+	_ "knative.dev/pkg/system/testing"
 
 	"github.com/google/uuid"
 
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/infrastructure"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event"
 	scheduledchangev0 "github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/scheduledchange/v0"
 	spotinterruptionv0 "github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/spotinterruption/v0"
 	statechangev0 "github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/statechange/v0"
-	. "github.com/aws/karpenter/pkg/test/expectations"
-
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/aws/karpenter/pkg/cloudprovider/aws"
-	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification"
 	awsfake "github.com/aws/karpenter/pkg/cloudprovider/aws/fake"
 	"github.com/aws/karpenter/pkg/cloudprovider/fake"
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/test"
+	. "github.com/aws/karpenter/pkg/test/expectations"
+	"github.com/aws/karpenter/pkg/utils/injection"
+	"github.com/aws/karpenter/pkg/utils/options"
 )
 
 const (
@@ -64,10 +69,12 @@ const (
 var ctx context.Context
 var env *test.Environment
 var cluster *state.Cluster
+var ec2api *awsfake.EC2API
 var sqsapi *awsfake.SQSAPI
 var eventbridgeapi *awsfake.EventBridgeAPI
 var cloudProvider *fake.CloudProvider
 var sqsProvider *aws.SQSProvider
+var instanceTypeProvider *aws.InstanceTypeProvider
 var eventBridgeProvider *aws.EventBridgeProvider
 var recorder *awsfake.EventRecorder
 var fakeClock *clock.FakeClock
@@ -85,6 +92,10 @@ func TestAPIs(t *testing.T) {
 }
 
 var _ = BeforeEach(func() {
+	opts := options.Options{
+		AWSIsolatedVPC: true,
+	}
+	ctx = injection.WithOptions(ctx, opts)
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
 		cfg = test.NewConfig()
 		fakeClock = clock.NewFakeClock(time.Now())
@@ -99,14 +110,16 @@ var _ = BeforeEach(func() {
 		eventbridgeapi = &awsfake.EventBridgeAPI{}
 		eventBridgeProvider = aws.NewEventBridgeProvider(eventbridgeapi, metadata, sqsProvider.QueueName())
 
+		infraStartChan = make(chan struct{})
+		notificationStartChan = make(chan struct{})
+
+		ec2api = &awsfake.EC2API{}
+		subnetProvider := aws.NewSubnetProvider(ec2api)
+		instanceTypeProvider = aws.NewInstanceTypeProvider(env.Ctx, mock.Session, cloudprovider.Options{}, ec2api, subnetProvider)
+		infraController = infrastructure.NewController(env.Ctx, env.Ctx, env.Client, fakeClock, recorder, sqsProvider, eventBridgeProvider, infraStartChan, env.Ctx.Done())
+		controller = notification.NewController(env.Ctx, env.Client, fakeClock, recorder, cluster, sqsProvider, instanceTypeProvider, infraController, notificationStartChan)
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
-	sqsapi.Reset()
-	eventbridgeapi.Reset()
-	infraStartChan = make(chan struct{})
-	notificationStartChan = make(chan struct{})
-	infraController = infrastructure.NewController(env.Ctx, env.Ctx, env.Client, fakeClock, recorder, sqsProvider, eventBridgeProvider, infraStartChan, env.Ctx.Done())
-	controller = notification.NewController(env.Ctx, env.Client, fakeClock, recorder, cluster, sqsProvider, infraController, notificationStartChan)
 })
 
 var _ = AfterEach(func() {
@@ -243,6 +256,40 @@ var _ = Describe("Processing Messages", func() {
 		Expect(controller.PollSQS(env.Ctx)).To(Succeed())
 		ExpectNodeExists(env.Ctx, env.Client, node.Name)
 		Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
+	})
+	It("should mark the ICE cache for the offering when getting a spot interruption warning", func() {
+		node := test.Node(test.NodeOptions{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					v1alpha5.ProvisionerNameLabelKey: "default",
+					v1.LabelTopologyZone:             "test-zone-1a",
+					v1.LabelInstanceTypeStable:       "t3.large",
+					v1alpha5.LabelCapacityType:       v1alpha1.CapacityTypeSpot,
+				},
+			},
+			ProviderID: makeProviderID(defaultInstanceID),
+		})
+		ExpectMessagesCreated(spotInterruptionMessage(defaultInstanceID))
+		ExpectApplied(env.Ctx, env.Client, node)
+		ExpectReconcileSucceeded(env.Ctx, nodeStateController, client.ObjectKeyFromObject(node))
+
+		Expect(controller.PollSQS(env.Ctx)).To(Succeed())
+		ExpectNotFound(env.Ctx, env.Client, node)
+		Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
+
+		// Expect a t3.large in test-zone-1a to not be returned since we should add it to the ICE cache
+		instanceTypes, err := instanceTypeProvider.Get(env.Ctx, &v1alpha1.AWS{}, &v1alpha5.KubeletConfiguration{})
+		Expect(err).To(Succeed())
+
+		t3Large := lo.Filter(instanceTypes, func(it cloudprovider.InstanceType, _ int) bool {
+			return it.Name() == "t3.large"
+		})
+		Expect(len(t3Large)).To(BeNumerically("==", 1))
+		matchingOfferings := lo.Filter(t3Large[0].Offerings(), func(of cloudprovider.Offering, _ int) bool {
+			return of.CapacityType == v1alpha1.CapacityTypeSpot && of.Zone == "test-zone-1a"
+		})
+		Expect(len(matchingOfferings)).To(BeNumerically("==", 1))
+		Expect(matchingOfferings[0].Available).To(BeFalse())
 	})
 })
 

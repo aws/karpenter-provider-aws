@@ -33,6 +33,7 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws"
+	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/infrastructure"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/aggregatedparser"
@@ -57,12 +58,13 @@ var Actions = struct {
 // Controller is the notification controller. It is not a standard controller-runtime controller in that it doesn't
 // have a reconcile method.
 type Controller struct {
-	kubeClient client.Client
-	cluster    *state.Cluster
-	recorder   events.Recorder
-	clock      clock.Clock
-	provider   *aws.SQSProvider
-	parser     event.Parser
+	kubeClient           client.Client
+	cluster              *state.Cluster
+	recorder             events.Recorder
+	clock                clock.Clock
+	provider             *aws.SQSProvider
+	instanceTypeProvider *aws.InstanceTypeProvider
+	parser               event.Parser
 
 	infraController *infrastructure.Controller
 	backoff         *backoff.ExponentialBackOff
@@ -73,17 +75,19 @@ const pollingPeriod = 2 * time.Second
 
 func NewController(ctx context.Context, kubeClient client.Client, clk clock.Clock,
 	recorder events.Recorder, cluster *state.Cluster, sqsProvider *aws.SQSProvider,
-	infraController *infrastructure.Controller, startAsync <-chan struct{}) *Controller {
+	instanceTypeProvider *aws.InstanceTypeProvider, infraController *infrastructure.Controller,
+	startAsync <-chan struct{}) *Controller {
 
 	c := &Controller{
-		kubeClient:      kubeClient,
-		cluster:         cluster,
-		recorder:        recorder,
-		clock:           clk,
-		provider:        sqsProvider,
-		parser:          aggregatedparser.NewAggregatedParser(aggregatedparser.DefaultParsers...),
-		infraController: infraController,
-		backoff:         newBackoff(),
+		kubeClient:           kubeClient,
+		cluster:              cluster,
+		recorder:             recorder,
+		clock:                clk,
+		provider:             sqsProvider,
+		instanceTypeProvider: instanceTypeProvider,
+		parser:               aggregatedparser.NewAggregatedParser(aggregatedparser.DefaultParsers...),
+		infraController:      infraController,
+		backoff:              newBackoff(clk),
 	}
 
 	go func() {
@@ -98,10 +102,11 @@ func NewController(ctx context.Context, kubeClient client.Client, clk clock.Cloc
 	return c
 }
 
-func newBackoff() *backoff.ExponentialBackOff {
+func newBackoff(clk clock.Clock) *backoff.ExponentialBackOff {
 	b := backoff.NewExponentialBackOff()
 	b.InitialInterval = time.Second * 2
 	b.MaxElapsedTime = time.Minute * 30
+	b.Clock = clk
 	return b
 }
 
@@ -134,7 +139,7 @@ func (c *Controller) run(ctx context.Context) {
 }
 
 func (c *Controller) PollSQS(ctx context.Context) error {
-	defer metrics.Measure(reconcileDuration.WithLabelValues())()
+	defer metrics.Measure(reconcileDuration)()
 
 	sqsMessages, err := c.provider.GetSQSMessages(ctx)
 	if err != nil {
@@ -175,12 +180,11 @@ func (c *Controller) handleMessage(ctx context.Context, instanceIDMap map[string
 		if err != nil {
 			return fmt.Errorf("failed to delete message from queue, %w", err)
 		}
-		deletedMessages.WithLabelValues().Inc()
+		deletedMessages.Inc()
 		return
 	}
 	receivedMessages.WithLabelValues(evt.Kind(), "true").Inc()
 
-	action := actionForEvent(evt)
 	nodeNames := lo.Map(nodes, func(n *v1.Node, _ int) string { return n.Name })
 	logging.FromContext(ctx).Infof("Received actionable event from SQS queue for node(s) [%s%s]",
 		strings.Join(lo.Slice(nodeNames, 0, 3), ","),
@@ -188,16 +192,7 @@ func (c *Controller) handleMessage(ctx context.Context, instanceIDMap map[string
 
 	for i := range nodes {
 		node := nodes[i]
-		nodeCtx := logging.WithLogger(ctx, logging.FromContext(ctx).With("node", node.Name))
-
-		// Record metric and event for this action
-		c.notifyForEvent(evt, node)
-		actionsTaken.WithLabelValues(action).Inc()
-
-		if action != Actions.NoAction {
-			e := c.deleteInstance(nodeCtx, node)
-			err = multierr.Append(err, e)
-		}
+		err = multierr.Append(err, c.handleNode(ctx, evt, node))
 	}
 	if err != nil {
 		return fmt.Errorf("failed to act on nodes [%s%s], %w",
@@ -208,14 +203,36 @@ func (c *Controller) handleMessage(ctx context.Context, instanceIDMap map[string
 	if err != nil {
 		return fmt.Errorf("failed to delete message from queue, %w", err)
 	}
-	deletedMessages.WithLabelValues().Inc()
+	deletedMessages.Inc()
+	return nil
+}
+
+func (c *Controller) handleNode(ctx context.Context, evt event.Interface, node *v1.Node) error {
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("node", node.Name))
+	action := actionForEvent(evt)
+
+	// Record metric and event for this action
+	c.notifyForEvent(evt, node)
+	actionsPerformed.WithLabelValues(action).Inc()
+
+	// Mark the offering as unavailable in the ICE cache since we got a spot interruption warning
+	if evt.Kind() == event.Kinds.SpotInterruption {
+		zone := node.Labels[v1.LabelTopologyZone]
+		instanceType := node.Labels[v1.LabelInstanceTypeStable]
+		if zone != "" && instanceType != "" {
+			c.instanceTypeProvider.MarkOfferingUnavailable(instanceType, zone, awsv1alpha1.CapacityTypeSpot)
+		}
+	}
+	if action != Actions.NoAction {
+		return c.deleteInstance(ctx, node)
+	}
 	return nil
 }
 
 func (c *Controller) deleteInstance(ctx context.Context, node *v1.Node) error {
 	c.recorder.TerminatingNodeOnNotification(node)
 	if err := c.kubeClient.Delete(ctx, node); err != nil {
-		return fmt.Errorf("deleting the spot interrupted node, %w", err)
+		return fmt.Errorf("deleting the node on notification, %w", err)
 	}
 	return nil
 }

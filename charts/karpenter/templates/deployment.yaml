@@ -75,6 +75,12 @@ spec:
           {{- end }}
             - name: KARPENTER_SERVICE
               value: {{ include "karpenter.fullname" . }}
+            - name: DEPLOYMENT_NAME
+              value: {{ include "karpenter.fullname" . }}
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
             - name: SYSTEM_NAMESPACE
               valueFrom:
                 fieldRef:
@@ -138,10 +144,6 @@ spec:
           {{- end }}
             - name: KARPENTER_SERVICE
               value: {{ include "karpenter.fullname" . }}
-            - name: DEPLOYMENT_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
             - name: SYSTEM_NAMESPACE
               valueFrom:
                 fieldRef:

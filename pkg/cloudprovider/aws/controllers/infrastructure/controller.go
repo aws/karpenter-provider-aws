@@ -31,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/clock"
 	"knative.dev/pkg/logging"
+	"knative.dev/pkg/system"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter/pkg/cloudprovider/aws"
@@ -71,15 +72,17 @@ func NewController(ctx context.Context, cleanupCtx context.Context, kubeClient c
 		sqsProvider:         sqsProvider,
 		eventBridgeProvider: eventBridgeProvider,
 		mutex:               &sync.RWMutex{},
-		backoff:             newBackoff(),
+		backoff:             newBackoff(clk),
 		readinessChan:       make(chan struct{}),
 		trigger:             make(chan struct{}, 1),
 		done:                make(chan struct{}),
 	}
 
+	ctx, cancel := context.WithCancel(ctx) // Cancel so we don't re-provision the infra on cleanup
 	go func() {
 		select {
 		case <-cleanupAsync:
+			cancel()
 			c.cleanup(cleanupCtx)
 		case <-cleanupCtx.Done():
 		}
@@ -97,10 +100,11 @@ func NewController(ctx context.Context, cleanupCtx context.Context, kubeClient c
 	return c
 }
 
-func newBackoff() *backoff.ExponentialBackOff {
+func newBackoff(clk clock.Clock) *backoff.ExponentialBackOff {
 	b := backoff.NewExponentialBackOff()
 	b.InitialInterval = time.Minute
-	b.MaxElapsedTime = time.Minute * 20
+	b.MaxElapsedTime = time.Minute * 30
+	b.Clock = clk
 	return b
 }
 
@@ -144,7 +148,7 @@ func (c *Controller) cleanup(ctx context.Context) {
 	dep := &appsv1.Deployment{}
 	nn := types.NamespacedName{
 		Name:      injection.GetOptions(ctx).DeploymentName,
-		Namespace: injection.GetOptions(ctx).DeploymentNamespace,
+		Namespace: system.Namespace(),
 	}
 
 	notFound := false
@@ -205,6 +209,7 @@ func (c *Controller) setReady(ctx context.Context, ready bool) {
 		}
 		c.readinessChan = make(chan struct{})
 	}
+	c.ready = ready
 	c.ready = ready
 }
 
@@ -273,9 +278,11 @@ func (c *Controller) DeleteInfrastructure(ctx context.Context) (err error) {
 	}()
 	wg.Wait()
 	if err != nil {
+		c.recorder.InfrastructureDeletionFailed(ctx, c.kubeClient)
 		return err
 	}
 	logging.FromContext(ctx).Infof("Completed deprovisioning the infrastructure")
+	c.recorder.InfrastructureDeletionSucceeded(ctx, c.kubeClient)
 	return nil
 }
 

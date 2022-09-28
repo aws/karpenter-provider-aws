@@ -231,6 +231,10 @@ func (c *CloudProvider) EventBridgeProvider() *EventBridgeProvider {
 	return c.eventBridgeProvider
 }
 
+func (c *CloudProvider) InstanceTypeProvider() *InstanceTypeProvider {
+	return c.instanceTypeProvider
+}
+
 // Default the provisioner
 func (*CloudProvider) Default(ctx context.Context, provisioner *v1alpha5.Provisioner) {
 	defaultLabels(provisioner)

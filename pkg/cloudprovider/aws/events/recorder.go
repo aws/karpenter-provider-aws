@@ -18,11 +18,11 @@ import (
 	"context"
 
 	"github.com/avast/retry-go"
-	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	"knative.dev/pkg/logging"
+	"knative.dev/pkg/system"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter/pkg/events"
@@ -89,49 +89,49 @@ func (r recorder) TerminatingNodeOnNotification(node *v1.Node) {
 }
 
 func (r recorder) InfrastructureHealthy(ctx context.Context, kubeClient client.Client) {
-	dep := &appsv1.Deployment{}
+	pod := &v1.Pod{}
 	err := retry.Do(func() error {
-		return kubeClient.Get(ctx, types.NamespacedName{Namespace: injection.GetOptions(ctx).DeploymentNamespace, Name: injection.GetOptions(ctx).DeploymentName}, dep)
+		return kubeClient.Get(ctx, types.NamespacedName{Namespace: system.Namespace(), Name: injection.GetOptions(ctx).PodName}, pod)
 	})
 	if err != nil {
 		logging.FromContext(ctx).Errorf("Sending InfrastructureHealthy event, %v", err)
 		return
 	}
-	r.Eventf(dep, "Normal", "AWSInfrastructureHealthy", "Karpenter infrastructure reconciliation is healthy")
+	r.Eventf(pod, "Normal", "AWSInfrastructureHealthy", "Karpenter infrastructure reconciliation is healthy")
 }
 
 func (r recorder) InfrastructureUnhealthy(ctx context.Context, kubeClient client.Client) {
-	dep := &appsv1.Deployment{}
+	pod := &v1.Pod{}
 	err := retry.Do(func() error {
-		return kubeClient.Get(ctx, types.NamespacedName{Namespace: injection.GetOptions(ctx).DeploymentNamespace, Name: injection.GetOptions(ctx).DeploymentName}, dep)
+		return kubeClient.Get(ctx, types.NamespacedName{Namespace: system.Namespace(), Name: injection.GetOptions(ctx).PodName}, pod)
 	})
 	if err != nil {
 		logging.FromContext(ctx).Errorf("Sending InfrastructureUnhealthy event, %v", err)
 		return
 	}
-	r.Eventf(dep, "Warning", "AWSInfrastructureUnhealthy", "Karpenter infrastructure reconciliation is unhealthy")
+	r.Eventf(pod, "Warning", "AWSInfrastructureUnhealthy", "Karpenter infrastructure reconciliation is unhealthy")
 }
 
 func (r recorder) InfrastructureDeletionSucceeded(ctx context.Context, kubeClient client.Client) {
-	dep := &appsv1.Deployment{}
+	pod := &v1.Pod{}
 	err := retry.Do(func() error {
-		return kubeClient.Get(ctx, types.NamespacedName{Namespace: injection.GetOptions(ctx).DeploymentNamespace, Name: injection.GetOptions(ctx).DeploymentName}, dep)
+		return kubeClient.Get(ctx, types.NamespacedName{Namespace: system.Namespace(), Name: injection.GetOptions(ctx).PodName}, pod)
 	})
 	if err != nil {
-		logging.FromContext(ctx).Errorf("Sending InfrastructureUnhealthy event, %v", err)
+		logging.FromContext(ctx).Errorf("Sending InfrastructureDeletionSucceeded event, %v", err)
 		return
 	}
-	r.Eventf(dep, "Warning", "InfrastructureDeletionSucceeded", "Karpenter infrastructure deletion succeeded")
+	r.Eventf(pod, "Normal", "AWSInfrastructureDeletionSucceeded", "Karpenter infrastructure deletion succeeded")
 }
 
 func (r recorder) InfrastructureDeletionFailed(ctx context.Context, kubeClient client.Client) {
-	dep := &appsv1.Deployment{}
+	pod := &v1.Pod{}
 	err := retry.Do(func() error {
-		return kubeClient.Get(ctx, types.NamespacedName{Namespace: injection.GetOptions(ctx).DeploymentNamespace, Name: injection.GetOptions(ctx).DeploymentName}, dep)
+		return kubeClient.Get(ctx, types.NamespacedName{Namespace: system.Namespace(), Name: injection.GetOptions(ctx).PodName}, pod)
 	})
 	if err != nil {
-		logging.FromContext(ctx).Errorf("Sending InfrastructureUnhealthy event, %v", err)
+		logging.FromContext(ctx).Errorf("Sending InfrastructureDeletionFailed event, %v", err)
 		return
 	}
-	r.Eventf(dep, "Warning", "InfrastructureDeletionFailed", "Karpenter infrastructure deletion failed")
+	r.Eventf(pod, "Warning", "AWSInfrastructureDeletionFailed", "Karpenter infrastructure deletion failed")
 }

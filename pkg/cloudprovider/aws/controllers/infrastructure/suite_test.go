@@ -27,6 +27,7 @@ import (
 	. "github.com/onsi/gomega"
 	clock "k8s.io/utils/clock/testing"
 	. "knative.dev/pkg/logging/testing"
+	_ "knative.dev/pkg/system/testing"
 
 	. "github.com/aws/karpenter/pkg/test/expectations"
 	"github.com/aws/karpenter/pkg/utils/injection"
@@ -59,13 +60,11 @@ var defaultOpts = options.Options{
 	AWSEnablePodENI:           true,
 	AWSDefaultInstanceProfile: "test-instance-profile",
 	DeploymentName:            test.KarpenterDeployment().Name,
-	DeploymentNamespace:       test.KarpenterDeployment().Namespace,
 }
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
 	RegisterFailHandler(Fail)
-	SetDefaultEventuallyTimeout(time.Minute)
 	RunSpecs(t, "AWS Notification")
 }
 
@@ -83,14 +82,14 @@ var _ = BeforeEach(func() {
 		eventbridgeapi = &awsfake.EventBridgeAPI{}
 		sqsProvider = aws.NewSQSProvider(e.Ctx, sqsapi, metadata)
 		eventBridgeProvider = aws.NewEventBridgeProvider(eventbridgeapi, metadata, sqsProvider.QueueName())
+
+		cleanupChan = make(chan struct{}, 1)
+		startChan = make(chan struct{})
+
+		controller = infrastructure.NewController(env.Ctx, env.Ctx, env.Client, fakeClock, recorder, sqsProvider, eventBridgeProvider, startChan, cleanupChan)
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 	ExpectApplied(env.Ctx, env.Client, test.KarpenterDeployment())
-	cleanupChan = make(chan struct{}, 1)
-	startChan = make(chan struct{})
-	sqsapi.Reset()
-	eventbridgeapi.Reset()
-	controller = infrastructure.NewController(env.Ctx, env.Ctx, env.Client, fakeClock, recorder, sqsProvider, eventBridgeProvider, startChan, cleanupChan)
 })
 
 var _ = AfterEach(func() {
@@ -155,6 +154,10 @@ var _ = Describe("Reconciliation", func() {
 		sqsapi.CreateQueueBehavior.Reset()
 		eventbridgeapi.PutRuleBehavior.Reset()
 		eventbridgeapi.PutTargetsBehavior.Reset()
+
+		// Give the loop a second to stabilize
+		time.Sleep(time.Second)
+
 		fakeClock.Step(time.Minute * 11)
 
 		// Should reconcile again after failed access denied calls
@@ -183,6 +186,10 @@ var _ = Describe("Reconciliation", func() {
 		// Backoff is 1 minute, so we set the fake clock forward 2 minutes
 		// Access denied has now been resolved
 		sqsapi.CreateQueueBehavior.Reset()
+
+		// Give the loop a second to stabilize
+		time.Sleep(time.Second)
+
 		fakeClock.Step(time.Minute * 2)
 
 		// Should reconcile again after failed access denied calls

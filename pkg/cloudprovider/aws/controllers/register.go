@@ -32,6 +32,6 @@ func Register(ctx context.Context, provider *aws.CloudProvider, opts *controller
 
 	// Injecting the AWS-specific controllers that will start when opts.StartAsync is triggered
 	infraController := infrastructure.NewController(ctx, opts.BaseContext(), opts.KubeClient, opts.Clock, rec, provider.SQSProvider(), provider.EventBridgeProvider(), opts.StartAsync, opts.CleanupAsync)
-	notification.NewController(ctx, opts.KubeClient, opts.Clock, rec, opts.Cluster, provider.SQSProvider(), infraController, opts.StartAsync)
+	notification.NewController(ctx, opts.KubeClient, opts.Clock, rec, opts.Cluster, provider.SQSProvider(), provider.InstanceTypeProvider(), infraController, opts.StartAsync)
 	return infraController.Done()
 }
