@@ -34,10 +34,7 @@ import (
 	"k8s.io/client-go/util/flowcontrol"
 	"k8s.io/utils/clock"
 	"knative.dev/pkg/configmap/informer"
-	knativeinjection "knative.dev/pkg/injection"
-	"knative.dev/pkg/injection/sharedmain"
 	"knative.dev/pkg/logging"
-	"knative.dev/pkg/signals"
 	"knative.dev/pkg/system"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -95,7 +92,7 @@ func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options)
 
 	// Set up logger and watch for changes to log level
 	cmw := informer.NewInformedWatcher(clientSet, system.Namespace())
-	ctx := LoggingContextOrDie(controllerRuntimeConfig, cmw)
+	ctx := injection.LoggingContextOrDie(component, controllerRuntimeConfig, cmw)
 	ctx = injection.WithConfig(ctx, controllerRuntimeConfig)
 	ctx = injection.WithOptions(ctx, *opts)
 
@@ -255,18 +252,6 @@ func (i ignoreDebugEventsSink) WithName(name string) logr.LogSink {
 // pod scheduling decisions as events for visibility.
 func ignoreDebugEvents(logger logr.Logger) logr.Logger {
 	return logr.New(&ignoreDebugEventsSink{sink: logger.GetSink()})
-}
-
-// LoggingContextOrDie injects a logger into the returned context. The logger is
-// configured by the ConfigMap `config-logging` and live updates the level.
-func LoggingContextOrDie(config *rest.Config, cmw *informer.InformedWatcher) context.Context {
-	ctx, startinformers := knativeinjection.EnableInjectionOrDie(signals.NewContext(), config)
-	logger, atomicLevel := sharedmain.SetupLoggerOrDie(ctx, component)
-	ctx = logging.WithLogger(ctx, logger)
-	rest.SetDefaultWarningHandler(&logging.WarningHandler{Logger: logger})
-	sharedmain.WatchLoggingConfigOrDie(ctx, cmw, logger, atomicLevel, component)
-	startinformers()
-	return ctx
 }
 
 func newRunnableContext(config *rest.Config, options *options.Options, logger *zap.SugaredLogger) func() context.Context {

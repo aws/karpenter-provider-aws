@@ -19,11 +19,28 @@ import (
 
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
+	"knative.dev/pkg/configmap/informer"
+	knativeinjection "knative.dev/pkg/injection"
+	"knative.dev/pkg/injection/sharedmain"
+	"knative.dev/pkg/logging"
+	"knative.dev/pkg/signals"
 
 	"github.com/aws/karpenter/pkg/utils/options"
 )
 
 type resourceKey struct{}
+
+// LoggingContextOrDie injects a logger into the returned context. The logger is
+// configured by the ConfigMap `config-logging` and live updates the level.
+func LoggingContextOrDie(componentName string, config *rest.Config, cmw *informer.InformedWatcher) context.Context {
+	ctx, startinformers := knativeinjection.EnableInjectionOrDie(signals.NewContext(), config)
+	logger, atomicLevel := sharedmain.SetupLoggerOrDie(ctx, componentName)
+	ctx = logging.WithLogger(ctx, logger)
+	rest.SetDefaultWarningHandler(&logging.WarningHandler{Logger: logger})
+	sharedmain.WatchLoggingConfigOrDie(ctx, cmw, logger, atomicLevel, componentName)
+	startinformers()
+	return ctx
+}
 
 func WithNamespacedName(ctx context.Context, namespacedname types.NamespacedName) context.Context {
 	return context.WithValue(ctx, resourceKey{}, namespacedname)
