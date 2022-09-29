@@ -16,7 +16,6 @@ declare -a steps=(
   step04-grant-access.sh
   step05-controller-iam.sh
   step06-add-spot-role.sh
-  step07-install-helm-chart.sh
   step08-apply-helm-chart.sh
 )
 

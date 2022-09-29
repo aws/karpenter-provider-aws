@@ -1,5 +1,4 @@
-helm template --namespace karpenter \
-    karpenter karpenter/karpenter \
+helm template karpenter oci://public.ecr.aws/karpenter/karpenter --version ${KARPENTER_VERSION} --namespace karpenter \
     --set aws.defaultInstanceProfile=KarpenterInstanceProfile \
     --set clusterEndpoint="${CLUSTER_ENDPOINT}" \
     --set clusterName=${CLUSTER_NAME} \
