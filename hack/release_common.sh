@@ -3,7 +3,10 @@ set -euo pipefail
 
 CURRENT_MAJOR_VERSION="0"
 PRIVATE_PULL_THROUGH_HOST="071440425669.dkr.ecr.us-east-1.amazonaws.com"
-HELM_CHART_VERSION="v${CURRENT_MAJOR_VERSION}-${SNAPSHOT_TAG}"
+
+if [[ $SNAPSHOT_TAG != v* ]]; then
+  HELM_CHART_VERSION="v${CURRENT_MAJOR_VERSION}-${SNAPSHOT_TAG}"
+fi
 RELEASE_VERSION=${RELEASE_VERSION:-"${SNAPSHOT_TAG}"}
 RELEASE_PLATFORM="--platform=linux/amd64,linux/arm64"
 
@@ -58,4 +61,54 @@ pullPrivateReplica(){
 
   docker pull "${PULL_THROUGH_CACHE_PATH}controller:${RELEASE_IDENTIFIER}"
   docker pull "${PULL_THROUGH_CACHE_PATH}webhook:${RELEASE_IDENTIFIER}"
+}
+
+publishHelmChart() {
+    HELM_CHART_FILE_NAME="karpenter-${HELM_CHART_VERSION}.tgz"
+
+    cd charts
+    helm lint karpenter
+    helm package karpenter --version $HELM_CHART_VERSION
+    helm push "${HELM_CHART_FILE_NAME}" "oci://${RELEASE_REPO}"
+    rm "${HELM_CHART_FILE_NAME}"
+    cd ..
+}
+
+website() {
+    mkdir -p website/content/en/${RELEASE_VERSION}
+    cp -r website/content/en/preview/* website/content/en/${RELEASE_VERSION}/
+    find website/content/en/${RELEASE_VERSION}/ -type f | xargs perl -i -p -e "s/{{< param \"latest_release_version\" >}}/${RELEASE_VERSION}/g;"
+    find website/content/en/${RELEASE_VERSION}/*/*/*.yaml -type f | xargs perl -i -p -e "s/preview/${RELEASE_VERSION}/g;"
+}
+
+editWebsiteConfig() {
+  # sed has a different syntax on mac, to do the same on mac run:
+  # sed -i '' '/^\/docs\/\*/d' website/static/_redirects
+  sed -i '/^\/docs\/\*/d' website/static/_redirects
+  echo "/docs/*     	                /${RELEASE_VERSION}/:splat" >>website/static/_redirects
+
+  yq -i ".params.latest_release_version = \"${RELEASE_VERSION}\"" website/config.yaml
+  yq -i ".menu.main[] |=select(.name == \"Docs\") .url = \"${RELEASE_VERSION}\"" website/config.yaml
+
+  editWebsiteVersionsMenu
+}
+
+# editWebsiteVersionsMenu sets relevant releases in the version dropdown menu of the website
+# without increasing the size of the set.
+# TODO: We need to maintain a list of latest minors here only. This is not currently
+# easy to achieve, however when we have a major release and we decide to maintain
+# a selected minor releases we can maintain that list in the repo and use it in here
+editWebsiteVersionsMenu() {
+  VERSIONS=(${RELEASE_VERSION})
+  while IFS= read -r LINE; do
+    SANITIZED_VERSION=$(echo "${LINE}" | sed -e 's/["-]//g' -e 's/ *//g')
+    VERSIONS+=("${SANITIZED_VERSION}")
+  done < <(yq '.params.versions' website/config.yaml)
+  unset VERSIONS[${#VERSIONS[@]}-2]
+
+  yq -i '.params.versions = []' website/config.yaml
+
+  for VERSION in "${VERSIONS[@]}"; do
+    yq -i ".params.versions += \"${VERSION}\"" website/config.yaml
+  done
 }

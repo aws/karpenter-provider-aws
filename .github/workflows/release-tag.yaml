@@ -1,0 +1,23 @@
+name: ReleaseTag
+on:
+  push:
+    tags: ['v*.*.*']
+
+jobs:
+  release-tag:
+    if: ${{ github.repository == 'aws/karpenter' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Save tag as an artifact
+        run: |
+          mkdir -p ./tags
+          git describe --tags --exact-match  > ./tags/tag.txt
+      - uses: actions/upload-artifact@v3
+        with:
+          name: tag
+          path: tags/
+      - uses: "marvinpinto/action-automatic-releases@latest"
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          prerelease: false
