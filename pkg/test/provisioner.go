@@ -20,6 +20,7 @@ import (
 	"fmt"
 
 	"github.com/imdario/mergo"
+	. "github.com/onsi/gomega" //nolint:revive,stylecheck
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -73,6 +74,9 @@ func Provisioner(overrides ...ProvisionerOptions) *v1alpha5.Provisioner {
 		})
 	}
 
+	raw := &runtime.RawExtension{}
+	ExpectWithOffset(1, raw.UnmarshalJSON(lo.Must(json.Marshal(options.Provider)))).To(Succeed())
+
 	provisioner := &v1alpha5.Provisioner{
 		ObjectMeta: ObjectMeta(options.ObjectMeta),
 		Spec: v1alpha5.ProvisionerSpec{
@@ -87,6 +91,7 @@ func Provisioner(overrides ...ProvisionerOptions) *v1alpha5.Provisioner {
 			TTLSecondsUntilExpired: options.TTLSecondsUntilExpired,
 			Weight:                 options.Weight,
 			Consolidation:          options.Consolidation,
+			Provider:               raw,
 		},
 		Status: options.Status,
 	}
