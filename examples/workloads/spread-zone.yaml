@@ -23,6 +23,6 @@ spec:
       - labelSelector:
           matchLabels:
             app: zone-spread
-        maxSkew: 100
+        maxSkew: 1
         topologyKey: topology.kubernetes.io/zone
-        whenUnsatisfiable: ScheduleAnyway
+        whenUnsatisfiable: DoNotSchedule
