@@ -30,6 +30,7 @@ import (
 	policyv1 "k8s.io/api/policy/v1beta1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
@@ -49,18 +50,23 @@ import (
 	"github.com/aws/karpenter/pkg/utils/pod"
 )
 
+type pair[A, B any] struct {
+	first  A
+	second B
+}
+
 var (
 	TestLabelName    = "testing.karpenter.sh/test-id"
-	CleanableObjects = []client.Object{
-		&v1.Pod{},
-		&appsv1.Deployment{},
-		&appsv1.DaemonSet{},
-		&policyv1.PodDisruptionBudget{},
-		&v1.PersistentVolumeClaim{},
-		&v1.PersistentVolume{},
-		&storagev1.StorageClass{},
-		&v1alpha1.AWSNodeTemplate{},
-		&v1alpha5.Provisioner{},
+	CleanableObjects = []pair[client.Object, client.ObjectList]{
+		{&v1.Pod{}, &v1.PodList{}},
+		{&appsv1.Deployment{}, &appsv1.DeploymentList{}},
+		{&appsv1.DaemonSet{}, &appsv1.DaemonSetList{}},
+		{&policyv1.PodDisruptionBudget{}, &policyv1.PodDisruptionBudgetList{}},
+		{&v1.PersistentVolumeClaim{}, &v1.PersistentVolumeClaimList{}},
+		{&v1.PersistentVolume{}, &v1.PersistentVolumeList{}},
+		{&storagev1.StorageClass{}, &storagev1.StorageClassList{}},
+		{&v1alpha1.AWSNodeTemplate{}, &v1alpha1.AWSNodeTemplateList{}},
+		{&v1alpha5.Provisioner{}, &v1alpha5.ProvisionerList{}},
 	}
 )
 
@@ -225,18 +231,27 @@ func (env *Environment) AfterEach() {
 	namespaces := &v1.NamespaceList{}
 	Expect(env.Client.List(env, namespaces)).To(Succeed())
 	wg := sync.WaitGroup{}
-	for _, object := range CleanableObjects {
+	for _, p := range CleanableObjects {
 		for _, namespace := range namespaces.Items {
 			wg.Add(1)
-			go func(object client.Object, namespace string) {
+			go func(obj client.Object, objList client.ObjectList, namespace string) {
 				defer GinkgoRecover()
 				defer wg.Done()
-				Expect(env.Client.DeleteAllOf(env, object,
+				Expect(env.Client.DeleteAllOf(env, obj,
 					client.InNamespace(namespace),
 					client.HasLabels([]string{TestLabelName}),
 					client.PropagationPolicy(metav1.DeletePropagationForeground),
 				)).To(Succeed())
-			}(object, namespace.Name)
+				Eventually(func(g Gomega) {
+					stored := objList.DeepCopyObject().(client.ObjectList)
+					g.Expect(env.Client.List(env, stored,
+						client.InNamespace(namespace),
+						client.HasLabels([]string{TestLabelName}))).To(Succeed())
+					items, err := meta.ExtractList(objList)
+					g.Expect(err).To(Succeed())
+					g.Expect(len(items)).To(BeZero())
+				}).Should(Succeed())
+			}(p.first, p.second, namespace.Name)
 		}
 	}
 	wg.Wait()

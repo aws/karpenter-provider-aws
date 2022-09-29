@@ -557,7 +557,7 @@ var _ = Describe("Node Resource Level", func() {
 		Eventually(func(g Gomega) {
 			g.Expect(calledFunc1.Load()).To(BeTrue())
 			g.Expect(calledFunc2.Load()).To(BeTrue())
-		}, time.Second*20).Should(Succeed())
+		}, time.Second*30).Should(Succeed())
 	})
 })
 
