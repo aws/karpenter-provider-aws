@@ -121,14 +121,14 @@ release-gen: docgen ## Generate any materials which should be updated prior to r
 	go mod download
 	golangci-lint run
 
-release: release-gen ## Generate release manifests and publish a versioned container image.
-	$(WITH_GOFLAGS) ./hack/release.sh
+stable-release-pr: ## Generate PR for stable release
+	$(WITH_GOFLAGS) ./hack/stable-release-pr.sh
 
 nightly: ## Tag the latest snapshot release with timestamp
 	./hack/add-snapshot-tag.sh $(shell git rev-parse HEAD) $(shell date +"%Y%m%d") "nightly"
 
 snapshot: ## Generate a snapshot release out of the current commit
-	$(WITH_GOFLAGS) ./hack/snapshot.sh
+	$(WITH_GOFLAGS) ./hack/release.sh
 
 stablerelease: ## Tags the snapshot release of the current commit with the latest tag available, for prod launch
 	./hack/add-snapshot-tag.sh $(shell git rev-parse HEAD) $(shell git describe --tags --exact-match || echo "Current commit is not tagged") "stable"
