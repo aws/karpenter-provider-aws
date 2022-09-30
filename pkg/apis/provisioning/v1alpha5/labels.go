@@ -90,7 +90,7 @@ func IsRestrictedLabel(key string) error {
 		return nil
 	}
 	if IsRestrictedNodeLabel(key) {
-		return fmt.Errorf("label %s is restricted; specify a well known label: %v, or a custom label that does use a restricted domain: %v", key, WellKnownLabels.List(), RestrictedLabelDomains.List())
+		return fmt.Errorf("label %s is restricted; specify a well known label: %v, or a custom label that does not use a restricted domain: %v", key, WellKnownLabels.List(), RestrictedLabelDomains.List())
 	}
 	return nil
 }

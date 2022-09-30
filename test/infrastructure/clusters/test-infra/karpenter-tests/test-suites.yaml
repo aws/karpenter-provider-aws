@@ -8,9 +8,11 @@ spec:
   - defaultRequest:  # The default requests
       cpu: 250m
       memory: 256Mi
+      ephemeral-storage: 2Gi
     min:  # The minimum requests
       cpu: 250m
       memory: 256Mi
+      ephemeral-storage: 2Gi
     type: Container
 ---
 apiVersion: kustomize.toolkit.fluxcd.io/v1beta2

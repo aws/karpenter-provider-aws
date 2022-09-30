@@ -1,61 +1,34 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SNAPSHOT_TAG=$(git describe --tags --always)
-RELEASE_REPO=${RELEASE_REPO:-public.ecr.aws/karpenter}
+if [[ "${1-SNAPSHOT_TAG}" == v* ]]; then
+  IS_STABLE_RELEASE=true
+else
+  IS_STABLE_RELEASE=false
+fi
+
+SNAPSHOT_TAG=${SNAPSHOT_TAG:-$(git rev-parse HEAD)}
+RELEASE_REPO=${RELEASE_REPO:-public.ecr.aws/karpenter/}
+
+if [[ $IS_STABLE_RELEASE ]]; then
+  HELM_CHART_VERSION=$SNAPSHOT_TAG
+fi
+
+echo "Releasing ${SNAPSHOT_TAG}. IS_STABLE_RELEASE: ${IS_STABLE_RELEASE}"
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 source "${SCRIPT_DIR}/release_common.sh"
 
-chart() {
-    (
-        cd charts
-        helm lint karpenter
-        helm package karpenter
-        helm repo index .
-        helm-docs
-    )
-}
-
-website() {
-    mkdir -p website/content/en/${RELEASE_VERSION} && cp -r website/content/en/preview/* website/content/en/${RELEASE_VERSION}/
-    find website/content/en/${RELEASE_VERSION}/ -type f | xargs perl -i -p -e "s/{{< param \"latest_release_version\" >}}/${RELEASE_VERSION}/g;"
-    find website/content/en/${RELEASE_VERSION}/*/*/*.yaml -type f | xargs perl -i -p -e "s/preview/${RELEASE_VERSION}/g;"
-}
-
-editWebsiteConfig() {
-  sed -i '' '/^\/docs\/\*/d' website/static/_redirects
-  echo "/docs/*     	                /${RELEASE_VERSION}/:splat" >>website/static/_redirects
-
-  yq -i ".params.latest_release_version = \"${RELEASE_VERSION}\"" website/config.yaml
-  yq -i ".menu.main[] |=select(.name == \"Docs\") .url = \"${RELEASE_VERSION}\"" website/config.yaml
-
-  editWebsiteVersionsMenu
-}
-
-# editWebsiteVersionsMenu sets relevant releases in the version dropdown menu of the website
-# without increasing the size of the set.
-# TODO: We need to maintain a list of latest minors here only. This is not currently
-# easy to achieve, however when we have a major release and we decide to maintain
-# a selected minor releases we can maintain that list in the repo and use it in here
-editWebsiteVersionsMenu() {
-  VERSIONS=(${RELEASE_VERSION})
-  while IFS= read -r LINE; do
-    SANITIZED_VERSION=$(echo "${LINE}" | sed -e 's/["-]//g' -e 's/ *//g')
-    VERSIONS+=("${SANITIZED_VERSION}")
-  done < <(yq '.params.versions' website/config.yaml)
-  unset VERSIONS[${#VERSIONS[@]}-2]
-
-  yq -i '.params.versions = []' website/config.yaml
-
-  for VERSION in "${VERSIONS[@]}"; do
-    yq -i ".params.versions += \"${VERSION}\"" website/config.yaml
-  done
-}
-
 authenticate
-buildImages $RELEASE_VERSION
+buildImages $HELM_CHART_VERSION
 cosignImages
-chart
-website
-editWebsiteConfig
+publishHelmChart
+
+if [[ $IS_STABLE_RELEASE ]]; then
+    notifyRelease "stable" $SNAPSHOT_TAG
+    website
+    editWebsiteConfig
+else
+    pullPrivateReplica "snapshot" $SNAPSHOT_TAG
+    notifyRelease "snapshot" $HELM_CHART_VERSION
+fi

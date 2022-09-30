@@ -31,10 +31,6 @@ import (
 )
 
 var _ = Describe("Subnets", func() {
-	BeforeEach(func() {
-
-	})
-
 	It("should use the security-group-id selector", func() {
 		securityGroups := getSecurityGroups(map[string]string{"karpenter.sh/discovery": env.ClusterName})
 		Expect(len(securityGroups)).ToNot(Equal(0))

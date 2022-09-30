@@ -86,14 +86,14 @@ build: ## Build the Karpenter controller and webhook images using ko build
 	$(eval WEBHOOK_IMG=$(shell $(WITH_GOFLAGS) ko build -B github.com/aws/karpenter/cmd/webhook))
 
 apply: build ## Deploy the controller from the current state of your git repository into your ~/.kube/config cluster
-	helm upgrade --install karpenter charts/karpenter --namespace karpenter \
+	helm upgrade --install karpenter charts/karpenter --namespace ${SYSTEM_NAMESPACE} \
 		$(HELM_OPTS) \
 		--set controller.image=$(CONTROLLER_IMG) \
 		--set webhook.image=$(WEBHOOK_IMG)
 
 install:  ## Deploy the latest released version into your ~/.kube/config cluster
 	@echo Upgrading to $(shell grep version charts/karpenter/Chart.yaml)
-	helm upgrade --install karpenter charts/karpenter --namespace karpenter \
+	helm upgrade --install karpenter charts/karpenter --namespace ${SYSTEM_NAMESPACE} \
 		$(HELM_OPTS)
 
 delete: ## Delete the controller from your ~/.kube/config cluster
@@ -121,14 +121,14 @@ release-gen: docgen ## Generate any materials which should be updated prior to r
 	go mod download
 	golangci-lint run
 
-release: release-gen ## Generate release manifests and publish a versioned container image.
-	$(WITH_GOFLAGS) ./hack/release.sh
+stable-release-pr: ## Generate PR for stable release
+	$(WITH_GOFLAGS) ./hack/stable-release-pr.sh
 
 nightly: ## Tag the latest snapshot release with timestamp
 	./hack/add-snapshot-tag.sh $(shell git rev-parse HEAD) $(shell date +"%Y%m%d") "nightly"
 
 snapshot: ## Generate a snapshot release out of the current commit
-	$(WITH_GOFLAGS) ./hack/snapshot.sh
+	$(WITH_GOFLAGS) ./hack/release.sh
 
 stablerelease: ## Tags the snapshot release of the current commit with the latest tag available, for prod launch
 	./hack/add-snapshot-tag.sh $(shell git rev-parse HEAD) $(shell git describe --tags --exact-match || echo "Current commit is not tagged") "stable"

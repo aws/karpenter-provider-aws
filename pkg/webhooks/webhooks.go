@@ -71,6 +71,9 @@ func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options)
 		ServiceName: opts.KarpenterService,
 		SecretName:  fmt.Sprintf("%s-cert", opts.KarpenterService),
 	})
+	// TODO: This can be removed if we eventually decide that we need leader election. Having leader election has resulted in the webhook
+	// having issues described in https://github.com/aws/karpenter/issues/2562 so these issues need to be resolved if this line is removed
+	ctx = sharedmain.WithHADisabled(ctx) // Disable leader election for webhook
 
 	// Register the cloud provider to attach vendor specific validation logic.
 	// TODO(https://github.com/aws/karpenter/issues/2052)
