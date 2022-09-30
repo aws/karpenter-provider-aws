@@ -101,9 +101,9 @@ By adopting this practice we allow our users who are early adopters to test out 
 Karpenter's Helm chart package is now stored in [Karpenter's OCI (Open Container Initiative) registry](https://gallery.ecr.aws/karpenter/karpenter). The Helm CLI supports the new format since [v3.8.0+](https://helm.sh/docs/topics/registries/).
 With this change [charts.karpenter.sh](https://charts.karpenter.sh/) is no longer updated but preserved to allow using older Karpenter versions. For examples on working with the Karpenter helm charts look at [Install Karpenter Helm Chart](({{<ref "../getting-started/getting-started-with-eksctl/#install-karpenter-helm-chart" >}})).
 
-Customers who have scripted the installation or upgrading of Karpenter need to adjust their scripts with the following changes:
+Users who have scripted the installation or upgrading of Karpenter need to adjust their scripts with the following changes:
 1. There is no longer a need to add the Karpenter helm repo to helm
-2. The full URL of the Helm chart needs to be present when using helm the helm commands
+2. The full URL of the Helm chart needs to be present when using the helm commands
 
 ## Upgrading to v0.16.2+
 * v0.16.2 adds new kubeletConfiguration fields to the `provisioners.karpenter.sh` v1alpha5 CRD.  The CRD will need to be updated to use the new parameters:
