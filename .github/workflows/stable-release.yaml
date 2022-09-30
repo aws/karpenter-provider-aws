@@ -55,13 +55,13 @@ jobs:
         with:
           role-to-assume: arn:aws:iam::071440425669:role/Github
           aws-region: us-east-1
-      - run: SNAPSHOT_TAG=$(cat tag.txt) make snapshot
       - run: make release-gen
       - run: |
           git config user.name "StableRelease"
           git config user.email "StableRelease@users.noreply.github.com"
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
           git config pull.rebase false
+      - run: SNAPSHOT_TAG=$(cat tag.txt) make snapshot
       - run: SNAPSHOT_TAG=$(cat tag.txt) make stable-release-pr
         env:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -87,3 +87,7 @@ jobs:
               issue_number: result.data.number,
               labels: ['stable-release','website','helm-charts']
             });
+      - uses: "marvinpinto/action-automatic-releases@latest"
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          prerelease: false
