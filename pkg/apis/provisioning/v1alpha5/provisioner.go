@@ -141,7 +141,7 @@ type KubeletConfiguration struct {
 	// EvictionSoft is the map of signal names to quantities that define soft eviction thresholds
 	// +optional
 	EvictionSoft map[string]string `json:"evictionSoft,omitempty"`
-	// EvictionGracePeriod is the map of signal names to quantities that define grace periods for each eviction signal
+	// EvictionSoftGracePeriod is the map of signal names to quantities that define grace periods for each eviction signal
 	// +optional
 	EvictionSoftGracePeriod map[string]metav1.Duration `json:"evictionSoftGracePeriod,omitempty"`
 	// EvictionMaxPodGracePeriod is the maximum allowed grace period (in seconds) to use when terminating pods in

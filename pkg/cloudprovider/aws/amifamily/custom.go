@@ -24,6 +24,7 @@ import (
 )
 
 type Custom struct {
+	DefaultFamily
 	*Options
 }
 
@@ -50,16 +51,4 @@ func (c Custom) DefaultBlockDeviceMappings() []*v1alpha1.BlockDeviceMapping {
 // to us.
 func (c Custom) EphemeralBlockDevice() *string {
 	return nil
-}
-
-func (c Custom) ENILimitedMemoryOverhead() bool {
-	return true
-}
-
-func (c Custom) PodsPerCoreEnabled() bool {
-	return true
-}
-
-func (c Custom) EvictionSoftEnabled() bool {
-	return true
 }

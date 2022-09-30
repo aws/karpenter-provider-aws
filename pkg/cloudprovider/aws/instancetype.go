@@ -281,7 +281,7 @@ func (i *InstanceType) kubeReservedResources(kc *v1alpha5.KubeletConfiguration) 
 	// https://github.com/awslabs/amazon-eks-ami/issues/782
 	amiFamily := amifamily.GetAMIFamily(i.provider.AMIFamily, &amifamily.Options{})
 	pods := i.pods().Value()
-	if amiFamily.ENILimitedMemoryOverhead() {
+	if amiFamily.FeatureFlags().UsesENILimitedMemoryOverhead {
 		pods = i.eniLimitedPods()
 	}
 
@@ -322,13 +322,13 @@ func (i *InstanceType) evictionThreshold(kc *v1alpha5.KubeletConfiguration, vmMe
 	overhead := v1.ResourceList{
 		v1.ResourceMemory: resource.MustParse("100Mi"),
 	}
-	if kc == nil || (kc.EvictionHard == nil && (kc.EvictionSoft == nil || !i.amiFamily().EvictionSoftEnabled())) {
+	if kc == nil || (kc.EvictionHard == nil && (kc.EvictionSoft == nil || !i.amiFamily().FeatureFlags().EvictionSoftEnabled)) {
 		return overhead
 	}
 
 	override := v1.ResourceList{}
 	evictionSignals := []map[string]string{kc.EvictionHard}
-	if i.amiFamily().EvictionSoftEnabled() {
+	if i.amiFamily().FeatureFlags().EvictionSoftEnabled {
 		evictionSignals = append(evictionSignals, kc.EvictionSoft)
 	}
 
@@ -336,7 +336,7 @@ func (i *InstanceType) evictionThreshold(kc *v1alpha5.KubeletConfiguration, vmMe
 		temp := v1.ResourceList{}
 		if v, ok := m[memoryAvailable]; ok {
 			if strings.HasSuffix(v, "%") {
-				p := parsePercentage(v)
+				p := mustParsePercentage(v)
 
 				// Calculation is node.capacity * evictionHard[memory.available] if percentage
 				// From https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/#eviction-signals
@@ -372,7 +372,7 @@ func (i *InstanceType) computeMaxPods(ctx context.Context, kc *v1alpha5.KubeletC
 		mp = ptr.Int64(i.eniLimitedPods())
 	}
 
-	if kc != nil && ptr.Int32Value(kc.PodsPerCore) > 0 && i.amiFamily().PodsPerCoreEnabled() {
+	if kc != nil && ptr.Int32Value(kc.PodsPerCore) > 0 && i.amiFamily().FeatureFlags().PodsPerCoreEnabled {
 		mp = ptr.Int64(lo.Min([]int64{int64(ptr.Int32Value(kc.PodsPerCore)) * ptr.Int64Value(i.VCpuInfo.DefaultVCpus), ptr.Int64Value(mp)}))
 	}
 	return mp
@@ -386,7 +386,7 @@ func lowerKabobCase(s string) string {
 	return strings.ToLower(strings.ReplaceAll(s, " ", "-"))
 }
 
-func parsePercentage(v string) float64 {
+func mustParsePercentage(v string) float64 {
 	p, err := strconv.ParseFloat(strings.Trim(v, "%"), 64)
 	if err != nil {
 		panic(fmt.Sprintf("expected percentage value to be a float but got %s, %v", v, err))

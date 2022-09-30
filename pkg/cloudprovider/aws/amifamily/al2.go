@@ -28,6 +28,7 @@ import (
 )
 
 type AL2 struct {
+	DefaultFamily
 	*Options
 }
 
@@ -87,16 +88,4 @@ func (a AL2) DefaultBlockDeviceMappings() []*v1alpha1.BlockDeviceMapping {
 
 func (a AL2) EphemeralBlockDevice() *string {
 	return aws.String("/dev/xvda")
-}
-
-func (a AL2) ENILimitedMemoryOverhead() bool {
-	return true
-}
-
-func (a AL2) PodsPerCoreEnabled() bool {
-	return true
-}
-
-func (a AL2) EvictionSoftEnabled() bool {
-	return true
 }

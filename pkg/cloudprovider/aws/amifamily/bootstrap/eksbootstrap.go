@@ -131,7 +131,7 @@ func (e EKS) nodeLabelArg() string {
 	return fmt.Sprintf("%s%s", nodeLabelArg, strings.Join(labelStrings, ","))
 }
 
-// joinParameterArgs joins a map of keys and values by their separator. The separate will sit between the
+// joinParameterArgs joins a map of keys and values by their separator. The separator will sit between the
 // arguments in a comma-separated list i.e. arg1<sep>val1,arg2<sep>val2
 func joinParameterArgs[K comparable, V any](name string, m map[K]V, separator string) string {
 	var args []string

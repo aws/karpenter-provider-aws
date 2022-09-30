@@ -83,8 +83,8 @@ spec:
                   evictionSoftGracePeriod:
                     additionalProperties:
                       type: string
-                    description: EvictionGracePeriod is the map of signal names to
-                      quantities that define grace periods for each eviction signal
+                    description: EvictionSoftGracePeriod is the map of signal names
+                      to quantities that define grace periods for each eviction signal
                     type: object
                   kubeReserved:
                     additionalProperties:

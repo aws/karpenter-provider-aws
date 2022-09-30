@@ -30,7 +30,7 @@ type UserDataProvider struct {
 	kubeClient client.Client
 }
 
-// New constructs a new UserData provider
+// NewUserDataProvider constructs a new UserData provider
 func NewUserDataProvider(kubeClient client.Client) *UserDataProvider {
 	return &UserDataProvider{
 		kubeClient: kubeClient,

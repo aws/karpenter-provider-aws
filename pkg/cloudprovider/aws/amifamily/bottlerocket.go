@@ -30,6 +30,7 @@ import (
 )
 
 type Bottlerocket struct {
+	DefaultFamily
 	*Options
 }
 
@@ -82,23 +83,22 @@ func (b Bottlerocket) EphemeralBlockDevice() *string {
 	return aws.String("/dev/xvdb")
 }
 
-func (b Bottlerocket) ENILimitedMemoryOverhead() bool {
-	return false
-}
-
 // PodsPerCoreEnabled is currently disabled for Bottlerocket AMIFamily because it does
 // not currently support the podsPerCore parameter passed through the kubernetes settings TOML userData
 // If a Provisioner sets the podsPerCore value when using the Bottlerocket AMIFamily in the provider,
 // podsPerCore will be ignored
 // https://github.com/bottlerocket-os/bottlerocket/issues/1721
-func (b Bottlerocket) PodsPerCoreEnabled() bool {
-	return false
-}
 
 // EvictionSoftEnabled is currently disabled for Bottlerocket AMIFamily because it does
 // not currently support the evictionSoft parameter passed through the kubernetes settings TOML userData
 // If a Provisioner sets the evictionSoft value when using the Bottlerocket AMIFamily in the provider,
 // evictionSoft will be ignored
-func (b Bottlerocket) EvictionSoftEnabled() bool {
-	return false
+// https://github.com/bottlerocket-os/bottlerocket/issues/1445
+
+func (b Bottlerocket) FeatureFlags() FeatureFlags {
+	return FeatureFlags{
+		UsesENILimitedMemoryOverhead: false,
+		PodsPerCoreEnabled:           false,
+		EvictionSoftEnabled:          false,
+	}
 }

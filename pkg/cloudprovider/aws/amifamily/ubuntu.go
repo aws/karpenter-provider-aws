@@ -27,6 +27,7 @@ import (
 )
 
 type Ubuntu struct {
+	DefaultFamily
 	*Options
 }
 
@@ -61,16 +62,4 @@ func (u Ubuntu) DefaultBlockDeviceMappings() []*v1alpha1.BlockDeviceMapping {
 
 func (u Ubuntu) EphemeralBlockDevice() *string {
 	return aws.String("/dev/sda1")
-}
-
-func (u Ubuntu) ENILimitedMemoryOverhead() bool {
-	return true
-}
-
-func (u Ubuntu) PodsPerCoreEnabled() bool {
-	return true
-}
-
-func (u Ubuntu) EvictionSoftEnabled() bool {
-	return true
 }

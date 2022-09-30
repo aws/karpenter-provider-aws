@@ -396,7 +396,7 @@ var _ = Describe("Validation", func() {
 				}
 				Expect(provisioner.Validate(ctx)).To(Succeed())
 			})
-			It("should fail on evictionSoftGracePeriodf with invalid keys", func() {
+			It("should fail on evictionSoftGracePeriod with invalid keys", func() {
 				provisioner.Spec.KubeletConfiguration = &KubeletConfiguration{
 					EvictionSoftGracePeriod: map[string]metav1.Duration{
 						"memory": {Duration: time.Minute},
