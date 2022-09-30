@@ -93,12 +93,6 @@ First set the Karpenter release you want to deploy.
 export KARPENTER_VERSION={{< param "latest_release_version" >}}
 ```
 
-Make sure the Karpenter repo is added to Helm by running the following commands.
-```bash
-helm repo add karpenter https://charts.karpenter.sh/
-helm repo update
-```
-
 We can now generate a full Karpenter deployment yaml from the helm chart.
 
 {{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step09-generate-chart.sh" language="bash" %}}
