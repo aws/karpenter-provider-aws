@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ "${1-SNAPSHOT_TAG}" == v* ]]; then
+if [[ "${1-$SNAPSHOT_TAG}" == v* ]]; then
   IS_STABLE_RELEASE=true
 else
   IS_STABLE_RELEASE=false
