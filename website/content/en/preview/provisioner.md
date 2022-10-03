@@ -84,6 +84,15 @@ spec:
       memory.available: 5%
       nodefs.available: 10%
       nodefs.inodesFree: 10%
+    evictionSoft:
+      memory.available: 500Mi
+      nodefs.available: 15%
+      nodefs.inodesFree: 15%
+    evictionSoftGracePeriod:
+      memory.available: 1m
+      nodefs.available: 1m30s
+      nodefs.inodesFree: 2m
+    evictionMaxPodGracePeriod: 3m
     podsPerCore: 2
     maxPods: 20
 
@@ -228,6 +237,15 @@ spec:
       memory.available: 5%
       nodefs.available: 10%
       nodefs.inodesFree: 10%
+    evictionSoft:
+      memory.available: 500Mi
+      nodefs.available: 15%
+      nodefs.inodesFree: 15%
+    evictionSoftGracePeriod:
+      memory.available: 1m
+      nodefs.available: 1m30s
+      nodefs.inodesFree: 2m
+    evictionMaxPodGracePeriod: 3m
     podsPerCore: 2
     maxPods: 20
 ```
@@ -251,9 +269,7 @@ The kubelet supports eviction thresholds by default. When enough memory or file 
 
 Kubelet has the notion of [hard evictions](https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/#hard-eviction-thresholds) and [soft evictions](https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/#soft-eviction-thresholds). In hard evictions, pods are evicted as soon as a threshold is met, with no grace period to terminate. Soft evictions, on the other hand, provide an opportunity for pods to be terminated gracefully. They do so by sending a termination signal to pods that are planning to be evicted and allowing those pods to terminate up to their grace period.
 
-{{% alert title="Note" color="primary" %}}
-Karpenter currently only supports [hard evictions](https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/#hard-eviction-thresholds) through the `.spec.kubeletConfiguration.evictionHard` field. `evictionHard` is configured by listing [signal names](https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/#eviction-signals) with either a percentage value or a resource value.
-{{% /alert %}}
+Karpenter supports [hard evictions](https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/#hard-eviction-thresholds) through the `.spec.kubeletConfiguration.evictionHard` field and [soft evictions](https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/#soft-eviction-thresholds) through the `.spec.kubeletConfiguration.evictionSoft` field. `evictionHard` and `evictionSoft` are configured by listing [signal names](https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/#eviction-signals) with either percentage values or resource values.
 
 ```yaml
 spec:
@@ -266,6 +282,13 @@ spec:
       imagefs.available: 5%
       imagefs.inodesFree: 5%
       pid.available: 7%
+    evictionSoft:
+      memory.available: 1Gi
+      nodefs.available: 15%
+      nodefs.inodesFree: 15%
+      imagefs.available: 10%
+      imagefs.inodesFree: 10%
+      pid.available: 10%
 ```
 
 #### Supported Eviction Signals
@@ -280,6 +303,26 @@ spec:
 | pid.available | pid.available := node.stats.rlimit.maxpid - node.stats.rlimit.curproc |
 
 For more information on eviction threshold, view the [Node-pressure Eviction](https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction) section of the official Kubernetes docs.
+
+#### Soft Eviction Grace Periods
+
+Soft eviction pairs an eviction threshold with a specified grace period. With soft eviction thresholds, the kubelet will only begin evicting pods when the node exceeds its soft eviction threshold over the entire duration of its grace period. For example, if you specify `evictionSoft[memory.available]` of `500Mi` and a `evictionSoftGracePeriod[memory.available]` of `1m30`, the node must have less than `500Mi` of available memory over a minute and a half in order for the kubelet to begin evicting pods.
+
+Optionally, you can specify an `evictionMaxPodGracePeriod` which defines the administrator-specified maximum pod termination grace period to use during soft eviction. If a namespace-owner had specified a pod `terminationGracePeriodInSeconds` on pods in their namespace, the minimum of `evictionPodGracePeriod` and `terminationGracePeriodInSeconds` would be used.
+
+```yaml
+spec:
+  ...
+  kubeletConfiguration:
+    evictionSoftGracePeriod:
+      memory.available: 1m
+      nodefs.available: 1m30s
+      nodefs.inodesFree: 2m
+      imagefs.available: 1m30s
+      imagefs.inodesFree: 2m
+      pid.available: 2m
+    evictionMaxPodGracePeriod: 3m
+```
 
 ### Pod Density
 
