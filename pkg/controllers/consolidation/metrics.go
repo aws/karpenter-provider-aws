@@ -39,7 +39,6 @@ var consolidationDurationHistogram = prometheus.NewHistogramVec(
 	},
 	[]string{"method"},
 )
-
 var consolidationReplacementNodeInitializedHistogram = prometheus.NewHistogram(
 	prometheus.HistogramOpts{
 		Namespace: metrics.Namespace,
@@ -48,23 +47,6 @@ var consolidationReplacementNodeInitializedHistogram = prometheus.NewHistogram(
 		Help:      "Amount of time required for a replacement node to become initialized.",
 		Buckets:   metrics.DurationBuckets(),
 	})
-
-var consolidationNodesCreatedCounter = prometheus.NewCounter(
-	prometheus.CounterOpts{
-		Namespace: metrics.Namespace,
-		Subsystem: "consolidation",
-		Name:      "nodes_created",
-		Help:      "Number of nodes created in total by consolidation.",
-	},
-)
-var consolidationNodesTerminatedCounter = prometheus.NewCounter(
-	prometheus.CounterOpts{
-		Namespace: metrics.Namespace,
-		Subsystem: "consolidation",
-		Name:      "nodes_terminated",
-		Help:      "Number of nodes terminated in total by consolidation.",
-	},
-)
 var consolidationActionsPerformedCounter = prometheus.NewCounterVec(
 	prometheus.CounterOpts{
 		Namespace: metrics.Namespace,
@@ -73,4 +55,26 @@ var consolidationActionsPerformedCounter = prometheus.NewCounterVec(
 		Help:      "Number of consolidation actions performed. Labeled by action.",
 	},
 	[]string{"action"},
+)
+
+// DEPRECATED: Use shared metric nodes_created instead of this metric to get number of nodes created by Karpenter
+// and the reason that nodes were created
+var consolidationNodesCreatedCounter = prometheus.NewCounter(
+	prometheus.CounterOpts{
+		Namespace: metrics.Namespace,
+		Subsystem: "consolidation",
+		Name:      "nodes_created",
+		Help:      "Number of nodes created in total by consolidation.",
+	},
+)
+
+// DEPRECATED: Use shared metric nodes_terminated instead of this metric to get number of nodes terminated by Karpenter
+// and the reason that nodes were terminated
+var consolidationNodesTerminatedCounter = prometheus.NewCounter(
+	prometheus.CounterOpts{
+		Namespace: metrics.Namespace,
+		Subsystem: "consolidation",
+		Name:      "nodes_terminated",
+		Help:      "Number of nodes terminated in total by consolidation.",
+	},
 )

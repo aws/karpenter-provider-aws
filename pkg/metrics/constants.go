@@ -26,6 +26,12 @@ const (
 
 	ErrorLabel       = "error"
 	ProvisionerLabel = "provisioner"
+
+	// Reasons for CREATE/DELETE shared metrics
+	ConsolidationReason = "consolidation"
+	SchedulingReason    = "scheduling"
+	ExpirationReason    = "expiration"
+	EmptinessReason     = "emptiness"
 )
 
 // DurationBuckets returns a []float64 of default threshold values for duration histograms.

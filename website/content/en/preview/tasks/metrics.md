@@ -19,8 +19,16 @@ Duration of the consolidation evaluation process in seconds.
 ### `karpenter_consolidation_nodes_created`
 Number of nodes created in total by consolidation.
 
+{{% alert title="Deprecation Warning" color="warning" %}}
+`karpenter_consolidation_nodes_created` is deprecated in favor of the `karpenter_nodes_created` with `reason=consolidation`
+{{% /alert %}}
+
 ### `karpenter_consolidation_nodes_terminated`
 Number of nodes terminated in total by consolidation.
+
+{{% alert title="Deprecation Warning" color="warning" %}}
+`karpenter_consolidation_nodes_terminated` is deprecated in favor of the `karpenter_nodes_terminated` with `reason=consolidation`
+{{% /alert %}}
 
 ### `karpenter_consolidation_replacement_node_initialized_seconds`
 Amount of time required for a replacement node to become initialized.
@@ -37,6 +45,12 @@ The Provisioner Usage is the amount of resources that have been provisioned by a
 The Provisioner Usage Percentage is the percentage of each resource used based on the resources provisioned and the limits that have been configured in the range [0,100].  Labeled by provisioner name and resource type.
 
 ## Nodes Metrics
+
+### `karpenter_nodes_created`
+Number of nodes created in total by Karpenter. Labeled by reason the node was created.
+
+### `karpenter_nodes_terminated`
+Number of nodes terminated in total by Karpenter. Labeled by reason the node was terminated.
 
 ### `karpenter_nodes_allocatable`
 Node allocatable are the resources allocatable by nodes.
