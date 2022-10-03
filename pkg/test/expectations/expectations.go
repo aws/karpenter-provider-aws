@@ -147,6 +147,7 @@ func ExpectCleanedUp(ctx context.Context, c client.Client) {
 		&v1.Pod{},
 		&v1.Node{},
 		&appsv1.DaemonSet{},
+		&appsv1.ReplicaSet{},
 		&v1beta1.PodDisruptionBudget{},
 		&v1.PersistentVolumeClaim{},
 		&v1.PersistentVolume{},

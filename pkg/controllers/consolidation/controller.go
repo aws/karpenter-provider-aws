@@ -25,7 +25,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
-	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/utils/clock"
@@ -55,6 +54,7 @@ type Controller struct {
 	clock                  clock.Clock
 	cloudProvider          cloudprovider.CloudProvider
 	lastConsolidationState int64
+	window                 *StabilizationWindow
 }
 
 // pollingPeriod that we inspect cluster to look for opportunities to consolidate
@@ -79,6 +79,7 @@ func NewController(ctx context.Context, clk clock.Clock, kubeClient client.Clien
 		provisioner:   provisioner,
 		recorder:      recorder,
 		cloudProvider: cp,
+		window:        NewStabilizationWindow(clk, cluster, kubeClient),
 	}
 
 	go func() {
@@ -108,13 +109,9 @@ func (c *Controller) run(ctx context.Context) {
 				continue
 			}
 
-			// don't consolidate as we recently scaled up/down too soon
-			stabilizationTime := c.clock.Now().Add(-c.stabilizationWindow(ctx))
-			// capture the state before we process so if something changes during consolidation we'll re-look
-			// immediately
 			clusterState := c.cluster.ClusterConsolidationState()
-			if c.cluster.LastNodeDeletionTime().Before(stabilizationTime) &&
-				c.cluster.LastNodeCreationTime().Before(stabilizationTime) {
+			if c.window.IsStabilized(ctx) {
+				c.window.Reset()
 				result, err := c.ProcessCluster(ctx)
 				if err != nil {
 					logging.FromContext(ctx).Errorf("consolidating cluster, %s", err)
@@ -561,105 +558,6 @@ func (c *Controller) nodeConsolidationOptionReplaceOrDelete(ctx context.Context,
 		result:          consolidateResultReplace,
 		replacementNode: newNodes[0],
 	}, nil
-}
-
-func (c *Controller) hasPendingPods(ctx context.Context) bool {
-	var podList v1.PodList
-	if err := c.kubeClient.List(ctx, &podList, client.MatchingFields{"spec.nodeName": ""}); err != nil {
-		// failed to list pods, assume there must be pending as it's harmless and just ensures we wait longer
-		return true
-	}
-	for i := range podList.Items {
-		if pod.IsProvisionable(&podList.Items[i]) {
-			return true
-		}
-	}
-	return false
-}
-
-func (c *Controller) deploymentsReady(ctx context.Context) bool {
-	var depList appsv1.DeploymentList
-	if err := c.kubeClient.List(ctx, &depList); err != nil {
-		// failed to list, assume there must be one non-ready as it's harmless and just ensures we wait longer
-		return false
-	}
-	for _, ds := range depList.Items {
-		desired := ptr.Int32Value(ds.Spec.Replicas)
-		if ds.Spec.Replicas == nil {
-			// unspecified defaults to 1
-			desired = 1
-		}
-		if ds.Status.ReadyReplicas < desired || ds.Status.UpdatedReplicas < desired {
-			return false
-		}
-	}
-	return true
-}
-
-func (c *Controller) replicaSetsReady(ctx context.Context) bool {
-	var rsList appsv1.ReplicaSetList
-	if err := c.kubeClient.List(ctx, &rsList); err != nil {
-		// failed to list, assume there must be one non-ready as it's harmless and just ensures we wait longer
-		return false
-	}
-	for _, rs := range rsList.Items {
-		desired := ptr.Int32Value(rs.Spec.Replicas)
-		if rs.Spec.Replicas == nil {
-			// unspecified defaults to 1
-			desired = 1
-		}
-		if rs.Status.ReadyReplicas < desired {
-			return false
-		}
-	}
-	return true
-}
-
-func (c *Controller) replicationControllersReady(ctx context.Context) bool {
-	var rsList v1.ReplicationControllerList
-	if err := c.kubeClient.List(ctx, &rsList); err != nil {
-		// failed to list, assume there must be one non-ready as it's harmless and just ensures we wait longer
-		return false
-	}
-	for _, rs := range rsList.Items {
-		desired := ptr.Int32Value(rs.Spec.Replicas)
-		if rs.Spec.Replicas == nil {
-			// unspecified defaults to 1
-			desired = 1
-		}
-		if rs.Status.ReadyReplicas < desired {
-			return false
-		}
-	}
-	return true
-}
-
-func (c *Controller) statefulSetsReady(ctx context.Context) bool {
-	var sslist appsv1.StatefulSetList
-	if err := c.kubeClient.List(ctx, &sslist); err != nil {
-		// failed to list, assume there must be one non-ready as it's harmless and just ensures we wait longer
-		return false
-	}
-	for _, rs := range sslist.Items {
-		desired := ptr.Int32Value(rs.Spec.Replicas)
-		if rs.Spec.Replicas == nil {
-			// unspecified defaults to 1
-			desired = 1
-		}
-		if rs.Status.ReadyReplicas < desired || rs.Status.UpdatedReplicas < desired {
-			return false
-		}
-	}
-	return true
-}
-
-func (c *Controller) stabilizationWindow(ctx context.Context) time.Duration {
-	// no pending pods, and all replica sets/replication controllers are reporting ready so quickly consider another consolidation
-	if !c.hasPendingPods(ctx) && c.deploymentsReady(ctx) && c.replicaSetsReady(ctx) &&
-		c.replicationControllersReady(ctx) && c.statefulSetsReady(ctx) {
-		return 0
-	}
-	return 5 * time.Minute
 }
 
 func (c *Controller) setNodeUnschedulable(ctx context.Context, nodeName string, isUnschedulable bool) error {

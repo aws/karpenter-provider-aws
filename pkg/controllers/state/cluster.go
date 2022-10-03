@@ -69,6 +69,8 @@ type Cluster struct {
 	consolidationState   int64
 	lastNodeDeletionTime int64
 	lastNodeCreationTime int64
+	lastPodDeletionTime  int64
+	lastPodCreationTime  int64
 }
 
 func NewCluster(clk clock.Clock, cfg config.Config, client client.Client, cp cloudprovider.CloudProvider) *Cluster {
@@ -352,6 +354,7 @@ func (c *Cluster) deleteNode(nodeName string) {
 	defer c.mu.Unlock()
 	delete(c.nodes, nodeName)
 	c.recordConsolidationChange()
+	atomic.StoreInt64(&c.lastNodeDeletionTime, c.clock.Now().UnixMilli())
 }
 
 // updateNode is called for every node reconciliation
@@ -417,11 +420,22 @@ func (c *Cluster) LastNodeCreationTime() time.Time {
 	return time.UnixMilli(atomic.LoadInt64(&c.lastNodeCreationTime))
 }
 
+// LastPodDeletionTime returns the last time that at a pod was marked for deletion.
+func (c *Cluster) LastPodDeletionTime() time.Time {
+	return time.UnixMilli(atomic.LoadInt64(&c.lastPodDeletionTime))
+}
+
+// LastPodCreationTime returns the last time that at a pod was created.
+func (c *Cluster) LastPodCreationTime() time.Time {
+	return time.UnixMilli(atomic.LoadInt64(&c.lastPodCreationTime))
+}
+
 // deletePod is called when the pod has been deleted
 func (c *Cluster) deletePod(podKey types.NamespacedName) {
 	c.antiAffinityPods.Delete(podKey)
 	c.updateNodeUsageFromPodCompletion(podKey)
 	c.recordConsolidationChange()
+	atomic.StoreInt64(&c.lastPodDeletionTime, c.clock.Now().UnixMilli())
 }
 
 func (c *Cluster) updateNodeUsageFromPodCompletion(podKey types.NamespacedName) {
@@ -464,6 +478,19 @@ func (c *Cluster) updatePod(ctx context.Context, pod *v1.Pod) error {
 		err = c.updateNodeUsageFromPod(ctx, pod)
 	}
 	c.updatePodAntiAffinities(pod)
+	if pod.DeletionTimestamp != nil {
+		// We could do a more complex cmp/swap operation, but since deletion/creation timestamps have a resolution of
+		// one-second and worst case we'll be delay by a second too little, it's more straightforward to just
+		// load/compare/store vs load/compareswap in a loop.
+		podDeletionTime := pod.DeletionTimestamp.UnixMilli()
+		if podDeletionTime > atomic.LoadInt64(&c.lastPodDeletionTime) {
+			atomic.StoreInt64(&c.lastPodDeletionTime, podDeletionTime)
+		}
+	}
+	podCreationTime := pod.CreationTimestamp.UnixMilli()
+	if podCreationTime > atomic.LoadInt64(&c.lastPodCreationTime) {
+		atomic.StoreInt64(&c.lastPodCreationTime, podCreationTime)
+	}
 	return err
 }
 
@@ -585,7 +612,7 @@ func (c *Cluster) recordConsolidationChange() {
 	atomic.StoreInt64(&c.consolidationState, c.clock.Now().UnixMilli())
 }
 
-func (c *Cluster) LivenessProbe(req *http.Request) error {
+func (c *Cluster) LivenessProbe(*http.Request) error {
 	c.mu.Lock()
 	//nolint: staticcheck
 	c.mu.Unlock()

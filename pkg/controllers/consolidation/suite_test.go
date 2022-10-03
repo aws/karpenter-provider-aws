@@ -31,12 +31,14 @@ import (
 	policyv1 "k8s.io/api/policy/v1beta1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	clock "k8s.io/utils/clock/testing"
 	. "knative.dev/pkg/logging/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
@@ -1458,6 +1460,75 @@ var _ = Describe("Parallelization", func() {
 		result, err := controller.ProcessCluster(env.Ctx)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(result).To(Equal(consolidation.ProcessResultNothingToDo))
+	})
+})
+
+var _ = Describe("Stabilization Window Test", func() {
+	BeforeEach(func() {
+		ExpectCleanedUp(ctx, env.Client)
+	})
+	It("should startup out of the max stabilization window", func() {
+		window := consolidation.NewStabilizationWindow(fakeClock, cluster, env.Client)
+
+		// cluster should be unstable due to node deletion and a non-ready replicaset
+		rs := test.ReplicaSet()
+		rs.Spec.Replicas = aws.Int32(100)
+		rs.Status.Replicas = 5
+		rs.Status.ReadyReplicas = 5
+		ExpectApplied(ctx, env.Client, rs)
+		_, _ = nodeStateController.Reconcile(ctx, reconcile.Request{NamespacedName: types.NamespacedName{Name: "nonexistentnode"}})
+
+		// but it doesn't matter as we startup out of the
+		Expect(window.IsStabilized(ctx)).To(BeTrue())
+	})
+	It("should consolidate at least once per max stabilization window", func() {
+		window := consolidation.NewStabilizationWindow(fakeClock, cluster, env.Client)
+		Expect(window.IsStabilized(ctx)).To(BeTrue())
+		window.Reset()
+
+		// we keep 'deleting' this node to make our cluster unstable over the course of 10 minutes, it won't consolidate until the 10
+		// minute mark as that's the max stabilization window length
+		_, _ = nodeStateController.Reconcile(ctx, reconcile.Request{NamespacedName: types.NamespacedName{Name: "nonexistentnode"}})
+		Expect(window.IsStabilized(ctx)).To(BeFalse())
+
+		fakeClock.Step(5 * time.Minute)
+		_, _ = nodeStateController.Reconcile(ctx, reconcile.Request{NamespacedName: types.NamespacedName{Name: "nonexistentnode"}})
+		Expect(window.IsStabilized(ctx)).To(BeFalse())
+
+		fakeClock.Step(5*time.Minute + 1*time.Second)
+		_, _ = nodeStateController.Reconcile(ctx, reconcile.Request{NamespacedName: types.NamespacedName{Name: "nonexistentnode"}})
+		Expect(window.IsStabilized(ctx)).To(BeTrue())
+	})
+	It("should consolidate of the cluster has remained stable for the fast window", func() {
+		window := consolidation.NewStabilizationWindow(fakeClock, cluster, env.Client)
+		Expect(window.IsStabilized(ctx)).To(BeTrue())
+		window.Reset()
+		// we keep 'deleting' this node to make our cluster unstable
+		_, _ = nodeStateController.Reconcile(ctx, reconcile.Request{NamespacedName: types.NamespacedName{Name: "nonexistentnode"}})
+		Expect(window.IsStabilized(ctx)).To(BeFalse())
+		fakeClock.Step(16 * time.Second)
+		Expect(window.IsStabilized(ctx)).To(BeTrue())
+	})
+	It("should consolidate of the cluster has remained stable for the slow window", func() {
+		fakeClock.SetTime(time.Now().Add(24 * time.Hour))
+		window := consolidation.NewStabilizationWindow(fakeClock, cluster, env.Client)
+		Expect(window.IsStabilized(ctx)).To(BeTrue())
+		window.Reset()
+		// create a replica set that isn't ready, so our fast-window won't apply
+		rs := test.ReplicaSet()
+		rs.Spec.Replicas = aws.Int32(100)
+		rs.Status.Replicas = 5
+		rs.Status.ReadyReplicas = 5
+		ExpectApplied(ctx, env.Client, rs)
+		_, _ = nodeStateController.Reconcile(ctx, reconcile.Request{NamespacedName: types.NamespacedName{Name: "nonexistentnode"}})
+		Expect(window.IsStabilized(ctx)).To(BeFalse())
+
+		// fast window won't apply
+		fakeClock.Step(16 * time.Second)
+		Expect(window.IsStabilized(ctx)).To(BeFalse())
+		// but the standard window will
+		fakeClock.Step(3 * time.Minute)
+		Expect(window.IsStabilized(ctx)).To(BeTrue())
 	})
 })
 
