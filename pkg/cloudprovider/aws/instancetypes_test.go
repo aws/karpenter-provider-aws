@@ -358,6 +358,26 @@ var _ = Describe("Instance Types", func() {
 				overhead := it.Overhead()
 				Expect(overhead.Memory().String()).To(Equal("30Gi"))
 			})
+			It("should used default eviction threshold (hard) for memory when evictionHard not specified", func() {
+				instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
+				Expect(err).To(BeNil())
+				provisioner = test.Provisioner(test.ProvisionerOptions{
+					Kubelet: &v1alpha5.KubeletConfiguration{
+						SystemReserved: v1.ResourceList{
+							v1.ResourceMemory: resource.MustParse("20Gi"),
+						},
+						KubeReserved: v1.ResourceList{
+							v1.ResourceMemory: resource.MustParse("10Gi"),
+						},
+						EvictionSoft: map[string]string{
+							memoryAvailable: "50Mi",
+						},
+					},
+				})
+				it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
+				overhead := it.Overhead()
+				Expect(overhead.Memory().String()).To(Equal("30770Mi"))
+			})
 			It("should override eviction threshold (soft) when specified as a quantity", func() {
 				instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 				Expect(err).To(BeNil())
@@ -388,6 +408,9 @@ var _ = Describe("Instance Types", func() {
 						},
 						KubeReserved: v1.ResourceList{
 							v1.ResourceMemory: resource.MustParse("10Gi"),
+						},
+						EvictionHard: map[string]string{
+							memoryAvailable: "5%",
 						},
 						EvictionSoft: map[string]string{
 							memoryAvailable: "10%",

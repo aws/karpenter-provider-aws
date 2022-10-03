@@ -322,13 +322,16 @@ func (i *InstanceType) evictionThreshold(kc *v1alpha5.KubeletConfiguration, vmMe
 	overhead := v1.ResourceList{
 		v1.ResourceMemory: resource.MustParse("100Mi"),
 	}
-	if kc == nil || (kc.EvictionHard == nil && (kc.EvictionSoft == nil || !i.amiFamily().FeatureFlags().EvictionSoftEnabled)) {
+	if kc == nil {
 		return overhead
 	}
 
 	override := v1.ResourceList{}
-	evictionSignals := []map[string]string{kc.EvictionHard}
-	if i.amiFamily().FeatureFlags().EvictionSoftEnabled {
+	var evictionSignals []map[string]string
+	if kc.EvictionHard != nil {
+		evictionSignals = append(evictionSignals, kc.EvictionHard)
+	}
+	if kc.EvictionSoft != nil && i.amiFamily().FeatureFlags().EvictionSoftEnabled {
 		evictionSignals = append(evictionSignals, kc.EvictionSoft)
 	}
 
