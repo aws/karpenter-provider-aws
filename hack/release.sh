@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ "${1-$SNAPSHOT_TAG}" == v* ]]; then
-  IS_STABLE_RELEASE=true
+IS_STABLE_RELEASE=false
+if [ -z ${SNAPSHOT_TAG+x} ];then
+ echo "SNAPSHOT_TAG is not set"
 else
-  IS_STABLE_RELEASE=false
+  if [[ "${1-$SNAPSHOT_TAG}" == v* ]]; then
+    IS_STABLE_RELEASE=true
+  fi
 fi
 
 SNAPSHOT_TAG=${SNAPSHOT_TAG:-$(git rev-parse HEAD)}
