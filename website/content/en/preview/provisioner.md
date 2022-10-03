@@ -302,7 +302,7 @@ spec:
 | imagefs.inodesFree | imagefs.inodesFree := node.stats.runtime.imagefs.inodesFree |
 | pid.available | pid.available := node.stats.rlimit.maxpid - node.stats.rlimit.curproc |
 
-For more information on eviction threshold, view the [Node-pressure Eviction](https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction) section of the official Kubernetes docs.
+For more information on eviction thresholds, view the [Node-pressure Eviction](https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction) section of the official Kubernetes docs.
 
 #### Soft Eviction Grace Periods
 
