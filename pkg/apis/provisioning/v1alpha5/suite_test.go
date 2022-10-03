@@ -346,6 +346,14 @@ var _ = Describe("Validation", func() {
 						"imagefs.inodesFree": "5%",
 						"pid.available":      "5%",
 					},
+					EvictionSoftGracePeriod: map[string]metav1.Duration{
+						"memory.available":   {Duration: time.Minute},
+						"nodefs.available":   {Duration: time.Second * 90},
+						"nodefs.inodesFree":  {Duration: time.Minute * 5},
+						"imagefs.available":  {Duration: time.Hour},
+						"imagefs.inodesFree": {Duration: time.Hour * 24},
+						"pid.available":      {Duration: time.Minute},
+					},
 				}
 				Expect(provisioner.Validate(ctx)).To(Succeed())
 			})
@@ -353,6 +361,9 @@ var _ = Describe("Validation", func() {
 				provisioner.Spec.KubeletConfiguration = &KubeletConfiguration{
 					EvictionSoft: map[string]string{
 						"memory": "5%",
+					},
+					EvictionSoftGracePeriod: map[string]metav1.Duration{
+						"memory": {Duration: time.Minute},
 					},
 				}
 				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
@@ -362,6 +373,9 @@ var _ = Describe("Validation", func() {
 					EvictionSoft: map[string]string{
 						"memory.available": "5%3",
 					},
+					EvictionSoftGracePeriod: map[string]metav1.Duration{
+						"memory.available": {Duration: time.Minute},
+					},
 				}
 				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 			})
@@ -369,6 +383,9 @@ var _ = Describe("Validation", func() {
 				provisioner.Spec.KubeletConfiguration = &KubeletConfiguration{
 					EvictionSoft: map[string]string{
 						"memory.available": "110%",
+					},
+					EvictionSoftGracePeriod: map[string]metav1.Duration{
+						"memory.available": {Duration: time.Minute},
 					},
 				}
 				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
@@ -378,6 +395,17 @@ var _ = Describe("Validation", func() {
 					EvictionSoft: map[string]string{
 						"memory.available": "110GB",
 					},
+					EvictionSoftGracePeriod: map[string]metav1.Duration{
+						"memory.available": {Duration: time.Minute},
+					},
+				}
+				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+			})
+			It("should fail when eviction soft doesn't have matching grace period", func() {
+				provisioner.Spec.KubeletConfiguration = &KubeletConfiguration{
+					EvictionSoft: map[string]string{
+						"memory.available": "200Mi",
+					},
 				}
 				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 			})
@@ -385,6 +413,14 @@ var _ = Describe("Validation", func() {
 		Context("Eviction Soft Grace Period", func() {
 			It("should succeed on evictionSoftGracePeriod with valid keys", func() {
 				provisioner.Spec.KubeletConfiguration = &KubeletConfiguration{
+					EvictionSoft: map[string]string{
+						"memory.available":   "5%",
+						"nodefs.available":   "10%",
+						"nodefs.inodesFree":  "15%",
+						"imagefs.available":  "5%",
+						"imagefs.inodesFree": "5%",
+						"pid.available":      "5%",
+					},
 					EvictionSoftGracePeriod: map[string]metav1.Duration{
 						"memory.available":   {Duration: time.Minute},
 						"nodefs.available":   {Duration: time.Second * 90},
@@ -400,6 +436,14 @@ var _ = Describe("Validation", func() {
 				provisioner.Spec.KubeletConfiguration = &KubeletConfiguration{
 					EvictionSoftGracePeriod: map[string]metav1.Duration{
 						"memory": {Duration: time.Minute},
+					},
+				}
+				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+			})
+			It("should fail when eviction soft grace period doesn't have matching threshold", func() {
+				provisioner.Spec.KubeletConfiguration = &KubeletConfiguration{
+					EvictionSoftGracePeriod: map[string]metav1.Duration{
+						"memory.available": {Duration: time.Minute},
 					},
 				}
 				Expect(provisioner.Validate(ctx)).ToNot(Succeed())

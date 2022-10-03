@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -202,6 +203,7 @@ func (s *ProvisionerSpec) validateKubeletConfiguration() (errs *apis.FieldError)
 		validateReservedResources(s.KubeletConfiguration.KubeReserved, "kubeReserved"),
 		validateReservedResources(s.KubeletConfiguration.SystemReserved, "systemReserved"),
 		s.KubeletConfiguration.validateEvictionSoftGracePeriod(),
+		s.KubeletConfiguration.validateEvictionSoftPairs(),
 	)
 }
 
@@ -210,6 +212,21 @@ func (kc *KubeletConfiguration) validateEvictionSoftGracePeriod() (errs *apis.Fi
 		if !SupportedEvictionSignals.Has(k) {
 			errs = errs.Also(apis.ErrInvalidKeyName(k, "evictionSoftGracePeriod"))
 		}
+	}
+	return errs
+}
+
+func (kc *KubeletConfiguration) validateEvictionSoftPairs() (errs *apis.FieldError) {
+	evictionSoftKeys := sets.NewString(lo.Keys(kc.EvictionSoft)...)
+	evictionSoftGracePeriodKeys := sets.NewString(lo.Keys(kc.EvictionSoftGracePeriod)...)
+
+	evictionSoftDiff := evictionSoftKeys.Difference(evictionSoftGracePeriodKeys)
+	for k := range evictionSoftDiff {
+		errs = errs.Also(apis.ErrInvalidKeyName(k, "evictionSoft", "Key does not have a matching evictionSoftGracePeriod"))
+	}
+	evictionSoftGracePeriodDiff := evictionSoftGracePeriodKeys.Difference(evictionSoftKeys)
+	for k := range evictionSoftGracePeriodDiff {
+		errs = errs.Also(apis.ErrInvalidKeyName(k, "evictionSoftGracePeriod", "Key does not have a matching evictionSoft threshold value"))
 	}
 	return errs
 }
