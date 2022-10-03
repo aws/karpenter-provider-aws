@@ -281,7 +281,7 @@ func (i *InstanceType) kubeReservedResources(kc *v1alpha5.KubeletConfiguration) 
 	// https://github.com/awslabs/amazon-eks-ami/issues/782
 	amiFamily := amifamily.GetAMIFamily(i.provider.AMIFamily, &amifamily.Options{})
 	pods := i.pods().Value()
-	if amiFamily.ENILimitedMemoryOverhead() {
+	if amiFamily.FeatureFlags().UsesENILimitedMemoryOverhead {
 		pods = i.eniLimitedPods()
 	}
 
@@ -322,31 +322,38 @@ func (i *InstanceType) evictionThreshold(kc *v1alpha5.KubeletConfiguration, vmMe
 	overhead := v1.ResourceList{
 		v1.ResourceMemory: resource.MustParse("100Mi"),
 	}
-	if kc == nil || kc.EvictionHard == nil {
+	if kc == nil {
 		return overhead
 	}
 
-	if v, ok := kc.EvictionHard[memoryAvailable]; ok {
-		if strings.HasSuffix(v, "%") {
-			p, err := strconv.ParseFloat(strings.Trim(v, "%"), 64)
-			if err != nil {
-				panic(fmt.Sprintf("expected percentage value to be a float but got %s, %v", v, err))
-			}
-			// Setting percentage value to 100% is considered disabling the threshold according to
-			// https://kubernetes.io/docs/reference/config-api/kubelet-config.v1beta1/
-			if p == 100 {
-				p = 0
-			}
-			// Calculation is node.capacity * evictionHard[memory.available] if percentage
-			// From https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/#eviction-signals
-			totalAllocatable := i.resources.Memory().DeepCopy()
-			totalAllocatable.Sub(vmMemoryOverhead)
-			overhead[v1.ResourceMemory] = resource.MustParse(fmt.Sprint(math.Ceil(float64(totalAllocatable.Value()) / 100 * p)))
-		} else {
-			overhead[v1.ResourceMemory] = resource.MustParse(v)
-		}
+	override := v1.ResourceList{}
+	var evictionSignals []map[string]string
+	if kc.EvictionHard != nil {
+		evictionSignals = append(evictionSignals, kc.EvictionHard)
 	}
-	return overhead
+	if kc.EvictionSoft != nil && i.amiFamily().FeatureFlags().EvictionSoftEnabled {
+		evictionSignals = append(evictionSignals, kc.EvictionSoft)
+	}
+
+	for _, m := range evictionSignals {
+		temp := v1.ResourceList{}
+		if v, ok := m[memoryAvailable]; ok {
+			if strings.HasSuffix(v, "%") {
+				p := mustParsePercentage(v)
+
+				// Calculation is node.capacity * evictionHard[memory.available] if percentage
+				// From https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/#eviction-signals
+				totalAllocatable := i.resources.Memory().DeepCopy()
+				totalAllocatable.Sub(vmMemoryOverhead)
+				temp[v1.ResourceMemory] = resource.MustParse(fmt.Sprint(math.Ceil(float64(totalAllocatable.Value()) / 100 * p)))
+			} else {
+				temp[v1.ResourceMemory] = resource.MustParse(v)
+			}
+		}
+		override = resources.MaxResources(override, temp)
+	}
+	// Assign merges maps from left to right so overrides will always be taken last
+	return lo.Assign(overhead, override)
 }
 
 func (i *InstanceType) miscResources(overheadPercentage float64) v1.ResourceList {
@@ -357,7 +364,6 @@ func (i *InstanceType) miscResources(overheadPercentage float64) v1.ResourceList
 }
 
 func (i *InstanceType) computeMaxPods(ctx context.Context, kc *v1alpha5.KubeletConfiguration) *int64 {
-	amiFamily := amifamily.GetAMIFamily(i.provider.AMIFamily, &amifamily.Options{})
 	var mp *int64
 
 	switch {
@@ -369,12 +375,29 @@ func (i *InstanceType) computeMaxPods(ctx context.Context, kc *v1alpha5.KubeletC
 		mp = ptr.Int64(i.eniLimitedPods())
 	}
 
-	if kc != nil && ptr.Int32Value(kc.PodsPerCore) > 0 && amiFamily.PodsPerCoreEnabled() {
+	if kc != nil && ptr.Int32Value(kc.PodsPerCore) > 0 && i.amiFamily().FeatureFlags().PodsPerCoreEnabled {
 		mp = ptr.Int64(lo.Min([]int64{int64(ptr.Int32Value(kc.PodsPerCore)) * ptr.Int64Value(i.VCpuInfo.DefaultVCpus), ptr.Int64Value(mp)}))
 	}
 	return mp
 }
 
+func (i *InstanceType) amiFamily() amifamily.AMIFamily {
+	return amifamily.GetAMIFamily(i.provider.AMIFamily, &amifamily.Options{})
+}
+
 func lowerKabobCase(s string) string {
 	return strings.ToLower(strings.ReplaceAll(s, " ", "-"))
+}
+
+func mustParsePercentage(v string) float64 {
+	p, err := strconv.ParseFloat(strings.Trim(v, "%"), 64)
+	if err != nil {
+		panic(fmt.Sprintf("expected percentage value to be a float but got %s, %v", v, err))
+	}
+	// Setting percentage value to 100% is considered disabling the threshold according to
+	// https://kubernetes.io/docs/reference/config-api/kubelet-config.v1beta1/
+	if p == 100 {
+		p = 0
+	}
+	return p
 }

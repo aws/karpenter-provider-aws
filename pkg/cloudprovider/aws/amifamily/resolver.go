@@ -76,8 +76,25 @@ type AMIFamily interface {
 	DefaultBlockDeviceMappings() []*v1alpha1.BlockDeviceMapping
 	DefaultMetadataOptions() *v1alpha1.MetadataOptions
 	EphemeralBlockDevice() *string
-	ENILimitedMemoryOverhead() bool
-	PodsPerCoreEnabled() bool
+	FeatureFlags() FeatureFlags
+}
+
+// FeatureFlags describes whether the features below are enabled for a given AMIFamily
+type FeatureFlags struct {
+	UsesENILimitedMemoryOverhead bool
+	PodsPerCoreEnabled           bool
+	EvictionSoftEnabled          bool
+}
+
+// DefaultFamily provides default values for AMIFamilies that compose it
+type DefaultFamily struct{}
+
+func (d DefaultFamily) FeatureFlags() FeatureFlags {
+	return FeatureFlags{
+		UsesENILimitedMemoryOverhead: true,
+		PodsPerCoreEnabled:           true,
+		EvictionSoftEnabled:          true,
+	}
 }
 
 // New constructs a new launch template Resolver
