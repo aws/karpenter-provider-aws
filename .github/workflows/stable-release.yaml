@@ -87,7 +87,3 @@ jobs:
               issue_number: result.data.number,
               labels: ['stable-release','website','helm-charts']
             });
-      - uses: "marvinpinto/action-automatic-releases@latest"
-        with:
-          repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          prerelease: false
