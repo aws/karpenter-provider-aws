@@ -29,7 +29,7 @@ const (
 
 	// Reasons for CREATE/DELETE shared metrics
 	ConsolidationReason = "consolidation"
-	SchedulingReason    = "scheduling"
+	ProvisioningReason  = "provisioning"
 	ExpirationReason    = "expiration"
 	EmptinessReason     = "emptiness"
 )

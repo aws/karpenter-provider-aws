@@ -186,7 +186,7 @@ func (p *Provisioner) Provision(ctx context.Context) error {
 
 	// Any successfully created node is going to have the nodeName value filled in the slice
 	successfullyCreatedNodeCount := lo.CountBy(nodeNames, func(name string) bool { return name != "" })
-	metrics.NodesCreatedCounter.WithLabelValues(metrics.SchedulingReason).Add(float64(successfullyCreatedNodeCount))
+	metrics.NodesCreatedCounter.WithLabelValues(metrics.ProvisioningReason).Add(float64(successfullyCreatedNodeCount))
 
 	return err
 }
