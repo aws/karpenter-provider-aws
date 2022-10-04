@@ -135,14 +135,14 @@ func (env *Environment) EventuallyExpectNotFound(objects ...client.Object) {
 }
 
 func (env *Environment) ExpectCreatedNodeCount(comparator string, nodeCount int) {
-	ExpectWithOffset(1, env.Monitor.CreatedNodes()).To(BeNumerically(comparator, nodeCount),
-		fmt.Sprintf("expected %d created nodes, had %d", nodeCount, env.Monitor.CreatedNodes()))
+	ExpectWithOffset(1, env.Monitor.CreatedNodeCount()).To(BeNumerically(comparator, nodeCount),
+		fmt.Sprintf("expected %d created nodes, had %d", nodeCount, env.Monitor.CreatedNodeCount()))
 }
 
 func (env *Environment) EventuallyExpectCreatedNodeCount(comparator string, nodeCount int) {
 	EventuallyWithOffset(1, func(g Gomega) {
-		g.Expect(env.Monitor.CreatedNodes()).To(BeNumerically(comparator, nodeCount),
-			fmt.Sprintf("expected %d created nodes, had %d", nodeCount, env.Monitor.CreatedNodes()))
+		g.Expect(env.Monitor.CreatedNodeCount()).To(BeNumerically(comparator, nodeCount),
+			fmt.Sprintf("expected %d created nodes, had %d", nodeCount, env.Monitor.CreatedNodeCount()))
 	}).Should(Succeed())
 }
 

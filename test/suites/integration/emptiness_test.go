@@ -51,9 +51,9 @@ var _ = Describe("Emptiness", func() {
 		deployment.Spec.Replicas = ptr.Int32(0)
 		Expect(env.Client.Patch(env, deployment, client.MergeFrom(persisted))).To(Succeed())
 
-		nodes := env.Monitor.GetCreatedNodes()
+		nodes := env.Monitor.CreatedNodes()
 		for i := range nodes {
-			env.EventuallyExpectNotFound(&nodes[i])
+			env.EventuallyExpectNotFound(nodes[i])
 		}
 	})
 })

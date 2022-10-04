@@ -29,6 +29,7 @@ import (
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/informers"
@@ -135,7 +136,8 @@ func getPodInformation(p *v1.Pod) string {
 // https://github.com/kubernetes/kubernetes/blob/04ee339c7a4d36b4037ce3635993e2a9e395ebf3/staging/src/k8s.io/kubectl/pkg/describe/describe.go#L4232
 func getEventInformation(kind string, k types.NamespacedName, el *v1.EventList) string {
 	sb := strings.Builder{}
-	sb.WriteString(fmt.Sprintf("------- %s/%s EVENTS -------\n", kind, k))
+	sb.WriteString(fmt.Sprintf("------- %s/%s%s EVENTS -------\n",
+		kind, lo.Ternary(k.Namespace != "", k.Namespace+"/", ""), k.Name))
 	if len(el.Items) == 0 {
 		return sb.String()
 	}
@@ -252,7 +254,9 @@ func (env *Environment) AfterEach() {
 
 func (env *Environment) dumpPodEvents(testStartTime time.Time) {
 	el := &v1.EventList{}
-	ExpectWithOffset(1, env.Client.List(env, el)).To(Succeed())
+	ExpectWithOffset(1, env.Client.List(env, el, &client.ListOptions{
+		FieldSelector: fields.SelectorFromSet(map[string]string{"involvedObject.kind": "Pod"}),
+	})).To(Succeed())
 
 	eventMap := map[types.NamespacedName]*v1.EventList{}
 
@@ -262,9 +266,6 @@ func (env *Environment) dumpPodEvents(testStartTime time.Time) {
 				return false
 			}
 		} else if e.FirstTimestamp.Before(&metav1.Time{Time: testStartTime}) {
-			return false
-		}
-		if e.InvolvedObject.Kind != "Pod" {
 			return false
 		}
 		if e.InvolvedObject.Namespace == "kube-system" || e.InvolvedObject.Namespace == "karpenter" {
@@ -286,10 +287,12 @@ func (env *Environment) dumpPodEvents(testStartTime time.Time) {
 }
 
 func (env *Environment) dumpNodeEvents(testStartTime time.Time) {
-	nodeNames := sets.NewString(lo.Map(env.Monitor.GetCreatedNodes(), func(n v1.Node, _ int) string { return n.Name })...)
+	nodeNames := sets.NewString(lo.Map(env.Monitor.CreatedNodes(), func(n *v1.Node, _ int) string { return n.Name })...)
 
 	el := &v1.EventList{}
-	ExpectWithOffset(1, env.Client.List(env, el)).To(Succeed())
+	ExpectWithOffset(1, env.Client.List(env, el, &client.ListOptions{
+		FieldSelector: fields.SelectorFromSet(map[string]string{"involvedObject.kind": "Node"}),
+	})).To(Succeed())
 
 	eventMap := map[types.NamespacedName]*v1.EventList{}
 
@@ -299,9 +302,6 @@ func (env *Environment) dumpNodeEvents(testStartTime time.Time) {
 				return false
 			}
 		} else if e.FirstTimestamp.Before(&metav1.Time{Time: testStartTime}) {
-			return false
-		}
-		if e.InvolvedObject.Kind != "Node" {
 			return false
 		}
 		if !nodeNames.Has(e.InvolvedObject.Name) {

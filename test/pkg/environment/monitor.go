@@ -22,6 +22,7 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -37,10 +38,12 @@ type Monitor struct {
 	ctx        context.Context
 	kubeClient client.Client
 
-	mu                 sync.RWMutex
-	nodesSeen          sets.String
-	numberNodesAtReset int
+	mu sync.RWMutex
+
+	nodesSeen    map[types.NamespacedName]*v1.Node
+	nodesAtReset map[types.NamespacedName]*v1.Node
 }
+
 type state struct {
 	pods         v1.PodList
 	nodes        map[string]*v1.Node        // node name -> node
@@ -50,9 +53,10 @@ type state struct {
 
 func NewMonitor(ctx context.Context, kubeClient client.Client) *Monitor {
 	m := &Monitor{
-		ctx:        ctx,
-		kubeClient: kubeClient,
-		nodesSeen:  sets.NewString(),
+		ctx:          ctx,
+		kubeClient:   kubeClient,
+		nodesSeen:    map[types.NamespacedName]*v1.Node{},
+		nodesAtReset: map[types.NamespacedName]*v1.Node{},
 	}
 	m.Reset()
 	return m
@@ -61,10 +65,10 @@ func NewMonitor(ctx context.Context, kubeClient client.Client) *Monitor {
 // Reset resets the cluster monitor prior to running a test.
 func (m *Monitor) Reset() {
 	m.mu.Lock()
-	m.nodesSeen = map[string]sets.Empty{}
+	m.nodesSeen = map[types.NamespacedName]*v1.Node{}
 	m.mu.Unlock()
 	m.poll()
-	m.numberNodesAtReset = len(m.nodesSeen)
+	m.nodesAtReset = deepCopyMap(m.nodesSeen)
 }
 
 // RestartCount returns the containers and number of restarts for that container for all containers in the pods in the
@@ -104,28 +108,38 @@ func (m *Monitor) NodeCount() int {
 // NodeCountAtReset returns the number of nodes that were running when the monitor was last reset, typically at the
 // beginning of a test
 func (m *Monitor) NodeCountAtReset() int {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	return m.numberNodesAtReset
+	return len(m.NodesAtReset())
 }
 
-// TotalNodesSeen returns the total number of unique nodes ever seen since the last reset.
-func (m *Monitor) TotalNodesSeen() int {
+// NodesSeenCount returns the total number of unique nodes ever seen since the last reset.
+func (m *Monitor) NodesSeenCount() int {
+	return len(m.NodesSeen())
+}
+
+// CreatedNodeCount returns the number of nodes created since the last reset
+func (m *Monitor) CreatedNodeCount() int {
+	return m.NodesSeenCount() - m.NodeCountAtReset()
+}
+
+// NodesAtReset returns a slice of nodes that the monitor saw at the last reset
+func (m *Monitor) NodesAtReset() []*v1.Node {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return deepCopySlice(lo.Values(m.nodesAtReset))
+}
+
+// NodesSeen returns all the seen nodes since the last reset
+func (m *Monitor) NodesSeen() []*v1.Node {
 	m.poll()
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	return len(m.nodesSeen)
+	return deepCopySlice(lo.Values(m.nodesSeen))
 }
 
-// CreatedNodes returns the number of nodes created since the last reset
-func (m *Monitor) CreatedNodes() int {
-	return m.TotalNodesSeen() - m.numberNodesAtReset
-}
-
-func (m *Monitor) GetCreatedNodes() []v1.Node {
-	return lo.Filter(m.GetNodes(), func(node v1.Node, _ int) bool {
-		return node.Labels[v1alpha5.ProvisionerNameLabelKey] != ""
-	})
+// CreatedNodes returns the nodes that have been created since the last reset (essentially NodesSeen - NodesAtReset)
+func (m *Monitor) CreatedNodes() []*v1.Node {
+	resetNodeNames := sets.NewString(lo.Map(m.NodesAtReset(), func(n *v1.Node, _ int) string { return n.Name })...)
+	return lo.Filter(m.NodesSeen(), func(n *v1.Node, _ int) bool { return !resetNodeNames.Has(n.Name) })
 }
 
 // RunningPods returns the number of running pods matching the given selector
@@ -158,8 +172,9 @@ func (m *Monitor) poll() state {
 	}
 
 	m.mu.Lock()
-	for _, node := range nodes.Items {
-		m.nodesSeen.Insert(node.Name)
+	for i := range nodes.Items {
+		node := nodes.Items[i]
+		m.nodesSeen[client.ObjectKeyFromObject(&node)] = &node
 	}
 	m.mu.Unlock()
 
@@ -221,4 +236,24 @@ func (m *Monitor) nodeUtilization(resource v1.ResourceName) []float64 {
 		utilization = append(utilization, requested.AsApproximateFloat64()/allocatable.AsApproximateFloat64())
 	}
 	return utilization
+}
+
+type copyable[T any] interface {
+	DeepCopy() T
+}
+
+func deepCopyMap[K comparable, V copyable[V]](m map[K]V) map[K]V {
+	ret := map[K]V{}
+	for k, v := range m {
+		ret[k] = v.DeepCopy()
+	}
+	return ret
+}
+
+func deepCopySlice[T copyable[T]](s []T) []T {
+	var ret []T
+	for _, elem := range s {
+		ret = append(ret, elem.DeepCopy())
+	}
+	return ret
 }
