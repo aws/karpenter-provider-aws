@@ -90,11 +90,10 @@ type Controller interface {
 }
 
 type ControllerOptions struct {
-	BaseContext func() context.Context
-	Cluster     *state.Cluster
-	KubeClient  client.Client
-	Recorder    events.Recorder
-	Clock       clock.Clock
+	Cluster    *state.Cluster
+	KubeClient client.Client
+	Recorder   events.Recorder
+	Clock      clock.Clock
 
 	StartAsync   <-chan struct{}
 	CleanupAsync <-chan struct{}
@@ -170,7 +169,6 @@ func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options)
 	// Inject cloudprovider-specific controllers into the controller-set using the injectControllers function
 	// Inject the base cloud provider into the injection function rather than the decorated interface
 	controllerOptions := &ControllerOptions{
-		BaseContext:  newRunnableContext(controllerRuntimeConfig, opts, logging.FromContext(ctx)),
 		Cluster:      cluster,
 		KubeClient:   manager.GetClient(),
 		Recorder:     recorder,

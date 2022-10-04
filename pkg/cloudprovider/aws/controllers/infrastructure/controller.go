@@ -62,7 +62,7 @@ type Controller struct {
 // This period can be reduced to a backoffPeriod if there is an error in ensuring the infrastructure
 const pollingPeriod = time.Hour
 
-func NewController(ctx context.Context, cleanupCtx context.Context, kubeClient client.Client, clk clock.Clock,
+func NewController(ctx context.Context, kubeClient client.Client, clk clock.Clock,
 	recorder events.Recorder, sqsProvider *aws.SQSProvider, eventBridgeProvider *aws.EventBridgeProvider,
 	startAsync <-chan struct{}, cleanupAsync <-chan struct{}) *Controller {
 	c := &Controller{
@@ -78,13 +78,13 @@ func NewController(ctx context.Context, cleanupCtx context.Context, kubeClient c
 		done:                make(chan struct{}),
 	}
 
-	ctx, cancel := context.WithCancel(ctx) // Cancel so we don't re-provision the infra on cleanup
+	innerCtx, cancel := context.WithCancel(ctx) // Cancel so we don't re-provision the infra on cleanup
 	go func() {
 		select {
 		case <-cleanupAsync:
 			cancel()
-			c.cleanup(cleanupCtx)
-		case <-cleanupCtx.Done():
+			c.cleanup(ctx)
+		case <-ctx.Done():
 		}
 		close(c.done)
 	}()
@@ -94,7 +94,7 @@ func NewController(ctx context.Context, cleanupCtx context.Context, kubeClient c
 		case <-ctx.Done():
 			return
 		case <-startAsync:
-			c.run(ctx)
+			c.run(innerCtx)
 		}
 	}()
 	return c

@@ -86,7 +86,7 @@ var _ = BeforeEach(func() {
 		cleanupChan = make(chan struct{}, 1)
 		startChan = make(chan struct{})
 
-		controller = infrastructure.NewController(env.Ctx, env.Ctx, env.Client, fakeClock, recorder, sqsProvider, eventBridgeProvider, startChan, cleanupChan)
+		controller = infrastructure.NewController(env.Ctx, env.Client, fakeClock, recorder, sqsProvider, eventBridgeProvider, startChan, cleanupChan)
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 	ExpectApplied(env.Ctx, env.Client, test.KarpenterDeployment())
