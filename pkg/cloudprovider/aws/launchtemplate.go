@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 	"sync"
 	"time"
@@ -232,12 +233,12 @@ func (p *LaunchTemplateProvider) blockDeviceMappings(blockDeviceMappings []*v1al
 	return blockDeviceMappingsRequest
 }
 
-// volumeSize returns a Giga scaled value from a resource quantity or nil if the resource quantity passed in is nil
+// volumeSize returns a GiB scaled value from a resource quantity or nil if the resource quantity passed in is nil
 func (p *LaunchTemplateProvider) volumeSize(quantity *resource.Quantity) *int64 {
 	if quantity == nil {
 		return nil
 	}
-	return aws.Int64(quantity.ScaledValue(resource.Giga))
+	return aws.Int64(int64(quantity.AsApproximateFloat64() / math.Pow(2, 30)))
 }
 
 // Invalidate deletes a launch template from cache if it exists

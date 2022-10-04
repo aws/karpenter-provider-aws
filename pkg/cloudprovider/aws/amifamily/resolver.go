@@ -31,12 +31,13 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/amifamily/bootstrap"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/utils/pretty"
+	"github.com/aws/karpenter/pkg/utils/ptr"
 )
 
 var DefaultEBS = v1alpha1.BlockDevice{
 	Encrypted:  aws.Bool(true),
 	VolumeType: aws.String(ec2.VolumeTypeGp3),
-	VolumeSize: resource.NewScaledQuantity(20, resource.Giga),
+	VolumeSize: ptr.Quantity(resource.MustParse("20Gi")),
 }
 
 // Resolver is able to fill-in dynamic launch template parameters
