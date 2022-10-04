@@ -26,7 +26,7 @@ import (
 func main() {
 	controllers.Initialize(func(ctx context.Context, options cloudprovider.Options) (cloudprovider.CloudProvider, controllers.ControllerInitFunc) {
 		provider := aws.NewCloudProvider(ctx, options)
-		return provider, func(c context.Context, opts *controllers.ControllerOptions) <-chan struct{} {
+		return provider, func(c context.Context, opts *controllers.ControllerOptions) []<-chan struct{} {
 			return awscontrollers.Register(c, provider, opts)
 		}
 	})

@@ -22,10 +22,11 @@ import (
 )
 
 type Config struct {
-	Mu                sync.Mutex
-	Handlers          []config.ChangeHandler
-	batchMaxDuration  time.Duration
-	batchIdleDuration time.Duration
+	Mu                         sync.Mutex
+	Handlers                   []config.ChangeHandler
+	batchMaxDuration           time.Duration
+	batchIdleDuration          time.Duration
+	enableInterruptionHandling bool
 }
 
 func (c *Config) OnChange(handler config.ChangeHandler) {
@@ -39,6 +40,7 @@ func (c *Config) SetBatchMaxDuration(d time.Duration) {
 	defer c.Mu.Unlock()
 	c.batchMaxDuration = d
 }
+
 func (c *Config) BatchMaxDuration() time.Duration {
 	c.Mu.Lock()
 	defer c.Mu.Unlock()
@@ -50,15 +52,29 @@ func (c *Config) SetBatchIdleDuration(d time.Duration) {
 	defer c.Mu.Unlock()
 	c.batchIdleDuration = d
 }
+
 func (c *Config) BatchIdleDuration() time.Duration {
 	c.Mu.Lock()
 	defer c.Mu.Unlock()
 	return c.batchIdleDuration
 }
 
+func (c *Config) SetEnableInterruptionHandling(b bool) {
+	c.Mu.Lock()
+	defer c.Mu.Unlock()
+	c.enableInterruptionHandling = b
+}
+
+func (c *Config) EnableInterruptionHandling() bool {
+	c.Mu.Lock()
+	defer c.Mu.Unlock()
+	return c.enableInterruptionHandling
+}
+
 func NewConfig() *Config {
 	return &Config{
-		batchMaxDuration:  10 * time.Second,
-		batchIdleDuration: 1 * time.Second,
+		batchMaxDuration:           10 * time.Second,
+		batchIdleDuration:          1 * time.Second,
+		enableInterruptionHandling: true,
 	}
 }

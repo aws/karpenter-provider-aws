@@ -125,6 +125,11 @@ controller:
   # faster than this time, the batching window will be extended up to the maxDuration. If they arrive slower, the pods
   # will be batched separately.
   batchIdleDuration: 1s
+
+  # FEATURE FLAGS
+  #
+  # Whether to enable the interruption handling processing logic for the cloud provider
+  enableInterruptionHandling: false
 webhook:
   # -- Webhook image.
   image: "public.ecr.aws/karpenter/webhook:v0.16.3@sha256:96a2d9b06d6bc5127801f358f74b1cf2d289b423a2e9ba40c573c0b14b17dafa"

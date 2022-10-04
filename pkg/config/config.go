@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"sort"
+	"strconv"
 	"sync"
 	"time"
 
@@ -35,13 +36,16 @@ const (
 	paramBatchMaxDuration  = "batchMaxDuration"
 	paramBatchIdleDuration = "batchIdleDuration"
 
+	enableInterruptionHandling = "enableInterruptionHandling"
+
 	configMapName = "karpenter-global-settings"
 )
 
 // these values need to be synced with our templates/configmap.yaml
 var defaultConfigMapData = map[string]string{
-	paramBatchMaxDuration:  "10s",
-	paramBatchIdleDuration: "1s",
+	paramBatchMaxDuration:      "10s",
+	paramBatchIdleDuration:     "1s",
+	enableInterruptionHandling: "false",
 }
 
 type ChangeHandler func(c Config)
@@ -54,6 +58,11 @@ type Config interface {
 	BatchMaxDuration() time.Duration
 	// BatchIdleDuration returns the maximum idle period used to extend a batch duration up to BatchMaxDuration
 	BatchIdleDuration() time.Duration
+
+	// START FEATURE FLAGS -----------------------------------
+
+	// EnableInterruptionHandling returns whether to enable interruption handling controllers
+	EnableInterruptionHandling() bool
 }
 type config struct {
 	ctx context.Context
@@ -61,6 +70,8 @@ type config struct {
 	dataMu            sync.RWMutex
 	batchMaxDuration  time.Duration
 	batchIdleDuration time.Duration
+
+	enableInterruptionHandling bool
 
 	// hash of the config map so we only notify watches if it has changed
 	configHash uint64
@@ -79,6 +90,12 @@ func (c *config) BatchIdleDuration() time.Duration {
 	c.dataMu.RLock()
 	defer c.dataMu.RUnlock()
 	return c.batchIdleDuration
+}
+
+func (c *config) EnableInterruptionHandling() bool {
+	c.dataMu.RLock()
+	defer c.dataMu.RUnlock()
+	return c.enableInterruptionHandling
 }
 
 func New(ctx context.Context, kubeClient *kubernetes.Clientset, iw *informer.InformedWatcher) (Config, error) {
@@ -143,6 +160,7 @@ func hashCM(cm *v1.ConfigMap) uint64 {
 	return hasher.Sum64()
 }
 
+//nolint:gocyclo
 func (c *config) configMapChanged(configMap *v1.ConfigMap) {
 	hash := hashCM(configMap)
 	if hash == c.configHash {
@@ -171,6 +189,12 @@ func (c *config) configMapChanged(configMap *v1.ConfigMap) {
 			c.batchMaxDuration = c.parsePositiveDuration(k, v, defaultConfigMapData[k])
 		case paramBatchIdleDuration:
 			c.batchIdleDuration = c.parsePositiveDuration(k, v, defaultConfigMapData[k])
+		case enableInterruptionHandling:
+			enabled, err := strconv.ParseBool(v)
+			if err != nil {
+				panic(fmt.Sprintf("enableInterruptionHandling should be a boolean value, %v", err))
+			}
+			c.enableInterruptionHandling = enabled
 		default:
 			logging.FromContext(c.ctx).Warnf("ignoring unknown config parameter %s", k)
 		}

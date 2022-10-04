@@ -89,6 +89,8 @@ func NewController(ctx context.Context, kubeClient client.Client, clk clock.Cloc
 		infraController:      infraController,
 		backoff:              newBackoff(clk),
 	}
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("notification"))
+	logging.FromContext(ctx).Infof("Starting controller")
 
 	go func() {
 		select {
@@ -111,11 +113,8 @@ func newBackoff(clk clock.Clock) *backoff.ExponentialBackOff {
 }
 
 func (c *Controller) run(ctx context.Context) {
-	logger := logging.FromContext(ctx).Named("notification")
-	ctx = logging.WithLogger(ctx, logger)
-
 	defer func() {
-		logger.Infof("Shutting down")
+		logging.FromContext(ctx).Infof("Shutting down")
 	}()
 	for {
 		<-c.infraController.Ready() // block until the infrastructure is up and ready

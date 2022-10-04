@@ -26,12 +26,15 @@ import (
 	"github.com/aws/karpenter/pkg/controllers"
 )
 
-func Register(ctx context.Context, provider *aws.CloudProvider, opts *controllers.ControllerOptions) <-chan struct{} {
+func Register(ctx context.Context, provider *aws.CloudProvider, opts *controllers.ControllerOptions) (done []<-chan struct{}) {
 	rec := events.NewRecorder(opts.Recorder)
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("aws"))
 
-	// Injecting the AWS-specific controllers that will start when opts.StartAsync is triggered
-	infraController := infrastructure.NewController(ctx, opts.KubeClient, opts.Clock, rec, provider.SQSProvider(), provider.EventBridgeProvider(), opts.StartAsync, opts.CleanupAsync)
-	notification.NewController(ctx, opts.KubeClient, opts.Clock, rec, opts.Cluster, provider.SQSProvider(), provider.InstanceTypeProvider(), infraController, opts.StartAsync)
-	return infraController.Done()
+	// Only enable spot interruption handling controllers when the feature flag is enabled
+	if opts.Config.EnableInterruptionHandling() {
+		infraController := infrastructure.NewController(ctx, opts.KubeClient, opts.Clock, rec, provider.SQSProvider(), provider.EventBridgeProvider(), opts.StartAsync, opts.CleanupAsync)
+		notification.NewController(ctx, opts.KubeClient, opts.Clock, rec, opts.Cluster, provider.SQSProvider(), provider.InstanceTypeProvider(), infraController, opts.StartAsync)
+		done = append(done, infraController.Done())
+	}
+	return done
 }

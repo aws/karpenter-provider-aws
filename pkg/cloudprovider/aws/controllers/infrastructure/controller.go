@@ -65,6 +65,7 @@ const pollingPeriod = time.Hour
 func NewController(ctx context.Context, kubeClient client.Client, clk clock.Clock,
 	recorder events.Recorder, sqsProvider *aws.SQSProvider, eventBridgeProvider *aws.EventBridgeProvider,
 	startAsync <-chan struct{}, cleanupAsync <-chan struct{}) *Controller {
+
 	c := &Controller{
 		kubeClient:          kubeClient,
 		recorder:            recorder,
@@ -77,6 +78,8 @@ func NewController(ctx context.Context, kubeClient client.Client, clk clock.Cloc
 		trigger:             make(chan struct{}, 1),
 		done:                make(chan struct{}),
 	}
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("infrastructure"))
+	logging.FromContext(ctx).Infof("Starting controller")
 
 	innerCtx, cancel := context.WithCancel(ctx) // Cancel so we don't re-provision the infra on cleanup
 	go func() {
@@ -109,11 +112,8 @@ func newBackoff(clk clock.Clock) *backoff.ExponentialBackOff {
 }
 
 func (c *Controller) run(ctx context.Context) {
-	logger := logging.FromContext(ctx).Named("infrastructure")
-	ctx = logging.WithLogger(ctx, logger)
-
 	defer func() {
-		logger.Infof("Shutting down")
+		logging.FromContext(ctx).Infof("Shutting down")
 	}()
 	for {
 		if err := c.EnsureInfrastructure(ctx); err != nil {
@@ -143,7 +143,7 @@ func (c *Controller) run(ctx context.Context) {
 }
 
 func (c *Controller) cleanup(ctx context.Context) {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("infrastructure.cleanup"))
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("cleanup"))
 
 	dep := &appsv1.Deployment{}
 	nn := types.NamespacedName{
@@ -209,7 +209,6 @@ func (c *Controller) setReady(ctx context.Context, ready bool) {
 		}
 		c.readinessChan = make(chan struct{})
 	}
-	c.ready = ready
 	c.ready = ready
 }
 

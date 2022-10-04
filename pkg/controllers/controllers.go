@@ -77,7 +77,7 @@ func init() {
 	metrics.MustRegister() // Registers cross-controller metrics
 }
 
-type ControllerInitFunc func(context.Context, *ControllerOptions) <-chan struct{}
+type ControllerInitFunc func(context.Context, *ControllerOptions) []<-chan struct{}
 
 // Controller is an interface implemented by Karpenter custom resources.
 type Controller interface {
@@ -90,6 +90,7 @@ type Controller interface {
 }
 
 type ControllerOptions struct {
+	Config     config.Config
 	Cluster    *state.Cluster
 	KubeClient client.Client
 	Recorder   events.Recorder
@@ -169,6 +170,7 @@ func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options)
 	// Inject cloudprovider-specific controllers into the controller-set using the injectControllers function
 	// Inject the base cloud provider into the injection function rather than the decorated interface
 	controllerOptions := &ControllerOptions{
+		Config:       cfg,
 		Cluster:      cluster,
 		KubeClient:   manager.GetClient(),
 		Recorder:     recorder,
@@ -180,7 +182,7 @@ func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options)
 
 	metricsstate.StartMetricScraper(ctx, cluster)
 
-	StartCleanupWatcher(ctx, cancel, manager.Elected(), cleanupAsync, cleanupDone)
+	StartCleanupWatcher(ctx, cancel, manager.Elected(), cleanupAsync, cleanupDone...)
 	if err := RegisterControllers(ctx,
 		manager,
 		provisioning.NewController(manager.GetClient(), provisioner, recorder),

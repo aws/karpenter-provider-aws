@@ -12,3 +12,8 @@ metadata:
 data:
   "batchMaxDuration": "{{ .Values.controller.batchMaxDuration }}"
   "batchIdleDuration": "{{ .Values.controller.batchIdleDuration }}"
+  # FEATURE FLAGS
+  #
+  # enableInterruptionHandling is currently in beta and is disabled by default. Enabling interruption handling may
+  # require additional permissions on the controller service account. Additional permissions are outlined in the docs
+  "enableInterruptionHandling": "{{ .Values.controller.enableInterruptionHandling }}"
