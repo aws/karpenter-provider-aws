@@ -16,20 +16,6 @@ Number of consolidation actions performed. Labeled by action.
 ### `karpenter_consolidation_evaluation_duration_seconds`
 Duration of the consolidation evaluation process in seconds.
 
-### `karpenter_consolidation_nodes_created`
-Number of nodes created in total by consolidation.
-
-{{% alert title="Deprecation Warning" color="warning" %}}
-`karpenter_consolidation_nodes_created` is deprecated in favor of the `karpenter_nodes_created` with `reason=consolidation`
-{{% /alert %}}
-
-### `karpenter_consolidation_nodes_terminated`
-Number of nodes terminated in total by consolidation.
-
-{{% alert title="Deprecation Warning" color="warning" %}}
-`karpenter_consolidation_nodes_terminated` is deprecated in favor of the `karpenter_nodes_terminated` with `reason=consolidation`
-{{% /alert %}}
-
 ### `karpenter_consolidation_replacement_node_initialized_seconds`
 Amount of time required for a replacement node to become initialized.
 

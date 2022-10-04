@@ -326,7 +326,6 @@ func (c *Controller) performConsolidation(ctx context.Context, action consolidat
 		if err := c.kubeClient.Delete(ctx, oldNode); err != nil {
 			logging.FromContext(ctx).Errorf("Deleting node, %s", err)
 		} else {
-			consolidationNodesTerminatedCounter.Inc()
 			metrics.NodesTerminatedCounter.WithLabelValues(metrics.ConsolidationReason).Inc()
 		}
 	}
@@ -396,7 +395,6 @@ func (c *Controller) launchReplacementNode(ctx context.Context, action consolida
 		return fmt.Errorf("expected a single node name, got %d", len(nodeNames))
 	}
 
-	consolidationNodesCreatedCounter.Inc()
 	metrics.NodesCreatedCounter.WithLabelValues(metrics.ConsolidationReason).Inc()
 
 	// We have the new node created at the API server so mark the old node for deletion
