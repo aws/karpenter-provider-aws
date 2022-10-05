@@ -182,7 +182,12 @@ func (p *Provisioner) Provision(ctx context.Context) error {
 		return nil
 	}
 
-	_, err = p.LaunchNodes(ctx, LaunchOptions{RecordPodNomination: true}, nodes...)
+	nodeNames, err := p.LaunchNodes(ctx, LaunchOptions{RecordPodNomination: true}, nodes...)
+
+	// Any successfully created node is going to have the nodeName value filled in the slice
+	successfullyCreatedNodeCount := lo.CountBy(nodeNames, func(name string) bool { return name != "" })
+	metrics.NodesCreatedCounter.WithLabelValues(metrics.ProvisioningReason).Add(float64(successfullyCreatedNodeCount))
+
 	return err
 }
 
@@ -191,6 +196,8 @@ type LaunchOptions struct {
 	RecordPodNomination bool
 }
 
+// LaunchNodes launches nodes passed into the function in parallel. It returns a slice of the successfully created node
+// names as well as a multierr of any errors that occurred while launching nodes
 func (p *Provisioner) LaunchNodes(ctx context.Context, opts LaunchOptions, nodes ...*scheduler.Node) ([]string, error) {
 	// Launch capacity and bind pods
 	errs := make([]error, len(nodes))

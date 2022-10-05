@@ -56,6 +56,7 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/controllers/termination"
 	"github.com/aws/karpenter/pkg/events"
+	"github.com/aws/karpenter/pkg/metrics"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/options"
 	"github.com/aws/karpenter/pkg/utils/project"
@@ -70,6 +71,7 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(apis.AddToScheme(scheme))
+	metrics.MustRegister() // Registers cross-controller metrics
 }
 
 // Controller is an interface implemented by Karpenter custom resources.

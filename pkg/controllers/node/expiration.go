@@ -28,6 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/metrics"
 )
 
 // Expiration is a subreconciler that terminates nodes after a period of time.
@@ -53,6 +54,7 @@ func (r *Expiration) Reconcile(ctx context.Context, provisioner *v1alpha5.Provis
 		if err := r.kubeClient.Delete(ctx, node); err != nil {
 			return reconcile.Result{}, fmt.Errorf("deleting node, %w", err)
 		}
+		metrics.NodesTerminatedCounter.WithLabelValues(metrics.ExpirationReason).Inc()
 	}
 	// 3. Backoff until expired
 	return reconcile.Result{RequeueAfter: time.Until(expirationTime)}, nil

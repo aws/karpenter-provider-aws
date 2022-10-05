@@ -31,6 +31,7 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/controllers/state"
+	"github.com/aws/karpenter/pkg/metrics"
 	"github.com/aws/karpenter/pkg/utils/pod"
 )
 
@@ -90,6 +91,7 @@ func (r *Emptiness) Reconcile(ctx context.Context, provisioner *v1alpha5.Provisi
 		if err := r.kubeClient.Delete(ctx, n); err != nil {
 			return reconcile.Result{}, fmt.Errorf("deleting node, %w", err)
 		}
+		metrics.NodesTerminatedCounter.WithLabelValues(metrics.EmptinessReason).Inc()
 	}
 	return reconcile.Result{RequeueAfter: emptinessTime.Add(ttl).Sub(r.clock.Now())}, nil
 }
