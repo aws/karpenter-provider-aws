@@ -1,12 +1,12 @@
-# Karpenter Node Upgrades - Automatic Upgrades
+# Karpenter Node Upgrades - AMI Upgrades
 
 ## Overview
 
 Karpenter users are requesting for Node Upgrades, generally asking for [more complex node control](https://github.com/aws/karpenter/issues/1738) (91 up-votes and counting). While early versions of Karpenter meant for Provisioners to dictate node provisioning requirements and simple termination methods, Provisioners are becoming more semantically aligned with Node Groups. This is seen with [Provisioners owning nodes](https://github.com/aws/karpenter/pull/1934) and [Consolidation](https://github.com/aws/karpenter/pull/2123), where Karpenter controls the cluster in more ways than provisioning nodes for pending pods. To further align the Provisioner to represent a desired state of both new and existing nodes, Karpenter will implement [Node AMI Upgrades](https://github.com/aws/karpenter/issues/1716) by detecting and remediating drifted nodes.
 
-The upgrade mechanism will initially reconcile when a node's AMI drifts from provisioning requirements. This mechanism will be scalable to other methods of drift remediation in the future. Addtionally, Karpenter can implement Imperative Upgrades or Maintenance Windows in the future.
+For the initial implementation, Karpenter's drift will reconcile when a node's AMI drifts from provisioning requirements. This mechanism will be scalable to other methods of drift reconciliation in the future. Addtionally, Karpenter can implement Imperative Upgrades or Maintenance Windows in the future.
 
-At the moment, this document will answer the following questions:
+This document will answer the following questions:
 
 * How will Karpenter upgrade nodes?
 * Which nodes should Karpenter upgrade?
@@ -14,32 +14,32 @@ At the moment, this document will answer the following questions:
 
 ## User Stories
 
-* Karpenter will be able to automatically upgrade node AMIs to match their Provisioner requirements.
+* Karpenter will be able to automatically upgrade node AMIs to match their provisioning requirements.
 * Karpenter will be able to enable other providers to implement their own drift mechanisms.
 
 ### Background - What is node drift?
 
-A drifted node is one whose spec and metadata does not match the spec of its Provisioner and ProviderRef. A node can drift when a user changes their Provisioner or ProviderRef. For example, if a user who changes their architecture requirements to only `amd64` from `arm64`, any existing `arm64` nodes will drift. In another example, if a user changes the tags in the AWSNodeTemplate, they will have instances with drifted tags. These are both actions done within the cluster.
+A drifted node is one whose spec and metadata does not match the spec of its Provisioner and ProviderRef. A node can drift when a user changes their Provisioner or ProviderRef. For example, if a user changes their architecture requirements to only `amd64` from `arm64`, any existing `arm64` nodes will drift. In another example, if a user changes the tags in the AWSNodeTemplate, their nodes will drift due to mis-matching tags. These are both actions done within the cluster.
 
-Yet, a node can drift without modifying the Provisioner or ProviderRef. Underlying infrastructure in the Cloud Provider can be changed outside of the cluster. More specifically, using anything except the `aws-ids` filter in the `AWSNodeTemplate` `AMISelector` allows the AMI to change when a new AL2 EKS Optimized AMI is released, making nodes drift. Additionally, if a user changes the tags on their AMIs and uses arbitrary tags in the `AWSNodeTemplate`, nodes can also drift.
+Yet, a node can drift without modifying the Provisioner or ProviderRef. Underlying infrastructure in the Provider can be changed outside of the cluster. For example, using defaults in the `AWSNodeTemplate` `AMISelector` allows the AMI to change when a new AL2 EKS Optimized AMI is released, creating drifted nodes. Additionally, the same can happen if a user changes the tags on their AMIs and uses arbitrary tags in the `AWSNodeTemplate`.
 
 ## How will Karpenter upgrade nodes?
 
-When upgrading a node, Karpenter will minimize the downtime of the applications on the node by first creating the replacement node before terminating the old node. Once the replacement is ready, Karpenter will cordon and drain the old node, terminating it when it’s fully drained. Once the old node has been terminated, the upgrade will be complete.
+When upgrading a node, Karpenter will minimize the downtime of the applications on the node by initating provisioning logic for a replacement node before terminating drifted nodes. Once Karpenter has begun provisioning the replacement node, Karpenter will cordon and drain the old node, terminating it when it’s fully drained, then finishing the upgrade.
 
-Upgrading nodes without a dedicated controller to orchestrate the logic means using the termination controller to scale down and the provisioning controller to scale back up. Since the termination controller asynchronously scales down the cluster as quick as possible, rate-limiting only happens at the pod level. In creating a dedicated controller to orchestrate the logic, Karpenter can begin to rate-limit at the node level. There are two options to upgrading nodes here - serially and in parallel.
+Karpenter's currently does not have a dedicated controller for drift. With no rate-limiting, this means using the termination controller to scale down and the provisioning controller to scale back up. Since the termination controller asynchronously scales down the cluster as quick as possible, rate-limiting only happens at the pod level with user-controls. In creating a dedicated controller to orchestrate the logic, Karpenter can begin to rate-limit at the node level. Rate-limiting can be done serially and in parallel.
 
 ### Option 1 - Upgrade Serially
 
-Karpenter will only upgrade one node at a time. Each node's upgrade will be complete when its replacement is ready and the old node is terminated. This naturally rate-limits node upgrades to node initialization time and means that users will only have to worry about one node disruption at a time with upgrades.
+Karpenter will only upgrade one node at a time. Each node's upgrade will be complete when its replacement is ready and the old node is terminated. This naturally rate-limits node upgrades to node initialization and pod-rescheduling time and means that users will only have to worry about one node disruption at a time with upgrades.
 
-With serial upgrades, new nodes that cannot become ready or old nodes that cannot fully drain can stop the upgrade process altogether. For example, an old node could fail to fully drain due to a PDB or a do-not-evict annotation, which may require manual intervention. A new node could fail to become ready for many reasons. For one, if the new AMI is incompatible with the cluster's applications, Karpenter should not upgrade more nodes as more upgrades to that AMI would likely fail. On the other hand, sometimes a failed upgrade can succeed in other cases like with an [Outdated CNI](https://karpenter.sh/v0.16.3/troubleshooting/#nodes-stuck-in-pending-and-not-running-the-kubelet-due-to-outdated-cni) - where using a newer instance type could fail where an older instance type would succeed.
+With serial upgrades, new nodes that cannot become ready or old nodes that cannot fully drain can stop the upgrade process altogether. While Karpenter will not upgrade nodes with blocking PDBs or `do-not-evict` pods, provisioning a new node can fail for many reasons. For one, if the new AMI is incompatible with the cluster's applications, Karpenter should not upgrade more nodes as more upgrades to that AMI would likely fail. On the other hand, sometimes a newly provisioned node can succeed in other cases like with an [Outdated CNI](https://karpenter.sh/v0.16.3/troubleshooting/#nodes-stuck-in-pending-and-not-running-the-kubelet-due-to-outdated-cni) - where using a newer instance type could fail where an older instance type would succeed.
 
-In order to not permanently block serial upgrades, upgrades will have timeouts. Relying on Kubernetes native concepts, Karpenter will compute a drain timeout that respects the `GracefulTerminationPeriodSeconds` on the pods on the nodes by summing all remaining `GracefulTerminationPeriodSeconds` fields. This accounts for the worst case where Karpenter can only evict one pod at a time, taking as long as possible. If Karpenter fails to create a replacement node, Karpenter can terminate the unitialized upgraded node, where rolling back is already complete.
+In order to not permanently block serial upgrades, upgrades will have timeout. Relying on Kubernetes native concepts, Karpenter will compute a drain timeout that respects the `GracefulTerminationPeriodSeconds` on the pods on the nodes by summing all remaining `GracefulTerminationPeriodSeconds` fields. This accounts for the worst case where Karpenter can only evict one pod at a time, taking as long as possible. If Karpenter fails to create a replacement node, Karpenter can terminate the unitialized upgraded node, where rolling back is already complete.
 
 ### Option 2 - Upgrade in Parallel
 
-For some use cases, upgrading serially may be too slow. To combat this, Karpenter can upgrade in parallel, allowing more than one node to upgrade at a time. In contrast to upgrading serially,  upgrading in parallel requires opinionated hyper-parameters or allowing an API for users to configure them.
+For some use cases, upgrading serially may be too slow. To combat this, Karpenter can upgrade in parallel, allowing more than one node to upgrade at a time. In contrast to upgrading serially, upgrading in parallel requires opinionated hyper-parameters or allowing an API for users to configure them.
 
 #### Option 2a - In parallel with controls
 
@@ -60,21 +60,21 @@ spec:
   maxUnavailable: 30 # intOrString
 ```
 
-Node Disruption Budgets are conceptually extensible from PDBs. Users who already use PDBs will be able to easily reason with the concept. While conceptually similar, pods tend to have more homogenous resource requirements and usually work with ReplicationControllers to ensure a number of replicas. Instead, nodes are stand-alone resources and can have very heterogenous resource requirements. In fact, NDBs can act very differently depending on the distribution of node sizes. Check [NDB Examples](./node-upgrades.md#node-disruption-budget-examples) for more.
+Node Disruption Budgets are conceptually extensible from PDBs. Users who already use PDBs will be able to easily reason with the concept. While conceptually similar, pods tend to have more homogenous resource requirements and usually work with ReplicationControllers to ensure a number of replicas. Instead, nodes are stand-alone objects and can have very heterogenous resource requirements. In fact, NDBs can act very differently depending on the distribution of node sizes. Check [NDB Examples](./node-upgrades.md#node-disruption-budget-examples) for more.
 
 #### Option 2b - In parallel with hard-coded hyper parameters and surface controls later
 
 While these defaults may make sense for some use-cases, it ultimately is tough to get right for others. This section could be a first step before implementing Node Disruption Budgets.
 
-Karpenter can upgrade nodes in parallel with a series of hard-coded defaults. Many of the proposed defaults are similar to [Cluster Autoscaler's](https://github.com/kubernetes/autoscaler/blob/master/cluster-autoscaler/FAQ.md#what-are-the-parameters-to-ca). Karpenter also uses [defaulted tunables in Consolidation](./consolidation.md#internal-tunables). For upgrades, Karpenter proposes the following:
+Karpenter can upgrade nodes in parallel with a series of hard-coded defaults. Many of the proposed defaults are similar to [Cluster Autoscaler's](https://github.com/kubernetes/autoscaler/blob/master/cluster-autoscaler/FAQ.md#what-are-the-parameters-to-ca). Karpenter also uses [defaulted tunables in Consolidation](./consolidation.md#internal-tunables). For parllel upgrades, Karpenter proposes the following:
 
-* Polling Period - This is how often a node will scan the cluster for nodes that need upgrading. Since this is fairly inexpensive to check with aws ec2 describe-instances, Karpenter can do this every 60 seconds. Otherwise, Karpenter can simply add the AMI-ID at provisioning time, where Karpenter falls back to an EC2 API call.
+* Polling Period - This is how often a node will scan the cluster for nodes that need upgrading. Karpenter can simply add the `AMI-ID` at provisioning time, where Karpenter falls back to an EC2 API call. The drift controller will poll drifted nodes every second, as this becomes very inexpensive.
 * Cooldown Period - How long Karpenter waits to upgrade instances after upgrading a batch. This may not be necessary as Karpenter will pre-spin nodes.
     * This is similar to `scale-down-delay-after-add`, `scale-down-delay-after-delete`, and `scale-down-unneeded-time` in Cluster Autoscaler.
 * Minimum Node Lifetime - The minimum age a node must be before it is considered for upgrading. If a node is created and then a new AMI is released, it may be favorable to wait a bit before upgrading it as to not introduce unwanted churn. This can be mitigated with the following section, where upgrade ordering is discussed.
 * Max Upgrade Batch - How many nodes will be upgraded at a time. This will default to 5%. For a 1000 node cluster, 50 nodes could upgrade at the same time. For a cluster with 20 or less nodes, this will be 1, equivalent to upgrading serially.
 
-### Recommendation
+### Choice Recommendation
 
 *Upgrade serially*. If Karpenter upgrades in parallel and uses an API such as NDB, users will need to use NDBs to safely onboard to automatic updates. Newer users may find this too complicated and disable automatic upgrades altogether. If Karpenter hard-codes defaults into the process, some cases may end up working poorly for existing users.
 
@@ -84,35 +84,33 @@ Upgrading serially requires no additional API or hard-coded hyper-parameters. It
 
 ### Provisioning Constraints
 
-Due to the fact that Karpenter will pre-spin nodes, it’s possible that upgrades will fail due to strict or incorrect provisioning constraints. In these cases, Karpenter will log the reasons and try again later.
+Due to the fact that Karpenter will pre-spin nodes, it’s possible that upgrades will fail due to strict or incorrect provisioning constraints. In these cases, Karpenter will log the failures and try again later.
 
 #### Provisioner Limits or Other Limits
 
 Users can specify resource limits on their Provisioner as a resource ceiling. If a replacement node cannot be created due to tight provisioner limits, the upgrade will fail. As this is set by the user, Karpenter will not modify the limits. Karpenter's best practices here are to leave some room on the Provisioner limits for nodes to upgrade.
 
-Additionally, a user could fail to provision a node due to IP exhaustion or service quota limits. Since Karpenter will be upgrading serially, a user can be throttled if their usage is very close to their limits. Since Karpenter cannot change any limits outside of the cluster, Karpenter's best practice is to use resource limits to represent these "out-of-cluster" limits as good as possible.
+Additionally, a user could fail to provision a node due to IP exhaustion or service quota limits. Since Karpenter will be upgrading serially, a user can be throttled if their usage is very close to their limits. Since Karpenter cannot change any limits outside of the cluster, Karpenter's best practice is to use resource limits that represent these "out-of-cluster" limits as best as possible.
 
 #### Unavailable Offerings (ICE)
 
-Karpenter caches offerings that maintain key information about recent API calls to EC2 about available instances. Offerings contain information about price, capacity type, and availability zone. To maximize the chance that all pods are able to reschedule, Karpenter will execute the provisioning logic to match the scheduling constraints and the resource requirements of the pods on the drifted nodes. If a user’s provisioner is very restrictive, Karpenter's scheduler may be unable to provision a node. If Karpenter is unable to provision capacity due to an Insufficient Capacity Exception (ICE), Karpenter will try this node again later.
+Karpenter caches offerings that maintain key information about recent API calls to EC2 about available instances. Offerings contain information about price, capacity type, and availability zone. To maximize the chance that all pods are able to reschedule, Karpenter will execute the provisioning logic to match the scheduling constraints and the resource requirements of the pods on the drifted nodes and all existing pending pods. If a user’s provisioner has restrictive instance requirements, Karpenter's scheduler may be unable to provision a node due to underlying instance availability. If Karpenter is unable to provision capacity due to an Insufficient Capacity Exception (ICE), Karpenter will try this node again later.
 
 #### Invalid Constraints
 
-In the event that a user changes the AMISelector or underlying AMI and Karpenter cannot discover an AMI, Karpenter will not attempt to upgrade the node, as the upgrade will fail.
+In the event that a user changes the `AMISelector` or underlying AMI and Karpenter cannot discover an AMI, Karpenter will not attempt to upgrade the node, as the upgrade will fail.
 
 ### Concurrent Termination
 
-Karpenter’s termination is triggered by either the user or the controllers, specifically Consolidation, Node-Emptiness, and Node-Expiration. The termination controller executes the cordon and drain logic for each node that is requested to terminate, signaled by the finalizer that is present on all nodes.
+Karpenter’s termination is triggered by either the user or the controllers, specifically Consolidation, Emptiness, and Expiration. The termination controller executes the cordon and drain logic for each node that is requested to terminate, signaled by the finalizer that is present on all nodes.
 
 In the case where Consolidation is disabled and Emptiness is enabled (they are mutually exclusive), emptiness does not create a replacement node. Expiration is also taken into account as a heuristic by Consolidation.
 
-#### Karpenter Controllers - Consolidation
+#### Karpenter Controllers - Deprovisioning
 
 Consolidation currently implements node deletion and node replacement. It deletes a node if it finds that all pods on the node can fit on other existing nodes. It replaces a node if the pods on the node can be replaced with a cheaper node and the rest of the cluster. Boiled down, consolidation takes actions on the cluster prioritizing nodes that are closest to expiring and easiest to fully drain. More details [here](./consolidation.md#selecting-nodes-for-consolidation).
 
-Using consolidation with AMISelector defaults means that as nodes are closer to expiring, consolidation will more likely terminate them. If consolidation does node replacement, a node could be more likely to upgrade if it has some lower utilization costs. This means consolidation could terminate other nodes while Karpenter is upgrading drifted nodes.
-
-If consolidation and upgrading are executed concurrently, pods that are rescheduling due to consolidation could schedule onto the drifted node's replacement. Pods being drained as part of the upgrade could fail to schedule, requiring another to be provisioned, or failing rescheduling altogether. More detailed examples [here](./node-upgrades#scheduling-mishaps-with-consolidation). To handle this, Karpenter will merge consolidation, node drift, node expiration, and node emptiness into a node lifecycle controller. Merging this logic allows Karpenter to be aware of all controller scale-down logic and orchestrate it together to minimize inefficient logic. Check [consolidation-and-drift.md](./consolidation-and-drift.md) for more.
+If consolidation and upgrades are executed concurrently, pods that are rescheduling due to consolidation could schedule onto the drifted node's replacement. Pods being drained as part of the upgrade could fail to schedule, requiring another to be provisioned, or failing rescheduling altogether. More detailed examples [here](./node-upgrades#scheduling-mishaps-with-consolidation). To handle this, Karpenter will merge consolidation, node drift, node expiration, and node emptiness into a `Deprovisioning` controller. Merging this logic allows Karpenter to be aware of all controller scale-down logic and orchestrate it together to minimize inefficient logic. Check [deprovisioning.md](./deprovisioning.md) for more.
 
 #### The User
 
@@ -120,18 +118,15 @@ Taking advantage of finalizers present on all nodes, a user can decide to termin
 
 #### Kubernetes Concepts
 
-PDBs, the `do-not-evict` pod annotation, and other finalizers are ways that users in Kubernetes can slow down upgrades. With restrictive enough PDBs or `do-not-evict` pods, upgrades may fail by exceeding their timeout period, where these two concepts could block a node from fully draining. In addition, if the user uses finalizers and does not clean them up, the old node may never terminate. These conditions could block an upgrade from completing independent of how many pods have been evicted. For this reason, the node could be fully upgraded but keep around old capacity. Since this may or may not block upgrades, Karpenter will incorporate this logic into the following section on prioritizations.
+PDBs, the `do-not-evict` pod annotation, and other finalizers are ways that users in Kubernetes can slow down upgrades. With restrictive enough PDBs, upgrades may fail by exceeding their timeout period, where the node could take to long to fully drain. In addition, if the user uses finalizers and does not clean them up, the old node may never terminate. For this reason, the node could be fully upgraded but keep around old capacity. Since this may or may not block upgrades, Karpenter will incorporate this logic into the following section on prioritizations.
 
 ## Which nodes should Karpenter upgrade?
 
-When provisioning a node, Karpenter generates a launch template and fills it with an AMI selected by the AWSNodeTemplate AMISelector. As hinted above, drifted nodes with AMIs not matching the  the `AWSNodeTemplate` `AMISelector` will be upgraded.
+When provisioning a node, Karpenter generates a launch template and fills it with an AMI selected by the `AWSNodeTemplate` `AMISelector`. As hinted above, drifted nodes with AMIs not matching the `AWSNodeTemplate` `AMISelector` will be upgraded.
 
-A cluster may undergo less churn if Karpenter prioritizes upgrading nodes that are close to being recycled. In addition, Karpenter will not upgrade nodes that cannot upgrade successfully. Specifically, Karpenter will not upgrade nodes that fit these conditions:
+Karpenter will not upgrade drifted nodes that have the `do-not-evict: true` annotation, [misconfigured PDBs, or blocking PDBs](https://kubernetes.io/docs/concepts/scheduling-eviction/api-eviction/#how-api-initiated-eviction-works). Karpenter's deprovisioning controller will respect this as well.
 
-* Has a pod with a `do-not-evict: true` annotation. Karpenter does not attempt to drain a node with a pod with this annotation. Karpenter will do the same for upgrades. This will be included in Upgrade Best Practices.
-* Nodes with pods that have misconfigured PDBs, or blocking PDBs altogether. If a pod is owned by two PDBs, the [eviction API blocks eviction](https://kubernetes.io/docs/concepts/scheduling-eviction/api-eviction/#how-api-initiated-eviction-works) of that pod will prevent eviction, requiring user intervention.
-
-On top of this, Karpenter’s current AMI selection picks a random AMI out of a list of allowed AMIs. Karpenter will now use latest AMI out of the discovered list of AMIs. If users need a method of not having the latest EKS Optimized AMI, Karpenter can implement native AMI Versioning controls in the future.
+On top of this, Karpenter’s current AMI selection picks a random AMI out of a list of allowed AMIs. Karpenter will use latest AMI out of the discovered list of AMIs. If users need a method of not having the latest EKS Optimized AMI, Karpenter can implement native AMI Versioning controls in the future.
 
 ## Appendix
 
