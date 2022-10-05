@@ -56,10 +56,10 @@ var _ = Describe("Expiration", func() {
 
 		// We don't care if the pod goes healthy, just if the node is expired
 		env.EventuallyExpectCreatedNodeCount("==", 1)
-		node := env.Monitor.GetCreatedNodes()[0]
+		node := env.Monitor.CreatedNodes()[0]
 
 		// Eventually expect the node to be gone
-		env.EventuallyExpectNotFound(&node)
+		env.EventuallyExpectNotFound(node)
 	})
 	It("should replace expired node with a single node and schedule all pods", func() {
 		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
@@ -95,7 +95,7 @@ var _ = Describe("Expiration", func() {
 		env.EventuallyExpectHealthyPodCount(selector, int(numPods))
 		env.ExpectCreatedNodeCount("==", 1)
 
-		node := env.Monitor.GetCreatedNodes()[0]
+		node := env.Monitor.CreatedNodes()[0]
 
 		// Reset the monitor so that we can expect a single node to be spun up after expiration
 		env.Monitor.Reset()
@@ -117,7 +117,7 @@ var _ = Describe("Expiration", func() {
 
 		// After the deletion timestamp is set and all pods are drained
 		// the node should be gone
-		env.EventuallyExpectNotFound(&node)
+		env.EventuallyExpectNotFound(node)
 
 		env.EventuallyExpectHealthyPodCount(selector, int(numPods))
 		env.ExpectCreatedNodeCount("==", 1)
