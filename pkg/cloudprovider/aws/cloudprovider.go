@@ -22,6 +22,8 @@ import (
 	"net/http"
 	"time"
 
+	karpenterapis "github.com/aws/karpenter/pkg/apis"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/client"
@@ -76,7 +78,7 @@ type CloudProvider struct {
 	instanceTypeProvider *InstanceTypeProvider
 	instanceProvider     *InstanceProvider
 	kubeClient           k8sClient.Client
-	nodeEventWatcher     chan cloudprovider.NodeEvent
+	nodeEventWatcher     chan karpenterapis.ConvertibleToEvent
 }
 
 func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *CloudProvider {
@@ -122,7 +124,7 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 			),
 		),
 		kubeClient:       options.KubeClient,
-		nodeEventWatcher: make(chan cloudprovider.NodeEvent, 100),
+		nodeEventWatcher: make(chan karpenterapis.ConvertibleToEvent, 1000),
 	}
 	v1alpha5.ValidateHook = cloudprovider.Validate
 	v1alpha5.DefaultHook = cloudprovider.Default
@@ -200,7 +202,7 @@ func (c *CloudProvider) Delete(ctx context.Context, node *v1.Node) error {
 	return c.instanceProvider.Terminate(ctx, node)
 }
 
-func (c *CloudProvider) NodeEventWatcher() <-chan cloudprovider.NodeEvent {
+func (c *CloudProvider) NodeEventWatcher() <-chan karpenterapis.ConvertibleToEvent {
 	return c.nodeEventWatcher
 }
 

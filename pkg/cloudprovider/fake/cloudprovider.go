@@ -19,8 +19,10 @@ import (
 	"fmt"
 	"sync"
 
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 
+	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
@@ -41,11 +43,17 @@ type CloudProvider struct {
 	CreateCalls   []*cloudprovider.NodeRequest
 	InstanceTypes []cloudprovider.InstanceType
 
-	NodeEventChan chan cloudprovider.NodeEvent
+	NodeEventChan chan apis.ConvertibleToEvent
 }
 
 var _ cloudprovider.CloudProvider = (*CloudProvider)(nil)
 var _ cloudprovider.InstanceType = (*InstanceType)(nil)
+
+func NewCloudProvider() *CloudProvider {
+	return &CloudProvider{
+		NodeEventChan: make(chan apis.ConvertibleToEvent, 1000),
+	}
+}
 
 func (c *CloudProvider) Create(ctx context.Context, nodeRequest *cloudprovider.NodeRequest) (*v1.Node, error) {
 	c.mu.Lock()
@@ -148,6 +156,15 @@ func (c *CloudProvider) Name() string {
 	return "fake"
 }
 
-func (c *CloudProvider) NodeEventWatcher() <-chan cloudprovider.NodeEvent {
+func (c *CloudProvider) NodeEventWatcher() <-chan apis.ConvertibleToEvent {
 	return c.NodeEventChan
+}
+
+func (c *CloudProvider) EnqueueDeleteEvent(source string, nn types.NamespacedName, onComplete func() error) {
+	c.NodeEventChan <- cloudprovider.NodeEvent{
+		Source:         source,
+		Type:           cloudprovider.DeleteEvent,
+		OnComplete:     onComplete,
+		InvolvedObject: nn,
+	}
 }

@@ -24,6 +24,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/scheduling"
 )
@@ -58,7 +59,7 @@ type CloudProvider interface {
 	Name() string
 	// NodeEventWatcher returns the node event watcher channel. This channel is used by disruption controller to process
 	// node events like deletion and creation
-	NodeEventWatcher() <-chan NodeEvent
+	NodeEventWatcher() <-chan apis.ConvertibleToEvent
 }
 
 type NodeEventType string
@@ -68,11 +69,22 @@ const (
 	DeleteEvent NodeEventType = "Delete"
 )
 
+func NoOp() error { return nil }
+
 type NodeEvent struct {
 	Source         string
 	Type           NodeEventType
 	OnComplete     func() error
 	InvolvedObject types.NamespacedName
+}
+
+func (e NodeEvent) ToEvent() apis.Event {
+	return apis.Event{
+		Source:         e.Source,
+		Type:           apis.EventType(e.Type),
+		OnComplete:     e.OnComplete,
+		InvolvedObject: e.InvolvedObject,
+	}
 }
 
 type NodeRequest struct {

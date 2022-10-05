@@ -45,8 +45,8 @@ import (
 	"github.com/aws/karpenter/pkg/utils/pod"
 )
 
-// Controller is the consolidation controller.  It is not a standard controller-runtime controller in that it doesn't
-// have a reconcile method.
+// Controller is the consolidation controller.
+// It is not a standard controller-runtime controller in that it doesn't have a reconcile method.
 type Controller struct {
 	kubeClient             client.Client
 	cluster                *state.Cluster

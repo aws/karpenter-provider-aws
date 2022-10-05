@@ -236,7 +236,7 @@ var _ = Describe("Replace Nodes", func() {
 		// should create a new node as there is a cheaper one that can hold the pod
 		Expect(cloudProvider.CreateCalls).To(HaveLen(1))
 		// and delete the old one
-		ExpectNotFound(ctx, env.Client, node)
+		EventuallyExpectNotFound(ctx, env.Client, node)
 	})
 	It("can replace nodes, considers PDB", func() {
 		labels := map[string]string{
@@ -382,7 +382,7 @@ var _ = Describe("Replace Nodes", func() {
 
 		Expect(cloudProvider.CreateCalls).To(HaveLen(0))
 		// we should delete the non-annotated node
-		ExpectNotFound(ctx, env.Client, regularNode)
+		EventuallyExpectNotFound(ctx, env.Client, regularNode)
 	})
 	It("won't replace node if any spot replacement is more expensive", func() {
 		currentInstance := fake.NewInstanceType(fake.InstanceTypeOptions{
@@ -637,7 +637,7 @@ var _ = Describe("Replace Nodes", func() {
 		// consolidation should complete now that the finalizer on the node is gone and it can
 		// was actually deleted
 		Eventually(consolidationFinished.Load, 10*time.Second).Should(BeTrue())
-		ExpectNotFound(ctx, env.Client, node)
+		EventuallyExpectNotFound(ctx, env.Client, node)
 
 		// should create a new node as there is a cheaper one that can hold the pod
 		Expect(cloudProvider.CreateCalls).To(HaveLen(1))
@@ -714,7 +714,7 @@ var _ = Describe("Delete Node", func() {
 		// we don't need a new node, but we should evict everything off one of node2 which only has a single pod
 		Expect(cloudProvider.CreateCalls).To(HaveLen(0))
 		// and delete the old one
-		ExpectNotFound(ctx, env.Client, node2)
+		EventuallyExpectNotFound(ctx, env.Client, node2)
 	})
 	It("can delete nodes, considers PDB", func() {
 		var nl v1.NodeList
@@ -804,7 +804,7 @@ var _ = Describe("Delete Node", func() {
 		Expect(cloudProvider.CreateCalls).To(HaveLen(0))
 		// but we expect to delete the nmode with more pods (node1) as the pod on node2 has a PDB preventing
 		// eviction
-		ExpectNotFound(ctx, env.Client, node1)
+		EventuallyExpectNotFound(ctx, env.Client, node1)
 	})
 	It("can delete nodes, considers do-not-evict", func() {
 		// create our RS so we can link a pod to it
@@ -878,7 +878,7 @@ var _ = Describe("Delete Node", func() {
 		// we don't need a new node
 		Expect(cloudProvider.CreateCalls).To(HaveLen(0))
 		// but we expect to delete the node with more pods (node1) as the pod on node2 has a do-not-evict annotation
-		ExpectNotFound(ctx, env.Client, node1)
+		EventuallyExpectNotFound(ctx, env.Client, node1)
 	})
 	It("can delete nodes, doesn't evict standalone pods", func() {
 		// create our RS so we can link a pod to it
@@ -951,7 +951,7 @@ var _ = Describe("Delete Node", func() {
 		Expect(cloudProvider.CreateCalls).To(HaveLen(0))
 		// but we expect to delete the node with more pods (node1) as the pod on node2 doesn't have a controller to
 		// recreate it
-		ExpectNotFound(ctx, env.Client, node1)
+		EventuallyExpectNotFound(ctx, env.Client, node1)
 	})
 })
 
@@ -1029,7 +1029,7 @@ var _ = Describe("Node Lifetime Consideration", func() {
 		// the second node has more pods so it would normally not be picked for consolidation, except it very little
 		// lifetime remaining so it should be deleted
 		Expect(cloudProvider.CreateCalls).To(HaveLen(0))
-		ExpectNotFound(ctx, env.Client, node1)
+		EventuallyExpectNotFound(ctx, env.Client, node1)
 	})
 })
 
@@ -1261,7 +1261,7 @@ var _ = Describe("Empty Nodes", func() {
 		// we don't need any new nodes
 		Expect(cloudProvider.CreateCalls).To(HaveLen(0))
 		// and should delete the empty one
-		ExpectNotFound(ctx, env.Client, node1)
+		EventuallyExpectNotFound(ctx, env.Client, node1)
 	})
 	It("can delete multiple empty nodes", func() {
 		prov := test.Provisioner(test.ProvisionerOptions{Consolidation: &v1alpha5.Consolidation{Enabled: aws.Bool(true)}})
@@ -1304,8 +1304,8 @@ var _ = Describe("Empty Nodes", func() {
 		// we don't need any new nodes
 		Expect(cloudProvider.CreateCalls).To(HaveLen(0))
 		// and should delete both empty ones
-		ExpectNotFound(ctx, env.Client, node1)
-		ExpectNotFound(ctx, env.Client, node2)
+		EventuallyExpectNotFound(ctx, env.Client, node1)
+		EventuallyExpectNotFound(ctx, env.Client, node2)
 	})
 })
 

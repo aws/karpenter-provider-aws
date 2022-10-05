@@ -101,7 +101,7 @@ var _ = Describe("Termination", func() {
 			Expect(env.Client.Delete(ctx, node)).To(Succeed())
 			node = ExpectNodeExists(ctx, env.Client, node.Name)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
-			ExpectNotFound(ctx, env.Client, node)
+			EventuallyExpectNotFound(ctx, env.Client, node)
 		})
 		It("should exclude nodes from load balancers when terminating", func() {
 			// This is a kludge to prevent the node from being deleted before we can
@@ -146,7 +146,7 @@ var _ = Describe("Termination", func() {
 			// Reconcile to delete node
 			node = ExpectNodeExists(ctx, env.Client, node.Name)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
-			ExpectNotFound(ctx, env.Client, node)
+			EventuallyExpectNotFound(ctx, env.Client, node)
 		})
 		It("should not delete nodes that have a do-not-evict pod", func() {
 			podEvict := test.Pod(test.PodOptions{
@@ -189,7 +189,7 @@ var _ = Describe("Termination", func() {
 			// Reconcile to delete node
 			node = ExpectNodeExists(ctx, env.Client, node.Name)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
-			ExpectNotFound(ctx, env.Client, node)
+			EventuallyExpectNotFound(ctx, env.Client, node)
 		})
 		It("should not delete nodes that have a do-not-evict pod that tolerates an unschedulable taint", func() {
 			podEvict := test.Pod(test.PodOptions{
@@ -233,7 +233,7 @@ var _ = Describe("Termination", func() {
 			// Reconcile to delete node
 			node = ExpectNodeExists(ctx, env.Client, node.Name)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
-			ExpectNotFound(ctx, env.Client, node)
+			EventuallyExpectNotFound(ctx, env.Client, node)
 		})
 		It("should not delete nodes that have a do-not-evict static pod", func() {
 			ExpectApplied(ctx, env.Client, node)
@@ -283,7 +283,7 @@ var _ = Describe("Termination", func() {
 			// Reconcile to delete node
 			node = ExpectNodeExists(ctx, env.Client, node.Name)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
-			ExpectNotFound(ctx, env.Client, node)
+			EventuallyExpectNotFound(ctx, env.Client, node)
 		})
 		It("should not delete nodes that have pods without an owner ref", func() {
 			podEvict := test.Pod(test.PodOptions{
@@ -319,7 +319,7 @@ var _ = Describe("Termination", func() {
 			// Reconcile to delete node
 			node = ExpectNodeExists(ctx, env.Client, node.Name)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
-			ExpectNotFound(ctx, env.Client, node)
+			EventuallyExpectNotFound(ctx, env.Client, node)
 		})
 		It("should delete nodes with terminal pods", func() {
 			podEvictPhaseSucceeded := test.Pod(test.PodOptions{
@@ -336,7 +336,7 @@ var _ = Describe("Termination", func() {
 			node = ExpectNodeExists(ctx, env.Client, node.Name)
 			// Trigger Termination Controller, which should ignore these pods and delete the node
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
-			ExpectNotFound(ctx, env.Client, node)
+			EventuallyExpectNotFound(ctx, env.Client, node)
 		})
 		It("should delete nodes that have do-not-evict on pods for which it does not apply", func() {
 			pods := []*v1.Pod{
@@ -371,7 +371,7 @@ var _ = Describe("Termination", func() {
 			// Simulate stuck terminating
 			fakeClock.Step(2 * time.Minute)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
-			ExpectNotFound(ctx, env.Client, node)
+			EventuallyExpectNotFound(ctx, env.Client, node)
 		})
 		It("should fail to evict pods that violate a PDB", func() {
 			minAvailable := intstr.FromInt(1)
@@ -407,12 +407,12 @@ var _ = Describe("Termination", func() {
 
 			// Delete pod to simulate successful eviction
 			ExpectDeleted(ctx, env.Client, podNoEvict)
-			ExpectNotFound(ctx, env.Client, podNoEvict)
+			EventuallyExpectNotFound(ctx, env.Client, podNoEvict)
 
 			// Reconcile to delete node
 			node = ExpectNodeExists(ctx, env.Client, node.Name)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
-			ExpectNotFound(ctx, env.Client, node)
+			EventuallyExpectNotFound(ctx, env.Client, node)
 		})
 		It("should evict non-critical pods first", func() {
 			podEvict := test.Pod(test.PodOptions{NodeName: node.Name, ObjectMeta: metav1.ObjectMeta{OwnerReferences: defaultOwnerRefs}})
@@ -444,7 +444,7 @@ var _ = Describe("Termination", func() {
 			// Reconcile to delete node
 			node = ExpectNodeExists(ctx, env.Client, node.Name)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
-			ExpectNotFound(ctx, env.Client, node)
+			EventuallyExpectNotFound(ctx, env.Client, node)
 		})
 		It("should not evict static pods", func() {
 			podEvict := test.Pod(test.PodOptions{NodeName: node.Name, ObjectMeta: metav1.ObjectMeta{OwnerReferences: defaultOwnerRefs}})
@@ -486,7 +486,7 @@ var _ = Describe("Termination", func() {
 			// Reconcile to delete node
 			node = ExpectNodeExists(ctx, env.Client, node.Name)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
-			ExpectNotFound(ctx, env.Client, node)
+			EventuallyExpectNotFound(ctx, env.Client, node)
 
 		})
 		It("should not delete nodes until all pods are deleted", func() {
@@ -521,7 +521,7 @@ var _ = Describe("Termination", func() {
 			// Reconcile to delete node
 			node = ExpectNodeExists(ctx, env.Client, node.Name)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
-			ExpectNotFound(ctx, env.Client, node)
+			EventuallyExpectNotFound(ctx, env.Client, node)
 		})
 		It("should wait for pods to terminate", func() {
 			pod := test.Pod(test.PodOptions{NodeName: node.Name, ObjectMeta: metav1.ObjectMeta{OwnerReferences: defaultOwnerRefs}})
@@ -539,7 +539,7 @@ var _ = Describe("Termination", func() {
 			// the clock by 90 seconds.
 			fakeClock.SetTime(time.Now().Add(90 * time.Second))
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
-			ExpectNotFound(ctx, env.Client, node)
+			EventuallyExpectNotFound(ctx, env.Client, node)
 		})
 	})
 })

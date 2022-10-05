@@ -12,16 +12,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package disruption
+package apis
 
 import (
-	"time"
-
 	"github.com/cenkalti/backoff/v4"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/clock"
-
-	"github.com/aws/karpenter/pkg/cloudprovider"
 )
 
 type EventType string
@@ -30,6 +25,8 @@ const (
 	CreateEvent EventType = "Create"
 	DeleteEvent EventType = "Delete"
 )
+
+func NoOp() error { return nil }
 
 type Event struct {
 	Source         string
@@ -40,20 +37,11 @@ type Event struct {
 	Backoff        *backoff.ExponentialBackOff
 }
 
-func NewEventFromCloudProviderEvent(e cloudprovider.NodeEvent, clk clock.Clock) Event {
-	return Event{
-		Source:         e.Source,
-		Type:           EventType(e.Type),
-		InvolvedObject: e.InvolvedObject,
-		OnComplete:     e.OnComplete,
-		Backoff:        newBackoff(clk),
-	}
+func (e Event) WithBackoff(b *backoff.ExponentialBackOff) Event {
+	e.Backoff = b
+	return e
 }
 
-func newBackoff(clk clock.Clock) *backoff.ExponentialBackOff {
-	b := backoff.NewExponentialBackOff()
-	b.InitialInterval = time.Minute
-	b.MaxElapsedTime = time.Minute * 30
-	b.Clock = clk
-	return b
+type ConvertibleToEvent interface {
+	ToEvent() Event
 }

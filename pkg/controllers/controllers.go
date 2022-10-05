@@ -146,7 +146,8 @@ func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options)
 	cluster := state.NewCluster(realClock, cfg, manager.GetClient(), cloudProvider)
 	provisioner := provisioning.NewProvisioner(ctx, cfg, manager.GetClient(), clientSet.CoreV1(), recorder, cloudProvider, cluster)
 	consolidation.NewController(ctx, realClock, manager.GetClient(), provisioner, cloudProvider, recorder, cluster, manager.Elected())
-	disruption.NewController(ctx, realClock, manager.GetClient(), cloudProvider, manager.Elected())
+	disruptionController := disruption.NewController(ctx, realClock, manager.GetClient(), manager.Elected())
+	disruptionController.RegisterSubscription(cloudProvider.NodeEventWatcher())
 
 	metricsstate.StartMetricScraper(ctx, cluster)
 

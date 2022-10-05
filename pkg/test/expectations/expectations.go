@@ -44,7 +44,7 @@ import (
 )
 
 const (
-	ReconcilerPropagationTime = 10 * time.Second
+	ReconcilerPropagationTime = 30 * time.Second
 	RequestInterval           = 1 * time.Second
 )
 
@@ -68,11 +68,11 @@ func ExpectNodeExistsWithOffset(offset int, ctx context.Context, c client.Client
 	return node
 }
 
-func ExpectNotFound(ctx context.Context, c client.Client, objects ...client.Object) {
-	ExpectNotFoundWithOffset(1, ctx, c, objects...)
+func EventuallyExpectNotFound(ctx context.Context, c client.Client, objects ...client.Object) {
+	EventuallyExpectNotFoundWithOffset(1, ctx, c, objects...)
 }
 
-func ExpectNotFoundWithOffset(offset int, ctx context.Context, c client.Client, objects ...client.Object) {
+func EventuallyExpectNotFoundWithOffset(offset int, ctx context.Context, c client.Client, objects ...client.Object) {
 	for _, object := range objects {
 		EventuallyWithOffset(offset+1, func() bool {
 			return errors.IsNotFound(c.Get(ctx, types.NamespacedName{Name: object.GetName(), Namespace: object.GetNamespace()}, object))
@@ -129,7 +129,7 @@ func ExpectDeleted(ctx context.Context, c client.Client, objects ...client.Objec
 		if err := c.Delete(ctx, object, &client.DeleteOptions{GracePeriodSeconds: ptr.Int64(0)}); !errors.IsNotFound(err) {
 			ExpectWithOffset(1, err).To(BeNil())
 		}
-		ExpectNotFoundWithOffset(1, ctx, c, object)
+		EventuallyExpectNotFoundWithOffset(1, ctx, c, object)
 	}
 }
 
