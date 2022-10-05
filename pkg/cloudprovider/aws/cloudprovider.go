@@ -76,6 +76,7 @@ type CloudProvider struct {
 	instanceTypeProvider *InstanceTypeProvider
 	instanceProvider     *InstanceProvider
 	kubeClient           k8sClient.Client
+	nodeEventWatcher     chan cloudprovider.NodeEvent
 }
 
 func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *CloudProvider {
@@ -120,7 +121,8 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 				options.StartAsync,
 			),
 		),
-		kubeClient: options.KubeClient,
+		kubeClient:       options.KubeClient,
+		nodeEventWatcher: make(chan cloudprovider.NodeEvent, 100),
 	}
 	v1alpha5.ValidateHook = cloudprovider.Validate
 	v1alpha5.DefaultHook = cloudprovider.Default
@@ -196,6 +198,10 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, provisioner *v1alp
 
 func (c *CloudProvider) Delete(ctx context.Context, node *v1.Node) error {
 	return c.instanceProvider.Terminate(ctx, node)
+}
+
+func (c *CloudProvider) NodeEventWatcher() <-chan cloudprovider.NodeEvent {
+	return c.nodeEventWatcher
 }
 
 // Validate the provisioner

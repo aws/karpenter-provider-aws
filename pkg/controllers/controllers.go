@@ -48,6 +48,7 @@ import (
 	"github.com/aws/karpenter/pkg/config"
 	"github.com/aws/karpenter/pkg/controllers/consolidation"
 	"github.com/aws/karpenter/pkg/controllers/counter"
+	"github.com/aws/karpenter/pkg/controllers/disruption"
 	metricspod "github.com/aws/karpenter/pkg/controllers/metrics/pod"
 	metricsprovisioner "github.com/aws/karpenter/pkg/controllers/metrics/provisioner"
 	metricsstate "github.com/aws/karpenter/pkg/controllers/metrics/state"
@@ -145,6 +146,7 @@ func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options)
 	cluster := state.NewCluster(realClock, cfg, manager.GetClient(), cloudProvider)
 	provisioner := provisioning.NewProvisioner(ctx, cfg, manager.GetClient(), clientSet.CoreV1(), recorder, cloudProvider, cluster)
 	consolidation.NewController(ctx, realClock, manager.GetClient(), provisioner, cloudProvider, recorder, cluster, manager.Elected())
+	disruption.NewController(ctx, realClock, manager.GetClient(), cloudProvider, manager.Elected())
 
 	metricsstate.StartMetricScraper(ctx, cluster)
 

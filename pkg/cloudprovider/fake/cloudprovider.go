@@ -35,11 +35,13 @@ import (
 var _ cloudprovider.CloudProvider = (*CloudProvider)(nil)
 
 type CloudProvider struct {
-	InstanceTypes []cloudprovider.InstanceType
+	mu sync.Mutex
 
 	// CreateCalls contains the arguments for every create call that was made since it was cleared
-	mu          sync.Mutex
-	CreateCalls []*cloudprovider.NodeRequest
+	CreateCalls   []*cloudprovider.NodeRequest
+	InstanceTypes []cloudprovider.InstanceType
+
+	NodeEventChan chan cloudprovider.NodeEvent
 }
 
 var _ cloudprovider.CloudProvider = (*CloudProvider)(nil)
@@ -144,4 +146,8 @@ func (c *CloudProvider) Delete(context.Context, *v1.Node) error {
 // Name returns the CloudProvider implementation name.
 func (c *CloudProvider) Name() string {
 	return "fake"
+}
+
+func (c *CloudProvider) NodeEventWatcher() <-chan cloudprovider.NodeEvent {
+	return c.NodeEventChan
 }

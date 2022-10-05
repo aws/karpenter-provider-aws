@@ -18,6 +18,7 @@ import (
 	"context"
 
 	"github.com/samber/lo"
+	"k8s.io/apimachinery/pkg/types"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
@@ -55,6 +56,23 @@ type CloudProvider interface {
 	GetInstanceTypes(context.Context, *v1alpha5.Provisioner) ([]InstanceType, error)
 	// Name returns the CloudProvider implementation name.
 	Name() string
+	// NodeEventWatcher returns the node event watcher channel. This channel is used by disruption controller to process
+	// node events like deletion and creation
+	NodeEventWatcher() <-chan NodeEvent
+}
+
+type NodeEventType string
+
+const (
+	CreateEvent NodeEventType = "Create"
+	DeleteEvent NodeEventType = "Delete"
+)
+
+type NodeEvent struct {
+	Source         string
+	Type           NodeEventType
+	OnComplete     func() error
+	InvolvedObject types.NamespacedName
 }
 
 type NodeRequest struct {
