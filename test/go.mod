@@ -3,11 +3,11 @@ module github.com/aws/karpenter/test
 go 1.19
 
 require (
-	github.com/aws/aws-sdk-go v1.44.110
+	github.com/aws/aws-sdk-go v1.44.112
 	github.com/aws/karpenter v0.16.3
 	github.com/onsi/ginkgo/v2 v2.2.0
 	github.com/onsi/gomega v1.20.2
-	github.com/samber/lo v1.29.0
+	github.com/samber/lo v1.30.0
 	k8s.io/api v0.24.4
 	k8s.io/apimachinery v0.24.4
 	k8s.io/client-go v0.24.4
