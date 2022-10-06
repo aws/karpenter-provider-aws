@@ -26,6 +26,7 @@ import (
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/utils/cache"
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injection"
 )
@@ -53,21 +54,21 @@ type SQSProvider struct {
 	createQueueInput    *sqs.CreateQueueInput
 	getQueueURLInput    *sqs.GetQueueUrlInput
 	receiveMessageInput *sqs.ReceiveMessageInput
-	mutex               *sync.RWMutex
-	queueURL            string
+	mu                  sync.RWMutex
+	queueURL            *string
 	queueName           string
-	metadata            *Metadata
+	metadataProvider    *MetadataProvider
 }
 
-func NewSQSProvider(ctx context.Context, client sqsiface.SQSAPI, metadata *Metadata) *SQSProvider {
+func NewSQSProvider(ctx context.Context, client sqsiface.SQSAPI, metadataProvider *MetadataProvider) *SQSProvider {
 	provider := &SQSProvider{
-		client:    client,
-		mutex:     &sync.RWMutex{},
-		metadata:  metadata,
-		queueName: getQueueName(ctx),
+		client:           client,
+		mu:               sync.RWMutex{},
+		metadataProvider: metadataProvider,
+		queueName:        getQueueName(ctx),
 	}
 	provider.createQueueInput = &sqs.CreateQueueInput{
-		Attributes: provider.getQueueAttributes(),
+		Attributes: provider.getQueueAttributes(ctx),
 		QueueName:  aws.String(provider.queueName),
 		Tags: map[string]*string{
 			v1alpha5.DiscoveryLabelKey: aws.String(injection.GetOptions(ctx).ClusterName),
@@ -99,9 +100,9 @@ func (s *SQSProvider) CreateQueue(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("creating sqs queue, %w", err)
 	}
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	s.queueURL = aws.StringValue(result.QueueUrl)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.queueURL = result.QueueUrl
 	return nil
 }
 
@@ -112,7 +113,7 @@ func (s *SQSProvider) SetQueueAttributes(ctx context.Context) error {
 	}
 
 	setQueueAttributesInput := &sqs.SetQueueAttributesInput{
-		Attributes: s.getQueueAttributes(),
+		Attributes: s.getQueueAttributes(ctx),
 		QueueUrl:   aws.String(queueURL),
 	}
 	_, err = s.client.SetQueueAttributesWithContext(ctx, setQueueAttributesInput)
@@ -123,24 +124,17 @@ func (s *SQSProvider) SetQueueAttributes(ctx context.Context) error {
 }
 
 func (s *SQSProvider) DiscoverQueueURL(ctx context.Context, ignoreCache bool) (string, error) {
-	s.mutex.RLock()
-	queueURL := s.queueURL
-	s.mutex.RUnlock()
-	if queueURL != "" && !ignoreCache {
-		return queueURL, nil
-	}
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	// We have to check if the queueUrl is set again here in case multiple threads make it past the read-locked section
-	if s.queueURL != "" && !ignoreCache {
-		return s.queueURL, nil
-	}
-	result, err := s.client.GetQueueUrlWithContext(ctx, s.getQueueURLInput)
-	if err != nil {
-		return "", fmt.Errorf("fetching queue url, %w", err)
-	}
-	s.queueURL = aws.StringValue(result.QueueUrl)
-	return aws.StringValue(result.QueueUrl), nil
+	opts := lo.Ternary(ignoreCache, cache.IgnoreCacheOption, nil)
+	return cache.TryGetStringWithFallback(&s.mu, s.queueURL,
+		func() (string, error) {
+			ret, err := s.client.GetQueueUrlWithContext(ctx, s.getQueueURLInput)
+			if err != nil {
+				return "", fmt.Errorf("fetching queue url, %w", err)
+			}
+			return aws.StringValue(ret.QueueUrl), nil
+		},
+		opts,
+	)
 }
 
 func (s *SQSProvider) GetSQSMessages(ctx context.Context) ([]*sqs.Message, error) {
@@ -221,15 +215,15 @@ func (s *SQSProvider) DeleteQueue(ctx context.Context) error {
 	return nil
 }
 
-func (s *SQSProvider) getQueueAttributes() map[string]*string {
-	policy := lo.Must(json.Marshal(s.getQueuePolicy()))
+func (s *SQSProvider) getQueueAttributes(ctx context.Context) map[string]*string {
+	policy := lo.Must(json.Marshal(s.getQueuePolicy(ctx)))
 	return map[string]*string{
 		sqs.QueueAttributeNameMessageRetentionPeriod: aws.String("300"),
 		sqs.QueueAttributeNamePolicy:                 aws.String(string(policy)),
 	}
 }
 
-func (s *SQSProvider) getQueuePolicy() *QueuePolicy {
+func (s *SQSProvider) getQueuePolicy(ctx context.Context) *QueuePolicy {
 	return &QueuePolicy{
 		Version: "2008-10-17",
 		ID:      "EC2NotificationPolicy",
@@ -243,14 +237,19 @@ func (s *SQSProvider) getQueuePolicy() *QueuePolicy {
 					},
 				},
 				Action:   []string{"sqs:SendMessage"},
-				Resource: s.getQueueARN(),
+				Resource: s.getQueueARN(ctx),
 			},
 		},
 	}
 }
 
-func (s *SQSProvider) getQueueARN() string {
-	return fmt.Sprintf("arn:aws:sqs:%s:%s:%s", s.metadata.Region(), s.metadata.AccountID(), s.queueName)
+func (s *SQSProvider) getQueueARN(ctx context.Context) string {
+	return fmt.Sprintf("arn:%s:sqs:%s:%s:%s",
+		s.metadataProvider.Partition(),
+		s.metadataProvider.Region(ctx),
+		s.metadataProvider.AccountID(ctx),
+		s.queueName,
+	)
 }
 
 func getQueueName(ctx context.Context) string {

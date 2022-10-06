@@ -17,37 +17,26 @@ package aws
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/aws/aws-sdk-go/service/sts/stsiface"
+
+	"github.com/aws/karpenter/pkg/utils/cache"
 )
-
-type Metadata struct {
-	region    string
-	accountID string
-}
-
-func NewMetadata(region, accountID string) *Metadata {
-	return &Metadata{
-		region:    region,
-		accountID: accountID,
-	}
-}
-
-func (i *Metadata) Region() string {
-	return i.region
-}
-
-func (i *Metadata) AccountID() string {
-	return i.accountID
-}
 
 type MetadataProvider struct {
 	imdsClient *ec2metadata.EC2Metadata
 	stsClient  stsiface.STSAPI
+
+	region   *string // cached region if already resolved
+	regionMu sync.RWMutex
+
+	accountID   *string // cached accountID if already resolved
+	accountIDMu sync.RWMutex
 }
 
 func NewMetadataProvider(sess *session.Session) *MetadataProvider {
@@ -57,31 +46,40 @@ func NewMetadataProvider(sess *session.Session) *MetadataProvider {
 	}
 }
 
-func (i *MetadataProvider) Metadata(ctx context.Context) *Metadata {
-	return &Metadata{
-		region:    i.Region(ctx),
-		accountID: i.AccountID(ctx),
-	}
-}
-
 // Region gets the current region from EC2 IMDS
 func (i *MetadataProvider) Region(ctx context.Context) string {
-	region, err := i.imdsClient.RegionWithContext(ctx)
+	ret, err := cache.TryGetStringWithFallback(&i.regionMu, i.region,
+		func() (string, error) {
+			return i.imdsClient.RegionWithContext(ctx)
+		})
 	if err != nil {
 		panic(fmt.Sprintf("Failed to call the metadata server's region API, %s", err))
 	}
-	return region
+	return ret
 }
 
+// AccountID gets the AWS Account ID from EC2 IMDS, then STS if it can't be resolved at IMDS
 func (i *MetadataProvider) AccountID(ctx context.Context) string {
-	doc, err := i.imdsClient.GetInstanceIdentityDocumentWithContext(ctx)
+	ret, err := cache.TryGetStringWithFallback(&i.accountIDMu, i.accountID,
+		func() (string, error) {
+			doc, err := i.imdsClient.GetInstanceIdentityDocumentWithContext(ctx)
+			if err != nil {
+				// Fallback to using the STS provider if IMDS fails
+				result, err := i.stsClient.GetCallerIdentity(&sts.GetCallerIdentityInput{})
+				if err != nil {
+					return "", err
+				}
+				return aws.StringValue(result.Account), nil
+			}
+			return doc.AccountID, nil
+		},
+	)
 	if err != nil {
-		// Fallback to using the STS provider if IMDS fails
-		result, err := i.stsClient.GetCallerIdentity(&sts.GetCallerIdentityInput{})
-		if err != nil {
-			panic(fmt.Sprintf("Failed to get account ID from IMDS or STS, %s", err))
-		}
-		return aws.StringValue(result.Account)
+		panic(fmt.Sprintf("Failed to get account ID from IMDS or STS, %s", err))
 	}
-	return doc.AccountID
+	return ret
+}
+
+func (i *MetadataProvider) Partition() string {
+	return i.imdsClient.PartitionID
 }

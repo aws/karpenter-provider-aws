@@ -114,7 +114,7 @@ func (eb *EventBridgeProvider) DeleteEC2NotificationRules(ctx context.Context) (
 				Rule: aws.String(r.Name),
 			}
 			_, e := eb.client.RemoveTargetsWithContext(ctx, targetInput)
-			if err != nil && !IsNotFound(e) {
+			if e != nil && !IsNotFound(e) {
 				m.Lock()
 				err = multierr.Append(err, e)
 				m.Unlock()
@@ -124,7 +124,7 @@ func (eb *EventBridgeProvider) DeleteEC2NotificationRules(ctx context.Context) (
 				Name: aws.String(r.Name),
 			}
 			_, e = eb.client.DeleteRuleWithContext(ctx, ruleInput)
-			if err != nil && !IsNotFound(e) {
+			if e != nil && !IsNotFound(e) {
 				m.Lock()
 				err = multierr.Append(err, e)
 				m.Unlock()
