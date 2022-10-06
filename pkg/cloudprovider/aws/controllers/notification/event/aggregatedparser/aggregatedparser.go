@@ -21,18 +21,18 @@ import (
 	"knative.dev/pkg/logging"
 
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event"
-	rebalancerecommendationv0 "github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/rebalancerecommendation/v0"
-	scheduledchangev0 "github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/scheduledchange/v0"
-	spotinterruptionv0 "github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/spotinterruption/v0"
-	statechangev0 "github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/statechange/v0"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/rebalancerecommendation"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/scheduledchange"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/spotinterruption"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/statechange"
 )
 
 var (
 	DefaultParsers = []event.Parser{
-		statechangev0.Parser{},
-		spotinterruptionv0.Parser{},
-		scheduledchangev0.Parser{},
-		rebalancerecommendationv0.Parser{},
+		statechange.Parser{},
+		spotinterruption.Parser{},
+		scheduledchange.Parser{},
+		rebalancerecommendation.Parser{},
 	}
 )
 

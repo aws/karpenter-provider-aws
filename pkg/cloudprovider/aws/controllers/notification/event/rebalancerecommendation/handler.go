@@ -12,35 +12,36 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v0
+package rebalancerecommendation
 
 import (
+	"time"
+
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event"
 )
 
-// AWSEvent contains the properties defined in AWS EventBridge schema
-// aws.ec2@EC2InstanceStateChangeNotification v1.
-type AWSEvent struct {
-	event.AWSMetadata
+type EC2InstanceRebalanceRecommendation AWSEvent
 
-	Detail EC2InstanceStateChangeNotificationDetail `json:"detail"`
+func (e EC2InstanceRebalanceRecommendation) EventID() string {
+	return e.ID
 }
 
-func (e AWSEvent) MarshalLogObject(enc zapcore.ObjectEncoder) error {
-	zap.Inline(e.AWSMetadata).AddTo(enc)
-	return enc.AddObject("detail", e.Detail)
+func (e EC2InstanceRebalanceRecommendation) EC2InstanceIDs() []string {
+	return []string{e.Detail.InstanceID}
 }
 
-type EC2InstanceStateChangeNotificationDetail struct {
-	InstanceID string `json:"instance-id"`
-	State      string `json:"state"`
+func (EC2InstanceRebalanceRecommendation) Kind() event.Kind {
+	return event.Kinds.RebalanceRecommendation
 }
 
-func (e EC2InstanceStateChangeNotificationDetail) MarshalLogObject(enc zapcore.ObjectEncoder) error {
-	enc.AddString("instance-id", e.InstanceID)
-	enc.AddString("state", e.State)
+func (e EC2InstanceRebalanceRecommendation) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	zap.Inline(AWSEvent(e)).AddTo(enc)
 	return nil
+}
+
+func (e EC2InstanceRebalanceRecommendation) StartTime() time.Time {
+	return e.Time
 }

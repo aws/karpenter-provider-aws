@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v0
+package spotinterruption
 
 import (
 	"time"
@@ -23,25 +23,25 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event"
 )
 
-type EC2InstanceRebalanceRecommendation AWSEvent
+type EC2SpotInstanceInterruptionWarning AWSEvent
 
-func (e EC2InstanceRebalanceRecommendation) EventID() string {
+func (e EC2SpotInstanceInterruptionWarning) EventID() string {
 	return e.ID
 }
 
-func (e EC2InstanceRebalanceRecommendation) EC2InstanceIDs() []string {
+func (e EC2SpotInstanceInterruptionWarning) EC2InstanceIDs() []string {
 	return []string{e.Detail.InstanceID}
 }
 
-func (EC2InstanceRebalanceRecommendation) Kind() event.Kind {
-	return event.Kinds.RebalanceRecommendation
+func (EC2SpotInstanceInterruptionWarning) Kind() event.Kind {
+	return event.Kinds.SpotInterruption
 }
 
-func (e EC2InstanceRebalanceRecommendation) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+func (e EC2SpotInstanceInterruptionWarning) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	zap.Inline(AWSEvent(e)).AddTo(enc)
 	return nil
 }
 
-func (e EC2InstanceRebalanceRecommendation) StartTime() time.Time {
+func (e EC2SpotInstanceInterruptionWarning) StartTime() time.Time {
 	return e.Time
 }

@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v0
+package scheduledchange
 
 import (
 	"context"
@@ -22,20 +22,28 @@ import (
 )
 
 const (
-	source     = "aws.ec2"
-	detailType = "EC2 Spot Instance Interruption Warning"
-	version    = "0"
+	source                    = "aws.health"
+	detailType                = "AWS Health Event"
+	version                   = "0"
+	acceptedService           = "EC2"
+	acceptedEventTypeCategory = "scheduledChange"
 )
 
 type Parser struct{}
 
 func (Parser) Parse(ctx context.Context, str string) event.Interface {
-	evt := EC2SpotInstanceInterruptionWarning{}
+	evt := AWSHealthEvent{}
 	if err := json.Unmarshal([]byte(str), &evt); err != nil {
 		return nil
 	}
 
 	if evt.Source != source || evt.DetailType != detailType || evt.Version != version {
+		return nil
+	}
+	if evt.Detail.Service != acceptedService {
+		return nil
+	}
+	if evt.Detail.EventTypeCategory != acceptedEventTypeCategory {
 		return nil
 	}
 	return evt

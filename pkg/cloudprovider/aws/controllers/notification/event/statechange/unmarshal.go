@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v0
+package statechange
 
 import (
 	"go.uber.org/zap"
@@ -21,12 +21,12 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event"
 )
 
-// AWSEvent contains the properties defined by
-// https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/rebalance-recommendations.html#monitor-rebalance-recommendations
+// AWSEvent contains the properties defined in AWS EventBridge schema
+// aws.ec2@EC2InstanceStateChangeNotification v1.
 type AWSEvent struct {
 	event.AWSMetadata
 
-	Detail EC2InstanceRebalanceRecommendationDetail `json:"detail"`
+	Detail EC2InstanceStateChangeNotificationDetail `json:"detail"`
 }
 
 func (e AWSEvent) MarshalLogObject(enc zapcore.ObjectEncoder) error {
@@ -34,11 +34,13 @@ func (e AWSEvent) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	return enc.AddObject("detail", e.Detail)
 }
 
-type EC2InstanceRebalanceRecommendationDetail struct {
+type EC2InstanceStateChangeNotificationDetail struct {
 	InstanceID string `json:"instance-id"`
+	State      string `json:"state"`
 }
 
-func (e EC2InstanceRebalanceRecommendationDetail) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+func (e EC2InstanceStateChangeNotificationDetail) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	enc.AddString("instance-id", e.InstanceID)
+	enc.AddString("state", e.State)
 	return nil
 }

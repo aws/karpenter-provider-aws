@@ -12,40 +12,31 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v0
+package rebalancerecommendation
 
 import (
-	"time"
-
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
+	"context"
+	"encoding/json"
 
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event"
 )
 
-type AWSHealthEvent AWSEvent
+const (
+	source     = "aws.ec2"
+	detailType = "EC2 Instance Rebalance Recommendation"
+	version    = "0"
+)
 
-func (e AWSHealthEvent) EventID() string {
-	return e.ID
-}
+type Parser struct{}
 
-func (e AWSHealthEvent) EC2InstanceIDs() []string {
-	ids := make([]string, len(e.Detail.AffectedEntities))
-	for i, entity := range e.Detail.AffectedEntities {
-		ids[i] = entity.EntityValue
+func (Parser) Parse(ctx context.Context, str string) event.Interface {
+	evt := EC2InstanceRebalanceRecommendation{}
+	if err := json.Unmarshal([]byte(str), &evt); err != nil {
+		return nil
 	}
-	return ids
-}
 
-func (AWSHealthEvent) Kind() event.Kind {
-	return event.Kinds.ScheduledChange
-}
-
-func (e AWSHealthEvent) MarshalLogObject(enc zapcore.ObjectEncoder) error {
-	zap.Inline(AWSEvent(e)).AddTo(enc)
-	return nil
-}
-
-func (e AWSHealthEvent) StartTime() time.Time {
-	return e.Time
+	if evt.Source != source || evt.DetailType != detailType || evt.Version != version {
+		return nil
+	}
+	return evt
 }

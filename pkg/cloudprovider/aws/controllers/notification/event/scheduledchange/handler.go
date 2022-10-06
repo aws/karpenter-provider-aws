@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v0
+package scheduledchange
 
 import (
 	"time"
@@ -23,25 +23,29 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event"
 )
 
-type EC2SpotInstanceInterruptionWarning AWSEvent
+type AWSHealthEvent AWSEvent
 
-func (e EC2SpotInstanceInterruptionWarning) EventID() string {
+func (e AWSHealthEvent) EventID() string {
 	return e.ID
 }
 
-func (e EC2SpotInstanceInterruptionWarning) EC2InstanceIDs() []string {
-	return []string{e.Detail.InstanceID}
+func (e AWSHealthEvent) EC2InstanceIDs() []string {
+	ids := make([]string, len(e.Detail.AffectedEntities))
+	for i, entity := range e.Detail.AffectedEntities {
+		ids[i] = entity.EntityValue
+	}
+	return ids
 }
 
-func (EC2SpotInstanceInterruptionWarning) Kind() event.Kind {
-	return event.Kinds.SpotInterruption
+func (AWSHealthEvent) Kind() event.Kind {
+	return event.Kinds.ScheduledChange
 }
 
-func (e EC2SpotInstanceInterruptionWarning) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+func (e AWSHealthEvent) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	zap.Inline(AWSEvent(e)).AddTo(enc)
 	return nil
 }
 
-func (e EC2SpotInstanceInterruptionWarning) StartTime() time.Time {
+func (e AWSHealthEvent) StartTime() time.Time {
 	return e.Time
 }

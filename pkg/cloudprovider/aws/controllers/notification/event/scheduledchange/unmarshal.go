@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v0
+package scheduledchange
 
 import (
 	"go.uber.org/multierr"
