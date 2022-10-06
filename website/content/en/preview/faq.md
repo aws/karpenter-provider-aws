@@ -22,12 +22,10 @@ Start with Karpenter's GitHub [cloudprovider](https://github.com/aws/karpenter/t
 By default, Karpenter uses Amazon Linux 2 images.
 
 ### Can I provide my own custom operating system images?
-Karpenter allows you to create your own AWS AMIs using custom launch templates.
-See [Launch Templates and Custom Images]({{< ref "./aws/launch-templates/" >}}) for details.
+Karpenter has multiple mechanisms for configuring the [operating system]({{< ref "./aws/operating-systems/" >}}) for your nodes.
 
 ### Can Karpenter deal with workloads for mixed architecture cluster (arm vs. amd)?
-Yes. Build and prepare custom arm images as described in [Launch Templates and Custom Images]({{< ref "./aws/launch-templates/" >}}).
-Specify the desired architecture when you deploy workloads.
+Karpenter is flexible to multi architecture configurations using [well known labels]({{< ref "./tasks/scheduling.md">}}).
 
 ### What RBAC access is required?
 All of the required RBAC rules can be found in the helm chart template.
@@ -71,7 +69,7 @@ See [Provisioner API]({{< ref "./provisioner" >}}) for details.
 
 Pending pods will be handled by any Provisioner that matches the requirements of the pod.
 There is no ordering guarantee if multiple provisioners match pod requirements.
-We recommend that Provisioners are setup to be mutually exclusive. 
+We recommend that Provisioners are setup to be mutually exclusive.
 Read more about this recommendation in the [EKS Best Practices Guide for Karpenter](https://aws.github.io/aws-eks-best-practices/karpenter/#create-provisioners-that-are-mutually-exclusive).
 To select a specific provisioner, use the node selector `karpenter.sh/provisioner-name: my-provisioner`.
 
@@ -81,7 +79,7 @@ There is no native support for namespaced based provisioning.
 Karpenter can be configured to provision a subset of pods based on a combination of taints/tolerations and node selectors.
 This allows Karpenter to work in concert with the `kube-scheduler` in that the same mechanisms that `kube-scheduler` uses to determine if a pod can schedule to an existing node are also used for provisioning new nodes.
 This avoids scenarios where pods are bound to nodes that were provisioned by Karpenter which Karpenter would not have bound itself.
-If this were to occur, a node could remain non-empty and have its lifetime extended due to a pod that wouldn't have caused the node to be provisioned had the pod been unschedulable. 
+If this were to occur, a node could remain non-empty and have its lifetime extended due to a pod that wouldn't have caused the node to be provisioned had the pod been unschedulable.
 
 We recommend using Kubernetes native scheduling constraints to achieve namespace based scheduling segregation. Using native scheduling constraints ensures that Karpenter, `kube-scheduler` and any other scheduling or auto-provisioning mechanism all have an identical understanding of which pods can be scheduled on which nodes.  This can be enforced via policy agents, an example of which can be seen [here](https://blog.mikesir87.io/2022/01/creating-tenant-node-pools-with-karpenter/).
 
