@@ -72,7 +72,7 @@ When there are multiple nodes that could be potentially deleted or replaced, Kar
 * nodes with lower priority pods
 
 {{% alert title="Note" color="primary" %}}
-Karpenter only uses the deletion consolidation mechanism for spot nodes.  It will not replace a spot node with a cheaper spot node.  Spot instance types are selected with the `capacity-optimized-prioritized` strategy and often the cheapest spot instance type is not launched due to the likelihood of interruption. Consolidation would then replace the spot instance with a cheaper instance negating the `capacity-optimized-prioritized` strategy entirely and increasing interruption rate.  
+For spot nodes, Karpenter only uses the deletion consolidation mechanism.  It will not replace a spot node with a cheaper spot node.  Spot instance types are selected with the `capacity-optimized-prioritized` strategy and often the cheapest spot instance type is not launched due to the likelihood of interruption. Consolidation would then replace the spot instance with a cheaper instance negating the `capacity-optimized-prioritized` strategy entirely and increasing interruption rate.  
 {{% /alert %}}
 
 ## What can cause deprovisioning to fail?
