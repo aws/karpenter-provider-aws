@@ -157,6 +157,19 @@ func (l *List[T]) PopBack() T {
 	return *new(T)
 }
 
+// PopAll removes and returns all elements in the list
+func (l *List[T]) PopAll() []T {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	var ret []T
+
+	for l.list.Len() > 0 {
+		ret = append(ret, l.list.Remove(l.list.Front()).(T))
+	}
+	l.waiter = make(chan struct{})
+	return ret
+}
+
 // WaitForElems closes an event channel when there are elements in the channel and creates
 // a new empty channel to wait on when there are no elements
 func (l *List[T]) WaitForElems() <-chan struct{} {

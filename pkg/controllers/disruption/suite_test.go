@@ -58,7 +58,7 @@ var _ = BeforeEach(func() {
 		cloudProvider = fake.NewCloudProvider()
 		fakeClock = clock.NewFakeClock(time.Now())
 		controller := disruption.NewController(env.Ctx, fakeClock, env.Client, start)
-		controller.RegisterSubscription(cloudProvider.NodeEventWatcher())
+		controller.RegisterWatcher(cloudProvider.NodeEventWatcher())
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })
@@ -122,7 +122,7 @@ var _ = Describe("Disruption", func() {
 
 		// This actually creates two controllers since the other one isn't destroyed until its context is canceled
 		controller := disruption.NewController(env.Ctx, fakeClock, fakeClient, start)
-		controller.RegisterSubscription(cloudProvider.NodeEventWatcher())
+		controller.RegisterWatcher(cloudProvider.NodeEventWatcher())
 		close(start)
 
 		node := test.Node()
