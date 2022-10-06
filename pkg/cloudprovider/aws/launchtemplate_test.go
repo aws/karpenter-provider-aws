@@ -36,7 +36,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"knative.dev/pkg/logging"
-	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
@@ -47,6 +46,7 @@ import (
 	"github.com/aws/karpenter/pkg/test"
 	. "github.com/aws/karpenter/pkg/test/expectations"
 	"github.com/aws/karpenter/pkg/utils/injection"
+	"github.com/aws/karpenter/pkg/utils/ptr"
 )
 
 var _ = Describe("LaunchTemplates", func() {
@@ -90,7 +90,7 @@ var _ = Describe("LaunchTemplates", func() {
 		// Expect these values to be correctly ordered by price
 		overrides := createFleetInput.LaunchTemplateConfigs[0].Overrides
 		sort.Slice(overrides, func(i, j int) bool {
-			return ptr.Float64Value(overrides[i].Priority) < ptr.Float64Value(overrides[j].Priority)
+			return aws.Float64Value(overrides[i].Priority) < aws.Float64Value(overrides[j].Priority)
 		})
 		lastPrice := -math.MaxFloat64
 		for _, override := range overrides {
@@ -294,7 +294,18 @@ var _ = Describe("LaunchTemplates", func() {
 						DeleteOnTermination: aws.Bool(true),
 						Encrypted:           aws.Bool(true),
 						VolumeType:          aws.String("io2"),
-						VolumeSize:          resource.NewScaledQuantity(40, resource.Giga),
+						VolumeSize:          ptr.Quantity(resource.MustParse("200G")),
+						IOPS:                aws.Int64(10_000),
+						KMSKeyID:            aws.String("arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab"),
+					},
+				},
+				{
+					DeviceName: aws.String("/dev/xvdb"),
+					EBS: &awsv1alpha1.BlockDevice{
+						DeleteOnTermination: aws.Bool(true),
+						Encrypted:           aws.Bool(true),
+						VolumeType:          aws.String("io2"),
+						VolumeSize:          ptr.Quantity(resource.MustParse("200Gi")),
 						IOPS:                aws.Int64(10_000),
 						KMSKeyID:            aws.String("arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab"),
 					},
@@ -305,13 +316,22 @@ var _ = Describe("LaunchTemplates", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
-			Expect(len(input.LaunchTemplateData.BlockDeviceMappings)).To(Equal(1))
-			Expect(*input.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeSize).To(Equal(int64(40)))
-			Expect(*input.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeType).To(Equal("io2"))
-			Expect(*input.LaunchTemplateData.BlockDeviceMappings[0].Ebs.Iops).To(Equal(int64(10_000)))
-			Expect(*input.LaunchTemplateData.BlockDeviceMappings[0].Ebs.DeleteOnTermination).To(BeTrue())
-			Expect(*input.LaunchTemplateData.BlockDeviceMappings[0].Ebs.Encrypted).To(BeTrue())
-			Expect(*input.LaunchTemplateData.BlockDeviceMappings[0].Ebs.KmsKeyId).To(Equal("arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab"))
+			Expect(input.LaunchTemplateData.BlockDeviceMappings[0].Ebs).To(Equal(&ec2.LaunchTemplateEbsBlockDeviceRequest{
+				VolumeSize:          aws.Int64(186),
+				VolumeType:          aws.String("io2"),
+				Iops:                aws.Int64(10_000),
+				DeleteOnTermination: aws.Bool(true),
+				Encrypted:           aws.Bool(true),
+				KmsKeyId:            aws.String("arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab"),
+			}))
+			Expect(input.LaunchTemplateData.BlockDeviceMappings[1].Ebs).To(Equal(&ec2.LaunchTemplateEbsBlockDeviceRequest{
+				VolumeSize:          aws.Int64(200),
+				VolumeType:          aws.String("io2"),
+				Iops:                aws.Int64(10_000),
+				DeleteOnTermination: aws.Bool(true),
+				Encrypted:           aws.Bool(true),
+				KmsKeyId:            aws.String("arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab"),
+			}))
 		})
 		It("should default bottlerocket second volume with root volume size", func() {
 			provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
@@ -348,7 +368,7 @@ var _ = Describe("LaunchTemplates", func() {
 						DeleteOnTermination: aws.Bool(true),
 						Encrypted:           aws.Bool(true),
 						VolumeType:          aws.String("io2"),
-						VolumeSize:          resource.NewScaledQuantity(40, resource.Giga),
+						VolumeSize:          ptr.Quantity(resource.MustParse("40Gi")),
 						IOPS:                aws.Int64(10_000),
 						KMSKeyID:            aws.String("arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab"),
 					},
@@ -580,7 +600,7 @@ var _ = Describe("LaunchTemplates", func() {
 			Expect(string(userData)).To(ContainSubstring("--max-pods=110"))
 		})
 		It("should specify --use-max-pods=false and --max-pods user value when user specifies maxPods in Provisioner", func() {
-			ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider, Kubelet: &v1alpha5.KubeletConfiguration{MaxPods: ptr.Int32(10)}}))
+			ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider, Kubelet: &v1alpha5.KubeletConfiguration{MaxPods: aws.Int32(10)}}))
 			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
@@ -722,7 +742,7 @@ var _ = Describe("LaunchTemplates", func() {
 		It("should pass eviction max pod grace period when specified", func() {
 			provisioner = test.Provisioner(test.ProvisionerOptions{
 				Kubelet: &v1alpha5.KubeletConfiguration{
-					EvictionMaxPodGracePeriod: ptr.Int32(300),
+					EvictionMaxPodGracePeriod: aws.Int32(300),
 				},
 			})
 			ExpectApplied(ctx, env.Client, provisioner)
@@ -737,7 +757,7 @@ var _ = Describe("LaunchTemplates", func() {
 		It("should specify --pods-per-core", func() {
 			provisioner = test.Provisioner(test.ProvisionerOptions{
 				Kubelet: &v1alpha5.KubeletConfiguration{
-					PodsPerCore: ptr.Int32(2),
+					PodsPerCore: aws.Int32(2),
 				},
 			})
 			ExpectApplied(ctx, env.Client, provisioner)
@@ -751,8 +771,8 @@ var _ = Describe("LaunchTemplates", func() {
 		It("should specify --pods-per-core with --max-pods enabled", func() {
 			provisioner = test.Provisioner(test.ProvisionerOptions{
 				Kubelet: &v1alpha5.KubeletConfiguration{
-					PodsPerCore: ptr.Int32(2),
-					MaxPods:     ptr.Int32(100),
+					PodsPerCore: aws.Int32(2),
+					MaxPods:     aws.Int32(100),
 				},
 			})
 			ExpectApplied(ctx, env.Client, provisioner)
@@ -1012,7 +1032,7 @@ var _ = Describe("LaunchTemplates", func() {
 			It("should specify max pods value when passing maxPods in configuration", func() {
 				bottlerocketProvider := provider.DeepCopy()
 				bottlerocketProvider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
-				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: bottlerocketProvider, Kubelet: &v1alpha5.KubeletConfiguration{MaxPods: ptr.Int32(10)}}))
+				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: bottlerocketProvider, Kubelet: &v1alpha5.KubeletConfiguration{MaxPods: aws.Int32(10)}}))
 				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))

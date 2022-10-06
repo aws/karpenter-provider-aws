@@ -27,10 +27,6 @@ import (
 )
 
 var _ = Describe("Tags", func() {
-	BeforeEach(func() {
-
-	})
-
 	It("should tag all associated resources", func() {
 		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 			AWS: awsv1alpha1.AWS{

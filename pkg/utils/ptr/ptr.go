@@ -16,6 +16,7 @@ package ptr
 
 import (
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 func Pod(pod v1.Pod) *v1.Pod {
@@ -24,4 +25,8 @@ func Pod(pod v1.Pod) *v1.Pod {
 
 func Node(node v1.Node) *v1.Node {
 	return &node
+}
+
+func Quantity(quantity resource.Quantity) *resource.Quantity {
+	return &quantity
 }
