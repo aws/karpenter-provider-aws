@@ -52,7 +52,7 @@ var nodeController *state.NodeController
 var cloudProvider cloudprovider.CloudProvider
 var controller *provisioning.Controller
 var env *test.Environment
-var recorder *test.EventRecorder
+var recorder *test.Recorder
 var cfg *test.Config
 var instanceTypeMap map[string]cloudprovider.InstanceType
 
@@ -66,7 +66,7 @@ var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
 		cloudProvider = &fake.CloudProvider{}
 		cfg = test.NewConfig()
-		recorder = test.NewEventRecorder()
+		recorder = test.NewRecorder()
 		fakeClock = clock.NewFakeClock(time.Now())
 		cluster = state.NewCluster(fakeClock, cfg, e.Client, cloudProvider)
 		nodeController = state.NewNodeController(e.Client, cluster)

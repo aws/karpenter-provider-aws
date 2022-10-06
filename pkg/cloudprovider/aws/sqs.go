@@ -25,7 +25,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
 	"github.com/samber/lo"
 
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/utils/cache"
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injection"
@@ -71,7 +71,7 @@ func NewSQSProvider(ctx context.Context, client sqsiface.SQSAPI, metadataProvide
 		Attributes: provider.getQueueAttributes(ctx),
 		QueueName:  aws.String(provider.queueName),
 		Tags: map[string]*string{
-			v1alpha5.DiscoveryLabelKey: aws.String(injection.GetOptions(ctx).ClusterName),
+			awsv1alpha1.DiscoveryTagKey: aws.String(injection.GetOptions(ctx).ClusterName),
 		},
 	}
 	provider.getQueueURLInput = &sqs.GetQueueUrlInput{

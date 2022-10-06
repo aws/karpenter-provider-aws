@@ -113,12 +113,10 @@ func newBackoff(clk clock.Clock) *backoff.ExponentialBackOff {
 }
 
 func (c *Controller) run(ctx context.Context) {
-	defer func() {
-		logging.FromContext(ctx).Infof("Shutting down")
-	}()
+	defer logging.FromContext(ctx).Infof("Shutting down")
 	for {
 		<-c.infraController.Ready() // block until the infrastructure is up and ready
-		err := c.PollSQS(ctx)
+		err := c.Reconcile(ctx)
 		if err != nil {
 			logging.FromContext(ctx).Errorf("Handling notification messages from SQS queue, %v", err)
 			select {
@@ -137,7 +135,7 @@ func (c *Controller) run(ctx context.Context) {
 	}
 }
 
-func (c *Controller) PollSQS(ctx context.Context) error {
+func (c *Controller) Reconcile(ctx context.Context) error {
 	defer metrics.Measure(reconcileDuration)()
 
 	sqsMessages, err := c.provider.GetSQSMessages(ctx)

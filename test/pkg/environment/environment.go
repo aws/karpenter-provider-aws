@@ -51,11 +51,11 @@ import (
 type AWSEnvironment struct {
 	*Environment
 
-	Metadata *aws.Metadata
-	EC2API   ec2.EC2
-	SSMAPI   ssm.SSM
-	STSAPI   sts.STS
-	IAMAPI   iam.IAM
+	MetadataProvider *aws.MetadataProvider
+	EC2API           ec2.EC2
+	SSMAPI           ssm.SSM
+	STSAPI           sts.STS
+	IAMAPI           iam.IAM
 
 	SQSProvider     *aws.SQSProvider
 	InterruptionAPI *itn.ITN
@@ -75,16 +75,16 @@ func NewAWSEnvironment(env *Environment, err error) (*AWSEnvironment, error) {
 		return nil, err
 	}
 	session := session.Must(session.NewSessionWithOptions(session.Options{SharedConfigState: session.SharedConfigEnable}))
-	metadata := aws.NewMetadata(*session.Config.Region, aws.NewMetadataProvider(session).AccountID(env.Context))
+	metadataProvider := aws.NewMetadataProvider(aws.NewEC2MetadataClient(session), sts.New(session))
 
 	return &AWSEnvironment{
-		Environment:     env,
-		Metadata:        metadata,
-		EC2API:          *ec2.New(session),
-		SSMAPI:          *ssm.New(session),
-		IAMAPI:          *iam.New(session),
-		InterruptionAPI: itn.New(lo.Must(cfg.LoadDefaultConfig(env.Context))),
-		SQSProvider:     aws.NewSQSProvider(env.Context, sqs.New(session), metadata),
+		Environment:      env,
+		MetadataProvider: metadataProvider,
+		EC2API:           *ec2.New(session),
+		SSMAPI:           *ssm.New(session),
+		IAMAPI:           *iam.New(session),
+		InterruptionAPI:  itn.New(lo.Must(cfg.LoadDefaultConfig(env.Context))),
+		SQSProvider:      aws.NewSQSProvider(env.Context, sqs.New(session), metadataProvider),
 	}, nil
 }
 

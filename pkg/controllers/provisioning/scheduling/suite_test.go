@@ -59,7 +59,7 @@ var cloudProv *fake.CloudProvider
 var cluster *state.Cluster
 var nodeStateController *state.NodeController
 var podStateController *state.PodController
-var recorder *test.EventRecorder
+var recorder *test.Recorder
 var cfg *test.Config
 
 func TestScheduling(t *testing.T) {
@@ -79,7 +79,7 @@ var _ = BeforeSuite(func() {
 		cluster = state.NewCluster(fakeClock, cfg, e.Client, cloudProv)
 		nodeStateController = state.NewNodeController(e.Client, cluster)
 		podStateController = state.NewPodController(e.Client, cluster)
-		recorder = test.NewEventRecorder()
+		recorder = test.NewRecorder()
 		cfg = test.NewConfig()
 		prov := provisioning.NewProvisioner(ctx, cfg, e.Client, corev1.NewForConfigOrDie(e.Config), recorder, cloudProv, cluster)
 		controller = provisioning.NewController(e.Client, prov, recorder)

@@ -57,7 +57,7 @@ var provisioningController *provisioning.Controller
 var provisioner *provisioning.Provisioner
 var cloudProvider *fake.CloudProvider
 var clientSet *kubernetes.Clientset
-var recorder *test.EventRecorder
+var recorder *test.Recorder
 var nodeStateController *state.NodeController
 var fakeClock *clock.FakeClock
 var cfg *test.Config
@@ -81,7 +81,7 @@ var _ = BeforeSuite(func() {
 		cluster = state.NewCluster(fakeClock, cfg, env.Client, cloudProvider)
 		nodeStateController = state.NewNodeController(env.Client, cluster)
 		clientSet = kubernetes.NewForConfigOrDie(e.Config)
-		recorder = test.NewEventRecorder()
+		recorder = test.NewRecorder()
 		provisioner = provisioning.NewProvisioner(ctx, cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 		provisioningController = provisioning.NewController(env.Client, provisioner, recorder)
 	})

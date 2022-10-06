@@ -68,7 +68,7 @@ var controller *provisioning.Controller
 var cloudProvider *CloudProvider
 var clientSet *kubernetes.Clientset
 var cluster *state.Cluster
-var recorder *test.EventRecorder
+var recorder *test.Recorder
 var cfg *test.Config
 var fakeClock *clock.FakeClock
 var provisioner *v1alpha5.Provisioner
@@ -143,7 +143,7 @@ var _ = BeforeSuite(func() {
 		cfg = test.NewConfig()
 		fakeClock = clock.NewFakeClock(time.Now())
 		cluster = state.NewCluster(fakeClock, cfg, e.Client, cloudProvider)
-		recorder = test.NewEventRecorder()
+		recorder = test.NewRecorder()
 		prov := provisioning.NewProvisioner(ctx, cfg, e.Client, corev1.NewForConfigOrDie(e.Config), recorder, cloudProvider, cluster)
 		controller = provisioning.NewController(e.Client, prov, recorder)
 	})

@@ -35,7 +35,7 @@ import (
 	. "knative.dev/pkg/logging/testing"
 	_ "knative.dev/pkg/system/testing"
 
-	"github.com/google/uuid"
+	"k8s.io/apimachinery/pkg/util/uuid"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -103,12 +103,12 @@ var _ = BeforeEach(func() {
 		cluster = state.NewCluster(fakeClock, cfg, env.Client, cloudProvider)
 		nodeStateController = state.NewNodeController(env.Client, cluster)
 		recorder = awsfake.NewEventRecorder()
-		metadata := aws.NewMetadata("us-east-1", "000000000000")
+		metadataProvider := aws.NewMetadataProvider(&awsfake.EC2MetadataAPI{}, &awsfake.STSAPI{})
 
 		sqsapi = &awsfake.SQSAPI{}
-		sqsProvider = aws.NewSQSProvider(ctx, sqsapi, metadata)
+		sqsProvider = aws.NewSQSProvider(ctx, sqsapi, metadataProvider)
 		eventbridgeapi = &awsfake.EventBridgeAPI{}
-		eventBridgeProvider = aws.NewEventBridgeProvider(eventbridgeapi, metadata, sqsProvider.QueueName())
+		eventBridgeProvider = aws.NewEventBridgeProvider(eventbridgeapi, metadataProvider, sqsProvider.QueueName())
 
 		infraStartChan = make(chan struct{})
 		notificationStartChan = make(chan struct{})
@@ -141,7 +141,7 @@ var _ = Describe("Processing Messages", func() {
 		ExpectApplied(env.Ctx, env.Client, node)
 		ExpectReconcileSucceeded(env.Ctx, nodeStateController, client.ObjectKeyFromObject(node))
 
-		Expect(controller.PollSQS(env.Ctx)).To(Succeed())
+		Expect(controller.Reconcile(env.Ctx)).To(Succeed())
 		ExpectNotFound(env.Ctx, env.Client, node)
 		Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
 	})
@@ -158,7 +158,7 @@ var _ = Describe("Processing Messages", func() {
 		ExpectApplied(env.Ctx, env.Client, node)
 		ExpectReconcileSucceeded(env.Ctx, nodeStateController, client.ObjectKeyFromObject(node))
 
-		Expect(controller.PollSQS(env.Ctx)).To(Succeed())
+		Expect(controller.Reconcile(env.Ctx)).To(Succeed())
 		ExpectNotFound(env.Ctx, env.Client, node)
 		Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
 	})
@@ -182,7 +182,7 @@ var _ = Describe("Processing Messages", func() {
 
 		// Wait for the nodes to reconcile with the cluster state
 		ExpectReconcileSucceeded(env.Ctx, nodeStateController, lo.Map(nodes, func(n *v1.Node, _ int) client.ObjectKey { return client.ObjectKeyFromObject(n) })...)
-		Expect(controller.PollSQS(env.Ctx)).To(Succeed())
+		Expect(controller.Reconcile(env.Ctx)).To(Succeed())
 		ExpectNotFound(env.Ctx, env.Client, lo.Map(nodes, func(n *v1.Node, _ int) client.Object { return n })...)
 		Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(4))
 	})
@@ -211,19 +211,19 @@ var _ = Describe("Processing Messages", func() {
 
 		// Wait for the nodes to reconcile with the cluster state
 		ExpectReconcileSucceeded(env.Ctx, nodeStateController, lo.Map(nodes, func(n *v1.Node, _ int) client.ObjectKey { return client.ObjectKeyFromObject(n) })...)
-		Expect(controller.PollSQS(env.Ctx)).To(Succeed())
+		Expect(controller.Reconcile(env.Ctx)).To(Succeed())
 		ExpectNotFound(env.Ctx, env.Client, lo.Map(nodes, func(n *v1.Node, _ int) client.Object { return n })...)
 		Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(100))
 	})
 	It("should not delete a node when not owned by provisioner", func() {
 		node := test.Node(test.NodeOptions{
-			ProviderID: makeProviderID(uuid.NewString()),
+			ProviderID: makeProviderID(string(uuid.NewUUID())),
 		})
 		ExpectMessagesCreated(spotInterruptionMessage(node.Spec.ProviderID))
 		ExpectApplied(env.Ctx, env.Client, node)
 		ExpectReconcileSucceeded(env.Ctx, nodeStateController, client.ObjectKeyFromObject(node))
 
-		Expect(controller.PollSQS(env.Ctx)).To(Succeed())
+		Expect(controller.Reconcile(env.Ctx)).To(Succeed())
 		ExpectNodeExists(env.Ctx, env.Client, node.Name)
 		Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
 	})
@@ -233,11 +233,11 @@ var _ = Describe("Processing Messages", func() {
 				"field1": "value1",
 				"field2": "value2",
 			})))),
-			MessageId: awssdk.String(uuid.NewString()),
+			MessageId: awssdk.String(string(uuid.NewUUID())),
 		}
 
 		ExpectMessagesCreated(badMessage)
-		Expect(controller.PollSQS(env.Ctx)).To(Succeed())
+		Expect(controller.Reconcile(env.Ctx)).To(Succeed())
 		Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
 	})
 	It("should delete a state change message when the state isn't in accepted states", func() {
@@ -253,7 +253,7 @@ var _ = Describe("Processing Messages", func() {
 		ExpectApplied(env.Ctx, env.Client, node)
 		ExpectReconcileSucceeded(env.Ctx, nodeStateController, client.ObjectKeyFromObject(node))
 
-		Expect(controller.PollSQS(env.Ctx)).To(Succeed())
+		Expect(controller.Reconcile(env.Ctx)).To(Succeed())
 		ExpectNodeExists(env.Ctx, env.Client, node.Name)
 		Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
 	})
@@ -273,7 +273,7 @@ var _ = Describe("Processing Messages", func() {
 		ExpectApplied(env.Ctx, env.Client, node)
 		ExpectReconcileSucceeded(env.Ctx, nodeStateController, client.ObjectKeyFromObject(node))
 
-		Expect(controller.PollSQS(env.Ctx)).To(Succeed())
+		Expect(controller.Reconcile(env.Ctx)).To(Succeed())
 		ExpectNotFound(env.Ctx, env.Client, node)
 		Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
 
@@ -297,7 +297,7 @@ var _ = Describe("Error Handling", func() {
 	It("should send an error on polling when AccessDenied", func() {
 		ExpectClosed(infraStartChan)
 		sqsapi.ReceiveMessageBehavior.Error.Set(awsErrWithCode(aws.AccessDeniedCode), awsfake.MaxCalls(0))
-		Expect(controller.PollSQS(env.Ctx)).ToNot(Succeed())
+		Expect(controller.Reconcile(env.Ctx)).ToNot(Succeed())
 	})
 	It("should trigger an infrastructure reconciliation on an SQS queue when it doesn't exist", func() {
 		sqsapi.GetQueueURLBehavior.Error.Set(awsErrWithCode(sqs.ErrCodeQueueDoesNotExist), awsfake.MaxCalls(0)) // This mocks the queue not existing
@@ -314,7 +314,7 @@ var _ = Describe("Error Handling", func() {
 		sqsapi.ReceiveMessageBehavior.Error.Set(awsErrWithCode(sqs.ErrCodeQueueDoesNotExist)) // This mocks the queue being deleted manually after infra reconciliation
 
 		// This should fail with an error since the queue doesn't exist
-		Expect(controller.PollSQS(env.Ctx)).ToNot(Succeed())
+		Expect(controller.Reconcile(env.Ctx)).ToNot(Succeed())
 
 		Eventually(func(g Gomega) {
 			g.Expect(sqsapi.CreateQueueBehavior.SuccessfulCalls()).To(Equal(2))
@@ -360,7 +360,7 @@ func spotInterruptionMessage(involvedInstanceID string) *sqs.Message {
 			Version:    "0",
 			Account:    defaultAccountID,
 			DetailType: "EC2 Spot Instance Interruption Warning",
-			ID:         uuid.NewString(),
+			ID:         string(uuid.NewUUID()),
 			Region:     defaultRegion,
 			Resources: []string{
 				fmt.Sprintf("arn:aws:ec2:%s:instance/%s", defaultRegion, involvedInstanceID),
@@ -375,7 +375,7 @@ func spotInterruptionMessage(involvedInstanceID string) *sqs.Message {
 	}
 	return &sqs.Message{
 		Body:      awssdk.String(string(lo.Must(json.Marshal(evt)))),
-		MessageId: awssdk.String(uuid.NewString()),
+		MessageId: awssdk.String(string(uuid.NewUUID())),
 	}
 }
 
@@ -385,7 +385,7 @@ func stateChangeMessage(involvedInstanceID, state string) *sqs.Message {
 			Version:    "0",
 			Account:    defaultAccountID,
 			DetailType: "EC2 Instance State-change Notification",
-			ID:         uuid.NewString(),
+			ID:         string(uuid.NewUUID()),
 			Region:     defaultRegion,
 			Resources: []string{
 				fmt.Sprintf("arn:aws:ec2:%s:instance/%s", defaultRegion, involvedInstanceID),
@@ -400,7 +400,7 @@ func stateChangeMessage(involvedInstanceID, state string) *sqs.Message {
 	}
 	return &sqs.Message{
 		Body:      awssdk.String(string(lo.Must(json.Marshal(evt)))),
-		MessageId: awssdk.String(uuid.NewString()),
+		MessageId: awssdk.String(string(uuid.NewUUID())),
 	}
 }
 
@@ -411,7 +411,7 @@ func scheduledChangeMessage(involvedInstanceID string) *sqs.Message {
 			Version:    "0",
 			Account:    defaultAccountID,
 			DetailType: "AWS Health Event",
-			ID:         uuid.NewString(),
+			ID:         string(uuid.NewUUID()),
 			Region:     defaultRegion,
 			Resources: []string{
 				fmt.Sprintf("arn:aws:ec2:%s:instance/%s", defaultRegion, involvedInstanceID),
@@ -431,7 +431,7 @@ func scheduledChangeMessage(involvedInstanceID string) *sqs.Message {
 	}
 	return &sqs.Message{
 		Body:      awssdk.String(string(lo.Must(json.Marshal(evt)))),
-		MessageId: awssdk.String(uuid.NewString()),
+		MessageId: awssdk.String(string(uuid.NewUUID())),
 	}
 }
 

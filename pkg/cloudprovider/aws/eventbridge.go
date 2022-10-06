@@ -26,14 +26,14 @@ import (
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/utils/injection"
 )
 
 type EventBridgeProvider struct {
-	client    eventbridgeiface.EventBridgeAPI
-	queueName string
-	metadata  *Metadata
+	client           eventbridgeiface.EventBridgeAPI
+	queueName        string
+	metadataProvider *MetadataProvider
 }
 
 type EventRule struct {
@@ -56,11 +56,11 @@ func (ep *EventPattern) Serialize() []byte {
 	return lo.Must(json.Marshal(ep))
 }
 
-func NewEventBridgeProvider(eb eventbridgeiface.EventBridgeAPI, metadata *Metadata, queueName string) *EventBridgeProvider {
+func NewEventBridgeProvider(eb eventbridgeiface.EventBridgeAPI, metadataProvider *MetadataProvider, queueName string) *EventBridgeProvider {
 	return &EventBridgeProvider{
-		client:    eb,
-		metadata:  metadata,
-		queueName: queueName,
+		client:           eb,
+		metadataProvider: metadataProvider,
+		queueName:        queueName,
 	}
 }
 
@@ -76,7 +76,7 @@ func (eb *EventBridgeProvider) CreateEC2NotificationRules(ctx context.Context) (
 				EventPattern: aws.String(string(r.Pattern.Serialize())),
 				Tags: []*eventbridge.Tag{
 					{
-						Key:   aws.String(v1alpha5.DiscoveryLabelKey),
+						Key:   aws.String(awsv1alpha1.DiscoveryTagKey),
 						Value: aws.String(injection.GetOptions(ctx).ClusterName),
 					},
 				},
@@ -146,7 +146,7 @@ func (eb *EventBridgeProvider) getEC2NotificationEventRules(ctx context.Context)
 			},
 			Target: &EventTarget{
 				ID:  "1",
-				ARN: eb.getQueueARN(),
+				ARN: eb.getQueueARN(ctx),
 			},
 		},
 		{
@@ -157,7 +157,7 @@ func (eb *EventBridgeProvider) getEC2NotificationEventRules(ctx context.Context)
 			},
 			Target: &EventTarget{
 				ID:  "1",
-				ARN: eb.getQueueARN(),
+				ARN: eb.getQueueARN(ctx),
 			},
 		},
 		{
@@ -168,7 +168,7 @@ func (eb *EventBridgeProvider) getEC2NotificationEventRules(ctx context.Context)
 			},
 			Target: &EventTarget{
 				ID:  "1",
-				ARN: eb.getQueueARN(),
+				ARN: eb.getQueueARN(ctx),
 			},
 		},
 		{
@@ -179,12 +179,12 @@ func (eb *EventBridgeProvider) getEC2NotificationEventRules(ctx context.Context)
 			},
 			Target: &EventTarget{
 				ID:  "1",
-				ARN: eb.getQueueARN(),
+				ARN: eb.getQueueARN(ctx),
 			},
 		},
 	}
 }
 
-func (eb *EventBridgeProvider) getQueueARN() string {
-	return fmt.Sprintf("arn:aws:sqs:%s:%s:%s", eb.metadata.Region(), eb.metadata.AccountID(), eb.queueName)
+func (eb *EventBridgeProvider) getQueueARN(ctx context.Context) string {
+	return fmt.Sprintf("arn:aws:sqs:%s:%s:%s", eb.metadataProvider.Region(ctx), eb.metadataProvider.AccountID(ctx), eb.queueName)
 }

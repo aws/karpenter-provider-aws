@@ -120,7 +120,7 @@ func benchmarkScheduler(b *testing.B, instanceCount, podCount int) {
 	scheduler := pscheduling.NewScheduler(ctx, nil, []*scheduling.NodeTemplate{scheduling.NewNodeTemplate(provisioner)},
 		nil, state.NewCluster(&clock.RealClock{}, test.NewConfig(), nil, cloudProv), nil, &pscheduling.Topology{},
 		map[string][]cloudprovider.InstanceType{provisioner.Name: instanceTypes}, map[*scheduling.NodeTemplate]v1.ResourceList{},
-		test.NewEventRecorder(),
+		test.NewRecorder(),
 		pscheduling.SchedulerOptions{})
 
 	pods := makeDiversePods(podCount)

@@ -22,12 +22,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/uuid"
 	"knative.dev/pkg/ptr"
 
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
@@ -95,7 +95,7 @@ var _ = Describe("Notification", Label("AWS"), func() {
 		ctx, cancel := context.WithCancel(env.Context)
 		defer cancel() // In case the test fails, we need this so that the goroutine monitoring the events is closed
 
-		node := env.Monitor.GetCreatedNodes()[0]
+		node := env.Monitor.CreatedNodes()[0]
 		instanceID := parseProviderID(node.Spec.ProviderID)
 
 		By("Interrupting the spot instance")
@@ -118,7 +118,7 @@ var _ = Describe("Notification", Label("AWS"), func() {
 			}
 		}()
 
-		env.EventuallyExpectNotFound(&node)
+		env.EventuallyExpectNotFound(node)
 		close(done) // Once the node is gone, we can close the event channel because the test has effectively succeeded
 		env.EventuallyExpectHealthyPodCount(selector, 1)
 	})
@@ -154,11 +154,11 @@ var _ = Describe("Notification", Label("AWS"), func() {
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 1)
 
-		node := env.Monitor.GetCreatedNodes()[0]
+		node := env.Monitor.CreatedNodes()[0]
 
 		By("Stopping the EC2 instance without the EKS cluster's knowledge")
-		env.ExpectInstanceStopped(node.Name)                                  // Make a call to the EC2 api to stop the instance
-		env.EventuallyExpectNotFoundAssertion(&node).WithTimeout(time.Minute) // shorten the timeout since we should react faster
+		env.ExpectInstanceStopped(node.Name)                                 // Make a call to the EC2 api to stop the instance
+		env.EventuallyExpectNotFoundAssertion(node).WithTimeout(time.Minute) // shorten the timeout since we should react faster
 		env.EventuallyExpectHealthyPodCount(selector, 1)
 	})
 	It("should terminate the node at the API server when the EC2 instance is terminated", func() {
@@ -193,11 +193,11 @@ var _ = Describe("Notification", Label("AWS"), func() {
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 1)
 
-		node := env.Monitor.GetCreatedNodes()[0]
+		node := env.Monitor.CreatedNodes()[0]
 
 		By("Terminating the EC2 instance without the EKS cluster's knowledge")
-		env.ExpectInstanceTerminated(node.Name)                               // Make a call to the EC2 api to stop the instance
-		env.EventuallyExpectNotFoundAssertion(&node).WithTimeout(time.Minute) // shorten the timeout since we should react faster
+		env.ExpectInstanceTerminated(node.Name)                              // Make a call to the EC2 api to stop the instance
+		env.EventuallyExpectNotFoundAssertion(node).WithTimeout(time.Minute) // shorten the timeout since we should react faster
 		env.EventuallyExpectHealthyPodCount(selector, 1)
 	})
 	It("should terminate the node when receiving a scheduled change health event", func() {
@@ -232,12 +232,12 @@ var _ = Describe("Notification", Label("AWS"), func() {
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 1)
 
-		node := env.Monitor.GetCreatedNodes()[0]
+		node := env.Monitor.CreatedNodes()[0]
 		instanceID := parseProviderID(node.Spec.ProviderID)
 
 		By("Creating a scheduled change health event in the SQS message queue")
-		env.ExpectMessagesCreated(scheduledChangeMessage(env.Metadata.Region(), env.Metadata.AccountID(), instanceID))
-		env.EventuallyExpectNotFound(&node)
+		env.ExpectMessagesCreated(scheduledChangeMessage(env.MetadataProvider.Region(env.Context), env.MetadataProvider.AccountID(env.Context), instanceID))
+		env.EventuallyExpectNotFound(node)
 
 		env.EventuallyExpectHealthyPodCount(selector, 1)
 	})
@@ -250,7 +250,7 @@ func scheduledChangeMessage(region, accountID, involvedInstanceID string) schedu
 			Version:    "0",
 			Account:    accountID,
 			DetailType: "AWS Health Event",
-			ID:         uuid.NewString(),
+			ID:         string(uuid.NewUUID()),
 			Region:     region,
 			Resources: []string{
 				fmt.Sprintf("arn:aws:ec2:%s:instance/%s", region, involvedInstanceID),

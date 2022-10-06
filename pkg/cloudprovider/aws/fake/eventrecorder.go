@@ -18,6 +18,7 @@ import (
 	"context"
 
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter/pkg/test"
@@ -25,8 +26,10 @@ import (
 
 // EventRecorder is a mock event recorder that is used to facilitate testing.
 type EventRecorder struct {
-	test.EventRecorder
+	test.Recorder
 }
+
+func (e *EventRecorder) EventRecorder() record.EventRecorder { return e.Recorder.EventRecorder() }
 
 func (e *EventRecorder) EC2SpotInterruptionWarning(_ *v1.Node) {}
 
@@ -50,6 +53,6 @@ func (e *EventRecorder) InfrastructureDeletionFailed(_ context.Context, _ client
 
 func NewEventRecorder() *EventRecorder {
 	return &EventRecorder{
-		EventRecorder: *test.NewEventRecorder(),
+		Recorder: *test.NewRecorder(),
 	}
 }

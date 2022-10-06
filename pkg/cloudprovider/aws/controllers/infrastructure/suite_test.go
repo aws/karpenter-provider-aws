@@ -76,12 +76,11 @@ var _ = BeforeEach(func() {
 
 		fakeClock = clock.NewFakeClock(time.Now())
 		recorder = awsfake.NewEventRecorder()
-		metadata := aws.NewMetadata("us-east-1", "000000000000")
-
+		metadataProvider := aws.NewMetadataProvider(&awsfake.EC2MetadataAPI{}, &awsfake.STSAPI{})
 		sqsapi = &awsfake.SQSAPI{}
 		eventbridgeapi = &awsfake.EventBridgeAPI{}
-		sqsProvider = aws.NewSQSProvider(e.Ctx, sqsapi, metadata)
-		eventBridgeProvider = aws.NewEventBridgeProvider(eventbridgeapi, metadata, sqsProvider.QueueName())
+		sqsProvider = aws.NewSQSProvider(e.Ctx, sqsapi, metadataProvider)
+		eventBridgeProvider = aws.NewEventBridgeProvider(eventbridgeapi, metadataProvider, sqsProvider.QueueName())
 
 		cleanupChan = make(chan struct{}, 1)
 		startChan = make(chan struct{})
@@ -102,7 +101,7 @@ var _ = AfterEach(func() {
 var _ = Describe("Reconciliation", func() {
 	It("should reconcile the queue and the eventbridge rules on start", func() {
 		sqsapi.GetQueueURLBehavior.Error.Set(awsErrWithCode(sqs.ErrCodeQueueDoesNotExist), awsfake.MaxCalls(1)) // This mocks the queue not existing
-		Expect(controller.EnsureInfrastructure(env.Ctx)).To(Succeed())
+		Expect(controller.Reconcile(env.Ctx)).To(Succeed())
 
 		Expect(sqsapi.CreateQueueBehavior.SuccessfulCalls()).To(Equal(1))
 		Expect(eventbridgeapi.PutRuleBehavior.SuccessfulCalls()).To(Equal(4))

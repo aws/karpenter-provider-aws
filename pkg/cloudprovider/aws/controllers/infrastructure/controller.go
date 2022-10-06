@@ -112,11 +112,9 @@ func newBackoff(clk clock.Clock) *backoff.ExponentialBackOff {
 }
 
 func (c *Controller) run(ctx context.Context) {
-	defer func() {
-		logging.FromContext(ctx).Infof("Shutting down")
-	}()
+	defer logging.FromContext(ctx).Infof("Shutting down")
 	for {
-		if err := c.EnsureInfrastructure(ctx); err != nil {
+		if err := c.Reconcile(ctx); err != nil {
 			logging.FromContext(ctx).Errorf("ensuring infrastructure established, %v", err)
 			c.setReady(ctx, false)
 			backoffPeriod := c.getBackoff(err)
@@ -212,9 +210,9 @@ func (c *Controller) setReady(ctx context.Context, ready bool) {
 	c.ready = ready
 }
 
-// EnsureInfrastructure reconciles the SQS queue and the EventBridge rules with the expected
+// Reconcile reconciles the SQS queue and the EventBridge rules with the expected
 // configuration prescribed by Karpenter
-func (c *Controller) EnsureInfrastructure(ctx context.Context) (err error) {
+func (c *Controller) Reconcile(ctx context.Context) (err error) {
 	defer metrics.Measure(reconcileDuration)()
 
 	wg := &sync.WaitGroup{}

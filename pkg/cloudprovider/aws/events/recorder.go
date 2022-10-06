@@ -66,6 +66,10 @@ func NewRecorder(r events.Recorder) Recorder {
 	}
 }
 
+func (r recorder) EventRecorder() record.EventRecorder {
+	return r.rec
+}
+
 func (r recorder) EC2SpotInterruptionWarning(node *v1.Node) {
 	r.rec.Eventf(node, "Normal", "EC2SpotInterruptionWarning", "Node %s event: EC2 triggered a spot interruption warning for the node", node.Name)
 }

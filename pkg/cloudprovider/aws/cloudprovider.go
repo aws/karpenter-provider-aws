@@ -32,6 +32,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/eventbridge"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/aws/aws-sdk-go/service/ssm"
+	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
@@ -98,7 +99,7 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 			client.DefaultRetryer{NumMaxRetries: client.DefaultRetryerMaxNumRetries},
 		),
 	)))
-	metadataProvider := NewMetadataProvider(sess)
+	metadataProvider := NewMetadataProvider(NewEC2MetadataClient(sess), sts.New(sess))
 	if *sess.Config.Region == "" {
 		logging.FromContext(ctx).Debug("AWS region not configured, asking EC2 Instance Metadata Service")
 		*sess.Config.Region = metadataProvider.Region(ctx)
@@ -112,9 +113,8 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 	subnetProvider := NewSubnetProvider(ec2api)
 	instanceTypeProvider := NewInstanceTypeProvider(ctx, sess, options, ec2api, subnetProvider)
 
-	m := NewMetadata(*sess.Config.Region, metadataProvider.AccountID(ctx))
-	sqsProvider := NewSQSProvider(ctx, sqs.New(sess), m)
-	eventBridgeProvider := NewEventBridgeProvider(eventbridge.New(sess), m, sqsProvider.QueueName())
+	sqsProvider := NewSQSProvider(ctx, sqs.New(sess), metadataProvider)
+	eventBridgeProvider := NewEventBridgeProvider(eventbridge.New(sess), metadataProvider, sqsProvider.QueueName())
 	cloudprovider := &CloudProvider{
 		instanceTypeProvider: instanceTypeProvider,
 		instanceProvider: NewInstanceProvider(ctx, ec2api, instanceTypeProvider, subnetProvider,

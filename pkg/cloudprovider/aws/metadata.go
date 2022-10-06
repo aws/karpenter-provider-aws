@@ -28,9 +28,29 @@ import (
 	"github.com/aws/karpenter/pkg/utils/cache"
 )
 
+type EC2MetadataInterface interface {
+	RegionWithContext(context.Context) (string, error)
+	GetInstanceIdentityDocumentWithContext(context.Context) (ec2metadata.EC2InstanceIdentityDocument, error)
+	PartitionID() string
+}
+
+type EC2MetadataClient struct {
+	*ec2metadata.EC2Metadata
+}
+
+func NewEC2MetadataClient(sess *session.Session) *EC2MetadataClient {
+	return &EC2MetadataClient{
+		EC2Metadata: ec2metadata.New(sess),
+	}
+}
+
+func (e *EC2MetadataClient) PartitionID() string {
+	return e.EC2Metadata.PartitionID
+}
+
 type MetadataProvider struct {
-	imdsClient *ec2metadata.EC2Metadata
-	stsClient  stsiface.STSAPI
+	ec2MetadataClient EC2MetadataInterface
+	stsClient         stsiface.STSAPI
 
 	region   *string // cached region if already resolved
 	regionMu sync.RWMutex
@@ -39,10 +59,10 @@ type MetadataProvider struct {
 	accountIDMu sync.RWMutex
 }
 
-func NewMetadataProvider(sess *session.Session) *MetadataProvider {
+func NewMetadataProvider(ec2metadataapi EC2MetadataInterface, stsapi stsiface.STSAPI) *MetadataProvider {
 	return &MetadataProvider{
-		imdsClient: ec2metadata.New(sess),
-		stsClient:  sts.New(sess),
+		ec2MetadataClient: ec2metadataapi,
+		stsClient:         stsapi,
 	}
 }
 
@@ -50,7 +70,7 @@ func NewMetadataProvider(sess *session.Session) *MetadataProvider {
 func (i *MetadataProvider) Region(ctx context.Context) string {
 	ret, err := cache.TryGetStringWithFallback(&i.regionMu, i.region,
 		func() (string, error) {
-			return i.imdsClient.RegionWithContext(ctx)
+			return i.ec2MetadataClient.RegionWithContext(ctx)
 		})
 	if err != nil {
 		panic(fmt.Sprintf("Failed to call the metadata server's region API, %s", err))
@@ -62,7 +82,7 @@ func (i *MetadataProvider) Region(ctx context.Context) string {
 func (i *MetadataProvider) AccountID(ctx context.Context) string {
 	ret, err := cache.TryGetStringWithFallback(&i.accountIDMu, i.accountID,
 		func() (string, error) {
-			doc, err := i.imdsClient.GetInstanceIdentityDocumentWithContext(ctx)
+			doc, err := i.ec2MetadataClient.GetInstanceIdentityDocumentWithContext(ctx)
 			if err != nil {
 				// Fallback to using the STS provider if IMDS fails
 				result, err := i.stsClient.GetCallerIdentity(&sts.GetCallerIdentityInput{})
@@ -81,5 +101,5 @@ func (i *MetadataProvider) AccountID(ctx context.Context) string {
 }
 
 func (i *MetadataProvider) Partition() string {
-	return i.imdsClient.PartitionID
+	return i.ec2MetadataClient.PartitionID()
 }
