@@ -20,53 +20,58 @@ import (
 
 	"github.com/patrickmn/go-cache"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/tools/record"
 )
 
 func NewDedupeRecorder(r Recorder) Recorder {
 	return &dedupe{
-		Recorder: r,
-		cache:    cache.New(120*time.Second, 10*time.Second),
+		rec:   r,
+		cache: cache.New(120*time.Second, 10*time.Second),
 	}
 }
 
 type dedupe struct {
-	Recorder
+	rec   Recorder
 	cache *cache.Cache
+}
+
+func (d *dedupe) EventRecorder() record.EventRecorder {
+	return d.rec.EventRecorder()
 }
 
 func (d *dedupe) WaitingOnDeletionForConsolidation(node *v1.Node) {
 	if !d.shouldCreateEvent(fmt.Sprintf("wait-node-consolidate-delete-%s", node.UID)) {
 		return
 	}
-	d.Recorder.WaitingOnDeletionForConsolidation(node)
+	d.rec.WaitingOnDeletionForConsolidation(node)
 }
 
 func (d *dedupe) WaitingOnReadinessForConsolidation(node *v1.Node) {
 	if !d.shouldCreateEvent(fmt.Sprintf("wait-node-consolidate-ready-%s", node.UID)) {
 		return
 	}
-	d.Recorder.WaitingOnReadinessForConsolidation(node)
+	d.rec.WaitingOnReadinessForConsolidation(node)
 }
 
 func (d *dedupe) TerminatingNodeForConsolidation(node *v1.Node, reason string) {
 	if !d.shouldCreateEvent(fmt.Sprintf("terminate-node-consolidate-%s-%s", node.UID, reason)) {
 		return
 	}
-	d.Recorder.TerminatingNodeForConsolidation(node, reason)
+	d.rec.TerminatingNodeForConsolidation(node, reason)
 }
 
 func (d *dedupe) LaunchingNodeForConsolidation(node *v1.Node, reason string) {
 	if !d.shouldCreateEvent(fmt.Sprintf("launch-node-consolidate-%s-%s", node.UID, reason)) {
 		return
 	}
-	d.Recorder.LaunchingNodeForConsolidation(node, reason)
+	d.rec.LaunchingNodeForConsolidation(node, reason)
 }
 
 func (d *dedupe) NominatePod(pod *v1.Pod, node *v1.Node) {
 	if !d.shouldCreateEvent(fmt.Sprintf("nominate-node-%s-%s", pod.UID, node.UID)) {
 		return
 	}
-	d.Recorder.NominatePod(pod, node)
+	d.rec.NominatePod(pod, node)
 }
 
 func (d *dedupe) EvictPod(pod *v1.Pod) {
@@ -75,21 +80,21 @@ func (d *dedupe) EvictPod(pod *v1.Pod) {
 		return
 	}
 	d.cache.SetDefault(key, nil)
-	d.Recorder.EvictPod(pod)
+	d.rec.EvictPod(pod)
 }
 
 func (d *dedupe) PodFailedToSchedule(pod *v1.Pod, err error) {
 	if !d.shouldCreateEvent(fmt.Sprintf("failed-to-schedule-%s-%s", pod.UID, err)) {
 		return
 	}
-	d.Recorder.PodFailedToSchedule(pod, err)
+	d.rec.PodFailedToSchedule(pod, err)
 }
 
 func (d *dedupe) NodeFailedToDrain(node *v1.Node, err error) {
 	if !d.shouldCreateEvent(fmt.Sprintf("failed-to-drain-%s", node.Name)) {
 		return
 	}
-	d.Recorder.NodeFailedToDrain(node, err)
+	d.rec.NodeFailedToDrain(node, err)
 }
 
 func (d *dedupe) shouldCreateEvent(key string) bool {

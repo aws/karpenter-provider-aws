@@ -16,19 +16,24 @@ package events
 
 import (
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/flowcontrol"
 )
 
 func NewLoadSheddingRecorder(r Recorder) Recorder {
 	return &loadshedding{
-		Recorder:         r,
+		rec:              r,
 		nominationBucket: flowcontrol.NewTokenBucketRateLimiter(5, 10),
 	}
 }
 
 type loadshedding struct {
-	Recorder
+	rec              Recorder
 	nominationBucket flowcontrol.RateLimiter
+}
+
+func (l *loadshedding) EventRecorder() record.EventRecorder {
+	return l.rec.EventRecorder()
 }
 
 func (l *loadshedding) NominatePod(pod *v1.Pod, node *v1.Node) {
@@ -39,33 +44,33 @@ func (l *loadshedding) NominatePod(pod *v1.Pod, node *v1.Node) {
 	if !l.nominationBucket.TryAccept() {
 		return
 	}
-	l.Recorder.NominatePod(pod, node)
+	l.rec.NominatePod(pod, node)
 }
 
 func (l *loadshedding) EvictPod(pod *v1.Pod) {
-	l.Recorder.EvictPod(pod)
+	l.rec.EvictPod(pod)
 }
 
 func (l *loadshedding) PodFailedToSchedule(pod *v1.Pod, err error) {
-	l.Recorder.PodFailedToSchedule(pod, err)
+	l.rec.PodFailedToSchedule(pod, err)
 }
 
 func (l *loadshedding) NodeFailedToDrain(node *v1.Node, err error) {
-	l.Recorder.NodeFailedToDrain(node, err)
+	l.rec.NodeFailedToDrain(node, err)
 }
 
 func (l *loadshedding) TerminatingNodeForConsolidation(node *v1.Node, reason string) {
-	l.Recorder.TerminatingNodeForConsolidation(node, reason)
+	l.rec.TerminatingNodeForConsolidation(node, reason)
 }
 
 func (l *loadshedding) LaunchingNodeForConsolidation(node *v1.Node, reason string) {
-	l.Recorder.LaunchingNodeForConsolidation(node, reason)
+	l.rec.LaunchingNodeForConsolidation(node, reason)
 }
 
 func (l *loadshedding) WaitingOnReadinessForConsolidation(node *v1.Node) {
-	l.Recorder.WaitingOnReadinessForConsolidation(node)
+	l.rec.WaitingOnReadinessForConsolidation(node)
 }
 
 func (l *loadshedding) WaitingOnDeletionForConsolidation(node *v1.Node) {
-	l.Recorder.WaitingOnDeletionForConsolidation(node)
+	l.rec.WaitingOnDeletionForConsolidation(node)
 }

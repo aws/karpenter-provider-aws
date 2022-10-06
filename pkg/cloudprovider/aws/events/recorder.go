@@ -30,11 +30,12 @@ import (
 )
 
 type recorder struct {
-	record.EventRecorder
+	rec record.EventRecorder
+	events.Recorder
 }
 
 type Recorder interface {
-	record.EventRecorder
+	events.Recorder
 
 	// EC2SpotInterruptionWarning is called when EC2 sends a spot interruption 2-minute warning for the node from the SQS queue
 	EC2SpotInterruptionWarning(*v1.Node)
@@ -60,32 +61,33 @@ type Recorder interface {
 
 func NewRecorder(r events.Recorder) Recorder {
 	return recorder{
-		EventRecorder: r,
+		rec:      r.EventRecorder(),
+		Recorder: r,
 	}
 }
 
 func (r recorder) EC2SpotInterruptionWarning(node *v1.Node) {
-	r.Eventf(node, "Normal", "EC2SpotInterruptionWarning", "Node %s event: EC2 triggered a spot interruption warning for the node", node.Name)
+	r.rec.Eventf(node, "Normal", "EC2SpotInterruptionWarning", "Node %s event: EC2 triggered a spot interruption warning for the node", node.Name)
 }
 
 func (r recorder) EC2SpotRebalanceRecommendation(node *v1.Node) {
-	r.Eventf(node, "Normal", "EC2RebalanceRecommendation", "Node %s event: EC2 triggered a spot rebalance recommendation for the node", node.Name)
+	r.rec.Eventf(node, "Normal", "EC2RebalanceRecommendation", "Node %s event: EC2 triggered a spot rebalance recommendation for the node", node.Name)
 }
 
 func (r recorder) EC2HealthWarning(node *v1.Node) {
-	r.Eventf(node, "Normal", "EC2HealthWarning", "Node %s event: EC2 triggered a health warning for the node", node.Name)
+	r.rec.Eventf(node, "Normal", "EC2HealthWarning", "Node %s event: EC2 triggered a health warning for the node", node.Name)
 }
 
 func (r recorder) EC2StateTerminating(node *v1.Node) {
-	r.Eventf(node, "Normal", "EC2StateTerminating", `Node %s event: EC2 node is terminating"`, node.Name)
+	r.rec.Eventf(node, "Normal", "EC2StateTerminating", `Node %s event: EC2 node is terminating"`, node.Name)
 }
 
 func (r recorder) EC2StateStopping(node *v1.Node) {
-	r.Eventf(node, "Normal", "EC2StateStopping", `Node %s event: EC2 node is stopping"`, node.Name)
+	r.rec.Eventf(node, "Normal", "EC2StateStopping", `Node %s event: EC2 node is stopping"`, node.Name)
 }
 
 func (r recorder) TerminatingNodeOnNotification(node *v1.Node) {
-	r.Eventf(node, "Normal", "AWSNotificationTerminateNode", "Node %s event: Notification triggered termination for the node", node.Name)
+	r.rec.Eventf(node, "Normal", "AWSNotificationTerminateNode", "Node %s event: Notification triggered termination for the node", node.Name)
 }
 
 func (r recorder) InfrastructureHealthy(ctx context.Context, kubeClient client.Client) {
@@ -97,7 +99,7 @@ func (r recorder) InfrastructureHealthy(ctx context.Context, kubeClient client.C
 		logging.FromContext(ctx).Errorf("Sending InfrastructureHealthy event, %v", err)
 		return
 	}
-	r.Eventf(pod, "Normal", "AWSInfrastructureHealthy", "Karpenter infrastructure reconciliation is healthy")
+	r.rec.Eventf(pod, "Normal", "AWSInfrastructureHealthy", "Karpenter infrastructure reconciliation is healthy")
 }
 
 func (r recorder) InfrastructureUnhealthy(ctx context.Context, kubeClient client.Client) {
@@ -109,7 +111,7 @@ func (r recorder) InfrastructureUnhealthy(ctx context.Context, kubeClient client
 		logging.FromContext(ctx).Errorf("Sending InfrastructureUnhealthy event, %v", err)
 		return
 	}
-	r.Eventf(pod, "Warning", "AWSInfrastructureUnhealthy", "Karpenter infrastructure reconciliation is unhealthy")
+	r.rec.Eventf(pod, "Warning", "AWSInfrastructureUnhealthy", "Karpenter infrastructure reconciliation is unhealthy")
 }
 
 func (r recorder) InfrastructureDeletionSucceeded(ctx context.Context, kubeClient client.Client) {
@@ -121,7 +123,7 @@ func (r recorder) InfrastructureDeletionSucceeded(ctx context.Context, kubeClien
 		logging.FromContext(ctx).Errorf("Sending InfrastructureDeletionSucceeded event, %v", err)
 		return
 	}
-	r.Eventf(pod, "Normal", "AWSInfrastructureDeletionSucceeded", "Karpenter infrastructure deletion succeeded")
+	r.rec.Eventf(pod, "Normal", "AWSInfrastructureDeletionSucceeded", "Karpenter infrastructure deletion succeeded")
 }
 
 func (r recorder) InfrastructureDeletionFailed(ctx context.Context, kubeClient client.Client) {
@@ -133,5 +135,5 @@ func (r recorder) InfrastructureDeletionFailed(ctx context.Context, kubeClient c
 		logging.FromContext(ctx).Errorf("Sending InfrastructureDeletionFailed event, %v", err)
 		return
 	}
-	r.Eventf(pod, "Warning", "AWSInfrastructureDeletionFailed", "Karpenter infrastructure deletion failed")
+	r.rec.Eventf(pod, "Warning", "AWSInfrastructureDeletionFailed", "Karpenter infrastructure deletion failed")
 }
