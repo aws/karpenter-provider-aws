@@ -44,7 +44,7 @@ type Controller struct {
 	sqsProvider         *aws.SQSProvider
 	eventBridgeProvider *aws.EventBridgeProvider
 
-	mutex         *sync.RWMutex
+	mutex         sync.RWMutex
 	backoff       *backoff.ExponentialBackOff
 	readinessChan chan struct{} // A signal to other controllers that infrastructure is in a good state
 	ready         bool
@@ -65,7 +65,7 @@ func NewController(ctx context.Context, kubeClient client.Client, clk clock.Cloc
 		clock:               clk,
 		sqsProvider:         sqsProvider,
 		eventBridgeProvider: eventBridgeProvider,
-		mutex:               &sync.RWMutex{},
+		mutex:               sync.RWMutex{},
 		backoff:             newBackoff(clk),
 		readinessChan:       make(chan struct{}),
 		trigger:             make(chan struct{}, 1),

@@ -17,7 +17,6 @@ package notification
 import (
 	"context"
 	"fmt"
-	"regexp"
 	"strings"
 	"time"
 
@@ -27,6 +26,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/utils/clock"
 	"knative.dev/pkg/logging"
+	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/cenkalti/backoff/v4"
@@ -39,6 +39,7 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/aggregatedparser"
 	statechangev0 "github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/statechange"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/events"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/utils"
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/metrics"
 )
@@ -288,7 +289,7 @@ func getInvolvedNodes(instanceIDs []string, instanceIDMap map[string]*v1.Node) [
 	return nodes
 }
 
-// buildInstanceIDMap builds a map between the instance name that is stored in the
+// makeInstanceIDMap builds a map between the instance id that is stored in the
 // node .spec.providerID and the node name stored on the host
 func (c *Controller) makeInstanceIDMap() map[string]*v1.Node {
 	m := map[string]*v1.Node{}
@@ -297,28 +298,12 @@ func (c *Controller) makeInstanceIDMap() map[string]*v1.Node {
 		if _, ok := n.Node.Labels[v1alpha5.ProvisionerNameLabelKey]; !ok {
 			return true
 		}
-		id := parseProviderID(n.Node.Spec.ProviderID)
-		if id == "" {
+		id, err := utils.ParseProviderID(n.Node)
+		if err != nil || id == nil {
 			return true
 		}
-		m[id] = n.Node
+		m[ptr.StringValue(id)] = n.Node
 		return true
 	})
 	return m
-}
-
-// parseProviderID parses the provider ID stored on the node to get the instance ID
-// associated with a node
-func parseProviderID(pid string) string {
-	r := regexp.MustCompile(`aws:///(?P<AZ>.*)/(?P<InstanceID>.*)`)
-	matches := r.FindStringSubmatch(pid)
-	if matches == nil {
-		return ""
-	}
-	for i, name := range r.SubexpNames() {
-		if name == "InstanceID" {
-			return matches[i]
-		}
-	}
-	return ""
 }

@@ -21,7 +21,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/eventbridge"
 	"github.com/aws/aws-sdk-go/service/sqs"
-	"github.com/samber/lo"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 const (
@@ -32,24 +32,24 @@ const (
 
 var (
 	// This is not an exhaustive list, add to it as needed
-	notFoundErrorCodes = []string{
+	notFoundErrorCodes = sets.NewString(
 		"InvalidInstanceID.NotFound",
 		launchTemplateNotFoundCode,
 		sqs.ErrCodeQueueDoesNotExist,
 		(&eventbridge.ResourceNotFoundException{}).Code(),
-	}
+	)
 	// unfulfillableCapacityErrorCodes signify that capacity is temporarily unable to be launched
-	unfulfillableCapacityErrorCodes = []string{
+	unfulfillableCapacityErrorCodes = sets.NewString(
 		"InsufficientInstanceCapacity",
 		"MaxSpotInstanceCountExceeded",
 		"VcpuLimitExceeded",
 		"UnfulfillableCapacity",
 		"Unsupported",
-	}
-	accessDeniedErrorCodes = []string{
+	)
+	accessDeniedErrorCodes = sets.NewString(
 		AccessDeniedCode,
 		AccessDeniedExceptionCode,
-	}
+	)
 )
 
 type InstanceTerminatedError struct {
@@ -73,7 +73,7 @@ func IsNotFound(err error) bool {
 	}
 	var awsError awserr.Error
 	if errors.As(err, &awsError) {
-		return lo.Contains(notFoundErrorCodes, awsError.Code())
+		return notFoundErrorCodes.Has(awsError.Code())
 	}
 	return false
 }
@@ -87,7 +87,7 @@ func IsAccessDenied(err error) bool {
 	}
 	var awsError awserr.Error
 	if errors.As(err, &awsError) {
-		return lo.Contains(accessDeniedErrorCodes, awsError.Code())
+		return accessDeniedErrorCodes.Has(awsError.Code())
 	}
 	return false
 }
@@ -96,7 +96,7 @@ func IsAccessDenied(err error) bool {
 // capacity is temporarily unavailable for launching.
 // This could be due to account limits, insufficient ec2 capacity, etc.
 func isUnfulfillableCapacity(err *ec2.CreateFleetError) bool {
-	return lo.Contains(unfulfillableCapacityErrorCodes, *err.ErrorCode)
+	return unfulfillableCapacityErrorCodes.Has(*err.ErrorCode)
 }
 
 func isLaunchTemplateNotFound(err error) bool {

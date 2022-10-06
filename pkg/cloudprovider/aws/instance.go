@@ -22,13 +22,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/samber/lo"
-
 	"github.com/avast/retry-go"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,6 +37,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/utils"
 	"github.com/aws/karpenter/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injection"
@@ -109,7 +109,7 @@ func (p *InstanceProvider) Create(ctx context.Context, provider *v1alpha1.AWS, n
 }
 
 func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
-	id, err := getInstanceID(node)
+	id, err := utils.ParseProviderID(node)
 	if err != nil {
 		return fmt.Errorf("getting instance ID for node %s, %w", node.Name, err)
 	}
@@ -409,14 +409,6 @@ func (p *InstanceProvider) prioritizeInstanceTypes(instanceTypes []cloudprovider
 		return genericInstanceTypes
 	}
 	return instanceTypes
-}
-
-func getInstanceID(node *v1.Node) (*string, error) {
-	id := strings.Split(node.Spec.ProviderID, "/")
-	if len(id) < 5 {
-		return nil, fmt.Errorf("parsing instance id %s", node.Spec.ProviderID)
-	}
-	return aws.String(id[4]), nil
 }
 
 func combineFleetErrors(errors []*ec2.CreateFleetError) (errs error) {
