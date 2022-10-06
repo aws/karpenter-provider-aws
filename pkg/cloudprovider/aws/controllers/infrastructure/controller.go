@@ -21,23 +21,17 @@ import (
 	"sync"
 	"time"
 
-	"github.com/avast/retry-go"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/cenkalti/backoff/v4"
 	"go.uber.org/multierr"
-	appsv1 "k8s.io/api/apps/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/clock"
 	"knative.dev/pkg/logging"
-	"knative.dev/pkg/system"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter/pkg/cloudprovider/aws"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/events"
 	"github.com/aws/karpenter/pkg/metrics"
-	"github.com/aws/karpenter/pkg/utils/injection"
 )
 
 // Controller is the AWS infrastructure controller.  It is not a standard controller-runtime controller in that it doesn't
@@ -55,7 +49,6 @@ type Controller struct {
 	readinessChan chan struct{} // A signal to other controllers that infrastructure is in a good state
 	ready         bool
 	trigger       chan struct{}
-	done          chan struct{}
 }
 
 // pollingPeriod is the period that we go to AWS APIs to ensure that the appropriate AWS infrastructure is provisioned
@@ -64,7 +57,7 @@ const pollingPeriod = time.Hour
 
 func NewController(ctx context.Context, kubeClient client.Client, clk clock.Clock,
 	recorder events.Recorder, sqsProvider *aws.SQSProvider, eventBridgeProvider *aws.EventBridgeProvider,
-	startAsync <-chan struct{}, cleanupAsync <-chan struct{}) *Controller {
+	startAsync <-chan struct{}) *Controller {
 
 	c := &Controller{
 		kubeClient:          kubeClient,
@@ -76,28 +69,16 @@ func NewController(ctx context.Context, kubeClient client.Client, clk clock.Cloc
 		backoff:             newBackoff(clk),
 		readinessChan:       make(chan struct{}),
 		trigger:             make(chan struct{}, 1),
-		done:                make(chan struct{}),
 	}
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("infrastructure"))
 	logging.FromContext(ctx).Infof("Starting controller")
-
-	innerCtx, cancel := context.WithCancel(ctx) // Cancel so we don't re-provision the infra on cleanup
-	go func() {
-		select {
-		case <-cleanupAsync:
-			cancel()
-			c.cleanup(ctx)
-		case <-ctx.Done():
-		}
-		close(c.done)
-	}()
 
 	go func() {
 		select {
 		case <-ctx.Done():
 			return
 		case <-startAsync:
-			c.run(innerCtx)
+			c.run(ctx)
 		}
 	}()
 	return c
@@ -140,34 +121,6 @@ func (c *Controller) run(ctx context.Context) {
 	}
 }
 
-func (c *Controller) cleanup(ctx context.Context) {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("cleanup"))
-
-	dep := &appsv1.Deployment{}
-	nn := types.NamespacedName{
-		Name:      injection.GetOptions(ctx).DeploymentName,
-		Namespace: system.Namespace(),
-	}
-
-	notFound := false
-	if err := retry.Do(func() error {
-		err := c.kubeClient.Get(ctx, nn, dep)
-		if apierrors.IsNotFound(err) {
-			notFound = true
-		}
-		return client.IgnoreNotFound(err)
-	}); err != nil {
-		logging.FromContext(ctx).Errorf("Getting the deployment %s for cleanup, %v", nn, err)
-	}
-
-	// Deployment is already deleted or currently deleting, so we should cleanup the infrastructure
-	if notFound || !dep.DeletionTimestamp.IsZero() {
-		if err := retry.Do(func() error { return c.DeleteInfrastructure(ctx) }); err != nil {
-			logging.FromContext(ctx).Errorf("Deprovisioning the infrastructure, %v", err)
-		}
-	}
-}
-
 // Ready returns a channel that serves as a gate for other controllers
 // to wait on the infrastructure to be in a good state. When the infrastructure is ready,
 // this channel is closed so other controllers can proceed with their operations
@@ -179,10 +132,6 @@ func (c *Controller) Ready() <-chan struct{} {
 
 func (c *Controller) Trigger() {
 	c.trigger <- struct{}{}
-}
-
-func (c *Controller) Done() <-chan struct{} {
-	return c.done
 }
 
 func (c *Controller) setReady(ctx context.Context, ready bool) {

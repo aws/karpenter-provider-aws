@@ -116,7 +116,7 @@ var _ = BeforeEach(func() {
 		ec2api = &awsfake.EC2API{}
 		subnetProvider := aws.NewSubnetProvider(ec2api)
 		instanceTypeProvider = aws.NewInstanceTypeProvider(env.Ctx, mock.Session, cloudprovider.Options{}, ec2api, subnetProvider)
-		infraController = infrastructure.NewController(env.Ctx, env.Client, fakeClock, recorder, sqsProvider, eventBridgeProvider, infraStartChan, env.Ctx.Done())
+		infraController = infrastructure.NewController(env.Ctx, env.Client, fakeClock, recorder, sqsProvider, eventBridgeProvider, infraStartChan)
 		controller = notification.NewController(env.Ctx, env.Client, fakeClock, recorder, cluster, sqsProvider, instanceTypeProvider, infraController, notificationStartChan)
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")

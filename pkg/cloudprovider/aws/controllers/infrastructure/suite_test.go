@@ -85,7 +85,7 @@ var _ = BeforeEach(func() {
 		cleanupChan = make(chan struct{}, 1)
 		startChan = make(chan struct{})
 
-		controller = infrastructure.NewController(env.Ctx, env.Client, fakeClock, recorder, sqsProvider, eventBridgeProvider, startChan, cleanupChan)
+		controller = infrastructure.NewController(env.Ctx, env.Client, fakeClock, recorder, sqsProvider, eventBridgeProvider, startChan)
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 	ExpectApplied(env.Ctx, env.Client, test.KarpenterDeployment())
@@ -203,7 +203,6 @@ var _ = Describe("Cleanup", func() {
 	It("should cleanup the infrastructure when the cleanup channel is triggered", func() {
 		ExpectDeleted(env.Ctx, env.Client, test.KarpenterDeployment())
 		ExpectClosed(cleanupChan)
-		ExpectDone[struct{}](controller)
 		Expect(sqsapi.DeleteQueueBehavior.SuccessfulCalls()).To(Equal(1))
 		Expect(eventbridgeapi.RemoveTargetsBehavior.SuccessfulCalls()).To(Equal(4))
 		Expect(eventbridgeapi.DeleteRuleBehavior.SuccessfulCalls()).To(Equal(4))

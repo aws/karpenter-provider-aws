@@ -286,15 +286,6 @@ func ExpectSkew(ctx context.Context, c client.Client, namespace string, constrai
 	return ExpectWithOffset(1, skew)
 }
 
-type Completable[T any] interface {
-	Done() <-chan T
-}
-
-// ExpectDone waits on a done channel until the Completable is done
-func ExpectDone[T any](c Completable[T]) {
-	<-c.Done()
-}
-
 // ExpectClosed closes a channel if it isn't already closed
 func ExpectClosed[T any](ch chan T) {
 	if !IsClosed(ch) {
