@@ -28,6 +28,7 @@ SYSTEM_NAMESPACE ?= karpenter
 KARPENTER_VERSION ?= $(shell git tag --sort=committerdate | tail -1)
 KO_DOCKER_REPO ?= ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/karpenter
 GETTING_STARTED_SCRIPT_DIR = website/content/en/preview/getting-started/getting-started-with-eksctl/scripts
+MOD_DIRS = $(shell find . -name go.mod -type f | xargs dirname)
 
 help: ## Display help
 	@awk 'BEGIN {FS = ":.*##"; printf "Usage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
@@ -66,9 +67,7 @@ deflake:
 coverage:
 	go tool cover -html coverage.out -o coverage.html
 
-verify: codegen ## Verify code. Includes dependencies, linting, formatting, etc
-	go mod tidy
-	go mod download
+verify: tidy download codegen ## Verify code. Includes dependencies, linting, formatting, etc
 	golangci-lint run
 	@git diff --quiet ||\
 		{ echo "New file modification detected in the Git working tree. Please check in before commit.";\
@@ -79,8 +78,7 @@ verify: codegen ## Verify code. Includes dependencies, linting, formatting, etc
 	@find hack/code hack/docs -name "*.go" -type f -exec go build -o /dev/null {} \;
 	@govulncheck ./pkg/...
 
-licenses: ## Verifies dependency licenses
-	go mod download
+licenses: download ## Verifies dependency licenses
 	! go-licenses csv ./... | grep -v -e 'MIT' -e 'Apache-2.0' -e 'BSD-3-Clause' -e 'BSD-2-Clause' -e 'ISC' -e 'MPL-2.0'
 
 setup: ## Sets up the IAM roles needed prior to deploying the karpenter-controller. This command only needs to be run once
@@ -120,10 +118,8 @@ docgen: ## Generate docs
 api-code-gen: ## Auto generate files based on AWS APIs response
 	$(WITH_GOFLAGS) ./hack/api-code-gen.sh
 
-release-gen: docgen ## Generate any materials which should be updated prior to release
+release-gen: tidy download docgen ## Generate any materials which should be updated prior to release
 	hack/boilerplate.sh
-	go mod tidy
-	go mod download
 	golangci-lint run
 
 stable-release-pr: ## Generate PR for stable release
@@ -149,5 +145,13 @@ issues: ## Run GitHub issue analysis scripts
 
 website: ## Serve the docs website locally
 	cd website && npm install && git submodule update --init --recursive && hugo server
+
+tidy: ## Recursively "go mod tidy" on all directories where go.mod exists
+	@echo go mod tidy
+	$(foreach dir,$(MOD_DIRS),$(shell cd $(dir) && go mod tidy))
+
+download: ## Recursively "go mod download" on all directories where go.mod exists
+	@echo go mod download
+	$(foreach dir,$(MOD_DIRS),$(shell cd $(dir) && go mod download))
 
 .PHONY: help dev ci release test battletest verify codegen docgen apply delete toolchain release release-gen licenses issues website nightly snapshot e2etests
