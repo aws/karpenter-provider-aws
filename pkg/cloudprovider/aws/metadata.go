@@ -17,7 +17,6 @@ package aws
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"
@@ -26,72 +25,85 @@ import (
 	"github.com/aws/aws-sdk-go/service/sts/stsiface"
 	"knative.dev/pkg/logging"
 
-	"github.com/aws/karpenter/pkg/utils/cache"
+	"github.com/aws/karpenter/pkg/utils/atomic"
 )
 
-type MetadataProvider struct {
-	imdsClient *ec2metadata.EC2Metadata
-	stsClient  stsiface.STSAPI
-	sess       *session.Session
-
-	region   *string // cached region if already resolved
-	regionMu sync.RWMutex
-
-	accountID   *string // cached accountID if already resolved
-	accountIDMu sync.RWMutex
+type EC2MetadataInterface interface {
+	RegionWithContext(context.Context) (string, error)
+	GetInstanceIdentityDocumentWithContext(context.Context) (ec2metadata.EC2InstanceIdentityDocument, error)
+	PartitionID() string
 }
 
-func NewMetadataProvider(sess *session.Session) *MetadataProvider {
-	return &MetadataProvider{
-		imdsClient: ec2metadata.New(sess),
-		stsClient:  sts.New(sess),
-		sess:       sess,
+type EC2MetadataClient struct {
+	*ec2metadata.EC2Metadata
+}
+
+func NewEC2MetadataClient(sess *session.Session) *EC2MetadataClient {
+	return &EC2MetadataClient{
+		EC2Metadata: ec2metadata.New(sess),
 	}
 }
 
-// EnsureSessionRegion resolves the region set in the session config if not already set
-func (m *MetadataProvider) EnsureSessionRegion(ctx context.Context, sess *session.Session) {
-	*sess.Config.Region = m.Region(ctx)
+func (e *EC2MetadataClient) PartitionID() string {
+	return e.EC2Metadata.PartitionID
+}
+
+type MetadataProvider struct {
+	ec2MetadataClient EC2MetadataInterface
+	stsClient         stsiface.STSAPI
+	sess              *session.Session
+
+	region    atomic.CachedVal[string] // cached region if already resolved
+	accountID atomic.CachedVal[string] // cached accountID if already resolved
+}
+
+func NewMetadataProvider(sess *session.Session, ec2metadataapi EC2MetadataInterface, stsapi stsiface.STSAPI) *MetadataProvider {
+	m := &MetadataProvider{
+		ec2MetadataClient: ec2metadataapi,
+		stsClient:         stsapi,
+		sess:              sess,
+	}
+	m.region.Resolve = func(ctx context.Context) (string, error) {
+		if m.sess != nil && m.sess.Config != nil && m.sess.Config.Region != nil && *m.sess.Config.Region != "" {
+			return *m.sess.Config.Region, nil
+		}
+		logging.FromContext(ctx).Debug("AWS region not configured, asking EC2 Instance Metadata Service")
+		return m.ec2MetadataClient.RegionWithContext(ctx)
+	}
+	m.accountID.Resolve = func(ctx context.Context) (string, error) {
+		doc, err := m.ec2MetadataClient.GetInstanceIdentityDocumentWithContext(ctx)
+		if err != nil {
+			// Resolve to using the STS provider if IMDS fails
+			result, err := m.stsClient.GetCallerIdentity(&sts.GetCallerIdentityInput{})
+			if err != nil {
+				return "", err
+			}
+			return aws.StringValue(result.Account), nil
+		}
+		return doc.AccountID, nil
+	}
+	return m
+}
+
+// MustEnsureRegion resolves the region set in the session config if not already set
+func (m *MetadataProvider) MustEnsureRegion(ctx context.Context, sess *session.Session) {
+	ret, err := m.Region(ctx)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to ensure session region, %v", err))
+	}
+	*sess.Config.Region = ret
 }
 
 // Region gets the current region from EC2 IMDS
-func (m *MetadataProvider) Region(ctx context.Context) string {
-	ret, err := cache.TryGetStringWithFallback(&m.regionMu, m.region,
-		func() (string, error) {
-			if m.sess != nil && m.sess.Config != nil && m.sess.Config.Region != nil && *m.sess.Config.Region != "" {
-				return *m.sess.Config.Region, nil
-			}
-			logging.FromContext(ctx).Debug("AWS region not configured, asking EC2 Instance Metadata Service")
-			return m.imdsClient.RegionWithContext(ctx)
-		})
-	if err != nil {
-		panic(fmt.Sprintf("Failed to call the metadata server's region API, %s", err))
-	}
-	return ret
+func (m *MetadataProvider) Region(ctx context.Context) (string, error) {
+	return m.region.TryGet(ctx)
 }
 
 // AccountID gets the AWS Account ID from EC2 IMDS, then STS if it can't be resolved at IMDS
-func (m *MetadataProvider) AccountID(ctx context.Context) string {
-	ret, err := cache.TryGetStringWithFallback(&m.accountIDMu, m.accountID,
-		func() (string, error) {
-			doc, err := m.imdsClient.GetInstanceIdentityDocumentWithContext(ctx)
-			if err != nil {
-				// Fallback to using the STS provider if IMDS fails
-				result, err := m.stsClient.GetCallerIdentity(&sts.GetCallerIdentityInput{})
-				if err != nil {
-					return "", err
-				}
-				return aws.StringValue(result.Account), nil
-			}
-			return doc.AccountID, nil
-		},
-	)
-	if err != nil {
-		panic(fmt.Sprintf("Failed to get account ID from IMDS or STS, %s", err))
-	}
-	return ret
+func (m *MetadataProvider) AccountID(ctx context.Context) (string, error) {
+	return m.accountID.TryGet(ctx)
 }
 
 func (m *MetadataProvider) Partition() string {
-	return m.imdsClient.PartitionID
+	return m.ec2MetadataClient.PartitionID()
 }

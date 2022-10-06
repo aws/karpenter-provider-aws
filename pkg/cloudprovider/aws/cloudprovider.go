@@ -30,6 +30,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ssm"
+	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
@@ -94,8 +95,8 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 			client.DefaultRetryer{NumMaxRetries: client.DefaultRetryerMaxNumRetries},
 		),
 	)))
-	metadataProvider := NewMetadataProvider(sess)
-	metadataProvider.EnsureSessionRegion(ctx, sess) // resolves the region in the session config
+	metadataProvider := NewMetadataProvider(sess, NewEC2MetadataClient(sess), sts.New(sess))
+	metadataProvider.MustEnsureRegion(ctx, sess) // resolves the region in the session config
 
 	ec2api := ec2.New(sess)
 	if err := checkEC2Connectivity(ec2api); err != nil {
