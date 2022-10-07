@@ -25,6 +25,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/eventbridge/eventbridgeiface"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
+	"k8s.io/client-go/util/workqueue"
 
 	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/utils/injection"
@@ -64,42 +65,37 @@ func NewEventBridgeProvider(eb eventbridgeiface.EventBridgeAPI, metadataProvider
 	}
 }
 
-func (eb *EventBridgeProvider) CreateEC2NotificationRules(ctx context.Context) (err error) {
-	wg := &sync.WaitGroup{}
-	m := &sync.Mutex{}
-	for _, rule := range eb.getEC2NotificationEventRules(ctx) {
-		wg.Add(1)
-		go func(r EventRule) {
-			defer wg.Done()
-			_, e := eb.client.PutRuleWithContext(ctx, &eventbridge.PutRuleInput{
-				Name:         aws.String(r.Name),
-				EventPattern: aws.String(string(r.Pattern.Serialize())),
-				Tags: []*eventbridge.Tag{
-					{
-						Key:   aws.String(awsv1alpha1.DiscoveryTagKey),
-						Value: aws.String(injection.GetOptions(ctx).ClusterName),
-					},
+func (eb *EventBridgeProvider) CreateEC2NotificationRules(ctx context.Context) error {
+	rules := eb.getEC2NotificationEventRules(ctx)
+	errs := make([]error, len(rules))
+	workqueue.ParallelizeUntil(ctx, len(rules), len(rules), func(i int) {
+		_, err := eb.client.PutRuleWithContext(ctx, &eventbridge.PutRuleInput{
+			Name:         aws.String(rules[i].Name),
+			EventPattern: aws.String(string(rules[i].Pattern.Serialize())),
+			Tags: []*eventbridge.Tag{
+				{
+					Key:   aws.String(awsv1alpha1.DiscoveryTagKey),
+					Value: aws.String(injection.GetOptions(ctx).ClusterName),
 				},
-			})
-			m.Lock()
-			err = multierr.Append(err, e)
-			m.Unlock()
-			_, e = eb.client.PutTargetsWithContext(ctx, &eventbridge.PutTargetsInput{
-				Rule: aws.String(r.Name),
-				Targets: []*eventbridge.Target{
-					{
-						Id:  aws.String(r.Target.ID),
-						Arn: aws.String(r.Target.ARN),
-					},
+			},
+		})
+		if err != nil {
+			errs[i] = multierr.Append(errs[i], err)
+		}
+		_, err = eb.client.PutTargetsWithContext(ctx, &eventbridge.PutTargetsInput{
+			Rule: aws.String(rules[i].Name),
+			Targets: []*eventbridge.Target{
+				{
+					Id:  aws.String(rules[i].Target.ID),
+					Arn: aws.String(rules[i].Target.ARN),
 				},
-			})
-			m.Lock()
-			err = multierr.Append(err, e)
-			m.Unlock()
-		}(rule)
-	}
-	wg.Wait()
-	return err
+			},
+		})
+		if err != nil {
+			errs[i] = multierr.Append(errs[i], err)
+		}
+	})
+	return multierr.Combine(errs...)
 }
 
 func (eb *EventBridgeProvider) DeleteEC2NotificationRules(ctx context.Context) (err error) {

@@ -24,6 +24,7 @@ import (
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/util/workqueue"
 	"k8s.io/utils/clock"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
@@ -151,11 +152,11 @@ func (c *Controller) Reconcile(ctx context.Context) error {
 		return nil
 	}
 	instanceIDMap := c.makeInstanceIDMap()
-	for _, msg := range sqsMessages {
-		e := c.handleMessage(ctx, instanceIDMap, msg)
-		err = multierr.Append(err, e)
-	}
-	return nil
+	errs := make([]error, len(sqsMessages))
+	workqueue.ParallelizeUntil(ctx, 10, len(sqsMessages), func(i int) {
+		errs[i] = c.handleMessage(ctx, instanceIDMap, sqsMessages[i])
+	})
+	return multierr.Combine(errs...)
 }
 
 // handleMessage gets the node names of the instances involved in the queue message and takes the
@@ -171,7 +172,7 @@ func (c *Controller) handleMessage(ctx context.Context, instanceIDMap map[string
 	nodes := getInvolvedNodes(evt.EC2InstanceIDs(), instanceIDMap)
 	// There's no action to take here since the event doesn't pertain to any of our instances
 	if len(nodes) == 0 {
-		receivedMessages.WithLabelValues(evt.Kind(), "false").Inc()
+		receivedMessages.WithLabelValues(evt.Kind().String(), "false").Inc()
 
 		// Since there's no action, just delete the message
 		err = c.provider.DeleteSQSMessage(ctx, msg)
@@ -181,7 +182,7 @@ func (c *Controller) handleMessage(ctx context.Context, instanceIDMap map[string
 		deletedMessages.Inc()
 		return
 	}
-	receivedMessages.WithLabelValues(evt.Kind(), "true").Inc()
+	receivedMessages.WithLabelValues(evt.Kind().String(), "true").Inc()
 
 	nodeNames := lo.Map(nodes, func(n *v1.Node, _ int) string { return n.Name })
 	logging.FromContext(ctx).Infof("Received actionable event from SQS queue for node(s) [%s%s]",
@@ -214,7 +215,7 @@ func (c *Controller) handleNode(ctx context.Context, evt event.Interface, node *
 	actionsPerformed.WithLabelValues(action).Inc()
 
 	// Mark the offering as unavailable in the ICE cache since we got a spot interruption warning
-	if evt.Kind() == event.Kinds.SpotInterruption {
+	if evt.Kind() == event.SpotInterruptionKind {
 		zone := node.Labels[v1.LabelTopologyZone]
 		instanceType := node.Labels[v1.LabelInstanceTypeStable]
 		if zone != "" && instanceType != "" {
@@ -237,16 +238,16 @@ func (c *Controller) deleteInstance(ctx context.Context, node *v1.Node) error {
 
 func (c *Controller) notifyForEvent(evt event.Interface, n *v1.Node) {
 	switch evt.Kind() {
-	case event.Kinds.RebalanceRecommendation:
+	case event.RebalanceRecommendationKind:
 		c.recorder.EC2SpotRebalanceRecommendation(n)
 
-	case event.Kinds.ScheduledChange:
+	case event.ScheduledChangeKind:
 		c.recorder.EC2HealthWarning(n)
 
-	case event.Kinds.SpotInterruption:
+	case event.SpotInterruptionKind:
 		c.recorder.EC2SpotInterruptionWarning(n)
 
-	case event.Kinds.StateChange:
+	case event.StateChangeKind:
 		typed := evt.(statechangev0.EC2InstanceStateChangeNotification)
 		if lo.Contains([]string{"stopping", "stopped"}, typed.State()) {
 			c.recorder.EC2StateStopping(n)
@@ -260,16 +261,16 @@ func (c *Controller) notifyForEvent(evt event.Interface, n *v1.Node) {
 
 func actionForEvent(evt event.Interface) Action {
 	switch evt.Kind() {
-	case event.Kinds.RebalanceRecommendation:
+	case event.RebalanceRecommendationKind:
 		return Actions.NoAction
 
-	case event.Kinds.ScheduledChange:
+	case event.ScheduledChangeKind:
 		return Actions.CordonAndDrain
 
-	case event.Kinds.SpotInterruption:
+	case event.SpotInterruptionKind:
 		return Actions.CordonAndDrain
 
-	case event.Kinds.StateChange:
+	case event.StateChangeKind:
 		return Actions.CordonAndDrain
 
 	default:

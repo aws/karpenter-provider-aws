@@ -38,7 +38,7 @@ func (e AWSHealthEvent) EC2InstanceIDs() []string {
 }
 
 func (AWSHealthEvent) Kind() event.Kind {
-	return event.Kinds.ScheduledChange
+	return event.ScheduledChangeKind
 }
 
 func (e AWSHealthEvent) MarshalLogObject(enc zapcore.ObjectEncoder) error {

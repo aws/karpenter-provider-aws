@@ -34,7 +34,7 @@ func (e EC2InstanceRebalanceRecommendation) EC2InstanceIDs() []string {
 }
 
 func (EC2InstanceRebalanceRecommendation) Kind() event.Kind {
-	return event.Kinds.RebalanceRecommendation
+	return event.RebalanceRecommendationKind
 }
 
 func (e EC2InstanceRebalanceRecommendation) MarshalLogObject(enc zapcore.ObjectEncoder) error {

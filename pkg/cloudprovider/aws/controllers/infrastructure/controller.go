@@ -25,6 +25,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/cenkalti/backoff/v4"
 	"go.uber.org/multierr"
+	"k8s.io/client-go/util/workqueue"
 	"k8s.io/utils/clock"
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -164,65 +165,40 @@ func (c *Controller) setReady(ctx context.Context, ready bool) {
 func (c *Controller) Reconcile(ctx context.Context) (err error) {
 	defer metrics.Measure(reconcileDuration)()
 
-	wg := &sync.WaitGroup{}
-	m := &sync.Mutex{}
-
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		e := c.ensureQueue(ctx)
-		m.Lock()
-		err = multierr.Append(err, e)
-		m.Unlock()
-	}()
-	go func() {
-		defer wg.Done()
-		e := c.ensureEventBridge(ctx)
-		m.Lock()
-		err = multierr.Append(err, e)
-		m.Unlock()
-	}()
-	wg.Wait()
-	return err
+	funcs := []func() error{
+		func() error { return c.ensureQueue(ctx) },
+		func() error { return c.ensureEventBridge(ctx) },
+	}
+	errs := make([]error, len(funcs))
+	workqueue.ParallelizeUntil(ctx, len(funcs), len(funcs), func(i int) {
+		errs[i] = funcs[i]()
+	})
+	return multierr.Combine(errs...)
 }
 
 // DeleteInfrastructure removes the infrastructure that was stood up and reconciled
 // by the infrastructure controller for SQS message polling
-func (c *Controller) DeleteInfrastructure(ctx context.Context) (err error) {
+func (c *Controller) DeleteInfrastructure(ctx context.Context) error {
 	logging.FromContext(ctx).Infof("Deprovisioning the infrastructure...")
-	wg := &sync.WaitGroup{}
-	m := &sync.Mutex{}
 
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
+	deleteQueueFunc := func() error {
 		logging.FromContext(ctx).Debugf("Deleting the SQS notification queue...")
-		e := c.sqsProvider.DeleteQueue(ctx)
-
-		// If we get access denied, nothing we can do so just log and don't return the error
-		if aws.IsAccessDenied(e) {
-			logging.FromContext(ctx).Errorf("Access denied while trying to delete SQS queue, %v", err)
-		} else if err != nil {
-			m.Lock()
-			err = multierr.Append(err, e)
-			m.Unlock()
-		}
-	}()
-	go func() {
-		defer wg.Done()
+		return c.sqsProvider.DeleteQueue(ctx)
+	}
+	deleteEventBridgeRulesFunc := func() error {
 		logging.FromContext(ctx).Debugf("Deleting the EventBridge notification rules...")
-		e := c.eventBridgeProvider.DeleteEC2NotificationRules(ctx)
+		return c.eventBridgeProvider.DeleteEC2NotificationRules(ctx)
+	}
+	funcs := []func() error{
+		deleteQueueFunc,
+		deleteEventBridgeRulesFunc,
+	}
+	errs := make([]error, len(funcs))
+	workqueue.ParallelizeUntil(ctx, len(funcs), len(funcs), func(i int) {
+		errs[i] = funcs[i]()
+	})
 
-		// If we get access denied, nothing we can do so just log and don't return the error
-		if aws.IsAccessDenied(e) {
-			logging.FromContext(ctx).Errorf("Access denied while trying to delete notification rules, %v", err)
-		} else if err != nil {
-			m.Lock()
-			err = multierr.Append(err, e)
-			m.Unlock()
-		}
-	}()
-	wg.Wait()
+	err := multierr.Combine(errs...)
 	if err != nil {
 		c.recorder.InfrastructureDeletionFailed(ctx, c.kubeClient)
 		return err

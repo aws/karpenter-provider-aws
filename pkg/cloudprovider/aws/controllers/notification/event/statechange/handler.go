@@ -38,7 +38,7 @@ func (e EC2InstanceStateChangeNotification) State() string {
 }
 
 func (EC2InstanceStateChangeNotification) Kind() event.Kind {
-	return event.Kinds.StateChange
+	return event.StateChangeKind
 }
 
 func (e EC2InstanceStateChangeNotification) MarshalLogObject(enc zapcore.ObjectEncoder) error {

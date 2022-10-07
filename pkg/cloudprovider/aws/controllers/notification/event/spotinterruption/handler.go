@@ -34,7 +34,7 @@ func (e EC2SpotInstanceInterruptionWarning) EC2InstanceIDs() []string {
 }
 
 func (EC2SpotInstanceInterruptionWarning) Kind() event.Kind {
-	return event.Kinds.SpotInterruption
+	return event.SpotInterruptionKind
 }
 
 func (e EC2SpotInstanceInterruptionWarning) MarshalLogObject(enc zapcore.ObjectEncoder) error {

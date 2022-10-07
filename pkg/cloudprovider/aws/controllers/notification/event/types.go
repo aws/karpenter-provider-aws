@@ -16,6 +16,7 @@ package event
 
 import (
 	"context"
+	"fmt"
 
 	"go.uber.org/zap/zapcore"
 )
@@ -31,18 +32,31 @@ type Interface interface {
 	Kind() Kind
 }
 
-type Kind = string
+type Kind byte
 
-var Kinds = struct {
-	RebalanceRecommendation,
-	ScheduledChange,
-	SpotInterruption,
-	StateChange,
-	NoOp Kind
-}{
-	RebalanceRecommendation: "RebalanceRecommendation",
-	ScheduledChange:         "ScheduledChange",
-	SpotInterruption:        "SpotInterruption",
-	StateChange:             "StateChange",
-	NoOp:                    "NoOp",
+const (
+	UnknownKind = iota
+	RebalanceRecommendationKind
+	ScheduledChangeKind
+	SpotInterruptionKind
+	StateChangeKind
+	NoOpKind
+)
+
+// manually written or generated using https://pkg.go.dev/golang.org/x/tools/cmd/stringer
+func (k Kind) String() string {
+	switch k {
+	case RebalanceRecommendationKind:
+		return "RebalanceRecommendation"
+	case ScheduledChangeKind:
+		return "ScheduledChange"
+	case SpotInterruptionKind:
+		return "SpotInterruption"
+	case StateChangeKind:
+		return "StateChange"
+	case NoOpKind:
+		return "NoOp"
+	default:
+		return fmt.Sprintf("Unsupported Kind %d", k)
+	}
 }

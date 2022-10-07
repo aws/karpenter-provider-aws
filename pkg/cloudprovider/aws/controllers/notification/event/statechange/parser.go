@@ -19,17 +19,18 @@ import (
 	"encoding/json"
 	"strings"
 
+	"k8s.io/apimachinery/pkg/util/sets"
+
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event"
 )
 
 const (
-	source         = "aws.ec2"
-	detailType     = "EC2 Instance State-change Notification"
-	version        = "0"
-	acceptedStates = "stopping,stopped,shutting-down,terminated"
+	source     = "aws.ec2"
+	detailType = "EC2 Instance State-change Notification"
+	version    = "0"
 )
 
-//var acceptedStatesList = strings.Split(acceptedStates, ",")
+var acceptedStates = sets.NewString("stopping", "stopped", "shutting-down", "terminated")
 
 type Parser struct{}
 
@@ -42,7 +43,7 @@ func (Parser) Parse(ctx context.Context, str string) event.Interface {
 	if evt.Source != source || evt.DetailType != detailType || evt.Version != version {
 		return nil
 	}
-	if !strings.Contains(acceptedStates, strings.ToLower(evt.Detail.State)) {
+	if !acceptedStates.Has(strings.ToLower(evt.Detail.State)) {
 		return nil
 	}
 	return evt
