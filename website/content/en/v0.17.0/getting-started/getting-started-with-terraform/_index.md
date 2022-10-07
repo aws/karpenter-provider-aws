@@ -60,7 +60,7 @@ terraform {
     }
     helm = {
       source  = "hashicorp/helm"
-      version = "~> 2.5"
+      version = "~> 2.7"
     }
     kubectl = {
       source  = "gavinbunney/kubectl"
@@ -289,7 +289,7 @@ resource "helm_release" "karpenter" {
   create_namespace = true
 
   name       = "karpenter"
-  repository = "https://charts.karpenter.sh"
+  repository = "oci://public.ecr.aws/karpenter/karpenter"
   chart      = "karpenter"
   version    = "v0.17.0"
 
