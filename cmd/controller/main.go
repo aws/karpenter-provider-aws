@@ -24,10 +24,10 @@ import (
 )
 
 func main() {
-	controllers.Initialize(func(ctx context.Context, options cloudprovider.Options) (cloudprovider.CloudProvider, controllers.ControllerInitFunc) {
+	controllers.Initialize(func(ctx context.Context, options cloudprovider.Options) (cloudprovider.CloudProvider, controllers.ControllerGetterFunc) {
 		provider := aws.NewCloudProvider(ctx, options)
-		return provider, func(c context.Context, opts *controllers.ControllerOptions) {
-			awscontrollers.Register(c, provider, opts)
+		return provider, func(ctx context.Context, opts *controllers.ControllerOptions) []controllers.Controller {
+			return awscontrollers.Register(ctx, provider, opts)
 		}
 	})
 }

@@ -12,11 +12,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package cache
+package atomic
 
 import (
-	"fmt"
+	"context"
 	"sync"
+
+	"github.com/aws/karpenter/pkg/utils/ptr"
 )
 
 type Option func(Options) Options
@@ -30,31 +32,44 @@ func IgnoreCacheOption(o Options) Options {
 	return o
 }
 
-// TryGetStringWithFallback attempts to get non-nil string value from field. If field is nil, the function
-// will attempt to resolve the value by calling fallback, setting the value stored in field in-place if found.
-func TryGetStringWithFallback(mu *sync.RWMutex, field *string, fallback func() (string, error), opts ...Option) (string, error) {
+// CachedVal persistently stores a value in memory
+type CachedVal[T any] struct {
+	value   *T
+	mu      sync.RWMutex
+	Resolve func(context.Context) (T, error)
+}
+
+func (c *CachedVal[T]) Set(v T) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.value = &v
+}
+
+// TryGet attempts to get non-nil value from internal value. If field is nil, the function
+// will attempt to resolve the value by calling fallback, setting the value stored in value in-place if found.
+func (c *CachedVal[T]) TryGet(ctx context.Context, opts ...Option) (T, error) {
 	o := resolveOptions(opts)
-	mu.RLock()
-	if field != nil && !o.ignoreCache {
-		ret := *field
-		mu.RUnlock()
+	c.mu.RLock()
+	if c.value != nil && !o.ignoreCache {
+		ret := *c.value
+		c.mu.RUnlock()
 		return ret, nil
 	}
-	mu.RUnlock()
-	mu.Lock()
-	defer mu.Unlock()
+	c.mu.RUnlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	// We have to check if the field is set again here in case multiple threads make it past the read-locked section
-	if field != nil {
-		return *field, nil
+	if c.value != nil && !o.ignoreCache {
+		return *c.value, nil
 	}
-	ret, err := fallback()
+	if c.Resolve == nil {
+		return *new(T), nil
+	}
+	ret, err := c.Resolve(ctx)
 	if err != nil {
-		return "", err
+		return *new(T), err
 	}
-	if ret == "" {
-		return "", fmt.Errorf("return value didn't resolve to non-nil value")
-	}
-	*field = ret
+	c.value = ptr.Val(ret) // copies the value so we don't keep the reference
 	return ret, nil
 }
 

@@ -46,15 +46,14 @@ run: ## Run Karpenter controller binary against your local cluster
 		--leader-elect=false
 
 test: ## Run tests
-	go test -run=${TEST_FILTER} ./pkg/... -timeout 15m
+	go test -run=${TEST_FILTER} ./pkg/...
 
 battletest: ## Run randomized, racing, code coveraged, tests
 	go test -run=${TEST_FILTER} ./pkg/... \
 		-race \
 		-cover -coverprofile=coverage.out -outputdir=. -coverpkg=./pkg/... \
 		-ginkgo.randomizeAllSpecs \
-		-tags random_test_delay \
-		-timeout 15m
+		-tags random_test_delay
 
 e2etests: ## Run the e2e suite against your local cluster
 	go clean -testcache

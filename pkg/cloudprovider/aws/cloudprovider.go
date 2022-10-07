@@ -99,11 +99,8 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 			client.DefaultRetryer{NumMaxRetries: client.DefaultRetryerMaxNumRetries},
 		),
 	)))
-	metadataProvider := NewMetadataProvider(NewEC2MetadataClient(sess), sts.New(sess))
-	if *sess.Config.Region == "" {
-		logging.FromContext(ctx).Debug("AWS region not configured, asking EC2 Instance Metadata Service")
-		*sess.Config.Region = metadataProvider.Region(ctx)
-	}
+	metadataProvider := NewMetadataProvider(sess, NewEC2MetadataClient(sess), sts.New(sess))
+	metadataProvider.EnsureSessionRegion(ctx, sess)
 	logging.FromContext(ctx).Debugf("Using AWS region %s", *sess.Config.Region)
 
 	ec2api := ec2.New(sess)

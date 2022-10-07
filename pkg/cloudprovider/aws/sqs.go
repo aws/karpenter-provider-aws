@@ -26,7 +26,7 @@ import (
 	"github.com/samber/lo"
 
 	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/utils/cache"
+	"github.com/aws/karpenter/pkg/utils/atomic"
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injection"
 )
@@ -55,7 +55,7 @@ type SQSProvider struct {
 	getQueueURLInput    *sqs.GetQueueUrlInput
 	receiveMessageInput *sqs.ReceiveMessageInput
 	mu                  sync.RWMutex
-	queueURL            *string
+	queueURL            atomic.CachedVal[string]
 	queueName           string
 	metadataProvider    *MetadataProvider
 }
@@ -88,6 +88,13 @@ func NewSQSProvider(ctx context.Context, client sqsiface.SQSAPI, metadataProvide
 			aws.String(sqs.QueueAttributeNameAll),
 		},
 	}
+	provider.queueURL.Resolve = func(ctx context.Context) (string, error) {
+		ret, err := provider.client.GetQueueUrlWithContext(ctx, provider.getQueueURLInput)
+		if err != nil {
+			return "", fmt.Errorf("fetching queue url, %w", err)
+		}
+		return aws.StringValue(ret.QueueUrl), nil
+	}
 	return provider
 }
 
@@ -102,7 +109,7 @@ func (s *SQSProvider) CreateQueue(ctx context.Context) error {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.queueURL = result.QueueUrl
+	s.queueURL.Set(aws.StringValue(result.QueueUrl))
 	return nil
 }
 
@@ -124,17 +131,8 @@ func (s *SQSProvider) SetQueueAttributes(ctx context.Context) error {
 }
 
 func (s *SQSProvider) DiscoverQueueURL(ctx context.Context, ignoreCache bool) (string, error) {
-	opts := lo.Ternary(ignoreCache, cache.IgnoreCacheOption, nil)
-	return cache.TryGetStringWithFallback(&s.mu, s.queueURL,
-		func() (string, error) {
-			ret, err := s.client.GetQueueUrlWithContext(ctx, s.getQueueURLInput)
-			if err != nil {
-				return "", fmt.Errorf("fetching queue url, %w", err)
-			}
-			return aws.StringValue(ret.QueueUrl), nil
-		},
-		opts,
-	)
+	opts := lo.Ternary(ignoreCache, atomic.IgnoreCacheOption, nil)
+	return s.queueURL.TryGet(ctx, opts)
 }
 
 func (s *SQSProvider) GetSQSMessages(ctx context.Context) ([]*sqs.Message, error) {

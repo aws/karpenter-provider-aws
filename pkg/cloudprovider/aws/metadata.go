@@ -17,15 +17,15 @@ package aws
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/aws/aws-sdk-go/service/sts/stsiface"
+	"knative.dev/pkg/logging"
 
-	"github.com/aws/karpenter/pkg/utils/cache"
+	"github.com/aws/karpenter/pkg/utils/atomic"
 )
 
 type EC2MetadataInterface interface {
@@ -51,55 +51,63 @@ func (e *EC2MetadataClient) PartitionID() string {
 type MetadataProvider struct {
 	ec2MetadataClient EC2MetadataInterface
 	stsClient         stsiface.STSAPI
+	sess              *session.Session
 
-	region   *string // cached region if already resolved
-	regionMu sync.RWMutex
-
-	accountID   *string // cached accountID if already resolved
-	accountIDMu sync.RWMutex
+	region    atomic.CachedVal[string] // cached region if already resolved
+	accountID atomic.CachedVal[string] // cached accountID if already resolved
 }
 
-func NewMetadataProvider(ec2metadataapi EC2MetadataInterface, stsapi stsiface.STSAPI) *MetadataProvider {
-	return &MetadataProvider{
+func NewMetadataProvider(sess *session.Session, ec2metadataapi EC2MetadataInterface, stsapi stsiface.STSAPI) *MetadataProvider {
+	m := &MetadataProvider{
 		ec2MetadataClient: ec2metadataapi,
 		stsClient:         stsapi,
+		sess:              sess,
 	}
+	m.region.Resolve = func(ctx context.Context) (string, error) {
+		if m.sess != nil && m.sess.Config != nil && m.sess.Config.Region != nil && *m.sess.Config.Region != "" {
+			return *m.sess.Config.Region, nil
+		}
+		logging.FromContext(ctx).Debug("AWS region not configured, asking EC2 Instance Metadata Service")
+		return m.ec2MetadataClient.RegionWithContext(ctx)
+	}
+	m.accountID.Resolve = func(ctx context.Context) (string, error) {
+		doc, err := m.ec2MetadataClient.GetInstanceIdentityDocumentWithContext(ctx)
+		if err != nil {
+			// Resolve to using the STS provider if IMDS fails
+			result, err := m.stsClient.GetCallerIdentity(&sts.GetCallerIdentityInput{})
+			if err != nil {
+				return "", err
+			}
+			return aws.StringValue(result.Account), nil
+		}
+		return doc.AccountID, nil
+	}
+	return m
+}
+
+// EnsureSessionRegion resolves the region set in the session config if not already set
+func (m *MetadataProvider) EnsureSessionRegion(ctx context.Context, sess *session.Session) {
+	*sess.Config.Region = m.Region(ctx)
 }
 
 // Region gets the current region from EC2 IMDS
-func (i *MetadataProvider) Region(ctx context.Context) string {
-	ret, err := cache.TryGetStringWithFallback(&i.regionMu, i.region,
-		func() (string, error) {
-			return i.ec2MetadataClient.RegionWithContext(ctx)
-		})
+func (m *MetadataProvider) Region(ctx context.Context) string {
+	str, err := m.region.TryGet(ctx)
 	if err != nil {
-		panic(fmt.Sprintf("Failed to call the metadata server's region API, %s", err))
+		panic(fmt.Sprintf("Resolving region in the metadata provider, %v", err))
 	}
-	return ret
+	return str
 }
 
 // AccountID gets the AWS Account ID from EC2 IMDS, then STS if it can't be resolved at IMDS
-func (i *MetadataProvider) AccountID(ctx context.Context) string {
-	ret, err := cache.TryGetStringWithFallback(&i.accountIDMu, i.accountID,
-		func() (string, error) {
-			doc, err := i.ec2MetadataClient.GetInstanceIdentityDocumentWithContext(ctx)
-			if err != nil {
-				// Fallback to using the STS provider if IMDS fails
-				result, err := i.stsClient.GetCallerIdentity(&sts.GetCallerIdentityInput{})
-				if err != nil {
-					return "", err
-				}
-				return aws.StringValue(result.Account), nil
-			}
-			return doc.AccountID, nil
-		},
-	)
+func (m *MetadataProvider) AccountID(ctx context.Context) string {
+	str, err := m.accountID.TryGet(ctx)
 	if err != nil {
-		panic(fmt.Sprintf("Failed to get account ID from IMDS or STS, %s", err))
+		panic(fmt.Sprintf("Resolving account ID in the metadata provider, %v", err))
 	}
-	return ret
+	return str
 }
 
-func (i *MetadataProvider) Partition() string {
-	return i.ec2MetadataClient.PartitionID()
+func (m *MetadataProvider) Partition() string {
+	return m.ec2MetadataClient.PartitionID()
 }

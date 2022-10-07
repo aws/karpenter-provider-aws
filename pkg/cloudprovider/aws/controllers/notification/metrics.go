@@ -22,26 +22,17 @@ import (
 )
 
 const (
-	subSystem           = "aws_notification_controller"
-	messageTypeLabel    = "message_type"
-	actionableTypeLabel = "actionable"
-	actionTypeLabel     = "action_type"
+	MetricsSubsystemName = "aws_notification_controller"
+	messageTypeLabel     = "message_type"
+	actionableTypeLabel  = "actionable"
+	actionTypeLabel      = "action_type"
 )
 
 var (
-	reconcileDuration = prometheus.NewHistogram(
-		prometheus.HistogramOpts{
-			Namespace: metrics.Namespace,
-			Subsystem: subSystem,
-			Name:      "reconcile_duration_seconds",
-			Help:      "Duration of notification reconciliation process in seconds.",
-			Buckets:   metrics.DurationBuckets(),
-		},
-	)
 	receivedMessages = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metrics.Namespace,
-			Subsystem: subSystem,
+			Subsystem: MetricsSubsystemName,
 			Name:      "received_messages",
 			Help:      "Count of messages received from the SQS queue. Broken down by message type and whether the message was actionable.",
 		},
@@ -50,7 +41,7 @@ var (
 	deletedMessages = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Namespace: metrics.Namespace,
-			Subsystem: subSystem,
+			Subsystem: MetricsSubsystemName,
 			Name:      "deleted_messages",
 			Help:      "Count of messages deleted from the SQS queue.",
 		},
@@ -58,7 +49,7 @@ var (
 	actionsPerformed = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metrics.Namespace,
-			Subsystem: subSystem,
+			Subsystem: MetricsSubsystemName,
 			Name:      "actions_performed",
 			Help:      "Number of notification actions performed. Labeled by action",
 		},
@@ -67,5 +58,5 @@ var (
 )
 
 func init() {
-	crmetrics.Registry.MustRegister(reconcileDuration, receivedMessages, deletedMessages, actionsPerformed)
+	crmetrics.Registry.MustRegister(receivedMessages, deletedMessages, actionsPerformed)
 }

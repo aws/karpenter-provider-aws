@@ -65,23 +65,3 @@ func Deployment(overrides ...DeploymentOptions) *appsv1.Deployment {
 	}
 	return dep
 }
-
-func KarpenterDeployment(overrides ...DeploymentOptions) *appsv1.Deployment {
-	options := DeploymentOptions{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "karpenter",
-			Namespace: "default",
-		},
-		Labels: map[string]string{
-			"app.kubernetes.io/name":     "karpenter",
-			"app.kubernetes.io/instance": "karpenter",
-		},
-		Replicas: 2,
-	}
-	for _, opts := range overrides {
-		if err := mergo.Merge(&options, opts, mergo.WithOverride); err != nil {
-			panic(fmt.Sprintf("Failed to merge deployment options: %s", err))
-		}
-	}
-	return Deployment(options)
-}

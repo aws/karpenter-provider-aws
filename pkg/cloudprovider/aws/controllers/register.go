@@ -21,18 +21,28 @@ import (
 
 	"github.com/aws/karpenter/pkg/cloudprovider/aws"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/infrastructure"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/nodetemplate"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/events"
 	"github.com/aws/karpenter/pkg/controllers"
+	"github.com/aws/karpenter/pkg/controllers/polling"
 )
 
-func Register(ctx context.Context, provider *aws.CloudProvider, opts *controllers.ControllerOptions) {
+func Register(ctx context.Context, provider *aws.CloudProvider, opts *controllers.ControllerOptions) (ret []controllers.Controller) {
 	rec := events.NewRecorder(opts.Recorder)
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("aws"))
 
 	// Only enable spot interruption handling controllers when the feature flag is enabled
 	if opts.Config.EnableInterruptionHandling() {
-		infraController := infrastructure.NewController(ctx, opts.KubeClient, opts.Clock, rec, provider.SQSProvider(), provider.EventBridgeProvider(), opts.StartAsync)
-		notification.NewController(ctx, opts.KubeClient, opts.Clock, rec, opts.Cluster, provider.SQSProvider(), provider.InstanceTypeProvider(), infraController, opts.StartAsync)
+		logging.FromContext(ctx).Infof("Enabling interruption handling")
+
+		infraProvider := infrastructure.NewProvider(provider.SQSProvider(), provider.EventBridgeProvider())
+		infraController := polling.NewController(infrastructure.NewReconciler(infraProvider))
+		notificationController := polling.NewController(notification.NewReconciler(opts.KubeClient, rec, opts.Cluster, provider.SQSProvider(), provider.InstanceTypeProvider(), infraController))
+		nodeTemplateController := nodetemplate.NewController(opts.KubeClient, infraProvider, infraController, notificationController)
+
+		infraController.OnHealthy = notificationController.Start
+		infraController.OnUnhealthy = notificationController.Stop
+		ret = append(ret, infraController, notificationController, nodeTemplateController)
 	}
+	return ret
 }

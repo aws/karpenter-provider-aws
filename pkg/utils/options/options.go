@@ -44,9 +44,6 @@ type Options struct {
 	EnableProfiling      bool
 	EnableLeaderElection bool
 	MemoryLimit          int64
-	// Metadata information
-	DeploymentName string
-	PodName        string
 	// AWS Specific
 	ClusterName               string
 	ClusterEndpoint           string
@@ -99,10 +96,6 @@ func (o *Options) MustParse() *Options {
 	if err := o.Validate(); err != nil {
 		panic(err)
 	}
-
-	// Set the metadata fields in the options
-	o.DeploymentName = env.WithDefaultString("DEPLOYMENT_NAME", "karpenter")
-	o.PodName = env.WithDefaultString("POD_NAME", "")
 	return o
 }
 

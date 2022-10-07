@@ -12,25 +12,4 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package ptr
-
-import (
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
-)
-
-func Pod(pod v1.Pod) *v1.Pod {
-	return &pod
-}
-
-func Node(node v1.Node) *v1.Node {
-	return &node
-}
-
-func Quantity(quantity resource.Quantity) *resource.Quantity {
-	return &quantity
-}
-
-func Val[T any](v T) *T {
-	return &v
-}
+package nodetemplate

@@ -15,11 +15,8 @@ limitations under the License.
 package fake
 
 import (
-	"context"
-
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/record"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter/pkg/test"
 )
@@ -42,14 +39,6 @@ func (e *EventRecorder) EC2StateTerminating(_ *v1.Node) {}
 func (e *EventRecorder) EC2StateStopping(_ *v1.Node) {}
 
 func (e *EventRecorder) TerminatingNodeOnNotification(_ *v1.Node) {}
-
-func (e *EventRecorder) InfrastructureUnhealthy(_ context.Context, _ client.Client) {}
-
-func (e *EventRecorder) InfrastructureHealthy(_ context.Context, _ client.Client) {}
-
-func (e *EventRecorder) InfrastructureDeletionSucceeded(_ context.Context, _ client.Client) {}
-
-func (e *EventRecorder) InfrastructureDeletionFailed(_ context.Context, _ client.Client) {}
 
 func NewEventRecorder() *EventRecorder {
 	return &EventRecorder{

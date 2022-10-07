@@ -19,10 +19,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/pprof"
-	"os"
-	"os/signal"
 	"runtime/debug"
-	"syscall"
 
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zapr"
@@ -43,7 +40,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/cloudprovider"
@@ -77,29 +73,7 @@ func init() {
 	metrics.MustRegister() // Registers cross-controller metrics
 }
 
-type ControllerInitFunc func(context.Context, *ControllerOptions)
-
-// Controller is an interface implemented by Karpenter custom resources.
-type Controller interface {
-	// Reconcile hands a hydrated kubernetes resource to the controller for
-	// reconciliation. Any changes made to the resource's status are persisted
-	// after Reconcile returns, even if it returns an error.
-	Reconcile(context.Context, reconcile.Request) (reconcile.Result, error)
-	// Register will register the controller with the manager
-	Register(context.Context, manager.Manager) error
-}
-
-type ControllerOptions struct {
-	Config     config.Config
-	Cluster    *state.Cluster
-	KubeClient client.Client
-	Recorder   events.Recorder
-	Clock      clock.Clock
-
-	StartAsync <-chan struct{}
-}
-
-func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options) (cloudprovider.CloudProvider, ControllerInitFunc)) {
+func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options) (cloudprovider.CloudProvider, ControllerGetterFunc)) {
 	opts := options.New().MustParse()
 	// Setup Client
 	controllerRuntimeConfig := controllerruntime.GetConfigOrDie()
@@ -134,7 +108,7 @@ func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options)
 	if opts.EnableProfiling {
 		utilruntime.Must(registerPprof(manager))
 	}
-	cloudProvider, injectControllers := injectCloudProvider(ctx, cloudprovider.Options{
+	cloudProvider, controllerGetter := injectCloudProvider(ctx, cloudprovider.Options{
 		ClientSet:  clientSet,
 		KubeClient: manager.GetClient(),
 		StartAsync: manager.Elected(),
@@ -173,12 +147,8 @@ func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options)
 		StartAsync: manager.Elected(),
 		Clock:      realClock,
 	}
-	injectControllers(ctx, controllerOptions)
-
-	metricsstate.StartMetricScraper(ctx, cluster)
-
-	if err := RegisterControllers(ctx,
-		manager,
+	cloudProviderControllers := controllerGetter(ctx, controllerOptions)
+	controllers := []Controller{
 		provisioning.NewController(manager.GetClient(), provisioner, recorder),
 		state.NewNodeController(manager.GetClient(), cluster),
 		state.NewPodController(manager.GetClient(), cluster),
@@ -188,6 +158,13 @@ func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options)
 		metricspod.NewController(manager.GetClient()),
 		metricsprovisioner.NewController(manager.GetClient()),
 		counter.NewController(manager.GetClient(), cluster),
+	}
+	controllers = append(controllers, cloudProviderControllers...)
+
+	metricsstate.StartMetricScraper(ctx, cluster)
+	if err := RegisterControllers(ctx,
+		manager,
+		controllers...,
 	).Start(ctx); err != nil {
 		panic(fmt.Sprintf("Unable to start manager, %s", err))
 	}
@@ -252,43 +229,11 @@ func registerPprof(manager manager.Manager) error {
 	return nil
 }
 
-type ignoreDebugEventsSink struct {
-	name string
-	sink logr.LogSink
-}
-
-func (i ignoreDebugEventsSink) Init(ri logr.RuntimeInfo) {
-	i.sink.Init(ri)
-}
-func (i ignoreDebugEventsSink) Enabled(level int) bool { return i.sink.Enabled(level) }
-func (i ignoreDebugEventsSink) Info(level int, msg string, keysAndValues ...interface{}) {
-	// ignore debug "events" logs
-	if level == 1 && i.name == "events" {
-		return
-	}
-	i.sink.Info(level, msg, keysAndValues...)
-}
-func (i ignoreDebugEventsSink) Error(err error, msg string, keysAndValues ...interface{}) {
-	i.sink.Error(err, msg, keysAndValues...)
-}
-func (i ignoreDebugEventsSink) WithValues(keysAndValues ...interface{}) logr.LogSink {
-	return i.sink.WithValues(keysAndValues...)
-}
-func (i ignoreDebugEventsSink) WithName(name string) logr.LogSink {
-	return &ignoreDebugEventsSink{name: name, sink: i.sink.WithName(name)}
-}
-
 // ignoreDebugEvents wraps the logger with one that ignores any debug logs coming from a logger named "events".  This
 // prevents every event we write from creating a debug log which spams the log file during scale-ups due to recording
 // pod scheduling decisions as events for visibility.
 func ignoreDebugEvents(logger logr.Logger) logr.Logger {
 	return logr.New(&ignoreDebugEventsSink{sink: logger.GetSink()})
-}
-
-func Cleanup() <-chan os.Signal {
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, syscall.SIGINT)
-	return c
 }
 
 func newRunnableContext(config *rest.Config, options *options.Options, logger *zap.SugaredLogger) func() context.Context {
