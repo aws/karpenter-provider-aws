@@ -55,7 +55,7 @@ jobs:
         with:
           role-to-assume: arn:aws:iam::071440425669:role/Github
           aws-region: us-east-1
-      - run: make release-gen
+      - run: make docgen
       - run: |
           git config user.name "StableRelease"
           git config user.email "StableRelease@users.noreply.github.com"
