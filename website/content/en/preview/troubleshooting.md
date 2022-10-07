@@ -20,12 +20,12 @@ Info on whether there has been a change to the CRD between versions of Karpenter
 
 ## Unable to schedule pod due to insufficient node group instances
 
-v0.16.0 changed the default replicas from 1 to 2. 
+v0.16.0 changed the default replicas from 1 to 2.
 
-Karpenter won't launch capacity to run itself (log related to the `karpenter.sh/provisioner-name DoesNotExist requirement`) 
-so it can't provision for the second Karpenter pod. 
+Karpenter won't launch capacity to run itself (log related to the `karpenter.sh/provisioner-name DoesNotExist requirement`)
+so it can't provision for the second Karpenter pod.
 
-To solve this you can either reduce the replicas back from 2 to 1, or ensure there is enough capacity that isn't being managed by Karpenter 
+To solve this you can either reduce the replicas back from 2 to 1, or ensure there is enough capacity that isn't being managed by Karpenter
 (these are instances with the name `karpenter.sh/provisioner-name/<PROVIDER_NAME>`) to run both pods.
 
 To do so on AWS increase the `minimum` and `desired` parameters on the node group autoscaling group to launch at lease 2 instances.
@@ -106,14 +106,14 @@ Here are examples of errors from Node NotReady issues that you might see from `j
   ```
 
 * Not being able to register the node with the Kubernetes API server indicates an error condition like the following:
-    
+
   ```
   Attempting to register node" node="ip-192-168-67-130.ec2.internal"
   Unable to register node with API server" err="Unauthorized" node="ip-192-168-67-130.ec2.internal"
   Error getting node" err="node \"ip-192-168-67-130.ec2.internal\" not found
   Failed to contact API server when waiting for CSINode publishing: Unauthorized
   ```
-    
+
   Check the ConfigMap to check whether or not the correct node role is there. For example:
 
   ```bash
@@ -145,7 +145,7 @@ If you are not able to resolve the Node NotReady issue on your own, run the [EKS
 * Your kubelets (`/kubelet/kubelet.log`)
 * Your networking pod logs (`/var_log/aws-node`)
 
-Reach out to the Karpenter team on [Slack](https://kubernetes.slack.com/archives/C02SFFZSA2K) or [GitHub](https://github.com/aws/karpenter/) if you are still stuck. 
+Reach out to the Karpenter team on [Slack](https://kubernetes.slack.com/archives/C02SFFZSA2K) or [GitHub](https://github.com/aws/karpenter/) if you are still stuck.
 
 ## Missing Service Linked Role
 Unless your AWS account has already onboarded to EC2 Spot, you will need to create the service linked role to avoid `ServiceLinkedRoleCreationNotPermitted`.
@@ -259,8 +259,6 @@ Provisioners created without those tags and run in more recent Karpenter version
 ```text
  field(s): spec.provider.securityGroupSelector, spec.provider.subnetSelector
 ```
-If you are providing a [custom launch template]({{<ref "./aws/launch-templates" >}}), specifying a `subnetSelector` is still required.
-However, specifying a `securityGroupSelector` will cause a validation error.
 
 ## Terraform fails to create instance profile when name is too long
 

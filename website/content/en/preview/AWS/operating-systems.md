@@ -1,16 +1,16 @@
 ---
-title: "Custom User Data and AMI Configuration"
+title: "Operating Systems"
 linkTitle: "Custom User Data and AMI"
-weight: 10
+weight: 200
 description: >
   Learn how to configure custom UserData and AMIs with Karpenter
 ---
 
-This document describes how you can customize the UserData and AMIs for your EC2 worker nodes, without using a launch template.
+This document describes how you can customize the operating system for your EC2 worker nodes.
 
 ## Configuration
 
-In order to specify custom user data and AMIs, you must include them within a AWSNodeTemplate resource. You can then reference this AWSNodeTemplate resource through `spec.providerRef` in your provisioner.
+Operating system configuration is specified within a AWSNodeTemplate resource. This resource is referenced in your Provisioner using `spec.providerRef`.
 ```yaml
 apiVersion: karpenter.sh/v1alpha5
 kind: Provisioner
@@ -24,7 +24,7 @@ spec:
 
 **Examples**
 
-Your UserData and AMIs can be added to `spec.userData` and `spec.amiSelector` respectively in the `AWSNodeTemplate` resource -
+Operating systems can be configured using `spec.userData` and `spec.amiSelector` respectively in the `AWSNodeTemplate` resource -
 ```yaml
 apiVersion: karpenter.k8s.aws/v1alpha1
 kind: AWSNodeTemplate
@@ -191,14 +191,12 @@ All labels defined [in the scheduling documentation](../../tasks/scheduling#supp
 ]
 ```
 
-
 ###  AMIFamily
 
 When you give Karpenter an AMI ID to use, you can specify which AMIFamily they belong to. This will determine how Karpenter should use your AMI.
 For example, if you define the `AMIFamily` to be `AL2`, then Karpenter will assume that a worker node using that AMI should be bootstrapped in the same manner as EKS-optimized AL2 AMIs. This is useful when your custom images are variants of EKS-optimized AMIs and there are no differences in how bootstrapping needs to be performed.
 
 When the `AMIFamily` is set to `Custom`, then Karpenter will not attempt to bootstrap the worker node. You must set the necessary commands through `spec.UserData` to ensure that your worker node joins the cluster.
-
 
 ### Binpacking semantics for AMIFamily
 

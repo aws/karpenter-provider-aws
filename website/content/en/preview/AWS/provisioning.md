@@ -272,23 +272,6 @@ Specify AMIs explicitly by ID:
     aws-ids: "ami-123,ami-456"
 ```
 
-### LaunchTemplate (Deprecated)
-
-A launch template is a set of configuration values sufficient for launching an EC2 instance (e.g., AMI, storage spec).
-
-Karpenter automatically generates Launch Templates given the other values set in the AWSNodeTemplate. If specified, Karpenter will replace the generated launch template with the one given.
-
-Review the [Launch Template documentation]({{<ref "./launch-templates.md" >}}) to learn how to create a custom one.
-
-```
-spec:
-  launchTemplate: MyLaunchTemplate
-```
-
-## spec.provider (Deprecated)
-
-Prior to the introduction of `spec.providerRef`, parameters for the AWS Cloud Provider could be specified within the Provisioner itself through the `spec.provider` field. This field in the Provisioners has now been deprecated, and all fields previously specified through the ProvisionerSpec can now be specified in the `AWSNodeTemplate` CRD instead. See the [upgrade guide for more information](../../upgrade-guide). New parameters can only be specified in the `AWSNodeTemplate` CRD.
-
 ## AWS Specific Labels
 
 The AWS cloud provider adds several labels to nodes that describe the node resources to make filtering instance types easier. These work at either the provisioner level as requirements or the pod level as node selectors or node affinities.  The complete list, including the instance types they are applied to, is available in the [Instance Types](../instance-types/) documentation.  A sampling of these include:
