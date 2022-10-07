@@ -49,13 +49,19 @@ spec:
 
 This example adds SSH keys to allow remote login to the node (replace *my-authorized_keys* with your key file):
 
+{{% alert title="Note" color="primary" %}}
+Instead of using SSH as set up in this example, you can use Session Manager (SSM) or EC2 Instance Connect to gain shell access to Karpenter nodes.
+See [Node NotReady](https://karpenter.sh/preview/troubleshooting/#node-notready) troubleshooting for an example of starting an SSM session from the command line or [EC2 Instance Connect](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-set-up.html) documentation to connect to nodes using SSH.
+{{% /alert %}}
+
+
 ```yaml
 apiVersion: karpenter.k8s.aws/v1alpha1
 kind: AWSNodeTemplate
 metadata:
-  name: bottlerocket-example
+  name: al2-example
 spec:
-  amiFamily: Bottlerocket
+  amiFamily: AL2
   instanceProfile: MyInstanceProfile
   subnetSelector:
     karpenter.sh/discovery: my-cluster
