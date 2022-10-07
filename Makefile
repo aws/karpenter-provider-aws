@@ -118,10 +118,6 @@ docgen: ## Generate docs
 api-code-gen: ## Auto generate files based on AWS APIs response
 	$(WITH_GOFLAGS) ./hack/api-code-gen.sh
 
-release-gen: tidy download docgen ## Generate any materials which should be updated prior to release
-	hack/boilerplate.sh
-	golangci-lint run
-
 stable-release-pr: ## Generate PR for stable release
 	$(WITH_GOFLAGS) ./hack/stable-release-pr.sh
 
@@ -154,4 +150,4 @@ download: ## Recursively "go mod download" on all directories where go.mod exist
 	@echo go mod download
 	$(foreach dir,$(MOD_DIRS),$(shell cd $(dir) && go mod download))
 
-.PHONY: help dev ci release test battletest verify codegen docgen apply delete toolchain release release-gen licenses issues website nightly snapshot e2etests
+.PHONY: help dev ci release test battletest e2etests verify tidy download codegen docgen apply delete toolchain licenses issues website nightly snapshot
