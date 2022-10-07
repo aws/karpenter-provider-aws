@@ -24,7 +24,8 @@ spec:
 
 **Examples**
 
-Operating systems can be configured using `spec.userData` and `spec.amiSelector` respectively in the `AWSNodeTemplate` resource -
+Your UserData and AMIs can be added to `spec.userData` and `spec.amiSelector` respectively in the `AWSNodeTemplate` resource:
+
 ```yaml
 apiVersion: karpenter.k8s.aws/v1alpha1
 kind: AWSNodeTemplate
@@ -44,6 +45,37 @@ spec:
     "memory.available" = "20%"
   amiSelector:
     karpenter.sh/discovery: my-cluster
+```
+
+This example adds SSH keys to allow remote login to the node (replace *my-authorized_keys* with your key file):
+
+```yaml
+apiVersion: karpenter.k8s.aws/v1alpha1
+kind: AWSNodeTemplate
+metadata:
+  name: bottlerocket-example
+spec:
+  amiFamily: Bottlerocket
+  instanceProfile: MyInstanceProfile
+  subnetSelector:
+    karpenter.sh/discovery: my-cluster
+  securityGroupSelector:
+    karpenter.sh/discovery: my-cluster
+userData: |
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="BOUNDARY"
+--BOUNDARY
+Content-Type: text/x-shellscript; charset="us-ascii"
+
+#!/bin/bash
+mkdir -p ~ec2-user/.ssh/
+touch ~ec2-user/.ssh/authorized_keys
+cat >> ~ec2-user/.ssh/authorized_keys <<EOF
+{{ insertFile "../my-authorized_keys" | indent 4  }}
+EOF
+chmod -R go-w ~ec2-user/.ssh/authorized_keys
+chown -R ec2-user ~ec2-user/.ssh
+--BOUNDARY--
 ```
 
 For more examples on configuring these fields for different AMI families, see the [examples here](https://github.com/aws/karpenter/blob/main/examples/provisioner/launchtemplates).
