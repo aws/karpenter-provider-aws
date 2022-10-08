@@ -10,11 +10,17 @@ updates:
       - dependency-name: "k8s.io/api"
       - dependency-name: "k8s.io/apimachinery"
       - dependency-name: "k8s.io/client-go"
-      - dependency-name: "sigs.k8s.io/controller-runtime v0.9.7"
+      - dependency-name: "sigs.k8s.io/controller-runtime"
   - package-ecosystem: "gomod"
     directory: "/test"
     schedule:
       interval: "monthly"
+    # Interdependent
+    ignore:
+      - dependency-name: "k8s.io/api"
+      - dependency-name: "k8s.io/apimachinery"
+      - dependency-name: "k8s.io/client-go"
+      - dependency-name: "sigs.k8s.io/controller-runtime"
   - package-ecosystem: "github-actions"
     directory: "/.github"
     schedule:
