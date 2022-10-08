@@ -90,7 +90,7 @@ However, you can use Session Manager (SSM) or EC2 Instance Connect to gain shell
 See [Node NotReady]({{< ref "./troubleshooting/#node-notready" >}}) troubleshooting for an example of starting an SSM session from the command line or [EC2 Instance Connect](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-set-up.html) documentation to connect to nodes using SSH.
 
 Though not recommended, if you need to access Karpenter-managed nodes without AWS credentials, you can add SSH keys using AWSNodeTemplate.
-See [Custom User Data]({{< ref "./aws/user-data/" >}}) for details.
+See [Custom User Data]({{< ref "./aws/operating-systems/" >}}) for details.
 
 ### Can I set total limits of CPU and memory for a provisioner?
 Yes, the setting is provider-specific.

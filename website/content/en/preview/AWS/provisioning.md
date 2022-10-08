@@ -229,7 +229,7 @@ spec:
 
 ### UserData
 
-You can control the UserData that needs to be applied to your worker nodes via this field. Review the [Custom UserData documentation](../user-data/) to learn the necessary steps
+You can control the UserData that needs to be applied to your worker nodes via this field. Review the [Custom UserData documentation](../operating-systems/) to learn the necessary steps
 If you need to specify a launch template in addition to UserData, then review the [Launch Template documentation](../launch-templates/) instead and utilize the `spec.providerRef.launchTemplate` field.
 
 ### AMISelector
@@ -244,7 +244,7 @@ EC2 AMI IDs may be specified by using the key `aws-ids` and then passing the IDs
 * If multiple AMIs are found that can be used, Karpenter will randomly choose any one.
 * If no AMIs are found that can be used, then no nodes will be provisioned.
 
-For additional data on how UserData is configured for Custom AMIs, and how more requirements can be specified for custom AMIs, follow [this documentation](../user-data/#custom-amis).
+For additional data on how UserData is configured for Custom AMIs, and how more requirements can be specified for custom AMIs, follow [this documentation](../operating-systems/#custom-amis).
 
 **Examples**
 
