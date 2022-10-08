@@ -19,6 +19,8 @@ import (
 	"time"
 
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	"github.com/aws/karpenter/pkg/controllers"
 )
 
 // Reconciler is the AWS infrastructure reconciler
@@ -37,12 +39,11 @@ func NewReconciler(provider *Provider) *Reconciler {
 	}
 }
 
-func (r *Reconciler) Name() string {
-	return "aws.infrastructure"
-}
-
-func (r *Reconciler) MetricsSubsystemName() string {
-	return "aws_infrastructure_controller"
+func (r *Reconciler) Metadata() controllers.Metadata {
+	return controllers.Metadata{
+		Name:             "aws.infrastructure",
+		MetricsSubsystem: "aws_infrastructure_controller",
+	}
 }
 
 // Reconcile reconciles the SQS queue and the EventBridge rules with the expected

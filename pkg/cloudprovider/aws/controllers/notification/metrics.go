@@ -22,17 +22,17 @@ import (
 )
 
 const (
-	MetricsSubsystemName = "aws_notification_controller"
-	messageTypeLabel     = "message_type"
-	actionableTypeLabel  = "actionable"
-	actionTypeLabel      = "action_type"
+	subsystem           = "aws_notification_controller"
+	messageTypeLabel    = "message_type"
+	actionableTypeLabel = "actionable"
+	actionTypeLabel     = "action_type"
 )
 
 var (
 	receivedMessages = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metrics.Namespace,
-			Subsystem: MetricsSubsystemName,
+			Subsystem: subsystem,
 			Name:      "received_messages",
 			Help:      "Count of messages received from the SQS queue. Broken down by message type and whether the message was actionable.",
 		},
@@ -41,7 +41,7 @@ var (
 	deletedMessages = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Namespace: metrics.Namespace,
-			Subsystem: MetricsSubsystemName,
+			Subsystem: subsystem,
 			Name:      "deleted_messages",
 			Help:      "Count of messages deleted from the SQS queue.",
 		},
@@ -49,7 +49,7 @@ var (
 	actionsPerformed = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metrics.Namespace,
-			Subsystem: MetricsSubsystemName,
+			Subsystem: subsystem,
 			Name:      "actions_performed",
 			Help:      "Number of notification actions performed. Labeled by action",
 		},

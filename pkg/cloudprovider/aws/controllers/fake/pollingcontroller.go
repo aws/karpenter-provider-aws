@@ -22,24 +22,24 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-type TriggerController struct {
+type PollingController struct {
 	TriggerCalls atomic.Int64
 }
 
-func (c *TriggerController) Start(context.Context) {}
+func (c *PollingController) Start(context.Context) {}
 
-func (c *TriggerController) Stop(context.Context) {}
+func (c *PollingController) Stop(context.Context) {}
 
-func (c *TriggerController) Trigger() {
+func (c *PollingController) Trigger() {
 	c.TriggerCalls.Add(1)
 }
 
-func (c *TriggerController) Active() bool { return true }
+func (c *PollingController) Active() bool { return true }
 
-func (c *TriggerController) Healthy() bool { return true }
+func (c *PollingController) Healthy() bool { return true }
 
-func (c *TriggerController) Reconcile(context.Context, reconcile.Request) (reconcile.Result, error) {
+func (c *PollingController) Reconcile(context.Context, reconcile.Request) (reconcile.Result, error) {
 	return reconcile.Result{}, nil
 }
 
-func (c *TriggerController) Register(context.Context, manager.Manager) error { return nil }
+func (c *PollingController) Register(context.Context, manager.Manager) error { return nil }

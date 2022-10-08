@@ -50,6 +50,20 @@ type Controller interface {
 	Register(context.Context, manager.Manager) error
 }
 
+// Reconciler is a custom interface on top of the standard reconcile.Reconciler interface
+// that surfaces Name info for logging and MetricsSubsystemName info for prometheus metrics
+type Reconciler interface {
+	reconcile.Reconciler
+
+	Metadata() Metadata
+}
+
+type Metadata struct {
+	Name             string
+	MetricsSubsystem string
+}
+
+// ignoreDebugEventsSink is a decorator around a passed sink to ignore all debug events that are passed into the logger
 type ignoreDebugEventsSink struct {
 	name string
 	sink logr.LogSink

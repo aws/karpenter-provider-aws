@@ -83,6 +83,8 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, nil
 	}
 	if len(list.Items) >= 1 {
+		// Start reconciling the infrastructure controller. This also waterfalls the starting of the
+		// notification controller once the infra is healthy
 		c.infraController.Start(ctx)
 	}
 	mergeFrom := client.MergeFrom(nt.DeepCopy())

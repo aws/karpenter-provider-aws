@@ -38,6 +38,7 @@ import (
 	statechangev0 "github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/statechange"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/events"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/utils"
+	"github.com/aws/karpenter/pkg/controllers"
 	"github.com/aws/karpenter/pkg/controllers/polling"
 	"github.com/aws/karpenter/pkg/controllers/state"
 )
@@ -64,7 +65,7 @@ type Reconciler struct {
 	instanceTypeProvider *aws.InstanceTypeProvider
 	parser               event.Parser
 
-	infraController polling.ControllerInterface
+	infraController polling.ControllerWithHealthInterface
 }
 
 // pollingPeriod that we go to the SQS queue to check if there are any new events
@@ -72,7 +73,7 @@ const pollingPeriod = 2 * time.Second
 
 func NewReconciler(kubeClient client.Client, recorder events.Recorder, cluster *state.Cluster,
 	sqsProvider *aws.SQSProvider, instanceTypeProvider *aws.InstanceTypeProvider,
-	infraController polling.ControllerInterface) *Reconciler {
+	infraController polling.ControllerWithHealthInterface) *Reconciler {
 
 	return &Reconciler{
 		kubeClient:           kubeClient,
@@ -85,12 +86,11 @@ func NewReconciler(kubeClient client.Client, recorder events.Recorder, cluster *
 	}
 }
 
-func (r *Reconciler) Name() string {
-	return "aws.notification"
-}
-
-func (r *Reconciler) MetricsSubsystemName() string {
-	return MetricsSubsystemName
+func (r *Reconciler) Metadata() controllers.Metadata {
+	return controllers.Metadata{
+		Name:             "aws.notification",
+		MetricsSubsystem: subsystem,
+	}
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, _ reconcile.Request) (reconcile.Result, error) {

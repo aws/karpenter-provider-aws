@@ -83,7 +83,7 @@ var recorder *awsfake.EventRecorder
 var fakeClock *clock.FakeClock
 var cfg *test.Config
 var controller polling.ControllerInterface
-var infraController polling.ControllerInterface
+var infraController polling.ControllerWithHealthInterface
 var nodeStateController *state.NodeController
 
 func TestAPIs(t *testing.T) {
@@ -114,7 +114,7 @@ var _ = BeforeEach(func() {
 		subnetProvider := aws.NewSubnetProvider(ec2api)
 		instanceTypeProvider = aws.NewInstanceTypeProvider(env.Ctx, mock.Session, cloudprovider.Options{}, ec2api, subnetProvider)
 
-		infraController = polling.NewController(infrastructure.NewReconciler(infrastructure.NewProvider(sqsProvider, eventBridgeProvider)))
+		infraController = polling.NewController(infrastructure.NewReconciler(infrastructure.NewProvider(sqsProvider, eventBridgeProvider))).WithHealth()
 		controller = polling.NewController(notification.NewReconciler(env.Client, recorder, cluster, sqsProvider, instanceTypeProvider, infraController))
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
@@ -313,7 +313,7 @@ var _ = Describe("Error Handling", func() {
 	It("should trigger an infrastructure reconciliation on an SQS queue when it doesn't exist", func() {
 		sqsapi.GetQueueURLBehavior.Error.Set(awsErrWithCode(sqs.ErrCodeQueueDoesNotExist), awsfake.MaxCalls(0)) // This mocks the queue not existing
 
-		infraController := &controllersfake.TriggerController{}
+		infraController := &controllersfake.PollingController{}
 		controller = polling.NewController(notification.NewReconciler(env.Client, recorder, cluster, sqsProvider, instanceTypeProvider, infraController))
 
 		_, err := controller.Reconcile(env.Ctx, reconcile.Request{})
@@ -327,13 +327,13 @@ var _ = Describe("Infrastructure Coordination", func() {
 		// Prior to provisioning the infrastructure and the infrastructure being healthy, we shouldn't try to hit the queue
 		res, err := controller.Reconcile(env.Ctx, reconcile.Request{})
 		Expect(err).To(Succeed())
-		Expect(res.Requeue).To(BeTrue())
+		Expect(res.Requeue).To(BeFalse())
+		Expect(res.RequeueAfter).To(BeEquivalentTo(time.Duration(0)))
 		Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(BeNumerically("==", 0))
 
 		ExpectReconcileSucceeded(env.Ctx, infraController, types.NamespacedName{})
 		ExpectReconcileSucceeded(env.Ctx, controller, types.NamespacedName{})
 		Expect(infraController.Healthy()).To(BeTrue())
-		Expect(controller.Healthy()).To(BeTrue())
 		Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(BeNumerically("==", 1))
 	})
 })

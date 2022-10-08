@@ -45,8 +45,7 @@ var sqsapi *awsfake.SQSAPI
 var sqsProvider *aws.SQSProvider
 var eventbridgeapi *awsfake.EventBridgeAPI
 var eventBridgeProvider *aws.EventBridgeProvider
-var recorder *awsfake.EventRecorder
-var controller *polling.Controller
+var controller *polling.ControllerWithHealth
 var opts options.Options
 
 var defaultOpts = options.Options{
@@ -70,14 +69,13 @@ var _ = BeforeEach(func() {
 		Expect(opts.Validate()).To(Succeed(), "Failed to validate options")
 		e.Ctx = injection.WithOptions(e.Ctx, opts)
 
-		recorder = awsfake.NewEventRecorder()
 		metadataProvider := aws.NewMetadataProvider(mock.Session, &awsfake.EC2MetadataAPI{}, &awsfake.STSAPI{})
 		sqsapi = &awsfake.SQSAPI{}
 		eventbridgeapi = &awsfake.EventBridgeAPI{}
 		sqsProvider = aws.NewSQSProvider(e.Ctx, sqsapi, metadataProvider)
 		eventBridgeProvider = aws.NewEventBridgeProvider(eventbridgeapi, metadataProvider, sqsProvider.QueueName())
 
-		controller = polling.NewController(infrastructure.NewReconciler(infrastructure.NewProvider(sqsProvider, eventBridgeProvider)))
+		controller = polling.NewController(infrastructure.NewReconciler(infrastructure.NewProvider(sqsProvider, eventBridgeProvider))).WithHealth()
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })
@@ -121,7 +119,7 @@ var _ = Describe("Reconciliation", func() {
 		Expect(eventbridgeapi.PutRuleBehavior.SuccessfulCalls()).To(Equal(4))
 		Expect(eventbridgeapi.PutTargetsBehavior.SuccessfulCalls()).To(Equal(4))
 	})
-	It("should thrown an error and wait with backoff if we get QueueDeletedRecently", func() {
+	It("should throw an error and wait with backoff if we get QueueDeletedRecently", func() {
 		sqsapi.GetQueueURLBehavior.Error.Set(awsErrWithCode(sqs.ErrCodeQueueDoesNotExist), awsfake.MaxCalls(0)) // This mocks the queue not existing
 		sqsapi.CreateQueueBehavior.Error.Set(awsErrWithCode(sqs.ErrCodeQueueDeletedRecently), awsfake.MaxCalls(0))
 

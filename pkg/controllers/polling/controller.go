@@ -19,6 +19,7 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
+	"github.com/prometheus/client_golang/prometheus"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -35,6 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/aws/karpenter/pkg/controllers"
+	"github.com/aws/karpenter/pkg/metrics"
 )
 
 type ControllerInterface interface {
@@ -44,7 +46,6 @@ type ControllerInterface interface {
 	Stop(context.Context)
 	Trigger()
 	Active() bool
-	Healthy() bool
 }
 
 // Controller is a wrapper around a controller interface that adds a trigger mechanism for enqueuing
@@ -53,30 +54,18 @@ type ControllerInterface interface {
 // Controller also has an active flag that can be enabled or disabled. This serves as a mechanism to stop
 // a requeue of a trigger request from the wrapped Reconcile() method of the Controller
 type Controller struct {
-	OnHealthy   func(context.Context)
-	OnUnhealthy func(context.Context)
-
-	r    Reconciler
+	r    controllers.Reconciler
 	uuid types.UID
 
-	active  bool
-	healthy bool
+	active bool
 
 	triggerGeneration int64
 	trigger           chan event.GenericEvent
 
 	triggerMu sync.RWMutex
 	activeMu  sync.RWMutex
-	healthyMu sync.RWMutex
 
 	cancels sync.Map
-}
-
-type Reconciler interface {
-	reconcile.Reconciler
-
-	Name() string
-	MetricsSubsystemName() string
 }
 
 type Object struct {
@@ -84,7 +73,7 @@ type Object struct {
 	runtime.Object
 }
 
-func NewController(rec Reconciler) *Controller {
+func NewController(rec controllers.Reconciler) *Controller {
 	return &Controller{
 		r:       rec,
 		uuid:    types.UID(uuid.New().String()),
@@ -92,11 +81,17 @@ func NewController(rec Reconciler) *Controller {
 	}
 }
 
+// WithHealth returns a decorated version of the polling controller that surfaces health information
+// based on the success or failure of a reconciliation loop
+func (t *Controller) WithHealth() *ControllerWithHealth {
+	return NewControllerWithHealth(t)
+}
+
 // Start is an idempotent call to kick-off a single reconciliation loop. Based on the intended use of this controller,
 // the Reconciler is responsible for requeuing this message back in the WorkQueue so there is a time-based reconciliation
 // performed. The Trigger operation is performed to kick-off the loop.
 func (t *Controller) Start(ctx context.Context) {
-	logging.FromContext(ctx).Infof("Starting the %s controller...", t.r.Name())
+	logging.FromContext(ctx).Infof("Starting the %s controller...", t.r.Metadata().Name)
 	t.activeMu.Lock()
 	if !t.active {
 		t.active = true
@@ -121,7 +116,7 @@ func (t *Controller) Trigger() {
 
 // Stop sets the state of the controller to active and cancel the current reconciliation contexts, if there are any
 func (t *Controller) Stop(ctx context.Context) {
-	logging.FromContext(ctx).Infof("Stopping the %s controller...", t.r.Name())
+	logging.FromContext(ctx).Infof("Stopping the %s controller...", t.r.Metadata().Name)
 	t.SetActive(false)
 	t.cancels.Range(func(_ any, c any) bool {
 		cancel := c.(context.CancelFunc)
@@ -152,51 +147,23 @@ func (t *Controller) SetActive(active bool) {
 	}
 }
 
-func (t *Controller) Healthy() bool {
-	t.healthyMu.RLock()
-	defer t.healthyMu.RUnlock()
-	return t.healthy
-}
-
 func (t *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named(t.r.Name()))
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named(t.r.Metadata().Name))
 	ctx, cancel := context.WithCancel(ctx)
 
-	// Store the cancel function for the duration of the reconcile so we can cancel on a Stop() call
+	// Store the cancel function for the duration of Reconcile, so we can cancel on a Stop() call
 	cancelID := uuid.New()
 	t.cancels.Store(cancelID, cancel)
 	defer t.cancels.Delete(cancelID)
 
-	res, err := t.r.Reconcile(ctx, req)
-
-	t.healthyMu.Lock()
-	t.healthy = err == nil // The controller is considered healthy when it successfully reconciles
-	if t.healthy {
-		if t.OnHealthy != nil {
-			t.OnHealthy(ctx)
-		}
-		t.healthyMetric().Set(1)
-	} else {
-		if t.OnUnhealthy != nil {
-			t.OnUnhealthy(ctx)
-		}
-		t.healthyMetric().Set(0)
-	}
-	t.healthyMu.Unlock()
-
-	t.activeMu.Lock()
-	if !t.active {
-		return reconcile.Result{}, nil // Swallow any errors/calls at this point
-	}
-	t.activeMu.Unlock()
-	return res, err
+	return t.r.Reconcile(ctx, req)
 }
 
 func (t *Controller) Register(_ context.Context, m manager.Manager) error {
-	crmetrics.Registry.MustRegister(t.healthyMetric(), t.activeMetric(), t.triggeredCountMetric())
+	crmetrics.Registry.MustRegister(t.activeMetric(), t.triggeredCountMetric())
 	return controllerruntime.
 		NewControllerManagedBy(m).
-		Named(t.r.Name()).
+		Named(t.r.Metadata().Name).
 		WithEventFilter(predicate.NewPredicateFuncs(func(obj client.Object) bool {
 			t.triggerMu.RLock()
 			defer t.triggerMu.RUnlock()
@@ -208,4 +175,26 @@ func (t *Controller) Register(_ context.Context, m manager.Manager) error {
 		Watches(&source.Channel{Source: t.trigger}, &handler.EnqueueRequestForObject{}).
 		For(&v1.Pod{}). // controller-runtime requires us to perform a watch on some object, so let's do it on a fundamental component
 		Complete(t)
+}
+
+func (t *Controller) activeMetric() prometheus.Gauge {
+	return prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Namespace: metrics.Namespace,
+			Subsystem: t.r.Metadata().MetricsSubsystem,
+			Name:      "active",
+			Help:      "Whether the controller is active.",
+		},
+	)
+}
+
+func (t *Controller) triggeredCountMetric() prometheus.Counter {
+	return prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Namespace: metrics.Namespace,
+			Subsystem: t.r.Metadata().MetricsSubsystem,
+			Name:      "trigger_count",
+			Help:      "A counter of the number of times this controller has been triggered.",
+		},
+	)
 }
