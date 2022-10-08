@@ -24,7 +24,7 @@ spec:
 
 **Examples**
 
-Your UserData and AMIs can be added to `spec.userData` and `spec.amiSelector` respectively in the `AWSNodeTemplate` resource:
+Operating systems can be configured using `spec.userData` and `spec.amiSelector` respectively in the `AWSNodeTemplate` resource:
 
 ```yaml
 apiVersion: karpenter.k8s.aws/v1alpha1
@@ -51,7 +51,7 @@ This example adds SSH keys to allow remote login to the node (replace *my-author
 
 {{% alert title="Note" color="primary" %}}
 Instead of using SSH as set up in this example, you can use Session Manager (SSM) or EC2 Instance Connect to gain shell access to Karpenter nodes.
-See [Node NotReady](https://karpenter.sh/preview/troubleshooting/#node-notready) troubleshooting for an example of starting an SSM session from the command line or [EC2 Instance Connect](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-set-up.html) documentation to connect to nodes using SSH.
+See [Node NotReady]({{< ref "../troubleshooting/#node-notready" >}}) troubleshooting for an example of starting an SSM session from the command line or [EC2 Instance Connect](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-set-up.html) documentation to connect to nodes using SSH.
 {{% /alert %}}
 
 
