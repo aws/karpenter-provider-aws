@@ -18,7 +18,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/sqs"
@@ -51,31 +50,33 @@ type Principal struct {
 type SQSProvider struct {
 	client sqsiface.SQSAPI
 
-	createQueueInput    *sqs.CreateQueueInput
-	getQueueURLInput    *sqs.GetQueueUrlInput
-	receiveMessageInput *sqs.ReceiveMessageInput
-	mu                  sync.RWMutex
-	queueURL            atomic.CachedVal[string]
-	queueName           string
-	metadataProvider    *MetadataProvider
+	createQueueInput        *sqs.CreateQueueInput
+	getQueueURLInput        *sqs.GetQueueUrlInput
+	getQueueAttributesInput *sqs.GetQueueAttributesInput
+	receiveMessageInput     *sqs.ReceiveMessageInput
+
+	queueURL  atomic.CachedVal[string]
+	queueARN  atomic.CachedVal[string]
+	queueName string
 }
 
-func NewSQSProvider(ctx context.Context, client sqsiface.SQSAPI, metadataProvider *MetadataProvider) *SQSProvider {
+func NewSQSProvider(ctx context.Context, client sqsiface.SQSAPI) *SQSProvider {
 	provider := &SQSProvider{
-		client:           client,
-		mu:               sync.RWMutex{},
-		metadataProvider: metadataProvider,
-		queueName:        getQueueName(ctx),
+		client:    client,
+		queueName: getQueueName(ctx),
 	}
 	provider.createQueueInput = &sqs.CreateQueueInput{
-		Attributes: provider.getQueueAttributes(ctx),
-		QueueName:  aws.String(provider.queueName),
+		QueueName: aws.String(provider.queueName),
 		Tags: map[string]*string{
 			awsv1alpha1.DiscoveryTagKey: aws.String(injection.GetOptions(ctx).ClusterName),
 		},
 	}
 	provider.getQueueURLInput = &sqs.GetQueueUrlInput{
 		QueueName: aws.String(provider.queueName),
+	}
+	provider.getQueueAttributesInput = &sqs.GetQueueAttributesInput{
+		AttributeNames: aws.StringSlice([]string{sqs.QueueAttributeNameQueueArn}),
+		QueueUrl:       aws.String(provider.queueName),
 	}
 	provider.receiveMessageInput = &sqs.ReceiveMessageInput{
 		MaxNumberOfMessages: aws.Int64(10),
@@ -95,6 +96,16 @@ func NewSQSProvider(ctx context.Context, client sqsiface.SQSAPI, metadataProvide
 		}
 		return aws.StringValue(ret.QueueUrl), nil
 	}
+	provider.queueARN.Resolve = func(ctx context.Context) (string, error) {
+		ret, err := provider.client.GetQueueAttributesWithContext(ctx, provider.getQueueAttributesInput)
+		if err != nil {
+			return "", fmt.Errorf("fetching queue arn, %w", err)
+		}
+		if arn, ok := ret.Attributes[sqs.QueueAttributeNameQueueArn]; ok {
+			return aws.StringValue(arn), nil
+		}
+		return "", fmt.Errorf("queue arn not found in queue attributes response")
+	}
 	return provider
 }
 
@@ -107,8 +118,6 @@ func (s *SQSProvider) CreateQueue(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("creating sqs queue, %w", err)
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.queueURL.Set(aws.StringValue(result.QueueUrl))
 	return nil
 }
@@ -118,9 +127,12 @@ func (s *SQSProvider) SetQueueAttributes(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("fetching queue url, %w", err)
 	}
-
+	attributes, err := s.getQueueAttributes(ctx)
+	if err != nil {
+		return fmt.Errorf("marshaling queue attributes, %w", err)
+	}
 	setQueueAttributesInput := &sqs.SetQueueAttributesInput{
-		Attributes: s.getQueueAttributes(ctx),
+		Attributes: attributes,
 		QueueUrl:   aws.String(queueURL),
 	}
 	_, err = s.client.SetQueueAttributesWithContext(ctx, setQueueAttributesInput)
@@ -133,6 +145,10 @@ func (s *SQSProvider) SetQueueAttributes(ctx context.Context) error {
 func (s *SQSProvider) DiscoverQueueURL(ctx context.Context, ignoreCache bool) (string, error) {
 	opts := lo.Ternary(ignoreCache, atomic.IgnoreCacheOption, nil)
 	return s.queueURL.TryGet(ctx, opts)
+}
+
+func (s *SQSProvider) DiscoverQueueARN(ctx context.Context) (string, error) {
+	return s.queueARN.TryGet(ctx)
 }
 
 func (s *SQSProvider) GetSQSMessages(ctx context.Context) ([]*sqs.Message, error) {
@@ -213,15 +229,23 @@ func (s *SQSProvider) DeleteQueue(ctx context.Context) error {
 	return nil
 }
 
-func (s *SQSProvider) getQueueAttributes(ctx context.Context) map[string]*string {
-	policy := lo.Must(json.Marshal(s.getQueuePolicy(ctx)))
+func (s *SQSProvider) getQueueAttributes(ctx context.Context) (map[string]*string, error) {
+	raw, err := s.getQueuePolicy(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("marshaling queue policy, %w", err)
+	}
+	policy := lo.Must(json.Marshal(raw))
 	return map[string]*string{
 		sqs.QueueAttributeNameMessageRetentionPeriod: aws.String("300"),
 		sqs.QueueAttributeNamePolicy:                 aws.String(string(policy)),
-	}
+	}, nil
 }
 
-func (s *SQSProvider) getQueuePolicy(ctx context.Context) *QueuePolicy {
+func (s *SQSProvider) getQueuePolicy(ctx context.Context) (*QueuePolicy, error) {
+	queueARN, err := s.DiscoverQueueARN(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("retrieving queue arn for queue policy, %w", err)
+	}
 	return &QueuePolicy{
 		Version: "2008-10-17",
 		ID:      "EC2NotificationPolicy",
@@ -235,19 +259,10 @@ func (s *SQSProvider) getQueuePolicy(ctx context.Context) *QueuePolicy {
 					},
 				},
 				Action:   []string{"sqs:SendMessage"},
-				Resource: s.getQueueARN(ctx),
+				Resource: queueARN,
 			},
 		},
-	}
-}
-
-func (s *SQSProvider) getQueueARN(ctx context.Context) string {
-	return fmt.Sprintf("arn:%s:sqs:%s:%s:%s",
-		s.metadataProvider.Partition(),
-		s.metadataProvider.Region(ctx),
-		s.metadataProvider.AccountID(ctx),
-		s.queueName,
-	)
+	}, nil
 }
 
 func getQueueName(ctx context.Context) string {

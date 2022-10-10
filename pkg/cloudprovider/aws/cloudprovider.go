@@ -25,6 +25,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/client"
+	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -32,7 +33,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/eventbridge"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/aws/aws-sdk-go/service/ssm"
-	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
@@ -99,8 +99,10 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 			client.DefaultRetryer{NumMaxRetries: client.DefaultRetryerMaxNumRetries},
 		),
 	)))
-	metadataProvider := NewMetadataProvider(sess, NewEC2MetadataClient(sess), sts.New(sess))
-	metadataProvider.EnsureSessionRegion(ctx, sess)
+	if *sess.Config.Region == "" {
+		logging.FromContext(ctx).Debug("AWS region not configured, asking EC2 Instance Metadata Service")
+		*sess.Config.Region = getRegionFromIMDS(sess)
+	}
 	logging.FromContext(ctx).Debugf("Using AWS region %s", *sess.Config.Region)
 
 	ec2api := ec2.New(sess)
@@ -110,8 +112,8 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 	subnetProvider := NewSubnetProvider(ec2api)
 	instanceTypeProvider := NewInstanceTypeProvider(ctx, sess, options, ec2api, subnetProvider)
 
-	sqsProvider := NewSQSProvider(ctx, sqs.New(sess), metadataProvider)
-	eventBridgeProvider := NewEventBridgeProvider(eventbridge.New(sess), metadataProvider, sqsProvider.QueueName())
+	sqsProvider := NewSQSProvider(ctx, sqs.New(sess))
+	eventBridgeProvider := NewEventBridgeProvider(eventbridge.New(sess), sqsProvider)
 	cloudprovider := &CloudProvider{
 		instanceTypeProvider: instanceTypeProvider,
 		instanceProvider: NewInstanceProvider(ctx, ec2api, instanceTypeProvider, subnetProvider,
@@ -232,6 +234,11 @@ func (c *CloudProvider) InstanceTypeProvider() *InstanceTypeProvider {
 	return c.instanceTypeProvider
 }
 
+// Name returns the CloudProvider implementation name.
+func (c *CloudProvider) Name() string {
+	return "aws"
+}
+
 // Default the provisioner
 func (*CloudProvider) Default(ctx context.Context, provisioner *v1alpha5.Provisioner) {
 	defaultLabels(provisioner)
@@ -259,9 +266,13 @@ func defaultLabels(provisioner *v1alpha5.Provisioner) {
 	}
 }
 
-// Name returns the CloudProvider implementation name.
-func (c *CloudProvider) Name() string {
-	return "aws"
+// get the current region from EC2 IMDS
+func getRegionFromIMDS(sess *session.Session) string {
+	region, err := ec2metadata.New(sess).Region()
+	if err != nil {
+		panic(fmt.Sprintf("Failed to call the metadata server's region API, %s", err))
+	}
+	return region
 }
 
 // withUserAgent adds a karpenter specific user-agent string to AWS session

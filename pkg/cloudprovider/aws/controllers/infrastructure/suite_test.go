@@ -20,7 +20,6 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/awstesting/mock"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -69,11 +68,10 @@ var _ = BeforeEach(func() {
 		Expect(opts.Validate()).To(Succeed(), "Failed to validate options")
 		e.Ctx = injection.WithOptions(e.Ctx, opts)
 
-		metadataProvider := aws.NewMetadataProvider(mock.Session, &awsfake.EC2MetadataAPI{}, &awsfake.STSAPI{})
 		sqsapi = &awsfake.SQSAPI{}
 		eventbridgeapi = &awsfake.EventBridgeAPI{}
-		sqsProvider = aws.NewSQSProvider(e.Ctx, sqsapi, metadataProvider)
-		eventBridgeProvider = aws.NewEventBridgeProvider(eventbridgeapi, metadataProvider, sqsProvider.QueueName())
+		sqsProvider = aws.NewSQSProvider(e.Ctx, sqsapi)
+		eventBridgeProvider = aws.NewEventBridgeProvider(eventbridgeapi, sqsProvider)
 
 		controller = polling.NewController(infrastructure.NewReconciler(infrastructure.NewProvider(sqsProvider, eventBridgeProvider))).WithHealth()
 	})

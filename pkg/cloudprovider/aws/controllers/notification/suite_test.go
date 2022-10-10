@@ -103,12 +103,11 @@ var _ = BeforeEach(func() {
 		cluster = state.NewCluster(fakeClock, cfg, env.Client, cloudProvider)
 		nodeStateController = state.NewNodeController(env.Client, cluster)
 		recorder = awsfake.NewEventRecorder()
-		metadataProvider := aws.NewMetadataProvider(mock.Session, &awsfake.EC2MetadataAPI{}, &awsfake.STSAPI{})
 
 		sqsapi = &awsfake.SQSAPI{}
-		sqsProvider = aws.NewSQSProvider(ctx, sqsapi, metadataProvider)
+		sqsProvider = aws.NewSQSProvider(ctx, sqsapi)
 		eventbridgeapi = &awsfake.EventBridgeAPI{}
-		eventBridgeProvider = aws.NewEventBridgeProvider(eventbridgeapi, metadataProvider, sqsProvider.QueueName())
+		eventBridgeProvider = aws.NewEventBridgeProvider(eventbridgeapi, sqsProvider)
 
 		ec2api = &awsfake.EC2API{}
 		subnetProvider := aws.NewSubnetProvider(ec2api)

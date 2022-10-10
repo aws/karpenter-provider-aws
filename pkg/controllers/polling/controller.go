@@ -18,6 +18,7 @@ import (
 	"context"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
@@ -39,6 +40,11 @@ import (
 	"github.com/aws/karpenter/pkg/controllers"
 	"github.com/aws/karpenter/pkg/metrics"
 )
+
+// Immediate isn't exactly immediate for a reconcile result. But it should be passed to the RequeueAfter if you want
+// effectively immediate re-reconciliation. This can't be 0 because otherwise controller-runtime won't treat it as a
+// valid RequeueAfter value
+const Immediate = time.Nanosecond
 
 type ControllerInterface interface {
 	controllers.Controller

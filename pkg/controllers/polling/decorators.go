@@ -19,6 +19,7 @@ import (
 	"sync/atomic"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"knative.dev/pkg/logging"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
@@ -55,20 +56,21 @@ func (c *ControllerWithHealth) Healthy() bool {
 }
 
 func (c *ControllerWithHealth) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
+	callerCtx := logging.WithLogger(ctx, logging.FromContext(ctx).Named(c.r.Metadata().Name))
 	res, err := c.Controller.Reconcile(ctx, req)
 	healthy := err == nil // The controller is considered healthy when it successfully reconciles
+	c.healthy.Store(healthy)
 	if healthy {
 		if c.OnHealthy != nil {
-			c.OnHealthy(ctx)
+			c.OnHealthy(callerCtx)
 		}
 		c.healthyMetric().Set(1)
 	} else {
 		if c.OnUnhealthy != nil {
-			c.OnUnhealthy(ctx)
+			c.OnUnhealthy(callerCtx)
 		}
 		c.healthyMetric().Set(0)
 	}
-	c.healthy.Store(healthy)
 	return res, err
 }
 

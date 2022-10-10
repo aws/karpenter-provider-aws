@@ -31,6 +31,10 @@ func Quantity(quantity resource.Quantity) *resource.Quantity {
 	return &quantity
 }
 
-func Val[T any](v T) *T {
+func To[T any](v T) *T {
 	return &v
+}
+
+func From[T any](v *T) T {
+	return *v
 }

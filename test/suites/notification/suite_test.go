@@ -40,6 +40,7 @@ import (
 )
 
 var env *environment.AWSEnvironment
+var provider *v1alpha1.AWSNodeTemplate
 
 func TestNotification(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -47,6 +48,14 @@ func TestNotification(t *testing.T) {
 		var err error
 		env, err = environment.NewAWSEnvironment(environment.NewEnvironment(t))
 		Expect(err).ToNot(HaveOccurred())
+		provider = test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
+		}})
+		env.ExpectCreated(provider)
+	})
+	AfterSuite(func() {
+		env.ExpectDeleted(provider)
 	})
 	RunSpecs(t, "Notification")
 }
@@ -56,16 +65,12 @@ var _ = BeforeEach(func() {
 })
 
 var _ = AfterEach(func() {
-	env.AfterEach()
+	env.AfterEach(&v1alpha1.AWSNodeTemplate{})
 })
 
 var _ = Describe("Notification", Label("AWS"), func() {
 	It("should terminate the spot instance and spin-up a new node on spot interruption warning", func() {
 		By("Creating a single healthy node with a healthy deployment")
-		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
-		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{
 			Requirements: []v1.NodeSelectorRequirement{
 				{
@@ -88,7 +93,7 @@ var _ = Describe("Notification", Label("AWS"), func() {
 		})
 		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 
-		env.ExpectCreated(provider, provisioner, dep)
+		env.ExpectCreated(provisioner, dep)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 1)
 
@@ -104,19 +109,20 @@ var _ = Describe("Notification", Label("AWS"), func() {
 		// Monitor the events channel
 		done := make(chan struct{})
 		go func() {
+			defer GinkgoRecover()
 			defer fmt.Println("[FIS EVENT MONITOR] Closing event goroutine monitoring")
-			select {
-			case event := <-events:
-				if strings.Contains(event.Message, "Spot Instance Shutdown sent") {
-					Fail("Node didn't terminate before spot instance shutdown was sent")
+			for {
+				select {
+				case event := <-events:
+					if strings.Contains(event.Message, "Spot Instance Shutdown sent") {
+						Fail("Node didn't terminate before spot instance shutdown was sent")
+					}
+					fmt.Printf("[FIS EVENT MONITOR] %s\n", event.Message)
+				case <-done:
+					return
+				case <-ctx.Done():
+					return
 				}
-				fmt.Printf("[FIS EVENT MONITOR] %s\n", event.Message)
-			case <-done:
-				fmt.Println("done channel closed")
-				return
-			case <-ctx.Done():
-				fmt.Println("context canceled")
-				return
 			}
 		}()
 
@@ -126,10 +132,6 @@ var _ = Describe("Notification", Label("AWS"), func() {
 	})
 	It("should terminate the node at the API server when the EC2 instance is stopped", func() {
 		By("Creating a single healthy node with a healthy deployment")
-		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
-		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{
 			Requirements: []v1.NodeSelectorRequirement{
 				{
@@ -152,7 +154,7 @@ var _ = Describe("Notification", Label("AWS"), func() {
 		})
 		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 
-		env.ExpectCreated(provider, provisioner, dep)
+		env.ExpectCreated(provisioner, dep)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 1)
 
@@ -165,10 +167,6 @@ var _ = Describe("Notification", Label("AWS"), func() {
 	})
 	It("should terminate the node at the API server when the EC2 instance is terminated", func() {
 		By("Creating a single healthy node with a healthy deployment")
-		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
-		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{
 			Requirements: []v1.NodeSelectorRequirement{
 				{
@@ -191,7 +189,7 @@ var _ = Describe("Notification", Label("AWS"), func() {
 		})
 		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 
-		env.ExpectCreated(provider, provisioner, dep)
+		env.ExpectCreated(provisioner, dep)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 1)
 
@@ -204,10 +202,6 @@ var _ = Describe("Notification", Label("AWS"), func() {
 	})
 	It("should terminate the node when receiving a scheduled change health event", func() {
 		By("Creating a single healthy node with a healthy deployment")
-		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
-		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{
 			Requirements: []v1.NodeSelectorRequirement{
 				{
@@ -230,7 +224,7 @@ var _ = Describe("Notification", Label("AWS"), func() {
 		})
 		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 
-		env.ExpectCreated(provider, provisioner, dep)
+		env.ExpectCreated(provisioner, dep)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 1)
 
@@ -238,7 +232,7 @@ var _ = Describe("Notification", Label("AWS"), func() {
 		instanceID := parseProviderID(node.Spec.ProviderID)
 
 		By("Creating a scheduled change health event in the SQS message queue")
-		env.ExpectMessagesCreated(scheduledChangeMessage(env.MetadataProvider.Region(env.Context), env.MetadataProvider.AccountID(env.Context), instanceID))
+		env.ExpectMessagesCreated(scheduledChangeMessage(env.Region, "000000000000", instanceID))
 		env.EventuallyExpectNotFound(node)
 
 		env.EventuallyExpectHealthyPodCount(selector, 1)

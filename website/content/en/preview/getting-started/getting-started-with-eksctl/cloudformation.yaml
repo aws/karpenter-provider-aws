@@ -82,6 +82,7 @@ Resources:
               - sqs:DeleteQueue
               # Read Operations
               - sqs:GetQueueUrl
+              - sqs:GetQueueAttributes
               - sqs:ReceiveMessage
           - Effect: Allow
             Resource: !Sub "arn:${AWS::Partition}:events:${AWS::Region}:${AWS::AccountId}:rule/Karpenter-${ClusterName}-*"

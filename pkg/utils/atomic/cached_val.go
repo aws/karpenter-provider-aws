@@ -39,14 +39,15 @@ type CachedVal[T any] struct {
 	Resolve func(context.Context) (T, error)
 }
 
+// Set assigns the passed value
 func (c *CachedVal[T]) Set(v T) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.value = &v
 }
 
-// TryGet attempts to get non-nil value from internal value. If field is nil, the function
-// will attempt to resolve the value by calling fallback, setting the value stored in value in-place if found.
+// TryGet attempts to get a non-nil value from the internal value. If the internal value is nil, the Resolve function
+// will attempt to resolve the value, setting the value to be persistently stored if the resolve of Resolve is non-nil.
 func (c *CachedVal[T]) TryGet(ctx context.Context, opts ...Option) (T, error) {
 	o := resolveOptions(opts)
 	c.mu.RLock()
@@ -69,7 +70,7 @@ func (c *CachedVal[T]) TryGet(ctx context.Context, opts ...Option) (T, error) {
 	if err != nil {
 		return *new(T), err
 	}
-	c.value = ptr.Val(ret) // copies the value so we don't keep the reference
+	c.value = ptr.To(ret) // copies the value so we don't keep the reference
 	return ret, nil
 }
 

@@ -18,7 +18,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/eventbridge"
@@ -32,9 +31,8 @@ import (
 )
 
 type EventBridgeProvider struct {
-	client           eventbridgeiface.EventBridgeAPI
-	queueName        string
-	metadataProvider *MetadataProvider
+	client      eventbridgeiface.EventBridgeAPI
+	sqsProvider *SQSProvider
 }
 
 type EventRule struct {
@@ -42,6 +40,8 @@ type EventRule struct {
 	Pattern *EventPattern
 	Target  *EventTarget
 }
+
+const QueueTargetID = "KarpenterEventQueue"
 
 type EventTarget struct {
 	ID  string
@@ -57,16 +57,19 @@ func (ep *EventPattern) Serialize() []byte {
 	return lo.Must(json.Marshal(ep))
 }
 
-func NewEventBridgeProvider(eb eventbridgeiface.EventBridgeAPI, metadataProvider *MetadataProvider, queueName string) *EventBridgeProvider {
+func NewEventBridgeProvider(eb eventbridgeiface.EventBridgeAPI, sqsProvider *SQSProvider) *EventBridgeProvider {
 	return &EventBridgeProvider{
-		client:           eb,
-		metadataProvider: metadataProvider,
-		queueName:        queueName,
+		client:      eb,
+		sqsProvider: sqsProvider,
 	}
 }
 
 func (eb *EventBridgeProvider) CreateEC2NotificationRules(ctx context.Context) error {
-	rules := eb.getEC2NotificationEventRules(ctx)
+	queueARN, err := eb.sqsProvider.queueARN.TryGet(ctx)
+	if err != nil {
+		return fmt.Errorf("resolving queue arn, %w", err)
+	}
+	rules := lo.Map(eb.getEC2NotificationEventRules(ctx), func(r EventRule, _ int) EventRule { return r.AddQueueTarget(queueARN) })
 	errs := make([]error, len(rules))
 	workqueue.ParallelizeUntil(ctx, len(rules), len(rules), func(i int) {
 		_, err := eb.client.PutRuleWithContext(ctx, &eventbridge.PutRuleInput{
@@ -98,38 +101,28 @@ func (eb *EventBridgeProvider) CreateEC2NotificationRules(ctx context.Context) e
 	return multierr.Combine(errs...)
 }
 
-func (eb *EventBridgeProvider) DeleteEC2NotificationRules(ctx context.Context) (err error) {
-	wg := &sync.WaitGroup{}
-	m := &sync.Mutex{}
-	for _, rule := range eb.getEC2NotificationEventRules(ctx) {
-		wg.Add(1)
-		go func(r EventRule) {
-			defer wg.Done()
-			targetInput := &eventbridge.RemoveTargetsInput{
-				Ids:  []*string{aws.String(r.Target.ID)},
-				Rule: aws.String(r.Name),
-			}
-			_, e := eb.client.RemoveTargetsWithContext(ctx, targetInput)
-			if e != nil && !IsNotFound(e) {
-				m.Lock()
-				err = multierr.Append(err, e)
-				m.Unlock()
-				return
-			}
-			ruleInput := &eventbridge.DeleteRuleInput{
-				Name: aws.String(r.Name),
-			}
-			_, e = eb.client.DeleteRuleWithContext(ctx, ruleInput)
-			if e != nil && !IsNotFound(e) {
-				m.Lock()
-				err = multierr.Append(err, e)
-				m.Unlock()
-				return
-			}
-		}(rule)
-	}
-	wg.Wait()
-	return err
+func (eb *EventBridgeProvider) DeleteEC2NotificationRules(ctx context.Context) error {
+	rules := eb.getEC2NotificationEventRules(ctx)
+	errs := make([]error, len(rules))
+	workqueue.ParallelizeUntil(ctx, len(rules), len(rules), func(i int) {
+		targetInput := &eventbridge.RemoveTargetsInput{
+			Ids:  []*string{aws.String(QueueTargetID)},
+			Rule: aws.String(rules[i].Name),
+		}
+		_, err := eb.client.RemoveTargetsWithContext(ctx, targetInput)
+		if err != nil && !IsNotFound(err) {
+			errs[i] = err
+			return
+		}
+		ruleInput := &eventbridge.DeleteRuleInput{
+			Name: aws.String(rules[i].Name),
+		}
+		_, err = eb.client.DeleteRuleWithContext(ctx, ruleInput)
+		if err != nil && !IsNotFound(err) {
+			errs[i] = err
+		}
+	})
+	return multierr.Combine(errs...)
 }
 
 func (eb *EventBridgeProvider) getEC2NotificationEventRules(ctx context.Context) []EventRule {
@@ -140,20 +133,12 @@ func (eb *EventBridgeProvider) getEC2NotificationEventRules(ctx context.Context)
 				Source:     []string{"aws.health"},
 				DetailType: []string{"AWS Health Event"},
 			},
-			Target: &EventTarget{
-				ID:  "1",
-				ARN: eb.getQueueARN(ctx),
-			},
 		},
 		{
 			Name: fmt.Sprintf("Karpenter-%s-SpotTerminationRule", injection.GetOptions(ctx).ClusterName),
 			Pattern: &EventPattern{
 				Source:     []string{"aws.ec2"},
 				DetailType: []string{"EC2 Spot Instance Interruption Warning"},
-			},
-			Target: &EventTarget{
-				ID:  "1",
-				ARN: eb.getQueueARN(ctx),
 			},
 		},
 		{
@@ -162,10 +147,6 @@ func (eb *EventBridgeProvider) getEC2NotificationEventRules(ctx context.Context)
 				Source:     []string{"aws.ec2"},
 				DetailType: []string{"EC2 Instance Rebalance Recommendation"},
 			},
-			Target: &EventTarget{
-				ID:  "1",
-				ARN: eb.getQueueARN(ctx),
-			},
 		},
 		{
 			Name: fmt.Sprintf("Karpenter-%s-InstanceStateChangeRule", injection.GetOptions(ctx).ClusterName),
@@ -173,14 +154,14 @@ func (eb *EventBridgeProvider) getEC2NotificationEventRules(ctx context.Context)
 				Source:     []string{"aws.ec2"},
 				DetailType: []string{"EC2 Instance State-change Notification"},
 			},
-			Target: &EventTarget{
-				ID:  "1",
-				ARN: eb.getQueueARN(ctx),
-			},
 		},
 	}
 }
 
-func (eb *EventBridgeProvider) getQueueARN(ctx context.Context) string {
-	return fmt.Sprintf("arn:aws:sqs:%s:%s:%s", eb.metadataProvider.Region(ctx), eb.metadataProvider.AccountID(ctx), eb.queueName)
+func (er EventRule) AddQueueTarget(queueARN string) EventRule {
+	er.Target = &EventTarget{
+		ID:  QueueTargetID,
+		ARN: queueARN,
+	}
+	return er
 }

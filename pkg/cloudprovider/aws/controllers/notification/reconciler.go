@@ -115,7 +115,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 	workqueue.ParallelizeUntil(ctx, 10, len(sqsMessages), func(i int) {
 		errs[i] = r.handleMessage(ctx, instanceIDMap, sqsMessages[i])
 	})
-	return reconcile.Result{RequeueAfter: 0}, multierr.Combine(errs...)
+	return reconcile.Result{RequeueAfter: polling.Immediate}, multierr.Combine(errs...)
 }
 
 // handleMessage gets the node names of the instances involved in the queue message and takes the

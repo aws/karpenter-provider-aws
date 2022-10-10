@@ -96,13 +96,13 @@ func (p *Provider) ensureQueue(ctx context.Context) error {
 				return fmt.Errorf("creating sqs queue with policy, %w", err)
 			}
 			logging.FromContext(ctx).Debugf("Successfully created the SQS notification queue")
-			return nil
 		case aws.IsAccessDenied(err):
 			return fmt.Errorf("failed obtaining permission to discover sqs queue url, %w", err)
 		default:
 			return fmt.Errorf("failed discovering sqs queue url, %w", err)
 		}
 	}
+	// Always attempt to set the queue attributes, even after creation to help set the queue policy
 	if err := p.sqsProvider.SetQueueAttributes(ctx); err != nil {
 		return fmt.Errorf("setting queue attributes for queue, %w", err)
 	}

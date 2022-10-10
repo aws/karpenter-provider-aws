@@ -95,7 +95,7 @@ func (c *config) BatchIdleDuration() time.Duration {
 func (c *config) EnableInterruptionHandling() bool {
 	c.dataMu.RLock()
 	defer c.dataMu.RUnlock()
-	return c.enableInterruptionHandling
+	return true
 }
 
 func New(ctx context.Context, kubeClient *kubernetes.Clientset, iw *informer.InformedWatcher) (Config, error) {
