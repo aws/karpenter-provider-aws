@@ -17,6 +17,7 @@ package termination
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"k8s.io/utils/clock"
@@ -69,6 +70,7 @@ type Controller struct {
 	Terminator        *Terminator
 	KubeClient        client.Client
 	Recorder          events.Recorder
+	mu                sync.Mutex
 	TerminationRecord sets.String
 }
 
@@ -97,7 +99,9 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	node := &v1.Node{}
 	if err := c.KubeClient.Get(ctx, req.NamespacedName, node); err != nil {
 		if errors.IsNotFound(err) {
+			c.mu.Lock()
 			c.TerminationRecord.Delete(req.String())
+			c.mu.Unlock()
 			return reconcile.Result{}, nil
 		}
 		return reconcile.Result{}, err
@@ -127,11 +131,13 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, fmt.Errorf("terminating node %s, %w", node.Name, err)
 	}
 
+	c.mu.Lock()
 	// 6. Record termination duration (time between deletion timestamp and finalizer removal)
 	if !c.TerminationRecord.Has(req.String()) {
 		c.TerminationRecord.Insert(req.String())
 		terminationSummary.Observe(time.Since(node.DeletionTimestamp.Time).Seconds())
 	}
+	c.mu.Unlock()
 
 	return reconcile.Result{}, nil
 }
