@@ -17,6 +17,7 @@ package termination_test
 import (
 	"context"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -101,6 +102,22 @@ var _ = Describe("Termination", func() {
 			Expect(env.Client.Delete(ctx, node)).To(Succeed())
 			node = ExpectNodeExists(ctx, env.Client, node.Name)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
+			ExpectNotFound(ctx, env.Client, node)
+		})
+		It("should not race if deleting nodes in parallel", func() {
+			ExpectApplied(ctx, env.Client, node)
+			Expect(env.Client.Delete(ctx, node)).To(Succeed())
+			node = ExpectNodeExists(ctx, env.Client, node.Name)
+			var wg sync.WaitGroup
+			// this is enough to trip the race detector
+			for i := 0; i < 10; i++ {
+				wg.Add(1)
+				go func() {
+					ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
+					wg.Done()
+				}()
+			}
+			wg.Wait()
 			ExpectNotFound(ctx, env.Client, node)
 		})
 		It("should exclude nodes from load balancers when terminating", func() {
