@@ -105,20 +105,31 @@ var _ = Describe("Termination", func() {
 			ExpectNotFound(ctx, env.Client, node)
 		})
 		It("should not race if deleting nodes in parallel", func() {
-			ExpectApplied(ctx, env.Client, node)
-			Expect(env.Client.Delete(ctx, node)).To(Succeed())
-			node = ExpectNodeExists(ctx, env.Client, node.Name)
+			var nodes []*v1.Node
+			for i := 0; i < 10; i++ {
+				node = test.Node(test.NodeOptions{
+					ObjectMeta: metav1.ObjectMeta{
+						Finalizers: []string{v1alpha5.TerminationFinalizer},
+					},
+				})
+				ExpectApplied(ctx, env.Client, node)
+				Expect(env.Client.Delete(ctx, node)).To(Succeed())
+				node = ExpectNodeExists(ctx, env.Client, node.Name)
+				nodes = append(nodes, node)
+			}
+
 			var wg sync.WaitGroup
 			// this is enough to trip the race detector
 			for i := 0; i < 10; i++ {
 				wg.Add(1)
-				go func() {
+				go func(node *v1.Node) {
+					defer GinkgoRecover()
+					defer wg.Done()
 					ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
-					wg.Done()
-				}()
+				}(nodes[i])
 			}
 			wg.Wait()
-			ExpectNotFound(ctx, env.Client, node)
+			ExpectNotFound(ctx, env.Client, lo.Map(nodes, func(n *v1.Node, _ int) client.Object { return n })...)
 		})
 		It("should exclude nodes from load balancers when terminating", func() {
 			// This is a kludge to prevent the node from being deleted before we can
