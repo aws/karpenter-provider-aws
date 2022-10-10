@@ -68,7 +68,7 @@ coverage:
 	go tool cover -html coverage.out -o coverage.html
 
 verify: tidy download codegen ## Verify code. Includes dependencies, linting, formatting, etc
-	golangci-lint run
+	$(foreach dir,$(MOD_DIRS),cd $(dir) && golangci-lint run $(newline))
 	@git diff --quiet ||\
 		{ echo "New file modification detected in the Git working tree. Please check in before commit.";\
 		if [ $(MAKECMDGOALS) = 'ci' ]; then\
@@ -143,11 +143,14 @@ website: ## Serve the docs website locally
 	cd website && npm install && git submodule update --init --recursive && hugo server
 
 tidy: ## Recursively "go mod tidy" on all directories where go.mod exists
-	@echo go mod tidy
-	$(foreach dir,$(MOD_DIRS),$(shell cd $(dir) && go mod tidy))
+	$(foreach dir,$(MOD_DIRS),cd $(dir) && go mod tidy $(newline))
 
 download: ## Recursively "go mod download" on all directories where go.mod exists
-	@echo go mod download
-	$(foreach dir,$(MOD_DIRS),$(shell cd $(dir) && go mod download))
+	$(foreach dir,$(MOD_DIRS),cd $(dir) && go mod download $(newline))
 
 .PHONY: help dev ci release test battletest e2etests verify tidy download codegen docgen apply delete toolchain licenses issues website nightly snapshot
+
+define newline
+
+
+endef
