@@ -12,4 +12,28 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package nodetemplate_test
+package noop
+
+import (
+	"time"
+
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event"
+)
+
+type NoOp event.AWSMetadata
+
+func (NoOp) EventID() string {
+	return ""
+}
+
+func (NoOp) EC2InstanceIDs() []string {
+	return []string{}
+}
+
+func (NoOp) Kind() event.Kind {
+	return event.NoOpKind
+}
+
+func (NoOp) StartTime() time.Time {
+	return time.Now()
+}

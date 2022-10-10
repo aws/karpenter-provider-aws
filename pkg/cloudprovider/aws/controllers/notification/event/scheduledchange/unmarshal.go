@@ -15,10 +15,6 @@ limitations under the License.
 package scheduledchange
 
 import (
-	"go.uber.org/multierr"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
-
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event"
 )
 
@@ -28,11 +24,6 @@ type AWSEvent struct {
 	event.AWSMetadata
 
 	Detail AWSHealthEventDetail `json:"detail"`
-}
-
-func (e AWSEvent) MarshalLogObject(enc zapcore.ObjectEncoder) error {
-	zap.Inline(e.AWSMetadata).AddTo(enc)
-	return enc.AddObject("detail", e.Detail)
 }
 
 type AWSHealthEventDetail struct {
@@ -46,44 +37,11 @@ type AWSHealthEventDetail struct {
 	AffectedEntities  []AffectedEntity   `json:"affectedEntities"`
 }
 
-func (e AWSHealthEventDetail) MarshalLogObject(enc zapcore.ObjectEncoder) (err error) {
-	enc.AddString("eventArn", e.EventARN)
-	enc.AddString("eventTypeCode", e.EventTypeCode)
-	enc.AddString("eventTypeCategory", e.EventTypeCategory)
-	enc.AddString("service", e.Service)
-	enc.AddString("startTime", e.StartTime)
-	enc.AddString("endTime", e.EndTime)
-	err = multierr.Append(err, enc.AddArray("eventDescription", zapcore.ArrayMarshalerFunc(func(enc zapcore.ArrayEncoder) (err error) {
-		for _, desc := range e.EventDescription {
-			err = multierr.Append(err, enc.AppendObject(desc))
-		}
-		return err
-	})))
-	err = multierr.Append(err, enc.AddArray("affectedEntities", zapcore.ArrayMarshalerFunc(func(enc zapcore.ArrayEncoder) (err error) {
-		for _, entity := range e.AffectedEntities {
-			err = multierr.Append(err, enc.AppendObject(entity))
-		}
-		return err
-	})))
-	return err
-}
-
 type EventDescription struct {
 	LatestDescription string `json:"latestDescription"`
 	Language          string `json:"language"`
 }
 
-func (e EventDescription) MarshalLogObject(enc zapcore.ObjectEncoder) error {
-	enc.AddString("latestDescription", e.LatestDescription)
-	enc.AddString("language", e.Language)
-	return nil
-}
-
 type AffectedEntity struct {
 	EntityValue string `json:"entityValue"`
-}
-
-func (e AffectedEntity) MarshalLogObject(enc zapcore.ObjectEncoder) error {
-	enc.AddString("entityValue", e.EntityValue)
-	return nil
 }

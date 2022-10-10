@@ -15,17 +15,40 @@ limitations under the License.
 package aggregatedparser
 
 import (
-	"context"
 	"encoding/json"
+	"fmt"
 
-	"knative.dev/pkg/logging"
+	"github.com/samber/lo"
 
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/noop"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/rebalancerecommendation"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/scheduledchange"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/spotinterruption"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/statechange"
 )
+
+type parserKey struct {
+	Version    string
+	Source     string
+	DetailType string
+}
+
+func newParserKey(metadata event.AWSMetadata) parserKey {
+	return parserKey{
+		Version:    metadata.Version,
+		Source:     metadata.Source,
+		DetailType: metadata.DetailType,
+	}
+}
+
+func newParserKeyFromParser(p event.Parser) parserKey {
+	return parserKey{
+		Version:    p.Version(),
+		Source:     p.Source(),
+		DetailType: p.DetailType(),
+	}
+}
 
 var (
 	DefaultParsers = []event.Parser{
@@ -36,33 +59,35 @@ var (
 	}
 )
 
-type AggregatedParser []event.Parser
-
-func NewAggregatedParser(parsers ...event.Parser) AggregatedParser {
-	return parsers
+type AggregatedParser struct {
+	parserMap map[parserKey]event.Parser
 }
 
-func (p AggregatedParser) Parse(ctx context.Context, str string) event.Interface {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("event.parser"))
-
-	if str == "" {
-		return event.NoOp{}
+func NewAggregatedParser(parsers ...event.Parser) AggregatedParser {
+	return AggregatedParser{
+		parserMap: lo.SliceToMap(parsers, func(p event.Parser) (parserKey, event.Parser) {
+			return newParserKeyFromParser(p), p
+		}),
 	}
+}
 
-	// We will go through all the parsers to see if we can parse
-	// If we aren't able to parse the message, we will just assume that it is a no-op
-	for _, parser := range p {
-		if a := parser.Parse(ctx, str); a != nil {
-			return a
-		}
+func (p AggregatedParser) Parse(msg string) (event.Interface, error) {
+	if msg == "" {
+		return noop.NoOp{}, nil
 	}
-
 	md := event.AWSMetadata{}
-	if err := json.Unmarshal([]byte(str), &md); err != nil {
-		logging.FromContext(ctx).
-			With("error", err).
-			Error("failed to unmarshal message metadata")
-		return event.NoOp{}
+	if err := json.Unmarshal([]byte(msg), &md); err != nil {
+		return noop.NoOp{}, fmt.Errorf("unmarshalling the message as AWSMetadata, %w", err)
 	}
-	return event.NoOp(md)
+	if parser, ok := p.parserMap[newParserKey(md)]; ok {
+		evt, err := parser.Parse(msg)
+		if err != nil {
+			return noop.NoOp{}, fmt.Errorf("parsing event message, %w", err)
+		}
+		if evt == nil {
+			return noop.NoOp{}, nil
+		}
+		return evt, nil
+	}
+	return noop.NoOp(md), nil
 }

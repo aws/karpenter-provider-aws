@@ -38,9 +38,9 @@ func Register(ctx context.Context, provider *aws.CloudProvider, opts *controller
 		infraProvider := infrastructure.NewProvider(provider.SQSProvider(), provider.EventBridgeProvider())
 		infraController := polling.NewController(infrastructure.NewReconciler(infraProvider)).WithHealth()
 		notificationController := polling.NewController(notification.NewReconciler(opts.KubeClient, rec, opts.Cluster, provider.SQSProvider(), provider.InstanceTypeProvider(), infraController))
+		infraController.OnHealthy = notificationController.Start
 		nodeTemplateController := nodetemplate.NewController(opts.KubeClient, infraProvider, infraController, notificationController)
 
-		infraController.OnHealthy = notificationController.Start
 		ret = append(ret, infraController, notificationController, nodeTemplateController)
 	}
 	return ret

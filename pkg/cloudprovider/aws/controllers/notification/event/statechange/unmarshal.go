@@ -15,9 +15,6 @@ limitations under the License.
 package statechange
 
 import (
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
-
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event"
 )
 
@@ -29,18 +26,7 @@ type AWSEvent struct {
 	Detail EC2InstanceStateChangeNotificationDetail `json:"detail"`
 }
 
-func (e AWSEvent) MarshalLogObject(enc zapcore.ObjectEncoder) error {
-	zap.Inline(e.AWSMetadata).AddTo(enc)
-	return enc.AddObject("detail", e.Detail)
-}
-
 type EC2InstanceStateChangeNotificationDetail struct {
 	InstanceID string `json:"instance-id"`
 	State      string `json:"state"`
-}
-
-func (e EC2InstanceStateChangeNotificationDetail) MarshalLogObject(enc zapcore.ObjectEncoder) error {
-	enc.AddString("instance-id", e.InstanceID)
-	enc.AddString("state", e.State)
-	return nil
 }

@@ -75,7 +75,7 @@ func NewAWSEnvironment(env *Environment, err error) (*AWSEnvironment, error) {
 		return nil, err
 	}
 	session := session.Must(session.NewSessionWithOptions(session.Options{SharedConfigState: session.SharedConfigEnable}))
-	metadataProvider := aws.NewMetadataProvider(aws.NewEC2MetadataClient(session), sts.New(session))
+	metadataProvider := aws.NewMetadataProvider(session, aws.NewEC2MetadataClient(session), sts.New(session))
 
 	return &AWSEnvironment{
 		Environment:      env,

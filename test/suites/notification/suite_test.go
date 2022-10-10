@@ -112,8 +112,10 @@ var _ = Describe("Notification", Label("AWS"), func() {
 				}
 				fmt.Printf("[FIS EVENT MONITOR] %s\n", event.Message)
 			case <-done:
+				fmt.Println("done channel closed")
 				return
 			case <-ctx.Done():
+				fmt.Println("context canceled")
 				return
 			}
 		}()

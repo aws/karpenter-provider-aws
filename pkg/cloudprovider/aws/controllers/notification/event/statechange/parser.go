@@ -15,8 +15,8 @@ limitations under the License.
 package statechange
 
 import (
-	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -24,27 +24,31 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event"
 )
 
-const (
-	source     = "aws.ec2"
-	detailType = "EC2 Instance State-change Notification"
-	version    = "0"
-)
-
 var acceptedStates = sets.NewString("stopping", "stopped", "shutting-down", "terminated")
 
 type Parser struct{}
 
-func (Parser) Parse(ctx context.Context, str string) event.Interface {
+func (p Parser) Parse(msg string) (event.Interface, error) {
 	evt := EC2InstanceStateChangeNotification{}
-	if err := json.Unmarshal([]byte(str), &evt); err != nil {
-		return nil
+	if err := json.Unmarshal([]byte(msg), &evt); err != nil {
+		return nil, fmt.Errorf("unmarhsalling the message as EC2InstanceStateChangeNotification, %w", err)
 	}
 
-	if evt.Source != source || evt.DetailType != detailType || evt.Version != version {
-		return nil
-	}
+	// We ignore states that are not in the set of states we can react to
 	if !acceptedStates.Has(strings.ToLower(evt.Detail.State)) {
-		return nil
+		return nil, nil
 	}
-	return evt
+	return evt, nil
+}
+
+func (p Parser) Version() string {
+	return "0"
+}
+
+func (p Parser) Source() string {
+	return "aws.ec2"
+}
+
+func (p Parser) DetailType() string {
+	return "EC2 Instance State-change Notification"
 }

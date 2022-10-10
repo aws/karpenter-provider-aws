@@ -17,9 +17,6 @@ package rebalancerecommendation
 import (
 	"time"
 
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
-
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event"
 )
 
@@ -35,11 +32,6 @@ func (e EC2InstanceRebalanceRecommendation) EC2InstanceIDs() []string {
 
 func (EC2InstanceRebalanceRecommendation) Kind() event.Kind {
 	return event.RebalanceRecommendationKind
-}
-
-func (e EC2InstanceRebalanceRecommendation) MarshalLogObject(enc zapcore.ObjectEncoder) error {
-	zap.Inline(AWSEvent(e)).AddTo(enc)
-	return nil
 }
 
 func (e EC2InstanceRebalanceRecommendation) StartTime() time.Time {

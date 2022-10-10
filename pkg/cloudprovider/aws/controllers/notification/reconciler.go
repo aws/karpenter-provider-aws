@@ -41,6 +41,7 @@ import (
 	"github.com/aws/karpenter/pkg/controllers"
 	"github.com/aws/karpenter/pkg/controllers/polling"
 	"github.com/aws/karpenter/pkg/controllers/state"
+	"github.com/aws/karpenter/pkg/metrics"
 )
 
 type Action = string
@@ -63,7 +64,7 @@ type Reconciler struct {
 	recorder             events.Recorder
 	provider             *aws.SQSProvider
 	instanceTypeProvider *aws.InstanceTypeProvider
-	parser               event.Parser
+	parser               aggregatedparser.AggregatedParser
 
 	infraController polling.ControllerWithHealthInterface
 }
@@ -114,17 +115,28 @@ func (r *Reconciler) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 	workqueue.ParallelizeUntil(ctx, 10, len(sqsMessages), func(i int) {
 		errs[i] = r.handleMessage(ctx, instanceIDMap, sqsMessages[i])
 	})
-	return reconcile.Result{RequeueAfter: pollingPeriod}, multierr.Combine(errs...)
+	return reconcile.Result{RequeueAfter: 0}, multierr.Combine(errs...)
 }
 
 // handleMessage gets the node names of the instances involved in the queue message and takes the
 // assigned action on the instances based on the message event
-func (r *Reconciler) handleMessage(ctx context.Context, instanceIDMap map[string]*v1.Node, msg *sqsapi.Message) (err error) {
+func (r *Reconciler) handleMessage(ctx context.Context, instanceIDMap map[string]*v1.Node, msg *sqsapi.Message) error {
 	// No message to parse in this case
 	if msg == nil || msg.Body == nil {
 		return nil
 	}
-	evt := r.parser.Parse(ctx, *msg.Body)
+	evt, err := r.parser.Parse(*msg.Body)
+	if err != nil {
+		// In the scenario where we can't parse the message, we log that we have an error and then are
+		// forced to just delete the message from the queue
+		logging.FromContext(ctx).Errorf("parsing sqs message, %v", err)
+		err = r.provider.DeleteSQSMessage(ctx, msg)
+		if err != nil {
+			return fmt.Errorf("failed to delete message from queue, %w", err)
+		}
+		deletedMessages.Inc()
+		return nil
+	}
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("event", evt.Kind()))
 
 	nodes := getInvolvedNodes(evt.EC2InstanceIDs(), instanceIDMap)
@@ -138,7 +150,7 @@ func (r *Reconciler) handleMessage(ctx context.Context, instanceIDMap map[string
 			return fmt.Errorf("failed to delete message from queue, %w", err)
 		}
 		deletedMessages.Inc()
-		return
+		return nil
 	}
 	receivedMessages.WithLabelValues(evt.Kind().String(), "true").Inc()
 
@@ -187,10 +199,11 @@ func (r *Reconciler) handleNode(ctx context.Context, evt event.Interface, node *
 }
 
 func (r *Reconciler) deleteInstance(ctx context.Context, node *v1.Node) error {
-	r.recorder.TerminatingNodeOnNotification(node)
 	if err := r.kubeClient.Delete(ctx, node); err != nil {
 		return fmt.Errorf("deleting the node on notification, %w", err)
 	}
+	r.recorder.TerminatingNodeOnNotification(node)
+	metrics.NodesTerminatedCounter.WithLabelValues(terminationReasonLabel).Inc()
 	return nil
 }
 
@@ -218,7 +231,7 @@ func (r *Reconciler) notifyForEvent(evt event.Interface, n *v1.Node) {
 }
 
 // makeInstanceIDMap builds a map between the instance id that is stored in the
-// node .sper.providerID and the node name stored on the host
+// node .spec.providerID and the node name stored on the host
 func (r *Reconciler) makeInstanceIDMap() map[string]*v1.Node {
 	m := map[string]*v1.Node{}
 	r.cluster.ForEachNode(func(n *state.Node) bool {

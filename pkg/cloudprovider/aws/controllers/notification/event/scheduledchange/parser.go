@@ -15,36 +15,41 @@ limitations under the License.
 package scheduledchange
 
 import (
-	"context"
 	"encoding/json"
+	"fmt"
 
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event"
 )
 
 const (
-	source                    = "aws.health"
-	detailType                = "AWS Health Event"
-	version                   = "0"
 	acceptedService           = "EC2"
 	acceptedEventTypeCategory = "scheduledChange"
 )
 
 type Parser struct{}
 
-func (Parser) Parse(ctx context.Context, str string) event.Interface {
+func (p Parser) Parse(msg string) (event.Interface, error) {
 	evt := AWSHealthEvent{}
-	if err := json.Unmarshal([]byte(str), &evt); err != nil {
-		return nil
+	if err := json.Unmarshal([]byte(msg), &evt); err != nil {
+		return nil, fmt.Errorf("unmarhsalling the message as AWSHealthEvent, %w", err)
 	}
 
-	if evt.Source != source || evt.DetailType != detailType || evt.Version != version {
-		return nil
+	// We ignore services and event categories that we don't watch
+	if evt.Detail.Service != acceptedService ||
+		evt.Detail.EventTypeCategory != acceptedEventTypeCategory {
+		return nil, nil
 	}
-	if evt.Detail.Service != acceptedService {
-		return nil
-	}
-	if evt.Detail.EventTypeCategory != acceptedEventTypeCategory {
-		return nil
-	}
-	return evt
+	return evt, nil
+}
+
+func (p Parser) Version() string {
+	return "0"
+}
+
+func (p Parser) Source() string {
+	return "aws.health"
+}
+
+func (p Parser) DetailType() string {
+	return "AWS Health Event"
 }

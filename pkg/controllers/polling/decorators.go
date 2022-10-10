@@ -16,9 +16,10 @@ package polling
 
 import (
 	"context"
-	"sync"
+	"sync/atomic"
 
 	"github.com/prometheus/client_golang/prometheus"
+	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -37,8 +38,7 @@ type ControllerWithHealthInterface interface {
 type ControllerWithHealth struct {
 	*Controller
 
-	healthy   bool
-	healthyMu sync.RWMutex
+	healthy atomic.Bool
 
 	OnHealthy   func(context.Context)
 	OnUnhealthy func(context.Context)
@@ -51,16 +51,13 @@ func NewControllerWithHealth(c *Controller) *ControllerWithHealth {
 }
 
 func (c *ControllerWithHealth) Healthy() bool {
-	c.healthyMu.RLock()
-	defer c.healthyMu.RUnlock()
-	return c.healthy
+	return c.healthy.Load()
 }
 
 func (c *ControllerWithHealth) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	res, err := c.Controller.Reconcile(ctx, req)
-	c.healthyMu.Lock()
-	c.healthy = err == nil // The controller is considered healthy when it successfully reconciles
-	if c.healthy {
+	healthy := err == nil // The controller is considered healthy when it successfully reconciles
+	if healthy {
 		if c.OnHealthy != nil {
 			c.OnHealthy(ctx)
 		}
@@ -71,13 +68,17 @@ func (c *ControllerWithHealth) Reconcile(ctx context.Context, req reconcile.Requ
 		}
 		c.healthyMetric().Set(0)
 	}
-	c.healthyMu.Unlock()
+	c.healthy.Store(healthy)
 	return res, err
 }
 
-func (c *ControllerWithHealth) Register(ctx context.Context, m manager.Manager) error {
+func (c *ControllerWithHealth) Builder(ctx context.Context, m manager.Manager) *controllerruntime.Builder {
 	crmetrics.Registry.MustRegister(c.healthyMetric())
-	return c.Controller.Register(ctx, m)
+	return c.Controller.Builder(ctx, m)
+}
+
+func (c *ControllerWithHealth) Register(ctx context.Context, m manager.Manager) error {
+	return c.Builder(ctx, m).Complete(c)
 }
 
 func (c *ControllerWithHealth) healthyMetric() prometheus.Gauge {

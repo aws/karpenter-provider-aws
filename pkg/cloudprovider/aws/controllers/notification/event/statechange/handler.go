@@ -17,9 +17,6 @@ package statechange
 import (
 	"time"
 
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
-
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event"
 )
 
@@ -39,11 +36,6 @@ func (e EC2InstanceStateChangeNotification) State() string {
 
 func (EC2InstanceStateChangeNotification) Kind() event.Kind {
 	return event.StateChangeKind
-}
-
-func (e EC2InstanceStateChangeNotification) MarshalLogObject(enc zapcore.ObjectEncoder) error {
-	zap.Inline(AWSEvent(e)).AddTo(enc)
-	return nil
 }
 
 func (e EC2InstanceStateChangeNotification) StartTime() time.Time {

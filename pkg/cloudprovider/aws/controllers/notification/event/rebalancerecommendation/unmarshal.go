@@ -15,9 +15,6 @@ limitations under the License.
 package rebalancerecommendation
 
 import (
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
-
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event"
 )
 
@@ -29,16 +26,6 @@ type AWSEvent struct {
 	Detail EC2InstanceRebalanceRecommendationDetail `json:"detail"`
 }
 
-func (e AWSEvent) MarshalLogObject(enc zapcore.ObjectEncoder) error {
-	zap.Inline(e.AWSMetadata).AddTo(enc)
-	return enc.AddObject("detail", e.Detail)
-}
-
 type EC2InstanceRebalanceRecommendationDetail struct {
 	InstanceID string `json:"instance-id"`
-}
-
-func (e EC2InstanceRebalanceRecommendationDetail) MarshalLogObject(enc zapcore.ObjectEncoder) error {
-	enc.AddString("instance-id", e.InstanceID)
-	return nil
 }

@@ -15,19 +15,18 @@ limitations under the License.
 package event
 
 import (
-	"context"
 	"fmt"
-
-	"go.uber.org/zap/zapcore"
 )
 
 type Parser interface {
-	Parse(context.Context, string) Interface
+	Parse(string) (Interface, error)
+
+	Version() string
+	Source() string
+	DetailType() string
 }
 
 type Interface interface {
-	zapcore.ObjectMarshaler
-
 	EC2InstanceIDs() []string
 	Kind() Kind
 }

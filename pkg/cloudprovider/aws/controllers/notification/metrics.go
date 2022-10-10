@@ -22,10 +22,11 @@ import (
 )
 
 const (
-	subsystem           = "aws_notification_controller"
-	messageTypeLabel    = "message_type"
-	actionableTypeLabel = "actionable"
-	actionTypeLabel     = "action_type"
+	subsystem              = "aws_notification_controller"
+	messageTypeLabel       = "message_type"
+	actionableTypeLabel    = "actionable"
+	actionTypeLabel        = "action_type"
+	terminationReasonLabel = "interruption"
 )
 
 var (

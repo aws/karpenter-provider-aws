@@ -17,6 +17,7 @@ package polling
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
@@ -42,6 +43,8 @@ import (
 type ControllerInterface interface {
 	controllers.Controller
 
+	Builder(context.Context, manager.Manager) *controllerruntime.Builder
+
 	Start(context.Context)
 	Stop(context.Context)
 	Trigger()
@@ -57,13 +60,11 @@ type Controller struct {
 	r    controllers.Reconciler
 	uuid types.UID
 
+	mu     sync.RWMutex
 	active bool
 
-	triggerGeneration int64
+	triggerGeneration atomic.Int64
 	trigger           chan event.GenericEvent
-
-	triggerMu sync.RWMutex
-	activeMu  sync.RWMutex
 
 	cancels sync.Map
 }
@@ -83,42 +84,37 @@ func NewController(rec controllers.Reconciler) *Controller {
 
 // WithHealth returns a decorated version of the polling controller that surfaces health information
 // based on the success or failure of a reconciliation loop
-func (t *Controller) WithHealth() *ControllerWithHealth {
-	return NewControllerWithHealth(t)
+func (c *Controller) WithHealth() *ControllerWithHealth {
+	return NewControllerWithHealth(c)
 }
 
 // Start is an idempotent call to kick-off a single reconciliation loop. Based on the intended use of this controller,
 // the Reconciler is responsible for requeuing this message back in the WorkQueue so there is a time-based reconciliation
 // performed. The Trigger operation is performed to kick-off the loop.
-func (t *Controller) Start(ctx context.Context) {
-	logging.FromContext(ctx).Infof("Starting the %s controller...", t.r.Metadata().Name)
-	t.activeMu.Lock()
-	if !t.active {
-		t.active = true
-		t.activeMu.Unlock()
-		t.Trigger()
-	} else {
-		t.activeMu.Unlock()
+func (c *Controller) Start(ctx context.Context) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if !c.active {
+		logging.FromContext(ctx).Infof("Starting the %s controller...", c.r.Metadata().Name)
+		c.active = true
+		c.Trigger()
 	}
 }
 
 // Trigger triggers an immediate reconciliation by inserting a message into the event channel. We increase the trigger
 // generation here to ensure that any messages that were previously re-queued are thrown away
-func (t *Controller) Trigger() {
-	t.triggerMu.Lock()
-	defer t.triggerMu.Unlock()
-
-	t.triggerGeneration++
-	t.triggeredCountMetric().Inc()
-	obj := &Object{ObjectMeta: metav1.ObjectMeta{Generation: t.triggerGeneration, UID: t.uuid}}
-	t.trigger <- event.GenericEvent{Object: obj}
+func (c *Controller) Trigger() {
+	c.triggeredCountMetric().Inc()
+	obj := &Object{ObjectMeta: metav1.ObjectMeta{Generation: c.triggerGeneration.Add(1), UID: c.uuid}}
+	c.trigger <- event.GenericEvent{Object: obj}
 }
 
 // Stop sets the state of the controller to active and cancel the current reconciliation contexts, if there are any
-func (t *Controller) Stop(ctx context.Context) {
-	logging.FromContext(ctx).Infof("Stopping the %s controller...", t.r.Metadata().Name)
-	t.SetActive(false)
-	t.cancels.Range(func(_ any, c any) bool {
+func (c *Controller) Stop(ctx context.Context) {
+	logging.FromContext(ctx).Infof("Stopping the %s controller...", c.r.Metadata().Name)
+	c.SetActive(false)
+	c.cancels.Range(func(_ any, c any) bool {
 		cancel := c.(context.CancelFunc)
 		cancel()
 		return true
@@ -128,71 +124,72 @@ func (t *Controller) Stop(ctx context.Context) {
 // Active gets whether the controller is active right now. This value is passed down to the wrapped
 // Reconcile method so that the Reconciler can handle cleanup scenarios. The underlying Reconciler is responsible
 // for returning a result with no RequeueAfter to stop its activity
-func (t *Controller) Active() bool {
-	t.activeMu.RLock()
-	defer t.activeMu.RUnlock()
-	return t.active
+func (c *Controller) Active() bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	return c.active
 }
 
 // SetActive sets the active flag on the controller
-func (t *Controller) SetActive(active bool) {
-	t.activeMu.Lock()
-	defer t.activeMu.Unlock()
+func (c *Controller) SetActive(active bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
-	t.active = active
+	c.active = active
 	if active {
-		t.activeMetric().Set(1)
+		c.activeMetric().Set(1)
 	} else {
-		t.activeMetric().Set(0)
+		c.activeMetric().Set(0)
 	}
 }
 
-func (t *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named(t.r.Metadata().Name))
+func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named(c.r.Metadata().Name))
 	ctx, cancel := context.WithCancel(ctx)
 
 	// Store the cancel function for the duration of Reconcile, so we can cancel on a Stop() call
 	cancelID := uuid.New()
-	t.cancels.Store(cancelID, cancel)
-	defer t.cancels.Delete(cancelID)
+	c.cancels.Store(cancelID, cancel)
+	defer c.cancels.Delete(cancelID)
 
-	return t.r.Reconcile(ctx, req)
+	return c.r.Reconcile(ctx, req)
 }
 
-func (t *Controller) Register(_ context.Context, m manager.Manager) error {
-	crmetrics.Registry.MustRegister(t.activeMetric(), t.triggeredCountMetric())
+func (c *Controller) Builder(_ context.Context, m manager.Manager) *controllerruntime.Builder {
+	crmetrics.Registry.MustRegister(c.activeMetric(), c.triggeredCountMetric())
 	return controllerruntime.
 		NewControllerManagedBy(m).
-		Named(t.r.Metadata().Name).
+		Named(c.r.Metadata().Name).
 		WithEventFilter(predicate.NewPredicateFuncs(func(obj client.Object) bool {
-			t.triggerMu.RLock()
-			defer t.triggerMu.RUnlock()
-
 			// UUID comparison is a hacky way to get around the fact that controller-runtime requires
 			// us to perform a watch on some K8s object
-			return obj.GetUID() == t.uuid && obj.GetGeneration() == t.triggerGeneration
+			return obj.GetUID() == c.uuid && obj.GetGeneration() == c.triggerGeneration.Load()
 		})).
-		Watches(&source.Channel{Source: t.trigger}, &handler.EnqueueRequestForObject{}).
-		For(&v1.Pod{}). // controller-runtime requires us to perform a watch on some object, so let's do it on a fundamental component
-		Complete(t)
+		Watches(&source.Channel{Source: c.trigger}, &handler.EnqueueRequestForObject{}).
+		For(&v1.Pod{}) // controller-runtime requires us to perform a watch on some object, so let's do it on a fundamental component
 }
 
-func (t *Controller) activeMetric() prometheus.Gauge {
+func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
+	return c.Builder(ctx, m).Complete(c)
+}
+
+func (c *Controller) activeMetric() prometheus.Gauge {
 	return prometheus.NewGauge(
 		prometheus.GaugeOpts{
 			Namespace: metrics.Namespace,
-			Subsystem: t.r.Metadata().MetricsSubsystem,
+			Subsystem: c.r.Metadata().MetricsSubsystem,
 			Name:      "active",
 			Help:      "Whether the controller is active.",
 		},
 	)
 }
 
-func (t *Controller) triggeredCountMetric() prometheus.Counter {
+func (c *Controller) triggeredCountMetric() prometheus.Counter {
 	return prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Namespace: metrics.Namespace,
-			Subsystem: t.r.Metadata().MetricsSubsystem,
+			Subsystem: c.r.Metadata().MetricsSubsystem,
 			Name:      "trigger_count",
 			Help:      "A counter of the number of times this controller has been triggered.",
 		},

@@ -22,7 +22,8 @@ import (
 	"sync"
 	"time"
 
-	. "github.com/onsi/gomega" //nolint:revive,stylecheck
+	. "github.com/onsi/ginkgo/v2" //nolint:revive,stylecheck
+	. "github.com/onsi/gomega"    //nolint:revive,stylecheck
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"

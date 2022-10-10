@@ -15,28 +15,30 @@ limitations under the License.
 package rebalancerecommendation
 
 import (
-	"context"
 	"encoding/json"
+	"fmt"
 
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event"
 )
 
-const (
-	source     = "aws.ec2"
-	detailType = "EC2 Instance Rebalance Recommendation"
-	version    = "0"
-)
-
 type Parser struct{}
 
-func (Parser) Parse(ctx context.Context, str string) event.Interface {
+func (p Parser) Parse(msg string) (event.Interface, error) {
 	evt := EC2InstanceRebalanceRecommendation{}
-	if err := json.Unmarshal([]byte(str), &evt); err != nil {
-		return nil
+	if err := json.Unmarshal([]byte(msg), &evt); err != nil {
+		return nil, fmt.Errorf("unmarhsalling the message as EC2InstanceRebalanceRecommendation, %w", err)
 	}
+	return evt, nil
+}
 
-	if evt.Source != source || evt.DetailType != detailType || evt.Version != version {
-		return nil
-	}
-	return evt
+func (p Parser) Version() string {
+	return "0"
+}
+
+func (p Parser) Source() string {
+	return "aws.ec2"
+}
+
+func (p Parser) DetailType() string {
+	return "EC2 Instance Rebalance Recommendation"
 }

@@ -46,7 +46,11 @@ func (p *Provider) CreateInfrastructure(ctx context.Context) error {
 	workqueue.ParallelizeUntil(ctx, len(funcs), len(funcs), func(i int) {
 		errs[i] = funcs[i]()
 	})
-	return multierr.Combine(errs...)
+	if err := multierr.Combine(errs...); err != nil {
+		return err
+	}
+	logging.FromContext(ctx).Infof("Successfully completed reconciliation of infrastructure")
+	return nil
 }
 
 // DeleteInfrastructure removes the infrastructure that was stood up and reconciled

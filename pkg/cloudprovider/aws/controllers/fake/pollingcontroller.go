@@ -18,6 +18,7 @@ import (
 	"context"
 	"sync/atomic"
 
+	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -40,6 +41,10 @@ func (c *PollingController) Healthy() bool { return true }
 
 func (c *PollingController) Reconcile(context.Context, reconcile.Request) (reconcile.Result, error) {
 	return reconcile.Result{}, nil
+}
+
+func (c *PollingController) Builder(context.Context, manager.Manager) *controllerruntime.Builder {
+	return nil
 }
 
 func (c *PollingController) Register(context.Context, manager.Manager) error { return nil }

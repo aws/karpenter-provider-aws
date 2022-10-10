@@ -15,9 +15,6 @@ limitations under the License.
 package spotinterruption
 
 import (
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
-
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event"
 )
 
@@ -29,18 +26,7 @@ type AWSEvent struct {
 	Detail EC2SpotInstanceInterruptionWarningDetail `json:"detail"`
 }
 
-func (e AWSEvent) MarshalLogObject(enc zapcore.ObjectEncoder) error {
-	zap.Inline(e.AWSMetadata).AddTo(enc)
-	return enc.AddObject("detail", e.Detail)
-}
-
 type EC2SpotInstanceInterruptionWarningDetail struct {
 	InstanceID     string `json:"instance-id"`
 	InstanceAction string `json:"instance-action"`
-}
-
-func (e EC2SpotInstanceInterruptionWarningDetail) MarshalLogObject(enc zapcore.ObjectEncoder) error {
-	enc.AddString("instance-id", e.InstanceID)
-	enc.AddString("instance-action", e.InstanceAction)
-	return nil
 }

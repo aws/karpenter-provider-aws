@@ -12,34 +12,4 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package event
-
-import (
-	"time"
-
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
-)
-
-type NoOp AWSMetadata
-
-func (NoOp) EventID() string {
-	return ""
-}
-
-func (NoOp) EC2InstanceIDs() []string {
-	return []string{}
-}
-
-func (NoOp) Kind() Kind {
-	return NoOpKind
-}
-
-func (n NoOp) MarshalLogObject(enc zapcore.ObjectEncoder) error {
-	zap.Inline(AWSMetadata(n)).AddTo(enc)
-	return nil
-}
-
-func (NoOp) StartTime() time.Time {
-	return time.Now()
-}
+package polling_test

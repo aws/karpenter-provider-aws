@@ -17,9 +17,6 @@ package scheduledchange
 import (
 	"time"
 
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
-
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event"
 )
 
@@ -39,11 +36,6 @@ func (e AWSHealthEvent) EC2InstanceIDs() []string {
 
 func (AWSHealthEvent) Kind() event.Kind {
 	return event.ScheduledChangeKind
-}
-
-func (e AWSHealthEvent) MarshalLogObject(enc zapcore.ObjectEncoder) error {
-	zap.Inline(AWSEvent(e)).AddTo(enc)
-	return nil
 }
 
 func (e AWSHealthEvent) StartTime() time.Time {

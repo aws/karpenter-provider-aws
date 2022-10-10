@@ -42,8 +42,8 @@ var _ = Describe("Scheduling", func() {
 		nodeSelector := map[string]string{
 			// Well Known
 			v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
-			v1.LabelTopologyRegion:           env.Metadata.Region(),
-			v1.LabelTopologyZone:             fmt.Sprintf("%sa", env.Metadata.Region()),
+			v1.LabelTopologyRegion:           env.MetadataProvider.Region(env),
+			v1.LabelTopologyZone:             fmt.Sprintf("%sa", env.MetadataProvider.Region(env)),
 			v1.LabelInstanceTypeStable:       "g4dn.8xlarge",
 			v1.LabelOSStable:                 "linux",
 			v1.LabelArchStable:               "amd64",
@@ -63,8 +63,8 @@ var _ = Describe("Scheduling", func() {
 			awsv1alpha1.LabelInstanceGPUMemory:       "16384",
 			awsv1alpha1.LabelInstanceLocalNVME:       "900",
 			// Deprecated Labels
-			v1.LabelFailureDomainBetaZone:   fmt.Sprintf("%sa", env.Metadata.Region()),
-			v1.LabelFailureDomainBetaRegion: env.Metadata.Region(),
+			v1.LabelFailureDomainBetaZone:   fmt.Sprintf("%sa", env.MetadataProvider.Region(env)),
+			v1.LabelFailureDomainBetaRegion: env.MetadataProvider.Region(env),
 			"beta.kubernetes.io/arch":       "amd64",
 			"beta.kubernetes.io/os":         "linux",
 			v1.LabelInstanceType:            "g4dn.8xlarge",
