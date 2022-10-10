@@ -70,7 +70,7 @@ coverage:
 verify: tidy download codegen ## Verify code. Includes dependencies, linting, formatting, etc
 	$(foreach dir,$(MOD_DIRS),cd $(dir) && golangci-lint run $(newline))
 	@git diff --quiet ||\
-		{ echo "New file modification detected in the Git working tree. Please check in before commit.";\
+		{ echo "New file modification detected in the Git working tree. Please check in before commit."; git --no-pager diff --name-only | uniq | awk '{print "  - " $$0}'; \
 		if [ $(MAKECMDGOALS) = 'ci' ]; then\
 			exit 1;\
 		fi;}
@@ -154,3 +154,4 @@ define newline
 
 
 endef
+
