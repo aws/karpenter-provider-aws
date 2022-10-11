@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   stable-release:
-    if: ${{ github.event.workflow_run.conclusion == 'success' && github.repository == 'aws/karpenter' }}
+    if: github.event.workflow_run.conclusion == 'success' && github.repository == 'aws/karpenter'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -49,22 +49,20 @@ jobs:
                archive_format: 'zip',
             });
             let fs = require('fs');
-            fs.writeFileSync(`${process.env.GITHUB_WORKSPACE}/tags.zip`, Buffer.from(download.data));
-      - run: unzip tags.zip
+            fs.writeFileSync(`/tmp/tags.zip`, Buffer.from(download.data));
+      - run: unzip /tmp/tags.zip -d /tmp
       - uses: aws-actions/configure-aws-credentials@v1
         with:
           role-to-assume: arn:aws:iam::071440425669:role/Github
           aws-region: us-east-1
+      - run: SNAPSHOT_TAG=$(cat /tmp/tag.txt) make snapshot
       - run: make docgen
       - run: |
           git config user.name "StableRelease"
           git config user.email "StableRelease@users.noreply.github.com"
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
           git config pull.rebase false
-      - run: SNAPSHOT_TAG=$(cat tag.txt) make snapshot
-      - run: SNAPSHOT_TAG=$(cat tag.txt) make stable-release-pr
-        env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: SNAPSHOT_TAG=$(cat /tmp/tag.txt) make stable-release-pr
       - name: Create Pull Request
         uses: actions/github-script@v6
         with:
