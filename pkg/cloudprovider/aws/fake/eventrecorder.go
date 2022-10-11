@@ -15,6 +15,8 @@ limitations under the License.
 package fake
 
 import (
+	"sync/atomic"
+
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/record"
 
@@ -24,19 +26,35 @@ import (
 // EventRecorder is a mock event recorder that is used to facilitate testing.
 type EventRecorder struct {
 	test.Recorder
+
+	EC2SpotInterruptionWarningCalled     atomic.Int64
+	EC2SpotRebalanceRecommendationCalled atomic.Int64
+	EC2HealthWarningCalled               atomic.Int64
+	EC2StateStoppingCalled               atomic.Int64
+	EC2StateTerminatingCalled            atomic.Int64
 }
 
 func (e *EventRecorder) EventRecorder() record.EventRecorder { return e.Recorder.EventRecorder() }
 
-func (e *EventRecorder) EC2SpotInterruptionWarning(_ *v1.Node) {}
+func (e *EventRecorder) EC2SpotInterruptionWarning(_ *v1.Node) {
+	e.EC2SpotInterruptionWarningCalled.Add(1)
+}
 
-func (e *EventRecorder) EC2SpotRebalanceRecommendation(_ *v1.Node) {}
+func (e *EventRecorder) EC2SpotRebalanceRecommendation(_ *v1.Node) {
+	e.EC2SpotRebalanceRecommendationCalled.Add(1)
+}
 
-func (e *EventRecorder) EC2HealthWarning(_ *v1.Node) {}
+func (e *EventRecorder) EC2HealthWarning(_ *v1.Node) {
+	e.EC2HealthWarningCalled.Add(1)
+}
 
-func (e *EventRecorder) EC2StateTerminating(_ *v1.Node) {}
+func (e *EventRecorder) EC2StateTerminating(_ *v1.Node) {
+	e.EC2StateTerminatingCalled.Add(1)
+}
 
-func (e *EventRecorder) EC2StateStopping(_ *v1.Node) {}
+func (e *EventRecorder) EC2StateStopping(_ *v1.Node) {
+	e.EC2StateStoppingCalled.Add(1)
+}
 
 func (e *EventRecorder) TerminatingNodeOnNotification(_ *v1.Node) {}
 

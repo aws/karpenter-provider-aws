@@ -32,6 +32,7 @@ const (
 type SQSBehavior struct {
 	CreateQueueBehavior        MockedFunction[sqs.CreateQueueInput, sqs.CreateQueueOutput]
 	GetQueueURLBehavior        MockedFunction[sqs.GetQueueUrlInput, sqs.GetQueueUrlOutput]
+	GetQueueAttributesBehavior MockedFunction[sqs.GetQueueAttributesInput, sqs.GetQueueAttributesOutput]
 	SetQueueAttributesBehavior MockedFunction[sqs.SetQueueAttributesInput, sqs.SetQueueAttributesOutput]
 	ReceiveMessageBehavior     MockedFunction[sqs.ReceiveMessageInput, sqs.ReceiveMessageOutput]
 	DeleteMessageBehavior      MockedFunction[sqs.DeleteMessageInput, sqs.DeleteMessageOutput]
@@ -48,6 +49,7 @@ type SQSAPI struct {
 func (s *SQSAPI) Reset() {
 	s.CreateQueueBehavior.Reset()
 	s.GetQueueURLBehavior.Reset()
+	s.GetQueueAttributesBehavior.Reset()
 	s.SetQueueAttributesBehavior.Reset()
 	s.ReceiveMessageBehavior.Reset()
 	s.DeleteMessageBehavior.Reset()
@@ -65,6 +67,10 @@ func (s *SQSAPI) GetQueueUrlWithContext(_ context.Context, input *sqs.GetQueueUr
 	return s.GetQueueURLBehavior.WithDefault(&sqs.GetQueueUrlOutput{
 		QueueUrl: aws.String(dummyQueueURL),
 	}).Invoke(input)
+}
+
+func (s *SQSAPI) GetQueueAttributesWithContext(_ context.Context, input *sqs.GetQueueAttributesInput, _ ...request.Option) (*sqs.GetQueueAttributesOutput, error) {
+	return s.GetQueueAttributesBehavior.Invoke(input)
 }
 
 func (s *SQSAPI) SetQueueAttributesWithContext(_ context.Context, input *sqs.SetQueueAttributesInput, _ ...request.Option) (*sqs.SetQueueAttributesOutput, error) {

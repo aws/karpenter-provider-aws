@@ -27,6 +27,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 
 	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/utils"
 	"github.com/aws/karpenter/pkg/utils/injection"
 )
 
@@ -128,28 +129,28 @@ func (eb *EventBridgeProvider) DeleteEC2NotificationRules(ctx context.Context) e
 func (eb *EventBridgeProvider) getEC2NotificationEventRules(ctx context.Context) []EventRule {
 	return []EventRule{
 		{
-			Name: fmt.Sprintf("Karpenter-%s-ScheduledChangeRule", injection.GetOptions(ctx).ClusterName),
+			Name: fmt.Sprintf("Karpenter-ScheduledChangeRule-%s", utils.GetClusterNameHash(ctx, 20)),
 			Pattern: &EventPattern{
 				Source:     []string{"aws.health"},
 				DetailType: []string{"AWS Health Event"},
 			},
 		},
 		{
-			Name: fmt.Sprintf("Karpenter-%s-SpotTerminationRule", injection.GetOptions(ctx).ClusterName),
+			Name: fmt.Sprintf("Karpenter-SpotTerminationRule-%s", utils.GetClusterNameHash(ctx, 20)),
 			Pattern: &EventPattern{
 				Source:     []string{"aws.ec2"},
 				DetailType: []string{"EC2 Spot Instance Interruption Warning"},
 			},
 		},
 		{
-			Name: fmt.Sprintf("Karpenter-%s-RebalanceRule", injection.GetOptions(ctx).ClusterName),
+			Name: fmt.Sprintf("Karpenter-RebalanceRule-%s", utils.GetClusterNameHash(ctx, 20)),
 			Pattern: &EventPattern{
 				Source:     []string{"aws.ec2"},
 				DetailType: []string{"EC2 Instance Rebalance Recommendation"},
 			},
 		},
 		{
-			Name: fmt.Sprintf("Karpenter-%s-InstanceStateChangeRule", injection.GetOptions(ctx).ClusterName),
+			Name: fmt.Sprintf("Karpenter-InstanceStateChangeRule-%s", utils.GetClusterNameHash(ctx, 20)),
 			Pattern: &EventPattern{
 				Source:     []string{"aws.ec2"},
 				DetailType: []string{"EC2 Instance State-change Notification"},

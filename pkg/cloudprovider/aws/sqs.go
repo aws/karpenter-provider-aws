@@ -25,6 +25,7 @@ import (
 	"github.com/samber/lo"
 
 	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/utils"
 	"github.com/aws/karpenter/pkg/utils/atomic"
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injection"
@@ -122,7 +123,7 @@ func (s *SQSProvider) CreateQueue(ctx context.Context) error {
 	return nil
 }
 
-func (s *SQSProvider) SetQueueAttributes(ctx context.Context) error {
+func (s *SQSProvider) SetQueueAttributes(ctx context.Context, attributeOverrides map[string]*string) error {
 	queueURL, err := s.DiscoverQueueURL(ctx, false)
 	if err != nil {
 		return fmt.Errorf("fetching queue url, %w", err)
@@ -130,6 +131,9 @@ func (s *SQSProvider) SetQueueAttributes(ctx context.Context) error {
 	attributes, err := s.getQueueAttributes(ctx)
 	if err != nil {
 		return fmt.Errorf("marshaling queue attributes, %w", err)
+	}
+	if attributeOverrides != nil {
+		attributes = lo.Assign(attributes, attributeOverrides)
 	}
 	setQueueAttributesInput := &sqs.SetQueueAttributesInput{
 		Attributes: attributes,
@@ -265,6 +269,9 @@ func (s *SQSProvider) getQueuePolicy(ctx context.Context) (*QueuePolicy, error) 
 	}, nil
 }
 
+// getQueueName generates a sufficiently random name for the queue name from the cluster name
+// This is used because the max-len for a queue name is 80 characters but the maximum cluster name
+// length is 100
 func getQueueName(ctx context.Context) string {
-	return fmt.Sprintf("Karpenter-%s-Queue", injection.GetOptions(ctx).ClusterName)
+	return fmt.Sprintf("Karpenter-Queue-%s", utils.GetClusterNameHash(ctx, 20))
 }

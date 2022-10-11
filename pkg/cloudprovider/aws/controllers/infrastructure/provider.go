@@ -38,16 +38,11 @@ func NewProvider(sqsProvider *aws.SQSProvider, eventBridgeProvider *aws.EventBri
 }
 
 func (p *Provider) CreateInfrastructure(ctx context.Context) error {
-	funcs := []func() error{
-		func() error { return p.ensureQueue(ctx) },
-		func() error { return p.ensureEventBridge(ctx) },
+	if err := p.ensureQueue(ctx); err != nil {
+		return fmt.Errorf("ensuring queue, %w", err)
 	}
-	errs := make([]error, len(funcs))
-	workqueue.ParallelizeUntil(ctx, len(funcs), len(funcs), func(i int) {
-		errs[i] = funcs[i]()
-	})
-	if err := multierr.Combine(errs...); err != nil {
-		return err
+	if err := p.ensureEventBridge(ctx); err != nil {
+		return fmt.Errorf("ensuring eventBridge rules and targets, %w", err)
 	}
 	logging.FromContext(ctx).Infof("Successfully completed reconciliation of infrastructure")
 	return nil
@@ -103,7 +98,7 @@ func (p *Provider) ensureQueue(ctx context.Context) error {
 		}
 	}
 	// Always attempt to set the queue attributes, even after creation to help set the queue policy
-	if err := p.sqsProvider.SetQueueAttributes(ctx); err != nil {
+	if err := p.sqsProvider.SetQueueAttributes(ctx, nil); err != nil {
 		return fmt.Errorf("setting queue attributes for queue, %w", err)
 	}
 	return nil
