@@ -208,14 +208,14 @@
                         "uid": "${datasource}"
                     },
                     "editorMode": "builder",
-                    "expr": "sum by(cluster) (karpenter_consolidation_nodes_created)",
+                    "expr": "sum by(cluster) (karpenter_nodes_created)",
                     "format": "time_series",
                     "legendFormat": "{{cluster}}",
                     "range": true,
                     "refId": "A"
                 }
             ],
-            "title": "Consolidation: Nodes Created",
+            "title": "Nodes Created",
             "type": "timeseries"
         },
         {
@@ -303,14 +303,14 @@
                         "uid": "${datasource}"
                     },
                     "editorMode": "builder",
-                    "expr": "sum by(cluster) (karpenter_consolidation_nodes_terminated)",
+                    "expr": "sum by(cluster) (karpenter_nodes_terminated)",
                     "format": "time_series",
                     "legendFormat": "{{cluster}}",
                     "range": true,
                     "refId": "A"
                 }
             ],
-            "title": "Consolidation: Nodes Terminated",
+            "title": "Nodes Terminated",
             "type": "timeseries"
         },
         {
