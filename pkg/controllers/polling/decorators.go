@@ -39,7 +39,8 @@ type ControllerWithHealthInterface interface {
 type ControllerWithHealth struct {
 	*Controller
 
-	healthy atomic.Bool
+	healthy       atomic.Bool
+	healthyMetric prometheus.Gauge
 
 	OnHealthy   func(context.Context)
 	OnUnhealthy func(context.Context)
@@ -48,6 +49,14 @@ type ControllerWithHealth struct {
 func NewControllerWithHealth(c *Controller) *ControllerWithHealth {
 	return &ControllerWithHealth{
 		Controller: c,
+		healthyMetric: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace: metrics.Namespace,
+				Subsystem: c.r.Metadata().MetricsSubsystem,
+				Name:      "healthy",
+				Help:      "Whether the controller is in a healthy state.",
+			},
+		),
 	}
 }
 
@@ -64,32 +73,21 @@ func (c *ControllerWithHealth) Reconcile(ctx context.Context, req reconcile.Requ
 		if c.OnHealthy != nil {
 			c.OnHealthy(callerCtx)
 		}
-		c.healthyMetric().Set(1)
+		c.healthyMetric.Set(1)
 	} else {
 		if c.OnUnhealthy != nil {
 			c.OnUnhealthy(callerCtx)
 		}
-		c.healthyMetric().Set(0)
+		c.healthyMetric.Set(0)
 	}
 	return res, err
 }
 
 func (c *ControllerWithHealth) Builder(ctx context.Context, m manager.Manager) *controllerruntime.Builder {
-	crmetrics.Registry.MustRegister(c.healthyMetric())
+	crmetrics.Registry.MustRegister(c.healthyMetric)
 	return c.Controller.Builder(ctx, m)
 }
 
 func (c *ControllerWithHealth) Register(ctx context.Context, m manager.Manager) error {
 	return c.Builder(ctx, m).Complete(c)
-}
-
-func (c *ControllerWithHealth) healthyMetric() prometheus.Gauge {
-	return prometheus.NewGauge(
-		prometheus.GaugeOpts{
-			Namespace: metrics.Namespace,
-			Subsystem: c.Controller.r.Metadata().MetricsSubsystem,
-			Name:      "healthy",
-			Help:      "Whether the controller is in a healthy state.",
-		},
-	)
 }

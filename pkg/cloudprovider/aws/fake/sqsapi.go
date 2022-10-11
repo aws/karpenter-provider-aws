@@ -70,7 +70,11 @@ func (s *SQSAPI) GetQueueUrlWithContext(_ context.Context, input *sqs.GetQueueUr
 }
 
 func (s *SQSAPI) GetQueueAttributesWithContext(_ context.Context, input *sqs.GetQueueAttributesInput, _ ...request.Option) (*sqs.GetQueueAttributesOutput, error) {
-	return s.GetQueueAttributesBehavior.Invoke(input)
+	return s.GetQueueAttributesBehavior.WithDefault(&sqs.GetQueueAttributesOutput{
+		Attributes: map[string]*string{
+			sqs.QueueAttributeNameQueueArn: aws.String("arn:aws:sqs:us-west-2:000000000000:Karpenter-Queue"),
+		},
+	}).Invoke(input)
 }
 
 func (s *SQSAPI) SetQueueAttributesWithContext(_ context.Context, input *sqs.SetQueueAttributesInput, _ ...request.Option) (*sqs.SetQueueAttributesOutput, error) {

@@ -103,8 +103,6 @@ var _ = Describe("Reconciliation", func() {
 		_, err := controller.Reconcile(ctx, reconcile.Request{})
 		Expect(err).ToNot(Succeed())
 		Expect(sqsapi.CreateQueueBehavior.FailedCalls()).To(Equal(1))
-		Expect(eventbridgeapi.PutRuleBehavior.FailedCalls()).To(Equal(4))
-		Expect(eventbridgeapi.PutTargetsBehavior.FailedCalls()).To(Equal(4))
 
 		// Simulating AccessDenied being resolved
 		sqsapi.CreateQueueBehavior.Reset()
@@ -124,8 +122,6 @@ var _ = Describe("Reconciliation", func() {
 		_, err := controller.Reconcile(ctx, reconcile.Request{})
 		Expect(err).ToNot(Succeed())
 		Expect(sqsapi.CreateQueueBehavior.FailedCalls()).To(Equal(1))
-		Expect(eventbridgeapi.PutRuleBehavior.SuccessfulCalls()).To(Equal(4))
-		Expect(eventbridgeapi.PutTargetsBehavior.SuccessfulCalls()).To(Equal(4))
 	})
 })
 

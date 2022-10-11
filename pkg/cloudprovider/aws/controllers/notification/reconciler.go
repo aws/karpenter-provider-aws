@@ -44,16 +44,23 @@ import (
 	"github.com/aws/karpenter/pkg/metrics"
 )
 
-type Action = string
+type Action byte
 
-var Actions = struct {
-	CordonAndDrain,
-	Cordon,
-	NoAction Action
-}{
-	CordonAndDrain: "CordonAndDrain",
-	Cordon:         "Cordon",
-	NoAction:       "NoAction",
+const (
+	_ Action = iota
+	CordonAndDrain
+	NoAction
+)
+
+func (a Action) String() string {
+	switch a {
+	case CordonAndDrain:
+		return "CordonAndDrain"
+	case NoAction:
+		return "NoAction"
+	default:
+		return fmt.Sprintf("Unsupported Action %d", a)
+	}
 }
 
 // Reconciler is an AWS notification reconciler.
@@ -182,7 +189,7 @@ func (r *Reconciler) handleNode(ctx context.Context, evt event.Interface, node *
 
 	// Record metric and event for this action
 	r.notifyForEvent(evt, node)
-	actionsPerformed.WithLabelValues(action).Inc()
+	actionsPerformed.WithLabelValues(action.String()).Inc()
 
 	// Mark the offering as unavailable in the ICE cache since we got a spot interruption warning
 	if evt.Kind() == event.SpotInterruptionKind {
@@ -192,7 +199,7 @@ func (r *Reconciler) handleNode(ctx context.Context, evt event.Interface, node *
 			r.instanceTypeProvider.MarkOfferingUnavailable(instanceType, zone, awsv1alpha1.CapacityTypeSpot)
 		}
 	}
-	if action != Actions.NoAction {
+	if action != NoAction {
 		return r.deleteInstance(ctx, node)
 	}
 	return nil
@@ -251,20 +258,10 @@ func (r *Reconciler) makeInstanceIDMap() map[string]*v1.Node {
 
 func actionForEvent(evt event.Interface) Action {
 	switch evt.Kind() {
-	case event.RebalanceRecommendationKind:
-		return Actions.NoAction
-
-	case event.ScheduledChangeKind:
-		return Actions.CordonAndDrain
-
-	case event.SpotInterruptionKind:
-		return Actions.CordonAndDrain
-
-	case event.StateChangeKind:
-		return Actions.CordonAndDrain
-
+	case event.ScheduledChangeKind, event.SpotInterruptionKind, event.StateChangeKind:
+		return CordonAndDrain
 	default:
-		return Actions.NoAction
+		return NoAction
 	}
 }
 

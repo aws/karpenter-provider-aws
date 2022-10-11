@@ -73,6 +73,9 @@ type Controller struct {
 	trigger           chan event.GenericEvent
 
 	cancels sync.Map
+
+	activeMetric       prometheus.Gauge
+	triggerCountMetric prometheus.Counter
 }
 
 type Object struct {
@@ -85,6 +88,22 @@ func NewController(rec controllers.Reconciler) *Controller {
 		r:       rec,
 		uuid:    types.UID(uuid.New().String()),
 		trigger: make(chan event.GenericEvent, 100),
+		activeMetric: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace: metrics.Namespace,
+				Subsystem: rec.Metadata().MetricsSubsystem,
+				Name:      "active",
+				Help:      "Whether the controller is active.",
+			},
+		),
+		triggerCountMetric: prometheus.NewCounter(
+			prometheus.CounterOpts{
+				Namespace: metrics.Namespace,
+				Subsystem: rec.Metadata().MetricsSubsystem,
+				Name:      "trigger_count",
+				Help:      "A counter of the number of times this controller has been triggered.",
+			},
+		),
 	}
 }
 
@@ -111,7 +130,7 @@ func (c *Controller) Start(ctx context.Context) {
 // Trigger triggers an immediate reconciliation by inserting a message into the event channel. We increase the trigger
 // generation here to ensure that any messages that were previously re-queued are thrown away
 func (c *Controller) Trigger() {
-	c.triggeredCountMetric().Inc()
+	c.triggerCountMetric.Inc()
 	obj := &Object{ObjectMeta: metav1.ObjectMeta{Generation: c.triggerGeneration.Add(1), UID: c.uuid}}
 	c.trigger <- event.GenericEvent{Object: obj}
 }
@@ -144,9 +163,9 @@ func (c *Controller) SetActive(active bool) {
 
 	c.active = active
 	if active {
-		c.activeMetric().Set(1)
+		c.activeMetric.Set(1)
 	} else {
-		c.activeMetric().Set(0)
+		c.activeMetric.Set(0)
 	}
 }
 
@@ -163,7 +182,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 }
 
 func (c *Controller) Builder(_ context.Context, m manager.Manager) *controllerruntime.Builder {
-	crmetrics.Registry.MustRegister(c.activeMetric(), c.triggeredCountMetric())
+	crmetrics.Registry.MustRegister(c.activeMetric, c.triggerCountMetric)
 	return controllerruntime.
 		NewControllerManagedBy(m).
 		Named(c.r.Metadata().Name).
@@ -178,26 +197,4 @@ func (c *Controller) Builder(_ context.Context, m manager.Manager) *controllerru
 
 func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
 	return c.Builder(ctx, m).Complete(c)
-}
-
-func (c *Controller) activeMetric() prometheus.Gauge {
-	return prometheus.NewGauge(
-		prometheus.GaugeOpts{
-			Namespace: metrics.Namespace,
-			Subsystem: c.r.Metadata().MetricsSubsystem,
-			Name:      "active",
-			Help:      "Whether the controller is active.",
-		},
-	)
-}
-
-func (c *Controller) triggeredCountMetric() prometheus.Counter {
-	return prometheus.NewCounter(
-		prometheus.CounterOpts{
-			Namespace: metrics.Namespace,
-			Subsystem: c.r.Metadata().MetricsSubsystem,
-			Name:      "trigger_count",
-			Help:      "A counter of the number of times this controller has been triggered.",
-		},
-	)
 }

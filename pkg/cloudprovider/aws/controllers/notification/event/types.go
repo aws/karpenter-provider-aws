@@ -34,7 +34,7 @@ type Interface interface {
 type Kind byte
 
 const (
-	UnknownKind = iota
+	_ = iota
 	RebalanceRecommendationKind
 	ScheduledChangeKind
 	SpotInterruptionKind
