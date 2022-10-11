@@ -87,28 +87,10 @@ We recommend using Kubernetes native scheduling constraints to achieve namespace
 
 Karpenter does not offer a way to add SSH keys via provisioners or secrets to the nodes it manages.
 However, you can use Session Manager (SSM) or EC2 Instance Connect to gain shell access to Karpenter nodes.
-See [Node NotReady](https://karpenter.sh/preview/troubleshooting/#node-notready) troubleshooting for an example of starting an SSM session from the command line or [EC2 Instance Connect](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-set-up.html) documentation to connect to nodes through the AWS console.
+See [Node NotReady]({{< ref "./troubleshooting/#node-notready" >}}) troubleshooting for an example of starting an SSM session from the command line or [EC2 Instance Connect](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-set-up.html) documentation to connect to nodes using SSH.
 
-Though not recommended, if you need to access Karpenter-managed nodes without AWS credentials, you can add SSH keys to Launch Templates through [Custom User Data](https://karpenter.sh/preview/aws/user-data/).
-Here is an example of userData to add SSH keys to a Launch Template (replace *my-authorized_keys* with your key file):
-
-```bash
-userData: |
-MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="BOUNDARY"
---BOUNDARY
-Content-Type: text/x-shellscript; charset="us-ascii"
-
-#!/bin/bash
-mkdir -p ~ec2-user/.ssh/
-touch ~ec2-user/.ssh/authorized_keys
-cat >> ~ec2-user/.ssh/authorized_keys <<EOF
-{{ insertFile "../my-authorized_keys" | indent 4  }}
-EOF
-chmod -R go-w ~ec2-user/.ssh/authorized_keys
-chown -R ec2-user ~ec2-user/.ssh
---BOUNDARY--
-```
+Though not recommended, if you need to access Karpenter-managed nodes without AWS credentials, you can add SSH keys using AWSNodeTemplate.
+See [Custom User Data]({{< ref "./aws/operating-systems/" >}}) for details.
 
 ### Can I set total limits of CPU and memory for a provisioner?
 Yes, the setting is provider-specific.

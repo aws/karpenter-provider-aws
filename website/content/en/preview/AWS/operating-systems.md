@@ -24,7 +24,8 @@ spec:
 
 **Examples**
 
-Operating systems can be configured using `spec.userData` and `spec.amiSelector` respectively in the `AWSNodeTemplate` resource -
+Operating systems can be configured using `spec.userData` and `spec.amiSelector` respectively in the `AWSNodeTemplate` resource:
+
 ```yaml
 apiVersion: karpenter.k8s.aws/v1alpha1
 kind: AWSNodeTemplate
@@ -44,6 +45,43 @@ spec:
     "memory.available" = "20%"
   amiSelector:
     karpenter.sh/discovery: my-cluster
+```
+
+This example adds SSH keys to allow remote login to the node (replace *my-authorized_keys* with your key file):
+
+{{% alert title="Note" color="primary" %}}
+Instead of using SSH as set up in this example, you can use Session Manager (SSM) or EC2 Instance Connect to gain shell access to Karpenter nodes.
+See [Node NotReady]({{< ref "../troubleshooting/#node-notready" >}}) troubleshooting for an example of starting an SSM session from the command line or [EC2 Instance Connect](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-set-up.html) documentation to connect to nodes using SSH.
+{{% /alert %}}
+
+
+```yaml
+apiVersion: karpenter.k8s.aws/v1alpha1
+kind: AWSNodeTemplate
+metadata:
+  name: al2-example
+spec:
+  amiFamily: AL2
+  instanceProfile: MyInstanceProfile
+  subnetSelector:
+    karpenter.sh/discovery: my-cluster
+  securityGroupSelector:
+    karpenter.sh/discovery: my-cluster
+userData: |
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="BOUNDARY"
+--BOUNDARY
+Content-Type: text/x-shellscript; charset="us-ascii"
+
+#!/bin/bash
+mkdir -p ~ec2-user/.ssh/
+touch ~ec2-user/.ssh/authorized_keys
+cat >> ~ec2-user/.ssh/authorized_keys <<EOF
+{{ insertFile "../my-authorized_keys" | indent 4  }}
+EOF
+chmod -R go-w ~ec2-user/.ssh/authorized_keys
+chown -R ec2-user ~ec2-user/.ssh
+--BOUNDARY--
 ```
 
 For more examples on configuring these fields for different AMI families, see the [examples here](https://github.com/aws/karpenter/blob/main/examples/provisioner/launchtemplates).
