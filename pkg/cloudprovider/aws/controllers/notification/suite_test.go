@@ -163,7 +163,7 @@ var _ = Describe("Processing Messages", func() {
 	})
 	It("should delete the node when receiving a state change message", func() {
 		var nodes []*v1.Node
-		var messages []*sqs.Message
+		var messages []interface{}
 		for _, state := range []string{"terminated", "stopped", "stopping", "shutting-down"} {
 			instanceID := makeInstanceID()
 			nodes = append(nodes, test.Node(test.NodeOptions{
@@ -203,7 +203,7 @@ var _ = Describe("Processing Messages", func() {
 
 		}
 
-		var messages []*sqs.Message
+		var messages []interface{}
 		for _, id := range instanceIDs {
 			messages = append(messages, spotInterruptionMessage(id))
 		}
@@ -337,10 +337,16 @@ var _ = Describe("Infrastructure Coordination", func() {
 	})
 })
 
-func ExpectMessagesCreated(messages ...*sqs.Message) {
+func ExpectMessagesCreated(messages ...interface{}) {
+	raw := lo.Map(messages, func(m interface{}, _ int) *sqs.Message {
+		return &sqs.Message{
+			Body:      awssdk.String(string(lo.Must(json.Marshal(m)))),
+			MessageId: awssdk.String(string(uuid.NewUUID())),
+		}
+	})
 	sqsapi.ReceiveMessageBehavior.Output.Set(
 		&sqs.ReceiveMessageOutput{
-			Messages: messages,
+			Messages: raw,
 		},
 	)
 }
@@ -349,8 +355,8 @@ func awsErrWithCode(code string) awserr.Error {
 	return awserr.New(code, "", fmt.Errorf(""))
 }
 
-func spotInterruptionMessage(involvedInstanceID string) *sqs.Message {
-	evt := spotinterruptionv0.AWSEvent{
+func spotInterruptionMessage(involvedInstanceID string) spotinterruptionv0.AWSEvent {
+	return spotinterruptionv0.AWSEvent{
 		AWSMetadata: event.AWSMetadata{
 			Version:    "0",
 			Account:    defaultAccountID,
@@ -368,14 +374,10 @@ func spotInterruptionMessage(involvedInstanceID string) *sqs.Message {
 			InstanceAction: "terminate",
 		},
 	}
-	return &sqs.Message{
-		Body:      awssdk.String(string(lo.Must(json.Marshal(evt)))),
-		MessageId: awssdk.String(string(uuid.NewUUID())),
-	}
 }
 
-func stateChangeMessage(involvedInstanceID, state string) *sqs.Message {
-	evt := statechangev0.AWSEvent{
+func stateChangeMessage(involvedInstanceID, state string) statechangev0.AWSEvent {
+	return statechangev0.AWSEvent{
 		AWSMetadata: event.AWSMetadata{
 			Version:    "0",
 			Account:    defaultAccountID,
@@ -393,15 +395,11 @@ func stateChangeMessage(involvedInstanceID, state string) *sqs.Message {
 			State:      state,
 		},
 	}
-	return &sqs.Message{
-		Body:      awssdk.String(string(lo.Must(json.Marshal(evt)))),
-		MessageId: awssdk.String(string(uuid.NewUUID())),
-	}
 }
 
 // TODO: Update the scheduled change message to accurately reflect a real health event
-func scheduledChangeMessage(involvedInstanceID string) *sqs.Message {
-	evt := scheduledchangev0.AWSEvent{
+func scheduledChangeMessage(involvedInstanceID string) scheduledchangev0.AWSEvent {
+	return scheduledchangev0.AWSEvent{
 		AWSMetadata: event.AWSMetadata{
 			Version:    "0",
 			Account:    defaultAccountID,
@@ -424,6 +422,9 @@ func scheduledChangeMessage(involvedInstanceID string) *sqs.Message {
 			},
 		},
 	}
+}
+
+func NewWrappedMessage(evt event.Interface) *sqs.Message {
 	return &sqs.Message{
 		Body:      awssdk.String(string(lo.Must(json.Marshal(evt)))),
 		MessageId: awssdk.String(string(uuid.NewUUID())),
