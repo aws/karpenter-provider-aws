@@ -9,7 +9,11 @@ docs:            <-- Documentation change that does not impact code
 chore:           <-- Metadata changes such as dependency update or configuration files
 test:            <-- Test changes that do not impact behavior
 perf:            <-- Code changes that improve performance but do not impact behavior
-BREAKING CHANGE: <-- Include if your change includes a backwards incompatible change
+BREAKING CHANGE: <-- Include if your change includes a backwards incompatible change.
+-->
+
+<!--
+If your change is a BREAKING CHANGE, please create or append an entry to the upgrade guide for the next minor version release at `karpenter/website/content/en/preview/upgrade-guide/_index.md`
 -->
 
 Fixes # <!-- issue number -->
