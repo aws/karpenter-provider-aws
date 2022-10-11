@@ -32,7 +32,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|840m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|1351Mi|
  |pods|8|
 ### `a1.large`
@@ -54,7 +54,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|3014Mi|
  |pods|29|
 ### `a1.xlarge`
@@ -76,7 +76,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|6484Mi|
  |pods|58|
 ### `a1.2xlarge`
@@ -98,7 +98,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14062Mi|
  |pods|58|
 ### `a1.4xlarge`
@@ -120,7 +120,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|27281Mi|
  |pods|234|
 ### `a1.metal`
@@ -142,7 +142,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|27281Mi|
  |pods|234|
 ## c1 Family
@@ -165,7 +165,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|1022Mi|
  |pods|12|
 ### `c1.xlarge`
@@ -187,7 +187,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|5537Mi|
  |pods|58|
 ## c3 Family
@@ -210,7 +210,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|2778Mi|
  |pods|29|
 ### `c3.xlarge`
@@ -232,7 +232,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|6011Mi|
  |pods|58|
 ### `c3.2xlarge`
@@ -254,7 +254,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|13115Mi|
  |pods|58|
 ### `c3.4xlarge`
@@ -276,7 +276,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|25387Mi|
  |pods|234|
 ### `c3.8xlarge`
@@ -298,7 +298,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|53803Mi|
  |pods|234|
 ## c4 Family
@@ -321,7 +321,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|2778Mi|
  |pods|29|
 ### `c4.xlarge`
@@ -343,7 +343,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|6011Mi|
  |pods|58|
 ### `c4.2xlarge`
@@ -365,7 +365,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|13115Mi|
  |pods|58|
 ### `c4.4xlarge`
@@ -387,7 +387,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|25387Mi|
  |pods|234|
 ### `c4.8xlarge`
@@ -409,7 +409,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|35740m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|53803Mi|
  |pods|234|
 ## c5 Family
@@ -432,7 +432,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|3014Mi|
  |pods|29|
 ### `c5.xlarge`
@@ -454,7 +454,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|6484Mi|
  |pods|58|
 ### `c5.2xlarge`
@@ -476,7 +476,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14062Mi|
  |pods|58|
 ### `c5.4xlarge`
@@ -498,7 +498,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|27281Mi|
  |pods|234|
 ### `c5.9xlarge`
@@ -520,7 +520,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|35740m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|65169Mi|
  |pods|234|
 ### `c5.12xlarge`
@@ -542,7 +542,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|47710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|87902Mi|
  |pods|234|
 ### `c5.18xlarge`
@@ -564,7 +564,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|71650m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|127834Mi|
  |pods|737|
 ### `c5.24xlarge`
@@ -586,7 +586,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|173300Mi|
  |pods|737|
 ### `c5.metal`
@@ -608,7 +608,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|173300Mi|
  |pods|737|
 ## c5a Family
@@ -631,7 +631,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|3014Mi|
  |pods|29|
 ### `c5a.xlarge`
@@ -653,7 +653,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|6484Mi|
  |pods|58|
 ### `c5a.2xlarge`
@@ -675,7 +675,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14062Mi|
  |pods|58|
 ### `c5a.4xlarge`
@@ -697,7 +697,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|27281Mi|
  |pods|234|
 ### `c5a.8xlarge`
@@ -719,7 +719,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|57591Mi|
  |pods|234|
 ### `c5a.12xlarge`
@@ -741,7 +741,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|47710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|87902Mi|
  |pods|234|
 ### `c5a.16xlarge`
@@ -763,7 +763,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|112679Mi|
  |pods|737|
 ### `c5a.24xlarge`
@@ -785,7 +785,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|173300Mi|
  |pods|737|
 ## c5ad Family
@@ -809,7 +809,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|3014Mi|
  |pods|29|
 ### `c5ad.xlarge`
@@ -832,7 +832,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|6484Mi|
  |pods|58|
 ### `c5ad.2xlarge`
@@ -855,7 +855,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14062Mi|
  |pods|58|
 ### `c5ad.4xlarge`
@@ -878,7 +878,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|27281Mi|
  |pods|234|
 ### `c5ad.8xlarge`
@@ -901,7 +901,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|57591Mi|
  |pods|234|
 ### `c5ad.12xlarge`
@@ -924,7 +924,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|47710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|87902Mi|
  |pods|234|
 ### `c5ad.16xlarge`
@@ -947,7 +947,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|112679Mi|
  |pods|737|
 ### `c5ad.24xlarge`
@@ -970,7 +970,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|173300Mi|
  |pods|737|
 ## c5d Family
@@ -994,7 +994,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|3014Mi|
  |pods|29|
 ### `c5d.xlarge`
@@ -1017,7 +1017,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|6484Mi|
  |pods|58|
 ### `c5d.2xlarge`
@@ -1040,7 +1040,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14062Mi|
  |pods|58|
 ### `c5d.4xlarge`
@@ -1063,7 +1063,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|27281Mi|
  |pods|234|
 ### `c5d.9xlarge`
@@ -1086,7 +1086,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|35740m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|65169Mi|
  |pods|234|
 ### `c5d.12xlarge`
@@ -1109,7 +1109,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|47710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|87902Mi|
  |pods|234|
 ### `c5d.18xlarge`
@@ -1132,7 +1132,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|71650m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|127834Mi|
  |pods|737|
 ### `c5d.24xlarge`
@@ -1155,7 +1155,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|173300Mi|
  |pods|737|
 ### `c5d.metal`
@@ -1178,7 +1178,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|173300Mi|
  |pods|737|
 ## c5n Family
@@ -1201,7 +1201,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|4198Mi|
  |pods|29|
 ### `c5n.xlarge`
@@ -1223,7 +1223,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|8852Mi|
  |pods|58|
 ### `c5n.2xlarge`
@@ -1245,7 +1245,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|18798Mi|
  |pods|58|
 ### `c5n.4xlarge`
@@ -1267,7 +1267,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|36753Mi|
  |pods|234|
 ### `c5n.9xlarge`
@@ -1289,7 +1289,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|35740m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|87902Mi|
  |pods|234|
 ### `c5n.18xlarge`
@@ -1311,7 +1311,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|71650m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|173300Mi|
  |pods|737|
 ### `c5n.metal`
@@ -1333,7 +1333,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|71650m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|173300Mi|
  |pods|737|
 ## c6a Family
@@ -1356,7 +1356,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|3014Mi|
  |pods|29|
 ### `c6a.xlarge`
@@ -1378,7 +1378,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|6484Mi|
  |pods|58|
 ### `c6a.2xlarge`
@@ -1400,7 +1400,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14062Mi|
  |pods|58|
 ### `c6a.4xlarge`
@@ -1422,7 +1422,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|27281Mi|
  |pods|234|
 ### `c6a.8xlarge`
@@ -1444,7 +1444,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|57591Mi|
  |pods|234|
 ### `c6a.12xlarge`
@@ -1466,7 +1466,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|47710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|87902Mi|
  |pods|234|
 ### `c6a.16xlarge`
@@ -1488,7 +1488,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|112679Mi|
  |pods|737|
 ### `c6a.24xlarge`
@@ -1510,7 +1510,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|173300Mi|
  |pods|737|
 ### `c6a.32xlarge`
@@ -1532,7 +1532,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|127510m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|233921Mi|
  |pods|737|
 ### `c6a.48xlarge`
@@ -1554,7 +1554,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|191350m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|355162Mi|
  |pods|737|
 ### `c6a.metal`
@@ -1576,7 +1576,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|191350m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|355162Mi|
  |pods|737|
 ## c6g Family
@@ -1599,7 +1599,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|840m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|1351Mi|
  |pods|8|
 ### `c6g.large`
@@ -1621,7 +1621,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|3014Mi|
  |pods|29|
 ### `c6g.xlarge`
@@ -1643,7 +1643,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|6484Mi|
  |pods|58|
 ### `c6g.2xlarge`
@@ -1665,7 +1665,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14062Mi|
  |pods|58|
 ### `c6g.4xlarge`
@@ -1687,7 +1687,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|27281Mi|
  |pods|234|
 ### `c6g.8xlarge`
@@ -1709,7 +1709,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|57591Mi|
  |pods|234|
 ### `c6g.12xlarge`
@@ -1731,7 +1731,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|47710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|87902Mi|
  |pods|234|
 ### `c6g.16xlarge`
@@ -1753,7 +1753,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|112679Mi|
  |pods|737|
 ### `c6g.metal`
@@ -1775,7 +1775,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|112679Mi|
  |pods|737|
 ## c6gd Family
@@ -1799,7 +1799,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|840m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|1351Mi|
  |pods|8|
 ### `c6gd.large`
@@ -1822,7 +1822,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|3014Mi|
  |pods|29|
 ### `c6gd.xlarge`
@@ -1845,7 +1845,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|6484Mi|
  |pods|58|
 ### `c6gd.2xlarge`
@@ -1868,7 +1868,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14062Mi|
  |pods|58|
 ### `c6gd.4xlarge`
@@ -1891,7 +1891,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|27281Mi|
  |pods|234|
 ### `c6gd.8xlarge`
@@ -1914,7 +1914,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|57591Mi|
  |pods|234|
 ### `c6gd.12xlarge`
@@ -1937,7 +1937,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|47710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|87902Mi|
  |pods|234|
 ### `c6gd.16xlarge`
@@ -1960,7 +1960,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|112679Mi|
  |pods|737|
 ### `c6gd.metal`
@@ -1983,7 +1983,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|112679Mi|
  |pods|737|
 ## c6gn Family
@@ -2006,7 +2006,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|840m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|1351Mi|
  |pods|8|
 ### `c6gn.large`
@@ -2028,7 +2028,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|3014Mi|
  |pods|29|
 ### `c6gn.xlarge`
@@ -2050,7 +2050,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|6484Mi|
  |pods|58|
 ### `c6gn.2xlarge`
@@ -2072,7 +2072,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14062Mi|
  |pods|58|
 ### `c6gn.4xlarge`
@@ -2094,7 +2094,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|27281Mi|
  |pods|234|
 ### `c6gn.8xlarge`
@@ -2116,7 +2116,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|57591Mi|
  |pods|234|
 ### `c6gn.12xlarge`
@@ -2138,7 +2138,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|47710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|87902Mi|
  |pods|234|
 ### `c6gn.16xlarge`
@@ -2160,7 +2160,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|112679Mi|
  |pods|737|
 ## c6i Family
@@ -2183,7 +2183,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|3014Mi|
  |pods|29|
 ### `c6i.xlarge`
@@ -2205,7 +2205,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|6484Mi|
  |pods|58|
 ### `c6i.2xlarge`
@@ -2227,7 +2227,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14062Mi|
  |pods|58|
 ### `c6i.4xlarge`
@@ -2249,7 +2249,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|27281Mi|
  |pods|234|
 ### `c6i.8xlarge`
@@ -2271,7 +2271,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|57591Mi|
  |pods|234|
 ### `c6i.12xlarge`
@@ -2293,7 +2293,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|47710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|87902Mi|
  |pods|234|
 ### `c6i.16xlarge`
@@ -2315,7 +2315,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|112679Mi|
  |pods|737|
 ### `c6i.24xlarge`
@@ -2337,7 +2337,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|173300Mi|
  |pods|737|
 ### `c6i.32xlarge`
@@ -2359,7 +2359,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|127510m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|233921Mi|
  |pods|737|
 ### `c6i.metal`
@@ -2381,7 +2381,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|127510m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|233921Mi|
  |pods|737|
 ## c6id Family
@@ -2405,7 +2405,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|3014Mi|
  |pods|29|
 ### `c6id.xlarge`
@@ -2428,7 +2428,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|6484Mi|
  |pods|58|
 ### `c6id.2xlarge`
@@ -2451,7 +2451,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14062Mi|
  |pods|58|
 ### `c6id.4xlarge`
@@ -2474,7 +2474,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|27281Mi|
  |pods|234|
 ### `c6id.8xlarge`
@@ -2497,7 +2497,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|57591Mi|
  |pods|234|
 ### `c6id.12xlarge`
@@ -2520,7 +2520,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|47710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|87902Mi|
  |pods|234|
 ### `c6id.16xlarge`
@@ -2543,7 +2543,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|112679Mi|
  |pods|737|
 ### `c6id.24xlarge`
@@ -2566,7 +2566,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|173300Mi|
  |pods|737|
 ### `c6id.32xlarge`
@@ -2589,7 +2589,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|127510m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|233921Mi|
  |pods|737|
 ### `c6id.metal`
@@ -2612,7 +2612,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|127510m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|233921Mi|
  |pods|737|
 ## c7g Family
@@ -2635,7 +2635,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|840m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|1351Mi|
  |pods|8|
 ### `c7g.large`
@@ -2657,7 +2657,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|3014Mi|
  |pods|29|
 ### `c7g.xlarge`
@@ -2679,7 +2679,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|6484Mi|
  |pods|58|
 ### `c7g.2xlarge`
@@ -2701,7 +2701,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14062Mi|
  |pods|58|
 ### `c7g.4xlarge`
@@ -2723,7 +2723,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|27281Mi|
  |pods|234|
 ### `c7g.8xlarge`
@@ -2745,7 +2745,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|57591Mi|
  |pods|234|
 ### `c7g.12xlarge`
@@ -2767,7 +2767,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|47710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|87902Mi|
  |pods|234|
 ### `c7g.16xlarge`
@@ -2789,7 +2789,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|112679Mi|
  |pods|737|
 ## cc2 Family
@@ -2812,7 +2812,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|54276Mi|
  |pods|234|
 ## d2 Family
@@ -2835,7 +2835,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|27796Mi|
  |pods|58|
 ### `d2.2xlarge`
@@ -2857,7 +2857,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|56686Mi|
  |pods|58|
 ### `d2.4xlarge`
@@ -2879,7 +2879,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|112529Mi|
  |pods|234|
 ### `d2.8xlarge`
@@ -2901,7 +2901,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|35740m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|228087Mi|
  |pods|234|
 ## d3 Family
@@ -2925,7 +2925,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|29745Mi|
  |pods|10|
 ### `d3.2xlarge`
@@ -2948,7 +2948,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|59967Mi|
  |pods|18|
 ### `d3.4xlarge`
@@ -2971,7 +2971,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|120368Mi|
  |pods|38|
 ### `d3.8xlarge`
@@ -2994,7 +2994,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|241379Mi|
  |pods|59|
 ## d3en Family
@@ -3018,7 +3018,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14590Mi|
  |pods|10|
 ### `d3en.2xlarge`
@@ -3041,7 +3041,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|29657Mi|
  |pods|18|
 ### `d3en.4xlarge`
@@ -3064,7 +3064,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|59747Mi|
  |pods|38|
 ### `d3en.6xlarge`
@@ -3087,7 +3087,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|23770m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|89838Mi|
  |pods|58|
 ### `d3en.8xlarge`
@@ -3110,7 +3110,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|119928Mi|
  |pods|78|
 ### `d3en.12xlarge`
@@ -3133,7 +3133,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|47710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|180428Mi|
  |pods|89|
 ## dl1 Family
@@ -3161,7 +3161,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|694632Mi|
  |pods|2942|
 ## g3 Family
@@ -3188,7 +3188,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|112529Mi|
  |nvidia.com/gpu|1|
  |pods|234|
@@ -3215,7 +3215,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|228087Mi|
  |nvidia.com/gpu|2|
  |pods|234|
@@ -3242,7 +3242,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|453671Mi|
  |nvidia.com/gpu|4|
  |pods|737|
@@ -3270,7 +3270,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|27796Mi|
  |nvidia.com/gpu|1|
  |pods|58|
@@ -3300,7 +3300,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |amd.com/gpu|1|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14612Mi|
  |pods|8|
 ### `g4ad.2xlarge`
@@ -3328,7 +3328,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |amd.com/gpu|1|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|29767Mi|
  |pods|8|
 ### `g4ad.4xlarge`
@@ -3356,7 +3356,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |amd.com/gpu|1|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|59846Mi|
  |pods|29|
 ### `g4ad.8xlarge`
@@ -3384,7 +3384,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |amd.com/gpu|2|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|120148Mi|
  |pods|58|
 ### `g4ad.16xlarge`
@@ -3412,7 +3412,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |amd.com/gpu|4|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|239454Mi|
  |pods|234|
 ## g4dn Family
@@ -3440,7 +3440,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14381Mi|
  |nvidia.com/gpu|1|
  |pods|29|
@@ -3468,7 +3468,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|29536Mi|
  |nvidia.com/gpu|1|
  |pods|29|
@@ -3496,7 +3496,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|59846Mi|
  |nvidia.com/gpu|1|
  |pods|29|
@@ -3524,7 +3524,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|120148Mi|
  |nvidia.com/gpu|1|
  |pods|58|
@@ -3552,7 +3552,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|47710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|178833Mi|
  |nvidia.com/gpu|4|
  |pods|234|
@@ -3580,7 +3580,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|241390Mi|
  |nvidia.com/gpu|1|
  |pods|58|
@@ -3608,7 +3608,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|355162Mi|
  |nvidia.com/gpu|8|
  |pods|737|
@@ -3637,7 +3637,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14062Mi|
  |nvidia.com/gpu|1|
  |pods|58|
@@ -3665,7 +3665,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|29217Mi|
  |nvidia.com/gpu|1|
  |pods|58|
@@ -3693,7 +3693,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|57591Mi|
  |nvidia.com/gpu|1|
  |pods|234|
@@ -3721,7 +3721,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|118212Mi|
  |nvidia.com/gpu|1|
  |pods|234|
@@ -3749,7 +3749,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|47710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|173300Mi|
  |nvidia.com/gpu|4|
  |pods|737|
@@ -3777,7 +3777,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|239454Mi|
  |nvidia.com/gpu|1|
  |pods|234|
@@ -3805,7 +3805,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|355162Mi|
  |nvidia.com/gpu|4|
  |pods|737|
@@ -3833,7 +3833,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|191350m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|718887Mi|
  |nvidia.com/gpu|8|
  |pods|737|
@@ -3861,7 +3861,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|6484Mi|
  |nvidia.com/gpu|1|
  |pods|58|
@@ -3888,7 +3888,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14062Mi|
  |nvidia.com/gpu|1|
  |pods|58|
@@ -3915,7 +3915,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|27281Mi|
  |nvidia.com/gpu|1|
  |pods|234|
@@ -3942,7 +3942,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|57591Mi|
  |nvidia.com/gpu|1|
  |pods|234|
@@ -3969,7 +3969,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|112679Mi|
  |nvidia.com/gpu|2|
  |pods|737|
@@ -3996,7 +3996,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|112679Mi|
  |nvidia.com/gpu|2|
  |pods|737|
@@ -4020,7 +4020,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|29217Mi|
  |pods|58|
 ### `h1.4xlarge`
@@ -4042,7 +4042,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|57591Mi|
  |pods|234|
 ### `h1.8xlarge`
@@ -4064,7 +4064,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|118212Mi|
  |pods|234|
 ### `h1.16xlarge`
@@ -4086,7 +4086,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|233921Mi|
  |pods|737|
 ## i2 Family
@@ -4109,7 +4109,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|27796Mi|
  |pods|58|
 ### `i2.2xlarge`
@@ -4131,7 +4131,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|56686Mi|
  |pods|58|
 ### `i2.4xlarge`
@@ -4153,7 +4153,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|112529Mi|
  |pods|234|
 ### `i2.8xlarge`
@@ -4175,7 +4175,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|228087Mi|
  |pods|234|
 ## i3 Family
@@ -4199,7 +4199,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|13670Mi|
  |pods|29|
 ### `i3.xlarge`
@@ -4222,7 +4222,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|27796Mi|
  |pods|58|
 ### `i3.2xlarge`
@@ -4245,7 +4245,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|56686Mi|
  |pods|58|
 ### `i3.4xlarge`
@@ -4268,7 +4268,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|112529Mi|
  |pods|234|
 ### `i3.8xlarge`
@@ -4291,7 +4291,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|228087Mi|
  |pods|234|
 ### `i3.16xlarge`
@@ -4314,7 +4314,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|453671Mi|
  |pods|737|
 ### `i3.metal`
@@ -4337,7 +4337,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|71650m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|476404Mi|
  |pods|737|
 ## i3en Family
@@ -4361,7 +4361,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14381Mi|
  |pods|29|
 ### `i3en.xlarge`
@@ -4384,7 +4384,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|29217Mi|
  |pods|58|
 ### `i3en.2xlarge`
@@ -4407,7 +4407,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|59527Mi|
  |pods|58|
 ### `i3en.3xlarge`
@@ -4430,7 +4430,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|11800m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|89838Mi|
  |pods|58|
 ### `i3en.6xlarge`
@@ -4453,7 +4453,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|23770m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|178833Mi|
  |pods|234|
 ### `i3en.12xlarge`
@@ -4476,7 +4476,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|47710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|360695Mi|
  |pods|234|
 ### `i3en.24xlarge`
@@ -4499,7 +4499,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|718887Mi|
  |pods|737|
 ### `i3en.metal`
@@ -4522,7 +4522,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|718887Mi|
  |pods|737|
 ## i4i Family
@@ -4546,7 +4546,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14381Mi|
  |pods|29|
 ### `i4i.xlarge`
@@ -4569,7 +4569,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|29217Mi|
  |pods|58|
 ### `i4i.2xlarge`
@@ -4592,7 +4592,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|59527Mi|
  |pods|58|
 ### `i4i.4xlarge`
@@ -4615,7 +4615,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|118212Mi|
  |pods|234|
 ### `i4i.8xlarge`
@@ -4638,7 +4638,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|239454Mi|
  |pods|234|
 ### `i4i.16xlarge`
@@ -4661,7 +4661,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|476404Mi|
  |pods|737|
 ### `i4i.32xlarge`
@@ -4684,7 +4684,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|127510m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|961370Mi|
  |pods|737|
 ### `i4i.metal`
@@ -4707,7 +4707,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|127510m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|961370Mi|
  |pods|737|
 ## im4gn Family
@@ -4731,7 +4731,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|6803Mi|
  |pods|29|
 ### `im4gn.xlarge`
@@ -4754,7 +4754,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14062Mi|
  |pods|58|
 ### `im4gn.2xlarge`
@@ -4777,7 +4777,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|29217Mi|
  |pods|58|
 ### `im4gn.4xlarge`
@@ -4800,7 +4800,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|57591Mi|
  |pods|234|
 ### `im4gn.8xlarge`
@@ -4823,7 +4823,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|118212Mi|
  |pods|234|
 ### `im4gn.16xlarge`
@@ -4846,7 +4846,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|233921Mi|
  |pods|737|
 ## inf1 Family
@@ -4870,7 +4870,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |aws.amazon.com/neuron|1|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|6704Mi|
  |pods|38|
 ### `inf1.2xlarge`
@@ -4893,7 +4893,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |aws.amazon.com/neuron|1|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14282Mi|
  |pods|38|
 ### `inf1.6xlarge`
@@ -4916,7 +4916,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |aws.amazon.com/neuron|4|
  |cpu|23770m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|42436Mi|
  |pods|234|
 ### `inf1.24xlarge`
@@ -4939,7 +4939,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |aws.amazon.com/neuron|16|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|177876Mi|
  |pods|321|
 ## is4gen Family
@@ -4963,7 +4963,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|840m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|5140Mi|
  |pods|8|
 ### `is4gen.large`
@@ -4986,7 +4986,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|10592Mi|
  |pods|29|
 ### `is4gen.xlarge`
@@ -5009,7 +5009,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|21639Mi|
  |pods|58|
 ### `is4gen.2xlarge`
@@ -5032,7 +5032,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|44372Mi|
  |pods|58|
 ### `is4gen.4xlarge`
@@ -5055,7 +5055,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|87902Mi|
  |pods|234|
 ### `is4gen.8xlarge`
@@ -5078,7 +5078,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|178833Mi|
  |pods|234|
 ## m1 Family
@@ -5101,7 +5101,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|840m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|1066Mi|
  |pods|8|
 ### `m1.medium`
@@ -5123,7 +5123,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|840m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|2916Mi|
  |pods|12|
 ### `m1.large`
@@ -5145,7 +5145,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|6330Mi|
  |pods|29|
 ### `m1.xlarge`
@@ -5167,7 +5167,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|13115Mi|
  |pods|58|
 ## m2 Family
@@ -5190,7 +5190,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|15103Mi|
  |pods|58|
 ### `m2.2xlarge`
@@ -5212,7 +5212,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|30640Mi|
  |pods|118|
 ### `m2.4xlarge`
@@ -5234,7 +5234,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|61758Mi|
  |pods|234|
 ## m3 Family
@@ -5257,7 +5257,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|840m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|2965Mi|
  |pods|12|
 ### `m3.large`
@@ -5279,7 +5279,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|6330Mi|
  |pods|29|
 ### `m3.xlarge`
@@ -5301,7 +5301,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|13115Mi|
  |pods|58|
 ### `m3.2xlarge`
@@ -5323,7 +5323,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|26663Mi|
  |pods|118|
 ## m4 Family
@@ -5346,7 +5346,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|6902Mi|
  |pods|20|
 ### `m4.xlarge`
@@ -5368,7 +5368,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14062Mi|
  |pods|58|
 ### `m4.2xlarge`
@@ -5390,7 +5390,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|29217Mi|
  |pods|58|
 ### `m4.4xlarge`
@@ -5412,7 +5412,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|57591Mi|
  |pods|234|
 ### `m4.10xlarge`
@@ -5434,7 +5434,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|39730m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|148523Mi|
  |pods|234|
 ### `m4.16xlarge`
@@ -5456,7 +5456,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|239454Mi|
  |pods|234|
 ## m5 Family
@@ -5479,7 +5479,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|6803Mi|
  |pods|29|
 ### `m5.xlarge`
@@ -5501,7 +5501,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14062Mi|
  |pods|58|
 ### `m5.2xlarge`
@@ -5523,7 +5523,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|29217Mi|
  |pods|58|
 ### `m5.4xlarge`
@@ -5545,7 +5545,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|57591Mi|
  |pods|234|
 ### `m5.8xlarge`
@@ -5567,7 +5567,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|118212Mi|
  |pods|234|
 ### `m5.12xlarge`
@@ -5589,7 +5589,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|47710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|178833Mi|
  |pods|234|
 ### `m5.16xlarge`
@@ -5611,7 +5611,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|233921Mi|
  |pods|737|
 ### `m5.24xlarge`
@@ -5633,7 +5633,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|355162Mi|
  |pods|737|
 ### `m5.metal`
@@ -5655,7 +5655,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|355162Mi|
  |pods|737|
 ## m5a Family
@@ -5678,7 +5678,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|6803Mi|
  |pods|29|
 ### `m5a.xlarge`
@@ -5700,7 +5700,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14062Mi|
  |pods|58|
 ### `m5a.2xlarge`
@@ -5722,7 +5722,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|29217Mi|
  |pods|58|
 ### `m5a.4xlarge`
@@ -5744,7 +5744,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|57591Mi|
  |pods|234|
 ### `m5a.8xlarge`
@@ -5766,7 +5766,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|118212Mi|
  |pods|234|
 ### `m5a.12xlarge`
@@ -5788,7 +5788,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|47710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|178833Mi|
  |pods|234|
 ### `m5a.16xlarge`
@@ -5810,7 +5810,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|233921Mi|
  |pods|737|
 ### `m5a.24xlarge`
@@ -5832,7 +5832,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|355162Mi|
  |pods|737|
 ## m5ad Family
@@ -5856,7 +5856,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|6803Mi|
  |pods|29|
 ### `m5ad.xlarge`
@@ -5879,7 +5879,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14062Mi|
  |pods|58|
 ### `m5ad.2xlarge`
@@ -5902,7 +5902,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|29217Mi|
  |pods|58|
 ### `m5ad.4xlarge`
@@ -5925,7 +5925,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|57591Mi|
  |pods|234|
 ### `m5ad.8xlarge`
@@ -5948,7 +5948,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|118212Mi|
  |pods|234|
 ### `m5ad.12xlarge`
@@ -5971,7 +5971,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|47710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|178833Mi|
  |pods|234|
 ### `m5ad.16xlarge`
@@ -5994,7 +5994,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|233921Mi|
  |pods|737|
 ### `m5ad.24xlarge`
@@ -6017,7 +6017,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|355162Mi|
  |pods|737|
 ## m5d Family
@@ -6041,7 +6041,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|6803Mi|
  |pods|29|
 ### `m5d.xlarge`
@@ -6064,7 +6064,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14062Mi|
  |pods|58|
 ### `m5d.2xlarge`
@@ -6087,7 +6087,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|29217Mi|
  |pods|58|
 ### `m5d.4xlarge`
@@ -6110,7 +6110,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|57591Mi|
  |pods|234|
 ### `m5d.8xlarge`
@@ -6133,7 +6133,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|118212Mi|
  |pods|234|
 ### `m5d.12xlarge`
@@ -6156,7 +6156,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|47710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|178833Mi|
  |pods|234|
 ### `m5d.16xlarge`
@@ -6179,7 +6179,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|233921Mi|
  |pods|737|
 ### `m5d.24xlarge`
@@ -6202,7 +6202,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|355162Mi|
  |pods|737|
 ### `m5d.metal`
@@ -6225,7 +6225,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|355162Mi|
  |pods|737|
 ## m5dn Family
@@ -6249,7 +6249,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|6803Mi|
  |pods|29|
 ### `m5dn.xlarge`
@@ -6272,7 +6272,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14062Mi|
  |pods|58|
 ### `m5dn.2xlarge`
@@ -6295,7 +6295,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|29217Mi|
  |pods|58|
 ### `m5dn.4xlarge`
@@ -6318,7 +6318,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|57591Mi|
  |pods|234|
 ### `m5dn.8xlarge`
@@ -6341,7 +6341,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|118212Mi|
  |pods|234|
 ### `m5dn.12xlarge`
@@ -6364,7 +6364,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|47710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|178833Mi|
  |pods|234|
 ### `m5dn.16xlarge`
@@ -6387,7 +6387,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|233921Mi|
  |pods|737|
 ### `m5dn.24xlarge`
@@ -6410,7 +6410,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|355162Mi|
  |pods|737|
 ### `m5dn.metal`
@@ -6433,7 +6433,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|355162Mi|
  |pods|737|
 ## m5n Family
@@ -6456,7 +6456,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|6803Mi|
  |pods|29|
 ### `m5n.xlarge`
@@ -6478,7 +6478,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14062Mi|
  |pods|58|
 ### `m5n.2xlarge`
@@ -6500,7 +6500,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|29217Mi|
  |pods|58|
 ### `m5n.4xlarge`
@@ -6522,7 +6522,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|57591Mi|
  |pods|234|
 ### `m5n.8xlarge`
@@ -6544,7 +6544,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|118212Mi|
  |pods|234|
 ### `m5n.12xlarge`
@@ -6566,7 +6566,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|47710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|178833Mi|
  |pods|234|
 ### `m5n.16xlarge`
@@ -6588,7 +6588,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|233921Mi|
  |pods|737|
 ### `m5n.24xlarge`
@@ -6610,7 +6610,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|355162Mi|
  |pods|737|
 ### `m5n.metal`
@@ -6632,7 +6632,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|355162Mi|
  |pods|737|
 ## m5zn Family
@@ -6655,7 +6655,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|6803Mi|
  |pods|29|
 ### `m5zn.xlarge`
@@ -6677,7 +6677,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14062Mi|
  |pods|58|
 ### `m5zn.2xlarge`
@@ -6699,7 +6699,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|29217Mi|
  |pods|58|
 ### `m5zn.3xlarge`
@@ -6721,7 +6721,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|11800m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|42436Mi|
  |pods|234|
 ### `m5zn.6xlarge`
@@ -6743,7 +6743,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|23770m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|87902Mi|
  |pods|234|
 ### `m5zn.12xlarge`
@@ -6765,7 +6765,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|47710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|173300Mi|
  |pods|737|
 ### `m5zn.metal`
@@ -6787,7 +6787,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|47710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|173300Mi|
  |pods|737|
 ## m6a Family
@@ -6810,7 +6810,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|6803Mi|
  |pods|29|
 ### `m6a.xlarge`
@@ -6832,7 +6832,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14062Mi|
  |pods|58|
 ### `m6a.2xlarge`
@@ -6854,7 +6854,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|29217Mi|
  |pods|58|
 ### `m6a.4xlarge`
@@ -6876,7 +6876,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|57591Mi|
  |pods|234|
 ### `m6a.8xlarge`
@@ -6898,7 +6898,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|118212Mi|
  |pods|234|
 ### `m6a.12xlarge`
@@ -6920,7 +6920,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|47710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|178833Mi|
  |pods|234|
 ### `m6a.16xlarge`
@@ -6942,7 +6942,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|233921Mi|
  |pods|737|
 ### `m6a.24xlarge`
@@ -6964,7 +6964,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|355162Mi|
  |pods|737|
 ### `m6a.32xlarge`
@@ -6986,7 +6986,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|127510m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|476404Mi|
  |pods|737|
 ### `m6a.48xlarge`
@@ -7008,7 +7008,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|191350m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|718887Mi|
  |pods|737|
 ### `m6a.metal`
@@ -7030,7 +7030,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|191350m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|718887Mi|
  |pods|737|
 ## m6g Family
@@ -7053,7 +7053,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|840m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|3245Mi|
  |pods|8|
 ### `m6g.large`
@@ -7075,7 +7075,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|6803Mi|
  |pods|29|
 ### `m6g.xlarge`
@@ -7097,7 +7097,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14062Mi|
  |pods|58|
 ### `m6g.2xlarge`
@@ -7119,7 +7119,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|29217Mi|
  |pods|58|
 ### `m6g.4xlarge`
@@ -7141,7 +7141,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|57591Mi|
  |pods|234|
 ### `m6g.8xlarge`
@@ -7163,7 +7163,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|118212Mi|
  |pods|234|
 ### `m6g.12xlarge`
@@ -7185,7 +7185,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|47710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|178833Mi|
  |pods|234|
 ### `m6g.16xlarge`
@@ -7207,7 +7207,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|233921Mi|
  |pods|737|
 ### `m6g.metal`
@@ -7229,7 +7229,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|233921Mi|
  |pods|737|
 ## m6gd Family
@@ -7253,7 +7253,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|840m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|3245Mi|
  |pods|8|
 ### `m6gd.large`
@@ -7276,7 +7276,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|6803Mi|
  |pods|29|
 ### `m6gd.xlarge`
@@ -7299,7 +7299,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14062Mi|
  |pods|58|
 ### `m6gd.2xlarge`
@@ -7322,7 +7322,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|29217Mi|
  |pods|58|
 ### `m6gd.4xlarge`
@@ -7345,7 +7345,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|57591Mi|
  |pods|234|
 ### `m6gd.8xlarge`
@@ -7368,7 +7368,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|118212Mi|
  |pods|234|
 ### `m6gd.12xlarge`
@@ -7391,7 +7391,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|47710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|178833Mi|
  |pods|234|
 ### `m6gd.16xlarge`
@@ -7414,7 +7414,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|233921Mi|
  |pods|737|
 ### `m6gd.metal`
@@ -7437,7 +7437,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|233921Mi|
  |pods|737|
 ## m6i Family
@@ -7460,7 +7460,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|6803Mi|
  |pods|29|
 ### `m6i.xlarge`
@@ -7482,7 +7482,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14062Mi|
  |pods|58|
 ### `m6i.2xlarge`
@@ -7504,7 +7504,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|29217Mi|
  |pods|58|
 ### `m6i.4xlarge`
@@ -7526,7 +7526,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|57591Mi|
  |pods|234|
 ### `m6i.8xlarge`
@@ -7548,7 +7548,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|118212Mi|
  |pods|234|
 ### `m6i.12xlarge`
@@ -7570,7 +7570,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|47710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|178833Mi|
  |pods|234|
 ### `m6i.16xlarge`
@@ -7592,7 +7592,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|233921Mi|
  |pods|737|
 ### `m6i.24xlarge`
@@ -7614,7 +7614,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|355162Mi|
  |pods|737|
 ### `m6i.32xlarge`
@@ -7636,7 +7636,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|127510m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|476404Mi|
  |pods|737|
 ### `m6i.metal`
@@ -7658,7 +7658,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|127510m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|476404Mi|
  |pods|737|
 ## m6id Family
@@ -7682,7 +7682,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|6803Mi|
  |pods|29|
 ### `m6id.xlarge`
@@ -7705,7 +7705,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14062Mi|
  |pods|58|
 ### `m6id.2xlarge`
@@ -7728,7 +7728,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|29217Mi|
  |pods|58|
 ### `m6id.4xlarge`
@@ -7751,7 +7751,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|57591Mi|
  |pods|234|
 ### `m6id.8xlarge`
@@ -7774,7 +7774,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|118212Mi|
  |pods|234|
 ### `m6id.12xlarge`
@@ -7797,7 +7797,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|47710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|178833Mi|
  |pods|234|
 ### `m6id.16xlarge`
@@ -7820,7 +7820,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|233921Mi|
  |pods|737|
 ### `m6id.24xlarge`
@@ -7843,7 +7843,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|355162Mi|
  |pods|737|
 ### `m6id.32xlarge`
@@ -7866,7 +7866,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|127510m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|476404Mi|
  |pods|737|
 ### `m6id.metal`
@@ -7889,7 +7889,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|127510m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|476404Mi|
  |pods|737|
 ## p2 Family
@@ -7916,7 +7916,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|56686Mi|
  |nvidia.com/gpu|1|
  |pods|58|
@@ -7943,7 +7943,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|459204Mi|
  |nvidia.com/gpu|8|
  |pods|234|
@@ -7970,7 +7970,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|690321Mi|
  |nvidia.com/gpu|16|
  |pods|234|
@@ -7998,7 +7998,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|56686Mi|
  |nvidia.com/gpu|1|
  |pods|58|
@@ -8025,7 +8025,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|228087Mi|
  |nvidia.com/gpu|4|
  |pods|234|
@@ -8052,7 +8052,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|459204Mi|
  |nvidia.com/gpu|8|
  |pods|234|
@@ -8081,7 +8081,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|718887Mi|
  |nvidia.com/gpu|8|
  |pods|737|
@@ -8110,7 +8110,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|1058357Mi|
  |nvidia.com/gpu|8|
  |pods|2942|
@@ -8134,7 +8134,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|13434Mi|
  |pods|29|
 ### `r3.xlarge`
@@ -8156,7 +8156,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|27796Mi|
  |pods|58|
 ### `r3.2xlarge`
@@ -8178,7 +8178,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|56686Mi|
  |pods|58|
 ### `r3.4xlarge`
@@ -8200,7 +8200,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|112529Mi|
  |pods|234|
 ### `r3.8xlarge`
@@ -8222,7 +8222,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|228087Mi|
  |pods|234|
 ## r4 Family
@@ -8245,7 +8245,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|13670Mi|
  |pods|29|
 ### `r4.xlarge`
@@ -8267,7 +8267,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|27796Mi|
  |pods|58|
 ### `r4.2xlarge`
@@ -8289,7 +8289,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|56686Mi|
  |pods|58|
 ### `r4.4xlarge`
@@ -8311,7 +8311,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|112529Mi|
  |pods|234|
 ### `r4.8xlarge`
@@ -8333,7 +8333,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|228087Mi|
  |pods|234|
 ### `r4.16xlarge`
@@ -8355,7 +8355,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|453671Mi|
  |pods|737|
 ## r5 Family
@@ -8378,7 +8378,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14381Mi|
  |pods|29|
 ### `r5.xlarge`
@@ -8400,7 +8400,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|29217Mi|
  |pods|58|
 ### `r5.2xlarge`
@@ -8422,7 +8422,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|59527Mi|
  |pods|58|
 ### `r5.4xlarge`
@@ -8444,7 +8444,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|118212Mi|
  |pods|234|
 ### `r5.8xlarge`
@@ -8466,7 +8466,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|239454Mi|
  |pods|234|
 ### `r5.12xlarge`
@@ -8488,7 +8488,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|47710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|360695Mi|
  |pods|234|
 ### `r5.16xlarge`
@@ -8510,7 +8510,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|476404Mi|
  |pods|737|
 ### `r5.24xlarge`
@@ -8532,7 +8532,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|718887Mi|
  |pods|737|
 ### `r5.metal`
@@ -8554,7 +8554,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|718887Mi|
  |pods|737|
 ## r5a Family
@@ -8577,7 +8577,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14381Mi|
  |pods|29|
 ### `r5a.xlarge`
@@ -8599,7 +8599,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|29217Mi|
  |pods|58|
 ### `r5a.2xlarge`
@@ -8621,7 +8621,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|59527Mi|
  |pods|58|
 ### `r5a.4xlarge`
@@ -8643,7 +8643,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|118212Mi|
  |pods|234|
 ### `r5a.8xlarge`
@@ -8665,7 +8665,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|239454Mi|
  |pods|234|
 ### `r5a.12xlarge`
@@ -8687,7 +8687,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|47710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|360695Mi|
  |pods|234|
 ### `r5a.16xlarge`
@@ -8709,7 +8709,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|476404Mi|
  |pods|737|
 ### `r5a.24xlarge`
@@ -8731,7 +8731,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|718887Mi|
  |pods|737|
 ## r5ad Family
@@ -8755,7 +8755,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14381Mi|
  |pods|29|
 ### `r5ad.xlarge`
@@ -8778,7 +8778,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|29217Mi|
  |pods|58|
 ### `r5ad.2xlarge`
@@ -8801,7 +8801,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|59527Mi|
  |pods|58|
 ### `r5ad.4xlarge`
@@ -8824,7 +8824,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|118212Mi|
  |pods|234|
 ### `r5ad.8xlarge`
@@ -8847,7 +8847,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|239454Mi|
  |pods|234|
 ### `r5ad.12xlarge`
@@ -8870,7 +8870,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|47710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|360695Mi|
  |pods|234|
 ### `r5ad.16xlarge`
@@ -8893,7 +8893,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|476404Mi|
  |pods|737|
 ### `r5ad.24xlarge`
@@ -8916,7 +8916,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|718887Mi|
  |pods|737|
 ## r5b Family
@@ -8939,7 +8939,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14381Mi|
  |pods|29|
 ### `r5b.xlarge`
@@ -8961,7 +8961,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|29217Mi|
  |pods|58|
 ### `r5b.2xlarge`
@@ -8983,7 +8983,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|59527Mi|
  |pods|58|
 ### `r5b.4xlarge`
@@ -9005,7 +9005,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|118212Mi|
  |pods|234|
 ### `r5b.8xlarge`
@@ -9027,7 +9027,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|239454Mi|
  |pods|234|
 ### `r5b.12xlarge`
@@ -9049,7 +9049,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|47710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|360695Mi|
  |pods|234|
 ### `r5b.16xlarge`
@@ -9071,7 +9071,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|476404Mi|
  |pods|737|
 ### `r5b.24xlarge`
@@ -9093,7 +9093,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|718887Mi|
  |pods|737|
 ### `r5b.metal`
@@ -9115,7 +9115,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|718887Mi|
  |pods|737|
 ## r5d Family
@@ -9139,7 +9139,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14381Mi|
  |pods|29|
 ### `r5d.xlarge`
@@ -9162,7 +9162,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|29217Mi|
  |pods|58|
 ### `r5d.2xlarge`
@@ -9185,7 +9185,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|59527Mi|
  |pods|58|
 ### `r5d.4xlarge`
@@ -9208,7 +9208,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|118212Mi|
  |pods|234|
 ### `r5d.8xlarge`
@@ -9231,7 +9231,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|239454Mi|
  |pods|234|
 ### `r5d.12xlarge`
@@ -9254,7 +9254,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|47710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|360695Mi|
  |pods|234|
 ### `r5d.16xlarge`
@@ -9277,7 +9277,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|476404Mi|
  |pods|737|
 ### `r5d.24xlarge`
@@ -9300,7 +9300,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|718887Mi|
  |pods|737|
 ### `r5d.metal`
@@ -9323,7 +9323,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|718887Mi|
  |pods|737|
 ## r5dn Family
@@ -9347,7 +9347,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14381Mi|
  |pods|29|
 ### `r5dn.xlarge`
@@ -9370,7 +9370,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|29217Mi|
  |pods|58|
 ### `r5dn.2xlarge`
@@ -9393,7 +9393,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|59527Mi|
  |pods|58|
 ### `r5dn.4xlarge`
@@ -9416,7 +9416,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|118212Mi|
  |pods|234|
 ### `r5dn.8xlarge`
@@ -9439,7 +9439,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|239454Mi|
  |pods|234|
 ### `r5dn.12xlarge`
@@ -9462,7 +9462,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|47710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|360695Mi|
  |pods|234|
 ### `r5dn.16xlarge`
@@ -9485,7 +9485,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|476404Mi|
  |pods|737|
 ### `r5dn.24xlarge`
@@ -9508,7 +9508,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|718887Mi|
  |pods|737|
 ### `r5dn.metal`
@@ -9531,7 +9531,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|718887Mi|
  |pods|737|
 ## r5n Family
@@ -9554,7 +9554,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14381Mi|
  |pods|29|
 ### `r5n.xlarge`
@@ -9576,7 +9576,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|29217Mi|
  |pods|58|
 ### `r5n.2xlarge`
@@ -9598,7 +9598,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|59527Mi|
  |pods|58|
 ### `r5n.4xlarge`
@@ -9620,7 +9620,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|118212Mi|
  |pods|234|
 ### `r5n.8xlarge`
@@ -9642,7 +9642,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|239454Mi|
  |pods|234|
 ### `r5n.12xlarge`
@@ -9664,7 +9664,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|47710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|360695Mi|
  |pods|234|
 ### `r5n.16xlarge`
@@ -9686,7 +9686,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|476404Mi|
  |pods|737|
 ### `r5n.24xlarge`
@@ -9708,7 +9708,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|718887Mi|
  |pods|737|
 ### `r5n.metal`
@@ -9730,7 +9730,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|718887Mi|
  |pods|737|
 ## r6a Family
@@ -9753,7 +9753,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14381Mi|
  |pods|29|
 ### `r6a.xlarge`
@@ -9775,7 +9775,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|29217Mi|
  |pods|58|
 ### `r6a.2xlarge`
@@ -9797,7 +9797,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|59527Mi|
  |pods|58|
 ### `r6a.4xlarge`
@@ -9819,7 +9819,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|118212Mi|
  |pods|234|
 ### `r6a.8xlarge`
@@ -9841,7 +9841,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|239454Mi|
  |pods|234|
 ### `r6a.12xlarge`
@@ -9863,7 +9863,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|47710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|360695Mi|
  |pods|234|
 ### `r6a.16xlarge`
@@ -9885,7 +9885,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|476404Mi|
  |pods|737|
 ### `r6a.24xlarge`
@@ -9907,7 +9907,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|718887Mi|
  |pods|737|
 ### `r6a.32xlarge`
@@ -9929,7 +9929,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|127510m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|961370Mi|
  |pods|737|
 ### `r6a.48xlarge`
@@ -9951,7 +9951,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|191350m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|1446337Mi|
  |pods|737|
 ### `r6a.metal`
@@ -9973,7 +9973,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|191350m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|1446337Mi|
  |pods|737|
 ## r6g Family
@@ -9996,7 +9996,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|840m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|7034Mi|
  |pods|8|
 ### `r6g.large`
@@ -10018,7 +10018,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14381Mi|
  |pods|29|
 ### `r6g.xlarge`
@@ -10040,7 +10040,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|29217Mi|
  |pods|58|
 ### `r6g.2xlarge`
@@ -10062,7 +10062,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|59527Mi|
  |pods|58|
 ### `r6g.4xlarge`
@@ -10084,7 +10084,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|118212Mi|
  |pods|234|
 ### `r6g.8xlarge`
@@ -10106,7 +10106,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|239454Mi|
  |pods|234|
 ### `r6g.12xlarge`
@@ -10128,7 +10128,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|47710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|360695Mi|
  |pods|234|
 ### `r6g.16xlarge`
@@ -10150,7 +10150,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|476404Mi|
  |pods|737|
 ### `r6g.metal`
@@ -10172,7 +10172,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|476404Mi|
  |pods|737|
 ## r6gd Family
@@ -10196,7 +10196,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|840m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|7034Mi|
  |pods|8|
 ### `r6gd.large`
@@ -10219,7 +10219,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14381Mi|
  |pods|29|
 ### `r6gd.xlarge`
@@ -10242,7 +10242,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|29217Mi|
  |pods|58|
 ### `r6gd.2xlarge`
@@ -10265,7 +10265,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|59527Mi|
  |pods|58|
 ### `r6gd.4xlarge`
@@ -10288,7 +10288,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|118212Mi|
  |pods|234|
 ### `r6gd.8xlarge`
@@ -10311,7 +10311,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|239454Mi|
  |pods|234|
 ### `r6gd.12xlarge`
@@ -10334,7 +10334,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|47710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|360695Mi|
  |pods|234|
 ### `r6gd.16xlarge`
@@ -10357,7 +10357,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|476404Mi|
  |pods|737|
 ### `r6gd.metal`
@@ -10380,7 +10380,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|476404Mi|
  |pods|737|
 ## r6i Family
@@ -10403,7 +10403,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14381Mi|
  |pods|29|
 ### `r6i.xlarge`
@@ -10425,7 +10425,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|29217Mi|
  |pods|58|
 ### `r6i.2xlarge`
@@ -10447,7 +10447,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|59527Mi|
  |pods|58|
 ### `r6i.4xlarge`
@@ -10469,7 +10469,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|118212Mi|
  |pods|234|
 ### `r6i.8xlarge`
@@ -10491,7 +10491,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|239454Mi|
  |pods|234|
 ### `r6i.12xlarge`
@@ -10513,7 +10513,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|47710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|360695Mi|
  |pods|234|
 ### `r6i.16xlarge`
@@ -10535,7 +10535,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|476404Mi|
  |pods|737|
 ### `r6i.24xlarge`
@@ -10557,7 +10557,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|718887Mi|
  |pods|737|
 ### `r6i.32xlarge`
@@ -10579,7 +10579,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|127510m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|961370Mi|
  |pods|737|
 ### `r6i.metal`
@@ -10601,7 +10601,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|127510m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|961370Mi|
  |pods|737|
 ## r6id Family
@@ -10625,7 +10625,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14381Mi|
  |pods|29|
 ### `r6id.xlarge`
@@ -10648,7 +10648,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|29217Mi|
  |pods|58|
 ### `r6id.2xlarge`
@@ -10671,7 +10671,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|59527Mi|
  |pods|58|
 ### `r6id.4xlarge`
@@ -10694,7 +10694,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|118212Mi|
  |pods|234|
 ### `r6id.8xlarge`
@@ -10717,7 +10717,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|239454Mi|
  |pods|234|
 ### `r6id.12xlarge`
@@ -10740,7 +10740,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|47710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|360695Mi|
  |pods|234|
 ### `r6id.16xlarge`
@@ -10763,7 +10763,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|476404Mi|
  |pods|737|
 ### `r6id.24xlarge`
@@ -10786,7 +10786,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|718887Mi|
  |pods|737|
 ### `r6id.32xlarge`
@@ -10809,7 +10809,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|127510m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|961370Mi|
  |pods|737|
 ### `r6id.metal`
@@ -10832,7 +10832,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|127510m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|961370Mi|
  |pods|737|
 ## t1 Family
@@ -10855,7 +10855,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|840m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|80Mi|
  |pods|4|
 ## t2 Family
@@ -10878,7 +10878,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|840m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|-26Mi|
  |pods|4|
 ### `t2.micro`
@@ -10900,7 +10900,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|840m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|448Mi|
  |pods|4|
 ### `t2.small`
@@ -10922,7 +10922,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|840m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|1318Mi|
  |pods|11|
 ### `t2.medium`
@@ -10944,7 +10944,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|3146Mi|
  |pods|17|
 ### `t2.large`
@@ -10966,7 +10966,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|6737Mi|
  |pods|35|
 ### `t2.xlarge`
@@ -10988,7 +10988,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14216Mi|
  |pods|44|
 ### `t2.2xlarge`
@@ -11010,7 +11010,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|29371Mi|
  |pods|44|
 ## t3 Family
@@ -11033,7 +11033,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|-26Mi|
  |pods|4|
 ### `t3.micro`
@@ -11055,7 +11055,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|448Mi|
  |pods|4|
 ### `t3.small`
@@ -11077,7 +11077,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|1318Mi|
  |pods|11|
 ### `t3.medium`
@@ -11099,7 +11099,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|3146Mi|
  |pods|17|
 ### `t3.large`
@@ -11121,7 +11121,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|6737Mi|
  |pods|35|
 ### `t3.xlarge`
@@ -11143,7 +11143,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14062Mi|
  |pods|58|
 ### `t3.2xlarge`
@@ -11165,7 +11165,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|29217Mi|
  |pods|58|
 ## t3a Family
@@ -11188,7 +11188,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|-26Mi|
  |pods|4|
 ### `t3a.micro`
@@ -11210,7 +11210,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|448Mi|
  |pods|4|
 ### `t3a.small`
@@ -11232,7 +11232,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|1351Mi|
  |pods|8|
 ### `t3a.medium`
@@ -11254,7 +11254,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|3146Mi|
  |pods|17|
 ### `t3a.large`
@@ -11276,7 +11276,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|6737Mi|
  |pods|35|
 ### `t3a.xlarge`
@@ -11298,7 +11298,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14062Mi|
  |pods|58|
 ### `t3a.2xlarge`
@@ -11320,7 +11320,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|29217Mi|
  |pods|58|
 ## t4g Family
@@ -11343,7 +11343,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|-26Mi|
  |pods|4|
 ### `t4g.micro`
@@ -11365,7 +11365,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|448Mi|
  |pods|4|
 ### `t4g.small`
@@ -11387,7 +11387,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|1318Mi|
  |pods|11|
 ### `t4g.medium`
@@ -11409,7 +11409,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|3146Mi|
  |pods|17|
 ### `t4g.large`
@@ -11431,7 +11431,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|6737Mi|
  |pods|35|
 ### `t4g.xlarge`
@@ -11453,7 +11453,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14062Mi|
  |pods|58|
 ### `t4g.2xlarge`
@@ -11475,56 +11475,9 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|29217Mi|
  |pods|58|
-## trn1 Family
-### `trn1.2xlarge`
-#### Labels
- | Label | Value |
- |--|--|
- |karpenter.k8s.aws/instance-category|trn|
- |karpenter.k8s.aws/instance-cpu|8|
- |karpenter.k8s.aws/instance-family|trn1|
- |karpenter.k8s.aws/instance-generation|1|
- |karpenter.k8s.aws/instance-hypervisor|nitro|
- |karpenter.k8s.aws/instance-local-nvme|474|
- |karpenter.k8s.aws/instance-memory|32768|
- |karpenter.k8s.aws/instance-pods|58|
- |karpenter.k8s.aws/instance-size|2xlarge|
- |kubernetes.io/arch|amd64|
- |kubernetes.io/os|linux|
- |node.kubernetes.io/instance-type|trn1.2xlarge|
-#### Resources
- | Resource | Quantity |
- |--|--|
- |cpu|7810m|
- |ephemeral-storage|18Gi|
- |memory|29217Mi|
- |pods|58|
-### `trn1.32xlarge`
-#### Labels
- | Label | Value |
- |--|--|
- |karpenter.k8s.aws/instance-category|trn|
- |karpenter.k8s.aws/instance-cpu|128|
- |karpenter.k8s.aws/instance-family|trn1|
- |karpenter.k8s.aws/instance-generation|1|
- |karpenter.k8s.aws/instance-hypervisor|nitro|
- |karpenter.k8s.aws/instance-local-nvme|7600|
- |karpenter.k8s.aws/instance-memory|524288|
- |karpenter.k8s.aws/instance-pods|1962|
- |karpenter.k8s.aws/instance-size|32xlarge|
- |kubernetes.io/arch|amd64|
- |kubernetes.io/os|linux|
- |node.kubernetes.io/instance-type|trn1.32xlarge|
-#### Resources
- | Resource | Quantity |
- |--|--|
- |cpu|127510m|
- |ephemeral-storage|18Gi|
- |memory|462929Mi|
- |pods|1962|
 ## u-12tb1 Family
 ### `u-12tb1.112xlarge`
 #### Labels
@@ -11545,7 +11498,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|446710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|11630631Mi|
  |pods|737|
 ## u-3tb1 Family
@@ -11568,7 +11521,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|223270m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|2906769Mi|
  |pods|234|
 ## u-6tb1 Family
@@ -11591,7 +11544,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|223270m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|5811034Mi|
  |pods|737|
 ### `u-6tb1.112xlarge`
@@ -11613,7 +11566,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|446710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|5811034Mi|
  |pods|737|
 ## u-9tb1 Family
@@ -11636,7 +11589,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|446710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|8720833Mi|
  |pods|737|
 ## vt1 Family
@@ -11659,7 +11612,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|11800m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|21639Mi|
  |pods|58|
 ### `vt1.6xlarge`
@@ -11681,7 +11634,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|23770m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|42436Mi|
  |pods|234|
 ### `vt1.24xlarge`
@@ -11703,7 +11656,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|173300Mi|
  |pods|737|
 ## x1 Family
@@ -11726,7 +11679,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|921438Mi|
  |pods|234|
 ### `x1.32xlarge`
@@ -11748,7 +11701,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|127510m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|1845905Mi|
  |pods|234|
 ## x1e Family
@@ -11771,7 +11724,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|114784Mi|
  |pods|29|
 ### `x1e.2xlarge`
@@ -11793,7 +11746,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|230023Mi|
  |pods|58|
 ### `x1e.4xlarge`
@@ -11815,7 +11768,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|461140Mi|
  |pods|58|
 ### `x1e.8xlarge`
@@ -11837,7 +11790,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|923374Mi|
  |pods|58|
 ### `x1e.16xlarge`
@@ -11859,7 +11812,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|1845905Mi|
  |pods|234|
 ### `x1e.32xlarge`
@@ -11881,7 +11834,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|127510m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|3694839Mi|
  |pods|234|
 ## x2gd Family
@@ -11905,7 +11858,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|840m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14612Mi|
  |pods|8|
 ### `x2gd.large`
@@ -11928,7 +11881,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|29536Mi|
  |pods|29|
 ### `x2gd.xlarge`
@@ -11951,7 +11904,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|59527Mi|
  |pods|58|
 ### `x2gd.2xlarge`
@@ -11974,7 +11927,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|120148Mi|
  |pods|58|
 ### `x2gd.4xlarge`
@@ -11997,7 +11950,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|239454Mi|
  |pods|234|
 ### `x2gd.8xlarge`
@@ -12020,7 +11973,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|481937Mi|
  |pods|234|
 ### `x2gd.12xlarge`
@@ -12043,7 +11996,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|47710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|724420Mi|
  |pods|234|
 ### `x2gd.16xlarge`
@@ -12066,7 +12019,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|961370Mi|
  |pods|737|
 ### `x2gd.metal`
@@ -12089,7 +12042,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|961370Mi|
  |pods|737|
 ## x2idn Family
@@ -12113,7 +12066,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|961370Mi|
  |pods|737|
 ### `x2idn.24xlarge`
@@ -12136,7 +12089,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|1446337Mi|
  |pods|737|
 ### `x2idn.32xlarge`
@@ -12159,7 +12112,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|127510m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|1931303Mi|
  |pods|737|
 ### `x2idn.metal`
@@ -12182,7 +12135,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|127510m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|1931303Mi|
  |pods|737|
 ## x2iedn Family
@@ -12206,7 +12159,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|120148Mi|
  |pods|58|
 ### `x2iedn.2xlarge`
@@ -12229,7 +12182,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|241390Mi|
  |pods|58|
 ### `x2iedn.4xlarge`
@@ -12252,7 +12205,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|481937Mi|
  |pods|234|
 ### `x2iedn.8xlarge`
@@ -12275,7 +12228,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|966903Mi|
  |pods|234|
 ### `x2iedn.16xlarge`
@@ -12298,7 +12251,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|63670m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|1931303Mi|
  |pods|737|
 ### `x2iedn.24xlarge`
@@ -12321,7 +12274,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|95590m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|2901236Mi|
  |pods|737|
 ### `x2iedn.32xlarge`
@@ -12344,7 +12297,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|127510m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|3871169Mi|
  |pods|737|
 ### `x2iedn.metal`
@@ -12367,7 +12320,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|127510m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|3871169Mi|
  |pods|737|
 ## x2iezn Family
@@ -12390,7 +12343,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|241390Mi|
  |pods|58|
 ### `x2iezn.4xlarge`
@@ -12412,7 +12365,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|15790m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|481937Mi|
  |pods|234|
 ### `x2iezn.6xlarge`
@@ -12434,7 +12387,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|23770m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|724420Mi|
  |pods|234|
 ### `x2iezn.8xlarge`
@@ -12456,7 +12409,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|31750m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|966903Mi|
  |pods|234|
 ### `x2iezn.12xlarge`
@@ -12478,7 +12431,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|47710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|1446337Mi|
  |pods|737|
 ### `x2iezn.metal`
@@ -12500,7 +12453,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|47710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|1446337Mi|
  |pods|737|
 ## z1d Family
@@ -12524,7 +12477,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|1830m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|14381Mi|
  |pods|29|
 ### `z1d.xlarge`
@@ -12547,7 +12500,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|3820m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|29217Mi|
  |pods|58|
 ### `z1d.2xlarge`
@@ -12570,7 +12523,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|7810m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|59527Mi|
  |pods|58|
 ### `z1d.3xlarge`
@@ -12593,7 +12546,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|11800m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|87902Mi|
  |pods|234|
 ### `z1d.6xlarge`
@@ -12616,7 +12569,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|23770m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|178833Mi|
  |pods|234|
 ### `z1d.12xlarge`
@@ -12639,7 +12592,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|47710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|355162Mi|
  |pods|737|
 ### `z1d.metal`
@@ -12662,6 +12615,6 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |cpu|47710m|
- |ephemeral-storage|18Gi|
+ |ephemeral-storage|17434098Ki|
  |memory|355162Mi|
  |pods|737|
