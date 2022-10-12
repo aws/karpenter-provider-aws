@@ -33,7 +33,7 @@ func TestAtomic(t *testing.T) {
 
 var _ = Describe("Atomic", func() {
 	It("should resolve a value when set", func() {
-		str := atomic.CachedVal[string]{}
+		str := atomic.Lazy[string]{}
 		str.Resolve = func(_ context.Context) (string, error) { return "", nil }
 		str.Set("value")
 		ret, err := str.TryGet(context.Background())
@@ -41,21 +41,21 @@ var _ = Describe("Atomic", func() {
 		Expect(ret).To(Equal("value"))
 	})
 	It("should resolve a value and set a value when empty", func() {
-		str := atomic.CachedVal[string]{}
+		str := atomic.Lazy[string]{}
 		str.Resolve = func(_ context.Context) (string, error) { return "value", nil }
 		ret, err := str.TryGet(context.Background())
 		Expect(err).To(Succeed())
 		Expect(ret).To(Equal("value"))
 	})
 	It("should error out when the fallback function returns an err", func() {
-		str := atomic.CachedVal[string]{}
+		str := atomic.Lazy[string]{}
 		str.Resolve = func(_ context.Context) (string, error) { return "value", fmt.Errorf("failed") }
 		ret, err := str.TryGet(context.Background())
 		Expect(err).ToNot(Succeed())
 		Expect(ret).To(BeEmpty())
 	})
 	It("should ignore the cache when option set", func() {
-		str := atomic.CachedVal[string]{}
+		str := atomic.Lazy[string]{}
 		str.Resolve = func(_ context.Context) (string, error) { return "newvalue", nil }
 		str.Set("hasvalue")
 		ret, err := str.TryGet(context.Background(), atomic.IgnoreCacheOption)
@@ -64,7 +64,7 @@ var _ = Describe("Atomic", func() {
 	})
 	It("shouldn't deadlock on multiple reads", func() {
 		calls := 0
-		str := atomic.CachedVal[string]{}
+		str := atomic.Lazy[string]{}
 		str.Resolve = func(_ context.Context) (string, error) { calls++; return "value", nil }
 		wg := &sync.WaitGroup{}
 		for i := 0; i < 100; i++ {
@@ -82,7 +82,7 @@ var _ = Describe("Atomic", func() {
 	})
 	It("shouldn't deadlock on multiple writes", func() {
 		calls := 0
-		str := atomic.CachedVal[string]{}
+		str := atomic.Lazy[string]{}
 		str.Resolve = func(_ context.Context) (string, error) { calls++; return "value", nil }
 		wg := &sync.WaitGroup{}
 		for i := 0; i < 100; i++ {
