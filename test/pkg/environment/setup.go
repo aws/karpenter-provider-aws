@@ -16,6 +16,7 @@ package environment
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -209,7 +210,7 @@ func (env *Environment) startNodeMonitor(stop <-chan struct{}) {
 	factory.Start(stop)
 }
 
-func (env *Environment) AfterEach() {
+func (env *Environment) AfterEach(excludeObjs ...client.Object) {
 	if debugE2E {
 		fmt.Println("------- START AFTER -------")
 		defer fmt.Println("------- END AFTER -------")
@@ -219,26 +220,28 @@ func (env *Environment) AfterEach() {
 	Expect(env.Client.List(env, namespaces)).To(Succeed())
 	wg := sync.WaitGroup{}
 	for _, p := range CleanableObjects {
-		for _, namespace := range namespaces.Items {
-			wg.Add(1)
-			go func(obj client.Object, objList client.ObjectList, namespace string) {
-				defer GinkgoRecover()
-				defer wg.Done()
-				Expect(env.Client.DeleteAllOf(env, obj,
-					client.InNamespace(namespace),
-					client.HasLabels([]string{TestLabelName}),
-					client.PropagationPolicy(metav1.DeletePropagationForeground),
-				)).To(Succeed())
-				Eventually(func(g Gomega) {
-					stored := objList.DeepCopyObject().(client.ObjectList)
-					g.Expect(env.Client.List(env, stored,
+		if !containsObjectType(excludeObjs, p.first) {
+			for _, namespace := range namespaces.Items {
+				wg.Add(1)
+				go func(obj client.Object, objList client.ObjectList, namespace string) {
+					defer GinkgoRecover()
+					defer wg.Done()
+					Expect(env.Client.DeleteAllOf(env, obj,
 						client.InNamespace(namespace),
-						client.HasLabels([]string{TestLabelName}))).To(Succeed())
-					items, err := meta.ExtractList(objList)
-					g.Expect(err).To(Succeed())
-					g.Expect(len(items)).To(BeZero())
-				}).Should(Succeed())
-			}(p.first, p.second, namespace.Name)
+						client.HasLabels([]string{TestLabelName}),
+						client.PropagationPolicy(metav1.DeletePropagationForeground),
+					)).To(Succeed())
+					Eventually(func(g Gomega) {
+						stored := objList.DeepCopyObject().(client.ObjectList)
+						g.Expect(env.Client.List(env, stored,
+							client.InNamespace(namespace),
+							client.HasLabels([]string{TestLabelName}))).To(Succeed())
+						items, err := meta.ExtractList(objList)
+						g.Expect(err).To(Succeed())
+						g.Expect(len(items)).To(BeZero())
+					}).Should(Succeed())
+				}(p.first, p.second, namespace.Name)
+			}
 		}
 	}
 	wg.Wait()
@@ -320,4 +323,8 @@ func (env *Environment) dumpNodeEvents(testStartTime time.Time) {
 	for k, v := range eventMap {
 		fmt.Print(getEventInformation("node", k, v))
 	}
+}
+
+func containsObjectType(objs []client.Object, obj client.Object) bool {
+	return lo.ContainsBy(objs, func(o client.Object) bool { return reflect.TypeOf(o) == reflect.TypeOf(obj) })
 }
