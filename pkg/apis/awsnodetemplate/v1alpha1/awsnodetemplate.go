@@ -17,7 +17,7 @@ package v1alpha1
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
 )
 
 // AWSNodeTemplateSpec is the top level specification for the AWS Karpenter Provider.

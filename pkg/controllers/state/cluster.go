@@ -36,7 +36,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter/pkg/cloudprovider"
+
+	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
 	"github.com/aws/karpenter/pkg/config"
 	"github.com/aws/karpenter/pkg/scheduling"
 	atomicutils "github.com/aws/karpenter/pkg/utils/atomic"

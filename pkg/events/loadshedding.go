@@ -16,6 +16,7 @@ package events
 
 import (
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/flowcontrol"
 )
 
@@ -29,6 +30,10 @@ func NewLoadSheddingRecorder(r Recorder) Recorder {
 type loadshedding struct {
 	rec              Recorder
 	nominationBucket flowcontrol.RateLimiter
+}
+
+func (l *loadshedding) EventRecorder() record.EventRecorder {
+	return l.rec.EventRecorder()
 }
 
 func (l *loadshedding) NominatePod(pod *v1.Pod, node *v1.Node) {

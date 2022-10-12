@@ -22,10 +22,12 @@ import (
 // Recorder is used to record events that occur about pods so they can be viewed by looking at the pod's events so our
 // actions are more observable without requiring log inspection
 type Recorder interface {
+	// EventRecorder returns the internal event recorder used by this recorder
+	EventRecorder() record.EventRecorder
 	// NominatePod is called when we have determined that a pod should schedule against an existing node and don't
 	// currently need to provision new capacity for the pod.
 	NominatePod(*v1.Pod, *v1.Node)
-	// EvictedPod is called when a pod is evicted
+	// EvictPod is called when a pod is evicted
 	EvictPod(*v1.Pod)
 	// PodFailedToSchedule is called when a pod has failed to schedule entirely.
 	PodFailedToSchedule(*v1.Pod, error)
@@ -50,6 +52,10 @@ type recorder struct {
 
 func NewRecorder(rec record.EventRecorder) Recorder {
 	return &recorder{rec: rec}
+}
+
+func (r recorder) EventRecorder() record.EventRecorder {
+	return r.rec
 }
 
 func (r recorder) WaitingOnDeletionForConsolidation(node *v1.Node) {

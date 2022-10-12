@@ -168,7 +168,7 @@ func ExpectCleanedUp(ctx context.Context, c client.Client) {
 func ExpectProvisioned(ctx context.Context, c client.Client, controller *provisioning.Controller, pods ...*v1.Pod) (result []*v1.Pod) {
 	ExpectProvisionedNoBindingWithOffset(1, ctx, c, controller, pods...)
 
-	recorder := controller.Recorder().(*test.EventRecorder)
+	recorder := controller.Recorder().(*test.Recorder)
 	recorder.ForEachBinding(func(pod *v1.Pod, node *v1.Node) {
 		ExpectManualBindingWithOffset(1, ctx, c, pod, node)
 	})

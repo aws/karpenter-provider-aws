@@ -22,15 +22,14 @@ import (
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 
+	"github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
 	"github.com/aws/karpenter/pkg/scheduling"
 
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/aws/karpenter/pkg/cloudprovider"
 )
 
 // GetPodEvictionCost returns the disruption cost computed for evicting the given pod.

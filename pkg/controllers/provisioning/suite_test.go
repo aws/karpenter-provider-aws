@@ -29,12 +29,13 @@ import (
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	clock "k8s.io/utils/clock/testing"
 
+	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
+	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider/fake"
 	"github.com/aws/karpenter/pkg/controllers/state"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter/pkg/cloudprovider"
-	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/cloudprovider/fake"
+
+	"github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
 	"github.com/aws/karpenter/pkg/test"
 
@@ -52,7 +53,7 @@ var nodeController *state.NodeController
 var cloudProvider cloudprovider.CloudProvider
 var controller *provisioning.Controller
 var env *test.Environment
-var recorder *test.EventRecorder
+var recorder *test.Recorder
 var cfg *test.Config
 var instanceTypeMap map[string]cloudprovider.InstanceType
 
