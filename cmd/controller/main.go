@@ -17,22 +17,29 @@ package main
 import (
 	"fmt"
 
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws"
+	cloudprovidermetrics "github.com/aws/karpenter/pkg/cloudprovider/metrics"
 	"github.com/aws/karpenter/pkg/controllers"
-	"github.com/aws/karpenter/pkg/startup"
+	"github.com/aws/karpenter/pkg/operator"
 )
 
 func main() {
-	options := startup.Initialize()
-	cloudProvider := startup.Decorate(aws.NewCloudProvider(options.Ctx, cloudprovider.Options{
+	options, manager := operator.NewOptionsWithManagerOrDie()
+	cloudProvider := cloudprovider.CloudProvider(aws.NewCloudProvider(options.Ctx, cloudprovider.Options{
 		ClientSet:  options.Clientset,
-		KubeClient: options.Manager.GetClient(),
-		StartAsync: options.Manager.Elected(),
-	}), options.Manager)
-	if err := startup.RegisterControllers(options.Ctx,
-		options.Manager,
-		controllers.GetControllers(options.Ctx, options.Clock, options.Cmw, options.Recorder, options.Manager.GetClient(), options.Clientset, cloudProvider)...,
+		KubeClient: options.KubeClient,
+		StartAsync: options.StartAsync,
+	}))
+	if hp, ok := cloudProvider.(operator.HealthCheck); ok {
+		utilruntime.Must(manager.AddHealthzCheck("cloud-provider", hp.LivenessProbe))
+	}
+	cloudProvider = cloudprovidermetrics.Decorate(cloudProvider)
+	if err := operator.RegisterControllers(options.Ctx,
+		manager,
+		controllers.GetControllers(options, cloudProvider)...,
 	).Start(options.Ctx); err != nil {
 		panic(fmt.Sprintf("Unable to start manager, %s", err))
 	}

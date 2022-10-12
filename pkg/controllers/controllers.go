@@ -15,13 +15,7 @@ limitations under the License.
 package controllers
 
 import (
-	"context"
-
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/utils/clock"
-	"knative.dev/pkg/configmap/informer"
 	"knative.dev/pkg/logging"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/config"
@@ -34,36 +28,35 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/controllers/termination"
-	"github.com/aws/karpenter/pkg/events"
 	"github.com/aws/karpenter/pkg/metrics"
-	"github.com/aws/karpenter/pkg/startup"
+	"github.com/aws/karpenter/pkg/operator"
 )
 
 func init() {
 	metrics.MustRegister() // Registers cross-controller metrics
 }
 
-func GetControllers(ctx context.Context, clk clock.Clock, cmw *informer.InformedWatcher, recorder events.Recorder, kubeClient client.Client, clientSet *kubernetes.Clientset, cloudProvider cloudprovider.CloudProvider) []startup.Controller {
-	cfg, err := config.New(ctx, clientSet, cmw)
+func GetControllers(opts operator.Options, cloudProvider cloudprovider.CloudProvider) []operator.Controller {
+	cfg, err := config.New(opts.Ctx, opts.Clientset, opts.Cmw)
 	if err != nil {
 		// this does not happen if the config map is missing or invalid, only if some other error occurs
-		logging.FromContext(ctx).Fatalf("unable to load config, %s", err)
+		logging.FromContext(opts.Ctx).Fatalf("unable to load config, %s", err)
 	}
-	cluster := state.NewCluster(clk, cfg, kubeClient, cloudProvider)
-	provisioner := provisioning.NewProvisioner(ctx, cfg, kubeClient, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+	cluster := state.NewCluster(opts.Clock, cfg, opts.KubeClient, cloudProvider)
+	provisioner := provisioning.NewProvisioner(opts.Ctx, cfg, opts.KubeClient, opts.Clientset.CoreV1(), opts.Recorder, cloudProvider, cluster)
 
-	metricsstate.StartMetricScraper(ctx, cluster)
+	metricsstate.StartMetricScraper(opts.Ctx, cluster)
 
-	return []startup.Controller{
-		provisioning.NewController(kubeClient, provisioner, recorder),
-		state.NewNodeController(kubeClient, cluster),
-		state.NewPodController(kubeClient, cluster),
-		state.NewProvisionerController(kubeClient, cluster),
-		node.NewController(clk, kubeClient, cloudProvider, cluster),
-		termination.NewController(ctx, clk, kubeClient, clientSet.CoreV1(), recorder, cloudProvider),
-		metricspod.NewController(kubeClient),
-		metricsprovisioner.NewController(kubeClient),
-		counter.NewController(kubeClient, cluster),
-		consolidation.NewController(clk, kubeClient, provisioner, cloudProvider, recorder, cluster),
+	return []operator.Controller{
+		provisioning.NewController(opts.KubeClient, provisioner, opts.Recorder),
+		state.NewNodeController(opts.KubeClient, cluster),
+		state.NewPodController(opts.KubeClient, cluster),
+		state.NewProvisionerController(opts.KubeClient, cluster),
+		node.NewController(opts.Clock, opts.KubeClient, cloudProvider, cluster),
+		termination.NewController(opts.Ctx, opts.Clock, opts.KubeClient, opts.Clientset.CoreV1(), opts.Recorder, cloudProvider),
+		metricspod.NewController(opts.KubeClient),
+		metricsprovisioner.NewController(opts.KubeClient),
+		counter.NewController(opts.KubeClient, cluster),
+		consolidation.NewController(opts.Clock, opts.KubeClient, provisioner, cloudProvider, opts.Recorder, cluster),
 	}
 }

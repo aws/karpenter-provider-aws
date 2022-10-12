@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package startup
+package operator
 
 import (
 	"context"
@@ -21,6 +21,7 @@ import (
 	"net/http/pprof"
 
 	"github.com/go-logr/zapr"
+	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/rest"
@@ -30,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
+	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/options"
 )
 
@@ -43,7 +45,7 @@ func NewManagerOrDie(ctx context.Context, config *rest.Config, opts *options.Opt
 		Scheme:                     scheme,
 		MetricsBindAddress:         fmt.Sprintf(":%d", opts.MetricsPort),
 		HealthProbeBindAddress:     fmt.Sprintf(":%d", opts.HealthProbePort),
-		BaseContext:                NewRunnableContext(config, opts, logging.FromContext(ctx)),
+		BaseContext:                newRunnableContext(config, opts, logging.FromContext(ctx)),
 	})
 	if err != nil {
 		panic(fmt.Sprintf("Failed to create controller newManager, %s", err))
@@ -58,6 +60,16 @@ func NewManagerOrDie(ctx context.Context, config *rest.Config, opts *options.Opt
 	}
 
 	return newManager
+}
+
+func newRunnableContext(config *rest.Config, options *options.Options, logger *zap.SugaredLogger) func() context.Context {
+	return func() context.Context {
+		ctx := context.Background()
+		ctx = logging.WithLogger(ctx, logger)
+		ctx = injection.WithConfig(ctx, config)
+		ctx = injection.WithOptions(ctx, *options)
+		return ctx
+	}
 }
 
 func registerPprof(manager manager.Manager) error {

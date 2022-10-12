@@ -12,24 +12,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package startup
+package operator
 
 import (
-	"context"
 	"runtime/debug"
 
-	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/flowcontrol"
 	"k8s.io/utils/clock"
 	"knative.dev/pkg/configmap/informer"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/system"
 	controllerruntime "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/events"
@@ -39,8 +37,8 @@ import (
 )
 
 const (
-	component = "controller"
 	appName   = "karpenter"
+	component = "controller"
 )
 
 var (
@@ -52,8 +50,9 @@ func init() {
 	utilruntime.Must(apis.AddToScheme(scheme))
 }
 
-func Initialize() Options {
+func NewOptionsWithManagerOrDie() (Options, manager.Manager) {
 	opts := options.New().MustParse()
+
 	// Setup Client
 	controllerRuntimeConfig := controllerruntime.GetConfigOrDie()
 	controllerRuntimeConfig.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(float32(opts.KubeClientQPS), opts.KubeClientBurst)
@@ -72,34 +71,24 @@ func Initialize() Options {
 		logging.FromContext(ctx).Infof("Setting GC memory limit to %d, container limit = %d", newLimit, opts.MemoryLimit)
 		debug.SetMemoryLimit(newLimit)
 	}
-
-	manager := NewManagerOrDie(ctx, controllerRuntimeConfig, opts)
-	realClock := clock.RealClock{}
-	recorder := events.NewRecorder(manager.GetEventRecorderFor(appName))
-	recorder = events.NewLoadSheddingRecorder(recorder)
-	recorder = events.NewDedupeRecorder(recorder)
-
 	if err := cmw.Start(ctx.Done()); err != nil {
 		logging.FromContext(ctx).Errorf("watching configmaps, config changes won't be applied immediately, %s", err)
 	}
 
-	return Options{
-		Ctx:       ctx,
-		Cmw:       cmw,
-		Recorder:  recorder,
-		Clientset: clientSet,
-		Clock:     realClock,
-		Options:   opts,
-		Manager:   manager,
-	}
-}
+	manager := NewManagerOrDie(ctx, controllerRuntimeConfig, opts)
+	recorder := events.NewRecorder(manager.GetEventRecorderFor(appName))
+	recorder = events.NewLoadSheddingRecorder(recorder)
+	recorder = events.NewDedupeRecorder(recorder)
 
-func NewRunnableContext(config *rest.Config, options *options.Options, logger *zap.SugaredLogger) func() context.Context {
-	return func() context.Context {
-		ctx := context.Background()
-		ctx = logging.WithLogger(ctx, logger)
-		ctx = injection.WithConfig(ctx, config)
-		ctx = injection.WithOptions(ctx, *options)
-		return ctx
-	}
+	return Options{
+		Ctx:        ctx,
+		Recorder:   recorder,
+		Config:     controllerRuntimeConfig,
+		Clientset:  clientSet,
+		KubeClient: manager.GetClient(),
+		Clock:      clock.RealClock{},
+		Options:    opts,
+		Cmw:        cmw,
+		StartAsync: manager.Elected(),
+	}, manager
 }

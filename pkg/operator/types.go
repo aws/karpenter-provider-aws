@@ -12,21 +12,36 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package startup
+package operator
 
 import (
 	"context"
 	"net/http"
 
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/utils/clock"
 	"knative.dev/pkg/configmap/informer"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/aws/karpenter/pkg/events"
 	"github.com/aws/karpenter/pkg/utils/options"
 )
+
+// Options exposes shared components that are initialized by the startup.Initialize() call
+type Options struct {
+	Ctx        context.Context
+	Recorder   events.Recorder
+	Config     *rest.Config
+	KubeClient client.Client
+	Clientset  *kubernetes.Clientset
+	Clock      clock.Clock
+	Options    *options.Options
+	Cmw        *informer.InformedWatcher
+	StartAsync <-chan struct{}
+}
 
 // Controller is an interface implemented by Karpenter custom resources.
 type Controller interface {
@@ -41,15 +56,4 @@ type Controller interface {
 // HealthCheck is an interface for a controller that exposes a LivenessProbe
 type HealthCheck interface {
 	LivenessProbe(req *http.Request) error
-}
-
-// Options exposes shared components that are initialized by the startup.Initialize() call
-type Options struct {
-	Ctx       context.Context
-	Recorder  events.Recorder
-	Clientset *kubernetes.Clientset
-	Clock     clock.Clock
-	Options   *options.Options
-	Manager   manager.Manager
-	Cmw       *informer.InformedWatcher
 }
