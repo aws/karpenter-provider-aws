@@ -39,7 +39,7 @@ var customAMI string
 
 var _ = Describe("LaunchTemplates", func() {
 	BeforeEach(func() {
-		customAMI = selectCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id")
+		customAMI = selectCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", 1)
 	})
 
 	It("should use the AMI defined by the AMI Selector", func() {
@@ -67,6 +67,25 @@ var _ = Describe("LaunchTemplates", func() {
 			AMIFamily:             &awsv1alpha1.AMIFamilyCustom,
 		},
 			AMISelector: map[string]string{"aws-ids": customAMI},
+			UserData:    aws.String(fmt.Sprintf("#!/bin/bash\n/etc/eks/bootstrap.sh '%s'", env.ClusterName)),
+		})
+		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
+		pod := test.Pod()
+
+		env.ExpectCreated(pod, provider, provisioner)
+		env.EventuallyExpectHealthy(pod)
+		env.ExpectCreatedNodeCount("==", 1)
+
+		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("ImageId", HaveValue(Equal(customAMI))))
+	})
+	It("should use the most recent AMI when discovering multiple", func() {
+		oldCustomAMI := selectCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", 2)
+		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
+			AMIFamily:             &awsv1alpha1.AMIFamilyCustom,
+		},
+			AMISelector: map[string]string{"aws-ids": fmt.Sprintf("%s,%s", customAMI, oldCustomAMI)},
 			UserData:    aws.String(fmt.Sprintf("#!/bin/bash\n/etc/eks/bootstrap.sh '%s'", env.ClusterName)),
 		})
 		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
@@ -149,7 +168,7 @@ func getInstanceAttribute(nodeName string, attribute string) *ec2.DescribeInstan
 	return instanceAttribute
 }
 
-func selectCustomAMI(amiPath string) string {
+func selectCustomAMI(amiPath string, versionOffset int) string {
 	serverVersion, err := env.KubeClient.Discovery().ServerVersion()
 	Expect(err).To(BeNil())
 	minorVersion, err := strconv.Atoi(strings.TrimSuffix(serverVersion.Minor, "+"))
@@ -157,7 +176,7 @@ func selectCustomAMI(amiPath string) string {
 	// Choose a minor version one lesser than the server's minor version. This ensures that we choose an AMI for
 	// this test that wouldn't be selected as Karpenter's SSM default (therefore avoiding false positives), and also
 	// ensures that we aren't violating version skew.
-	version := fmt.Sprintf("%s.%d", serverVersion.Major, minorVersion-1)
+	version := fmt.Sprintf("%s.%d", serverVersion.Major, minorVersion-versionOffset)
 	parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
 		Name: aws.String(fmt.Sprintf(amiPath, version)),
 	})
