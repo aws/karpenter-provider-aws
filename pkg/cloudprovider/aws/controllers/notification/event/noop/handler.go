@@ -15,25 +15,17 @@ limitations under the License.
 package noop
 
 import (
-	"time"
-
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event"
 )
 
-type NoOp event.AWSMetadata
-
-func (NoOp) EventID() string {
-	return ""
+type Event struct {
+	event.AWSMetadata
 }
 
-func (NoOp) EC2InstanceIDs() []string {
+func (Event) EC2InstanceIDs() []string {
 	return []string{}
 }
 
-func (NoOp) Kind() event.Kind {
+func (Event) Kind() event.Kind {
 	return event.NoOpKind
-}
-
-func (NoOp) StartTime() time.Time {
-	return time.Now()
 }

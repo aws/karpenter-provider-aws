@@ -44,16 +44,13 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
-	controllersfake "github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/fake"
-	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/infrastructure"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event"
-	scheduledchangev0 "github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/scheduledchange"
-	spotinterruptionv0 "github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/spotinterruption"
-	statechangev0 "github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/statechange"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/scheduledchange"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/spotinterruption"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/statechange"
 	awsfake "github.com/aws/karpenter/pkg/cloudprovider/aws/fake"
 	"github.com/aws/karpenter/pkg/cloudprovider/fake"
-	"github.com/aws/karpenter/pkg/controllers/polling"
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/test"
 	. "github.com/aws/karpenter/pkg/test/expectations"
@@ -82,8 +79,7 @@ var eventBridgeProvider *aws.EventBridgeProvider
 var recorder *awsfake.EventRecorder
 var fakeClock *clock.FakeClock
 var cfg *test.Config
-var controller polling.ControllerInterface
-var infraController polling.ControllerWithHealthInterface
+var controller *notification.Controller
 var nodeStateController *state.NodeController
 
 func TestAPIs(t *testing.T) {
@@ -112,9 +108,7 @@ var _ = BeforeEach(func() {
 		ec2api = &awsfake.EC2API{}
 		subnetProvider := aws.NewSubnetProvider(ec2api)
 		instanceTypeProvider = aws.NewInstanceTypeProvider(env.Ctx, mock.Session, cloudprovider.Options{}, ec2api, subnetProvider)
-
-		infraController = polling.NewController(infrastructure.NewReconciler(infrastructure.NewProvider(sqsProvider, eventBridgeProvider))).WithHealth()
-		controller = polling.NewController(notification.NewReconciler(env.Client, recorder, cluster, sqsProvider, instanceTypeProvider, infraController))
+		controller = notification.NewController(env.Client, recorder, cluster, sqsProvider, instanceTypeProvider, nil)
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })
@@ -137,7 +131,6 @@ var _ = Describe("Processing Messages", func() {
 		ExpectMessagesCreated(spotInterruptionMessage(defaultInstanceID))
 		ExpectApplied(env.Ctx, env.Client, node)
 		ExpectReconcileSucceeded(env.Ctx, nodeStateController, client.ObjectKeyFromObject(node))
-		ExpectReconcileSucceeded(env.Ctx, infraController, types.NamespacedName{}) // Infrastructure should be healthy before starting
 
 		ExpectReconcileSucceeded(env.Ctx, controller, types.NamespacedName{})
 		ExpectNotFound(env.Ctx, env.Client, node)
@@ -155,7 +148,6 @@ var _ = Describe("Processing Messages", func() {
 		ExpectMessagesCreated(scheduledChangeMessage(defaultInstanceID))
 		ExpectApplied(env.Ctx, env.Client, node)
 		ExpectReconcileSucceeded(env.Ctx, nodeStateController, client.ObjectKeyFromObject(node))
-		ExpectReconcileSucceeded(env.Ctx, infraController, types.NamespacedName{}) // Infrastructure should be healthy before starting
 
 		ExpectReconcileSucceeded(env.Ctx, controller, types.NamespacedName{})
 		ExpectNotFound(env.Ctx, env.Client, node)
@@ -181,7 +173,6 @@ var _ = Describe("Processing Messages", func() {
 
 		// Wait for the nodes to reconcile with the cluster state
 		ExpectReconcileSucceeded(env.Ctx, nodeStateController, lo.Map(nodes, func(n *v1.Node, _ int) client.ObjectKey { return client.ObjectKeyFromObject(n) })...)
-		ExpectReconcileSucceeded(env.Ctx, infraController, types.NamespacedName{}) // Infrastructure should be healthy before starting
 
 		ExpectReconcileSucceeded(env.Ctx, controller, types.NamespacedName{})
 		ExpectNotFound(env.Ctx, env.Client, lo.Map(nodes, func(n *v1.Node, _ int) client.Object { return n })...)
@@ -212,7 +203,6 @@ var _ = Describe("Processing Messages", func() {
 
 		// Wait for the nodes to reconcile with the cluster state
 		ExpectReconcileSucceeded(env.Ctx, nodeStateController, lo.Map(nodes, func(n *v1.Node, _ int) client.ObjectKey { return client.ObjectKeyFromObject(n) })...)
-		ExpectReconcileSucceeded(env.Ctx, infraController, types.NamespacedName{}) // Infrastructure should be healthy before starting
 
 		ExpectReconcileSucceeded(env.Ctx, controller, types.NamespacedName{})
 		ExpectNotFound(env.Ctx, env.Client, lo.Map(nodes, func(n *v1.Node, _ int) client.Object { return n })...)
@@ -225,7 +215,6 @@ var _ = Describe("Processing Messages", func() {
 		ExpectMessagesCreated(spotInterruptionMessage(node.Spec.ProviderID))
 		ExpectApplied(env.Ctx, env.Client, node)
 		ExpectReconcileSucceeded(env.Ctx, nodeStateController, client.ObjectKeyFromObject(node))
-		ExpectReconcileSucceeded(env.Ctx, infraController, types.NamespacedName{}) // Infrastructure should be healthy before starting
 
 		ExpectReconcileSucceeded(env.Ctx, controller, types.NamespacedName{})
 		ExpectNodeExists(env.Ctx, env.Client, node.Name)
@@ -241,7 +230,6 @@ var _ = Describe("Processing Messages", func() {
 		}
 
 		ExpectMessagesCreated(badMessage)
-		ExpectReconcileSucceeded(env.Ctx, infraController, types.NamespacedName{}) // Infrastructure should be healthy before starting
 
 		ExpectReconcileSucceeded(env.Ctx, controller, types.NamespacedName{})
 		Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
@@ -258,7 +246,6 @@ var _ = Describe("Processing Messages", func() {
 		ExpectMessagesCreated(stateChangeMessage(defaultInstanceID, "creating"))
 		ExpectApplied(env.Ctx, env.Client, node)
 		ExpectReconcileSucceeded(env.Ctx, nodeStateController, client.ObjectKeyFromObject(node))
-		ExpectReconcileSucceeded(env.Ctx, infraController, types.NamespacedName{}) // Infrastructure should be healthy before starting
 
 		ExpectReconcileSucceeded(env.Ctx, controller, types.NamespacedName{})
 		ExpectNodeExists(env.Ctx, env.Client, node.Name)
@@ -279,7 +266,6 @@ var _ = Describe("Processing Messages", func() {
 		ExpectMessagesCreated(spotInterruptionMessage(defaultInstanceID))
 		ExpectApplied(env.Ctx, env.Client, node)
 		ExpectReconcileSucceeded(env.Ctx, nodeStateController, client.ObjectKeyFromObject(node))
-		ExpectReconcileSucceeded(env.Ctx, infraController, types.NamespacedName{}) // Infrastructure should be healthy before starting
 
 		ExpectReconcileSucceeded(env.Ctx, controller, types.NamespacedName{})
 		ExpectNotFound(env.Ctx, env.Client, node)
@@ -304,36 +290,9 @@ var _ = Describe("Processing Messages", func() {
 var _ = Describe("Error Handling", func() {
 	It("should send an error on polling when AccessDenied", func() {
 		sqsapi.ReceiveMessageBehavior.Error.Set(awsErrWithCode(aws.AccessDeniedCode), awsfake.MaxCalls(0))
-		ExpectReconcileSucceeded(env.Ctx, infraController, types.NamespacedName{}) // Infrastructure should be healthy before starting
 
 		_, err := controller.Reconcile(env.Ctx, reconcile.Request{})
 		Expect(err).ToNot(Succeed())
-	})
-	It("should trigger an infrastructure reconciliation on an SQS queue when it doesn't exist", func() {
-		sqsapi.GetQueueURLBehavior.Error.Set(awsErrWithCode(sqs.ErrCodeQueueDoesNotExist), awsfake.MaxCalls(0)) // This mocks the queue not existing
-
-		infraController := &controllersfake.PollingController{}
-		controller = polling.NewController(notification.NewReconciler(env.Client, recorder, cluster, sqsProvider, instanceTypeProvider, infraController))
-
-		_, err := controller.Reconcile(env.Ctx, reconcile.Request{})
-		Expect(err).ToNot(Succeed())
-		Expect(infraController.TriggerCalls.Load()).Should(BeNumerically("==", 1))
-	})
-})
-
-var _ = Describe("Infrastructure Coordination", func() {
-	It("should wait for the infrastructure to be ready before polling SQS", func() {
-		// Prior to provisioning the infrastructure and the infrastructure being healthy, we shouldn't try to hit the queue
-		res, err := controller.Reconcile(env.Ctx, reconcile.Request{})
-		Expect(err).To(Succeed())
-		Expect(res.Requeue).To(BeFalse())
-		Expect(res.RequeueAfter).To(BeEquivalentTo(time.Duration(0)))
-		Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(BeNumerically("==", 0))
-
-		ExpectReconcileSucceeded(env.Ctx, infraController, types.NamespacedName{})
-		ExpectReconcileSucceeded(env.Ctx, controller, types.NamespacedName{})
-		Expect(infraController.Healthy()).To(BeTrue())
-		Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(BeNumerically("==", 1))
 	})
 })
 
@@ -355,8 +314,8 @@ func awsErrWithCode(code string) awserr.Error {
 	return awserr.New(code, "", fmt.Errorf(""))
 }
 
-func spotInterruptionMessage(involvedInstanceID string) spotinterruptionv0.AWSEvent {
-	return spotinterruptionv0.AWSEvent{
+func spotInterruptionMessage(involvedInstanceID string) spotinterruption.Event {
+	return spotinterruption.Event{
 		AWSMetadata: event.AWSMetadata{
 			Version:    "0",
 			Account:    defaultAccountID,
@@ -369,15 +328,15 @@ func spotInterruptionMessage(involvedInstanceID string) spotinterruptionv0.AWSEv
 			Source: ec2Source,
 			Time:   time.Now(),
 		},
-		Detail: spotinterruptionv0.EC2SpotInstanceInterruptionWarningDetail{
+		Detail: spotinterruption.Detail{
 			InstanceID:     involvedInstanceID,
 			InstanceAction: "terminate",
 		},
 	}
 }
 
-func stateChangeMessage(involvedInstanceID, state string) statechangev0.AWSEvent {
-	return statechangev0.AWSEvent{
+func stateChangeMessage(involvedInstanceID, state string) statechange.Event {
+	return statechange.Event{
 		AWSMetadata: event.AWSMetadata{
 			Version:    "0",
 			Account:    defaultAccountID,
@@ -390,7 +349,7 @@ func stateChangeMessage(involvedInstanceID, state string) statechangev0.AWSEvent
 			Source: ec2Source,
 			Time:   time.Now(),
 		},
-		Detail: statechangev0.EC2InstanceStateChangeNotificationDetail{
+		Detail: statechange.Detail{
 			InstanceID: involvedInstanceID,
 			State:      state,
 		},
@@ -398,8 +357,8 @@ func stateChangeMessage(involvedInstanceID, state string) statechangev0.AWSEvent
 }
 
 // TODO: Update the scheduled change message to accurately reflect a real health event
-func scheduledChangeMessage(involvedInstanceID string) scheduledchangev0.AWSEvent {
-	return scheduledchangev0.AWSEvent{
+func scheduledChangeMessage(involvedInstanceID string) scheduledchange.Event {
+	return scheduledchange.Event{
 		AWSMetadata: event.AWSMetadata{
 			Version:    "0",
 			Account:    defaultAccountID,
@@ -412,10 +371,10 @@ func scheduledChangeMessage(involvedInstanceID string) scheduledchangev0.AWSEven
 			Source: healthSource,
 			Time:   time.Now(),
 		},
-		Detail: scheduledchangev0.AWSHealthEventDetail{
+		Detail: scheduledchange.Detail{
 			Service:           "EC2",
 			EventTypeCategory: "scheduledChange",
-			AffectedEntities: []scheduledchangev0.AffectedEntity{
+			AffectedEntities: []scheduledchange.AffectedEntity{
 				{
 					EntityValue: involvedInstanceID,
 				},

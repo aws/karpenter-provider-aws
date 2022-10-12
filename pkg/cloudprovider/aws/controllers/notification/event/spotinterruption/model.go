@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package scheduledchange
+package spotinterruption
 
 import (
 	"time"
@@ -20,24 +20,31 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event"
 )
 
-type AWSHealthEvent AWSEvent
+// EC2SpotInstanceInterruptionWarning contains the properties defined in AWS EventBridge schema
+// aws.ec2@EC2SpotInstanceInterruptionWarning v1.
+type Event struct {
+	event.AWSMetadata
 
-func (e AWSHealthEvent) EventID() string {
+	Detail Detail `json:"detail"`
+}
+
+type Detail struct {
+	InstanceID     string `json:"instance-id"`
+	InstanceAction string `json:"instance-action"`
+}
+
+func (e Event) EventID() string {
 	return e.ID
 }
 
-func (e AWSHealthEvent) EC2InstanceIDs() []string {
-	ids := make([]string, len(e.Detail.AffectedEntities))
-	for i, entity := range e.Detail.AffectedEntities {
-		ids[i] = entity.EntityValue
-	}
-	return ids
+func (e Event) EC2InstanceIDs() []string {
+	return []string{e.Detail.InstanceID}
 }
 
-func (AWSHealthEvent) Kind() event.Kind {
-	return event.ScheduledChangeKind
+func (Event) Kind() event.Kind {
+	return event.SpotInterruptionKind
 }
 
-func (e AWSHealthEvent) StartTime() time.Time {
+func (e Event) StartTime() time.Time {
 	return e.Time
 }

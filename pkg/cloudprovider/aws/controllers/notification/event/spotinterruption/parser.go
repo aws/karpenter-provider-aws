@@ -24,7 +24,7 @@ import (
 type Parser struct{}
 
 func (p Parser) Parse(msg string) (event.Interface, error) {
-	evt := EC2SpotInstanceInterruptionWarning{}
+	evt := Event{}
 	if err := json.Unmarshal([]byte(msg), &evt); err != nil {
 		return nil, fmt.Errorf("unmarhsalling the message as EC2SpotInstanceInterruptionWarning, %w", err)
 	}

@@ -47,13 +47,11 @@ import (
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	awscloudprovider "github.com/aws/karpenter/pkg/cloudprovider/aws"
-	controllersfake "github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/fake"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/infrastructure"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification"
 	awsfake "github.com/aws/karpenter/pkg/cloudprovider/aws/fake"
 	"github.com/aws/karpenter/pkg/cloudprovider/fake"
 	"github.com/aws/karpenter/pkg/controllers"
-	"github.com/aws/karpenter/pkg/controllers/polling"
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/pkg/utils/injection"
@@ -122,8 +120,7 @@ func benchmarkNotificationController(b *testing.B, messageCount int) {
 
 	// Set-up the controllers
 	nodeStateController := state.NewNodeController(env.Client, cluster)
-	infraController := &controllersfake.PollingController{}
-	notificationController := polling.NewController(notification.NewReconciler(env.Client, recorder, cluster, providers.sqsProvider, instanceTypeProvider, infraController))
+	notificationController := notification.NewController(env.Client, recorder, cluster, providers.sqsProvider, instanceTypeProvider, nil)
 
 	messages, nodes := makeDiverseMessagesAndNodes(messageCount)
 

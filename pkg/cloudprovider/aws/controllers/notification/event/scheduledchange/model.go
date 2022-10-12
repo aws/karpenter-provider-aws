@@ -18,15 +18,27 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event"
 )
 
-// AWSEvent contains the properties defined in AWS EventBridge schema
+// Event contains the properties defined in AWS EventBridge schema
 // aws.health@AWSHealthEvent v1.
-type AWSEvent struct {
+type Event struct {
 	event.AWSMetadata
 
-	Detail AWSHealthEventDetail `json:"detail"`
+	Detail Detail `json:"detail"`
 }
 
-type AWSHealthEventDetail struct {
+func (e Event) EC2InstanceIDs() []string {
+	ids := make([]string, len(e.Detail.AffectedEntities))
+	for i, entity := range e.Detail.AffectedEntities {
+		ids[i] = entity.EntityValue
+	}
+	return ids
+}
+
+func (Event) Kind() event.Kind {
+	return event.ScheduledChangeKind
+}
+
+type Detail struct {
 	EventARN          string             `json:"eventArn"`
 	EventTypeCode     string             `json:"eventTypeCode"`
 	Service           string             `json:"service"`

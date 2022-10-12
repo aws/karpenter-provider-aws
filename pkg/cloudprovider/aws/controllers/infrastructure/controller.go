@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package nodetemplate
+package infrastructure
 
 import (
 	"context"
@@ -27,31 +27,27 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/infrastructure"
-	"github.com/aws/karpenter/pkg/controllers/polling"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws"
 )
 
-const Name = "aws.nodetemplate"
+const Name = "aws.infrastructure"
 
-// Controller is the AWS Node Template counter and finalizer reconciler. It performs certain operations based on the
-// number of AWS Node Templates on the cluster
+// Controller is the AWS infrastructure reconciler
+// It plugs into the polling controller to periodically re-reconcile the expected Karpenter AWS infrastructure
 type Controller struct {
-	kubeClient             client.Client
-	infraProvider          *infrastructure.Provider
-	infraController        polling.ControllerInterface
-	notificationController polling.ControllerInterface
+	kubeClient client.Client
+	provider   *Provider
 }
 
-func NewController(kubeClient client.Client, infraProvider *infrastructure.Provider,
-	infraController, notificationController polling.ControllerInterface) *Controller {
+func NewController(kubeClient client.Client, sqsProvider *aws.SQSProvider, eventBridgeProvider *aws.EventBridgeProvider) *Controller {
 	return &Controller{
-		kubeClient:             kubeClient,
-		infraProvider:          infraProvider,
-		infraController:        infraController,
-		notificationController: notificationController,
+		kubeClient: kubeClient,
+		provider:   NewProvider(sqsProvider, eventBridgeProvider),
 	}
 }
 
+// Reconcile reconciles the SQS queue and the EventBridge rules with the expected
+// configuration prescribed by Karpenter
 func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named(Name))
 	nt := &v1alpha1.AWSNodeTemplate{}
@@ -69,9 +65,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// Handle removing the finalizer and also cleaning up the infrastructure on the last AWSNodeTemplate deletion
 	if !nt.DeletionTimestamp.IsZero() {
 		if len(list.Items) == 1 {
-			c.infraController.Stop(ctx)
-			c.notificationController.Stop(ctx)
-			if err := c.infraProvider.DeleteInfrastructure(ctx); err != nil {
+			if err := c.provider.DeleteInfrastructure(ctx); err != nil {
 				return reconcile.Result{}, err
 			}
 		}
@@ -82,17 +76,12 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 		return reconcile.Result{}, nil
 	}
-	if len(list.Items) >= 1 {
-		// Start reconciling the infrastructure controller. This also waterfalls the starting of the
-		// notification controller once the infra is healthy
-		c.infraController.Start(ctx)
-	}
 	mergeFrom := client.MergeFrom(nt.DeepCopy())
 	controllerutil.AddFinalizer(nt, v1alpha5.TerminationFinalizer)
 	if err := c.kubeClient.Patch(ctx, nt, mergeFrom); err != nil {
 		return reconcile.Result{}, err
 	}
-	return reconcile.Result{}, nil
+	return reconcile.Result{}, c.provider.CreateInfrastructure(ctx)
 }
 
 func (c *Controller) Register(_ context.Context, m manager.Manager) error {

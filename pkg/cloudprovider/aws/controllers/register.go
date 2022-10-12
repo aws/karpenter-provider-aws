@@ -21,11 +21,9 @@ import (
 
 	"github.com/aws/karpenter/pkg/cloudprovider/aws"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/infrastructure"
-	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/nodetemplate"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/events"
 	"github.com/aws/karpenter/pkg/controllers"
-	"github.com/aws/karpenter/pkg/controllers/polling"
 )
 
 func Register(ctx context.Context, provider *aws.CloudProvider, opts *controllers.ControllerOptions) (ret []controllers.Controller) {
@@ -35,13 +33,9 @@ func Register(ctx context.Context, provider *aws.CloudProvider, opts *controller
 	if opts.Config.EnableInterruptionHandling() {
 		logging.FromContext(ctx).Infof("Enabling interruption handling")
 
-		infraProvider := infrastructure.NewProvider(provider.SQSProvider(), provider.EventBridgeProvider())
-		infraController := polling.NewController(infrastructure.NewReconciler(infraProvider)).WithHealth()
-		notificationController := polling.NewController(notification.NewReconciler(opts.KubeClient, rec, opts.Cluster, provider.SQSProvider(), provider.InstanceTypeProvider(), infraController))
-		infraController.OnHealthy = notificationController.Start
-		nodeTemplateController := nodetemplate.NewController(opts.KubeClient, infraProvider, infraController, notificationController)
-
-		ret = append(ret, infraController, notificationController, nodeTemplateController)
+		infraController := infrastructure.NewController(opts.KubeClient, provider.SQSProvider(), provider.EventBridgeProvider())
+		notificationController := notification.NewController(opts.KubeClient, rec, opts.Cluster, provider.SQSProvider(), provider.InstanceTypeProvider(), opts.StartAsync)
+		ret = append(ret, infraController, notificationController)
 	}
 	return ret
 }

@@ -29,7 +29,7 @@ var acceptedStates = sets.NewString("stopping", "stopped", "shutting-down", "ter
 type Parser struct{}
 
 func (p Parser) Parse(msg string) (event.Interface, error) {
-	evt := EC2InstanceStateChangeNotification{}
+	evt := Event{}
 	if err := json.Unmarshal([]byte(msg), &evt); err != nil {
 		return nil, fmt.Errorf("unmarhsalling the message as EC2InstanceStateChangeNotification, %w", err)
 	}

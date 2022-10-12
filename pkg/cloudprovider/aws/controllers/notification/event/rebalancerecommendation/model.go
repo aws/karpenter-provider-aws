@@ -12,21 +12,28 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package spotinterruption
+package rebalancerecommendation
 
 import (
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event"
 )
 
-// AWSEvent contains the properties defined in AWS EventBridge schema
-// aws.ec2@EC2SpotInstanceInterruptionWarning v1.
-type AWSEvent struct {
+// Event contains the properties defined by
+// https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/rebalance-recommendations.html#monitor-rebalance-recommendations
+type Event struct {
 	event.AWSMetadata
 
-	Detail EC2SpotInstanceInterruptionWarningDetail `json:"detail"`
+	Detail Detail `json:"detail"`
 }
 
-type EC2SpotInstanceInterruptionWarningDetail struct {
-	InstanceID     string `json:"instance-id"`
-	InstanceAction string `json:"instance-action"`
+type Detail struct {
+	InstanceID string `json:"instance-id"`
+}
+
+func (e Event) EC2InstanceIDs() []string {
+	return []string{e.Detail.InstanceID}
+}
+
+func (Event) Kind() event.Kind {
+	return event.RebalanceRecommendationKind
 }

@@ -27,7 +27,6 @@ import (
 	_ "knative.dev/pkg/system/testing"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/aws/karpenter/pkg/controllers/polling"
 	. "github.com/aws/karpenter/pkg/test/expectations"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/options"
@@ -44,7 +43,7 @@ var sqsapi *awsfake.SQSAPI
 var sqsProvider *aws.SQSProvider
 var eventbridgeapi *awsfake.EventBridgeAPI
 var eventBridgeProvider *aws.EventBridgeProvider
-var controller *polling.ControllerWithHealth
+var controller *infrastructure.Controller
 var opts options.Options
 
 var defaultOpts = options.Options{
@@ -73,7 +72,7 @@ var _ = BeforeEach(func() {
 		sqsProvider = aws.NewSQSProvider(e.Ctx, sqsapi)
 		eventBridgeProvider = aws.NewEventBridgeProvider(eventbridgeapi, sqsProvider)
 
-		controller = polling.NewController(infrastructure.NewReconciler(infrastructure.NewProvider(sqsProvider, eventBridgeProvider))).WithHealth()
+		controller = infrastructure.NewController(e.Client, sqsProvider, eventBridgeProvider)
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })

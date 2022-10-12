@@ -15,18 +15,40 @@ limitations under the License.
 package statechange
 
 import (
+	"time"
+
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event"
 )
 
-// AWSEvent contains the properties defined in AWS EventBridge schema
+// Event contains the properties defined in AWS EventBridge schema
 // aws.ec2@EC2InstanceStateChangeNotification v1.
-type AWSEvent struct {
+type Event struct {
 	event.AWSMetadata
 
-	Detail EC2InstanceStateChangeNotificationDetail `json:"detail"`
+	Detail Detail `json:"detail"`
 }
 
-type EC2InstanceStateChangeNotificationDetail struct {
+type Detail struct {
 	InstanceID string `json:"instance-id"`
 	State      string `json:"state"`
+}
+
+func (e Event) EventID() string {
+	return e.ID
+}
+
+func (e Event) EC2InstanceIDs() []string {
+	return []string{e.Detail.InstanceID}
+}
+
+func (e Event) State() string {
+	return e.Detail.State
+}
+
+func (Event) Kind() event.Kind {
+	return event.StateChangeKind
+}
+
+func (e Event) StartTime() time.Time {
+	return e.Time
 }

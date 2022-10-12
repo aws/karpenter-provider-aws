@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package aggregatedparser
+package event
 
 import (
 	"encoding/json"
@@ -20,7 +20,6 @@ import (
 
 	"github.com/samber/lo"
 
-	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/noop"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/rebalancerecommendation"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/scheduledchange"
@@ -34,7 +33,7 @@ type parserKey struct {
 	DetailType string
 }
 
-func newParserKey(metadata event.AWSMetadata) parserKey {
+func newParserKey(metadata AWSMetadata) parserKey {
 	return parserKey{
 		Version:    metadata.Version,
 		Source:     metadata.Source,
@@ -42,7 +41,7 @@ func newParserKey(metadata event.AWSMetadata) parserKey {
 	}
 }
 
-func newParserKeyFromParser(p event.Parser) parserKey {
+func newParserKeyFromParser(p Parser) parserKey {
 	return parserKey{
 		Version:    p.Version(),
 		Source:     p.Source(),
@@ -51,7 +50,7 @@ func newParserKeyFromParser(p event.Parser) parserKey {
 }
 
 var (
-	DefaultParsers = []event.Parser{
+	DefaultParsers = []Parser{
 		statechange.Parser{},
 		spotinterruption.Parser{},
 		scheduledchange.Parser{},
@@ -60,34 +59,34 @@ var (
 )
 
 type AggregatedParser struct {
-	parserMap map[parserKey]event.Parser
+	parserMap map[parserKey]Parser
 }
 
-func NewAggregatedParser(parsers ...event.Parser) AggregatedParser {
+func NewAggregatedParser(parsers ...Parser) AggregatedParser {
 	return AggregatedParser{
-		parserMap: lo.SliceToMap(parsers, func(p event.Parser) (parserKey, event.Parser) {
+		parserMap: lo.SliceToMap(parsers, func(p Parser) (parserKey, Parser) {
 			return newParserKeyFromParser(p), p
 		}),
 	}
 }
 
-func (p AggregatedParser) Parse(msg string) (event.Interface, error) {
+func (p AggregatedParser) Parse(msg string) (Interface, error) {
 	if msg == "" {
-		return noop.NoOp{}, nil
+		return noop.Event{}, nil
 	}
-	md := event.AWSMetadata{}
+	md := AWSMetadata{}
 	if err := json.Unmarshal([]byte(msg), &md); err != nil {
-		return noop.NoOp{}, fmt.Errorf("unmarshalling the message as AWSMetadata, %w", err)
+		return noop.Event{}, fmt.Errorf("unmarshalling the message as AWSMetadata, %w", err)
 	}
 	if parser, ok := p.parserMap[newParserKey(md)]; ok {
 		evt, err := parser.Parse(msg)
 		if err != nil {
-			return noop.NoOp{}, fmt.Errorf("parsing event message, %w", err)
+			return noop.Event{}, fmt.Errorf("parsing event message, %w", err)
 		}
 		if evt == nil {
-			return noop.NoOp{}, nil
+			return noop.Event{}, nil
 		}
 		return evt, nil
 	}
-	return noop.NoOp(md), nil
+	return noop.Event{AWSMetadata: md}, nil
 }

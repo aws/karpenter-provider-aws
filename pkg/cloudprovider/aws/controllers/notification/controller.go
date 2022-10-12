@@ -28,18 +28,17 @@ import (
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws"
 	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event"
-	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/aggregatedparser"
-	statechangev0 "github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/statechange"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/statechange"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/events"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/utils"
-	"github.com/aws/karpenter/pkg/controllers"
-	"github.com/aws/karpenter/pkg/controllers/polling"
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/metrics"
 )
@@ -63,81 +62,93 @@ func (a Action) String() string {
 	}
 }
 
-// Reconciler is an AWS notification reconciler.
+// Controller is an AWS notification controller.
 // It plugs into the polling controller to periodically poll the SQS queue for notification messages
-type Reconciler struct {
+type Controller struct {
+	startAsync           <-chan struct{}
 	kubeClient           client.Client
 	cluster              *state.Cluster
 	recorder             events.Recorder
 	provider             *aws.SQSProvider
 	instanceTypeProvider *aws.InstanceTypeProvider
-	parser               aggregatedparser.AggregatedParser
-
-	infraController polling.ControllerWithHealthInterface
+	parser               event.AggregatedParser
 }
 
-// pollingPeriod that we go to the SQS queue to check if there are any new events
-const pollingPeriod = 2 * time.Second
+func NewController(kubeClient client.Client, recorder events.Recorder, cluster *state.Cluster,
+	sqsProvider *aws.SQSProvider, instanceTypeProvider *aws.InstanceTypeProvider, startAsync <-chan struct{}) *Controller {
 
-func NewReconciler(kubeClient client.Client, recorder events.Recorder, cluster *state.Cluster,
-	sqsProvider *aws.SQSProvider, instanceTypeProvider *aws.InstanceTypeProvider,
-	infraController polling.ControllerWithHealthInterface) *Reconciler {
-
-	return &Reconciler{
+	return &Controller{
 		kubeClient:           kubeClient,
 		cluster:              cluster,
 		recorder:             recorder,
 		provider:             sqsProvider,
 		instanceTypeProvider: instanceTypeProvider,
-		parser:               aggregatedparser.NewAggregatedParser(aggregatedparser.DefaultParsers...),
-		infraController:      infraController,
+		parser:               event.NewAggregatedParser(event.DefaultParsers...),
+		startAsync:           startAsync,
 	}
 }
 
-func (r *Reconciler) Metadata() controllers.Metadata {
-	return controllers.Metadata{
-		Name:             "aws.notification",
-		MetricsSubsystem: subsystem,
-	}
-}
-
-func (r *Reconciler) Reconcile(ctx context.Context, _ reconcile.Request) (reconcile.Result, error) {
-	// We rely on the infrastructure, so it needs to be healthy before proceeding to poll the queue
-	if !r.infraController.Healthy() {
-		return reconcile.Result{}, nil
-	}
-	sqsMessages, err := r.provider.GetSQSMessages(ctx)
-	if err != nil {
-		// If the queue isn't found, we should trigger the infrastructure controller to re-reconcile
-		if aws.IsNotFound(err) {
-			r.infraController.Trigger()
+func (c *Controller) Start(ctx context.Context) {
+	for ctx.Err() != nil {
+		list := &v1alpha1.AWSNodeTemplateList{}
+		if err := c.kubeClient.List(ctx, list); err != nil {
+			logging.FromContext(ctx).Errorf("listing aws node templates, %v", err)
+			continue
 		}
-		return reconcile.Result{}, err
+		if len(list.Items) > 0 {
+			if _, err := c.Reconcile(ctx, reconcile.Request{}); err != nil {
+				logging.FromContext(ctx).Errorf("reconciling notification messages, %v", err)
+				continue
+			}
+		} else {
+			time.Sleep(time.Minute)
+		}
+	}
+}
+
+func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconcile.Result, error) {
+	sqsMessages, err := c.provider.GetSQSMessages(ctx)
+	if err != nil {
+		return reconcile.Result{}, fmt.Errorf("getting messages from queue, %w", err)
 	}
 	if len(sqsMessages) == 0 {
-		return reconcile.Result{RequeueAfter: pollingPeriod}, nil
+		return reconcile.Result{}, nil
 	}
-	instanceIDMap := r.makeInstanceIDMap()
+	instanceIDMap := c.makeInstanceIDMap()
 	errs := make([]error, len(sqsMessages))
 	workqueue.ParallelizeUntil(ctx, 10, len(sqsMessages), func(i int) {
-		errs[i] = r.handleMessage(ctx, instanceIDMap, sqsMessages[i])
+		errs[i] = c.handleMessage(ctx, instanceIDMap, sqsMessages[i])
 	})
-	return reconcile.Result{RequeueAfter: polling.Immediate}, multierr.Combine(errs...)
+	return reconcile.Result{}, multierr.Combine(errs...)
+}
+
+func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("aws.notification"))
+	go func() {
+		defer logging.FromContext(ctx).Infof("Shutting down ")
+		select {
+		case <-ctx.Done():
+			return
+		case <-c.startAsync:
+			c.Start(ctx)
+		}
+	}()
+	return nil
 }
 
 // handleMessage gets the node names of the instances involved in the queue message and takes the
 // assigned action on the instances based on the message event
-func (r *Reconciler) handleMessage(ctx context.Context, instanceIDMap map[string]*v1.Node, msg *sqsapi.Message) error {
+func (c *Controller) handleMessage(ctx context.Context, instanceIDMap map[string]*v1.Node, msg *sqsapi.Message) error {
 	// No message to parse in this case
 	if msg == nil || msg.Body == nil {
 		return nil
 	}
-	evt, err := r.parser.Parse(*msg.Body)
+	evt, err := c.parser.Parse(*msg.Body)
 	if err != nil {
 		// In the scenario where we can't parse the message, we log that we have an error and then are
 		// forced to just delete the message from the queue
 		logging.FromContext(ctx).Errorf("parsing sqs message, %v", err)
-		err = r.provider.DeleteSQSMessage(ctx, msg)
+		err = c.provider.DeleteSQSMessage(ctx, msg)
 		if err != nil {
 			return fmt.Errorf("failed to delete message from queue, %w", err)
 		}
@@ -152,7 +163,7 @@ func (r *Reconciler) handleMessage(ctx context.Context, instanceIDMap map[string
 		receivedMessages.WithLabelValues(evt.Kind().String(), "false").Inc()
 
 		// Since there's no action, just delete the message
-		err = r.provider.DeleteSQSMessage(ctx, msg)
+		err = c.provider.DeleteSQSMessage(ctx, msg)
 		if err != nil {
 			return fmt.Errorf("failed to delete message from queue, %w", err)
 		}
@@ -168,14 +179,14 @@ func (r *Reconciler) handleMessage(ctx context.Context, instanceIDMap map[string
 
 	for i := range nodes {
 		node := nodes[i]
-		err = multierr.Append(err, r.handleNode(ctx, evt, node))
+		err = multierr.Append(err, c.handleNode(ctx, evt, node))
 	}
 	if err != nil {
 		return fmt.Errorf("failed to act on nodes [%s%s], %w",
 			strings.Join(lo.Slice(nodeNames, 0, 3), ","),
 			lo.Ternary(len(nodeNames) > 3, "...", ""), err)
 	}
-	err = r.provider.DeleteSQSMessage(ctx, msg)
+	err = c.provider.DeleteSQSMessage(ctx, msg)
 	if err != nil {
 		return fmt.Errorf("failed to delete message from queue, %w", err)
 	}
@@ -183,12 +194,12 @@ func (r *Reconciler) handleMessage(ctx context.Context, instanceIDMap map[string
 	return nil
 }
 
-func (r *Reconciler) handleNode(ctx context.Context, evt event.Interface, node *v1.Node) error {
+func (c *Controller) handleNode(ctx context.Context, evt event.Interface, node *v1.Node) error {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("node", node.Name))
 	action := actionForEvent(evt)
 
 	// Record metric and event for this action
-	r.notifyForEvent(evt, node)
+	c.notifyForEvent(evt, node)
 	actionsPerformed.WithLabelValues(action.String()).Inc()
 
 	// Mark the offering as unavailable in the ICE cache since we got a spot interruption warning
@@ -196,41 +207,41 @@ func (r *Reconciler) handleNode(ctx context.Context, evt event.Interface, node *
 		zone := node.Labels[v1.LabelTopologyZone]
 		instanceType := node.Labels[v1.LabelInstanceTypeStable]
 		if zone != "" && instanceType != "" {
-			r.instanceTypeProvider.MarkOfferingUnavailable(instanceType, zone, awsv1alpha1.CapacityTypeSpot)
+			c.instanceTypeProvider.MarkOfferingUnavailable(instanceType, zone, awsv1alpha1.CapacityTypeSpot)
 		}
 	}
 	if action != NoAction {
-		return r.deleteInstance(ctx, node)
+		return c.deleteInstance(ctx, node)
 	}
 	return nil
 }
 
-func (r *Reconciler) deleteInstance(ctx context.Context, node *v1.Node) error {
-	if err := r.kubeClient.Delete(ctx, node); err != nil {
+func (c *Controller) deleteInstance(ctx context.Context, node *v1.Node) error {
+	if err := c.kubeClient.Delete(ctx, node); err != nil {
 		return fmt.Errorf("deleting the node on notification, %w", err)
 	}
-	r.recorder.TerminatingNodeOnNotification(node)
+	c.recorder.TerminatingNodeOnNotification(node)
 	metrics.NodesTerminatedCounter.WithLabelValues(terminationReasonLabel).Inc()
 	return nil
 }
 
-func (r *Reconciler) notifyForEvent(evt event.Interface, n *v1.Node) {
+func (c *Controller) notifyForEvent(evt event.Interface, n *v1.Node) {
 	switch evt.Kind() {
 	case event.RebalanceRecommendationKind:
-		r.recorder.EC2SpotRebalanceRecommendation(n)
+		c.recorder.EC2SpotRebalanceRecommendation(n)
 
 	case event.ScheduledChangeKind:
-		r.recorder.EC2HealthWarning(n)
+		c.recorder.EC2HealthWarning(n)
 
 	case event.SpotInterruptionKind:
-		r.recorder.EC2SpotInterruptionWarning(n)
+		c.recorder.EC2SpotInterruptionWarning(n)
 
 	case event.StateChangeKind:
-		typed := evt.(statechangev0.EC2InstanceStateChangeNotification)
+		typed := evt.(statechange.Event)
 		if lo.Contains([]string{"stopping", "stopped"}, typed.State()) {
-			r.recorder.EC2StateStopping(n)
+			c.recorder.EC2StateStopping(n)
 		} else {
-			r.recorder.EC2StateTerminating(n)
+			c.recorder.EC2StateTerminating(n)
 		}
 
 	default:
@@ -239,9 +250,9 @@ func (r *Reconciler) notifyForEvent(evt event.Interface, n *v1.Node) {
 
 // makeInstanceIDMap builds a map between the instance id that is stored in the
 // node .spec.providerID and the node name stored on the host
-func (r *Reconciler) makeInstanceIDMap() map[string]*v1.Node {
+func (c *Controller) makeInstanceIDMap() map[string]*v1.Node {
 	m := map[string]*v1.Node{}
-	r.cluster.ForEachNode(func(n *state.Node) bool {
+	c.cluster.ForEachNode(func(n *state.Node) bool {
 		// If this node isn't owned by a provisioner, we shouldn't handle it
 		if _, ok := n.Node.Labels[v1alpha5.ProvisionerNameLabelKey]; !ok {
 			return true

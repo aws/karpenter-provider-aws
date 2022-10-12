@@ -16,8 +16,6 @@ package event
 
 import (
 	"time"
-
-	"go.uber.org/zap/zapcore"
 )
 
 type AWSMetadata struct {
@@ -29,21 +27,4 @@ type AWSMetadata struct {
 	Source     string    `json:"source"`
 	Time       time.Time `json:"time"`
 	Version    string    `json:"version"`
-}
-
-func (e AWSMetadata) MarshalLogObject(enc zapcore.ObjectEncoder) (err error) {
-	enc.AddString("source", e.Source)
-	enc.AddString("detail-type", e.DetailType)
-	enc.AddString("id", e.ID)
-	enc.AddTime("time", e.Time)
-	enc.AddString("region", e.Region)
-	_ = enc.AddArray("resources", zapcore.ArrayMarshalerFunc(func(enc zapcore.ArrayEncoder) error {
-		for _, resource := range e.Resources {
-			enc.AppendString(resource)
-		}
-		return nil
-	}))
-	enc.AddString("version", e.Version)
-	enc.AddString("account", e.Account)
-	return err
 }
