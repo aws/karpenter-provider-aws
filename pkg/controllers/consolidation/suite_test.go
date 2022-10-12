@@ -114,7 +114,7 @@ var _ = BeforeEach(func() {
 
 	recorder.Reset()
 	fakeClock.SetTime(time.Now())
-	controller = consolidation.NewController(env.Ctx, fakeClock, env.Client, provisioner, cloudProvider, recorder, cluster, nil)
+	controller = consolidation.NewController(fakeClock, env.Client, provisioner, cloudProvider, recorder, cluster)
 })
 var _ = AfterEach(func() {
 	ExpectCleanedUp(ctx, env.Client)

@@ -15,15 +15,25 @@ limitations under the License.
 package main
 
 import (
-	"context"
+	"fmt"
 
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws"
 	"github.com/aws/karpenter/pkg/controllers"
+	"github.com/aws/karpenter/pkg/startup"
 )
 
 func main() {
-	controllers.Initialize(func(ctx context.Context, options cloudprovider.Options) cloudprovider.CloudProvider {
-		return aws.NewCloudProvider(ctx, options)
-	})
+	options := startup.Initialize()
+	cloudProvider := startup.Decorate(aws.NewCloudProvider(options.Ctx, cloudprovider.Options{
+		ClientSet:  options.Clientset,
+		KubeClient: options.Manager.GetClient(),
+		StartAsync: options.Manager.Elected(),
+	}), options.Manager)
+	if err := startup.RegisterControllers(options.Ctx,
+		options.Manager,
+		controllers.GetControllers(options.Ctx, options.Clock, options.Cmw, options.Recorder, options.Manager.GetClient(), options.Clientset, cloudProvider)...,
+	).Start(options.Ctx); err != nil {
+		panic(fmt.Sprintf("Unable to start manager, %s", err))
+	}
 }
