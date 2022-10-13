@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/aws/aws-sdk-go v1.44.114
-	github.com/aws/karpenter v0.17.0
+	github.com/aws/karpenter v0.18.0
 	github.com/onsi/ginkgo/v2 v2.2.0
 	github.com/onsi/gomega v1.21.1
 	github.com/samber/lo v1.31.0
@@ -96,3 +96,5 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
+
+replace github.com/aws/karpenter => ../
