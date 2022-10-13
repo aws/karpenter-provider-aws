@@ -12,19 +12,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package environment
+package common
 
 import (
 	"context"
 	"fmt"
 	"testing"
 	"time"
-
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/iam"
-	"github.com/aws/aws-sdk-go/service/ssm"
-	"github.com/aws/aws-sdk-go/service/sts"
 
 	// . "github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
@@ -41,30 +35,9 @@ import (
 	"github.com/aws/karpenter/pkg/utils/project"
 )
 
-type AWSEnvironment struct {
-	*Environment
-	Region string
-
-	EC2API ec2.EC2
-	SSMAPI ssm.SSM
-	STSAPI sts.STS
-	IAMAPI iam.IAM
-}
-
-func NewAWSEnvironment(t *testing.T) (*AWSEnvironment, error) {
-	env, err := NewEnvironment(t)
-	if err != nil {
-		return nil, err
-	}
-	session := session.Must(session.NewSessionWithOptions(session.Options{SharedConfigState: session.SharedConfigEnable}))
-
-	return &AWSEnvironment{
-		Region:      *session.Config.Region,
-		Environment: env,
-		EC2API:      *ec2.New(session),
-		SSMAPI:      *ssm.New(session),
-		IAMAPI:      *iam.New(session),
-	}, nil
+type Pair[A, B any] struct {
+	First  A
+	Second B
 }
 
 type Environment struct {

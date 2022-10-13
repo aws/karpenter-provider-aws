@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package environment
+package common
 
 import (
 	"fmt"
@@ -38,13 +38,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 	nodeutils "github.com/aws/karpenter/pkg/utils/node"
 	"github.com/aws/karpenter/pkg/utils/pod"
 )
 
 var (
-	CleanableObjects = []pair[client.Object, client.ObjectList]{
+	CleanableObjects = []Pair[client.Object, client.ObjectList]{
 		{&v1.Pod{}, &v1.PodList{}},
 		{&appsv1.Deployment{}, &appsv1.DeploymentList{}},
 		{&appsv1.DaemonSet{}, &appsv1.DaemonSetList{}},
@@ -52,7 +51,6 @@ var (
 		{&v1.PersistentVolumeClaim{}, &v1.PersistentVolumeClaimList{}},
 		{&v1.PersistentVolume{}, &v1.PersistentVolumeList{}},
 		{&storagev1.StorageClass{}, &storagev1.StorageClassList{}},
-		{&v1alpha1.AWSNodeTemplate{}, &v1alpha1.AWSNodeTemplateList{}},
 		{&v1alpha5.Provisioner{}, &v1alpha5.ProvisionerList{}},
 	}
 )
@@ -62,24 +60,18 @@ const (
 	NoEvents = "NoEvents"
 )
 
-// if set, logs additional information that may be useful in debugging an E2E test failure
-var debugE2E = true
 var testStartTime time.Time
 var stop chan struct{}
 
 // nolint:gocyclo
-func (env *Environment) BeforeEach() {
+func (env *Environment) BeforeEach(opts ...Option) {
+	options := ResolveOptions(opts)
 	stop = make(chan struct{})
 	testStartTime = time.Now()
 
-	if debugE2E {
-		fmt.Println("------- START BEFORE -------")
-		defer fmt.Println("------- END BEFORE -------")
-	}
-
 	var nodes v1.NodeList
 	Expect(env.Client.List(env.Context, &nodes)).To(Succeed())
-	if debugE2E {
+	if options.EnableDebug {
 		for i := range nodes.Items {
 			fmt.Println(env.getNodeInformation(&nodes.Items[i]))
 		}
@@ -92,7 +84,7 @@ func (env *Environment) BeforeEach() {
 
 	var pods v1.PodList
 	Expect(env.Client.List(env.Context, &pods)).To(Succeed())
-	if debugE2E {
+	if options.EnableDebug {
 		for i := range pods.Items {
 			fmt.Println(getPodInformation(&pods.Items[i]))
 		}
@@ -105,7 +97,7 @@ func (env *Environment) BeforeEach() {
 	}
 	// If the test is labeled as NoWatch, then the node/pod monitor will just list at the beginning
 	// of the test rather than perform a watch during it
-	if debugE2E && !lo.Contains(CurrentSpecReport().Labels(), NoWatch) {
+	if options.EnableDebug && !lo.Contains(CurrentSpecReport().Labels(), NoWatch) {
 		env.startNodeMonitor(stop)
 		env.startPodMonitor(stop)
 	}
@@ -210,17 +202,26 @@ func (env *Environment) startNodeMonitor(stop <-chan struct{}) {
 	factory.Start(stop)
 }
 
-func (env *Environment) AfterEach(excludeObjs ...client.Object) {
-	if debugE2E {
-		fmt.Println("------- START AFTER -------")
-		defer fmt.Println("------- END AFTER -------")
-	}
+func (env *Environment) AfterEach(opts ...Option) {
+	options := ResolveOptions(opts)
 
+	env.CleanupObjects(CleanableObjects, options)
+	env.eventuallyExpectScaleDown()
+	env.expectNoCrashes()
+	close(stop) // close the pod/node monitor watch channel
+	if options.EnableDebug && !lo.Contains(CurrentSpecReport().Labels(), NoEvents) {
+		env.dumpPodEvents(testStartTime)
+		env.dumpNodeEvents(testStartTime)
+	}
+	env.printControllerLogs(&v1.PodLogOptions{Container: "controller"})
+}
+
+func (env *Environment) CleanupObjects(cleanableObjects []Pair[client.Object, client.ObjectList], options Options) {
 	namespaces := &v1.NamespaceList{}
 	Expect(env.Client.List(env, namespaces)).To(Succeed())
 	wg := sync.WaitGroup{}
-	for _, p := range CleanableObjects {
-		if !containsObjectType(excludeObjs, p.first) {
+	for _, p := range cleanableObjects {
+		if !containsObjectType(options.IgnoreCleanupFor, p.First) {
 			for _, namespace := range namespaces.Items {
 				wg.Add(1)
 				go func(obj client.Object, objList client.ObjectList, namespace string) {
@@ -240,19 +241,11 @@ func (env *Environment) AfterEach(excludeObjs ...client.Object) {
 						g.Expect(err).To(Succeed())
 						g.Expect(len(items)).To(BeZero())
 					}).Should(Succeed())
-				}(p.first, p.second, namespace.Name)
+				}(p.First, p.Second, namespace.Name)
 			}
 		}
 	}
 	wg.Wait()
-	env.eventuallyExpectScaleDown()
-	env.expectNoCrashes()
-	close(stop) // close the pod/node monitor watch channel
-	if debugE2E && !lo.Contains(CurrentSpecReport().Labels(), NoEvents) {
-		env.dumpPodEvents(testStartTime)
-		env.dumpNodeEvents(testStartTime)
-	}
-	env.printControllerLogs(&v1.PodLogOptions{Container: "controller"})
 }
 
 func (env *Environment) dumpPodEvents(testStartTime time.Time) {
