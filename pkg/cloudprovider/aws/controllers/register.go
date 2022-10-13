@@ -34,7 +34,7 @@ func Register(ctx context.Context, provider *aws.CloudProvider, opts *controller
 		logging.FromContext(ctx).Infof("Enabling interruption handling")
 
 		infraController := infrastructure.NewController(opts.KubeClient, provider.SQSProvider(), provider.EventBridgeProvider())
-		notificationController := notification.NewController(opts.KubeClient, rec, opts.Cluster, provider.SQSProvider(), provider.InstanceTypeProvider(), opts.StartAsync)
+		notificationController := notification.NewController(opts.KubeClient, opts.Clock, rec, opts.Cluster, provider.SQSProvider(), provider.InstanceTypeProvider())
 		ret = append(ret, infraController, notificationController)
 	}
 	return ret

@@ -14,9 +14,7 @@ limitations under the License.
 
 package event
 
-import (
-	"fmt"
-)
+import "fmt"
 
 type Parser interface {
 	Parse(string) (Interface, error)

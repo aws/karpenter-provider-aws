@@ -24,7 +24,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
 	"github.com/samber/lo"
 
-	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/utils"
 	"github.com/aws/karpenter/pkg/utils/atomic"
 	"github.com/aws/karpenter/pkg/utils/functional"
@@ -69,7 +69,7 @@ func NewSQSProvider(ctx context.Context, client sqsiface.SQSAPI) *SQSProvider {
 	provider.createQueueInput = &sqs.CreateQueueInput{
 		QueueName: aws.String(provider.queueName),
 		Tags: map[string]*string{
-			awsv1alpha1.DiscoveryTagKey: aws.String(injection.GetOptions(ctx).ClusterName),
+			v1alpha1.DiscoveryTagKey: aws.String(injection.GetOptions(ctx).ClusterName),
 		},
 	}
 	provider.getQueueURLInput = &sqs.GetQueueUrlInput{
@@ -273,5 +273,5 @@ func (s *SQSProvider) getQueuePolicy(ctx context.Context) (*QueuePolicy, error) 
 // This is used because the max-len for a queue name is 80 characters but the maximum cluster name
 // length is 100
 func getQueueName(ctx context.Context) string {
-	return fmt.Sprintf("Karpenter-Queue-%s", utils.GetClusterNameHash(ctx, 20))
+	return fmt.Sprintf("Karpenter-EventQueue-%s", utils.GetClusterNameHash(ctx, 20))
 }

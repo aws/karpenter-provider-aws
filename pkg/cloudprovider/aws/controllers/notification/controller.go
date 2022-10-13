@@ -21,10 +21,12 @@ import (
 	"time"
 
 	sqsapi "github.com/aws/aws-sdk-go/service/sqs"
+	"github.com/cenkalti/backoff/v4"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/util/workqueue"
+	"k8s.io/utils/clock"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -65,43 +67,57 @@ func (a Action) String() string {
 // Controller is an AWS notification controller.
 // It plugs into the polling controller to periodically poll the SQS queue for notification messages
 type Controller struct {
-	startAsync           <-chan struct{}
 	kubeClient           client.Client
+	clk                  clock.Clock
 	cluster              *state.Cluster
 	recorder             events.Recorder
 	provider             *aws.SQSProvider
 	instanceTypeProvider *aws.InstanceTypeProvider
-	parser               event.AggregatedParser
+	parser               AggregatedParser
+	backoff              *backoff.ExponentialBackOff
 }
 
-func NewController(kubeClient client.Client, recorder events.Recorder, cluster *state.Cluster,
-	sqsProvider *aws.SQSProvider, instanceTypeProvider *aws.InstanceTypeProvider, startAsync <-chan struct{}) *Controller {
+func NewController(kubeClient client.Client, clk clock.Clock, recorder events.Recorder, cluster *state.Cluster,
+	sqsProvider *aws.SQSProvider, instanceTypeProvider *aws.InstanceTypeProvider) *Controller {
 
 	return &Controller{
 		kubeClient:           kubeClient,
+		clk:                  clk,
 		cluster:              cluster,
 		recorder:             recorder,
 		provider:             sqsProvider,
 		instanceTypeProvider: instanceTypeProvider,
-		parser:               event.NewAggregatedParser(event.DefaultParsers...),
-		startAsync:           startAsync,
+		parser:               NewAggregatedParser(DefaultParsers...),
+		backoff:              newBackoff(clk),
 	}
 }
 
 func (c *Controller) Start(ctx context.Context) {
-	for ctx.Err() != nil {
+	for {
 		list := &v1alpha1.AWSNodeTemplateList{}
 		if err := c.kubeClient.List(ctx, list); err != nil {
 			logging.FromContext(ctx).Errorf("listing aws node templates, %v", err)
 			continue
 		}
 		if len(list.Items) > 0 {
+			wait := time.Duration(0) // default is to not wait
 			if _, err := c.Reconcile(ctx, reconcile.Request{}); err != nil {
 				logging.FromContext(ctx).Errorf("reconciling notification messages, %v", err)
-				continue
+				wait = c.backoff.NextBackOff()
+			} else {
+				c.backoff.Reset()
+			}
+			select {
+			case <-ctx.Done():
+				return
+			case <-c.clk.After(wait):
 			}
 		} else {
-			time.Sleep(time.Minute)
+			select {
+			case <-ctx.Done():
+				return
+			case <-c.clk.After(time.Minute):
+			}
 		}
 	}
 }
@@ -125,11 +141,11 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("aws.notification"))
 	go func() {
-		defer logging.FromContext(ctx).Infof("Shutting down ")
+		defer logging.FromContext(ctx).Infof("Shutting down")
 		select {
 		case <-ctx.Done():
 			return
-		case <-c.startAsync:
+		case <-m.Elected():
 			c.Start(ctx)
 		}
 	}()
@@ -286,4 +302,12 @@ func getInvolvedNodes(instanceIDs []string, instanceIDMap map[string]*v1.Node) [
 		}
 	}
 	return nodes
+}
+
+func newBackoff(clk clock.Clock) *backoff.ExponentialBackOff {
+	b := backoff.NewExponentialBackOff()
+	b.InitialInterval = time.Second * 5
+	b.MaxElapsedTime = time.Minute * 30
+	b.Clock = clk
+	return b
 }

@@ -95,6 +95,7 @@ var _ = BeforeEach(func() {
 	ctx = injection.WithOptions(ctx, opts)
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
 		cfg = test.NewConfig()
+		fakeClock = &clock.FakeClock{}
 		cloudProvider = &fake.CloudProvider{}
 		cluster = state.NewCluster(fakeClock, cfg, env.Client, cloudProvider)
 		nodeStateController = state.NewNodeController(env.Client, cluster)
@@ -108,7 +109,7 @@ var _ = BeforeEach(func() {
 		ec2api = &awsfake.EC2API{}
 		subnetProvider := aws.NewSubnetProvider(ec2api)
 		instanceTypeProvider = aws.NewInstanceTypeProvider(env.Ctx, mock.Session, cloudprovider.Options{}, ec2api, subnetProvider)
-		controller = notification.NewController(env.Client, recorder, cluster, sqsProvider, instanceTypeProvider, nil)
+		controller = notification.NewController(env.Client, fakeClock, recorder, cluster, sqsProvider, instanceTypeProvider)
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })

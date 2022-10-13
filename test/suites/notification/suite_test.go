@@ -34,7 +34,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event"
-	scheduledchangev0 "github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/scheduledchange"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/scheduledchange"
 	"github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/test/pkg/environment"
 )
@@ -240,8 +240,8 @@ var _ = Describe("Notification", Label("AWS"), func() {
 })
 
 // TODO: Update the scheduled change message to accurately reflect a real health event
-func scheduledChangeMessage(region, accountID, involvedInstanceID string) scheduledchangev0.AWSEvent {
-	return scheduledchangev0.AWSEvent{
+func scheduledChangeMessage(region, accountID, involvedInstanceID string) scheduledchange.Event {
+	return scheduledchange.Event{
 		AWSMetadata: event.AWSMetadata{
 			Version:    "0",
 			Account:    accountID,
@@ -254,10 +254,10 @@ func scheduledChangeMessage(region, accountID, involvedInstanceID string) schedu
 			Source: "aws.health",
 			Time:   time.Now(),
 		},
-		Detail: scheduledchangev0.AWSHealthEventDetail{
+		Detail: scheduledchange.Detail{
 			Service:           "EC2",
 			EventTypeCategory: "scheduledChange",
-			AffectedEntities: []scheduledchangev0.AffectedEntity{
+			AffectedEntities: []scheduledchange.AffectedEntity{
 				{
 					EntityValue: involvedInstanceID,
 				},
