@@ -36,8 +36,8 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	nodeutils "github.com/aws/karpenter/pkg/utils/node"
 	"github.com/aws/karpenter/pkg/utils/pod"
 )

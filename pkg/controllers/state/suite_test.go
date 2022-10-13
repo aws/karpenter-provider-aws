@@ -25,7 +25,7 @@ import (
 	clock "k8s.io/utils/clock/testing"
 	"knative.dev/pkg/ptr"
 
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 
 	"github.com/aws/karpenter/pkg/cloudprovider/fake"
 
