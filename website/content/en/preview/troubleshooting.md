@@ -369,3 +369,13 @@ This network timeout occurs because there is no VPC endpoint available for the [
 To workaround this issue, Karpenter ships updated on-demand pricing data as part of the Karpenter binary; however, this means that pricing data will only be updated on Karpenter version upgrades.
 To disable pricing lookups and avoid the error messages, set the AWS_ISOLATED_VPC environment variable (or the `--aws-isolated-vpc` option) to true.
 See [Environment Variables / CLI Flags]({{<ref "./tasks/configuration/#environment-variables--cli-flags" >}}) for details.
+
+## Helm Error When Pulling the Chart
+
+If Helm is showing an error when trying to install Karpenter helm charts:
+
+ - Ensure you are using a newer Helm version, Helm started supporting OCI images since v3.8.0.
+ - Verify that the image you are trying to pull actually exists in [gallery.ecr.aws/karpenter](https://gallery.ecr.aws/karpenter/karpenter)
+ - Sometimes Helm generates a generic error, you can add the --debug switch to any of the helm commands in this doc for more verbose error messages
+ - If you are getting a 403 forbidden error, you can try `docker logout public.ecr.aws` as explained [here](https://docs.aws.amazon.com/AmazonECR/latest/public/public-troubleshooting.html)
+ - If you are receiving this error: `Error: failed to download "oci://public.ecr.aws/karpenter/karpenter" at version "0.17.0"`, then you need to prepend a `v` to the version number: `v0.17.0`. Before Karpenter moved to OCI helm charts (pre-v0.17.0), both `v0.16.0` and `0.16.0` would work, but OCI charts require an exact version match. 
