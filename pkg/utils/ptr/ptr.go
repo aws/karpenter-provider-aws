@@ -30,3 +30,11 @@ func Node(node v1.Node) *v1.Node {
 func Quantity(quantity resource.Quantity) *resource.Quantity {
 	return &quantity
 }
+
+func To[T any](v T) *T {
+	return &v
+}
+
+func From[T any](v *T) T {
+	return *v
+}
