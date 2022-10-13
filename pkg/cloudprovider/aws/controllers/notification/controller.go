@@ -73,7 +73,7 @@ type Controller struct {
 	recorder             events.Recorder
 	provider             *aws.SQSProvider
 	instanceTypeProvider *aws.InstanceTypeProvider
-	parser               AggregatedParser
+	parser               *EventParser
 	backoff              *backoff.ExponentialBackOff
 }
 
@@ -87,7 +87,7 @@ func NewController(kubeClient client.Client, clk clock.Clock, recorder events.Re
 		recorder:             recorder,
 		provider:             sqsProvider,
 		instanceTypeProvider: instanceTypeProvider,
-		parser:               NewAggregatedParser(DefaultParsers...),
+		parser:               NewEventParser(DefaultParsers...),
 		backoff:              newBackoff(clk),
 	}
 }
@@ -100,6 +100,8 @@ func (c *Controller) Start(ctx context.Context) {
 			continue
 		}
 		if len(list.Items) > 0 {
+			// If there are AWSNodeTemplates, we should reconcile the notifications by continually polling
+			// the queue for messages
 			wait := time.Duration(0) // default is to not wait
 			if _, err := c.Reconcile(ctx, reconcile.Request{}); err != nil {
 				logging.FromContext(ctx).Errorf("reconciling notification messages, %v", err)
@@ -113,6 +115,7 @@ func (c *Controller) Start(ctx context.Context) {
 			case <-c.clk.After(wait):
 			}
 		} else {
+			// If there are no AWSNodeTemplates, we can just poll on a one-minute interval to check for any templates
 			select {
 			case <-ctx.Done():
 				return

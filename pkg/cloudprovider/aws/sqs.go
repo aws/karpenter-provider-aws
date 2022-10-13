@@ -56,8 +56,8 @@ type SQSProvider struct {
 	getQueueAttributesInput *sqs.GetQueueAttributesInput
 	receiveMessageInput     *sqs.ReceiveMessageInput
 
-	queueURL  atomic.CachedVal[string]
-	queueARN  atomic.CachedVal[string]
+	queueURL  atomic.Lazy[string]
+	queueARN  atomic.Lazy[string]
 	queueName string
 }
 

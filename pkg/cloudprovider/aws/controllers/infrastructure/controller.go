@@ -74,14 +74,22 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if err := c.kubeClient.Patch(ctx, nt, mergeFrom); err != nil {
 			return reconcile.Result{}, err
 		}
+		active.Set(0)
 		return reconcile.Result{}, nil
+	} else if len(list.Items) >= 1 {
+		mergeFrom := client.MergeFrom(nt.DeepCopy())
+		controllerutil.AddFinalizer(nt, v1alpha5.TerminationFinalizer)
+		if err := c.kubeClient.Patch(ctx, nt, mergeFrom); err != nil {
+			return reconcile.Result{}, err
+		}
+		active.Set(1)
+		if err := c.provider.CreateInfrastructure(ctx); err != nil {
+			healthy.Set(0)
+			return reconcile.Result{}, err
+		}
+		healthy.Set(1)
 	}
-	mergeFrom := client.MergeFrom(nt.DeepCopy())
-	controllerutil.AddFinalizer(nt, v1alpha5.TerminationFinalizer)
-	if err := c.kubeClient.Patch(ctx, nt, mergeFrom); err != nil {
-		return reconcile.Result{}, err
-	}
-	return reconcile.Result{}, c.provider.CreateInfrastructure(ctx)
+	return reconcile.Result{}, nil
 }
 
 func (c *Controller) Register(_ context.Context, m manager.Manager) error {

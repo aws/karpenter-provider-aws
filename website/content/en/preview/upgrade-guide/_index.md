@@ -97,6 +97,9 @@ By adopting this practice we allow our users who are early adopters to test out 
 
 # Released Upgrade Notes
 
+## Upgrading to v0.18.0+
+* v0.18.0 removes the `karpenter_consolidation_nodes_created` and `karpenter_consolidation_nodes_terminated` prometheus metrics in favor of the more generic `karpenter_nodes_created` and `karpenter_nodes_terminated` metrics. You can still see nodes created and terminated by consolidation by checking the `reason` label on the metrics. Check out all the metrics published by Karpenter [here](../tasks/metrics/).
+
 ## Upgrading to v0.17.0+
 Karpenter's Helm chart package is now stored in [Karpenter's OCI (Open Container Initiative) registry](https://gallery.ecr.aws/karpenter/karpenter). The Helm CLI supports the new format since [v3.8.0+](https://helm.sh/docs/topics/registries/).
 With this change [charts.karpenter.sh](https://charts.karpenter.sh/) is no longer updated but preserved to allow using older Karpenter versions. For examples on working with the Karpenter helm charts look at [Install Karpenter Helm Chart]({{< ref "../getting-started/getting-started-with-eksctl/#install-karpenter-helm-chart" >}}).
@@ -104,7 +107,8 @@ With this change [charts.karpenter.sh](https://charts.karpenter.sh/) is no longe
 Users who have scripted the installation or upgrading of Karpenter need to adjust their scripts with the following changes:
 1. There is no longer a need to add the Karpenter helm repo to helm
 2. The full URL of the Helm chart needs to be present when using the helm commands
-
+3. If you were not prepending a `v` to the version (i.e. `0.17.0`), you will need to do so with the OCI chart, `v0.17.0`. 
+ 
 ## Upgrading to v0.16.2+
 * v0.16.2 adds new kubeletConfiguration fields to the `provisioners.karpenter.sh` v1alpha5 CRD.  The CRD will need to be updated to use the new parameters:
 ```bash
@@ -154,7 +158,7 @@ aws ec2 delete-launch-template --launch-template-id <LAUNCH_TEMPLATE_ID>
 * v0.14.0 deprecates the `AWS_ENI_LIMITED_POD_DENSITY` environment variable in-favor of specifying `spec.kubeletConfiguration.maxPods` on the Provisioner. `AWS_ENI_LIMITED_POD_DENSITY` will continue to work when `maxPods` is not set on the Provisioner. If `maxPods` is set, it will override `AWS_ENI_LIMITED_POD_DENSITY` on that specific Provisioner.
 
 ## Upgrading to v0.13.0+
-* v0.13.0 introduces a new CRD named `AWSNodeTemplate` which can be used to specify AWS Cloud Provider parameters. Everything that was previously specified under `spec.provider` in the Provisioner resource, can now be specified in the spec of the new resource. The use of `spec.provider` is deprecated but will continue to function to maintain backwards compatibility for the current API version (v1alpha5) of the Provisioner resource. v0.13.0 also introduces support for custom user data that doesn't require the use of a custom launch template. The user data can be specified in-line in the AWSNodeTemplate resource. Read the [UserData documentation here](../aws/user-data) to get started.
+* v0.13.0 introduces a new CRD named `AWSNodeTemplate` which can be used to specify AWS Cloud Provider parameters. Everything that was previously specified under `spec.provider` in the Provisioner resource, can now be specified in the spec of the new resource. The use of `spec.provider` is deprecated but will continue to function to maintain backwards compatibility for the current API version (v1alpha5) of the Provisioner resource. v0.13.0 also introduces support for custom user data that doesn't require the use of a custom launch template. The user data can be specified in-line in the AWSNodeTemplate resource. Read the [UserData documentation here](../aws/operating-systems) to get started.
 
   If you are upgrading from v0.10.1 - v0.11.1, a new CRD `awsnodetemplate` was added. In v0.12.0, this crd was renamed to `awsnodetemplates`. Since helm does not manage the lifecycle of CRDs, you will need to perform a few manual steps for this CRD upgrade:
   1. Make sure any `awsnodetemplate` manifests are saved somewhere so that they can be reapplied to the cluster.

@@ -25,8 +25,9 @@ import (
 	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
 	_ "knative.dev/pkg/system/testing"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 	. "github.com/aws/karpenter/pkg/test/expectations"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/options"
@@ -82,12 +83,20 @@ var _ = AfterEach(func() {
 	Expect(env.Stop()).To(Succeed(), "Failed to stop environment")
 })
 
-var _ = Describe("Reconciliation", func() {
+var _ = Describe("Create", func() {
+	var provider *v1alpha1.AWSNodeTemplate
+	BeforeEach(func() {
+		provider = test.AWSNodeTemplate()
+		ExpectApplied(env.Ctx, env.Client, provider)
+	})
+	AfterEach(func() {
+		ExpectFinalizersRemoved(env.Ctx, env.Client, provider)
+		ExpectDeleted(env.Ctx, env.Client, provider)
+	})
 	It("should reconcile the queue and the eventbridge rules on start", func() {
 		sqsapi.GetQueueURLBehavior.Error.Set(awsErrWithCode(sqs.ErrCodeQueueDoesNotExist), awsfake.MaxCalls(1)) // This mocks the queue not existing
 
-		_, err := controller.Reconcile(ctx, reconcile.Request{})
-		Expect(err).To(Succeed())
+		ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provider))
 
 		Expect(sqsapi.CreateQueueBehavior.SuccessfulCalls()).To(Equal(1))
 		Expect(eventbridgeapi.PutRuleBehavior.SuccessfulCalls()).To(Equal(4))
@@ -99,8 +108,7 @@ var _ = Describe("Reconciliation", func() {
 		eventbridgeapi.PutRuleBehavior.Error.Set(awsErrWithCode(aws.AccessDeniedExceptionCode), awsfake.MaxCalls(0))
 		eventbridgeapi.PutTargetsBehavior.Error.Set(awsErrWithCode(aws.AccessDeniedExceptionCode), awsfake.MaxCalls(0))
 
-		_, err := controller.Reconcile(ctx, reconcile.Request{})
-		Expect(err).ToNot(Succeed())
+		ExpectReconcileFailed(ctx, controller, client.ObjectKeyFromObject(provider))
 		Expect(sqsapi.CreateQueueBehavior.FailedCalls()).To(Equal(1))
 
 		// Simulating AccessDenied being resolved
@@ -108,8 +116,7 @@ var _ = Describe("Reconciliation", func() {
 		eventbridgeapi.PutRuleBehavior.Reset()
 		eventbridgeapi.PutTargetsBehavior.Reset()
 
-		_, err = controller.Reconcile(ctx, reconcile.Request{})
-		Expect(err).To(Succeed())
+		ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provider))
 		Expect(sqsapi.CreateQueueBehavior.SuccessfulCalls()).To(Equal(1))
 		Expect(eventbridgeapi.PutRuleBehavior.SuccessfulCalls()).To(Equal(4))
 		Expect(eventbridgeapi.PutTargetsBehavior.SuccessfulCalls()).To(Equal(4))
@@ -118,8 +125,7 @@ var _ = Describe("Reconciliation", func() {
 		sqsapi.GetQueueURLBehavior.Error.Set(awsErrWithCode(sqs.ErrCodeQueueDoesNotExist), awsfake.MaxCalls(0)) // This mocks the queue not existing
 		sqsapi.CreateQueueBehavior.Error.Set(awsErrWithCode(sqs.ErrCodeQueueDeletedRecently), awsfake.MaxCalls(0))
 
-		_, err := controller.Reconcile(ctx, reconcile.Request{})
-		Expect(err).ToNot(Succeed())
+		ExpectReconcileFailed(ctx, controller, client.ObjectKeyFromObject(provider))
 		Expect(sqsapi.CreateQueueBehavior.FailedCalls()).To(Equal(1))
 	})
 })

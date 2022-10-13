@@ -59,19 +59,19 @@ var (
 	}
 )
 
-type AggregatedParser struct {
+type EventParser struct {
 	parserMap map[parserKey]event.Parser
 }
 
-func NewAggregatedParser(parsers ...event.Parser) AggregatedParser {
-	return AggregatedParser{
+func NewEventParser(parsers ...event.Parser) *EventParser {
+	return &EventParser{
 		parserMap: lo.SliceToMap(parsers, func(p event.Parser) (parserKey, event.Parser) {
 			return newParserKeyFromParser(p), p
 		}),
 	}
 }
 
-func (p AggregatedParser) Parse(msg string) (event.Interface, error) {
+func (p EventParser) Parse(msg string) (event.Interface, error) {
 	if msg == "" {
 		return noop.Event{}, nil
 	}

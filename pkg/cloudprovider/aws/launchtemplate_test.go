@@ -1110,7 +1110,10 @@ var _ = Describe("LaunchTemplates", func() {
 					AWS:         *provider,
 				})
 				fakeEC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
-					{ImageId: aws.String("ami-123"), Architecture: aws.String("x86_64")},
+					{
+						ImageId:      aws.String("ami-123"),
+						Architecture: aws.String("x86_64"),
+						CreationDate: aws.String("2022-08-15T12:00:00Z")},
 				}})
 				ExpectApplied(ctx, env.Client, nodeTemplate)
 				newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
@@ -1130,7 +1133,10 @@ var _ = Describe("LaunchTemplates", func() {
 					AWS:         *provider,
 				})
 				fakeEC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
-					{ImageId: aws.String("ami-123"), Architecture: aws.String("x86_64")},
+					{
+						ImageId:      aws.String("ami-123"),
+						Architecture: aws.String("x86_64"),
+						CreationDate: aws.String("2022-08-15T12:00:00Z")},
 				}})
 				ExpectApplied(ctx, env.Client, nodeTemplate)
 				newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
@@ -1154,11 +1160,13 @@ var _ = Describe("LaunchTemplates", func() {
 						ImageId:      aws.String("ami-123"),
 						Architecture: aws.String("x86_64"),
 						Tags:         []*ec2.Tag{{Key: aws.String(v1.LabelInstanceTypeStable), Value: aws.String("t3.large")}},
+						CreationDate: aws.String("2022-08-15T12:00:00Z"),
 					},
 					{
 						ImageId:      aws.String("ami-456"),
 						Architecture: aws.String("x86_64"),
 						Tags:         []*ec2.Tag{{Key: aws.String(v1.LabelInstanceTypeStable), Value: aws.String("m5.large")}},
+						CreationDate: aws.String("2022-08-15T12:00:00Z"),
 					},
 				}})
 				ExpectApplied(ctx, env.Client, nodeTemplate)
@@ -1176,18 +1184,20 @@ var _ = Describe("LaunchTemplates", func() {
 				}
 				Expect(actualFilter).To(Equal(expectedFilter))
 			})
-			It("should create multiple launch templates when multiple amis are discovered", func() {
+			It("should create multiple launch templates when multiple amis are discovered with non-equivalent requirements", func() {
 				opts.AWSENILimitedPodDensity = false
 				fakeEC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
 					{
 						ImageId:      aws.String("ami-123"),
 						Architecture: aws.String("x86_64"),
 						Tags:         []*ec2.Tag{{Key: aws.String(v1.LabelInstanceTypeStable), Value: aws.String("t3.large")}},
+						CreationDate: aws.String("2022-08-15T12:00:00Z"),
 					},
 					{
 						ImageId:      aws.String("ami-456"),
 						Architecture: aws.String("x86_64"),
 						Tags:         []*ec2.Tag{{Key: aws.String(v1.LabelInstanceTypeStable), Value: aws.String("m5.large")}},
+						CreationDate: aws.String("2022-08-10T12:00:00Z"),
 					},
 				}})
 				nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
@@ -1208,6 +1218,50 @@ var _ = Describe("LaunchTemplates", func() {
 				)
 				Expect(expectedImageIds.Equal(actualImageIds)).To(BeTrue())
 			})
+			It("should create a launch template with the newest compatible AMI when multiple amis are discovered", func() {
+				opts.AWSENILimitedPodDensity = false
+				fakeEC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
+					{
+						ImageId:      aws.String("ami-123"),
+						Architecture: aws.String("x86_64"),
+						CreationDate: aws.String("2020-01-01T12:00:00Z"),
+					},
+					{
+						ImageId:      aws.String("ami-456"),
+						Architecture: aws.String("x86_64"),
+						CreationDate: aws.String("2021-01-01T12:00:00Z"),
+					},
+					{
+						// Incompatible because required ARM64
+						ImageId:      aws.String("ami-789"),
+						Architecture: aws.String("arm64"),
+						CreationDate: aws.String("2022-01-01T12:00:00Z"),
+					},
+				}})
+				nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+					UserData:    nil,
+					AMISelector: map[string]string{"karpenter.sh/discovery": "my-cluster"},
+					AWS:         *provider,
+				})
+				ExpectApplied(ctx, env.Client, nodeTemplate)
+				newProvisioner := test.Provisioner(test.ProvisionerOptions{
+					ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name},
+					Requirements: []v1.NodeSelectorRequirement{
+						{
+							Key:      v1.LabelArchStable,
+							Operator: v1.NodeSelectorOpIn,
+							Values:   []string{v1alpha5.ArchitectureAmd64},
+						},
+					},
+				})
+				ExpectApplied(ctx, env.Client, newProvisioner)
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+				Expect("ami-456").To(Equal(*input.LaunchTemplateData.ImageId))
+			})
+
 			It("should fail if no amis match selector.", func() {
 				opts.AWSENILimitedPodDensity = false
 				fakeEC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{}})
@@ -1226,7 +1280,7 @@ var _ = Describe("LaunchTemplates", func() {
 			It("should fail if no instanceType matches ami requirements.", func() {
 				opts.AWSENILimitedPodDensity = false
 				fakeEC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
-					{ImageId: aws.String("ami-123"), Architecture: aws.String("newnew")},
+					{ImageId: aws.String("ami-123"), Architecture: aws.String("newnew"), CreationDate: aws.String("2022-01-01T12:00:00Z")},
 				}})
 				nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 					UserData:    nil,

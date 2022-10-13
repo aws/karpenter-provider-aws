@@ -134,6 +134,15 @@ func ExpectDeleted(ctx context.Context, c client.Client, objects ...client.Objec
 	}
 }
 
+func ExpectFinalizersRemoved(ctx context.Context, c client.Client, objects ...client.Object) {
+	for _, object := range objects {
+		ExpectWithOffset(1, c.Get(ctx, client.ObjectKeyFromObject(object), object)).To(Succeed())
+		mergeFrom := client.MergeFrom(object.DeepCopyObject().(client.Object))
+		object.SetFinalizers([]string{})
+		ExpectWithOffset(1, c.Patch(ctx, object, mergeFrom)).To(Succeed())
+	}
+}
+
 func ExpectCleanedUp(ctx context.Context, c client.Client) {
 	wg := sync.WaitGroup{}
 	namespaces := &v1.NamespaceList{}
@@ -219,6 +228,7 @@ func ExpectReconcileSucceeded(ctx context.Context, reconciler reconcile.Reconcil
 	for _, key := range keys {
 		wg.Add(1)
 		go func(k client.ObjectKey) {
+			defer ginkgo.GinkgoRecover()
 			defer wg.Done()
 			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: k})
 			ExpectWithOffset(1, err).ToNot(HaveOccurred())
@@ -227,6 +237,12 @@ func ExpectReconcileSucceeded(ctx context.Context, reconciler reconcile.Reconcil
 	}
 	wg.Wait()
 	return *lastResult.Load()
+}
+
+func ExpectReconcileFailed(ctx context.Context, reconciler reconcile.Reconciler, key client.ObjectKey) reconcile.Result {
+	result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+	Expect(err).ToNot(Succeed())
+	return result
 }
 
 func ExpectMetric(prefix string) *prometheus.MetricFamily {

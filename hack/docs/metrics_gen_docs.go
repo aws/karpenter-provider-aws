@@ -26,6 +26,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/aws/karpenter/pkg/metrics"
 )
 
 type metricInfo struct {
@@ -147,7 +149,7 @@ func bySubsystem(metrics []metricInfo) func(i int, j int) bool {
 }
 
 func handleVariableDeclaration(v *ast.GenDecl) []metricInfo {
-	var metrics []metricInfo
+	var promMetrics []metricInfo
 	for _, spec := range v.Specs {
 		vs, ok := spec.(*ast.ValueSpec)
 		if !ok {
@@ -181,11 +183,19 @@ func handleVariableDeclaration(v *ast.GenDecl) []metricInfo {
 				case *ast.BasicLit:
 					value = val.Value
 				case *ast.SelectorExpr:
-					if selector := fmt.Sprintf("%s.%s", val.X, val.Sel); selector == "metrics.Namespace" {
-						value = "karpenter"
+					selector := fmt.Sprintf("%s.%s", val.X, val.Sel)
+					if v, err := getIdentMapping(selector); err != nil {
+						log.Fatalf("unsupported selector %s, %s", selector, err)
 					} else {
-						log.Fatalf("unsupported selector %s", selector)
+						value = v
 					}
+				case *ast.Ident:
+					if v, err := getIdentMapping(val.String()); err != nil {
+						log.Fatal(err)
+					} else {
+						value = v
+					}
+
 				default:
 					log.Fatalf("unsupported value %T %v", kv.Value, kv.Value)
 				}
@@ -193,7 +203,7 @@ func handleVariableDeclaration(v *ast.GenDecl) []metricInfo {
 					return r == '"'
 				})
 			}
-			metrics = append(metrics, metricInfo{
+			promMetrics = append(promMetrics, metricInfo{
 				namespace: keyValuePairs["Namespace"],
 				subsystem: keyValuePairs["Subsystem"],
 				name:      keyValuePairs["Name"],
@@ -201,7 +211,7 @@ func handleVariableDeclaration(v *ast.GenDecl) []metricInfo {
 			})
 		}
 	}
-	return metrics
+	return promMetrics
 }
 
 func getFuncPackage(fun ast.Expr) string {
@@ -219,4 +229,17 @@ func getFuncPackage(fun ast.Expr) string {
 	}
 	log.Fatalf("unsupported func expression %T, %v", fun, fun)
 	return ""
+}
+
+// we cannot get the value of an Identifier directly so we map it manually instead
+func getIdentMapping(identName string) (string, error) {
+	identMapping := map[string]string{
+		"metrics.Namespace": metrics.Namespace,
+		"Namespace":         metrics.Namespace,
+		"nodeSubsystem":     "nodes",
+	}
+	if v, ok := identMapping[identName]; ok {
+		return v, nil
+	}
+	return "", fmt.Errorf("no identifier mapping exists for %s", identName)
 }

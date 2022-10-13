@@ -32,15 +32,16 @@ func IgnoreCacheOption(o Options) Options {
 	return o
 }
 
-// CachedVal persistently stores a value in memory
-type CachedVal[T any] struct {
+// Lazy persistently stores a value in memory by evaluating
+// the Resolve function when the value is accessed
+type Lazy[T any] struct {
 	value   *T
 	mu      sync.RWMutex
 	Resolve func(context.Context) (T, error)
 }
 
 // Set assigns the passed value
-func (c *CachedVal[T]) Set(v T) {
+func (c *Lazy[T]) Set(v T) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.value = &v
@@ -48,7 +49,7 @@ func (c *CachedVal[T]) Set(v T) {
 
 // TryGet attempts to get a non-nil value from the internal value. If the internal value is nil, the Resolve function
 // will attempt to resolve the value, setting the value to be persistently stored if the resolve of Resolve is non-nil.
-func (c *CachedVal[T]) TryGet(ctx context.Context, opts ...Option) (T, error) {
+func (c *Lazy[T]) TryGet(ctx context.Context, opts ...Option) (T, error) {
 	o := resolveOptions(opts)
 	c.mu.RLock()
 	if c.value != nil && !o.ignoreCache {
