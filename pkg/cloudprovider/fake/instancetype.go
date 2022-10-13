@@ -20,7 +20,7 @@ import (
 
 	"github.com/samber/lo"
 
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/scheduling"
 
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"

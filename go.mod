@@ -6,6 +6,7 @@ require (
 	github.com/Pallinder/go-randomdata v1.2.0
 	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/aws/aws-sdk-go v1.44.114
+	github.com/aws/karpenter-core v0.0.1
 	github.com/deckarep/golang-set v1.8.0
 	github.com/go-logr/logr v1.2.3
 	github.com/go-logr/zapr v1.2.3
@@ -17,15 +18,15 @@ require (
 	github.com/pelletier/go-toml/v2 v2.0.5
 	github.com/prometheus/client_golang v1.13.0
 	github.com/prometheus/client_model v0.2.0
-	github.com/samber/lo v1.31.0
-	go.uber.org/multierr v1.7.0
+	github.com/samber/lo v1.32.0
+	go.uber.org/multierr v1.8.0
 	go.uber.org/zap v1.23.0
 	golang.org/x/time v0.0.0-20220609170525-579cf78fd858
 	k8s.io/api v0.25.2
 	k8s.io/apimachinery v0.25.2
 	k8s.io/client-go v0.25.2
 	k8s.io/utils v0.0.0-20220728103510-ee6ede2d64ed
-	knative.dev/pkg v0.0.0-20221007211032-8178c3871785
+	knative.dev/pkg v0.0.0-20221011175852-714b7630a836
 	sigs.k8s.io/controller-runtime v0.13.0
 )
 

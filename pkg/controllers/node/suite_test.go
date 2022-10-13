@@ -32,7 +32,7 @@ import (
 
 	. "github.com/aws/karpenter/pkg/test/expectations"
 
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider/fake"
 	"github.com/aws/karpenter/pkg/controllers/node"
 	"github.com/aws/karpenter/pkg/controllers/state"

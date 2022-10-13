@@ -40,7 +40,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/samber/lo"
 
-	provisioning "github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	provisioning "github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/events"
 	"github.com/aws/karpenter/pkg/metrics"

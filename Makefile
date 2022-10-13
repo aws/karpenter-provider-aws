@@ -102,12 +102,8 @@ install:  ## Deploy the latest released version into your ~/.kube/config cluster
 delete: ## Delete the controller from your ~/.kube/config cluster
 	helm uninstall karpenter --namespace karpenter
 
-codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
-	controller-gen \
-		object:headerFile="hack/boilerplate.go.txt" \
-		crd \
-		paths="./pkg/..." \
-		output:crd:artifacts:config=charts/karpenter/crds
+codegen: ## Generate code.
+	curl https://raw.githubusercontent.com/aws/karpenter-core/v0.0.1/chart/crds/karpenter.sh_provisioners.yaml > charts/karpenter/crds/karpenter.sh_provisioners.yaml
 	hack/boilerplate.sh
 
 docgen: ## Generate docs
@@ -154,4 +150,3 @@ define newline
 
 
 endef
-
