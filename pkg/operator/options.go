@@ -15,18 +15,21 @@ limitations under the License.
 package operator
 
 import (
+	"context"
 	"runtime/debug"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/flowcontrol"
 	"k8s.io/utils/clock"
 	"knative.dev/pkg/configmap/informer"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/system"
 	controllerruntime "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/aws/karpenter/pkg/apis"
@@ -48,6 +51,19 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(apis.AddToScheme(scheme))
+}
+
+// Options exposes shared components that are initialized by the startup.Initialize() call
+type Options struct {
+	Ctx        context.Context
+	Recorder   events.Recorder
+	Config     *rest.Config
+	KubeClient client.Client
+	Clientset  *kubernetes.Clientset
+	Clock      clock.Clock
+	Options    *options.Options
+	Cmw        *informer.InformedWatcher
+	StartAsync <-chan struct{}
 }
 
 func NewOptionsWithManagerOrDie() (Options, manager.Manager) {
