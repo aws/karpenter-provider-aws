@@ -36,6 +36,7 @@ import (
 	"knative.dev/pkg/logging"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
+	awserrors "github.com/aws/karpenter/pkg/cloudproviders/aws/errors"
 
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
@@ -79,7 +80,7 @@ func (p *InstanceProvider) Create(ctx context.Context, provider *v1alpha1.AWS, n
 	}
 
 	id, err := p.launchInstance(ctx, provider, nodeRequest)
-	if isLaunchTemplateNotFound(err) {
+	if awserrors.IsLaunchTemplateNotFound(err) {
 		// retry once if launch template is not found. This allows karpenter to generate a new LT if the
 		// cache was out-of-sync on the first try
 		id, err = p.launchInstance(ctx, provider, nodeRequest)
@@ -117,11 +118,11 @@ func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
 	if _, err = p.ec2api.TerminateInstancesWithContext(ctx, &ec2.TerminateInstancesInput{
 		InstanceIds: []*string{id},
 	}); err != nil {
-		if isNotFound(err) {
+		if awserrors.IsNotFound(err) {
 			return nil
 		}
 		if _, errMsg := p.getInstance(ctx, aws.StringValue(id)); err != nil {
-			if isInstanceTerminated(errMsg) || isNotFound(errMsg) {
+			if awserrors.IsInstanceTerminated(errMsg) || awserrors.IsNotFound(errMsg) {
 				logging.FromContext(ctx).Debugf("Instance already terminated, %s", node.Name)
 				return nil
 			}
@@ -167,7 +168,7 @@ func (p *InstanceProvider) launchInstance(ctx context.Context, provider *v1alpha
 
 	createFleetOutput, err := p.createFleetBatcher.CreateFleet(ctx, createFleetInput)
 	if err != nil {
-		if isLaunchTemplateNotFound(err) {
+		if awserrors.IsLaunchTemplateNotFound(err) {
 			for _, lt := range launchTemplateConfigs {
 				p.launchTemplateProvider.Invalidate(ctx, aws.StringValue(lt.LaunchTemplateSpecification.LaunchTemplateName))
 			}
@@ -303,18 +304,18 @@ func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.Inst
 
 func (p *InstanceProvider) getInstance(ctx context.Context, id string) (*ec2.Instance, error) {
 	describeInstancesOutput, err := p.ec2api.DescribeInstancesWithContext(ctx, &ec2.DescribeInstancesInput{InstanceIds: aws.StringSlice([]string{id})})
-	if isNotFound(err) {
+	if awserrors.IsNotFound(err) {
 		return nil, err
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to describe ec2 instances, %w", err)
 	}
 	if len(describeInstancesOutput.Reservations) != 1 || len(describeInstancesOutput.Reservations[0].Instances) != 1 {
-		return nil, InstanceTerminatedError{fmt.Errorf("expected instance but got 0")}
+		return nil, awserrors.InstanceTerminatedError{Err: fmt.Errorf("expected instance but got 0")}
 	}
 	instance := describeInstancesOutput.Reservations[0].Instances[0]
 	if *instance.State.Name == ec2.InstanceStateNameTerminated {
-		return nil, InstanceTerminatedError{fmt.Errorf("instance is in terminated state")}
+		return nil, awserrors.InstanceTerminatedError{Err: fmt.Errorf("instance is in terminated state")}
 	}
 	if injection.GetOptions(ctx).GetAWSNodeNameConvention() == options.ResourceName {
 		return instance, nil
@@ -359,7 +360,7 @@ func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Ins
 
 func (p *InstanceProvider) updateUnavailableOfferingsCache(ctx context.Context, errors []*ec2.CreateFleetError, capacityType string) {
 	for _, err := range errors {
-		if isUnfulfillableCapacity(err) {
+		if awserrors.IsUnfulfillableCapacity(err) {
 			p.instanceTypeProvider.unavailableOfferings.MarkUnavailableForFleetErr(ctx, err, capacityType)
 		}
 	}
