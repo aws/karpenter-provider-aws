@@ -41,6 +41,7 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
+	awscache "github.com/aws/karpenter/pkg/cloudproviders/aws/cache"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/controllers/notification"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/controllers/notification/event"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/controllers/notification/event/scheduledchange"
@@ -49,7 +50,6 @@ import (
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/controllers/providers"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/errors"
 	awsfake "github.com/aws/karpenter/pkg/cloudproviders/aws/fake"
-	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider/fake"
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/test"
@@ -69,13 +69,12 @@ const (
 var ctx context.Context
 var env *test.Environment
 var cluster *state.Cluster
-var ec2api *awsfake.EC2API
 var sqsapi *awsfake.SQSAPI
 var eventbridgeapi *awsfake.EventBridgeAPI
 var cloudProvider *fake.CloudProvider
 var sqsProvider *providers.SQSProvider
 var eventBridgeProvider *providers.EventBridgeProvider
-var unavailableOfferingsCache *aws.InstanceTypeProvider
+var unavailableOfferingsCache *awscache.UnavailableOfferings
 var recorder *awsfake.EventRecorder
 var fakeClock *clock.FakeClock
 var cfg *test.Config
@@ -106,7 +105,7 @@ var _ = BeforeEach(func() {
 		eventbridgeapi = &awsfake.EventBridgeAPI{}
 		eventBridgeProvider = providers.NewEventBridgeProvider(eventbridgeapi, sqsProvider)
 
-		controller = notification.NewController(env.Client, fakeClock, recorder, cluster, sqsProvider, instanceTypeProvider)
+		controller = notification.NewController(env.Client, fakeClock, recorder, cluster, sqsProvider, unavailableOfferingsCache)
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })
@@ -269,19 +268,8 @@ var _ = Describe("Processing Messages", func() {
 		ExpectNotFound(env.Ctx, env.Client, node)
 		Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
 
-		// Expect a t3.large in test-zone-1a to not be returned since we should add it to the ICE cache
-		instanceTypes, err := instanceTypeProvider.Get(env.Ctx, &v1alpha1.AWS{}, &v1alpha5.KubeletConfiguration{})
-		Expect(err).To(Succeed())
-
-		t3Large := lo.Filter(instanceTypes, func(it cloudprovider.InstanceType, _ int) bool {
-			return it.Name() == "t3.large"
-		})
-		Expect(len(t3Large)).To(BeNumerically("==", 1))
-		matchingOfferings := lo.Filter(t3Large[0].Offerings(), func(of cloudprovider.Offering, _ int) bool {
-			return of.CapacityType == v1alpha1.CapacityTypeSpot && of.Zone == "test-zone-1a"
-		})
-		Expect(len(matchingOfferings)).To(BeNumerically("==", 1))
-		Expect(matchingOfferings[0].Available).To(BeFalse())
+		// Expect a t3.large in test-zone-1a to be added to the ICE cache
+		Expect(unavailableOfferingsCache.IsUnavailable("t3.large", "test-zone-1a", v1alpha1.CapacityTypeSpot)).To(BeTrue())
 	})
 })
 

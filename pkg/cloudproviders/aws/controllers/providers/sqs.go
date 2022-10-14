@@ -25,6 +25,7 @@ import (
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
+	awserrors "github.com/aws/karpenter/pkg/cloudproviders/aws/errors"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/utils"
 	"github.com/aws/karpenter/pkg/utils/atomic"
 	"github.com/aws/karpenter/pkg/utils/functional"
@@ -217,7 +218,7 @@ func (s *SQSProvider) DeleteSQSMessage(ctx context.Context, msg *sqs.Message) er
 func (s *SQSProvider) DeleteQueue(ctx context.Context) error {
 	queueURL, err := s.DiscoverQueueURL(ctx, false)
 	if err != nil {
-		if IsNotFound(err) {
+		if awserrors.IsNotFound(err) {
 			return nil
 		}
 		return fmt.Errorf("fetching queue url, %w", err)
@@ -227,7 +228,7 @@ func (s *SQSProvider) DeleteQueue(ctx context.Context) error {
 		QueueUrl: aws.String(queueURL),
 	}
 	_, err = s.client.DeleteQueueWithContext(ctx, input)
-	if err != nil && !IsNotFound(err) {
+	if err != nil && !awserrors.IsNotFound(err) {
 		return fmt.Errorf("deleting sqs queue, %w", err)
 	}
 	return nil

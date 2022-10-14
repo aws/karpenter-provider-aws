@@ -36,6 +36,7 @@ import (
 	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
 
+	awscache "github.com/aws/karpenter/pkg/cloudproviders/aws/cache"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider/amifamily"
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
 	. "github.com/aws/karpenter/pkg/test/expectations"
@@ -61,7 +62,8 @@ var securityGroupCache *cache.Cache
 var subnetCache *cache.Cache
 var ssmCache *cache.Cache
 var ec2Cache *cache.Cache
-var unavailableOfferingsCache *UnavailableOfferingsCache
+var internalUnavailableOfferingsCache *cache.Cache
+var unavailableOfferingsCache *awscache.UnavailableOfferings
 var instanceTypeCache *cache.Cache
 var instanceTypeProvider *InstanceTypeProvider
 var fakeEC2API *fake.EC2API
@@ -99,7 +101,8 @@ var _ = BeforeSuite(func() {
 		ctx = injection.WithOptions(ctx, opts)
 		ctx, stop = context.WithCancel(ctx)
 		launchTemplateCache = cache.New(CacheTTL, CacheCleanupInterval)
-		unavailableOfferingsCache = NewUnavailableOfferingsCache()
+		internalUnavailableOfferingsCache = cache.New(awscache.UnavailableOfferingsTTL, CacheCleanupInterval)
+		unavailableOfferingsCache = awscache.NewUnavailableOfferings(internalUnavailableOfferingsCache)
 		securityGroupCache = cache.New(CacheTTL, CacheCleanupInterval)
 		subnetCache = cache.New(CacheTTL, CacheCleanupInterval)
 		ssmCache = cache.New(CacheTTL, CacheCleanupInterval)
@@ -171,7 +174,7 @@ var _ = BeforeEach(func() {
 	launchTemplateCache.Flush()
 	securityGroupCache.Flush()
 	subnetCache.Flush()
-	unavailableOfferingsCache.cache.Flush()
+	internalUnavailableOfferingsCache.Flush()
 	ssmCache.Flush()
 	ec2Cache.Flush()
 	instanceTypeCache.Flush()

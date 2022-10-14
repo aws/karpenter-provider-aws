@@ -35,6 +35,7 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
+	awscache "github.com/aws/karpenter/pkg/cloudproviders/aws/cache"
 
 	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/controllers/notification/event"
@@ -73,13 +74,13 @@ type Controller struct {
 	cluster                   *state.Cluster
 	recorder                  events.Recorder
 	provider                  *providers.SQSProvider
-	unavailableOfferingsCache *aws.InstanceTypeProvider
+	unavailableOfferingsCache *awscache.UnavailableOfferings
 	parser                    *EventParser
 	backoff                   *backoff.ExponentialBackOff
 }
 
 func NewController(kubeClient client.Client, clk clock.Clock, recorder events.Recorder, cluster *state.Cluster,
-	sqsProvider *providers.SQSProvider, unavailableOfferingsCache *aws.InstanceTypeProvider) *Controller {
+	sqsProvider *providers.SQSProvider, unavailableOfferingsCache *awscache.UnavailableOfferings) *Controller {
 
 	return &Controller{
 		kubeClient:                kubeClient,
@@ -87,7 +88,7 @@ func NewController(kubeClient client.Client, clk clock.Clock, recorder events.Re
 		cluster:                   cluster,
 		recorder:                  recorder,
 		provider:                  sqsProvider,
-		unavailableOfferingsCache: instanceTypeProvider,
+		unavailableOfferingsCache: unavailableOfferingsCache,
 		parser:                    NewEventParser(DefaultParsers...),
 		backoff:                   newBackoff(clk),
 	}
@@ -227,7 +228,7 @@ func (c *Controller) handleNode(ctx context.Context, evt event.Interface, node *
 		zone := node.Labels[v1.LabelTopologyZone]
 		instanceType := node.Labels[v1.LabelInstanceTypeStable]
 		if zone != "" && instanceType != "" {
-			c.instanceTypeProvider.MarkOfferingUnavailable(instanceType, zone, awsv1alpha1.CapacityTypeSpot)
+			c.unavailableOfferingsCache.MarkUnavailable(ctx, evt.Kind().String(), instanceType, zone, awsv1alpha1.CapacityTypeSpot)
 		}
 	}
 	if action != NoAction {

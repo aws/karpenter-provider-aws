@@ -27,6 +27,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 
 	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
+	awserrors "github.com/aws/karpenter/pkg/cloudproviders/aws/errors"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/utils"
 	"github.com/aws/karpenter/pkg/utils/injection"
 )
@@ -111,7 +112,7 @@ func (eb *EventBridgeProvider) DeleteEC2NotificationRules(ctx context.Context) e
 			Rule: aws.String(rules[i].Name),
 		}
 		_, err := eb.client.RemoveTargetsWithContext(ctx, targetInput)
-		if err != nil && !IsNotFound(err) {
+		if err != nil && !awserrors.IsNotFound(err) {
 			errs[i] = err
 			return
 		}
@@ -119,7 +120,7 @@ func (eb *EventBridgeProvider) DeleteEC2NotificationRules(ctx context.Context) e
 			Name: aws.String(rules[i].Name),
 		}
 		_, err = eb.client.DeleteRuleWithContext(ctx, ruleInput)
-		if err != nil && !IsNotFound(err) {
+		if err != nil && !awserrors.IsNotFound(err) {
 			errs[i] = err
 		}
 	})

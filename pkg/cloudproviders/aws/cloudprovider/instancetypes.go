@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
-
+	aws2 "github.com/aws/karpenter/pkg/cloudproviders/aws/cache"
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -42,10 +42,9 @@ import (
 )
 
 const (
-	InstanceTypesCacheKey              = "types"
-	InstanceTypeZonesCacheKeyPrefix    = "zones:"
-	InstanceTypesAndZonesCacheTTL      = 5 * time.Minute
-	UnfulfillableCapacityErrorCacheTTL = 3 * time.Minute
+	InstanceTypesCacheKey           = "types"
+	InstanceTypeZonesCacheKeyPrefix = "zones:"
+	InstanceTypesAndZonesCacheTTL   = 5 * time.Minute
 )
 
 type InstanceTypeProvider struct {
@@ -58,12 +57,12 @@ type InstanceTypeProvider struct {
 	// Has one cache entry for all the zones for each subnet selector (key: InstanceTypesZonesCacheKeyPrefix:<hash_of_selector>)
 	// Values cached *before* considering insufficient capacity errors from the unavailableOfferings cache.
 	cache                *cache.Cache
-	unavailableOfferings *UnavailableOfferingsCache
+	unavailableOfferings *aws2.UnavailableOfferings
 	cm                   *pretty.ChangeMonitor
 }
 
 func NewInstanceTypeProvider(ctx context.Context, sess *session.Session, options cloudprovider.Options,
-	ec2api ec2iface.EC2API, subnetProvider *SubnetProvider, unavailableOfferings *UnavailableOfferingsCache) *InstanceTypeProvider {
+	ec2api ec2iface.EC2API, subnetProvider *SubnetProvider, unavailableOfferings *aws2.UnavailableOfferings) *InstanceTypeProvider {
 	return &InstanceTypeProvider{
 		ec2api:         ec2api,
 		region:         *sess.Config.Region,
