@@ -69,7 +69,7 @@ var controller *provisioning.Controller
 var cloudProvider *CloudProvider
 var clientSet *kubernetes.Clientset
 var cluster *state.Cluster
-var recorder *test.Recorder
+var recorder *test.EventRecorder
 var cfg *test.Config
 var fakeClock *clock.FakeClock
 var provisioner *v1alpha5.Provisioner

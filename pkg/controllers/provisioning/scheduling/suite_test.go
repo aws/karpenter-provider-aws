@@ -60,7 +60,7 @@ var cloudProv *fake.CloudProvider
 var cluster *state.Cluster
 var nodeStateController *state.NodeController
 var podStateController *state.PodController
-var recorder *test.Recorder
+var recorder *test.EventRecorder
 var cfg *test.Config
 
 func TestScheduling(t *testing.T) {

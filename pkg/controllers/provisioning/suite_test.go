@@ -53,7 +53,7 @@ var nodeController *state.NodeController
 var cloudProvider cloudprovider.CloudProvider
 var controller *provisioning.Controller
 var env *test.Environment
-var recorder *test.Recorder
+var recorder *test.EventRecorder
 var cfg *test.Config
 var instanceTypeMap map[string]cloudprovider.InstanceType
 

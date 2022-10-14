@@ -18,7 +18,6 @@ import (
 	"sync"
 
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/tools/record"
 
 	"github.com/aws/karpenter/pkg/events"
 )
@@ -29,47 +28,45 @@ type Binding struct {
 	Node *v1.Node
 }
 
-// Recorder is a mock event recorder that is used to facilitate testing.
-type Recorder struct {
-	rec      record.EventRecorder
+// EventRecorder is a mock event recorder that is used to facilitate testing.
+type EventRecorder struct {
 	mu       sync.Mutex
 	bindings []Binding
 }
 
-var _ events.Recorder = (*Recorder)(nil)
+var _ events.Recorder = (*EventRecorder)(nil)
 
-func NewEventRecorder() *Recorder {
-	return &Recorder{}
+func NewEventRecorder() *EventRecorder {
+	return &EventRecorder{}
 }
 
-func (r *Recorder) EventRecorder() record.EventRecorder                          { return r.rec }
-func (r *Recorder) WaitingOnReadinessForConsolidation(v *v1.Node)                {}
-func (r *Recorder) TerminatingNodeForConsolidation(node *v1.Node, reason string) {}
-func (r *Recorder) LaunchingNodeForConsolidation(node *v1.Node, reason string)   {}
-func (r *Recorder) WaitingOnDeletionForConsolidation(node *v1.Node)              {}
+func (r *EventRecorder) WaitingOnReadinessForConsolidation(v *v1.Node)                {}
+func (r *EventRecorder) TerminatingNodeForConsolidation(node *v1.Node, reason string) {}
+func (r *EventRecorder) LaunchingNodeForConsolidation(node *v1.Node, reason string)   {}
+func (r *EventRecorder) WaitingOnDeletionForConsolidation(node *v1.Node)              {}
 
-func (r *Recorder) NominatePod(pod *v1.Pod, node *v1.Node) {
+func (r *EventRecorder) NominatePod(pod *v1.Pod, node *v1.Node) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.bindings = append(r.bindings, Binding{pod, node})
 }
 
-func (r *Recorder) EvictPod(pod *v1.Pod) {}
+func (r *EventRecorder) EvictPod(pod *v1.Pod) {}
 
-func (r *Recorder) PodFailedToSchedule(pod *v1.Pod, err error) {}
+func (r *EventRecorder) PodFailedToSchedule(pod *v1.Pod, err error) {}
 
-func (r *Recorder) NodeFailedToDrain(node *v1.Node, err error) {}
+func (r *EventRecorder) NodeFailedToDrain(node *v1.Node, err error) {}
 
-func (r *Recorder) Reset() {
+func (r *EventRecorder) Reset() {
 	r.ResetBindings()
 }
 
-func (r *Recorder) ResetBindings() {
+func (r *EventRecorder) ResetBindings() {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.bindings = nil
 }
-func (r *Recorder) ForEachBinding(f func(pod *v1.Pod, node *v1.Node)) {
+func (r *EventRecorder) ForEachBinding(f func(pod *v1.Pod, node *v1.Node)) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for _, b := range r.bindings {

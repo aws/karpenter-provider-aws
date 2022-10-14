@@ -58,7 +58,7 @@ var provisioningController *provisioning.Controller
 var provisioner *provisioning.Provisioner
 var cloudProvider *fake.CloudProvider
 var clientSet *kubernetes.Clientset
-var recorder *test.Recorder
+var recorder *test.EventRecorder
 var nodeStateController *state.NodeController
 var fakeClock *clock.FakeClock
 var cfg *test.Config
