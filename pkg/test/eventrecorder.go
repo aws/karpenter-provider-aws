@@ -40,36 +40,36 @@ func NewEventRecorder() *EventRecorder {
 	return &EventRecorder{}
 }
 
-func (e *EventRecorder) WaitingOnReadinessForConsolidation(v *v1.Node)                {}
-func (e *EventRecorder) TerminatingNodeForConsolidation(node *v1.Node, reason string) {}
-func (e *EventRecorder) LaunchingNodeForConsolidation(node *v1.Node, reason string)   {}
-func (e *EventRecorder) WaitingOnDeletionForConsolidation(node *v1.Node)              {}
+func (r *EventRecorder) WaitingOnReadinessForConsolidation(v *v1.Node)                {}
+func (r *EventRecorder) TerminatingNodeForConsolidation(node *v1.Node, reason string) {}
+func (r *EventRecorder) LaunchingNodeForConsolidation(node *v1.Node, reason string)   {}
+func (r *EventRecorder) WaitingOnDeletionForConsolidation(node *v1.Node)              {}
 
-func (e *EventRecorder) NominatePod(pod *v1.Pod, node *v1.Node) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	e.bindings = append(e.bindings, Binding{pod, node})
+func (r *EventRecorder) NominatePod(pod *v1.Pod, node *v1.Node) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.bindings = append(r.bindings, Binding{pod, node})
 }
 
-func (e *EventRecorder) EvictPod(pod *v1.Pod) {}
+func (r *EventRecorder) EvictPod(pod *v1.Pod) {}
 
-func (e *EventRecorder) PodFailedToSchedule(pod *v1.Pod, err error) {}
+func (r *EventRecorder) PodFailedToSchedule(pod *v1.Pod, err error) {}
 
-func (e *EventRecorder) NodeFailedToDrain(node *v1.Node, err error) {}
+func (r *EventRecorder) NodeFailedToDrain(node *v1.Node, err error) {}
 
-func (e *EventRecorder) Reset() {
-	e.ResetBindings()
+func (r *EventRecorder) Reset() {
+	r.ResetBindings()
 }
 
-func (e *EventRecorder) ResetBindings() {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	e.bindings = nil
+func (r *EventRecorder) ResetBindings() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.bindings = nil
 }
-func (e *EventRecorder) ForEachBinding(f func(pod *v1.Pod, node *v1.Node)) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	for _, b := range e.bindings {
+func (r *EventRecorder) ForEachBinding(f func(pod *v1.Pod, node *v1.Node)) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, b := range r.bindings {
 		f(b.Pod, b.Node)
 	}
 }

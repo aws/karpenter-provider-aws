@@ -25,7 +25,7 @@ type Recorder interface {
 	// NominatePod is called when we have determined that a pod should schedule against an existing node and don't
 	// currently need to provision new capacity for the pod.
 	NominatePod(*v1.Pod, *v1.Node)
-	// EvictedPod is called when a pod is evicted
+	// EvictPod is called when a pod is evicted
 	EvictPod(*v1.Pod)
 	// PodFailedToSchedule is called when a pod has failed to schedule entirely.
 	PodFailedToSchedule(*v1.Pod, error)

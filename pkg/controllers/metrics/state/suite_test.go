@@ -29,7 +29,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter/pkg/cloudprovider/fake"
+
+	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider/fake"
 	statemetrics "github.com/aws/karpenter/pkg/controllers/metrics/state"
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/test"

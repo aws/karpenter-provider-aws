@@ -35,7 +35,7 @@ import (
 	"knative.dev/pkg/webhook/resourcesemantics/validation"
 
 	"github.com/aws/karpenter/pkg/apis"
-	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
 	"github.com/aws/karpenter/pkg/utils/env"
 	"github.com/aws/karpenter/pkg/utils/injection"
 )

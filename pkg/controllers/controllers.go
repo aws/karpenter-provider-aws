@@ -17,7 +17,7 @@ package controllers
 import (
 	"knative.dev/pkg/logging"
 
-	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
 	"github.com/aws/karpenter/pkg/config"
 	"github.com/aws/karpenter/pkg/controllers/consolidation"
 	"github.com/aws/karpenter/pkg/controllers/counter"
