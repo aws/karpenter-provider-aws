@@ -16,12 +16,14 @@ package amifamily
 
 import (
 	"context"
+	"net"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
 	"github.com/patrickmn/go-cache"
+	"github.com/samber/lo"
 	core "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -59,6 +61,7 @@ type Options struct {
 	SecurityGroupsIDs []string
 	Tags              map[string]string
 	Labels            map[string]string `hash:"ignore"`
+	KubeDNSIP         net.IP
 }
 
 // LaunchTemplate holds the dynamically generated launch template parameters
@@ -167,10 +170,10 @@ func GetAMIFamily(amiFamily *string, options *Options) AMIFamily {
 	}
 }
 
-func (Options) DefaultMetadataOptions() *v1alpha1.MetadataOptions {
+func (o Options) DefaultMetadataOptions() *v1alpha1.MetadataOptions {
 	return &v1alpha1.MetadataOptions{
 		HTTPEndpoint:            aws.String(ec2.LaunchTemplateInstanceMetadataEndpointStateEnabled),
-		HTTPProtocolIPv6:        aws.String(ec2.LaunchTemplateInstanceMetadataProtocolIpv6Disabled),
+		HTTPProtocolIPv6:        aws.String(lo.Ternary(o.KubeDNSIP.To4() == nil, ec2.LaunchTemplateInstanceMetadataProtocolIpv6Enabled, ec2.LaunchTemplateInstanceMetadataProtocolIpv6Disabled)),
 		HTTPPutResponseHopLimit: aws.Int64(2),
 		HTTPTokens:              aws.String(ec2.LaunchTemplateHttpTokensStateRequired),
 	}

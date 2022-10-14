@@ -123,3 +123,40 @@ subjects:
 - kind: Group
   name: tekton
   apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    app.kubernetes.io/component: dashboard
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/part-of: tekton-dashboard
+  name: tekton-pipelines-executor
+  namespace: kube-system
+rules:
+- apiGroups: [""]
+  resources: ["services"]
+  resourceNames: ["kube-dns"]
+  verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/component: dashboard
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/part-of: tekton-dashboard
+  name: tekton-pipelines-executor
+  namespace: kube-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: tekton-pipelines-executor
+subjects:
+- kind: ServiceAccount
+  name: tekton
+  namespace: karpenter-tests
+- kind: Group
+  name: tekton
+  apiGroup: rbac.authorization.k8s.io
+

@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"net"
 	"os"
 	"sort"
 	"strings"
@@ -843,6 +844,18 @@ var _ = Describe("LaunchTemplates", func() {
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 			Expect(string(userData)).To(ContainSubstring("--container-runtime containerd"))
+		})
+		It("should specify --dns-cluster-ip and --ip-family when running in an ipv6 cluster", func() {
+			cloudProvider.instanceProvider.launchTemplateProvider.kubeDNSIP = net.ParseIP("fd4b:121b:812b::a")
+			ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
+			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+			userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+			Expect(string(userData)).To(ContainSubstring("--dns-cluster-ip 'fd4b:121b:812b::a'"))
+			Expect(string(userData)).To(ContainSubstring("--ip-family ipv6"))
+			Expect(*input.LaunchTemplateData.MetadataOptions.HttpProtocolIpv6).To(Equal(ec2.LaunchTemplateInstanceMetadataProtocolIpv6Enabled))
 		})
 		Context("Bottlerocket", func() {
 			It("should merge in custom user data", func() {
