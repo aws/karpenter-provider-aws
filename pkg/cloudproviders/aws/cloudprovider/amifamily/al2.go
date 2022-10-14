@@ -59,7 +59,7 @@ func (a AL2) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []v1.
 			ClusterName:             a.Options.ClusterName,
 			ClusterEndpoint:         a.Options.ClusterEndpoint,
 			AWSENILimitedPodDensity: a.Options.AWSENILimitedPodDensity,
-			KubeletConfig:           a.defaultIPv6DNS(kubeletConfig),
+			KubeletConfig:           kubeletConfig,
 			Taints:                  taints,
 			Labels:                  labels,
 			CABundle:                caBundle,
@@ -77,23 +77,6 @@ func (a AL2) containerRuntime(instanceTypes []cloudprovider.InstanceType) string
 		return "containerd"
 	}
 	return "dockerd"
-}
-
-func (a AL2) defaultIPv6DNS(kubeletConfig *v1alpha5.KubeletConfiguration) *v1alpha5.KubeletConfiguration {
-	if a.KubeDNSIP.To4() != nil {
-		return kubeletConfig
-	}
-	if kubeletConfig != nil && len(kubeletConfig.ClusterDNS) != 0 {
-		return kubeletConfig
-	}
-	if kubeletConfig == nil {
-		return &v1alpha5.KubeletConfiguration{
-			ClusterDNS: []string{a.KubeDNSIP.String()},
-		}
-	}
-	newKubeletConfig := kubeletConfig.DeepCopy()
-	newKubeletConfig.ClusterDNS = []string{a.KubeDNSIP.String()}
-	return newKubeletConfig
 }
 
 // DefaultBlockDeviceMappings returns the default block device mappings for the AMI Family

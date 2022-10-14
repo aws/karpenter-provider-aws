@@ -19,7 +19,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"net"
 	"strings"
 	"sync"
 	"time"
@@ -59,10 +58,9 @@ type LaunchTemplateProvider struct {
 	logger                *zap.SugaredLogger
 	caBundle              *string
 	cm                    *pretty.ChangeMonitor
-	kubeDNSIP             net.IP
 }
 
-func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, clientSet *kubernetes.Clientset, amiFamily *amifamily.Resolver, securityGroupProvider *SecurityGroupProvider, caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP) *LaunchTemplateProvider {
+func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, clientSet *kubernetes.Clientset, amiFamily *amifamily.Resolver, securityGroupProvider *SecurityGroupProvider, caBundle *string, startAsync <-chan struct{}) *LaunchTemplateProvider {
 	l := &LaunchTemplateProvider{
 		ec2api:                ec2api,
 		clientSet:             clientSet,
@@ -72,7 +70,6 @@ func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, clie
 		cache:                 cache.New(CacheTTL, CacheCleanupInterval),
 		caBundle:              caBundle,
 		cm:                    pretty.NewChangeMonitor(),
-		kubeDNSIP:             kubeDNSIP,
 	}
 	l.cache.OnEvicted(l.onCacheEvicted)
 	go func() {
@@ -125,7 +122,6 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, provider *v1alpha1.AWS
 		Labels:                  lo.Assign(nodeRequest.Template.Labels, additionalLabels),
 		CABundle:                p.caBundle,
 		KubernetesVersion:       kubeServerVersion,
-		KubeDNSIP:               p.kubeDNSIP,
 	})
 	if err != nil {
 		return nil, err

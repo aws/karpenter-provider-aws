@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -35,10 +36,8 @@ import (
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/transport"
 	"knative.dev/pkg/apis"
 	"knative.dev/pkg/logging"
@@ -104,11 +103,10 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 		*sess.Config.Region = getRegionFromIMDS(sess)
 	}
 	logging.FromContext(ctx).Debugf("Using AWS region %s", *sess.Config.Region)
-	kubeDNSIP, err := kubeDNSIP(ctx, options.ClientSet)
-	if err != nil {
-		logging.FromContext(ctx).Fatalf("Unable to detect the IP of the kube-dns service, %s", err)
+	podIP := net.ParseIP(os.Getenv("POD_IP"))
+	if podIP == nil {
+		logging.FromContext(ctx).Fatalf("Parsing environment variable POD_IP, \"%s\"")
 	}
-	logging.FromContext(ctx).Debugf("Discovered DNS IP %s", kubeDNSIP)
 	ec2api := ec2.New(sess)
 	if err := checkEC2Connectivity(ec2api); err != nil {
 		logging.FromContext(ctx).Fatalf("Checking EC2 API connectivity, %s", err)
@@ -126,7 +124,6 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 				NewSecurityGroupProvider(ec2api),
 				getCABundle(ctx),
 				options.StartAsync,
-				kubeDNSIP,
 			),
 		),
 		kubeClient: options.KubeClient,
@@ -290,15 +287,6 @@ func getCABundle(ctx context.Context) *string {
 	}
 	logging.FromContext(ctx).Debugf("Discovered caBundle, length %d", len(transportConfig.TLS.CAData))
 	return ptr.String(base64.StdEncoding.EncodeToString(transportConfig.TLS.CAData))
-}
-
-func kubeDNSIP(ctx context.Context, clientSet *kubernetes.Clientset) (net.IP, error) {
-	dnsService, err := clientSet.CoreV1().Services("kube-system").Get(ctx, "kube-dns", metav1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
-	kubeDNSIP := net.ParseIP(dnsService.Spec.ClusterIP)
-	return kubeDNSIP, nil
 }
 
 func (c *CloudProvider) getProvider(ctx context.Context, provider *runtime.RawExtension, providerRef *v1alpha5.ProviderRef) (*v1alpha1.AWS, error) {

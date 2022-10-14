@@ -79,6 +79,10 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
           {{- if .Values.aws.defaultInstanceProfile }}
             - name: AWS_DEFAULT_INSTANCE_PROFILE
               value: {{ .Values.aws.defaultInstanceProfile }}
@@ -142,6 +146,10 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
             - name: MEMORY_LIMIT
               valueFrom:
                 resourceFieldRef:
