@@ -66,6 +66,18 @@ data:
        serviceAccountName: karpenter-tests
     EOF
     echo "CREATED PIPELINE RUN for upgrade-suite"
+    cat <<EOF | kubectl create -f -
+     apiVersion: tekton.dev/v1beta1
+     kind: PipelineRun
+     metadata:
+       generateName: "ipv6-suite"
+       namespace: karpenter-tests
+     spec:
+       pipelineRef:
+         name: ipv6
+       serviceAccountName: karpenter-tests
+    EOF
+    echo "CREATED PIPELINE RUN for ipv6-suite"
 ---
 apiVersion: batch/v1
 kind: CronJob

@@ -19,16 +19,16 @@ import (
 
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
-	"github.com/aws/karpenter/pkg/cloudprovider"
-	"github.com/aws/karpenter/pkg/cloudprovider/aws"
-	cloudprovidermetrics "github.com/aws/karpenter/pkg/cloudprovider/metrics"
+	awscloudprovider "github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider"
+	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
+	cloudprovidermetrics "github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider/metrics"
 	"github.com/aws/karpenter/pkg/controllers"
 	"github.com/aws/karpenter/pkg/operator"
 )
 
 func main() {
 	options, manager := operator.NewOptionsWithManagerOrDie()
-	cloudProvider := cloudprovider.CloudProvider(aws.NewCloudProvider(options.Ctx, cloudprovider.Options{
+	cloudProvider := cloudprovider.CloudProvider(awscloudprovider.NewCloudProvider(options.Ctx, cloudprovider.Options{
 		ClientSet:  options.Clientset,
 		KubeClient: options.KubeClient,
 		StartAsync: options.StartAsync,

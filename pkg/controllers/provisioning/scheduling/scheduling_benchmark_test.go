@@ -31,7 +31,8 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/resource"
 
-	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
+	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider/fake"
 	pscheduling "github.com/aws/karpenter/pkg/controllers/provisioning/scheduling"
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/scheduling"
@@ -42,8 +43,6 @@ import (
 	"knative.dev/pkg/logging"
 
 	v1 "k8s.io/api/core/v1"
-
-	"github.com/aws/karpenter/pkg/cloudprovider/fake"
 )
 
 const MinPodsPerSec = 100.0

@@ -15,6 +15,7 @@ limitations under the License.
 package aws
 
 import (
+	"net"
 	"strings"
 	"sync"
 
@@ -23,10 +24,19 @@ import (
 	. "github.com/onsi/ginkgo/v2" //nolint:revive,stylecheck
 	. "github.com/onsi/gomega"    //nolint:revive,stylecheck
 	"go.uber.org/multierr"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func (env *Environment) ExpectInstance(nodeName string) Assertion {
 	return Expect(env.GetInstance(nodeName))
+}
+
+func (env *Environment) ExpectIPv6ClusterDNS() string {
+	dnsService, err := env.KubeClient.CoreV1().Services("kube-system").Get(env.Context, "kube-dns", metav1.GetOptions{})
+	Expect(err).ToNot(HaveOccurred())
+	kubeDNSIP := net.ParseIP(dnsService.Spec.ClusterIP)
+	Expect(kubeDNSIP.To4()).To(BeNil())
+	return kubeDNSIP.String()
 }
 
 func (env *Environment) GetInstance(nodeName string) ec2.Instance {

@@ -32,7 +32,7 @@ import (
 	ec22 "github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/samber/lo"
 
-	"github.com/aws/karpenter/pkg/cloudprovider/aws"
+	awscloudprovider "github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider"
 )
 
 func main() {
@@ -54,7 +54,7 @@ func main() {
 	sess := session.Must(session.NewSession())
 	ec2 := ec22.New(sess)
 	updateStarted := time.Now()
-	pricingProvider := aws.NewPricingProvider(ctx, aws.NewPricingAPI(sess, region), ec2, region, false, make(chan struct{}))
+	pricingProvider := awscloudprovider.NewPricingProvider(ctx, awscloudprovider.NewPricingAPI(sess, region), ec2, region, false, make(chan struct{}))
 
 	for {
 		if pricingProvider.OnDemandLastUpdated().After(updateStarted) && pricingProvider.SpotLastUpdated().After(updateStarted) {

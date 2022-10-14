@@ -27,7 +27,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/samber/lo"
 
-	"github.com/aws/karpenter/pkg/cloudprovider/aws"
+	"github.com/aws/karpenter/pkg/cloudproviders/aws/controllers/providers"
 	"github.com/aws/karpenter/test/pkg/environment/common"
 )
 
@@ -40,7 +40,7 @@ type Environment struct {
 	STSAPI sts.STS
 	IAMAPI iam.IAM
 
-	SQSProvider     *aws.SQSProvider
+	SQSProvider     *providers.SQSProvider
 	InterruptionAPI *itn.ITN
 }
 
@@ -58,6 +58,6 @@ func NewEnvironment(t *testing.T) (*Environment, error) {
 		SSMAPI:          *ssm.New(session),
 		IAMAPI:          *iam.New(session),
 		InterruptionAPI: itn.New(lo.Must(config.LoadDefaultConfig(env.Context))),
-		SQSProvider:     aws.NewSQSProvider(env.Context, sqs.New(session)),
+		SQSProvider:     providers.NewSQSProvider(env.Context, sqs.New(session)),
 	}, nil
 }

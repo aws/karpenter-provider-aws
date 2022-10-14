@@ -17,13 +17,13 @@ package main
 import (
 	"context"
 
-	"github.com/aws/karpenter/pkg/cloudprovider"
-	"github.com/aws/karpenter/pkg/cloudprovider/aws"
+	awscloudprovider "github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider"
+	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
 	"github.com/aws/karpenter/pkg/webhooks"
 )
 
 func main() {
 	webhooks.Initialize(func(ctx context.Context, o cloudprovider.Options) cloudprovider.CloudProvider {
-		return aws.NewCloudProvider(ctx, o)
+		return awscloudprovider.NewCloudProvider(ctx, o)
 	})
 }

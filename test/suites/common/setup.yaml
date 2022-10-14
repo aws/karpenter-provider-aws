@@ -9,6 +9,15 @@ spec:
   params:
     - name: cluster-name
       description: Name of the cluster under test.
+    - name: kubernetes-version
+      description: Kubernetes version to deploy
+      default: "1.21"
+    - name: ip-family
+      description: IP Family of the cluster. Valid values are IPv4 or IPv6
+      default: IPv4
+    - name: git-repo-url
+      description: the git repo url can be used to run tests on a fork
+      default: "https://github.com/aws/karpenter"
     - name: git-ref
       description: Git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release.
   results:
@@ -29,7 +38,9 @@ spec:
     image: alpine/git
     workingDir: $(workspaces.ws.path)
     script: |
-      git clone https://github.com/aws/karpenter.git .
+      echo "Cloning $(params.git-repo-url)"
+      echo "Checking out git ref: $(params.git-ref)"
+      git clone $(params.git-repo-url).git .
       git checkout $(params.git-ref)
 
   - name: create-iam-policies
@@ -55,9 +66,11 @@ spec:
       metadata:
         name: $(params.cluster-name)
         region: $(cat $(results.region.path))
-        version: "1.21"
+        version: "$(params.kubernetes-version)"
         tags:
           karpenter.sh/discovery: $(params.cluster-name)
+      kubernetesNetworkConfig:
+        ipFamily: $(params.ip-family)
       managedNodeGroups:
         - instanceType: m5.large
           amiFamily: AmazonLinux2
@@ -72,6 +85,9 @@ spec:
       iam:
         withOIDC: true
       addons:
+      - name: vpc-cni
+      - name: coredns
+      - name: kube-proxy
       - name: aws-ebs-csi-driver
         wellKnownPolicies: 
           ebsCSIController: true

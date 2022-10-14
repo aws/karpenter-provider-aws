@@ -8,9 +8,15 @@ spec:
     - name: cluster-name
       default: $(context.pipelineRun.namespace)-$(context.pipelineRun.name)
       description: Uniquely identifies a cluster name for the suite.
+    - name: kubernetes-version
+      description: Kubernetes version to deploy
+      default: "1.21"
     - name: from-git-ref
       default: v0.16.1
       description: Git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release.
+    - name: git-repo-url
+      description: the git repo url can be used to run tests on a fork
+      default: "https://github.com/aws/karpenter"
     - name: to-git-ref
       default: HEAD
       description: Git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release.
@@ -25,6 +31,10 @@ spec:
     params:
     - name: cluster-name
       value: $(params.cluster-name)
+    - name: kubernetes-version
+      value: $(params.kubernetes-version)
+    - name: git-repo-url
+      value: $(params.git-repo-url)
     - name: git-ref
       value: $(params.from-git-ref)
 
@@ -34,6 +44,8 @@ spec:
     params:
     - name: cluster-name
       value: $(params.cluster-name)
+    - name: git-repo-url
+      value: $(params.git-repo-url)
     - name: git-ref
       value: $(params.from-git-ref)
     - name: test-filter
@@ -47,6 +59,8 @@ spec:
     params:
     - name: cluster-name
       value: $(params.cluster-name)
+    - name: git-repo-url
+      value: $(params.git-repo-url)
     - name: git-ref
       value: $(params.to-git-ref)
     runAfter:
@@ -69,6 +83,8 @@ spec:
     params:
     - name: cluster-name
       value: $(params.cluster-name)
+    - name: git-repo-url
+      value: $(params.git-repo-url)
     - name: git-ref
       value: $(params.to-git-ref)
     - name: test-filter
