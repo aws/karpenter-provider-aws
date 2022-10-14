@@ -17,6 +17,7 @@ package cloudprovider
 import (
 	"context"
 	"math"
+	"net"
 	"testing"
 	"time"
 
@@ -174,7 +175,7 @@ var _ = BeforeEach(func() {
 	ssmCache.Flush()
 	ec2Cache.Flush()
 	instanceTypeCache.Flush()
-	cloudProvider.instanceProvider.launchTemplateProvider.kubeDNSIP = nil
+	cloudProvider.instanceProvider.launchTemplateProvider.kubeDNSIP = net.ParseIP("10.0.100.10")
 })
 
 var _ = AfterEach(func() {
