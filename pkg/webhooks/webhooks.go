@@ -78,7 +78,7 @@ func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options)
 	// Register the cloud provider to attach vendor specific validation logic.
 	// TODO(https://github.com/aws/karpenter/issues/2052)
 	injectCloudProvider(ctx, cloudprovider.Options{
-		ClientSet:   kubernetes.NewForConfigOrDie(config),
+		ClientSet:   clientSet,
 		WebhookOnly: true,
 	})
 
