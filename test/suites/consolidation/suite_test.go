@@ -25,39 +25,39 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 
+	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/test"
+	environmentaws "github.com/aws/karpenter/test/pkg/environment/aws"
+	"github.com/aws/karpenter/test/pkg/environment/common"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-
-	"github.com/aws/karpenter/test/pkg/environment"
 )
 
-var env *environment.Environment
+var env *environmentaws.Environment
 
 func TestConsolidation(t *testing.T) {
 	RegisterFailHandler(Fail)
 	BeforeSuite(func() {
 		var err error
-		env, err = environment.NewEnvironment(t)
+		env, err = environmentaws.NewEnvironment(t)
 		Expect(err).ToNot(HaveOccurred())
 	})
 	RunSpecs(t, "Consolidation")
 }
 
 var _ = BeforeEach(func() {
-	env.BeforeEach()
+	env.BeforeEach(common.EnableDebug)
 })
 
 var _ = AfterEach(func() {
-	env.AfterEach()
+	env.AfterEach(common.EnableDebug)
 })
 
 var _ = Describe("Consolidation", func() {
-	It("should consolidate nodes (delete)", Label(environment.NoWatch), Label(environment.NoEvents), func() {
+	It("should consolidate nodes (delete)", Label(common.NoWatch), Label(common.NoEvents), func() {
 		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},

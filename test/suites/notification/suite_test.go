@@ -30,23 +30,24 @@ import (
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"knative.dev/pkg/ptr"
 
+	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification/event/scheduledchange"
 	"github.com/aws/karpenter/pkg/test"
-	"github.com/aws/karpenter/test/pkg/environment"
+	"github.com/aws/karpenter/test/pkg/environment/aws"
+	"github.com/aws/karpenter/test/pkg/environment/common"
 )
 
-var env *environment.AWSEnvironment
+var env *aws.Environment
 var provider *v1alpha1.AWSNodeTemplate
 
 func TestNotification(t *testing.T) {
 	RegisterFailHandler(Fail)
 	BeforeSuite(func() {
 		var err error
-		env, err = environment.NewAWSEnvironment(environment.NewEnvironment(t))
+		env, err = aws.NewEnvironment(t)
 		Expect(err).ToNot(HaveOccurred())
 		provider = test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
@@ -65,7 +66,7 @@ var _ = BeforeEach(func() {
 })
 
 var _ = AfterEach(func() {
-	env.AfterEach(&v1alpha1.AWSNodeTemplate{})
+	env.AfterEach(common.IgnoreCleanupFor(&v1alpha1.AWSNodeTemplate{}))
 })
 
 var _ = Describe("Notification", Label("AWS"), func() {

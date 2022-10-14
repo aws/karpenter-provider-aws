@@ -15,19 +15,32 @@ limitations under the License.
 package main
 
 import (
-	"context"
+	"fmt"
+
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws"
-	awscontrollers "github.com/aws/karpenter/pkg/cloudprovider/aws/controllers"
+	cloudprovidermetrics "github.com/aws/karpenter/pkg/cloudprovider/metrics"
 	"github.com/aws/karpenter/pkg/controllers"
+	"github.com/aws/karpenter/pkg/operator"
 )
 
 func main() {
-	controllers.Initialize(func(ctx context.Context, options cloudprovider.Options) (cloudprovider.CloudProvider, controllers.ControllerGetterFunc) {
-		provider := aws.NewCloudProvider(ctx, options)
-		return provider, func(ctx context.Context, opts *controllers.ControllerOptions) []controllers.Controller {
-			return awscontrollers.Register(ctx, provider, opts)
-		}
-	})
+	options, manager := operator.NewOptionsWithManagerOrDie()
+	cloudProvider := cloudprovider.CloudProvider(aws.NewCloudProvider(options.Ctx, cloudprovider.Options{
+		ClientSet:  options.Clientset,
+		KubeClient: options.KubeClient,
+		StartAsync: options.StartAsync,
+	}))
+	if hp, ok := cloudProvider.(operator.HealthCheck); ok {
+		utilruntime.Must(manager.AddHealthzCheck("cloud-provider", hp.LivenessProbe))
+	}
+	cloudProvider = cloudprovidermetrics.Decorate(cloudProvider)
+	if err := operator.RegisterControllers(options.Ctx,
+		manager,
+		controllers.GetControllers(options, cloudProvider)...,
+	).Start(options.Ctx); err != nil {
+		panic(fmt.Sprintf("Unable to start manager, %s", err))
+	}
 }

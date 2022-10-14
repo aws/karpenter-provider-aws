@@ -20,6 +20,11 @@ import (
 	"strings"
 )
 
+type Pair[A, B any] struct {
+	First  A
+	Second B
+}
+
 // HasAnyPrefix returns true if any of the provided prefixes match the given string s
 func HasAnyPrefix(s string, prefixes ...string) bool {
 	for _, prefix := range prefixes {

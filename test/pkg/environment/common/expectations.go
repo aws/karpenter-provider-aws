@@ -12,20 +12,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package environment
+package common
 
 import (
 	"bytes"
 	"fmt"
 	"io"
 	"strings"
-	"sync"
 	"time"
 
-	. "github.com/onsi/ginkgo/v2" //nolint:revive,stylecheck
-	. "github.com/onsi/gomega"    //nolint:revive,stylecheck
+	//nolint:revive,stylecheck
+	. "github.com/onsi/gomega" //nolint:revive,stylecheck
 	"github.com/samber/lo"
-	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,15 +33,7 @@ import (
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
 )
-
-type pair[A, B any] struct {
-	first  A
-	second B
-}
 
 const TestLabelName = "testing.karpenter.sh/test-id"
 
@@ -232,76 +222,4 @@ func (env *Environment) EventuallyExpectAvgUtilization(resource v1.ResourceName,
 	EventuallyWithOffset(1, func(g Gomega) {
 		g.Expect(env.Monitor.AvgUtilization(resource)).To(BeNumerically(comparator, value))
 	}, 10*time.Minute).Should(Succeed())
-}
-
-// ------ START AWS ENVIRONMENT EXPECTATIONS ------
-
-func (env *AWSEnvironment) ExpectInstance(nodeName string) Assertion {
-	return Expect(env.GetInstance(nodeName))
-}
-
-func (env *AWSEnvironment) GetInstance(nodeName string) ec2.Instance {
-	node := env.GetNode(nodeName)
-	providerIDSplit := strings.Split(node.Spec.ProviderID, "/")
-	ExpectWithOffset(1, len(providerIDSplit)).ToNot(Equal(0))
-	instanceID := providerIDSplit[len(providerIDSplit)-1]
-	instance, err := env.EC2API.DescribeInstances(&ec2.DescribeInstancesInput{
-		InstanceIds: aws.StringSlice([]string{instanceID}),
-	})
-	ExpectWithOffset(1, err).ToNot(HaveOccurred())
-	ExpectWithOffset(1, instance.Reservations).To(HaveLen(1))
-	ExpectWithOffset(1, instance.Reservations[0].Instances).To(HaveLen(1))
-	return *instance.Reservations[0].Instances[0]
-}
-
-func (env *AWSEnvironment) ExpectInstanceStopped(nodeName string) {
-	node := env.GetNode(nodeName)
-	providerIDSplit := strings.Split(node.Spec.ProviderID, "/")
-	ExpectWithOffset(1, len(providerIDSplit)).ToNot(Equal(0))
-	instanceID := providerIDSplit[len(providerIDSplit)-1]
-	_, err := env.EC2API.StopInstances(&ec2.StopInstancesInput{
-		Force:       aws.Bool(true),
-		InstanceIds: aws.StringSlice([]string{instanceID}),
-	})
-	ExpectWithOffset(1, err).To(Succeed())
-}
-
-func (env *AWSEnvironment) ExpectInstanceTerminated(nodeName string) {
-	node := env.GetNode(nodeName)
-	providerIDSplit := strings.Split(node.Spec.ProviderID, "/")
-	ExpectWithOffset(1, len(providerIDSplit)).ToNot(Equal(0))
-	instanceID := providerIDSplit[len(providerIDSplit)-1]
-	_, err := env.EC2API.TerminateInstances(&ec2.TerminateInstancesInput{
-		InstanceIds: aws.StringSlice([]string{instanceID}),
-	})
-	ExpectWithOffset(1, err).To(Succeed())
-}
-
-func (env *AWSEnvironment) GetVolume(volumeID *string) ec2.Volume {
-	dvo, err := env.EC2API.DescribeVolumes(&ec2.DescribeVolumesInput{VolumeIds: []*string{volumeID}})
-	ExpectWithOffset(1, err).ToNot(HaveOccurred())
-	ExpectWithOffset(1, len(dvo.Volumes)).To(Equal(1))
-	return *dvo.Volumes[0]
-}
-
-func (env *AWSEnvironment) ExpectMessagesCreated(msgs ...interface{}) {
-	wg := &sync.WaitGroup{}
-	mu := &sync.Mutex{}
-
-	var err error
-	for _, msg := range msgs {
-		wg.Add(1)
-		go func(m interface{}) {
-			defer wg.Done()
-			defer GinkgoRecover()
-			_, e := env.SQSProvider.SendMessage(env.Context, m)
-			if e != nil {
-				mu.Lock()
-				err = multierr.Append(err, e)
-				mu.Unlock()
-			}
-		}(msg)
-	}
-	wg.Wait()
-	ExpectWithOffset(1, err).To(Succeed())
 }

@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package environment
+package common
 
 import (
 	"context"
@@ -29,7 +29,7 @@ import (
 
 	"github.com/samber/lo"
 
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/utils/resources"
 )
 

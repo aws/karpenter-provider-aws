@@ -12,23 +12,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package environment
+package common
 
 import (
 	"context"
 	"fmt"
 	"testing"
 	"time"
-
-	"github.com/aws/amazon-ec2-spot-interrupter/pkg/itn"
-	cfg "github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/iam"
-	"github.com/aws/aws-sdk-go/service/sqs"
-	"github.com/aws/aws-sdk-go/service/ssm"
-	"github.com/aws/aws-sdk-go/service/sts"
-	"github.com/samber/lo"
 
 	// . "github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
@@ -41,25 +31,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter/pkg/apis"
-	"github.com/aws/karpenter/pkg/cloudprovider/aws"
 	"github.com/aws/karpenter/pkg/utils/env"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/options"
 	"github.com/aws/karpenter/pkg/utils/project"
 )
-
-type AWSEnvironment struct {
-	*Environment
-	Region string
-
-	EC2API ec2.EC2
-	SSMAPI ssm.SSM
-	STSAPI sts.STS
-	IAMAPI iam.IAM
-
-	SQSProvider     *aws.SQSProvider
-	InterruptionAPI *itn.ITN
-}
 
 type Environment struct {
 	context.Context
@@ -68,23 +44,6 @@ type Environment struct {
 	KubeClient        kubernetes.Interface
 	Monitor           *Monitor
 	StartingNodeCount int
-}
-
-func NewAWSEnvironment(env *Environment, err error) (*AWSEnvironment, error) {
-	if err != nil {
-		return nil, err
-	}
-	session := session.Must(session.NewSessionWithOptions(session.Options{SharedConfigState: session.SharedConfigEnable}))
-
-	return &AWSEnvironment{
-		Region:          *session.Config.Region,
-		Environment:     env,
-		EC2API:          *ec2.New(session),
-		SSMAPI:          *ssm.New(session),
-		IAMAPI:          *iam.New(session),
-		InterruptionAPI: itn.New(lo.Must(cfg.LoadDefaultConfig(env.Context))),
-		SQSProvider:     aws.NewSQSProvider(env.Context, sqs.New(session)),
-	}, nil
 }
 
 func NewEnvironment(t *testing.T) (*Environment, error) {

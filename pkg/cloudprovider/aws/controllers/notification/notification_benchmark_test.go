@@ -44,15 +44,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	awscloudprovider "github.com/aws/karpenter/pkg/cloudprovider/aws"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/infrastructure"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/controllers/notification"
 	awsfake "github.com/aws/karpenter/pkg/cloudprovider/aws/fake"
 	"github.com/aws/karpenter/pkg/cloudprovider/fake"
-	"github.com/aws/karpenter/pkg/controllers"
 	"github.com/aws/karpenter/pkg/controllers/state"
+	"github.com/aws/karpenter/pkg/operator"
 	"github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/options"
@@ -120,7 +120,7 @@ func benchmarkNotificationController(b *testing.B, messageCount int) {
 
 	// Set-up the controllers
 	nodeStateController := state.NewNodeController(env.Client, cluster)
-	notificationController := notification.NewController(env.Client, recorder, cluster, providers.sqsProvider, instanceTypeProvider, nil)
+	notificationController := notification.NewController(env.Client, fakeClock, recorder, cluster, providers.sqsProvider, instanceTypeProvider)
 
 	messages, nodes := makeDiverseMessagesAndNodes(messageCount)
 
@@ -136,10 +136,13 @@ func benchmarkNotificationController(b *testing.B, messageCount int) {
 	}
 	logging.FromContext(env.Ctx).Infof("Completed provisioning %d messages into the SQS Queue", messageCount)
 
-	m := controllers.NewManagerOrDie(env.Ctx, env.Config, controllerruntime.Options{
+	m, err := controllerruntime.NewManager(env.Config, controllerruntime.Options{
 		BaseContext: func() context.Context { return logging.WithLogger(env.Ctx, zap.NewNop().Sugar()) },
 	})
-	m = controllers.RegisterControllers(env.Ctx, m, notificationController, nodeStateController)
+	if err != nil {
+		b.Fatalf("creating manager, %v", err)
+	}
+	m = operator.RegisterControllers(env.Ctx, m, notificationController, nodeStateController)
 
 	managerErr := make(chan error)
 	go func() {

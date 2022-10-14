@@ -451,7 +451,7 @@ spec:
     values: ["arm64"]
   - key: node.kubernetes.io/instance-type
     operator: In
-    values: ["c4.large", "c4.xlarge"]
+    values: ["a1.large", "a1.xlarge"]
 ```
 
 {{% alert title="Note" color="primary" %}}

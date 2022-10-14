@@ -32,8 +32,10 @@ import (
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
@@ -70,9 +72,9 @@ var waitRetryOptions = []retry.Option{
 	retry.MaxDelay(10 * time.Second), // 22 + (60-5)*10 =~ 9.5 minutes in total
 }
 
-func NewController(ctx context.Context, clk clock.Clock, kubeClient client.Client, provisioner *provisioning.Provisioner,
-	cp cloudprovider.CloudProvider, recorder events.Recorder, cluster *state.Cluster, startAsync <-chan struct{}) *Controller {
-	c := &Controller{
+func NewController(clk clock.Clock, kubeClient client.Client, provisioner *provisioning.Provisioner,
+	cp cloudprovider.CloudProvider, recorder events.Recorder, cluster *state.Cluster) *Controller {
+	return &Controller{
 		clock:         clk,
 		kubeClient:    kubeClient,
 		cluster:       cluster,
@@ -80,50 +82,51 @@ func NewController(ctx context.Context, clk clock.Clock, kubeClient client.Clien
 		recorder:      recorder,
 		cloudProvider: cp,
 	}
+}
 
+func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("consolidation"))
 	go func() {
 		select {
 		case <-ctx.Done():
 			return
-		case <-startAsync:
-			c.run(ctx)
-		}
-	}()
-
-	return c
-}
-
-func (c *Controller) run(ctx context.Context) {
-	logger := logging.FromContext(ctx).Named("consolidation")
-	ctx = logging.WithLogger(ctx, logger)
-	for {
-		select {
-		case <-ctx.Done():
-			logger.Infof("Shutting down")
-			return
-		case <-time.After(pollingPeriod):
-			// the last cluster consolidation wasn't able to improve things and nothing has changed regarding
-			// the cluster that makes us think we would be successful now
-			if c.lastConsolidationState == c.cluster.ClusterConsolidationState() {
-				continue
-			}
-
-			// don't consolidate as we recently scaled up/down too soon
-			stabilizationTime := c.clock.Now().Add(-c.stabilizationWindow(ctx))
-			// capture the state before we process so if something changes during consolidation we'll re-look
-			// immediately
-			clusterState := c.cluster.ClusterConsolidationState()
-			if c.cluster.LastNodeDeletionTime().Before(stabilizationTime) &&
-				c.cluster.LastNodeCreationTime().Before(stabilizationTime) {
-				result, err := c.ProcessCluster(ctx)
-				if err != nil {
-					logging.FromContext(ctx).Errorf("consolidating cluster, %s", err)
-				} else if result == ProcessResultNothingToDo {
-					c.lastConsolidationState = clusterState
+		case <-m.Elected():
+			for {
+				select {
+				case <-ctx.Done():
+					logging.FromContext(ctx).Infof("Shutting down")
+					return
+				case <-time.After(pollingPeriod):
+					_, _ = c.Reconcile(ctx, reconcile.Request{})
 				}
 			}
 		}
+	}()
+	return nil
+}
+
+func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconcile.Result, error) {
+	// the last cluster consolidation wasn't able to improve things and nothing has changed regarding
+	// the cluster that makes us think we would be successful now
+	if c.lastConsolidationState == c.cluster.ClusterConsolidationState() {
+		return reconcile.Result{}, nil
 	}
+
+	// don't consolidate as we recently scaled up/down too soon
+	stabilizationTime := c.clock.Now().Add(-c.stabilizationWindow(ctx))
+	// capture the state before we process so if something changes during consolidation we'll re-look
+	// immediately
+	clusterState := c.cluster.ClusterConsolidationState()
+	if c.cluster.LastNodeDeletionTime().Before(stabilizationTime) &&
+		c.cluster.LastNodeCreationTime().Before(stabilizationTime) {
+		result, err := c.ProcessCluster(ctx)
+		if err != nil {
+			logging.FromContext(ctx).Errorf("consolidating cluster, %s", err)
+		} else if result == ProcessResultNothingToDo {
+			c.lastConsolidationState = clusterState
+		}
+	}
+	return reconcile.Result{}, nil
 }
 
 // candidateNode is a node that we are considering for consolidation along with extra information to be used in

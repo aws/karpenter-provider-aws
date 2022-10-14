@@ -38,7 +38,7 @@ import (
 	. "knative.dev/pkg/logging/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider/fake"
@@ -114,7 +114,7 @@ var _ = BeforeEach(func() {
 
 	recorder.Reset()
 	fakeClock.SetTime(time.Now())
-	controller = consolidation.NewController(env.Ctx, fakeClock, env.Client, provisioner, cloudProvider, recorder, cluster, nil)
+	controller = consolidation.NewController(fakeClock, env.Client, provisioner, cloudProvider, recorder, cluster)
 })
 var _ = AfterEach(func() {
 	ExpectCleanedUp(ctx, env.Client)

@@ -25,17 +25,18 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
+	"github.com/samber/lo"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/sets"
+
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/options"
 	"github.com/aws/karpenter/pkg/utils/resources"
-	"github.com/samber/lo"
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 func main() {
@@ -54,10 +55,7 @@ func main() {
 	opts = opts.MustParse()
 	ctx := injection.WithOptions(context.Background(), *opts)
 
-	cp := aws.NewCloudProvider(ctx, cloudprovider.Options{
-		ClientSet:  nil,
-		KubeClient: nil,
-	})
+	cp := aws.NewCloudProvider(ctx, cloudprovider.Options{})
 	provider := v1alpha1.AWS{SubnetSelector: map[string]string{
 		"*": "*",
 	}}
