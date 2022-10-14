@@ -20,12 +20,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
+	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/test/pkg/environment/common"
 )
 
 var (
 	//nolint:govet
-	CleanableObjects = []common.Pair[client.Object, client.ObjectList]{
+	CleanableObjects = []functional.Pair[client.Object, client.ObjectList]{
 		{&v1alpha1.AWSNodeTemplate{}, &v1alpha1.AWSNodeTemplateList{}},
 	}
 )
@@ -33,8 +34,8 @@ var (
 func (env *Environment) BeforeEach(opts ...common.Option) {
 	options := common.ResolveOptions(opts)
 	if options.EnableDebug {
-		fmt.Println("------- START BEFORE -------")
-		defer fmt.Println("------- END BEFORE -------")
+		fmt.Println("------- START AWS BEFORE -------")
+		defer fmt.Println("------- END AWS BEFORE -------")
 	}
 	env.Environment.BeforeEach(opts...)
 }
@@ -42,8 +43,8 @@ func (env *Environment) BeforeEach(opts ...common.Option) {
 func (env *Environment) AfterEach(opts ...common.Option) {
 	options := common.ResolveOptions(opts)
 	if options.EnableDebug {
-		fmt.Println("------- START AFTER -------")
-		defer fmt.Println("------- END AFTER -------")
+		fmt.Println("------- START AWS AFTER -------")
+		defer fmt.Println("------- END AWS AFTER -------")
 	}
 	env.Environment.CleanupObjects(CleanableObjects, options)
 	env.Environment.AfterEach(opts...)

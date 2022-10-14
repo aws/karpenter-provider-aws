@@ -35,11 +35,6 @@ import (
 	"github.com/aws/karpenter/pkg/utils/project"
 )
 
-type Pair[A, B any] struct {
-	First  A
-	Second B
-}
-
 type Environment struct {
 	context.Context
 	ClusterName       string

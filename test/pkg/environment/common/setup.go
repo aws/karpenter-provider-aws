@@ -38,12 +38,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/utils/functional"
 	nodeutils "github.com/aws/karpenter/pkg/utils/node"
 	"github.com/aws/karpenter/pkg/utils/pod"
 )
 
 var (
-	CleanableObjects = []Pair[client.Object, client.ObjectList]{
+	//nolint:govet
+	CleanableObjects = []functional.Pair[client.Object, client.ObjectList]{
 		{&v1.Pod{}, &v1.PodList{}},
 		{&appsv1.Deployment{}, &appsv1.DeploymentList{}},
 		{&appsv1.DaemonSet{}, &appsv1.DaemonSetList{}},
@@ -66,6 +68,11 @@ var stop chan struct{}
 // nolint:gocyclo
 func (env *Environment) BeforeEach(opts ...Option) {
 	options := ResolveOptions(opts)
+	if options.EnableDebug {
+		fmt.Println("------- START BEFORE -------")
+		defer fmt.Println("------- END BEFORE -------")
+	}
+
 	stop = make(chan struct{})
 	testStartTime = time.Now()
 
@@ -204,6 +211,10 @@ func (env *Environment) startNodeMonitor(stop <-chan struct{}) {
 
 func (env *Environment) AfterEach(opts ...Option) {
 	options := ResolveOptions(opts)
+	if options.EnableDebug {
+		fmt.Println("------- START AFTER -------")
+		defer fmt.Println("------- END AFTER -------")
+	}
 
 	env.CleanupObjects(CleanableObjects, options)
 	env.eventuallyExpectScaleDown()
@@ -216,12 +227,12 @@ func (env *Environment) AfterEach(opts ...Option) {
 	env.printControllerLogs(&v1.PodLogOptions{Container: "controller"})
 }
 
-func (env *Environment) CleanupObjects(cleanableObjects []Pair[client.Object, client.ObjectList], options Options) {
+func (env *Environment) CleanupObjects(cleanableObjects []functional.Pair[client.Object, client.ObjectList], options Options) {
 	namespaces := &v1.NamespaceList{}
 	Expect(env.Client.List(env, namespaces)).To(Succeed())
 	wg := sync.WaitGroup{}
 	for _, p := range cleanableObjects {
-		if !containsObjectType(options.IgnoreCleanupFor, p.First) {
+		if !lo.ContainsBy(options.IgnoreCleanupFor, func(o client.Object) bool { return reflect.TypeOf(o) == reflect.TypeOf(p.First) }) {
 			for _, namespace := range namespaces.Items {
 				wg.Add(1)
 				go func(obj client.Object, objList client.ObjectList, namespace string) {
@@ -316,8 +327,4 @@ func (env *Environment) dumpNodeEvents(testStartTime time.Time) {
 	for k, v := range eventMap {
 		fmt.Print(getEventInformation("node", k, v))
 	}
-}
-
-func containsObjectType(objs []client.Object, obj client.Object) bool {
-	return lo.ContainsBy(objs, func(o client.Object) bool { return reflect.TypeOf(o) == reflect.TypeOf(obj) })
 }
