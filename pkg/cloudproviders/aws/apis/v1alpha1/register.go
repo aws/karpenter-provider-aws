@@ -71,6 +71,7 @@ var (
 	LabelInstanceGPUManufacturer = LabelDomain + "/instance-gpu-manufacturer"
 	LabelInstanceGPUCount        = LabelDomain + "/instance-gpu-count"
 	LabelInstanceGPUMemory       = LabelDomain + "/instance-gpu-memory"
+	LabelInstanceAMIID           = LabelDomain + "/instance-ami-id"
 )
 
 var (

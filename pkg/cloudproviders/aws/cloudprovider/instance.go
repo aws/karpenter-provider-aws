@@ -339,6 +339,7 @@ func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Ins
 					labels[key] = req.Values()[0]
 				}
 			}
+			labels[v1alpha1.LabelInstanceAMIID] = aws.StringValue(instance.ImageId)
 			labels[v1.LabelTopologyZone] = aws.StringValue(instance.Placement.AvailabilityZone)
 			labels[v1alpha5.LabelCapacityType] = getCapacityType(instance)
 
