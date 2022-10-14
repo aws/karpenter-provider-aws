@@ -16,6 +16,7 @@ package cloudprovider
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -706,7 +707,7 @@ var _ = Describe("Instance Types", func() {
 			ExpectNotScheduled(ctx, env.Client, pod)
 			// capacity shortage is over - expire the item from the cache and try again
 			fakeEC2API.InsufficientCapacityPools.Set([]fake.CapacityPool{})
-			unavailableOfferingsCache.Delete(UnavailableOfferingsCacheKey("inf1.6xlarge", "test-zone-1a", awsv1alpha1.CapacityTypeOnDemand))
+			unavailableOfferingsCache.cache.Delete(fmt.Sprintf("%s:%s:%s", awsv1alpha1.CapacityTypeOnDemand, "inf1.6xlarge", "test-zone-1a"))
 			pod = ExpectProvisioned(ctx, env.Client, controller, pod)[0]
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "inf1.6xlarge"))
