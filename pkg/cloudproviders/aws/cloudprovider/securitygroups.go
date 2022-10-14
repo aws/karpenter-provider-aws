@@ -19,13 +19,14 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/aws/aws-sdk-go/aws"
+	awssdk "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"knative.dev/pkg/logging"
 
+	"github.com/aws/karpenter/pkg/cloudproviders/aws"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/pretty"
@@ -34,7 +35,7 @@ import (
 type SecurityGroupProvider struct {
 	sync.Mutex
 	ec2api ec2iface.EC2API
-	cache  *cache.Cache
+	cache  aws.Cache
 	cm     *pretty.ChangeMonitor
 }
 
@@ -61,7 +62,7 @@ func (p *SecurityGroupProvider) Get(ctx context.Context, provider *v1alpha1.AWS)
 	// Convert to IDs
 	securityGroupIds := []string{}
 	for _, securityGroup := range securityGroups {
-		securityGroupIds = append(securityGroupIds, aws.StringValue(securityGroup.GroupId))
+		securityGroupIds = append(securityGroupIds, awssdk.StringValue(securityGroup.GroupId))
 	}
 	return securityGroupIds, nil
 }
@@ -72,13 +73,13 @@ func (p *SecurityGroupProvider) getFilters(provider *v1alpha1.AWS) []*ec2.Filter
 		if key == "aws-ids" {
 			filterValues := functional.SplitCommaSeparatedString(value)
 			filters = append(filters, &ec2.Filter{
-				Name:   aws.String("group-id"),
-				Values: aws.StringSlice(filterValues),
+				Name:   awssdk.String("group-id"),
+				Values: awssdk.StringSlice(filterValues),
 			})
 		} else {
 			filters = append(filters, &ec2.Filter{
-				Name:   aws.String(fmt.Sprintf("tag:%s", key)),
-				Values: []*string{aws.String(value)},
+				Name:   awssdk.String(fmt.Sprintf("tag:%s", key)),
+				Values: []*string{awssdk.String(value)},
 			})
 		}
 	}
@@ -107,7 +108,7 @@ func (p *SecurityGroupProvider) getSecurityGroups(ctx context.Context, filters [
 func (p *SecurityGroupProvider) securityGroupIds(securityGroups []*ec2.SecurityGroup) []string {
 	names := []string{}
 	for _, securityGroup := range securityGroups {
-		names = append(names, aws.StringValue(securityGroup.GroupId))
+		names = append(names, awssdk.StringValue(securityGroup.GroupId))
 	}
 	return names
 }

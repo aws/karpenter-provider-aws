@@ -22,10 +22,11 @@ import (
 	"time"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/cloudproviders/aws"
 
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
 
-	"github.com/aws/aws-sdk-go/aws"
+	awssdk "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
@@ -57,9 +58,9 @@ type InstanceTypeProvider struct {
 	// Has one cache entry for all the instance types (key: InstanceTypesCacheKey)
 	// Has one cache entry for all the zones for each subnet selector (key: InstanceTypesZonesCacheKeyPrefix:<hash_of_selector>)
 	// Values cached *before* considering insufficient capacity errors from the unavailableOfferings cache.
-	cache *cache.Cache
+	cache aws.Cache
 	// key: <capacityType>:<instanceType>:<zone>, value: struct{}{}
-	unavailableOfferings *cache.Cache
+	unavailableOfferings aws.Cache
 	cm                   *pretty.ChangeMonitor
 }
 
@@ -96,7 +97,7 @@ func (p *InstanceTypeProvider) Get(ctx context.Context, provider *v1alpha1.AWS, 
 	var result []cloudprovider.InstanceType
 
 	for _, i := range instanceTypes {
-		instanceTypeName := aws.StringValue(i.InstanceType)
+		instanceTypeName := awssdk.StringValue(i.InstanceType)
 		instanceType := NewInstanceType(ctx, i, kc, p.region, provider, p.createOfferings(ctx, i, instanceTypeZones[instanceTypeName]))
 		result = append(result, instanceType)
 	}
@@ -120,7 +121,7 @@ func (p *InstanceTypeProvider) createOfferings(ctx context.Context, instanceType
 	offerings := []cloudprovider.Offering{}
 	for zone := range zones {
 		// while usage classes should be a distinct set, there's no guarantee of that
-		for capacityType := range sets.NewString(aws.StringValueSlice(instanceType.SupportedUsageClasses)...) {
+		for capacityType := range sets.NewString(awssdk.StringValueSlice(instanceType.SupportedUsageClasses)...) {
 			// exclude any offerings that have recently seen an insufficient capacity error from EC2
 			_, isUnavailable := p.unavailableOfferings.Get(UnavailableOfferingsCacheKey(*instanceType.InstanceType, zone, capacityType))
 			var price float64
@@ -162,19 +163,19 @@ func (p *InstanceTypeProvider) getInstanceTypeZones(ctx context.Context, provide
 		return nil, err
 	}
 	zones := sets.NewString(lo.Map(subnets, func(subnet *ec2.Subnet, _ int) string {
-		return aws.StringValue(subnet.AvailabilityZone)
+		return awssdk.StringValue(subnet.AvailabilityZone)
 	})...)
 
 	// Get offerings from EC2
 	instanceTypeZones := map[string]sets.String{}
-	if err := p.ec2api.DescribeInstanceTypeOfferingsPagesWithContext(ctx, &ec2.DescribeInstanceTypeOfferingsInput{LocationType: aws.String("availability-zone")},
+	if err := p.ec2api.DescribeInstanceTypeOfferingsPagesWithContext(ctx, &ec2.DescribeInstanceTypeOfferingsInput{LocationType: awssdk.String("availability-zone")},
 		func(output *ec2.DescribeInstanceTypeOfferingsOutput, lastPage bool) bool {
 			for _, offering := range output.InstanceTypeOfferings {
-				if zones.Has(aws.StringValue(offering.Location)) {
-					if _, ok := instanceTypeZones[aws.StringValue(offering.InstanceType)]; !ok {
-						instanceTypeZones[aws.StringValue(offering.InstanceType)] = sets.NewString()
+				if zones.Has(awssdk.StringValue(offering.Location)) {
+					if _, ok := instanceTypeZones[awssdk.StringValue(offering.InstanceType)]; !ok {
+						instanceTypeZones[awssdk.StringValue(offering.InstanceType)] = sets.NewString()
 					}
-					instanceTypeZones[aws.StringValue(offering.InstanceType)].Insert(aws.StringValue(offering.Location))
+					instanceTypeZones[awssdk.StringValue(offering.InstanceType)].Insert(awssdk.StringValue(offering.Location))
 				}
 			}
 			return true
@@ -197,18 +198,18 @@ func (p *InstanceTypeProvider) getInstanceTypes(ctx context.Context) (map[string
 	if err := p.ec2api.DescribeInstanceTypesPagesWithContext(ctx, &ec2.DescribeInstanceTypesInput{
 		Filters: []*ec2.Filter{
 			{
-				Name:   aws.String("supported-virtualization-type"),
-				Values: []*string{aws.String("hvm")},
+				Name:   awssdk.String("supported-virtualization-type"),
+				Values: []*string{awssdk.String("hvm")},
 			},
 			{
-				Name:   aws.String("processor-info.supported-architecture"),
-				Values: aws.StringSlice([]string{"x86_64", "arm64"}),
+				Name:   awssdk.String("processor-info.supported-architecture"),
+				Values: awssdk.StringSlice([]string{"x86_64", "arm64"}),
 			},
 		},
 	}, func(page *ec2.DescribeInstanceTypesOutput, lastPage bool) bool {
 		for _, instanceType := range page.InstanceTypes {
 			if p.filter(instanceType) {
-				instanceTypes[aws.StringValue(instanceType.InstanceType)] = instanceType
+				instanceTypes[awssdk.StringValue(instanceType.InstanceType)] = instanceType
 			}
 		}
 		return true
@@ -227,7 +228,7 @@ func (p *InstanceTypeProvider) filter(instanceType *ec2.InstanceTypeInfo) bool {
 	if instanceType.FpgaInfo != nil {
 		return false
 	}
-	if functional.HasAnyPrefix(aws.StringValue(instanceType.InstanceType),
+	if functional.HasAnyPrefix(awssdk.StringValue(instanceType.InstanceType),
 		// G2 instances have an older GPU not supported by the nvidia plugin. This causes the allocatable # of gpus
 		// to be set to zero on startup as the plugin considers the GPU unhealthy.
 		"g2",
@@ -240,10 +241,10 @@ func (p *InstanceTypeProvider) filter(instanceType *ec2.InstanceTypeInfo) bool {
 // CacheUnavailable allows the InstanceProvider to communicate recently observed temporary capacity shortages in
 // the provided offerings
 func (p *InstanceTypeProvider) CacheUnavailable(ctx context.Context, fleetErr *ec2.CreateFleetError, capacityType string) {
-	instanceType := aws.StringValue(fleetErr.LaunchTemplateAndOverrides.Overrides.InstanceType)
-	zone := aws.StringValue(fleetErr.LaunchTemplateAndOverrides.Overrides.AvailabilityZone)
+	instanceType := awssdk.StringValue(fleetErr.LaunchTemplateAndOverrides.Overrides.InstanceType)
+	zone := awssdk.StringValue(fleetErr.LaunchTemplateAndOverrides.Overrides.AvailabilityZone)
 	logging.FromContext(ctx).Debugf("%s for offering { instanceType: %s, zone: %s, capacityType: %s }, avoiding for %s",
-		aws.StringValue(fleetErr.ErrorCode),
+		awssdk.StringValue(fleetErr.ErrorCode),
 		instanceType,
 		zone,
 		capacityType,

@@ -18,7 +18,7 @@ import (
 	"context"
 	"net"
 
-	"github.com/aws/aws-sdk-go/aws"
+	awssdk "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
@@ -29,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/cloudproviders/aws"
 
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider/amifamily/bootstrap"
@@ -38,8 +39,8 @@ import (
 )
 
 var DefaultEBS = v1alpha1.BlockDevice{
-	Encrypted:  aws.Bool(true),
-	VolumeType: aws.String(ec2.VolumeTypeGp3),
+	Encrypted:  awssdk.Bool(true),
+	VolumeType: awssdk.String(ec2.VolumeTypeGp3),
 	VolumeSize: ptr.Quantity(resource.MustParse("20Gi")),
 }
 
@@ -103,7 +104,7 @@ func (d DefaultFamily) FeatureFlags() FeatureFlags {
 }
 
 // New constructs a new launch template Resolver
-func New(ctx context.Context, ssm ssmiface.SSMAPI, ec2api ec2iface.EC2API, ssmCache *cache.Cache, ec2Cache *cache.Cache, client client.Client) *Resolver {
+func New(ctx context.Context, ssm ssmiface.SSMAPI, ec2api ec2iface.EC2API, ssmCache aws.Cache, ec2Cache *cache.Cache, client client.Client) *Resolver {
 	return &Resolver{
 		amiProvider: &AMIProvider{
 			ssm:        ssm,
@@ -139,7 +140,7 @@ func (r Resolver) Resolve(ctx context.Context, provider *v1alpha1.AWS, nodeReque
 				options.Labels,
 				options.CABundle,
 				instanceTypes,
-				aws.String(userDataString),
+				awssdk.String(userDataString),
 			),
 			BlockDeviceMappings: provider.BlockDeviceMappings,
 			MetadataOptions:     provider.MetadataOptions,
@@ -158,7 +159,7 @@ func (r Resolver) Resolve(ctx context.Context, provider *v1alpha1.AWS, nodeReque
 }
 
 func GetAMIFamily(amiFamily *string, options *Options) AMIFamily {
-	switch aws.StringValue(amiFamily) {
+	switch awssdk.StringValue(amiFamily) {
 	case v1alpha1.AMIFamilyBottlerocket:
 		return &Bottlerocket{Options: options}
 	case v1alpha1.AMIFamilyUbuntu:
@@ -172,9 +173,9 @@ func GetAMIFamily(amiFamily *string, options *Options) AMIFamily {
 
 func (o Options) DefaultMetadataOptions() *v1alpha1.MetadataOptions {
 	return &v1alpha1.MetadataOptions{
-		HTTPEndpoint:            aws.String(ec2.LaunchTemplateInstanceMetadataEndpointStateEnabled),
-		HTTPProtocolIPv6:        aws.String(lo.Ternary(o.KubeDNSIP.To4() == nil, ec2.LaunchTemplateInstanceMetadataProtocolIpv6Enabled, ec2.LaunchTemplateInstanceMetadataProtocolIpv6Disabled)),
-		HTTPPutResponseHopLimit: aws.Int64(2),
-		HTTPTokens:              aws.String(ec2.LaunchTemplateHttpTokensStateRequired),
+		HTTPEndpoint:            awssdk.String(ec2.LaunchTemplateInstanceMetadataEndpointStateEnabled),
+		HTTPProtocolIPv6:        awssdk.String(lo.Ternary(o.KubeDNSIP.To4() == nil, ec2.LaunchTemplateInstanceMetadataProtocolIpv6Enabled, ec2.LaunchTemplateInstanceMetadataProtocolIpv6Disabled)),
+		HTTPPutResponseHopLimit: awssdk.Int64(2),
+		HTTPTokens:              awssdk.String(ec2.LaunchTemplateHttpTokensStateRequired),
 	}
 }

@@ -20,13 +20,12 @@ import (
 	"sort"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
+	awssdk "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
 	"github.com/mitchellh/hashstructure/v2"
-	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -34,6 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/cloudproviders/aws"
 
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
@@ -44,8 +44,8 @@ import (
 )
 
 type AMIProvider struct {
-	ssmCache   *cache.Cache
-	ec2Cache   *cache.Cache
+	ssmCache   aws.Cache
+	ec2Cache   aws.Cache
 	ssm        ssmiface.SSMAPI
 	kubeClient client.Client
 	ec2api     ec2iface.EC2API
@@ -95,11 +95,11 @@ func (p *AMIProvider) getDefaultAMIFromSSM(ctx context.Context, _ cloudprovider.
 	if id, ok := p.ssmCache.Get(ssmQuery); ok {
 		return id.(string), nil
 	}
-	output, err := p.ssm.GetParameterWithContext(ctx, &ssm.GetParameterInput{Name: aws.String(ssmQuery)})
+	output, err := p.ssm.GetParameterWithContext(ctx, &ssm.GetParameterInput{Name: awssdk.String(ssmQuery)})
 	if err != nil {
 		return "", fmt.Errorf("getting ssm parameter %q, %w", ssmQuery, err)
 	}
-	ami := aws.StringValue(output.Parameter.Value)
+	ami := awssdk.StringValue(output.Parameter.Value)
 	p.ssmCache.SetDefault(ssmQuery, ami)
 	if p.cm.HasChanged("ssmquery-"+ssmQuery, ami) {
 		logging.FromContext(ctx).Debugf("Discovered %s for query %q", ami, ssmQuery)
@@ -166,18 +166,18 @@ func getFilters(amiSelector map[string]string) []*ec2.Filter {
 		if key == "aws-ids" {
 			filterValues := functional.SplitCommaSeparatedString(value)
 			filters = append(filters, &ec2.Filter{
-				Name:   aws.String("image-id"),
-				Values: aws.StringSlice(filterValues),
+				Name:   awssdk.String("image-id"),
+				Values: awssdk.StringSlice(filterValues),
 			})
 		} else if key == "name" {
 			filters = append(filters, &ec2.Filter{
-				Name:   aws.String("name"),
-				Values: []*string{aws.String(value)},
+				Name:   awssdk.String("name"),
+				Values: []*string{awssdk.String(value)},
 			})
 		} else {
 			filters = append(filters, &ec2.Filter{
-				Name:   aws.String(fmt.Sprintf("tag:%s", key)),
-				Values: []*string{aws.String(value)},
+				Name:   awssdk.String(fmt.Sprintf("tag:%s", key)),
+				Values: []*string{awssdk.String(value)},
 			})
 		}
 	}
