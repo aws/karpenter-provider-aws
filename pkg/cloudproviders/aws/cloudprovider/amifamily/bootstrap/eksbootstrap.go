@@ -25,7 +25,6 @@ import (
 	"net"
 	"net/mail"
 	"net/textproto"
-	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -64,7 +63,7 @@ func (e EKS) Script() (string, error) {
 
 	kubeletExtraArgs.WriteString(strings.Join([]string{e.nodeLabelArg(), e.nodeTaintArg()}, " "))
 
-	if net.ParseIP(os.Getenv("POD_IP")).To4() == nil {
+	if e.isIPv6() {
 		userData.WriteString(" \\\n--ip-family ipv6")
 	}
 	if e.KubeletConfig != nil && e.KubeletConfig.MaxPods != nil {
@@ -174,6 +173,13 @@ func (e EKS) mergeCustomUserData(userData *bytes.Buffer) (*bytes.Buffer, error) 
 	}
 	writer.Close()
 	return &outputBuffer, nil
+}
+
+func (e EKS) isIPv6() bool {
+	if e.KubeletConfig == nil || len(e.KubeletConfig.ClusterDNS) == 0 {
+		return false
+	}
+	return net.ParseIP(e.KubeletConfig.ClusterDNS[0]).To4() == nil
 }
 
 func copyCustomUserDataParts(writer *multipart.Writer, customUserData *string) error {

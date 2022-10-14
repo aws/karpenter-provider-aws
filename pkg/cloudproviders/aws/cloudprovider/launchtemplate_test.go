@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"net"
 	"os"
 	"sort"
 	"strings"
@@ -845,7 +846,7 @@ var _ = Describe("LaunchTemplates", func() {
 			Expect(string(userData)).To(ContainSubstring("--container-runtime containerd"))
 		})
 		It("should specify --dns-cluster-ip and --ip-family when running in an ipv6 cluster", func() {
-			os.Setenv("POD_IP", "fd4b:121b:812b::a")
+			cloudProvider.instanceProvider.launchTemplateProvider.kubeDNSIP = net.ParseIP("fd4b:121b:812b::a")
 			ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
 			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 			ExpectScheduled(ctx, env.Client, pod)

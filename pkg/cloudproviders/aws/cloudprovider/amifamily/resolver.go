@@ -17,7 +17,6 @@ package amifamily
 import (
 	"context"
 	"net"
-	"os"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -62,6 +61,7 @@ type Options struct {
 	SecurityGroupsIDs []string
 	Tags              map[string]string
 	Labels            map[string]string `hash:"ignore"`
+	KubeDNSIP         net.IP
 }
 
 // LaunchTemplate holds the dynamically generated launch template parameters
@@ -170,10 +170,10 @@ func GetAMIFamily(amiFamily *string, options *Options) AMIFamily {
 	}
 }
 
-func (Options) DefaultMetadataOptions() *v1alpha1.MetadataOptions {
+func (o Options) DefaultMetadataOptions() *v1alpha1.MetadataOptions {
 	return &v1alpha1.MetadataOptions{
 		HTTPEndpoint:            aws.String(ec2.LaunchTemplateInstanceMetadataEndpointStateEnabled),
-		HTTPProtocolIPv6:        aws.String(lo.Ternary(net.ParseIP(os.Getenv("POD_IP")).To4() == nil, ec2.LaunchTemplateInstanceMetadataProtocolIpv6Enabled, ec2.LaunchTemplateInstanceMetadataProtocolIpv6Disabled)),
+		HTTPProtocolIPv6:        aws.String(lo.Ternary(o.KubeDNSIP.To4() == nil, ec2.LaunchTemplateInstanceMetadataProtocolIpv6Enabled, ec2.LaunchTemplateInstanceMetadataProtocolIpv6Disabled)),
 		HTTPPutResponseHopLimit: aws.Int64(2),
 		HTTPTokens:              aws.String(ec2.LaunchTemplateHttpTokensStateRequired),
 	}
