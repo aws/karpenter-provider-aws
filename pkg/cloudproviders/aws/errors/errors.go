@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package cloudprovider
+package errors
 
 import (
 	"errors"
@@ -43,10 +43,14 @@ var (
 )
 
 type InstanceTerminatedError struct {
-	error
+	Err error
 }
 
-func isInstanceTerminated(err error) bool {
+func (e InstanceTerminatedError) Error() string {
+	return e.Err.Error()
+}
+
+func IsInstanceTerminated(err error) bool {
 	if err == nil {
 		return false
 	}
@@ -54,10 +58,10 @@ func isInstanceTerminated(err error) bool {
 	return errors.As(err, &itErr)
 }
 
-// isNotFound returns true if the err is an AWS error (even if it's
+// IsNotFound returns true if the err is an AWS error (even if it's
 // wrapped) and is a known to mean "not found" (as opposed to a more
 // serious or unexpected error)
-func isNotFound(err error) bool {
+func IsNotFound(err error) bool {
 	if err == nil {
 		return false
 	}
@@ -68,14 +72,14 @@ func isNotFound(err error) bool {
 	return false
 }
 
-// isUnfulfillableCapacity returns true if the Fleet err means
+// IsUnfulfillableCapacity returns true if the Fleet err means
 // capacity is temporarily unavailable for launching.
 // This could be due to account limits, insufficient ec2 capacity, etc.
-func isUnfulfillableCapacity(err *ec2.CreateFleetError) bool {
+func IsUnfulfillableCapacity(err *ec2.CreateFleetError) bool {
 	return lo.Contains(unfulfillableCapacityErrorCodes, *err.ErrorCode)
 }
 
-func isLaunchTemplateNotFound(err error) bool {
+func IsLaunchTemplateNotFound(err error) bool {
 	if err == nil {
 		return false
 	}
