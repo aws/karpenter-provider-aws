@@ -138,9 +138,16 @@ func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFlee
 			if skipInstance {
 				continue
 			}
+			amiID := aws.String("")
+			if e.CalledWithCreateLaunchTemplateInput.Len() > 0 {
+				lt := e.CalledWithCreateLaunchTemplateInput.Pop()
+				amiID = lt.LaunchTemplateData.ImageId
+				e.CalledWithCreateLaunchTemplateInput.Add(lt)
+			}
 			instanceState := ec2.InstanceStateNameRunning
 			for i := 0; i < int(*input.TargetCapacitySpecification.TotalTargetCapacity); i++ {
 				instance := &ec2.Instance{
+					ImageId:               aws.String(*amiID),
 					InstanceId:            aws.String(test.RandomName()),
 					Placement:             &ec2.Placement{AvailabilityZone: input.LaunchTemplateConfigs[0].Overrides[0].AvailabilityZone},
 					PrivateDnsName:        aws.String(randomdata.IpV4Address()),
