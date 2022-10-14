@@ -21,15 +21,9 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
+	sdk "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/client"
-	"github.com/aws/aws-sdk-go/aws/ec2metadata"
-	"github.com/aws/aws-sdk-go/aws/endpoints"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/patrickmn/go-cache"
@@ -47,25 +41,15 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	awsv1alpha1 "github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
+	"github.com/aws/karpenter/pkg/cloudproviders/aws"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
-	awscache "github.com/aws/karpenter/pkg/cloudproviders/aws/cache"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider/amifamily"
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
 	"github.com/aws/karpenter/pkg/operator/injection"
 	"github.com/aws/karpenter/pkg/utils/functional"
-	"github.com/aws/karpenter/pkg/utils/project"
 )
 
 const (
-	// CacheTTL restricts QPS to AWS APIs to this interval for verifying setup
-	// resources. This value represents the maximum eventual consistency between
-	// AWS actual state and the controller's ability to provision those
-	// resources. Cache hits enable faster provisioning and reduced API load on
-	// AWS APIs, which can have a serious impact on performance and scalability.
-	// DO NOT CHANGE THIS VALUE WITHOUT DUE CONSIDERATION
-	CacheTTL = 60 * time.Second
-	// CacheCleanupInterval triggers cache cleanup (lazy eviction) at this interval.
-	CacheCleanupInterval = 10 * time.Minute
 	// MaxInstanceTypes defines the number of instance type options to pass to CreateFleet
 	MaxInstanceTypes = 20
 )
@@ -82,64 +66,52 @@ type CloudProvider struct {
 	kubeClient           k8sClient.Client
 }
 
-func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *CloudProvider {
-	// if performing validation only, then only the Validate()/Default() methods will be called which
-	// don't require any other setup
-	if options.WebhookOnly {
+func New(ctx aws.Context) *CloudProvider {
+	if ctx.WebhookOnly {
+		// if performing validation only, then only the Validate()/Default() methods will be called which
+		// don't require any other setup
 		cp := &CloudProvider{}
 		v1alpha5.ValidateHook = cp.Validate
 		v1alpha5.DefaultHook = cp.Default
 		return cp
 	}
-
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("aws"))
-	sess := withUserAgent(session.Must(session.NewSession(
-		request.WithRetryer(
-			&aws.Config{STSRegionalEndpoint: endpoints.RegionalSTSEndpoint},
-			client.DefaultRetryer{NumMaxRetries: client.DefaultRetryerMaxNumRetries},
-		),
-	)))
-	if *sess.Config.Region == "" {
-		logging.FromContext(ctx).Debug("AWS region not configured, asking EC2 Instance Metadata Service")
-		*sess.Config.Region = getRegionFromIMDS(sess)
-	}
-	logging.FromContext(ctx).Debugf("Using AWS region %s", *sess.Config.Region)
-	kubeDNSIP, err := kubeDNSIP(ctx, options.ClientSet)
+	kubeDNSIP, err := kubeDNSIP(ctx, ctx.ClientSet)
 	if err != nil {
 		logging.FromContext(ctx).Fatalf("Unable to detect the IP of the kube-dns service, %s", err)
 	}
 	logging.FromContext(ctx).Debugf("Discovered DNS IP %s", kubeDNSIP)
-	ec2api := ec2.New(sess)
-	if err := checkEC2Connectivity(ec2api); err != nil {
+	ec2api := ec2.New(ctx.Session)
+	if err := checkEC2Connectivity(ctx, ec2api); err != nil {
 		logging.FromContext(ctx).Fatalf("Checking EC2 API connectivity, %s", err)
 	}
 	subnetProvider := NewSubnetProvider(ec2api)
-	instanceTypeProvider := NewInstanceTypeProvider(ctx, sess, options, ec2api, subnetProvider, awscache.NewUnavailableOfferings(cache.New(awscache.UnavailableOfferingsTTL, CacheCleanupInterval)))
+	instanceTypeProvider := NewInstanceTypeProvider(ctx, ctx.Session, ec2api, subnetProvider, ctx.UnavailableOfferingsCache, ctx.StartAsync)
 	cloudprovider := &CloudProvider{
 		instanceTypeProvider: instanceTypeProvider,
 		instanceProvider: NewInstanceProvider(ctx, ec2api, instanceTypeProvider, subnetProvider,
 			NewLaunchTemplateProvider(
 				ctx,
 				ec2api,
-				options.ClientSet,
-				amifamily.New(ctx, ssm.New(sess), ec2api, cache.New(CacheTTL, CacheCleanupInterval), cache.New(CacheTTL, CacheCleanupInterval), options.KubeClient),
+				ctx.ClientSet,
+				amifamily.New(ctx.KubeClient, ssm.New(ctx.Session), ec2api, cache.New(aws.CacheTTL, aws.CacheCleanupInterval), cache.New(aws.CacheTTL, aws.CacheCleanupInterval)),
 				NewSecurityGroupProvider(ec2api),
 				getCABundle(ctx),
-				options.StartAsync,
+				ctx.StartAsync,
 				kubeDNSIP,
 			),
 		),
-		kubeClient: options.KubeClient,
+		kubeClient: ctx.KubeClient,
 	}
 	v1alpha5.ValidateHook = cloudprovider.Validate
 	v1alpha5.DefaultHook = cloudprovider.Default
+
 	return cloudprovider
 }
 
 // checkEC2Connectivity makes a dry-run call to DescribeInstanceTypes.  If it fails, we provide an early indicator that we
 // are having issues connecting to the EC2 API.
-func checkEC2Connectivity(api *ec2.EC2) error {
-	_, err := api.DescribeInstanceTypes(&ec2.DescribeInstanceTypesInput{DryRun: aws.Bool(true)})
+func checkEC2Connectivity(ctx context.Context, api *ec2.EC2) error {
+	_, err := api.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{DryRun: sdk.Bool(true)})
 	var aerr awserr.Error
 	if errors.As(err, &aerr) && aerr.Code() == "DryRunOperation" {
 		return nil
@@ -221,6 +193,11 @@ func (*CloudProvider) Validate(ctx context.Context, provisioner *v1alpha5.Provis
 	return provider.Validate()
 }
 
+// Name returns the CloudProvider implementation name.
+func (c *CloudProvider) Name() string {
+	return "aws"
+}
+
 // Default the provisioner
 func (*CloudProvider) Default(ctx context.Context, provisioner *v1alpha5.Provisioner) {
 	defaultLabels(provisioner)
@@ -246,27 +223,6 @@ func defaultLabels(provisioner *v1alpha5.Provisioner) {
 			})
 		}
 	}
-}
-
-// Name returns the CloudProvider implementation name.
-func (c *CloudProvider) Name() string {
-	return "aws"
-}
-
-// get the current region from EC2 IMDS
-func getRegionFromIMDS(sess *session.Session) string {
-	region, err := ec2metadata.New(sess).Region()
-	if err != nil {
-		panic(fmt.Sprintf("Failed to call the metadata server's region API, %s", err))
-	}
-	return region
-}
-
-// withUserAgent adds a karpenter specific user-agent string to AWS session
-func withUserAgent(sess *session.Session) *session.Session {
-	userAgent := fmt.Sprintf("karpenter.sh-%s", project.Version)
-	sess.Handlers.Build.PushBack(request.MakeAddToUserAgentFreeFormHandler(userAgent))
-	return sess
 }
 
 func getCABundle(ctx context.Context) *string {

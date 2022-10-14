@@ -20,13 +20,14 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/aws/aws-sdk-go/aws"
+	sdk "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"knative.dev/pkg/logging"
 
+	"github.com/aws/karpenter/pkg/cloudproviders/aws"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/pretty"
@@ -43,7 +44,7 @@ func NewSubnetProvider(ec2api ec2iface.EC2API) *SubnetProvider {
 	return &SubnetProvider{
 		ec2api: ec2api,
 		cm:     pretty.NewChangeMonitor(),
-		cache:  cache.New(CacheTTL, CacheCleanupInterval),
+		cache:  cache.New(aws.CacheTTL, aws.CacheCleanupInterval),
 	}
 }
 
@@ -87,18 +88,18 @@ func getFilters(provider *v1alpha1.AWS) []*ec2.Filter {
 		if key == "aws-ids" {
 			filterValues := functional.SplitCommaSeparatedString(value)
 			filters = append(filters, &ec2.Filter{
-				Name:   aws.String("subnet-id"),
-				Values: aws.StringSlice(filterValues),
+				Name:   sdk.String("subnet-id"),
+				Values: sdk.StringSlice(filterValues),
 			})
 		} else if value == "*" {
 			filters = append(filters, &ec2.Filter{
-				Name:   aws.String("tag-key"),
-				Values: []*string{aws.String(key)},
+				Name:   sdk.String("tag-key"),
+				Values: []*string{sdk.String(key)},
 			})
 		} else {
 			filters = append(filters, &ec2.Filter{
-				Name:   aws.String(fmt.Sprintf("tag:%s", key)),
-				Values: []*string{aws.String(value)},
+				Name:   sdk.String(fmt.Sprintf("tag:%s", key)),
+				Values: []*string{sdk.String(value)},
 			})
 		}
 	}
@@ -108,7 +109,7 @@ func getFilters(provider *v1alpha1.AWS) []*ec2.Filter {
 func prettySubnets(subnets []*ec2.Subnet) []string {
 	names := []string{}
 	for _, subnet := range subnets {
-		names = append(names, fmt.Sprintf("%s (%s)", aws.StringValue(subnet.SubnetId), aws.StringValue(subnet.AvailabilityZone)))
+		names = append(names, fmt.Sprintf("%s (%s)", sdk.StringValue(subnet.SubnetId), sdk.StringValue(subnet.AvailabilityZone)))
 	}
 	return names
 }

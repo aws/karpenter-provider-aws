@@ -19,6 +19,7 @@ import (
 
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
+	"github.com/aws/karpenter/pkg/cloudproviders/aws"
 	awscloudprovider "github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
 	cloudprovidermetrics "github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider/metrics"
@@ -28,16 +29,17 @@ import (
 
 func main() {
 	ctx, manager := operator.NewOrDie()
-	cloudProvider := cloudprovider.CloudProvider(awscloudprovider.NewCloudProvider(ctx, cloudprovider.Options{
+	awsCtx := aws.NewContextOrDie(cloudprovider.Context{
+		Context:       ctx,
 		ClientSet:     ctx.Clientset,
 		KubeClient:    ctx.KubeClient,
 		EventRecorder: ctx.BaseEventRecorder,
 		StartAsync:    ctx.StartAsync,
-	}))
-	if hp, ok := cloudProvider.(operator.HealthCheck); ok {
-		utilruntime.Must(manager.AddHealthzCheck("cloud-provider", hp.LivenessProbe))
-	}
-	cloudProvider = cloudprovidermetrics.Decorate(cloudProvider)
+	})
+	awsCloudProvider := awscloudprovider.New(awsCtx)
+	utilruntime.Must(manager.AddHealthzCheck("cloud-provider", awsCloudProvider.LivenessProbe))
+
+	cloudProvider := cloudprovidermetrics.Decorate(awsCloudProvider)
 	if err := operator.RegisterControllers(ctx,
 		manager,
 		controllers.GetControllers(ctx, cloudProvider)...,

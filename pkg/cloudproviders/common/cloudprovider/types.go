@@ -27,8 +27,10 @@ import (
 	"github.com/aws/karpenter-core/pkg/scheduling"
 )
 
-// Options are injected into cloud providers' factories
-type Options struct {
+// Context is injected into CloudProvider's factories
+type Context struct {
+	context.Context
+
 	ClientSet     *kubernetes.Clientset
 	KubeClient    client.Client
 	EventRecorder record.EventRecorder
