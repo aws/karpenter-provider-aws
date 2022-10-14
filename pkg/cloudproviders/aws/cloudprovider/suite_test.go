@@ -38,7 +38,6 @@ import (
 
 	awscache "github.com/aws/karpenter/pkg/cloudproviders/aws/cache"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider/amifamily"
-	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
 	. "github.com/aws/karpenter/pkg/test/expectations"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
@@ -210,7 +209,7 @@ var _ = Describe("Allocation", func() {
 		It("should default requirements hooks in webhook mode", func() {
 			// clear our hook to ensure that creating the cloud provider in webhook mode sets it
 			v1alpha5.DefaultHook = func(ctx context.Context, provisoner *v1alpha5.Provisioner) {}
-			NewCloudProvider(ctx, cloudprovider.Options{WebhookOnly: true})
+			New(ctx, aws.Options{WebhookOnly: true})
 			v1alpha5.DefaultHook(ctx, provisioner)
 			Expect(provisioner.Spec.Requirements).To(ContainElement(v1.NodeSelectorRequirement{
 				Key:      v1alpha5.LabelCapacityType,
@@ -528,13 +527,13 @@ var _ = Describe("Allocation", func() {
 
 	Context("Webhook", func() {
 		It("should validate when in webhook mode", func() {
-			cp := NewCloudProvider(ctx, cloudprovider.Options{WebhookOnly: true})
+			cp := New(ctx, aws.Options{WebhookOnly: true})
 			// just ensures that validation doesn't depend on anything as when created for the webhook
 			// we don't fully initialize the cloud provider
 			Expect(cp.Validate(ctx, provisioner)).To(Succeed())
 		})
 		It("should default when in webhookmode", func() {
-			cp := NewCloudProvider(ctx, cloudprovider.Options{WebhookOnly: true})
+			cp := New(ctx, aws.Options{WebhookOnly: true})
 			// just ensures that validation doesn't depend on anything as when created for the webhook
 			// we don't fully initialize the cloud provider
 			cp.Default(ctx, provisioner)

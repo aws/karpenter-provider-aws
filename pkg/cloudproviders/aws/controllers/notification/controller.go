@@ -35,13 +35,12 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
-	awscache "github.com/aws/karpenter/pkg/cloudproviders/aws/cache"
-
 	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
+	awscache "github.com/aws/karpenter/pkg/cloudproviders/aws/cache"
+	"github.com/aws/karpenter/pkg/cloudproviders/aws/controllers/events"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/controllers/notification/event"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/controllers/notification/event/statechange"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/controllers/providers"
-	"github.com/aws/karpenter/pkg/cloudproviders/aws/events"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/utils"
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/metrics"

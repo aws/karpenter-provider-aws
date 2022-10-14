@@ -27,6 +27,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/sqs"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -42,6 +43,7 @@ import (
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
 	awscache "github.com/aws/karpenter/pkg/cloudproviders/aws/cache"
+	awscloudprovider "github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/controllers/notification"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/controllers/notification/event"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/controllers/notification/event/scheduledchange"
@@ -99,6 +101,7 @@ var _ = BeforeEach(func() {
 		cluster = state.NewCluster(fakeClock, cfg, env.Client, cloudProvider)
 		nodeStateController = state.NewNodeController(env.Client, cluster)
 		recorder = awsfake.NewEventRecorder()
+		unavailableOfferingsCache = awscache.NewUnavailableOfferings(cache.New(awscache.UnavailableOfferingsTTL, awscloudprovider.CacheCleanupInterval))
 
 		sqsapi = &awsfake.SQSAPI{}
 		sqsProvider = providers.NewSQSProvider(ctx, sqsapi)

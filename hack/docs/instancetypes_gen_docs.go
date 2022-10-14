@@ -56,7 +56,7 @@ func main() {
 	opts = opts.MustParse()
 	ctx := injection.WithOptions(context.Background(), *opts)
 
-	cp := awscloudprovider.NewCloudProvider(ctx, cloudprovider.Options{})
+	cp := awscloudprovider.New(ctx, cloudprovider.Options{})
 	provider := v1alpha1.AWS{SubnetSelector: map[string]string{
 		"*": "*",
 	}}

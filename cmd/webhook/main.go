@@ -24,6 +24,6 @@ import (
 
 func main() {
 	webhooks.Initialize(func(ctx context.Context, o cloudprovider.Options) cloudprovider.CloudProvider {
-		return awscloudprovider.NewCloudProvider(ctx, o)
+		return awscloudprovider.New(ctx, o)
 	})
 }
