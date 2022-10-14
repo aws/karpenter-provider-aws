@@ -114,8 +114,7 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 		logging.FromContext(ctx).Fatalf("Checking EC2 API connectivity, %s", err)
 	}
 	subnetProvider := NewSubnetProvider(ec2api)
-	instanceTypeProvider := NewInstanceTypeProvider(ctx, sess, options, ec2api, subnetProvider)
-
+	instanceTypeProvider := NewInstanceTypeProvider(ctx, sess, options, ec2api, subnetProvider, NewUnavailableOfferingsCache())
 	cloudprovider := &CloudProvider{
 		instanceTypeProvider: instanceTypeProvider,
 		instanceProvider: NewInstanceProvider(ctx, ec2api, instanceTypeProvider, subnetProvider,

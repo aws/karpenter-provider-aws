@@ -360,7 +360,7 @@ func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Ins
 func (p *InstanceProvider) updateUnavailableOfferingsCache(ctx context.Context, errors []*ec2.CreateFleetError, capacityType string) {
 	for _, err := range errors {
 		if awserrors.IsUnfulfillableCapacity(err) {
-			p.instanceTypeProvider.CacheUnavailable(ctx, err, capacityType)
+			p.instanceTypeProvider.unavailableOfferings.MarkUnavailableForFleetErr(ctx, err, capacityType)
 		}
 	}
 }

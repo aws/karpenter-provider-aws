@@ -57,13 +57,13 @@ type InstanceTypeProvider struct {
 	// Has one cache entry for all the instance types (key: InstanceTypesCacheKey)
 	// Has one cache entry for all the zones for each subnet selector (key: InstanceTypesZonesCacheKeyPrefix:<hash_of_selector>)
 	// Values cached *before* considering insufficient capacity errors from the unavailableOfferings cache.
-	cache *cache.Cache
-	// key: <capacityType>:<instanceType>:<zone>, value: struct{}{}
-	unavailableOfferings *cache.Cache
+	cache                *cache.Cache
+	unavailableOfferings *UnavailableOfferingsCache
 	cm                   *pretty.ChangeMonitor
 }
 
-func NewInstanceTypeProvider(ctx context.Context, sess *session.Session, options cloudprovider.Options, ec2api ec2iface.EC2API, subnetProvider *SubnetProvider) *InstanceTypeProvider {
+func NewInstanceTypeProvider(ctx context.Context, sess *session.Session, options cloudprovider.Options,
+	ec2api ec2iface.EC2API, subnetProvider *SubnetProvider, unavailableOfferings *UnavailableOfferingsCache) *InstanceTypeProvider {
 	return &InstanceTypeProvider{
 		ec2api:         ec2api,
 		region:         *sess.Config.Region,
@@ -74,7 +74,7 @@ func NewInstanceTypeProvider(ctx context.Context, sess *session.Session, options
 			*sess.Config.Region,
 			injection.GetOptions(ctx).AWSIsolatedVPC, options.StartAsync),
 		cache:                cache.New(InstanceTypesAndZonesCacheTTL, CacheCleanupInterval),
-		unavailableOfferings: cache.New(UnfulfillableCapacityErrorCacheTTL, CacheCleanupInterval),
+		unavailableOfferings: unavailableOfferings,
 		cm:                   pretty.NewChangeMonitor(),
 	}
 }
@@ -122,7 +122,7 @@ func (p *InstanceTypeProvider) createOfferings(ctx context.Context, instanceType
 		// while usage classes should be a distinct set, there's no guarantee of that
 		for capacityType := range sets.NewString(aws.StringValueSlice(instanceType.SupportedUsageClasses)...) {
 			// exclude any offerings that have recently seen an insufficient capacity error from EC2
-			_, isUnavailable := p.unavailableOfferings.Get(UnavailableOfferingsCacheKey(*instanceType.InstanceType, zone, capacityType))
+			isUnavailable := p.unavailableOfferings.IsUnavailable(*instanceType.InstanceType, zone, capacityType)
 			var price float64
 			var ok bool
 			switch capacityType {
@@ -235,26 +235,4 @@ func (p *InstanceTypeProvider) filter(instanceType *ec2.InstanceTypeInfo) bool {
 		return false
 	}
 	return true
-}
-
-// CacheUnavailable allows the InstanceProvider to communicate recently observed temporary capacity shortages in
-// the provided offerings
-func (p *InstanceTypeProvider) CacheUnavailable(ctx context.Context, fleetErr *ec2.CreateFleetError, capacityType string) {
-	instanceType := aws.StringValue(fleetErr.LaunchTemplateAndOverrides.Overrides.InstanceType)
-	zone := aws.StringValue(fleetErr.LaunchTemplateAndOverrides.Overrides.AvailabilityZone)
-	logging.FromContext(ctx).Debugf("%s for offering { instanceType: %s, zone: %s, capacityType: %s }, avoiding for %s",
-		aws.StringValue(fleetErr.ErrorCode),
-		instanceType,
-		zone,
-		capacityType,
-		UnfulfillableCapacityErrorCacheTTL)
-	p.MarkOfferingUnavailable(instanceType, zone, capacityType)
-}
-
-func (p *InstanceTypeProvider) MarkOfferingUnavailable(instanceType, zone, capacityType string) {
-	p.unavailableOfferings.SetDefault(UnavailableOfferingsCacheKey(instanceType, zone, capacityType), struct{}{})
-}
-
-func UnavailableOfferingsCacheKey(instanceType string, zone string, capacityType string) string {
-	return fmt.Sprintf("%s:%s:%s", capacityType, instanceType, zone)
 }

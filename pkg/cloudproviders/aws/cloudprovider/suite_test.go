@@ -61,7 +61,7 @@ var securityGroupCache *cache.Cache
 var subnetCache *cache.Cache
 var ssmCache *cache.Cache
 var ec2Cache *cache.Cache
-var unavailableOfferingsCache *cache.Cache
+var unavailableOfferingsCache *UnavailableOfferingsCache
 var instanceTypeCache *cache.Cache
 var instanceTypeProvider *InstanceTypeProvider
 var fakeEC2API *fake.EC2API
@@ -99,7 +99,7 @@ var _ = BeforeSuite(func() {
 		ctx = injection.WithOptions(ctx, opts)
 		ctx, stop = context.WithCancel(ctx)
 		launchTemplateCache = cache.New(CacheTTL, CacheCleanupInterval)
-		unavailableOfferingsCache = cache.New(UnfulfillableCapacityErrorCacheTTL, CacheCleanupInterval)
+		unavailableOfferingsCache = NewUnavailableOfferingsCache()
 		securityGroupCache = cache.New(CacheTTL, CacheCleanupInterval)
 		subnetCache = cache.New(CacheTTL, CacheCleanupInterval)
 		ssmCache = cache.New(CacheTTL, CacheCleanupInterval)
@@ -171,7 +171,7 @@ var _ = BeforeEach(func() {
 	launchTemplateCache.Flush()
 	securityGroupCache.Flush()
 	subnetCache.Flush()
-	unavailableOfferingsCache.Flush()
+	unavailableOfferingsCache.cache.Flush()
 	ssmCache.Flush()
 	ec2Cache.Flush()
 	instanceTypeCache.Flush()
