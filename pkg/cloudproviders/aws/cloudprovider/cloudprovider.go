@@ -104,13 +104,14 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 		*sess.Config.Region = getRegionFromIMDS(sess)
 	}
 	logging.FromContext(ctx).Debugf("Using AWS region %s", *sess.Config.Region)
-	ipv6DNS, err := kubeDNSIPv6(ctx, options.ClientSet)
+	kubeDNSIP, err := kubeDNSIP(ctx, options.ClientSet)
 	if err != nil {
 		logging.FromContext(ctx).Fatalf("Unable to detect the IP of the kube-dns service, %s", err)
 	}
+	logging.FromContext(ctx).Debugf("Discovered DNS IP %s", kubeDNSIP)
 	ec2api := ec2.New(sess)
 	if err := checkEC2Connectivity(ec2api); err != nil {
-		logging.FromContext(ctx).Errorf("Checking EC2 API connectivity, %s", err)
+		logging.FromContext(ctx).Fatalf("Checking EC2 API connectivity, %s", err)
 	}
 	subnetProvider := NewSubnetProvider(ec2api)
 	instanceTypeProvider := NewInstanceTypeProvider(ctx, sess, options, ec2api, subnetProvider)
@@ -125,7 +126,7 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 				NewSecurityGroupProvider(ec2api),
 				getCABundle(ctx),
 				options.StartAsync,
-				ipv6DNS,
+				kubeDNSIP,
 			),
 		),
 		kubeClient: options.KubeClient,
@@ -291,17 +292,13 @@ func getCABundle(ctx context.Context) *string {
 	return ptr.String(base64.StdEncoding.EncodeToString(transportConfig.TLS.CAData))
 }
 
-func kubeDNSIPv6(ctx context.Context, clientSet *kubernetes.Clientset) (net.IP, error) {
+func kubeDNSIP(ctx context.Context, clientSet *kubernetes.Clientset) (net.IP, error) {
 	dnsService, err := clientSet.CoreV1().Services("kube-system").Get(ctx, "kube-dns", metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
 	kubeDNSIP := net.ParseIP(dnsService.Spec.ClusterIP)
-	logging.FromContext(ctx).Debugf("Discovered DNS IP %s", kubeDNSIP)
-	if kubeDNSIP.To4() == nil { // ipv6
-		return kubeDNSIP, nil
-	}
-	return nil, nil
+	return kubeDNSIP, nil
 }
 
 func (c *CloudProvider) getProvider(ctx context.Context, provider *runtime.RawExtension, providerRef *v1alpha5.ProviderRef) (*v1alpha1.AWS, error) {

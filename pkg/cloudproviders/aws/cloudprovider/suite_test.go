@@ -174,7 +174,7 @@ var _ = BeforeEach(func() {
 	ssmCache.Flush()
 	ec2Cache.Flush()
 	instanceTypeCache.Flush()
-	cloudProvider.instanceProvider.launchTemplateProvider.ipv6DNS = nil
+	cloudProvider.instanceProvider.launchTemplateProvider.kubeDNSIP = nil
 })
 
 var _ = AfterEach(func() {

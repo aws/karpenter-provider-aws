@@ -80,7 +80,7 @@ func (a AL2) containerRuntime(instanceTypes []cloudprovider.InstanceType) string
 }
 
 func (a AL2) defaultIPv6DNS(kubeletConfig *v1alpha5.KubeletConfiguration) *v1alpha5.KubeletConfiguration {
-	if a.IPv6DNS == nil {
+	if a.KubeDNSIP.To4() != nil {
 		return kubeletConfig
 	}
 	if kubeletConfig != nil && len(kubeletConfig.ClusterDNS) != 0 {
@@ -88,11 +88,11 @@ func (a AL2) defaultIPv6DNS(kubeletConfig *v1alpha5.KubeletConfiguration) *v1alp
 	}
 	if kubeletConfig == nil {
 		return &v1alpha5.KubeletConfiguration{
-			ClusterDNS: []string{a.IPv6DNS.String()},
+			ClusterDNS: []string{a.KubeDNSIP.String()},
 		}
 	}
 	newKubeletConfig := kubeletConfig.DeepCopy()
-	newKubeletConfig.ClusterDNS = []string{a.IPv6DNS.String()}
+	newKubeletConfig.ClusterDNS = []string{a.KubeDNSIP.String()}
 	return newKubeletConfig
 }
 

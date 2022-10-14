@@ -59,10 +59,10 @@ type LaunchTemplateProvider struct {
 	logger                *zap.SugaredLogger
 	caBundle              *string
 	cm                    *pretty.ChangeMonitor
-	ipv6DNS               net.IP
+	kubeDNSIP             net.IP
 }
 
-func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, clientSet *kubernetes.Clientset, amiFamily *amifamily.Resolver, securityGroupProvider *SecurityGroupProvider, caBundle *string, startAsync <-chan struct{}, ipv6DNS net.IP) *LaunchTemplateProvider {
+func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, clientSet *kubernetes.Clientset, amiFamily *amifamily.Resolver, securityGroupProvider *SecurityGroupProvider, caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP) *LaunchTemplateProvider {
 	l := &LaunchTemplateProvider{
 		ec2api:                ec2api,
 		clientSet:             clientSet,
@@ -72,7 +72,7 @@ func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, clie
 		cache:                 cache.New(CacheTTL, CacheCleanupInterval),
 		caBundle:              caBundle,
 		cm:                    pretty.NewChangeMonitor(),
-		ipv6DNS:               ipv6DNS,
+		kubeDNSIP:             kubeDNSIP,
 	}
 	l.cache.OnEvicted(l.onCacheEvicted)
 	go func() {
@@ -125,7 +125,7 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, provider *v1alpha1.AWS
 		Labels:                  lo.Assign(nodeRequest.Template.Labels, additionalLabels),
 		CABundle:                p.caBundle,
 		KubernetesVersion:       kubeServerVersion,
-		IPv6DNS:                 p.ipv6DNS,
+		KubeDNSIP:               p.kubeDNSIP,
 	})
 	if err != nil {
 		return nil, err
