@@ -20,20 +20,21 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/aws/karpenter/test/pkg/environment"
+	"github.com/aws/karpenter/test/pkg/environment/aws"
+	"github.com/aws/karpenter/test/pkg/environment/common"
 )
 
-var env *environment.Environment
+var env *aws.Environment
 
 func TestIntegration(t *testing.T) {
 	RegisterFailHandler(Fail)
 	BeforeSuite(func() {
 		var err error
-		env, err = environment.NewEnvironment(t)
+		env, err = aws.NewEnvironment(t)
 		Expect(err).ToNot(HaveOccurred())
 	})
 	RunSpecs(t, "Integration")
 }
 
-var _ = BeforeEach(func() { env.BeforeEach() })
-var _ = AfterEach(func() { env.AfterEach() })
+var _ = BeforeEach(func() { env.BeforeEach(common.EnableDebug) })
+var _ = AfterEach(func() { env.AfterEach(common.EnableDebug) })

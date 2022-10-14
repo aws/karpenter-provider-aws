@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package environment
+package common
 
 import (
 	"bytes"
@@ -32,15 +32,7 @@ import (
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
 )
-
-type pair[A, B any] struct {
-	first  A
-	second B
-}
 
 const TestLabelName = "testing.karpenter.sh/test-id"
 
@@ -126,12 +118,24 @@ func (env *Environment) eventuallyExpectScaleDown() {
 }
 
 func (env *Environment) EventuallyExpectNotFound(objects ...client.Object) {
-	for _, object := range objects {
-		EventuallyWithOffset(1, func(g Gomega) {
+	env.EventuallyExpectNotFoundAssertionWithOffset(1, objects...).Should(Succeed())
+}
+
+func (env *Environment) EventuallyExpectNotFoundAssertion(objects ...client.Object) AsyncAssertion {
+	return env.EventuallyExpectNotFoundAssertionWithOffset(1, objects...)
+}
+
+func (env *Environment) EventuallyExpectNotFoundAssertionWithOffset(offset int, objects ...client.Object) AsyncAssertion {
+	return EventuallyWithOffset(offset+1, func(g Gomega) {
+		for _, object := range objects {
 			err := env.Client.Get(env, client.ObjectKeyFromObject(object), object)
 			g.Expect(errors.IsNotFound(err)).To(BeTrue())
-		}).Should(Succeed(), fmt.Sprintf("expcted %s to be deleted", client.ObjectKeyFromObject(object)))
-	}
+		}
+	})
+}
+
+func (env *Environment) ExpectDeploymentCreatedAndHealthy(numPods int) {
+
 }
 
 func (env *Environment) ExpectCreatedNodeCount(comparator string, nodeCount int) {
@@ -150,31 +154,6 @@ func (env *Environment) GetNode(nodeName string) v1.Node {
 	var node v1.Node
 	ExpectWithOffset(1, env.Client.Get(env.Context, types.NamespacedName{Name: nodeName}, &node)).To(Succeed())
 	return node
-}
-
-func (env *Environment) ExpectInstance(nodeName string) Assertion {
-	return Expect(env.GetInstance(nodeName))
-}
-
-func (env *Environment) GetInstance(nodeName string) ec2.Instance {
-	node := env.GetNode(nodeName)
-	providerIDSplit := strings.Split(node.Spec.ProviderID, "/")
-	ExpectWithOffset(1, len(providerIDSplit)).ToNot(Equal(0))
-	instanceID := providerIDSplit[len(providerIDSplit)-1]
-	instance, err := env.EC2API.DescribeInstances(&ec2.DescribeInstancesInput{
-		InstanceIds: aws.StringSlice([]string{instanceID}),
-	})
-	ExpectWithOffset(1, err).ToNot(HaveOccurred())
-	ExpectWithOffset(1, instance.Reservations).To(HaveLen(1))
-	ExpectWithOffset(1, instance.Reservations[0].Instances).To(HaveLen(1))
-	return *instance.Reservations[0].Instances[0]
-}
-
-func (env *Environment) GetVolume(volumeID *string) ec2.Volume {
-	dvo, err := env.EC2API.DescribeVolumes(&ec2.DescribeVolumesInput{VolumeIds: []*string{volumeID}})
-	ExpectWithOffset(1, err).ToNot(HaveOccurred())
-	ExpectWithOffset(1, len(dvo.Volumes)).To(Equal(1))
-	return *dvo.Volumes[0]
 }
 
 func (env *Environment) expectNoCrashes() {

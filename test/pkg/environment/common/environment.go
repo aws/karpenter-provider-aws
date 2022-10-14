@@ -12,18 +12,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package environment
+package common
 
 import (
 	"context"
 	"fmt"
 	"testing"
 	"time"
-
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/iam"
-	"github.com/aws/aws-sdk-go/service/ssm"
 
 	// . "github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
@@ -43,12 +38,8 @@ import (
 type Environment struct {
 	context.Context
 	ClusterName       string
-	Region            string
 	Client            client.Client
 	KubeClient        kubernetes.Interface
-	EC2API            ec2.EC2
-	SSMAPI            ssm.SSM
-	IAMAPI            iam.IAM
 	Monitor           *Monitor
 	StartingNodeCount int
 }
@@ -66,16 +57,11 @@ func NewEnvironment(t *testing.T) (*Environment, error) {
 	}
 	gomega.SetDefaultEventuallyTimeout(5 * time.Minute)
 	gomega.SetDefaultEventuallyPollingInterval(1 * time.Second)
-	session := session.Must(session.NewSessionWithOptions(session.Options{SharedConfigState: session.SharedConfigEnable}))
 
 	return &Environment{Context: ctx,
 		ClusterName: clusterName,
 		Client:      client,
 		KubeClient:  kubernetes.NewForConfigOrDie(config),
-		EC2API:      *ec2.New(session),
-		SSMAPI:      *ssm.New(session),
-		IAMAPI:      *iam.New(session),
-		Region:      *session.Config.Region,
 		Monitor:     NewMonitor(ctx, client),
 	}, nil
 }
