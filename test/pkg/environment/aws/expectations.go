@@ -21,6 +21,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	. "github.com/onsi/gomega" //nolint:revive,stylecheck
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func (env *Environment) ExpectInstance(nodeName string) Assertion {
@@ -35,10 +36,6 @@ func (env *Environment) ExpectIPv6ClusterDNS() string {
 	return kubeDNSIP.String()
 }
 
-func (env *Environment) ExpectInstance(nodeName string) Assertion {
-	return Expect(env.GetInstance(nodeName))
-}
-
 func (env *Environment) GetInstance(nodeName string) ec2.Instance {
 	node := env.GetNode(nodeName)
 	providerIDSplit := strings.Split(node.Spec.ProviderID, "/")
@@ -51,13 +48,6 @@ func (env *Environment) GetInstance(nodeName string) ec2.Instance {
 	ExpectWithOffset(1, instance.Reservations).To(HaveLen(1))
 	ExpectWithOffset(1, instance.Reservations[0].Instances).To(HaveLen(1))
 	return *instance.Reservations[0].Instances[0]
-}
-
-func (env *Environment) GetVolume(volumeID *string) ec2.Volume {
-	dvo, err := env.EC2API.DescribeVolumes(&ec2.DescribeVolumesInput{VolumeIds: []*string{volumeID}})
-	ExpectWithOffset(1, err).ToNot(HaveOccurred())
-	ExpectWithOffset(1, len(dvo.Volumes)).To(Equal(1))
-	return *dvo.Volumes[0]
 }
 
 func (env *Environment) ExpectInstanceStopped(nodeName string) {

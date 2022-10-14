@@ -23,20 +23,20 @@ import (
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 
+	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/test"
-	"github.com/aws/karpenter/test/pkg/environment"
+	"github.com/aws/karpenter/test/pkg/environment/aws"
 )
 
-var env *environment.Environment
+var env *aws.Environment
 
 func TestIPv6(t *testing.T) {
 	RegisterFailHandler(Fail)
 	BeforeSuite(func() {
 		var err error
-		env, err = environment.NewEnvironment(t)
+		env, err = aws.NewEnvironment(t)
 		Expect(err).ToNot(HaveOccurred())
 	})
 	RunSpecs(t, "IPv6")
