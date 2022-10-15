@@ -23,7 +23,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter-core/pkg/scheduling"
+	"github.com/aws/karpenter/pkg/scheduling"
 )
 
 // Options are injected into cloud providers' factories

@@ -26,7 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/runtime"
 	utilsets "k8s.io/apimachinery/pkg/util/sets"
 
-	"github.com/aws/karpenter-core/pkg/scheduling"
+	"github.com/aws/karpenter/pkg/scheduling"
 )
 
 type TopologyType byte
