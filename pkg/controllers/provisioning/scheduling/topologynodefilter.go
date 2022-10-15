@@ -17,7 +17,7 @@ package scheduling
 import (
 	v1 "k8s.io/api/core/v1"
 
-	"github.com/aws/karpenter-core/pkg/scheduling"
+	"github.com/aws/karpenter/pkg/scheduling"
 )
 
 // TopologyNodeFilter is used to determine if a given actual node or scheduling node matches the pod's node selectors

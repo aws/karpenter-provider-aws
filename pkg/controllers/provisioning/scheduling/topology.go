@@ -19,8 +19,8 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/aws/karpenter-core/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/controllers/state"
+	"github.com/aws/karpenter/pkg/scheduling"
 
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
