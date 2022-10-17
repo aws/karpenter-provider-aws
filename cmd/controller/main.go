@@ -29,9 +29,10 @@ import (
 func main() {
 	options, manager := operator.NewOptionsWithManagerOrDie()
 	cloudProvider := cloudprovider.CloudProvider(awscloudprovider.NewCloudProvider(options.Ctx, cloudprovider.Options{
-		ClientSet:  options.Clientset,
-		KubeClient: options.KubeClient,
-		StartAsync: options.StartAsync,
+		ClientSet:     options.Clientset,
+		KubeClient:    options.KubeClient,
+		EventRecorder: options.BaseEventRecorder,
+		StartAsync:    options.StartAsync,
 	}))
 	if hp, ok := cloudProvider.(operator.HealthCheck); ok {
 		utilruntime.Must(manager.AddHealthzCheck("cloud-provider", hp.LivenessProbe))
