@@ -15,10 +15,7 @@ limitations under the License.
 package controllers
 
 import (
-	"knative.dev/pkg/logging"
-
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
-	"github.com/aws/karpenter/pkg/config"
 	"github.com/aws/karpenter/pkg/controllers/consolidation"
 	"github.com/aws/karpenter/pkg/controllers/counter"
 	metricspod "github.com/aws/karpenter/pkg/controllers/metrics/pod"
@@ -37,13 +34,8 @@ func init() {
 }
 
 func GetControllers(opts operator.Options, cloudProvider cloudprovider.CloudProvider) []operator.Controller {
-	cfg, err := config.New(opts.Ctx, opts.Clientset, opts.Cmw)
-	if err != nil {
-		// this does not happen if the config map is missing or invalid, only if some other error occurs
-		logging.FromContext(opts.Ctx).Fatalf("unable to load config, %s", err)
-	}
-	cluster := state.NewCluster(opts.Clock, cfg, opts.KubeClient, cloudProvider)
-	provisioner := provisioning.NewProvisioner(opts.Ctx, cfg, opts.KubeClient, opts.Clientset.CoreV1(), opts.Recorder, cloudProvider, cluster)
+	cluster := state.NewCluster(opts.Clock, opts.Config, opts.KubeClient, cloudProvider)
+	provisioner := provisioning.NewProvisioner(opts.Ctx, opts.Config, opts.KubeClient, opts.Clientset.CoreV1(), opts.Recorder, cloudProvider, cluster)
 
 	metricsstate.StartMetricScraper(opts.Ctx, cluster)
 

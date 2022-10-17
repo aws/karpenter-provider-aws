@@ -22,7 +22,6 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/flowcontrol"
 	"k8s.io/utils/clock"
 	"knative.dev/pkg/configmap/informer"
@@ -33,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/aws/karpenter/pkg/apis"
+	"github.com/aws/karpenter/pkg/config"
 	"github.com/aws/karpenter/pkg/events"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/options"
@@ -57,12 +57,11 @@ func init() {
 type Options struct {
 	Ctx        context.Context
 	Recorder   events.Recorder
-	Config     *rest.Config
+	Config     config.Config
 	KubeClient client.Client
 	Clientset  *kubernetes.Clientset
 	Clock      clock.Clock
 	Options    *options.Options
-	Cmw        *informer.InformedWatcher
 	StartAsync <-chan struct{}
 }
 
@@ -87,6 +86,12 @@ func NewOptionsWithManagerOrDie() (Options, manager.Manager) {
 		logging.FromContext(ctx).Infof("Setting GC memory limit to %d, container limit = %d", newLimit, opts.MemoryLimit)
 		debug.SetMemoryLimit(newLimit)
 	}
+
+	cfg, err := config.New(ctx, clientSet, cmw)
+	if err != nil {
+		// this does not happen if the config map is missing or invalid, only if some other error occurs
+		logging.FromContext(ctx).Fatalf("unable to load config, %s", err)
+	}
 	if err := cmw.Start(ctx.Done()); err != nil {
 		logging.FromContext(ctx).Errorf("watching configmaps, config changes won't be applied immediately, %s", err)
 	}
@@ -99,12 +104,11 @@ func NewOptionsWithManagerOrDie() (Options, manager.Manager) {
 	return Options{
 		Ctx:        ctx,
 		Recorder:   recorder,
-		Config:     controllerRuntimeConfig,
+		Config:     cfg,
 		Clientset:  clientSet,
 		KubeClient: manager.GetClient(),
 		Clock:      clock.RealClock{},
 		Options:    opts,
-		Cmw:        cmw,
 		StartAsync: manager.Elected(),
 	}, manager
 }
