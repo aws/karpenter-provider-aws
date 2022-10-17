@@ -16,99 +16,126 @@ package operator
 
 import (
 	"context"
-	"runtime/debug"
+	"errors"
+	"flag"
+	"fmt"
+	"net/url"
+	"os"
 
-	"k8s.io/apimachinery/pkg/runtime"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/client-go/kubernetes"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/util/flowcontrol"
-	"k8s.io/utils/clock"
-	"knative.dev/pkg/configmap/informer"
-	"knative.dev/pkg/logging"
-	"knative.dev/pkg/system"
-	controllerruntime "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"go.uber.org/multierr"
 
-	"github.com/aws/karpenter/pkg/apis"
-	"github.com/aws/karpenter/pkg/config"
-	"github.com/aws/karpenter/pkg/events"
-	"github.com/aws/karpenter/pkg/utils/injection"
-	"github.com/aws/karpenter/pkg/utils/options"
-	"github.com/aws/karpenter/pkg/utils/project"
+	"github.com/aws/karpenter/pkg/utils/env"
 )
+
+type AWSNodeNameConvention string
 
 const (
-	appName   = "karpenter"
-	component = "controller"
+	IPName       AWSNodeNameConvention = "ip-name"
+	ResourceName AWSNodeNameConvention = "resource-name"
 )
 
-var (
-	scheme = runtime.NewScheme()
-)
-
-func init() {
-	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(apis.AddToScheme(scheme))
-}
-
-// Options exposes shared components that are initialized by the startup.Initialize() call
+// Options for running this binary
 type Options struct {
-	Ctx        context.Context
-	Recorder   events.Recorder
-	Config     config.Config
-	KubeClient client.Client
-	Clientset  *kubernetes.Clientset
-	Clock      clock.Clock
-	Options    *options.Options
-	StartAsync <-chan struct{}
+	*flag.FlagSet
+	// Vendor Neutral
+	MetricsPort          int
+	HealthProbePort      int
+	KubeClientQPS        int
+	KubeClientBurst      int
+	EnableProfiling      bool
+	EnableLeaderElection bool
+	MemoryLimit          int64
+	// AWS Specific
+	ClusterName               string
+	ClusterEndpoint           string
+	VMMemoryOverhead          float64
+	AWSNodeNameConvention     string
+	AWSENILimitedPodDensity   bool
+	AWSDefaultInstanceProfile string
+	AWSEnablePodENI           bool
+	AWSIsolatedVPC            bool
 }
 
-func NewOptionsWithManagerOrDie() (Options, manager.Manager) {
-	opts := options.New().MustParse()
+// New creates an Options struct and registers CLI flags and environment variables to fill-in the Options struct fields
+func NewOptions() *Options {
+	opts := &Options{}
+	f := flag.NewFlagSet("karpenter", flag.ContinueOnError)
+	opts.FlagSet = f
 
-	// Setup Client
-	controllerRuntimeConfig := controllerruntime.GetConfigOrDie()
-	controllerRuntimeConfig.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(float32(opts.KubeClientQPS), opts.KubeClientBurst)
-	controllerRuntimeConfig.UserAgent = appName
-	clientSet := kubernetes.NewForConfigOrDie(controllerRuntimeConfig)
+	// Vendor Neutral
+	f.IntVar(&opts.MetricsPort, "metrics-port", env.WithDefaultInt("METRICS_PORT", 8080), "The port the metric endpoint binds to for operating metrics about the controller itself")
+	f.IntVar(&opts.HealthProbePort, "health-probe-port", env.WithDefaultInt("HEALTH_PROBE_PORT", 8081), "The port the health probe endpoint binds to for reporting controller health")
+	f.IntVar(&opts.KubeClientQPS, "kube-client-qps", env.WithDefaultInt("KUBE_CLIENT_QPS", 200), "The smoothed rate of qps to kube-apiserver")
+	f.IntVar(&opts.KubeClientBurst, "kube-client-burst", env.WithDefaultInt("KUBE_CLIENT_BURST", 300), "The maximum allowed burst of queries to the kube-apiserver")
+	f.BoolVar(&opts.EnableProfiling, "enable-profiling", env.WithDefaultBool("ENABLE_PROFILING", false), "Enable the profiling on the metric endpoint")
+	f.BoolVar(&opts.EnableLeaderElection, "leader-elect", env.WithDefaultBool("LEADER_ELECT", true), "Start leader election client and gain leadership before executing the main loop. Enable this when running replicated components for high availability.")
+	f.Int64Var(&opts.MemoryLimit, "memory-limit", env.WithDefaultInt64("MEMORY_LIMIT", -1), "Memory limit on the container running the controller. The GC soft memory limit is set to 90% of this value.")
 
-	// Set up logger and watch for changes to log level
-	cmw := informer.NewInformedWatcher(clientSet, system.Namespace())
-	ctx := injection.LoggingContextOrDie(component, controllerRuntimeConfig, cmw)
-	ctx = injection.WithConfig(ctx, controllerRuntimeConfig)
-	ctx = injection.WithOptions(ctx, *opts)
+	// AWS Specific
+	f.StringVar(&opts.ClusterName, "cluster-name", env.WithDefaultString("CLUSTER_NAME", ""), "The kubernetes cluster name for resource discovery")
+	f.StringVar(&opts.ClusterEndpoint, "cluster-endpoint", env.WithDefaultString("CLUSTER_ENDPOINT", ""), "The external kubernetes cluster endpoint for new nodes to connect with")
+	f.Float64Var(&opts.VMMemoryOverhead, "vm-memory-overhead", env.WithDefaultFloat64("VM_MEMORY_OVERHEAD", 0.075), "The VM memory overhead as a percent that will be subtracted from the total memory for all instance types")
+	f.StringVar(&opts.AWSNodeNameConvention, "aws-node-name-convention", env.WithDefaultString("AWS_NODE_NAME_CONVENTION", string(IPName)), "The node naming convention used by the AWS cloud provider. DEPRECATION WARNING: this field may be deprecated at any time")
+	f.BoolVar(&opts.AWSENILimitedPodDensity, "aws-eni-limited-pod-density", env.WithDefaultBool("AWS_ENI_LIMITED_POD_DENSITY", true), "Indicates whether new nodes should use ENI-based pod density. DEPRECATED: Use `.spec.kubeletConfiguration.maxPods` to set pod density on a per-provisioner basis")
+	f.StringVar(&opts.AWSDefaultInstanceProfile, "aws-default-instance-profile", env.WithDefaultString("AWS_DEFAULT_INSTANCE_PROFILE", ""), "The default instance profile to use when provisioning nodes in AWS")
+	f.BoolVar(&opts.AWSEnablePodENI, "aws-enable-pod-eni", env.WithDefaultBool("AWS_ENABLE_POD_ENI", false), "If true then instances that support pod ENI will report a vpc.amazonaws.com/pod-eni resource")
+	f.BoolVar(&opts.AWSIsolatedVPC, "aws-isolated-vpc", env.WithDefaultBool("AWS_ISOLATED_VPC", false), "If true then assume we can't reach AWS services which don't have a VPC endpoint. This also has the effect of disabling look-ups to the AWS pricing endpoint.")
+	return opts
+}
 
-	logging.FromContext(ctx).Infof("Initializing with version %s", project.Version)
-	if opts.MemoryLimit > 0 {
-		newLimit := int64(float64(opts.MemoryLimit) * 0.9)
-		logging.FromContext(ctx).Infof("Setting GC memory limit to %d, container limit = %d", newLimit, opts.MemoryLimit)
-		debug.SetMemoryLimit(newLimit)
+// MustParse reads the user passed flags, environment variables, and default values.
+// Options are valided and panics if an error is returned
+func (o *Options) MustParse() *Options {
+	err := o.Parse(os.Args[1:])
+
+	if errors.Is(err, flag.ErrHelp) {
+		os.Exit(0)
 	}
-
-	cfg, err := config.New(ctx, clientSet, cmw)
 	if err != nil {
-		// this does not happen if the config map is missing or invalid, only if some other error occurs
-		logging.FromContext(ctx).Fatalf("unable to load config, %s", err)
+		panic(err)
 	}
-	if err := cmw.Start(ctx.Done()); err != nil {
-		logging.FromContext(ctx).Errorf("watching configmaps, config changes won't be applied immediately, %s", err)
+	if err := o.Validate(); err != nil {
+		panic(err)
 	}
+	return o
+}
 
-	manager := NewManagerOrDie(ctx, controllerRuntimeConfig, opts)
-	recorder := events.NewRecorder(manager.GetEventRecorderFor(appName))
-	recorder = events.NewLoadSheddingRecorder(recorder)
-	recorder = events.NewDedupeRecorder(recorder)
+func (o Options) Validate() (err error) {
+	err = multierr.Append(err, o.validateEndpoint())
+	if o.ClusterName == "" {
+		err = multierr.Append(err, fmt.Errorf("CLUSTER_NAME is required"))
+	}
+	awsNodeNameConvention := AWSNodeNameConvention(o.AWSNodeNameConvention)
+	if awsNodeNameConvention != IPName && awsNodeNameConvention != ResourceName {
+		err = multierr.Append(err, fmt.Errorf("aws-node-name-convention may only be either ip-name or resource-name"))
+	}
+	return err
+}
 
-	return Options{
-		Ctx:        ctx,
-		Recorder:   recorder,
-		Config:     cfg,
-		Clientset:  clientSet,
-		KubeClient: manager.GetClient(),
-		Clock:      clock.RealClock{},
-		Options:    opts,
-		StartAsync: manager.Elected(),
-	}, manager
+func (o Options) validateEndpoint() error {
+	endpoint, err := url.Parse(o.ClusterEndpoint)
+	// url.Parse() will accept a lot of input without error; make
+	// sure it's a real URL
+	if err != nil || !endpoint.IsAbs() || endpoint.Hostname() == "" {
+		return fmt.Errorf("\"%s\" not a valid CLUSTER_ENDPOINT URL", o.ClusterEndpoint)
+	}
+	return nil
+}
+
+func (o Options) GetAWSNodeNameConvention() AWSNodeNameConvention {
+	return AWSNodeNameConvention(o.AWSNodeNameConvention)
+}
+
+type optionsKey struct{}
+
+func WithOptions(ctx context.Context, opts Options) context.Context {
+	return context.WithValue(ctx, optionsKey{}, opts)
+}
+
+func GetOptions(ctx context.Context) Options {
+	retval := ctx.Value(optionsKey{})
+	if retval == nil {
+		return Options{}
+	}
+	return retval.(Options)
 }

@@ -39,6 +39,7 @@ import (
 	awscache "github.com/aws/karpenter/pkg/cloudproviders/aws/cache"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider/amifamily"
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
+	"github.com/aws/karpenter/pkg/operator"
 	. "github.com/aws/karpenter/pkg/test/expectations"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
@@ -48,14 +49,12 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/test"
-	"github.com/aws/karpenter/pkg/utils/injection"
-	"github.com/aws/karpenter/pkg/utils/options"
 	"github.com/aws/karpenter/pkg/utils/pretty"
 )
 
 var ctx context.Context
 var stop context.CancelFunc
-var opts options.Options
+var opts operator.Options
 var env *test.Environment
 var launchTemplateCache *cache.Cache
 var securityGroupCache *cache.Cache
@@ -79,10 +78,10 @@ var provisioner *v1alpha5.Provisioner
 var provider *awsv1alpha1.AWS
 var pricingProvider *PricingProvider
 
-var defaultOpts = options.Options{
+var defaultOpts = operator.Options{
 	ClusterName:               "test-cluster",
 	ClusterEndpoint:           "https://test-cluster",
-	AWSNodeNameConvention:     string(options.IPName),
+	AWSNodeNameConvention:     string(operator.IPName),
 	AWSENILimitedPodDensity:   true,
 	AWSEnablePodENI:           true,
 	AWSDefaultInstanceProfile: "test-instance-profile",
@@ -98,7 +97,7 @@ var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
 		opts = defaultOpts
 		Expect(opts.Validate()).To(Succeed(), "Failed to validate options")
-		ctx = injection.WithOptions(ctx, opts)
+		ctx = operator.WithOptions(ctx, opts)
 		ctx, stop = context.WithCancel(ctx)
 		launchTemplateCache = cache.New(CacheTTL, CacheCleanupInterval)
 		internalUnavailableOfferingsCache = cache.New(awscache.UnavailableOfferingsTTL, CacheCleanupInterval)

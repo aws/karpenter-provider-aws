@@ -20,12 +20,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 	"knative.dev/pkg/configmap/informer"
-	knativeinjection "knative.dev/pkg/injection"
+	"knative.dev/pkg/injection"
 	"knative.dev/pkg/injection/sharedmain"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/signals"
-
-	"github.com/aws/karpenter/pkg/utils/options"
 )
 
 type resourceKey struct{}
@@ -33,7 +31,7 @@ type resourceKey struct{}
 // LoggingContextOrDie injects a logger into the returned context. The logger is
 // configured by the ConfigMap `config-logging` and live updates the level.
 func LoggingContextOrDie(componentName string, config *rest.Config, cmw *informer.InformedWatcher) context.Context {
-	ctx, startinformers := knativeinjection.EnableInjectionOrDie(signals.NewContext(), config)
+	ctx, startinformers := injection.EnableInjectionOrDie(signals.NewContext(), config)
 	logger, atomicLevel := sharedmain.SetupLoggerOrDie(ctx, componentName)
 	ctx = logging.WithLogger(ctx, logger)
 	rest.SetDefaultWarningHandler(&logging.WarningHandler{Logger: logger})
@@ -52,34 +50,6 @@ func GetNamespacedName(ctx context.Context) types.NamespacedName {
 		return types.NamespacedName{}
 	}
 	return retval.(types.NamespacedName)
-}
-
-type optionsKey struct{}
-
-func WithOptions(ctx context.Context, opts options.Options) context.Context {
-	return context.WithValue(ctx, optionsKey{}, opts)
-}
-
-func GetOptions(ctx context.Context) options.Options {
-	retval := ctx.Value(optionsKey{})
-	if retval == nil {
-		return options.Options{}
-	}
-	return retval.(options.Options)
-}
-
-type configKey struct{}
-
-func WithConfig(ctx context.Context, config *rest.Config) context.Context {
-	return context.WithValue(ctx, configKey{}, config)
-}
-
-func GetConfig(ctx context.Context) *rest.Config {
-	retval := ctx.Value(configKey{})
-	if retval == nil {
-		return nil
-	}
-	return retval.(*rest.Config)
 }
 
 type controllerNameKeyType struct{}

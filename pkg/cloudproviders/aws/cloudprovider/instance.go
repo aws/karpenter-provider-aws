@@ -37,13 +37,12 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	awserrors "github.com/aws/karpenter/pkg/cloudproviders/aws/errors"
+	"github.com/aws/karpenter/pkg/operator"
 
 	"github.com/aws/karpenter-core/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
 	"github.com/aws/karpenter/pkg/utils/functional"
-	"github.com/aws/karpenter/pkg/utils/injection"
-	"github.com/aws/karpenter/pkg/utils/options"
 	"github.com/aws/karpenter/pkg/utils/resources"
 )
 
@@ -145,7 +144,7 @@ func (p *InstanceProvider) launchInstance(ctx context.Context, provider *v1alpha
 		logging.FromContext(ctx).Warn(err.Error())
 	}
 	// Create fleet
-	tags := v1alpha1.MergeTags(ctx, provider.Tags, map[string]string{fmt.Sprintf("kubernetes.io/cluster/%s", injection.GetOptions(ctx).ClusterName): "owned"})
+	tags := v1alpha1.MergeTags(ctx, provider.Tags, map[string]string{fmt.Sprintf("kubernetes.io/cluster/%s", operator.GetOptions(ctx).ClusterName): "owned"})
 	createFleetInput := &ec2.CreateFleetInput{
 		Type:                  aws.String(ec2.FleetTypeInstant),
 		Context:               provider.Context,
@@ -317,7 +316,7 @@ func (p *InstanceProvider) getInstance(ctx context.Context, id string) (*ec2.Ins
 	if *instance.State.Name == ec2.InstanceStateNameTerminated {
 		return nil, awserrors.InstanceTerminatedError{Err: fmt.Errorf("instance is in terminated state")}
 	}
-	if injection.GetOptions(ctx).GetAWSNodeNameConvention() == options.ResourceName {
+	if operator.GetOptions(ctx).GetAWSNodeNameConvention() == operator.ResourceName {
 		return instance, nil
 	}
 	if len(aws.StringValue(instance.PrivateDnsName)) == 0 {
@@ -330,7 +329,7 @@ func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Ins
 	for _, instanceType := range instanceTypes {
 		if instanceType.Name() == aws.StringValue(instance.InstanceType) {
 			nodeName := strings.ToLower(aws.StringValue(instance.PrivateDnsName))
-			if injection.GetOptions(ctx).GetAWSNodeNameConvention() == options.ResourceName {
+			if operator.GetOptions(ctx).GetAWSNodeNameConvention() == operator.ResourceName {
 				nodeName = aws.StringValue(instance.InstanceId)
 			}
 

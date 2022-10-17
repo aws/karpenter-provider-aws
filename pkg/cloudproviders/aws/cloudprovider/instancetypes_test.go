@@ -37,9 +37,9 @@ import (
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/fake"
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
+	"github.com/aws/karpenter/pkg/operator"
 	"github.com/aws/karpenter/pkg/test"
 	. "github.com/aws/karpenter/pkg/test/expectations"
-	"github.com/aws/karpenter/pkg/utils/injection"
 )
 
 var _ = Describe("Instance Types", func() {
@@ -126,7 +126,7 @@ var _ = Describe("Instance Types", func() {
 		// ensure the pod ENI option is off
 		optsCopy := opts
 		optsCopy.AWSEnablePodENI = false
-		cancelCtx, cancelFunc := context.WithCancel(injection.WithOptions(ctx, optsCopy))
+		cancelCtx, cancelFunc := context.WithCancel(operator.WithOptions(ctx, optsCopy))
 		// ensure the provisioner is shut down at the end of this test
 		defer cancelFunc()
 
@@ -228,7 +228,7 @@ var _ = Describe("Instance Types", func() {
 		Expect(err).To(BeNil())
 		provisioner = test.Provisioner()
 		for _, info := range instanceInfo {
-			it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, "", provider, nil)
+			it := NewInstanceType(operator.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, "", provider, nil)
 			resources := it.Resources()
 			Expect(resources.Pods().Value()).To(BeNumerically("==", 110))
 		}
@@ -239,7 +239,7 @@ var _ = Describe("Instance Types", func() {
 		Expect(err).To(BeNil())
 		provisioner = test.Provisioner()
 		for _, info := range instanceInfo {
-			it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, "", provider, nil)
+			it := NewInstanceType(operator.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, "", provider, nil)
 			resources := it.Resources()
 			Expect(resources.Pods().Value()).ToNot(BeNumerically("==", 110))
 		}
@@ -257,7 +257,7 @@ var _ = Describe("Instance Types", func() {
 						},
 					},
 				})
-				it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
+				it := NewInstanceType(operator.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
 				overhead := it.Overhead()
 				Expect(overhead.Cpu().String()).To(Equal("2080m"))
 			})
@@ -271,7 +271,7 @@ var _ = Describe("Instance Types", func() {
 						},
 					},
 				})
-				it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
+				it := NewInstanceType(operator.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
 				overhead := it.Overhead()
 				Expect(overhead.Memory().String()).To(Equal("21473Mi"))
 			})
@@ -292,7 +292,7 @@ var _ = Describe("Instance Types", func() {
 						},
 					},
 				})
-				it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
+				it := NewInstanceType(operator.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
 				overhead := it.Overhead()
 				Expect(overhead.Memory().String()).To(Equal("30820Mi"))
 				Expect(overhead.Cpu().String()).To(Equal("3"))
@@ -316,7 +316,7 @@ var _ = Describe("Instance Types", func() {
 						},
 					},
 				})
-				it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
+				it := NewInstanceType(operator.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
 				overhead := it.Overhead()
 				Expect(overhead.Memory().String()).To(Equal("31220Mi"))
 			})
@@ -336,7 +336,7 @@ var _ = Describe("Instance Types", func() {
 						},
 					},
 				})
-				it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
+				it := NewInstanceType(operator.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
 				overhead := it.Overhead()
 				Expect(overhead.Memory().String()).To(Equal("33930241639"))
 			})
@@ -356,7 +356,7 @@ var _ = Describe("Instance Types", func() {
 						},
 					},
 				})
-				it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
+				it := NewInstanceType(operator.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
 				overhead := it.Overhead()
 				Expect(overhead.Memory().String()).To(Equal("30Gi"))
 			})
@@ -376,7 +376,7 @@ var _ = Describe("Instance Types", func() {
 						},
 					},
 				})
-				it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
+				it := NewInstanceType(operator.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
 				overhead := it.Overhead()
 				Expect(overhead.Memory().String()).To(Equal("30770Mi"))
 			})
@@ -396,7 +396,7 @@ var _ = Describe("Instance Types", func() {
 						},
 					},
 				})
-				it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
+				it := NewInstanceType(operator.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
 				overhead := it.Overhead()
 				Expect(overhead.Memory().String()).To(Equal("31220Mi"))
 			})
@@ -419,7 +419,7 @@ var _ = Describe("Instance Types", func() {
 						},
 					},
 				})
-				it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
+				it := NewInstanceType(operator.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
 				overhead := it.Overhead()
 				Expect(overhead.Memory().String()).To(Equal("33930241639"))
 			})
@@ -439,7 +439,7 @@ var _ = Describe("Instance Types", func() {
 						},
 					},
 				})
-				it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
+				it := NewInstanceType(operator.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
 				overhead := it.Overhead()
 				Expect(overhead.Memory().String()).To(Equal("30Gi"))
 			})
@@ -463,7 +463,7 @@ var _ = Describe("Instance Types", func() {
 						},
 					},
 				})
-				it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
+				it := NewInstanceType(operator.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
 				overhead := it.Overhead()
 				Expect(overhead.Memory().String()).To(Equal("31Gi"))
 			})
@@ -486,7 +486,7 @@ var _ = Describe("Instance Types", func() {
 						},
 					},
 				})
-				it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
+				it := NewInstanceType(operator.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
 				overhead := it.Overhead()
 				Expect(overhead.Memory().String()).To(Equal("33Gi"))
 			})
@@ -509,7 +509,7 @@ var _ = Describe("Instance Types", func() {
 						},
 					},
 				})
-				it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
+				it := NewInstanceType(operator.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
 				overhead := it.Overhead()
 				Expect(overhead.Memory().String()).To(Equal("33071248180"))
 			})
@@ -532,7 +532,7 @@ var _ = Describe("Instance Types", func() {
 						},
 					},
 				})
-				it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
+				it := NewInstanceType(operator.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
 				overhead := it.Overhead()
 				Expect(overhead.Memory().String()).To(Equal("33930241639"))
 			})
@@ -542,7 +542,7 @@ var _ = Describe("Instance Types", func() {
 			Expect(err).To(BeNil())
 			provisioner = test.Provisioner(test.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{MaxPods: ptr.Int32(10)}})
 			for _, info := range instanceInfo {
-				it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, "", provider, nil)
+				it := NewInstanceType(operator.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, "", provider, nil)
 				resources := it.Resources()
 				Expect(resources.Pods().Value()).To(BeNumerically("==", 10))
 			}
@@ -553,7 +553,7 @@ var _ = Describe("Instance Types", func() {
 			Expect(err).To(BeNil())
 			provisioner = test.Provisioner(test.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{MaxPods: ptr.Int32(10)}})
 			for _, info := range instanceInfo {
-				it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, "", provider, nil)
+				it := NewInstanceType(operator.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, "", provider, nil)
 				resources := it.Resources()
 				Expect(resources.Pods().Value()).To(BeNumerically("==", 10))
 			}
@@ -563,7 +563,7 @@ var _ = Describe("Instance Types", func() {
 			Expect(err).To(BeNil())
 			provisioner = test.Provisioner(test.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{PodsPerCore: ptr.Int32(1)}})
 			for _, info := range instanceInfo {
-				it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, "", provider, nil)
+				it := NewInstanceType(operator.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, "", provider, nil)
 				resources := it.Resources()
 				Expect(resources.Pods().Value()).To(BeNumerically("==", ptr.Int64Value(info.VCpuInfo.DefaultVCpus)))
 			}
@@ -573,7 +573,7 @@ var _ = Describe("Instance Types", func() {
 			Expect(err).To(BeNil())
 			provisioner = test.Provisioner(test.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{PodsPerCore: ptr.Int32(4), MaxPods: ptr.Int32(20)}})
 			for _, info := range instanceInfo {
-				it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, "", provider, nil)
+				it := NewInstanceType(operator.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, "", provider, nil)
 				resources := it.Resources()
 				Expect(resources.Pods().Value()).To(BeNumerically("==", lo.Min([]int64{20, ptr.Int64Value(info.VCpuInfo.DefaultVCpus) * 4})))
 			}
@@ -584,7 +584,7 @@ var _ = Describe("Instance Types", func() {
 			provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
 			provisioner = test.Provisioner(test.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{PodsPerCore: ptr.Int32(1)}, Provider: provider})
 			for _, info := range instanceInfo {
-				it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, "", provider, nil)
+				it := NewInstanceType(operator.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, "", provider, nil)
 				resources := it.Resources()
 				Expect(resources.Pods().Value()).To(BeNumerically("==", it.eniLimitedPods()))
 			}
@@ -595,7 +595,7 @@ var _ = Describe("Instance Types", func() {
 			Expect(err).To(BeNil())
 			provisioner = test.Provisioner(test.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{PodsPerCore: ptr.Int32(0)}})
 			for _, info := range instanceInfo {
-				it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, "", provider, nil)
+				it := NewInstanceType(operator.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, "", provider, nil)
 				resources := it.Resources()
 				Expect(resources.Pods().Value()).To(BeNumerically("==", 110))
 			}

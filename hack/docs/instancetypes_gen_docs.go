@@ -35,8 +35,7 @@ import (
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
 	awscloudprovider "github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
-	"github.com/aws/karpenter/pkg/utils/injection"
-	"github.com/aws/karpenter/pkg/utils/options"
+	"github.com/aws/karpenter/pkg/operator"
 	"github.com/aws/karpenter/pkg/utils/resources"
 )
 
@@ -52,9 +51,9 @@ func main() {
 	os.Setenv("CLUSTER_ENDPOINT", "https://docs-gen.aws")
 	os.Setenv("AWS_ISOLATED_VPC", "true") // disable pricing lookup
 
-	opts := options.New()
+	opts := operator.NewOptions()
 	opts = opts.MustParse()
-	ctx := injection.WithOptions(context.Background(), *opts)
+	ctx := operator.WithOptions(context.Background(), *opts)
 
 	cp := awscloudprovider.NewCloudProvider(ctx, cloudprovider.Options{})
 	provider := v1alpha1.AWS{SubnetSelector: map[string]string{

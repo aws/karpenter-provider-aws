@@ -21,20 +21,17 @@ import (
 	"net/http/pprof"
 
 	"github.com/go-logr/zapr"
-	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
+	"knative.dev/pkg/injection"
 	"knative.dev/pkg/logging"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
-	"github.com/aws/karpenter/pkg/utils/injection"
-	"github.com/aws/karpenter/pkg/utils/options"
 )
 
 // Controller is an interface implemented by Karpenter custom resources.
@@ -53,16 +50,25 @@ type HealthCheck interface {
 }
 
 // NewManagerOrDie instantiates a controller manager or panics
-func NewManagerOrDie(ctx context.Context, config *rest.Config, opts *options.Options) manager.Manager {
+func NewManagerOrDie(ctx context.Context, config *rest.Config, options *Options) manager.Manager {
+	logger := logging.FromContext(ctx)
 	newManager, err := controllerruntime.NewManager(config, controllerruntime.Options{
-		Logger:                     ignoreDebugEvents(zapr.NewLogger(logging.FromContext(ctx).Desugar())),
-		LeaderElection:             opts.EnableLeaderElection,
+		Logger:                     ignoreDebugEvents(zapr.NewLogger(logger.Desugar())),
+		LeaderElection:             options.EnableLeaderElection,
 		LeaderElectionID:           "karpenter-leader-election",
 		LeaderElectionResourceLock: resourcelock.LeasesResourceLock,
 		Scheme:                     scheme,
-		MetricsBindAddress:         fmt.Sprintf(":%d", opts.MetricsPort),
-		HealthProbeBindAddress:     fmt.Sprintf(":%d", opts.HealthProbePort),
-		BaseContext:                newRunnableContext(config, opts, logging.FromContext(ctx)),
+		MetricsBindAddress:         fmt.Sprintf(":%d", options.MetricsPort),
+		HealthProbeBindAddress:     fmt.Sprintf(":%d", options.HealthProbePort),
+		// Controller runtime injects this base context into internal
+		// controllers which are unsafe to shut down require a fresh context.
+		BaseContext: func() context.Context {
+			baseCtx := context.Background()
+			baseCtx = logging.WithLogger(baseCtx, logger)
+			baseCtx = injection.WithConfig(baseCtx, config)
+			baseCtx = WithOptions(baseCtx, *options)
+			return baseCtx
+		},
 	})
 	if err != nil {
 		panic(fmt.Sprintf("Failed to create controller newManager, %s", err))
@@ -72,7 +78,7 @@ func NewManagerOrDie(ctx context.Context, config *rest.Config, opts *options.Opt
 	}); err != nil {
 		panic(fmt.Sprintf("Failed to setup pod indexer, %s", err))
 	}
-	if opts.EnableProfiling {
+	if options.EnableProfiling {
 		utilruntime.Must(registerPprof(newManager))
 	}
 
@@ -80,32 +86,21 @@ func NewManagerOrDie(ctx context.Context, config *rest.Config, opts *options.Opt
 }
 
 // RegisterControllers registers a set of controllers to the controller manager
-func RegisterControllers(ctx context.Context, m manager.Manager, controllers ...Controller) manager.Manager {
+func RegisterControllers(ctx Context, mgr manager.Manager, controllers ...Controller) {
 	for _, c := range controllers {
-		if err := c.Register(ctx, m); err != nil {
+		if err := c.Register(ctx, mgr); err != nil {
 			panic(err)
 		}
 		// if the controller implements a liveness check, connect it
 		if lp, ok := c.(HealthCheck); ok {
-			utilruntime.Must(m.AddHealthzCheck(fmt.Sprintf("%T", c), lp.LivenessProbe))
+			utilruntime.Must(mgr.AddHealthzCheck(fmt.Sprintf("%T", c), lp.LivenessProbe))
 		}
 	}
-	if err := m.AddHealthzCheck("healthz", healthz.Ping); err != nil {
+	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		panic(fmt.Sprintf("Failed to add health probe, %s", err))
 	}
-	if err := m.AddReadyzCheck("readyz", healthz.Ping); err != nil {
+	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
 		panic(fmt.Sprintf("Failed to add ready probe, %s", err))
-	}
-	return m
-}
-
-func newRunnableContext(config *rest.Config, options *options.Options, logger *zap.SugaredLogger) func() context.Context {
-	return func() context.Context {
-		ctx := context.Background()
-		ctx = logging.WithLogger(ctx, logger)
-		ctx = injection.WithConfig(ctx, config)
-		ctx = injection.WithOptions(ctx, *options)
-		return ctx
 	}
 }
 

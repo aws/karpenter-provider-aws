@@ -21,7 +21,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/aws/karpenter/pkg/utils/options"
+	"github.com/aws/karpenter/pkg/operator"
 )
 
 func main() {
@@ -48,7 +48,7 @@ func main() {
 	topDoc := fmt.Sprintf("%s%s\n\n", startDocSections[0], genStart)
 	bottomDoc := fmt.Sprintf("\n%s%s", genEnd, endDocSections[1])
 
-	opts := options.New()
+	opts := operator.NewOptions()
 
 	envVarsBlock := "| Environment Variable | CLI Flag | Description |\n"
 	envVarsBlock += "|--|--|--|\n"

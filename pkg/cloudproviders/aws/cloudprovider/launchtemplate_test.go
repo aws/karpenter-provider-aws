@@ -45,9 +45,9 @@ import (
 	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider/amifamily/bootstrap"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
+	"github.com/aws/karpenter/pkg/operator"
 	"github.com/aws/karpenter/pkg/test"
 	. "github.com/aws/karpenter/pkg/test/expectations"
-	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/ptr"
 )
 
@@ -565,7 +565,7 @@ var _ = Describe("LaunchTemplates", func() {
 			provider.AMIFamily = &awsv1alpha1.AMIFamilyAL2
 			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 			Expect(err).To(BeNil())
-			it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
+			it := NewInstanceType(operator.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
 			overhead := it.Overhead()
 			Expect(overhead.Memory().String()).To(Equal("1093Mi"))
 		})
@@ -575,7 +575,7 @@ var _ = Describe("LaunchTemplates", func() {
 			provider.AMIFamily = &awsv1alpha1.AMIFamilyAL2
 			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 			Expect(err).To(BeNil())
-			it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
+			it := NewInstanceType(operator.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
 			overhead := it.Overhead()
 			Expect(overhead.Memory().String()).To(Equal("1093Mi"))
 		})
@@ -587,7 +587,7 @@ var _ = Describe("LaunchTemplates", func() {
 			provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
 			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 			Expect(err).To(BeNil())
-			it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
+			it := NewInstanceType(operator.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
 			overhead := it.Overhead()
 			Expect(overhead.Memory().String()).To(Equal("1093Mi"))
 		})
@@ -597,7 +597,7 @@ var _ = Describe("LaunchTemplates", func() {
 			provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
 			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 			Expect(err).To(BeNil())
-			it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
+			it := NewInstanceType(operator.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
 			overhead := it.Overhead()
 			Expect(overhead.Memory().String()).To(Equal("1665Mi"))
 		})
@@ -605,7 +605,7 @@ var _ = Describe("LaunchTemplates", func() {
 	Context("User Data", func() {
 		It("should not specify --use-max-pods=false when using ENI-based pod density", func() {
 			opts.AWSENILimitedPodDensity = true
-			prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
+			prov := provisioning.NewProvisioner(operator.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
 			controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
 			ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
 			pod := ExpectProvisioned(ctx, env.Client, controllerWithOpts, test.UnschedulablePod())[0]
@@ -617,7 +617,7 @@ var _ = Describe("LaunchTemplates", func() {
 		})
 		It("should specify --use-max-pods=false when not using ENI-based pod density", func() {
 			opts.AWSENILimitedPodDensity = false
-			prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
+			prov := provisioning.NewProvisioner(operator.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
 			controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
 			ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
 			pod := ExpectProvisioned(ctx, env.Client, controllerWithOpts, test.UnschedulablePod())[0]
@@ -887,7 +887,7 @@ var _ = Describe("LaunchTemplates", func() {
 		Context("Bottlerocket", func() {
 			It("should merge in custom user data", func() {
 				opts.AWSENILimitedPodDensity = false
-				prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
+				prov := provisioning.NewProvisioner(operator.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
 				controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
 
 				provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
@@ -921,7 +921,7 @@ var _ = Describe("LaunchTemplates", func() {
 			})
 			It("should bootstrap when custom user data is empty", func() {
 				opts.AWSENILimitedPodDensity = false
-				prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
+				prov := provisioning.NewProvisioner(operator.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
 				controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
 
 				provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
@@ -951,7 +951,7 @@ var _ = Describe("LaunchTemplates", func() {
 			})
 			It("should not bootstrap when provider ref points to a non-existent resource", func() {
 				opts.AWSENILimitedPodDensity = false
-				prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
+				prov := provisioning.NewProvisioner(operator.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
 				controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
 
 				provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
@@ -1088,7 +1088,7 @@ var _ = Describe("LaunchTemplates", func() {
 		Context("AL2 Custom UserData", func() {
 			It("should merge in custom user data", func() {
 				opts.AWSENILimitedPodDensity = false
-				prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
+				prov := provisioning.NewProvisioner(operator.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
 				controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
 
 				content, _ := os.ReadFile("testdata/al2_userdata_input.golden")
@@ -1110,7 +1110,7 @@ var _ = Describe("LaunchTemplates", func() {
 			})
 			It("should handle empty custom user data", func() {
 				opts.AWSENILimitedPodDensity = false
-				prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
+				prov := provisioning.NewProvisioner(operator.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
 				controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
 				nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 					UserData: nil,

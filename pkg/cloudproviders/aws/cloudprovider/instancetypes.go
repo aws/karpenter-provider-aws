@@ -24,6 +24,7 @@ import (
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	awscache "github.com/aws/karpenter/pkg/cloudproviders/aws/cache"
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
+	"github.com/aws/karpenter/pkg/operator"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -37,7 +38,6 @@ import (
 
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/utils/functional"
-	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/pretty"
 )
 
@@ -71,7 +71,7 @@ func NewInstanceTypeProvider(ctx context.Context, sess *session.Session, options
 			NewPricingAPI(sess, *sess.Config.Region),
 			ec2api,
 			*sess.Config.Region,
-			injection.GetOptions(ctx).AWSIsolatedVPC, options.StartAsync),
+			operator.GetOptions(ctx).AWSIsolatedVPC, options.StartAsync),
 		cache:                cache.New(InstanceTypesAndZonesCacheTTL, CacheCleanupInterval),
 		unavailableOfferings: unavailableOfferings,
 		cm:                   pretty.NewChangeMonitor(),

@@ -40,7 +40,7 @@ import (
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider/amifamily"
 	awserrors "github.com/aws/karpenter/pkg/cloudproviders/aws/errors"
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
-	"github.com/aws/karpenter/pkg/utils/injection"
+	"github.com/aws/karpenter/pkg/operator"
 	"github.com/aws/karpenter/pkg/utils/pretty"
 )
 
@@ -117,9 +117,9 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, provider *v1alpha1.AWS
 		return nil, err
 	}
 	resolvedLaunchTemplates, err := p.amiFamily.Resolve(ctx, provider, nodeRequest, &amifamily.Options{
-		ClusterName:             injection.GetOptions(ctx).ClusterName,
-		ClusterEndpoint:         injection.GetOptions(ctx).ClusterEndpoint,
-		AWSENILimitedPodDensity: injection.GetOptions(ctx).AWSENILimitedPodDensity,
+		ClusterName:             operator.GetOptions(ctx).ClusterName,
+		ClusterEndpoint:         operator.GetOptions(ctx).ClusterEndpoint,
+		AWSENILimitedPodDensity: operator.GetOptions(ctx).AWSENILimitedPodDensity,
 		InstanceProfile:         instanceProfile,
 		SecurityGroupsIDs:       securityGroupsIDs,
 		Tags:                    provider.Tags,
@@ -259,7 +259,7 @@ func (p *LaunchTemplateProvider) Invalidate(ctx context.Context, ltName string) 
 // hydrateCache queries for existing Launch Templates created by Karpenter for the current cluster and adds to the LT cache.
 // Any error during hydration will result in a panic
 func (p *LaunchTemplateProvider) hydrateCache(ctx context.Context) {
-	clusterName := injection.GetOptions(ctx).ClusterName
+	clusterName := operator.GetOptions(ctx).ClusterName
 	p.logger.Debugf("Hydrating the launch template cache with tags matching \"%s: %s\"", karpenterManagedTagKey, clusterName)
 	if err := p.ec2api.DescribeLaunchTemplatesPagesWithContext(ctx, &ec2.DescribeLaunchTemplatesInput{
 		Filters: []*ec2.Filter{{Name: aws.String(fmt.Sprintf("tag:%s", karpenterManagedTagKey)), Values: []*string{aws.String(clusterName)}}},
@@ -295,7 +295,7 @@ func (p *LaunchTemplateProvider) getInstanceProfile(ctx context.Context, provide
 	if provider.InstanceProfile != nil {
 		return aws.StringValue(provider.InstanceProfile), nil
 	}
-	defaultProfile := injection.GetOptions(ctx).AWSDefaultInstanceProfile
+	defaultProfile := operator.GetOptions(ctx).AWSDefaultInstanceProfile
 	if defaultProfile == "" {
 		return "", errors.New("neither spec.provider.instanceProfile nor --aws-default-instance-profile is specified")
 	}
