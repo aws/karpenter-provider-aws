@@ -58,7 +58,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	newRespData := strings.Replace(string(respData), "package vpc", "package aws", 1)
+	newRespData := strings.Replace(string(respData), "package vpc", "package cloudprovider", 1)
 	out.WriteString(newRespData)
 	defer out.Close()
 
