@@ -12,11 +12,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package cloudprovider
+package cache
 
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -24,45 +25,49 @@ import (
 	"knative.dev/pkg/logging"
 )
 
-// UnavailableOfferingsCache stores any offerings that return ICE (insufficient capacity errors) when
+const (
+	UnavailableOfferingsTTL = 3 * time.Minute
+)
+
+// UnavailableOfferings stores any offerings that return ICE (insufficient capacity errors) when
 // attempting to launch the capacity. These offerings are ignored as long as they are in the cache on
 // GetInstanceTypes responses
-type UnavailableOfferingsCache struct {
+type UnavailableOfferings struct {
 	// key: <capacityType>:<instanceType>:<zone>, value: struct{}{}
 	cache *cache.Cache
 }
 
-func NewUnavailableOfferingsCache() *UnavailableOfferingsCache {
-	return &UnavailableOfferingsCache{
-		cache: cache.New(UnfulfillableCapacityErrorCacheTTL, CacheCleanupInterval),
+func NewUnavailableOfferings(c *cache.Cache) *UnavailableOfferings {
+	return &UnavailableOfferings{
+		cache: c,
 	}
 }
 
 // IsUnavailable returns true if the offering appears in the cache
-func (u *UnavailableOfferingsCache) IsUnavailable(instanceType, zone, capacityType string) bool {
+func (u *UnavailableOfferings) IsUnavailable(instanceType, zone, capacityType string) bool {
 	_, found := u.cache.Get(u.key(instanceType, zone, capacityType))
 	return found
 }
 
 // MarkUnavailable communicates recently observed temporary capacity shortages in the provided offerings
-func (u *UnavailableOfferingsCache) MarkUnavailable(ctx context.Context, unavailableReason, instanceType, zone, capacityType string) {
+func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, unavailableReason, instanceType, zone, capacityType string) {
 	// even if the key is already in the cache, we still need to call Set to extend the cached entry's TTL
 	logging.FromContext(ctx).Debugf("%s for offering { instanceType: %s, zone: %s, capacityType: %s }, avoiding for %s",
 		unavailableReason,
 		instanceType,
 		zone,
 		capacityType,
-		UnfulfillableCapacityErrorCacheTTL)
+		UnavailableOfferingsTTL)
 	u.cache.SetDefault(u.key(instanceType, zone, capacityType), struct{}{})
 }
 
-func (u *UnavailableOfferingsCache) MarkUnavailableForFleetErr(ctx context.Context, fleetErr *ec2.CreateFleetError, capacityType string) {
+func (u *UnavailableOfferings) MarkUnavailableForFleetErr(ctx context.Context, fleetErr *ec2.CreateFleetError, capacityType string) {
 	instanceType := aws.StringValue(fleetErr.LaunchTemplateAndOverrides.Overrides.InstanceType)
 	zone := aws.StringValue(fleetErr.LaunchTemplateAndOverrides.Overrides.AvailabilityZone)
 	u.MarkUnavailable(ctx, aws.StringValue(fleetErr.ErrorCode), instanceType, zone, capacityType)
 }
 
 // key returns the cache key for all offerings in the cache
-func (u *UnavailableOfferingsCache) key(instanceType string, zone string, capacityType string) string {
+func (u *UnavailableOfferings) key(instanceType string, zone string, capacityType string) string {
 	return fmt.Sprintf("%s:%s:%s", capacityType, instanceType, zone)
 }
