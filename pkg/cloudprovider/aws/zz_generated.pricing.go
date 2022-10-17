@@ -18,9 +18,9 @@ package aws
 
 import "time"
 
-// generated at 2022-09-23T20:07:54Z for us-east-1
+// generated at 2022-10-17T17:47:28Z for us-east-1
 
-var initialPriceUpdate, _ = time.Parse(time.RFC3339, "2022-09-23T20:07:54Z")
+var initialPriceUpdate, _ = time.Parse(time.RFC3339, "2022-10-17T17:47:28Z")
 var initialOnDemandPrices = map[string]float64{
 	// a1 family
 	"a1.2xlarge": 0.204000, "a1.4xlarge": 0.408000, "a1.large": 0.051000, "a1.medium": 0.025500,
@@ -262,6 +262,8 @@ var initialOnDemandPrices = map[string]float64{
 	// t4g family
 	"t4g.2xlarge": 0.268800, "t4g.large": 0.067200, "t4g.medium": 0.033600, "t4g.micro": 0.008400,
 	"t4g.nano": 0.004200, "t4g.small": 0.016800, "t4g.xlarge": 0.134400,
+	// trn1 family
+	"trn1.2xlarge": 1.343750, "trn1.32xlarge": 21.500000,
 	// u-12tb1 family
 	"u-12tb1.112xlarge": 109.200000,
 	// u-3tb1 family
