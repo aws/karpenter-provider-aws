@@ -176,7 +176,11 @@ var _ = Describe("Pricing", func() {
 		_, ok := p.SpotPrice("c99.large", "test-zone-1b")
 		Expect(ok).To(BeFalse())
 	})
-	It("should query for  `Linux/UNIX` and `Linux/UNIX (Amazon VPC)`", func() {
+	It("should query for both `Linux/UNIX` and `Linux/UNIX (Amazon VPC)`", func() {
+		// If an account supports EC2 classic, then the non-classic instance types have a product
+		// description of Linux/UNIX (Amazon VPC)
+		// If it doesn't, they have a product description of Linux/UNIX. To work in both cases, we
+		// need to search for both values.
 		updateStart := time.Now()
 		fakeEC2API.DescribeSpotPriceHistoryOutput.Set(&ec2.DescribeSpotPriceHistoryOutput{
 			SpotPriceHistory: []*ec2.SpotPrice{
