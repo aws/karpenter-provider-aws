@@ -35,7 +35,7 @@ func main() {
 	opts := options{}
 	flag.StringVar(&opts.urlInput, "url", "https://raw.githubusercontent.com/aws/amazon-vpc-resource-controller-k8s/master/pkg/aws/vpc/limits.go",
 		"url of the raw vpc/limits.go file in the github.com/aws/amazon-vpc-resource-controller-k8s repo")
-	flag.StringVar(&opts.sourceOutput, "output", "pkg/cloudprovider/aws/zz_generated.vpclimits.go", "output location for the generated go source file")
+	flag.StringVar(&opts.sourceOutput, "output", "pkg/cloudproviders/aws/cloudprovider/zz_generated.vpclimits.go", "output location for the generated go source file")
 	flag.Parse()
 
 	limitsURL, err := url.Parse(opts.urlInput)
