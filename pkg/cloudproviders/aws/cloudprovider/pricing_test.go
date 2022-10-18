@@ -23,6 +23,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/pricing"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/samber/lo"
 
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/fake"
 )
@@ -174,5 +175,33 @@ var _ = Describe("Pricing", func() {
 
 		_, ok := p.SpotPrice("c99.large", "test-zone-1b")
 		Expect(ok).To(BeFalse())
+	})
+	It("should query for both `Linux/UNIX` and `Linux/UNIX (Amazon VPC)`", func() {
+		// If an account supports EC2 classic, then the non-classic instance types have a product
+		// description of Linux/UNIX (Amazon VPC)
+		// If it doesn't, they have a product description of Linux/UNIX. To work in both cases, we
+		// need to search for both values.
+		updateStart := time.Now()
+		fakeEC2API.DescribeSpotPriceHistoryOutput.Set(&ec2.DescribeSpotPriceHistoryOutput{
+			SpotPriceHistory: []*ec2.SpotPrice{
+				{
+					AvailabilityZone: aws.String("test-zone-1a"),
+					InstanceType:     aws.String("c99.large"),
+					SpotPrice:        aws.String("1.23"),
+					Timestamp:        &updateStart,
+				},
+			},
+		})
+		fakePricingAPI.GetProductsOutput.Set(&pricing.GetProductsOutput{
+			PriceList: []aws.JSONValue{
+				fake.NewOnDemandPrice("c98.large", 1.20),
+				fake.NewOnDemandPrice("c99.large", 1.23),
+			},
+		})
+		p := NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
+		Eventually(func() bool { return p.OnDemandLastUpdated().After(updateStart) }, 5*time.Second).Should(BeTrue())
+		inp := fakeEC2API.DescribeSpotPriceHistoryInput.Clone()
+		Expect(lo.Map(inp.ProductDescriptions, func(x *string, _ int) string { return *x })).
+			To(ContainElements("Linux/UNIX", "Linux/UNIX (Amazon VPC)"))
 	})
 })

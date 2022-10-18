@@ -368,7 +368,7 @@ func (p *PricingProvider) updateSpotPricing(ctx context.Context) error {
 
 	prices := map[string]map[string]float64{}
 	if err := p.ec2.DescribeSpotPriceHistoryPagesWithContext(ctx, &ec2.DescribeSpotPriceHistoryInput{
-		ProductDescriptions: []*string{aws.String("Linux/UNIX")},
+		ProductDescriptions: []*string{aws.String("Linux/UNIX"), aws.String("Linux/UNIX (Amazon VPC)")},
 		// get the latest spot price for each instance type
 		StartTime: aws.Time(time.Now()),
 	}, func(output *ec2.DescribeSpotPriceHistoryOutput, b bool) bool {
