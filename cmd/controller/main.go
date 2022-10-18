@@ -27,21 +27,21 @@ import (
 )
 
 func main() {
-	options, manager := operator.NewOptionsWithManagerOrDie()
-	cloudProvider := cloudprovider.CloudProvider(awscloudprovider.NewCloudProvider(options.Ctx, cloudprovider.Options{
-		ClientSet:     options.Clientset,
-		KubeClient:    options.KubeClient,
-		EventRecorder: options.BaseEventRecorder,
-		StartAsync:    options.StartAsync,
+	ctx, manager := operator.NewOrDie()
+	cloudProvider := cloudprovider.CloudProvider(awscloudprovider.NewCloudProvider(ctx, cloudprovider.Options{
+		ClientSet:     ctx.Clientset,
+		KubeClient:    ctx.KubeClient,
+		EventRecorder: ctx.BaseEventRecorder,
+		StartAsync:    ctx.StartAsync,
 	}))
 	if hp, ok := cloudProvider.(operator.HealthCheck); ok {
 		utilruntime.Must(manager.AddHealthzCheck("cloud-provider", hp.LivenessProbe))
 	}
 	cloudProvider = cloudprovidermetrics.Decorate(cloudProvider)
-	if err := operator.RegisterControllers(options.Ctx,
+	if err := operator.RegisterControllers(ctx,
 		manager,
-		controllers.GetControllers(options, cloudProvider)...,
-	).Start(options.Ctx); err != nil {
+		controllers.GetControllers(ctx, cloudProvider)...,
+	).Start(ctx); err != nil {
 		panic(fmt.Sprintf("Unable to start manager, %s", err))
 	}
 }

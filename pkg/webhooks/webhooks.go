@@ -36,8 +36,8 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
+	"github.com/aws/karpenter/pkg/operator/injection"
 	"github.com/aws/karpenter/pkg/utils/env"
-	"github.com/aws/karpenter/pkg/utils/injection"
 )
 
 type WebhookOpts struct {

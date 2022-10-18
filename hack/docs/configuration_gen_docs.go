@@ -21,7 +21,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/aws/karpenter/pkg/utils/options"
+	"github.com/aws/karpenter/pkg/operator/options"
 )
 
 func main() {

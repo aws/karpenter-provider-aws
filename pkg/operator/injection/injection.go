@@ -25,7 +25,7 @@ import (
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/signals"
 
-	"github.com/aws/karpenter/pkg/utils/options"
+	"github.com/aws/karpenter/pkg/operator/options"
 )
 
 type resourceKey struct{}

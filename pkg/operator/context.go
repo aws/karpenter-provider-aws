@@ -35,8 +35,8 @@ import (
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/config"
 	"github.com/aws/karpenter/pkg/events"
-	"github.com/aws/karpenter/pkg/utils/injection"
-	"github.com/aws/karpenter/pkg/utils/options"
+	"github.com/aws/karpenter/pkg/operator/injection"
+	"github.com/aws/karpenter/pkg/operator/options"
 	"github.com/aws/karpenter/pkg/utils/project"
 )
 
@@ -54,9 +54,11 @@ func init() {
 	utilruntime.Must(apis.AddToScheme(scheme))
 }
 
-// Options exposes shared components that are initialized by the startup.Initialize() call
-type Options struct {
-	Ctx               context.Context
+// Context exposes a global context of components that can be used across the binary
+// for initialization.
+type Context struct {
+	context.Context
+
 	EventRecorder     events.Recorder      // Decorated recorder for Karpenter core events
 	BaseEventRecorder record.EventRecorder // Recorder from controller manager for use by other components
 	Config            config.Config
@@ -67,7 +69,7 @@ type Options struct {
 	StartAsync        <-chan struct{}
 }
 
-func NewOptionsWithManagerOrDie() (Options, manager.Manager) {
+func NewOrDie() (Context, manager.Manager) {
 	opts := options.New().MustParse()
 
 	// Setup Client
@@ -105,8 +107,8 @@ func NewOptionsWithManagerOrDie() (Options, manager.Manager) {
 	recorder = events.NewLoadSheddingRecorder(recorder)
 	recorder = events.NewDedupeRecorder(recorder)
 
-	return Options{
-		Ctx:               ctx,
+	return Context{
+		Context:           ctx,
 		EventRecorder:     recorder,
 		BaseEventRecorder: baseRecorder,
 		Config:            cfg,
