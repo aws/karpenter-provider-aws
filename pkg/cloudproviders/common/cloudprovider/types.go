@@ -20,16 +20,18 @@ import (
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter/pkg/scheduling"
+	"github.com/aws/karpenter-core/pkg/scheduling"
 )
 
 // Options are injected into cloud providers' factories
 type Options struct {
-	ClientSet  *kubernetes.Clientset
-	KubeClient client.Client
+	ClientSet     *kubernetes.Clientset
+	KubeClient    client.Client
+	EventRecorder record.EventRecorder
 	// StartAsync is a channel that is closed when leader election has been won.  This is a signal to start any  async
 	// processing that should only occur while the cloud provider is the leader.
 	StartAsync <-chan struct{}

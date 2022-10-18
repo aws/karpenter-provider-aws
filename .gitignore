@@ -1,14 +1,16 @@
-/karpenter
+# Go toolchain
 coverage.out
 coverage.html
 *.test
-*.csv
+*.cpuprofile
+*.heapprofile
+go.work
+go.work.sum
 
-# Common in OSs and IDEs
+# Environment
 .idea
 .vscode
 .DS_Store
 
-# Go Benchmarking
-*.cpuprofile
-*.heapprofile
+# Project Specific
+*.csv
