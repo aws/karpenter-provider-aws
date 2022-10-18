@@ -40,7 +40,6 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 
-	"github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider/fake"
 	"github.com/aws/karpenter/pkg/controllers/consolidation"
@@ -108,7 +107,7 @@ var _ = BeforeEach(func() {
 	cloudProvider.InstanceTypes = fake.InstanceTypesAssorted()
 	onDemandInstances = lo.Filter(cloudProvider.InstanceTypes, func(i cloudprovider.InstanceType, _ int) bool {
 		for _, o := range cloudprovider.AvailableOfferings(i) {
-			if o.CapacityType == v1alpha1.CapacityTypeOnDemand {
+			if o.CapacityType == v1alpha5.CapacityTypeOnDemand {
 				return true
 			}
 		}
@@ -410,7 +409,7 @@ var _ = Describe("Replace Nodes", func() {
 			Name: "current-on-demand",
 			Offerings: []cloudprovider.Offering{
 				{
-					CapacityType: v1alpha1.CapacityTypeOnDemand,
+					CapacityType: v1alpha5.CapacityTypeOnDemand,
 					Zone:         "test-zone-1a",
 					Price:        0.5,
 					Available:    false,
@@ -421,19 +420,19 @@ var _ = Describe("Replace Nodes", func() {
 			Name: "potential-spot-replacement",
 			Offerings: []cloudprovider.Offering{
 				{
-					CapacityType: v1alpha1.CapacityTypeSpot,
+					CapacityType: v1alpha5.CapacityTypeSpot,
 					Zone:         "test-zone-1a",
 					Price:        1.0,
 					Available:    true,
 				},
 				{
-					CapacityType: v1alpha1.CapacityTypeSpot,
+					CapacityType: v1alpha5.CapacityTypeSpot,
 					Zone:         "test-zone-1b",
 					Price:        0.2,
 					Available:    true,
 				},
 				{
-					CapacityType: v1alpha1.CapacityTypeSpot,
+					CapacityType: v1alpha5.CapacityTypeSpot,
 					Zone:         "test-zone-1c",
 					Price:        0.4,
 					Available:    true,
@@ -498,7 +497,7 @@ var _ = Describe("Replace Nodes", func() {
 			Name: "current-on-demand",
 			Offerings: []cloudprovider.Offering{
 				{
-					CapacityType: v1alpha1.CapacityTypeOnDemand,
+					CapacityType: v1alpha5.CapacityTypeOnDemand,
 					Zone:         "test-zone-1a",
 					Price:        0.5,
 					Available:    false,
@@ -509,25 +508,25 @@ var _ = Describe("Replace Nodes", func() {
 			Name: "on-demand-replacement",
 			Offerings: []cloudprovider.Offering{
 				{
-					CapacityType: v1alpha1.CapacityTypeOnDemand,
+					CapacityType: v1alpha5.CapacityTypeOnDemand,
 					Zone:         "test-zone-1a",
 					Price:        0.6,
 					Available:    true,
 				},
 				{
-					CapacityType: v1alpha1.CapacityTypeOnDemand,
+					CapacityType: v1alpha5.CapacityTypeOnDemand,
 					Zone:         "test-zone-1b",
 					Price:        0.6,
 					Available:    true,
 				},
 				{
-					CapacityType: v1alpha1.CapacityTypeSpot,
+					CapacityType: v1alpha5.CapacityTypeSpot,
 					Zone:         "test-zone-1b",
 					Price:        0.2,
 					Available:    true,
 				},
 				{
-					CapacityType: v1alpha1.CapacityTypeSpot,
+					CapacityType: v1alpha5.CapacityTypeSpot,
 					Zone:         "test-zone-1c",
 					Price:        0.3,
 					Available:    true,
@@ -569,7 +568,7 @@ var _ = Describe("Replace Nodes", func() {
 				{
 					Key:      v1alpha5.LabelCapacityType,
 					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{v1alpha1.CapacityTypeOnDemand},
+					Values:   []string{v1alpha5.CapacityTypeOnDemand},
 				},
 			},
 		})

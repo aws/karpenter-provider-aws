@@ -24,7 +24,6 @@ import (
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 
 	"github.com/aws/karpenter-core/pkg/scheduling"
-	"github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
 
 	v1 "k8s.io/api/core/v1"
@@ -80,9 +79,9 @@ func disruptionCost(ctx context.Context, pods []*v1.Pod) float64 {
 // to get the launch price; else, it uses the on-demand launch price
 func worstLaunchPrice(ofs []cloudprovider.Offering, reqs scheduling.Requirements) float64 {
 	// We prefer to launch spot offerings, so we will get the worst price based on the node requirements
-	if reqs.Get(v1alpha5.LabelCapacityType).Has(v1alpha1.CapacityTypeSpot) {
+	if reqs.Get(v1alpha5.LabelCapacityType).Has(v1alpha5.CapacityTypeSpot) {
 		spotOfferings := lo.Filter(ofs, func(of cloudprovider.Offering, _ int) bool {
-			return of.CapacityType == v1alpha1.CapacityTypeSpot && reqs.Get(v1.LabelTopologyZone).Has(of.Zone)
+			return of.CapacityType == v1alpha5.CapacityTypeSpot && reqs.Get(v1.LabelTopologyZone).Has(of.Zone)
 		})
 		if len(spotOfferings) > 0 {
 			return lo.MaxBy(spotOfferings, func(of1, of2 cloudprovider.Offering) bool {
@@ -90,9 +89,9 @@ func worstLaunchPrice(ofs []cloudprovider.Offering, reqs scheduling.Requirements
 			}).Price
 		}
 	}
-	if reqs.Get(v1alpha5.LabelCapacityType).Has(v1alpha1.CapacityTypeOnDemand) {
+	if reqs.Get(v1alpha5.LabelCapacityType).Has(v1alpha5.CapacityTypeOnDemand) {
 		onDemandOfferings := lo.Filter(ofs, func(of cloudprovider.Offering, _ int) bool {
-			return of.CapacityType == v1alpha1.CapacityTypeOnDemand && reqs.Get(v1.LabelTopologyZone).Has(of.Zone)
+			return of.CapacityType == v1alpha5.CapacityTypeOnDemand && reqs.Get(v1.LabelTopologyZone).Has(of.Zone)
 		})
 		if len(onDemandOfferings) > 0 {
 			return lo.MaxBy(onDemandOfferings, func(of1, of2 cloudprovider.Offering) bool {

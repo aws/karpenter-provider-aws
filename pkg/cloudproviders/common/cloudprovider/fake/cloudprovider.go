@@ -24,7 +24,6 @@ import (
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 
 	"github.com/aws/karpenter-core/pkg/scheduling"
-	"github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
 	"github.com/aws/karpenter/pkg/test"
 
@@ -91,12 +90,6 @@ func (c *CloudProvider) GetInstanceTypes(_ context.Context, provisioner *v1alpha
 			Name: "default-instance-type",
 		}),
 		NewInstanceType(InstanceTypeOptions{
-			Name: "pod-eni-instance-type",
-			Resources: map[v1.ResourceName]resource.Quantity{
-				v1alpha1.ResourceAWSPodENI: resource.MustParse("1"),
-			},
-		}),
-		NewInstanceType(InstanceTypeOptions{
 			Name: "small-instance-type",
 			Resources: map[v1.ResourceName]resource.Quantity{
 				v1.ResourceCPU:    resource.MustParse("2"),
@@ -104,20 +97,14 @@ func (c *CloudProvider) GetInstanceTypes(_ context.Context, provisioner *v1alpha
 			},
 		}),
 		NewInstanceType(InstanceTypeOptions{
-			Name: "nvidia-gpu-instance-type",
+			Name: "gpu-vendor-instance-type",
 			Resources: map[v1.ResourceName]resource.Quantity{
-				v1alpha1.ResourceNVIDIAGPU: resource.MustParse("2"),
+				ResourceGPUVendorA: resource.MustParse("2"),
 			}}),
 		NewInstanceType(InstanceTypeOptions{
-			Name: "amd-gpu-instance-type",
+			Name: "gpu-vendor-b-instance-type",
 			Resources: map[v1.ResourceName]resource.Quantity{
-				v1alpha1.ResourceAMDGPU: resource.MustParse("2"),
-			},
-		}),
-		NewInstanceType(InstanceTypeOptions{
-			Name: "aws-neuron-instance-type",
-			Resources: map[v1.ResourceName]resource.Quantity{
-				v1alpha1.ResourceAWSNeuron: resource.MustParse("2"),
+				ResourceGPUVendorB: resource.MustParse("2"),
 			},
 		}),
 		NewInstanceType(InstanceTypeOptions{
