@@ -48,7 +48,7 @@ test: ## Run tests
 	go test -run=${TEST_FILTER} ./pkg/...
 
 battletest: ## Run randomized, racing, code coveraged, tests
-	go test -run=${TEST_FILTER} ./pkg/... \
+	go test -v -run=${TEST_FILTER} ./pkg/... \
 		-race \
 		-cover -coverprofile=coverage.out -outputdir=. -coverpkg=./pkg/... \
 		-ginkgo.randomizeAllSpecs \
