@@ -34,20 +34,20 @@ func init() {
 }
 
 func GetControllers(opts operator.Options, cluster *state.Cluster, cloudProvider cloudprovider.CloudProvider) []operator.Controller {
-	provisioner := provisioning.NewProvisioner(opts.Ctx, opts.Config, opts.KubeClient, opts.Clientset.CoreV1(), opts.Recorder, cloudProvider, cluster)
+	provisioner := provisioning.NewProvisioner(opts.Ctx, opts.Config, opts.KubeClient, opts.Clientset.CoreV1(), opts.EventRecorder, cloudProvider, cluster)
 
 	metricsstate.StartMetricScraper(opts.Ctx, cluster)
 
 	return []operator.Controller{
-		provisioning.NewController(opts.KubeClient, provisioner, opts.Recorder),
+		provisioning.NewController(opts.KubeClient, provisioner, opts.EventRecorder),
 		state.NewNodeController(opts.KubeClient, cluster),
 		state.NewPodController(opts.KubeClient, cluster),
 		state.NewProvisionerController(opts.KubeClient, cluster),
 		node.NewController(opts.Clock, opts.KubeClient, cloudProvider, cluster),
-		termination.NewController(opts.Ctx, opts.Clock, opts.KubeClient, opts.Clientset.CoreV1(), opts.Recorder, cloudProvider),
+		termination.NewController(opts.Ctx, opts.Clock, opts.KubeClient, opts.Clientset.CoreV1(), opts.EventRecorder, cloudProvider),
 		metricspod.NewController(opts.KubeClient),
 		metricsprovisioner.NewController(opts.KubeClient),
 		counter.NewController(opts.KubeClient, cluster),
-		consolidation.NewController(opts.Clock, opts.KubeClient, provisioner, cloudProvider, opts.Recorder, cluster),
+		consolidation.NewController(opts.Clock, opts.KubeClient, provisioner, cloudProvider, opts.EventRecorder, cluster),
 	}
 }

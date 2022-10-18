@@ -201,6 +201,33 @@ var _ = Describe("LaunchTemplates", func() {
 			Expect(node.Labels).To(HaveKey(v1.LabelArchStable))
 			Expect(node.Labels).To(HaveKey(v1.LabelInstanceTypeStable))
 		})
+		It("should apply provider labels to the node", func() {
+			opts.AWSENILimitedPodDensity = false
+			fakeEC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
+				{
+					ImageId:      aws.String("ami-123"),
+					Architecture: aws.String("x86_64"),
+					CreationDate: aws.String("2022-08-15T12:00:00Z"),
+				},
+				{
+					ImageId:      aws.String("ami-456"),
+					Architecture: aws.String("arm64"),
+					CreationDate: aws.String("2022-08-10T12:00:00Z"),
+				},
+			}})
+			nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+				UserData:    nil,
+				AMISelector: map[string]string{"karpenter.sh/discovery": "my-cluster"},
+				AWS:         *provider,
+			})
+			ExpectApplied(ctx, env.Client, nodeTemplate)
+			newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
+			ExpectApplied(ctx, env.Client, newProvisioner)
+			Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(newProvisioner), newProvisioner)).To(Succeed())
+			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(node.Labels).To(HaveKeyWithValue(awsv1alpha1.LabelInstanceAMIID, "ami-123"))
+		})
 	})
 	Context("Tags", func() {
 		It("should tag with provisioner name", func() {

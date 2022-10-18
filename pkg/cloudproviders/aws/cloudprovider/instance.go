@@ -38,9 +38,9 @@ import (
 	awserrors "github.com/aws/karpenter/pkg/cloudproviders/aws/errors"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/utils"
 
+	"github.com/aws/karpenter-core/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
-	"github.com/aws/karpenter/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/options"
@@ -340,6 +340,7 @@ func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Ins
 					labels[key] = req.Values()[0]
 				}
 			}
+			labels[v1alpha1.LabelInstanceAMIID] = aws.StringValue(instance.ImageId)
 			labels[v1.LabelTopologyZone] = aws.StringValue(instance.Placement.AvailabilityZone)
 			labels[v1alpha5.LabelCapacityType] = getCapacityType(instance)
 

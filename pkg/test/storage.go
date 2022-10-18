@@ -17,13 +17,12 @@ package test
 import (
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/aws"
-
 	"github.com/imdario/mergo"
 	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"knative.dev/pkg/ptr"
 )
 
 type PersistentVolumeOptions struct {
@@ -111,7 +110,7 @@ func StorageClass(overrides ...StorageClassOptions) *storagev1.StorageClass {
 		allowedTopologies = []v1.TopologySelectorTerm{{MatchLabelExpressions: []v1.TopologySelectorLabelRequirement{{Key: v1.LabelTopologyZone, Values: options.Zones}}}}
 	}
 	if options.Provisioner == nil {
-		options.Provisioner = aws.String("test-provisioner")
+		options.Provisioner = ptr.String("test-provisioner")
 	}
 
 	return &storagev1.StorageClass{

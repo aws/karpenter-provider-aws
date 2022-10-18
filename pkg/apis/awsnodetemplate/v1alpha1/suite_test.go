@@ -20,10 +20,10 @@ import (
 	"testing"
 
 	"github.com/Pallinder/go-randomdata"
-	"github.com/aws/aws-sdk-go/aws"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
+	"knative.dev/pkg/ptr"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -53,8 +53,8 @@ var _ = Describe("Validation", func() {
 			Expect(ant.Validate(ctx)).To(Succeed())
 		})
 		It("should fail if launch template is also specified", func() {
-			ant.Spec.LaunchTemplateName = aws.String("someLaunchTemplate")
-			ant.Spec.UserData = aws.String("someUserData")
+			ant.Spec.LaunchTemplateName = ptr.String("someLaunchTemplate")
+			ant.Spec.UserData = ptr.String("someUserData")
 			Expect(ant.Validate(ctx)).To(Not(Succeed()))
 		})
 	})

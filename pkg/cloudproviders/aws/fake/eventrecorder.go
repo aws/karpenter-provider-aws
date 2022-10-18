@@ -17,49 +17,37 @@ package fake
 import (
 	"sync/atomic"
 
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/tools/record"
-
-	"github.com/aws/karpenter/pkg/test"
+	"github.com/aws/karpenter/pkg/cloudproviders/aws/controllers/events"
+	"github.com/aws/karpenter/pkg/cloudproviders/aws/controllers/notification"
 )
 
 // EventRecorder is a mock event recorder that is used to facilitate testing.
 type EventRecorder struct {
-	test.Recorder
-
 	EC2SpotInterruptionWarningCalled     atomic.Int64
 	EC2SpotRebalanceRecommendationCalled atomic.Int64
 	EC2HealthWarningCalled               atomic.Int64
 	EC2StateStoppingCalled               atomic.Int64
 	EC2StateTerminatingCalled            atomic.Int64
+	TerminatingOnNotificationCalled      atomic.Int64
 }
-
-func (e *EventRecorder) EventRecorder() record.EventRecorder { return e.Recorder.EventRecorder() }
-
-func (e *EventRecorder) EC2SpotInterruptionWarning(_ *v1.Node) {
-	e.EC2SpotInterruptionWarningCalled.Add(1)
-}
-
-func (e *EventRecorder) EC2SpotRebalanceRecommendation(_ *v1.Node) {
-	e.EC2SpotRebalanceRecommendationCalled.Add(1)
-}
-
-func (e *EventRecorder) EC2HealthWarning(_ *v1.Node) {
-	e.EC2HealthWarningCalled.Add(1)
-}
-
-func (e *EventRecorder) EC2StateTerminating(_ *v1.Node) {
-	e.EC2StateTerminatingCalled.Add(1)
-}
-
-func (e *EventRecorder) EC2StateStopping(_ *v1.Node) {
-	e.EC2StateStoppingCalled.Add(1)
-}
-
-func (e *EventRecorder) TerminatingNodeOnNotification(_ *v1.Node) {}
 
 func NewEventRecorder() *EventRecorder {
-	return &EventRecorder{
-		Recorder: *test.NewRecorder(),
+	return &EventRecorder{}
+}
+
+func (e *EventRecorder) Create(evt events.Event) {
+	switch evt.Reason() {
+	case notification.EC2SpotInterruptionWarning{}.Reason():
+		e.EC2SpotInterruptionWarningCalled.Add(1)
+	case notification.EC2SpotRebalanceRecommendation{}.Reason():
+		e.EC2SpotRebalanceRecommendationCalled.Add(1)
+	case notification.EC2HealthWarning{}.Reason():
+		e.EC2HealthWarningCalled.Add(1)
+	case notification.EC2StateTerminating{}.Reason():
+		e.EC2StateTerminatingCalled.Add(1)
+	case notification.EC2StateStopping{}.Reason():
+		e.EC2StateStoppingCalled.Add(1)
+	case notification.TerminatingNodeOnNotification{}.Reason():
+		e.TerminatingOnNotificationCalled.Add(1)
 	}
 }

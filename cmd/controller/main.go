@@ -32,9 +32,10 @@ import (
 func main() {
 	options, manager := operator.NewOptionsWithManagerOrDie()
 	awsOptions := aws.NewOptionsOrDie(options.Ctx, cloudprovider.Options{
-		ClientSet:  options.Clientset,
-		KubeClient: options.KubeClient,
-		StartAsync: options.StartAsync,
+		ClientSet:     options.Clientset,
+		KubeClient:    options.KubeClient,
+		EventRecorder: options.BaseEventRecorder,
+		StartAsync:    options.StartAsync,
 	})
 	cloudProvider := cloudprovider.CloudProvider(awscloudprovider.New(options.Ctx, awsOptions))
 	if hp, ok := cloudProvider.(operator.HealthCheck); ok {
@@ -51,7 +52,6 @@ func main() {
 		Config:     options.Config,
 		Clock:      options.Clock,
 		Cluster:    cluster,
-		Recorder:   options.Recorder,
 		KubeClient: options.KubeClient,
 	})...)
 

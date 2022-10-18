@@ -52,6 +52,7 @@ type EC2Behavior struct {
 	DescribeInstanceTypesOutput         AtomicPtr[ec2.DescribeInstanceTypesOutput]
 	DescribeInstanceTypeOfferingsOutput AtomicPtr[ec2.DescribeInstanceTypeOfferingsOutput]
 	DescribeAvailabilityZonesOutput     AtomicPtr[ec2.DescribeAvailabilityZonesOutput]
+	DescribeSpotPriceHistoryInput       AtomicPtr[ec2.DescribeSpotPriceHistoryInput]
 	DescribeSpotPriceHistoryOutput      AtomicPtr[ec2.DescribeSpotPriceHistoryOutput]
 	CalledWithCreateFleetInput          AtomicPtrSlice[ec2.CreateFleetInput]
 	CalledWithCreateLaunchTemplateInput AtomicPtrSlice[ec2.CreateLaunchTemplateInput]
@@ -86,6 +87,7 @@ func (e *EC2API) Reset() {
 	e.CalledWithCreateFleetInput.Reset()
 	e.CalledWithCreateLaunchTemplateInput.Reset()
 	e.CalledWithDescribeImagesInput.Reset()
+	e.DescribeSpotPriceHistoryInput.Reset()
 	e.DescribeSpotPriceHistoryOutput.Reset()
 	e.Instances.Range(func(k, v any) bool {
 		e.Instances.Delete(k)
@@ -138,9 +140,16 @@ func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFlee
 			if skipInstance {
 				continue
 			}
+			amiID := aws.String("")
+			if e.CalledWithCreateLaunchTemplateInput.Len() > 0 {
+				lt := e.CalledWithCreateLaunchTemplateInput.Pop()
+				amiID = lt.LaunchTemplateData.ImageId
+				e.CalledWithCreateLaunchTemplateInput.Add(lt)
+			}
 			instanceState := ec2.InstanceStateNameRunning
 			for i := 0; i < int(*input.TargetCapacitySpecification.TotalTargetCapacity); i++ {
 				instance := &ec2.Instance{
+					ImageId:               aws.String(*amiID),
 					InstanceId:            aws.String(test.RandomName()),
 					Placement:             &ec2.Placement{AvailabilityZone: input.LaunchTemplateConfigs[0].Overrides[0].AvailabilityZone},
 					PrivateDnsName:        aws.String(randomdata.IpV4Address()),
@@ -687,7 +696,8 @@ func (e *EC2API) DescribeInstanceTypeOfferingsPagesWithContext(_ context.Context
 	return nil
 }
 
-func (e *EC2API) DescribeSpotPriceHistoryPagesWithContext(_ aws.Context, _ *ec2.DescribeSpotPriceHistoryInput, fn func(*ec2.DescribeSpotPriceHistoryOutput, bool) bool, opts ...request.Option) error {
+func (e *EC2API) DescribeSpotPriceHistoryPagesWithContext(_ aws.Context, in *ec2.DescribeSpotPriceHistoryInput, fn func(*ec2.DescribeSpotPriceHistoryOutput, bool) bool, opts ...request.Option) error {
+	e.DescribeSpotPriceHistoryInput.Set(in)
 	if !e.NextError.IsNil() {
 		defer e.NextError.Reset()
 		return e.NextError.Get()

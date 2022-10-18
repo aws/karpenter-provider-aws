@@ -34,15 +34,15 @@ import (
 )
 
 const (
-	// cacheTTL restricts QPS to AWS APIs to this interval for verifying setup
+	// CacheTTL restricts QPS to AWS APIs to this interval for verifying setup
 	// resources. This value represents the maximum eventual consistency between
 	// AWS actual state and the controller's ability to provision those
 	// resources. Cache hits enable faster provisioning and reduced API load on
 	// AWS APIs, which can have a serious impact on performance and scalability.
 	// DO NOT CHANGE THIS VALUE WITHOUT DUE CONSIDERATION
-	cacheTTL = 60 * time.Second
-	// cacheCleanupInterval triggers cache cleanup (lazy eviction) at this interval.
-	cacheCleanupInterval = 10 * time.Minute
+	CacheTTL = 60 * time.Second
+	// CacheCleanupInterval triggers cache cleanup (lazy eviction) at this interval.
+	CacheCleanupInterval = 10 * time.Minute
 )
 
 type Options struct {
@@ -71,9 +71,7 @@ func NewOptionsOrDie(ctx context.Context, options cloudprovider.Options) Options
 	return Options{
 		Options:                   options,
 		Session:                   sess,
-		UnavailableOfferingsCache: awscache.NewUnavailableOfferings(cache.New(awscache.UnavailableOfferingsTTL, cacheCleanupInterval)),
-		CacheCleanupInterval:      cacheCleanupInterval,
-		CacheTTL:                  cacheTTL,
+		UnavailableOfferingsCache: awscache.NewUnavailableOfferings(cache.New(awscache.UnavailableOfferingsTTL, CacheCleanupInterval)),
 	}
 }
 

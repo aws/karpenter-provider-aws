@@ -35,7 +35,7 @@ import (
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider/fake"
 	pscheduling "github.com/aws/karpenter/pkg/controllers/provisioning/scheduling"
 	"github.com/aws/karpenter/pkg/controllers/state"
-	"github.com/aws/karpenter/pkg/scheduling"
+	"github.com/aws/karpenter-core/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/test"
 
 	"go.uber.org/zap"

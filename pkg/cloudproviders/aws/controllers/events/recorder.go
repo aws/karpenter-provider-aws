@@ -15,65 +15,52 @@ limitations under the License.
 package events
 
 import (
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/tools/record"
+	"fmt"
 
-	"github.com/aws/karpenter/pkg/events"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/record"
 )
 
-type recorder struct {
-	rec record.EventRecorder
-	events.Recorder
-}
+type EventType byte
 
-type Recorder interface {
-	events.Recorder
+const (
+	_ EventType = iota
+	NormalType
+	WarningType
+)
 
-	// EC2SpotInterruptionWarning is called when EC2 sends a spot interruption 2-minute warning for the node from the SQS queue
-	EC2SpotInterruptionWarning(*v1.Node)
-	// EC2SpotRebalanceRecommendation is called when EC2 sends a rebalance recommendation for the node from the SQS queue
-	EC2SpotRebalanceRecommendation(*v1.Node)
-	// EC2HealthWarning is called when EC2 sends a health warning notification for a health issue for the node from the SQS queue
-	EC2HealthWarning(*v1.Node)
-	// EC2StateTerminating is called when EC2 sends a state change notification for a node that is changing to a terminating/shutting-down state
-	EC2StateTerminating(*v1.Node)
-	// EC2StateStopping is called when EC2 sends a state change notification for a node that is changing to a stopping/stopped state
-	EC2StateStopping(*v1.Node)
-	// TerminatingNodeOnNotification is called when a notification that is sent to the notification controller triggers node deletion
-	TerminatingNodeOnNotification(*v1.Node)
-}
-
-func NewRecorder(r events.Recorder) Recorder {
-	return recorder{
-		rec:      r.EventRecorder(),
-		Recorder: r,
+func (e EventType) String() string {
+	switch e {
+	case NormalType:
+		return "Normal"
+	case WarningType:
+		return "Warning"
+	default:
+		return fmt.Sprintf("Unsupported EventType %d", e)
 	}
 }
 
-func (r recorder) EventRecorder() record.EventRecorder {
-	return r.rec
+type Event interface {
+	InvolvedObject() runtime.Object
+	Type() EventType
+	Reason() string
+	Message() string
 }
 
-func (r recorder) EC2SpotInterruptionWarning(node *v1.Node) {
-	r.rec.Eventf(node, "Normal", "EC2SpotInterruptionWarning", "Node %s event: EC2 triggered a spot interruption warning for the node", node.Name)
+type Recorder interface {
+	Create(evt Event)
 }
 
-func (r recorder) EC2SpotRebalanceRecommendation(node *v1.Node) {
-	r.rec.Eventf(node, "Normal", "EC2RebalanceRecommendation", "Node %s event: EC2 triggered a spot rebalance recommendation for the node", node.Name)
+type recorder struct {
+	rec record.EventRecorder
 }
 
-func (r recorder) EC2HealthWarning(node *v1.Node) {
-	r.rec.Eventf(node, "Normal", "EC2HealthWarning", "Node %s event: EC2 triggered a health warning for the node", node.Name)
+func NewRecorder(r record.EventRecorder) Recorder {
+	return &recorder{
+		rec: r,
+	}
 }
 
-func (r recorder) EC2StateTerminating(node *v1.Node) {
-	r.rec.Eventf(node, "Normal", "EC2StateTerminating", `Node %s event: EC2 node is terminating"`, node.Name)
-}
-
-func (r recorder) EC2StateStopping(node *v1.Node) {
-	r.rec.Eventf(node, "Normal", "EC2StateStopping", `Node %s event: EC2 node is stopping"`, node.Name)
-}
-
-func (r recorder) TerminatingNodeOnNotification(node *v1.Node) {
-	r.rec.Eventf(node, "Normal", "AWSNotificationTerminateNode", "Node %s event: Notification triggered termination for the node", node.Name)
+func (r *recorder) Create(evt Event) {
+	r.rec.Eventf(evt.InvolvedObject(), evt.Type().String(), evt.Reason(), evt.Message())
 }

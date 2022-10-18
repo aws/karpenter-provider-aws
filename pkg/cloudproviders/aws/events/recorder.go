@@ -12,19 +12,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package events
 
 import (
-	"context"
-
-	"github.com/aws/karpenter/pkg/cloudproviders/aws"
-	awscloudprovider "github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider"
-	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
-	"github.com/aws/karpenter/pkg/webhooks"
+	"k8s.io/client-go/tools/record"
 )
 
-func main() {
-	webhooks.Initialize(func(ctx context.Context, o cloudprovider.Options) cloudprovider.CloudProvider {
-		return awscloudprovider.New(ctx, aws.NewOptionsOrDie(ctx, o))
-	})
+// Recorder is used to record events to the Kubernetes Event API
+type Recorder interface {
+}
+
+type recorder struct {
+	rec record.EventRecorder
+}
+
+func NewRecorder(r record.EventRecorder) Recorder {
+	return recorder{
+		rec: r,
+	}
 }

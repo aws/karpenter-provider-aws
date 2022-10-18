@@ -240,7 +240,7 @@ func (c *Controller) deleteInstance(ctx context.Context, node *v1.Node) error {
 	if err := c.kubeClient.Delete(ctx, node); err != nil {
 		return fmt.Errorf("deleting the node on notification, %w", err)
 	}
-	c.recorder.TerminatingNodeOnNotification(node)
+	c.recorder.Create(NewTerminatingNodeOnNotification(node))
 	metrics.NodesTerminatedCounter.WithLabelValues(terminationReasonLabel).Inc()
 	return nil
 }
@@ -248,20 +248,20 @@ func (c *Controller) deleteInstance(ctx context.Context, node *v1.Node) error {
 func (c *Controller) notifyForEvent(evt event.Interface, n *v1.Node) {
 	switch evt.Kind() {
 	case event.RebalanceRecommendationKind:
-		c.recorder.EC2SpotRebalanceRecommendation(n)
+		c.recorder.Create(NewEC2SpotRebalanceRecommendation(n))
 
 	case event.ScheduledChangeKind:
-		c.recorder.EC2HealthWarning(n)
+		c.recorder.Create(NewEC2HealthWarning(n))
 
 	case event.SpotInterruptionKind:
-		c.recorder.EC2SpotInterruptionWarning(n)
+		c.recorder.Create(NewEC2SpotInterruptionWarning(n))
 
 	case event.StateChangeKind:
 		typed := evt.(statechange.Event)
 		if lo.Contains([]string{"stopping", "stopped"}, typed.State()) {
-			c.recorder.EC2StateStopping(n)
+			c.recorder.Create(NewEC2StateStopping(n))
 		} else {
-			c.recorder.EC2StateTerminating(n)
+			c.recorder.Create(NewEC2StateTerminating(n))
 		}
 
 	default:

@@ -17,11 +17,11 @@ package test
 import (
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/imdario/mergo"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"knative.dev/pkg/ptr"
 )
 
 type DeploymentOptions struct {
@@ -53,7 +53,7 @@ func Deployment(overrides ...DeploymentOptions) *appsv1.Deployment {
 	dep := &appsv1.Deployment{
 		ObjectMeta: objectMeta,
 		Spec: appsv1.DeploymentSpec{
-			Replicas: aws.Int32(options.Replicas),
+			Replicas: ptr.Int32(options.Replicas),
 			Selector: &metav1.LabelSelector{MatchLabels: options.PodOptions.Labels},
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{

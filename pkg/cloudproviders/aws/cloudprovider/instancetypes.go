@@ -22,10 +22,10 @@ import (
 	"time"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
-	aws2 "github.com/aws/karpenter/pkg/cloudproviders/aws/cache"
+	awscache "github.com/aws/karpenter/pkg/cloudproviders/aws/cache"
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
 
-	"github.com/aws/aws-sdk-go/aws"
+	sdk "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
@@ -34,6 +34,8 @@ import (
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
+
+	"github.com/aws/karpenter/pkg/cloudproviders/aws"
 
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/utils/functional"
@@ -57,12 +59,12 @@ type InstanceTypeProvider struct {
 	// Has one cache entry for all the zones for each subnet selector (key: InstanceTypesZonesCacheKeyPrefix:<hash_of_selector>)
 	// Values cached *before* considering insufficient capacity errors from the unavailableOfferings cache.
 	cache                *cache.Cache
-	unavailableOfferings *aws2.UnavailableOfferings
+	unavailableOfferings *awscache.UnavailableOfferings
 	cm                   *pretty.ChangeMonitor
 }
 
 func NewInstanceTypeProvider(ctx context.Context, sess *session.Session, options cloudprovider.Options,
-	ec2api ec2iface.EC2API, subnetProvider *SubnetProvider, unavailableOfferings *aws2.UnavailableOfferings) *InstanceTypeProvider {
+	ec2api ec2iface.EC2API, subnetProvider *SubnetProvider, unavailableOfferings *awscache.UnavailableOfferings) *InstanceTypeProvider {
 	return &InstanceTypeProvider{
 		ec2api:         ec2api,
 		region:         *sess.Config.Region,
@@ -72,7 +74,7 @@ func NewInstanceTypeProvider(ctx context.Context, sess *session.Session, options
 			ec2api,
 			*sess.Config.Region,
 			injection.GetOptions(ctx).AWSIsolatedVPC, options.StartAsync),
-		cache:                cache.New(InstanceTypesAndZonesCacheTTL, CacheCleanupInterval),
+		cache:                cache.New(InstanceTypesAndZonesCacheTTL, aws.CacheCleanupInterval),
 		unavailableOfferings: unavailableOfferings,
 		cm:                   pretty.NewChangeMonitor(),
 	}
@@ -95,7 +97,7 @@ func (p *InstanceTypeProvider) Get(ctx context.Context, provider *v1alpha1.AWS, 
 	var result []cloudprovider.InstanceType
 
 	for _, i := range instanceTypes {
-		instanceTypeName := aws.StringValue(i.InstanceType)
+		instanceTypeName := sdk.StringValue(i.InstanceType)
 		instanceType := NewInstanceType(ctx, i, kc, p.region, provider, p.createOfferings(ctx, i, instanceTypeZones[instanceTypeName]))
 		result = append(result, instanceType)
 	}
@@ -119,7 +121,7 @@ func (p *InstanceTypeProvider) createOfferings(ctx context.Context, instanceType
 	offerings := []cloudprovider.Offering{}
 	for zone := range zones {
 		// while usage classes should be a distinct set, there's no guarantee of that
-		for capacityType := range sets.NewString(aws.StringValueSlice(instanceType.SupportedUsageClasses)...) {
+		for capacityType := range sets.NewString(sdk.StringValueSlice(instanceType.SupportedUsageClasses)...) {
 			// exclude any offerings that have recently seen an insufficient capacity error from EC2
 			isUnavailable := p.unavailableOfferings.IsUnavailable(*instanceType.InstanceType, zone, capacityType)
 			var price float64
@@ -161,19 +163,19 @@ func (p *InstanceTypeProvider) getInstanceTypeZones(ctx context.Context, provide
 		return nil, err
 	}
 	zones := sets.NewString(lo.Map(subnets, func(subnet *ec2.Subnet, _ int) string {
-		return aws.StringValue(subnet.AvailabilityZone)
+		return sdk.StringValue(subnet.AvailabilityZone)
 	})...)
 
 	// Get offerings from EC2
 	instanceTypeZones := map[string]sets.String{}
-	if err := p.ec2api.DescribeInstanceTypeOfferingsPagesWithContext(ctx, &ec2.DescribeInstanceTypeOfferingsInput{LocationType: aws.String("availability-zone")},
+	if err := p.ec2api.DescribeInstanceTypeOfferingsPagesWithContext(ctx, &ec2.DescribeInstanceTypeOfferingsInput{LocationType: sdk.String("availability-zone")},
 		func(output *ec2.DescribeInstanceTypeOfferingsOutput, lastPage bool) bool {
 			for _, offering := range output.InstanceTypeOfferings {
-				if zones.Has(aws.StringValue(offering.Location)) {
-					if _, ok := instanceTypeZones[aws.StringValue(offering.InstanceType)]; !ok {
-						instanceTypeZones[aws.StringValue(offering.InstanceType)] = sets.NewString()
+				if zones.Has(sdk.StringValue(offering.Location)) {
+					if _, ok := instanceTypeZones[sdk.StringValue(offering.InstanceType)]; !ok {
+						instanceTypeZones[sdk.StringValue(offering.InstanceType)] = sets.NewString()
 					}
-					instanceTypeZones[aws.StringValue(offering.InstanceType)].Insert(aws.StringValue(offering.Location))
+					instanceTypeZones[sdk.StringValue(offering.InstanceType)].Insert(sdk.StringValue(offering.Location))
 				}
 			}
 			return true
@@ -196,18 +198,18 @@ func (p *InstanceTypeProvider) getInstanceTypes(ctx context.Context) (map[string
 	if err := p.ec2api.DescribeInstanceTypesPagesWithContext(ctx, &ec2.DescribeInstanceTypesInput{
 		Filters: []*ec2.Filter{
 			{
-				Name:   aws.String("supported-virtualization-type"),
-				Values: []*string{aws.String("hvm")},
+				Name:   sdk.String("supported-virtualization-type"),
+				Values: []*string{sdk.String("hvm")},
 			},
 			{
-				Name:   aws.String("processor-info.supported-architecture"),
-				Values: aws.StringSlice([]string{"x86_64", "arm64"}),
+				Name:   sdk.String("processor-info.supported-architecture"),
+				Values: sdk.StringSlice([]string{"x86_64", "arm64"}),
 			},
 		},
 	}, func(page *ec2.DescribeInstanceTypesOutput, lastPage bool) bool {
 		for _, instanceType := range page.InstanceTypes {
 			if p.filter(instanceType) {
-				instanceTypes[aws.StringValue(instanceType.InstanceType)] = instanceType
+				instanceTypes[sdk.StringValue(instanceType.InstanceType)] = instanceType
 			}
 		}
 		return true
@@ -226,7 +228,7 @@ func (p *InstanceTypeProvider) filter(instanceType *ec2.InstanceTypeInfo) bool {
 	if instanceType.FpgaInfo != nil {
 		return false
 	}
-	if functional.HasAnyPrefix(aws.StringValue(instanceType.InstanceType),
+	if functional.HasAnyPrefix(sdk.StringValue(instanceType.InstanceType),
 		// G2 instances have an older GPU not supported by the nvidia plugin. This causes the allocatable # of gpus
 		// to be set to zero on startup as the plugin considers the GPU unhealthy.
 		"g2",

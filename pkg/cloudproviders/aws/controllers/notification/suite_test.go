@@ -41,9 +41,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/cloudproviders/aws"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
 	awscache "github.com/aws/karpenter/pkg/cloudproviders/aws/cache"
-	awscloudprovider "github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/controllers/notification"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/controllers/notification/event"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/controllers/notification/event/scheduledchange"
@@ -101,7 +101,7 @@ var _ = BeforeEach(func() {
 		cluster = state.NewCluster(fakeClock, cfg, env.Client, cloudProvider)
 		nodeStateController = state.NewNodeController(env.Client, cluster)
 		recorder = awsfake.NewEventRecorder()
-		unavailableOfferingsCache = awscache.NewUnavailableOfferings(cache.New(awscache.UnavailableOfferingsTTL, awscloudprovider.CacheCleanupInterval))
+		unavailableOfferingsCache = awscache.NewUnavailableOfferings(cache.New(awscache.UnavailableOfferingsTTL, aws.CacheCleanupInterval))
 
 		sqsapi = &awsfake.SQSAPI{}
 		sqsProvider = providers.NewSQSProvider(ctx, sqsapi)

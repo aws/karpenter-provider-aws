@@ -28,7 +28,6 @@ import (
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider/fake"
 	"github.com/aws/karpenter/pkg/controllers/state"
 
-	"github.com/aws/aws-sdk-go/aws"
 	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -47,6 +46,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
+	"knative.dev/pkg/ptr"
 
 	. "github.com/aws/karpenter/pkg/test/expectations"
 )
@@ -3895,8 +3895,8 @@ var _ = Describe("In-Flight Nodes", func() {
 				Kind:               "DaemonSet",
 				Name:               ds.Name,
 				UID:                ds.UID,
-				Controller:         aws.Bool(true),
-				BlockOwnerDeletion: aws.Bool(true),
+				Controller:         ptr.Bool(true),
+				BlockOwnerDeletion: ptr.Bool(true),
 			})
 
 			// delete the pod so that the node is empty
@@ -3977,8 +3977,8 @@ var _ = Describe("In-Flight Nodes", func() {
 				Kind:               "DaemonSet",
 				Name:               ds1.Name,
 				UID:                ds1.UID,
-				Controller:         aws.Bool(true),
-				BlockOwnerDeletion: aws.Bool(true),
+				Controller:         ptr.Bool(true),
+				BlockOwnerDeletion: ptr.Bool(true),
 			})
 
 			// delete the pod so that the node is empty
@@ -4216,7 +4216,7 @@ var _ = Describe("Volume Limits", func() {
 						Name:   csiProvider,
 						NodeID: "fake-node-id",
 						Allocatable: &storagev1.VolumeNodeResources{
-							Count: aws.Int32(10),
+							Count: ptr.Int32(10),
 						},
 					},
 				},
@@ -4227,18 +4227,18 @@ var _ = Describe("Volume Limits", func() {
 
 		sc := test.StorageClass(test.StorageClassOptions{
 			ObjectMeta:  metav1.ObjectMeta{Name: "my-storage-class"},
-			Provisioner: aws.String(csiProvider),
+			Provisioner: ptr.String(csiProvider),
 			Zones:       []string{"test-zone-1"}})
 		ExpectApplied(ctx, env.Client, sc)
 
 		var pods []*v1.Pod
 		for i := 0; i < 6; i++ {
 			pvcA := test.PersistentVolumeClaim(test.PersistentVolumeClaimOptions{
-				StorageClassName: aws.String("my-storage-class"),
+				StorageClassName: ptr.String("my-storage-class"),
 				ObjectMeta:       metav1.ObjectMeta{Name: fmt.Sprintf("my-claim-a-%d", i)},
 			})
 			pvcB := test.PersistentVolumeClaim(test.PersistentVolumeClaimOptions{
-				StorageClassName: aws.String("my-storage-class"),
+				StorageClassName: ptr.String("my-storage-class"),
 				ObjectMeta:       metav1.ObjectMeta{Name: fmt.Sprintf("my-claim-b-%d", i)},
 			})
 			ExpectApplied(ctx, env.Client, pvcA, pvcB)
@@ -4279,7 +4279,7 @@ var _ = Describe("Volume Limits", func() {
 						Name:   csiProvider,
 						NodeID: "fake-node-id",
 						Allocatable: &storagev1.VolumeNodeResources{
-							Count: aws.Int32(10),
+							Count: ptr.Int32(10),
 						},
 					},
 				},
@@ -4290,7 +4290,7 @@ var _ = Describe("Volume Limits", func() {
 
 		sc := test.StorageClass(test.StorageClassOptions{
 			ObjectMeta:  metav1.ObjectMeta{Name: "my-storage-class"},
-			Provisioner: aws.String(csiProvider),
+			Provisioner: ptr.String(csiProvider),
 			Zones:       []string{"test-zone-1"}})
 		ExpectApplied(ctx, env.Client, sc)
 
@@ -4300,7 +4300,7 @@ var _ = Describe("Volume Limits", func() {
 
 		pvc := test.PersistentVolumeClaim(test.PersistentVolumeClaimOptions{
 			ObjectMeta:       metav1.ObjectMeta{Name: "my-claim"},
-			StorageClassName: aws.String("my-storage-class"),
+			StorageClassName: ptr.String("my-storage-class"),
 			VolumeName:       pv.Name,
 		})
 		ExpectApplied(ctx, env.Client, pv, pvc)
@@ -4345,7 +4345,7 @@ var _ = Describe("Volume Limits", func() {
 						Name:   csiProvider,
 						NodeID: "fake-node-id",
 						Allocatable: &storagev1.VolumeNodeResources{
-							Count: aws.Int32(10),
+							Count: ptr.Int32(10),
 						},
 					},
 				},
@@ -4356,7 +4356,7 @@ var _ = Describe("Volume Limits", func() {
 
 		sc := test.StorageClass(test.StorageClassOptions{
 			ObjectMeta:  metav1.ObjectMeta{Name: "my-storage-class"},
-			Provisioner: aws.String(csiProvider),
+			Provisioner: ptr.String(csiProvider),
 			Zones:       []string{"test-zone-1"}})
 		ExpectApplied(ctx, env.Client, sc)
 
@@ -4368,7 +4368,7 @@ var _ = Describe("Volume Limits", func() {
 		pvc := test.PersistentVolumeClaim(test.PersistentVolumeClaimOptions{
 			ObjectMeta:       metav1.ObjectMeta{Name: "my-claim"},
 			VolumeName:       pv.Name,
-			StorageClassName: aws.String(""),
+			StorageClassName: ptr.String(""),
 		})
 		ExpectApplied(ctx, env.Client, pv, pvc)
 
@@ -4417,7 +4417,7 @@ var _ = Describe("Volume Limits", func() {
 		pvc := test.PersistentVolumeClaim(test.PersistentVolumeClaimOptions{
 			ObjectMeta:       metav1.ObjectMeta{Name: "my-claim"},
 			VolumeName:       pv.Name,
-			StorageClassName: aws.String(""),
+			StorageClassName: ptr.String(""),
 		})
 		ExpectApplied(ctx, env.Client, pv, pvc)
 

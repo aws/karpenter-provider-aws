@@ -22,6 +22,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/flowcontrol"
 	"k8s.io/utils/clock"
 	"knative.dev/pkg/configmap/informer"
@@ -55,15 +56,15 @@ func init() {
 
 // Options exposes shared components that are initialized by the startup.Initialize() call
 type Options struct {
-	Ctx        context.Context
-	Recorder   events.Recorder
-	Config     config.Config
-	KubeClient client.Client
-	Clientset  *kubernetes.Clientset
-	Clock      clock.Clock
-	Options    *options.Options
-	Cmw        *informer.InformedWatcher
-	StartAsync <-chan struct{}
+	Ctx               context.Context
+	EventRecorder     events.Recorder      // Decorated recorder for Karpenter core events
+	BaseEventRecorder record.EventRecorder // Recorder from controller manager for use by other components
+	Config            config.Config
+	KubeClient        client.Client
+	Clientset         *kubernetes.Clientset
+	Clock             clock.Clock
+	Options           *options.Options
+	StartAsync        <-chan struct{}
 }
 
 func NewOptionsWithManagerOrDie() (Options, manager.Manager) {
@@ -87,30 +88,32 @@ func NewOptionsWithManagerOrDie() (Options, manager.Manager) {
 		logging.FromContext(ctx).Infof("Setting GC memory limit to %d, container limit = %d", newLimit, opts.MemoryLimit)
 		debug.SetMemoryLimit(newLimit)
 	}
-	if err := cmw.Start(ctx.Done()); err != nil {
-		logging.FromContext(ctx).Errorf("watching configmaps, config changes won't be applied immediately, %s", err)
-	}
-
-	manager := NewManagerOrDie(ctx, controllerRuntimeConfig, opts)
-	recorder := events.NewRecorder(manager.GetEventRecorderFor(appName))
-	recorder = events.NewLoadSheddingRecorder(recorder)
-	recorder = events.NewDedupeRecorder(recorder)
 
 	cfg, err := config.New(ctx, clientSet, cmw)
 	if err != nil {
 		// this does not happen if the config map is missing or invalid, only if some other error occurs
 		logging.FromContext(ctx).Fatalf("unable to load config, %s", err)
 	}
+	if err := cmw.Start(ctx.Done()); err != nil {
+		logging.FromContext(ctx).Errorf("watching configmaps, config changes won't be applied immediately, %s", err)
+	}
+
+	manager := NewManagerOrDie(ctx, controllerRuntimeConfig, opts)
+
+	baseRecorder := manager.GetEventRecorderFor(appName)
+	recorder := events.NewRecorder(baseRecorder)
+	recorder = events.NewLoadSheddingRecorder(recorder)
+	recorder = events.NewDedupeRecorder(recorder)
 
 	return Options{
-		Ctx:        ctx,
-		Recorder:   recorder,
-		Config:     cfg,
-		Clientset:  clientSet,
-		KubeClient: manager.GetClient(),
-		Clock:      clock.RealClock{},
-		Options:    opts,
-		Cmw:        cmw,
-		StartAsync: manager.Elected(),
+		Ctx:               ctx,
+		EventRecorder:     recorder,
+		BaseEventRecorder: baseRecorder,
+		Config:            cfg,
+		Clientset:         clientSet,
+		KubeClient:        manager.GetClient(),
+		Clock:             clock.RealClock{},
+		Options:           opts,
+		StartAsync:        manager.Elected(),
 	}, manager
 }

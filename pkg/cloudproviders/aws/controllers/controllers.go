@@ -30,7 +30,6 @@ import (
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/controllers/providers"
 	"github.com/aws/karpenter/pkg/config"
 	"github.com/aws/karpenter/pkg/controllers/state"
-	coreevents "github.com/aws/karpenter/pkg/events"
 	"github.com/aws/karpenter/pkg/operator"
 )
 
@@ -40,13 +39,12 @@ type Options struct {
 	Config     config.Config
 	Clock      clock.Clock
 	Cluster    *state.Cluster
-	Recorder   coreevents.Recorder
 	KubeClient client.Client
 }
 
 func GetControllers(ctx context.Context, options Options) []operator.Controller {
 	var ret []operator.Controller
-	rec := events.NewRecorder(options.Recorder)
+	rec := events.NewRecorder(options.EventRecorder)
 
 	sqsProvider := providers.NewSQSProvider(ctx, sqs.New(options.Session))
 	eventBridgeProvider := providers.NewEventBridgeProvider(eventbridge.New(options.Session), sqsProvider)
