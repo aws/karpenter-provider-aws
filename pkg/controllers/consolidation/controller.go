@@ -192,7 +192,7 @@ func (c *Controller) consolidateNodes(ctx context.Context, candidates []candidat
 			logging.FromContext(ctx).Errorf("calculating consolidation option, %s", err)
 			continue
 		}
-		if cmd.action == lifecycleActionDelete || cmd.action == lifecycleActionReplace {
+		if cmd.action == deprovisionActionDelete || cmd.action == deprovisionActionReplace {
 			isValid, err := c.validateCommand(ctx, cmd)
 			if err != nil {
 				logging.FromContext(ctx).Errorf("validating command, %s", err)
@@ -226,7 +226,7 @@ func (c *Controller) deleteEmptyNodes(ctx context.Context, candidates []candidat
 
 	cmd := lifecycleCommand{
 		nodesToRemove: lo.Map(emptyNodes, func(n candidateNode, _ int) *v1.Node { return n.Node }),
-		action:        lifecycleActionDeleteEmpty,
+		action:        deprovisionActionDeleteEmpty,
 		created:       c.clock.Now(),
 	}
 	isValid, err := c.validateCommand(ctx, cmd)
@@ -350,9 +350,9 @@ func (c *Controller) buildProvisionerMap(ctx context.Context) (map[string]*v1alp
 }
 
 func (c *Controller) executeCommand(ctx context.Context, action lifecycleCommand) {
-	if action.action != lifecycleActionDelete &&
-		action.action != lifecycleActionReplace &&
-		action.action != lifecycleActionDeleteEmpty {
+	if action.action != deprovisionActionDelete &&
+		action.action != deprovisionActionReplace &&
+		action.action != deprovisionActionDeleteEmpty {
 		logging.FromContext(ctx).Errorf("Invalid disruption action calculated: %s", action.action)
 		return
 	}
@@ -362,7 +362,7 @@ func (c *Controller) executeCommand(ctx context.Context, action lifecycleCommand
 	// action's stringer
 	logging.FromContext(ctx).Infof("Consolidating via %s", action.String())
 
-	if action.action == lifecycleActionReplace {
+	if action.action == deprovisionActionReplace {
 		if err := c.launchReplacementNode(ctx, action); err != nil {
 			// If we failed to launch the replacement, don't consolidate.  If this is some permanent failure,
 			// we don't want to disrupt workloads with no way to provision new nodes for them.
@@ -525,40 +525,40 @@ func (c *Controller) computeNodeConsolidationOption(ctx context.Context, node ca
 	if err != nil {
 		// if a candidate node is now deleting, just retry
 		if errors.Is(err, errCandidateNodeDeleting) {
-			return lifecycleCommand{action: lifecycleActionDoNothing}, nil
+			return lifecycleCommand{action: deprovisionActionDoNothing}, nil
 		}
 		return lifecycleCommand{}, err
 	}
 
 	// if not all of the pods were scheduled, we can't do anything
 	if !allPodsScheduled {
-		return lifecycleCommand{action: lifecycleActionNonePossible}, nil
+		return lifecycleCommand{action: deprovisionActionNotPossible}, nil
 	}
 
 	// were we able to schedule all the pods on the inflight nodes?
 	if len(newNodes) == 0 {
 		return lifecycleCommand{
 			nodesToRemove: []*v1.Node{node.Node},
-			action:        lifecycleActionDelete,
+			action:        deprovisionActionDelete,
 			created:       c.clock.Now(),
 		}, nil
 	}
 
 	// we're not going to turn a single node into multiple nodes
 	if len(newNodes) != 1 {
-		return lifecycleCommand{action: lifecycleActionNonePossible}, nil
+		return lifecycleCommand{action: deprovisionActionNotPossible}, nil
 	}
 
 	// get the current node price based on the offering
 	// fallback if we can't find the specific zonal pricing data
 	offering, ok := cloudprovider.GetOffering(node.instanceType, node.capacityType, node.zone)
 	if !ok {
-		return lifecycleCommand{action: lifecycleActionFailed}, fmt.Errorf("getting offering price from candidate node, %w", err)
+		return lifecycleCommand{action: deprovisionActionFailed}, fmt.Errorf("getting offering price from candidate node, %w", err)
 	}
 	newNodes[0].InstanceTypeOptions = filterByPrice(newNodes[0].InstanceTypeOptions, newNodes[0].Requirements, offering.Price)
 	if len(newNodes[0].InstanceTypeOptions) == 0 {
 		// no instance types remain after filtering by price
-		return lifecycleCommand{action: lifecycleActionNonePossible}, nil
+		return lifecycleCommand{action: deprovisionActionNotPossible}, nil
 	}
 
 	// If the existing node is spot and the replacement is spot, we don't consolidate.  We don't have a reliable
@@ -566,7 +566,7 @@ func (c *Controller) computeNodeConsolidationOption(ctx context.Context, node ca
 	// a spot node with one that is less available and more likely to be reclaimed).
 	if node.capacityType == v1alpha1.CapacityTypeSpot &&
 		newNodes[0].Requirements.Get(v1alpha5.LabelCapacityType).Has(v1alpha1.CapacityTypeSpot) {
-		return lifecycleCommand{action: lifecycleActionNonePossible}, nil
+		return lifecycleCommand{action: deprovisionActionNotPossible}, nil
 	}
 
 	// We are consolidating a node from OD -> [OD,Spot] but have filtered the instance types by cost based on the
@@ -580,7 +580,7 @@ func (c *Controller) computeNodeConsolidationOption(ctx context.Context, node ca
 
 	return lifecycleCommand{
 		nodesToRemove:   []*v1.Node{node.Node},
-		action:          lifecycleActionReplace,
+		action:          deprovisionActionReplace,
 		replacementNode: newNodes[0],
 		created:         c.clock.Now(),
 	}, nil
@@ -692,11 +692,11 @@ func (c *Controller) validateCommand(ctx context.Context, cmd lifecycleCommand) 
 	}
 
 	switch cmd.action {
-	case lifecycleActionDeleteEmpty:
+	case deprovisionActionDeleteEmpty:
 		// delete empty isn't quite a special case of replace as we only want to perform the action if the nodes are
 		// empty, not if they just won't create a new node if deleted
 		return c.validateDeleteEmpty(nodes)
-	case lifecycleActionDelete, lifecycleActionReplace:
+	case deprovisionActionDelete, deprovisionActionReplace:
 		// deletion is just a special case of replace where we don't launch a replacement node
 		return c.validateReplace(ctx, nodes, cmd.replacementNode)
 	default:

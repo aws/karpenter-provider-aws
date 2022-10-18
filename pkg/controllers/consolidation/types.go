@@ -52,33 +52,33 @@ func (r DeprovisioningResult) String() string {
 	}
 }
 
-type lifecyleAction byte
+type deprovisionAction byte
 
 const (
-	lifeCycleActionUnknown lifecyleAction = iota
-	lifecycleActionNonePossible
-	lifecycleActionDelete
-	lifecycleActionDeleteEmpty
-	lifecycleActionReplace
-	lifecycleActionDoNothing
-	lifecycleActionFailed
+	deprovisionActionUnknown deprovisionAction = iota
+	deprovisionActionNotPossible
+	deprovisionActionDelete
+	deprovisionActionDeleteEmpty
+	deprovisionActionReplace
+	deprovisionActionDoNothing
+	deprovisionActionFailed
 )
 
-func (a lifecyleAction) String() string {
+func (a deprovisionAction) String() string {
 	switch a {
-	case lifeCycleActionUnknown:
+	case deprovisionActionUnknown:
 		return "Unknown"
-	case lifecycleActionNonePossible:
+	case deprovisionActionNotPossible:
 		return "Not Possible"
-	case lifecycleActionDelete:
+	case deprovisionActionDelete:
 		return "Delete"
-	case lifecycleActionDeleteEmpty:
+	case deprovisionActionDeleteEmpty:
 		return "Delete (empty node)"
-	case lifecycleActionReplace:
+	case deprovisionActionReplace:
 		return "Replace"
-	case lifecycleActionDoNothing:
+	case deprovisionActionDoNothing:
 		return "NoAction"
-	case lifecycleActionFailed:
+	case deprovisionActionFailed:
 		return "Failed"
 	default:
 		return fmt.Sprintf("Unknown (%d)", a)
@@ -87,7 +87,7 @@ func (a lifecyleAction) String() string {
 
 type lifecycleCommand struct {
 	nodesToRemove   []*v1.Node
-	action          lifecyleAction
+	action          deprovisionAction
 	replacementNode *scheduling.Node
 	created         time.Time
 }
