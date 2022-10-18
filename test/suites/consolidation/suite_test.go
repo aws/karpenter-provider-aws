@@ -326,7 +326,7 @@ var _ = Describe("Consolidation", func() {
 				if n.Labels[v1alpha5.ProvisionerNameLabelKey] != provisioner.Name {
 					continue
 				}
-				if n.Labels[v1alpha5.LabelCapacityType] == awsv1alpha1.CapacityTypeSpot {
+				if n.Labels[v1alpha5.LabelCapacityType] == v1alpha5.CapacityTypeSpot {
 					numSpotNodes++
 				} else {
 					numOtherNodes++

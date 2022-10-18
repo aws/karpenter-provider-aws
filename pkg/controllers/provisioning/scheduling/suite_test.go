@@ -38,7 +38,6 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 
-	"github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
 	"github.com/aws/karpenter/pkg/controllers/provisioning/scheduling"
 	"github.com/aws/karpenter/pkg/test"
@@ -96,7 +95,7 @@ var _ = BeforeEach(func() {
 	provisioner = test.Provisioner(test.ProvisionerOptions{Requirements: []v1.NodeSelectorRequirement{{
 		Key:      v1alpha5.LabelCapacityType,
 		Operator: v1.NodeSelectorOpIn,
-		Values:   []string{v1alpha1.CapacityTypeSpot, v1alpha1.CapacityTypeOnDemand},
+		Values:   []string{v1alpha5.CapacityTypeSpot, v1alpha5.CapacityTypeOnDemand},
 	}}})
 	// reset instance types
 	newCP := fake.CloudProvider{}
@@ -1150,7 +1149,7 @@ var _ = Describe("Topology", func() {
 		})
 		It("should respect provisioner capacity type constraints", func() {
 			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
-				{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha1.CapacityTypeSpot, v1alpha1.CapacityTypeOnDemand}}}
+				{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha5.CapacityTypeSpot, v1alpha5.CapacityTypeOnDemand}}}
 			topology := []v1.TopologySpreadConstraint{{
 				TopologyKey:       v1alpha5.LabelCapacityType,
 				WhenUnsatisfiable: v1.DoNotSchedule,
@@ -1182,7 +1181,7 @@ var _ = Describe("Topology", func() {
 			}
 			// force this pod onto spot
 			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
-				{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha1.CapacityTypeSpot}}}
+				{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha5.CapacityTypeSpot}}}
 			ExpectApplied(ctx, env.Client, provisioner)
 			ExpectProvisioned(ctx, env.Client, controller,
 				test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels},
@@ -1191,7 +1190,7 @@ var _ = Describe("Topology", func() {
 
 			// now only allow scheduling pods on on-demand
 			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
-				{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha1.CapacityTypeOnDemand}}}
+				{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha5.CapacityTypeOnDemand}}}
 			ExpectApplied(ctx, env.Client, provisioner)
 			ExpectProvisioned(ctx, env.Client, controller,
 				MakePods(5, test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels},
@@ -1214,7 +1213,7 @@ var _ = Describe("Topology", func() {
 				},
 			}
 			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
-				{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha1.CapacityTypeSpot}}}
+				{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha5.CapacityTypeSpot}}}
 			ExpectApplied(ctx, env.Client, provisioner)
 			ExpectProvisioned(ctx, env.Client, controller,
 				test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels},
@@ -1222,7 +1221,7 @@ var _ = Describe("Topology", func() {
 			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(1))
 
 			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
-				{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha1.CapacityTypeOnDemand}}}
+				{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha5.CapacityTypeOnDemand}}}
 			ExpectApplied(ctx, env.Client, provisioner)
 			ExpectProvisioned(ctx, env.Client, controller,
 				MakePods(5, test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels},
@@ -1234,8 +1233,8 @@ var _ = Describe("Topology", func() {
 		})
 		It("should only count running/scheduled pods with matching labels scheduled to nodes with a corresponding domain", func() {
 			wrongNamespace := test.RandomName()
-			firstNode := test.Node(test.NodeOptions{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{v1alpha5.LabelCapacityType: v1alpha1.CapacityTypeSpot}}})
-			secondNode := test.Node(test.NodeOptions{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{v1alpha5.LabelCapacityType: v1alpha1.CapacityTypeOnDemand}}})
+			firstNode := test.Node(test.NodeOptions{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{v1alpha5.LabelCapacityType: v1alpha5.CapacityTypeSpot}}})
+			secondNode := test.Node(test.NodeOptions{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{v1alpha5.LabelCapacityType: v1alpha5.CapacityTypeOnDemand}}})
 			thirdNode := test.Node(test.NodeOptions{}) // missing topology capacity type
 			topology := []v1.TopologySpreadConstraint{{
 				TopologyKey:       v1alpha5.LabelCapacityType,
@@ -1774,12 +1773,12 @@ var _ = Describe("Topology", func() {
 					MakePods(5, test.PodOptions{
 						ObjectMeta:                metav1.ObjectMeta{Labels: labels},
 						TopologySpreadConstraints: topology,
-						NodeSelector:              map[string]string{v1alpha5.LabelCapacityType: v1alpha1.CapacityTypeSpot},
+						NodeSelector:              map[string]string{v1alpha5.LabelCapacityType: v1alpha5.CapacityTypeSpot},
 					}),
 					MakePods(5, test.PodOptions{
 						ObjectMeta:                metav1.ObjectMeta{Labels: labels},
 						TopologySpreadConstraints: topology,
-						NodeSelector:              map[string]string{v1alpha5.LabelCapacityType: v1alpha1.CapacityTypeOnDemand},
+						NodeSelector:              map[string]string{v1alpha5.LabelCapacityType: v1alpha5.CapacityTypeOnDemand},
 					})...,
 				)...,
 			)
@@ -1800,7 +1799,7 @@ var _ = Describe("Topology", func() {
 					ObjectMeta:                metav1.ObjectMeta{Labels: labels},
 					TopologySpreadConstraints: topology,
 					NodeRequirements: []v1.NodeSelectorRequirement{
-						{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha1.CapacityTypeSpot}},
+						{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha5.CapacityTypeSpot}},
 					},
 				})...)
 			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(3))
@@ -1811,7 +1810,7 @@ var _ = Describe("Topology", func() {
 				ObjectMeta:                metav1.ObjectMeta{Labels: labels},
 				TopologySpreadConstraints: topology,
 				NodeRequirements: []v1.NodeSelectorRequirement{
-					{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha1.CapacityTypeOnDemand, v1alpha1.CapacityTypeSpot}},
+					{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha5.CapacityTypeOnDemand, v1alpha5.CapacityTypeSpot}},
 				},
 			})...)
 
@@ -3487,7 +3486,7 @@ var _ = Describe("Binpacking", func() {
 				},
 				Offerings: []cloudprovider.Offering{
 					{
-						CapacityType: v1alpha1.CapacityTypeOnDemand,
+						CapacityType: v1alpha5.CapacityTypeOnDemand,
 						Zone:         "test-zone-1a",
 						Price:        3.00,
 						Available:    true,
@@ -3502,7 +3501,7 @@ var _ = Describe("Binpacking", func() {
 				},
 				Offerings: []cloudprovider.Offering{
 					{
-						CapacityType: v1alpha1.CapacityTypeOnDemand,
+						CapacityType: v1alpha5.CapacityTypeOnDemand,
 						Zone:         "test-zone-1a",
 						Price:        2.00,
 						Available:    true,
@@ -3517,7 +3516,7 @@ var _ = Describe("Binpacking", func() {
 				},
 				Offerings: []cloudprovider.Offering{
 					{
-						CapacityType: v1alpha1.CapacityTypeOnDemand,
+						CapacityType: v1alpha5.CapacityTypeOnDemand,
 						Zone:         "test-zone-1a",
 						Price:        1.00,
 						Available:    true,
@@ -4121,8 +4120,8 @@ var _ = Describe("No Pre-Binding", func() {
 		// Issue #1459
 		opts := test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
 			Limits: map[v1.ResourceName]resource.Quantity{
-				v1.ResourceCPU:             resource.MustParse("10m"),
-				v1alpha1.ResourceNVIDIAGPU: resource.MustParse("1"),
+				v1.ResourceCPU:          resource.MustParse("10m"),
+				fake.ResourceGPUVendorA: resource.MustParse("1"),
 			},
 		}}
 
@@ -4142,10 +4141,10 @@ var _ = Describe("No Pre-Binding", func() {
 
 		// simulate kubelet zeroing out the extended resources on the node at startup
 		node1.Status.Capacity = map[v1.ResourceName]resource.Quantity{
-			v1alpha1.ResourceNVIDIAGPU: resource.MustParse("0"),
+			fake.ResourceGPUVendorA: resource.MustParse("0"),
 		}
 		node1.Status.Allocatable = map[v1.ResourceName]resource.Quantity{
-			v1alpha1.ResourceNVIDIAGPU: resource.MustParse("0"),
+			fake.ResourceGPUVendorB: resource.MustParse("0"),
 		}
 
 		ExpectApplied(ctx, env.Client, node1)

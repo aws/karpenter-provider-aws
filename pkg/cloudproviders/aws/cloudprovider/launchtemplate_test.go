@@ -78,7 +78,7 @@ var _ = Describe("LaunchTemplates", func() {
 			{
 				Key:      v1alpha5.LabelCapacityType,
 				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{awsv1alpha1.CapacityTypeSpot},
+				Values:   []string{v1alpha5.CapacityTypeSpot},
 			},
 		}}))
 		pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]

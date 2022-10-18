@@ -25,17 +25,17 @@ import (
 	"github.com/aws/karpenter-core/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
 
-	"github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
-
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	utilsets "k8s.io/apimachinery/pkg/util/sets"
 )
 
 const (
-	LabelInstanceSize       = "size"
-	ExoticInstanceLabelKey  = "special"
-	IntegerInstanceLabelKey = "integer"
+	LabelInstanceSize                       = "size"
+	ExoticInstanceLabelKey                  = "special"
+	IntegerInstanceLabelKey                 = "integer"
+	ResourceGPUVendorA      v1.ResourceName = "fake.com/vendor-a"
+	ResourceGPUVendorB      v1.ResourceName = "fake.com/vendor-b"
 )
 
 func init() {
@@ -99,7 +99,7 @@ func InstanceTypesAssorted() []cloudprovider.InstanceType {
 	for _, cpu := range []int{1, 2, 4, 8, 16, 32, 64} {
 		for _, mem := range []int{1, 2, 4, 8, 16, 32, 64, 128} {
 			for _, zone := range []string{"test-zone-1", "test-zone-2", "test-zone-3"} {
-				for _, ct := range []string{v1alpha1.CapacityTypeSpot, v1alpha1.CapacityTypeOnDemand} {
+				for _, ct := range []string{v1alpha5.CapacityTypeSpot, v1alpha5.CapacityTypeOnDemand} {
 					for _, os := range []utilsets.String{utilsets.NewString("linux"), utilsets.NewString("windows")} {
 						for _, arch := range []string{v1alpha5.ArchitectureAmd64, v1alpha5.ArchitectureArm64} {
 							opts := InstanceTypeOptions{
@@ -176,7 +176,7 @@ func priceFromResources(resources v1.ResourceList) float64 {
 			price += 0.1 * v.AsApproximateFloat64()
 		case v1.ResourceMemory:
 			price += 0.1 * v.AsApproximateFloat64() / (1e9)
-		case v1alpha1.ResourceNVIDIAGPU, v1alpha1.ResourceAMDGPU:
+		case ResourceGPUVendorA, ResourceGPUVendorB:
 			price += 1.0
 		}
 	}
