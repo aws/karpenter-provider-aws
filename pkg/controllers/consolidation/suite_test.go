@@ -23,7 +23,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
@@ -36,6 +35,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	clock "k8s.io/utils/clock/testing"
 	. "knative.dev/pkg/logging/testing"
+	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
@@ -184,13 +184,13 @@ var _ = Describe("Pod Eviction Cost", func() {
 	})
 	It("should have a higher disruptionCost for a pod with a higher priority", func() {
 		cost := consolidation.GetPodEvictionCost(ctx, &v1.Pod{
-			Spec: v1.PodSpec{Priority: aws.Int32(1)},
+			Spec: v1.PodSpec{Priority: ptr.Int32(1)},
 		})
 		Expect(cost).To(BeNumerically(">", standardPodCost))
 	})
 	It("should have a lower disruptionCost for a pod with a lower priority", func() {
 		cost := consolidation.GetPodEvictionCost(ctx, &v1.Pod{
-			Spec: v1.PodSpec{Priority: aws.Int32(-1)},
+			Spec: v1.PodSpec{Priority: ptr.Int32(-1)},
 		})
 		Expect(cost).To(BeNumerically("<", standardPodCost))
 	})
@@ -214,14 +214,14 @@ var _ = Describe("Replace Nodes", func() {
 						Kind:               "ReplicaSet",
 						Name:               rs.Name,
 						UID:                rs.UID,
-						Controller:         aws.Bool(true),
-						BlockOwnerDeletion: aws.Bool(true),
+						Controller:         ptr.Bool(true),
+						BlockOwnerDeletion: ptr.Bool(true),
 					},
 				}}})
 
 		prov := test.Provisioner(test.ProvisionerOptions{
-			Consolidation:        &v1alpha5.Consolidation{Enabled: aws.Bool(true)},
-			TTLSecondsAfterEmpty: aws.Int64(0),
+			Consolidation:        &v1alpha5.Consolidation{Enabled: ptr.Bool(true)},
+			TTLSecondsAfterEmpty: ptr.Int64(0),
 		})
 		node := test.Node(test.NodeOptions{
 			ObjectMeta: metav1.ObjectMeta{
@@ -271,8 +271,8 @@ var _ = Describe("Replace Nodes", func() {
 						Kind:               "ReplicaSet",
 						Name:               rs.Name,
 						UID:                rs.UID,
-						Controller:         aws.Bool(true),
-						BlockOwnerDeletion: aws.Bool(true),
+						Controller:         ptr.Bool(true),
+						BlockOwnerDeletion: ptr.Bool(true),
 					},
 				}}})
 
@@ -289,8 +289,8 @@ var _ = Describe("Replace Nodes", func() {
 		})
 
 		prov := test.Provisioner(test.ProvisionerOptions{
-			Consolidation:        &v1alpha5.Consolidation{Enabled: aws.Bool(true)},
-			TTLSecondsAfterEmpty: aws.Int64(0),
+			Consolidation:        &v1alpha5.Consolidation{Enabled: ptr.Bool(true)},
+			TTLSecondsAfterEmpty: ptr.Int64(0),
 		})
 		node1 := test.Node(test.NodeOptions{
 			ObjectMeta: metav1.ObjectMeta{
@@ -345,13 +345,13 @@ var _ = Describe("Replace Nodes", func() {
 						Kind:               "ReplicaSet",
 						Name:               rs.Name,
 						UID:                rs.UID,
-						Controller:         aws.Bool(true),
-						BlockOwnerDeletion: aws.Bool(true),
+						Controller:         ptr.Bool(true),
+						BlockOwnerDeletion: ptr.Bool(true),
 					},
 				}}})
 
 		prov := test.Provisioner(test.ProvisionerOptions{
-			Consolidation: &v1alpha5.Consolidation{Enabled: aws.Bool(true)},
+			Consolidation: &v1alpha5.Consolidation{Enabled: ptr.Bool(true)},
 		})
 		regularNode := test.Node(test.NodeOptions{
 			ObjectMeta: metav1.ObjectMeta{
@@ -461,14 +461,14 @@ var _ = Describe("Replace Nodes", func() {
 						Kind:               "ReplicaSet",
 						Name:               rs.Name,
 						UID:                rs.UID,
-						Controller:         aws.Bool(true),
-						BlockOwnerDeletion: aws.Bool(true),
+						Controller:         ptr.Bool(true),
+						BlockOwnerDeletion: ptr.Bool(true),
 					},
 				}}})
 
 		prov := test.Provisioner(test.ProvisionerOptions{
-			Consolidation:        &v1alpha5.Consolidation{Enabled: aws.Bool(true)},
-			TTLSecondsAfterEmpty: aws.Int64(0),
+			Consolidation:        &v1alpha5.Consolidation{Enabled: ptr.Bool(true)},
+			TTLSecondsAfterEmpty: ptr.Int64(0),
 		})
 		node := test.Node(test.NodeOptions{
 			ObjectMeta: metav1.ObjectMeta{
@@ -556,15 +556,15 @@ var _ = Describe("Replace Nodes", func() {
 						Kind:               "ReplicaSet",
 						Name:               rs.Name,
 						UID:                rs.UID,
-						Controller:         aws.Bool(true),
-						BlockOwnerDeletion: aws.Bool(true),
+						Controller:         ptr.Bool(true),
+						BlockOwnerDeletion: ptr.Bool(true),
 					},
 				}}})
 
 		// provisioner should require on-demand instance for this test case
 		prov := test.Provisioner(test.ProvisionerOptions{
-			Consolidation:        &v1alpha5.Consolidation{Enabled: aws.Bool(true)},
-			TTLSecondsAfterEmpty: aws.Int64(0),
+			Consolidation:        &v1alpha5.Consolidation{Enabled: ptr.Bool(true)},
+			TTLSecondsAfterEmpty: ptr.Int64(0),
 			Requirements: []v1.NodeSelectorRequirement{
 				{
 					Key:      v1alpha5.LabelCapacityType,
@@ -613,14 +613,14 @@ var _ = Describe("Replace Nodes", func() {
 						Kind:               "ReplicaSet",
 						Name:               rs.Name,
 						UID:                rs.UID,
-						Controller:         aws.Bool(true),
-						BlockOwnerDeletion: aws.Bool(true),
+						Controller:         ptr.Bool(true),
+						BlockOwnerDeletion: ptr.Bool(true),
 					},
 				}}})
 
 		prov := test.Provisioner(test.ProvisionerOptions{
-			Consolidation:        &v1alpha5.Consolidation{Enabled: aws.Bool(true)},
-			TTLSecondsAfterEmpty: aws.Int64(0),
+			Consolidation:        &v1alpha5.Consolidation{Enabled: ptr.Bool(true)},
+			TTLSecondsAfterEmpty: ptr.Int64(0),
 		})
 		node := test.Node(test.NodeOptions{
 			ObjectMeta: metav1.ObjectMeta{
@@ -691,14 +691,14 @@ var _ = Describe("Delete Node", func() {
 						Kind:               "ReplicaSet",
 						Name:               rs.Name,
 						UID:                rs.UID,
-						Controller:         aws.Bool(true),
-						BlockOwnerDeletion: aws.Bool(true),
+						Controller:         ptr.Bool(true),
+						BlockOwnerDeletion: ptr.Bool(true),
 					},
 				}}})
 
 		prov := test.Provisioner(test.ProvisionerOptions{
-			Consolidation:        &v1alpha5.Consolidation{Enabled: aws.Bool(true)},
-			TTLSecondsAfterEmpty: aws.Int64(0),
+			Consolidation:        &v1alpha5.Consolidation{Enabled: ptr.Bool(true)},
+			TTLSecondsAfterEmpty: ptr.Int64(0),
 		})
 		node1 := test.Node(test.NodeOptions{
 			ObjectMeta: metav1.ObjectMeta{
@@ -769,8 +769,8 @@ var _ = Describe("Delete Node", func() {
 						Kind:               "ReplicaSet",
 						Name:               rs.Name,
 						UID:                rs.UID,
-						Controller:         aws.Bool(true),
-						BlockOwnerDeletion: aws.Bool(true),
+						Controller:         ptr.Bool(true),
+						BlockOwnerDeletion: ptr.Bool(true),
 					},
 				}}})
 
@@ -789,8 +789,8 @@ var _ = Describe("Delete Node", func() {
 		})
 
 		prov := test.Provisioner(test.ProvisionerOptions{
-			Consolidation:        &v1alpha5.Consolidation{Enabled: aws.Bool(true)},
-			TTLSecondsAfterEmpty: aws.Int64(0),
+			Consolidation:        &v1alpha5.Consolidation{Enabled: ptr.Bool(true)},
+			TTLSecondsAfterEmpty: ptr.Int64(0),
 		})
 		node1 := test.Node(test.NodeOptions{
 			ObjectMeta: metav1.ObjectMeta{
@@ -857,8 +857,8 @@ var _ = Describe("Delete Node", func() {
 						Kind:               "ReplicaSet",
 						Name:               rs.Name,
 						UID:                rs.UID,
-						Controller:         aws.Bool(true),
-						BlockOwnerDeletion: aws.Bool(true),
+						Controller:         ptr.Bool(true),
+						BlockOwnerDeletion: ptr.Bool(true),
 					},
 				}}})
 
@@ -868,8 +868,8 @@ var _ = Describe("Delete Node", func() {
 		}
 
 		prov := test.Provisioner(test.ProvisionerOptions{
-			Consolidation:        &v1alpha5.Consolidation{Enabled: aws.Bool(true)},
-			TTLSecondsAfterEmpty: aws.Int64(0),
+			Consolidation:        &v1alpha5.Consolidation{Enabled: ptr.Bool(true)},
+			TTLSecondsAfterEmpty: ptr.Int64(0),
 		})
 		node1 := test.Node(test.NodeOptions{
 			ObjectMeta: metav1.ObjectMeta{
@@ -935,8 +935,8 @@ var _ = Describe("Delete Node", func() {
 						Kind:               "ReplicaSet",
 						Name:               rs.Name,
 						UID:                rs.UID,
-						Controller:         aws.Bool(true),
-						BlockOwnerDeletion: aws.Bool(true),
+						Controller:         ptr.Bool(true),
+						BlockOwnerDeletion: ptr.Bool(true),
 					},
 				}}})
 
@@ -944,8 +944,8 @@ var _ = Describe("Delete Node", func() {
 		pods[2].OwnerReferences = nil
 
 		prov := test.Provisioner(test.ProvisionerOptions{
-			Consolidation:        &v1alpha5.Consolidation{Enabled: aws.Bool(true)},
-			TTLSecondsAfterEmpty: aws.Int64(0),
+			Consolidation:        &v1alpha5.Consolidation{Enabled: ptr.Bool(true)},
+			TTLSecondsAfterEmpty: ptr.Int64(0),
 		})
 		node1 := test.Node(test.NodeOptions{
 			ObjectMeta: metav1.ObjectMeta{
@@ -1018,15 +1018,15 @@ var _ = Describe("Node Lifetime Consideration", func() {
 						Kind:               "ReplicaSet",
 						Name:               rs.Name,
 						UID:                rs.UID,
-						Controller:         aws.Bool(true),
-						BlockOwnerDeletion: aws.Bool(true),
+						Controller:         ptr.Bool(true),
+						BlockOwnerDeletion: ptr.Bool(true),
 					},
 				}}})
 
 		prov := test.Provisioner(test.ProvisionerOptions{
-			Consolidation:          &v1alpha5.Consolidation{Enabled: aws.Bool(true)},
-			TTLSecondsAfterEmpty:   aws.Int64(0),
-			TTLSecondsUntilExpired: aws.Int64(3),
+			Consolidation:          &v1alpha5.Consolidation{Enabled: ptr.Bool(true)},
+			TTLSecondsAfterEmpty:   ptr.Int64(0),
+			TTLSecondsUntilExpired: ptr.Int64(3),
 		})
 		node1 := test.Node(test.NodeOptions{
 			ObjectMeta: metav1.ObjectMeta{
@@ -1111,8 +1111,8 @@ var _ = Describe("Topology Consideration", func() {
 						Kind:               "ReplicaSet",
 						Name:               rs.Name,
 						UID:                rs.UID,
-						Controller:         aws.Bool(true),
-						BlockOwnerDeletion: aws.Bool(true),
+						Controller:         ptr.Bool(true),
+						BlockOwnerDeletion: ptr.Bool(true),
 					},
 				}}})
 
@@ -1121,8 +1121,8 @@ var _ = Describe("Topology Consideration", func() {
 		testZone3Instance := leastExpensiveInstanceWithZone("test-zone-3")
 
 		prov := test.Provisioner(test.ProvisionerOptions{
-			Consolidation:        &v1alpha5.Consolidation{Enabled: aws.Bool(true)},
-			TTLSecondsAfterEmpty: aws.Int64(0),
+			Consolidation:        &v1alpha5.Consolidation{Enabled: ptr.Bool(true)},
+			TTLSecondsAfterEmpty: ptr.Int64(0),
 		})
 		zone1Node := test.Node(test.NodeOptions{
 			ObjectMeta: metav1.ObjectMeta{
@@ -1217,8 +1217,8 @@ var _ = Describe("Topology Consideration", func() {
 						Kind:               "ReplicaSet",
 						Name:               rs.Name,
 						UID:                rs.UID,
-						Controller:         aws.Bool(true),
-						BlockOwnerDeletion: aws.Bool(true),
+						Controller:         ptr.Bool(true),
+						BlockOwnerDeletion: ptr.Bool(true),
 					},
 				}}})
 
@@ -1227,8 +1227,8 @@ var _ = Describe("Topology Consideration", func() {
 		testZone3Instance := leastExpensiveInstanceWithZone("test-zone-3")
 
 		prov := test.Provisioner(test.ProvisionerOptions{
-			Consolidation:        &v1alpha5.Consolidation{Enabled: aws.Bool(true)},
-			TTLSecondsAfterEmpty: aws.Int64(0),
+			Consolidation:        &v1alpha5.Consolidation{Enabled: ptr.Bool(true)},
+			TTLSecondsAfterEmpty: ptr.Int64(0),
 		})
 		zone1Node := test.Node(test.NodeOptions{
 			ObjectMeta: metav1.ObjectMeta{
@@ -1291,7 +1291,7 @@ var _ = Describe("Topology Consideration", func() {
 
 var _ = Describe("Empty Nodes", func() {
 	It("can delete empty nodes", func() {
-		prov := test.Provisioner(test.ProvisionerOptions{Consolidation: &v1alpha5.Consolidation{Enabled: aws.Bool(true)}})
+		prov := test.Provisioner(test.ProvisionerOptions{Consolidation: &v1alpha5.Consolidation{Enabled: ptr.Bool(true)}})
 
 		node1 := test.Node(test.NodeOptions{
 			ObjectMeta: metav1.ObjectMeta{
@@ -1323,7 +1323,7 @@ var _ = Describe("Empty Nodes", func() {
 		ExpectNotFound(ctx, env.Client, node1)
 	})
 	It("can delete multiple empty nodes", func() {
-		prov := test.Provisioner(test.ProvisionerOptions{Consolidation: &v1alpha5.Consolidation{Enabled: aws.Bool(true)}})
+		prov := test.Provisioner(test.ProvisionerOptions{Consolidation: &v1alpha5.Consolidation{Enabled: ptr.Bool(true)}})
 
 		node1 := test.Node(test.NodeOptions{
 			ObjectMeta: metav1.ObjectMeta{
@@ -1372,7 +1372,7 @@ var _ = Describe("Empty Nodes", func() {
 var _ = Describe("Consolidation TTL", func() {
 	It("should wait for the node TTL before consolidating", func() {
 		prov := test.Provisioner(test.ProvisionerOptions{
-			Consolidation: &v1alpha5.Consolidation{Enabled: aws.Bool(true)},
+			Consolidation: &v1alpha5.Consolidation{Enabled: ptr.Bool(true)},
 		})
 
 		node1 := test.Node(test.NodeOptions{
@@ -1424,7 +1424,7 @@ var _ = Describe("Consolidation TTL", func() {
 	})
 	It("should not consolidate if the action becomes invalid during the node TTL wait", func() {
 		prov := test.Provisioner(test.ProvisionerOptions{
-			Consolidation: &v1alpha5.Consolidation{Enabled: aws.Bool(true)},
+			Consolidation: &v1alpha5.Consolidation{Enabled: ptr.Bool(true)},
 		})
 
 		node1 := test.Node(test.NodeOptions{
@@ -1498,14 +1498,14 @@ var _ = Describe("Parallelization", func() {
 						Kind:               "ReplicaSet",
 						Name:               rs.Name,
 						UID:                rs.UID,
-						Controller:         aws.Bool(true),
-						BlockOwnerDeletion: aws.Bool(true),
+						Controller:         ptr.Bool(true),
+						BlockOwnerDeletion: ptr.Bool(true),
 					},
 				}}})
 
 		prov := test.Provisioner(test.ProvisionerOptions{
-			Consolidation:        &v1alpha5.Consolidation{Enabled: aws.Bool(true)},
-			TTLSecondsAfterEmpty: aws.Int64(0),
+			Consolidation:        &v1alpha5.Consolidation{Enabled: ptr.Bool(true)},
+			TTLSecondsAfterEmpty: ptr.Int64(0),
 		})
 
 		// Add a finalizer to the node so that it sticks around for the scheduling loop
@@ -1561,8 +1561,8 @@ var _ = Describe("Parallelization", func() {
 		Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(rs), rs)).To(Succeed())
 
 		prov := test.Provisioner(test.ProvisionerOptions{
-			Consolidation:        &v1alpha5.Consolidation{Enabled: aws.Bool(true)},
-			TTLSecondsAfterEmpty: aws.Int64(0),
+			Consolidation:        &v1alpha5.Consolidation{Enabled: ptr.Bool(true)},
+			TTLSecondsAfterEmpty: ptr.Int64(0),
 		})
 		podOpts := test.PodOptions{
 			ObjectMeta: metav1.ObjectMeta{
@@ -1573,8 +1573,8 @@ var _ = Describe("Parallelization", func() {
 						Kind:               "ReplicaSet",
 						Name:               rs.Name,
 						UID:                rs.UID,
-						Controller:         aws.Bool(true),
-						BlockOwnerDeletion: aws.Bool(true),
+						Controller:         ptr.Bool(true),
+						BlockOwnerDeletion: ptr.Bool(true),
 					},
 				},
 			},

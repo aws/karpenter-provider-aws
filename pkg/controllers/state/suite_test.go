@@ -29,7 +29,6 @@ import (
 
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider/fake"
 
-	"github.com/aws/aws-sdk-go/aws"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -473,8 +472,8 @@ var _ = Describe("Node Resource Level", func() {
 			Kind:               "DaemonSet",
 			Name:               ds.Name,
 			UID:                ds.UID,
-			Controller:         aws.Bool(true),
-			BlockOwnerDeletion: aws.Bool(true),
+			Controller:         ptr.Bool(true),
+			BlockOwnerDeletion: ptr.Bool(true),
 		})
 
 		node := test.Node(test.NodeOptions{
