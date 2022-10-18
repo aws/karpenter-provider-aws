@@ -40,6 +40,7 @@ import (
 	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/operator/injection"
 
 	"github.com/aws/karpenter-core/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
@@ -48,7 +49,6 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/events"
 	"github.com/aws/karpenter/pkg/metrics"
-	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/node"
 	"github.com/aws/karpenter/pkg/utils/pod"
 	"github.com/aws/karpenter/pkg/utils/resources"

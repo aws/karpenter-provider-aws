@@ -40,7 +40,7 @@ import (
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider/amifamily"
 	awserrors "github.com/aws/karpenter/pkg/cloudproviders/aws/errors"
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
-	"github.com/aws/karpenter/pkg/utils/injection"
+	"github.com/aws/karpenter/pkg/operator/injection"
 	"github.com/aws/karpenter/pkg/utils/pretty"
 )
 

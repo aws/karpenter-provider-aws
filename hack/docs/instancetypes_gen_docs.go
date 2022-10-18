@@ -31,12 +31,12 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/operator/injection"
+	"github.com/aws/karpenter/pkg/operator/options"
 
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
 	awscloudprovider "github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
-	"github.com/aws/karpenter/pkg/utils/injection"
-	"github.com/aws/karpenter/pkg/utils/options"
 	"github.com/aws/karpenter/pkg/utils/resources"
 )
 

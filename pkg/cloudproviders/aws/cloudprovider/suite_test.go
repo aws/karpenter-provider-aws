@@ -39,6 +39,8 @@ import (
 	awscache "github.com/aws/karpenter/pkg/cloudproviders/aws/cache"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider/amifamily"
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
+	"github.com/aws/karpenter/pkg/operator/injection"
+	"github.com/aws/karpenter/pkg/operator/options"
 	. "github.com/aws/karpenter/pkg/test/expectations"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
@@ -48,8 +50,6 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/test"
-	"github.com/aws/karpenter/pkg/utils/injection"
-	"github.com/aws/karpenter/pkg/utils/options"
 	"github.com/aws/karpenter/pkg/utils/pretty"
 )
 

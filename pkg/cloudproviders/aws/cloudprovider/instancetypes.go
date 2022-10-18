@@ -24,6 +24,7 @@ import (
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	awscache "github.com/aws/karpenter/pkg/cloudproviders/aws/cache"
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
+	"github.com/aws/karpenter/pkg/operator/injection"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -37,7 +38,6 @@ import (
 
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/utils/functional"
-	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/pretty"
 )
 
