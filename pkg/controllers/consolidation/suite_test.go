@@ -93,6 +93,16 @@ var _ = AfterSuite(func() {
 	Expect(env.Stop()).To(Succeed(), "Failed to stop environment")
 })
 
+func triggerVerifyAction() {
+	for i := 0; i < 10; i++ {
+		time.Sleep(250 * time.Millisecond)
+		if fakeClock.HasWaiters() {
+			break
+		}
+	}
+	fakeClock.Step(45 * time.Second)
+}
+
 var _ = BeforeEach(func() {
 	cloudProvider.CreateCalls = nil
 	cloudProvider.InstanceTypes = fake.InstanceTypesAssorted()
@@ -209,7 +219,10 @@ var _ = Describe("Replace Nodes", func() {
 					},
 				}}})
 
-		prov := test.Provisioner(test.ProvisionerOptions{Consolidation: &v1alpha5.Consolidation{Enabled: aws.Bool(true)}})
+		prov := test.Provisioner(test.ProvisionerOptions{
+			Consolidation:        &v1alpha5.Consolidation{Enabled: aws.Bool(true)},
+			TTLSecondsAfterEmpty: aws.Int64(0),
+		})
 		node := test.Node(test.NodeOptions{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{
@@ -230,6 +243,7 @@ var _ = Describe("Replace Nodes", func() {
 		// consolidation won't delete the old node until the new node is ready
 		wg := ExpectMakeNewNodesReady(ctx, env.Client, 1, node)
 		fakeClock.Step(10 * time.Minute)
+		go triggerVerifyAction()
 		_, err := controller.ProcessCluster(ctx)
 		Expect(err).ToNot(HaveOccurred())
 		wg.Wait()
@@ -274,7 +288,10 @@ var _ = Describe("Replace Nodes", func() {
 			},
 		})
 
-		prov := test.Provisioner(test.ProvisionerOptions{Consolidation: &v1alpha5.Consolidation{Enabled: aws.Bool(true)}})
+		prov := test.Provisioner(test.ProvisionerOptions{
+			Consolidation:        &v1alpha5.Consolidation{Enabled: aws.Bool(true)},
+			TTLSecondsAfterEmpty: aws.Int64(0),
+		})
 		node1 := test.Node(test.NodeOptions{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{
@@ -333,7 +350,9 @@ var _ = Describe("Replace Nodes", func() {
 					},
 				}}})
 
-		prov := test.Provisioner(test.ProvisionerOptions{TTLSecondsUntilExpired: aws.Int64(30), Consolidation: &v1alpha5.Consolidation{Enabled: aws.Bool(true)}})
+		prov := test.Provisioner(test.ProvisionerOptions{
+			Consolidation: &v1alpha5.Consolidation{Enabled: aws.Bool(true)},
+		})
 		regularNode := test.Node(test.NodeOptions{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{
@@ -378,6 +397,7 @@ var _ = Describe("Replace Nodes", func() {
 		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(regularNode))
 		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(annotatedNode))
 		fakeClock.Step(10 * time.Minute)
+		go triggerVerifyAction()
 		_, err := controller.ProcessCluster(ctx)
 		Expect(err).ToNot(HaveOccurred())
 
@@ -446,7 +466,10 @@ var _ = Describe("Replace Nodes", func() {
 					},
 				}}})
 
-		prov := test.Provisioner(test.ProvisionerOptions{Consolidation: &v1alpha5.Consolidation{Enabled: aws.Bool(true)}})
+		prov := test.Provisioner(test.ProvisionerOptions{
+			Consolidation:        &v1alpha5.Consolidation{Enabled: aws.Bool(true)},
+			TTLSecondsAfterEmpty: aws.Int64(0),
+		})
 		node := test.Node(test.NodeOptions{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{
@@ -540,7 +563,8 @@ var _ = Describe("Replace Nodes", func() {
 
 		// provisioner should require on-demand instance for this test case
 		prov := test.Provisioner(test.ProvisionerOptions{
-			Consolidation: &v1alpha5.Consolidation{Enabled: aws.Bool(true)},
+			Consolidation:        &v1alpha5.Consolidation{Enabled: aws.Bool(true)},
+			TTLSecondsAfterEmpty: aws.Int64(0),
 			Requirements: []v1.NodeSelectorRequirement{
 				{
 					Key:      v1alpha5.LabelCapacityType,
@@ -594,7 +618,10 @@ var _ = Describe("Replace Nodes", func() {
 					},
 				}}})
 
-		prov := test.Provisioner(test.ProvisionerOptions{Consolidation: &v1alpha5.Consolidation{Enabled: aws.Bool(true)}})
+		prov := test.Provisioner(test.ProvisionerOptions{
+			Consolidation:        &v1alpha5.Consolidation{Enabled: aws.Bool(true)},
+			TTLSecondsAfterEmpty: aws.Int64(0),
+		})
 		node := test.Node(test.NodeOptions{
 			ObjectMeta: metav1.ObjectMeta{
 				Finalizers: []string{"unit-test.com/block-deletion"},
@@ -618,6 +645,7 @@ var _ = Describe("Replace Nodes", func() {
 		fakeClock.Step(10 * time.Minute)
 
 		var consolidationFinished atomic.Bool
+		go triggerVerifyAction()
 		go func() {
 			_, err := controller.ProcessCluster(ctx)
 			Expect(err).ToNot(HaveOccurred())
@@ -668,7 +696,10 @@ var _ = Describe("Delete Node", func() {
 					},
 				}}})
 
-		prov := test.Provisioner(test.ProvisionerOptions{Consolidation: &v1alpha5.Consolidation{Enabled: aws.Bool(true)}})
+		prov := test.Provisioner(test.ProvisionerOptions{
+			Consolidation:        &v1alpha5.Consolidation{Enabled: aws.Bool(true)},
+			TTLSecondsAfterEmpty: aws.Int64(0),
+		})
 		node1 := test.Node(test.NodeOptions{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{
@@ -709,6 +740,7 @@ var _ = Describe("Delete Node", func() {
 		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node1))
 		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node2))
 		fakeClock.Step(10 * time.Minute)
+		go triggerVerifyAction()
 		_, err := controller.ProcessCluster(ctx)
 		Expect(err).ToNot(HaveOccurred())
 
@@ -756,7 +788,10 @@ var _ = Describe("Delete Node", func() {
 			},
 		})
 
-		prov := test.Provisioner(test.ProvisionerOptions{Consolidation: &v1alpha5.Consolidation{Enabled: aws.Bool(true)}})
+		prov := test.Provisioner(test.ProvisionerOptions{
+			Consolidation:        &v1alpha5.Consolidation{Enabled: aws.Bool(true)},
+			TTLSecondsAfterEmpty: aws.Int64(0),
+		})
 		node1 := test.Node(test.NodeOptions{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{
@@ -798,6 +833,7 @@ var _ = Describe("Delete Node", func() {
 		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node1))
 		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node2))
 		fakeClock.Step(10 * time.Minute)
+		go triggerVerifyAction()
 		_, err := controller.ProcessCluster(ctx)
 		Expect(err).ToNot(HaveOccurred())
 
@@ -831,7 +867,10 @@ var _ = Describe("Delete Node", func() {
 			v1alpha5.DoNotEvictPodAnnotationKey: "true",
 		}
 
-		prov := test.Provisioner(test.ProvisionerOptions{Consolidation: &v1alpha5.Consolidation{Enabled: aws.Bool(true)}})
+		prov := test.Provisioner(test.ProvisionerOptions{
+			Consolidation:        &v1alpha5.Consolidation{Enabled: aws.Bool(true)},
+			TTLSecondsAfterEmpty: aws.Int64(0),
+		})
 		node1 := test.Node(test.NodeOptions{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{
@@ -873,6 +912,7 @@ var _ = Describe("Delete Node", func() {
 		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node1))
 		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node2))
 		fakeClock.Step(10 * time.Minute)
+		go triggerVerifyAction()
 		_, err := controller.ProcessCluster(ctx)
 		Expect(err).ToNot(HaveOccurred())
 
@@ -903,7 +943,10 @@ var _ = Describe("Delete Node", func() {
 		// pod[2] is a stand-alone (non ReplicaSet) pod
 		pods[2].OwnerReferences = nil
 
-		prov := test.Provisioner(test.ProvisionerOptions{Consolidation: &v1alpha5.Consolidation{Enabled: aws.Bool(true)}})
+		prov := test.Provisioner(test.ProvisionerOptions{
+			Consolidation:        &v1alpha5.Consolidation{Enabled: aws.Bool(true)},
+			TTLSecondsAfterEmpty: aws.Int64(0),
+		})
 		node1 := test.Node(test.NodeOptions{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{
@@ -945,6 +988,7 @@ var _ = Describe("Delete Node", func() {
 		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node1))
 		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node2))
 		fakeClock.Step(10 * time.Minute)
+		go triggerVerifyAction()
 		_, err := controller.ProcessCluster(ctx)
 		Expect(err).ToNot(HaveOccurred())
 
@@ -979,7 +1023,11 @@ var _ = Describe("Node Lifetime Consideration", func() {
 					},
 				}}})
 
-		prov := test.Provisioner(test.ProvisionerOptions{TTLSecondsUntilExpired: aws.Int64(3), Consolidation: &v1alpha5.Consolidation{Enabled: aws.Bool(true)}})
+		prov := test.Provisioner(test.ProvisionerOptions{
+			Consolidation:          &v1alpha5.Consolidation{Enabled: aws.Bool(true)},
+			TTLSecondsAfterEmpty:   aws.Int64(0),
+			TTLSecondsUntilExpired: aws.Int64(3),
+		})
 		node1 := test.Node(test.NodeOptions{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{
@@ -1024,6 +1072,7 @@ var _ = Describe("Node Lifetime Consideration", func() {
 		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node1))
 		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node2))
 		fakeClock.SetTime(time.Now())
+		go triggerVerifyAction()
 		_, err := controller.ProcessCluster(ctx)
 		Expect(err).ToNot(HaveOccurred())
 
@@ -1071,7 +1120,10 @@ var _ = Describe("Topology Consideration", func() {
 		testZone2Instance := mostExpensiveInstanceWithZone("test-zone-2")
 		testZone3Instance := leastExpensiveInstanceWithZone("test-zone-3")
 
-		prov := test.Provisioner(test.ProvisionerOptions{Consolidation: &v1alpha5.Consolidation{Enabled: aws.Bool(true)}})
+		prov := test.Provisioner(test.ProvisionerOptions{
+			Consolidation:        &v1alpha5.Consolidation{Enabled: aws.Bool(true)},
+			TTLSecondsAfterEmpty: aws.Int64(0),
+		})
 		zone1Node := test.Node(test.NodeOptions{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{
@@ -1119,6 +1171,7 @@ var _ = Describe("Topology Consideration", func() {
 		// consolidation won't delete the old node until the new node is ready
 		wg := ExpectMakeNewNodesReady(ctx, env.Client, 1, zone1Node, zone2Node, zone3Node)
 		fakeClock.Step(10 * time.Minute)
+		go triggerVerifyAction()
 		_, err := controller.ProcessCluster(ctx)
 		Expect(err).ToNot(HaveOccurred())
 		wg.Wait()
@@ -1173,7 +1226,10 @@ var _ = Describe("Topology Consideration", func() {
 		testZone2Instance := leastExpensiveInstanceWithZone("test-zone-2")
 		testZone3Instance := leastExpensiveInstanceWithZone("test-zone-3")
 
-		prov := test.Provisioner(test.ProvisionerOptions{Consolidation: &v1alpha5.Consolidation{Enabled: aws.Bool(true)}})
+		prov := test.Provisioner(test.ProvisionerOptions{
+			Consolidation:        &v1alpha5.Consolidation{Enabled: aws.Bool(true)},
+			TTLSecondsAfterEmpty: aws.Int64(0),
+		})
 		zone1Node := test.Node(test.NodeOptions{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{
@@ -1218,6 +1274,7 @@ var _ = Describe("Topology Consideration", func() {
 
 		wg := ExpectMakeNewNodesReady(ctx, env.Client, 1, zone1Node, zone2Node, zone3Node)
 		fakeClock.Step(10 * time.Minute)
+		go triggerVerifyAction()
 		_, err := controller.ProcessCluster(ctx)
 		Expect(err).ToNot(HaveOccurred())
 		wg.Wait()
@@ -1256,6 +1313,7 @@ var _ = Describe("Empty Nodes", func() {
 		// inform cluster state about the nodes
 		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node1))
 		fakeClock.Step(10 * time.Minute)
+		go triggerVerifyAction()
 		_, err := controller.ProcessCluster(ctx)
 		Expect(err).ToNot(HaveOccurred())
 
@@ -1299,6 +1357,7 @@ var _ = Describe("Empty Nodes", func() {
 		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node1))
 		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node2))
 		fakeClock.Step(10 * time.Minute)
+		go triggerVerifyAction()
 		_, err := controller.ProcessCluster(ctx)
 		Expect(err).ToNot(HaveOccurred())
 
@@ -1310,6 +1369,117 @@ var _ = Describe("Empty Nodes", func() {
 	})
 })
 
+var _ = Describe("Consolidation TTL", func() {
+	It("should wait for the node TTL before consolidating", func() {
+		prov := test.Provisioner(test.ProvisionerOptions{
+			Consolidation: &v1alpha5.Consolidation{Enabled: aws.Bool(true)},
+		})
+
+		node1 := test.Node(test.NodeOptions{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					v1alpha5.ProvisionerNameLabelKey: prov.Name,
+					v1alpha5.LabelCapacityType:       mostExpensiveOffering.CapacityType,
+					v1.LabelTopologyZone:             mostExpensiveOffering.Zone,
+					v1.LabelInstanceTypeStable:       mostExpensiveInstance.Name(),
+					v1alpha5.LabelNodeInitialized:    "true",
+				},
+			},
+			Allocatable: map[v1.ResourceName]resource.Quantity{
+				v1.ResourceCPU:  resource.MustParse("32"),
+				v1.ResourcePods: resource.MustParse("100"),
+			}})
+
+		ExpectApplied(ctx, env.Client, node1, prov)
+
+		// inform cluster state about the nodes
+		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node1))
+		var wg sync.WaitGroup
+		wg.Add(1)
+		finished := atomic.Bool{}
+		go func() {
+			defer wg.Done()
+			defer finished.Store(true)
+			_, err := controller.ProcessCluster(ctx)
+			Expect(err).ToNot(HaveOccurred())
+		}()
+
+		// wait for the controller to block on the validation timeout
+		Eventually(fakeClock.HasWaiters).Should(BeTrue())
+		// controller should be blocking during the timeout
+		Expect(finished.Load()).To(BeFalse())
+		// and the node should not be deleted yet
+		Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(node1), node1)).To(Succeed())
+
+		// advance the clock so that the timeout expires
+		fakeClock.Step(31 * time.Second)
+		// controller should finish
+		Eventually(finished.Load, 10*time.Second).Should(BeTrue())
+		wg.Wait()
+
+		// we don't need any new nodes
+		Expect(cloudProvider.CreateCalls).To(HaveLen(0))
+		// and should delete the empty one
+		ExpectNotFound(ctx, env.Client, node1)
+	})
+	It("should not consolidate if the action becomes invalid during the node TTL wait", func() {
+		prov := test.Provisioner(test.ProvisionerOptions{
+			Consolidation: &v1alpha5.Consolidation{Enabled: aws.Bool(true)},
+		})
+
+		node1 := test.Node(test.NodeOptions{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					v1alpha5.ProvisionerNameLabelKey: prov.Name,
+					v1alpha5.LabelCapacityType:       mostExpensiveOffering.CapacityType,
+					v1.LabelTopologyZone:             mostExpensiveOffering.Zone,
+					v1.LabelInstanceTypeStable:       mostExpensiveInstance.Name(),
+					v1alpha5.LabelNodeInitialized:    "true",
+				},
+			},
+			Allocatable: map[v1.ResourceName]resource.Quantity{
+				v1.ResourceCPU:  resource.MustParse("32"),
+				v1.ResourcePods: resource.MustParse("100"),
+			}})
+
+		pod := test.Pod()
+		ExpectApplied(ctx, env.Client, node1, prov, pod)
+
+		// inform cluster state about the nodes
+		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node1))
+		var wg sync.WaitGroup
+		wg.Add(1)
+		finished := atomic.Bool{}
+		go func() {
+			defer wg.Done()
+			defer finished.Store(true)
+			_, err := controller.ProcessCluster(ctx)
+			Expect(err).ToNot(HaveOccurred())
+		}()
+
+		// wait for the controller to block on the validation timeout
+		Eventually(fakeClock.HasWaiters).Should(BeTrue())
+		// controller should be blocking during the timeout
+		Expect(finished.Load()).To(BeFalse())
+		// and the node should not be deleted yet
+		Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(node1), node1)).To(Succeed())
+
+		// make the node non-empty
+		ExpectManualBinding(ctx, env.Client, pod, node1)
+		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node1))
+
+		// advance the clock so that the timeout expires
+		fakeClock.Step(31 * time.Second)
+		// controller should finish
+		Eventually(finished.Load, 10*time.Second).Should(BeTrue())
+		wg.Wait()
+
+		// we don't need any new nodes
+		Expect(cloudProvider.CreateCalls).To(HaveLen(0))
+		// and the empty one is now not empty, so we should keep it
+		Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(node1), node1)).To(Succeed())
+	})
+})
 var _ = Describe("Parallelization", func() {
 	It("should schedule an additional node when receiving pending pods while consolidating", func() {
 		labels := map[string]string{
@@ -1333,7 +1503,10 @@ var _ = Describe("Parallelization", func() {
 					},
 				}}})
 
-		prov := test.Provisioner(test.ProvisionerOptions{Consolidation: &v1alpha5.Consolidation{Enabled: aws.Bool(true)}})
+		prov := test.Provisioner(test.ProvisionerOptions{
+			Consolidation:        &v1alpha5.Consolidation{Enabled: aws.Bool(true)},
+			TTLSecondsAfterEmpty: aws.Int64(0),
+		})
 
 		// Add a finalizer to the node so that it sticks around for the scheduling loop
 		node := test.Node(test.NodeOptions{
@@ -1358,6 +1531,7 @@ var _ = Describe("Parallelization", func() {
 		fakeClock.Step(10 * time.Minute)
 
 		// Run the processing loop in parallel in the background with environment context
+		go triggerVerifyAction()
 		go func() {
 			_, err := controller.ProcessCluster(env.Ctx)
 			Expect(err).ToNot(HaveOccurred())
@@ -1386,7 +1560,10 @@ var _ = Describe("Parallelization", func() {
 		ExpectApplied(ctx, env.Client, rs)
 		Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(rs), rs)).To(Succeed())
 
-		prov := test.Provisioner(test.ProvisionerOptions{Consolidation: &v1alpha5.Consolidation{Enabled: aws.Bool(true)}})
+		prov := test.Provisioner(test.ProvisionerOptions{
+			Consolidation:        &v1alpha5.Consolidation{Enabled: aws.Bool(true)},
+			TTLSecondsAfterEmpty: aws.Int64(0),
+		})
 		podOpts := test.PodOptions{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: labels,
@@ -1458,7 +1635,7 @@ var _ = Describe("Parallelization", func() {
 		fakeClock.Step(10 * time.Minute)
 		result, err := controller.ProcessCluster(env.Ctx)
 		Expect(err).ToNot(HaveOccurred())
-		Expect(result).To(Equal(consolidation.ProcessResultNothingToDo))
+		Expect(result).To(Equal(consolidation.DeprovisioningResultNothingToDo))
 	})
 })
 
