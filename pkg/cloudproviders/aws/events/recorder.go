@@ -15,8 +15,16 @@ limitations under the License.
 package events
 
 import (
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 )
+
+type Event struct {
+	InvolvedObject runtime.Object
+	Type           string
+	Reason         string
+	Message        string
+}
 
 type Recorder struct {
 	rec record.EventRecorder

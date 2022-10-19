@@ -22,47 +22,56 @@ import (
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/events"
 )
 
-var (
-	InstanceSpotInterrupted = events.EventTemplate[*v1.Node]{
-		Type:   v1.EventTypeWarning,
-		Reason: "InstanceSpotInterrupted",
-		MessageTemplate: func(n *v1.Node) string {
-			return fmt.Sprintf("Node %s event: A spot interruption warning was triggered for the node", n.Name)
-		},
+func InstanceSpotInterrupted(n *v1.Node) events.Event {
+	return events.Event{
+		InvolvedObject: n,
+		Type:           v1.EventTypeWarning,
+		Reason:         "InstanceSpotInterrupted",
+		Message:        fmt.Sprintf("Node %s event: A spot interruption warning was triggered for the node", n.Name),
 	}
-	InstanceSpotRebalanceRecommendation = events.EventTemplate[*v1.Node]{
-		Type:   v1.EventTypeNormal,
-		Reason: "InstanceSpotRebalanceRecommendation",
-		MessageTemplate: func(n *v1.Node) string {
-			return fmt.Sprintf("Node %s event: A spot rebalance recommendation was triggered for the node", n.Name)
-		},
+}
+
+func InstanceRebalanceRecommendation(n *v1.Node) events.Event {
+	return events.Event{
+		InvolvedObject: n,
+		Type:           v1.EventTypeNormal,
+		Reason:         "InstanceSpotRebalanceRecommendation",
+		Message:        fmt.Sprintf("Node %s event: A spot rebalance recommendation was triggered for the node", n.Name),
 	}
-	InstanceStopping = events.EventTemplate[*v1.Node]{
-		Type:   v1.EventTypeWarning,
-		Reason: "InstanceStopping",
-		MessageTemplate: func(n *v1.Node) string {
-			return fmt.Sprintf("Node %s event: Instance is stopping", n.Name)
-		},
+}
+
+func InstanceStopping(n *v1.Node) events.Event {
+	return events.Event{
+		InvolvedObject: n,
+		Type:           v1.EventTypeWarning,
+		Reason:         "InstanceStopping",
+		Message:        fmt.Sprintf("Node %s event: Instance is stopping", n.Name),
 	}
-	InstanceTerminating = events.EventTemplate[*v1.Node]{
-		Type:   v1.EventTypeWarning,
-		Reason: "InstanceTerminating",
-		MessageTemplate: func(n *v1.Node) string {
-			return fmt.Sprintf("Node %s event: Instance is terminating", n.Name)
-		},
+}
+
+func InstanceTerminating(n *v1.Node) events.Event {
+	return events.Event{
+		InvolvedObject: n,
+		Type:           v1.EventTypeWarning,
+		Reason:         "InstanceTerminating",
+		Message:        fmt.Sprintf("Node %s event: Instance is terminating", n.Name),
 	}
-	InstanceUnhealthy = events.EventTemplate[*v1.Node]{
-		Type:   v1.EventTypeWarning,
-		Reason: "InstanceUnhealthy",
-		MessageTemplate: func(n *v1.Node) string {
-			return fmt.Sprintf("Node %s event: An unhealthy warning was triggered for the node", n.Name)
-		},
+}
+
+func InstanceUnhealthy(n *v1.Node) events.Event {
+	return events.Event{
+		InvolvedObject: n,
+		Type:           v1.EventTypeWarning,
+		Reason:         "InstanceUnhealthy",
+		Message:        fmt.Sprintf("Node %s event: An unhealthy warning was triggered for the node", n.Name),
 	}
-	NodeTerminatingOnInterruption = events.EventTemplate[*v1.Node]{
-		Type:   v1.EventTypeWarning,
-		Reason: "NodeTerminatingOnInterruption",
-		MessageTemplate: func(n *v1.Node) string {
-			return fmt.Sprintf("Node %s event: Interruption triggered termination for the node", n.Name)
-		},
+}
+
+func NodeTerminatingOnInterruption(n *v1.Node) events.Event {
+	return events.Event{
+		InvolvedObject: n,
+		Type:           v1.EventTypeWarning,
+		Reason:         "NodeTerminatingOnInterruption",
+		Message:        fmt.Sprintf("Node %s event: Interruption triggered termination for the node", n.Name),
 	}
-)
+}
