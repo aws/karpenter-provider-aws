@@ -36,6 +36,7 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	awscloudprovider "github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider"
+	awscontext "github.com/aws/karpenter/pkg/cloudproviders/aws/context"
 	"github.com/aws/karpenter/pkg/operator/injection"
 	"github.com/aws/karpenter/pkg/operator/options"
 
@@ -60,7 +61,7 @@ func main() {
 	opts = opts.MustParse()
 	ctx := injection.WithOptions(context.Background(), *opts)
 
-	cp := NewAWSCloudProviderForCodeGen()
+	cp := NewAWSCloudProviderForCodeGen(ctx)
 	provider := v1alpha1.AWS{SubnetSelector: map[string]string{
 		"*": "*",
 	}}
@@ -237,9 +238,10 @@ func (f kubeDnsTransport) RoundTrip(request *http.Request) (*http.Response, erro
 	}, nil
 }
 
-func NewAWSCloudProviderForCodeGen() *awscloudprovider.CloudProvider {
+func NewAWSCloudProviderForCodeGen(ctx context.Context) *awscloudprovider.CloudProvider {
 	cs, _ := kubernetes.NewForConfigAndClient(&rest.Config{}, &http.Client{Transport: &kubeDnsTransport{}})
-	return awscloudprovider.NewCloudProvider(context.Background(), cloudprovider.Options{
+	return awscloudprovider.New(awscontext.NewOrDie(cloudprovider.Context{
+		Context:   ctx,
 		ClientSet: cs,
-	})
+	}))
 }

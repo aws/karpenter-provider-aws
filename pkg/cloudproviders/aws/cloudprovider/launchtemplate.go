@@ -38,6 +38,7 @@ import (
 
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider/amifamily"
+	awscontext "github.com/aws/karpenter/pkg/cloudproviders/aws/context"
 	awserrors "github.com/aws/karpenter/pkg/cloudproviders/aws/errors"
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
 	"github.com/aws/karpenter/pkg/operator/injection"
@@ -70,7 +71,7 @@ func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, clie
 		logger:                logging.FromContext(ctx).Named("launchtemplate"),
 		amiFamily:             amiFamily,
 		securityGroupProvider: securityGroupProvider,
-		cache:                 cache.New(CacheTTL, CacheCleanupInterval),
+		cache:                 cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval),
 		caBundle:              caBundle,
 		cm:                    pretty.NewChangeMonitor(),
 		kubeDNSIP:             kubeDNSIP,

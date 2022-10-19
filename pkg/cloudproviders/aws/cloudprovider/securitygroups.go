@@ -27,6 +27,7 @@ import (
 	"knative.dev/pkg/logging"
 
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
+	awscontext "github.com/aws/karpenter/pkg/cloudproviders/aws/context"
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/pretty"
 )
@@ -42,7 +43,7 @@ func NewSecurityGroupProvider(ec2api ec2iface.EC2API) *SecurityGroupProvider {
 	return &SecurityGroupProvider{
 		ec2api: ec2api,
 		cm:     pretty.NewChangeMonitor(),
-		cache:  cache.New(CacheTTL, CacheCleanupInterval),
+		cache:  cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval),
 	}
 }
 

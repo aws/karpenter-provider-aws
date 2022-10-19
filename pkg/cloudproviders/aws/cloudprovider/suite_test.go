@@ -38,6 +38,7 @@ import (
 
 	awscache "github.com/aws/karpenter/pkg/cloudproviders/aws/cache"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider/amifamily"
+	awscontext "github.com/aws/karpenter/pkg/cloudproviders/aws/context"
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
 	"github.com/aws/karpenter/pkg/operator/injection"
 	"github.com/aws/karpenter/pkg/operator/options"
@@ -100,14 +101,15 @@ var _ = BeforeSuite(func() {
 		Expect(opts.Validate()).To(Succeed(), "Failed to validate options")
 		ctx = injection.WithOptions(ctx, opts)
 		ctx, stop = context.WithCancel(ctx)
-		launchTemplateCache = cache.New(CacheTTL, CacheCleanupInterval)
-		internalUnavailableOfferingsCache = cache.New(awscache.UnavailableOfferingsTTL, CacheCleanupInterval)
+
+		launchTemplateCache = cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)
+		internalUnavailableOfferingsCache = cache.New(awscache.UnavailableOfferingsTTL, awscontext.CacheCleanupInterval)
 		unavailableOfferingsCache = awscache.NewUnavailableOfferings(internalUnavailableOfferingsCache)
-		securityGroupCache = cache.New(CacheTTL, CacheCleanupInterval)
-		subnetCache = cache.New(CacheTTL, CacheCleanupInterval)
-		ssmCache = cache.New(CacheTTL, CacheCleanupInterval)
-		ec2Cache = cache.New(CacheTTL, CacheCleanupInterval)
-		instanceTypeCache = cache.New(InstanceTypesAndZonesCacheTTL, CacheCleanupInterval)
+		securityGroupCache = cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)
+		subnetCache = cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)
+		ssmCache = cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)
+		ec2Cache = cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)
+		instanceTypeCache = cache.New(InstanceTypesAndZonesCacheTTL, awscontext.CacheCleanupInterval)
 		fakeEC2API = &fake.EC2API{}
 		fakePricingAPI = &fake.PricingAPI{}
 		pricingProvider = NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
@@ -134,7 +136,7 @@ var _ = BeforeSuite(func() {
 			instanceTypeProvider: instanceTypeProvider,
 			instanceProvider: NewInstanceProvider(ctx, fakeEC2API, instanceTypeProvider, subnetProvider, &LaunchTemplateProvider{
 				ec2api:                fakeEC2API,
-				amiFamily:             amifamily.New(ctx, fake.SSMAPI{}, fakeEC2API, ssmCache, ec2Cache, e.Client),
+				amiFamily:             amifamily.New(env.Client, fake.SSMAPI{}, fakeEC2API, ssmCache, ec2Cache),
 				clientSet:             clientSet,
 				securityGroupProvider: securityGroupProvider,
 				cache:                 launchTemplateCache,
@@ -210,7 +212,7 @@ var _ = Describe("Allocation", func() {
 		It("should default requirements hooks in webhook mode", func() {
 			// clear our hook to ensure that creating the cloud provider in webhook mode sets it
 			v1alpha5.DefaultHook = func(ctx context.Context, provisoner *v1alpha5.Provisioner) {}
-			NewCloudProvider(ctx, cloudprovider.Options{WebhookOnly: true})
+			New(awscontext.Context{Context: cloudprovider.Context{WebhookOnly: true}})
 			v1alpha5.DefaultHook(ctx, provisioner)
 			Expect(provisioner.Spec.Requirements).To(ContainElement(v1.NodeSelectorRequirement{
 				Key:      v1alpha5.LabelCapacityType,
@@ -528,13 +530,13 @@ var _ = Describe("Allocation", func() {
 
 	Context("Webhook", func() {
 		It("should validate when in webhook mode", func() {
-			cp := NewCloudProvider(ctx, cloudprovider.Options{WebhookOnly: true})
+			cp := New(awscontext.Context{Context: cloudprovider.Context{WebhookOnly: true}})
 			// just ensures that validation doesn't depend on anything as when created for the webhook
 			// we don't fully initialize the cloud provider
 			Expect(cp.Validate(ctx, provisioner)).To(Succeed())
 		})
 		It("should default when in webhookmode", func() {
-			cp := NewCloudProvider(ctx, cloudprovider.Options{WebhookOnly: true})
+			cp := New(awscontext.Context{Context: cloudprovider.Context{WebhookOnly: true}})
 			// just ensures that validation doesn't depend on anything as when created for the webhook
 			// we don't fully initialize the cloud provider
 			cp.Default(ctx, provisioner)

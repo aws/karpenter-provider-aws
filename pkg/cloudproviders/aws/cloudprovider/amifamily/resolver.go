@@ -103,17 +103,17 @@ func (d DefaultFamily) FeatureFlags() FeatureFlags {
 }
 
 // New constructs a new launch template Resolver
-func New(ctx context.Context, ssm ssmiface.SSMAPI, ec2api ec2iface.EC2API, ssmCache *cache.Cache, ec2Cache *cache.Cache, client client.Client) *Resolver {
+func New(kubeClient client.Client, ssm ssmiface.SSMAPI, ec2api ec2iface.EC2API, ssmCache *cache.Cache, ec2Cache *cache.Cache) *Resolver {
 	return &Resolver{
 		amiProvider: &AMIProvider{
 			ssm:        ssm,
 			ssmCache:   ssmCache,
 			ec2Cache:   ec2Cache,
-			kubeClient: client,
+			kubeClient: kubeClient,
 			ec2api:     ec2api,
 			cm:         pretty.NewChangeMonitor(),
 		},
-		UserDataProvider: NewUserDataProvider(client),
+		UserDataProvider: NewUserDataProvider(kubeClient),
 	}
 }
 

@@ -21,13 +21,15 @@ import (
 	"sync"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws/session"
+
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	awscache "github.com/aws/karpenter/pkg/cloudproviders/aws/cache"
+	awscontext "github.com/aws/karpenter/pkg/cloudproviders/aws/context"
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
 	"github.com/aws/karpenter/pkg/operator/injection"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/mitchellh/hashstructure/v2"
@@ -61,19 +63,22 @@ type InstanceTypeProvider struct {
 	cm                   *pretty.ChangeMonitor
 }
 
-func NewInstanceTypeProvider(ctx context.Context, sess *session.Session, options cloudprovider.Options,
-	ec2api ec2iface.EC2API, subnetProvider *SubnetProvider, unavailableOfferings *awscache.UnavailableOfferings) *InstanceTypeProvider {
+func NewInstanceTypeProvider(ctx context.Context, sess *session.Session, ec2api ec2iface.EC2API, subnetProvider *SubnetProvider,
+	unavailableOfferingsCache *awscache.UnavailableOfferings, startAsync <-chan struct{}) *InstanceTypeProvider {
 	return &InstanceTypeProvider{
 		ec2api:         ec2api,
 		region:         *sess.Config.Region,
 		subnetProvider: subnetProvider,
-		pricingProvider: NewPricingProvider(ctx,
+		pricingProvider: NewPricingProvider(
+			ctx,
 			NewPricingAPI(sess, *sess.Config.Region),
 			ec2api,
 			*sess.Config.Region,
-			injection.GetOptions(ctx).AWSIsolatedVPC, options.StartAsync),
-		cache:                cache.New(InstanceTypesAndZonesCacheTTL, CacheCleanupInterval),
-		unavailableOfferings: unavailableOfferings,
+			injection.GetOptions(ctx).AWSIsolatedVPC,
+			startAsync,
+		),
+		cache:                cache.New(InstanceTypesAndZonesCacheTTL, awscontext.CacheCleanupInterval),
+		unavailableOfferings: unavailableOfferingsCache,
 		cm:                   pretty.NewChangeMonitor(),
 	}
 }
