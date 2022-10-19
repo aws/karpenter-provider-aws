@@ -18,6 +18,7 @@ import (
 	"sort"
 
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/aws/karpenter/pkg/utils/resources"
 )
@@ -26,37 +27,43 @@ import (
 // in scheduling. This is sometimes required to maintain zonal topology spreads with constrained pods, and can satisfy
 // pod affinities that occur in a batch of pods if there are enough constraints provided.
 type Queue struct {
-	pods       []*v1.Pod
-	lastPopped *v1.Pod
-	attempts   int
+	pods    []*v1.Pod
+	lastLen map[types.UID]int
 }
 
 // NewQueue constructs a new queue given the input pods, sorting them to optimize for bin-packing into nodes.
 func NewQueue(pods ...*v1.Pod) *Queue {
 	sort.Slice(pods, byCPUAndMemoryDescending(pods))
 	return &Queue{
-		pods:     pods,
-		attempts: len(pods),
+		pods:    pods,
+		lastLen: map[types.UID]int{},
 	}
 }
 
 // Pop returns the next pod or false if no longer making progress
 func (q *Queue) Pop() (*v1.Pod, bool) {
-	if len(q.pods) == 0 || q.attempts == 0 {
+	if len(q.pods) == 0 {
 		return nil, false
 	}
-	q.lastPopped = q.pods[0]
+	p := q.pods[0]
+
+	// If we are about to pop a pod when it was last pushed with the same number of pods in the queue, then
+	// we've cycled through all pods in the queue without making progress and can stop
+	if q.lastLen[p.UID] == len(q.pods) {
+		return nil, false
+	}
+
 	q.pods = q.pods[1:]
-	return q.lastPopped, true
+	return p, true
 }
 
 // Push a pod onto the queue, counting each time a pod is immediately requeued. This is used to detect staleness.
 func (q *Queue) Push(pod *v1.Pod, relaxed bool) {
 	q.pods = append(q.pods, pod)
-	if relaxed || q.lastPopped != pod {
-		q.attempts = len(q.pods)
+	if relaxed {
+		q.lastLen = map[types.UID]int{}
 	} else {
-		q.attempts--
+		q.lastLen[pod.UID] = len(q.pods)
 	}
 }
 

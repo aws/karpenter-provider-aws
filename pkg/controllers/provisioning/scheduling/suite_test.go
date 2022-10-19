@@ -2646,10 +2646,10 @@ var _ = Describe("Topology", func() {
 			webLabels := map[string]string{"type": "web", "spread": "spread"}
 			cacheLabels := map[string]string{"type": "cache", "spread": "spread"}
 			uiLabels := map[string]string{"type": "ui", "spread": "spread"}
-
 			for i := 0; i < 50; i++ {
+				ExpectApplied(ctx, env.Client, provisioner.DeepCopy())
 				// we have to schedule DB -> Web -> Cache -> UI in that order or else there are pod affinity violations
-				ExpectProvisioned(ctx, env.Client, controller,
+				pods := ExpectProvisioned(ctx, env.Client, controller,
 					test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: dbLabels}}),
 					test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: webLabels},
 						PodRequirements: []v1.PodAffinityTerm{{
@@ -2662,13 +2662,34 @@ var _ = Describe("Topology", func() {
 							TopologyKey:   v1.LabelHostname},
 						}}),
 					test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: uiLabels},
-						PodRequirements: []v1.PodAffinityTerm{{
-							LabelSelector: &metav1.LabelSelector{MatchLabels: cacheLabels},
-							TopologyKey:   v1.LabelHostname},
+						PodRequirements: []v1.PodAffinityTerm{
+							{
+								LabelSelector: &metav1.LabelSelector{MatchLabels: cacheLabels},
+								TopologyKey:   v1.LabelHostname},
 						}}),
 				)
+				for i := range pods {
+					ExpectScheduled(ctx, env.Client, pods[i])
+				}
 				ExpectCleanedUp(ctx, env.Client)
 			}
+		})
+		It("should fail to schedule pods with unsatisfiable dependencies", func() {
+			dbLabels := map[string]string{"type": "db", "spread": "spread"}
+			webLabels := map[string]string{"type": "web", "spread": "spread"}
+			ExpectApplied(ctx, env.Client, provisioner)
+			// this pods wants to schedule with a non-existent pod, this test just ensures that the scheduling loop
+			// doesn't infinite loop
+			pods := ExpectProvisioned(ctx, env.Client, controller,
+				test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: dbLabels},
+					PodRequirements: []v1.PodAffinityTerm{
+						{
+							LabelSelector: &metav1.LabelSelector{MatchLabels: webLabels},
+							TopologyKey:   v1.LabelHostname,
+						},
+					}}),
+			)
+			ExpectNotScheduled(ctx, env.Client, pods[0])
 		})
 		It("should filter pod affinity topologies by namespace, no matching pods", func() {
 			topology := []v1.TopologySpreadConstraint{{
