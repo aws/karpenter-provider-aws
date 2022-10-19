@@ -37,6 +37,7 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	awserrors "github.com/aws/karpenter/pkg/cloudproviders/aws/errors"
+	"github.com/aws/karpenter/pkg/cloudproviders/aws/utils"
 	"github.com/aws/karpenter/pkg/operator/injection"
 	"github.com/aws/karpenter/pkg/operator/options"
 
@@ -111,7 +112,7 @@ func (p *InstanceProvider) Create(ctx context.Context, provider *v1alpha1.AWS, n
 }
 
 func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
-	id, err := getInstanceID(node)
+	id, err := utils.ParseInstanceID(node)
 	if err != nil {
 		return fmt.Errorf("getting instance ID for node %s, %w", node.Name, err)
 	}
@@ -412,14 +413,6 @@ func (p *InstanceProvider) prioritizeInstanceTypes(instanceTypes []cloudprovider
 		return genericInstanceTypes
 	}
 	return instanceTypes
-}
-
-func getInstanceID(node *v1.Node) (*string, error) {
-	id := strings.Split(node.Spec.ProviderID, "/")
-	if len(id) < 5 {
-		return nil, fmt.Errorf("parsing instance id %s", node.Spec.ProviderID)
-	}
-	return aws.String(id[4]), nil
 }
 
 func combineFleetErrors(errors []*ec2.CreateFleetError) (errs error) {

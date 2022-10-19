@@ -33,8 +33,7 @@ func init() {
 	metrics.MustRegister() // Registers cross-controller metrics
 }
 
-func GetControllers(ctx operator.Context, cloudProvider cloudprovider.CloudProvider) []operator.Controller {
-	cluster := state.NewCluster(ctx.Clock, ctx.Config, ctx.KubeClient, cloudProvider)
+func GetControllers(ctx operator.Context, cluster *state.Cluster, cloudProvider cloudprovider.CloudProvider) []operator.Controller {
 	provisioner := provisioning.NewProvisioner(ctx, ctx.Config, ctx.KubeClient, ctx.Clientset.CoreV1(), ctx.EventRecorder, cloudProvider, cluster)
 
 	metricsstate.StartMetricScraper(ctx, cluster)

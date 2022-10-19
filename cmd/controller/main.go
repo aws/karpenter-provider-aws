@@ -21,9 +21,11 @@ import (
 
 	awscloudprovider "github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider"
 	awscontext "github.com/aws/karpenter/pkg/cloudproviders/aws/context"
+	awscontrollers "github.com/aws/karpenter/pkg/cloudproviders/aws/controllers"
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
 	cloudprovidermetrics "github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider/metrics"
 	"github.com/aws/karpenter/pkg/controllers"
+	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/operator"
 )
 
@@ -31,6 +33,7 @@ func main() {
 	ctx, manager := operator.NewOrDie()
 	awsCtx := awscontext.NewOrDie(cloudprovider.Context{
 		Context:       ctx,
+		Clock:         ctx.Clock,
 		ClientSet:     ctx.Clientset,
 		KubeClient:    ctx.KubeClient,
 		EventRecorder: ctx.BaseEventRecorder,
@@ -38,11 +41,17 @@ func main() {
 	})
 	awsCloudProvider := awscloudprovider.New(awsCtx)
 	runtime.Must(manager.AddHealthzCheck("cloud-provider", awsCloudProvider.LivenessProbe))
-
 	cloudProvider := cloudprovidermetrics.Decorate(awsCloudProvider)
+
+	cluster := state.NewCluster(ctx.Clock, ctx.Config, ctx.KubeClient, cloudProvider)
+
+	var conts []operator.Controller
+	conts = append(conts, controllers.GetControllers(ctx, cluster, cloudProvider)...)
+	conts = append(conts, awscontrollers.GetControllers(awsCtx, cluster)...)
+
 	if err := operator.RegisterControllers(ctx,
 		manager,
-		controllers.GetControllers(ctx, cloudProvider)...,
+		conts...,
 	).Start(ctx); err != nil {
 		panic(fmt.Sprintf("Unable to start manager, %s", err))
 	}
