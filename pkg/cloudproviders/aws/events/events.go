@@ -14,21 +14,26 @@ limitations under the License.
 
 package events
 
-import (
-	"k8s.io/client-go/tools/record"
-)
+import "k8s.io/apimachinery/pkg/runtime"
 
-type Recorder struct {
-	rec record.EventRecorder
+type Event struct {
+	InvolvedObject runtime.Object
+	Type           string
+	Reason         string
+	Message        string
 }
 
-func NewRecorder(r record.EventRecorder) *Recorder {
-	return &Recorder{
-		rec: r,
+type EventTemplate[T runtime.Object] struct {
+	Type            string
+	Reason          string
+	MessageTemplate func(T) string
+}
+
+func (et *EventTemplate[T]) For(obj T) Event {
+	return Event{
+		InvolvedObject: obj,
+		Type:           et.Type,
+		Reason:         et.Reason,
+		Message:        et.MessageTemplate(obj),
 	}
-}
-
-// Publish creates a Kubernetes event using the passed event struct
-func (r *Recorder) Publish(evt Event) {
-	r.rec.Event(evt.InvolvedObject, evt.Type, evt.Reason, evt.Message)
 }
