@@ -35,8 +35,8 @@ import (
 	"k8s.io/client-go/rest"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter/pkg/cloudproviders/aws"
 	awscloudprovider "github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider"
+	awscontext "github.com/aws/karpenter/pkg/cloudproviders/aws/context"
 	"github.com/aws/karpenter/pkg/operator/injection"
 	"github.com/aws/karpenter/pkg/operator/options"
 
@@ -240,7 +240,7 @@ func (f kubeDnsTransport) RoundTrip(request *http.Request) (*http.Response, erro
 
 func NewAWSCloudProviderForCodeGen(ctx context.Context) *awscloudprovider.CloudProvider {
 	cs, _ := kubernetes.NewForConfigAndClient(&rest.Config{}, &http.Client{Transport: &kubeDnsTransport{}})
-	return awscloudprovider.New(aws.NewContextOrDie(cloudprovider.Context{
+	return awscloudprovider.New(awscontext.NewOrDie(cloudprovider.Context{
 		Context:   ctx,
 		ClientSet: cs,
 	}))

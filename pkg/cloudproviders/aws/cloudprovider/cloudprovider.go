@@ -22,7 +22,7 @@ import (
 	"net"
 	"net/http"
 
-	sdk "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ssm"
@@ -41,9 +41,9 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	awsv1alpha1 "github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
-	"github.com/aws/karpenter/pkg/cloudproviders/aws"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider/amifamily"
+	awscontext "github.com/aws/karpenter/pkg/cloudproviders/aws/context"
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
 	"github.com/aws/karpenter/pkg/operator/injection"
 	"github.com/aws/karpenter/pkg/utils/functional"
@@ -66,7 +66,7 @@ type CloudProvider struct {
 	kubeClient           k8sClient.Client
 }
 
-func New(ctx aws.Context) *CloudProvider {
+func New(ctx awscontext.Context) *CloudProvider {
 	if ctx.WebhookOnly {
 		// if performing validation only, then only the Validate()/Default() methods will be called which
 		// don't require any other setup
@@ -93,7 +93,7 @@ func New(ctx aws.Context) *CloudProvider {
 				ctx,
 				ec2api,
 				ctx.ClientSet,
-				amifamily.New(ctx.KubeClient, ssm.New(ctx.Session), ec2api, cache.New(aws.CacheTTL, aws.CacheCleanupInterval), cache.New(aws.CacheTTL, aws.CacheCleanupInterval)),
+				amifamily.New(ctx.KubeClient, ssm.New(ctx.Session), ec2api, cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval), cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)),
 				NewSecurityGroupProvider(ec2api),
 				getCABundle(ctx),
 				ctx.StartAsync,
@@ -111,7 +111,7 @@ func New(ctx aws.Context) *CloudProvider {
 // checkEC2Connectivity makes a dry-run call to DescribeInstanceTypes.  If it fails, we provide an early indicator that we
 // are having issues connecting to the EC2 API.
 func checkEC2Connectivity(ctx context.Context, api *ec2.EC2) error {
-	_, err := api.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{DryRun: sdk.Bool(true)})
+	_, err := api.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{DryRun: aws.Bool(true)})
 	var aerr awserr.Error
 	if errors.As(err, &aerr) && aerr.Code() == "DryRunOperation" {
 		return nil

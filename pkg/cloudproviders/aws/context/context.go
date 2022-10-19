@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package aws
+package context
 
 import (
 	"fmt"
@@ -52,7 +52,7 @@ type Context struct {
 	UnavailableOfferingsCache *awscache.UnavailableOfferings
 }
 
-func NewContextOrDie(ctx cloudprovider.Context) Context {
+func NewOrDie(ctx cloudprovider.Context) Context {
 	ctx.Context = logging.WithLogger(ctx, logging.FromContext(ctx).Named("aws"))
 	sess := withUserAgent(session.Must(session.NewSession(
 		request.WithRetryer(
