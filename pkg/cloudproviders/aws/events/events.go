@@ -37,3 +37,18 @@ func (et *EventTemplate[T]) For(obj T) Event {
 		Message:        et.MessageTemplate(obj),
 	}
 }
+
+type EventTemplateWithArgs[T runtime.Object, Args any] struct {
+	Type            string
+	Reason          string
+	MessageTemplate func(T, Args) string
+}
+
+func (et *EventTemplateWithArgs[T, Args]) For(obj T, args Args) Event {
+	return Event{
+		InvolvedObject: obj,
+		Type:           et.Type,
+		Reason:         et.Reason,
+		Message:        et.MessageTemplate(obj, args),
+	}
+}
