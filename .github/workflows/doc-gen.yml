@@ -1,0 +1,34 @@
+name: DocGenCI
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions:
+  id-token: write
+
+jobs:
+  stable-release:
+    if: github.event.workflow_run.conclusion == 'success' && github.repository == 'aws/karpenter'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: sed -En 's/^go[[:space:]]+([[:digit:].]+)$/GO_VERSION=\1/p' go.mod >> $GITHUB_ENV
+      - uses: actions/setup-go@v3
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          check-latest: true
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+            ~/go/bin/
+            ~/.kubebuilder/bin/k8s
+          key: ${{ runner.os }}-go-cache-${{ hashFiles('**/go.sum') }}
+      - uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: arn:aws:iam::071440425669:role/Github
+          aws-region: us-east-1
+      - run: make docgen
