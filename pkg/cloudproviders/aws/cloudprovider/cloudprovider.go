@@ -293,6 +293,9 @@ func getCABundle(ctx context.Context) *string {
 }
 
 func kubeDNSIP(ctx context.Context, clientSet *kubernetes.Clientset) (net.IP, error) {
+	if clientSet == nil {
+		return nil, fmt.Errorf("no K8s client provided")
+	}
 	dnsService, err := clientSet.CoreV1().Services("kube-system").Get(ctx, "kube-dns", metav1.GetOptions{})
 	if err != nil {
 		return nil, err

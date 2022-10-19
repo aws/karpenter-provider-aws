@@ -20,7 +20,9 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"os"
 	"sort"
 	"strings"
@@ -29,13 +31,15 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
+	awscloudprovider "github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider"
 	"github.com/aws/karpenter/pkg/operator/injection"
 	"github.com/aws/karpenter/pkg/operator/options"
 
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
-	awscloudprovider "github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
 	"github.com/aws/karpenter/pkg/utils/resources"
 )
@@ -56,7 +60,7 @@ func main() {
 	opts = opts.MustParse()
 	ctx := injection.WithOptions(context.Background(), *opts)
 
-	cp := awscloudprovider.NewCloudProvider(ctx, cloudprovider.Options{})
+	cp := NewAWSCloudProviderForCodeGen()
 	provider := v1alpha1.AWS{SubnetSelector: map[string]string{
 		"*": "*",
 	}}
@@ -194,4 +198,48 @@ below are the resources available with some assumptions and after the instance o
 			}
 		}
 	}
+}
+
+type kubeDnsTransport struct {
+}
+
+const kubeDNS = `{
+    "apiVersion": "v1",
+    "kind": "Service",
+    "metadata": {
+        "creationTimestamp": "2022-04-14T17:55:49Z",
+        "name": "kube-dns",
+        "namespace": "kube-system",
+        "resourceVersion": "262"
+    },
+    "spec": {
+        "clusterIP": "10.100.0.10",
+        "clusterIPs": [
+            "10.100.0.10"
+        ],
+        "internalTrafficPolicy": "Cluster",
+        "ipFamilies": [
+            "IPv4"
+        ],
+        "ipFamilyPolicy": "SingleStack",
+        "type": "ClusterIP"
+    }
+}
+`
+
+func (f kubeDnsTransport) RoundTrip(request *http.Request) (*http.Response, error) {
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Proto:      "http/1.0",
+		ProtoMajor: 1,
+		ProtoMinor: 0,
+		Body:       io.NopCloser(bytes.NewBufferString(kubeDNS)),
+	}, nil
+}
+
+func NewAWSCloudProviderForCodeGen() *awscloudprovider.CloudProvider {
+	cs, _ := kubernetes.NewForConfigAndClient(&rest.Config{}, &http.Client{Transport: &kubeDnsTransport{}})
+	return awscloudprovider.NewCloudProvider(context.Background(), cloudprovider.Options{
+		ClientSet: cs,
+	})
 }
