@@ -9,7 +9,7 @@ permissions:
   id-token: write
 
 jobs:
-  stable-release:
+  doc-gen:
     if: github.event.workflow_run.conclusion == 'success' && github.repository == 'aws/karpenter'
     runs-on: ubuntu-latest
     steps:

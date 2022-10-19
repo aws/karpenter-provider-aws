@@ -53,6 +53,8 @@ func main() {
 	var packages []*ast.Package
 	root := flag.Arg(0)
 
+	log.Fatal("Fail to test DocGenCI")
+
 	// walk our metrics controller directory
 	log.Println("parsing code in", root)
 	filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
