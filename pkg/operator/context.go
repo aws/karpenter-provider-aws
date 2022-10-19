@@ -32,12 +32,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
+	"github.com/aws/karpenter-core/pkg/utils/project"
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/config"
 	"github.com/aws/karpenter/pkg/events"
 	"github.com/aws/karpenter/pkg/operator/injection"
 	"github.com/aws/karpenter/pkg/operator/options"
-	"github.com/aws/karpenter/pkg/utils/project"
 )
 
 const (

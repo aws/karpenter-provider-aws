@@ -21,8 +21,8 @@ import (
 
 	"knative.dev/pkg/apis"
 
+	"github.com/aws/karpenter-core/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/utils/functional"
 )
 
 const (

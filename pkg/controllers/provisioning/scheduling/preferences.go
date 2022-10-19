@@ -24,7 +24,7 @@ import (
 	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/aws/karpenter/pkg/utils/pretty"
+	"github.com/aws/karpenter-core/pkg/utils/pretty"
 )
 
 type Preferences struct {

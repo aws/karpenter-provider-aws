@@ -27,10 +27,10 @@ import (
 	"github.com/patrickmn/go-cache"
 	"knative.dev/pkg/logging"
 
+	"github.com/aws/karpenter-core/pkg/utils/functional"
+	"github.com/aws/karpenter-core/pkg/utils/pretty"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
 	awscontext "github.com/aws/karpenter/pkg/cloudproviders/aws/context"
-	"github.com/aws/karpenter/pkg/utils/functional"
-	"github.com/aws/karpenter/pkg/utils/pretty"
 )
 
 type SubnetProvider struct {

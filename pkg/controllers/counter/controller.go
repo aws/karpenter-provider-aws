@@ -35,7 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter/pkg/utils/resources"
+	"github.com/aws/karpenter-core/pkg/utils/resources"
 )
 
 // Controller for the resource

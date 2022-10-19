@@ -35,7 +35,7 @@ import (
 	"go.uber.org/multierr"
 	"knative.dev/pkg/logging"
 
-	"github.com/aws/karpenter/pkg/utils/pretty"
+	"github.com/aws/karpenter-core/pkg/utils/pretty"
 )
 
 // PricingProvider provides actual pricing data to the AWS cloud provider to allow it to make more informed decisions
