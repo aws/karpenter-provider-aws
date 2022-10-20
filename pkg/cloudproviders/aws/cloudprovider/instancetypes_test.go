@@ -38,7 +38,8 @@ import (
 	"github.com/aws/karpenter-core/pkg/controllers/provisioning"
 	"github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
-	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
+
+	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/fake"
 )
 
@@ -47,19 +48,19 @@ var _ = Describe("Instance Types", func() {
 		ExpectApplied(ctx, env.Client, provisioner)
 		var pods []*v1.Pod
 		for key, value := range map[string]string{
-			awsv1alpha1.LabelInstanceHypervisor:      "nitro",
-			awsv1alpha1.LabelInstanceCategory:        "g",
-			awsv1alpha1.LabelInstanceFamily:          "g4dn",
-			awsv1alpha1.LabelInstanceGeneration:      "4",
-			awsv1alpha1.LabelInstanceSize:            "8xlarge",
-			awsv1alpha1.LabelInstanceCPU:             "32",
-			awsv1alpha1.LabelInstanceMemory:          "131072",
-			awsv1alpha1.LabelInstancePods:            "58",
-			awsv1alpha1.LabelInstanceGPUName:         "t4",
-			awsv1alpha1.LabelInstanceGPUManufacturer: "nvidia",
-			awsv1alpha1.LabelInstanceGPUCount:        "1",
-			awsv1alpha1.LabelInstanceGPUMemory:       "16384",
-			awsv1alpha1.LabelInstanceLocalNVME:       "900",
+			v1alpha1.LabelInstanceHypervisor:      "nitro",
+			v1alpha1.LabelInstanceCategory:        "g",
+			v1alpha1.LabelInstanceFamily:          "g4dn",
+			v1alpha1.LabelInstanceGeneration:      "4",
+			v1alpha1.LabelInstanceSize:            "8xlarge",
+			v1alpha1.LabelInstanceCPU:             "32",
+			v1alpha1.LabelInstanceMemory:          "131072",
+			v1alpha1.LabelInstancePods:            "58",
+			v1alpha1.LabelInstanceGPUName:         "t4",
+			v1alpha1.LabelInstanceGPUManufacturer: "nvidia",
+			v1alpha1.LabelInstanceGPUCount:        "1",
+			v1alpha1.LabelInstanceGPUMemory:       "16384",
+			v1alpha1.LabelInstanceLocalNVME:       "900",
 		} {
 			pods = append(pods, test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{key: value}}))
 		}
@@ -75,8 +76,8 @@ var _ = Describe("Instance Types", func() {
 					v1.LabelInstanceTypeStable: "t3.large",
 				},
 				ResourceRequirements: v1.ResourceRequirements{
-					Requests: v1.ResourceList{awsv1alpha1.ResourceAWSPodENI: resource.MustParse("1")},
-					Limits:   v1.ResourceList{awsv1alpha1.ResourceAWSPodENI: resource.MustParse("1")},
+					Requests: v1.ResourceList{v1alpha1.ResourceAWSPodENI: resource.MustParse("1")},
+					Limits:   v1.ResourceList{v1alpha1.ResourceAWSPodENI: resource.MustParse("1")},
 				},
 			})) {
 			ExpectNotScheduled(ctx, env.Client, pod)
@@ -136,8 +137,8 @@ var _ = Describe("Instance Types", func() {
 		for _, pod := range ExpectProvisioned(cancelCtx, env.Client, provisionContoller,
 			test.UnschedulablePod(test.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{
-					Requests: v1.ResourceList{awsv1alpha1.ResourceAWSPodENI: resource.MustParse("1")},
-					Limits:   v1.ResourceList{awsv1alpha1.ResourceAWSPodENI: resource.MustParse("1")},
+					Requests: v1.ResourceList{v1alpha1.ResourceAWSPodENI: resource.MustParse("1")},
+					Limits:   v1.ResourceList{v1alpha1.ResourceAWSPodENI: resource.MustParse("1")},
 				},
 			})) {
 			ExpectNotScheduled(cancelCtx, env.Client, pod)
@@ -148,8 +149,8 @@ var _ = Describe("Instance Types", func() {
 		for _, pod := range ExpectProvisioned(ctx, env.Client, controller,
 			test.UnschedulablePod(test.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{
-					Requests: v1.ResourceList{awsv1alpha1.ResourceAWSPodENI: resource.MustParse("1")},
-					Limits:   v1.ResourceList{awsv1alpha1.ResourceAWSPodENI: resource.MustParse("1")},
+					Requests: v1.ResourceList{v1alpha1.ResourceAWSPodENI: resource.MustParse("1")},
+					Limits:   v1.ResourceList{v1alpha1.ResourceAWSPodENI: resource.MustParse("1")},
 				},
 			})) {
 			node := ExpectScheduled(ctx, env.Client, pod)
@@ -167,22 +168,22 @@ var _ = Describe("Instance Types", func() {
 		for _, pod := range ExpectProvisioned(ctx, env.Client, controller,
 			test.UnschedulablePod(test.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{
-					Requests: v1.ResourceList{awsv1alpha1.ResourceNVIDIAGPU: resource.MustParse("1")},
-					Limits:   v1.ResourceList{awsv1alpha1.ResourceNVIDIAGPU: resource.MustParse("1")},
+					Requests: v1.ResourceList{v1alpha1.ResourceNVIDIAGPU: resource.MustParse("1")},
+					Limits:   v1.ResourceList{v1alpha1.ResourceNVIDIAGPU: resource.MustParse("1")},
 				},
 			}),
 			// Should pack onto same instance
 			test.UnschedulablePod(test.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{
-					Requests: v1.ResourceList{awsv1alpha1.ResourceNVIDIAGPU: resource.MustParse("2")},
-					Limits:   v1.ResourceList{awsv1alpha1.ResourceNVIDIAGPU: resource.MustParse("2")},
+					Requests: v1.ResourceList{v1alpha1.ResourceNVIDIAGPU: resource.MustParse("2")},
+					Limits:   v1.ResourceList{v1alpha1.ResourceNVIDIAGPU: resource.MustParse("2")},
 				},
 			}),
 			// Should pack onto a separate instance
 			test.UnschedulablePod(test.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{
-					Requests: v1.ResourceList{awsv1alpha1.ResourceNVIDIAGPU: resource.MustParse("4")},
-					Limits:   v1.ResourceList{awsv1alpha1.ResourceNVIDIAGPU: resource.MustParse("4")},
+					Requests: v1.ResourceList{v1alpha1.ResourceNVIDIAGPU: resource.MustParse("4")},
+					Limits:   v1.ResourceList{v1alpha1.ResourceNVIDIAGPU: resource.MustParse("4")},
 				},
 			})) {
 			node := ExpectScheduled(ctx, env.Client, pod)
@@ -197,22 +198,22 @@ var _ = Describe("Instance Types", func() {
 		for _, pod := range ExpectProvisioned(ctx, env.Client, controller,
 			test.UnschedulablePod(test.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{
-					Requests: v1.ResourceList{awsv1alpha1.ResourceAWSNeuron: resource.MustParse("1")},
-					Limits:   v1.ResourceList{awsv1alpha1.ResourceAWSNeuron: resource.MustParse("1")},
+					Requests: v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("1")},
+					Limits:   v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("1")},
 				},
 			}),
 			// Should pack onto same instance
 			test.UnschedulablePod(test.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{
-					Requests: v1.ResourceList{awsv1alpha1.ResourceAWSNeuron: resource.MustParse("2")},
-					Limits:   v1.ResourceList{awsv1alpha1.ResourceAWSNeuron: resource.MustParse("2")},
+					Requests: v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("2")},
+					Limits:   v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("2")},
 				},
 			}),
 			// Should pack onto a separate instance
 			test.UnschedulablePod(test.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{
-					Requests: v1.ResourceList{awsv1alpha1.ResourceAWSNeuron: resource.MustParse("4")},
-					Limits:   v1.ResourceList{awsv1alpha1.ResourceAWSNeuron: resource.MustParse("4")},
+					Requests: v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("4")},
+					Limits:   v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("4")},
 				},
 			}),
 		) {
@@ -446,7 +447,7 @@ var _ = Describe("Instance Types", func() {
 			It("should ignore eviction threshold (soft) when using Bottlerocket AMI", func() {
 				instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 				Expect(err).To(BeNil())
-				provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
+				provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
 				provisioner = test.Provisioner(test.ProvisionerOptions{
 					Kubelet: &v1alpha5.KubeletConfiguration{
 						SystemReserved: v1.ResourceList{
@@ -581,7 +582,7 @@ var _ = Describe("Instance Types", func() {
 		It("should ignore pods-per-core when using Bottlerocket AMI", func() {
 			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 			Expect(err).To(BeNil())
-			provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
+			provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
 			provisioner = test.Provisioner(test.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{PodsPerCore: ptr.Int32(1)}, Provider: provider})
 			for _, info := range instanceInfo {
 				it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, "", provider, nil)
@@ -609,15 +610,15 @@ var _ = Describe("Instance Types", func() {
 				test.UnschedulablePod(test.PodOptions{
 					NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"},
 					ResourceRequirements: v1.ResourceRequirements{
-						Requests: v1.ResourceList{awsv1alpha1.ResourceAWSNeuron: resource.MustParse("1")},
-						Limits:   v1.ResourceList{awsv1alpha1.ResourceAWSNeuron: resource.MustParse("1")},
+						Requests: v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("1")},
+						Limits:   v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("1")},
 					},
 				}),
 				test.UnschedulablePod(test.PodOptions{
 					NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"},
 					ResourceRequirements: v1.ResourceRequirements{
-						Requests: v1.ResourceList{awsv1alpha1.ResourceAWSNeuron: resource.MustParse("1")},
-						Limits:   v1.ResourceList{awsv1alpha1.ResourceAWSNeuron: resource.MustParse("1")},
+						Requests: v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("1")},
+						Limits:   v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("1")},
 					},
 				}),
 			)
@@ -638,8 +639,8 @@ var _ = Describe("Instance Types", func() {
 			pod := test.UnschedulablePod(test.PodOptions{
 				NodeSelector: map[string]string{v1.LabelInstanceTypeStable: "p3.8xlarge"},
 				ResourceRequirements: v1.ResourceRequirements{
-					Requests: v1.ResourceList{awsv1alpha1.ResourceNVIDIAGPU: resource.MustParse("1")},
-					Limits:   v1.ResourceList{awsv1alpha1.ResourceNVIDIAGPU: resource.MustParse("1")},
+					Requests: v1.ResourceList{v1alpha1.ResourceNVIDIAGPU: resource.MustParse("1")},
+					Limits:   v1.ResourceList{v1alpha1.ResourceNVIDIAGPU: resource.MustParse("1")},
 				},
 			})
 			pod.Spec.Affinity = &v1.Affinity{NodeAffinity: &v1.NodeAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []v1.PreferredSchedulingTerm{
@@ -699,8 +700,8 @@ var _ = Describe("Instance Types", func() {
 				test.UnschedulablePod(test.PodOptions{
 					NodeSelector: map[string]string{v1.LabelInstanceTypeStable: "inf1.6xlarge"},
 					ResourceRequirements: v1.ResourceRequirements{
-						Requests: v1.ResourceList{awsv1alpha1.ResourceAWSNeuron: resource.MustParse("2")},
-						Limits:   v1.ResourceList{awsv1alpha1.ResourceAWSNeuron: resource.MustParse("2")},
+						Requests: v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("2")},
+						Limits:   v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("2")},
 					},
 				}),
 			)[0]
@@ -864,9 +865,9 @@ var _ = Describe("Instance Types", func() {
 		})
 		It("should set metadata options on generated launch template from provisioner configuration", func() {
 			var err error
-			provider, err = awsv1alpha1.Deserialize(provisioner.Spec.Provider)
+			provider, err = v1alpha1.Deserialize(provisioner.Spec.Provider)
 			Expect(err).ToNot(HaveOccurred())
-			provider.MetadataOptions = &awsv1alpha1.MetadataOptions{
+			provider.MetadataOptions = &v1alpha1.MetadataOptions{
 				HTTPEndpoint:            aws.String(ec2.LaunchTemplateInstanceMetadataEndpointStateDisabled),
 				HTTPProtocolIPv6:        aws.String(ec2.LaunchTemplateInstanceMetadataProtocolIpv6Enabled),
 				HTTPPutResponseHopLimit: aws.Int64(1),

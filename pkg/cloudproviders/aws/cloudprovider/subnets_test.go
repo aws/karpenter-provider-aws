@@ -25,7 +25,8 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
-	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
+
+	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/fake"
 )
 
@@ -81,7 +82,7 @@ var _ = Describe("Subnets", func() {
 		createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop()
 		Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-1"))
 
-		provisioner = test.Provisioner(test.ProvisionerOptions{Provider: &awsv1alpha1.AWS{
+		provisioner = test.Provisioner(test.ProvisionerOptions{Provider: &v1alpha1.AWS{
 			SubnetSelector:        map[string]string{"Name": "test-subnet-2"},
 			SecurityGroupSelector: map[string]string{"*": "*"},
 		}})

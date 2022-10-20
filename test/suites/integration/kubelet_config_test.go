@@ -33,12 +33,11 @@ import (
 	"github.com/aws/karpenter-core/pkg/scheduling"
 	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
-	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
 )
 
 var _ = Describe("KubeletConfiguration Overrides", func() {
 	It("should startup successfully with all kubelet configuration set", func() {
-		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 		}})
@@ -94,7 +93,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		env.ExpectCreatedNodeCount("==", 1)
 	})
 	It("should schedule pods onto separate nodes when maxPods is set", func() {
-		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 		}})
@@ -137,7 +136,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		env.ExpectUniqueNodeNames(selector, 3)
 	})
 	It("should schedule pods onto separate nodes when podsPerCore is set", func() {
-		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 		}})
@@ -147,7 +146,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
 			Requirements: []v1.NodeSelectorRequirement{
 				{
-					Key:      awsv1alpha1.LabelInstanceCPU,
+					Key:      v1alpha1.LabelInstanceCPU,
 					Operator: v1.NodeSelectorOpIn,
 					Values:   []string{"2"},
 				},
@@ -191,10 +190,10 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		env.ExpectUniqueNodeNames(selector, 2)
 	})
 	It("should ignore podsPerCore value when Bottlerocket is used", func() {
-		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
-			AMIFamily:             &awsv1alpha1.AMIFamilyBottlerocket,
+			AMIFamily:             &v1alpha1.AMIFamilyBottlerocket,
 		}})
 		// All pods should schedule to a single node since we are ignoring podsPerCore value
 		// This would normally schedule to 3 nodes if not using Bottlerocket
@@ -205,7 +204,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 			},
 			Requirements: []v1.NodeSelectorRequirement{
 				{
-					Key:      awsv1alpha1.LabelInstanceCPU,
+					Key:      v1alpha1.LabelInstanceCPU,
 					Operator: v1.NodeSelectorOpIn,
 					Values:   []string{"2"},
 				},

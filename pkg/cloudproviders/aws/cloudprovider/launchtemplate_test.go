@@ -47,7 +47,7 @@ import (
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
 	"github.com/aws/karpenter-core/pkg/utils/ptr"
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
-	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
+
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider/amifamily/bootstrap"
 	awstest "github.com/aws/karpenter/pkg/test"
 )
@@ -142,10 +142,10 @@ var _ = Describe("LaunchTemplates", func() {
 			// constrain the packer to a single launch template type
 			rr := v1.ResourceRequirements{
 				Requests: v1.ResourceList{
-					v1.ResourceCPU:                resource.MustParse("24"),
-					awsv1alpha1.ResourceNVIDIAGPU: resource.MustParse("1"),
+					v1.ResourceCPU:             resource.MustParse("24"),
+					v1alpha1.ResourceNVIDIAGPU: resource.MustParse("1"),
 				},
-				Limits: v1.ResourceList{awsv1alpha1.ResourceNVIDIAGPU: resource.MustParse("1")},
+				Limits: v1.ResourceList{v1alpha1.ResourceNVIDIAGPU: resource.MustParse("1")},
 			}
 
 			ExpectApplied(ctx, env.Client, provisioner)
@@ -227,7 +227,7 @@ var _ = Describe("LaunchTemplates", func() {
 			Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(newProvisioner), newProvisioner)).To(Succeed())
 			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 			node := ExpectScheduled(ctx, env.Client, pod)
-			Expect(node.Labels).To(HaveKeyWithValue(awsv1alpha1.LabelInstanceAMIID, "ami-123"))
+			Expect(node.Labels).To(HaveKeyWithValue(v1alpha1.LabelInstanceAMIID, "ami-123"))
 		})
 	})
 	Context("Tags", func() {
@@ -304,7 +304,7 @@ var _ = Describe("LaunchTemplates", func() {
 	})
 	Context("Block Device Mappings", func() {
 		It("should default AL2 block device mappings", func() {
-			provider.AMIFamily = &awsv1alpha1.AMIFamilyAL2
+			provider.AMIFamily = &v1alpha1.AMIFamilyAL2
 			ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
 			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 			ExpectScheduled(ctx, env.Client, pod)
@@ -316,11 +316,11 @@ var _ = Describe("LaunchTemplates", func() {
 			Expect(input.LaunchTemplateData.BlockDeviceMappings[0].Ebs.Iops).To(BeNil())
 		})
 		It("should use custom block device mapping", func() {
-			provider.AMIFamily = &awsv1alpha1.AMIFamilyAL2
-			provider.BlockDeviceMappings = []*awsv1alpha1.BlockDeviceMapping{
+			provider.AMIFamily = &v1alpha1.AMIFamilyAL2
+			provider.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{
 				{
 					DeviceName: aws.String("/dev/xvda"),
-					EBS: &awsv1alpha1.BlockDevice{
+					EBS: &v1alpha1.BlockDevice{
 						DeleteOnTermination: aws.Bool(true),
 						Encrypted:           aws.Bool(true),
 						VolumeType:          aws.String("io2"),
@@ -331,7 +331,7 @@ var _ = Describe("LaunchTemplates", func() {
 				},
 				{
 					DeviceName: aws.String("/dev/xvdb"),
-					EBS: &awsv1alpha1.BlockDevice{
+					EBS: &v1alpha1.BlockDevice{
 						DeleteOnTermination: aws.Bool(true),
 						Encrypted:           aws.Bool(true),
 						VolumeType:          aws.String("io2"),
@@ -364,7 +364,7 @@ var _ = Describe("LaunchTemplates", func() {
 			}))
 		})
 		It("should default bottlerocket second volume with root volume size", func() {
-			provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
+			provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
 			ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
 			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 			ExpectScheduled(ctx, env.Client, pod)
@@ -381,7 +381,7 @@ var _ = Describe("LaunchTemplates", func() {
 			Expect(input.LaunchTemplateData.BlockDeviceMappings[1].Ebs.Iops).To(BeNil())
 		})
 		It("should not default block device mappings for custom AMIFamilies", func() {
-			provider.AMIFamily = &awsv1alpha1.AMIFamilyCustom
+			provider.AMIFamily = &v1alpha1.AMIFamilyCustom
 			ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
 			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 			ExpectScheduled(ctx, env.Client, pod)
@@ -390,11 +390,11 @@ var _ = Describe("LaunchTemplates", func() {
 			Expect(len(input.LaunchTemplateData.BlockDeviceMappings)).To(Equal(0))
 		})
 		It("should use custom block device mapping for custom AMIFamilies", func() {
-			provider.AMIFamily = &awsv1alpha1.AMIFamilyCustom
-			provider.BlockDeviceMappings = []*awsv1alpha1.BlockDeviceMapping{
+			provider.AMIFamily = &v1alpha1.AMIFamilyCustom
+			provider.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{
 				{
 					DeviceName: aws.String("/dev/xvda"),
-					EBS: &awsv1alpha1.BlockDevice{
+					EBS: &v1alpha1.BlockDevice{
 						DeleteOnTermination: aws.Bool(true),
 						Encrypted:           aws.Bool(true),
 						VolumeType:          aws.String("io2"),
@@ -511,9 +511,9 @@ var _ = Describe("LaunchTemplates", func() {
 			ExpectNotScheduled(ctx, env.Client, pod)
 		})
 		It("should pack pods using the blockdevicemappings from the provider spec when defined", func() {
-			provider.BlockDeviceMappings = []*awsv1alpha1.BlockDeviceMapping{{
+			provider.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{{
 				DeviceName: aws.String("/dev/xvda"),
-				EBS: &awsv1alpha1.BlockDevice{
+				EBS: &v1alpha1.BlockDevice{
 					VolumeSize: resource.NewScaledQuantity(50, resource.Giga),
 				},
 			}}
@@ -530,17 +530,17 @@ var _ = Describe("LaunchTemplates", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 		})
 		It("should pack pods using blockdevicemappings for Custom AMIFamily", func() {
-			provider.AMIFamily = &awsv1alpha1.AMIFamilyCustom
-			provider.BlockDeviceMappings = []*awsv1alpha1.BlockDeviceMapping{
+			provider.AMIFamily = &v1alpha1.AMIFamilyCustom
+			provider.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{
 				{
 					DeviceName: aws.String("/dev/xvda"),
-					EBS: &awsv1alpha1.BlockDevice{
+					EBS: &v1alpha1.BlockDevice{
 						VolumeSize: resource.NewScaledQuantity(20, resource.Giga),
 					},
 				},
 				{
 					DeviceName: aws.String("/dev/xvdb"),
-					EBS: &awsv1alpha1.BlockDevice{
+					EBS: &v1alpha1.BlockDevice{
 						VolumeSize: resource.NewScaledQuantity(40, resource.Giga),
 					},
 				},
@@ -563,7 +563,7 @@ var _ = Describe("LaunchTemplates", func() {
 		It("should calculate memory overhead based on eni limited pods when ENI limited", func() {
 			opts.AWSENILimitedPodDensity = true
 			opts.VMMemoryOverhead = 0 // cutting a factor out of the equation
-			provider.AMIFamily = &awsv1alpha1.AMIFamilyAL2
+			provider.AMIFamily = &v1alpha1.AMIFamilyAL2
 			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 			Expect(err).To(BeNil())
 			it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
@@ -573,7 +573,7 @@ var _ = Describe("LaunchTemplates", func() {
 		It("should calculate memory overhead based on eni limited pods when not ENI limited", func() {
 			opts.AWSENILimitedPodDensity = false
 			opts.VMMemoryOverhead = 0 // cutting a factor out of the equation
-			provider.AMIFamily = &awsv1alpha1.AMIFamilyAL2
+			provider.AMIFamily = &v1alpha1.AMIFamilyAL2
 			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 			Expect(err).To(BeNil())
 			it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
@@ -585,7 +585,7 @@ var _ = Describe("LaunchTemplates", func() {
 		It("should calculate memory overhead based on eni limited pods when ENI limited", func() {
 			opts.AWSENILimitedPodDensity = true
 			opts.VMMemoryOverhead = 0 // cutting a factor out of the equation
-			provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
+			provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
 			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 			Expect(err).To(BeNil())
 			it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
@@ -595,7 +595,7 @@ var _ = Describe("LaunchTemplates", func() {
 		It("should calculate memory overhead based on max pods when not ENI limited", func() {
 			opts.AWSENILimitedPodDensity = false
 			opts.VMMemoryOverhead = 0 // cutting a factor out of the equation
-			provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
+			provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
 			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 			Expect(err).To(BeNil())
 			it := NewInstanceType(injection.WithOptions(ctx, opts), instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
@@ -840,11 +840,11 @@ var _ = Describe("LaunchTemplates", func() {
 			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(test.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{
 					Requests: map[v1.ResourceName]resource.Quantity{
-						v1.ResourceCPU:                resource.MustParse("1"),
-						awsv1alpha1.ResourceAWSNeuron: resource.MustParse("1"),
+						v1.ResourceCPU:             resource.MustParse("1"),
+						v1alpha1.ResourceAWSNeuron: resource.MustParse("1"),
 					},
 					Limits: map[v1.ResourceName]resource.Quantity{
-						awsv1alpha1.ResourceAWSNeuron: resource.MustParse("1"),
+						v1alpha1.ResourceAWSNeuron: resource.MustParse("1"),
 					},
 				},
 			}))[0]
@@ -859,11 +859,11 @@ var _ = Describe("LaunchTemplates", func() {
 			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(test.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{
 					Requests: map[v1.ResourceName]resource.Quantity{
-						v1.ResourceCPU:                resource.MustParse("1"),
-						awsv1alpha1.ResourceNVIDIAGPU: resource.MustParse("1"),
+						v1.ResourceCPU:             resource.MustParse("1"),
+						v1alpha1.ResourceNVIDIAGPU: resource.MustParse("1"),
 					},
 					Limits: map[v1.ResourceName]resource.Quantity{
-						awsv1alpha1.ResourceNVIDIAGPU: resource.MustParse("1"),
+						v1alpha1.ResourceNVIDIAGPU: resource.MustParse("1"),
 					},
 				},
 			}))[0]
@@ -891,7 +891,7 @@ var _ = Describe("LaunchTemplates", func() {
 				prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
 				controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
 
-				provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
+				provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
 				content, _ := os.ReadFile("testdata/br_userdata_input.golden")
 				nodeTemplate := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 					UserData: aws.String(string(content)),
@@ -925,7 +925,7 @@ var _ = Describe("LaunchTemplates", func() {
 				prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
 				controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
 
-				provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
+				provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
 				nodeTemplate := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 					UserData: nil,
 					AWS:      *provider,
@@ -955,7 +955,7 @@ var _ = Describe("LaunchTemplates", func() {
 				prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
 				controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
 
-				provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
+				provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
 				newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: "doesnotexist"}})
 				ExpectApplied(ctx, env.Client, newProvisioner)
 				pod := ExpectProvisioned(ctx, env.Client, controllerWithOpts, test.UnschedulablePod())[0]
@@ -963,7 +963,7 @@ var _ = Describe("LaunchTemplates", func() {
 				ExpectNotScheduled(ctx, env.Client, pod)
 			})
 			It("should not bootstrap on invalid toml user data", func() {
-				provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
+				provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
 				nodeTemplate := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 					UserData: aws.String("#/bin/bash\n ./not-toml.sh"),
 					AWS:      *provider,
@@ -976,7 +976,7 @@ var _ = Describe("LaunchTemplates", func() {
 				ExpectNotScheduled(ctx, env.Client, pod)
 			})
 			It("should override system reserved values in user data", func() {
-				provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
+				provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
 				nodeTemplate := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 					UserData: nil,
 					AWS:      *provider,
@@ -1008,7 +1008,7 @@ var _ = Describe("LaunchTemplates", func() {
 				Expect(config.Settings.Kubernetes.SystemReserved[v1.ResourceEphemeralStorage.String()]).To(Equal("10Gi"))
 			})
 			It("should override kube reserved values in user data", func() {
-				provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
+				provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
 				nodeTemplate := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 					UserData: nil,
 					AWS:      *provider,
@@ -1040,7 +1040,7 @@ var _ = Describe("LaunchTemplates", func() {
 				Expect(config.Settings.Kubernetes.KubeReserved[v1.ResourceEphemeralStorage.String()]).To(Equal("10Gi"))
 			})
 			It("should override kube reserved values in user data", func() {
-				provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
+				provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
 				nodeTemplate := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 					UserData: nil,
 					AWS:      *provider,
@@ -1073,7 +1073,7 @@ var _ = Describe("LaunchTemplates", func() {
 			})
 			It("should specify max pods value when passing maxPods in configuration", func() {
 				bottlerocketProvider := provider.DeepCopy()
-				bottlerocketProvider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
+				bottlerocketProvider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
 				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: bottlerocketProvider, Kubelet: &v1alpha5.KubeletConfiguration{MaxPods: aws.Int32(10)}}))
 				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
@@ -1168,7 +1168,7 @@ var _ = Describe("LaunchTemplates", func() {
 			})
 			It("should copy over userData untouched when AMIFamily is Custom", func() {
 				opts.AWSENILimitedPodDensity = false
-				provider.AMIFamily = &awsv1alpha1.AMIFamilyCustom
+				provider.AMIFamily = &v1alpha1.AMIFamilyCustom
 				nodeTemplate := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 					UserData:    aws.String("special user data"),
 					AMISelector: map[string]string{"karpenter.sh/discovery": "my-cluster"},
