@@ -28,14 +28,14 @@ import (
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
-	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
+
 	awstest "github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/test/pkg/environment/common"
 )
 
 var _ = Describe("Scheduling", func() {
 	It("should support well known labels", func() {
-		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 		}})
@@ -50,19 +50,19 @@ var _ = Describe("Scheduling", func() {
 			v1.LabelArchStable:               "amd64",
 			v1alpha5.LabelCapacityType:       "on-demand",
 			// Well Known to AWS
-			awsv1alpha1.LabelInstanceHypervisor:      "nitro",
-			awsv1alpha1.LabelInstanceCategory:        "g",
-			awsv1alpha1.LabelInstanceGeneration:      "4",
-			awsv1alpha1.LabelInstanceFamily:          "g4dn",
-			awsv1alpha1.LabelInstanceSize:            "8xlarge",
-			awsv1alpha1.LabelInstanceCPU:             "32",
-			awsv1alpha1.LabelInstanceMemory:          "131072",
-			awsv1alpha1.LabelInstancePods:            "58", // May vary w/ environment
-			awsv1alpha1.LabelInstanceGPUName:         "t4",
-			awsv1alpha1.LabelInstanceGPUManufacturer: "nvidia",
-			awsv1alpha1.LabelInstanceGPUCount:        "1",
-			awsv1alpha1.LabelInstanceGPUMemory:       "16384",
-			awsv1alpha1.LabelInstanceLocalNVME:       "900",
+			v1alpha1.LabelInstanceHypervisor:      "nitro",
+			v1alpha1.LabelInstanceCategory:        "g",
+			v1alpha1.LabelInstanceGeneration:      "4",
+			v1alpha1.LabelInstanceFamily:          "g4dn",
+			v1alpha1.LabelInstanceSize:            "8xlarge",
+			v1alpha1.LabelInstanceCPU:             "32",
+			v1alpha1.LabelInstanceMemory:          "131072",
+			v1alpha1.LabelInstancePods:            "58", // May vary w/ environment
+			v1alpha1.LabelInstanceGPUName:         "t4",
+			v1alpha1.LabelInstanceGPUManufacturer: "nvidia",
+			v1alpha1.LabelInstanceGPUCount:        "1",
+			v1alpha1.LabelInstanceGPUMemory:       "16384",
+			v1alpha1.LabelInstanceLocalNVME:       "900",
 			// Deprecated Labels
 			v1.LabelFailureDomainBetaZone:   fmt.Sprintf("%sa", env.Region),
 			v1.LabelFailureDomainBetaRegion: env.Region,
@@ -85,7 +85,7 @@ var _ = Describe("Scheduling", func() {
 		env.ExpectCreatedNodeCount("==", 1)
 	})
 	It("should provision a node for naked pods", func() {
-		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 		}})
@@ -97,7 +97,7 @@ var _ = Describe("Scheduling", func() {
 		env.ExpectCreatedNodeCount("==", 1)
 	})
 	It("should provision a node for a deployment", Label(common.NoWatch), Label(common.NoEvents), func() {
-		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 		}})
@@ -109,7 +109,7 @@ var _ = Describe("Scheduling", func() {
 		env.ExpectCreatedNodeCount("<=", 2) // should probably all land on a single node, but at worst two depending on batching
 	})
 	It("should provision a node for a self-affinity deployment", func() {
-		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 		}})
@@ -136,7 +136,7 @@ var _ = Describe("Scheduling", func() {
 		env.ExpectCreatedNodeCount("==", 1)
 	})
 	It("should provision three nodes for a zonal topology spread", func() {
-		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 		}})
@@ -166,7 +166,7 @@ var _ = Describe("Scheduling", func() {
 		env.ExpectCreatedNodeCount("==", 3)
 	})
 	It("should provision a node using a provisioner with higher priority", func() {
-		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 		}})

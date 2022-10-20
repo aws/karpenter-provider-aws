@@ -15,13 +15,68 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"github.com/aws/aws-sdk-go/service/ec2"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"knative.dev/pkg/apis"
+	"k8s.io/apimachinery/pkg/runtime/serializer"
+	"k8s.io/apimachinery/pkg/util/sets"
+
+	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 )
 
 var (
+	LabelDomain = "karpenter.k8s.aws"
+
+	CapacityTypeSpot       = ec2.DefaultTargetCapacityTypeSpot
+	CapacityTypeOnDemand   = ec2.DefaultTargetCapacityTypeOnDemand
+	AWSToKubeArchitectures = map[string]string{
+		"x86_64":                   v1alpha5.ArchitectureAmd64,
+		v1alpha5.ArchitectureArm64: v1alpha5.ArchitectureArm64,
+	}
+	RestrictedLabelDomains = []string{
+		LabelDomain,
+	}
+	AMIFamilyBottlerocket = "Bottlerocket"
+	AMIFamilyAL2          = "AL2"
+	AMIFamilyUbuntu       = "Ubuntu"
+	AMIFamilyCustom       = "Custom"
+	SupportedAMIFamilies  = []string{
+		AMIFamilyBottlerocket,
+		AMIFamilyAL2,
+		AMIFamilyUbuntu,
+		AMIFamilyCustom,
+	}
+	SupportedContainerRuntimesByAMIFamily = map[string]sets.String{
+		AMIFamilyBottlerocket: sets.NewString("containerd"),
+		AMIFamilyAL2:          sets.NewString("dockerd", "containerd"),
+		AMIFamilyUbuntu:       sets.NewString("dockerd", "containerd"),
+	}
+	ResourceNVIDIAGPU v1.ResourceName = "nvidia.com/gpu"
+	ResourceAMDGPU    v1.ResourceName = "amd.com/gpu"
+	ResourceAWSNeuron v1.ResourceName = "aws.amazon.com/neuron"
+	ResourceAWSPodENI v1.ResourceName = "vpc.amazonaws.com/pod-eni"
+
+	LabelInstanceHypervisor      = LabelDomain + "/instance-hypervisor"
+	LabelInstanceCategory        = LabelDomain + "/instance-category"
+	LabelInstanceFamily          = LabelDomain + "/instance-family"
+	LabelInstanceGeneration      = LabelDomain + "/instance-generation"
+	LabelInstanceLocalNVME       = LabelDomain + "/instance-local-nvme"
+	LabelInstanceSize            = LabelDomain + "/instance-size"
+	LabelInstanceCPU             = LabelDomain + "/instance-cpu"
+	LabelInstanceMemory          = LabelDomain + "/instance-memory"
+	LabelInstancePods            = LabelDomain + "/instance-pods"
+	LabelInstanceGPUName         = LabelDomain + "/instance-gpu-name"
+	LabelInstanceGPUManufacturer = LabelDomain + "/instance-gpu-manufacturer"
+	LabelInstanceGPUCount        = LabelDomain + "/instance-gpu-count"
+	LabelInstanceGPUMemory       = LabelDomain + "/instance-gpu-memory"
+	LabelInstanceAMIID           = LabelDomain + "/instance-ami-id"
+)
+
+var (
+	Scheme             = runtime.NewScheme()
+	codec              = serializer.NewCodecFactory(Scheme, serializer.EnableStrict)
 	Group              = "karpenter.k8s.aws"
 	SchemeGroupVersion = schema.GroupVersion{Group: Group, Version: "v1alpha1"}
 	SchemeBuilder      = runtime.NewSchemeBuilder(func(scheme *runtime.Scheme) error {
@@ -34,9 +89,22 @@ var (
 	})
 )
 
-const (
-	// Active is a condition implemented by all resources. It indicates that the
-	// controller is able to take actions: it's correctly configured, can make
-	// necessary API calls, and isn't disabled.
-	Active apis.ConditionType = "Active"
-)
+func init() {
+	Scheme.AddKnownTypes(schema.GroupVersion{Group: v1alpha5.ExtensionsGroup, Version: "v1alpha1"}, &AWS{})
+	v1alpha5.RestrictedLabelDomains = v1alpha5.RestrictedLabelDomains.Insert(RestrictedLabelDomains...)
+	v1alpha5.WellKnownLabels = v1alpha5.WellKnownLabels.Insert(
+		LabelInstanceHypervisor,
+		LabelInstanceCategory,
+		LabelInstanceFamily,
+		LabelInstanceGeneration,
+		LabelInstanceSize,
+		LabelInstanceLocalNVME,
+		LabelInstanceCPU,
+		LabelInstanceMemory,
+		LabelInstancePods,
+		LabelInstanceGPUName,
+		LabelInstanceGPUManufacturer,
+		LabelInstanceGPUCount,
+		LabelInstanceGPUMemory,
+	)
+}

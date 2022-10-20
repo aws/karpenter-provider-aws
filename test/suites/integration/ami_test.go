@@ -32,7 +32,7 @@ import (
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
-	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
+
 	awstest "github.com/aws/karpenter/pkg/test"
 )
 
@@ -45,10 +45,10 @@ var _ = Describe("LaunchTemplates", func() {
 
 	It("should use the AMI defined by the AMI Selector", func() {
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
-			AWS: awsv1alpha1.AWS{
+			AWS: v1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 				SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
-				AMIFamily:             &awsv1alpha1.AMIFamilyAL2,
+				AMIFamily:             &v1alpha1.AMIFamilyAL2,
 			},
 			AMISelector: map[string]string{"aws-ids": customAMI},
 		})
@@ -62,10 +62,10 @@ var _ = Describe("LaunchTemplates", func() {
 		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("ImageId", HaveValue(Equal(customAMI))))
 	})
 	It("should support Custom AMIFamily with AMI Selectors", func() {
-		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
-			AMIFamily:             &awsv1alpha1.AMIFamilyCustom,
+			AMIFamily:             &v1alpha1.AMIFamilyCustom,
 		},
 			AMISelector: map[string]string{"aws-ids": customAMI},
 			UserData:    aws.String(fmt.Sprintf("#!/bin/bash\n/etc/eks/bootstrap.sh '%s'", env.ClusterName)),
@@ -81,10 +81,10 @@ var _ = Describe("LaunchTemplates", func() {
 	})
 	It("should use the most recent AMI when discovering multiple", func() {
 		oldCustomAMI := selectCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", 2)
-		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
-			AMIFamily:             &awsv1alpha1.AMIFamilyCustom,
+			AMIFamily:             &v1alpha1.AMIFamilyCustom,
 		},
 			AMISelector: map[string]string{"aws-ids": fmt.Sprintf("%s,%s", customAMI, oldCustomAMI)},
 			UserData:    aws.String(fmt.Sprintf("#!/bin/bash\n/etc/eks/bootstrap.sh '%s'", env.ClusterName)),
@@ -101,10 +101,10 @@ var _ = Describe("LaunchTemplates", func() {
 	It("should merge UserData contents for AL2 AMIFamily", func() {
 		content, err := os.ReadFile("testdata/al2_userdata_input.golden")
 		Expect(err).ToNot(HaveOccurred())
-		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
-			AMIFamily:             &awsv1alpha1.AMIFamilyAL2,
+			AMIFamily:             &v1alpha1.AMIFamilyAL2,
 		},
 			UserData: aws.String(string(content)),
 		})
@@ -130,10 +130,10 @@ var _ = Describe("LaunchTemplates", func() {
 	It("should merge UserData contents for Bottlerocket AMIFamily", func() {
 		content, err := os.ReadFile("testdata/br_userdata_input.golden")
 		Expect(err).ToNot(HaveOccurred())
-		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
-			AMIFamily:             &awsv1alpha1.AMIFamilyBottlerocket,
+			AMIFamily:             &v1alpha1.AMIFamilyBottlerocket,
 		},
 			UserData: aws.String(string(content)),
 		})

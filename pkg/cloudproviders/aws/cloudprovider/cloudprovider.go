@@ -46,8 +46,8 @@ import (
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	"github.com/aws/karpenter-core/pkg/utils/functional"
 	awsapis "github.com/aws/karpenter/pkg/apis"
-	awsv1alpha1 "github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
-	"github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
+
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider/amifamily"
 	awscontext "github.com/aws/karpenter/pkg/cloudproviders/aws/context"
 )
@@ -266,7 +266,7 @@ func kubeDNSIP(ctx context.Context, clientSet *kubernetes.Clientset) (net.IP, er
 
 func (c *CloudProvider) getProvider(ctx context.Context, provider *runtime.RawExtension, providerRef *v1alpha5.ProviderRef) (*v1alpha1.AWS, error) {
 	if providerRef != nil {
-		var ant awsv1alpha1.AWSNodeTemplate
+		var ant v1alpha1.AWSNodeTemplate
 		if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: providerRef.Name}, &ant); err != nil {
 			return nil, fmt.Errorf("getting providerRef, %w", err)
 		}

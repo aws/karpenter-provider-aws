@@ -40,7 +40,7 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/utils/functional"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
-	"github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 )
 
 const (

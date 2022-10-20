@@ -42,6 +42,7 @@ import (
 	"github.com/aws/karpenter-core/pkg/operator/injection"
 	"github.com/aws/karpenter-core/pkg/operator/options"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
+	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 	awscache "github.com/aws/karpenter/pkg/cloudproviders/aws/cache"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider/amifamily"
 	awscontext "github.com/aws/karpenter/pkg/cloudproviders/aws/context"
@@ -52,7 +53,7 @@ import (
 	"github.com/aws/karpenter-core/pkg/controllers/state"
 	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
-	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
+
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/fake"
 )
 
@@ -79,7 +80,7 @@ var recorder *test.EventRecorder
 var cfg *test.Config
 var fakeClock *clock.FakeClock
 var provisioner *v1alpha5.Provisioner
-var provider *awsv1alpha1.AWS
+var provider *v1alpha1.AWS
 var pricingProvider *PricingProvider
 
 var defaultOpts = options.Options{
@@ -167,8 +168,8 @@ var _ = AfterSuite(func() {
 })
 
 var _ = BeforeEach(func() {
-	provider = &awsv1alpha1.AWS{
-		AMIFamily:             aws.String(awsv1alpha1.AMIFamilyAL2),
+	provider = &v1alpha1.AWS{
+		AMIFamily:             aws.String(v1alpha1.AMIFamilyAL2),
 		SubnetSelector:        map[string]string{"*": "*"},
 		SecurityGroupSelector: map[string]string{"*": "*"},
 	}
@@ -195,7 +196,7 @@ var _ = Describe("Allocation", func() {
 		// Intent here is that if updates occur on the controller, the Provisioner doesn't need to be recreated
 		It("should not set the InstanceProfile with the default if none provided in Provisioner", func() {
 			provisioner.SetDefaults(ctx)
-			constraints, err := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
+			constraints, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(constraints.InstanceProfile).To(BeNil())
 		})
@@ -240,7 +241,7 @@ var _ = Describe("Allocation", func() {
 
 		Context("SubnetSelector", func() {
 			It("should not allow empty string keys or values", func() {
-				provider, err := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
+				provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 				Expect(err).ToNot(HaveOccurred())
 				for key, value := range map[string]string{
 					"":    "value",
@@ -254,7 +255,7 @@ var _ = Describe("Allocation", func() {
 		})
 		Context("SecurityGroupSelector", func() {
 			It("should not allow with a custom launch template", func() {
-				provider, err := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
+				provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 				Expect(err).ToNot(HaveOccurred())
 				provider.LaunchTemplateName = aws.String("my-lt")
 				provider.SecurityGroupSelector = map[string]string{"key": "value"}
@@ -262,7 +263,7 @@ var _ = Describe("Allocation", func() {
 				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 			})
 			It("should not allow empty string keys or values", func() {
-				provider, err := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
+				provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 				Expect(err).ToNot(HaveOccurred())
 				for key, value := range map[string]string{
 					"":    "value",
@@ -276,7 +277,7 @@ var _ = Describe("Allocation", func() {
 		})
 		Context("EC2 Context", func() {
 			It("should set context on the CreateFleet request if specified on the Provisioner", func() {
-				provider, err := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
+				provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 				Expect(err).ToNot(HaveOccurred())
 				provider.Context = aws.String("context-1234")
 				provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
@@ -300,20 +301,20 @@ var _ = Describe("Allocation", func() {
 		})
 		Context("Labels", func() {
 			It("should not allow unrecognized labels with the aws label prefix", func() {
-				provisioner.Spec.Labels = map[string]string{awsv1alpha1.LabelDomain + "/" + randomdata.SillyName(): randomdata.SillyName()}
+				provisioner.Spec.Labels = map[string]string{v1alpha1.LabelDomain + "/" + randomdata.SillyName(): randomdata.SillyName()}
 				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 			})
 			It("should support well known labels", func() {
 				for _, label := range []string{
-					awsv1alpha1.LabelInstanceHypervisor,
-					awsv1alpha1.LabelInstanceFamily,
-					awsv1alpha1.LabelInstanceSize,
-					awsv1alpha1.LabelInstanceCPU,
-					awsv1alpha1.LabelInstanceMemory,
-					awsv1alpha1.LabelInstanceGPUName,
-					awsv1alpha1.LabelInstanceGPUManufacturer,
-					awsv1alpha1.LabelInstanceGPUCount,
-					awsv1alpha1.LabelInstanceGPUMemory,
+					v1alpha1.LabelInstanceHypervisor,
+					v1alpha1.LabelInstanceFamily,
+					v1alpha1.LabelInstanceSize,
+					v1alpha1.LabelInstanceCPU,
+					v1alpha1.LabelInstanceMemory,
+					v1alpha1.LabelInstanceGPUName,
+					v1alpha1.LabelInstanceGPUManufacturer,
+					v1alpha1.LabelInstanceGPUCount,
+					v1alpha1.LabelInstanceGPUMemory,
 				} {
 					provisioner.Spec.Labels = map[string]string{label: randomdata.SillyName()}
 					Expect(provisioner.Validate(ctx)).To(Succeed())
@@ -322,27 +323,27 @@ var _ = Describe("Allocation", func() {
 		})
 		Context("MetadataOptions", func() {
 			It("should not allow with a custom launch template", func() {
-				provider, err := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
+				provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 				Expect(err).ToNot(HaveOccurred())
 				provider.LaunchTemplateName = aws.String("my-lt")
-				provider.MetadataOptions = &awsv1alpha1.MetadataOptions{}
+				provider.MetadataOptions = &v1alpha1.MetadataOptions{}
 				provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
 				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 			})
 			It("should allow missing values", func() {
-				provider, err := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
+				provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 				Expect(err).ToNot(HaveOccurred())
-				provider.MetadataOptions = &awsv1alpha1.MetadataOptions{}
+				provider.MetadataOptions = &v1alpha1.MetadataOptions{}
 				provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
 				Expect(provisioner.Validate(ctx)).To(Succeed())
 			})
 			Context("HTTPEndpoint", func() {
 				It("should allow enum values", func() {
-					provider, err := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					Expect(err).ToNot(HaveOccurred())
 					for i := range ec2.LaunchTemplateInstanceMetadataEndpointState_Values() {
 						value := ec2.LaunchTemplateInstanceMetadataEndpointState_Values()[i]
-						provider.MetadataOptions = &awsv1alpha1.MetadataOptions{
+						provider.MetadataOptions = &v1alpha1.MetadataOptions{
 							HTTPEndpoint: &value,
 						}
 						provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
@@ -350,9 +351,9 @@ var _ = Describe("Allocation", func() {
 					}
 				})
 				It("should not allow non-enum values", func() {
-					provider, err := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					Expect(err).ToNot(HaveOccurred())
-					provider.MetadataOptions = &awsv1alpha1.MetadataOptions{
+					provider.MetadataOptions = &v1alpha1.MetadataOptions{
 						HTTPEndpoint: aws.String(randomdata.SillyName()),
 					}
 					provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
@@ -361,11 +362,11 @@ var _ = Describe("Allocation", func() {
 			})
 			Context("HTTPProtocolIpv6", func() {
 				It("should allow enum values", func() {
-					provider, err := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					Expect(err).ToNot(HaveOccurred())
 					for i := range ec2.LaunchTemplateInstanceMetadataProtocolIpv6_Values() {
 						value := ec2.LaunchTemplateInstanceMetadataProtocolIpv6_Values()[i]
-						provider.MetadataOptions = &awsv1alpha1.MetadataOptions{
+						provider.MetadataOptions = &v1alpha1.MetadataOptions{
 							HTTPProtocolIPv6: &value,
 						}
 						provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
@@ -373,9 +374,9 @@ var _ = Describe("Allocation", func() {
 					}
 				})
 				It("should not allow non-enum values", func() {
-					provider, err := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					Expect(err).ToNot(HaveOccurred())
-					provider.MetadataOptions = &awsv1alpha1.MetadataOptions{
+					provider.MetadataOptions = &v1alpha1.MetadataOptions{
 						HTTPProtocolIPv6: aws.String(randomdata.SillyName()),
 					}
 					provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
@@ -384,18 +385,18 @@ var _ = Describe("Allocation", func() {
 			})
 			Context("HTTPPutResponseHopLimit", func() {
 				It("should validate inside accepted range", func() {
-					provider, err := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					Expect(err).ToNot(HaveOccurred())
-					provider.MetadataOptions = &awsv1alpha1.MetadataOptions{
+					provider.MetadataOptions = &v1alpha1.MetadataOptions{
 						HTTPPutResponseHopLimit: aws.Int64(int64(randomdata.Number(1, 65))),
 					}
 					provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					Expect(provisioner.Validate(ctx)).To(Succeed())
 				})
 				It("should not validate outside accepted range", func() {
-					provider, err := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					Expect(err).ToNot(HaveOccurred())
-					provider.MetadataOptions = &awsv1alpha1.MetadataOptions{}
+					provider.MetadataOptions = &v1alpha1.MetadataOptions{}
 					// We expect to be able to invalidate any hop limit between
 					// [math.MinInt64, 1). But, to avoid a panic here, we can't
 					// exceed math.MaxInt for the difference between bounds of
@@ -415,10 +416,10 @@ var _ = Describe("Allocation", func() {
 			})
 			Context("HTTPTokens", func() {
 				It("should allow enum values", func() {
-					provider, err := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					Expect(err).ToNot(HaveOccurred())
 					for _, value := range ec2.LaunchTemplateHttpTokensState_Values() {
-						provider.MetadataOptions = &awsv1alpha1.MetadataOptions{
+						provider.MetadataOptions = &v1alpha1.MetadataOptions{
 							HTTPTokens: aws.String(value),
 						}
 						provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
@@ -426,9 +427,9 @@ var _ = Describe("Allocation", func() {
 					}
 				})
 				It("should not allow non-enum values", func() {
-					provider, err := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					Expect(err).ToNot(HaveOccurred())
-					provider.MetadataOptions = &awsv1alpha1.MetadataOptions{
+					provider.MetadataOptions = &v1alpha1.MetadataOptions{
 						HTTPTokens: aws.String(randomdata.SillyName()),
 					}
 					provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
@@ -437,12 +438,12 @@ var _ = Describe("Allocation", func() {
 			})
 			Context("BlockDeviceMappings", func() {
 				It("should not allow with a custom launch template", func() {
-					provider, err := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					Expect(err).ToNot(HaveOccurred())
 					provider.LaunchTemplateName = aws.String("my-lt")
-					provider.BlockDeviceMappings = []*awsv1alpha1.BlockDeviceMapping{{
+					provider.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{{
 						DeviceName: aws.String("/dev/xvda"),
-						EBS: &awsv1alpha1.BlockDevice{
+						EBS: &v1alpha1.BlockDevice{
 							VolumeSize: resource.NewScaledQuantity(1, resource.Giga),
 						},
 					}}
@@ -450,11 +451,11 @@ var _ = Describe("Allocation", func() {
 					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 				})
 				It("should validate minimal device mapping", func() {
-					provider, err := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					Expect(err).ToNot(HaveOccurred())
-					provider.BlockDeviceMappings = []*awsv1alpha1.BlockDeviceMapping{{
+					provider.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{{
 						DeviceName: aws.String("/dev/xvda"),
-						EBS: &awsv1alpha1.BlockDevice{
+						EBS: &v1alpha1.BlockDevice{
 							VolumeSize: resource.NewScaledQuantity(1, resource.Giga),
 						},
 					}}
@@ -462,11 +463,11 @@ var _ = Describe("Allocation", func() {
 					Expect(provisioner.Validate(ctx)).To(Succeed())
 				})
 				It("should validate ebs device mapping with snapshotID only", func() {
-					provider, err := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					Expect(err).ToNot(HaveOccurred())
-					provider.BlockDeviceMappings = []*awsv1alpha1.BlockDeviceMapping{{
+					provider.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{{
 						DeviceName: aws.String("/dev/xvda"),
-						EBS: &awsv1alpha1.BlockDevice{
+						EBS: &v1alpha1.BlockDevice{
 							SnapshotID: aws.String("snap-0123456789"),
 						},
 					}}
@@ -474,11 +475,11 @@ var _ = Describe("Allocation", func() {
 					Expect(provisioner.Validate(ctx)).To(Succeed())
 				})
 				It("should not allow volume size below minimum", func() {
-					provider, err := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					Expect(err).ToNot(HaveOccurred())
-					provider.BlockDeviceMappings = []*awsv1alpha1.BlockDeviceMapping{{
+					provider.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{{
 						DeviceName: aws.String("/dev/xvda"),
-						EBS: &awsv1alpha1.BlockDevice{
+						EBS: &v1alpha1.BlockDevice{
 							VolumeSize: resource.NewScaledQuantity(100, resource.Mega),
 						},
 					}}
@@ -486,11 +487,11 @@ var _ = Describe("Allocation", func() {
 					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 				})
 				It("should not allow volume size above max", func() {
-					provider, err := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					Expect(err).ToNot(HaveOccurred())
-					provider.BlockDeviceMappings = []*awsv1alpha1.BlockDeviceMapping{{
+					provider.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{{
 						DeviceName: aws.String("/dev/xvda"),
-						EBS: &awsv1alpha1.BlockDevice{
+						EBS: &v1alpha1.BlockDevice{
 							VolumeSize: resource.NewScaledQuantity(65, resource.Tera),
 						},
 					}}
@@ -498,10 +499,10 @@ var _ = Describe("Allocation", func() {
 					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 				})
 				It("should not allow nil device name", func() {
-					provider, err := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					Expect(err).ToNot(HaveOccurred())
-					provider.BlockDeviceMappings = []*awsv1alpha1.BlockDeviceMapping{{
-						EBS: &awsv1alpha1.BlockDevice{
+					provider.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{{
+						EBS: &v1alpha1.BlockDevice{
 							VolumeSize: resource.NewScaledQuantity(65, resource.Tera),
 						},
 					}}
@@ -509,19 +510,19 @@ var _ = Describe("Allocation", func() {
 					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 				})
 				It("should not allow nil volume size", func() {
-					provider, err := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					Expect(err).ToNot(HaveOccurred())
-					provider.BlockDeviceMappings = []*awsv1alpha1.BlockDeviceMapping{{
+					provider.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{{
 						DeviceName: aws.String("/dev/xvda"),
-						EBS:        &awsv1alpha1.BlockDevice{},
+						EBS:        &v1alpha1.BlockDevice{},
 					}}
 					provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 				})
 				It("should not allow empty ebs block", func() {
-					provider, err := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					Expect(err).ToNot(HaveOccurred())
-					provider.BlockDeviceMappings = []*awsv1alpha1.BlockDeviceMapping{{
+					provider.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{{
 						DeviceName: aws.String("/dev/xvda"),
 					}}
 					provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})

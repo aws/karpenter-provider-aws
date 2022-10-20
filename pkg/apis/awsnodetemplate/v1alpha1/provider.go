@@ -195,7 +195,7 @@ func Deserialize(provider *v1alpha5.Provider) (*AWS, error) {
 		return nil, fmt.Errorf("invariant violated: spec.provider is not defined. Is the validating webhook installed?")
 	}
 	a := &AWS{}
-	_, gvk, err := Codec.UniversalDeserializer().Decode(provider.Raw, nil, a)
+	_, gvk, err := codec.UniversalDeserializer().Decode(provider.Raw, nil, a)
 	if err != nil {
 		return nil, err
 	}

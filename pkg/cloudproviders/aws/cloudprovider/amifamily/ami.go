@@ -40,7 +40,6 @@ import (
 	"github.com/aws/karpenter-core/pkg/utils/functional"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
-	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
 )
 
 type AMIProvider struct {
@@ -59,7 +58,7 @@ type AMI struct {
 
 // Get returns a set of AMIIDs and corresponding instance types. AMI may vary due to architecture, accelerator, etc
 // If AMI overrides are specified in the AWSNodeTemplate, then only those AMIs will be chosen.
-func (p *AMIProvider) Get(ctx context.Context, provider *awsv1alpha1.AWS, nodeRequest *cloudprovider.NodeRequest, options *Options, amiFamily AMIFamily) (map[string][]cloudprovider.InstanceType, error) {
+func (p *AMIProvider) Get(ctx context.Context, provider *v1alpha1.AWS, nodeRequest *cloudprovider.NodeRequest, options *Options, amiFamily AMIFamily) (map[string][]cloudprovider.InstanceType, error) {
 	amiIDs := map[string][]cloudprovider.InstanceType{}
 	amiRequirements, err := p.getAMIRequirements(ctx, nodeRequest.Template.ProviderRef)
 	if err != nil {
@@ -204,7 +203,7 @@ func (p *AMIProvider) getRequirementsFromImage(ec2Image *ec2.Image) scheduling.R
 	}
 	// Always add the architecture of an image as a requirement, irrespective of what's specified in EC2 tags.
 	architecture := *ec2Image.Architecture
-	if value, ok := awsv1alpha1.AWSToKubeArchitectures[architecture]; ok {
+	if value, ok := v1alpha1.AWSToKubeArchitectures[architecture]; ok {
 		architecture = value
 	}
 	requirements.Add(scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, architecture))
