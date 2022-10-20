@@ -35,6 +35,7 @@ import (
 
 	"github.com/aws/karpenter/pkg/operator/injection"
 	"github.com/aws/karpenter/pkg/operator/options"
+	"github.com/aws/karpenter/pkg/operator/scheme"
 )
 
 // Controller is an interface implemented by Karpenter custom resources.
@@ -59,7 +60,7 @@ func NewManagerOrDie(ctx context.Context, config *rest.Config, opts *options.Opt
 		LeaderElection:             opts.EnableLeaderElection,
 		LeaderElectionID:           "karpenter-leader-election",
 		LeaderElectionResourceLock: resourcelock.LeasesResourceLock,
-		Scheme:                     scheme,
+		Scheme:                     scheme.Scheme,
 		MetricsBindAddress:         fmt.Sprintf(":%d", opts.MetricsPort),
 		HealthProbeBindAddress:     fmt.Sprintf(":%d", opts.HealthProbePort),
 		BaseContext:                newRunnableContext(config, opts, logging.FromContext(ctx)),

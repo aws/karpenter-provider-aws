@@ -27,7 +27,6 @@ import (
 	"github.com/patrickmn/go-cache"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	clock "k8s.io/utils/clock/testing"
@@ -37,7 +36,6 @@ import (
 	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
 
-	"github.com/aws/karpenter/pkg/apis"
 	awscache "github.com/aws/karpenter/pkg/cloudproviders/aws/cache"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider/amifamily"
 	awscontext "github.com/aws/karpenter/pkg/cloudproviders/aws/context"
@@ -89,10 +87,6 @@ var defaultOpts = options.Options{
 	AWSENILimitedPodDensity:   true,
 	AWSEnablePodENI:           true,
 	AWSDefaultInstanceProfile: "test-instance-profile",
-}
-
-func init() {
-	runtime.Must(apis.AddToScheme(test.Scheme))
 }
 
 func TestAWS(t *testing.T) {
