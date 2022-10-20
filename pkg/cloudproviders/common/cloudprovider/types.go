@@ -21,6 +21,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/utils/clock"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
@@ -34,6 +35,7 @@ type Context struct {
 	ClientSet     *kubernetes.Clientset
 	KubeClient    client.Client
 	EventRecorder record.EventRecorder
+	Clock         clock.Clock
 	// StartAsync is a channel that is closed when leader election has been won.  This is a signal to start any  async
 	// processing that should only occur while the cloud provider is the leader.
 	StartAsync <-chan struct{}
