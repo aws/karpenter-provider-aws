@@ -26,8 +26,8 @@ import (
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/operator/injection"
-	awscache "github.com/aws/karpenter/pkg/cloudproviders/aws/cache"
-	awscontext "github.com/aws/karpenter/pkg/cloudproviders/aws/context"
+	awscache "github.com/aws/karpenter/pkg/cache"
+	awscontext "github.com/aws/karpenter/pkg/context"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"

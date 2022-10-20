@@ -25,7 +25,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 
-	"github.com/aws/karpenter/pkg/cloudproviders/aws/fake"
+	"github.com/aws/karpenter/pkg/fake"
 )
 
 var _ = Describe("Pricing", func() {

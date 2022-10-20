@@ -19,7 +19,7 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 
-	"github.com/aws/karpenter/pkg/cloudproviders/aws/events"
+	"github.com/aws/karpenter/pkg/events"
 )
 
 func InstanceSpotInterrupted(n *v1.Node) events.Event {

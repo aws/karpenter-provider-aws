@@ -48,8 +48,8 @@ import (
 	awsapis "github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 
-	"github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider/amifamily"
-	awscontext "github.com/aws/karpenter/pkg/cloudproviders/aws/context"
+	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
+	awscontext "github.com/aws/karpenter/pkg/context"
 )
 
 const (

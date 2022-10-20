@@ -24,9 +24,9 @@ import (
 	"github.com/aws/karpenter-core/pkg/controllers"
 	"github.com/aws/karpenter-core/pkg/controllers/state"
 	"github.com/aws/karpenter-core/pkg/operator"
-	awscloudprovider "github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider"
-	awscontext "github.com/aws/karpenter/pkg/cloudproviders/aws/context"
-	awscontrollers "github.com/aws/karpenter/pkg/cloudproviders/aws/controllers"
+	awscloudprovider "github.com/aws/karpenter/pkg/cloudprovider"
+	awscontext "github.com/aws/karpenter/pkg/context"
+	awscontrollers "github.com/aws/karpenter/pkg/controllers"
 )
 
 func main() {

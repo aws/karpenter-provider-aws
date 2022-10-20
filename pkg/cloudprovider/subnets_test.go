@@ -27,7 +27,7 @@ import (
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
 
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
-	"github.com/aws/karpenter/pkg/cloudproviders/aws/fake"
+	"github.com/aws/karpenter/pkg/fake"
 )
 
 var _ = Describe("Subnets", func() {

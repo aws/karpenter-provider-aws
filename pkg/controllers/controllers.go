@@ -17,8 +17,8 @@ package controllers
 import (
 	"github.com/aws/karpenter-core/pkg/controllers/state"
 	"github.com/aws/karpenter-core/pkg/operator"
-	awscontext "github.com/aws/karpenter/pkg/cloudproviders/aws/context"
-	"github.com/aws/karpenter/pkg/cloudproviders/aws/events"
+	awscontext "github.com/aws/karpenter/pkg/context"
+	"github.com/aws/karpenter/pkg/events"
 )
 
 func GetControllers(ctx awscontext.Context, cluster *state.Cluster) []operator.Controller {
