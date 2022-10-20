@@ -15,12 +15,13 @@ limitations under the License.
 package test
 
 import (
+	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 )
 
 func AWSNodeTemplate(overrides ...v1alpha1.AWSNodeTemplateSpec) *v1alpha1.AWSNodeTemplate {
 	return &v1alpha1.AWSNodeTemplate{
-		ObjectMeta: ObjectMeta(),
-		Spec:       MustMerge(v1alpha1.AWSNodeTemplateSpec{}, overrides...),
+		ObjectMeta: test.ObjectMeta(),
+		Spec:       test.MustMerge(v1alpha1.AWSNodeTemplateSpec{}, overrides...),
 	}
 }

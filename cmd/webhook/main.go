@@ -15,9 +15,9 @@ limitations under the License.
 package main
 
 import (
+	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	awscloudprovider "github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider"
 	awscontext "github.com/aws/karpenter/pkg/cloudproviders/aws/context"
-	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
 	"github.com/aws/karpenter/pkg/webhooks"
 )
 

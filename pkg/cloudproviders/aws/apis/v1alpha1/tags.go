@@ -23,7 +23,7 @@ import (
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter/pkg/operator/injection"
+	"github.com/aws/karpenter-core/pkg/operator/injection"
 )
 
 func MergeTags(ctx context.Context, custom ...map[string]string) (result []*ec2.Tag) {

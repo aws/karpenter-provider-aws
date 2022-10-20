@@ -24,10 +24,10 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
-
+	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/test"
+	awstest "github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/test/pkg/environment/aws"
 	"github.com/aws/karpenter/test/pkg/environment/common"
 )
@@ -49,7 +49,7 @@ var _ = AfterEach(func() { env.AfterEach(common.EnableDebug) })
 
 var _ = Describe("Utilization", Label(common.NoWatch), Label(common.NoEvents), func() {
 	It("should provision one pod per node", func() {
-		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 		}})

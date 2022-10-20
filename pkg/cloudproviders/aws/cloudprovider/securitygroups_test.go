@@ -20,8 +20,8 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/aws/karpenter/pkg/test"
-	. "github.com/aws/karpenter/pkg/test/expectations"
+	"github.com/aws/karpenter-core/pkg/test"
+	. "github.com/aws/karpenter-core/pkg/test/expectations"
 )
 
 var _ = Describe("Security Groups", func() {
