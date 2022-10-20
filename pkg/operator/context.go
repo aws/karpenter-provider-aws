@@ -18,10 +18,7 @@ import (
 	"context"
 	"runtime/debug"
 
-	"k8s.io/apimachinery/pkg/runtime"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/flowcontrol"
 	"k8s.io/utils/clock"
@@ -33,7 +30,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/aws/karpenter-core/pkg/utils/project"
-	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/config"
 	"github.com/aws/karpenter/pkg/events"
 	"github.com/aws/karpenter/pkg/operator/injection"
@@ -44,15 +40,6 @@ const (
 	appName   = "karpenter"
 	component = "controller"
 )
-
-var (
-	scheme = runtime.NewScheme()
-)
-
-func init() {
-	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(apis.AddToScheme(scheme))
-}
 
 // Context exposes a global context of components that can be used across the binary
 // for initialization.
