@@ -23,7 +23,7 @@ import (
 
 	"go.uber.org/multierr"
 
-	"github.com/aws/karpenter/pkg/utils/env"
+	"github.com/aws/karpenter-core/pkg/utils/env"
 )
 
 type AWSNodeNameConvention string

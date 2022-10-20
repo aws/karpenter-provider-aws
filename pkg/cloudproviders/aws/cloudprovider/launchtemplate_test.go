@@ -42,13 +42,13 @@ import (
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/operator/injection"
 
+	"github.com/aws/karpenter-core/pkg/utils/ptr"
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider/amifamily/bootstrap"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
 	"github.com/aws/karpenter/pkg/test"
 	. "github.com/aws/karpenter/pkg/test/expectations"
-	"github.com/aws/karpenter/pkg/utils/ptr"
 )
 
 var _ = Describe("LaunchTemplates", func() {

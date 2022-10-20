@@ -27,18 +27,18 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
-	"github.com/aws/karpenter/pkg/apis"
+	"github.com/aws/karpenter-core/pkg/apis"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
 	"github.com/aws/karpenter/pkg/utils/project"
 )
 
 var (
-	scheme = runtime.NewScheme()
+	Scheme = runtime.NewScheme()
 )
 
 func init() {
-	_ = clientgoscheme.AddToScheme(scheme)
-	_ = apis.AddToScheme(scheme)
+	_ = clientgoscheme.AddToScheme(Scheme)
+	_ = apis.AddToScheme(Scheme)
 }
 
 /*
@@ -114,7 +114,7 @@ func (e *Environment) Start() (err error) {
 	}
 
 	// Client
-	e.Client, err = client.New(e.Config, client.Options{Scheme: scheme})
+	e.Client, err = client.New(e.Config, client.Options{Scheme: Scheme})
 	if err != nil {
 		return err
 	}

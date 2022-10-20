@@ -33,9 +33,9 @@ import (
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 
 	"github.com/aws/karpenter-core/pkg/scheduling"
+	podutil "github.com/aws/karpenter-core/pkg/utils/pod"
+	"github.com/aws/karpenter-core/pkg/utils/ptr"
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
-	podutil "github.com/aws/karpenter/pkg/utils/pod"
-	"github.com/aws/karpenter/pkg/utils/ptr"
 )
 
 type Terminator struct {

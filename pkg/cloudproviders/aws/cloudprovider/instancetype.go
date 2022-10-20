@@ -33,10 +33,10 @@ import (
 	"github.com/aws/karpenter/pkg/operator/injection"
 
 	"github.com/aws/karpenter-core/pkg/scheduling"
+	"github.com/aws/karpenter-core/pkg/utils/resources"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider/amifamily"
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
-	"github.com/aws/karpenter/pkg/utils/resources"
 )
 
 const (
@@ -147,7 +147,6 @@ func (i *InstanceType) computeRequirements() scheduling.Requirements {
 	return requirements
 }
 
-// Setting ephemeral-storage to be either the default value or what is defined in blockDeviceMappings
 func (i *InstanceType) architecture() string {
 	for _, architecture := range i.ProcessorInfo.SupportedArchitectures {
 		if value, ok := v1alpha1.AWSToKubeArchitectures[aws.StringValue(architecture)]; ok {

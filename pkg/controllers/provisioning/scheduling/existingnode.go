@@ -23,8 +23,8 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/scheduling"
+	"github.com/aws/karpenter-core/pkg/utils/resources"
 	"github.com/aws/karpenter/pkg/controllers/state"
-	"github.com/aws/karpenter/pkg/utils/resources"
 )
 
 type ExistingNode struct {

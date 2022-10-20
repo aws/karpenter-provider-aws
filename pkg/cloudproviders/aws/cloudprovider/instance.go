@@ -41,10 +41,10 @@ import (
 	"github.com/aws/karpenter/pkg/operator/options"
 
 	"github.com/aws/karpenter-core/pkg/scheduling"
+	"github.com/aws/karpenter-core/pkg/utils/functional"
+	"github.com/aws/karpenter-core/pkg/utils/resources"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
-	"github.com/aws/karpenter/pkg/utils/functional"
-	"github.com/aws/karpenter/pkg/utils/resources"
 )
 
 var (

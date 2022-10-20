@@ -38,9 +38,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter/pkg/utils/functional"
-	nodeutils "github.com/aws/karpenter/pkg/utils/node"
-	"github.com/aws/karpenter/pkg/utils/pod"
+	"github.com/aws/karpenter-core/pkg/utils/functional"
+	nodeutils "github.com/aws/karpenter-core/pkg/utils/node"
+	"github.com/aws/karpenter-core/pkg/utils/pod"
 )
 
 var (

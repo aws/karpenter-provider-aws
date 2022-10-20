@@ -20,7 +20,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/aws/karpenter/pkg/utils/resources"
+	"github.com/aws/karpenter-core/pkg/utils/resources"
 )
 
 // Queue is a queue of pods that is scheduled.  It's used to attempt to schedule pods as long as we are making progress

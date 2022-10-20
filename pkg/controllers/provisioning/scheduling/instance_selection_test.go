@@ -29,11 +29,11 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 
+	"github.com/aws/karpenter-core/pkg/utils/resources"
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider/fake"
 	"github.com/aws/karpenter/pkg/test"
 	. "github.com/aws/karpenter/pkg/test/expectations"
-	"github.com/aws/karpenter/pkg/utils/resources"
 )
 
 var _ = Describe("Instance Type Selection", func() {
