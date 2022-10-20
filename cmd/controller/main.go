@@ -19,14 +19,14 @@ import (
 
 	"k8s.io/apimachinery/pkg/util/runtime"
 
+	"github.com/aws/karpenter-core/pkg/cloudprovider"
+	cloudprovidermetrics "github.com/aws/karpenter-core/pkg/cloudprovider/metrics"
+	"github.com/aws/karpenter-core/pkg/controllers"
+	"github.com/aws/karpenter-core/pkg/controllers/state"
+	"github.com/aws/karpenter-core/pkg/operator"
 	awscloudprovider "github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider"
 	awscontext "github.com/aws/karpenter/pkg/cloudproviders/aws/context"
 	awscontrollers "github.com/aws/karpenter/pkg/cloudproviders/aws/controllers"
-	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
-	cloudprovidermetrics "github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider/metrics"
-	"github.com/aws/karpenter/pkg/controllers"
-	"github.com/aws/karpenter/pkg/controllers/state"
-	"github.com/aws/karpenter/pkg/operator"
 )
 
 func main() {

@@ -40,15 +40,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter/pkg/operator/injection"
+	"github.com/aws/karpenter-core/pkg/operator/injection"
 
+	"github.com/aws/karpenter-core/pkg/controllers/provisioning"
+	"github.com/aws/karpenter-core/pkg/test"
+	. "github.com/aws/karpenter-core/pkg/test/expectations"
 	"github.com/aws/karpenter-core/pkg/utils/ptr"
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider/amifamily/bootstrap"
-	"github.com/aws/karpenter/pkg/controllers/provisioning"
-	"github.com/aws/karpenter/pkg/test"
-	. "github.com/aws/karpenter/pkg/test/expectations"
+	awstest "github.com/aws/karpenter/pkg/test"
 )
 
 var _ = Describe("LaunchTemplates", func() {
@@ -215,7 +216,7 @@ var _ = Describe("LaunchTemplates", func() {
 					CreationDate: aws.String("2022-08-10T12:00:00Z"),
 				},
 			}})
-			nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+			nodeTemplate := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 				UserData:    nil,
 				AMISelector: map[string]string{"karpenter.sh/discovery": "my-cluster"},
 				AWS:         *provider,
@@ -892,7 +893,7 @@ var _ = Describe("LaunchTemplates", func() {
 
 				provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
 				content, _ := os.ReadFile("testdata/br_userdata_input.golden")
-				nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+				nodeTemplate := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 					UserData: aws.String(string(content)),
 					AWS:      *provider,
 				})
@@ -925,7 +926,7 @@ var _ = Describe("LaunchTemplates", func() {
 				controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
 
 				provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
-				nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+				nodeTemplate := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 					UserData: nil,
 					AWS:      *provider,
 				})
@@ -963,7 +964,7 @@ var _ = Describe("LaunchTemplates", func() {
 			})
 			It("should not bootstrap on invalid toml user data", func() {
 				provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
-				nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+				nodeTemplate := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 					UserData: aws.String("#/bin/bash\n ./not-toml.sh"),
 					AWS:      *provider,
 				})
@@ -976,7 +977,7 @@ var _ = Describe("LaunchTemplates", func() {
 			})
 			It("should override system reserved values in user data", func() {
 				provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
-				nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+				nodeTemplate := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 					UserData: nil,
 					AWS:      *provider,
 				})
@@ -1008,7 +1009,7 @@ var _ = Describe("LaunchTemplates", func() {
 			})
 			It("should override kube reserved values in user data", func() {
 				provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
-				nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+				nodeTemplate := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 					UserData: nil,
 					AWS:      *provider,
 				})
@@ -1040,7 +1041,7 @@ var _ = Describe("LaunchTemplates", func() {
 			})
 			It("should override kube reserved values in user data", func() {
 				provider.AMIFamily = &awsv1alpha1.AMIFamilyBottlerocket
-				nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+				nodeTemplate := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 					UserData: nil,
 					AWS:      *provider,
 				})
@@ -1092,7 +1093,7 @@ var _ = Describe("LaunchTemplates", func() {
 				controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
 
 				content, _ := os.ReadFile("testdata/al2_userdata_input.golden")
-				nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+				nodeTemplate := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 					UserData: aws.String(string(content)),
 					AWS:      *provider,
 				})
@@ -1112,7 +1113,7 @@ var _ = Describe("LaunchTemplates", func() {
 				opts.AWSENILimitedPodDensity = false
 				prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
 				controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
-				nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+				nodeTemplate := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 					UserData: nil,
 					AWS:      *provider,
 				})
@@ -1130,7 +1131,7 @@ var _ = Describe("LaunchTemplates", func() {
 			})
 			It("should not bootstrap invalid MIME UserData", func() {
 				opts.AWSENILimitedPodDensity = false
-				nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+				nodeTemplate := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 					UserData: aws.String("#/bin/bash\n ./not-mime.sh"),
 					AWS:      *provider,
 				})
@@ -1145,7 +1146,7 @@ var _ = Describe("LaunchTemplates", func() {
 		Context("Custom AMI Selector", func() {
 			It("should use ami selector specified in AWSNodeTemplate", func() {
 				opts.AWSENILimitedPodDensity = false
-				nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+				nodeTemplate := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 					UserData:    nil,
 					AMISelector: map[string]string{"karpenter.sh/discovery": "my-cluster"},
 					AWS:         *provider,
@@ -1168,7 +1169,7 @@ var _ = Describe("LaunchTemplates", func() {
 			It("should copy over userData untouched when AMIFamily is Custom", func() {
 				opts.AWSENILimitedPodDensity = false
 				provider.AMIFamily = &awsv1alpha1.AMIFamilyCustom
-				nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+				nodeTemplate := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 					UserData:    aws.String("special user data"),
 					AMISelector: map[string]string{"karpenter.sh/discovery": "my-cluster"},
 					AWS:         *provider,
@@ -1191,7 +1192,7 @@ var _ = Describe("LaunchTemplates", func() {
 			})
 			It("should correctly use ami selector with specific IDs in AWSNodeTemplate", func() {
 				opts.AWSENILimitedPodDensity = false
-				nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+				nodeTemplate := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 					UserData:    nil,
 					AMISelector: map[string]string{"aws-ids": "ami-123,ami-456"},
 					AWS:         *provider,
@@ -1241,7 +1242,7 @@ var _ = Describe("LaunchTemplates", func() {
 						CreationDate: aws.String("2022-08-10T12:00:00Z"),
 					},
 				}})
-				nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+				nodeTemplate := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 					UserData:    nil,
 					AMISelector: map[string]string{"karpenter.sh/discovery": "my-cluster"},
 					AWS:         *provider,
@@ -1279,7 +1280,7 @@ var _ = Describe("LaunchTemplates", func() {
 						CreationDate: aws.String("2022-01-01T12:00:00Z"),
 					},
 				}})
-				nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+				nodeTemplate := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 					UserData:    nil,
 					AMISelector: map[string]string{"karpenter.sh/discovery": "my-cluster"},
 					AWS:         *provider,
@@ -1306,7 +1307,7 @@ var _ = Describe("LaunchTemplates", func() {
 			It("should fail if no amis match selector.", func() {
 				opts.AWSENILimitedPodDensity = false
 				fakeEC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{}})
-				nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+				nodeTemplate := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 					UserData:    nil,
 					AMISelector: map[string]string{"karpenter.sh/discovery": "my-cluster"},
 					AWS:         *provider,
@@ -1323,7 +1324,7 @@ var _ = Describe("LaunchTemplates", func() {
 				fakeEC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
 					{ImageId: aws.String("ami-123"), Architecture: aws.String("newnew"), CreationDate: aws.String("2022-01-01T12:00:00Z")},
 				}})
-				nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+				nodeTemplate := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 					UserData:    nil,
 					AMISelector: map[string]string{"karpenter.sh/discovery": "my-cluster"},
 					AWS:         *provider,
@@ -1337,7 +1338,7 @@ var _ = Describe("LaunchTemplates", func() {
 			})
 			It("should choose amis from SSM if no selector specified in AWSNodeTemplate", func() {
 				opts.AWSENILimitedPodDensity = false
-				nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+				nodeTemplate := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 					UserData: nil,
 					AWS:      *provider,
 				})

@@ -30,10 +30,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
-
+	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/test"
+	awstest "github.com/aws/karpenter/pkg/test"
 )
 
 var customAMI string
@@ -44,7 +44,7 @@ var _ = Describe("LaunchTemplates", func() {
 	})
 
 	It("should use the AMI defined by the AMI Selector", func() {
-		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 			AWS: awsv1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 				SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
@@ -62,7 +62,7 @@ var _ = Describe("LaunchTemplates", func() {
 		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("ImageId", HaveValue(Equal(customAMI))))
 	})
 	It("should support Custom AMIFamily with AMI Selectors", func() {
-		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			AMIFamily:             &awsv1alpha1.AMIFamilyCustom,
@@ -81,7 +81,7 @@ var _ = Describe("LaunchTemplates", func() {
 	})
 	It("should use the most recent AMI when discovering multiple", func() {
 		oldCustomAMI := selectCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", 2)
-		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			AMIFamily:             &awsv1alpha1.AMIFamilyCustom,
@@ -101,7 +101,7 @@ var _ = Describe("LaunchTemplates", func() {
 	It("should merge UserData contents for AL2 AMIFamily", func() {
 		content, err := os.ReadFile("testdata/al2_userdata_input.golden")
 		Expect(err).ToNot(HaveOccurred())
-		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			AMIFamily:             &awsv1alpha1.AMIFamilyAL2,
@@ -130,7 +130,7 @@ var _ = Describe("LaunchTemplates", func() {
 	It("should merge UserData contents for Bottlerocket AMIFamily", func() {
 		content, err := os.ReadFile("testdata/br_userdata_input.golden")
 		Expect(err).ToNot(HaveOccurred())
-		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			AMIFamily:             &awsv1alpha1.AMIFamilyBottlerocket,

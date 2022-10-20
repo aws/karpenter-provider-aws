@@ -32,14 +32,14 @@ import (
 	"knative.dev/pkg/ptr"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter/pkg/operator/injection"
+	"github.com/aws/karpenter-core/pkg/operator/injection"
 
+	"github.com/aws/karpenter-core/pkg/cloudprovider"
+	"github.com/aws/karpenter-core/pkg/controllers/provisioning"
+	"github.com/aws/karpenter-core/pkg/test"
+	. "github.com/aws/karpenter-core/pkg/test/expectations"
 	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/fake"
-	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
-	"github.com/aws/karpenter/pkg/controllers/provisioning"
-	"github.com/aws/karpenter/pkg/test"
-	. "github.com/aws/karpenter/pkg/test/expectations"
 )
 
 var _ = Describe("Instance Types", func() {

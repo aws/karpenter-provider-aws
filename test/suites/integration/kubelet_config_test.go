@@ -28,16 +28,17 @@ import (
 	"knative.dev/pkg/ptr"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
+	awstest "github.com/aws/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-core/pkg/scheduling"
+	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/test"
 )
 
 var _ = Describe("KubeletConfiguration Overrides", func() {
 	It("should startup successfully with all kubelet configuration set", func() {
-		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 		}})
@@ -93,7 +94,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		env.ExpectCreatedNodeCount("==", 1)
 	})
 	It("should schedule pods onto separate nodes when maxPods is set", func() {
-		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 		}})
@@ -136,7 +137,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		env.ExpectUniqueNodeNames(selector, 3)
 	})
 	It("should schedule pods onto separate nodes when podsPerCore is set", func() {
-		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 		}})
@@ -190,7 +191,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		env.ExpectUniqueNodeNames(selector, 2)
 	})
 	It("should ignore podsPerCore value when Bottlerocket is used", func() {
-		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			AMIFamily:             &awsv1alpha1.AMIFamilyBottlerocket,

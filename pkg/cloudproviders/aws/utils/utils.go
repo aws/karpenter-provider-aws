@@ -24,7 +24,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/ptr"
 
-	"github.com/aws/karpenter/pkg/operator/injection"
+	"github.com/aws/karpenter-core/pkg/operator/injection"
 )
 
 // ParseInstanceID parses the provider ID stored on the node to get the instance ID

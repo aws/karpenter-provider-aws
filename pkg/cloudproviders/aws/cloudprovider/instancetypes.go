@@ -24,10 +24,10 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/cloudprovider"
+	"github.com/aws/karpenter-core/pkg/operator/injection"
 	awscache "github.com/aws/karpenter/pkg/cloudproviders/aws/cache"
 	awscontext "github.com/aws/karpenter/pkg/cloudproviders/aws/context"
-	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
-	"github.com/aws/karpenter/pkg/operator/injection"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"

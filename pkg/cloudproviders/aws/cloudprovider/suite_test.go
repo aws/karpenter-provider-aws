@@ -18,6 +18,8 @@ import (
 	"context"
 	"math"
 	"net"
+	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -36,22 +38,22 @@ import (
 	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
 
+	"github.com/aws/karpenter-core/pkg/cloudprovider"
+	"github.com/aws/karpenter-core/pkg/operator/injection"
+	"github.com/aws/karpenter-core/pkg/operator/options"
+	. "github.com/aws/karpenter-core/pkg/test/expectations"
 	awscache "github.com/aws/karpenter/pkg/cloudproviders/aws/cache"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider/amifamily"
 	awscontext "github.com/aws/karpenter/pkg/cloudproviders/aws/context"
-	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
-	"github.com/aws/karpenter/pkg/operator/injection"
-	"github.com/aws/karpenter/pkg/operator/options"
-	. "github.com/aws/karpenter/pkg/test/expectations"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 
+	"github.com/aws/karpenter-core/pkg/controllers/provisioning"
+	"github.com/aws/karpenter-core/pkg/controllers/state"
+	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
 	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/fake"
-	"github.com/aws/karpenter/pkg/controllers/provisioning"
-	"github.com/aws/karpenter/pkg/controllers/state"
-	"github.com/aws/karpenter/pkg/test"
 )
 
 var ctx context.Context
@@ -155,6 +157,7 @@ var _ = BeforeSuite(func() {
 		controller = provisioning.NewController(e.Client, prov, recorder)
 	})
 
+	env.CRDDirectoryPaths = append(env.CRDDirectoryPaths, RelativeToRoot("charts/karpenter/crds"))
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })
 
@@ -543,3 +546,9 @@ var _ = Describe("Allocation", func() {
 		})
 	})
 })
+
+func RelativeToRoot(path string) string {
+	_, file, _, _ := runtime.Caller(0)
+	manifestsRoot := filepath.Join(filepath.Dir(file), "..", "..", "..", "..")
+	return filepath.Join(manifestsRoot, path)
+}

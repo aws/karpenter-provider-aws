@@ -26,10 +26,10 @@ import (
 	v1 "k8s.io/api/core/v1"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
-
+	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/test"
+	awstest "github.com/aws/karpenter/pkg/test"
 )
 
 var _ = Describe("Subnets", func() {
@@ -40,7 +40,7 @@ var _ = Describe("Subnets", func() {
 		shuffledAZs := lo.Shuffle(lo.Keys(subnets))
 		firstSubnet := subnets[shuffledAZs[0]][0]
 
-		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 			AWS: awsv1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 				SubnetSelector:        map[string]string{"aws-ids": firstSubnet},
@@ -61,7 +61,7 @@ var _ = Describe("Subnets", func() {
 		Expect(len(subnets)).ToNot(Equal(0))
 		shuffledAZs := lo.Shuffle(lo.Keys(subnets))
 
-		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 			AWS: awsv1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 				SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
