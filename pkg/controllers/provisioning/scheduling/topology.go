@@ -32,7 +32,7 @@ import (
 	utilsets "k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/aws/karpenter/pkg/utils/pod"
+	"github.com/aws/karpenter-core/pkg/utils/pod"
 )
 
 type Topology struct {

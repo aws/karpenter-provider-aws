@@ -24,12 +24,12 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/ptr"
 
-	"github.com/aws/karpenter/pkg/utils/injection"
+	"github.com/aws/karpenter/pkg/operator/injection"
 )
 
-// ParseProviderID parses the provider ID stored on the node to get the instance ID
+// ParseInstanceID parses the provider ID stored on the node to get the instance ID
 // associated with a node
-func ParseProviderID(node *v1.Node) (*string, error) {
+func ParseInstanceID(node *v1.Node) (*string, error) {
 	r := regexp.MustCompile(`aws:///(?P<AZ>.*)/(?P<InstanceID>.*)`)
 	matches := r.FindStringSubmatch(node.Spec.ProviderID)
 	if matches == nil {
@@ -43,6 +43,7 @@ func ParseProviderID(node *v1.Node) (*string, error) {
 	return nil, fmt.Errorf("parsing instance id %s", node.Spec.ProviderID)
 }
 
+// GetClusterNameHash gets the SHA256 hex-encoded checksum of the cluster name, truncated at the passed truncatedAt
 func GetClusterNameHash(ctx context.Context, truncateAt int) string {
 	h := sha256.New()
 	h.Write([]byte(injection.GetOptions(ctx).ClusterName))

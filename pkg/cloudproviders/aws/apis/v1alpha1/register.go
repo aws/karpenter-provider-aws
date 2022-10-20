@@ -71,8 +71,7 @@ var (
 	LabelInstanceGPUManufacturer = LabelDomain + "/instance-gpu-manufacturer"
 	LabelInstanceGPUCount        = LabelDomain + "/instance-gpu-count"
 	LabelInstanceGPUMemory       = LabelDomain + "/instance-gpu-memory"
-
-	LabelInstanceAMIID = LabelDomain + "/instance-ami-id"
+	LabelInstanceAMIID           = LabelDomain + "/instance-ami-id"
 
 	DiscoveryTagKey = v1alpha5.Group + "/discovery"
 )

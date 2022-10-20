@@ -37,9 +37,9 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 
+	"github.com/aws/karpenter-core/pkg/utils/result"
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
 	"github.com/aws/karpenter/pkg/controllers/state"
-	"github.com/aws/karpenter/pkg/utils/result"
 )
 
 const controllerName = "node"

@@ -15,19 +15,28 @@ limitations under the License.
 package events
 
 import (
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 )
 
-// Recorder is used to record events to the Kubernetes Event API
-type Recorder interface {
+type Event struct {
+	InvolvedObject runtime.Object
+	Type           string
+	Reason         string
+	Message        string
 }
 
-type recorder struct {
+type Recorder struct {
 	rec record.EventRecorder
 }
 
-func NewRecorder(r record.EventRecorder) Recorder {
-	return recorder{
+func NewRecorder(r record.EventRecorder) *Recorder {
+	return &Recorder{
 		rec: r,
 	}
+}
+
+// Publish creates a Kubernetes event using the passed event struct
+func (r *Recorder) Publish(evt Event) {
+	r.rec.Event(evt.InvolvedObject, evt.Type, evt.Reason, evt.Message)
 }

@@ -15,16 +15,14 @@ limitations under the License.
 package main
 
 import (
-	"context"
-
-	"github.com/aws/karpenter/pkg/cloudproviders/aws"
 	awscloudprovider "github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider"
+	awscontext "github.com/aws/karpenter/pkg/cloudproviders/aws/context"
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
 	"github.com/aws/karpenter/pkg/webhooks"
 )
 
 func main() {
-	webhooks.Initialize(func(ctx context.Context, o cloudprovider.Options) cloudprovider.CloudProvider {
-		return awscloudprovider.New(ctx, aws.NewOptionsOrDie(ctx, o))
+	webhooks.Initialize(func(ctx cloudprovider.Context) cloudprovider.CloudProvider {
+		return awscloudprovider.New(awscontext.NewOrDie(ctx))
 	})
 }

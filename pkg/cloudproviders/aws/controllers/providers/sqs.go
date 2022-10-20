@@ -24,12 +24,11 @@ import (
 	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
 	"github.com/samber/lo"
 
+	"github.com/aws/karpenter-core/pkg/utils/atomic"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
 	awserrors "github.com/aws/karpenter/pkg/cloudproviders/aws/errors"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/utils"
-	"github.com/aws/karpenter/pkg/utils/atomic"
-	"github.com/aws/karpenter/pkg/utils/functional"
-	"github.com/aws/karpenter/pkg/utils/injection"
+	"github.com/aws/karpenter/pkg/operator/injection"
 )
 
 type QueuePolicy struct {
@@ -49,57 +48,35 @@ type Principal struct {
 	Service []string `json:"Service"`
 }
 
-type SQSProvider struct {
+type SQS struct {
 	client sqsiface.SQSAPI
-
-	createQueueInput        *sqs.CreateQueueInput
-	getQueueURLInput        *sqs.GetQueueUrlInput
-	getQueueAttributesInput *sqs.GetQueueAttributesInput
-	receiveMessageInput     *sqs.ReceiveMessageInput
 
 	queueURL  atomic.Lazy[string]
 	queueARN  atomic.Lazy[string]
 	queueName string
 }
 
-func NewSQSProvider(ctx context.Context, client sqsiface.SQSAPI) *SQSProvider {
-	provider := &SQSProvider{
+func NewSQS(ctx context.Context, client sqsiface.SQSAPI) *SQS {
+	provider := &SQS{
 		client:    client,
 		queueName: getQueueName(ctx),
 	}
-	provider.createQueueInput = &sqs.CreateQueueInput{
-		QueueName: aws.String(provider.queueName),
-		Tags: map[string]*string{
-			v1alpha1.DiscoveryTagKey: aws.String(injection.GetOptions(ctx).ClusterName),
-		},
-	}
-	provider.getQueueURLInput = &sqs.GetQueueUrlInput{
-		QueueName: aws.String(provider.queueName),
-	}
-	provider.getQueueAttributesInput = &sqs.GetQueueAttributesInput{
-		AttributeNames: aws.StringSlice([]string{sqs.QueueAttributeNameQueueArn}),
-		QueueUrl:       aws.String(provider.queueName),
-	}
-	provider.receiveMessageInput = &sqs.ReceiveMessageInput{
-		MaxNumberOfMessages: aws.Int64(10),
-		VisibilityTimeout:   aws.Int64(20), // Seconds
-		WaitTimeSeconds:     aws.Int64(20), // Seconds, maximum for long polling
-		AttributeNames: []*string{
-			aws.String(sqs.MessageSystemAttributeNameSentTimestamp),
-		},
-		MessageAttributeNames: []*string{
-			aws.String(sqs.QueueAttributeNameAll),
-		},
-	}
 	provider.queueURL.Resolve = func(ctx context.Context) (string, error) {
-		ret, err := provider.client.GetQueueUrlWithContext(ctx, provider.getQueueURLInput)
+		input := &sqs.GetQueueUrlInput{
+			QueueName: aws.String(provider.queueName),
+		}
+		ret, err := provider.client.GetQueueUrlWithContext(ctx, input)
 		if err != nil {
 			return "", fmt.Errorf("fetching queue url, %w", err)
 		}
 		return aws.StringValue(ret.QueueUrl), nil
 	}
 	provider.queueARN.Resolve = func(ctx context.Context) (string, error) {
-		ret, err := provider.client.GetQueueAttributesWithContext(ctx, provider.getQueueAttributesInput)
+		input := &sqs.GetQueueAttributesInput{
+			AttributeNames: aws.StringSlice([]string{sqs.QueueAttributeNameQueueArn}),
+			QueueUrl:       aws.String(provider.queueName),
+		}
+		ret, err := provider.client.GetQueueAttributesWithContext(ctx, input)
 		if err != nil {
 			return "", fmt.Errorf("fetching queue arn, %w", err)
 		}
@@ -111,12 +88,18 @@ func NewSQSProvider(ctx context.Context, client sqsiface.SQSAPI) *SQSProvider {
 	return provider
 }
 
-func (s *SQSProvider) QueueName() string {
+func (s *SQS) QueueName() string {
 	return s.queueName
 }
 
-func (s *SQSProvider) CreateQueue(ctx context.Context) error {
-	result, err := s.client.CreateQueueWithContext(ctx, s.createQueueInput)
+func (s *SQS) CreateQueue(ctx context.Context) error {
+	input := &sqs.CreateQueueInput{
+		QueueName: aws.String(s.queueName),
+		Tags: map[string]*string{
+			v1alpha1.DiscoveryTagKey: aws.String(injection.GetOptions(ctx).ClusterName),
+		},
+	}
+	result, err := s.client.CreateQueueWithContext(ctx, input)
 	if err != nil {
 		return fmt.Errorf("creating sqs queue, %w", err)
 	}
@@ -124,7 +107,7 @@ func (s *SQSProvider) CreateQueue(ctx context.Context) error {
 	return nil
 }
 
-func (s *SQSProvider) SetQueueAttributes(ctx context.Context, attributeOverrides map[string]*string) error {
+func (s *SQS) SetQueueAttributes(ctx context.Context, attributeOverrides map[string]*string) error {
 	queueURL, err := s.DiscoverQueueURL(ctx, false)
 	if err != nil {
 		return fmt.Errorf("fetching queue url, %w", err)
@@ -147,27 +130,33 @@ func (s *SQSProvider) SetQueueAttributes(ctx context.Context, attributeOverrides
 	return nil
 }
 
-func (s *SQSProvider) DiscoverQueueURL(ctx context.Context, ignoreCache bool) (string, error) {
+func (s *SQS) DiscoverQueueURL(ctx context.Context, ignoreCache bool) (string, error) {
 	opts := lo.Ternary(ignoreCache, atomic.IgnoreCacheOption, nil)
 	return s.queueURL.TryGet(ctx, opts)
 }
 
-func (s *SQSProvider) DiscoverQueueARN(ctx context.Context) (string, error) {
+func (s *SQS) DiscoverQueueARN(ctx context.Context) (string, error) {
 	return s.queueARN.TryGet(ctx)
 }
 
-func (s *SQSProvider) GetSQSMessages(ctx context.Context) ([]*sqs.Message, error) {
+func (s *SQS) GetSQSMessages(ctx context.Context) ([]*sqs.Message, error) {
 	queueURL, err := s.DiscoverQueueURL(ctx, false)
 	if err != nil {
 		return nil, fmt.Errorf("fetching queue url, %w", err)
 	}
 
-	// Copy the input template and add the discovered queue url
-	input, err := functional.DeepCopy(s.receiveMessageInput)
-	if err != nil {
-		return nil, fmt.Errorf("copying input, %w", err)
+	input := &sqs.ReceiveMessageInput{
+		MaxNumberOfMessages: aws.Int64(10),
+		VisibilityTimeout:   aws.Int64(20), // Seconds
+		WaitTimeSeconds:     aws.Int64(20), // Seconds, maximum for long polling
+		AttributeNames: []*string{
+			aws.String(sqs.MessageSystemAttributeNameSentTimestamp),
+		},
+		MessageAttributeNames: []*string{
+			aws.String(sqs.QueueAttributeNameAll),
+		},
+		QueueUrl: aws.String(queueURL),
 	}
-	input.QueueUrl = aws.String(queueURL)
 
 	result, err := s.client.ReceiveMessageWithContext(ctx, input)
 	if err != nil {
@@ -177,7 +166,7 @@ func (s *SQSProvider) GetSQSMessages(ctx context.Context) ([]*sqs.Message, error
 	return result.Messages, nil
 }
 
-func (s *SQSProvider) SendMessage(ctx context.Context, body interface{}) (string, error) {
+func (s *SQS) SendMessage(ctx context.Context, body interface{}) (string, error) {
 	raw, err := json.Marshal(body)
 	if err != nil {
 		return "", fmt.Errorf("marshaling the passed body as json, %w", err)
@@ -197,7 +186,7 @@ func (s *SQSProvider) SendMessage(ctx context.Context, body interface{}) (string
 	return aws.StringValue(result.MessageId), nil
 }
 
-func (s *SQSProvider) DeleteSQSMessage(ctx context.Context, msg *sqs.Message) error {
+func (s *SQS) DeleteSQSMessage(ctx context.Context, msg *sqs.Message) error {
 	queueURL, err := s.DiscoverQueueURL(ctx, false)
 	if err != nil {
 		return fmt.Errorf("failed fetching queue url, %w", err)
@@ -215,7 +204,7 @@ func (s *SQSProvider) DeleteSQSMessage(ctx context.Context, msg *sqs.Message) er
 	return nil
 }
 
-func (s *SQSProvider) DeleteQueue(ctx context.Context) error {
+func (s *SQS) DeleteQueue(ctx context.Context) error {
 	queueURL, err := s.DiscoverQueueURL(ctx, false)
 	if err != nil {
 		if awserrors.IsNotFound(err) {
@@ -234,7 +223,7 @@ func (s *SQSProvider) DeleteQueue(ctx context.Context) error {
 	return nil
 }
 
-func (s *SQSProvider) getQueueAttributes(ctx context.Context) (map[string]*string, error) {
+func (s *SQS) getQueueAttributes(ctx context.Context) (map[string]*string, error) {
 	raw, err := s.getQueuePolicy(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("marshaling queue policy, %w", err)
@@ -246,7 +235,7 @@ func (s *SQSProvider) getQueueAttributes(ctx context.Context) (map[string]*strin
 	}, nil
 }
 
-func (s *SQSProvider) getQueuePolicy(ctx context.Context) (*QueuePolicy, error) {
+func (s *SQS) getQueuePolicy(ctx context.Context) (*QueuePolicy, error) {
 	queueARN, err := s.DiscoverQueueARN(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("retrieving queue arn for queue policy, %w", err)

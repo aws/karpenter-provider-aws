@@ -28,8 +28,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
-
-	"github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
 )
 
 // ProvisionerOptions customizes a Provisioner.
@@ -71,7 +69,7 @@ func Provisioner(overrides ...ProvisionerOptions) *v1alpha5.Provisioner {
 		options.Requirements = append(options.Requirements, v1.NodeSelectorRequirement{
 			Key:      v1alpha5.LabelCapacityType,
 			Operator: v1.NodeSelectorOpIn,
-			Values:   []string{v1alpha1.CapacityTypeOnDemand},
+			Values:   []string{v1alpha5.CapacityTypeOnDemand},
 		})
 	}
 

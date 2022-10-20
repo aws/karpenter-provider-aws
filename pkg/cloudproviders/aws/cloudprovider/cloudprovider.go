@@ -22,7 +22,7 @@ import (
 	"net"
 	"net/http"
 
-	sdk "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ssm"
@@ -40,13 +40,13 @@ import (
 	k8sClient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/utils/functional"
 	awsv1alpha1 "github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
-	"github.com/aws/karpenter/pkg/cloudproviders/aws"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider/amifamily"
+	awscontext "github.com/aws/karpenter/pkg/cloudproviders/aws/context"
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
-	"github.com/aws/karpenter/pkg/utils/functional"
-	"github.com/aws/karpenter/pkg/utils/injection"
+	"github.com/aws/karpenter/pkg/operator/injection"
 )
 
 const (
@@ -66,43 +66,41 @@ type CloudProvider struct {
 	kubeClient           k8sClient.Client
 }
 
-func New(ctx context.Context, options aws.Options) *CloudProvider {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("aws"))
-	// if performing validation only, then only the Validate()/Default() methods will be called which
-	// don't require any other setup
-	if options.WebhookOnly {
+func New(ctx awscontext.Context) *CloudProvider {
+	if ctx.WebhookOnly {
+		// if performing validation only, then only the Validate()/Default() methods will be called which
+		// don't require any other setup
 		cp := &CloudProvider{}
 		v1alpha5.ValidateHook = cp.Validate
 		v1alpha5.DefaultHook = cp.Default
 		return cp
 	}
-
-	kubeDNSIP, err := kubeDNSIP(ctx, options.ClientSet)
+	kubeDNSIP, err := kubeDNSIP(ctx, ctx.ClientSet)
 	if err != nil {
 		logging.FromContext(ctx).Fatalf("Unable to detect the IP of the kube-dns service, %s", err)
 	}
 	logging.FromContext(ctx).Debugf("Discovered DNS IP %s", kubeDNSIP)
-	ec2api := ec2.New(options.Session)
-	if err := checkEC2Connectivity(ec2api); err != nil {
+	ec2api := ec2.New(ctx.Session)
+	if err := checkEC2Connectivity(ctx, ec2api); err != nil {
 		logging.FromContext(ctx).Fatalf("Checking EC2 API connectivity, %s", err)
 	}
 	subnetProvider := NewSubnetProvider(ec2api)
-	instanceTypeProvider := NewInstanceTypeProvider(ctx, options.Session, options.Options, ec2api, subnetProvider, options.UnavailableOfferingsCache)
+	instanceTypeProvider := NewInstanceTypeProvider(ctx, ctx.Session, ec2api, subnetProvider, ctx.UnavailableOfferingsCache, ctx.StartAsync)
 	cloudprovider := &CloudProvider{
 		instanceTypeProvider: instanceTypeProvider,
 		instanceProvider: NewInstanceProvider(ctx, ec2api, instanceTypeProvider, subnetProvider,
 			NewLaunchTemplateProvider(
 				ctx,
 				ec2api,
-				options.ClientSet,
-				amifamily.New(ctx, ssm.New(options.Session), ec2api, cache.New(options.CacheTTL, options.CacheCleanupInterval), cache.New(options.CacheTTL, options.CacheCleanupInterval), options.KubeClient),
+				ctx.ClientSet,
+				amifamily.New(ctx.KubeClient, ssm.New(ctx.Session), ec2api, cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval), cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)),
 				NewSecurityGroupProvider(ec2api),
 				getCABundle(ctx),
-				options.StartAsync,
+				ctx.StartAsync,
 				kubeDNSIP,
 			),
 		),
-		kubeClient: options.KubeClient,
+		kubeClient: ctx.KubeClient,
 	}
 	v1alpha5.ValidateHook = cloudprovider.Validate
 	v1alpha5.DefaultHook = cloudprovider.Default
@@ -112,8 +110,8 @@ func New(ctx context.Context, options aws.Options) *CloudProvider {
 
 // checkEC2Connectivity makes a dry-run call to DescribeInstanceTypes.  If it fails, we provide an early indicator that we
 // are having issues connecting to the EC2 API.
-func checkEC2Connectivity(api *ec2.EC2) error {
-	_, err := api.DescribeInstanceTypes(&ec2.DescribeInstanceTypesInput{DryRun: sdk.Bool(true)})
+func checkEC2Connectivity(ctx context.Context, api *ec2.EC2) error {
+	_, err := api.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{DryRun: aws.Bool(true)})
 	var aerr awserr.Error
 	if errors.As(err, &aerr) && aerr.Code() == "DryRunOperation" {
 		return nil
@@ -251,6 +249,9 @@ func getCABundle(ctx context.Context) *string {
 }
 
 func kubeDNSIP(ctx context.Context, clientSet *kubernetes.Clientset) (net.IP, error) {
+	if clientSet == nil {
+		return nil, fmt.Errorf("no K8s client provided")
+	}
 	dnsService, err := clientSet.CoreV1().Services("kube-system").Get(ctx, "kube-dns", metav1.GetOptions{})
 	if err != nil {
 		return nil, err

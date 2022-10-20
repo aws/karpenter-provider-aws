@@ -36,7 +36,7 @@ help: ## Display help
 
 dev: verify test ## Run all steps in the developer loop
 
-ci: toolchain verify licenses battletest coverage ## Run all steps used by continuous integration
+ci: toolchain verify licenses vulncheck battletest coverage ## Run all steps used by continuous integration
 
 run: ## Run Karpenter controller binary against your local cluster
 	SYSTEM_NAMESPACE=${SYSTEM_NAMESPACE} go run ./cmd/controller/main.go \
@@ -77,6 +77,8 @@ verify: tidy download codegen ## Verify code. Includes dependencies, linting, fo
 		fi;}
 	@echo "Validating codegen/docgen build scripts..."
 	@find hack/code hack/docs -name "*.go" -type f -exec go build -o /dev/null {} \;
+
+vulncheck: ## Verify code vulnerabilities
 	@govulncheck ./pkg/...
 
 licenses: download ## Verifies dependency licenses
@@ -145,7 +147,7 @@ tidy: ## Recursively "go mod tidy" on all directories where go.mod exists
 download: ## Recursively "go mod download" on all directories where go.mod exists
 	$(foreach dir,$(MOD_DIRS),cd $(dir) && go mod download $(newline))
 
-.PHONY: help dev ci release test battletest e2etests verify tidy download codegen docgen apply delete toolchain licenses issues website nightly snapshot
+.PHONY: help dev ci release test battletest e2etests verify tidy download codegen docgen apply delete toolchain licenses vulncheck issues website nightly snapshot
 
 define newline
 

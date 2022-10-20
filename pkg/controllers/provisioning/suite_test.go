@@ -35,7 +35,6 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 
-	"github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
 	"github.com/aws/karpenter/pkg/test"
 
@@ -53,7 +52,7 @@ var nodeController *state.NodeController
 var cloudProvider cloudprovider.CloudProvider
 var controller *provisioning.Controller
 var env *test.Environment
-var recorder *test.Recorder
+var recorder *test.EventRecorder
 var cfg *test.Config
 var instanceTypeMap map[string]cloudprovider.InstanceType
 
@@ -67,7 +66,7 @@ var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
 		cloudProvider = &fake.CloudProvider{}
 		cfg = test.NewConfig()
-		recorder = test.NewRecorder()
+		recorder = test.NewEventRecorder()
 		fakeClock = clock.NewFakeClock(time.Now())
 		cluster = state.NewCluster(fakeClock, cfg, e.Client, cloudProvider)
 		nodeController = state.NewNodeController(e.Client, cluster)
@@ -158,13 +157,10 @@ var _ = Describe("Provisioning", func() {
 		ExpectApplied(ctx, env.Client, test.Provisioner())
 		for _, pod := range ExpectProvisioned(ctx, env.Client, controller,
 			test.UnschedulablePod(test.PodOptions{
-				ResourceRequirements: v1.ResourceRequirements{Limits: v1.ResourceList{v1alpha1.ResourceNVIDIAGPU: resource.MustParse("1")}},
+				ResourceRequirements: v1.ResourceRequirements{Limits: v1.ResourceList{fake.ResourceGPUVendorA: resource.MustParse("1")}},
 			}),
 			test.UnschedulablePod(test.PodOptions{
-				ResourceRequirements: v1.ResourceRequirements{Limits: v1.ResourceList{v1alpha1.ResourceAMDGPU: resource.MustParse("1")}},
-			}),
-			test.UnschedulablePod(test.PodOptions{
-				ResourceRequirements: v1.ResourceRequirements{Limits: v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("1")}},
+				ResourceRequirements: v1.ResourceRequirements{Limits: v1.ResourceList{fake.ResourceGPUVendorB: resource.MustParse("1")}},
 			}),
 		) {
 			ExpectScheduled(ctx, env.Client, pod)
@@ -321,7 +317,7 @@ var _ = Describe("Provisioning", func() {
 			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(
 				test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
 					Limits: v1.ResourceList{
-						v1alpha1.ResourceNVIDIAGPU: resource.MustParse("1"),
+						fake.ResourceGPUVendorA: resource.MustParse("1"),
 					},
 				}}))[0]
 			// only available instance type has 2 GPUs which would exceed the limit

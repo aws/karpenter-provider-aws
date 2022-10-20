@@ -22,11 +22,12 @@ import (
 	"time"
 
 	"github.com/Pallinder/go-randomdata"
-	sdk "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/patrickmn/go-cache"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	clock "k8s.io/utils/clock/testing"
@@ -36,22 +37,23 @@ import (
 	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
 
-	"github.com/aws/karpenter/pkg/cloudproviders/aws"
+	"github.com/aws/karpenter/pkg/apis"
 	awscache "github.com/aws/karpenter/pkg/cloudproviders/aws/cache"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider/amifamily"
+	awscontext "github.com/aws/karpenter/pkg/cloudproviders/aws/context"
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
+	"github.com/aws/karpenter/pkg/operator/injection"
+	"github.com/aws/karpenter/pkg/operator/options"
 	. "github.com/aws/karpenter/pkg/test/expectations"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 
+	"github.com/aws/karpenter-core/pkg/utils/pretty"
 	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/fake"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/test"
-	"github.com/aws/karpenter/pkg/utils/injection"
-	"github.com/aws/karpenter/pkg/utils/options"
-	"github.com/aws/karpenter/pkg/utils/pretty"
 )
 
 var ctx context.Context
@@ -73,7 +75,7 @@ var controller *provisioning.Controller
 var cloudProvider *CloudProvider
 var clientSet *kubernetes.Clientset
 var cluster *state.Cluster
-var recorder *test.Recorder
+var recorder *test.EventRecorder
 var cfg *test.Config
 var fakeClock *clock.FakeClock
 var provisioner *v1alpha5.Provisioner
@@ -89,6 +91,10 @@ var defaultOpts = options.Options{
 	AWSDefaultInstanceProfile: "test-instance-profile",
 }
 
+func init() {
+	runtime.Must(apis.AddToScheme(test.Scheme))
+}
+
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
 	RegisterFailHandler(Fail)
@@ -101,14 +107,15 @@ var _ = BeforeSuite(func() {
 		Expect(opts.Validate()).To(Succeed(), "Failed to validate options")
 		ctx = injection.WithOptions(ctx, opts)
 		ctx, stop = context.WithCancel(ctx)
-		launchTemplateCache = cache.New(aws.CacheTTL, aws.CacheCleanupInterval)
-		internalUnavailableOfferingsCache = cache.New(awscache.UnavailableOfferingsTTL, aws.CacheCleanupInterval)
+
+		launchTemplateCache = cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)
+		internalUnavailableOfferingsCache = cache.New(awscache.UnavailableOfferingsTTL, awscontext.CacheCleanupInterval)
 		unavailableOfferingsCache = awscache.NewUnavailableOfferings(internalUnavailableOfferingsCache)
-		securityGroupCache = cache.New(aws.CacheTTL, aws.CacheCleanupInterval)
-		subnetCache = cache.New(aws.CacheTTL, aws.CacheCleanupInterval)
-		ssmCache = cache.New(aws.CacheTTL, aws.CacheCleanupInterval)
-		ec2Cache = cache.New(aws.CacheTTL, aws.CacheCleanupInterval)
-		instanceTypeCache = cache.New(InstanceTypesAndZonesCacheTTL, aws.CacheCleanupInterval)
+		securityGroupCache = cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)
+		subnetCache = cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)
+		ssmCache = cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)
+		ec2Cache = cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)
+		instanceTypeCache = cache.New(InstanceTypesAndZonesCacheTTL, awscontext.CacheCleanupInterval)
 		fakeEC2API = &fake.EC2API{}
 		fakePricingAPI = &fake.PricingAPI{}
 		pricingProvider = NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
@@ -135,7 +142,7 @@ var _ = BeforeSuite(func() {
 			instanceTypeProvider: instanceTypeProvider,
 			instanceProvider: NewInstanceProvider(ctx, fakeEC2API, instanceTypeProvider, subnetProvider, &LaunchTemplateProvider{
 				ec2api:                fakeEC2API,
-				amiFamily:             amifamily.New(ctx, fake.SSMAPI{}, fakeEC2API, ssmCache, ec2Cache, e.Client),
+				amiFamily:             amifamily.New(env.Client, fake.SSMAPI{}, fakeEC2API, ssmCache, ec2Cache),
 				clientSet:             clientSet,
 				securityGroupProvider: securityGroupProvider,
 				cache:                 launchTemplateCache,
@@ -149,7 +156,7 @@ var _ = BeforeSuite(func() {
 		cfg = test.NewConfig()
 		fakeClock = clock.NewFakeClock(time.Now())
 		cluster = state.NewCluster(fakeClock, cfg, e.Client, cloudProvider)
-		recorder = test.NewRecorder()
+		recorder = test.NewEventRecorder()
 		prov := provisioning.NewProvisioner(ctx, cfg, e.Client, corev1.NewForConfigOrDie(e.Config), recorder, cloudProvider, cluster)
 		controller = provisioning.NewController(e.Client, prov, recorder)
 	})
@@ -164,7 +171,7 @@ var _ = AfterSuite(func() {
 
 var _ = BeforeEach(func() {
 	provider = &awsv1alpha1.AWS{
-		AMIFamily:             sdk.String(awsv1alpha1.AMIFamilyAL2),
+		AMIFamily:             aws.String(awsv1alpha1.AMIFamilyAL2),
 		SubnetSelector:        map[string]string{"*": "*"},
 		SecurityGroupSelector: map[string]string{"*": "*"},
 	}
@@ -200,7 +207,7 @@ var _ = Describe("Allocation", func() {
 			Expect(provisioner.Spec.Requirements).To(ContainElement(v1.NodeSelectorRequirement{
 				Key:      v1alpha5.LabelCapacityType,
 				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{awsv1alpha1.CapacityTypeOnDemand},
+				Values:   []string{v1alpha5.CapacityTypeOnDemand},
 			}))
 			Expect(provisioner.Spec.Requirements).To(ContainElement(v1.NodeSelectorRequirement{
 				Key:      v1.LabelArchStable,
@@ -211,12 +218,12 @@ var _ = Describe("Allocation", func() {
 		It("should default requirements hooks in webhook mode", func() {
 			// clear our hook to ensure that creating the cloud provider in webhook mode sets it
 			v1alpha5.DefaultHook = func(ctx context.Context, provisoner *v1alpha5.Provisioner) {}
-			New(ctx, aws.Options{Options: cloudprovider.Options{WebhookOnly: true}})
+			New(awscontext.Context{Context: cloudprovider.Context{WebhookOnly: true}})
 			v1alpha5.DefaultHook(ctx, provisioner)
 			Expect(provisioner.Spec.Requirements).To(ContainElement(v1.NodeSelectorRequirement{
 				Key:      v1alpha5.LabelCapacityType,
 				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{awsv1alpha1.CapacityTypeOnDemand},
+				Values:   []string{v1alpha5.CapacityTypeOnDemand},
 			}))
 			Expect(provisioner.Spec.Requirements).To(ContainElement(v1.NodeSelectorRequirement{
 				Key:      v1.LabelArchStable,
@@ -252,7 +259,7 @@ var _ = Describe("Allocation", func() {
 			It("should not allow with a custom launch template", func() {
 				provider, err := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
 				Expect(err).ToNot(HaveOccurred())
-				provider.LaunchTemplateName = sdk.String("my-lt")
+				provider.LaunchTemplateName = aws.String("my-lt")
 				provider.SecurityGroupSelector = map[string]string{"key": "value"}
 				provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
 				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
@@ -274,7 +281,7 @@ var _ = Describe("Allocation", func() {
 			It("should set context on the CreateFleet request if specified on the Provisioner", func() {
 				provider, err := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
 				Expect(err).ToNot(HaveOccurred())
-				provider.Context = sdk.String("context-1234")
+				provider.Context = aws.String("context-1234")
 				provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
 				provisioner.SetDefaults(ctx)
 				ExpectApplied(ctx, env.Client, provisioner)
@@ -282,7 +289,7 @@ var _ = Describe("Allocation", func() {
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateFleetInput.Len()).To(Equal(1))
 				createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop()
-				Expect(sdk.StringValue(createFleetInput.Context)).To(Equal("context-1234"))
+				Expect(aws.StringValue(createFleetInput.Context)).To(Equal("context-1234"))
 			})
 			It("should default to no EC2 Context", func() {
 				provisioner.SetDefaults(ctx)
@@ -320,7 +327,7 @@ var _ = Describe("Allocation", func() {
 			It("should not allow with a custom launch template", func() {
 				provider, err := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
 				Expect(err).ToNot(HaveOccurred())
-				provider.LaunchTemplateName = sdk.String("my-lt")
+				provider.LaunchTemplateName = aws.String("my-lt")
 				provider.MetadataOptions = &awsv1alpha1.MetadataOptions{}
 				provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
 				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
@@ -349,7 +356,7 @@ var _ = Describe("Allocation", func() {
 					provider, err := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
 					Expect(err).ToNot(HaveOccurred())
 					provider.MetadataOptions = &awsv1alpha1.MetadataOptions{
-						HTTPEndpoint: sdk.String(randomdata.SillyName()),
+						HTTPEndpoint: aws.String(randomdata.SillyName()),
 					}
 					provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
@@ -372,7 +379,7 @@ var _ = Describe("Allocation", func() {
 					provider, err := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
 					Expect(err).ToNot(HaveOccurred())
 					provider.MetadataOptions = &awsv1alpha1.MetadataOptions{
-						HTTPProtocolIPv6: sdk.String(randomdata.SillyName()),
+						HTTPProtocolIPv6: aws.String(randomdata.SillyName()),
 					}
 					provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
@@ -383,7 +390,7 @@ var _ = Describe("Allocation", func() {
 					provider, err := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
 					Expect(err).ToNot(HaveOccurred())
 					provider.MetadataOptions = &awsv1alpha1.MetadataOptions{
-						HTTPPutResponseHopLimit: sdk.Int64(int64(randomdata.Number(1, 65))),
+						HTTPPutResponseHopLimit: aws.Int64(int64(randomdata.Number(1, 65))),
 					}
 					provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					Expect(provisioner.Validate(ctx)).To(Succeed())
@@ -397,14 +404,14 @@ var _ = Describe("Allocation", func() {
 					// exceed math.MaxInt for the difference between bounds of
 					// the random number range. So we divide the range
 					// approximately in half and test on both halves.
-					provider.MetadataOptions.HTTPPutResponseHopLimit = sdk.Int64(int64(randomdata.Number(math.MinInt64, math.MinInt64/2)))
+					provider.MetadataOptions.HTTPPutResponseHopLimit = aws.Int64(int64(randomdata.Number(math.MinInt64, math.MinInt64/2)))
 					provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
-					provider.MetadataOptions.HTTPPutResponseHopLimit = sdk.Int64(int64(randomdata.Number(math.MinInt64/2, 1)))
+					provider.MetadataOptions.HTTPPutResponseHopLimit = aws.Int64(int64(randomdata.Number(math.MinInt64/2, 1)))
 					provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 
-					provider.MetadataOptions.HTTPPutResponseHopLimit = sdk.Int64(int64(randomdata.Number(65, math.MaxInt64)))
+					provider.MetadataOptions.HTTPPutResponseHopLimit = aws.Int64(int64(randomdata.Number(65, math.MaxInt64)))
 					provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 				})
@@ -415,7 +422,7 @@ var _ = Describe("Allocation", func() {
 					Expect(err).ToNot(HaveOccurred())
 					for _, value := range ec2.LaunchTemplateHttpTokensState_Values() {
 						provider.MetadataOptions = &awsv1alpha1.MetadataOptions{
-							HTTPTokens: sdk.String(value),
+							HTTPTokens: aws.String(value),
 						}
 						provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
 						Expect(provisioner.Validate(ctx)).To(Succeed())
@@ -425,7 +432,7 @@ var _ = Describe("Allocation", func() {
 					provider, err := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
 					Expect(err).ToNot(HaveOccurred())
 					provider.MetadataOptions = &awsv1alpha1.MetadataOptions{
-						HTTPTokens: sdk.String(randomdata.SillyName()),
+						HTTPTokens: aws.String(randomdata.SillyName()),
 					}
 					provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
@@ -435,9 +442,9 @@ var _ = Describe("Allocation", func() {
 				It("should not allow with a custom launch template", func() {
 					provider, err := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
 					Expect(err).ToNot(HaveOccurred())
-					provider.LaunchTemplateName = sdk.String("my-lt")
+					provider.LaunchTemplateName = aws.String("my-lt")
 					provider.BlockDeviceMappings = []*awsv1alpha1.BlockDeviceMapping{{
-						DeviceName: sdk.String("/dev/xvda"),
+						DeviceName: aws.String("/dev/xvda"),
 						EBS: &awsv1alpha1.BlockDevice{
 							VolumeSize: resource.NewScaledQuantity(1, resource.Giga),
 						},
@@ -449,7 +456,7 @@ var _ = Describe("Allocation", func() {
 					provider, err := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
 					Expect(err).ToNot(HaveOccurred())
 					provider.BlockDeviceMappings = []*awsv1alpha1.BlockDeviceMapping{{
-						DeviceName: sdk.String("/dev/xvda"),
+						DeviceName: aws.String("/dev/xvda"),
 						EBS: &awsv1alpha1.BlockDevice{
 							VolumeSize: resource.NewScaledQuantity(1, resource.Giga),
 						},
@@ -461,9 +468,9 @@ var _ = Describe("Allocation", func() {
 					provider, err := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
 					Expect(err).ToNot(HaveOccurred())
 					provider.BlockDeviceMappings = []*awsv1alpha1.BlockDeviceMapping{{
-						DeviceName: sdk.String("/dev/xvda"),
+						DeviceName: aws.String("/dev/xvda"),
 						EBS: &awsv1alpha1.BlockDevice{
-							SnapshotID: sdk.String("snap-0123456789"),
+							SnapshotID: aws.String("snap-0123456789"),
 						},
 					}}
 					provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
@@ -473,7 +480,7 @@ var _ = Describe("Allocation", func() {
 					provider, err := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
 					Expect(err).ToNot(HaveOccurred())
 					provider.BlockDeviceMappings = []*awsv1alpha1.BlockDeviceMapping{{
-						DeviceName: sdk.String("/dev/xvda"),
+						DeviceName: aws.String("/dev/xvda"),
 						EBS: &awsv1alpha1.BlockDevice{
 							VolumeSize: resource.NewScaledQuantity(100, resource.Mega),
 						},
@@ -485,7 +492,7 @@ var _ = Describe("Allocation", func() {
 					provider, err := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
 					Expect(err).ToNot(HaveOccurred())
 					provider.BlockDeviceMappings = []*awsv1alpha1.BlockDeviceMapping{{
-						DeviceName: sdk.String("/dev/xvda"),
+						DeviceName: aws.String("/dev/xvda"),
 						EBS: &awsv1alpha1.BlockDevice{
 							VolumeSize: resource.NewScaledQuantity(65, resource.Tera),
 						},
@@ -508,7 +515,7 @@ var _ = Describe("Allocation", func() {
 					provider, err := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
 					Expect(err).ToNot(HaveOccurred())
 					provider.BlockDeviceMappings = []*awsv1alpha1.BlockDeviceMapping{{
-						DeviceName: sdk.String("/dev/xvda"),
+						DeviceName: aws.String("/dev/xvda"),
 						EBS:        &awsv1alpha1.BlockDevice{},
 					}}
 					provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
@@ -518,7 +525,7 @@ var _ = Describe("Allocation", func() {
 					provider, err := awsv1alpha1.Deserialize(provisioner.Spec.Provider)
 					Expect(err).ToNot(HaveOccurred())
 					provider.BlockDeviceMappings = []*awsv1alpha1.BlockDeviceMapping{{
-						DeviceName: sdk.String("/dev/xvda"),
+						DeviceName: aws.String("/dev/xvda"),
 					}}
 					provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
@@ -529,13 +536,13 @@ var _ = Describe("Allocation", func() {
 
 	Context("Webhook", func() {
 		It("should validate when in webhook mode", func() {
-			cp := New(ctx, aws.Options{Options: cloudprovider.Options{WebhookOnly: true}})
+			cp := New(awscontext.Context{Context: cloudprovider.Context{WebhookOnly: true}})
 			// just ensures that validation doesn't depend on anything as when created for the webhook
 			// we don't fully initialize the cloud provider
 			Expect(cp.Validate(ctx, provisioner)).To(Succeed())
 		})
 		It("should default when in webhookmode", func() {
-			cp := New(ctx, aws.Options{Options: cloudprovider.Options{WebhookOnly: true}})
+			cp := New(awscontext.Context{Context: cloudprovider.Context{WebhookOnly: true}})
 			// just ensures that validation doesn't depend on anything as when created for the webhook
 			// we don't fully initialize the cloud provider
 			cp.Default(ctx, provisioner)

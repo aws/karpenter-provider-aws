@@ -19,8 +19,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/aws/karpenter-core/pkg/utils/pod"
 	"github.com/aws/karpenter/pkg/events"
-	"github.com/aws/karpenter/pkg/utils/pod"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"

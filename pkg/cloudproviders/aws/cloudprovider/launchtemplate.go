@@ -24,26 +24,24 @@ import (
 	"sync"
 	"time"
 
-	sdk "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
-	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/client-go/kubernetes"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 
-	"github.com/aws/karpenter/pkg/cloudproviders/aws"
-
+	"github.com/aws/karpenter-core/pkg/utils/pretty"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider/amifamily"
+	awscontext "github.com/aws/karpenter/pkg/cloudproviders/aws/context"
 	awserrors "github.com/aws/karpenter/pkg/cloudproviders/aws/errors"
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
-	"github.com/aws/karpenter/pkg/utils/injection"
-	"github.com/aws/karpenter/pkg/utils/pretty"
+	"github.com/aws/karpenter/pkg/operator/injection"
 )
 
 const (
@@ -59,7 +57,6 @@ type LaunchTemplateProvider struct {
 	amiFamily             *amifamily.Resolver
 	securityGroupProvider *SecurityGroupProvider
 	cache                 *cache.Cache
-	logger                *zap.SugaredLogger
 	caBundle              *string
 	cm                    *pretty.ChangeMonitor
 	kubeDNSIP             net.IP
@@ -69,15 +66,14 @@ func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, clie
 	l := &LaunchTemplateProvider{
 		ec2api:                ec2api,
 		clientSet:             clientSet,
-		logger:                logging.FromContext(ctx).Named("launchtemplate"),
 		amiFamily:             amiFamily,
 		securityGroupProvider: securityGroupProvider,
-		cache:                 cache.New(aws.CacheTTL, aws.CacheCleanupInterval),
+		cache:                 cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval),
 		caBundle:              caBundle,
 		cm:                    pretty.NewChangeMonitor(),
 		kubeDNSIP:             kubeDNSIP,
 	}
-	l.cache.OnEvicted(l.onCacheEvicted)
+	l.cache.OnEvicted(l.cachedEvictedFunc(ctx))
 	go func() {
 		// only hydrate cache once elected leader
 		select {
@@ -155,7 +151,7 @@ func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, optio
 	}
 	// Attempt to find an existing LT.
 	output, err := p.ec2api.DescribeLaunchTemplatesWithContext(ctx, &ec2.DescribeLaunchTemplatesInput{
-		LaunchTemplateNames: []*string{sdk.String(name)},
+		LaunchTemplateNames: []*string{aws.String(name)},
 	})
 	// Create LT if one doesn't exist
 	if awserrors.IsNotFound(err) {
@@ -183,15 +179,15 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, optio
 		return nil, err
 	}
 	output, err := p.ec2api.CreateLaunchTemplateWithContext(ctx, &ec2.CreateLaunchTemplateInput{
-		LaunchTemplateName: sdk.String(launchTemplateName(options)),
+		LaunchTemplateName: aws.String(launchTemplateName(options)),
 		LaunchTemplateData: &ec2.RequestLaunchTemplateData{
 			BlockDeviceMappings: p.blockDeviceMappings(options.BlockDeviceMappings),
 			IamInstanceProfile: &ec2.LaunchTemplateIamInstanceProfileSpecificationRequest{
-				Name: sdk.String(options.InstanceProfile),
+				Name: aws.String(options.InstanceProfile),
 			},
-			SecurityGroupIds: sdk.StringSlice(options.SecurityGroupsIDs),
-			UserData:         sdk.String(userData),
-			ImageId:          sdk.String(options.AMIID),
+			SecurityGroupIds: aws.StringSlice(options.SecurityGroupsIDs),
+			UserData:         aws.String(userData),
+			ImageId:          aws.String(options.AMIID),
 			MetadataOptions: &ec2.LaunchTemplateInstanceMetadataOptionsRequest{
 				HttpEndpoint:            options.MetadataOptions.HTTPEndpoint,
 				HttpProtocolIpv6:        options.MetadataOptions.HTTPProtocolIPv6,
@@ -199,12 +195,12 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, optio
 				HttpTokens:              options.MetadataOptions.HTTPTokens,
 			},
 			TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{
-				{ResourceType: sdk.String(ec2.ResourceTypeNetworkInterface), Tags: v1alpha1.MergeTags(ctx, options.Tags)},
+				{ResourceType: aws.String(ec2.ResourceTypeNetworkInterface), Tags: v1alpha1.MergeTags(ctx, options.Tags)},
 			},
 		},
 		TagSpecifications: []*ec2.TagSpecification{
 			{
-				ResourceType: sdk.String(ec2.ResourceTypeLaunchTemplate),
+				ResourceType: aws.String(ec2.ResourceTypeLaunchTemplate),
 				Tags:         v1alpha1.MergeTags(ctx, options.Tags, map[string]string{karpenterManagedTagKey: options.ClusterName}),
 			},
 		},
@@ -245,14 +241,14 @@ func (p *LaunchTemplateProvider) volumeSize(quantity *resource.Quantity) *int64 
 	if quantity == nil {
 		return nil
 	}
-	return sdk.Int64(int64(quantity.AsApproximateFloat64() / math.Pow(2, 30)))
+	return aws.Int64(int64(quantity.AsApproximateFloat64() / math.Pow(2, 30)))
 }
 
 // Invalidate deletes a launch template from cache if it exists
 func (p *LaunchTemplateProvider) Invalidate(ctx context.Context, ltName string) {
 	p.Lock()
 	defer p.Unlock()
-	defer p.cache.OnEvicted(p.onCacheEvicted)
+	defer p.cache.OnEvicted(p.cachedEvictedFunc(ctx))
 	p.cache.OnEvicted(nil)
 	logging.FromContext(ctx).Debugf("Invalidating launch template \"%s\" in the cache because it no longer exists", ltName)
 	p.cache.Delete(ltName)
@@ -262,40 +258,42 @@ func (p *LaunchTemplateProvider) Invalidate(ctx context.Context, ltName string) 
 // Any error during hydration will result in a panic
 func (p *LaunchTemplateProvider) hydrateCache(ctx context.Context) {
 	clusterName := injection.GetOptions(ctx).ClusterName
-	p.logger.Debugf("Hydrating the launch template cache with tags matching \"%s: %s\"", karpenterManagedTagKey, clusterName)
+	logging.FromContext(ctx).Debugf("Hydrating the launch template cache with tags matching \"%s: %s\"", karpenterManagedTagKey, clusterName)
 	if err := p.ec2api.DescribeLaunchTemplatesPagesWithContext(ctx, &ec2.DescribeLaunchTemplatesInput{
-		Filters: []*ec2.Filter{{Name: sdk.String(fmt.Sprintf("tag:%s", karpenterManagedTagKey)), Values: []*string{sdk.String(clusterName)}}},
+		Filters: []*ec2.Filter{{Name: aws.String(fmt.Sprintf("tag:%s", karpenterManagedTagKey)), Values: []*string{aws.String(clusterName)}}},
 	}, func(output *ec2.DescribeLaunchTemplatesOutput, _ bool) bool {
 		for _, lt := range output.LaunchTemplates {
 			p.cache.SetDefault(*lt.LaunchTemplateName, lt)
 		}
 		return true
 	}); err != nil {
-		p.logger.Errorf(fmt.Sprintf("Unable to hydrate the AWS launch template cache, %s", err))
+		logging.FromContext(ctx).Errorf(fmt.Sprintf("Unable to hydrate the AWS launch template cache, %s", err))
 	}
-	p.logger.Debugf("Finished hydrating the launch template cache with %d items", p.cache.ItemCount())
+	logging.FromContext(ctx).Debugf("Finished hydrating the launch template cache with %d items", p.cache.ItemCount())
 }
 
-func (p *LaunchTemplateProvider) onCacheEvicted(key string, lt interface{}) {
-	if key == kubernetesVersionCacheKey {
-		return
+func (p *LaunchTemplateProvider) cachedEvictedFunc(ctx context.Context) func(string, interface{}) {
+	return func(key string, lt interface{}) {
+		if key == kubernetesVersionCacheKey {
+			return
+		}
+		p.Lock()
+		defer p.Unlock()
+		if _, expiration, _ := p.cache.GetWithExpiration(key); expiration.After(time.Now()) {
+			return
+		}
+		launchTemplate := lt.(*ec2.LaunchTemplate)
+		if _, err := p.ec2api.DeleteLaunchTemplate(&ec2.DeleteLaunchTemplateInput{LaunchTemplateId: launchTemplate.LaunchTemplateId}); err != nil {
+			logging.FromContext(ctx).Errorf("Unable to delete launch template, %v", err)
+			return
+		}
+		logging.FromContext(ctx).Debugf("Deleted launch template %v (%v)", aws.StringValue(launchTemplate.LaunchTemplateName), aws.StringValue(launchTemplate.LaunchTemplateId))
 	}
-	p.Lock()
-	defer p.Unlock()
-	if _, expiration, _ := p.cache.GetWithExpiration(key); expiration.After(time.Now()) {
-		return
-	}
-	launchTemplate := lt.(*ec2.LaunchTemplate)
-	if _, err := p.ec2api.DeleteLaunchTemplate(&ec2.DeleteLaunchTemplateInput{LaunchTemplateId: launchTemplate.LaunchTemplateId}); err != nil {
-		p.logger.Errorf("Unable to delete launch template, %v", err)
-		return
-	}
-	p.logger.Debugf("Deleted launch template %v (%v)", sdk.StringValue(launchTemplate.LaunchTemplateName), sdk.StringValue(launchTemplate.LaunchTemplateId))
 }
 
 func (p *LaunchTemplateProvider) getInstanceProfile(ctx context.Context, provider *v1alpha1.AWS) (string, error) {
 	if provider.InstanceProfile != nil {
-		return sdk.StringValue(provider.InstanceProfile), nil
+		return aws.StringValue(provider.InstanceProfile), nil
 	}
 	defaultProfile := injection.GetOptions(ctx).AWSDefaultInstanceProfile
 	if defaultProfile == "" {

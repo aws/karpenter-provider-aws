@@ -33,8 +33,8 @@ import (
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/cloudproviders/aws/controllers/notification/event"
-	"github.com/aws/karpenter/pkg/cloudproviders/aws/controllers/notification/event/scheduledchange"
+	"github.com/aws/karpenter/pkg/cloudproviders/aws/controllers/interruption/messages"
+	"github.com/aws/karpenter/pkg/cloudproviders/aws/controllers/interruption/messages/scheduledchange"
 	"github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/test/pkg/environment/aws"
 	"github.com/aws/karpenter/test/pkg/environment/common"
@@ -243,7 +243,7 @@ var _ = Describe("Notification", Label("AWS"), func() {
 // TODO: Update the scheduled change message to accurately reflect a real health event
 func scheduledChangeMessage(region, accountID, involvedInstanceID string) scheduledchange.Event {
 	return scheduledchange.Event{
-		AWSMetadata: event.AWSMetadata{
+		Metadata: messages.Metadata{
 			Version:    "0",
 			Account:    accountID,
 			DetailType: "AWS Health Event",

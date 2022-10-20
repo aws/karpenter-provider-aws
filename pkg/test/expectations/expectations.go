@@ -167,9 +167,10 @@ func ExpectCleanedUp(ctx context.Context, c client.Client) {
 		for _, namespace := range namespaces.Items {
 			wg.Add(1)
 			go func(object client.Object, namespace string) {
+				defer wg.Done()
+				defer ginkgo.GinkgoRecover()
 				ExpectWithOffset(1, c.DeleteAllOf(ctx, object, client.InNamespace(namespace),
 					&client.DeleteAllOfOptions{DeleteOptions: client.DeleteOptions{GracePeriodSeconds: ptr.Int64(0)}})).ToNot(HaveOccurred())
-				wg.Done()
 			}(object, namespace.Name)
 		}
 	}
@@ -179,7 +180,7 @@ func ExpectCleanedUp(ctx context.Context, c client.Client) {
 func ExpectProvisioned(ctx context.Context, c client.Client, controller *provisioning.Controller, pods ...*v1.Pod) (result []*v1.Pod) {
 	ExpectProvisionedNoBindingWithOffset(1, ctx, c, controller, pods...)
 
-	recorder := controller.Recorder().(*test.Recorder)
+	recorder := controller.Recorder().(*test.EventRecorder)
 	recorder.ForEachBinding(func(pod *v1.Pod, node *v1.Node) {
 		ExpectManualBindingWithOffset(1, ctx, c, pod, node)
 	})

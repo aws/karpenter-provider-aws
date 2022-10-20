@@ -33,21 +33,21 @@ func init() {
 	metrics.MustRegister() // Registers cross-controller metrics
 }
 
-func GetControllers(opts operator.Options, cluster *state.Cluster, cloudProvider cloudprovider.CloudProvider) []operator.Controller {
-	provisioner := provisioning.NewProvisioner(opts.Ctx, opts.Config, opts.KubeClient, opts.Clientset.CoreV1(), opts.EventRecorder, cloudProvider, cluster)
+func GetControllers(ctx operator.Context, cluster *state.Cluster, cloudProvider cloudprovider.CloudProvider) []operator.Controller {
+	provisioner := provisioning.NewProvisioner(ctx, ctx.Config, ctx.KubeClient, ctx.Clientset.CoreV1(), ctx.EventRecorder, cloudProvider, cluster)
 
-	metricsstate.StartMetricScraper(opts.Ctx, cluster)
+	metricsstate.StartMetricScraper(ctx, cluster)
 
 	return []operator.Controller{
-		provisioning.NewController(opts.KubeClient, provisioner, opts.EventRecorder),
-		state.NewNodeController(opts.KubeClient, cluster),
-		state.NewPodController(opts.KubeClient, cluster),
-		state.NewProvisionerController(opts.KubeClient, cluster),
-		node.NewController(opts.Clock, opts.KubeClient, cloudProvider, cluster),
-		termination.NewController(opts.Ctx, opts.Clock, opts.KubeClient, opts.Clientset.CoreV1(), opts.EventRecorder, cloudProvider),
-		metricspod.NewController(opts.KubeClient),
-		metricsprovisioner.NewController(opts.KubeClient),
-		counter.NewController(opts.KubeClient, cluster),
-		consolidation.NewController(opts.Clock, opts.KubeClient, provisioner, cloudProvider, opts.EventRecorder, cluster),
+		provisioning.NewController(ctx.KubeClient, provisioner, ctx.EventRecorder),
+		state.NewNodeController(ctx.KubeClient, cluster),
+		state.NewPodController(ctx.KubeClient, cluster),
+		state.NewProvisionerController(ctx.KubeClient, cluster),
+		node.NewController(ctx.Clock, ctx.KubeClient, cloudProvider, cluster),
+		termination.NewController(ctx, ctx.Clock, ctx.KubeClient, ctx.Clientset.CoreV1(), ctx.EventRecorder, cloudProvider),
+		metricspod.NewController(ctx.KubeClient),
+		metricsprovisioner.NewController(ctx.KubeClient),
+		counter.NewController(ctx.KubeClient, cluster),
+		consolidation.NewController(ctx.Clock, ctx.KubeClient, provisioner, cloudProvider, ctx.EventRecorder, cluster),
 	}
 }

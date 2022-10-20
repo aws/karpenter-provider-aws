@@ -14,7 +14,9 @@ run:
 linters:
   enable:
     - asciicheck
+    - bidichk
     - errorlint
+    - exportloopref
     - gosec
     - revive
     - stylecheck
@@ -26,6 +28,7 @@ linters:
     - goimports
     - goheader
     - misspell
+    - nilerr
   disable:
     - prealloc
 

@@ -45,7 +45,7 @@ var _ = Describe("Webhooks", func() {
 			Expect(provisioner.Spec.Requirements).To(ContainElement(v1.NodeSelectorRequirement{
 				Key:      v1alpha5.LabelCapacityType,
 				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{awsv1alpha1.CapacityTypeOnDemand},
+				Values:   []string{v1alpha5.CapacityTypeOnDemand},
 			}))
 			Expect(provisioner.Spec.Requirements).To(ContainElement(v1.NodeSelectorRequirement{
 				Key:      v1.LabelArchStable,
@@ -140,7 +140,7 @@ var _ = Describe("Webhooks", func() {
 					{
 						Key:      v1alpha5.LabelCapacityType,
 						Operator: "within",
-						Values:   []string{awsv1alpha1.CapacityTypeSpot},
+						Values:   []string{v1alpha5.CapacityTypeSpot},
 					},
 				},
 			})

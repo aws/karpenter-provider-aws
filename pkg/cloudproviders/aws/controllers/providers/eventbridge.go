@@ -29,49 +29,49 @@ import (
 	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
 	awserrors "github.com/aws/karpenter/pkg/cloudproviders/aws/errors"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/utils"
-	"github.com/aws/karpenter/pkg/utils/injection"
+	"github.com/aws/karpenter/pkg/operator/injection"
 )
-
-type EventBridgeProvider struct {
-	client      eventbridgeiface.EventBridgeAPI
-	sqsProvider *SQSProvider
-}
-
-type EventRule struct {
-	Name    string
-	Pattern *EventPattern
-	Target  *EventTarget
-}
 
 const QueueTargetID = "KarpenterEventQueue"
 
-type EventTarget struct {
+type rule struct {
+	Name    string
+	Pattern *pattern
+	Target  *target
+}
+
+type target struct {
 	ID  string
 	ARN string
 }
 
-type EventPattern struct {
+type pattern struct {
 	Source     []string `json:"source,omitempty"`
 	DetailType []string `json:"detail-type,omitempty"`
 }
 
-func (ep *EventPattern) Serialize() []byte {
+func (ep *pattern) Serialize() []byte {
 	return lo.Must(json.Marshal(ep))
 }
 
-func NewEventBridgeProvider(eb eventbridgeiface.EventBridgeAPI, sqsProvider *SQSProvider) *EventBridgeProvider {
-	return &EventBridgeProvider{
+type EventBridge struct {
+	client      eventbridgeiface.EventBridgeAPI
+	sqsProvider *SQS
+}
+
+func NewEventBridge(eb eventbridgeiface.EventBridgeAPI, sqsProvider *SQS) *EventBridge {
+	return &EventBridge{
 		client:      eb,
 		sqsProvider: sqsProvider,
 	}
 }
 
-func (eb *EventBridgeProvider) CreateEC2NotificationRules(ctx context.Context) error {
+func (eb *EventBridge) CreateEC2NotificationRules(ctx context.Context) error {
 	queueARN, err := eb.sqsProvider.queueARN.TryGet(ctx)
 	if err != nil {
 		return fmt.Errorf("resolving queue arn, %w", err)
 	}
-	rules := lo.Map(eb.getEC2NotificationEventRules(ctx), func(r EventRule, _ int) EventRule { return r.AddQueueTarget(queueARN) })
+	rules := lo.Map(eb.getEC2NotificationEventRules(ctx), func(r rule, _ int) rule { return r.AddQueueTarget(queueARN) })
 	errs := make([]error, len(rules))
 	workqueue.ParallelizeUntil(ctx, len(rules), len(rules), func(i int) {
 		_, err := eb.client.PutRuleWithContext(ctx, &eventbridge.PutRuleInput{
@@ -103,7 +103,7 @@ func (eb *EventBridgeProvider) CreateEC2NotificationRules(ctx context.Context) e
 	return multierr.Combine(errs...)
 }
 
-func (eb *EventBridgeProvider) DeleteEC2NotificationRules(ctx context.Context) error {
+func (eb *EventBridge) DeleteEC2NotificationRules(ctx context.Context) error {
 	rules := eb.getEC2NotificationEventRules(ctx)
 	errs := make([]error, len(rules))
 	workqueue.ParallelizeUntil(ctx, len(rules), len(rules), func(i int) {
@@ -127,32 +127,32 @@ func (eb *EventBridgeProvider) DeleteEC2NotificationRules(ctx context.Context) e
 	return multierr.Combine(errs...)
 }
 
-func (eb *EventBridgeProvider) getEC2NotificationEventRules(ctx context.Context) []EventRule {
-	return []EventRule{
+func (eb *EventBridge) getEC2NotificationEventRules(ctx context.Context) []rule {
+	return []rule{
 		{
 			Name: fmt.Sprintf("Karpenter-ScheduledChangeRule-%s", utils.GetClusterNameHash(ctx, 20)),
-			Pattern: &EventPattern{
+			Pattern: &pattern{
 				Source:     []string{"aws.health"},
 				DetailType: []string{"AWS Health Event"},
 			},
 		},
 		{
 			Name: fmt.Sprintf("Karpenter-SpotTerminationRule-%s", utils.GetClusterNameHash(ctx, 20)),
-			Pattern: &EventPattern{
+			Pattern: &pattern{
 				Source:     []string{"aws.ec2"},
 				DetailType: []string{"EC2 Spot Instance Interruption Warning"},
 			},
 		},
 		{
 			Name: fmt.Sprintf("Karpenter-RebalanceRule-%s", utils.GetClusterNameHash(ctx, 20)),
-			Pattern: &EventPattern{
+			Pattern: &pattern{
 				Source:     []string{"aws.ec2"},
 				DetailType: []string{"EC2 Instance Rebalance Recommendation"},
 			},
 		},
 		{
 			Name: fmt.Sprintf("Karpenter-InstanceStateChangeRule-%s", utils.GetClusterNameHash(ctx, 20)),
-			Pattern: &EventPattern{
+			Pattern: &pattern{
 				Source:     []string{"aws.ec2"},
 				DetailType: []string{"EC2 Instance State-change Notification"},
 			},
@@ -160,8 +160,8 @@ func (eb *EventBridgeProvider) getEC2NotificationEventRules(ctx context.Context)
 	}
 }
 
-func (er EventRule) AddQueueTarget(queueARN string) EventRule {
-	er.Target = &EventTarget{
+func (er rule) AddQueueTarget(queueARN string) rule {
+	er.Target = &target{
 		ID:  QueueTargetID,
 		ARN: queueARN,
 	}

@@ -40,7 +40,7 @@ type Environment struct {
 	STSAPI sts.STS
 	IAMAPI iam.IAM
 
-	SQSProvider     *providers.SQSProvider
+	SQSProvider     *providers.SQS
 	InterruptionAPI *itn.ITN
 }
 
@@ -58,6 +58,6 @@ func NewEnvironment(t *testing.T) (*Environment, error) {
 		SSMAPI:          *ssm.New(session),
 		IAMAPI:          *iam.New(session),
 		InterruptionAPI: itn.New(lo.Must(config.LoadDefaultConfig(env.Context))),
-		SQSProvider:     providers.NewSQSProvider(env.Context, sqs.New(session)),
+		SQSProvider:     providers.NewSQS(env.Context, sqs.New(session)),
 	}, nil
 }

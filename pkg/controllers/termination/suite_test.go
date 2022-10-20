@@ -63,7 +63,7 @@ var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
 		cloudProvider := &fake.CloudProvider{}
 		coreV1Client := corev1.NewForConfigOrDie(e.Config)
-		recorder := test.NewRecorder()
+		recorder := test.NewEventRecorder()
 		evictionQueue = termination.NewEvictionQueue(ctx, coreV1Client, recorder)
 		controller = &termination.Controller{
 			KubeClient: e.Client,

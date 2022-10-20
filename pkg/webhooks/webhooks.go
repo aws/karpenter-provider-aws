@@ -34,10 +34,10 @@ import (
 	"knative.dev/pkg/webhook/resourcesemantics/defaulting"
 	"knative.dev/pkg/webhook/resourcesemantics/validation"
 
+	"github.com/aws/karpenter-core/pkg/utils/env"
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
-	"github.com/aws/karpenter/pkg/utils/env"
-	"github.com/aws/karpenter/pkg/utils/injection"
+	"github.com/aws/karpenter/pkg/operator/injection"
 )
 
 type WebhookOpts struct {
@@ -57,7 +57,7 @@ func init() {
 	flag.Int64Var(&opts.MemoryLimit, "memory-limit", env.WithDefaultInt64("MEMORY_LIMIT", -1), "Memory limit on the container running the webhook. The GC soft memory limit is set to 90% of this value.")
 }
 
-func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options) cloudprovider.CloudProvider) {
+func Initialize(injectCloudProvider func(cloudprovider.Context) cloudprovider.CloudProvider) {
 	config := knativeinjection.ParseAndGetRESTConfigOrDie()
 
 	// Set up logger and watch for changes to log level
@@ -77,7 +77,8 @@ func Initialize(injectCloudProvider func(context.Context, cloudprovider.Options)
 
 	// Register the cloud provider to attach vendor specific validation logic.
 	// TODO(https://github.com/aws/karpenter/issues/2052)
-	injectCloudProvider(ctx, cloudprovider.Options{
+	injectCloudProvider(cloudprovider.Context{
+		Context:     ctx,
 		ClientSet:   clientSet,
 		WebhookOnly: true,
 	})

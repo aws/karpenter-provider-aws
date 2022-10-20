@@ -20,7 +20,6 @@ import (
 
 	"github.com/patrickmn/go-cache"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/tools/record"
 )
 
 func NewDedupeRecorder(r Recorder) Recorder {
@@ -33,10 +32,6 @@ func NewDedupeRecorder(r Recorder) Recorder {
 type dedupe struct {
 	rec   Recorder
 	cache *cache.Cache
-}
-
-func (d *dedupe) EventRecorder() record.EventRecorder {
-	return d.rec.EventRecorder()
 }
 
 func (d *dedupe) WaitingOnDeletionForConsolidation(node *v1.Node) {

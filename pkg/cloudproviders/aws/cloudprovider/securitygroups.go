@@ -19,18 +19,17 @@ import (
 	"fmt"
 	"sync"
 
-	sdk "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"knative.dev/pkg/logging"
 
-	"github.com/aws/karpenter/pkg/cloudproviders/aws"
-
+	"github.com/aws/karpenter-core/pkg/utils/functional"
+	"github.com/aws/karpenter-core/pkg/utils/pretty"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/utils/functional"
-	"github.com/aws/karpenter/pkg/utils/pretty"
+	awscontext "github.com/aws/karpenter/pkg/cloudproviders/aws/context"
 )
 
 type SecurityGroupProvider struct {
@@ -44,7 +43,7 @@ func NewSecurityGroupProvider(ec2api ec2iface.EC2API) *SecurityGroupProvider {
 	return &SecurityGroupProvider{
 		ec2api: ec2api,
 		cm:     pretty.NewChangeMonitor(),
-		cache:  cache.New(aws.CacheTTL, aws.CacheCleanupInterval),
+		cache:  cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval),
 	}
 }
 
@@ -63,7 +62,7 @@ func (p *SecurityGroupProvider) Get(ctx context.Context, provider *v1alpha1.AWS)
 	// Convert to IDs
 	securityGroupIds := []string{}
 	for _, securityGroup := range securityGroups {
-		securityGroupIds = append(securityGroupIds, sdk.StringValue(securityGroup.GroupId))
+		securityGroupIds = append(securityGroupIds, aws.StringValue(securityGroup.GroupId))
 	}
 	return securityGroupIds, nil
 }
@@ -74,13 +73,13 @@ func (p *SecurityGroupProvider) getFilters(provider *v1alpha1.AWS) []*ec2.Filter
 		if key == "aws-ids" {
 			filterValues := functional.SplitCommaSeparatedString(value)
 			filters = append(filters, &ec2.Filter{
-				Name:   sdk.String("group-id"),
-				Values: sdk.StringSlice(filterValues),
+				Name:   aws.String("group-id"),
+				Values: aws.StringSlice(filterValues),
 			})
 		} else {
 			filters = append(filters, &ec2.Filter{
-				Name:   sdk.String(fmt.Sprintf("tag:%s", key)),
-				Values: []*string{sdk.String(value)},
+				Name:   aws.String(fmt.Sprintf("tag:%s", key)),
+				Values: []*string{aws.String(value)},
 			})
 		}
 	}
@@ -109,7 +108,7 @@ func (p *SecurityGroupProvider) getSecurityGroups(ctx context.Context, filters [
 func (p *SecurityGroupProvider) securityGroupIds(securityGroups []*ec2.SecurityGroup) []string {
 	names := []string{}
 	for _, securityGroup := range securityGroups {
-		names = append(names, sdk.StringValue(securityGroup.GroupId))
+		names = append(names, aws.StringValue(securityGroup.GroupId))
 	}
 	return names
 }

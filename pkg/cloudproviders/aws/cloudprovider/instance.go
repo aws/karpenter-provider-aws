@@ -37,14 +37,14 @@ import (
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	awserrors "github.com/aws/karpenter/pkg/cloudproviders/aws/errors"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/utils"
+	"github.com/aws/karpenter/pkg/operator/injection"
+	"github.com/aws/karpenter/pkg/operator/options"
 
 	"github.com/aws/karpenter-core/pkg/scheduling"
+	"github.com/aws/karpenter-core/pkg/utils/functional"
+	"github.com/aws/karpenter-core/pkg/utils/resources"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
-	"github.com/aws/karpenter/pkg/utils/functional"
-	"github.com/aws/karpenter/pkg/utils/injection"
-	"github.com/aws/karpenter/pkg/utils/options"
-	"github.com/aws/karpenter/pkg/utils/resources"
 )
 
 var (
@@ -111,7 +111,7 @@ func (p *InstanceProvider) Create(ctx context.Context, provider *v1alpha1.AWS, n
 }
 
 func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
-	id, err := utils.ParseProviderID(node)
+	id, err := utils.ParseInstanceID(node)
 	if err != nil {
 		return fmt.Errorf("getting instance ID for node %s, %w", node.Name, err)
 	}
@@ -160,7 +160,7 @@ func (p *InstanceProvider) launchInstance(ctx context.Context, provider *v1alpha
 			{ResourceType: aws.String(ec2.ResourceTypeFleet), Tags: tags},
 		},
 	}
-	if capacityType == v1alpha1.CapacityTypeSpot {
+	if capacityType == v1alpha5.CapacityTypeSpot {
 		createFleetInput.SpotOptions = &ec2.SpotOptionsRequest{AllocationStrategy: aws.String(ec2.SpotAllocationStrategyCapacityOptimizedPrioritized)}
 	} else {
 		createFleetInput.OnDemandOptions = &ec2.OnDemandOptionsRequest{AllocationStrategy: aws.String(ec2.FleetOnDemandAllocationStrategyLowestPrice)}
@@ -189,7 +189,7 @@ func (p *InstanceProvider) launchInstance(ctx context.Context, provider *v1alpha
 
 func (p *InstanceProvider) checkODFallback(nodeRequest *cloudprovider.NodeRequest, launchTemplateConfigs []*ec2.FleetLaunchTemplateConfigRequest) error {
 	// only evaluate for on-demand fallback if the capacity type for the request is OD and both OD and spot are allowed in requirements
-	if p.getCapacityType(nodeRequest) != v1alpha1.CapacityTypeOnDemand || !nodeRequest.Template.Requirements.Get(v1alpha5.LabelCapacityType).Has(v1alpha1.CapacityTypeSpot) {
+	if p.getCapacityType(nodeRequest) != v1alpha5.CapacityTypeOnDemand || !nodeRequest.Template.Requirements.Get(v1alpha5.LabelCapacityType).Has(v1alpha5.CapacityTypeSpot) {
 		return nil
 	}
 
@@ -294,7 +294,7 @@ func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.Inst
 		// Add a priority for spot requests since we are using the capacity-optimized-prioritized spot allocation strategy
 		// to reduce the likelihood of getting an excessively large instance type.
 		// instanceTypeOptions are sorted by vcpus and memory so this prioritizes smaller instance types.
-		if capacityType == v1alpha1.CapacityTypeSpot {
+		if capacityType == v1alpha5.CapacityTypeSpot {
 			override.Priority = aws.Float64(float64(i))
 		}
 		overrides = append(overrides, override)
@@ -370,16 +370,16 @@ func (p *InstanceProvider) updateUnavailableOfferingsCache(ctx context.Context, 
 // available offering. The AWS Cloud Provider defaults to [ on-demand ], so spot
 // must be explicitly included in capacity type requirements.
 func (p *InstanceProvider) getCapacityType(nodeRequest *cloudprovider.NodeRequest) string {
-	if nodeRequest.Template.Requirements.Get(v1alpha5.LabelCapacityType).Has(v1alpha1.CapacityTypeSpot) {
+	if nodeRequest.Template.Requirements.Get(v1alpha5.LabelCapacityType).Has(v1alpha5.CapacityTypeSpot) {
 		for _, instanceType := range nodeRequest.InstanceTypeOptions {
 			for _, offering := range cloudprovider.AvailableOfferings(instanceType) {
-				if nodeRequest.Template.Requirements.Get(v1.LabelTopologyZone).Has(offering.Zone) && offering.CapacityType == v1alpha1.CapacityTypeSpot {
-					return v1alpha1.CapacityTypeSpot
+				if nodeRequest.Template.Requirements.Get(v1.LabelTopologyZone).Has(offering.Zone) && offering.CapacityType == v1alpha5.CapacityTypeSpot {
+					return v1alpha5.CapacityTypeSpot
 				}
 			}
 		}
 	}
-	return v1alpha1.CapacityTypeOnDemand
+	return v1alpha5.CapacityTypeOnDemand
 }
 
 // prioritizeInstanceTypes is used to eliminate less desirable instance types (like GPUs) from the list of possible instance types when
@@ -427,7 +427,7 @@ func combineFleetErrors(errors []*ec2.CreateFleetError) (errs error) {
 
 func getCapacityType(instance *ec2.Instance) string {
 	if instance.SpotInstanceRequestId != nil {
-		return v1alpha1.CapacityTypeSpot
+		return v1alpha5.CapacityTypeSpot
 	}
-	return v1alpha1.CapacityTypeOnDemand
+	return v1alpha5.CapacityTypeOnDemand
 }

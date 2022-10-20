@@ -29,11 +29,11 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/aws/karpenter-core/pkg/utils/env"
+	"github.com/aws/karpenter-core/pkg/utils/project"
 	"github.com/aws/karpenter/pkg/apis"
-	"github.com/aws/karpenter/pkg/utils/env"
-	"github.com/aws/karpenter/pkg/utils/injection"
-	"github.com/aws/karpenter/pkg/utils/options"
-	"github.com/aws/karpenter/pkg/utils/project"
+	"github.com/aws/karpenter/pkg/operator/injection"
+	"github.com/aws/karpenter/pkg/operator/options"
 )
 
 type Environment struct {

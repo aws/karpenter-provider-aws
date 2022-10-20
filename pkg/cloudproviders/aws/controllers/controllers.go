@@ -15,47 +15,34 @@ limitations under the License.
 package controllers
 
 import (
-	"context"
-
 	"github.com/aws/aws-sdk-go/service/eventbridge"
 	"github.com/aws/aws-sdk-go/service/sqs"
-	"k8s.io/utils/clock"
 	"knative.dev/pkg/logging"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/aws/karpenter/pkg/cloudproviders/aws"
-	"github.com/aws/karpenter/pkg/cloudproviders/aws/controllers/events"
-	"github.com/aws/karpenter/pkg/cloudproviders/aws/controllers/infrastructure"
-	"github.com/aws/karpenter/pkg/cloudproviders/aws/controllers/notification"
+	awscontext "github.com/aws/karpenter/pkg/cloudproviders/aws/context"
+	"github.com/aws/karpenter/pkg/cloudproviders/aws/controllers/interruption"
+	"github.com/aws/karpenter/pkg/cloudproviders/aws/controllers/nodetemplate"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/controllers/providers"
-	"github.com/aws/karpenter/pkg/config"
+	"github.com/aws/karpenter/pkg/cloudproviders/aws/events"
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/operator"
 )
 
-type Options struct {
-	aws.Options
+func GetControllers(ctx awscontext.Context, cluster *state.Cluster) []operator.Controller {
+	rec := events.NewRecorder(ctx.EventRecorder)
 
-	Config     config.Config
-	Clock      clock.Clock
-	Cluster    *state.Cluster
-	KubeClient client.Client
-}
-
-func GetControllers(ctx context.Context, options Options) []operator.Controller {
-	var ret []operator.Controller
-	rec := events.NewRecorder(options.EventRecorder)
-
-	sqsProvider := providers.NewSQSProvider(ctx, sqs.New(options.Session))
-	eventBridgeProvider := providers.NewEventBridgeProvider(eventbridge.New(options.Session), sqsProvider)
+	sqsProvider := providers.NewSQS(ctx, sqs.New(ctx.Session))
+	eventBridgeProvider := providers.NewEventBridge(eventbridge.New(ctx.Session), sqsProvider)
 
 	// Only enable spot interruption handling controllers when the feature flag is enabled
-	if options.Config.EnableInterruptionHandling() {
-		logging.FromContext(ctx).Infof("Enabling interruption handling")
+	//if options.Config.EnableInterruptionHandling() {
+	logging.FromContext(ctx).Infof("Enabling interruption handling")
 
-		infraController := infrastructure.NewController(options.KubeClient, sqsProvider, eventBridgeProvider)
-		notificationController := notification.NewController(options.KubeClient, options.Clock, rec, options.Cluster, sqsProvider, options.UnavailableOfferingsCache)
-		ret = append(ret, infraController, notificationController)
+	nodeTemplateController := nodetemplate.NewController(ctx.KubeClient, sqsProvider, eventBridgeProvider)
+	interruptionController := interruption.NewController(ctx.KubeClient, ctx.Clock, rec, cluster, sqsProvider, ctx.UnavailableOfferingsCache)
+	//}
+	return []operator.Controller{
+		nodeTemplateController,
+		interruptionController,
 	}
-	return ret
 }

@@ -17,10 +17,10 @@ package main
 import (
 	"fmt"
 
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/util/runtime"
 
-	"github.com/aws/karpenter/pkg/cloudproviders/aws"
 	awscloudprovider "github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider"
+	awscontext "github.com/aws/karpenter/pkg/cloudproviders/aws/context"
 	awscontrollers "github.com/aws/karpenter/pkg/cloudproviders/aws/controllers"
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
 	cloudprovidermetrics "github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider/metrics"
@@ -30,35 +30,29 @@ import (
 )
 
 func main() {
-	options, manager := operator.NewOptionsWithManagerOrDie()
-	awsOptions := aws.NewOptionsOrDie(options.Ctx, cloudprovider.Options{
-		ClientSet:     options.Clientset,
-		KubeClient:    options.KubeClient,
-		EventRecorder: options.BaseEventRecorder,
-		StartAsync:    options.StartAsync,
+	ctx, manager := operator.NewOrDie()
+	awsCtx := awscontext.NewOrDie(cloudprovider.Context{
+		Context:       ctx,
+		Clock:         ctx.Clock,
+		ClientSet:     ctx.Clientset,
+		KubeClient:    ctx.KubeClient,
+		EventRecorder: ctx.BaseEventRecorder,
+		StartAsync:    ctx.StartAsync,
 	})
-	cloudProvider := cloudprovider.CloudProvider(awscloudprovider.New(options.Ctx, awsOptions))
-	if hp, ok := cloudProvider.(operator.HealthCheck); ok {
-		utilruntime.Must(manager.AddHealthzCheck("cloud-provider", hp.LivenessProbe))
-	}
-	cloudProvider = cloudprovidermetrics.Decorate(cloudProvider)
+	awsCloudProvider := awscloudprovider.New(awsCtx)
+	runtime.Must(manager.AddHealthzCheck("cloud-provider", awsCloudProvider.LivenessProbe))
+	cloudProvider := cloudprovidermetrics.Decorate(awsCloudProvider)
 
-	cluster := state.NewCluster(options.Clock, options.Config, options.KubeClient, cloudProvider)
+	cluster := state.NewCluster(ctx.Clock, ctx.Config, ctx.KubeClient, cloudProvider)
 
-	var c []operator.Controller
-	c = append(c, controllers.GetControllers(options, cluster, cloudProvider)...)
-	c = append(c, awscontrollers.GetControllers(options.Ctx, awscontrollers.Options{
-		Options:    awsOptions,
-		Config:     options.Config,
-		Clock:      options.Clock,
-		Cluster:    cluster,
-		KubeClient: options.KubeClient,
-	})...)
+	var conts []operator.Controller
+	conts = append(conts, controllers.GetControllers(ctx, cluster, cloudProvider)...)
+	conts = append(conts, awscontrollers.GetControllers(awsCtx, cluster)...)
 
-	if err := operator.RegisterControllers(options.Ctx,
+	if err := operator.RegisterControllers(ctx,
 		manager,
-		c...,
-	).Start(options.Ctx); err != nil {
+		conts...,
+	).Start(ctx); err != nil {
 		panic(fmt.Sprintf("Unable to start manager, %s", err))
 	}
 }

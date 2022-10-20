@@ -30,11 +30,11 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 
+	"github.com/aws/karpenter-core/pkg/utils/pretty"
+	"github.com/aws/karpenter-core/pkg/utils/ptr"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider/amifamily/bootstrap"
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
-	"github.com/aws/karpenter/pkg/utils/pretty"
-	"github.com/aws/karpenter/pkg/utils/ptr"
 )
 
 var DefaultEBS = v1alpha1.BlockDevice{
@@ -103,17 +103,17 @@ func (d DefaultFamily) FeatureFlags() FeatureFlags {
 }
 
 // New constructs a new launch template Resolver
-func New(ctx context.Context, ssm ssmiface.SSMAPI, ec2api ec2iface.EC2API, ssmCache *cache.Cache, ec2Cache *cache.Cache, client client.Client) *Resolver {
+func New(kubeClient client.Client, ssm ssmiface.SSMAPI, ec2api ec2iface.EC2API, ssmCache *cache.Cache, ec2Cache *cache.Cache) *Resolver {
 	return &Resolver{
 		amiProvider: &AMIProvider{
 			ssm:        ssm,
 			ssmCache:   ssmCache,
 			ec2Cache:   ec2Cache,
-			kubeClient: client,
+			kubeClient: kubeClient,
 			ec2api:     ec2api,
 			cm:         pretty.NewChangeMonitor(),
 		},
-		UserDataProvider: NewUserDataProvider(client),
+		UserDataProvider: NewUserDataProvider(kubeClient),
 	}
 }
 

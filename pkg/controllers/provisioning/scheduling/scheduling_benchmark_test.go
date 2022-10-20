@@ -31,11 +31,11 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/resource"
 
+	"github.com/aws/karpenter-core/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider/fake"
 	pscheduling "github.com/aws/karpenter/pkg/controllers/provisioning/scheduling"
 	"github.com/aws/karpenter/pkg/controllers/state"
-	"github.com/aws/karpenter-core/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/test"
 
 	"go.uber.org/zap"
@@ -117,9 +117,9 @@ func benchmarkScheduler(b *testing.B, instanceCount, podCount int) {
 	instanceTypes := fake.InstanceTypes(instanceCount)
 	cloudProv := &fake.CloudProvider{InstanceTypes: instanceTypes}
 	scheduler := pscheduling.NewScheduler(ctx, nil, []*scheduling.NodeTemplate{scheduling.NewNodeTemplate(provisioner)},
-		nil, state.NewCluster(&clock.RealClock{}, test.NewConfig(), nil, cloudProv), nil, &pscheduling.Topology{},
+		nil, state.NewCluster(&clock.FakeClock{}, test.NewConfig(), nil, cloudProv), nil, &pscheduling.Topology{},
 		map[string][]cloudprovider.InstanceType{provisioner.Name: instanceTypes}, map[*scheduling.NodeTemplate]v1.ResourceList{},
-		test.NewRecorder(),
+		test.NewEventRecorder(),
 		pscheduling.SchedulerOptions{})
 
 	pods := makeDiversePods(podCount)

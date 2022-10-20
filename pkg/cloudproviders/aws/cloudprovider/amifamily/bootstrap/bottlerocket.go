@@ -20,7 +20,7 @@ import (
 
 	"knative.dev/pkg/ptr"
 
-	"github.com/aws/karpenter/pkg/utils/resources"
+	"github.com/aws/karpenter-core/pkg/utils/resources"
 
 	"github.com/aws/aws-sdk-go/aws"
 )
