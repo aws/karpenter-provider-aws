@@ -21,25 +21,14 @@ import (
 	"strings"
 	"sync"
 
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/version"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
-	"github.com/aws/karpenter-core/pkg/apis"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
+	"github.com/aws/karpenter/pkg/operator/scheme"
 	"github.com/aws/karpenter/pkg/utils/project"
 )
-
-var (
-	Scheme = runtime.NewScheme()
-)
-
-func init() {
-	_ = clientgoscheme.AddToScheme(Scheme)
-	_ = apis.AddToScheme(Scheme)
-}
 
 /*
 Environment is for e2e local testing. It stands up an API Server, ETCD,
@@ -114,7 +103,7 @@ func (e *Environment) Start() (err error) {
 	}
 
 	// Client
-	e.Client, err = client.New(e.Config, client.Options{Scheme: Scheme})
+	e.Client, err = client.New(e.Config, client.Options{Scheme: scheme.Scheme})
 	if err != nil {
 		return err
 	}
