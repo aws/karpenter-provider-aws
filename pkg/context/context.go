@@ -29,7 +29,7 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/utils/project"
-	awscache "github.com/aws/karpenter/pkg/cloudproviders/aws/cache"
+	awscache "github.com/aws/karpenter/pkg/cache"
 )
 
 const (

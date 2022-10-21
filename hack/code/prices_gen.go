@@ -32,7 +32,7 @@ import (
 	ec22 "github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/samber/lo"
 
-	awscloudprovider "github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider"
+	awscloudprovider "github.com/aws/karpenter/pkg/cloudprovider"
 )
 
 func main() {

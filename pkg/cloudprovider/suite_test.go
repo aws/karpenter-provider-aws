@@ -43,9 +43,9 @@ import (
 	"github.com/aws/karpenter-core/pkg/operator/options"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
-	awscache "github.com/aws/karpenter/pkg/cloudproviders/aws/cache"
-	"github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider/amifamily"
-	awscontext "github.com/aws/karpenter/pkg/cloudproviders/aws/context"
+	awscache "github.com/aws/karpenter/pkg/cache"
+	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
+	awscontext "github.com/aws/karpenter/pkg/context"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 
@@ -54,7 +54,7 @@ import (
 	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
 
-	"github.com/aws/karpenter/pkg/cloudproviders/aws/fake"
+	"github.com/aws/karpenter/pkg/fake"
 )
 
 var ctx context.Context
@@ -550,6 +550,6 @@ var _ = Describe("Allocation", func() {
 
 func RelativeToRoot(path string) string {
 	_, file, _, _ := runtime.Caller(0)
-	manifestsRoot := filepath.Join(filepath.Dir(file), "..", "..", "..", "..")
+	manifestsRoot := filepath.Join(filepath.Dir(file), "..", "..")
 	return filepath.Join(manifestsRoot, path)
 }
