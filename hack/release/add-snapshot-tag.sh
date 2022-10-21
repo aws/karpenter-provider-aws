@@ -9,15 +9,14 @@ fi
 SNAPSHOT_TAG=$1
 NEW_TAG=$2
 RELEASE_TYPE=$3
-RELEASE_REPO=${RELEASE_REPO:-public.ecr.aws/karpenter/}
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-source "${SCRIPT_DIR}/release_common.sh"
+source "${SCRIPT_DIR}/common.sh"
 
 tagAllRepositories(){
     tagRelease controller "${SNAPSHOT_TAG}"
     tagRelease webhook "${SNAPSHOT_TAG}"
-    tagRelease karpenter "${HELM_CHART_VERSION}"
+    tagRelease karpenter "${SNAPSHOT_TAG}"
 }
 
 tagRelease() {
@@ -27,6 +26,7 @@ tagRelease() {
    aws ecr-public put-image --repository-name "${REPOSITORY}" --image-tag "${NEW_TAG}" --image-manifest "$MANIFEST" --no-cli-pager
 }
 
+config
 authenticate
 tagAllRepositories
 pullPrivateReplica $RELEASE_TYPE $NEW_TAG

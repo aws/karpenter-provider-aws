@@ -23,11 +23,9 @@ jobs:
             ~/go/bin/
             ~/.kubebuilder/bin/k8s
           key: ${{ runner.os }}-go-cache-${{ hashFiles('**/go.sum') }}
+      - run: make toolchain
       - uses: aws-actions/configure-aws-credentials@v1
         with:
           role-to-assume: arn:aws:iam::071440425669:role/Github
           aws-region: us-east-1
-      - run: make toolchain
-      - run: make snapshot
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: make release

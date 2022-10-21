@@ -117,16 +117,16 @@ api-code-gen: ## Auto generate files based on AWS APIs response
 	$(WITH_GOFLAGS) ./hack/api-code-gen.sh
 
 stable-release-pr: ## Generate PR for stable release
-	$(WITH_GOFLAGS) ./hack/stable-release-pr.sh
+	$(WITH_GOFLAGS) ./hack/release/stable-pr.sh
 
 nightly: ## Tag the latest snapshot release with timestamp
-	./hack/add-snapshot-tag.sh $(shell git rev-parse HEAD) $(shell date +"%Y%m%d") "nightly"
+	./hack/release/add-snapshot-tag.sh $(shell git rev-parse HEAD) $(shell date +"%Y%m%d") "nightly"
 
-snapshot: ## Generate a snapshot release out of the current commit
-	$(WITH_GOFLAGS) ./hack/release.sh
+release: ## Builds and publishes stable release if env var RELEASE_VERSION is set, or a snapshot release otherwise
+	$(WITH_GOFLAGS) ./hack/release/release.sh
 
-stablerelease: ## Tags the snapshot release of the current commit with the latest tag available, for prod launch
-	./hack/add-snapshot-tag.sh $(shell git rev-parse HEAD) $(shell git describe --tags --exact-match || echo "Current commit is not tagged") "stable"
+prepare-website: ## prepare the website for release
+	./hack/release/prepare-website.sh
 
 toolchain: ## Install developer toolchain
 	./hack/toolchain.sh
