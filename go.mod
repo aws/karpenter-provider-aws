@@ -6,7 +6,7 @@ require (
 	github.com/Pallinder/go-randomdata v1.2.0
 	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/aws/aws-sdk-go v1.44.114
-	github.com/aws/karpenter-core v0.0.2-0.20221020221326-8e09dcecd08e
+	github.com/aws/karpenter-core v0.0.2-0.20221021214310-9f8d01d19c0c
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/onsi/ginkgo/v2 v2.2.0
 	github.com/onsi/gomega v1.21.1
@@ -18,7 +18,7 @@ require (
 	k8s.io/apimachinery v0.25.2
 	k8s.io/client-go v0.25.2
 	k8s.io/utils v0.0.0-20220728103510-ee6ede2d64ed
-	knative.dev/pkg v0.0.0-20221011175852-714b7630a836
+	knative.dev/pkg v0.0.0-20221020140913-5dd89c68dbdb
 	sigs.k8s.io/controller-runtime v0.13.0
 )
 
