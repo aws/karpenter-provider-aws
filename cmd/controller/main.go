@@ -47,9 +47,9 @@ func main() {
 	runtime.Must(manager.AddHealthzCheck("cloud-provider", awsCloudProvider.LivenessProbe))
 	cloudProvider := cloudprovidermetrics.Decorate(awsCloudProvider)
 
-	settingsStore := settingsstore.WatchSettings(ctx, ctx.ConfigMapWatcher, settings.Registration)
+	settingsStore := settingsstore.WatchSettingsOrDie(ctx, ctx.Clientset, ctx.ConfigMapWatcher, settings.Registration)
 	if err := ctx.ConfigMapWatcher.Start(ctx.Done()); err != nil {
-		panic(fmt.Errorf("starting ConfigMap watcher, %w", err))
+		panic(fmt.Sprintf("Starting ConfigMap watcher, %v", err))
 	}
 
 	// TODO: Remove settings injection once nominationPeriod no longer relies on it
