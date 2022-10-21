@@ -54,9 +54,15 @@ spec:
   # These requirements are combined with pod.spec.affinity.nodeAffinity rules.
   # Operators { In, NotIn } are supported to enable including or excluding values
   requirements:
-    - key: "node.kubernetes.io/instance-type"
+    - key: "karpenter.k8s.aws/instance-category"
       operator: In
-      values: ["m5.large", "m5.2xlarge"]
+      values: ["c", "m", "r"]
+    - key: "karpenter.k8s.aws/instance-cpu"
+      operator: In
+      values: ["4", "8", "16", "32"]
+    - key: karpenter.k8s.aws/instance-hypervisor
+      operator: In
+      values: ["nitro"]
     - key: "topology.kubernetes.io/zone"
       operator: In
       values: ["us-west-2a", "us-west-2b"]
