@@ -28,170 +28,162 @@ import (
 )
 
 var _ = Describe("Webhooks", func() {
-	Context("Defaulting Webhook", func() {
-		It("should set the default requirements when none are specified", func() {
-			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-				SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
-			}})
-			provisioner := test.Provisioner(test.ProvisionerOptions{
-				ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
-			})
-			env.ExpectCreated(provisioner)
-			env.ExpectFound(provisioner)
+	Context("Provisioner", func() {
+		Context("Defaulting", func() {
+			It("should set the default requirements when none are specified", func() {
+				provisioner := test.Provisioner(test.ProvisionerOptions{
+					ProviderRef: &v1alpha5.ProviderRef{Name: "test"},
+				})
+				env.ExpectCreated(provisioner)
+				env.ExpectFound(provisioner)
 
-			Expect(len(provisioner.Spec.Requirements)).To(Equal(2))
-			Expect(provisioner.Spec.Requirements).To(ContainElement(v1.NodeSelectorRequirement{
-				Key:      v1alpha5.LabelCapacityType,
-				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{v1alpha5.CapacityTypeOnDemand},
-			}))
-			Expect(provisioner.Spec.Requirements).To(ContainElement(v1.NodeSelectorRequirement{
-				Key:      v1.LabelArchStable,
-				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{"amd64"},
-			}))
+				Expect(len(provisioner.Spec.Requirements)).To(Equal(2))
+				Expect(provisioner.Spec.Requirements).To(ContainElement(v1.NodeSelectorRequirement{
+					Key:      v1alpha5.LabelCapacityType,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{v1alpha5.CapacityTypeOnDemand},
+				}))
+				Expect(provisioner.Spec.Requirements).To(ContainElement(v1.NodeSelectorRequirement{
+					Key:      v1.LabelArchStable,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{"amd64"},
+				}))
+			})
 		})
-	})
-	Context("Validating Webhook", func() {
-		It("should deny the request when provider and providerRef are combined", func() {
-			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-				SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
-			}})
-			provisioner := test.Provisioner(test.ProvisionerOptions{
-				Provider: v1alpha1.AWS{
+		Context("Validatation", func() {
+			It("should error when provider and providerRef are combined", func() {
+				Expect(env.Client.Create(env, test.Provisioner(test.ProvisionerOptions{
+					Provider: v1alpha1.AWS{
+						SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
+						SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
+					},
+					ProviderRef: &v1alpha5.ProviderRef{Name: "test"},
+				}))).ToNot(Succeed())
+			})
+			It("should error when a restricted label is used in labels (karpenter.sh/provisioner-name)", func() {
+				Expect(env.Client.Create(env, test.Provisioner(test.ProvisionerOptions{
+					ProviderRef: &v1alpha5.ProviderRef{Name: "test"},
+					Labels: map[string]string{
+						v1alpha5.ProvisionerNameLabelKey: "my-custom-provisioner",
+					},
+				}))).ToNot(Succeed())
+			})
+			It("should error when a restricted label is used in labels (kubernetes.io/custom-label)", func() {
+				Expect(env.Client.Create(env, test.Provisioner(test.ProvisionerOptions{
+					ProviderRef: &v1alpha5.ProviderRef{Name: "test"},
+					Labels: map[string]string{
+						"kubernetes.io/custom-label": "custom-value",
+					},
+				}))).ToNot(Succeed())
+			})
+			It("should error when a requirement references a restricted label (karpenter.sh/provisioner-name)", func() {
+				Expect(env.Client.Create(env, test.Provisioner(test.ProvisionerOptions{
+					ProviderRef: &v1alpha5.ProviderRef{Name: "test"},
+					Requirements: []v1.NodeSelectorRequirement{
+						{
+							Key:      v1alpha5.ProvisionerNameLabelKey,
+							Operator: v1.NodeSelectorOpIn,
+							Values:   []string{"default"},
+						},
+					},
+				}))).ToNot(Succeed())
+			})
+			It("should error when a requirement uses In but has no values", func() {
+				Expect(env.Client.Create(env, test.Provisioner(test.ProvisionerOptions{
+					ProviderRef: &v1alpha5.ProviderRef{Name: "test"},
+					Requirements: []v1.NodeSelectorRequirement{
+						{
+							Key:      v1.LabelInstanceTypeStable,
+							Operator: v1.NodeSelectorOpIn,
+							Values:   []string{},
+						},
+					},
+				}))).ToNot(Succeed())
+			})
+			It("should error when a requirement uses an unknown operator", func() {
+				Expect(env.Client.Create(env, test.Provisioner(test.ProvisionerOptions{
+					ProviderRef: &v1alpha5.ProviderRef{Name: "test"},
+					Requirements: []v1.NodeSelectorRequirement{
+						{
+							Key:      v1alpha5.LabelCapacityType,
+							Operator: "within",
+							Values:   []string{v1alpha5.CapacityTypeSpot},
+						},
+					},
+				}))).ToNot(Succeed())
+			})
+			It("should error when Gt is used with multiple integer values", func() {
+				Expect(env.Client.Create(env, test.Provisioner(test.ProvisionerOptions{
+					ProviderRef: &v1alpha5.ProviderRef{Name: "test"},
+					Requirements: []v1.NodeSelectorRequirement{
+						{
+							Key:      v1alpha1.LabelInstanceMemory,
+							Operator: v1.NodeSelectorOpGt,
+							Values:   []string{"1000000", "2000000"},
+						},
+					},
+				}))).ToNot(Succeed())
+			})
+			It("should error when Lt is used with multiple integer values", func() {
+				Expect(env.Client.Create(env, test.Provisioner(test.ProvisionerOptions{
+					ProviderRef: &v1alpha5.ProviderRef{Name: "test"},
+					Requirements: []v1.NodeSelectorRequirement{
+						{
+							Key:      v1alpha1.LabelInstanceMemory,
+							Operator: v1.NodeSelectorOpLt,
+							Values:   []string{"1000000", "2000000"},
+						},
+					},
+				}))).ToNot(Succeed())
+			})
+			It("should error when ttlSecondAfterEmpty is negative", func() {
+				Expect(env.Client.Create(env, test.Provisioner(test.ProvisionerOptions{
+					ProviderRef:          &v1alpha5.ProviderRef{Name: "test"},
+					TTLSecondsAfterEmpty: ptr.Int64(-5),
+				}))).ToNot(Succeed())
+			})
+			It("should error when consolidation and ttlSecondAfterEmpty are combined", func() {
+				Expect(env.Client.Create(env, test.Provisioner(test.ProvisionerOptions{
+					ProviderRef:          &v1alpha5.ProviderRef{Name: "test"},
+					Consolidation:        &v1alpha5.Consolidation{Enabled: ptr.Bool(true)},
+					TTLSecondsAfterEmpty: ptr.Int64(60),
+				}))).ToNot(Succeed())
+			})
+		})
+		Context("AWSNodeTemplate", func() {
+			It("should error when amiSelector is not defined for amiFamily Custom", func() {
+				Expect(env.Client.Create(env, awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
+					AMIFamily:             &v1alpha1.AMIFamilyCustom,
+					SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
+					SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
+				}}))).ToNot(Succeed())
+			})
+			It("should fail if both userdata and launchTemplate are set", func() {
+				Expect(env.Client.Create(env, awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
+					LaunchTemplate:        v1alpha1.LaunchTemplate{LaunchTemplateName: ptr.String("lt")},
 					SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 					SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 				},
-				ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
+					UserData: ptr.String("data"),
+				}))).ToNot(Succeed())
 			})
-			Expect(env.Client.Create(env, provisioner)).ToNot(Succeed())
-		})
-		It("should deny the request when a restricted label is used in labels (karpenter.sh/provisioner-name)", func() {
-			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-				SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
-			}})
-			provisioner := test.Provisioner(test.ProvisionerOptions{
-				ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
-				Labels: map[string]string{
-					v1alpha5.ProvisionerNameLabelKey: "my-custom-provisioner",
+			It("should fail if both amiSelector and launchTemplate are set", func() {
+				Expect(env.Client.Create(env, awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
+					LaunchTemplate:        v1alpha1.LaunchTemplate{LaunchTemplateName: ptr.String("lt")},
+					SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
+					SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 				},
+					AMISelector: map[string]string{"foo": "bar"},
+				}))).ToNot(Succeed())
 			})
-			Expect(env.Client.Create(env, provisioner)).ToNot(Succeed())
-		})
-		It("should deny the request when a restricted label is used in labels (kubernetes.io/custom-label)", func() {
-			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-				SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
-			}})
-			provisioner := test.Provisioner(test.ProvisionerOptions{
-				ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
-				Labels: map[string]string{
-					"kubernetes.io/custom-label": "custom-value",
+			It("should fail for poorly formatted aws-ids", func() {
+				Expect(env.Client.Create(env, awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
+					SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
+					SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 				},
+					AMISelector: map[string]string{"aws-ids": "must-start-with-ami"},
+				}))).ToNot(Succeed())
 			})
-			Expect(env.Client.Create(env, provisioner)).ToNot(Succeed())
-		})
-		It("should deny the request when a requirement references a restricted label (karpenter.sh/provisioner-name)", func() {
-			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-				SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
-			}})
-			provisioner := test.Provisioner(test.ProvisionerOptions{
-				ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
-				Requirements: []v1.NodeSelectorRequirement{
-					{
-						Key:      v1alpha5.ProvisionerNameLabelKey,
-						Operator: v1.NodeSelectorOpIn,
-						Values:   []string{"default"},
-					},
-				},
-			})
-			Expect(env.Client.Create(env, provisioner)).ToNot(Succeed())
-		})
-		It("should deny the request when a requirement uses In but has no values", func() {
-			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-				SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
-			}})
-			provisioner := test.Provisioner(test.ProvisionerOptions{
-				ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
-				Requirements: []v1.NodeSelectorRequirement{
-					{
-						Key:      v1.LabelInstanceTypeStable,
-						Operator: v1.NodeSelectorOpIn,
-						Values:   []string{},
-					},
-				},
-			})
-			Expect(env.Client.Create(env, provisioner)).ToNot(Succeed())
-		})
-		It("should deny the request when a requirement uses an unknown operator", func() {
-			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-				SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
-			}})
-			provisioner := test.Provisioner(test.ProvisionerOptions{
-				ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
-				Requirements: []v1.NodeSelectorRequirement{
-					{
-						Key:      v1alpha5.LabelCapacityType,
-						Operator: "within",
-						Values:   []string{v1alpha5.CapacityTypeSpot},
-					},
-				},
-			})
-			Expect(env.Client.Create(env, provisioner)).ToNot(Succeed())
-		})
-		It("should deny the request when Gt is used with multiple integer values", func() {
-			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-				SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
-			}})
-			provisioner := test.Provisioner(test.ProvisionerOptions{
-				ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
-				Requirements: []v1.NodeSelectorRequirement{
-					{
-						Key:      v1alpha1.LabelInstanceMemory,
-						Operator: v1.NodeSelectorOpGt,
-						Values:   []string{"1000000", "2000000"},
-					},
-				},
-			})
-			Expect(env.Client.Create(env, provisioner)).ToNot(Succeed())
-		})
-		It("should deny the request when Lt is used with multiple integer values", func() {
-			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-				SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
-			}})
-			provisioner := test.Provisioner(test.ProvisionerOptions{
-				ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
-				Requirements: []v1.NodeSelectorRequirement{
-					{
-						Key:      v1alpha1.LabelInstanceMemory,
-						Operator: v1.NodeSelectorOpLt,
-						Values:   []string{"1000000", "2000000"},
-					},
-				},
-			})
-			Expect(env.Client.Create(env, provisioner)).ToNot(Succeed())
-		})
-		It("should deny the request when consolidation and ttlSecondAfterEmpty are combined", func() {
-			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-				SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
-			}})
-			provisioner := test.Provisioner(test.ProvisionerOptions{
-				ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
-				Consolidation: &v1alpha5.Consolidation{
-					Enabled: ptr.Bool(true),
-				},
-				TTLSecondsAfterEmpty: ptr.Int64(60),
-			})
-			Expect(env.Client.Create(env, provisioner)).ToNot(Succeed())
 		})
 	})
 })

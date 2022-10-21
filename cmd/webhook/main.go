@@ -15,13 +15,16 @@ limitations under the License.
 package main
 
 import (
+	"github.com/aws/karpenter-core/pkg/apis"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/webhooks"
+	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 	awscloudprovider "github.com/aws/karpenter/pkg/cloudprovider"
 	awscontext "github.com/aws/karpenter/pkg/context"
 )
 
 func main() {
+	apis.Resources[v1alpha1.SchemeGroupVersion.WithKind("AWSNodeTemplate")] = &v1alpha1.AWSNodeTemplate{}
 	webhooks.Initialize(func(ctx cloudprovider.Context) cloudprovider.CloudProvider {
 		return awscloudprovider.New(awscontext.NewOrDie(ctx))
 	})
