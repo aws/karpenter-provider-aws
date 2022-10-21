@@ -31,11 +31,11 @@ import (
 	"knative.dev/pkg/ptr"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
-	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/cloudproviders/aws/controllers/interruption/messages"
-	"github.com/aws/karpenter/pkg/cloudproviders/aws/controllers/interruption/messages/scheduledchange"
-	"github.com/aws/karpenter/pkg/test"
+	"github.com/aws/karpenter/pkg/controllers/interruption/messages"
+	"github.com/aws/karpenter/pkg/controllers/interruption/messages/scheduledchange"
+	awstest "github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/test/pkg/environment/aws"
 	"github.com/aws/karpenter/test/pkg/environment/common"
 )
@@ -49,7 +49,7 @@ func TestNotification(t *testing.T) {
 		var err error
 		env, err = aws.NewEnvironment(t)
 		Expect(err).ToNot(HaveOccurred())
-		provider = test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
+		provider = awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 		}})
@@ -77,7 +77,7 @@ var _ = Describe("Notification", Label("AWS"), func() {
 				{
 					Key:      v1alpha5.LabelCapacityType,
 					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{awsv1alpha1.CapacityTypeSpot},
+					Values:   []string{v1alpha5.CapacityTypeSpot},
 				},
 			},
 			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
@@ -138,7 +138,7 @@ var _ = Describe("Notification", Label("AWS"), func() {
 				{
 					Key:      v1alpha5.LabelCapacityType,
 					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{awsv1alpha1.CapacityTypeOnDemand},
+					Values:   []string{v1alpha5.CapacityTypeOnDemand},
 				},
 			},
 			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
@@ -173,7 +173,7 @@ var _ = Describe("Notification", Label("AWS"), func() {
 				{
 					Key:      v1alpha5.LabelCapacityType,
 					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{awsv1alpha1.CapacityTypeOnDemand},
+					Values:   []string{v1alpha5.CapacityTypeOnDemand},
 				},
 			},
 			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
@@ -208,7 +208,7 @@ var _ = Describe("Notification", Label("AWS"), func() {
 				{
 					Key:      v1alpha5.LabelCapacityType,
 					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{awsv1alpha1.CapacityTypeOnDemand},
+					Values:   []string{v1alpha5.CapacityTypeOnDemand},
 				},
 			},
 			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},

@@ -35,14 +35,14 @@ import (
 	"k8s.io/client-go/rest"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
-	awscloudprovider "github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider"
-	awscontext "github.com/aws/karpenter/pkg/cloudproviders/aws/context"
-	"github.com/aws/karpenter/pkg/operator/injection"
-	"github.com/aws/karpenter/pkg/operator/options"
+	"github.com/aws/karpenter-core/pkg/operator/injection"
+	"github.com/aws/karpenter-core/pkg/operator/options"
+	awscloudprovider "github.com/aws/karpenter/pkg/cloudprovider"
+	awscontext "github.com/aws/karpenter/pkg/context"
 
+	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/utils/resources"
-	"github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
+	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 )
 
 func main() {

@@ -22,16 +22,15 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
-
+	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
-	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/test"
+	awstest "github.com/aws/karpenter/pkg/test"
 )
 
 var _ = Describe("Webhooks", func() {
 	Context("Defaulting Webhook", func() {
 		It("should set the default requirements when none are specified", func() {
-			provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
+			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 				SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			}})
@@ -56,12 +55,12 @@ var _ = Describe("Webhooks", func() {
 	})
 	Context("Validating Webhook", func() {
 		It("should deny the request when provider and providerRef are combined", func() {
-			provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
+			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 				SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			}})
 			provisioner := test.Provisioner(test.ProvisionerOptions{
-				Provider: awsv1alpha1.AWS{
+				Provider: v1alpha1.AWS{
 					SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 					SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 				},
@@ -70,7 +69,7 @@ var _ = Describe("Webhooks", func() {
 			Expect(env.Client.Create(env, provisioner)).ToNot(Succeed())
 		})
 		It("should deny the request when a restricted label is used in labels (karpenter.sh/provisioner-name)", func() {
-			provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
+			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 				SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			}})
@@ -83,7 +82,7 @@ var _ = Describe("Webhooks", func() {
 			Expect(env.Client.Create(env, provisioner)).ToNot(Succeed())
 		})
 		It("should deny the request when a restricted label is used in labels (kubernetes.io/custom-label)", func() {
-			provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
+			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 				SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			}})
@@ -96,7 +95,7 @@ var _ = Describe("Webhooks", func() {
 			Expect(env.Client.Create(env, provisioner)).ToNot(Succeed())
 		})
 		It("should deny the request when a requirement references a restricted label (karpenter.sh/provisioner-name)", func() {
-			provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
+			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 				SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			}})
@@ -113,7 +112,7 @@ var _ = Describe("Webhooks", func() {
 			Expect(env.Client.Create(env, provisioner)).ToNot(Succeed())
 		})
 		It("should deny the request when a requirement uses In but has no values", func() {
-			provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
+			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 				SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			}})
@@ -130,7 +129,7 @@ var _ = Describe("Webhooks", func() {
 			Expect(env.Client.Create(env, provisioner)).ToNot(Succeed())
 		})
 		It("should deny the request when a requirement uses an unknown operator", func() {
-			provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
+			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 				SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			}})
@@ -147,7 +146,7 @@ var _ = Describe("Webhooks", func() {
 			Expect(env.Client.Create(env, provisioner)).ToNot(Succeed())
 		})
 		It("should deny the request when Gt is used with multiple integer values", func() {
-			provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
+			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 				SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			}})
@@ -155,7 +154,7 @@ var _ = Describe("Webhooks", func() {
 				ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
 				Requirements: []v1.NodeSelectorRequirement{
 					{
-						Key:      awsv1alpha1.LabelInstanceMemory,
+						Key:      v1alpha1.LabelInstanceMemory,
 						Operator: v1.NodeSelectorOpGt,
 						Values:   []string{"1000000", "2000000"},
 					},
@@ -164,7 +163,7 @@ var _ = Describe("Webhooks", func() {
 			Expect(env.Client.Create(env, provisioner)).ToNot(Succeed())
 		})
 		It("should deny the request when Lt is used with multiple integer values", func() {
-			provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
+			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 				SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			}})
@@ -172,7 +171,7 @@ var _ = Describe("Webhooks", func() {
 				ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
 				Requirements: []v1.NodeSelectorRequirement{
 					{
-						Key:      awsv1alpha1.LabelInstanceMemory,
+						Key:      v1alpha1.LabelInstanceMemory,
 						Operator: v1.NodeSelectorOpLt,
 						Values:   []string{"1000000", "2000000"},
 					},
@@ -181,7 +180,7 @@ var _ = Describe("Webhooks", func() {
 			Expect(env.Client.Create(env, provisioner)).ToNot(Succeed())
 		})
 		It("should deny the request when consolidation and ttlSecondAfterEmpty are combined", func() {
-			provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
+			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 				SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			}})

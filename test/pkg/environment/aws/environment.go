@@ -27,7 +27,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/samber/lo"
 
-	"github.com/aws/karpenter/pkg/cloudproviders/aws/controllers/providers"
+	"github.com/aws/karpenter/pkg/controllers/providers"
 	"github.com/aws/karpenter/test/pkg/environment/common"
 )
 

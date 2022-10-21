@@ -15,10 +15,10 @@ limitations under the License.
 package main
 
 import (
-	awscloudprovider "github.com/aws/karpenter/pkg/cloudproviders/aws/cloudprovider"
-	awscontext "github.com/aws/karpenter/pkg/cloudproviders/aws/context"
-	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
-	"github.com/aws/karpenter/pkg/webhooks"
+	"github.com/aws/karpenter-core/pkg/cloudprovider"
+	"github.com/aws/karpenter-core/pkg/webhooks"
+	awscloudprovider "github.com/aws/karpenter/pkg/cloudprovider"
+	awscontext "github.com/aws/karpenter/pkg/context"
 )
 
 func main() {

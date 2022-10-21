@@ -25,20 +25,20 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
-
+	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
-	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/test"
+
+	awstest "github.com/aws/karpenter/pkg/test"
 )
 
 var _ = Describe("CNITests", func() {
 	It("should set max pods to 110 when AWSENILimited when AWS_ENI_LIMITED_POD_DENSITY is false", func() {
 		updateEnvironment(corev1.EnvVar{Name: "AWS_ENI_LIMITED_POD_DENSITY", Value: "false"})
-		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
-			AWS: awsv1alpha1.AWS{
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+			AWS: v1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 				SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
-				AMIFamily:             &awsv1alpha1.AMIFamilyAL2,
+				AMIFamily:             &v1alpha1.AMIFamilyAL2,
 			},
 		})
 		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
@@ -56,11 +56,11 @@ var _ = Describe("CNITests", func() {
 		updateEnvironment(corev1.EnvVar{Name: "AWS_ENI_LIMITED_POD_DENSITY", Value: "true"})
 	})
 	It("should set eni-limited maxPods when AWSENILimited when AWS_ENI_LIMITED_POD_DENSITY is true", func() {
-		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
-			AWS: awsv1alpha1.AWS{
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+			AWS: v1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 				SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
-				AMIFamily:             &awsv1alpha1.AMIFamilyAL2,
+				AMIFamily:             &v1alpha1.AMIFamilyAL2,
 			},
 		})
 		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})

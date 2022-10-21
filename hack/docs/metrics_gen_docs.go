@@ -27,7 +27,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/aws/karpenter/pkg/metrics"
+	"github.com/aws/karpenter-core/pkg/metrics"
 )
 
 type metricInfo struct {

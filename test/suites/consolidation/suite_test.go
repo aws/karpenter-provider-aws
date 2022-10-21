@@ -26,10 +26,10 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
-
+	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
-	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/test"
+
+	awstest "github.com/aws/karpenter/pkg/test"
 	environmentaws "github.com/aws/karpenter/test/pkg/environment/aws"
 	"github.com/aws/karpenter/test/pkg/environment/common"
 
@@ -59,7 +59,7 @@ var _ = AfterEach(func() {
 
 var _ = Describe("Consolidation", func() {
 	It("should consolidate nodes (delete)", Label(common.NoWatch), Label(common.NoEvents), func() {
-		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 		}})
@@ -72,12 +72,12 @@ var _ = Describe("Consolidation", func() {
 					Values: []string{"spot"},
 				},
 				{
-					Key:      awsv1alpha1.LabelInstanceSize,
+					Key:      v1alpha1.LabelInstanceSize,
 					Operator: v1.NodeSelectorOpIn,
 					Values:   []string{"medium", "large", "xlarge"},
 				},
 				{
-					Key:      awsv1alpha1.LabelInstanceFamily,
+					Key:      v1alpha1.LabelInstanceFamily,
 					Operator: v1.NodeSelectorOpNotIn,
 					// remove some cheap burstable and the odd c1 instance types so we have
 					// more control over what gets provisioned
@@ -125,7 +125,7 @@ var _ = Describe("Consolidation", func() {
 		env.ExpectDeleted(dep)
 	})
 	It("should consolidate on-demand nodes (replace)", func() {
-		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 		}})
@@ -137,7 +137,7 @@ var _ = Describe("Consolidation", func() {
 					Values:   []string{"on-demand"},
 				},
 				{
-					Key:      awsv1alpha1.LabelInstanceSize,
+					Key:      v1alpha1.LabelInstanceSize,
 					Operator: v1.NodeSelectorOpIn,
 					Values:   []string{"large", "2xlarge"},
 				},
@@ -241,7 +241,7 @@ var _ = Describe("Consolidation", func() {
 		env.ExpectDeleted(largeDep, smallDep)
 	})
 	It("should consolidate on-demand nodes to spot (replace)", func() {
-		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: awsv1alpha1.AWS{
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 		}})
@@ -253,7 +253,7 @@ var _ = Describe("Consolidation", func() {
 					Values:   []string{"on-demand"},
 				},
 				{
-					Key:      awsv1alpha1.LabelInstanceSize,
+					Key:      v1alpha1.LabelInstanceSize,
 					Operator: v1.NodeSelectorOpIn,
 					Values:   []string{"large"},
 				},
@@ -307,7 +307,7 @@ var _ = Describe("Consolidation", func() {
 				Values:   []string{"on-demand", "spot"},
 			},
 			{
-				Key:      awsv1alpha1.LabelInstanceSize,
+				Key:      v1alpha1.LabelInstanceSize,
 				Operator: v1.NodeSelectorOpIn,
 				Values:   []string{"large"},
 			},

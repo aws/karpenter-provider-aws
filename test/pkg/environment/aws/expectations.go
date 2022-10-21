@@ -32,7 +32,7 @@ func (env *Environment) ExpectInstance(nodeName string) Assertion {
 }
 
 func (env *Environment) ExpectIPv6ClusterDNS() string {
-	dnsService, err := env.KubeClient.CoreV1().Services("kube-system").Get(env.Context, "kube-dns", metav1.GetOptions{})
+	dnsService, err := env.Environment.KubeClient.CoreV1().Services("kube-system").Get(env.Context, "kube-dns", metav1.GetOptions{})
 	Expect(err).ToNot(HaveOccurred())
 	kubeDNSIP := net.ParseIP(dnsService.Spec.ClusterIP)
 	Expect(kubeDNSIP.To4()).To(BeNil())
@@ -40,7 +40,7 @@ func (env *Environment) ExpectIPv6ClusterDNS() string {
 }
 
 func (env *Environment) GetInstance(nodeName string) ec2.Instance {
-	node := env.GetNode(nodeName)
+	node := env.Environment.GetNode(nodeName)
 	providerIDSplit := strings.Split(node.Spec.ProviderID, "/")
 	ExpectWithOffset(1, len(providerIDSplit)).ToNot(Equal(0))
 	instanceID := providerIDSplit[len(providerIDSplit)-1]
@@ -54,7 +54,7 @@ func (env *Environment) GetInstance(nodeName string) ec2.Instance {
 }
 
 func (env *Environment) ExpectInstanceStopped(nodeName string) {
-	node := env.GetNode(nodeName)
+	node := env.Environment.GetNode(nodeName)
 	providerIDSplit := strings.Split(node.Spec.ProviderID, "/")
 	ExpectWithOffset(1, len(providerIDSplit)).ToNot(Equal(0))
 	instanceID := providerIDSplit[len(providerIDSplit)-1]
@@ -66,7 +66,7 @@ func (env *Environment) ExpectInstanceStopped(nodeName string) {
 }
 
 func (env *Environment) ExpectInstanceTerminated(nodeName string) {
-	node := env.GetNode(nodeName)
+	node := env.Environment.GetNode(nodeName)
 	providerIDSplit := strings.Split(node.Spec.ProviderID, "/")
 	ExpectWithOffset(1, len(providerIDSplit)).ToNot(Equal(0))
 	instanceID := providerIDSplit[len(providerIDSplit)-1]
@@ -93,7 +93,7 @@ func (env *Environment) ExpectMessagesCreated(msgs ...interface{}) {
 		go func(m interface{}) {
 			defer wg.Done()
 			defer GinkgoRecover()
-			_, e := env.SQSProvider.SendMessage(env.Context, m)
+			_, e := env.SQSProvider.SendMessage(env.Environment.Context, m)
 			if e != nil {
 				mu.Lock()
 				err = multierr.Append(err, e)

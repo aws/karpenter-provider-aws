@@ -20,24 +20,24 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
-
+	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter-core/pkg/utils/resources"
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
-	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/test"
+
+	awstest "github.com/aws/karpenter/pkg/test"
 )
 
 var _ = Describe("BlockDeviceMappings", func() {
 	It("should use specified block device mappings", func() {
-		provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
-			AWS: awsv1alpha1.AWS{
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+			AWS: v1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 				SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
-				LaunchTemplate: awsv1alpha1.LaunchTemplate{
-					BlockDeviceMappings: []*awsv1alpha1.BlockDeviceMapping{
+				LaunchTemplate: v1alpha1.LaunchTemplate{
+					BlockDeviceMappings: []*v1alpha1.BlockDeviceMapping{
 						{
 							DeviceName: aws.String("/dev/xvda"),
-							EBS: &awsv1alpha1.BlockDevice{
+							EBS: &v1alpha1.BlockDevice{
 								VolumeSize:          resources.Quantity("10G"),
 								VolumeType:          aws.String("io2"),
 								IOPS:                aws.Int64(1000),

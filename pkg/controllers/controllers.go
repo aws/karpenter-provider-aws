@@ -15,39 +15,34 @@ limitations under the License.
 package controllers
 
 import (
-	"github.com/aws/karpenter/pkg/cloudproviders/common/cloudprovider"
-	"github.com/aws/karpenter/pkg/controllers/consolidation"
-	"github.com/aws/karpenter/pkg/controllers/counter"
-	metricspod "github.com/aws/karpenter/pkg/controllers/metrics/pod"
-	metricsprovisioner "github.com/aws/karpenter/pkg/controllers/metrics/provisioner"
-	metricsstate "github.com/aws/karpenter/pkg/controllers/metrics/state"
-	"github.com/aws/karpenter/pkg/controllers/node"
-	"github.com/aws/karpenter/pkg/controllers/provisioning"
-	"github.com/aws/karpenter/pkg/controllers/state"
-	"github.com/aws/karpenter/pkg/controllers/termination"
-	"github.com/aws/karpenter/pkg/metrics"
-	"github.com/aws/karpenter/pkg/operator"
+	"github.com/aws/aws-sdk-go/service/eventbridge"
+	"github.com/aws/aws-sdk-go/service/sqs"
+	"knative.dev/pkg/logging"
+
+	"github.com/aws/karpenter-core/pkg/controllers/state"
+	"github.com/aws/karpenter-core/pkg/operator/controller"
+	awscontext "github.com/aws/karpenter/pkg/context"
+	"github.com/aws/karpenter/pkg/controllers/interruption"
+	"github.com/aws/karpenter/pkg/controllers/nodetemplate"
+	"github.com/aws/karpenter/pkg/controllers/providers"
+	"github.com/aws/karpenter/pkg/events"
 )
 
-func init() {
-	metrics.MustRegister() // Registers cross-controller metrics
-}
+func GetControllers(ctx awscontext.Context, cluster *state.Cluster) []controller.Controller {
+	rec := events.NewRecorder(ctx.EventRecorder)
 
-func GetControllers(ctx operator.Context, cluster *state.Cluster, cloudProvider cloudprovider.CloudProvider) []operator.Controller {
-	provisioner := provisioning.NewProvisioner(ctx, ctx.Config, ctx.KubeClient, ctx.Clientset.CoreV1(), ctx.EventRecorder, cloudProvider, cluster)
+	sqsProvider := providers.NewSQS(ctx, sqs.New(ctx.Session))
+	eventBridgeProvider := providers.NewEventBridge(eventbridge.New(ctx.Session), sqsProvider)
 
-	metricsstate.StartMetricScraper(ctx, cluster)
+	// Only enable spot interruption handling controllers when the feature flag is enabled
+	//if options.Config.EnableInterruptionHandling() {
+	logging.FromContext(ctx).Infof("Enabling interruption handling")
 
-	return []operator.Controller{
-		provisioning.NewController(ctx.KubeClient, provisioner, ctx.EventRecorder),
-		state.NewNodeController(ctx.KubeClient, cluster),
-		state.NewPodController(ctx.KubeClient, cluster),
-		state.NewProvisionerController(ctx.KubeClient, cluster),
-		node.NewController(ctx.Clock, ctx.KubeClient, cloudProvider, cluster),
-		termination.NewController(ctx, ctx.Clock, ctx.KubeClient, ctx.Clientset.CoreV1(), ctx.EventRecorder, cloudProvider),
-		metricspod.NewController(ctx.KubeClient),
-		metricsprovisioner.NewController(ctx.KubeClient),
-		counter.NewController(ctx.KubeClient, cluster),
-		consolidation.NewController(ctx.Clock, ctx.KubeClient, provisioner, cloudProvider, ctx.EventRecorder, cluster),
+	nodeTemplateController := nodetemplate.NewController(ctx.KubeClient, sqsProvider, eventBridgeProvider)
+	interruptionController := interruption.NewController(ctx.KubeClient, ctx.Clock, rec, cluster, sqsProvider, ctx.UnavailableOfferingsCache)
+	//}
+	return []controller.Controller{
+		nodeTemplateController,
+		interruptionController,
 	}
 }

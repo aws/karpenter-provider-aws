@@ -6,3 +6,4 @@ curl -fsSL https://karpenter.sh/"${KARPENTER_VERSION}"/getting-started/getting-s
   --template-file "${TEMPOUT}" \
   --capabilities CAPABILITY_NAMED_IAM \
   --parameter-overrides "ClusterName=${CLUSTER_NAME}"
+  --parameter-overrides "ClusterNameSHA=${CLUSTER_NAME_SHA}"
