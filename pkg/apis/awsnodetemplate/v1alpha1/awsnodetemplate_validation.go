@@ -22,13 +22,11 @@ import (
 	"knative.dev/pkg/apis"
 
 	"github.com/aws/karpenter-core/pkg/utils/functional"
-	"github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
 )
 
 const (
-	launchTemplatePath = "launchTemplate"
-	userDataPath       = "userData"
-	amiSelectorPath    = "amiSelector"
+	userDataPath    = "userData"
+	amiSelectorPath = "amiSelector"
 )
 
 var (
@@ -65,7 +63,7 @@ func (a *AWSNodeTemplateSpec) validateAMIFamily() (errs *apis.FieldError) {
 	if a.AMIFamily == nil {
 		return nil
 	}
-	if *a.AMIFamily == v1alpha1.AMIFamilyCustom && a.AMISelector == nil {
+	if *a.AMIFamily == AMIFamilyCustom && a.AMISelector == nil {
 		errs = errs.Also(apis.ErrMissingField(amiSelectorPath))
 	}
 	return errs

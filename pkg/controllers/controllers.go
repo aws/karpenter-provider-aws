@@ -12,17 +12,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package controllers
 
 import (
-	"github.com/aws/karpenter-core/pkg/cloudprovider"
-	"github.com/aws/karpenter-core/pkg/webhooks"
-	awscloudprovider "github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter-core/pkg/controllers/state"
+	"github.com/aws/karpenter-core/pkg/operator"
 	awscontext "github.com/aws/karpenter/pkg/context"
+	"github.com/aws/karpenter/pkg/events"
 )
 
-func main() {
-	webhooks.Initialize(func(ctx cloudprovider.Context) cloudprovider.CloudProvider {
-		return awscloudprovider.New(awscontext.NewOrDie(ctx))
-	})
+func GetControllers(ctx awscontext.Context, cluster *state.Cluster) []operator.Controller {
+	_ = events.NewRecorder(ctx.EventRecorder)
+
+	return []operator.Controller{}
 }

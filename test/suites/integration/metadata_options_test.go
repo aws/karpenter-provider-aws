@@ -23,7 +23,7 @@ import (
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
-	awsv1alpha1 "github.com/aws/karpenter/pkg/cloudproviders/aws/apis/v1alpha1"
+
 	awstest "github.com/aws/karpenter/pkg/test"
 )
 
@@ -34,11 +34,11 @@ var _ = Describe("MetadataOptions", func() {
 
 	It("should use specified metadata options", func() {
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
-			AWS: awsv1alpha1.AWS{
+			AWS: v1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 				SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
-				LaunchTemplate: awsv1alpha1.LaunchTemplate{
-					MetadataOptions: &awsv1alpha1.MetadataOptions{
+				LaunchTemplate: v1alpha1.LaunchTemplate{
+					MetadataOptions: &v1alpha1.MetadataOptions{
 						HTTPEndpoint:            aws.String("enabled"),
 						HTTPProtocolIPv6:        aws.String("enabled"),
 						HTTPPutResponseHopLimit: aws.Int64(1),
