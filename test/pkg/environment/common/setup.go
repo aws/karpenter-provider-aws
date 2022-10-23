@@ -38,6 +38,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter-core/pkg/utils/functional"
 	nodeutils "github.com/aws/karpenter-core/pkg/utils/node"
 	"github.com/aws/karpenter-core/pkg/utils/pod"
@@ -193,7 +194,7 @@ func (env *Environment) startNodeMonitor(stop <-chan struct{}) {
 	podInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			node := obj.(*v1.Node)
-			if _, ok := node.Labels[TestLabelName]; ok {
+			if _, ok := node.Labels[test.DiscoveryLabel]; ok {
 				fmt.Printf("[CREATED %s] %s\n", time.Now().Format(time.RFC3339), env.getNodeInformation(obj.(*v1.Node)))
 			}
 		},
@@ -236,18 +237,18 @@ func (env *Environment) CleanupObjects(cleanableObjects []functional.Pair[client
 			for _, namespace := range namespaces.Items {
 				wg.Add(1)
 				go func(obj client.Object, objList client.ObjectList, namespace string) {
-					defer GinkgoRecover()
 					defer wg.Done()
+					defer GinkgoRecover()
 					Expect(env.Client.DeleteAllOf(env, obj,
 						client.InNamespace(namespace),
-						client.HasLabels([]string{TestLabelName}),
+						client.HasLabels([]string{test.DiscoveryLabel}),
 						client.PropagationPolicy(metav1.DeletePropagationForeground),
 					)).To(Succeed())
 					Eventually(func(g Gomega) {
 						stored := objList.DeepCopyObject().(client.ObjectList)
 						g.Expect(env.Client.List(env, stored,
 							client.InNamespace(namespace),
-							client.HasLabels([]string{TestLabelName}))).To(Succeed())
+							client.HasLabels([]string{test.DiscoveryLabel}))).To(Succeed())
 						items, err := meta.ExtractList(objList)
 						g.Expect(err).To(Succeed())
 						g.Expect(len(items)).To(BeZero())
