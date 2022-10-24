@@ -110,14 +110,14 @@ var _ = Describe("Consolidation", func() {
 
 		// reduce the number of pods by 60%
 		dep.Spec.Replicas = aws.Int32(40)
-		env.ExpectUpdate(dep)
+		env.ExpectUpdated(dep)
 		env.EventuallyExpectAvgUtilization(v1.ResourceCPU, "<", 0.5)
 
 		provisioner.Spec.TTLSecondsAfterEmpty = nil
 		provisioner.Spec.Consolidation = &v1alpha5.Consolidation{
 			Enabled: aws.Bool(true),
 		}
-		env.ExpectUpdate(provisioner)
+		env.ExpectUpdated(provisioner)
 
 		// With consolidation enabled, we now must delete nodes
 		env.EventuallyExpectAvgUtilization(v1.ResourceCPU, ">", 0.6)
@@ -204,14 +204,14 @@ var _ = Describe("Consolidation", func() {
 
 		// scaling down the large deployment leaves only small pods on each node
 		largeDep.Spec.Replicas = aws.Int32(0)
-		env.ExpectUpdate(largeDep)
+		env.ExpectUpdated(largeDep)
 		env.EventuallyExpectAvgUtilization(v1.ResourceCPU, "<", 0.5)
 
 		provisioner.Spec.TTLSecondsAfterEmpty = nil
 		provisioner.Spec.Consolidation = &v1alpha5.Consolidation{
 			Enabled: aws.Bool(true),
 		}
-		env.ExpectUpdate(provisioner)
+		env.ExpectUpdated(provisioner)
 
 		// With consolidation enabled, we now must replace each node in turn to consolidate due to the anti-affinity
 		// rules on the smaller deployment.  The 2xl nodes should go to a large
@@ -312,7 +312,7 @@ var _ = Describe("Consolidation", func() {
 				Values:   []string{"large"},
 			},
 		}
-		env.ExpectUpdate(provisioner)
+		env.ExpectUpdated(provisioner)
 
 		// Eventually expect the on-demand nodes to be consolidated into
 		// spot nodes after some time

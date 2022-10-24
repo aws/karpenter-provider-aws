@@ -19,8 +19,10 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/aws/karpenter-core/pkg/apis/config/settings"
 	"github.com/aws/karpenter-core/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
+	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/test/pkg/environment/common"
 )
 
@@ -37,6 +39,7 @@ func (env *Environment) BeforeEach(opts ...common.Option) {
 		fmt.Println("------- START AWS BEFORE -------")
 		defer fmt.Println("------- END AWS BEFORE -------")
 	}
+	env.ExpectSettingsCreatedOrUpdated(settings.Registration.DefaultData, awssettings.Registration.DefaultData)
 	env.Environment.BeforeEach(opts...)
 }
 
@@ -46,6 +49,7 @@ func (env *Environment) AfterEach(opts ...common.Option) {
 		fmt.Println("------- START AWS AFTER -------")
 		defer fmt.Println("------- END AWS AFTER -------")
 	}
+	env.ExpectSettingsDeleted()
 	env.Environment.CleanupObjects(CleanableObjects, options)
 	env.Environment.AfterEach(opts...)
 }

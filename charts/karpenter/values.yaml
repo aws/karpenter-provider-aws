@@ -140,3 +140,5 @@ clusterEndpoint: ""
 aws:
   # -- The default instance profile to use when launching nodes on AWS
   defaultInstanceProfile: ""
+  # -- The global tags to use on all AWS infrastructure resources (launch templates, instances, SQS queue, etc.)
+  tags:

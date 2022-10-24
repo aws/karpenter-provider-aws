@@ -40,13 +40,14 @@ import (
 	"knative.dev/pkg/ptr"
 	k8sClient "sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/aws/karpenter/pkg/apis"
+	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
+
 	coreapis "github.com/aws/karpenter-core/pkg/apis"
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	"github.com/aws/karpenter-core/pkg/utils/functional"
-	"github.com/aws/karpenter/pkg/apis"
-	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
 	awscontext "github.com/aws/karpenter/pkg/context"
@@ -60,6 +61,7 @@ const (
 func init() {
 	v1alpha5.NormalizedLabels = lo.Assign(v1alpha5.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": v1.LabelTopologyZone})
 	coreapis.Resources = lo.Assign(coreapis.Resources, apis.Resources)
+	coreapis.Settings = coreapis.Settings.Union(apis.Settings)
 	lo.Must0(apis.AddToScheme(scheme.Scheme))
 }
 
