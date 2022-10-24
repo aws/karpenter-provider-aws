@@ -23,7 +23,6 @@ import (
 
 	//nolint:revive,stylecheck
 	. "github.com/onsi/gomega" //nolint:revive,stylecheck
-	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,11 +34,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const TestLabelName = "testing.karpenter.sh/test-id"
-
 func (env *Environment) ExpectCreated(objects ...client.Object) {
 	for _, object := range objects {
-		object.SetLabels(lo.Assign(object.GetLabels(), map[string]string{TestLabelName: env.ClusterName}))
 		ExpectWithOffset(1, env.Client.Create(env, object)).To(Succeed())
 	}
 }

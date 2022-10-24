@@ -63,6 +63,10 @@ func (m *MockedFunction[I, O]) Invoke(input *I) (*O, error) {
 	return new(O), nil
 }
 
+func (m *MockedFunction[I, O]) Calls() int {
+	return m.SuccessfulCalls() + m.FailedCalls()
+}
+
 func (m *MockedFunction[I, O]) SuccessfulCalls() int {
 	return int(m.successfulCalls.Load())
 }

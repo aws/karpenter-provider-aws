@@ -36,8 +36,6 @@ import (
 	clock "k8s.io/utils/clock/testing"
 	. "knative.dev/pkg/logging/testing"
 	_ "knative.dev/pkg/system/testing"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter-core/pkg/apis/config/settings"
@@ -284,9 +282,11 @@ var _ = Describe("Processing Messages", func() {
 var _ = Describe("Error Handling", func() {
 	It("should send an error on polling when AccessDenied", func() {
 		sqsapi.ReceiveMessageBehavior.Error.Set(awsErrWithCode(errors.AccessDeniedCode), awsfake.MaxCalls(0))
-
-		_, err := controller.Reconcile(env.Ctx, reconcile.Request{})
-		Expect(err).ToNot(Succeed())
+		ExpectReconcileFailed(ctx, controller, types.NamespacedName{})
+	})
+	It("should send an error on polling when QueueDeletedRecently", func() {
+		sqsapi.GetQueueURLBehavior.Error.Set(awsErrWithCode(sqs.ErrCodeQueueDeletedRecently), awsfake.MaxCalls(0))
+		ExpectReconcileFailed(ctx, controller, types.NamespacedName{})
 	})
 })
 
