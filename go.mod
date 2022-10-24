@@ -6,7 +6,7 @@ require (
 	github.com/Pallinder/go-randomdata v1.2.0
 	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/aws/aws-sdk-go v1.44.114
-	github.com/aws/karpenter-core v0.0.2-0.20221021235942-051216a25fdc
+	github.com/aws/karpenter-core v0.0.2-0.20221024200040-c2d6e5014c66
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/onsi/ginkgo/v2 v2.2.0
 	github.com/onsi/gomega v1.21.1

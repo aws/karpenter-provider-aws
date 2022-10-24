@@ -38,6 +38,7 @@ import (
 	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
 
+	"github.com/aws/karpenter-core/pkg/apis/config/settings"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/operator/injection"
 	"github.com/aws/karpenter-core/pkg/operator/options"
@@ -77,7 +78,6 @@ var cloudProvider *CloudProvider
 var clientSet *kubernetes.Clientset
 var cluster *state.Cluster
 var recorder *test.EventRecorder
-var cfg *test.Config
 var fakeClock *clock.FakeClock
 var provisioner *v1alpha5.Provisioner
 var provider *v1alpha1.AWS
@@ -103,6 +103,7 @@ var _ = BeforeSuite(func() {
 		opts = defaultOpts
 		Expect(opts.Validate()).To(Succeed(), "Failed to validate options")
 		ctx = injection.WithOptions(ctx, opts)
+		ctx = settings.ToContext(ctx, test.Settings())
 		ctx, stop = context.WithCancel(ctx)
 
 		launchTemplateCache = cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)
@@ -150,11 +151,10 @@ var _ = BeforeSuite(func() {
 		}
 		v1alpha5.DefaultHook = cloudProvider.Default
 		v1alpha5.ValidateHook = cloudProvider.Validate
-		cfg = test.NewConfig()
 		fakeClock = clock.NewFakeClock(time.Now())
-		cluster = state.NewCluster(fakeClock, cfg, e.Client, cloudProvider)
+		cluster = state.NewCluster(ctx, fakeClock, e.Client, cloudProvider)
 		recorder = test.NewEventRecorder()
-		prov := provisioning.NewProvisioner(ctx, cfg, e.Client, corev1.NewForConfigOrDie(e.Config), recorder, cloudProvider, cluster)
+		prov := provisioning.NewProvisioner(ctx, e.Client, corev1.NewForConfigOrDie(e.Config), recorder, cloudProvider, cluster, test.SettingsStore{})
 		controller = provisioning.NewController(e.Client, prov, recorder)
 	})
 
