@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if [ -z ${ENABLE_GIT_PUSH+x} ];then
+  ENABLE_GIT_PUSH=false
+fi
+
+echo "api-code-gen running ENABLE_GIT_PUSH: ${ENABLE_GIT_PUSH}"
+
 pricing() {
   GENERATED_FILE="pkg/cloudproviders/aws/cloudprovider/zz_generated.pricing.go"
   NO_UPDATE=$' pkg/cloudproviders/aws/cloudprovider/zz_generated.pricing.go | 4 ++--\n 1 file changed, 2 insertions(+), 2 deletions(-)'
@@ -38,7 +44,9 @@ checkForUpdates() {
   else
     echo "true" >/tmp/api-code-gen-updates
     git add "${GENERATED_FILE}"
-    gitCommitAndPush "${SUBJECT}"
+    if [[ $ENABLE_GIT_PUSH == true ]]; then
+      gitCommitAndPush "${SUBJECT}"
+    fi
   fi
 }
 
@@ -58,6 +66,9 @@ noUpdates() {
   echo "No updates from AWS API for ${UPDATE_SUBJECT}"
 }
 
-gitOpenAndPullBranch
+if [[ $ENABLE_GIT_PUSH == true ]]; then
+  gitOpenAndPullBranch
+fi
+
 pricing
 vpcLimits
