@@ -17,13 +17,17 @@ package main
 import (
 	"fmt"
 
+	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/util/runtime"
 
+	"github.com/aws/karpenter-core/pkg/apis/config/settings"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	cloudprovidermetrics "github.com/aws/karpenter-core/pkg/cloudprovider/metrics"
 	"github.com/aws/karpenter-core/pkg/controllers"
 	"github.com/aws/karpenter-core/pkg/controllers/state"
 	"github.com/aws/karpenter-core/pkg/operator"
+	"github.com/aws/karpenter-core/pkg/operator/controller"
+	"github.com/aws/karpenter-core/pkg/operator/settingsstore"
 	awscloudprovider "github.com/aws/karpenter/pkg/cloudprovider"
 	awscontext "github.com/aws/karpenter/pkg/context"
 	awscontrollers "github.com/aws/karpenter/pkg/controllers"
@@ -43,15 +47,21 @@ func main() {
 	runtime.Must(manager.AddHealthzCheck("cloud-provider", awsCloudProvider.LivenessProbe))
 	cloudProvider := cloudprovidermetrics.Decorate(awsCloudProvider)
 
-	cluster := state.NewCluster(ctx.Clock, ctx.Config, ctx.KubeClient, cloudProvider)
+	settingsStore := settingsstore.WatchSettings(ctx, ctx.ConfigMapWatcher, settings.Registration)
+	if err := ctx.ConfigMapWatcher.Start(ctx.Done()); err != nil {
+		panic(fmt.Errorf("starting ConfigMap watcher, %w", err))
+	}
 
-	var conts []operator.Controller
-	conts = append(conts, controllers.GetControllers(ctx, cluster, cloudProvider)...)
-	conts = append(conts, awscontrollers.GetControllers(awsCtx, cluster)...)
+	// TODO: Remove settings injection once nominationPeriod no longer relies on it
+	cluster := state.NewCluster(settingsStore.InjectSettings(ctx), ctx.Clock, ctx.KubeClient, cloudProvider)
 
 	if err := operator.RegisterControllers(ctx,
+		settingsStore,
 		manager,
-		conts...,
+		lo.Flatten([][]controller.Controller{
+			controllers.GetControllers(ctx, cluster, settingsStore, cloudProvider),
+			awscontrollers.GetControllers(awsCtx, cluster),
+		})...,
 	).Start(ctx); err != nil {
 		panic(fmt.Sprintf("Unable to start manager, %s", err))
 	}

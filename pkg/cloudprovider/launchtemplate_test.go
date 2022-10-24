@@ -606,7 +606,7 @@ var _ = Describe("LaunchTemplates", func() {
 	Context("User Data", func() {
 		It("should not specify --use-max-pods=false when using ENI-based pod density", func() {
 			opts.AWSENILimitedPodDensity = true
-			prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
+			prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster, test.SettingsStore{})
 			controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
 			ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
 			pod := ExpectProvisioned(ctx, env.Client, controllerWithOpts, test.UnschedulablePod())[0]
@@ -618,7 +618,7 @@ var _ = Describe("LaunchTemplates", func() {
 		})
 		It("should specify --use-max-pods=false when not using ENI-based pod density", func() {
 			opts.AWSENILimitedPodDensity = false
-			prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
+			prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster, test.SettingsStore{})
 			controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
 			ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
 			pod := ExpectProvisioned(ctx, env.Client, controllerWithOpts, test.UnschedulablePod())[0]
@@ -888,7 +888,7 @@ var _ = Describe("LaunchTemplates", func() {
 		Context("Bottlerocket", func() {
 			It("should merge in custom user data", func() {
 				opts.AWSENILimitedPodDensity = false
-				prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
+				prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster, test.SettingsStore{})
 				controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
 
 				provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
@@ -922,7 +922,7 @@ var _ = Describe("LaunchTemplates", func() {
 			})
 			It("should bootstrap when custom user data is empty", func() {
 				opts.AWSENILimitedPodDensity = false
-				prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
+				prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster, test.SettingsStore{})
 				controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
 
 				provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
@@ -952,7 +952,7 @@ var _ = Describe("LaunchTemplates", func() {
 			})
 			It("should not bootstrap when provider ref points to a non-existent resource", func() {
 				opts.AWSENILimitedPodDensity = false
-				prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
+				prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster, test.SettingsStore{})
 				controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
 
 				provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
@@ -1089,7 +1089,7 @@ var _ = Describe("LaunchTemplates", func() {
 		Context("AL2 Custom UserData", func() {
 			It("should merge in custom user data", func() {
 				opts.AWSENILimitedPodDensity = false
-				prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
+				prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster, test.SettingsStore{})
 				controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
 
 				content, _ := os.ReadFile("testdata/al2_userdata_input.golden")
@@ -1111,7 +1111,7 @@ var _ = Describe("LaunchTemplates", func() {
 			})
 			It("should handle empty custom user data", func() {
 				opts.AWSENILimitedPodDensity = false
-				prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
+				prov := provisioning.NewProvisioner(injection.WithOptions(ctx, opts), env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster, test.SettingsStore{})
 				controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
 				nodeTemplate := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 					UserData: nil,

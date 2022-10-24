@@ -131,7 +131,7 @@ var _ = Describe("Instance Types", func() {
 		// ensure the provisioner is shut down at the end of this test
 		defer cancelFunc()
 
-		prov := provisioning.NewProvisioner(cancelCtx, cfg, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster)
+		prov := provisioning.NewProvisioner(cancelCtx, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster, test.SettingsStore{})
 		provisionContoller := provisioning.NewController(env.Client, prov, recorder)
 		ExpectApplied(ctx, env.Client, provisioner)
 		for _, pod := range ExpectProvisioned(cancelCtx, env.Client, provisionContoller,
