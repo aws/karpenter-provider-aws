@@ -64,7 +64,11 @@ spec:
           {{- end }}
           image: {{ .Values.controller.image }}
           imagePullPolicy: {{ .Values.imagePullPolicy }}
+          args:
+            - -webhook-port={{ .Values.webhook.port }}
           env:
+            - name: KUBERNETES_MIN_VERSION
+              value: "1.19.0-0"
           {{- if .Values.clusterName }}
             - name: CLUSTER_NAME
               value: {{ .Values.clusterName }}
@@ -99,6 +103,9 @@ spec:
             - name: http
               containerPort: 8081
               protocol: TCP
+            - name: https-webhook
+              containerPort: {{ .Values.webhook.port }}
+              protocol: TCP
           livenessProbe:
             initialDelaySeconds: 30
             timeoutSeconds: 30
@@ -115,66 +122,6 @@ spec:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           {{- with .Values.controller.extraVolumeMounts }}
-          volumeMounts:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-        - name: webhook
-          {{- with .Values.webhook.securityContext }}
-          securityContext:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-          image: {{ .Values.webhook.image }}
-          imagePullPolicy: {{ .Values.imagePullPolicy }}
-          env:
-          {{- if .Values.clusterName }}
-            - name: CLUSTER_NAME
-              value: {{ .Values.clusterName }}
-          {{- end }}
-            - name: KUBERNETES_MIN_VERSION
-              value: "1.19.0-0"
-          {{- if .Values.clusterEndpoint }}
-            - name: CLUSTER_ENDPOINT
-              value: {{ .Values.clusterEndpoint }}
-          {{- end }}
-            - name: KARPENTER_SERVICE
-              value: {{ include "karpenter.fullname" . }}
-            - name: SYSTEM_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
-            - name: MEMORY_LIMIT
-              valueFrom:
-                resourceFieldRef:
-                  containerName: webhook
-                  divisor: "0"
-                  resource: limits.memory
-            {{- if .Values.aws.defaultInstanceProfile }}
-            - name: AWS_DEFAULT_INSTANCE_PROFILE
-              value: {{ .Values.aws.defaultInstanceProfile }}
-            {{- end }}
-          {{- with .Values.webhook.env }}
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-          args:
-            - -port={{ .Values.webhook.port }}
-          ports:
-            - name: https-webhook
-              containerPort: {{ .Values.webhook.port }}
-              protocol: TCP
-          livenessProbe:
-            initialDelaySeconds: 30
-            httpGet:
-              port: https-webhook
-              scheme: HTTPS
-          readinessProbe:
-            httpGet:
-              port: https-webhook
-              scheme: HTTPS
-          {{- with .Values.webhook.resources }}
-          resources:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-          {{- with .Values.webhook.extraVolumeMounts }}
           volumeMounts:
             {{- toYaml . | nindent 12 }}
           {{- end }}

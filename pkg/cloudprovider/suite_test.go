@@ -75,7 +75,7 @@ var fakeEC2API *fake.EC2API
 var fakePricingAPI *fake.PricingAPI
 var controller *provisioning.Controller
 var cloudProvider *CloudProvider
-var clientSet *kubernetes.Clientset
+var kubernetesInterface kubernetes.Interface
 var cluster *state.Cluster
 var recorder *test.EventRecorder
 var fakeClock *clock.FakeClock
@@ -135,13 +135,13 @@ var _ = BeforeSuite(func() {
 			cache:  securityGroupCache,
 			cm:     pretty.NewChangeMonitor(),
 		}
-		clientSet = kubernetes.NewForConfigOrDie(e.Config)
+		kubernetesInterface = kubernetes.NewForConfigOrDie(e.Config)
 		cloudProvider = &CloudProvider{
 			instanceTypeProvider: instanceTypeProvider,
 			instanceProvider: NewInstanceProvider(ctx, fakeEC2API, instanceTypeProvider, subnetProvider, &LaunchTemplateProvider{
 				ec2api:                fakeEC2API,
 				amiFamily:             amifamily.New(env.Client, fake.SSMAPI{}, fakeEC2API, ssmCache, ec2Cache),
-				clientSet:             clientSet,
+				kubernetesInterface:   kubernetesInterface,
 				securityGroupProvider: securityGroupProvider,
 				cache:                 launchTemplateCache,
 				caBundle:              ptr.String("ca-bundle"),
@@ -216,7 +216,7 @@ var _ = Describe("Allocation", func() {
 		It("should default requirements hooks in webhook mode", func() {
 			// clear our hook to ensure that creating the cloud provider in webhook mode sets it
 			v1alpha5.DefaultHook = func(ctx context.Context, provisoner *v1alpha5.Provisioner) {}
-			New(awscontext.Context{Context: cloudprovider.Context{WebhookOnly: true}})
+			New(awscontext.Context{Context: cloudprovider.Context{}})
 			v1alpha5.DefaultHook(ctx, provisioner)
 			Expect(provisioner.Spec.Requirements).To(ContainElement(v1.NodeSelectorRequirement{
 				Key:      v1alpha5.LabelCapacityType,
@@ -534,13 +534,13 @@ var _ = Describe("Allocation", func() {
 
 	Context("Webhook", func() {
 		It("should validate when in webhook mode", func() {
-			cp := New(awscontext.Context{Context: cloudprovider.Context{WebhookOnly: true}})
+			cp := New(awscontext.Context{Context: cloudprovider.Context{}})
 			// just ensures that validation doesn't depend on anything as when created for the webhook
 			// we don't fully initialize the cloud provider
 			Expect(cp.Validate(ctx, provisioner)).To(Succeed())
 		})
 		It("should default when in webhookmode", func() {
-			cp := New(awscontext.Context{Context: cloudprovider.Context{WebhookOnly: true}})
+			cp := New(awscontext.Context{Context: cloudprovider.Context{}})
 			// just ensures that validation doesn't depend on anything as when created for the webhook
 			// we don't fully initialize the cloud provider
 			cp.Default(ctx, provisioner)
