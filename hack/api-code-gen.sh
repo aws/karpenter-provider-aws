@@ -2,8 +2,8 @@
 set -euo pipefail
 
 pricing() {
-  GENERATED_FILE="pkg/cloudproviders/aws/cloudprovider/zz_generated.pricing.go"
-  NO_UPDATE=$' pkg/cloudproviders/aws/cloudprovider/zz_generated.pricing.go | 4 ++--\n 1 file changed, 2 insertions(+), 2 deletions(-)'
+  GENERATED_FILE="pkg/cloudprovider/zz_generated.pricing.go"
+  NO_UPDATE=$' pkg/cloudprovider/zz_generated.pricing.go | 4 ++--\n 1 file changed, 2 insertions(+), 2 deletions(-)'
   SUBJECT="Pricing"
 
   go run hack/code/prices_gen.go -- "${GENERATED_FILE}"
@@ -13,7 +13,7 @@ pricing() {
 }
 
 vpcLimits() {
-  GENERATED_FILE="pkg/cloudproviders/aws/cloudprovider/zz_generated.vpclimits.go"
+  GENERATED_FILE="pkg/cloudprovider/zz_generated.vpclimits.go"
   NO_UPDATE=''
   SUBJECT="VPC Limits"
 
