@@ -1,16 +1,15 @@
 name: DocGenCI
 
 on:
-  workflow_run:
-    workflows: [CI]
-    types: [completed]
+  push:
+    branches: [main]
 
 permissions:
   id-token: write
 
 jobs:
   stable-release:
-    if: github.event.workflow_run.conclusion == 'success' && github.repository == 'aws/karpenter'
+    if: github.repository == 'aws/karpenter'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -32,3 +31,6 @@ jobs:
           role-to-assume: arn:aws:iam::071440425669:role/Github
           aws-region: us-east-1
       - run: make docgen
+      - run: make api-code-gen
+        env:
+          ENABLE_GIT_PUSH: false
