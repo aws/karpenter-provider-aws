@@ -87,8 +87,6 @@ var (
 		metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 		return nil
 	})
-	// AddToScheme may be used to add all resources defined in the project to a Scheme
-	AddToScheme = SchemeBuilder.AddToScheme
 )
 
 func init() {

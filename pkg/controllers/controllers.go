@@ -17,7 +17,6 @@ package controllers
 import (
 	"github.com/aws/aws-sdk-go/service/eventbridge"
 	"github.com/aws/aws-sdk-go/service/sqs"
-	"knative.dev/pkg/logging"
 
 	"github.com/aws/karpenter-core/pkg/controllers/state"
 	"github.com/aws/karpenter-core/pkg/operator/controller"
@@ -30,19 +29,11 @@ import (
 
 func NewControllers(ctx awscontext.Context, cluster *state.Cluster) []controller.Controller {
 	rec := events.NewRecorder(ctx.EventRecorder)
-
 	sqsProvider := providers.NewSQS(ctx, sqs.New(ctx.Session))
 	eventBridgeProvider := providers.NewEventBridge(eventbridge.New(ctx.Session), sqsProvider)
 
-	// Only enable spot interruption handling controllers when the feature flag is enabled
-	//if options.Config.EnableInterruptionHandling() {
-	logging.FromContext(ctx).Infof("Enabling interruption handling")
-
-	nodeTemplateController := nodetemplate.NewController(ctx.KubeClient, sqsProvider, eventBridgeProvider)
-	interruptionController := interruption.NewController(ctx.KubeClient, ctx.Clock, rec, cluster, sqsProvider, ctx.UnavailableOfferingsCache)
-	//}
 	return []controller.Controller{
-		nodeTemplateController,
-		interruptionController,
+		nodetemplate.NewController(ctx.KubeClient, sqsProvider, eventBridgeProvider),
+		interruption.NewController(ctx.KubeClient, ctx.Clock, rec, cluster, sqsProvider, ctx.UnavailableOfferingsCache),
 	}
 }

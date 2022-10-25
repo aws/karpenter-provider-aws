@@ -72,6 +72,7 @@ var instanceTypeCache *cache.Cache
 var instanceTypeProvider *InstanceTypeProvider
 var fakeEC2API *fake.EC2API
 var fakePricingAPI *fake.PricingAPI
+var prov *provisioning.Provisioner
 var controller *provisioning.Controller
 var cloudProvider *CloudProvider
 var kubernetesInterface kubernetes.Interface
@@ -101,10 +102,10 @@ var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
 		opts = defaultOpts
 		Expect(opts.Validate()).To(Succeed(), "Failed to validate options")
+
 		ctx = injection.WithOptions(ctx, opts)
 		ctx = settings.ToContext(ctx, test.Settings())
 		ctx, stop = context.WithCancel(ctx)
-		ctx = settings.ToContext(ctx, test.Settings())
 
 		launchTemplateCache = cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)
 		internalUnavailableOfferingsCache = cache.New(awscache.UnavailableOfferingsTTL, awscontext.CacheCleanupInterval)
@@ -157,7 +158,7 @@ var _ = BeforeSuite(func() {
 		fakeClock = clock.NewFakeClock(time.Now())
 		cluster = state.NewCluster(ctx, fakeClock, e.Client, cloudProvider)
 		recorder = test.NewEventRecorder()
-		prov := provisioning.NewProvisioner(ctx, e.Client, corev1.NewForConfigOrDie(e.Config), recorder, cloudProvider, cluster, test.SettingsStore{})
+		prov = provisioning.NewProvisioner(ctx, e.Client, corev1.NewForConfigOrDie(e.Config), recorder, cloudProvider, cluster, test.SettingsStore{})
 		controller = provisioning.NewController(e.Client, prov, recorder)
 	})
 
@@ -171,6 +172,10 @@ var _ = AfterSuite(func() {
 })
 
 var _ = BeforeEach(func() {
+	opts = defaultOpts
+	ctx = injection.WithOptions(ctx, opts)
+	ctx = settings.ToContext(ctx, test.Settings())
+
 	provider = &v1alpha1.AWS{
 		AMIFamily:             aws.String(v1alpha1.AMIFamilyAL2),
 		SubnetSelector:        map[string]string{"*": "*"},
@@ -178,7 +183,6 @@ var _ = BeforeEach(func() {
 	}
 
 	provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
-	opts = defaultOpts
 	fakeEC2API.Reset()
 	fakePricingAPI.Reset()
 	launchTemplateCache.Flush()
@@ -271,7 +275,7 @@ var _ = Describe("Allocation", func() {
 				provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
 				provisioner.SetDefaults(ctx)
 				ExpectApplied(ctx, env.Client, provisioner)
-				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				pod := ExpectProvisioned(ctx, env.Client, controller, prov, test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateFleetInput.Len()).To(Equal(1))
 				createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop()
@@ -280,7 +284,7 @@ var _ = Describe("Allocation", func() {
 			It("should default to no EC2 Context", func() {
 				provisioner.SetDefaults(ctx)
 				ExpectApplied(ctx, env.Client, provisioner)
-				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				pod := ExpectProvisioned(ctx, env.Client, controller, prov, test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateFleetInput.Len()).To(Equal(1))
 				createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop()

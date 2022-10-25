@@ -21,7 +21,6 @@ import (
 	"strings"
 	"time"
 
-	//nolint:revive,stylecheck
 	. "github.com/onsi/gomega" //nolint:revive,stylecheck
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"

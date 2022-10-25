@@ -17,6 +17,7 @@ package interruption
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
@@ -36,6 +37,7 @@ import (
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/controllers/state"
 	"github.com/aws/karpenter-core/pkg/metrics"
+	operatorcontroller "github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 	awscache "github.com/aws/karpenter/pkg/cache"
 	interruptionevents "github.com/aws/karpenter/pkg/controllers/interruption/events"
@@ -94,67 +96,37 @@ func NewController(kubeClient client.Client, clk clock.Clock, recorder *events.R
 	}
 }
 
-func (c *Controller) Start(ctx context.Context) {
-	for {
-		list := &v1alpha1.AWSNodeTemplateList{}
-		if err := c.kubeClient.List(ctx, list); err != nil {
-			logging.FromContext(ctx).Errorf("listing aws node templates, %v", err)
-			continue
-		}
-		if len(list.Items) > 0 {
-			// If there are AWSNodeTemplates, we should reconcile the notifications by continually polling
-			// the queue for messages
-			wait := time.Duration(0) // default is to not wait
-			if _, err := c.Reconcile(ctx, reconcile.Request{}); err != nil {
-				logging.FromContext(ctx).Errorf("reconciling notification messages, %v", err)
-				wait = c.backoff.NextBackOff()
-			} else {
-				c.backoff.Reset()
-			}
-			select {
-			case <-ctx.Done():
-				return
-			case <-c.clk.After(wait):
-			}
-		} else {
-			// If there are no AWSNodeTemplates, we can just poll on a one-minute interval to check for any templates
-			select {
-			case <-ctx.Done():
-				return
-			case <-c.clk.After(time.Minute):
-			}
-		}
-	}
-}
-
 func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconcile.Result, error) {
 	defer metrics.Measure(reconcileDuration)()
-	sqsMessages, err := c.provider.GetSQSMessages(ctx)
-	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("getting messages from queue, %w", err)
+	list := &v1alpha1.AWSNodeTemplateList{}
+	if err := c.kubeClient.List(ctx, list); err != nil {
+		return reconcile.Result{}, fmt.Errorf("listing node templates, %w", err)
 	}
-	if len(sqsMessages) == 0 {
-		return reconcile.Result{}, nil
+
+	if len(list.Items) > 0 {
+		sqsMessages, err := c.provider.GetSQSMessages(ctx)
+		if err != nil {
+			return reconcile.Result{}, fmt.Errorf("getting messages from queue, %w", err)
+		}
+		if len(sqsMessages) == 0 {
+			return reconcile.Result{}, nil
+		}
+		instanceIDMap := c.makeInstanceIDMap()
+		errs := make([]error, len(sqsMessages))
+		workqueue.ParallelizeUntil(ctx, 10, len(sqsMessages), func(i int) {
+			errs[i] = c.handleMessage(ctx, instanceIDMap, sqsMessages[i])
+		})
+		return reconcile.Result{}, multierr.Combine(errs...)
 	}
-	instanceIDMap := c.makeInstanceIDMap()
-	errs := make([]error, len(sqsMessages))
-	workqueue.ParallelizeUntil(ctx, 10, len(sqsMessages), func(i int) {
-		errs[i] = c.handleMessage(ctx, instanceIDMap, sqsMessages[i])
-	})
-	return reconcile.Result{}, multierr.Combine(errs...)
+	return reconcile.Result{RequeueAfter: time.Minute}, nil
 }
 
-func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("aws.notification"))
-	go func() {
-		defer logging.FromContext(ctx).Infof("Shutting down")
-		select {
-		case <-ctx.Done():
-			return
-		case <-m.Elected():
-			c.Start(ctx)
-		}
-	}()
+func (c *Controller) Builder(_ context.Context, m manager.Manager) operatorcontroller.Builder {
+	return operatorcontroller.NewSingletonManagedBy(m).
+		Named("notification")
+}
+
+func (c *Controller) LivenessProbe(_ *http.Request) error {
 	return nil
 }
 
