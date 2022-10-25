@@ -15,54 +15,50 @@ limitations under the License.
 package main
 
 import (
-	"fmt"
-
 	"github.com/samber/lo"
-	"k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/utils/clock"
 
-	"github.com/aws/karpenter-core/pkg/apis/config/settings"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
-	cloudprovidermetrics "github.com/aws/karpenter-core/pkg/cloudprovider/metrics"
+	"github.com/aws/karpenter-core/pkg/cloudprovider/metrics"
 	"github.com/aws/karpenter-core/pkg/controllers"
 	"github.com/aws/karpenter-core/pkg/controllers/state"
 	"github.com/aws/karpenter-core/pkg/operator"
-	"github.com/aws/karpenter-core/pkg/operator/controller"
-	"github.com/aws/karpenter-core/pkg/operator/settingsstore"
+	"github.com/aws/karpenter-core/pkg/webhooks"
 	awscloudprovider "github.com/aws/karpenter/pkg/cloudprovider"
-	awscontext "github.com/aws/karpenter/pkg/context"
+	"github.com/aws/karpenter/pkg/context"
 	awscontrollers "github.com/aws/karpenter/pkg/controllers"
 )
 
 func main() {
-	ctx, manager := operator.NewOrDie()
-	awsCtx := awscontext.NewOrDie(cloudprovider.Context{
-		Context:       ctx,
-		Clock:         ctx.Clock,
-		ClientSet:     ctx.Clientset,
-		KubeClient:    ctx.KubeClient,
-		EventRecorder: ctx.BaseEventRecorder,
-		StartAsync:    ctx.StartAsync,
+	ctx, operator := operator.NewOperator()
+	awsCtx := context.NewOrDie(cloudprovider.Context{
+		Context:             ctx,
+		Clock:               operator.Clock,
+		KubeClient:          operator.GetClient(),
+		KubernetesInterface: operator.KubernetesInterface,
+		EventRecorder:       operator.EventRecorder,
+		StartAsync:          operator.Elected(),
 	})
 	awsCloudProvider := awscloudprovider.New(awsCtx)
-	runtime.Must(manager.AddHealthzCheck("cloud-provider", awsCloudProvider.LivenessProbe))
-	cloudProvider := cloudprovidermetrics.Decorate(awsCloudProvider)
+	lo.Must0(operator.AddHealthzCheck("cloud-provider", awsCloudProvider.LivenessProbe))
+	cloudProvider := metrics.Decorate(awsCloudProvider)
 
-	settingsStore := settingsstore.WatchSettingsOrDie(ctx, ctx.Clientset, ctx.ConfigMapWatcher, settings.Registration)
-	if err := ctx.ConfigMapWatcher.Start(ctx.Done()); err != nil {
-		panic(fmt.Sprintf("Starting ConfigMap watcher, %v", err))
-	}
-
-	// TODO: Remove settings injection once nominationPeriod no longer relies on it
-	cluster := state.NewCluster(settingsStore.InjectSettings(ctx), ctx.Clock, ctx.KubeClient, cloudProvider)
-
-	if err := operator.RegisterControllers(ctx,
-		settingsStore,
-		manager,
-		lo.Flatten([][]controller.Controller{
-			controllers.GetControllers(ctx, cluster, settingsStore, cloudProvider),
-			awscontrollers.GetControllers(awsCtx, cluster),
-		})...,
-	).Start(ctx); err != nil {
-		panic(fmt.Sprintf("Unable to start manager, %s", err))
-	}
+	clusterState := state.NewCluster(operator.SettingsStore.InjectSettings(ctx), operator.Clock, operator.GetClient(), cloudProvider)
+	operator.
+		WithControllers(ctx, controllers.NewControllers(
+			ctx,
+			clock.RealClock{},
+			operator.GetClient(),
+			operator.KubernetesInterface,
+			clusterState,
+			operator.Recorder,
+			operator.SettingsStore,
+			cloudProvider,
+		)...).
+		WithControllers(ctx, awscontrollers.NewControllers(
+			awsCtx,
+			clusterState,
+		)...).
+		WithWebhooks(webhooks.NewWebhooks()...).
+		Start(ctx)
 }

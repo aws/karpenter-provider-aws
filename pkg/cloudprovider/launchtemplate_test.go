@@ -53,7 +53,6 @@ import (
 )
 
 var _ = Describe("LaunchTemplates", func() {
-
 	It("should default to a generated launch template", func() {
 		ExpectApplied(ctx, env.Client, provisioner)
 		pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]

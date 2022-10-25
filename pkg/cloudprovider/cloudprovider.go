@@ -32,20 +32,20 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/transport"
-	"knative.dev/pkg/apis"
+	knativeapis "knative.dev/pkg/apis"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 	k8sClient "sigs.k8s.io/controller-runtime/pkg/client"
 
+	coreapis "github.com/aws/karpenter-core/pkg/apis"
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/operator/injection"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	"github.com/aws/karpenter-core/pkg/utils/functional"
-	awsapis "github.com/aws/karpenter/pkg/apis"
+	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
@@ -59,7 +59,8 @@ const (
 
 func init() {
 	v1alpha5.NormalizedLabels = lo.Assign(v1alpha5.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": v1.LabelTopologyZone})
-	utilruntime.Must(awsapis.AddToScheme(scheme.Scheme))
+	coreapis.Resources = lo.Assign(coreapis.Resources, apis.Resources)
+	lo.Must0(apis.AddToScheme(scheme.Scheme))
 }
 
 var _ cloudprovider.CloudProvider = (*CloudProvider)(nil)
@@ -71,15 +72,7 @@ type CloudProvider struct {
 }
 
 func New(ctx awscontext.Context) *CloudProvider {
-	if ctx.WebhookOnly {
-		// if performing validation only, then only the Validate()/Default() methods will be called which
-		// don't require any other setup
-		cp := &CloudProvider{}
-		v1alpha5.ValidateHook = cp.Validate
-		v1alpha5.DefaultHook = cp.Default
-		return cp
-	}
-	kubeDNSIP, err := kubeDNSIP(ctx, ctx.ClientSet)
+	kubeDNSIP, err := kubeDNSIP(ctx, ctx.KubernetesInterface)
 	if err != nil {
 		logging.FromContext(ctx).Fatalf("Unable to detect the IP of the kube-dns service, %s", err)
 	}
@@ -96,7 +89,7 @@ func New(ctx awscontext.Context) *CloudProvider {
 			NewLaunchTemplateProvider(
 				ctx,
 				ec2api,
-				ctx.ClientSet,
+				ctx.KubernetesInterface,
 				amifamily.New(ctx.KubeClient, ssm.New(ctx.Session), ec2api, cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval), cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)),
 				NewSecurityGroupProvider(ec2api),
 				getCABundle(ctx),
@@ -184,7 +177,7 @@ func (c *CloudProvider) Delete(ctx context.Context, node *v1.Node) error {
 }
 
 // Validate the provisioner
-func (*CloudProvider) Validate(ctx context.Context, provisioner *v1alpha5.Provisioner) *apis.FieldError {
+func (*CloudProvider) Validate(ctx context.Context, provisioner *v1alpha5.Provisioner) *knativeapis.FieldError {
 	// The receiver is intentionally omitted here as when used by the webhook, Validate/Default are the only methods
 	// called and we don't fully initialize the CloudProvider to prevent some network calls to EC2/Pricing.
 	if provisioner.Spec.Provider == nil {
@@ -192,7 +185,7 @@ func (*CloudProvider) Validate(ctx context.Context, provisioner *v1alpha5.Provis
 	}
 	provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 	if err != nil {
-		return apis.ErrGeneric(err.Error())
+		return knativeapis.ErrGeneric(err.Error())
 	}
 	return provider.Validate()
 }
@@ -252,11 +245,11 @@ func getCABundle(ctx context.Context) *string {
 	return ptr.String(base64.StdEncoding.EncodeToString(transportConfig.TLS.CAData))
 }
 
-func kubeDNSIP(ctx context.Context, clientSet *kubernetes.Clientset) (net.IP, error) {
-	if clientSet == nil {
+func kubeDNSIP(ctx context.Context, kubernetesInterface kubernetes.Interface) (net.IP, error) {
+	if kubernetesInterface == nil {
 		return nil, fmt.Errorf("no K8s client provided")
 	}
-	dnsService, err := clientSet.CoreV1().Services("kube-system").Get(ctx, "kube-dns", metav1.GetOptions{})
+	dnsService, err := kubernetesInterface.CoreV1().Services("kube-system").Get(ctx, "kube-dns", metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}

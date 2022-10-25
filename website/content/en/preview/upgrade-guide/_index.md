@@ -97,6 +97,9 @@ By adopting this practice we allow our users who are early adopters to test out 
 
 # Released Upgrade Notes
 
+## Upgrading to v0.19.0+
+* v0.19.0 combines the karpenter webhook and controller containers into a single binary, which requires changes to the helm chart. If your Karpenter installation (helm or otherwise) currently customizes the karpenter webhook, your deployment tooling may require minor changes.
+
 ## Upgrading to v0.18.0+
 * v0.18.0 removes the `karpenter_consolidation_nodes_created` and `karpenter_consolidation_nodes_terminated` prometheus metrics in favor of the more generic `karpenter_nodes_created` and `karpenter_nodes_terminated` metrics. You can still see nodes created and terminated by consolidation by checking the `reason` label on the metrics. Check out all the metrics published by Karpenter [here](../tasks/metrics/).
 
@@ -107,8 +110,8 @@ With this change [charts.karpenter.sh](https://charts.karpenter.sh/) is no longe
 Users who have scripted the installation or upgrading of Karpenter need to adjust their scripts with the following changes:
 1. There is no longer a need to add the Karpenter helm repo to helm
 2. The full URL of the Helm chart needs to be present when using the helm commands
-3. If you were not prepending a `v` to the version (i.e. `0.17.0`), you will need to do so with the OCI chart, `v0.17.0`. 
- 
+3. If you were not prepending a `v` to the version (i.e. `0.17.0`), you will need to do so with the OCI chart, `v0.17.0`.
+
 ## Upgrading to v0.16.2+
 * v0.16.2 adds new kubeletConfiguration fields to the `provisioners.karpenter.sh` v1alpha5 CRD.  The CRD will need to be updated to use the new parameters:
 ```bash

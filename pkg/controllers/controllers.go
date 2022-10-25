@@ -21,7 +21,7 @@ import (
 	"github.com/aws/karpenter/pkg/events"
 )
 
-func GetControllers(ctx awscontext.Context, cluster *state.Cluster) []controller.Controller {
+func NewControllers(ctx awscontext.Context, cluster *state.Cluster) []controller.Controller {
 	_ = events.NewRecorder(ctx.EventRecorder)
 
 	return []controller.Controller{}
