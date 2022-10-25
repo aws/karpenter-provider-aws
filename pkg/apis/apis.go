@@ -21,7 +21,6 @@ import (
 	"knative.dev/pkg/webhook/resourcesemantics"
 
 	"github.com/aws/karpenter-core/pkg/apis"
-	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 )
 
@@ -35,6 +34,6 @@ var (
 	AddToScheme = Builder.AddToScheme
 	// Resources defined in the project
 	Resources = map[schema.GroupVersionKind]resourcesemantics.GenericCRD{
-		v1alpha5.SchemeGroupVersion.WithKind("AWSNodeTemplate"): &v1alpha1.AWSNodeTemplate{},
+		v1alpha1.SchemeGroupVersion.WithKind("AWSNodeTemplate"): &v1alpha1.AWSNodeTemplate{},
 	}
 )

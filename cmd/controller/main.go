@@ -26,31 +26,38 @@ import (
 	"github.com/aws/karpenter-core/pkg/webhooks"
 	awscloudprovider "github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/context"
+	awscontrollers "github.com/aws/karpenter/pkg/controllers"
 )
 
 func main() {
 	ctx, operator := operator.NewOperator()
-	awscloudProvider := awscloudprovider.New(context.NewOrDie(cloudprovider.Context{
+	awsCtx := context.NewOrDie(cloudprovider.Context{
 		Context:             ctx,
 		Clock:               operator.Clock,
 		KubeClient:          operator.GetClient(),
 		KubernetesInterface: operator.KubernetesInterface,
 		EventRecorder:       operator.EventRecorder,
 		StartAsync:          operator.Elected(),
-	}))
-	lo.Must0(operator.AddHealthzCheck("cloud-provider", awscloudProvider.LivenessProbe))
-	cloudProvider := metrics.Decorate(awscloudProvider)
+	})
+	awsCloudProvider := awscloudprovider.New(awsCtx)
+	lo.Must0(operator.AddHealthzCheck("cloud-provider", awsCloudProvider.LivenessProbe))
+	cloudProvider := metrics.Decorate(awsCloudProvider)
 
+	clusterState := state.NewCluster(operator.SettingsStore.InjectSettings(ctx), operator.Clock, operator.GetClient(), cloudProvider)
 	operator.
 		WithControllers(ctx, controllers.NewControllers(
 			ctx,
 			clock.RealClock{},
 			operator.GetClient(),
 			operator.KubernetesInterface,
-			state.NewCluster(operator.SettingsStore.InjectSettings(ctx), operator.Clock, operator.GetClient(), cloudProvider),
+			clusterState,
 			operator.Recorder,
 			operator.SettingsStore,
 			cloudProvider,
+		)...).
+		WithControllers(ctx, awscontrollers.NewControllers(
+			awsCtx,
+			clusterState,
 		)...).
 		WithWebhooks(webhooks.NewWebhooks()...).
 		Start(ctx)

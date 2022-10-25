@@ -148,6 +148,11 @@ var _ = BeforeSuite(func() {
 			}),
 			kubeClient: e.Client,
 		}
+
+		// Set the global webhooks for defaulting and validating
+		v1alpha5.ValidateHook = cloudProvider.Validate
+		v1alpha5.DefaultHook = cloudProvider.Default
+
 		fakeClock = clock.NewFakeClock(time.Now())
 		cluster = state.NewCluster(ctx, fakeClock, e.Client, cloudProvider)
 		recorder = test.NewEventRecorder()
@@ -170,6 +175,7 @@ var _ = BeforeEach(func() {
 		SubnetSelector:        map[string]string{"*": "*"},
 		SecurityGroupSelector: map[string]string{"*": "*"},
 	}
+
 	provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
 	opts = defaultOpts
 	fakeEC2API.Reset()
