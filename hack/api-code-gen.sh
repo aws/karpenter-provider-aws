@@ -1,9 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if [ -z ${ENABLE_GIT_PUSH+x} ];then
+  ENABLE_GIT_PUSH=false
+fi
+
+echo "api-code-gen running ENABLE_GIT_PUSH: ${ENABLE_GIT_PUSH}"
+
 pricing() {
-  GENERATED_FILE="pkg/cloudproviders/aws/cloudprovider/zz_generated.pricing.go"
-  NO_UPDATE=$' pkg/cloudproviders/aws/cloudprovider/zz_generated.pricing.go | 4 ++--\n 1 file changed, 2 insertions(+), 2 deletions(-)'
+  GENERATED_FILE="pkg/cloudprovider/zz_generated.pricing.go"
+  NO_UPDATE=$' pkg/cloudprovider/zz_generated.pricing.go | 4 ++--\n 1 file changed, 2 insertions(+), 2 deletions(-)'
   SUBJECT="Pricing"
 
   go run hack/code/prices_gen.go -- "${GENERATED_FILE}"
@@ -13,7 +19,7 @@ pricing() {
 }
 
 vpcLimits() {
-  GENERATED_FILE="pkg/cloudproviders/aws/cloudprovider/zz_generated.vpclimits.go"
+  GENERATED_FILE="pkg/cloudprovider/zz_generated.vpclimits.go"
   NO_UPDATE=''
   SUBJECT="VPC Limits"
 
@@ -38,7 +44,9 @@ checkForUpdates() {
   else
     echo "true" >/tmp/api-code-gen-updates
     git add "${GENERATED_FILE}"
-    gitCommitAndPush "${SUBJECT}"
+    if [[ $ENABLE_GIT_PUSH == true ]]; then
+      gitCommitAndPush "${SUBJECT}"
+    fi
   fi
 }
 
@@ -58,6 +66,9 @@ noUpdates() {
   echo "No updates from AWS API for ${UPDATE_SUBJECT}"
 }
 
-gitOpenAndPullBranch
+if [[ $ENABLE_GIT_PUSH == true ]]; then
+  gitOpenAndPullBranch
+fi
+
 pricing
 vpcLimits

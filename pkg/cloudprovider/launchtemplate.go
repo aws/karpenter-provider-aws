@@ -53,7 +53,7 @@ const (
 type LaunchTemplateProvider struct {
 	sync.Mutex
 	ec2api                ec2iface.EC2API
-	clientSet             *kubernetes.Clientset
+	kubernetesInterface   kubernetes.Interface
 	amiFamily             *amifamily.Resolver
 	securityGroupProvider *SecurityGroupProvider
 	cache                 *cache.Cache
@@ -62,10 +62,10 @@ type LaunchTemplateProvider struct {
 	kubeDNSIP             net.IP
 }
 
-func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, clientSet *kubernetes.Clientset, amiFamily *amifamily.Resolver, securityGroupProvider *SecurityGroupProvider, caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP) *LaunchTemplateProvider {
+func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, kubernetesInterface kubernetes.Interface, amiFamily *amifamily.Resolver, securityGroupProvider *SecurityGroupProvider, caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP) *LaunchTemplateProvider {
 	l := &LaunchTemplateProvider{
 		ec2api:                ec2api,
-		clientSet:             clientSet,
+		kubernetesInterface:   kubernetesInterface,
 		amiFamily:             amiFamily,
 		securityGroupProvider: securityGroupProvider,
 		cache:                 cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval),
@@ -306,7 +306,7 @@ func (p *LaunchTemplateProvider) kubeServerVersion(ctx context.Context) (string,
 	if version, ok := p.cache.Get(kubernetesVersionCacheKey); ok {
 		return version.(string), nil
 	}
-	serverVersion, err := p.clientSet.Discovery().ServerVersion()
+	serverVersion, err := p.kubernetesInterface.Discovery().ServerVersion()
 	if err != nil {
 		return "", err
 	}

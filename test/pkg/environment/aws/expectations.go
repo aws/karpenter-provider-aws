@@ -83,6 +83,13 @@ func (env *Environment) GetVolume(volumeID *string) ec2.Volume {
 	return *dvo.Volumes[0]
 }
 
+func (env *Environment) EventuallyExpectQueueCreated() {
+	EventuallyWithOffset(1, func(g Gomega) {
+		_, err := env.SQSProvider.DiscoverQueueURL(env.Context, true)
+		g.Expect(err).ToNot(HaveOccurred())
+	}).Should(Succeed())
+}
+
 func (env *Environment) ExpectMessagesCreated(msgs ...interface{}) {
 	wg := &sync.WaitGroup{}
 	mu := &sync.Mutex{}

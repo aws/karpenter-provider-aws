@@ -131,31 +131,9 @@ controller:
   # Whether to enable the interruption handling processing logic for the cloud provider
   enableInterruptionHandling: false
 webhook:
-  # -- Webhook image.
-  image: "public.ecr.aws/karpenter/webhook:v0.18.1@sha256:4612a9d70e12e9359d05984574f8fd4941a0eb0df8c2a36b074c4c7fc5503702"
-  # -- SecurityContext for the webhook container.
-  securityContext: {}
+  logLevel: error
   # -- The container port to use for the webhook.
   port: 8443
-  # -- Additional environment variables for the webhook pod.
-  env: []
-  # - name: AWS_REGION
-  #   value: eu-west-1
-
-  # -- Resources for the webhook pod.
-  resources:
-    requests:
-      cpu: 200m
-      memory: 100Mi
-    limits:
-      cpu: 200m
-      memory: 100Mi
-  # -- Webhook log level, defaults to the global log level
-  logLevel: ""
-  # -- Webhook log encoding, defaults to the global log encoding
-  logEncoding: ""
-  # -- Additional volumeMounts for the webhook pod.
-  extraVolumeMounts: []
 # -- Global log level
 logLevel: debug
 # -- Gloabl log encoding

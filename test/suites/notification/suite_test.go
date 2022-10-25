@@ -49,11 +49,6 @@ func TestNotification(t *testing.T) {
 		var err error
 		env, err = aws.NewEnvironment(t)
 		Expect(err).ToNot(HaveOccurred())
-		provider = awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
-		}})
-		env.ExpectCreated(provider)
 	})
 	AfterSuite(func() {
 		env.ExpectDeleted(provider)
@@ -62,6 +57,10 @@ func TestNotification(t *testing.T) {
 }
 
 var _ = BeforeEach(func() {
+	provider = awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
+		SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
+		SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
+	}})
 	env.BeforeEach()
 })
 
@@ -94,7 +93,9 @@ var _ = Describe("Notification", Label("AWS"), func() {
 		})
 		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 
-		env.ExpectCreated(provisioner, dep)
+		env.ExpectCreated(provider, provisioner, dep)
+		env.EventuallyExpectQueueCreated()
+
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 1)
 
@@ -155,7 +156,9 @@ var _ = Describe("Notification", Label("AWS"), func() {
 		})
 		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 
-		env.ExpectCreated(provisioner, dep)
+		env.ExpectCreated(provider, provisioner, dep)
+		env.EventuallyExpectQueueCreated()
+
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 1)
 
@@ -190,7 +193,9 @@ var _ = Describe("Notification", Label("AWS"), func() {
 		})
 		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 
-		env.ExpectCreated(provisioner, dep)
+		env.ExpectCreated(provider, provisioner, dep)
+		env.EventuallyExpectQueueCreated()
+
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 1)
 
@@ -225,7 +230,9 @@ var _ = Describe("Notification", Label("AWS"), func() {
 		})
 		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 
-		env.ExpectCreated(provisioner, dep)
+		env.ExpectCreated(provider, provisioner, dep)
+		env.EventuallyExpectQueueCreated()
+
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 1)
 
@@ -240,7 +247,6 @@ var _ = Describe("Notification", Label("AWS"), func() {
 	})
 })
 
-// TODO: Update the scheduled change message to accurately reflect a real health event
 func scheduledChangeMessage(region, accountID, involvedInstanceID string) scheduledchange.Event {
 	return scheduledchange.Event{
 		Metadata: messages.Metadata{
