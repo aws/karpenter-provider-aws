@@ -17,9 +17,10 @@ package nodetemplate
 import (
 	"context"
 	"net/http"
+	"time"
 
+	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/api/errors"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"knative.dev/pkg/logging"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -27,11 +28,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/aws/karpenter-core/pkg/apis/config/settings"
 	operatorcontroller "github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
-	awsapis "github.com/aws/karpenter/pkg/apis"
+	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 	"github.com/aws/karpenter/pkg/controllers/providers"
 )
@@ -39,7 +41,7 @@ import (
 const Name = "nodetemplate"
 
 func init() {
-	utilruntime.Must(awsapis.AddToScheme(scheme.Scheme))
+	lo.Must0(apis.AddToScheme(scheme.Scheme))
 }
 
 // Controller is the AWSNodeTemplate Controller
@@ -48,6 +50,8 @@ func init() {
 type Controller struct {
 	kubeClient client.Client
 	provider   *providers.Infrastructure
+
+	lastInfrastructureReconcile time.Time
 }
 
 func NewController(kubeClient client.Client, sqsProvider *providers.SQS, eventBridgeProvider *providers.EventBridge) *Controller {
@@ -94,13 +98,19 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			return reconcile.Result{}, err
 		}
 		active.Set(1)
-		if err := c.provider.Create(ctx); err != nil {
-			healthy.Set(0)
-			return reconcile.Result{}, err
+		if settings.FromContext(ctx).EnableInterruptionHandling &&
+			c.lastInfrastructureReconcile.Add(time.Hour).Before(time.Now()) {
+
+			if err := c.provider.Create(ctx); err != nil {
+				healthy.Set(0)
+				return reconcile.Result{}, err
+			}
+			c.lastInfrastructureReconcile = time.Now()
+			healthy.Set(1)
 		}
-		healthy.Set(1)
 	}
-	return reconcile.Result{}, nil
+	// TODO: Implement an alerting mechanism for settings updates; until then, just poll
+	return reconcile.Result{RequeueAfter: time.Second * 10}, nil
 }
 
 func (c *Controller) Builder(_ context.Context, m manager.Manager) operatorcontroller.Builder {

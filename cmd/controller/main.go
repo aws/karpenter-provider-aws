@@ -43,7 +43,7 @@ func main() {
 	lo.Must0(operator.AddHealthzCheck("cloud-provider", awsCloudProvider.LivenessProbe))
 	cloudProvider := metrics.Decorate(awsCloudProvider)
 
-	clusterState := state.NewCluster(operator.SettingsStore.InjectSettings(ctx), operator.Clock, operator.GetClient(), cloudProvider)
+	clusterState := state.NewCluster(ctx, operator.Clock, operator.GetClient(), cloudProvider)
 	operator.
 		WithControllers(ctx, controllers.NewControllers(
 			ctx,

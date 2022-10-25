@@ -34,10 +34,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter-core/pkg/controllers/state"
-	"github.com/aws/karpenter-core/pkg/metrics"
-	operatorcontroller "github.com/aws/karpenter-core/pkg/operator/controller"
+	"github.com/aws/karpenter-core/pkg/operator/scheme"
+	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 	awscache "github.com/aws/karpenter/pkg/cache"
 	interruptionevents "github.com/aws/karpenter/pkg/controllers/interruption/events"
@@ -46,25 +44,16 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/providers"
 	"github.com/aws/karpenter/pkg/events"
 	"github.com/aws/karpenter/pkg/utils"
+
+	"github.com/aws/karpenter-core/pkg/apis/config/settings"
+	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/controllers/state"
+	"github.com/aws/karpenter-core/pkg/metrics"
+	operatorcontroller "github.com/aws/karpenter-core/pkg/operator/controller"
 )
 
-type Action byte
-
-const (
-	_ Action = iota
-	CordonAndDrain
-	NoAction
-)
-
-func (a Action) String() string {
-	switch a {
-	case CordonAndDrain:
-		return "CordonAndDrain"
-	case NoAction:
-		return "NoAction"
-	default:
-		return fmt.Sprintf("Unsupported Action %d", a)
-	}
+func init() {
+	lo.Must0(apis.AddToScheme(scheme.Scheme))
 }
 
 // Controller is an AWS interruption controller.
@@ -103,7 +92,8 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 		return reconcile.Result{}, fmt.Errorf("listing node templates, %w", err)
 	}
 
-	if len(list.Items) > 0 {
+	if settings.FromContext(ctx).EnableInterruptionHandling && len(list.Items) > 0 {
+		active.Set(1)
 		sqsMessages, err := c.provider.GetSQSMessages(ctx)
 		if err != nil {
 			return reconcile.Result{}, fmt.Errorf("getting messages from queue, %w", err)
@@ -117,8 +107,10 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 			errs[i] = c.handleMessage(ctx, instanceIDMap, sqsMessages[i])
 		})
 		return reconcile.Result{}, multierr.Combine(errs...)
+	} else {
+		active.Set(0)
 	}
-	return reconcile.Result{RequeueAfter: time.Minute}, nil
+	return reconcile.Result{RequeueAfter: time.Second * 10}, nil
 }
 
 func (c *Controller) Builder(_ context.Context, m manager.Manager) operatorcontroller.Builder {

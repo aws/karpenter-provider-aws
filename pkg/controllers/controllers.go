@@ -28,12 +28,12 @@ import (
 )
 
 func NewControllers(ctx awscontext.Context, cluster *state.Cluster) []controller.Controller {
-	rec := events.NewRecorder(ctx.EventRecorder)
+	eventRecorder := events.NewRecorder(ctx.EventRecorder)
 	sqsProvider := providers.NewSQS(ctx, sqs.New(ctx.Session))
 	eventBridgeProvider := providers.NewEventBridge(eventbridge.New(ctx.Session), sqsProvider)
 
 	return []controller.Controller{
 		nodetemplate.NewController(ctx.KubeClient, sqsProvider, eventBridgeProvider),
-		interruption.NewController(ctx.KubeClient, ctx.Clock, rec, cluster, sqsProvider, ctx.UnavailableOfferingsCache),
+		interruption.NewController(ctx.KubeClient, ctx.Clock, eventRecorder, cluster, sqsProvider, ctx.UnavailableOfferingsCache),
 	}
 }

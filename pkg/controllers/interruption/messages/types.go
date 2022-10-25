@@ -14,7 +14,10 @@ limitations under the License.
 
 package messages
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 type Parser interface {
 	Parse(string) (Interface, error)
@@ -56,4 +59,15 @@ func (k Kind) String() string {
 	default:
 		return fmt.Sprintf("Unsupported Kind %d", k)
 	}
+}
+
+type Metadata struct {
+	Account    string    `json:"account"`
+	DetailType string    `json:"detail-type"`
+	ID         string    `json:"id"`
+	Region     string    `json:"region"`
+	Resources  []string  `json:"resources"`
+	Source     string    `json:"source"`
+	Time       time.Time `json:"time"`
+	Version    string    `json:"version"`
 }

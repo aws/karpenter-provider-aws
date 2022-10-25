@@ -13,18 +13,3 @@ limitations under the License.
 */
 
 package messages
-
-import (
-	"time"
-)
-
-type Metadata struct {
-	Account    string    `json:"account"`
-	DetailType string    `json:"detail-type"`
-	ID         string    `json:"id"`
-	Region     string    `json:"region"`
-	Resources  []string  `json:"resources"`
-	Source     string    `json:"source"`
-	Time       time.Time `json:"time"`
-	Version    string    `json:"version"`
-}

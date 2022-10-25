@@ -38,7 +38,7 @@ var (
 			Namespace: metrics.Namespace,
 			Subsystem: subsystem,
 			Name:      "active",
-			Help:      "Whether the infrastructure reconciliation is currently active. This is based on AWSNodeTemplate reconciliation and us ref-counting more than 1 AWSNodeTemplate.",
+			Help:      "Whether the infrastructure reconciliation is currently active.",
 		},
 	)
 )

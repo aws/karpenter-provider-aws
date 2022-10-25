@@ -38,14 +38,6 @@ import (
 	_ "knative.dev/pkg/system/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/aws/karpenter-core/pkg/apis/config/settings"
-	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter-core/pkg/cloudprovider/fake"
-	"github.com/aws/karpenter-core/pkg/controllers/state"
-	"github.com/aws/karpenter-core/pkg/operator/injection"
-	"github.com/aws/karpenter-core/pkg/operator/options"
-	"github.com/aws/karpenter-core/pkg/test"
-	. "github.com/aws/karpenter-core/pkg/test/expectations"
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 	awscache "github.com/aws/karpenter/pkg/cache"
 	awscontext "github.com/aws/karpenter/pkg/context"
@@ -58,6 +50,15 @@ import (
 	"github.com/aws/karpenter/pkg/errors"
 	"github.com/aws/karpenter/pkg/events"
 	awsfake "github.com/aws/karpenter/pkg/fake"
+
+	"github.com/aws/karpenter-core/pkg/apis/config/settings"
+	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/cloudprovider/fake"
+	"github.com/aws/karpenter-core/pkg/controllers/state"
+	"github.com/aws/karpenter-core/pkg/operator/injection"
+	"github.com/aws/karpenter-core/pkg/operator/options"
+	"github.com/aws/karpenter-core/pkg/test"
+	. "github.com/aws/karpenter-core/pkg/test/expectations"
 )
 
 const (

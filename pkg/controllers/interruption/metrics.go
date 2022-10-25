@@ -39,6 +39,14 @@ var (
 			Buckets:   metrics.DurationBuckets(),
 		},
 	)
+	active = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Namespace: metrics.Namespace,
+			Subsystem: subsystem,
+			Name:      "active",
+			Help:      "Whether the message polling is currently active.",
+		},
+	)
 	receivedMessages = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metrics.Namespace,

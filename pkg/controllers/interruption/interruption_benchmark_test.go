@@ -44,20 +44,21 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter-core/pkg/cloudprovider/fake"
 	awscache "github.com/aws/karpenter/pkg/cache"
 	awscontext "github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/controllers/interruption"
 	"github.com/aws/karpenter/pkg/controllers/providers"
 	"github.com/aws/karpenter/pkg/events"
 
+	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/cloudprovider/fake"
+
+	awsfake "github.com/aws/karpenter/pkg/fake"
+
 	"github.com/aws/karpenter-core/pkg/controllers/state"
-	"github.com/aws/karpenter-core/pkg/operator"
 	"github.com/aws/karpenter-core/pkg/operator/injection"
 	"github.com/aws/karpenter-core/pkg/operator/options"
 	"github.com/aws/karpenter-core/pkg/test"
-	awsfake "github.com/aws/karpenter/pkg/fake"
 )
 
 var r = rand.New(rand.NewSource(time.Now().Unix()))
@@ -78,6 +79,7 @@ func BenchmarkNotification100(b *testing.B) {
 	benchmarkNotificationController(b, 100)
 }
 
+//nolint:gocyclo
 func benchmarkNotificationController(b *testing.B, messageCount int) {
 	opts := options.Options{
 		AWSIsolatedVPC: true,
@@ -143,27 +145,29 @@ func benchmarkNotificationController(b *testing.B, messageCount int) {
 	if err != nil {
 		b.Fatalf("creating manager, %v", err)
 	}
-	m = operator.RegisterControllers(env.Ctx, test.SettingsStore{}, m, interruptionController, nodeStateController)
 
-	managerErr := make(chan error)
-	go func() {
-		logging.FromContext(env.Ctx).Infof("Starting controller manager")
-		if err := m.Start(env.Ctx); err != nil {
-			managerErr <- err
-		}
-	}()
+	// Registering controller with the manager
+	if err = interruptionController.Builder(ctx, m).Complete(interruptionController); err != nil {
+		b.Fatalf("registering interruption controller, %v", err)
+	}
+	if err = nodeStateController.Builder(ctx, m).Complete(nodeStateController); err != nil {
+		b.Fatalf("registering nodeState controller, %v", err)
+	}
 
 	b.ResetTimer()
 	start := time.Now()
-
-	interruptionController.Start(env.Ctx)
-	done := providers.monitorMessagesProcessed(env.Ctx, eventRecorder, messageCount)
+	managerErr := make(chan error)
+	go func() {
+		logging.FromContext(env.Ctx).Infof("Starting controller manager")
+		managerErr <- m.Start(env.Ctx)
+	}()
 
 	select {
-	case err := <-managerErr:
-		b.Fatalf("starting manager, %v", err)
-	case <-done:
+	case <-providers.monitorMessagesProcessed(env.Ctx, eventRecorder, messageCount):
+	case err = <-managerErr:
+		b.Fatalf("running manager, %v", err)
 	}
+
 	duration := time.Since(start)
 	b.ReportMetric(float64(messageCount), "Messages")
 	b.ReportMetric(duration.Seconds(), "TotalDurationInSeconds")
