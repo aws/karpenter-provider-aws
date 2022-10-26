@@ -143,5 +143,11 @@ aws:
   # -- enableInterruptionHandling is currently in BETA and is disabled by default. Enabling interruption handling may
   # require additional permissions on the controller service account. Additional permissions are outlined in the docs
   enableInterruptionHandling: false
+  enablePodENI: false
+  enableENILimitedPodDensity: true
+  isolatedVPC: false
+  nodeNameConvention: "ip-name"
+  vmMemoryOverheadPercent: 0.075
+
   # -- The global tags to use on all AWS infrastructure resources (launch templates, instances, SQS queue, etc.)
   tags:

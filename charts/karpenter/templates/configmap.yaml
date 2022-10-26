@@ -16,3 +16,10 @@ data:
   {{- range $tag, $value := .Values.aws.tags }}
   "aws.tags.{{ $tag }}": "{{ $value }}"
   {{- end }}
+  "aws.defaultInstanceProfile": "{{ .Values.aws.defaultInstanceProfile }}"
+  "aws.enablePodENI": "{{ .Values.aws.enablePodENI }}"
+  "aws.enableENILimitedPodDensity": "{{ .Values.aws.enableENILimitedPodDensity }}"
+  "aws.isolatedVPC": "{{ .Values.aws.isolatedVPC }}"
+  "aws.nodeNameConvention": "{{ .Values.aws.nodeNameConvention }}"
+  "aws.vmMemoryOverheadPercent": "{{ .Values.aws.vmMemoryOverheadPercent }}"
+

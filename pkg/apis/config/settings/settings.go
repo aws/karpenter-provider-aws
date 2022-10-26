@@ -27,6 +27,13 @@ import (
 	"github.com/aws/karpenter-core/pkg/apis/config"
 )
 
+type NodeNameConvention string
+
+const (
+	IPName       NodeNameConvention = "ip-name"
+	ResourceName NodeNameConvention = "resource-name"
+)
+
 var ContextKey = Registration
 
 var Registration = &config.Registration{
@@ -36,13 +43,25 @@ var Registration = &config.Registration{
 }
 
 var defaultSettings = Settings{
-	EnableInterruptionHandling: false,
 	Tags:                       map[string]string{},
+	DefaultInstanceProfile:     "",
+	EnablePodENI:               false,
+	EnableENILimitedPodDensity: true,
+	IsolatedVPC:                false,
+	NodeNameConvention:         IPName,
+	VMMemoryOverheadPercent:    0.075,
+	EnableInterruptionHandling: false,
 }
 
 type Settings struct {
-	EnableInterruptionHandling bool              `json:"aws.enableInterruptionHandling,string"`
-	Tags                       map[string]string `json:"aws.tags,omitempty"`
+	Tags                       map[string]string  `json:"aws.tags"`
+	DefaultInstanceProfile     string             `json:"aws.defaultInstanceProfile"`
+	EnablePodENI               bool               `json:"aws.enablePodENI,string"`
+	EnableENILimitedPodDensity bool               `json:"aws.enableENILimitedPodDensity,string"`
+	IsolatedVPC                bool               `json:"aws.isolatedVPC,string"`
+	NodeNameConvention         NodeNameConvention `json:"aws.nodeNameConvention"`
+	VMMemoryOverheadPercent    float64            `json:"aws.vmMemoryOverheadPercent,string"`
+	EnableInterruptionHandling bool               `json:"enableInterruptionHandling,string"`
 }
 
 func (s Settings) MarshalJSON() ([]byte, error) {
