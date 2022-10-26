@@ -18,11 +18,8 @@ import (
 	"github.com/aws/karpenter-core/pkg/controllers/state"
 	"github.com/aws/karpenter-core/pkg/operator/controller"
 	awscontext "github.com/aws/karpenter/pkg/context"
-	"github.com/aws/karpenter/pkg/events"
 )
 
 func NewControllers(ctx awscontext.Context, cluster *state.Cluster) []controller.Controller {
-	_ = events.NewRecorder(ctx.EventRecorder)
-
 	return []controller.Controller{}
 }
