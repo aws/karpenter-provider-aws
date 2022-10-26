@@ -50,7 +50,7 @@ var _ = Describe("Tags", func() {
 		Expect(instanceTags).To(HaveKeyWithValue("TestTag", "TestVal"))
 		Expect(volumeTags).To(HaveKeyWithValue("TestTag", "TestVal"))
 	})
-	FIt("should tag all associated resources with global tags", func() {
+	It("should tag all associated resources with global tags", func() {
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 			AWS: v1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},

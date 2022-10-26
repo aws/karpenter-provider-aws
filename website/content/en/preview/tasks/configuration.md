@@ -39,6 +39,9 @@ Karpenter installs a default configuration via its Helm chart that should work f
 ```yaml
 apiVersion: v1
 kind: ConfigMap
+metadata:
+  name: karpenter-global-settings
+  namespace: karpenter
 data:
   # The maximum length of a batch window. The longer this is, the more pods we can consider for provisioning at one
   # time which usually results in fewer but larger nodes.
@@ -48,6 +51,12 @@ data:
   # will be batched separately.
   batchIdleDuration: 1s
 ```
+
+### CloudProvider Configuration
+
+To find cloudprovider-specific configuration, reference the appropriate documentation:
+
+- [AWS](../../AWS/configuration.md)
 
 ### Batching Parameters
 

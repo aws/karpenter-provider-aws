@@ -1,5 +1,5 @@
 ---
-title: "Provisioning Configuration"
+title: "Provisioning"
 linkTitle: "Provisioning"
 weight: 10
 description: >
