@@ -275,7 +275,7 @@ var _ = Describe("Allocation", func() {
 				provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
 				provisioner.SetDefaults(ctx)
 				ExpectApplied(ctx, env.Client, provisioner)
-				pod := ExpectProvisioned(ctx, env.Client, controller, prov, test.UnschedulablePod())[0]
+				pod := ExpectProvisioned(ctx, env.Client, recorder, controller, prov, test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateFleetInput.Len()).To(Equal(1))
 				createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop()
@@ -284,7 +284,7 @@ var _ = Describe("Allocation", func() {
 			It("should default to no EC2 Context", func() {
 				provisioner.SetDefaults(ctx)
 				ExpectApplied(ctx, env.Client, provisioner)
-				pod := ExpectProvisioned(ctx, env.Client, controller, prov, test.UnschedulablePod())[0]
+				pod := ExpectProvisioned(ctx, env.Client, recorder, controller, prov, test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateFleetInput.Len()).To(Equal(1))
 				createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop()
