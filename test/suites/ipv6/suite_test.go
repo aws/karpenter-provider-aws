@@ -48,7 +48,6 @@ var _ = AfterEach(func() { env.AfterEach() })
 var _ = Describe("IPv6", func() {
 	It("should provision an IPv6 node by discovering kube-dns IPv6", func() {
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
-			AMISelector: map[string]string{"aws-ids": "ami-0f17a47520a746bec"},
 			AWS: v1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 				SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
@@ -79,7 +78,6 @@ var _ = Describe("IPv6", func() {
 	It("should provision an IPv6 node by discovering kubeletConfig kube-dns IP", func() {
 		clusterDNSAddr := env.ExpectIPv6ClusterDNS()
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
-			AMISelector: map[string]string{"aws-ids": "ami-0f17a47520a746bec"},
 			AWS: v1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 				SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
