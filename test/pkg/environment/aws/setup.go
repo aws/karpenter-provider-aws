@@ -17,14 +17,16 @@ package aws
 import (
 	"fmt"
 
+	//nolint:revive,stylecheck
+	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/aws/karpenter-core/pkg/apis/config/settings"
 	"github.com/aws/karpenter-core/pkg/utils/functional"
-	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/test/pkg/environment/common"
 )
+
+var persistedSettings *v1.ConfigMap
 
 var (
 	CleanableObjects = []functional.Pair[client.Object, client.ObjectList]{
@@ -33,7 +35,7 @@ var (
 )
 
 func (env *Environment) BeforeEach(opts ...common.Option) {
-	env.ExpectSettingsCreatedOrUpdated(settings.Registration.DefaultData, awssettings.Registration.DefaultData)
+	persistedSettings = env.ExpectSettings()
 	env.Environment.BeforeEach(opts...)
 }
 
@@ -43,12 +45,12 @@ func (env *Environment) Cleanup(opts ...common.Option) {
 		fmt.Println("------- START AWS CLEANUP -------")
 		defer fmt.Println("------- END AWS CLEANUP -------")
 	}
+	env.ExpectCreatedOrUpdated(persistedSettings)
 	env.Environment.CleanupObjects(CleanableObjects)
 	env.Environment.Cleanup(opts...)
 }
 
 func (env *Environment) ForceCleanup(opts ...common.Option) {
-	env.ExpectSettingsDeleted()
 	env.Environment.ForceCleanup(opts...)
 }
 

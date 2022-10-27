@@ -68,28 +68,38 @@ func (env *Environment) ExpectUpdated(objects ...client.Object) {
 	env.ExpectUpdatedWithOffset(1, objects...)
 }
 
-func (env *Environment) ExpectSettingsCreatedOrUpdated(data ...map[string]string) {
+func (env *Environment) ExpectCreatedOrUpdated(objects ...client.Object) {
+	for _, o := range objects {
+		current := o.DeepCopyObject().(client.Object)
+		err := env.Client.Get(env, client.ObjectKeyFromObject(current), current)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				env.ExpectCreatedWithOffset(1, o)
+			} else {
+				Fail(fmt.Sprintf("Getting object %s, %v", client.ObjectKeyFromObject(o), err))
+			}
+		} else {
+			env.ExpectUpdatedWithOffset(1, o)
+		}
+	}
+}
+
+func (env *Environment) ExpectSettings() *v1.ConfigMap {
 	cm := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "karpenter-global-settings",
 			Namespace: "karpenter",
 		},
-		Data: lo.Assign(data...),
 	}
-	err := env.Client.Get(env, client.ObjectKeyFromObject(cm), &v1.ConfigMap{})
-	if err != nil {
-		if errors.IsNotFound(err) {
-			env.ExpectCreatedWithOffset(1, cm)
-		} else {
-			Fail(fmt.Sprintf("Getting settings, %v", err))
-		}
-	} else {
-		env.ExpectUpdatedWithOffset(1, cm)
-	}
+	err := env.Client.Get(env, client.ObjectKeyFromObject(cm), cm)
+	Expect(client.IgnoreNotFound(err)).ToNot(HaveOccurred())
+	return cm
 }
 
-func (env *Environment) ExpectSettingsDeleted() {
-	env.ExpectDeleted(&v1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "karpenter-global-settings", Namespace: "karpenter"}})
+func (env *Environment) ExpectSettingsOverridden(data ...map[string]string) {
+	cm := env.ExpectSettings()
+	cm.Data = lo.Assign(append([]map[string]string{cm.Data}, data...)...)
+	env.ExpectCreatedOrUpdated(cm)
 }
 
 func (env *Environment) ExpectFound(obj client.Object) {

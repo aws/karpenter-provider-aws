@@ -88,11 +88,11 @@ func NewSettingsFromConfigMap(cm *v1.ConfigMap) (Settings, error) {
 		AsMap("aws.tags", &s.Tags),
 	); err != nil {
 		// Failing to parse means that there is some error in the Settings, so we should crash
-		panic(fmt.Sprintf("parsing config data, %v", err))
+		panic(fmt.Sprintf("parsing settings, %v", err))
 	}
 	if err := s.Validate(); err != nil {
 		// Failing to validate means that there is some error in the Settings, so we should crash
-		panic(fmt.Sprintf("validating config data, %v", err))
+		panic(fmt.Sprintf("validating settings, %v", err))
 	}
 	return s, nil
 }
@@ -122,12 +122,22 @@ func (s Settings) MarshalJSON() ([]byte, error) {
 func (s Settings) Data() (map[string]string, error) {
 	d := map[string]string{}
 
-	if err := json.Unmarshal(lo.Must(json.Marshal(s)), &d); err != nil {
-		return d, fmt.Errorf("unmarshalling json data, %w", err)
+	raw, err := json.Marshal(s)
+	if err != nil {
+		return nil, fmt.Errorf("marshaling settings, %w", err)
+	}
+	if err = json.Unmarshal(raw, &d); err != nil {
+		return d, fmt.Errorf("unmarshalling settings, %w", err)
 	}
 	return d, nil
 }
 
+// Validate leverages struct tags with go-playground/validator so you can define a struct with custom
+// validation on fields i.e.
+//
+//	type ExampleStruct struct {
+//	    Example  metav1.Duration `json:"example" validate:"required,min=10m"`
+//	}
 func (s Settings) Validate() error {
 	validate := validator.New()
 	return multierr.Combine(

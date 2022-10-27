@@ -165,11 +165,10 @@ var _ = AfterSuite(func() {
 })
 
 var _ = BeforeEach(func() {
-	opts = defaultOpts
 	ctx = injection.WithOptions(ctx, opts)
 	settingsStore = coretest.SettingsStore{
 		settings.ContextKey:    coretest.Settings(),
-		awssettings.ContextKey: awssettings.Settings{},
+		awssettings.ContextKey: test.Settings(),
 	}
 	ctx = settingsStore.InjectSettings(ctx)
 

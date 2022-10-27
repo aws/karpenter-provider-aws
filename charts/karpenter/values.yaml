@@ -138,16 +138,22 @@ clusterName: ""
 # -- Cluster endpoint.
 clusterEndpoint: ""
 aws:
-  # -- The default instance profile to use when launching nodes on AWS
+  # -- The default instance profile to use when launching nodes
   defaultInstanceProfile: ""
+  # -- If true then instances that support pod ENI will report a vpc.amazonaws.com/pod-eni resource
+  enablePodENI: false
+  # -- Indicates whether new nodes should use ENI-based pod density
+  # DEPRECATED: Use `.spec.kubeletConfiguration.maxPods` to set pod density on a per-provisioner basis
+  enableENILimitedPodDensity: true
+  # -- If true then assume we can't reach AWS services which don't have a VPC endpoint
+  # This also has the effect of disabling look-ups to the AWS pricing endpoint
+  isolatedVPC: false
+  # -- The node naming convention (either "ip-name" or "resource-name")
+  nodeNameConvention: "ip-name"
+  # -- The VM memory overhead as a percent that will be subtracted from the total memory for all instance types
+  vmMemoryOverheadPercent: 0.075
   # -- enableInterruptionHandling is currently in BETA and is disabled by default. Enabling interruption handling may
   # require additional permissions on the controller service account. Additional permissions are outlined in the docs
   enableInterruptionHandling: false
-  enablePodENI: false
-  enableENILimitedPodDensity: true
-  isolatedVPC: false
-  nodeNameConvention: "ip-name"
-  vmMemoryOverheadPercent: 0.075
-
   # -- The global tags to use on all AWS infrastructure resources (launch templates, instances, SQS queue, etc.)
   tags:

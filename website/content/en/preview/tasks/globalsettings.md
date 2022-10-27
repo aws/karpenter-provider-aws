@@ -45,6 +45,10 @@ metadata:
   name: karpenter-global-settings
   namespace: karpenter
 data:
+  # [REQUIRED] The kubernetes cluster name for resource discovery
+  clusterName: karpenter-cluster
+  # [REQUIRED] The external kubernetes cluster endpoint for new nodes to connect with
+  clusterEndpoint: https://00000000000000000000000000000000.gr7.us-west-2.eks.amazonaws.com
   # The maximum length of a batch window. The longer this is, the more pods we can consider for provisioning at one
   # time which usually results in fewer but larger nodes.
   batchMaxDuration: 10s
@@ -52,17 +56,25 @@ data:
   # faster than this time, the batching window will be extended up to the maxDuration. If they arrive slower, the pods
   # will be batched separately.
   batchIdleDuration: 1s
+  # The default instance profile to use when provisioning nodes
+  aws.defaultInstanceProfile: karpenter-instance-profile
+  # If true then instances that support pod ENI will report a vpc.amazonaws.com/pod-eni resource
+  aws.enablePodENI: "false"
+  # Indicates whether new nodes should use ENI-based pod density. DEPRECATED: Use `.spec.kubeletConfiguration.maxPods` to set pod density on a per-provisioner basis
+  aws.enableENILimitedPodDensity: "true"
+  # If true then assume we can't reach AWS services which don't have a VPC endpoint
+  # This also has the effect of disabling look-ups to the AWS pricing endpoint
+  aws.isolatedVPC: "false"
+  # The node naming convention (either "ip-name" or "resource-name")
+  aws.nodeNameConvention: ip-name
+  # The VM memory overhead as a percent that will be subtracted 
+  # from the total memory for all instance types 
+  aws.vmMemoryOverheadPercent: "0.075"
   # Any global tag value can be specified by including the "aws.tags.<tag-key>" prefix
   # associated with the value in the key-value tag pair
   aws.tags.custom-tag: custom-tag-value
   aws.tags.custom-tag2: custom-tag-value
 ```
-
-### CloudProvider Configuration
-
-To find cloudprovider-specific configuration, reference the appropriate documentation:
-
-- [AWS](../../AWS/configuration.md)
 
 ### Batching Parameters
 
