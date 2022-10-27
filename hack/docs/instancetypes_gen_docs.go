@@ -240,7 +240,8 @@ func (f kubeDnsTransport) RoundTrip(request *http.Request) (*http.Response, erro
 
 func NewAWSCloudProviderForCodeGen(ctx context.Context) *awscloudprovider.CloudProvider {
 	return awscloudprovider.New(awscontext.NewOrDie(cloudprovider.Context{
-		Context:   ctx,
+		Context:             ctx,
+		RESTConfig:          &rest.Config{},
 		KubernetesInterface: lo.Must(kubernetes.NewForConfigAndClient(&rest.Config{}, &http.Client{Transport: &kubeDnsTransport{}})),
 	}))
 }
