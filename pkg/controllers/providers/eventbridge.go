@@ -134,28 +134,28 @@ func (eb *EventBridge) DeleteEC2NotificationRules(ctx context.Context) error {
 func (eb *EventBridge) getEC2NotificationEventRules(ctx context.Context) []rule {
 	return []rule{
 		{
-			Name: fmt.Sprintf("Karpenter-ScheduledChangeRule-%s", utils.GetClusterNameHash(ctx, 20)),
+			Name: fmt.Sprintf("Karpenter-%s-ScheduledChangeRule", utils.GetClusterNameHash(ctx, 20)),
 			Pattern: &pattern{
 				Source:     []string{"aws.health"},
 				DetailType: []string{"AWS Health Event"},
 			},
 		},
 		{
-			Name: fmt.Sprintf("Karpenter-SpotTerminationRule-%s", utils.GetClusterNameHash(ctx, 20)),
+			Name: fmt.Sprintf("Karpenter-%s-SpotTerminationRule", utils.GetClusterNameHash(ctx, 20)),
 			Pattern: &pattern{
 				Source:     []string{"aws.ec2"},
 				DetailType: []string{"EC2 Spot Instance Interruption Warning"},
 			},
 		},
 		{
-			Name: fmt.Sprintf("Karpenter-RebalanceRule-%s", utils.GetClusterNameHash(ctx, 20)),
+			Name: fmt.Sprintf("Karpenter-%s-RebalanceRule", utils.GetClusterNameHash(ctx, 20)),
 			Pattern: &pattern{
 				Source:     []string{"aws.ec2"},
 				DetailType: []string{"EC2 Instance Rebalance Recommendation"},
 			},
 		},
 		{
-			Name: fmt.Sprintf("Karpenter-InstanceStateChangeRule-%s", utils.GetClusterNameHash(ctx, 20)),
+			Name: fmt.Sprintf("Karpenter-%s-InstanceStateChangeRule", utils.GetClusterNameHash(ctx, 20)),
 			Pattern: &pattern{
 				Source:     []string{"aws.ec2"},
 				DetailType: []string{"EC2 Instance State-change Notification"},

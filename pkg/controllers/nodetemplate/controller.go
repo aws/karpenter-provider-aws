@@ -28,7 +28,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/aws/karpenter-core/pkg/apis/config/settings"
 	operatorcontroller "github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 
@@ -98,16 +97,16 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			return reconcile.Result{}, err
 		}
 		active.Set(1)
-		if settings.FromContext(ctx).EnableInterruptionHandling &&
-			c.lastInfrastructureReconcile.Add(time.Hour).Before(time.Now()) {
+		//if settings.FromContext(ctx).EnableInterruptionHandling &&
+		//	c.lastInfrastructureReconcile.Add(time.Hour).Before(time.Now()) {
 
-			if err := c.provider.Create(ctx); err != nil {
-				healthy.Set(0)
-				return reconcile.Result{}, err
-			}
-			c.lastInfrastructureReconcile = time.Now()
-			healthy.Set(1)
+		if err := c.provider.Create(ctx); err != nil {
+			healthy.Set(0)
+			return reconcile.Result{}, err
 		}
+		c.lastInfrastructureReconcile = time.Now()
+		healthy.Set(1)
+		//}
 	}
 	// TODO: Implement an alerting mechanism for settings updates; until then, just poll
 	return reconcile.Result{RequeueAfter: time.Second * 10}, nil

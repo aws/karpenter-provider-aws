@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package notification
+package interruption
 
 import (
 	"context"
@@ -43,7 +43,7 @@ import (
 var env *aws.Environment
 var provider *v1alpha1.AWSNodeTemplate
 
-func TestNotification(t *testing.T) {
+func TestInterruption(t *testing.T) {
 	RegisterFailHandler(Fail)
 	BeforeSuite(func() {
 		var err error
@@ -53,7 +53,7 @@ func TestNotification(t *testing.T) {
 	AfterSuite(func() {
 		env.ExpectDeleted(provider)
 	})
-	RunSpecs(t, "Notification")
+	RunSpecs(t, "Interruption")
 }
 
 var _ = BeforeEach(func() {
@@ -68,7 +68,7 @@ var _ = AfterEach(func() {
 	env.AfterEach(common.IgnoreCleanupFor(&v1alpha1.AWSNodeTemplate{}))
 })
 
-var _ = Describe("Notification", Label("AWS"), func() {
+var _ = Describe("Interruption", Label("AWS"), func() {
 	It("should terminate the spot instance and spin-up a new node on spot interruption warning", func() {
 		By("Creating a single healthy node with a healthy deployment")
 		provisioner := test.Provisioner(test.ProvisionerOptions{

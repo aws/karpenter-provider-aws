@@ -19,10 +19,8 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"time"
 
 	sqsapi "github.com/aws/aws-sdk-go/service/sqs"
-	"github.com/cenkalti/backoff/v4"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
@@ -34,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/aws/karpenter-core/pkg/events"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
@@ -42,10 +41,8 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages/statechange"
 	"github.com/aws/karpenter/pkg/controllers/providers"
-	"github.com/aws/karpenter/pkg/events"
 	"github.com/aws/karpenter/pkg/utils"
 
-	"github.com/aws/karpenter-core/pkg/apis/config/settings"
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/controllers/state"
 	"github.com/aws/karpenter-core/pkg/metrics"
@@ -63,14 +60,13 @@ type Controller struct {
 	kubeClient                client.Client
 	clk                       clock.Clock
 	cluster                   *state.Cluster
-	recorder                  *events.Recorder
+	recorder                  events.Recorder
 	provider                  *providers.SQS
 	unavailableOfferingsCache *awscache.UnavailableOfferings
 	parser                    *EventParser
-	backoff                   *backoff.ExponentialBackOff
 }
 
-func NewController(kubeClient client.Client, clk clock.Clock, recorder *events.Recorder, cluster *state.Cluster,
+func NewController(kubeClient client.Client, clk clock.Clock, recorder events.Recorder, cluster *state.Cluster,
 	sqsProvider *providers.SQS, unavailableOfferingsCache *awscache.UnavailableOfferings) *Controller {
 
 	return &Controller{
@@ -81,7 +77,6 @@ func NewController(kubeClient client.Client, clk clock.Clock, recorder *events.R
 		provider:                  sqsProvider,
 		unavailableOfferingsCache: unavailableOfferingsCache,
 		parser:                    NewEventParser(DefaultParsers...),
-		backoff:                   newBackoff(clk),
 	}
 }
 
@@ -92,30 +87,30 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 		return reconcile.Result{}, fmt.Errorf("listing node templates, %w", err)
 	}
 
-	if settings.FromContext(ctx).EnableInterruptionHandling && len(list.Items) > 0 {
-		active.Set(1)
-		sqsMessages, err := c.provider.GetSQSMessages(ctx)
-		if err != nil {
-			return reconcile.Result{}, fmt.Errorf("getting messages from queue, %w", err)
-		}
-		if len(sqsMessages) == 0 {
-			return reconcile.Result{}, nil
-		}
-		instanceIDMap := c.makeInstanceIDMap()
-		errs := make([]error, len(sqsMessages))
-		workqueue.ParallelizeUntil(ctx, 10, len(sqsMessages), func(i int) {
-			errs[i] = c.handleMessage(ctx, instanceIDMap, sqsMessages[i])
-		})
-		return reconcile.Result{}, multierr.Combine(errs...)
-	} else {
-		active.Set(0)
+	//if settings.FromContext(ctx).EnableInterruptionHandling && len(list.Items) > 0 {
+	active.Set(1)
+	sqsMessages, err := c.provider.GetSQSMessages(ctx)
+	if err != nil {
+		return reconcile.Result{}, fmt.Errorf("getting messages from queue, %w", err)
 	}
-	return reconcile.Result{RequeueAfter: time.Second * 10}, nil
+	if len(sqsMessages) == 0 {
+		return reconcile.Result{}, nil
+	}
+	instanceIDMap := c.makeInstanceIDMap()
+	errs := make([]error, len(sqsMessages))
+	workqueue.ParallelizeUntil(ctx, 10, len(sqsMessages), func(i int) {
+		errs[i] = c.handleMessage(ctx, instanceIDMap, sqsMessages[i])
+	})
+	return reconcile.Result{}, multierr.Combine(errs...)
+	//} else {
+	//	active.Set(0)
+	//}
+	//return reconcile.Result{RequeueAfter: time.Second * 10}, nil
 }
 
 func (c *Controller) Builder(_ context.Context, m manager.Manager) operatorcontroller.Builder {
 	return operatorcontroller.NewSingletonManagedBy(m).
-		Named("notification")
+		Named("interruption")
 }
 
 func (c *Controller) LivenessProbe(_ *http.Request) error {
@@ -272,12 +267,4 @@ func getInvolvedNodes(instanceIDs []string, instanceIDMap map[string]*v1.Node) [
 		}
 	}
 	return nodes
-}
-
-func newBackoff(clk clock.Clock) *backoff.ExponentialBackOff {
-	b := backoff.NewExponentialBackOff()
-	b.InitialInterval = time.Second * 5
-	b.MaxElapsedTime = time.Minute * 30
-	b.Clock = clk
-	return b
 }

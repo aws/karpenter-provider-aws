@@ -48,7 +48,6 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages/statechange"
 	"github.com/aws/karpenter/pkg/controllers/providers"
 	"github.com/aws/karpenter/pkg/errors"
-	"github.com/aws/karpenter/pkg/events"
 	awsfake "github.com/aws/karpenter/pkg/fake"
 
 	"github.com/aws/karpenter-core/pkg/apis/config/settings"
@@ -78,7 +77,7 @@ var cloudProvider *fake.CloudProvider
 var sqsProvider *providers.SQS
 var eventBridgeProvider *providers.EventBridge
 var unavailableOfferingsCache *awscache.UnavailableOfferings
-var recorder *events.Recorder
+var recorder *test.EventRecorder
 var fakeClock *clock.FakeClock
 var controller *interruption.Controller
 var nodeStateController *state.NodeController
@@ -99,8 +98,8 @@ var _ = BeforeEach(func() {
 		fakeClock = &clock.FakeClock{}
 		cloudProvider = &fake.CloudProvider{}
 		cluster = state.NewCluster(ctx, fakeClock, env.Client, cloudProvider)
+		recorder = test.NewEventRecorder()
 		nodeStateController = state.NewNodeController(env.Client, cluster)
-		recorder = events.NewRecorder(awsfake.NewEventRecorder())
 		unavailableOfferingsCache = awscache.NewUnavailableOfferings(cache.New(awscache.UnavailableOfferingsTTL, awscontext.CacheCleanupInterval))
 
 		sqsapi = &awsfake.SQSAPI{}

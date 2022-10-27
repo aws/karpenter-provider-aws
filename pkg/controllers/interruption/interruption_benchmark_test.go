@@ -44,14 +44,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/cloudprovider/fake"
 	awscache "github.com/aws/karpenter/pkg/cache"
 	awscontext "github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/controllers/interruption"
 	"github.com/aws/karpenter/pkg/controllers/providers"
-	"github.com/aws/karpenter/pkg/events"
-
-	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter-core/pkg/cloudprovider/fake"
 
 	awsfake "github.com/aws/karpenter/pkg/fake"
 
@@ -115,7 +113,7 @@ func benchmarkNotificationController(b *testing.B, messageCount int) {
 
 	// Load all the fundamental components before setting up the controllers
 	eventRecorder := awsfake.NewEventRecorder()
-	recorder = events.NewRecorder(eventRecorder)
+	recorder = test.NewEventRecorder()
 	cluster = state.NewCluster(ctx, fakeClock, env.Client, cloudProvider)
 	cloudProvider = &fake.CloudProvider{}
 

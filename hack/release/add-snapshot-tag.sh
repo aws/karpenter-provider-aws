@@ -15,7 +15,6 @@ source "${SCRIPT_DIR}/common.sh"
 
 tagAllRepositories(){
     tagRelease controller "${SNAPSHOT_TAG}"
-    tagRelease webhook "${SNAPSHOT_TAG}"
     tagRelease karpenter "v0-${SNAPSHOT_TAG}"
 }
 

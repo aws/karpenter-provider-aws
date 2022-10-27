@@ -24,16 +24,14 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/interruption"
 	"github.com/aws/karpenter/pkg/controllers/nodetemplate"
 	"github.com/aws/karpenter/pkg/controllers/providers"
-	"github.com/aws/karpenter/pkg/events"
 )
 
 func NewControllers(ctx awscontext.Context, cluster *state.Cluster) []controller.Controller {
-	eventRecorder := events.NewRecorder(ctx.EventRecorder)
 	sqsProvider := providers.NewSQS(ctx, sqs.New(ctx.Session))
 	eventBridgeProvider := providers.NewEventBridge(eventbridge.New(ctx.Session), sqsProvider)
 
 	return []controller.Controller{
 		nodetemplate.NewController(ctx.KubeClient, sqsProvider, eventBridgeProvider),
-		interruption.NewController(ctx.KubeClient, ctx.Clock, eventRecorder, cluster, sqsProvider, ctx.UnavailableOfferingsCache),
+		interruption.NewController(ctx.KubeClient, ctx.Clock, ctx.EventRecorder, cluster, sqsProvider, ctx.UnavailableOfferingsCache),
 	}
 }

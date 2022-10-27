@@ -64,13 +64,13 @@ var _ = Describe("Instance Types", func() {
 		} {
 			pods = append(pods, test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{key: value}}))
 		}
-		for _, pod := range ExpectProvisioned(ctx, env.Client, controller, prov, pods...) {
+		for _, pod := range ExpectProvisioned(ctx, env.Client, recorder, controller, prov, pods...) {
 			ExpectScheduled(ctx, env.Client, pod)
 		}
 	})
 	It("should not launch AWS Pod ENI on a t3", func() {
 		ExpectApplied(ctx, env.Client, provisioner)
-		for _, pod := range ExpectProvisioned(ctx, env.Client, controller, prov,
+		for _, pod := range ExpectProvisioned(ctx, env.Client, recorder, controller, prov,
 			test.UnschedulablePod(test.PodOptions{
 				NodeSelector: map[string]string{
 					v1.LabelInstanceTypeStable: "t3.large",
@@ -85,7 +85,7 @@ var _ = Describe("Instance Types", func() {
 	})
 	It("should de-prioritize metal", func() {
 		ExpectApplied(ctx, env.Client, provisioner)
-		for _, pod := range ExpectProvisioned(ctx, env.Client, controller, prov,
+		for _, pod := range ExpectProvisioned(ctx, env.Client, recorder, controller, prov,
 			test.UnschedulablePod(test.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{
 					Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
@@ -110,7 +110,7 @@ var _ = Describe("Instance Types", func() {
 			Operator: v1.NodeSelectorOpExists,
 		})
 		ExpectApplied(ctx, env.Client, provisioner)
-		for _, pod := range ExpectProvisioned(ctx, env.Client, controller, prov,
+		for _, pod := range ExpectProvisioned(ctx, env.Client, recorder, controller, prov,
 			test.UnschedulablePod(test.PodOptions{
 				NodeSelector: map[string]string{
 					v1.LabelInstanceTypeStable: "m5.metal",
@@ -134,7 +134,7 @@ var _ = Describe("Instance Types", func() {
 		prov = provisioning.NewProvisioner(cancelCtx, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster, test.SettingsStore{})
 		provisionContoller := provisioning.NewController(env.Client, prov, recorder)
 		ExpectApplied(ctx, env.Client, provisioner)
-		for _, pod := range ExpectProvisioned(cancelCtx, env.Client, provisionContoller, prov,
+		for _, pod := range ExpectProvisioned(cancelCtx, env.Client, recorder, provisionContoller, prov,
 			test.UnschedulablePod(test.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{
 					Requests: v1.ResourceList{v1alpha1.ResourceAWSPodENI: resource.MustParse("1")},
@@ -146,7 +146,7 @@ var _ = Describe("Instance Types", func() {
 	})
 	It("should launch AWS Pod ENI on a compatible instance type", func() {
 		ExpectApplied(ctx, env.Client, provisioner)
-		for _, pod := range ExpectProvisioned(ctx, env.Client, controller, prov,
+		for _, pod := range ExpectProvisioned(ctx, env.Client, recorder, controller, prov,
 			test.UnschedulablePod(test.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{
 					Requests: v1.ResourceList{v1alpha1.ResourceAWSPodENI: resource.MustParse("1")},
@@ -165,7 +165,7 @@ var _ = Describe("Instance Types", func() {
 	It("should launch instances for Nvidia GPU resource requests", func() {
 		nodeNames := sets.NewString()
 		ExpectApplied(ctx, env.Client, provisioner)
-		for _, pod := range ExpectProvisioned(ctx, env.Client, controller, prov,
+		for _, pod := range ExpectProvisioned(ctx, env.Client, recorder, controller, prov,
 			test.UnschedulablePod(test.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{
 					Requests: v1.ResourceList{v1alpha1.ResourceNVIDIAGPU: resource.MustParse("1")},
@@ -195,7 +195,7 @@ var _ = Describe("Instance Types", func() {
 	It("should launch instances for AWS Neuron resource requests", func() {
 		nodeNames := sets.NewString()
 		ExpectApplied(ctx, env.Client, provisioner)
-		for _, pod := range ExpectProvisioned(ctx, env.Client, controller, prov,
+		for _, pod := range ExpectProvisioned(ctx, env.Client, recorder, controller, prov,
 			test.UnschedulablePod(test.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{
 					Requests: v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("1")},
@@ -606,7 +606,7 @@ var _ = Describe("Instance Types", func() {
 		It("should launch instances of different type on second reconciliation attempt with Insufficient Capacity Error Cache fallback", func() {
 			fakeEC2API.InsufficientCapacityPools.Set([]fake.CapacityPool{{CapacityType: v1alpha5.CapacityTypeOnDemand, InstanceType: "inf1.6xlarge", Zone: "test-zone-1a"}})
 			ExpectApplied(ctx, env.Client, provisioner)
-			pods := ExpectProvisioned(ctx, env.Client, controller, prov,
+			pods := ExpectProvisioned(ctx, env.Client, recorder, controller, prov,
 				test.UnschedulablePod(test.PodOptions{
 					NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"},
 					ResourceRequirements: v1.ResourceRequirements{
@@ -627,7 +627,7 @@ var _ = Describe("Instance Types", func() {
 				ExpectNotScheduled(ctx, env.Client, pod)
 			}
 			nodeNames := sets.NewString()
-			for _, pod := range ExpectProvisioned(ctx, env.Client, controller, prov, pods...) {
+			for _, pod := range ExpectProvisioned(ctx, env.Client, recorder, controller, prov, pods...) {
 				node := ExpectScheduled(ctx, env.Client, pod)
 				Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "inf1.2xlarge"))
 				nodeNames.Insert(node.Name)
@@ -651,11 +651,11 @@ var _ = Describe("Instance Types", func() {
 				},
 			}}}
 			ExpectApplied(ctx, env.Client, provisioner)
-			pod = ExpectProvisioned(ctx, env.Client, controller, prov, pod)[0]
+			pod = ExpectProvisioned(ctx, env.Client, recorder, controller, prov, pod)[0]
 			// it should've tried to pack them in test-zone-1a on a p3.8xlarge then hit insufficient capacity, the next attempt will try test-zone-1b
 			ExpectNotScheduled(ctx, env.Client, pod)
 
-			pod = ExpectProvisioned(ctx, env.Client, controller, prov, pod)[0]
+			pod = ExpectProvisioned(ctx, env.Client, recorder, controller, prov, pod)[0]
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(SatisfyAll(
 				HaveKeyWithValue(v1.LabelInstanceTypeStable, "p3.8xlarge"),
@@ -683,11 +683,11 @@ var _ = Describe("Instance Types", func() {
 			}
 			// Provisions 2 m5.large instances since m5.xlarge was ICE'd
 			ExpectApplied(ctx, env.Client, provisioner)
-			pods = ExpectProvisioned(ctx, env.Client, controller, prov, pods...)
+			pods = ExpectProvisioned(ctx, env.Client, recorder, controller, prov, pods...)
 			for _, pod := range pods {
 				ExpectNotScheduled(ctx, env.Client, pod)
 			}
-			pods = ExpectProvisioned(ctx, env.Client, controller, prov, pods...)
+			pods = ExpectProvisioned(ctx, env.Client, recorder, controller, prov, pods...)
 			for _, pod := range pods {
 				node := ExpectScheduled(ctx, env.Client, pod)
 				Expect(node.Labels[v1.LabelInstanceTypeStable]).To(Equal("m5.large"))
@@ -696,7 +696,7 @@ var _ = Describe("Instance Types", func() {
 		It("should launch instances on later reconciliation attempt with Insufficient Capacity Error Cache expiry", func() {
 			fakeEC2API.InsufficientCapacityPools.Set([]fake.CapacityPool{{CapacityType: v1alpha5.CapacityTypeOnDemand, InstanceType: "inf1.6xlarge", Zone: "test-zone-1a"}})
 			ExpectApplied(ctx, env.Client, provisioner)
-			pod := ExpectProvisioned(ctx, env.Client, controller, prov,
+			pod := ExpectProvisioned(ctx, env.Client, recorder, controller, prov,
 				test.UnschedulablePod(test.PodOptions{
 					NodeSelector: map[string]string{v1.LabelInstanceTypeStable: "inf1.6xlarge"},
 					ResourceRequirements: v1.ResourceRequirements{
@@ -709,7 +709,7 @@ var _ = Describe("Instance Types", func() {
 			// capacity shortage is over - expire the item from the cache and try again
 			fakeEC2API.InsufficientCapacityPools.Set([]fake.CapacityPool{})
 			internalUnavailableOfferingsCache.Delete(fmt.Sprintf("%s:%s:%s", v1alpha5.CapacityTypeOnDemand, "inf1.6xlarge", "test-zone-1a"))
-			pod = ExpectProvisioned(ctx, env.Client, controller, prov, pod)[0]
+			pod = ExpectProvisioned(ctx, env.Client, recorder, controller, prov, pod)[0]
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "inf1.6xlarge"))
 		})
@@ -726,10 +726,10 @@ var _ = Describe("Instance Types", func() {
 			}
 			// Spot Unavailable
 			ExpectApplied(ctx, env.Client, provisioner)
-			pod := ExpectProvisioned(ctx, env.Client, controller, prov, test.UnschedulablePod())[0]
+			pod := ExpectProvisioned(ctx, env.Client, recorder, controller, prov, test.UnschedulablePod())[0]
 			ExpectNotScheduled(ctx, env.Client, pod)
 			// include deprioritized instance types
-			pod = ExpectProvisioned(ctx, env.Client, controller, prov, pod)[0]
+			pod = ExpectProvisioned(ctx, env.Client, recorder, controller, prov, pod)[0]
 			// Fallback to OD
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(HaveKeyWithValue(v1alpha5.LabelCapacityType, v1alpha5.CapacityTypeOnDemand))
@@ -756,7 +756,7 @@ var _ = Describe("Instance Types", func() {
 			ExpectApplied(ctx, env.Client, provisioner)
 			for _, ct := range []string{v1alpha5.CapacityTypeOnDemand, v1alpha5.CapacityTypeSpot} {
 				for _, zone := range []string{"test-zone-1a", "test-zone-1b"} {
-					ExpectProvisioned(ctx, env.Client, controller, prov,
+					ExpectProvisioned(ctx, env.Client, recorder, controller, prov,
 						test.UnschedulablePod(test.PodOptions{
 							ResourceRequirements: v1.ResourceRequirements{
 								Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
@@ -786,7 +786,7 @@ var _ = Describe("Instance Types", func() {
 	Context("CapacityType", func() {
 		It("should default to on-demand", func() {
 			ExpectApplied(ctx, env.Client, provisioner)
-			pod := ExpectProvisioned(ctx, env.Client, controller, prov, test.UnschedulablePod())[0]
+			pod := ExpectProvisioned(ctx, env.Client, recorder, controller, prov, test.UnschedulablePod())[0]
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(HaveKeyWithValue(v1alpha5.LabelCapacityType, v1alpha5.CapacityTypeOnDemand))
 		})
@@ -794,7 +794,7 @@ var _ = Describe("Instance Types", func() {
 			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
 				{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha5.CapacityTypeSpot, v1alpha5.CapacityTypeOnDemand}}}
 			ExpectApplied(ctx, env.Client, provisioner)
-			pod := ExpectProvisioned(ctx, env.Client, controller, prov, test.UnschedulablePod())[0]
+			pod := ExpectProvisioned(ctx, env.Client, recorder, controller, prov, test.UnschedulablePod())[0]
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(HaveKeyWithValue(v1alpha5.LabelCapacityType, v1alpha5.CapacityTypeSpot))
 		})
@@ -821,7 +821,7 @@ var _ = Describe("Instance Types", func() {
 
 			// Instance type with no zonal availability for spot shouldn't be scheduled
 			ExpectApplied(ctx, env.Client, provisioner)
-			pod := ExpectProvisioned(ctx, env.Client, controller, prov, test.UnschedulablePod())[0]
+			pod := ExpectProvisioned(ctx, env.Client, recorder, controller, prov, test.UnschedulablePod())[0]
 			ExpectNotScheduled(ctx, env.Client, pod)
 		})
 		It("should succeed to launch spot instance when zonal availability exists", func() {
@@ -846,7 +846,7 @@ var _ = Describe("Instance Types", func() {
 			}
 
 			ExpectApplied(ctx, env.Client, provisioner)
-			pod := ExpectProvisioned(ctx, env.Client, controller, prov, test.UnschedulablePod())[0]
+			pod := ExpectProvisioned(ctx, env.Client, recorder, controller, prov, test.UnschedulablePod())[0]
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(HaveKeyWithValue(v1alpha5.ProvisionerNameLabelKey, provisioner.Name))
 		})
@@ -854,7 +854,7 @@ var _ = Describe("Instance Types", func() {
 	Context("Metadata Options", func() {
 		It("should default metadata options on generated launch template", func() {
 			ExpectApplied(ctx, env.Client, provisioner)
-			pod := ExpectProvisioned(ctx, env.Client, controller, prov, test.UnschedulablePod())[0]
+			pod := ExpectProvisioned(ctx, env.Client, recorder, controller, prov, test.UnschedulablePod())[0]
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
@@ -874,7 +874,7 @@ var _ = Describe("Instance Types", func() {
 				HTTPTokens:              aws.String(ec2.LaunchTemplateHttpTokensStateOptional),
 			}
 			ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
-			pod := ExpectProvisioned(ctx, env.Client, controller, prov, test.UnschedulablePod())[0]
+			pod := ExpectProvisioned(ctx, env.Client, recorder, controller, prov, test.UnschedulablePod())[0]
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
