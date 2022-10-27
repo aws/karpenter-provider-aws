@@ -21,7 +21,7 @@ RUN set -ex; \
     ./aws/install --bin-dir /aws-cli-bin; \
     /aws-cli-bin/aws --version
 
-FROM alpine:latest
+FROM golang:1.19
 
 # Install APK packages
 RUN echo "@testing http://dl-cdn.alpinelinux.org/alpine/edge/testing" >>/etc/apk/repositories
@@ -49,8 +49,6 @@ RUN curl --silent --location "https://github.com/weaveworks/eksctl/releases/down
 RUN mv /tmp/eksctl /usr/local/bin
 
 # Install Go
-COPY --from=golang:1.19-alpine /usr/local/go/ /usr/local/go/
-ENV PATH="/usr/local/go/bin:${PATH}"
 RUN go version
 
 # Cache modules to speed up test execution
