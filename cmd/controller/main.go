@@ -35,6 +35,7 @@ func main() {
 	awsCtx := context.NewOrDie(cloudprovider.Context{
 		Context:             ctx,
 		Clock:               operator.Clock,
+		RESTConfig:          operator.RESTConfig,
 		KubeClient:          operator.GetClient(),
 		KubernetesInterface: operator.KubernetesInterface,
 		EventRecorder:       operator.EventRecorder,

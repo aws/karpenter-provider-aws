@@ -33,6 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/transport"
 	knativeapis "knative.dev/pkg/apis"
 	"knative.dev/pkg/logging"
@@ -42,7 +43,6 @@ import (
 	coreapis "github.com/aws/karpenter-core/pkg/apis"
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
-	"github.com/aws/karpenter-core/pkg/operator/injection"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	"github.com/aws/karpenter-core/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/apis"
@@ -92,7 +92,7 @@ func New(ctx awscontext.Context) *CloudProvider {
 				ctx.KubernetesInterface,
 				amifamily.New(ctx.KubeClient, ssm.New(ctx.Session), ec2api, cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval), cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)),
 				NewSecurityGroupProvider(ec2api),
-				getCABundle(ctx),
+				lo.Must(getCABundle(ctx, ctx.RESTConfig)),
 				ctx.StartAsync,
 				kubeDNSIP,
 			),
@@ -222,27 +222,21 @@ func defaultLabels(provisioner *v1alpha5.Provisioner) {
 	}
 }
 
-func getCABundle(ctx context.Context) *string {
+func getCABundle(ctx context.Context, restConfig *rest.Config) (*string, error) {
 	// Discover CA Bundle from the REST client. We could alternatively
 	// have used the simpler client-go InClusterConfig() method.
 	// However, that only works when Karpenter is running as a Pod
 	// within the same cluster it's managing.
-	restConfig := injection.GetConfig(ctx)
-	if restConfig == nil {
-		return nil
-	}
 	transportConfig, err := restConfig.TransportConfig()
 	if err != nil {
-		logging.FromContext(ctx).Fatalf("Unable to discover caBundle, loading transport config, %v", err)
-		return nil
+		return nil, fmt.Errorf("discovering caBundle, loading transport config, %w", err)
 	}
 	_, err = transport.TLSConfigFor(transportConfig) // fills in CAData!
 	if err != nil {
-		logging.FromContext(ctx).Fatalf("Unable to discover caBundle, loading TLS config, %v", err)
-		return nil
+		return nil, fmt.Errorf("discovering caBundle, loading TLS config, %w", err)
 	}
 	logging.FromContext(ctx).Debugf("Discovered caBundle, length %d", len(transportConfig.TLS.CAData))
-	return ptr.String(base64.StdEncoding.EncodeToString(transportConfig.TLS.CAData))
+	return ptr.String(base64.StdEncoding.EncodeToString(transportConfig.TLS.CAData)), nil
 }
 
 func kubeDNSIP(ctx context.Context, kubernetesInterface kubernetes.Interface) (net.IP, error) {
