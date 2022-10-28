@@ -20,6 +20,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 
+	"github.com/aws/karpenter-core/pkg/apis/config/settings"
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
@@ -46,8 +47,32 @@ var _ = Describe("Tags", func() {
 		volumeTags := tagMap(env.GetVolume(instance.BlockDeviceMappings[0].Ebs.VolumeId).Tags)
 		instanceTags := tagMap(instance.Tags)
 
-		Expect(instanceTags).To(ContainElement("TestVal"))
-		Expect(volumeTags).To(ContainElement("TestVal"))
+		Expect(instanceTags).To(HaveKeyWithValue("TestTag", "TestVal"))
+		Expect(volumeTags).To(HaveKeyWithValue("TestTag", "TestVal"))
+	})
+	It("should tag all associated resources with global tags", func() {
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+			AWS: v1alpha1.AWS{
+				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
+				SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
+			},
+		})
+
+		env.ExpectSettingsCreatedOrUpdated(settings.Registration.DefaultData, map[string]string{
+			"aws.tags.TestTag": "TestVal",
+		})
+		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
+		pod := test.Pod()
+
+		env.ExpectCreated(pod, provider, provisioner)
+		env.EventuallyExpectHealthy(pod)
+		env.ExpectCreatedNodeCount("==", 1)
+		instance := env.GetInstance(pod.Spec.NodeName)
+		volumeTags := tagMap(env.GetVolume(instance.BlockDeviceMappings[0].Ebs.VolumeId).Tags)
+		instanceTags := tagMap(instance.Tags)
+
+		Expect(instanceTags).To(HaveKeyWithValue("TestTag", "TestVal"))
+		Expect(volumeTags).To(HaveKeyWithValue("TestTag", "TestVal"))
 	})
 })
 

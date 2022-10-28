@@ -103,7 +103,7 @@ var _ = Describe("Expiration", func() {
 
 		// Set the TTLSecondsUntilExpired to get the node deleted
 		provisioner.Spec.TTLSecondsUntilExpired = ptr.Int64(60)
-		env.ExpectUpdate(provisioner)
+		env.ExpectUpdated(provisioner)
 
 		// Eventually the node deletion timestamp will be set
 		Eventually(func(g Gomega) {
@@ -114,7 +114,7 @@ var _ = Describe("Expiration", func() {
 
 		// Remove the TTLSecondsUntilExpired to make sure new node isn't deleted
 		provisioner.Spec.TTLSecondsUntilExpired = nil
-		env.ExpectUpdate(provisioner)
+		env.ExpectUpdated(provisioner)
 
 		// After the deletion timestamp is set and all pods are drained
 		// the node should be gone

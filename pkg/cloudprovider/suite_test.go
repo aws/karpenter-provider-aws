@@ -43,6 +43,7 @@ import (
 	"github.com/aws/karpenter-core/pkg/operator/options"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
+	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	awscache "github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
 	awscontext "github.com/aws/karpenter/pkg/context"
@@ -82,6 +83,7 @@ var fakeClock *clock.FakeClock
 var provisioner *v1alpha5.Provisioner
 var provider *v1alpha1.AWS
 var pricingProvider *PricingProvider
+var settingsStore test.SettingsStore
 
 var defaultOpts = options.Options{
 	ClusterName:               "test-cluster",
@@ -104,7 +106,11 @@ var _ = BeforeSuite(func() {
 		Expect(opts.Validate()).To(Succeed(), "Failed to validate options")
 
 		ctx = injection.WithOptions(ctx, opts)
-		ctx = settings.ToContext(ctx, test.Settings())
+		settingsStore = test.SettingsStore{
+			settings.ContextKey:    test.Settings(),
+			awssettings.ContextKey: awssettings.Settings{},
+		}
+		ctx = settingsStore.InjectSettings(ctx)
 		ctx, stop = context.WithCancel(ctx)
 
 		launchTemplateCache = cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)
@@ -174,7 +180,11 @@ var _ = AfterSuite(func() {
 var _ = BeforeEach(func() {
 	opts = defaultOpts
 	ctx = injection.WithOptions(ctx, opts)
-	ctx = settings.ToContext(ctx, test.Settings())
+	settingsStore = test.SettingsStore{
+		settings.ContextKey:    test.Settings(),
+		awssettings.ContextKey: awssettings.Settings{},
+	}
+	ctx = settingsStore.InjectSettings(ctx)
 
 	provider = &v1alpha1.AWS{
 		AMIFamily:             aws.String(v1alpha1.AMIFamilyAL2),

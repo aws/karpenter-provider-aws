@@ -12,3 +12,6 @@ metadata:
 data:
   "batchMaxDuration": "{{ .Values.controller.batchMaxDuration }}"
   "batchIdleDuration": "{{ .Values.controller.batchIdleDuration }}"
+  {{- range $tag, $value := .Values.aws.tags }}
+  "aws.tags.{{ $tag }}": "{{ $value }}"
+  {{- end }}

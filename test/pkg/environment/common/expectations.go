@@ -21,7 +21,9 @@ import (
 	"strings"
 	"time"
 
-	. "github.com/onsi/gomega" //nolint:revive,stylecheck
+	. "github.com/onsi/ginkgo/v2" //nolint:revive,stylecheck
+	. "github.com/onsi/gomega"    //nolint:revive,stylecheck
+	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,25 +35,61 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (env *Environment) ExpectCreated(objects ...client.Object) {
+func (env *Environment) ExpectCreatedWithOffset(offset int, objects ...client.Object) {
 	for _, object := range objects {
-		ExpectWithOffset(1, env.Client.Create(env, object)).To(Succeed())
+		ExpectWithOffset(offset+1, env.Client.Create(env, object)).To(Succeed())
+	}
+}
+
+func (env *Environment) ExpectCreated(objects ...client.Object) {
+	env.ExpectCreatedWithOffset(1, objects...)
+}
+
+func (env *Environment) ExpectDeletedWithOffset(offset int, objects ...client.Object) {
+	for _, object := range objects {
+		ExpectWithOffset(offset+1, env.Client.Delete(env, object, &client.DeleteOptions{GracePeriodSeconds: ptr.Int64(0)})).To(Succeed())
 	}
 }
 
 func (env *Environment) ExpectDeleted(objects ...client.Object) {
-	for _, object := range objects {
-		ExpectWithOffset(1, env.Client.Delete(env, object, &client.DeleteOptions{GracePeriodSeconds: ptr.Int64(0)})).To(Succeed())
+	env.ExpectDeletedWithOffset(1, objects...)
+}
+
+func (env *Environment) ExpectUpdatedWithOffset(offset int, objects ...client.Object) {
+	for _, o := range objects {
+		current := o.DeepCopyObject().(client.Object)
+		ExpectWithOffset(offset+1, env.Client.Get(env.Context, client.ObjectKeyFromObject(current), current)).To(Succeed())
+		o.SetResourceVersion(current.GetResourceVersion())
+		ExpectWithOffset(offset+1, env.Client.Update(env.Context, o)).To(Succeed())
 	}
 }
 
-func (env *Environment) ExpectUpdate(objects ...client.Object) {
-	for _, o := range objects {
-		current := o.DeepCopyObject().(client.Object)
-		ExpectWithOffset(1, env.Client.Get(env.Context, client.ObjectKeyFromObject(current), current)).To(Succeed())
-		o.SetResourceVersion(current.GetResourceVersion())
-		ExpectWithOffset(1, env.Client.Update(env.Context, o)).To(Succeed())
+func (env *Environment) ExpectUpdated(objects ...client.Object) {
+	env.ExpectUpdatedWithOffset(1, objects...)
+}
+
+func (env *Environment) ExpectSettingsCreatedOrUpdated(data ...map[string]string) {
+	cm := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "karpenter-global-settings",
+			Namespace: "karpenter",
+		},
+		Data: lo.Assign(data...),
 	}
+	err := env.Client.Get(env, client.ObjectKeyFromObject(cm), &v1.ConfigMap{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			env.ExpectCreatedWithOffset(1, cm)
+		} else {
+			Fail(fmt.Sprintf("Getting settings, %v", err))
+		}
+	} else {
+		env.ExpectUpdatedWithOffset(1, cm)
+	}
+}
+
+func (env *Environment) ExpectSettingsDeleted() {
+	env.ExpectDeleted(&v1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "karpenter-global-settings", Namespace: "karpenter"}})
 }
 
 func (env *Environment) ExpectFound(obj client.Object) {

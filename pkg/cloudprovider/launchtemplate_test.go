@@ -40,13 +40,14 @@ import (
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter-core/pkg/operator/injection"
+	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
+	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 
+	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/controllers/provisioning"
+	"github.com/aws/karpenter-core/pkg/operator/injection"
 	"github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
-	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily/bootstrap"
 	awstest "github.com/aws/karpenter/pkg/test"
@@ -299,6 +300,81 @@ var _ = Describe("LaunchTemplates", func() {
 
 			Expect(*createFleetInput.TagSpecifications[2].ResourceType).To(Equal(ec2.ResourceTypeFleet))
 			ExpectTags(createFleetInput.TagSpecifications[2].Tags, provider.Tags)
+		})
+		It("should merge global tags into launch template and volume tags", func() {
+			provider.Tags = map[string]string{
+				"tag1": "tag1value",
+				"tag2": "tag2value",
+			}
+			settings := awssettings.Settings{
+				Tags: map[string]string{
+					"customTag1": "value1",
+					"customTag2": "value2",
+				},
+			}
+
+			// Inject custom settings into the current context
+			settingsStore[awssettings.ContextKey] = settings
+			ctx = settingsStore.InjectSettings(ctx)
+
+			prov = provisioning.NewProvisioner(injection.WithOptions(ctx, opts), env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster, settingsStore)
+			controller = provisioning.NewController(env.Client, prov, recorder)
+
+			ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
+			pod := ExpectProvisioned(ctx, env.Client, recorder, controller, prov, test.UnschedulablePod())[0]
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(fakeEC2API.CalledWithCreateFleetInput.Len()).To(Equal(1))
+			createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop()
+			Expect(createFleetInput.TagSpecifications).To(HaveLen(3))
+
+			// tags should be included in instance, volume, and fleet tag specification
+			Expect(*createFleetInput.TagSpecifications[0].ResourceType).To(Equal(ec2.ResourceTypeInstance))
+			ExpectTags(createFleetInput.TagSpecifications[0].Tags, settings.Tags)
+
+			Expect(*createFleetInput.TagSpecifications[1].ResourceType).To(Equal(ec2.ResourceTypeVolume))
+			ExpectTags(createFleetInput.TagSpecifications[1].Tags, settings.Tags)
+
+			Expect(*createFleetInput.TagSpecifications[2].ResourceType).To(Equal(ec2.ResourceTypeFleet))
+			ExpectTags(createFleetInput.TagSpecifications[2].Tags, settings.Tags)
+		})
+		It("should override global tags with provider tags", func() {
+			provider.Tags = map[string]string{
+				"tag1": "tag1value",
+				"tag2": "tag2value",
+			}
+			settings := awssettings.Settings{
+				Tags: map[string]string{
+					"tag1": "custom1",
+					"tag2": "custom2",
+				},
+			}
+
+			// Inject custom settings into the current context
+			settingsStore[awssettings.ContextKey] = settings
+			ctx = settingsStore.InjectSettings(ctx)
+
+			prov = provisioning.NewProvisioner(injection.WithOptions(ctx, opts), env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster, settingsStore)
+			controller = provisioning.NewController(env.Client, prov, recorder)
+
+			ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
+			pod := ExpectProvisioned(ctx, env.Client, recorder, controller, prov, test.UnschedulablePod())[0]
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(fakeEC2API.CalledWithCreateFleetInput.Len()).To(Equal(1))
+			createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop()
+			Expect(createFleetInput.TagSpecifications).To(HaveLen(3))
+
+			// tags should be included in instance, volume, and fleet tag specification
+			Expect(*createFleetInput.TagSpecifications[0].ResourceType).To(Equal(ec2.ResourceTypeInstance))
+			ExpectTags(createFleetInput.TagSpecifications[0].Tags, provider.Tags)
+			ExpectTagsNotFound(createFleetInput.TagSpecifications[0].Tags, settings.Tags)
+
+			Expect(*createFleetInput.TagSpecifications[1].ResourceType).To(Equal(ec2.ResourceTypeVolume))
+			ExpectTags(createFleetInput.TagSpecifications[1].Tags, provider.Tags)
+			ExpectTagsNotFound(createFleetInput.TagSpecifications[0].Tags, settings.Tags)
+
+			Expect(*createFleetInput.TagSpecifications[2].ResourceType).To(Equal(ec2.ResourceTypeFleet))
+			ExpectTags(createFleetInput.TagSpecifications[2].Tags, provider.Tags)
+			ExpectTagsNotFound(createFleetInput.TagSpecifications[0].Tags, settings.Tags)
 		})
 	})
 	Context("Block Device Mappings", func() {
@@ -610,7 +686,7 @@ var _ = Describe("LaunchTemplates", func() {
 		It("should not specify --use-max-pods=false when using ENI-based pod density", func() {
 			opts.AWSENILimitedPodDensity = true
 			ctx = injection.WithOptions(ctx, opts)
-			prov = provisioning.NewProvisioner(ctx, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster, test.SettingsStore{})
+			prov = provisioning.NewProvisioner(ctx, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster, settingsStore)
 			controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
 			ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
 			pod := ExpectProvisioned(ctx, env.Client, recorder, controllerWithOpts, prov, test.UnschedulablePod())[0]
@@ -623,7 +699,7 @@ var _ = Describe("LaunchTemplates", func() {
 		It("should specify --use-max-pods=false when not using ENI-based pod density", func() {
 			opts.AWSENILimitedPodDensity = false
 			ctx = injection.WithOptions(ctx, opts)
-			prov = provisioning.NewProvisioner(ctx, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster, test.SettingsStore{})
+			prov = provisioning.NewProvisioner(ctx, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster, settingsStore)
 			controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
 			ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
 			pod := ExpectProvisioned(ctx, env.Client, recorder, controllerWithOpts, prov, test.UnschedulablePod())[0]
@@ -894,7 +970,7 @@ var _ = Describe("LaunchTemplates", func() {
 			It("should merge in custom user data", func() {
 				opts.AWSENILimitedPodDensity = false
 				ctx = injection.WithOptions(ctx, opts)
-				prov = provisioning.NewProvisioner(ctx, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster, test.SettingsStore{})
+				prov = provisioning.NewProvisioner(ctx, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster, settingsStore)
 				controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
 
 				provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
@@ -929,7 +1005,7 @@ var _ = Describe("LaunchTemplates", func() {
 			It("should bootstrap when custom user data is empty", func() {
 				opts.AWSENILimitedPodDensity = false
 				ctx = injection.WithOptions(ctx, opts)
-				prov = provisioning.NewProvisioner(ctx, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster, test.SettingsStore{})
+				prov = provisioning.NewProvisioner(ctx, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster, settingsStore)
 				controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
 
 				provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
@@ -960,7 +1036,7 @@ var _ = Describe("LaunchTemplates", func() {
 			It("should not bootstrap when provider ref points to a non-existent resource", func() {
 				opts.AWSENILimitedPodDensity = false
 				ctx = injection.WithOptions(ctx, opts)
-				prov = provisioning.NewProvisioner(ctx, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster, test.SettingsStore{})
+				prov = provisioning.NewProvisioner(ctx, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster, settingsStore)
 				controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
 
 				provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
@@ -1098,7 +1174,7 @@ var _ = Describe("LaunchTemplates", func() {
 			It("should merge in custom user data", func() {
 				opts.AWSENILimitedPodDensity = false
 				ctx = injection.WithOptions(ctx, opts)
-				prov = provisioning.NewProvisioner(ctx, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster, test.SettingsStore{})
+				prov = provisioning.NewProvisioner(ctx, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster, settingsStore)
 				controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
 
 				content, _ := os.ReadFile("testdata/al2_userdata_input.golden")
@@ -1121,7 +1197,7 @@ var _ = Describe("LaunchTemplates", func() {
 			It("should handle empty custom user data", func() {
 				opts.AWSENILimitedPodDensity = false
 				ctx = injection.WithOptions(ctx, opts)
-				prov = provisioning.NewProvisioner(ctx, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster, test.SettingsStore{})
+				prov = provisioning.NewProvisioner(ctx, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster, settingsStore)
 				controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
 				nodeTemplate := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 					UserData: nil,
@@ -1399,13 +1475,18 @@ var _ = Describe("LaunchTemplates", func() {
 
 // ExpectTags verifies that the expected tags are a subset of the tags found
 func ExpectTags(tags []*ec2.Tag, expected map[string]string) {
-	existingTags := map[string]string{}
-	for _, tag := range tags {
-		existingTags[*tag.Key] = *tag.Value
-	}
+	existingTags := lo.SliceToMap(tags, func(t *ec2.Tag) (string, string) { return *t.Key, *t.Value })
 	for expKey, expValue := range expected {
 		foundValue, ok := existingTags[expKey]
-		Expect(ok).To(BeTrue(), fmt.Sprintf("expected to find tag %s in %s", expKey, existingTags))
-		Expect(foundValue).To(Equal(expValue))
+		ExpectWithOffset(1, ok).To(BeTrue(), fmt.Sprintf("expected to find tag %s in %s", expKey, existingTags))
+		ExpectWithOffset(1, foundValue).To(Equal(expValue))
+	}
+}
+
+func ExpectTagsNotFound(tags []*ec2.Tag, expectNotFound map[string]string) {
+	existingTags := lo.SliceToMap(tags, func(t *ec2.Tag) (string, string) { return *t.Key, *t.Value })
+	for k, v := range expectNotFound {
+		elem, ok := existingTags[k]
+		ExpectWithOffset(1, !ok || v != elem).To(BeTrue())
 	}
 }
