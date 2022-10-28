@@ -19,6 +19,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
+	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -39,23 +41,23 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
+	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	awscache "github.com/aws/karpenter/pkg/cache"
 	awscontext "github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/controllers/interruption"
-	event2 "github.com/aws/karpenter/pkg/controllers/interruption/messages"
+	"github.com/aws/karpenter/pkg/controllers/interruption/messages"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages/scheduledchange"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages/spotinterruption"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages/statechange"
 	"github.com/aws/karpenter/pkg/controllers/providers"
 	"github.com/aws/karpenter/pkg/errors"
 	awsfake "github.com/aws/karpenter/pkg/fake"
+	awstest "github.com/aws/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-core/pkg/apis/config/settings"
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/cloudprovider/fake"
 	"github.com/aws/karpenter-core/pkg/controllers/state"
-	"github.com/aws/karpenter-core/pkg/operator/injection"
-	"github.com/aws/karpenter-core/pkg/operator/options"
 	"github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
 )
@@ -70,6 +72,7 @@ const (
 
 var ctx context.Context
 var env *test.Environment
+var nodeTemplate *v1alpha1.AWSNodeTemplate
 var cluster *state.Cluster
 var sqsapi *awsfake.SQSAPI
 var eventbridgeapi *awsfake.EventBridgeAPI
@@ -89,14 +92,20 @@ func TestAPIs(t *testing.T) {
 }
 
 var _ = BeforeEach(func() {
-	opts := options.Options{
-		AWSIsolatedVPC: true,
+	settingsStore := test.SettingsStore{
+		settings.ContextKey: test.Settings(),
+		awssettings.ContextKey: awssettings.Settings{
+			EnableInterruptionHandling: true,
+		},
 	}
-	ctx = injection.WithOptions(ctx, opts)
-	ctx = settings.ToContext(ctx, test.Settings())
+	ctx = settingsStore.InjectSettings(ctx)
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
 		fakeClock = &clock.FakeClock{}
 		cloudProvider = &fake.CloudProvider{}
+
+		nodeTemplate = awstest.AWSNodeTemplate()
+		ExpectApplied(ctx, e.Client, nodeTemplate)
+
 		cluster = state.NewCluster(ctx, fakeClock, env.Client, cloudProvider)
 		recorder = test.NewEventRecorder()
 		nodeStateController = state.NewNodeController(env.Client, cluster)
@@ -109,11 +118,13 @@ var _ = BeforeEach(func() {
 
 		controller = interruption.NewController(env.Client, fakeClock, recorder, cluster, sqsProvider, unavailableOfferingsCache)
 	})
+	env.CRDDirectoryPaths = append(env.CRDDirectoryPaths, relativeToRoot("charts/karpenter/crds"))
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })
 
 var _ = AfterEach(func() {
 	ExpectCleanedUp(ctx, env.Client)
+	ExpectDeleted(ctx, env.Client, nodeTemplate)
 	Expect(env.Stop()).To(Succeed(), "Failed to stop environment")
 })
 
@@ -310,7 +321,7 @@ func awsErrWithCode(code string) awserr.Error {
 
 func spotInterruptionMessage(involvedInstanceID string) spotinterruption.Event {
 	return spotinterruption.Event{
-		Metadata: event2.Metadata{
+		Metadata: messages.Metadata{
 			Version:    "0",
 			Account:    defaultAccountID,
 			DetailType: "EC2 Spot Instance Interruption Warning",
@@ -331,7 +342,7 @@ func spotInterruptionMessage(involvedInstanceID string) spotinterruption.Event {
 
 func stateChangeMessage(involvedInstanceID, state string) statechange.Event {
 	return statechange.Event{
-		Metadata: event2.Metadata{
+		Metadata: messages.Metadata{
 			Version:    "0",
 			Account:    defaultAccountID,
 			DetailType: "EC2 Instance State-change Notification",
@@ -350,10 +361,9 @@ func stateChangeMessage(involvedInstanceID, state string) statechange.Event {
 	}
 }
 
-// TODO: Update the scheduled change message to accurately reflect a real health event
 func scheduledChangeMessage(involvedInstanceID string) scheduledchange.Event {
 	return scheduledchange.Event{
-		Metadata: event2.Metadata{
+		Metadata: messages.Metadata{
 			Version:    "0",
 			Account:    defaultAccountID,
 			DetailType: "AWS Health Event",
@@ -377,7 +387,7 @@ func scheduledChangeMessage(involvedInstanceID string) scheduledchange.Event {
 	}
 }
 
-func NewWrappedMessage(evt event2.Interface) *sqs.Message {
+func NewWrappedMessage(evt messages.Interface) *sqs.Message {
 	return &sqs.Message{
 		Body:      aws.String(string(lo.Must(json.Marshal(evt)))),
 		MessageId: aws.String(string(uuid.NewUUID())),
@@ -401,4 +411,10 @@ func randStringRunes(n int) string {
 
 func makeInstanceID() string {
 	return fmt.Sprintf("i-%s", randStringRunes(17))
+}
+
+func relativeToRoot(path string) string {
+	_, file, _, _ := runtime.Caller(0)
+	manifestsRoot := filepath.Join(filepath.Dir(file), "..", "..", "..")
+	return filepath.Join(manifestsRoot, path)
 }

@@ -30,10 +30,12 @@ import (
 	_ "knative.dev/pkg/system/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/aws/karpenter-core/pkg/apis/config/settings"
 	"github.com/aws/karpenter-core/pkg/operator/injection"
 	"github.com/aws/karpenter-core/pkg/operator/options"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
+	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/controllers/providers"
 	"github.com/aws/karpenter/pkg/errors"
 
@@ -68,6 +70,13 @@ func TestAPIs(t *testing.T) {
 }
 
 var _ = BeforeEach(func() {
+	settingsStore := test.SettingsStore{
+		settings.ContextKey: test.Settings(),
+		awssettings.ContextKey: awssettings.Settings{
+			EnableInterruptionHandling: true,
+		},
+	}
+	ctx = settingsStore.InjectSettings(ctx)
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
 		opts = defaultOpts
 		Expect(opts.Validate()).To(Succeed(), "Failed to validate options")
@@ -80,7 +89,7 @@ var _ = BeforeEach(func() {
 
 		controller = nodetemplate.NewController(e.Client, sqsProvider, eventBridgeProvider)
 	})
-	env.CRDDirectoryPaths = append(env.CRDDirectoryPaths, RelativeToRoot("charts/karpenter/crds"))
+	env.CRDDirectoryPaths = append(env.CRDDirectoryPaths, relativeToRoot("charts/karpenter/crds"))
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })
 
@@ -237,7 +246,7 @@ func awsErrWithCode(code string) awserr.Error {
 	return awserr.New(code, "", fmt.Errorf(""))
 }
 
-func RelativeToRoot(path string) string {
+func relativeToRoot(path string) string {
 	_, file, _, _ := runtime.Caller(0)
 	manifestsRoot := filepath.Join(filepath.Dir(file), "..", "..", "..")
 	return filepath.Join(manifestsRoot, path)

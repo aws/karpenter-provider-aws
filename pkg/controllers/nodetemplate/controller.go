@@ -16,23 +16,22 @@ package nodetemplate
 
 import (
 	"context"
+	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/samber/lo"
+	"go.uber.org/multierr"
+	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"knative.dev/pkg/logging"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	operatorcontroller "github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
-	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
-
-	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/utils/result"
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 	"github.com/aws/karpenter/pkg/controllers/providers"
@@ -48,71 +47,53 @@ func init() {
 // It sub-reconciles by checking if there are any AWSNodeTemplates and provisions infrastructure
 // if there is. If there are no templates, then it de-provisions the infrastructure.
 type Controller struct {
-	kubeClient client.Client
-	provider   *providers.Infrastructure
-
-	lastInfrastructureReconcile time.Time
+	kubeClient     client.Client
+	finalizer      *Finalizer
+	infrastructure *Infrastructure
 }
 
 func NewController(kubeClient client.Client, sqsProvider *providers.SQS, eventBridgeProvider *providers.EventBridge) *Controller {
 	return &Controller{
-		kubeClient: kubeClient,
-		provider:   providers.NewInfrastructure(sqsProvider, eventBridgeProvider),
+		kubeClient:     kubeClient,
+		finalizer:      &Finalizer{},
+		infrastructure: &Infrastructure{kubeClient: kubeClient, provider: providers.NewInfrastructure(sqsProvider, eventBridgeProvider)},
 	}
 }
 
-// Reconcile reconciles the SQS queue and the EventBridge rules with the expected
-// configuration prescribed by Karpenter
-//
-//nolint:gocyclo
+// Reconcile reconciles the AWSNodeTemplate with its sub-reconcilers
 func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named(Name))
-	nt := &v1alpha1.AWSNodeTemplate{}
-	if err := c.kubeClient.Get(ctx, req.NamespacedName, nt); err != nil {
+	stored := &v1alpha1.AWSNodeTemplate{}
+	if err := c.kubeClient.Get(ctx, req.NamespacedName, stored); err != nil {
 		if errors.IsNotFound(err) {
 			return reconcile.Result{}, nil
 		}
 		return reconcile.Result{}, err
 	}
-	list := &v1alpha1.AWSNodeTemplateList{}
-	if err := c.kubeClient.List(ctx, list); err != nil {
-		return reconcile.Result{}, err
-	}
 
-	// Handle removing the finalizer and also cleaning up the infrastructure on the last AWSNodeTemplate deletion
-	if !nt.DeletionTimestamp.IsZero() {
-		if len(list.Items) == 1 {
-			if err := c.provider.Delete(ctx); err != nil {
-				return reconcile.Result{}, err
-			}
-		}
-		mergeFrom := client.MergeFrom(nt.DeepCopy())
-		controllerutil.RemoveFinalizer(nt, v1alpha5.TerminationFinalizer)
-		if err := c.kubeClient.Patch(ctx, nt, mergeFrom); err != nil {
-			return reconcile.Result{}, err
-		}
-		infrastructureActive.Set(0)
-		return reconcile.Result{}, nil
-	} else if len(list.Items) >= 1 {
-		infrastructureActive.Set(1)
-		if awssettings.FromContext(ctx).EnableInterruptionHandling &&
-			c.lastInfrastructureReconcile.Add(time.Hour).Before(time.Now()) {
-
-			if err := c.provider.Create(ctx); err != nil {
-				infrastructureHealthy.Set(0)
-				return reconcile.Result{}, err
-			}
-			c.lastInfrastructureReconcile = time.Now()
-			infrastructureHealthy.Set(1)
+	nodeTemplate := stored.DeepCopy()
+	var results []reconcile.Result
+	var errs error
+	for _, r := range []interface {
+		Reconcile(context.Context, *v1alpha1.AWSNodeTemplate) (reconcile.Result, error)
+	}{
+		c.infrastructure,
+		c.finalizer,
+	} {
+		res, err := r.Reconcile(ctx, nodeTemplate)
+		errs = multierr.Append(errs, err)
+		results = append(results, res)
+	}
+	// If there are any errors, we shouldn't apply the changes, we should requeue
+	if errs != nil {
+		return reconcile.Result{}, errs
+	}
+	if !equality.Semantic.DeepEqual(nodeTemplate, stored) {
+		if err := c.kubeClient.Patch(ctx, nodeTemplate, client.MergeFrom(stored)); err != nil {
+			return reconcile.Result{}, fmt.Errorf("patching AWSNodeTemplate, %w", err)
 		}
 	}
-	mergeFrom := client.MergeFrom(nt.DeepCopy())
-	controllerutil.AddFinalizer(nt, v1alpha5.TerminationFinalizer)
-	if err := c.kubeClient.Patch(ctx, nt, mergeFrom); err != nil {
-		return reconcile.Result{}, err
-	}
-	// TODO: Implement an alerting mechanism for settings updates; until then, just poll
-	return reconcile.Result{RequeueAfter: time.Second * 10}, nil
+	return result.Min(results...), nil
 }
 
 func (c *Controller) Builder(_ context.Context, m manager.Manager) operatorcontroller.Builder {
