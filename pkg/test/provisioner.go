@@ -15,13 +15,17 @@ limitations under the License.
 package test
 
 import (
+	"context"
+
+	"github.com/samber/lo"
+
+	corev1alpha5 "github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/apis/v1alpha5"
 )
 
-func AWSNodeTemplate(overrides ...v1alpha1.AWSNodeTemplateSpec) *v1alpha1.AWSNodeTemplate {
-	return &v1alpha1.AWSNodeTemplate{
-		ObjectMeta: test.ObjectMeta(),
-		Spec:       test.MustMerge(v1alpha1.AWSNodeTemplateSpec{}, overrides...),
-	}
+func Provisioner(options test.ProvisionerOptions) *corev1alpha5.Provisioner {
+	provisioner := v1alpha5.Provisioner(lo.FromPtr(test.Provisioner(options)))
+	provisioner.SetDefaults(context.Background())
+	return lo.ToPtr(corev1alpha5.Provisioner(provisioner))
 }

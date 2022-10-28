@@ -17,29 +17,18 @@ package apis
 
 import (
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"knative.dev/pkg/webhook/resourcesemantics"
 
-	"github.com/aws/karpenter-core/pkg/apis"
-	"github.com/aws/karpenter-core/pkg/apis/config"
 	"github.com/aws/karpenter-core/pkg/utils/sets"
-	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/config/settings"
+	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 )
 
 var (
 	// Builder includes all types within the apis package
 	Builder = runtime.NewSchemeBuilder(
-		apis.AddToScheme,
 		v1alpha1.SchemeBuilder.AddToScheme,
 	)
 	// AddToScheme may be used to add all resources defined in the project to a Scheme
 	AddToScheme = Builder.AddToScheme
-	// Resources defined in the project
-	Resources = map[schema.GroupVersionKind]resourcesemantics.GenericCRD{
-		v1alpha1.SchemeGroupVersion.WithKind("AWSNodeTemplate"): &v1alpha1.AWSNodeTemplate{},
-	}
-	Settings = sets.New[*config.Registration](
-		settings.Registration,
-	)
+	Settings    = sets.New(settings.Registration)
 )
