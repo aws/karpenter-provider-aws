@@ -38,17 +38,15 @@ import (
 	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
 
+	"github.com/aws/karpenter-core/pkg/apis/config/settings"
+	"github.com/aws/karpenter-core/pkg/operator/injection"
+	"github.com/aws/karpenter-core/pkg/operator/options"
+	. "github.com/aws/karpenter-core/pkg/test/expectations"
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	awscache "github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
 	awscontext "github.com/aws/karpenter/pkg/context"
-	awstest "github.com/aws/karpenter/pkg/test"
-
-	"github.com/aws/karpenter-core/pkg/apis/config/settings"
-	"github.com/aws/karpenter-core/pkg/operator/injection"
-	"github.com/aws/karpenter-core/pkg/operator/options"
-	. "github.com/aws/karpenter-core/pkg/test/expectations"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 
@@ -110,7 +108,7 @@ var _ = BeforeSuite(func() {
 		ctx = injection.WithOptions(ctx, opts)
 		settingsStore = test.SettingsStore{
 			settings.ContextKey:    test.Settings(),
-			awssettings.ContextKey: awstest.Settings(),
+			awssettings.ContextKey: awssettings.Settings{},
 		}
 		ctx = settingsStore.InjectSettings(ctx)
 		ctx, stop = context.WithCancel(ctx)
@@ -184,7 +182,7 @@ var _ = BeforeEach(func() {
 	ctx = injection.WithOptions(ctx, opts)
 	settingsStore = test.SettingsStore{
 		settings.ContextKey:    test.Settings(),
-		awssettings.ContextKey: awstest.Settings(),
+		awssettings.ContextKey: awssettings.Settings{},
 	}
 	ctx = settingsStore.InjectSettings(ctx)
 
