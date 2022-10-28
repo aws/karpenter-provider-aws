@@ -25,6 +25,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/patrickmn/go-cache"
+	"github.com/samber/lo"
 	"knative.dev/pkg/logging"
 
 	awscache "github.com/aws/karpenter/pkg/cache"
@@ -63,7 +64,8 @@ func NewOrDie(ctx cloudprovider.Context) Context {
 	)))
 	if *sess.Config.Region == "" {
 		logging.FromContext(ctx).Debug("AWS region not configured, asking EC2 Instance Metadata Service")
-		*sess.Config.Region = getRegionFromIMDS(sess)
+		region, err := ec2metadata.New(sess).Region()
+		*sess.Config.Region = lo.Must(region, err, "failed to get region from metadata server")
 	}
 	logging.FromContext(ctx).Debugf("Using AWS region %s", *sess.Config.Region)
 	return Context{
@@ -71,15 +73,6 @@ func NewOrDie(ctx cloudprovider.Context) Context {
 		Session:                   sess,
 		UnavailableOfferingsCache: awscache.NewUnavailableOfferings(cache.New(awscache.UnavailableOfferingsTTL, CacheCleanupInterval)),
 	}
-}
-
-// get the current region from EC2 IMDS
-func getRegionFromIMDS(sess *session.Session) string {
-	region, err := ec2metadata.New(sess).Region()
-	if err != nil {
-		panic(fmt.Sprintf("Failed to call the metadata server's region API, %s", err))
-	}
-	return region
 }
 
 // withUserAgent adds a karpenter specific user-agent string to AWS session
