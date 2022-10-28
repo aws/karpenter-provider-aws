@@ -25,19 +25,19 @@ const (
 )
 
 var (
-	healthy = prometheus.NewGauge(
+	infrastructureHealthy = prometheus.NewGauge(
 		prometheus.GaugeOpts{
 			Namespace: metrics.Namespace,
 			Subsystem: subsystem,
-			Name:      "healthy",
+			Name:      "infrastructure_healthy",
 			Help:      "Whether the infrastructure provisioned by the controller is healthy.",
 		},
 	)
-	active = prometheus.NewGauge(
+	infrastructureActive = prometheus.NewGauge(
 		prometheus.GaugeOpts{
 			Namespace: metrics.Namespace,
 			Subsystem: subsystem,
-			Name:      "active",
+			Name:      "infrastructure_active",
 			Help:      "Whether the infrastructure reconciliation is currently active.",
 		},
 	)

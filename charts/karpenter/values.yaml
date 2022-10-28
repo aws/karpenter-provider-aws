@@ -125,11 +125,6 @@ controller:
   # faster than this time, the batching window will be extended up to the maxDuration. If they arrive slower, the pods
   # will be batched separately.
   batchIdleDuration: 1s
-
-  # FEATURE FLAGS
-  #
-  # Whether to enable the interruption handling processing logic for the cloud provider
-  enableInterruptionHandling: false
 webhook:
   logLevel: error
   # -- The container port to use for the webhook.
@@ -145,3 +140,8 @@ clusterEndpoint: ""
 aws:
   # -- The default instance profile to use when launching nodes on AWS
   defaultInstanceProfile: ""
+  # -- enableInterruptionHandling is currently in BETA and is disabled by default. Enabling interruption handling may
+  # require additional permissions on the controller service account. Additional permissions are outlined in the docs
+  enableInterruptionHandling: false
+  # -- The global tags to use on all AWS infrastructure resources (launch templates, instances, SQS queue, etc.)
+  tags:

@@ -21,7 +21,7 @@ RUN set -ex; \
     ./aws/install --bin-dir /aws-cli-bin; \
     /aws-cli-bin/aws --version
 
-FROM alpine:latest
+FROM golang:1.19-alpine
 
 # Install APK packages
 RUN echo "@testing http://dl-cdn.alpinelinux.org/alpine/edge/testing" >>/etc/apk/repositories
@@ -30,10 +30,11 @@ RUN apk add --no-cache \
     curl \
     tar \
     bash \
+    gcc \
+    alpine-sdk \
     git \
     jq \
     make \
-    go \
     gcompat \
     helm@testing \
     kubectl@testing
@@ -46,6 +47,9 @@ RUN aws --version
 # Install eksctl
 RUN curl --silent --location "https://github.com/weaveworks/eksctl/releases/download/v0.105.0/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
 RUN mv /tmp/eksctl /usr/local/bin
+
+# Show go version
+RUN go version
 
 # Cache modules to speed up test execution
 RUN git clone https://github.com/aws/karpenter.git /karpenter

@@ -1,6 +1,6 @@
 ---
-title: "Configuration"
-linkTitle: "Configuration"
+title: "Global Settings"
+linkTitle: "Global Settings"
 weight: 5
 description: >
   Configure Karpenter
@@ -39,6 +39,9 @@ Karpenter installs a default configuration via its Helm chart that should work f
 ```yaml
 apiVersion: v1
 kind: ConfigMap
+metadata:
+  name: karpenter-global-settings
+  namespace: karpenter
 data:
   # The maximum length of a batch window. The longer this is, the more pods we can consider for provisioning at one
   # time which usually results in fewer but larger nodes.
@@ -47,6 +50,10 @@ data:
   # faster than this time, the batching window will be extended up to the maxDuration. If they arrive slower, the pods
   # will be batched separately.
   batchIdleDuration: 1s
+  # Any global tag value can be specified by including the "aws.tags.<tag-key>" prefix
+  # associated with the value in the key-value tag pair
+  aws.tags.custom-tag: custom-tag-value
+  aws.tags.custom-tag2: custom-tag-value
 ```
 
 ### Batching Parameters
@@ -66,3 +73,17 @@ This value is expressed as a string value like `10s`, `1m` or `2h45m`. The valid
 The `batchMaxDuration` is the maximum period of time a batching window can be extended to. Increasing this value will allow the maximum batch window size to increase to collect more pending pods into a single batch at the expense of a longer delay from when the first pending pod was created.
 
 This value is expressed as a string value like `10s`, `1m` or `2h45m`. The valid time units are `ns`, `us` (or `µs`), `ms`, `s`, `m`, `h`.
+
+### AWS Parameters
+
+#### `aws.tags.<tag-key>`
+
+Global tags are applied to __all__ AWS infrastructure resources deployed by Karpenter. These resources include:
+
+- Launch Templates
+- Volumes
+- Instances
+
+{{% alert title="Note" color="primary" %}}
+Since you can specify tags at the global level and in the `AWSNodeTemplate` resource, if a key is specified in both locations, the `AWSNodeTemplate` tag value will override the global tag.
+{{% /alert %}}

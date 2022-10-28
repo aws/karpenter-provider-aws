@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	sqsapi "github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/samber/lo"
@@ -36,6 +37,7 @@ import (
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
+	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	awscache "github.com/aws/karpenter/pkg/cache"
 	interruptionevents "github.com/aws/karpenter/pkg/controllers/interruption/events"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages"
@@ -87,25 +89,24 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 		return reconcile.Result{}, fmt.Errorf("listing node templates, %w", err)
 	}
 
-	//if settings.FromContext(ctx).EnableInterruptionHandling && len(list.Items) > 0 {
-	active.Set(1)
-	sqsMessages, err := c.provider.GetSQSMessages(ctx)
-	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("getting messages from queue, %w", err)
+	if awssettings.FromContext(ctx).EnableInterruptionHandling && len(list.Items) > 0 {
+		active.Set(1)
+		sqsMessages, err := c.provider.GetSQSMessages(ctx)
+		if err != nil {
+			return reconcile.Result{}, fmt.Errorf("getting messages from queue, %w", err)
+		}
+		if len(sqsMessages) == 0 {
+			return reconcile.Result{}, nil
+		}
+		instanceIDMap := c.makeInstanceIDMap()
+		errs := make([]error, len(sqsMessages))
+		workqueue.ParallelizeUntil(ctx, 10, len(sqsMessages), func(i int) {
+			errs[i] = c.handleMessage(ctx, instanceIDMap, sqsMessages[i])
+		})
+		return reconcile.Result{}, multierr.Combine(errs...)
 	}
-	if len(sqsMessages) == 0 {
-		return reconcile.Result{}, nil
-	}
-	instanceIDMap := c.makeInstanceIDMap()
-	errs := make([]error, len(sqsMessages))
-	workqueue.ParallelizeUntil(ctx, 10, len(sqsMessages), func(i int) {
-		errs[i] = c.handleMessage(ctx, instanceIDMap, sqsMessages[i])
-	})
-	return reconcile.Result{}, multierr.Combine(errs...)
-	//} else {
-	//	active.Set(0)
-	//}
-	//return reconcile.Result{RequeueAfter: time.Second * 10}, nil
+	active.Set(0)
+	return reconcile.Result{RequeueAfter: time.Second * 10}, nil
 }
 
 func (c *Controller) Builder(_ context.Context, m manager.Manager) operatorcontroller.Builder {

@@ -30,6 +30,7 @@ import (
 
 	operatorcontroller "github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
+	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/apis"
@@ -62,6 +63,8 @@ func NewController(kubeClient client.Client, sqsProvider *providers.SQS, eventBr
 
 // Reconcile reconciles the SQS queue and the EventBridge rules with the expected
 // configuration prescribed by Karpenter
+//
+//nolint:gocyclo
 func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named(Name))
 	nt := &v1alpha1.AWSNodeTemplate{}
@@ -88,25 +91,25 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if err := c.kubeClient.Patch(ctx, nt, mergeFrom); err != nil {
 			return reconcile.Result{}, err
 		}
-		active.Set(0)
+		infrastructureActive.Set(0)
 		return reconcile.Result{}, nil
 	} else if len(list.Items) >= 1 {
-		mergeFrom := client.MergeFrom(nt.DeepCopy())
-		controllerutil.AddFinalizer(nt, v1alpha5.TerminationFinalizer)
-		if err := c.kubeClient.Patch(ctx, nt, mergeFrom); err != nil {
-			return reconcile.Result{}, err
-		}
-		active.Set(1)
-		//if settings.FromContext(ctx).EnableInterruptionHandling &&
-		//	c.lastInfrastructureReconcile.Add(time.Hour).Before(time.Now()) {
+		infrastructureActive.Set(1)
+		if awssettings.FromContext(ctx).EnableInterruptionHandling &&
+			c.lastInfrastructureReconcile.Add(time.Hour).Before(time.Now()) {
 
-		if err := c.provider.Create(ctx); err != nil {
-			healthy.Set(0)
-			return reconcile.Result{}, err
+			if err := c.provider.Create(ctx); err != nil {
+				infrastructureHealthy.Set(0)
+				return reconcile.Result{}, err
+			}
+			c.lastInfrastructureReconcile = time.Now()
+			infrastructureHealthy.Set(1)
 		}
-		c.lastInfrastructureReconcile = time.Now()
-		healthy.Set(1)
-		//}
+	}
+	mergeFrom := client.MergeFrom(nt.DeepCopy())
+	controllerutil.AddFinalizer(nt, v1alpha5.TerminationFinalizer)
+	if err := c.kubeClient.Patch(ctx, nt, mergeFrom); err != nil {
+		return reconcile.Result{}, err
 	}
 	// TODO: Implement an alerting mechanism for settings updates; until then, just poll
 	return reconcile.Result{RequeueAfter: time.Second * 10}, nil

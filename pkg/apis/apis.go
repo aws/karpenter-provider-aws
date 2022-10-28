@@ -21,7 +21,10 @@ import (
 	"knative.dev/pkg/webhook/resourcesemantics"
 
 	"github.com/aws/karpenter-core/pkg/apis"
+	"github.com/aws/karpenter-core/pkg/apis/config"
+	"github.com/aws/karpenter-core/pkg/utils/sets"
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
+	"github.com/aws/karpenter/pkg/apis/config/settings"
 )
 
 var (
@@ -36,4 +39,7 @@ var (
 	Resources = map[schema.GroupVersionKind]resourcesemantics.GenericCRD{
 		v1alpha1.SchemeGroupVersion.WithKind("AWSNodeTemplate"): &v1alpha1.AWSNodeTemplate{},
 	}
+	Settings = sets.New[*config.Registration](
+		settings.Registration,
+	)
 )

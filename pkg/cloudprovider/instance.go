@@ -35,17 +35,20 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 
+	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
+	awserrors "github.com/aws/karpenter/pkg/errors"
+	"github.com/aws/karpenter/pkg/utils"
+
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/operator/injection"
 	"github.com/aws/karpenter-core/pkg/operator/options"
-	awserrors "github.com/aws/karpenter/pkg/errors"
-	"github.com/aws/karpenter/pkg/utils"
+
+	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/scheduling"
 	"github.com/aws/karpenter-core/pkg/utils/functional"
 	"github.com/aws/karpenter-core/pkg/utils/resources"
-	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 )
 
 var (
@@ -146,7 +149,7 @@ func (p *InstanceProvider) launchInstance(ctx context.Context, provider *v1alpha
 		logging.FromContext(ctx).Warn(err.Error())
 	}
 	// Create fleet
-	tags := v1alpha1.MergeTags(ctx, provider.Tags, map[string]string{fmt.Sprintf("kubernetes.io/cluster/%s", injection.GetOptions(ctx).ClusterName): "owned"})
+	tags := v1alpha1.MergeTags(ctx, awssettings.FromContext(ctx).Tags, provider.Tags, map[string]string{fmt.Sprintf("kubernetes.io/cluster/%s", injection.GetOptions(ctx).ClusterName): "owned"})
 	createFleetInput := &ec2.CreateFleetInput{
 		Type:                  aws.String(ec2.FleetTypeInstant),
 		Context:               provider.Context,
