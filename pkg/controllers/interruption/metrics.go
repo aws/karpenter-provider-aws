@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	subsystem              = "aws_notification_controller"
+	subsystem              = "aws_interruption_controller"
 	messageTypeLabel       = "message_type"
 	actionableTypeLabel    = "actionable"
 	actionTypeLabel        = "action_type"

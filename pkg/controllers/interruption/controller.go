@@ -43,6 +43,7 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages/statechange"
 	"github.com/aws/karpenter/pkg/controllers/providers"
+	"github.com/aws/karpenter/pkg/errors"
 	"github.com/aws/karpenter/pkg/utils"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
@@ -176,20 +177,20 @@ func (c *Controller) handleMessage(ctx context.Context, instanceIDMap map[string
 	return nil
 }
 
-func (c *Controller) handleNode(ctx context.Context, evt messages.Interface, node *v1.Node) error {
+func (c *Controller) handleNode(ctx context.Context, msg messages.Message, node *v1.Node) error {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("node", node.Name))
-	action := actionForEvent(evt)
+	action := actionForMessage(msg)
 
 	// Record metric and event for this action
-	c.notifyForEvent(evt, node)
+	c.notifyForMessage(msg, node)
 	actionsPerformed.WithLabelValues(action.String()).Inc()
 
 	// Mark the offering as unavailable in the ICE cache since we got a spot interruption warning
-	if evt.Kind() == messages.SpotInterruptionKind {
+	if msg.Kind() == messages.SpotInterruptionKind {
 		zone := node.Labels[v1.LabelTopologyZone]
 		instanceType := node.Labels[v1.LabelInstanceTypeStable]
 		if zone != "" && instanceType != "" {
-			c.unavailableOfferingsCache.MarkUnavailable(ctx, evt.Kind().String(), instanceType, zone, v1alpha1.CapacityTypeSpot)
+			c.unavailableOfferingsCache.MarkUnavailable(ctx, msg.Kind().String(), instanceType, zone, v1alpha1.CapacityTypeSpot)
 		}
 	}
 	if action != NoAction {
@@ -200,6 +201,9 @@ func (c *Controller) handleNode(ctx context.Context, evt messages.Interface, nod
 
 func (c *Controller) deleteInstance(ctx context.Context, node *v1.Node) error {
 	if err := c.kubeClient.Delete(ctx, node); err != nil {
+		if errors.IsNotFound(err) {
+			return nil
+		}
 		return fmt.Errorf("deleting the node on notification, %w", err)
 	}
 	c.recorder.Publish(interruptionevents.NodeTerminatingOnInterruption(node))
@@ -207,8 +211,8 @@ func (c *Controller) deleteInstance(ctx context.Context, node *v1.Node) error {
 	return nil
 }
 
-func (c *Controller) notifyForEvent(evt messages.Interface, n *v1.Node) {
-	switch evt.Kind() {
+func (c *Controller) notifyForMessage(msg messages.Message, n *v1.Node) {
+	switch msg.Kind() {
 	case messages.RebalanceRecommendationKind:
 		c.recorder.Publish(interruptionevents.InstanceRebalanceRecommendation(n))
 
@@ -219,8 +223,8 @@ func (c *Controller) notifyForEvent(evt messages.Interface, n *v1.Node) {
 		c.recorder.Publish(interruptionevents.InstanceSpotInterrupted(n))
 
 	case messages.StateChangeKind:
-		typed := evt.(statechange.Event)
-		if lo.Contains([]string{"stopping", "stopped"}, typed.State()) {
+		typed := msg.(statechange.Message)
+		if lo.Contains([]string{"stopping", "stopped"}, typed.Detail.State) {
 			c.recorder.Publish(interruptionevents.InstanceStopping(n))
 		} else {
 			c.recorder.Publish(interruptionevents.InstanceTerminating(n))
@@ -249,8 +253,8 @@ func (c *Controller) makeInstanceIDMap() map[string]*v1.Node {
 	return m
 }
 
-func actionForEvent(evt messages.Interface) Action {
-	switch evt.Kind() {
+func actionForMessage(msg messages.Message) Action {
+	switch msg.Kind() {
 	case messages.ScheduledChangeKind, messages.SpotInterruptionKind, messages.StateChangeKind:
 		return CordonAndDrain
 	default:

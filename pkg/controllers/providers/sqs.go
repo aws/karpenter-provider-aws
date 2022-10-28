@@ -27,6 +27,7 @@ import (
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/operator/injection"
 	"github.com/aws/karpenter-core/pkg/utils/atomic"
+	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	awserrors "github.com/aws/karpenter/pkg/errors"
 	"github.com/aws/karpenter/pkg/utils"
 )
@@ -58,9 +59,9 @@ type SQS struct {
 
 func NewSQS(ctx context.Context, client sqsiface.SQSAPI) *SQS {
 	provider := &SQS{
-		client:    client,
-		queueName: getQueueName(ctx),
+		client: client,
 	}
+	provider.queueName = provider.getQueueName(ctx)
 	provider.queueURL.Resolve = func(ctx context.Context) (string, error) {
 		input := &sqs.GetQueueUrlInput{
 			QueueName: aws.String(provider.queueName),
@@ -95,10 +96,7 @@ func (s *SQS) QueueName() string {
 func (s *SQS) CreateQueue(ctx context.Context) error {
 	input := &sqs.CreateQueueInput{
 		QueueName: aws.String(s.queueName),
-		Tags: map[string]*string{
-			v1alpha5.DiscoveryTagKey: aws.String(injection.GetOptions(ctx).ClusterName),
-			v1alpha5.ManagedByTagKey: aws.String(injection.GetOptions(ctx).ClusterName),
-		},
+		Tags:      s.getTags(ctx),
 	}
 	result, err := s.client.CreateQueueWithContext(ctx, input)
 	if err != nil {
@@ -260,9 +258,21 @@ func (s *SQS) getQueuePolicy(ctx context.Context) (*queuePolicy, error) {
 	}, nil
 }
 
+func (s *SQS) getTags(ctx context.Context) map[string]*string {
+	return lo.Assign(
+		lo.MapEntries(awssettings.FromContext(ctx).Tags, func(k, v string) (string, *string) {
+			return k, lo.ToPtr(v)
+		}),
+		map[string]*string{
+			v1alpha5.DiscoveryTagKey: aws.String(injection.GetOptions(ctx).ClusterName),
+			v1alpha5.ManagedByTagKey: aws.String(injection.GetOptions(ctx).ClusterName),
+		},
+	)
+}
+
 // getQueueName generates a sufficiently random name for the queue name from the cluster name
 // This is used because the max-len for a queue name is 80 characters but the maximum cluster name
 // length is 100
-func getQueueName(ctx context.Context) string {
+func (s *SQS) getQueueName(ctx context.Context) string {
 	return fmt.Sprintf("Karpenter-EventQueue-%s", utils.GetClusterNameHash(ctx, 20))
 }

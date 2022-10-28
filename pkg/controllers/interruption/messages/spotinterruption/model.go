@@ -15,14 +15,12 @@ limitations under the License.
 package spotinterruption
 
 import (
-	"time"
-
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages"
 )
 
-// Event contains the properties defined in AWS EventBridge schema
+// Message contains the properties defined in AWS EventBridge schema
 // aws.ec2@EC2SpotInstanceInterruptionWarning v0.
-type Event struct {
+type Message struct {
 	messages.Metadata
 
 	Detail Detail `json:"detail"`
@@ -33,18 +31,10 @@ type Detail struct {
 	InstanceAction string `json:"instance-action"`
 }
 
-func (e Event) EventID() string {
-	return e.ID
+func (m Message) EC2InstanceIDs() []string {
+	return []string{m.Detail.InstanceID}
 }
 
-func (e Event) EC2InstanceIDs() []string {
-	return []string{e.Detail.InstanceID}
-}
-
-func (Event) Kind() messages.Kind {
+func (Message) Kind() messages.Kind {
 	return messages.SpotInterruptionKind
-}
-
-func (e Event) StartTime() time.Time {
-	return e.Time
 }

@@ -46,10 +46,6 @@ var (
 		"UnfulfillableCapacity",
 		"Unsupported",
 	)
-	accessDeniedErrorCodes = sets.NewString(
-		AccessDeniedCode,
-		AccessDeniedExceptionCode,
-	)
 )
 
 type InstanceTerminatedError struct {
@@ -78,20 +74,6 @@ func IsNotFound(err error) bool {
 	var awsError awserr.Error
 	if errors.As(err, &awsError) {
 		return notFoundErrorCodes.Has(awsError.Code())
-	}
-	return false
-}
-
-// IsAccessDenied returns true if the err is an AWS error (even if it's
-// wrapped) and is a known to mean "access denied" (as opposed to a more
-// serious or unexpected error)
-func IsAccessDenied(err error) bool {
-	if err == nil {
-		return false
-	}
-	var awsError awserr.Error
-	if errors.As(err, &awsError) {
-		return accessDeniedErrorCodes.Has(awsError.Code())
 	}
 	return false
 }

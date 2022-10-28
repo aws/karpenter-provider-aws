@@ -15,14 +15,12 @@ limitations under the License.
 package statechange
 
 import (
-	"time"
-
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages"
 )
 
-// Event contains the properties defined in AWS EventBridge schema
+// Message contains the properties defined in AWS EventBridge schema
 // aws.ec2@EC2InstanceStateChangeNotification v1.
-type Event struct {
+type Message struct {
 	messages.Metadata
 
 	Detail Detail `json:"detail"`
@@ -33,22 +31,10 @@ type Detail struct {
 	State      string `json:"state"`
 }
 
-func (e Event) EventID() string {
-	return e.ID
+func (m Message) EC2InstanceIDs() []string {
+	return []string{m.Detail.InstanceID}
 }
 
-func (e Event) EC2InstanceIDs() []string {
-	return []string{e.Detail.InstanceID}
-}
-
-func (e Event) State() string {
-	return e.Detail.State
-}
-
-func (Event) Kind() messages.Kind {
+func (Message) Kind() messages.Kind {
 	return messages.StateChangeKind
-}
-
-func (e Event) StartTime() time.Time {
-	return e.Time
 }

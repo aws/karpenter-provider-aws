@@ -45,7 +45,7 @@ func (p *Infrastructure) Create(ctx context.Context) error {
 	if err := p.ensureEventBridge(ctx); err != nil {
 		return fmt.Errorf("ensuring eventBridge rules and targets, %w", err)
 	}
-	logging.FromContext(ctx).Infof("Successfully completed reconciliation of infrastructure")
+	logging.FromContext(ctx).Infof("Completed reconciliation of infrastructure")
 	return nil
 }
 
@@ -92,29 +92,24 @@ func (p *Infrastructure) ensureQueue(ctx context.Context) error {
 				return fmt.Errorf("creating sqs queue with policy, %w", err)
 			}
 			logging.FromContext(ctx).Debugf("Successfully created the SQS notification queue")
-		case errors.IsAccessDenied(err):
-			return fmt.Errorf("failed obtaining permission to discover sqs queue url, %w", err)
 		default:
-			return fmt.Errorf("failed discovering sqs queue url, %w", err)
+			return fmt.Errorf("discovering sqs queue url, %w", err)
 		}
 	}
 	// Always attempt to set the queue attributes, even after creation to help set the queue policy
 	if err := p.sqsProvider.SetQueueAttributes(ctx, nil); err != nil {
 		return fmt.Errorf("setting queue attributes for queue, %w", err)
 	}
+	logging.FromContext(ctx).Debugf("Successfully reconciled SQS queue")
 	return nil
 }
 
 // ensureEventBridge reconciles the Eventbridge rules with the configuration prescribed by Karpenter
 func (p *Infrastructure) ensureEventBridge(ctx context.Context) error {
-	logging.FromContext(ctx).Debugf("Reconciling the EventBridge notification rules...")
-	if err := p.eventBridgeProvider.CreateEC2NotificationRules(ctx); err != nil {
-		switch {
-		case errors.IsAccessDenied(err):
-			return fmt.Errorf("obtaining permission to eventbridge, %w", err)
-		default:
-			return fmt.Errorf("creating event bridge notification rules, %w", err)
-		}
+	logging.FromContext(ctx).Debugf("Reconciling the EventBridge event rules...")
+	if err := p.eventBridgeProvider.CreateEC2EventRules(ctx); err != nil {
+		return fmt.Errorf("creating EventBridge event rules, %w", err)
 	}
+	logging.FromContext(ctx).Debugf("Successfully reconciled EventBridge event rules")
 	return nil
 }

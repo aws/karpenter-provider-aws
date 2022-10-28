@@ -28,17 +28,17 @@ var acceptedStates = sets.NewString("stopping", "stopped", "shutting-down", "ter
 
 type Parser struct{}
 
-func (p Parser) Parse(msg string) (messages.Interface, error) {
-	evt := Event{}
-	if err := json.Unmarshal([]byte(msg), &evt); err != nil {
+func (p Parser) Parse(raw string) (messages.Message, error) {
+	msg := Message{}
+	if err := json.Unmarshal([]byte(raw), &msg); err != nil {
 		return nil, fmt.Errorf("unmarhsalling the message as EC2InstanceStateChangeNotification, %w", err)
 	}
 
 	// We ignore states that are not in the set of states we can react to
-	if !acceptedStates.Has(strings.ToLower(evt.Detail.State)) {
+	if !acceptedStates.Has(strings.ToLower(msg.Detail.State)) {
 		return nil, nil
 	}
-	return evt, nil
+	return msg, nil
 }
 
 func (p Parser) Version() string {

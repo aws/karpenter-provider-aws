@@ -319,8 +319,8 @@ func awsErrWithCode(code string) awserr.Error {
 	return awserr.New(code, "", fmt.Errorf(""))
 }
 
-func spotInterruptionMessage(involvedInstanceID string) spotinterruption.Event {
-	return spotinterruption.Event{
+func spotInterruptionMessage(involvedInstanceID string) spotinterruption.Message {
+	return spotinterruption.Message{
 		Metadata: messages.Metadata{
 			Version:    "0",
 			Account:    defaultAccountID,
@@ -340,8 +340,8 @@ func spotInterruptionMessage(involvedInstanceID string) spotinterruption.Event {
 	}
 }
 
-func stateChangeMessage(involvedInstanceID, state string) statechange.Event {
-	return statechange.Event{
+func stateChangeMessage(involvedInstanceID, state string) statechange.Message {
+	return statechange.Message{
 		Metadata: messages.Metadata{
 			Version:    "0",
 			Account:    defaultAccountID,
@@ -361,8 +361,8 @@ func stateChangeMessage(involvedInstanceID, state string) statechange.Event {
 	}
 }
 
-func scheduledChangeMessage(involvedInstanceID string) scheduledchange.Event {
-	return scheduledchange.Event{
+func scheduledChangeMessage(involvedInstanceID string) scheduledchange.Message {
+	return scheduledchange.Message{
 		Metadata: messages.Metadata{
 			Version:    "0",
 			Account:    defaultAccountID,
@@ -384,13 +384,6 @@ func scheduledChangeMessage(involvedInstanceID string) scheduledchange.Event {
 				},
 			},
 		},
-	}
-}
-
-func NewWrappedMessage(evt messages.Interface) *sqs.Message {
-	return &sqs.Message{
-		Body:      aws.String(string(lo.Must(json.Marshal(evt)))),
-		MessageId: aws.String(string(uuid.NewUUID())),
 	}
 }
 

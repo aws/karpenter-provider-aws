@@ -71,23 +71,23 @@ func NewEventParser(parsers ...messages.Parser) *EventParser {
 	}
 }
 
-func (p EventParser) Parse(msg string) (messages.Interface, error) {
+func (p EventParser) Parse(msg string) (messages.Message, error) {
 	if msg == "" {
-		return noop.Event{}, nil
+		return noop.Message{}, nil
 	}
 	md := messages.Metadata{}
 	if err := json.Unmarshal([]byte(msg), &md); err != nil {
-		return noop.Event{}, fmt.Errorf("unmarshalling the message as Metadata, %w", err)
+		return noop.Message{}, fmt.Errorf("unmarshalling the message as Metadata, %w", err)
 	}
 	if parser, ok := p.parserMap[newParserKey(md)]; ok {
 		evt, err := parser.Parse(msg)
 		if err != nil {
-			return noop.Event{}, fmt.Errorf("parsing event message, %w", err)
+			return noop.Message{}, fmt.Errorf("parsing event message, %w", err)
 		}
 		if evt == nil {
-			return noop.Event{}, nil
+			return noop.Message{}, nil
 		}
 		return evt, nil
 	}
-	return noop.Event{Metadata: md}, nil
+	return noop.Message{Metadata: md}, nil
 }

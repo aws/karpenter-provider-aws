@@ -18,14 +18,14 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages"
 )
 
-type Event struct {
+type Message struct {
 	messages.Metadata
 }
 
-func (Event) EC2InstanceIDs() []string {
+func (Message) EC2InstanceIDs() []string {
 	return []string{}
 }
 
-func (Event) Kind() messages.Kind {
+func (Message) Kind() messages.Kind {
 	return messages.NoOpKind
 }

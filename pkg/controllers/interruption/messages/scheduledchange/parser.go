@@ -28,18 +28,18 @@ const (
 
 type Parser struct{}
 
-func (p Parser) Parse(msg string) (messages.Interface, error) {
-	evt := Event{}
-	if err := json.Unmarshal([]byte(msg), &evt); err != nil {
+func (p Parser) Parse(raw string) (messages.Message, error) {
+	msg := Message{}
+	if err := json.Unmarshal([]byte(raw), &msg); err != nil {
 		return nil, fmt.Errorf("unmarhsalling the message as AWSHealthEvent, %w", err)
 	}
 
 	// We ignore services and event categories that we don't watch
-	if evt.Detail.Service != acceptedService ||
-		evt.Detail.EventTypeCategory != acceptedEventTypeCategory {
+	if msg.Detail.Service != acceptedService ||
+		msg.Detail.EventTypeCategory != acceptedEventTypeCategory {
 		return nil, nil
 	}
-	return evt, nil
+	return msg, nil
 }
 
 func (p Parser) Version() string {

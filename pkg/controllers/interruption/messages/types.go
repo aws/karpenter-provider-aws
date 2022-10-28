@@ -20,14 +20,14 @@ import (
 )
 
 type Parser interface {
-	Parse(string) (Interface, error)
+	Parse(string) (Message, error)
 
 	Version() string
 	Source() string
 	DetailType() string
 }
 
-type Interface interface {
+type Message interface {
 	EC2InstanceIDs() []string
 	Kind() Kind
 }

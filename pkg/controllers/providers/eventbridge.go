@@ -28,6 +28,7 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/operator/injection"
+	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	awserrors "github.com/aws/karpenter/pkg/errors"
 	"github.com/aws/karpenter/pkg/utils"
 )
@@ -38,6 +39,14 @@ type rule struct {
 	Name    string
 	Pattern *pattern
 	Target  *target
+}
+
+func (er rule) addQueueTarget(queueARN string) rule {
+	er.Target = &target{
+		ID:  QueueTargetID,
+		ARN: queueARN,
+	}
+	return er
 }
 
 type target struct {
@@ -66,27 +75,18 @@ func NewEventBridge(eb eventbridgeiface.EventBridgeAPI, sqsProvider *SQS) *Event
 	}
 }
 
-func (eb *EventBridge) CreateEC2NotificationRules(ctx context.Context) error {
+func (eb *EventBridge) CreateEC2EventRules(ctx context.Context) error {
 	queueARN, err := eb.sqsProvider.queueARN.TryGet(ctx)
 	if err != nil {
 		return fmt.Errorf("resolving queue arn, %w", err)
 	}
-	rules := lo.Map(eb.getEC2NotificationEventRules(ctx), func(r rule, _ int) rule { return r.AddQueueTarget(queueARN) })
+	rules := lo.Map(eb.getEC2NotificationEventRules(ctx), func(r rule, _ int) rule { return r.addQueueTarget(queueARN) })
 	errs := make([]error, len(rules))
 	workqueue.ParallelizeUntil(ctx, len(rules), len(rules), func(i int) {
 		_, err := eb.client.PutRuleWithContext(ctx, &eventbridge.PutRuleInput{
 			Name:         aws.String(rules[i].Name),
 			EventPattern: aws.String(string(rules[i].Pattern.Serialize())),
-			Tags: []*eventbridge.Tag{
-				{
-					Key:   aws.String(v1alpha5.DiscoveryTagKey),
-					Value: aws.String(injection.GetOptions(ctx).ClusterName),
-				},
-				{
-					Key:   aws.String(v1alpha5.ManagedByTagKey),
-					Value: aws.String(injection.GetOptions(ctx).ClusterName),
-				},
-			},
+			Tags:         eb.getTags(ctx),
 		})
 		if err != nil {
 			errs[i] = multierr.Append(errs[i], err)
@@ -164,10 +164,23 @@ func (eb *EventBridge) getEC2NotificationEventRules(ctx context.Context) []rule 
 	}
 }
 
-func (er rule) AddQueueTarget(queueARN string) rule {
-	er.Target = &target{
-		ID:  QueueTargetID,
-		ARN: queueARN,
-	}
-	return er
+func (eb *EventBridge) getTags(ctx context.Context) []*eventbridge.Tag {
+	return append(
+		[]*eventbridge.Tag{
+			{
+				Key:   aws.String(v1alpha5.DiscoveryTagKey),
+				Value: aws.String(injection.GetOptions(ctx).ClusterName),
+			},
+			{
+				Key:   aws.String(v1alpha5.ManagedByTagKey),
+				Value: aws.String(injection.GetOptions(ctx).ClusterName),
+			},
+		},
+		lo.MapToSlice(awssettings.FromContext(ctx).Tags, func(k, v string) *eventbridge.Tag {
+			return &eventbridge.Tag{
+				Key:   aws.String(k),
+				Value: aws.String(v),
+			}
+		})...,
+	)
 }

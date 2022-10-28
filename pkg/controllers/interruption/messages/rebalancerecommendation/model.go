@@ -18,9 +18,9 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages"
 )
 
-// Event contains the properties defined by
+// Message contains the properties defined by
 // https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/rebalance-recommendations.html#monitor-rebalance-recommendations
-type Event struct {
+type Message struct {
 	messages.Metadata
 
 	Detail Detail `json:"detail"`
@@ -30,10 +30,10 @@ type Detail struct {
 	InstanceID string `json:"instance-id"`
 }
 
-func (e Event) EC2InstanceIDs() []string {
-	return []string{e.Detail.InstanceID}
+func (m Message) EC2InstanceIDs() []string {
+	return []string{m.Detail.InstanceID}
 }
 
-func (Event) Kind() messages.Kind {
+func (Message) Kind() messages.Kind {
 	return messages.RebalanceRecommendationKind
 }

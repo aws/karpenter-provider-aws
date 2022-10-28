@@ -18,23 +18,23 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages"
 )
 
-// Event contains the properties defined in AWS EventBridge schema
+// Message contains the properties defined in AWS EventBridge schema
 // aws.health@AWSHealthEvent v0.
-type Event struct {
+type Message struct {
 	messages.Metadata
 
 	Detail Detail `json:"detail"`
 }
 
-func (e Event) EC2InstanceIDs() []string {
-	ids := make([]string, len(e.Detail.AffectedEntities))
-	for i, entity := range e.Detail.AffectedEntities {
+func (m Message) EC2InstanceIDs() []string {
+	ids := make([]string, len(m.Detail.AffectedEntities))
+	for i, entity := range m.Detail.AffectedEntities {
 		ids[i] = entity.EntityValue
 	}
 	return ids
 }
 
-func (Event) Kind() messages.Kind {
+func (Message) Kind() messages.Kind {
 	return messages.ScheduledChangeKind
 }
 

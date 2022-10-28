@@ -23,12 +23,12 @@ import (
 
 type Parser struct{}
 
-func (p Parser) Parse(msg string) (messages.Interface, error) {
-	evt := Event{}
-	if err := json.Unmarshal([]byte(msg), &evt); err != nil {
+func (p Parser) Parse(raw string) (messages.Message, error) {
+	msg := Message{}
+	if err := json.Unmarshal([]byte(raw), &msg); err != nil {
 		return nil, fmt.Errorf("unmarhsalling the message as EC2SpotInstanceInterruptionWarning, %w", err)
 	}
-	return evt, nil
+	return msg, nil
 }
 
 func (p Parser) Version() string {

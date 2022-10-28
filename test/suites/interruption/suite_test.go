@@ -247,8 +247,8 @@ var _ = Describe("Interruption", Label("AWS"), func() {
 	})
 })
 
-func scheduledChangeMessage(region, accountID, involvedInstanceID string) scheduledchange.Event {
-	return scheduledchange.Event{
+func scheduledChangeMessage(region, accountID, involvedInstanceID string) scheduledchange.Message {
+	return scheduledchange.Message{
 		Metadata: messages.Metadata{
 			Version:    "0",
 			Account:    accountID,
