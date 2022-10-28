@@ -27,9 +27,10 @@ import (
 	"github.com/patrickmn/go-cache"
 	"knative.dev/pkg/logging"
 
+	awscache "github.com/aws/karpenter/pkg/cache"
+
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/utils/project"
-	awscache "github.com/aws/karpenter/pkg/cache"
 )
 
 const (

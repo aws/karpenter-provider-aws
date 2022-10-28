@@ -18,15 +18,16 @@ import (
 	"github.com/samber/lo"
 	"k8s.io/utils/clock"
 
+	awscloudprovider "github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/context"
+	awscontrollers "github.com/aws/karpenter/pkg/controllers"
+
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/cloudprovider/metrics"
 	"github.com/aws/karpenter-core/pkg/controllers"
 	"github.com/aws/karpenter-core/pkg/controllers/state"
 	"github.com/aws/karpenter-core/pkg/operator"
 	"github.com/aws/karpenter-core/pkg/webhooks"
-	awscloudprovider "github.com/aws/karpenter/pkg/cloudprovider"
-	"github.com/aws/karpenter/pkg/context"
-	awscontrollers "github.com/aws/karpenter/pkg/controllers"
 )
 
 func main() {
@@ -34,6 +35,7 @@ func main() {
 	awsCtx := context.NewOrDie(cloudprovider.Context{
 		Context:             ctx,
 		Clock:               operator.Clock,
+		RESTConfig:          operator.RESTConfig,
 		KubeClient:          operator.GetClient(),
 		KubernetesInterface: operator.KubernetesInterface,
 		EventRecorder:       operator.EventRecorder,
@@ -51,7 +53,7 @@ func main() {
 			operator.GetClient(),
 			operator.KubernetesInterface,
 			clusterState,
-			operator.Recorder,
+			operator.EventRecorder,
 			operator.SettingsStore,
 			cloudProvider,
 		)...).
