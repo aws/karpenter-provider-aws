@@ -48,7 +48,7 @@ RUN aws --version
 RUN curl --silent --location "https://github.com/weaveworks/eksctl/releases/download/v0.105.0/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
 RUN mv /tmp/eksctl /usr/local/bin
 
-# Install Go
+# Show go version
 RUN go version
 
 # Cache modules to speed up test execution
