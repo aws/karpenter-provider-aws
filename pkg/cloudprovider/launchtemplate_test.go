@@ -31,6 +31,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -45,7 +46,6 @@ import (
 	"github.com/aws/karpenter-core/pkg/controllers/provisioning"
 	"github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
-	"github.com/aws/karpenter-core/pkg/utils/ptr"
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily/bootstrap"
@@ -323,7 +323,7 @@ var _ = Describe("LaunchTemplates", func() {
 						DeleteOnTermination: aws.Bool(true),
 						Encrypted:           aws.Bool(true),
 						VolumeType:          aws.String("io2"),
-						VolumeSize:          ptr.Quantity(resource.MustParse("200G")),
+						VolumeSize:          lo.ToPtr(resource.MustParse("200G")),
 						IOPS:                aws.Int64(10_000),
 						KMSKeyID:            aws.String("arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab"),
 					},
@@ -334,7 +334,7 @@ var _ = Describe("LaunchTemplates", func() {
 						DeleteOnTermination: aws.Bool(true),
 						Encrypted:           aws.Bool(true),
 						VolumeType:          aws.String("io2"),
-						VolumeSize:          ptr.Quantity(resource.MustParse("200Gi")),
+						VolumeSize:          lo.ToPtr(resource.MustParse("200Gi")),
 						IOPS:                aws.Int64(10_000),
 						KMSKeyID:            aws.String("arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab"),
 					},
@@ -397,7 +397,7 @@ var _ = Describe("LaunchTemplates", func() {
 						DeleteOnTermination: aws.Bool(true),
 						Encrypted:           aws.Bool(true),
 						VolumeType:          aws.String("io2"),
-						VolumeSize:          ptr.Quantity(resource.MustParse("40Gi")),
+						VolumeSize:          lo.ToPtr(resource.MustParse("40Gi")),
 						IOPS:                aws.Int64(10_000),
 						KMSKeyID:            aws.String("arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab"),
 					},
