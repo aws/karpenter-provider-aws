@@ -23,7 +23,7 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
+	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	awstest "github.com/aws/karpenter/pkg/test"
 )
 
@@ -46,7 +46,7 @@ var _ = Describe("Webhooks", func() {
 				Expect(provisioner.Spec.Requirements).To(ContainElement(v1.NodeSelectorRequirement{
 					Key:      v1.LabelArchStable,
 					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{"amd64"},
+					Values:   []string{v1alpha5.ArchitectureAmd64},
 				}))
 			})
 		})

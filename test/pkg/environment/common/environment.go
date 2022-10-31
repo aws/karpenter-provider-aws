@@ -29,6 +29,7 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	coreapis "github.com/aws/karpenter-core/pkg/apis"
 	"github.com/aws/karpenter-core/pkg/utils/env"
 	"github.com/aws/karpenter-core/pkg/utils/project"
 	"github.com/aws/karpenter/pkg/apis"
@@ -87,6 +88,9 @@ func NewClient(config *rest.Config) (client.Client, error) {
 		return nil, err
 	}
 	if err := apis.AddToScheme(scheme); err != nil {
+		return nil, err
+	}
+	if err := coreapis.AddToScheme(scheme); err != nil {
 		return nil, err
 	}
 	return client.New(config, client.Options{Scheme: scheme})
