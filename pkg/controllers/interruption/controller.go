@@ -33,8 +33,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/aws/karpenter-core/pkg/events"
-	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
@@ -45,6 +43,9 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/providers"
 	"github.com/aws/karpenter/pkg/errors"
 	"github.com/aws/karpenter/pkg/utils"
+
+	"github.com/aws/karpenter-core/pkg/events"
+	"github.com/aws/karpenter-core/pkg/operator/scheme"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/controllers/state"

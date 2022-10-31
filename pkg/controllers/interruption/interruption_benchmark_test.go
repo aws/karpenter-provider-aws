@@ -44,15 +44,17 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter-core/pkg/cloudprovider/fake"
+	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	awscache "github.com/aws/karpenter/pkg/cache"
 	awscontext "github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/controllers/interruption"
 	"github.com/aws/karpenter/pkg/controllers/providers"
-
 	awsfake "github.com/aws/karpenter/pkg/fake"
+	awstest "github.com/aws/karpenter/pkg/test"
 
+	"github.com/aws/karpenter-core/pkg/apis/config/settings"
+	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/cloudprovider/fake"
 	"github.com/aws/karpenter-core/pkg/controllers/state"
 	"github.com/aws/karpenter-core/pkg/operator/injection"
 	"github.com/aws/karpenter-core/pkg/operator/options"
@@ -84,11 +86,20 @@ func benchmarkNotificationController(b *testing.B, messageCount int) {
 		ClusterName:    "karpenter-notification-benchmarking",
 	}
 	fakeClock = &clock.FakeClock{}
-	ctx = injection.WithOptions(context.Background(), opts)
+	settingsStore := test.SettingsStore{
+		settings.ContextKey: test.Settings(),
+		awssettings.ContextKey: awssettings.Settings{
+			EnableInterruptionHandling: true,
+		},
+	}
+	ctx = settingsStore.InjectSettings(context.Background())
+	ctx = injection.WithOptions(ctx, opts)
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {})
+	env.CRDDirectoryPaths = append(env.CRDDirectoryPaths, relativeToRoot("charts/karpenter/crds"))
 	if err := env.Start(); err != nil {
 		b.Fatalf("Starting envirionment, %v", err)
 	}
+
 	// Stop the test environment after the test completes
 	defer func() {
 		if err := retry.Do(func() error {
@@ -112,12 +123,16 @@ func benchmarkNotificationController(b *testing.B, messageCount int) {
 	}()
 
 	// Load all the fundamental components before setting up the controllers
-	eventRecorder := awsfake.NewEventRecorder()
-	recorder = test.NewEventRecorder()
+	recorder := awsfake.NewEventRecorder()
 	cluster = state.NewCluster(ctx, fakeClock, env.Client, cloudProvider)
 	cloudProvider = &fake.CloudProvider{}
 
 	unavailableOfferingsCache = awscache.NewUnavailableOfferings(cache.New(awscache.UnavailableOfferingsTTL, awscontext.CacheCleanupInterval))
+
+	// Provision a single AWS Node Template to allow interruption reconciliation
+	if err := env.Client.Create(ctx, awstest.AWSNodeTemplate()); err != nil {
+		b.Fatalf("creating AWS node template, %v", err)
+	}
 
 	// Set-up the controllers
 	nodeStateController = state.NewNodeController(env.Client, cluster)
@@ -161,7 +176,7 @@ func benchmarkNotificationController(b *testing.B, messageCount int) {
 	}()
 
 	select {
-	case <-providers.monitorMessagesProcessed(env.Ctx, eventRecorder, messageCount):
+	case <-providers.monitorMessagesProcessed(env.Ctx, recorder, messageCount):
 	case err = <-managerErr:
 		b.Fatalf("running manager, %v", err)
 	}

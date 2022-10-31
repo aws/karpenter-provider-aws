@@ -17,10 +17,8 @@ package fake
 import (
 	"sync/atomic"
 
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-
+	"github.com/aws/karpenter-core/pkg/events"
+	"github.com/aws/karpenter-core/pkg/test"
 	interruptionevents "github.com/aws/karpenter/pkg/controllers/interruption/events"
 )
 
@@ -38,28 +36,19 @@ func NewEventRecorder() *EventRecorder {
 	return &EventRecorder{}
 }
 
-func (e *EventRecorder) Event(_ runtime.Object, _, reason, _ string) {
-	fakeNode := &v1.Node{ObjectMeta: metav1.ObjectMeta{Name: "fake"}}
-	switch reason {
-	case interruptionevents.InstanceSpotInterrupted(fakeNode).Reason:
+func (e *EventRecorder) Publish(evt events.Event) {
+	switch evt.Reason {
+	case interruptionevents.InstanceSpotInterrupted(test.Node()).Reason:
 		e.InstanceSpotInterruptedCalled.Add(1)
-	case interruptionevents.InstanceRebalanceRecommendation(fakeNode).Reason:
+	case interruptionevents.InstanceRebalanceRecommendation(test.Node()).Reason:
 		e.InstanceRebalanceRecommendationCalled.Add(1)
-	case interruptionevents.InstanceUnhealthy(fakeNode).Reason:
+	case interruptionevents.InstanceUnhealthy(test.Node()).Reason:
 		e.InstanceUnhealthyCalled.Add(1)
-	case interruptionevents.InstanceTerminating(fakeNode).Reason:
+	case interruptionevents.InstanceTerminating(test.Node()).Reason:
 		e.InstanceTerminatingCalled.Add(1)
-	case interruptionevents.InstanceStopping(fakeNode).Reason:
+	case interruptionevents.InstanceStopping(test.Node()).Reason:
 		e.InstanceStoppingCalled.Add(1)
-	case interruptionevents.NodeTerminatingOnInterruption(fakeNode).Reason:
+	case interruptionevents.NodeTerminatingOnInterruption(test.Node()).Reason:
 		e.NodeTerminatingOnInterruptionCalled.Add(1)
 	}
-}
-
-func (e *EventRecorder) Eventf(object runtime.Object, eventtype, reason, messageFmt string, _ ...interface{}) {
-	e.Event(object, eventtype, reason, messageFmt)
-}
-
-func (e *EventRecorder) AnnotatedEventf(object runtime.Object, _ map[string]string, eventtype, reason, messageFmt string, _ ...interface{}) {
-	e.Event(object, eventtype, reason, messageFmt)
 }
