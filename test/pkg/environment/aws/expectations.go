@@ -85,8 +85,9 @@ func (env *Environment) GetVolume(volumeID *string) ec2.Volume {
 
 func (env *Environment) EventuallyExpectQueueCreated() {
 	EventuallyWithOffset(1, func(g Gomega) {
-		_, err := env.SQSProvider.DiscoverQueueURL(env.Context, true)
+		exists, err := env.SQSProvider.QueueExists(env.Context)
 		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(exists).To(BeTrue())
 	}).Should(Succeed())
 }
 

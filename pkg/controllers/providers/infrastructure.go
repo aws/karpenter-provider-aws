@@ -21,8 +21,6 @@ import (
 	"go.uber.org/multierr"
 	"k8s.io/client-go/util/workqueue"
 	"knative.dev/pkg/logging"
-
-	"github.com/aws/karpenter/pkg/errors"
 )
 
 type Infrastructure struct {
@@ -84,17 +82,16 @@ func (p *Infrastructure) ensureQueue(ctx context.Context) error {
 	// Attempt to find the queue. If we can't find it, assume it isn't created and try to create it
 	// If we did find it, then just set the queue attributes on the existing queue
 	logging.FromContext(ctx).Debugf("Reconciling the SQS notification queue...")
-	if _, err := p.sqsProvider.DiscoverQueueURL(ctx, true); err != nil {
-		switch {
-		case errors.IsNotFound(err):
-			logging.FromContext(ctx).Debugf("Queue not found, creating the SQS notification queue...")
-			if err := p.sqsProvider.CreateQueue(ctx); err != nil {
-				return fmt.Errorf("creating sqs queue with policy, %w", err)
-			}
-			logging.FromContext(ctx).Debugf("Successfully created the SQS notification queue")
-		default:
-			return fmt.Errorf("discovering sqs queue url, %w", err)
+	queueExists, err := p.sqsProvider.QueueExists(ctx)
+	if err != nil {
+		return fmt.Errorf("checking queue existence, %w", err)
+	}
+	if !queueExists {
+		logging.FromContext(ctx).Debugf("Queue not found, creating the SQS notification queue...")
+		if err := p.sqsProvider.CreateQueue(ctx); err != nil {
+			return fmt.Errorf("creating sqs queue with policy, %w", err)
 		}
+		logging.FromContext(ctx).Debugf("Successfully created the SQS notification queue")
 	}
 	// Always attempt to set the queue attributes, even after creation to help set the queue policy
 	if err := p.sqsProvider.SetQueueAttributes(ctx, nil); err != nil {

@@ -18,7 +18,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/eventbridge"
 	"github.com/aws/aws-sdk-go/service/sqs"
 
-	"github.com/aws/karpenter-core/pkg/controllers/state"
 	"github.com/aws/karpenter-core/pkg/operator/controller"
 	awscontext "github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/controllers/interruption"
@@ -26,12 +25,12 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/providers"
 )
 
-func NewControllers(ctx awscontext.Context, cluster *state.Cluster) []controller.Controller {
+func NewControllers(ctx awscontext.Context) []controller.Controller {
 	sqsProvider := providers.NewSQS(ctx, sqs.New(ctx.Session))
 	eventBridgeProvider := providers.NewEventBridge(eventbridge.New(ctx.Session), sqsProvider)
 
 	return []controller.Controller{
 		nodetemplate.NewController(ctx.KubeClient, sqsProvider, eventBridgeProvider),
-		interruption.NewController(ctx.KubeClient, ctx.Clock, ctx.EventRecorder, cluster, sqsProvider, ctx.UnavailableOfferingsCache),
+		interruption.NewController(ctx.KubeClient, ctx.Clock, ctx.EventRecorder, sqsProvider, ctx.UnavailableOfferingsCache),
 	}
 }

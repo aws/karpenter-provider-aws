@@ -42,20 +42,18 @@ import (
 	"knative.dev/pkg/logging"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	awscache "github.com/aws/karpenter/pkg/cache"
 	awscontext "github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/controllers/interruption"
+	"github.com/aws/karpenter/pkg/controllers/interruption/events"
 	"github.com/aws/karpenter/pkg/controllers/providers"
-	awsfake "github.com/aws/karpenter/pkg/fake"
 	awstest "github.com/aws/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-core/pkg/apis/config/settings"
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/cloudprovider/fake"
-	"github.com/aws/karpenter-core/pkg/controllers/state"
 	"github.com/aws/karpenter-core/pkg/operator/injection"
 	"github.com/aws/karpenter-core/pkg/operator/options"
 	"github.com/aws/karpenter-core/pkg/test"
@@ -123,8 +121,7 @@ func benchmarkNotificationController(b *testing.B, messageCount int) {
 	}()
 
 	// Load all the fundamental components before setting up the controllers
-	recorder := awsfake.NewEventRecorder()
-	cluster = state.NewCluster(ctx, fakeClock, env.Client, cloudProvider)
+	recorder = test.NewEventRecorder()
 	cloudProvider = &fake.CloudProvider{}
 
 	unavailableOfferingsCache = awscache.NewUnavailableOfferings(cache.New(awscache.UnavailableOfferingsTTL, awscontext.CacheCleanupInterval))
@@ -135,13 +132,12 @@ func benchmarkNotificationController(b *testing.B, messageCount int) {
 	}
 
 	// Set-up the controllers
-	nodeStateController = state.NewNodeController(env.Client, cluster)
-	interruptionController := interruption.NewController(env.Client, fakeClock, recorder, cluster, providers.sqsProvider, unavailableOfferingsCache)
+	interruptionController := interruption.NewController(env.Client, fakeClock, recorder, providers.sqsProvider, unavailableOfferingsCache)
 
 	messages, nodes := makeDiverseMessagesAndNodes(messageCount)
 
 	logging.FromContext(env.Ctx).Infof("Provisioning %d nodes", messageCount)
-	if err := provisionNodes(env.Ctx, env.Client, nodes, nodeStateController); err != nil {
+	if err := provisionNodes(env.Ctx, env.Client, nodes); err != nil {
 		b.Fatalf("provisioning nodes, %v", err)
 	}
 	logging.FromContext(env.Ctx).Infof("Completed provisioning %d nodes", messageCount)
@@ -162,9 +158,6 @@ func benchmarkNotificationController(b *testing.B, messageCount int) {
 	// Registering controller with the manager
 	if err = interruptionController.Builder(ctx, m).Complete(interruptionController); err != nil {
 		b.Fatalf("registering interruption controller, %v", err)
-	}
-	if err = nodeStateController.Builder(ctx, m).Complete(nodeStateController); err != nil {
-		b.Fatalf("registering nodeState controller, %v", err)
 	}
 
 	b.ResetTimer()
@@ -234,16 +227,16 @@ func (p *providerSet) provisionMessages(ctx context.Context, messages ...interfa
 	return multierr.Combine(errs...)
 }
 
-func (p *providerSet) monitorMessagesProcessed(ctx context.Context, eventRecorder *awsfake.EventRecorder, expectedProcessed int) <-chan struct{} {
+func (p *providerSet) monitorMessagesProcessed(ctx context.Context, eventRecorder *test.EventRecorder, expectedProcessed int) <-chan struct{} {
 	done := make(chan struct{})
 	totalProcessed := 0
 	go func() {
 		for totalProcessed < expectedProcessed {
-			totalProcessed = int(eventRecorder.InstanceStoppingCalled.Load()) +
-				int(eventRecorder.InstanceTerminatingCalled.Load()) +
-				int(eventRecorder.InstanceUnhealthyCalled.Load()) +
-				int(eventRecorder.InstanceRebalanceRecommendationCalled.Load()) +
-				int(eventRecorder.InstanceSpotInterruptedCalled.Load())
+			totalProcessed = eventRecorder.Calls(events.InstanceStopping(test.Node()).Reason) +
+				eventRecorder.Calls(events.InstanceTerminating(test.Node()).Reason) +
+				eventRecorder.Calls(events.InstanceUnhealthy(test.Node()).Reason) +
+				eventRecorder.Calls(events.InstanceRebalanceRecommendation(test.Node()).Reason) +
+				eventRecorder.Calls(events.InstanceSpotInterrupted(test.Node()).Reason)
 			logging.FromContext(ctx).Infof("Processed %d messages from the queue", totalProcessed)
 			time.Sleep(time.Second)
 		}
@@ -252,19 +245,13 @@ func (p *providerSet) monitorMessagesProcessed(ctx context.Context, eventRecorde
 	return done
 }
 
-func provisionNodes(ctx context.Context, kubeClient client.Client, nodes []*v1.Node, nodeController *state.NodeController) error {
+func provisionNodes(ctx context.Context, kubeClient client.Client, nodes []*v1.Node) error {
 	errs := make([]error, len(nodes))
 	workqueue.ParallelizeUntil(ctx, 20, len(nodes), func(i int) {
 		if err := retry.Do(func() error {
 			return kubeClient.Create(ctx, nodes[i])
 		}); err != nil {
 			errs[i] = fmt.Errorf("provisioning node, %w", err)
-		}
-		if err := retry.Do(func() error {
-			_, err := nodeController.Reconcile(ctx, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(nodes[i])})
-			return err
-		}); err != nil {
-			errs[i] = fmt.Errorf("reconciling node, %w", err)
 		}
 	})
 	return multierr.Combine(errs...)

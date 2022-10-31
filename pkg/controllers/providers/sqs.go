@@ -107,7 +107,7 @@ func (s *SQS) CreateQueue(ctx context.Context) error {
 }
 
 func (s *SQS) SetQueueAttributes(ctx context.Context, attributeOverrides map[string]*string) error {
-	queueURL, err := s.DiscoverQueueURL(ctx, false)
+	queueURL, err := s.DiscoverQueueURL(ctx)
 	if err != nil {
 		return fmt.Errorf("fetching queue url, %w", err)
 	}
@@ -129,9 +129,19 @@ func (s *SQS) SetQueueAttributes(ctx context.Context, attributeOverrides map[str
 	return nil
 }
 
-func (s *SQS) DiscoverQueueURL(ctx context.Context, ignoreCache bool) (string, error) {
-	opts := lo.Ternary(ignoreCache, atomic.IgnoreCacheOption, nil)
-	return s.queueURL.TryGet(ctx, opts)
+func (s *SQS) QueueExists(ctx context.Context) (bool, error) {
+	_, err := s.queueURL.TryGet(ctx, atomic.IgnoreCacheOption)
+	if err != nil {
+		if awserrors.IsNotFound(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
+func (s *SQS) DiscoverQueueURL(ctx context.Context) (string, error) {
+	return s.queueURL.TryGet(ctx)
 }
 
 func (s *SQS) DiscoverQueueARN(ctx context.Context) (string, error) {
@@ -139,7 +149,7 @@ func (s *SQS) DiscoverQueueARN(ctx context.Context) (string, error) {
 }
 
 func (s *SQS) GetSQSMessages(ctx context.Context) ([]*sqs.Message, error) {
-	queueURL, err := s.DiscoverQueueURL(ctx, false)
+	queueURL, err := s.DiscoverQueueURL(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("fetching queue url, %w", err)
 	}
@@ -170,7 +180,7 @@ func (s *SQS) SendMessage(ctx context.Context, body interface{}) (string, error)
 	if err != nil {
 		return "", fmt.Errorf("marshaling the passed body as json, %w", err)
 	}
-	queueURL, err := s.DiscoverQueueURL(ctx, false)
+	queueURL, err := s.DiscoverQueueURL(ctx)
 	if err != nil {
 		return "", fmt.Errorf("fetching queue url, %w", err)
 	}
@@ -186,7 +196,7 @@ func (s *SQS) SendMessage(ctx context.Context, body interface{}) (string, error)
 }
 
 func (s *SQS) DeleteSQSMessage(ctx context.Context, msg *sqs.Message) error {
-	queueURL, err := s.DiscoverQueueURL(ctx, false)
+	queueURL, err := s.DiscoverQueueURL(ctx)
 	if err != nil {
 		return fmt.Errorf("failed fetching queue url, %w", err)
 	}
@@ -204,7 +214,7 @@ func (s *SQS) DeleteSQSMessage(ctx context.Context, msg *sqs.Message) error {
 }
 
 func (s *SQS) DeleteQueue(ctx context.Context) error {
-	queueURL, err := s.DiscoverQueueURL(ctx, false)
+	queueURL, err := s.DiscoverQueueURL(ctx)
 	if err != nil {
 		if awserrors.IsNotFound(err) {
 			return nil

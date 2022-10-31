@@ -46,14 +46,13 @@ func main() {
 	lo.Must0(operator.AddHealthzCheck("cloud-provider", awsCloudProvider.LivenessProbe))
 	cloudProvider := metrics.Decorate(awsCloudProvider)
 
-	clusterState := state.NewCluster(operator.SettingsStore.InjectSettings(ctx), operator.Clock, operator.GetClient(), cloudProvider)
 	operator.
 		WithControllers(ctx, corecontrollers.NewControllers(
 			ctx,
 			clock.RealClock{},
 			operator.GetClient(),
 			operator.KubernetesInterface,
-			clusterState,
+			state.NewCluster(operator.SettingsStore.InjectSettings(ctx), operator.Clock, operator.GetClient(), cloudProvider),
 			operator.EventRecorder,
 			operator.SettingsStore,
 			cloudProvider,
@@ -61,7 +60,6 @@ func main() {
 		WithWebhooks(corewebhooks.NewWebhooks()...).
 		WithControllers(ctx, controllers.NewControllers(
 			awsCtx,
-			clusterState,
 		)...).
 		WithWebhooks(webhooks.NewWebhooks()...).
 		Start(ctx)

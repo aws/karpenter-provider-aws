@@ -45,7 +45,7 @@ var (
 			Name:      "received_messages",
 			Help:      "Count of messages received from the SQS queue. Broken down by message type and whether the message was actionable.",
 		},
-		[]string{messageTypeLabel, actionableTypeLabel},
+		[]string{messageTypeLabel},
 	)
 	deletedMessages = prometheus.NewCounter(
 		prometheus.CounterOpts{

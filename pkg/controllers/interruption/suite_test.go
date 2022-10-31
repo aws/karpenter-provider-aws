@@ -57,7 +57,6 @@ import (
 	"github.com/aws/karpenter-core/pkg/apis/config/settings"
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/cloudprovider/fake"
-	"github.com/aws/karpenter-core/pkg/controllers/state"
 	"github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
 )
@@ -73,7 +72,6 @@ const (
 var ctx context.Context
 var env *test.Environment
 var nodeTemplate *v1alpha1.AWSNodeTemplate
-var cluster *state.Cluster
 var sqsapi *awsfake.SQSAPI
 var eventbridgeapi *awsfake.EventBridgeAPI
 var cloudProvider *fake.CloudProvider
@@ -83,7 +81,6 @@ var unavailableOfferingsCache *awscache.UnavailableOfferings
 var recorder *test.EventRecorder
 var fakeClock *clock.FakeClock
 var controller *interruption.Controller
-var nodeStateController *state.NodeController
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -106,9 +103,7 @@ var _ = BeforeEach(func() {
 		nodeTemplate = awstest.AWSNodeTemplate()
 		ExpectApplied(ctx, e.Client, nodeTemplate)
 
-		cluster = state.NewCluster(ctx, fakeClock, env.Client, cloudProvider)
 		recorder = test.NewEventRecorder()
-		nodeStateController = state.NewNodeController(env.Client, cluster)
 		unavailableOfferingsCache = awscache.NewUnavailableOfferings(cache.New(awscache.UnavailableOfferingsTTL, awscontext.CacheCleanupInterval))
 
 		sqsapi = &awsfake.SQSAPI{}
@@ -116,7 +111,7 @@ var _ = BeforeEach(func() {
 		eventbridgeapi = &awsfake.EventBridgeAPI{}
 		eventBridgeProvider = providers.NewEventBridge(eventbridgeapi, sqsProvider)
 
-		controller = interruption.NewController(env.Client, fakeClock, recorder, cluster, sqsProvider, unavailableOfferingsCache)
+		controller = interruption.NewController(env.Client, fakeClock, recorder, sqsProvider, unavailableOfferingsCache)
 	})
 	env.CRDDirectoryPaths = append(env.CRDDirectoryPaths, relativeToRoot("charts/karpenter/crds"))
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
@@ -140,7 +135,6 @@ var _ = Describe("Processing Messages", func() {
 		})
 		ExpectMessagesCreated(spotInterruptionMessage(defaultInstanceID))
 		ExpectApplied(env.Ctx, env.Client, node)
-		ExpectReconcileSucceeded(env.Ctx, nodeStateController, client.ObjectKeyFromObject(node))
 
 		ExpectReconcileSucceeded(env.Ctx, controller, types.NamespacedName{})
 		ExpectNotFound(env.Ctx, env.Client, node)
@@ -157,7 +151,6 @@ var _ = Describe("Processing Messages", func() {
 		})
 		ExpectMessagesCreated(scheduledChangeMessage(defaultInstanceID))
 		ExpectApplied(env.Ctx, env.Client, node)
-		ExpectReconcileSucceeded(env.Ctx, nodeStateController, client.ObjectKeyFromObject(node))
 
 		ExpectReconcileSucceeded(env.Ctx, controller, types.NamespacedName{})
 		ExpectNotFound(env.Ctx, env.Client, node)
@@ -180,11 +173,6 @@ var _ = Describe("Processing Messages", func() {
 		}
 		ExpectMessagesCreated(messages...)
 		ExpectApplied(env.Ctx, env.Client, lo.Map(nodes, func(n *v1.Node, _ int) client.Object { return n })...)
-
-		// Wait for the nodes to reconcile with the cluster state
-		for _, node := range nodes {
-			ExpectReconcileSucceeded(env.Ctx, nodeStateController, client.ObjectKeyFromObject(node))
-		}
 
 		ExpectReconcileSucceeded(env.Ctx, controller, types.NamespacedName{})
 		ExpectNotFound(env.Ctx, env.Client, lo.Map(nodes, func(n *v1.Node, _ int) client.Object { return n })...)
@@ -213,11 +201,6 @@ var _ = Describe("Processing Messages", func() {
 		ExpectMessagesCreated(messages...)
 		ExpectApplied(env.Ctx, env.Client, lo.Map(nodes, func(n *v1.Node, _ int) client.Object { return n })...)
 
-		// Wait for the nodes to reconcile with the cluster state
-		for _, node := range nodes {
-			ExpectReconcileSucceeded(env.Ctx, nodeStateController, client.ObjectKeyFromObject(node))
-		}
-
 		ExpectReconcileSucceeded(env.Ctx, controller, types.NamespacedName{})
 		ExpectNotFound(env.Ctx, env.Client, lo.Map(nodes, func(n *v1.Node, _ int) client.Object { return n })...)
 		Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(100))
@@ -228,7 +211,6 @@ var _ = Describe("Processing Messages", func() {
 		})
 		ExpectMessagesCreated(spotInterruptionMessage(node.Spec.ProviderID))
 		ExpectApplied(env.Ctx, env.Client, node)
-		ExpectReconcileSucceeded(env.Ctx, nodeStateController, client.ObjectKeyFromObject(node))
 
 		ExpectReconcileSucceeded(env.Ctx, controller, types.NamespacedName{})
 		ExpectNodeExists(env.Ctx, env.Client, node.Name)
@@ -259,7 +241,6 @@ var _ = Describe("Processing Messages", func() {
 		})
 		ExpectMessagesCreated(stateChangeMessage(defaultInstanceID, "creating"))
 		ExpectApplied(env.Ctx, env.Client, node)
-		ExpectReconcileSucceeded(env.Ctx, nodeStateController, client.ObjectKeyFromObject(node))
 
 		ExpectReconcileSucceeded(env.Ctx, controller, types.NamespacedName{})
 		ExpectNodeExists(env.Ctx, env.Client, node.Name)
@@ -279,7 +260,6 @@ var _ = Describe("Processing Messages", func() {
 		})
 		ExpectMessagesCreated(spotInterruptionMessage(defaultInstanceID))
 		ExpectApplied(env.Ctx, env.Client, node)
-		ExpectReconcileSucceeded(env.Ctx, nodeStateController, client.ObjectKeyFromObject(node))
 
 		ExpectReconcileSucceeded(env.Ctx, controller, types.NamespacedName{})
 		ExpectNotFound(env.Ctx, env.Client, node)

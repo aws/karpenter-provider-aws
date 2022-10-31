@@ -29,7 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	operatorcontroller "github.com/aws/karpenter-core/pkg/operator/controller"
+	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	"github.com/aws/karpenter-core/pkg/utils/result"
 	"github.com/aws/karpenter/pkg/apis"
@@ -96,7 +96,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	return result.Min(results...), nil
 }
 
-func (c *Controller) Builder(_ context.Context, m manager.Manager) operatorcontroller.Builder {
+func (c *Controller) Builder(_ context.Context, m manager.Manager) corecontroller.Builder {
 	return controllerruntime.
 		NewControllerManagedBy(m).
 		Named(Name).
