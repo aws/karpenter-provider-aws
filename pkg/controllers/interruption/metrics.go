@@ -30,15 +30,6 @@ const (
 )
 
 var (
-	reconcileDuration = prometheus.NewHistogram(
-		prometheus.HistogramOpts{
-			Namespace: metrics.Namespace,
-			Subsystem: subsystem,
-			Name:      "duration_seconds",
-			Help:      "Duration of the interruption polling process in seconds.",
-			Buckets:   metrics.DurationBuckets(),
-		},
-	)
 	active = prometheus.NewGauge(
 		prometheus.GaugeOpts{
 			Namespace: metrics.Namespace,

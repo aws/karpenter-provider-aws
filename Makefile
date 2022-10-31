@@ -22,7 +22,6 @@ HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${K
 			--set aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
 			--set aws.enableInterruptionHandling=true \
 			--create-namespace
-TEST_FILTER ?= .*
 
 # CR for local builds of Karpenter
 SYSTEM_NAMESPACE ?= karpenter
@@ -34,7 +33,7 @@ MOD_DIRS = $(shell find . -name go.mod -type f | xargs dirname)
 help: ## Display help
 	@awk 'BEGIN {FS = ":.*##"; printf "Usage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
-dev: verify test ## Run all steps in the developer loop
+presubmit: verify test ## Run all steps in the developer loop
 
 ci: toolchain verify licenses vulncheck battletest coverage ## Run all steps used by continuous integration
 
@@ -46,18 +45,18 @@ run: ## Run Karpenter controller binary against your local cluster
 		--leader-elect=false
 
 test: ## Run tests
-	go test -run=${TEST_FILTER} ./pkg/...
+	go test -v ./pkg/... --ginkgo.focus="${FOCUS}"
 
 battletest: ## Run randomized, racing, code coveraged, tests
-	go test -v -run=${TEST_FILTER} ./pkg/... \
+	go test -v ./pkg/... \
 		-race \
 		-cover -coverprofile=coverage.out -outputdir=. -coverpkg=./pkg/... \
-		-ginkgo.randomizeAllSpecs \
+		--ginkgo.focus="${FOCUS}" \
+		--ginkgo.randomize-all \
 		-tags random_test_delay
 
 e2etests: ## Run the e2e suite against your local cluster
-	go clean -testcache
-	cd test && CLUSTER_NAME=${CLUSTER_NAME} go test -p 1 -timeout 180m -v ./suites/... -run=${TEST_FILTER}
+	cd test && CLUSTER_NAME=${CLUSTER_NAME} go test -p 1 -count 1 -timeout 180m -v ./suites/... --ginkgo.focus="${FOCUS}"
 
 benchmark:
 	go test -tags=test_performance -run=NoTests -bench=. ./...
@@ -104,8 +103,13 @@ delete: ## Delete the controller from your ~/.kube/config cluster
 	helm uninstall karpenter --namespace karpenter
 
 codegen: ## Generate code.
-	curl https://raw.githubusercontent.com/aws/karpenter-core/v0.0.1/chart/crds/karpenter.sh_provisioners.yaml > charts/karpenter/crds/karpenter.sh_provisioners.yaml
+	controller-gen \
+		object:headerFile="hack/boilerplate.go.txt" \
+		crd \
+		paths="./pkg/..." \
+		output:crd:artifacts:config=charts/karpenter/crds
 	hack/boilerplate.sh
+	curl https://raw.githubusercontent.com/aws/karpenter-core/v0.0.1/chart/crds/karpenter.sh_provisioners.yaml > charts/karpenter/crds/karpenter.sh_provisioners.yaml
 
 docgen: ## Generate docs
 	go run hack/docs/metrics_gen_docs.go pkg/ website/content/en/preview/tasks/metrics.md

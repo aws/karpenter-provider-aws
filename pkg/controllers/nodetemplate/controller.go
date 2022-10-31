@@ -33,7 +33,7 @@ import (
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	"github.com/aws/karpenter-core/pkg/utils/result"
 	"github.com/aws/karpenter/pkg/apis"
-	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
+	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/controllers/providers"
 )
 

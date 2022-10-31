@@ -20,14 +20,15 @@ import (
 
 	awscloudprovider "github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/context"
-	awscontrollers "github.com/aws/karpenter/pkg/controllers"
+	"github.com/aws/karpenter/pkg/controllers"
+	"github.com/aws/karpenter/pkg/webhooks"
 
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/cloudprovider/metrics"
-	"github.com/aws/karpenter-core/pkg/controllers"
+	corecontrollers "github.com/aws/karpenter-core/pkg/controllers"
 	"github.com/aws/karpenter-core/pkg/controllers/state"
 	"github.com/aws/karpenter-core/pkg/operator"
-	"github.com/aws/karpenter-core/pkg/webhooks"
+	corewebhooks "github.com/aws/karpenter-core/pkg/webhooks"
 )
 
 func main() {
@@ -47,7 +48,7 @@ func main() {
 
 	clusterState := state.NewCluster(operator.SettingsStore.InjectSettings(ctx), operator.Clock, operator.GetClient(), cloudProvider)
 	operator.
-		WithControllers(ctx, controllers.NewControllers(
+		WithControllers(ctx, corecontrollers.NewControllers(
 			ctx,
 			clock.RealClock{},
 			operator.GetClient(),
@@ -57,7 +58,8 @@ func main() {
 			operator.SettingsStore,
 			cloudProvider,
 		)...).
-		WithControllers(ctx, awscontrollers.NewControllers(
+		WithWebhooks(corewebhooks.NewWebhooks()...).
+		WithControllers(ctx, controllers.NewControllers(
 			awsCtx,
 			clusterState,
 		)...).

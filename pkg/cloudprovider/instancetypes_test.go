@@ -33,13 +33,14 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/operator/injection"
+	coretest "github.com/aws/karpenter-core/pkg/test"
+	test "github.com/aws/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/controllers/provisioning"
-	"github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
 
-	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
+	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/fake"
 )
 
@@ -62,7 +63,7 @@ var _ = Describe("Instance Types", func() {
 			v1alpha1.LabelInstanceGPUMemory:       "16384",
 			v1alpha1.LabelInstanceLocalNVME:       "900",
 		} {
-			pods = append(pods, test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{key: value}}))
+			pods = append(pods, coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{key: value}}))
 		}
 		for _, pod := range ExpectProvisioned(ctx, env.Client, recorder, controller, prov, pods...) {
 			ExpectScheduled(ctx, env.Client, pod)
@@ -71,7 +72,7 @@ var _ = Describe("Instance Types", func() {
 	It("should not launch AWS Pod ENI on a t3", func() {
 		ExpectApplied(ctx, env.Client, provisioner)
 		for _, pod := range ExpectProvisioned(ctx, env.Client, recorder, controller, prov,
-			test.UnschedulablePod(test.PodOptions{
+			coretest.UnschedulablePod(coretest.PodOptions{
 				NodeSelector: map[string]string{
 					v1.LabelInstanceTypeStable: "t3.large",
 				},
@@ -86,7 +87,7 @@ var _ = Describe("Instance Types", func() {
 	It("should de-prioritize metal", func() {
 		ExpectApplied(ctx, env.Client, provisioner)
 		for _, pod := range ExpectProvisioned(ctx, env.Client, recorder, controller, prov,
-			test.UnschedulablePod(test.PodOptions{
+			coretest.UnschedulablePod(coretest.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{
 					Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
 					Limits:   v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
@@ -111,7 +112,7 @@ var _ = Describe("Instance Types", func() {
 		})
 		ExpectApplied(ctx, env.Client, provisioner)
 		for _, pod := range ExpectProvisioned(ctx, env.Client, recorder, controller, prov,
-			test.UnschedulablePod(test.PodOptions{
+			coretest.UnschedulablePod(coretest.PodOptions{
 				NodeSelector: map[string]string{
 					v1.LabelInstanceTypeStable: "m5.metal",
 				},
@@ -131,11 +132,11 @@ var _ = Describe("Instance Types", func() {
 		// ensure the provisioner is shut down at the end of this test
 		defer cancelFunc()
 
-		prov = provisioning.NewProvisioner(cancelCtx, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster, test.SettingsStore{})
+		prov = provisioning.NewProvisioner(cancelCtx, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster, coretest.SettingsStore{})
 		provisionContoller := provisioning.NewController(env.Client, prov, recorder)
 		ExpectApplied(ctx, env.Client, provisioner)
 		for _, pod := range ExpectProvisioned(cancelCtx, env.Client, recorder, provisionContoller, prov,
-			test.UnschedulablePod(test.PodOptions{
+			coretest.UnschedulablePod(coretest.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{
 					Requests: v1.ResourceList{v1alpha1.ResourceAWSPodENI: resource.MustParse("1")},
 					Limits:   v1.ResourceList{v1alpha1.ResourceAWSPodENI: resource.MustParse("1")},
@@ -147,7 +148,7 @@ var _ = Describe("Instance Types", func() {
 	It("should launch AWS Pod ENI on a compatible instance type", func() {
 		ExpectApplied(ctx, env.Client, provisioner)
 		for _, pod := range ExpectProvisioned(ctx, env.Client, recorder, controller, prov,
-			test.UnschedulablePod(test.PodOptions{
+			coretest.UnschedulablePod(coretest.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{
 					Requests: v1.ResourceList{v1alpha1.ResourceAWSPodENI: resource.MustParse("1")},
 					Limits:   v1.ResourceList{v1alpha1.ResourceAWSPodENI: resource.MustParse("1")},
@@ -166,21 +167,21 @@ var _ = Describe("Instance Types", func() {
 		nodeNames := sets.NewString()
 		ExpectApplied(ctx, env.Client, provisioner)
 		for _, pod := range ExpectProvisioned(ctx, env.Client, recorder, controller, prov,
-			test.UnschedulablePod(test.PodOptions{
+			coretest.UnschedulablePod(coretest.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{
 					Requests: v1.ResourceList{v1alpha1.ResourceNVIDIAGPU: resource.MustParse("1")},
 					Limits:   v1.ResourceList{v1alpha1.ResourceNVIDIAGPU: resource.MustParse("1")},
 				},
 			}),
 			// Should pack onto same instance
-			test.UnschedulablePod(test.PodOptions{
+			coretest.UnschedulablePod(coretest.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{
 					Requests: v1.ResourceList{v1alpha1.ResourceNVIDIAGPU: resource.MustParse("2")},
 					Limits:   v1.ResourceList{v1alpha1.ResourceNVIDIAGPU: resource.MustParse("2")},
 				},
 			}),
 			// Should pack onto a separate instance
-			test.UnschedulablePod(test.PodOptions{
+			coretest.UnschedulablePod(coretest.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{
 					Requests: v1.ResourceList{v1alpha1.ResourceNVIDIAGPU: resource.MustParse("4")},
 					Limits:   v1.ResourceList{v1alpha1.ResourceNVIDIAGPU: resource.MustParse("4")},
@@ -196,21 +197,21 @@ var _ = Describe("Instance Types", func() {
 		nodeNames := sets.NewString()
 		ExpectApplied(ctx, env.Client, provisioner)
 		for _, pod := range ExpectProvisioned(ctx, env.Client, recorder, controller, prov,
-			test.UnschedulablePod(test.PodOptions{
+			coretest.UnschedulablePod(coretest.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{
 					Requests: v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("1")},
 					Limits:   v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("1")},
 				},
 			}),
 			// Should pack onto same instance
-			test.UnschedulablePod(test.PodOptions{
+			coretest.UnschedulablePod(coretest.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{
 					Requests: v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("2")},
 					Limits:   v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("2")},
 				},
 			}),
 			// Should pack onto a separate instance
-			test.UnschedulablePod(test.PodOptions{
+			coretest.UnschedulablePod(coretest.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{
 					Requests: v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("4")},
 					Limits:   v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("4")},
@@ -227,7 +228,6 @@ var _ = Describe("Instance Types", func() {
 		opts.AWSENILimitedPodDensity = false
 		instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 		Expect(err).To(BeNil())
-		provisioner = test.Provisioner()
 		for _, info := range instanceInfo {
 			it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, "", provider, nil)
 			resources := it.Resources()
@@ -238,7 +238,6 @@ var _ = Describe("Instance Types", func() {
 		opts.AWSENILimitedPodDensity = true
 		instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 		Expect(err).To(BeNil())
-		provisioner = test.Provisioner()
 		for _, info := range instanceInfo {
 			it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, "", provider, nil)
 			resources := it.Resources()
@@ -251,7 +250,7 @@ var _ = Describe("Instance Types", func() {
 			It("should override system reserved cpus when specified", func() {
 				instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 				Expect(err).To(BeNil())
-				provisioner = test.Provisioner(test.ProvisionerOptions{
+				provisioner = test.Provisioner(coretest.ProvisionerOptions{
 					Kubelet: &v1alpha5.KubeletConfiguration{
 						SystemReserved: v1.ResourceList{
 							v1.ResourceCPU: resource.MustParse("2"),
@@ -265,7 +264,7 @@ var _ = Describe("Instance Types", func() {
 			It("should override system reserved memory when specified", func() {
 				instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 				Expect(err).To(BeNil())
-				provisioner = test.Provisioner(test.ProvisionerOptions{
+				provisioner = test.Provisioner(coretest.ProvisionerOptions{
 					Kubelet: &v1alpha5.KubeletConfiguration{
 						SystemReserved: v1.ResourceList{
 							v1.ResourceMemory: resource.MustParse("20Gi"),
@@ -279,7 +278,7 @@ var _ = Describe("Instance Types", func() {
 			It("should override kube reserved when specified", func() {
 				instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 				Expect(err).To(BeNil())
-				provisioner = test.Provisioner(test.ProvisionerOptions{
+				provisioner = test.Provisioner(coretest.ProvisionerOptions{
 					Kubelet: &v1alpha5.KubeletConfiguration{
 						SystemReserved: v1.ResourceList{
 							v1.ResourceCPU:              resource.MustParse("1"),
@@ -304,7 +303,7 @@ var _ = Describe("Instance Types", func() {
 			It("should override eviction threshold (hard) when specified as a quantity", func() {
 				instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 				Expect(err).To(BeNil())
-				provisioner = test.Provisioner(test.ProvisionerOptions{
+				provisioner = test.Provisioner(coretest.ProvisionerOptions{
 					Kubelet: &v1alpha5.KubeletConfiguration{
 						SystemReserved: v1.ResourceList{
 							v1.ResourceMemory: resource.MustParse("20Gi"),
@@ -324,7 +323,7 @@ var _ = Describe("Instance Types", func() {
 			It("should override eviction threshold (hard) when specified as a percentage value", func() {
 				instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 				Expect(err).To(BeNil())
-				provisioner = test.Provisioner(test.ProvisionerOptions{
+				provisioner = test.Provisioner(coretest.ProvisionerOptions{
 					Kubelet: &v1alpha5.KubeletConfiguration{
 						SystemReserved: v1.ResourceList{
 							v1.ResourceMemory: resource.MustParse("20Gi"),
@@ -344,7 +343,7 @@ var _ = Describe("Instance Types", func() {
 			It("should consider the eviction threshold (hard) disabled when specified as 100%", func() {
 				instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 				Expect(err).To(BeNil())
-				provisioner = test.Provisioner(test.ProvisionerOptions{
+				provisioner = test.Provisioner(coretest.ProvisionerOptions{
 					Kubelet: &v1alpha5.KubeletConfiguration{
 						SystemReserved: v1.ResourceList{
 							v1.ResourceMemory: resource.MustParse("20Gi"),
@@ -364,7 +363,7 @@ var _ = Describe("Instance Types", func() {
 			It("should used default eviction threshold (hard) for memory when evictionHard not specified", func() {
 				instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 				Expect(err).To(BeNil())
-				provisioner = test.Provisioner(test.ProvisionerOptions{
+				provisioner = test.Provisioner(coretest.ProvisionerOptions{
 					Kubelet: &v1alpha5.KubeletConfiguration{
 						SystemReserved: v1.ResourceList{
 							v1.ResourceMemory: resource.MustParse("20Gi"),
@@ -384,7 +383,7 @@ var _ = Describe("Instance Types", func() {
 			It("should override eviction threshold (soft) when specified as a quantity", func() {
 				instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 				Expect(err).To(BeNil())
-				provisioner = test.Provisioner(test.ProvisionerOptions{
+				provisioner = test.Provisioner(coretest.ProvisionerOptions{
 					Kubelet: &v1alpha5.KubeletConfiguration{
 						SystemReserved: v1.ResourceList{
 							v1.ResourceMemory: resource.MustParse("20Gi"),
@@ -404,7 +403,7 @@ var _ = Describe("Instance Types", func() {
 			It("should override eviction threshold (soft) when specified as a percentage value", func() {
 				instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 				Expect(err).To(BeNil())
-				provisioner = test.Provisioner(test.ProvisionerOptions{
+				provisioner = test.Provisioner(coretest.ProvisionerOptions{
 					Kubelet: &v1alpha5.KubeletConfiguration{
 						SystemReserved: v1.ResourceList{
 							v1.ResourceMemory: resource.MustParse("20Gi"),
@@ -427,7 +426,7 @@ var _ = Describe("Instance Types", func() {
 			It("should consider the eviction threshold (soft) disabled when specified as 100%", func() {
 				instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 				Expect(err).To(BeNil())
-				provisioner = test.Provisioner(test.ProvisionerOptions{
+				provisioner = test.Provisioner(coretest.ProvisionerOptions{
 					Kubelet: &v1alpha5.KubeletConfiguration{
 						SystemReserved: v1.ResourceList{
 							v1.ResourceMemory: resource.MustParse("20Gi"),
@@ -448,7 +447,7 @@ var _ = Describe("Instance Types", func() {
 				instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 				Expect(err).To(BeNil())
 				provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
-				provisioner = test.Provisioner(test.ProvisionerOptions{
+				provisioner = test.Provisioner(coretest.ProvisionerOptions{
 					Kubelet: &v1alpha5.KubeletConfiguration{
 						SystemReserved: v1.ResourceList{
 							v1.ResourceMemory: resource.MustParse("20Gi"),
@@ -471,7 +470,7 @@ var _ = Describe("Instance Types", func() {
 			It("should take the greater of evictionHard and evictionSoft for overhead as a value", func() {
 				instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 				Expect(err).To(BeNil())
-				provisioner = test.Provisioner(test.ProvisionerOptions{
+				provisioner = test.Provisioner(coretest.ProvisionerOptions{
 					Kubelet: &v1alpha5.KubeletConfiguration{
 						SystemReserved: v1.ResourceList{
 							v1.ResourceMemory: resource.MustParse("20Gi"),
@@ -494,7 +493,7 @@ var _ = Describe("Instance Types", func() {
 			It("should take the greater of evictionHard and evictionSoft for overhead as a value", func() {
 				instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 				Expect(err).To(BeNil())
-				provisioner = test.Provisioner(test.ProvisionerOptions{
+				provisioner = test.Provisioner(coretest.ProvisionerOptions{
 					Kubelet: &v1alpha5.KubeletConfiguration{
 						SystemReserved: v1.ResourceList{
 							v1.ResourceMemory: resource.MustParse("20Gi"),
@@ -517,7 +516,7 @@ var _ = Describe("Instance Types", func() {
 			It("should take the greater of evictionHard and evictionSoft for overhead with mixed percentage/value", func() {
 				instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 				Expect(err).To(BeNil())
-				provisioner = test.Provisioner(test.ProvisionerOptions{
+				provisioner = test.Provisioner(coretest.ProvisionerOptions{
 					Kubelet: &v1alpha5.KubeletConfiguration{
 						SystemReserved: v1.ResourceList{
 							v1.ResourceMemory: resource.MustParse("20Gi"),
@@ -541,7 +540,7 @@ var _ = Describe("Instance Types", func() {
 		It("should set max-pods to user-defined value if specified", func() {
 			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 			Expect(err).To(BeNil())
-			provisioner = test.Provisioner(test.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{MaxPods: ptr.Int32(10)}})
+			provisioner = test.Provisioner(coretest.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{MaxPods: ptr.Int32(10)}})
 			for _, info := range instanceInfo {
 				it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, "", provider, nil)
 				resources := it.Resources()
@@ -552,7 +551,7 @@ var _ = Describe("Instance Types", func() {
 			opts.AWSENILimitedPodDensity = false
 			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 			Expect(err).To(BeNil())
-			provisioner = test.Provisioner(test.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{MaxPods: ptr.Int32(10)}})
+			provisioner = test.Provisioner(coretest.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{MaxPods: ptr.Int32(10)}})
 			for _, info := range instanceInfo {
 				it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, "", provider, nil)
 				resources := it.Resources()
@@ -562,7 +561,7 @@ var _ = Describe("Instance Types", func() {
 		It("should override pods-per-core value", func() {
 			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 			Expect(err).To(BeNil())
-			provisioner = test.Provisioner(test.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{PodsPerCore: ptr.Int32(1)}})
+			provisioner = test.Provisioner(coretest.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{PodsPerCore: ptr.Int32(1)}})
 			for _, info := range instanceInfo {
 				it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, "", provider, nil)
 				resources := it.Resources()
@@ -572,7 +571,7 @@ var _ = Describe("Instance Types", func() {
 		It("should take the minimum of pods-per-core and max-pods", func() {
 			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 			Expect(err).To(BeNil())
-			provisioner = test.Provisioner(test.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{PodsPerCore: ptr.Int32(4), MaxPods: ptr.Int32(20)}})
+			provisioner = test.Provisioner(coretest.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{PodsPerCore: ptr.Int32(4), MaxPods: ptr.Int32(20)}})
 			for _, info := range instanceInfo {
 				it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, "", provider, nil)
 				resources := it.Resources()
@@ -583,7 +582,7 @@ var _ = Describe("Instance Types", func() {
 			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 			Expect(err).To(BeNil())
 			provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
-			provisioner = test.Provisioner(test.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{PodsPerCore: ptr.Int32(1)}, Provider: provider})
+			provisioner = test.Provisioner(coretest.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{PodsPerCore: ptr.Int32(1)}, Provider: provider})
 			for _, info := range instanceInfo {
 				it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, "", provider, nil)
 				resources := it.Resources()
@@ -594,7 +593,7 @@ var _ = Describe("Instance Types", func() {
 			opts.AWSENILimitedPodDensity = false
 			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 			Expect(err).To(BeNil())
-			provisioner = test.Provisioner(test.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{PodsPerCore: ptr.Int32(0)}})
+			provisioner = test.Provisioner(coretest.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{PodsPerCore: ptr.Int32(0)}})
 			for _, info := range instanceInfo {
 				it := NewInstanceType(injection.WithOptions(ctx, opts), info, provisioner.Spec.KubeletConfiguration, "", provider, nil)
 				resources := it.Resources()
@@ -607,14 +606,14 @@ var _ = Describe("Instance Types", func() {
 			fakeEC2API.InsufficientCapacityPools.Set([]fake.CapacityPool{{CapacityType: v1alpha5.CapacityTypeOnDemand, InstanceType: "inf1.6xlarge", Zone: "test-zone-1a"}})
 			ExpectApplied(ctx, env.Client, provisioner)
 			pods := ExpectProvisioned(ctx, env.Client, recorder, controller, prov,
-				test.UnschedulablePod(test.PodOptions{
+				coretest.UnschedulablePod(coretest.PodOptions{
 					NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"},
 					ResourceRequirements: v1.ResourceRequirements{
 						Requests: v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("1")},
 						Limits:   v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("1")},
 					},
 				}),
-				test.UnschedulablePod(test.PodOptions{
+				coretest.UnschedulablePod(coretest.PodOptions{
 					NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"},
 					ResourceRequirements: v1.ResourceRequirements{
 						Requests: v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("1")},
@@ -636,7 +635,7 @@ var _ = Describe("Instance Types", func() {
 		})
 		It("should launch instances in a different zone on second reconciliation attempt with Insufficient Capacity Error Cache fallback", func() {
 			fakeEC2API.InsufficientCapacityPools.Set([]fake.CapacityPool{{CapacityType: v1alpha5.CapacityTypeOnDemand, InstanceType: "p3.8xlarge", Zone: "test-zone-1a"}})
-			pod := test.UnschedulablePod(test.PodOptions{
+			pod := coretest.UnschedulablePod(coretest.PodOptions{
 				NodeSelector: map[string]string{v1.LabelInstanceTypeStable: "p3.8xlarge"},
 				ResourceRequirements: v1.ResourceRequirements{
 					Requests: v1.ResourceList{v1alpha1.ResourceNVIDIAGPU: resource.MustParse("1")},
@@ -672,7 +671,7 @@ var _ = Describe("Instance Types", func() {
 			})
 			pods := []*v1.Pod{}
 			for i := 0; i < 2; i++ {
-				pods = append(pods, test.UnschedulablePod(test.PodOptions{
+				pods = append(pods, coretest.UnschedulablePod(coretest.PodOptions{
 					ResourceRequirements: v1.ResourceRequirements{
 						Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
 					},
@@ -697,7 +696,7 @@ var _ = Describe("Instance Types", func() {
 			fakeEC2API.InsufficientCapacityPools.Set([]fake.CapacityPool{{CapacityType: v1alpha5.CapacityTypeOnDemand, InstanceType: "inf1.6xlarge", Zone: "test-zone-1a"}})
 			ExpectApplied(ctx, env.Client, provisioner)
 			pod := ExpectProvisioned(ctx, env.Client, recorder, controller, prov,
-				test.UnschedulablePod(test.PodOptions{
+				coretest.UnschedulablePod(coretest.PodOptions{
 					NodeSelector: map[string]string{v1.LabelInstanceTypeStable: "inf1.6xlarge"},
 					ResourceRequirements: v1.ResourceRequirements{
 						Requests: v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("2")},
@@ -726,7 +725,7 @@ var _ = Describe("Instance Types", func() {
 			}
 			// Spot Unavailable
 			ExpectApplied(ctx, env.Client, provisioner)
-			pod := ExpectProvisioned(ctx, env.Client, recorder, controller, prov, test.UnschedulablePod())[0]
+			pod := ExpectProvisioned(ctx, env.Client, recorder, controller, prov, coretest.UnschedulablePod())[0]
 			ExpectNotScheduled(ctx, env.Client, pod)
 			// include deprioritized instance types
 			pod = ExpectProvisioned(ctx, env.Client, recorder, controller, prov, pod)[0]
@@ -757,7 +756,7 @@ var _ = Describe("Instance Types", func() {
 			for _, ct := range []string{v1alpha5.CapacityTypeOnDemand, v1alpha5.CapacityTypeSpot} {
 				for _, zone := range []string{"test-zone-1a", "test-zone-1b"} {
 					ExpectProvisioned(ctx, env.Client, recorder, controller, prov,
-						test.UnschedulablePod(test.PodOptions{
+						coretest.UnschedulablePod(coretest.PodOptions{
 							ResourceRequirements: v1.ResourceRequirements{
 								Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
 							},
@@ -786,7 +785,7 @@ var _ = Describe("Instance Types", func() {
 	Context("CapacityType", func() {
 		It("should default to on-demand", func() {
 			ExpectApplied(ctx, env.Client, provisioner)
-			pod := ExpectProvisioned(ctx, env.Client, recorder, controller, prov, test.UnschedulablePod())[0]
+			pod := ExpectProvisioned(ctx, env.Client, recorder, controller, prov, coretest.UnschedulablePod())[0]
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(HaveKeyWithValue(v1alpha5.LabelCapacityType, v1alpha5.CapacityTypeOnDemand))
 		})
@@ -794,7 +793,7 @@ var _ = Describe("Instance Types", func() {
 			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
 				{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha5.CapacityTypeSpot, v1alpha5.CapacityTypeOnDemand}}}
 			ExpectApplied(ctx, env.Client, provisioner)
-			pod := ExpectProvisioned(ctx, env.Client, recorder, controller, prov, test.UnschedulablePod())[0]
+			pod := ExpectProvisioned(ctx, env.Client, recorder, controller, prov, coretest.UnschedulablePod())[0]
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(HaveKeyWithValue(v1alpha5.LabelCapacityType, v1alpha5.CapacityTypeSpot))
 		})
@@ -821,7 +820,7 @@ var _ = Describe("Instance Types", func() {
 
 			// Instance type with no zonal availability for spot shouldn't be scheduled
 			ExpectApplied(ctx, env.Client, provisioner)
-			pod := ExpectProvisioned(ctx, env.Client, recorder, controller, prov, test.UnschedulablePod())[0]
+			pod := ExpectProvisioned(ctx, env.Client, recorder, controller, prov, coretest.UnschedulablePod())[0]
 			ExpectNotScheduled(ctx, env.Client, pod)
 		})
 		It("should succeed to launch spot instance when zonal availability exists", func() {
@@ -846,7 +845,7 @@ var _ = Describe("Instance Types", func() {
 			}
 
 			ExpectApplied(ctx, env.Client, provisioner)
-			pod := ExpectProvisioned(ctx, env.Client, recorder, controller, prov, test.UnschedulablePod())[0]
+			pod := ExpectProvisioned(ctx, env.Client, recorder, controller, prov, coretest.UnschedulablePod())[0]
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(HaveKeyWithValue(v1alpha5.ProvisionerNameLabelKey, provisioner.Name))
 		})
@@ -854,7 +853,7 @@ var _ = Describe("Instance Types", func() {
 	Context("Metadata Options", func() {
 		It("should default metadata options on generated launch template", func() {
 			ExpectApplied(ctx, env.Client, provisioner)
-			pod := ExpectProvisioned(ctx, env.Client, recorder, controller, prov, test.UnschedulablePod())[0]
+			pod := ExpectProvisioned(ctx, env.Client, recorder, controller, prov, coretest.UnschedulablePod())[0]
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
@@ -873,8 +872,8 @@ var _ = Describe("Instance Types", func() {
 				HTTPPutResponseHopLimit: aws.Int64(1),
 				HTTPTokens:              aws.String(ec2.LaunchTemplateHttpTokensStateOptional),
 			}
-			ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
-			pod := ExpectProvisioned(ctx, env.Client, recorder, controller, prov, test.UnschedulablePod())[0]
+			ExpectApplied(ctx, env.Client, test.Provisioner(coretest.ProvisionerOptions{Provider: provider}))
+			pod := ExpectProvisioned(ctx, env.Client, recorder, controller, prov, coretest.UnschedulablePod())[0]
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()

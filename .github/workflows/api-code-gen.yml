@@ -41,9 +41,7 @@ jobs:
       - run: make api-code-gen
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          env:
-            ENABLE_GIT_PUSH: true
-
+          ENABLE_GIT_PUSH: true
       - run: export APICodeGenUpdate=$((cat /tmp/api-code-gen-updates && echo "APICodeGenUpdate=true" >> $GITHUB_ENV) || echo "false")
       - name: Create Pull Request
         if: env.APICodeGenUpdate == 'true'

@@ -28,7 +28,7 @@ import (
 	awstest "github.com/aws/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
+	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 )
 
 var _ = Describe("Expiration", func() {

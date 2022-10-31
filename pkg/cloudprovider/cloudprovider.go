@@ -35,20 +35,17 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/transport"
-	knativeapis "knative.dev/pkg/apis"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 	k8sClient "sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/aws/karpenter/pkg/apis"
-	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 
 	coreapis "github.com/aws/karpenter-core/pkg/apis"
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	"github.com/aws/karpenter-core/pkg/utils/functional"
-
+	"github.com/aws/karpenter/pkg/apis"
+	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
 	awscontext "github.com/aws/karpenter/pkg/context"
 )
@@ -60,7 +57,6 @@ const (
 
 func init() {
 	v1alpha5.NormalizedLabels = lo.Assign(v1alpha5.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": v1.LabelTopologyZone})
-	coreapis.Resources = lo.Assign(coreapis.Resources, apis.Resources)
 	coreapis.Settings = coreapis.Settings.Union(apis.Settings)
 	lo.Must0(apis.AddToScheme(scheme.Scheme))
 }
@@ -85,7 +81,8 @@ func New(ctx awscontext.Context) *CloudProvider {
 	}
 	subnetProvider := NewSubnetProvider(ec2api)
 	instanceTypeProvider := NewInstanceTypeProvider(ctx, ctx.Session, ec2api, subnetProvider, ctx.UnavailableOfferingsCache, ctx.StartAsync)
-	cloudprovider := &CloudProvider{
+	return &CloudProvider{
+		kubeClient:           ctx.KubeClient,
 		instanceTypeProvider: instanceTypeProvider,
 		instanceProvider: NewInstanceProvider(ctx, ec2api, instanceTypeProvider, subnetProvider,
 			NewLaunchTemplateProvider(
@@ -99,12 +96,7 @@ func New(ctx awscontext.Context) *CloudProvider {
 				kubeDNSIP,
 			),
 		),
-		kubeClient: ctx.KubeClient,
 	}
-	v1alpha5.ValidateHook = cloudprovider.Validate
-	v1alpha5.DefaultHook = cloudprovider.Default
-
-	return cloudprovider
 }
 
 // checkEC2Connectivity makes a dry-run call to DescribeInstanceTypes.  If it fails, we provide an early indicator that we
@@ -178,50 +170,9 @@ func (c *CloudProvider) Delete(ctx context.Context, node *v1.Node) error {
 	return c.instanceProvider.Terminate(ctx, node)
 }
 
-// Validate the provisioner
-func (*CloudProvider) Validate(ctx context.Context, provisioner *v1alpha5.Provisioner) *knativeapis.FieldError {
-	// The receiver is intentionally omitted here as when used by the webhook, Validate/Default are the only methods
-	// called and we don't fully initialize the CloudProvider to prevent some network calls to EC2/Pricing.
-	if provisioner.Spec.Provider == nil {
-		return nil
-	}
-	provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
-	if err != nil {
-		return knativeapis.ErrGeneric(err.Error())
-	}
-	return provider.Validate()
-}
-
 // Name returns the CloudProvider implementation name.
 func (c *CloudProvider) Name() string {
 	return "aws"
-}
-
-// Default the provisioner
-func (*CloudProvider) Default(ctx context.Context, provisioner *v1alpha5.Provisioner) {
-	defaultLabels(provisioner)
-}
-
-func defaultLabels(provisioner *v1alpha5.Provisioner) {
-	for key, value := range map[string]string{
-		v1alpha5.LabelCapacityType: ec2.DefaultTargetCapacityTypeOnDemand,
-		v1.LabelArchStable:         v1alpha5.ArchitectureAmd64,
-	} {
-		hasLabel := false
-		if _, ok := provisioner.Spec.Labels[key]; ok {
-			hasLabel = true
-		}
-		for _, requirement := range provisioner.Spec.Requirements {
-			if requirement.Key == key {
-				hasLabel = true
-			}
-		}
-		if !hasLabel {
-			provisioner.Spec.Requirements = append(provisioner.Spec.Requirements, v1.NodeSelectorRequirement{
-				Key: key, Operator: v1.NodeSelectorOpIn, Values: []string{value},
-			})
-		}
-	}
 }
 
 func getCABundle(ctx context.Context, restConfig *rest.Config) (*string, error) {

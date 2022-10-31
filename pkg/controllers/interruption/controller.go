@@ -34,8 +34,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/aws/karpenter/pkg/apis"
-	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
+	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	awscache "github.com/aws/karpenter/pkg/cache"
 	interruptionevents "github.com/aws/karpenter/pkg/controllers/interruption/events"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages"
@@ -85,7 +85,6 @@ func NewController(kubeClient client.Client, clk clock.Clock, recorder events.Re
 }
 
 func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconcile.Result, error) {
-	defer metrics.Measure(reconcileDuration)()
 	list := &v1alpha1.AWSNodeTemplateList{}
 	if err := c.kubeClient.List(ctx, list); err != nil {
 		return reconcile.Result{}, fmt.Errorf("listing node templates, %w", err)

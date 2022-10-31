@@ -18,9 +18,9 @@ package cloudprovider
 
 import "time"
 
-// generated at 2022-10-17T17:47:28Z for us-east-1
+// generated at 2022-10-31T16:47:25Z for us-east-1
 
-var initialPriceUpdate, _ = time.Parse(time.RFC3339, "2022-10-17T17:47:28Z")
+var initialPriceUpdate, _ = time.Parse(time.RFC3339, "2022-10-31T16:47:25Z")
 var initialOnDemandPrices = map[string]float64{
 	// a1 family
 	"a1.2xlarge": 0.204000, "a1.4xlarge": 0.408000, "a1.large": 0.051000, "a1.medium": 0.025500,
@@ -266,6 +266,8 @@ var initialOnDemandPrices = map[string]float64{
 	"trn1.2xlarge": 1.343750, "trn1.32xlarge": 21.500000,
 	// u-12tb1 family
 	"u-12tb1.112xlarge": 109.200000,
+	// u-18tb1 family
+	"u-18tb1.112xlarge": 163.800000,
 	// u-3tb1 family
 	"u-3tb1.56xlarge": 27.300000,
 	// u-6tb1 family
