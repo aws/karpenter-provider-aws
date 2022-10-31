@@ -227,6 +227,9 @@ func getFuncPackage(fun ast.Expr) string {
 	if ident, ok := fun.(*ast.Ident); ok {
 		return ident.String()
 	}
+	if iexpr, ok := fun.(*ast.IndexExpr); ok {
+		return getFuncPackage(iexpr.X)
+	}
 	log.Fatalf("unsupported func expression %T, %v", fun, fun)
 	return ""
 }
