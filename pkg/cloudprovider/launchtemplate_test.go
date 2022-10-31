@@ -915,7 +915,10 @@ var _ = Describe("LaunchTemplates", func() {
 			Expect(string(userData)).To(ContainSubstring("--container-runtime dockerd"))
 		})
 		It("should specify --container-runtime docker when using Neuron GPUs", func() {
-			ExpectApplied(ctx, env.Client, test.Provisioner(coretest.ProvisionerOptions{Provider: provider}))
+			ExpectApplied(ctx, env.Client, test.Provisioner(coretest.ProvisionerOptions{
+				Provider:     provider,
+				Requirements: []v1.NodeSelectorRequirement{{Key: v1alpha1.LabelInstanceCategory, Operator: v1.NodeSelectorOpExists}},
+			}))
 			pod := ExpectProvisioned(ctx, env.Client, recorder, controller, prov, coretest.UnschedulablePod(coretest.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{
 					Requests: map[v1.ResourceName]resource.Quantity{
@@ -934,7 +937,10 @@ var _ = Describe("LaunchTemplates", func() {
 			Expect(string(userData)).To(ContainSubstring("--container-runtime docker"))
 		})
 		It("should specify --container-runtime containerd when using Nvidia GPUs", func() {
-			ExpectApplied(ctx, env.Client, test.Provisioner(coretest.ProvisionerOptions{Provider: provider}))
+			ExpectApplied(ctx, env.Client, test.Provisioner(coretest.ProvisionerOptions{
+				Provider:     provider,
+				Requirements: []v1.NodeSelectorRequirement{{Key: v1alpha1.LabelInstanceCategory, Operator: v1.NodeSelectorOpExists}},
+			}))
 			pod := ExpectProvisioned(ctx, env.Client, recorder, controller, prov, coretest.UnschedulablePod(coretest.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{
 					Requests: map[v1.ResourceName]resource.Quantity{
@@ -1285,13 +1291,13 @@ var _ = Describe("LaunchTemplates", func() {
 					{
 						ImageId:      aws.String("ami-123"),
 						Architecture: aws.String("x86_64"),
-						Tags:         []*ec2.Tag{{Key: aws.String(v1.LabelInstanceTypeStable), Value: aws.String("t3.large")}},
+						Tags:         []*ec2.Tag{{Key: aws.String(v1.LabelInstanceTypeStable), Value: aws.String("m5.large")}},
 						CreationDate: aws.String("2022-08-15T12:00:00Z"),
 					},
 					{
 						ImageId:      aws.String("ami-456"),
 						Architecture: aws.String("x86_64"),
-						Tags:         []*ec2.Tag{{Key: aws.String(v1.LabelInstanceTypeStable), Value: aws.String("m5.large")}},
+						Tags:         []*ec2.Tag{{Key: aws.String(v1.LabelInstanceTypeStable), Value: aws.String("m5.xlarge")}},
 						CreationDate: aws.String("2022-08-15T12:00:00Z"),
 					},
 				}})
@@ -1316,13 +1322,13 @@ var _ = Describe("LaunchTemplates", func() {
 					{
 						ImageId:      aws.String("ami-123"),
 						Architecture: aws.String("x86_64"),
-						Tags:         []*ec2.Tag{{Key: aws.String(v1.LabelInstanceTypeStable), Value: aws.String("t3.large")}},
+						Tags:         []*ec2.Tag{{Key: aws.String(v1.LabelInstanceTypeStable), Value: aws.String("m5.large")}},
 						CreationDate: aws.String("2022-08-15T12:00:00Z"),
 					},
 					{
 						ImageId:      aws.String("ami-456"),
 						Architecture: aws.String("x86_64"),
-						Tags:         []*ec2.Tag{{Key: aws.String(v1.LabelInstanceTypeStable), Value: aws.String("m5.large")}},
+						Tags:         []*ec2.Tag{{Key: aws.String(v1.LabelInstanceTypeStable), Value: aws.String("m5.xlarge")}},
 						CreationDate: aws.String("2022-08-10T12:00:00Z"),
 					},
 				}})

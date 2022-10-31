@@ -39,7 +39,10 @@ var _ = Describe("Scheduling", func() {
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 		}})
-		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
+		provisioner := test.Provisioner(test.ProvisionerOptions{
+			ProviderRef:  &v1alpha5.ProviderRef{Name: provider.Name},
+			Requirements: []v1.NodeSelectorRequirement{{Key: v1alpha1.LabelInstanceCategory, Operator: v1.NodeSelectorOpExists}},
+		})
 		nodeSelector := map[string]string{
 			// Well Known
 			v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
