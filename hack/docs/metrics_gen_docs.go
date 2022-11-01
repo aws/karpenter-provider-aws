@@ -46,59 +46,17 @@ func (i metricInfo) qualifiedName() string {
 
 func main() {
 	flag.Parse()
-	if flag.NArg() != 2 {
-		log.Fatalf("Usage: %s path/to/metrics/controller path/to/markdown.md", os.Args[0])
+	if flag.NArg() < 2 {
+		log.Fatalf("Usage: %s path/to/metrics/controller path/to/metrics/controller2 path/to/markdown.md", os.Args[0])
 	}
-	fset := token.NewFileSet()
-	var packages []*ast.Package
-	root := flag.Arg(0)
-
-	// walk our metrics controller directory
-	log.Println("parsing code in", root)
-	filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if d == nil {
-			return nil
-		}
-		if !d.IsDir() {
-			return nil
-		}
-		// parse the packagers that we find
-		pkgs, err := parser.ParseDir(fset, path, func(info fs.FileInfo) bool {
-			return true
-		}, parser.AllErrors)
-		if err != nil {
-			log.Fatalf("error parsing, %s", err)
-		}
-		for _, pkg := range pkgs {
-			if strings.HasSuffix(pkg.Name, "_test") {
-				continue
-			}
-			packages = append(packages, pkg)
-		}
-		return nil
-	})
-
-	// metrics are all package global variables
 	var allMetrics []metricInfo
-	for _, pkg := range packages {
-		for _, file := range pkg.Files {
-			for _, decl := range file.Decls {
-				switch v := decl.(type) {
-				case *ast.FuncDecl:
-				// ignore
-				case *ast.GenDecl:
-					if v.Tok == token.VAR {
-						allMetrics = append(allMetrics, handleVariableDeclaration(v)...)
-					}
-				default:
-
-				}
-			}
-		}
+	for i := 0; i < flag.NArg()-1; i++ {
+		packages := getPackages(flag.Arg(i))
+		allMetrics = append(allMetrics, getMetricsFromPackages(packages...)...)
 	}
 	sort.Slice(allMetrics, bySubsystem(allMetrics))
 
-	outputFileName := flag.Arg(1)
+	outputFileName := flag.Arg(flag.NArg() - 1)
 	f, err := os.Create(outputFileName)
 	if err != nil {
 		log.Fatalf("error creating output file %s, %s", outputFileName, err)
@@ -129,6 +87,59 @@ description: >
 		fmt.Fprintln(f)
 	}
 
+}
+
+func getPackages(root string) []*ast.Package {
+	var packages []*ast.Package
+	fset := token.NewFileSet()
+
+	// walk our metrics controller directory
+	log.Println("parsing code in", root)
+	filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if d == nil {
+			return nil
+		}
+		if !d.IsDir() {
+			return nil
+		}
+		// parse the packagers that we find
+		pkgs, err := parser.ParseDir(fset, path, func(info fs.FileInfo) bool {
+			return true
+		}, parser.AllErrors)
+		if err != nil {
+			log.Fatalf("error parsing, %s", err)
+		}
+		for _, pkg := range pkgs {
+			if strings.HasSuffix(pkg.Name, "_test") {
+				continue
+			}
+			packages = append(packages, pkg)
+		}
+		return nil
+	})
+	return packages
+}
+
+func getMetricsFromPackages(packages ...*ast.Package) []metricInfo {
+	// metrics are all package global variables
+	var allMetrics []metricInfo
+	for _, pkg := range packages {
+		for _, file := range pkg.Files {
+			for _, decl := range file.Decls {
+				switch v := decl.(type) {
+				case *ast.FuncDecl:
+				// ignore
+				case *ast.GenDecl:
+					if v.Tok == token.VAR {
+						allMetrics = append(allMetrics, handleVariableDeclaration(v)...)
+					}
+				default:
+
+				}
+			}
+		}
+	}
+	return allMetrics
 }
 
 func bySubsystem(metrics []metricInfo) func(i int, j int) bool {
