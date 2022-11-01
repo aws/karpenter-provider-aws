@@ -46,24 +46,8 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ env.TAG_COMMIT }}
-      - run: sed -En 's/^go[[:space:]]+([[:digit:].]+)$/GO_VERSION=\1/p' go.mod >> $GITHUB_ENV
-      - uses: actions/setup-go@v3
-        with:
-          go-version: ${{ env.GO_VERSION }}
-          check-latest: true
-      - uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-            ~/go/bin/
-            ~/.kubebuilder/bin/k8s
-          key: ${{ runner.os }}-go-cache-${{ hashFiles('**/go.sum') }}
-      - run: make toolchain
-      - uses: aws-actions/configure-aws-credentials@v1
-        with:
-          role-to-assume: arn:aws:iam::071440425669:role/Github
-          aws-region: us-east-1
+      - uses: ./.github/actions/install-go-and-dependencies
+      - uses: ./.github/actions/authenticate-aws
       - run: make release
         env:
           RELEASE_VERSION: ${{ env.TAG }}
