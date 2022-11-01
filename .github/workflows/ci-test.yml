@@ -1,11 +1,11 @@
-name: CI
+name: CI-TEST
 on:
   push:
     branches: [main]
   pull_request:
   workflow_dispatch:
 jobs:
-  build:
+  ci-test:
     runs-on: ubuntu-latest
     strategy:
         matrix:
@@ -15,9 +15,8 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - uses: ./.github/actions/install-go-and-dependencies
-    - run: make ci
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - run: make ci-test
     - uses: shogo82148/actions-goveralls@v1
+      if: env.K8S_VERSION == '1.24.x'
       with:
         path-to-profile: coverage.out

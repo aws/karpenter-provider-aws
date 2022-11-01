@@ -37,7 +37,11 @@ help: ## Display help
 
 presubmit: verify test ## Run all steps in the developer loop
 
-ci: toolchain verify licenses vulncheck battletest coverage ## Run all steps used by continuous integration
+ci-test: battletest coverage ## Runs tests and submits coverage
+
+ci-non-test: verify licenses vulncheck ## Runs checks other than tests
+
+ci: toolchain ci-non-tests ci-tests ## Run all steps used by continuous integration
 
 run: ## Run Karpenter controller binary against your local cluster
 	SYSTEM_NAMESPACE=${SYSTEM_NAMESPACE} go run ./cmd/controller/main.go \
