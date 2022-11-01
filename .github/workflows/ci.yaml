@@ -14,7 +14,7 @@ jobs:
       K8S_VERSION: ${{ matrix.k8sVersion }}
     steps:
     - uses: actions/checkout@v3
-    - uses: .github/actions/install-go-and-dependencies
+    - uses: ./.github/actions/install-go-and-dependencies
     - run: make ci
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
