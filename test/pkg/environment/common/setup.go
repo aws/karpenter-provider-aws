@@ -16,7 +16,6 @@ package common
 
 import (
 	"fmt"
-	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -69,7 +68,7 @@ var stop chan struct{}
 // nolint:gocyclo
 func (env *Environment) BeforeEach(opts ...Option) {
 	options := ResolveOptions(opts)
-	if options.EnableDebug {
+	if !options.DisableDebug {
 		fmt.Println("------- START BEFORE -------")
 		defer fmt.Println("------- END BEFORE -------")
 	}
@@ -79,7 +78,7 @@ func (env *Environment) BeforeEach(opts ...Option) {
 
 	var nodes v1.NodeList
 	Expect(env.Client.List(env.Context, &nodes)).To(Succeed())
-	if options.EnableDebug {
+	if !options.DisableDebug {
 		for i := range nodes.Items {
 			fmt.Println(env.getNodeInformation(&nodes.Items[i]))
 		}
@@ -92,7 +91,7 @@ func (env *Environment) BeforeEach(opts ...Option) {
 
 	var pods v1.PodList
 	Expect(env.Client.List(env.Context, &pods)).To(Succeed())
-	if options.EnableDebug {
+	if !options.DisableDebug {
 		for i := range pods.Items {
 			fmt.Println(getPodInformation(&pods.Items[i]))
 		}
@@ -105,7 +104,7 @@ func (env *Environment) BeforeEach(opts ...Option) {
 	}
 	// If the test is labeled as NoWatch, then the node/pod monitor will just list at the beginning
 	// of the test rather than perform a watch during it
-	if options.EnableDebug && !lo.Contains(CurrentSpecReport().Labels(), NoWatch) {
+	if !options.DisableDebug && !lo.Contains(CurrentSpecReport().Labels(), NoWatch) {
 		env.startNodeMonitor(stop)
 		env.startPodMonitor(stop)
 	}
@@ -210,18 +209,45 @@ func (env *Environment) startNodeMonitor(stop <-chan struct{}) {
 	factory.Start(stop)
 }
 
-func (env *Environment) AfterEach(opts ...Option) {
+func (env *Environment) Cleanup(opts ...Option) {
 	options := ResolveOptions(opts)
-	if options.EnableDebug {
-		fmt.Println("------- START AFTER -------")
-		defer fmt.Println("------- END AFTER -------")
+	if !options.DisableDebug {
+		fmt.Println("------- START CLEANUP -------")
+		defer fmt.Println("------- END CLEANUP -------")
 	}
-
 	env.CleanupObjects(CleanableObjects, options)
 	env.eventuallyExpectScaleDown()
 	env.expectNoCrashes()
+}
+
+func (env *Environment) ForceCleanup(opts ...Option) {
+	options := ResolveOptions(opts)
+	if !options.DisableDebug {
+		fmt.Println("------- START FORCE CLEANUP -------")
+		defer fmt.Println("------- END FORCE CLEANUP -------")
+	}
+
+	// Delete all the nodes if they weren't deleted by the provisioner propagation
+	Expect(env.Client.DeleteAllOf(env, &v1.Node{},
+		client.HasLabels([]string{test.DiscoveryLabel}),
+		client.PropagationPolicy(metav1.DeletePropagationForeground),
+	)).To(Succeed())
+	Eventually(func(g Gomega) {
+		stored := &v1.NodeList{}
+		g.Expect(env.Client.List(env, stored,
+			client.HasLabels([]string{test.DiscoveryLabel}))).To(Succeed())
+		g.Expect(len(stored.Items)).To(BeZero())
+	}).Should(Succeed())
+}
+
+func (env *Environment) AfterEach(opts ...Option) {
+	options := ResolveOptions(opts)
+	if !options.DisableDebug {
+		fmt.Println("------- START AFTER -------")
+		defer fmt.Println("------- END AFTER -------")
+	}
 	close(stop) // close the pod/node monitor watch channel
-	if options.EnableDebug && !lo.Contains(CurrentSpecReport().Labels(), NoEvents) {
+	if !options.DisableDebug && !lo.Contains(CurrentSpecReport().Labels(), NoEvents) {
 		env.dumpPodEvents(testStartTime)
 		env.dumpNodeEvents(testStartTime)
 	}
@@ -233,28 +259,26 @@ func (env *Environment) CleanupObjects(cleanableObjects []functional.Pair[client
 	Expect(env.Client.List(env, namespaces)).To(Succeed())
 	wg := sync.WaitGroup{}
 	for _, p := range cleanableObjects {
-		if !lo.ContainsBy(options.IgnoreCleanupFor, func(o client.Object) bool { return reflect.TypeOf(o) == reflect.TypeOf(p.First) }) {
-			for _, namespace := range namespaces.Items {
-				wg.Add(1)
-				go func(obj client.Object, objList client.ObjectList, namespace string) {
-					defer wg.Done()
-					defer GinkgoRecover()
-					Expect(env.Client.DeleteAllOf(env, obj,
+		for _, namespace := range namespaces.Items {
+			wg.Add(1)
+			go func(obj client.Object, objList client.ObjectList, namespace string) {
+				defer wg.Done()
+				defer GinkgoRecover()
+				Expect(env.Client.DeleteAllOf(env, obj,
+					client.InNamespace(namespace),
+					client.HasLabels([]string{test.DiscoveryLabel}),
+					client.PropagationPolicy(metav1.DeletePropagationForeground),
+				)).To(Succeed())
+				Eventually(func(g Gomega) {
+					stored := objList.DeepCopyObject().(client.ObjectList)
+					g.Expect(env.Client.List(env, stored,
 						client.InNamespace(namespace),
-						client.HasLabels([]string{test.DiscoveryLabel}),
-						client.PropagationPolicy(metav1.DeletePropagationForeground),
-					)).To(Succeed())
-					Eventually(func(g Gomega) {
-						stored := objList.DeepCopyObject().(client.ObjectList)
-						g.Expect(env.Client.List(env, stored,
-							client.InNamespace(namespace),
-							client.HasLabels([]string{test.DiscoveryLabel}))).To(Succeed())
-						items, err := meta.ExtractList(objList)
-						g.Expect(err).To(Succeed())
-						g.Expect(len(items)).To(BeZero())
-					}).Should(Succeed())
-				}(p.First, p.Second, namespace.Name)
-			}
+						client.HasLabels([]string{test.DiscoveryLabel}))).To(Succeed())
+					items, err := meta.ExtractList(objList)
+					g.Expect(err).To(Succeed())
+					g.Expect(len(items)).To(BeZero())
+				}).Should(Succeed())
+			}(p.First, p.Second, namespace.Name)
 		}
 	}
 	wg.Wait()

@@ -1,0 +1,23 @@
+name: InstallGoAndDependencies
+description: 'Installs Go Downloads and installs Karpenter Dependencies'
+runs:
+  using: "composite"
+  steps:
+    - run: sed -En 's/^go[[:space:]]+([[:digit:].]+)$/GO_VERSION=\1/p' go.mod >> $GITHUB_ENV
+      shell: bash
+    - uses: actions/setup-go@v3
+      with:
+        go-version: ${{ env.GO_VERSION }}
+        check-latest: true
+    - uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/
+          ~/go/bin/
+          ~/.kubebuilder/bin
+        key: ${{ runner.os }}-go-cache-${{ hashFiles('go.sum', 'hack/toolchain.sh') }}
+    - run: |
+        make toolchain
+        make tidy
+      shell: bash

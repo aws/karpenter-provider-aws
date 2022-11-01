@@ -44,8 +44,10 @@ func TestUtilization(t *testing.T) {
 	RunSpecs(t, "Utilization")
 }
 
-var _ = BeforeEach(func() { env.BeforeEach(common.EnableDebug) })
-var _ = AfterEach(func() { env.AfterEach(common.EnableDebug) })
+var _ = BeforeEach(func() { env.BeforeEach() })
+var _ = AfterEach(func() { env.Cleanup() })
+var _ = AfterEach(func() { env.ForceCleanup() })
+var _ = AfterEach(func() { env.AfterEach() })
 
 var _ = Describe("Utilization", Label(common.NoWatch), Label(common.NoEvents), func() {
 	It("should provision one pod per node", func() {

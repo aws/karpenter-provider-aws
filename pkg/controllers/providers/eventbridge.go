@@ -48,28 +48,28 @@ const (
 
 var DefaultRules = map[string]Rule{
 	ScheduledChangedRule: {
-		Name: fmt.Sprintf("Karpenter-%s-%s", ScheduledChangedRule, rand.String(64-len(ScheduledChangedRule))),
+		Name: fmt.Sprintf("Karpenter-%s-%s", ScheduledChangedRule, rand.String(64-len(fmt.Sprintf("Karpenter-%s-", ScheduledChangedRule)))),
 		Pattern: Pattern{
 			Source:     []string{"aws.health"},
 			DetailType: []string{"AWS Health Event"},
 		},
 	},
 	SpotTerminationRule: {
-		Name: fmt.Sprintf("Karpenter-%s-%s", SpotTerminationRule, rand.String(64-len(SpotTerminationRule))),
+		Name: fmt.Sprintf("Karpenter-%s-%s", SpotTerminationRule, rand.String(64-len(fmt.Sprintf("Karpenter-%s-", SpotTerminationRule)))),
 		Pattern: Pattern{
 			Source:     []string{"aws.ec2"},
 			DetailType: []string{"EC2 Spot Instance Interruption Warning"},
 		},
 	},
 	RebalanceRule: {
-		Name: fmt.Sprintf("Karpenter-%s-%s", RebalanceRule, rand.String(64-len(RebalanceRule))),
+		Name: fmt.Sprintf("Karpenter-%s-%s", RebalanceRule, rand.String(64-len(fmt.Sprintf("Karpenter-%s-", RebalanceRule)))),
 		Pattern: Pattern{
 			Source:     []string{"aws.ec2"},
 			DetailType: []string{"EC2 Instance Rebalance Recommendation"},
 		},
 	},
 	StateChangeRule: {
-		Name: fmt.Sprintf("Karpenter-%s-%s", StateChangeRule, rand.String(64-len(StateChangeRule))),
+		Name: fmt.Sprintf("Karpenter-%s-%s", StateChangeRule, rand.String(64-len(fmt.Sprintf("Karpenter-%s-", StateChangeRule)))),
 		Pattern: Pattern{
 			Source:     []string{"aws.ec2"},
 			DetailType: []string{"EC2 Instance State-change Notification"},
@@ -219,17 +219,16 @@ func (eb *EventBridge) DeleteRules(ctx context.Context) error {
 	return multierr.Combine(errs...)
 }
 
+// mergeRules merges the existing rules with the default rules based on the rule type
 func (eb *EventBridge) mergeRules(existing map[string]Rule) map[string]Rule {
-	m := map[string]Rule{}
-	for k, rule := range DefaultRules {
+	rules := lo.Assign(DefaultRules)
+	for k, rule := range rules {
 		if existingRule, ok := existing[k]; ok {
-			existingRule.Pattern = rule.Pattern
-			m[k] = existingRule
-		} else {
-			m[k] = rule
+			rule.Name = existingRule.Name
+			rules[k] = rule
 		}
 	}
-	return m
+	return rules
 }
 
 func (eb *EventBridge) getTags(ctx context.Context) []*eventbridge.Tag {

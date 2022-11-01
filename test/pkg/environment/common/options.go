@@ -14,25 +14,15 @@ limitations under the License.
 
 package common
 
-import "sigs.k8s.io/controller-runtime/pkg/client"
-
 type Option func(Options) Options
 
 type Options struct {
-	EnableDebug      bool
-	IgnoreCleanupFor []client.Object
+	DisableDebug bool
 }
 
-func EnableDebug(o Options) Options {
-	o.EnableDebug = true
+func DisableDebug(o Options) Options {
+	o.DisableDebug = true
 	return o
-}
-
-func IgnoreCleanupFor(objs ...client.Object) func(Options) Options {
-	return func(o Options) Options {
-		o.IgnoreCleanupFor = append(o.IgnoreCleanupFor, objs...)
-		return o
-	}
 }
 
 func ResolveOptions(opts []Option) Options {

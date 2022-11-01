@@ -1,21 +1,15 @@
-name: DocGenCI
-
+name: Snapshots
 on:
   push:
-    branches: [main]
-
+    branches: [ main ]
 permissions:
   id-token: write
-
 jobs:
-  doc-gen-ci:
+  snapshots:
     if: github.repository == 'aws/karpenter'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - uses: ./.github/actions/install-go-and-dependencies
       - uses: ./.github/actions/authenticate-aws
-      - run: make docgen
-      - run: make api-code-gen
-        env:
-          ENABLE_GIT_PUSH: false
+      - run: make release

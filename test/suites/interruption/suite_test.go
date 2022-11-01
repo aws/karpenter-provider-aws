@@ -37,7 +37,6 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages/scheduledchange"
 	awstest "github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/test/pkg/environment/aws"
-	"github.com/aws/karpenter/test/pkg/environment/common"
 )
 
 var env *aws.Environment
@@ -50,27 +49,21 @@ func TestInterruption(t *testing.T) {
 		env, err = aws.NewEnvironment(t)
 		Expect(err).ToNot(HaveOccurred())
 	})
-	AfterSuite(func() {
-		env.ExpectDeleted(provider)
-	})
 	RunSpecs(t, "Interruption")
 }
 
-var _ = BeforeEach(func() {
-	provider = awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-		SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-		SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
-	}})
-	env.BeforeEach()
-})
-
-var _ = AfterEach(func() {
-	env.AfterEach(common.IgnoreCleanupFor(&v1alpha1.AWSNodeTemplate{}))
-})
+var _ = BeforeEach(func() { env.BeforeEach() })
+var _ = AfterEach(func() { env.Cleanup() })
+var _ = AfterEach(func() { env.ForceCleanup() })
+var _ = AfterEach(func() { env.AfterEach() })
 
 var _ = Describe("Interruption", Label("AWS"), func() {
 	It("should terminate the spot instance and spin-up a new node on spot interruption warning", func() {
 		By("Creating a single healthy node with a healthy deployment")
+		provider = awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
+		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{
 			Requirements: []v1.NodeSelectorRequirement{
 				{
@@ -134,6 +127,10 @@ var _ = Describe("Interruption", Label("AWS"), func() {
 	})
 	It("should terminate the node at the API server when the EC2 instance is stopped", func() {
 		By("Creating a single healthy node with a healthy deployment")
+		provider = awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
+		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{
 			Requirements: []v1.NodeSelectorRequirement{
 				{
@@ -171,6 +168,10 @@ var _ = Describe("Interruption", Label("AWS"), func() {
 	})
 	It("should terminate the node at the API server when the EC2 instance is terminated", func() {
 		By("Creating a single healthy node with a healthy deployment")
+		provider = awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
+		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{
 			Requirements: []v1.NodeSelectorRequirement{
 				{
@@ -208,6 +209,10 @@ var _ = Describe("Interruption", Label("AWS"), func() {
 	})
 	It("should terminate the node when receiving a scheduled change health event", func() {
 		By("Creating a single healthy node with a healthy deployment")
+		provider = awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
+		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{
 			Requirements: []v1.NodeSelectorRequirement{
 				{
