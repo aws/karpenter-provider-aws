@@ -73,7 +73,7 @@ spec:
     - name: git-ref
       value: $(params.to-git-ref)
     - name: test-filter
-      value: TestIntegration
+      value: Integration
     runAfter:
     - upgrade-crds
 
