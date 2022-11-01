@@ -21,7 +21,6 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/aws/karpenter/test/pkg/environment/aws"
-	"github.com/aws/karpenter/test/pkg/environment/common"
 )
 
 var env *aws.Environment
@@ -36,5 +35,7 @@ func TestIntegration(t *testing.T) {
 	RunSpecs(t, "Integration")
 }
 
-var _ = BeforeEach(func() { env.BeforeEach(common.EnableDebug) })
-var _ = AfterEach(func() { env.AfterEach(common.EnableDebug) })
+var _ = BeforeEach(func() { env.BeforeEach() })
+var _ = AfterEach(func() { env.Cleanup() })
+var _ = AfterEach(func() { env.ForceCleanup() })
+var _ = AfterEach(func() { env.AfterEach() })

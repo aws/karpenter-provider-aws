@@ -34,22 +34,25 @@ var (
 )
 
 func (env *Environment) BeforeEach(opts ...common.Option) {
-	options := common.ResolveOptions(opts)
-	if options.EnableDebug {
-		fmt.Println("------- START AWS BEFORE -------")
-		defer fmt.Println("------- END AWS BEFORE -------")
-	}
 	env.ExpectSettingsCreatedOrUpdated(settings.Registration.DefaultData, awssettings.Registration.DefaultData)
 	env.Environment.BeforeEach(opts...)
 }
 
-func (env *Environment) AfterEach(opts ...common.Option) {
+func (env *Environment) Cleanup(opts ...common.Option) {
 	options := common.ResolveOptions(opts)
-	if options.EnableDebug {
-		fmt.Println("------- START AWS AFTER -------")
-		defer fmt.Println("------- END AWS AFTER -------")
+	if !options.DisableDebug {
+		fmt.Println("------- START AWS CLEANUP -------")
+		defer fmt.Println("------- END AWS CLEANUP -------")
 	}
 	env.ExpectSettingsDeleted()
 	env.Environment.CleanupObjects(CleanableObjects, options)
+	env.Environment.Cleanup(opts...)
+}
+
+func (env *Environment) ForceCleanup(opts ...common.Option) {
+	env.Environment.ForceCleanup(opts...)
+}
+
+func (env *Environment) AfterEach(opts ...common.Option) {
 	env.Environment.AfterEach(opts...)
 }
