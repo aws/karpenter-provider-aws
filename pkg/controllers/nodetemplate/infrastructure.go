@@ -45,6 +45,7 @@ func (i *Infrastructure) Reconcile(ctx context.Context, nodeTemplate *v1alpha1.A
 			if err := i.provider.Delete(ctx); err != nil {
 				return reconcile.Result{}, err
 			}
+			i.lastInfrastructureReconcile = time.Time{}
 			return reconcile.Result{}, nil
 		} else if len(list.Items) >= 1 {
 			infrastructureActive.Set(1)

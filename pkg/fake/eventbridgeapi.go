@@ -25,10 +25,12 @@ import (
 // EventBridgeBehavior must be reset between tests otherwise tests will
 // pollute each other.
 type EventBridgeBehavior struct {
-	PutRuleBehavior       MockedFunction[eventbridge.PutRuleInput, eventbridge.PutRuleOutput]
-	PutTargetsBehavior    MockedFunction[eventbridge.PutTargetsInput, eventbridge.PutTargetsOutput]
-	DeleteRuleBehavior    MockedFunction[eventbridge.DeleteRuleInput, eventbridge.DeleteRuleOutput]
-	RemoveTargetsBehavior MockedFunction[eventbridge.RemoveTargetsInput, eventbridge.RemoveTargetsOutput]
+	PutRuleBehavior             MockedFunction[eventbridge.PutRuleInput, eventbridge.PutRuleOutput]
+	PutTargetsBehavior          MockedFunction[eventbridge.PutTargetsInput, eventbridge.PutTargetsOutput]
+	ListRulesBehavior           MockedFunction[eventbridge.ListRulesInput, eventbridge.ListRulesOutput]
+	ListTagsForResourceBehavior MockedFunction[eventbridge.ListTagsForResourceInput, eventbridge.ListTagsForResourceOutput]
+	DeleteRuleBehavior          MockedFunction[eventbridge.DeleteRuleInput, eventbridge.DeleteRuleOutput]
+	RemoveTargetsBehavior       MockedFunction[eventbridge.RemoveTargetsInput, eventbridge.RemoveTargetsOutput]
 }
 
 type EventBridgeAPI struct {
@@ -41,6 +43,7 @@ type EventBridgeAPI struct {
 func (eb *EventBridgeAPI) Reset() {
 	eb.PutRuleBehavior.Reset()
 	eb.PutTargetsBehavior.Reset()
+	eb.ListRulesBehavior.Reset()
 	eb.DeleteRuleBehavior.Reset()
 	eb.RemoveTargetsBehavior.Reset()
 }
@@ -53,6 +56,14 @@ func (eb *EventBridgeAPI) PutRuleWithContext(_ context.Context, input *eventbrid
 // TODO: Create a default response that returns failed entries
 func (eb *EventBridgeAPI) PutTargetsWithContext(_ context.Context, input *eventbridge.PutTargetsInput, _ ...request.Option) (*eventbridge.PutTargetsOutput, error) {
 	return eb.PutTargetsBehavior.Invoke(input)
+}
+
+func (eb *EventBridgeAPI) ListRulesWithContext(_ context.Context, input *eventbridge.ListRulesInput, _ ...request.Option) (*eventbridge.ListRulesOutput, error) {
+	return eb.ListRulesBehavior.Invoke(input)
+}
+
+func (eb *EventBridgeAPI) ListTagsForResourceWithContext(_ context.Context, input *eventbridge.ListTagsForResourceInput, _ ...request.Option) (*eventbridge.ListTagsForResourceOutput, error) {
+	return eb.ListTagsForResourceBehavior.Invoke(input)
 }
 
 func (eb *EventBridgeAPI) DeleteRuleWithContext(_ context.Context, input *eventbridge.DeleteRuleInput, _ ...request.Option) (*eventbridge.DeleteRuleOutput, error) {

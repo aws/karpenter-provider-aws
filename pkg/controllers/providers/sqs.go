@@ -29,7 +29,6 @@ import (
 	"github.com/aws/karpenter-core/pkg/utils/atomic"
 	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	awserrors "github.com/aws/karpenter/pkg/errors"
-	"github.com/aws/karpenter/pkg/utils"
 )
 
 type queuePolicy struct {
@@ -52,19 +51,17 @@ type principal struct {
 type SQS struct {
 	client sqsiface.SQSAPI
 
-	queueURL  atomic.Lazy[string]
-	queueARN  atomic.Lazy[string]
-	queueName string
+	queueURL atomic.Lazy[string]
+	queueARN atomic.Lazy[string]
 }
 
-func NewSQS(ctx context.Context, client sqsiface.SQSAPI) *SQS {
+func NewSQS(client sqsiface.SQSAPI) *SQS {
 	provider := &SQS{
 		client: client,
 	}
-	provider.queueName = provider.getQueueName(ctx)
 	provider.queueURL.Resolve = func(ctx context.Context) (string, error) {
 		input := &sqs.GetQueueUrlInput{
-			QueueName: aws.String(provider.queueName),
+			QueueName: aws.String(provider.QueueName(ctx)),
 		}
 		ret, err := provider.client.GetQueueUrlWithContext(ctx, input)
 		if err != nil {
@@ -73,9 +70,13 @@ func NewSQS(ctx context.Context, client sqsiface.SQSAPI) *SQS {
 		return aws.StringValue(ret.QueueUrl), nil
 	}
 	provider.queueARN.Resolve = func(ctx context.Context) (string, error) {
+		queueURL, err := provider.queueURL.TryGet(ctx)
+		if err != nil {
+			return "", fmt.Errorf("discovering queue url, %w", err)
+		}
 		input := &sqs.GetQueueAttributesInput{
 			AttributeNames: aws.StringSlice([]string{sqs.QueueAttributeNameQueueArn}),
-			QueueUrl:       aws.String(provider.queueName),
+			QueueUrl:       aws.String(queueURL),
 		}
 		ret, err := provider.client.GetQueueAttributesWithContext(ctx, input)
 		if err != nil {
@@ -89,13 +90,13 @@ func NewSQS(ctx context.Context, client sqsiface.SQSAPI) *SQS {
 	return provider
 }
 
-func (s *SQS) QueueName() string {
-	return s.queueName
+func (s *SQS) QueueName(ctx context.Context) string {
+	return lo.Substring(injection.GetOptions(ctx).ClusterName, 0, 80)
 }
 
 func (s *SQS) CreateQueue(ctx context.Context) error {
 	input := &sqs.CreateQueueInput{
-		QueueName: aws.String(s.queueName),
+		QueueName: aws.String(s.QueueName(ctx)),
 		Tags:      s.getTags(ctx),
 	}
 	result, err := s.client.CreateQueueWithContext(ctx, input)
@@ -278,11 +279,4 @@ func (s *SQS) getTags(ctx context.Context) map[string]*string {
 			v1alpha5.ManagedByTagKey: aws.String(injection.GetOptions(ctx).ClusterName),
 		},
 	)
-}
-
-// getQueueName generates a sufficiently random name for the queue name from the cluster name
-// This is used because the max-len for a queue name is 80 characters but the maximum cluster name
-// length is 100
-func (s *SQS) getQueueName(ctx context.Context) string {
-	return fmt.Sprintf("Karpenter-EventQueue-%s", utils.GetClusterNameHash(ctx, 20))
 }

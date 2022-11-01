@@ -21,6 +21,7 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/eventbridge"
 	"github.com/aws/aws-sdk-go/service/sqs"
@@ -31,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter-core/pkg/apis/config/settings"
+	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/operator/injection"
 	"github.com/aws/karpenter-core/pkg/operator/options"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
@@ -77,6 +79,7 @@ var _ = BeforeEach(func() {
 		},
 	}
 	ctx = settingsStore.InjectSettings(ctx)
+	ctx = injection.WithOptions(ctx, defaultOpts)
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
 		opts = defaultOpts
 		Expect(opts.Validate()).To(Succeed(), "Failed to validate options")
@@ -84,7 +87,7 @@ var _ = BeforeEach(func() {
 
 		sqsapi = &awsfake.SQSAPI{}
 		eventbridgeapi = &awsfake.EventBridgeAPI{}
-		sqsProvider = providers.NewSQS(e.Ctx, sqsapi)
+		sqsProvider = providers.NewSQS(sqsapi)
 		eventBridgeProvider = providers.NewEventBridge(eventbridgeapi, sqsProvider)
 
 		controller = nodetemplate.NewController(e.Client, sqsProvider, eventBridgeProvider)
@@ -151,11 +154,41 @@ var _ = Describe("Infrastructure", func() {
 			sqsapi.GetQueueURLBehavior.Error.Set(awsErrWithCode(sqs.ErrCodeQueueDoesNotExist), awsfake.MaxCalls(1)) // This mocks the queue not existing
 
 			ExpectApplied(ctx, env.Client, provider)
-
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provider))
+
 			Expect(sqsapi.CreateQueueBehavior.SuccessfulCalls()).To(Equal(1))
 			Expect(eventbridgeapi.PutRuleBehavior.SuccessfulCalls()).To(Equal(4))
 			Expect(eventbridgeapi.PutTargetsBehavior.SuccessfulCalls()).To(Equal(4))
+
+			// Set the output of ListRules to mock rule creation
+			eventbridgeapi.ListRulesBehavior.Output.Set(&eventbridge.ListRulesOutput{
+				Rules: []*eventbridge.Rule{
+					{
+						Name: aws.String(providers.DefaultRules[providers.ScheduledChangedRule].Name),
+						Arn:  aws.String("test-arn1"),
+					},
+					{
+						Name: aws.String(providers.DefaultRules[providers.SpotTerminationRule].Name),
+						Arn:  aws.String("test-arn2"),
+					},
+					{
+						Name: aws.String(providers.DefaultRules[providers.RebalanceRule].Name),
+						Arn:  aws.String("test-arn3"),
+					},
+					{
+						Name: aws.String(providers.DefaultRules[providers.StateChangeRule].Name),
+						Arn:  aws.String("test-arn4"),
+					},
+				},
+			})
+			eventbridgeapi.ListTagsForResourceBehavior.Output.Set(&eventbridge.ListTagsForResourceOutput{
+				Tags: []*eventbridge.Tag{
+					{
+						Key:   aws.String(v1alpha5.DiscoveryTagKey),
+						Value: aws.String(defaultOpts.ClusterName),
+					},
+				},
+			})
 
 			// Delete the AWSNodeTemplate and then re-reconcile it to delete the infrastructure
 			Expect(env.Client.Delete(ctx, provider)).To(Succeed())
@@ -172,6 +205,36 @@ var _ = Describe("Infrastructure", func() {
 
 			sqsapi.DeleteQueueBehavior.Error.Set(awsErrWithCode(sqs.ErrCodeQueueDoesNotExist), awsfake.MaxCalls(0))
 
+			// Set the output of ListRules to mock rule creation
+			eventbridgeapi.ListRulesBehavior.Output.Set(&eventbridge.ListRulesOutput{
+				Rules: []*eventbridge.Rule{
+					{
+						Name: aws.String(providers.DefaultRules[providers.ScheduledChangedRule].Name),
+						Arn:  aws.String("test-arn1"),
+					},
+					{
+						Name: aws.String(providers.DefaultRules[providers.SpotTerminationRule].Name),
+						Arn:  aws.String("test-arn2"),
+					},
+					{
+						Name: aws.String(providers.DefaultRules[providers.RebalanceRule].Name),
+						Arn:  aws.String("test-arn3"),
+					},
+					{
+						Name: aws.String(providers.DefaultRules[providers.StateChangeRule].Name),
+						Arn:  aws.String("test-arn4"),
+					},
+				},
+			})
+			eventbridgeapi.ListTagsForResourceBehavior.Output.Set(&eventbridge.ListTagsForResourceOutput{
+				Tags: []*eventbridge.Tag{
+					{
+						Key:   aws.String(v1alpha5.DiscoveryTagKey),
+						Value: aws.String(defaultOpts.ClusterName),
+					},
+				},
+			})
+
 			// Delete the AWSNodeTemplate and then re-reconcile it to delete the infrastructure
 			Expect(env.Client.Delete(ctx, provider)).To(Succeed())
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provider))
@@ -180,23 +243,42 @@ var _ = Describe("Infrastructure", func() {
 			Expect(eventbridgeapi.DeleteRuleBehavior.SuccessfulCalls()).To(Equal(4))
 			Expect(eventbridgeapi.RemoveTargetsBehavior.SuccessfulCalls()).To(Equal(4))
 		})
-		It("should cleanup when a single rule is already deleted", func() {
+		It("should cleanup with a success when a few rules aren't in list call", func() {
 			provider := awstest.AWSNodeTemplate()
 			ExpectApplied(ctx, env.Client, provider)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provider))
 
-			eventbridgeapi.RemoveTargetsBehavior.Error.Set(awsErrWithCode((&eventbridge.ResourceNotFoundException{}).Code()))
-			eventbridgeapi.DeleteRuleBehavior.Error.Set(awsErrWithCode((&eventbridge.ResourceNotFoundException{}).Code()))
+			// Set the output of ListRules to mock rule creation
+			eventbridgeapi.ListRulesBehavior.Output.Set(&eventbridge.ListRulesOutput{
+				Rules: []*eventbridge.Rule{
+					{
+						Name: aws.String(providers.DefaultRules[providers.ScheduledChangedRule].Name),
+						Arn:  aws.String("test-arn1"),
+					},
+					{
+						Name: aws.String(providers.DefaultRules[providers.SpotTerminationRule].Name),
+						Arn:  aws.String("test-arn2"),
+					},
+				},
+			})
+			eventbridgeapi.ListTagsForResourceBehavior.Output.Set(&eventbridge.ListTagsForResourceOutput{
+				Tags: []*eventbridge.Tag{
+					{
+						Key:   aws.String(v1alpha5.DiscoveryTagKey),
+						Value: aws.String(defaultOpts.ClusterName),
+					},
+				},
+			})
 
 			// Delete the AWSNodeTemplate and then re-reconcile it to delete the infrastructure
 			Expect(env.Client.Delete(ctx, provider)).To(Succeed())
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provider))
 
 			Expect(sqsapi.DeleteQueueBehavior.SuccessfulCalls()).To(Equal(1))
-			Expect(eventbridgeapi.RemoveTargetsBehavior.SuccessfulCalls()).To(Equal(3))
-			Expect(eventbridgeapi.DeleteRuleBehavior.SuccessfulCalls()).To(Equal(3))
+			Expect(eventbridgeapi.RemoveTargetsBehavior.SuccessfulCalls()).To(Equal(2))
+			Expect(eventbridgeapi.DeleteRuleBehavior.SuccessfulCalls()).To(Equal(2))
 		})
-		It("should cleanup when a single rule is already deleted", func() {
+		It("should cleanup with a success when getting not found errors", func() {
 			provider := awstest.AWSNodeTemplate()
 			ExpectApplied(ctx, env.Client, provider)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provider))
@@ -213,17 +295,17 @@ var _ = Describe("Infrastructure", func() {
 			Expect(eventbridgeapi.DeleteRuleBehavior.SuccessfulCalls()).To(Equal(0))
 		})
 		It("should only attempt to delete the infrastructure when the last node template is removed", func() {
-			var providers []*v1alpha1.AWSNodeTemplate
+			var nodeTemplates []*v1alpha1.AWSNodeTemplate
 			for i := 0; i < 10; i++ {
 				p := awstest.AWSNodeTemplate()
-				providers = append(providers, p)
+				nodeTemplates = append(nodeTemplates, p)
 				ExpectApplied(ctx, env.Client, p)
 				ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(p))
 			}
 
-			for i := 0; i < len(providers)-1; i++ {
-				Expect(env.Client.Delete(ctx, providers[i])).To(Succeed())
-				ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(providers[i]))
+			for i := 0; i < len(nodeTemplates)-1; i++ {
+				Expect(env.Client.Delete(ctx, nodeTemplates[i])).To(Succeed())
+				ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplates[i]))
 			}
 
 			// It shouldn't attempt to delete at this point
@@ -231,9 +313,39 @@ var _ = Describe("Infrastructure", func() {
 			Expect(eventbridgeapi.RemoveTargetsBehavior.Calls()).To(Equal(0))
 			Expect(eventbridgeapi.DeleteRuleBehavior.Calls()).To(Equal(0))
 
+			// Set the output of ListRules to mock rule creation
+			eventbridgeapi.ListRulesBehavior.Output.Set(&eventbridge.ListRulesOutput{
+				Rules: []*eventbridge.Rule{
+					{
+						Name: aws.String(providers.DefaultRules[providers.ScheduledChangedRule].Name),
+						Arn:  aws.String("test-arn1"),
+					},
+					{
+						Name: aws.String(providers.DefaultRules[providers.SpotTerminationRule].Name),
+						Arn:  aws.String("test-arn2"),
+					},
+					{
+						Name: aws.String(providers.DefaultRules[providers.RebalanceRule].Name),
+						Arn:  aws.String("test-arn3"),
+					},
+					{
+						Name: aws.String(providers.DefaultRules[providers.StateChangeRule].Name),
+						Arn:  aws.String("test-arn4"),
+					},
+				},
+			})
+			eventbridgeapi.ListTagsForResourceBehavior.Output.Set(&eventbridge.ListTagsForResourceOutput{
+				Tags: []*eventbridge.Tag{
+					{
+						Key:   aws.String(v1alpha5.DiscoveryTagKey),
+						Value: aws.String(defaultOpts.ClusterName),
+					},
+				},
+			})
+
 			// Last AWSNodeTemplate, so now it should delete it
-			Expect(env.Client.Delete(ctx, providers[len(providers)-1])).To(Succeed())
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(providers[len(providers)-1]))
+			Expect(env.Client.Delete(ctx, nodeTemplates[len(nodeTemplates)-1])).To(Succeed())
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplates[len(nodeTemplates)-1]))
 
 			Expect(sqsapi.DeleteQueueBehavior.SuccessfulCalls()).To(Equal(1))
 			Expect(eventbridgeapi.RemoveTargetsBehavior.SuccessfulCalls()).To(Equal(4))

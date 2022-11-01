@@ -58,7 +58,7 @@ func (p *Infrastructure) Delete(ctx context.Context) error {
 	}
 	deleteEventBridgeRulesFunc := func() error {
 		logging.FromContext(ctx).Debugf("Deleting the EventBridge notification rules...")
-		return p.eventBridgeProvider.DeleteEC2NotificationRules(ctx)
+		return p.eventBridgeProvider.DeleteRules(ctx)
 	}
 	funcs := []func() error{
 		deleteQueueFunc,
@@ -104,7 +104,7 @@ func (p *Infrastructure) ensureQueue(ctx context.Context) error {
 // ensureEventBridge reconciles the Eventbridge rules with the configuration prescribed by Karpenter
 func (p *Infrastructure) ensureEventBridge(ctx context.Context) error {
 	logging.FromContext(ctx).Debugf("Reconciling the EventBridge event rules...")
-	if err := p.eventBridgeProvider.CreateEC2EventRules(ctx); err != nil {
+	if err := p.eventBridgeProvider.CreateRules(ctx); err != nil {
 		return fmt.Errorf("creating EventBridge event rules, %w", err)
 	}
 	logging.FromContext(ctx).Debugf("Successfully reconciled EventBridge event rules")

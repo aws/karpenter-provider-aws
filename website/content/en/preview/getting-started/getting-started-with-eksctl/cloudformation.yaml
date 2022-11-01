@@ -4,9 +4,6 @@ Parameters:
   ClusterName:
     Type: String
     Description: "EKS cluster name"
-  ClusterNameSHA:
-    Type: String
-    Description: "Truncated checksum of EKS cluster name"
 Resources:
   KarpenterNodeInstanceProfile:
     Type: "AWS::IAM::InstanceProfile"
@@ -75,7 +72,7 @@ Resources:
         Version: "2012-10-17"
         Statement:
           - Effect: Allow
-            Resource: !Sub "arn:${AWS::Partition}:sqs:${AWS::Region}:${AWS::AccountId}:Karpenter-EventQueue-${ClusterNameSHA}"
+            Resource: !Sub "arn:${AWS::Partition}:sqs:${AWS::Region}:${AWS::AccountId}:${ClusterName}"
             Action:
               # Write Operations
               - sqs:CreateQueue
@@ -88,7 +85,7 @@ Resources:
               - sqs:GetQueueAttributes
               - sqs:ReceiveMessage
           - Effect: Allow
-            Resource: !Sub "arn:${AWS::Partition}:events:${AWS::Region}:${AWS::AccountId}:rule/Karpenter-${ClusterNameSHA}-*"
+            Resource: !Sub "arn:${AWS::Partition}:events:${AWS::Region}:${AWS::AccountId}:rule/Karpenter-*"
             Action:
               # Write Operations
               - events:PutRule
@@ -96,3 +93,8 @@ Resources:
               - events:PutTargets
               - events:DeleteRule
               - events:RemoveTargets
+              - events:ListTagsForResource
+          - Effect: Allow
+            Resource: "*"
+            Action:
+              - events:ListRules

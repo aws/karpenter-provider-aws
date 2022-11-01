@@ -107,7 +107,7 @@ var _ = BeforeEach(func() {
 		unavailableOfferingsCache = awscache.NewUnavailableOfferings(cache.New(awscache.UnavailableOfferingsTTL, awscontext.CacheCleanupInterval))
 
 		sqsapi = &awsfake.SQSAPI{}
-		sqsProvider = providers.NewSQS(ctx, sqsapi)
+		sqsProvider = providers.NewSQS(sqsapi)
 		eventbridgeapi = &awsfake.EventBridgeAPI{}
 		eventBridgeProvider = providers.NewEventBridge(eventbridgeapi, sqsProvider)
 

@@ -58,6 +58,6 @@ func NewEnvironment(t *testing.T) (*Environment, error) {
 		SSMAPI:          *ssm.New(session),
 		IAMAPI:          *iam.New(session),
 		InterruptionAPI: itn.New(lo.Must(config.LoadDefaultConfig(env.Context))),
-		SQSProvider:     providers.NewSQS(env.Context, sqs.New(session)),
+		SQSProvider:     providers.NewSQS(sqs.New(session)),
 	}, nil
 }

@@ -26,7 +26,7 @@ import (
 )
 
 func NewControllers(ctx awscontext.Context) []controller.Controller {
-	sqsProvider := providers.NewSQS(ctx, sqs.New(ctx.Session))
+	sqsProvider := providers.NewSQS(sqs.New(ctx.Session))
 	eventBridgeProvider := providers.NewEventBridge(eventbridge.New(ctx.Session), sqsProvider)
 
 	return []controller.Controller{
