@@ -11548,6 +11548,29 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|18Gi|
  |memory|11630631Mi|
  |pods|737|
+## u-18tb1 Family
+### `u-18tb1.112xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|u|
+ |karpenter.k8s.aws/instance-cpu|448|
+ |karpenter.k8s.aws/instance-family|u-18tb1|
+ |karpenter.k8s.aws/instance-generation|1|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|18874368|
+ |karpenter.k8s.aws/instance-pods|737|
+ |karpenter.k8s.aws/instance-size|112xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|u-18tb1.112xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|446710m|
+ |ephemeral-storage|18Gi|
+ |memory|17450228Mi|
+ |pods|737|
 ## u-3tb1 Family
 ### `u-3tb1.56xlarge`
 #### Labels
