@@ -1,0 +1,9 @@
+name: UploadArtifacts
+description: 'Uploads artifacts of a workflow as an archive of a directory so that another workflow that runs on workflow_run can download and use it'
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/upload-artifact@v3
+      with:
+        name: artifacts
+        path: /tmp/artifacts

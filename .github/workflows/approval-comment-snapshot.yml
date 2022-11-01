@@ -1,0 +1,35 @@
+name: ApprovalCommentSnapshot
+on:
+  workflow_run:
+    workflows: [ApprovalComment]
+    types: [completed]
+permissions:
+  id-token: write
+  pull-requests: write
+  contents: write
+jobs:
+  approval-comment-snapshot:
+    if: github.event.workflow_run.conclusion == 'success' && github.repository == 'aws/karpenter'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/download-artifact
+      - name: Parse artifacts and assign GA environment variables
+        run: |
+          repo=$(head -n 1 /tmp/artifacts/metadata.txt)
+          pr_number=$(head -n 2 /tmp/artifacts/metadata.txt | tail -n 1)
+          pr_commit=$(tail -n 1 /tmp/artifacts/metadata.txt)
+          echo "PR_COMMIT=$pr_commit" >> $GITHUB_ENV
+          echo "PR_REPOSITORY=$repo" >> $GITHUB_ENV
+          echo "PR_NUMBER=$pr_number" >> $GITHUB_ENV
+      - name: Checkout the repository at the given SHA from the artifact
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          repository: ${{ env.PR_REPOSITORY }}
+          ref: ${{ env.PR_COMMIT }}
+      - uses: ./.github/actions/install-go-and-dependencies
+      - uses: ./.github/actions/authenticate-aws
+      - run: make release
