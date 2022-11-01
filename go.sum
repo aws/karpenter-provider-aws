@@ -66,8 +66,8 @@ github.com/avast/retry-go v3.0.0+incompatible h1:4SOWQ7Qs+oroOTQOYnAHqelpCO0biHS
 github.com/avast/retry-go v3.0.0+incompatible/go.mod h1:XtSnn+n/sHqQIpZ10K1qAevBhOOCWBLXXy3hyiqqBrY=
 github.com/aws/aws-sdk-go v1.44.127 h1:IoO2VfuIQg1aMXnl8l6OpNUKT4Qq5CnJMOyIWoTYXj0=
 github.com/aws/aws-sdk-go v1.44.127/go.mod h1:y4AeaBuwd2Lk+GepC1E9v0qOiTws0MIWAX4oIKwKHZo=
-github.com/aws/karpenter-core v0.0.2-0.20221031163135-0c39b59ed935 h1:HEd6DTBd8QcVEv9Ow7jPQWQ7LLp2QcipgaDYmJfazOI=
-github.com/aws/karpenter-core v0.0.2-0.20221031163135-0c39b59ed935/go.mod h1:b9EJPH/E/rPxwSshkn4wCY2Tw5AaDBPKhT8r3AIVlHo=
+github.com/aws/karpenter-core v0.0.2-0.20221102162805-1eab77d356bb h1:CqvYKLr5bWJ/MTNgXkDSsHQ15mkjN6AUwMdAcDuvY90=
+github.com/aws/karpenter-core v0.0.2-0.20221102162805-1eab77d356bb/go.mod h1:LqX9wVsuF9sN/yd18TtMAMHmulc+chsA5AsbtuwVTUI=
 github.com/benbjohnson/clock v1.1.0 h1:Q92kusRqC1XV2MjkWETPvjJVqKetz1OzxZB7mHJLju8=
 github.com/benbjohnson/clock v1.1.0/go.mod h1:J11/hYXuz8f4ySSvYwY0FKfm+ezbsZBKZxNJlLklBHA=
 github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973/go.mod h1:Dwedo/Wpr24TaqPxmxbtue+5NUziq4I4S80YR8gNf3Q=
@@ -876,8 +876,8 @@ k8s.io/kube-openapi v0.0.0-20220803162953-67bda5d908f1 h1:MQ8BAZPZlWk3S9K4a9NCkI
 k8s.io/kube-openapi v0.0.0-20220803162953-67bda5d908f1/go.mod h1:C/N6wCaBHeBHkHUesQOQy2/MZqGgMAFPqGsGQLdbZBU=
 k8s.io/utils v0.0.0-20220728103510-ee6ede2d64ed h1:jAne/RjBTyawwAy0utX5eqigAwz/lQhTmy+Hr/Cpue4=
 k8s.io/utils v0.0.0-20220728103510-ee6ede2d64ed/go.mod h1:jPW/WVKK9YHAvNhRxK0md/EJ228hCsBRufyofKtW8HA=
-knative.dev/pkg v0.0.0-20221011175852-714b7630a836 h1:0N7Zo/O+xeUUebJPm9keBaGclrUoEbljr3J1MsqtaIM=
-knative.dev/pkg v0.0.0-20221011175852-714b7630a836/go.mod h1:DMTRDJ5WRxf/DrlOPzohzfhSuJggscLZ8EavOq9O/x8=
+knative.dev/pkg v0.0.0-20221031132215-6eb8f1845a9d h1:BRSonjQw4u63gaWeoE5i2724FF3K7teFf8DcmwjGdAQ=
+knative.dev/pkg v0.0.0-20221031132215-6eb8f1845a9d/go.mod h1:j5kO7gKmWGj2DJpefCEiPbItToiYf+2bCtI+A6REkQo=
 rsc.io/binaryregexp v0.2.0/go.mod h1:qTv7/COck+e2FymRvadv62gMdZztPaShugOCi3I+8D8=
 rsc.io/quote/v3 v3.1.0/go.mod h1:yEA65RcK8LyAZtP9Kv3t0HmxON59tX3rD+tICJqUlj0=
 rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
