@@ -11,8 +11,5 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: ./.github/actions/install-go-and-dependencies
-      - uses: aws-actions/configure-aws-credentials@v1
-        with:
-          role-to-assume: arn:aws:iam::071440425669:role/Github
-          aws-region: us-east-1
+      - uses: ./.github/actions/authenticate-aws
       - run: make release

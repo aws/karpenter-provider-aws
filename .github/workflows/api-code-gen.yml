@@ -21,12 +21,7 @@ jobs:
           git config user.email "APICodeGen@users.noreply.github.com"
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
           git config pull.rebase false
-      - uses: aws-actions/configure-aws-credentials@v1
-        with:
-          role-to-assume: arn:aws:iam::071440425669:role/Github
-          aws-region: us-east-1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: ./.github/actions/authenticate-aws
       - run: make api-code-gen
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
