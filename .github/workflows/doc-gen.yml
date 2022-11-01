@@ -8,7 +8,7 @@ permissions:
   id-token: write
 
 jobs:
-  stable-release:
+  doc-gen-ci:
     if: github.repository == 'aws/karpenter'
     runs-on: ubuntu-latest
     steps:
