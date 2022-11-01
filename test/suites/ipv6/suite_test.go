@@ -43,6 +43,8 @@ func TestIPv6(t *testing.T) {
 }
 
 var _ = BeforeEach(func() { env.BeforeEach() })
+var _ = AfterEach(func() { env.Cleanup() })
+var _ = AfterEach(func() { env.ForceCleanup() })
 var _ = AfterEach(func() { env.AfterEach() })
 
 var _ = Describe("IPv6", func() {
