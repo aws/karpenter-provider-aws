@@ -1,0 +1,25 @@
+name: ApprovalComment
+on:
+  pull_request_review:
+    types: [submitted]
+
+jobs:
+  approval-comment:
+    if: github.repository == 'aws/karpenter' && github.event.review.state == 'approved' && startsWith(github.event.review.body ,'/karpenter snapshot')
+    permissions: write-all
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Save info about the review comment as an artifact for other workflows that run on workflow_run to download them
+        run: |
+          mkdir -p /tmp/artifacts
+          echo ${{ github.repository }} > /tmp/artifacts/metadata.txt
+          echo ${{ github.event.pull_request.number }} >> /tmp/artifacts/metadata.txt
+          echo ${{ github.event.review.commit_id }} >> /tmp/artifacts/metadata.txt
+      - uses: ./.github/actions/upload-artifact
+      - name: Dump GitHub context
+        run: echo "$GITHUB_CONTEXT"
+        env:
+          GITHUB_CONTEXT: ${{ toJSON(github) }}
