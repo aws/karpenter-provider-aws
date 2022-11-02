@@ -5,14 +5,14 @@ go 1.19
 require (
 	github.com/aws/aws-sdk-go v1.44.127
 	github.com/aws/karpenter v0.18.0
-	github.com/aws/karpenter-core v0.0.2-0.20221031163135-0c39b59ed935
+	github.com/aws/karpenter-core v0.0.2-0.20221102174542-079bcf63322e
 	github.com/onsi/ginkgo/v2 v2.4.0
 	github.com/onsi/gomega v1.23.0
 	github.com/samber/lo v1.33.0
 	k8s.io/api v0.25.2
 	k8s.io/apimachinery v0.25.2
 	k8s.io/client-go v0.25.2
-	knative.dev/pkg v0.0.0-20221014164553-b812affa3893
+	knative.dev/pkg v0.0.0-20221031132215-6eb8f1845a9d
 	sigs.k8s.io/controller-runtime v0.13.0
 )
 
