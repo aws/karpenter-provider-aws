@@ -56,7 +56,7 @@ func NewController(kubeClient client.Client, sqsProvider *providers.SQS, eventBr
 	return &Controller{
 		kubeClient:     kubeClient,
 		finalizer:      &Finalizer{},
-		infrastructure: &Infrastructure{kubeClient: kubeClient, provider: providers.NewInfrastructure(sqsProvider, eventBridgeProvider)},
+		infrastructure: &Infrastructure{kubeClient: kubeClient, sqsProvider: sqsProvider, eventBridgeProvider: eventBridgeProvider},
 	}
 }
 

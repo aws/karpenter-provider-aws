@@ -57,7 +57,7 @@ func init() {
 }
 
 // Controller is an AWS interruption controller.
-// It continually polls an provisioned SQS queue for events from aws.ec2 and aws.health that
+// It continually polls an SQS queue for events from aws.ec2 and aws.health that
 // trigger node health events or node spot interruption/rebalance events.
 type Controller struct {
 	kubeClient                client.Client
@@ -82,12 +82,16 @@ func NewController(kubeClient client.Client, clk clock.Clock, recorder events.Re
 }
 
 func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconcile.Result, error) {
-	queueExists, err := c.sqsProvider.QueueExists(ctx)
-	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("checking queue existence, %w", err)
-	}
-	if settings.FromContext(ctx).EnableInterruptionHandling && queueExists {
-		active.Set(1)
+	if settings.FromContext(ctx).EnableInterruptionHandling {
+		queueExists, err := c.sqsProvider.QueueExists(ctx)
+		if err != nil {
+			return reconcile.Result{}, fmt.Errorf("checking queue existence, %w", err)
+		}
+		if !queueExists {
+			enabled.Set(0)
+			return reconcile.Result{RequeueAfter: time.Second * 10}, nil
+		}
+		enabled.Set(1)
 		sqsMessages, err := c.sqsProvider.GetSQSMessages(ctx)
 		if err != nil {
 			return reconcile.Result{}, fmt.Errorf("getting messages from queue, %w", err)
@@ -116,7 +120,7 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 		})
 		return reconcile.Result{}, multierr.Combine(errs...)
 	}
-	active.Set(0)
+	enabled.Set(0)
 	return reconcile.Result{RequeueAfter: time.Second * 10}, nil
 }
 
@@ -159,6 +163,7 @@ func (c *Controller) handleMessage(ctx context.Context, instanceIDMap map[string
 			err = multierr.Append(err, e)
 		}
 	}
+	messageLatency.Observe(time.Since(msg.StartTime()).Seconds())
 	if err != nil {
 		return fmt.Errorf("failed to act on nodes [%s%s], %w",
 			strings.Join(lo.Slice(failedNodeNames, 0, 3), ","),

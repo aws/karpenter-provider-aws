@@ -24,18 +24,17 @@ import (
 const (
 	subsystem              = "aws_interruption_controller"
 	messageTypeLabel       = "message_type"
-	actionableTypeLabel    = "actionable"
 	actionTypeLabel        = "action_type"
 	terminationReasonLabel = "interruption"
 )
 
 var (
-	active = prometheus.NewGauge(
+	enabled = prometheus.NewGauge(
 		prometheus.GaugeOpts{
 			Namespace: metrics.Namespace,
 			Subsystem: subsystem,
-			Name:      "active",
-			Help:      "Whether the message polling is currently active.",
+			Name:      "enabled",
+			Help:      "Whether the message polling is currently enabled.",
 		},
 	)
 	receivedMessages = prometheus.NewCounterVec(
@@ -55,6 +54,15 @@ var (
 			Help:      "Count of messages deleted from the SQS queue.",
 		},
 	)
+	messageLatency = prometheus.NewHistogram(
+		prometheus.HistogramOpts{
+			Namespace: metrics.Namespace,
+			Subsystem: subsystem,
+			Name:      "message_latency_time_seconds",
+			Help:      "Length of time between message creation in queue and an action taken on the message by the controller.",
+			Buckets:   metrics.DurationBuckets(),
+		},
+	)
 	actionsPerformed = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metrics.Namespace,
@@ -67,5 +75,5 @@ var (
 )
 
 func init() {
-	crmetrics.Registry.MustRegister(receivedMessages, deletedMessages, actionsPerformed)
+	crmetrics.Registry.MustRegister(enabled, receivedMessages, deletedMessages, messageLatency, actionsPerformed)
 }

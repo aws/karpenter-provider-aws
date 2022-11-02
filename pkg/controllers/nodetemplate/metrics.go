@@ -16,29 +16,50 @@ package nodetemplate
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
+	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	"github.com/aws/karpenter-core/pkg/metrics"
 )
 
-const (
-	subsystem = "aws_notification_controller"
-)
+const subSystem = "nodetemplate_infrastructure"
 
 var (
 	infrastructureHealthy = prometheus.NewGauge(
 		prometheus.GaugeOpts{
 			Namespace: metrics.Namespace,
-			Subsystem: subsystem,
-			Name:      "infrastructure_healthy",
+			Subsystem: subSystem,
+			Name:      "healthy",
 			Help:      "Whether the infrastructure provisioned by the controller is healthy.",
 		},
 	)
-	infrastructureActive = prometheus.NewGauge(
+	infrastructureEnabled = prometheus.NewGauge(
 		prometheus.GaugeOpts{
 			Namespace: metrics.Namespace,
-			Subsystem: subsystem,
-			Name:      "infrastructure_active",
+			Subsystem: subSystem,
+			Name:      "enabled",
 			Help:      "Whether the infrastructure reconciliation is currently active.",
 		},
 	)
+	infrastructureCreateDuration = prometheus.NewHistogram(
+		prometheus.HistogramOpts{
+			Namespace: metrics.Namespace,
+			Subsystem: subSystem,
+			Name:      "create_time_seconds",
+			Help:      "Length of time to create infrastructure.",
+			Buckets:   metrics.DurationBuckets(),
+		},
+	)
+	infrastructureDeleteDuration = prometheus.NewHistogram(
+		prometheus.HistogramOpts{
+			Namespace: metrics.Namespace,
+			Subsystem: subSystem,
+			Name:      "delete_time_seconds",
+			Help:      "Length of time to delete infrastructure.",
+			Buckets:   metrics.DurationBuckets(),
+		},
+	)
 )
+
+func init() {
+	crmetrics.Registry.MustRegister(infrastructureHealthy, infrastructureEnabled, infrastructureCreateDuration, infrastructureDeleteDuration)
+}

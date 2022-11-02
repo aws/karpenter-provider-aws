@@ -30,6 +30,7 @@ type Parser interface {
 type Message interface {
 	EC2InstanceIDs() []string
 	Kind() Kind
+	StartTime() time.Time
 }
 
 type Kind byte
@@ -70,4 +71,8 @@ type Metadata struct {
 	Source     string    `json:"source"`
 	Time       time.Time `json:"time"`
 	Version    string    `json:"version"`
+}
+
+func (m Metadata) StartTime() time.Time {
+	return m.Time
 }

@@ -217,7 +217,7 @@ func (s *SQS) DeleteSQSMessage(ctx context.Context, msg *sqs.Message) error {
 func (s *SQS) DeleteQueue(ctx context.Context) error {
 	queueURL, err := s.DiscoverQueueURL(ctx)
 	if err != nil {
-		if awserrors.IsNotFound(err) {
+		if awserrors.IsNotFound(err) || awserrors.IsAccessDenied(err) {
 			return nil
 		}
 		return fmt.Errorf("fetching queue url, %w", err)
