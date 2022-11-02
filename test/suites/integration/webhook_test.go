@@ -37,7 +37,7 @@ var _ = Describe("Webhooks", func() {
 				env.ExpectCreated(provisioner)
 				env.ExpectFound(provisioner)
 
-				Expect(len(provisioner.Spec.Requirements)).To(Equal(2))
+				Expect(len(provisioner.Spec.Requirements)).To(Equal(4))
 				Expect(provisioner.Spec.Requirements).To(ContainElement(v1.NodeSelectorRequirement{
 					Key:      v1alpha5.LabelCapacityType,
 					Operator: v1.NodeSelectorOpIn,
@@ -47,6 +47,16 @@ var _ = Describe("Webhooks", func() {
 					Key:      v1.LabelArchStable,
 					Operator: v1.NodeSelectorOpIn,
 					Values:   []string{v1alpha5.ArchitectureAmd64},
+				}))
+				Expect(provisioner.Spec.Requirements).To(ContainElement(v1.NodeSelectorRequirement{
+					Key:      v1alpha1.LabelInstanceCategory,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{"c", "m", "r"},
+				}))
+				Expect(provisioner.Spec.Requirements).To(ContainElement(v1.NodeSelectorRequirement{
+					Key:      v1alpha1.LabelInstanceGeneration,
+					Operator: v1.NodeSelectorOpGt,
+					Values:   []string{"2"},
 				}))
 			})
 		})
