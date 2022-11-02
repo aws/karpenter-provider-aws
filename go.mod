@@ -9,7 +9,7 @@ require (
 	github.com/aws/karpenter-core v0.0.2-0.20221102174542-079bcf63322e
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/onsi/ginkgo/v2 v2.4.0
-	github.com/onsi/gomega v1.23.0
+	github.com/onsi/gomega v1.24.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pelletier/go-toml/v2 v2.0.5
 	github.com/samber/lo v1.33.0
