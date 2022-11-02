@@ -229,13 +229,13 @@ func (env *Environment) ForceCleanup(opts ...Option) {
 
 	// Delete all the nodes if they weren't deleted by the provisioner propagation
 	Expect(env.Client.DeleteAllOf(env, &v1.Node{},
-		client.HasLabels([]string{test.DiscoveryLabel}),
+		client.HasLabels([]string{v1alpha5.ProvisionerNameLabelKey}),
 		client.PropagationPolicy(metav1.DeletePropagationForeground),
 	)).To(Succeed())
 	Eventually(func(g Gomega) {
 		stored := &v1.NodeList{}
 		g.Expect(env.Client.List(env, stored,
-			client.HasLabels([]string{test.DiscoveryLabel}))).To(Succeed())
+			client.HasLabels([]string{v1alpha5.ProvisionerNameLabelKey}))).To(Succeed())
 		g.Expect(len(stored.Items)).To(BeZero())
 	}).Should(Succeed())
 }
