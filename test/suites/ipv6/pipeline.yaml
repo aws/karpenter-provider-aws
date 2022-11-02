@@ -10,7 +10,7 @@ spec:
       description: Uniquely identifies a cluster name for the suite.
     - name: kubernetes-version
       description: Kubernetes version to deploy
-      default: "1.21"
+      default: "1.23"
     - name: ip-family
       default: IPv6
       description: IP Family of the cluster. Valid values are IPv4 or IPv6
