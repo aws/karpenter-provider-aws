@@ -41,7 +41,7 @@ var _ = Describe("Expiration", func() {
 			ProviderRef:            &v1alpha5.ProviderRef{Name: provider.Name},
 			TTLSecondsUntilExpired: ptr.Int64(30),
 		})
-		var numPods int32 = 3
+		var numPods int32 = 1
 
 		dep := test.Deployment(test.DeploymentOptions{
 			Replicas: numPods,
@@ -58,9 +58,11 @@ var _ = Describe("Expiration", func() {
 		// We don't care if the pod goes healthy, just if the node is expired
 		env.EventuallyExpectCreatedNodeCount("==", 1)
 		node := env.Monitor.CreatedNodes()[0]
+		env.Monitor.Reset()
 
-		// Eventually expect the node to be gone
+		// Eventually expect the node to be gone and a new one to come up
 		env.EventuallyExpectNotFound(node)
+		env.EventuallyExpectCreatedNodeCount("==", 1)
 	})
 	It("should replace expired node with a single node and schedule all pods", func() {
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
@@ -88,8 +90,8 @@ var _ = Describe("Expiration", func() {
 				},
 			},
 		})
-
 		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
+
 		env.ExpectCreatedNodeCount("==", 0)
 		env.ExpectCreated(provisioner, provider, pdb, dep)
 
