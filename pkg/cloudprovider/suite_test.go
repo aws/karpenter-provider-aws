@@ -182,7 +182,13 @@ var _ = BeforeEach(func() {
 		SecurityGroupSelector: map[string]string{"*": "*"},
 	}
 
-	provisioner = test.Provisioner(coretest.ProvisionerOptions{Provider: provider})
+	provisioner = test.Provisioner(coretest.ProvisionerOptions{
+		Provider: provider,
+		Requirements: []v1.NodeSelectorRequirement{{
+			Key:      v1alpha1.LabelInstanceCategory,
+			Operator: v1.NodeSelectorOpExists,
+		}},
+	})
 
 	fakeEC2API.Reset()
 	fakePricingAPI.Reset()

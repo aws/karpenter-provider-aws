@@ -43,7 +43,6 @@ import (
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
-	"github.com/aws/karpenter-core/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
@@ -132,36 +131,10 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, provisioner *v1alp
 	if err != nil {
 		return nil, err
 	}
+	// TODO, break this coupling
 	instanceTypes, err := c.instanceTypeProvider.Get(ctx, aws, provisioner.Spec.KubeletConfiguration)
 	if err != nil {
 		return nil, err
-	}
-
-	// if the provisioner is not supplying a list of instance types or families, perform some filtering to get instance
-	// types that are suitable for general workloads
-	if c.useOpinionatedInstanceFilter(provisioner.Spec.Requirements...) {
-		instanceTypes = lo.Filter(instanceTypes, func(it cloudprovider.InstanceType, _ int) bool {
-			cit, ok := it.(*InstanceType)
-			if !ok {
-				return true
-			}
-
-			// c3, m3 and r3 aren't current generation but are fine for general workloads
-			if functional.HasAnyPrefix(*cit.InstanceType, "c3", "m3", "r3") {
-				return true
-			}
-
-			// filter out all non-current generation
-			if cit.CurrentGeneration != nil && !*cit.CurrentGeneration {
-				return false
-			}
-
-			// t2 is current generation but has different bursting behavior and u- isn't widely available
-			if functional.HasAnyPrefix(*cit.InstanceType, "t2", "u-") {
-				return false
-			}
-			return true
-		})
 	}
 	return instanceTypes, nil
 }
@@ -217,35 +190,4 @@ func (c *CloudProvider) getProvider(ctx context.Context, provider *runtime.RawEx
 		return nil, err
 	}
 	return aws, nil
-}
-
-func (c *CloudProvider) useOpinionatedInstanceFilter(provisionerRequirements ...v1.NodeSelectorRequirement) bool {
-	var instanceRequirements []v1.NodeSelectorRequirement
-	requirementKeys := []string{v1.LabelInstanceTypeStable, v1alpha1.LabelInstanceFamily, v1alpha1.LabelInstanceCategory, v1alpha1.LabelInstanceGeneration}
-
-	for _, r := range provisionerRequirements {
-		if lo.Contains(requirementKeys, r.Key) {
-			instanceRequirements = append(instanceRequirements, r)
-		}
-	}
-	// no provisioner instance type filtering, so use our opinionated list
-	if len(instanceRequirements) == 0 {
-		return true
-	}
-
-	for _, req := range instanceRequirements {
-		switch req.Operator {
-		case v1.NodeSelectorOpIn, v1.NodeSelectorOpExists, v1.NodeSelectorOpDoesNotExist:
-			// v1.NodeSelectorOpIn: provisioner supplies its own list of instance types/families, so use that instead of filtering
-			// v1.NodeSelectorOpExists: provisioner explicitly is asking for no filtering
-			// v1.NodeSelectorOpDoesNotExist: this shouldn't match any instance type at provisioning time, but avoid filtering anyway
-			return false
-		case v1.NodeSelectorOpNotIn, v1.NodeSelectorOpGt, v1.NodeSelectorOpLt:
-			// provisioner further restricts instance types/families, so we can possibly use our list and it will
-			// be filtered more
-		}
-	}
-
-	// provisioner requirements haven't prevented us from filtering
-	return true
 }
