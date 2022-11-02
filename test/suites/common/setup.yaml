@@ -11,7 +11,7 @@ spec:
       description: Name of the cluster under test.
     - name: kubernetes-version
       description: Kubernetes version to deploy
-      default: "1.21"
+      default: "1.23"
     - name: ip-family
       description: IP Family of the cluster. Valid values are IPv4 or IPv6
       default: IPv4
