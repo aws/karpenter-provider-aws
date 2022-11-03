@@ -12,6 +12,7 @@ metadata:
 data:
   "batchMaxDuration": "{{ .Values.controller.batchMaxDuration }}"
   "batchIdleDuration": "{{ .Values.controller.batchIdleDuration }}"
+  "aws.enableInterruptionHandling": "{{ .Values.aws.enableInterruptionHandling }}"
   {{- range $tag, $value := .Values.aws.tags }}
   "aws.tags.{{ $tag }}": "{{ $value }}"
   {{- end }}

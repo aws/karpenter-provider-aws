@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"log"
+	"math"
 	"sync"
 )
 
@@ -71,12 +72,17 @@ func (a *AtomicPtr[T]) Reset() {
 type AtomicError struct {
 	mu  sync.Mutex
 	err error
+
+	calls    int
+	maxCalls int
 }
 
 func (e *AtomicError) Reset() {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.err = nil
+	e.calls = 0
+	e.maxCalls = 0
 }
 
 func (e *AtomicError) IsNil() bool {
@@ -85,16 +91,40 @@ func (e *AtomicError) IsNil() bool {
 	return e.err == nil
 }
 
+// Get is equivalent to the error being called, so we increase
+// number of calls in this function
 func (e *AtomicError) Get() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	if e.calls >= e.maxCalls {
+		return nil
+	}
+	e.calls++
 	return e.err
 }
 
-func (e *AtomicError) Set(err error) {
+func (e *AtomicError) Set(err error, opts ...AtomicErrorOption) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.err = err
+	for _, opt := range opts {
+		opt(e)
+	}
+	if e.maxCalls == 0 {
+		e.maxCalls = 1
+	}
+}
+
+type AtomicErrorOption func(atomicError *AtomicError)
+
+func MaxCalls(maxCalls int) AtomicErrorOption {
+	// Setting to 0 is equivalent to allowing infinite errors to API
+	if maxCalls <= 0 {
+		maxCalls = math.MaxInt
+	}
+	return func(e *AtomicError) {
+		e.maxCalls = maxCalls
+	}
 }
 
 // AtomicPtrSlice exposes a slice of a pointer type in a race-free manner. The interface is just enough to replace the

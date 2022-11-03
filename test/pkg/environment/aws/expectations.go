@@ -17,10 +17,13 @@ package aws
 import (
 	"net"
 	"strings"
+	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	. "github.com/onsi/gomega" //nolint:revive,stylecheck
+	. "github.com/onsi/ginkgo/v2" //nolint:revive,stylecheck
+	. "github.com/onsi/gomega"    //nolint:revive,stylecheck
+	"go.uber.org/multierr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -29,7 +32,7 @@ func (env *Environment) ExpectInstance(nodeName string) Assertion {
 }
 
 func (env *Environment) ExpectIPv6ClusterDNS() string {
-	dnsService, err := env.KubeClient.CoreV1().Services("kube-system").Get(env.Context, "kube-dns", metav1.GetOptions{})
+	dnsService, err := env.Environment.KubeClient.CoreV1().Services("kube-system").Get(env.Context, "kube-dns", metav1.GetOptions{})
 	Expect(err).ToNot(HaveOccurred())
 	kubeDNSIP := net.ParseIP(dnsService.Spec.ClusterIP)
 	Expect(kubeDNSIP.To4()).To(BeNil())
@@ -37,7 +40,7 @@ func (env *Environment) ExpectIPv6ClusterDNS() string {
 }
 
 func (env *Environment) GetInstance(nodeName string) ec2.Instance {
-	node := env.GetNode(nodeName)
+	node := env.Environment.GetNode(nodeName)
 	providerIDSplit := strings.Split(node.Spec.ProviderID, "/")
 	ExpectWithOffset(1, len(providerIDSplit)).ToNot(Equal(0))
 	instanceID := providerIDSplit[len(providerIDSplit)-1]
@@ -51,7 +54,7 @@ func (env *Environment) GetInstance(nodeName string) ec2.Instance {
 }
 
 func (env *Environment) ExpectInstanceStopped(nodeName string) {
-	node := env.GetNode(nodeName)
+	node := env.Environment.GetNode(nodeName)
 	providerIDSplit := strings.Split(node.Spec.ProviderID, "/")
 	ExpectWithOffset(1, len(providerIDSplit)).ToNot(Equal(0))
 	instanceID := providerIDSplit[len(providerIDSplit)-1]
@@ -63,7 +66,7 @@ func (env *Environment) ExpectInstanceStopped(nodeName string) {
 }
 
 func (env *Environment) ExpectInstanceTerminated(nodeName string) {
-	node := env.GetNode(nodeName)
+	node := env.Environment.GetNode(nodeName)
 	providerIDSplit := strings.Split(node.Spec.ProviderID, "/")
 	ExpectWithOffset(1, len(providerIDSplit)).ToNot(Equal(0))
 	instanceID := providerIDSplit[len(providerIDSplit)-1]
@@ -78,4 +81,34 @@ func (env *Environment) GetVolume(volumeID *string) ec2.Volume {
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 	ExpectWithOffset(1, len(dvo.Volumes)).To(Equal(1))
 	return *dvo.Volumes[0]
+}
+
+func (env *Environment) EventuallyExpectQueueCreated() {
+	EventuallyWithOffset(1, func(g Gomega) {
+		exists, err := env.SQSProvider.QueueExists(env.Context)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(exists).To(BeTrue())
+	}).Should(Succeed())
+}
+
+func (env *Environment) ExpectMessagesCreated(msgs ...interface{}) {
+	wg := &sync.WaitGroup{}
+	mu := &sync.Mutex{}
+
+	var err error
+	for _, msg := range msgs {
+		wg.Add(1)
+		go func(m interface{}) {
+			defer wg.Done()
+			defer GinkgoRecover()
+			_, e := env.SQSProvider.SendMessage(env.Environment.Context, m)
+			if e != nil {
+				mu.Lock()
+				err = multierr.Append(err, e)
+				mu.Unlock()
+			}
+		}(msg)
+	}
+	wg.Wait()
+	ExpectWithOffset(1, err).To(Succeed())
 }

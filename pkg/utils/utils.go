@@ -15,16 +15,11 @@ limitations under the License.
 package utils
 
 import (
-	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"regexp"
 
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/ptr"
-
-	"github.com/aws/karpenter-core/pkg/operator/injection"
 )
 
 // ParseInstanceID parses the provider ID stored on the node to get the instance ID
@@ -41,12 +36,4 @@ func ParseInstanceID(node *v1.Node) (*string, error) {
 		}
 	}
 	return nil, fmt.Errorf("parsing instance id %s", node.Spec.ProviderID)
-}
-
-// GetClusterNameHash gets the SHA256 hex-encoded checksum of the cluster name, truncated at the passed truncatedAt
-func GetClusterNameHash(ctx context.Context, truncateAt int) string {
-	h := sha256.New()
-	h.Write([]byte(injection.GetOptions(ctx).ClusterName))
-	checkSum := h.Sum([]byte{})
-	return hex.EncodeToString(checkSum)[:truncateAt]
 }

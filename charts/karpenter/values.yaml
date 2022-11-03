@@ -140,5 +140,8 @@ clusterEndpoint: ""
 aws:
   # -- The default instance profile to use when launching nodes on AWS
   defaultInstanceProfile: ""
+  # -- enableInterruptionHandling is currently in BETA and is disabled by default. Enabling interruption handling may
+  # require additional permissions on the controller service account. Additional permissions are outlined in the docs
+  enableInterruptionHandling: false
   # -- The global tags to use on all AWS infrastructure resources (launch templates, instances, SQS queue, etc.)
   tags:

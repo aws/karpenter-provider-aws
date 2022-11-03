@@ -16,7 +16,6 @@ package main
 
 import (
 	"github.com/samber/lo"
-	"k8s.io/utils/clock"
 
 	awscloudprovider "github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/context"
@@ -46,14 +45,13 @@ func main() {
 	lo.Must0(operator.AddHealthzCheck("cloud-provider", awsCloudProvider.LivenessProbe))
 	cloudProvider := metrics.Decorate(awsCloudProvider)
 
-	clusterState := state.NewCluster(operator.SettingsStore.InjectSettings(ctx), operator.Clock, operator.GetClient(), cloudProvider)
 	operator.
 		WithControllers(ctx, corecontrollers.NewControllers(
 			ctx,
-			clock.RealClock{},
+			operator.Clock,
 			operator.GetClient(),
 			operator.KubernetesInterface,
-			clusterState,
+			state.NewCluster(operator.SettingsStore.InjectSettings(ctx), operator.Clock, operator.GetClient(), cloudProvider),
 			operator.EventRecorder,
 			operator.SettingsStore,
 			cloudProvider,
@@ -61,7 +59,6 @@ func main() {
 		WithWebhooks(corewebhooks.NewWebhooks()...).
 		WithControllers(ctx, controllers.NewControllers(
 			awsCtx,
-			clusterState,
 		)...).
 		WithWebhooks(webhooks.NewWebhooks()...).
 		Start(ctx)

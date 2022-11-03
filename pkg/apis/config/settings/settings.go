@@ -35,27 +35,34 @@ var Registration = &config.Registration{
 	DefaultData:   lo.Must(defaultSettings.Data()),
 }
 
-var defaultSettings = Settings{}
-
-type Settings struct {
-	Tags map[string]string
+var defaultSettings = Settings{
+	EnableInterruptionHandling: false,
+	Tags:                       map[string]string{},
 }
 
-func (s Settings) UnmarshalJSON(raw []byte) error {
-	d := map[string]string{}
-	if err := json.Unmarshal(raw, &d); err != nil {
-		return err
-	}
-	if err := AsMap("aws.tags", &s.Tags)(d); err != nil {
-		return err
-	}
-	return nil
+type Settings struct {
+	EnableInterruptionHandling bool              `json:"aws.enableInterruptionHandling,string"`
+	Tags                       map[string]string `json:"aws.tags,omitempty"`
 }
 
 func (s Settings) MarshalJSON() ([]byte, error) {
+	type internal Settings
 	d := map[string]string{}
-	if err := FromMap(s.Tags)("aws.tags", &d); err != nil {
-		return nil, err
+
+	// Store a value of tags locally, so we can marshal the rest of the struct
+	tags := s.Tags
+	s.Tags = nil
+
+	raw, err := json.Marshal(internal(s))
+	if err != nil {
+		return nil, fmt.Errorf("marshaling settings, %w", err)
+	}
+	if err = json.Unmarshal(raw, &d); err != nil {
+		return nil, fmt.Errorf("unmarshalling settings into map, %w", err)
+	}
+	// Rewind the tags from the map into separate values
+	if err = FromMap(tags)("aws.tags", &d); err != nil {
+		return nil, fmt.Errorf("rewinding tags into map, %w", err)
 	}
 	return json.Marshal(d)
 }
@@ -74,6 +81,7 @@ func NewSettingsFromConfigMap(cm *v1.ConfigMap) (Settings, error) {
 	s := defaultSettings
 
 	if err := configmap.Parse(cm.Data,
+		configmap.AsBool("aws.enableInterruptionHandling", &s.EnableInterruptionHandling),
 		AsMap("aws.tags", &s.Tags),
 	); err != nil {
 		// Failing to parse means that there is some error in the Settings, so we should crash
