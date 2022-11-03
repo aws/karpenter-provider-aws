@@ -7,9 +7,9 @@ require (
 	github.com/aws/aws-sdk-go v1.44.127
 	github.com/aws/aws-sdk-go-v2/config v1.17.10
 	github.com/aws/karpenter v0.18.0
-	github.com/aws/karpenter-core v0.0.2-0.20221031163135-0c39b59ed935
+	github.com/aws/karpenter-core v0.0.2-0.20221102174542-079bcf63322e
 	github.com/onsi/ginkgo/v2 v2.4.0
-	github.com/onsi/gomega v1.23.0
+	github.com/onsi/gomega v1.24.0
 	github.com/samber/lo v1.33.0
 	go.uber.org/multierr v1.8.0
 	k8s.io/api v0.25.2

@@ -56,6 +56,13 @@ func init() {
 	lo.Must0(apis.AddToScheme(scheme.Scheme))
 }
 
+type Action string
+
+const (
+	CordonAndDrain Action = "CordonAndDrain"
+	NoAction       Action = "NoAction"
+)
+
 // Controller is an AWS interruption controller.
 // It continually polls an SQS queue for events from aws.ec2 and aws.health that
 // trigger node health events or node spot interruption/rebalance events.
@@ -82,46 +89,43 @@ func NewController(kubeClient client.Client, clk clock.Clock, recorder events.Re
 }
 
 func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconcile.Result, error) {
-	if settings.FromContext(ctx).EnableInterruptionHandling {
-		queueExists, err := c.sqsProvider.QueueExists(ctx)
-		if err != nil {
-			return reconcile.Result{}, fmt.Errorf("checking queue existence, %w", err)
-		}
-		if !queueExists {
-			enabled.Set(0)
-			return reconcile.Result{RequeueAfter: time.Second * 10}, nil
-		}
-		enabled.Set(1)
-		sqsMessages, err := c.sqsProvider.GetSQSMessages(ctx)
-		if err != nil {
-			return reconcile.Result{}, fmt.Errorf("getting messages from queue, %w", err)
-		}
-		if len(sqsMessages) == 0 {
-			return reconcile.Result{}, nil
-		}
-		instanceIDMap, err := c.makeInstanceIDMap(ctx)
-		if err != nil {
-			return reconcile.Result{}, fmt.Errorf("making instance id map, %w", err)
-		}
-		errs := make([]error, len(sqsMessages))
-		workqueue.ParallelizeUntil(ctx, 10, len(sqsMessages), func(i int) {
-			msg, e := c.parseMessage(sqsMessages[i])
-			if e != nil {
-				// If we fail to parse, then we should delete the message but still log the error
-				logging.FromContext(ctx).Errorf("parsing message, %v", e)
-				errs[i] = c.deleteMessage(ctx, sqsMessages[i])
-				return
-			}
-			if e = c.handleMessage(ctx, instanceIDMap, msg); e != nil {
-				errs[i] = fmt.Errorf("handling message, %w", e)
-				return
-			}
-			errs[i] = c.deleteMessage(ctx, sqsMessages[i])
-		})
-		return reconcile.Result{}, multierr.Combine(errs...)
+	if !settings.FromContext(ctx).EnableInterruptionHandling {
+		return reconcile.Result{RequeueAfter: time.Second * 10}, nil
 	}
-	enabled.Set(0)
-	return reconcile.Result{RequeueAfter: time.Second * 10}, nil
+	queueExists, err := c.sqsProvider.QueueExists(ctx)
+	if err != nil {
+		return reconcile.Result{}, fmt.Errorf("checking queue existence, %w", err)
+	}
+	if !queueExists {
+		return reconcile.Result{RequeueAfter: time.Second * 10}, nil
+	}
+	sqsMessages, err := c.sqsProvider.GetSQSMessages(ctx)
+	if err != nil {
+		return reconcile.Result{}, fmt.Errorf("getting messages from queue, %w", err)
+	}
+	if len(sqsMessages) == 0 {
+		return reconcile.Result{}, nil
+	}
+	instanceIDMap, err := c.makeInstanceIDMap(ctx)
+	if err != nil {
+		return reconcile.Result{}, fmt.Errorf("making instance id map, %w", err)
+	}
+	errs := make([]error, len(sqsMessages))
+	workqueue.ParallelizeUntil(ctx, 10, len(sqsMessages), func(i int) {
+		msg, e := c.parseMessage(sqsMessages[i])
+		if e != nil {
+			// If we fail to parse, then we should delete the message but still log the error
+			logging.FromContext(ctx).Errorf("parsing message, %v", e)
+			errs[i] = c.deleteMessage(ctx, sqsMessages[i])
+			return
+		}
+		if e = c.handleMessage(ctx, instanceIDMap, msg); e != nil {
+			errs[i] = fmt.Errorf("handling message, %w", e)
+			return
+		}
+		errs[i] = c.deleteMessage(ctx, sqsMessages[i])
+	})
+	return reconcile.Result{}, multierr.Combine(errs...)
 }
 
 func (c *Controller) Builder(_ context.Context, m manager.Manager) corecontroller.Builder {
@@ -137,11 +141,10 @@ func (c *Controller) LivenessProbe(_ *http.Request) error {
 func (c *Controller) parseMessage(raw *sqsapi.Message) (messages.Message, error) {
 	// No message to parse in this case
 	if raw == nil || raw.Body == nil {
-		return nil, fmt.Errorf("")
+		return nil, fmt.Errorf("message or message body is nil")
 	}
 	msg, err := c.parser.Parse(*raw.Body)
 	if err != nil {
-		deletedMessages.Inc()
 		return nil, fmt.Errorf("parsing sqs message, %w", err)
 	}
 	return msg, nil
@@ -150,7 +153,7 @@ func (c *Controller) parseMessage(raw *sqsapi.Message) (messages.Message, error)
 // handleMessage takes an action against every node involved in the message that is owned by a Provisioner
 func (c *Controller) handleMessage(ctx context.Context, instanceIDMap map[string]*v1.Node, msg messages.Message) (err error) {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("messageKind", msg.Kind()))
-	receivedMessages.WithLabelValues(msg.Kind().String()).Inc()
+	receivedMessages.WithLabelValues(string(msg.Kind())).Inc()
 
 	var failedNodeNames []string
 	for _, instanceID := range msg.EC2InstanceIDs() {
@@ -185,18 +188,18 @@ func (c *Controller) deleteMessage(ctx context.Context, msg *sqsapi.Message) err
 func (c *Controller) handleNode(ctx context.Context, msg messages.Message, node *v1.Node) error {
 	action := actionForMessage(msg)
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("node", node.Name))
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("action", action.String()))
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("action", string(action)))
 
 	// Record metric and event for this action
 	c.notifyForMessage(msg, node)
-	actionsPerformed.WithLabelValues(action.String()).Inc()
+	actionsPerformed.WithLabelValues(string(action)).Inc()
 
 	// Mark the offering as unavailable in the ICE cache since we got a spot interruption warning
 	if msg.Kind() == messages.SpotInterruptionKind {
 		zone := node.Labels[v1.LabelTopologyZone]
 		instanceType := node.Labels[v1.LabelInstanceTypeStable]
 		if zone != "" && instanceType != "" {
-			c.unavailableOfferingsCache.MarkUnavailable(ctx, msg.Kind().String(), instanceType, zone, v1alpha1.CapacityTypeSpot)
+			c.unavailableOfferingsCache.MarkUnavailable(ctx, string(msg.Kind()), instanceType, zone, v1alpha1.CapacityTypeSpot)
 		}
 	}
 	if action != NoAction {

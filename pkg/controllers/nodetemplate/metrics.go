@@ -32,14 +32,6 @@ var (
 			Help:      "Whether the infrastructure provisioned by the controller is healthy.",
 		},
 	)
-	infrastructureEnabled = prometheus.NewGauge(
-		prometheus.GaugeOpts{
-			Namespace: metrics.Namespace,
-			Subsystem: subSystem,
-			Name:      "enabled",
-			Help:      "Whether the infrastructure reconciliation is currently active.",
-		},
-	)
 	infrastructureCreateDuration = prometheus.NewHistogram(
 		prometheus.HistogramOpts{
 			Namespace: metrics.Namespace,
@@ -61,5 +53,5 @@ var (
 )
 
 func init() {
-	crmetrics.Registry.MustRegister(infrastructureHealthy, infrastructureEnabled, infrastructureCreateDuration, infrastructureDeleteDuration)
+	crmetrics.Registry.MustRegister(infrastructureHealthy, infrastructureCreateDuration, infrastructureDeleteDuration)
 }

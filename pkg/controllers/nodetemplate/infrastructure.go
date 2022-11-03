@@ -54,7 +54,6 @@ func (i *Infrastructure) Reconcile(ctx context.Context, nodeTemplate *v1alpha1.A
 			i.lastInfrastructureReconcile = time.Time{}
 			return reconcile.Result{}, nil
 		} else if len(list.Items) >= 1 {
-			infrastructureEnabled.Set(1)
 			if i.lastInfrastructureReconcile.Add(time.Hour).Before(time.Now()) {
 				if err := i.CreateInfrastructure(ctx); err != nil {
 					infrastructureHealthy.Set(0)
@@ -65,7 +64,6 @@ func (i *Infrastructure) Reconcile(ctx context.Context, nodeTemplate *v1alpha1.A
 			}
 		}
 	} else {
-		infrastructureEnabled.Set(0)
 		infrastructureHealthy.Set(0)
 	}
 

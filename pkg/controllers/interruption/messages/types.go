@@ -15,7 +15,6 @@ limitations under the License.
 package messages
 
 import (
-	"fmt"
 	"time"
 )
 
@@ -33,34 +32,15 @@ type Message interface {
 	StartTime() time.Time
 }
 
-type Kind byte
+type Kind string
 
 const (
-	_ = iota
-	RebalanceRecommendationKind
-	ScheduledChangeKind
-	SpotInterruptionKind
-	StateChangeKind
-	NoOpKind
+	RebalanceRecommendationKind Kind = "RebalanceRecommendationKind"
+	ScheduledChangeKind         Kind = "ScheduledChangeKind"
+	SpotInterruptionKind        Kind = "SpotInterruptionKind"
+	StateChangeKind             Kind = "StateChangeKind"
+	NoOpKind                    Kind = "NoOpKind"
 )
-
-// manually written or generated using https://pkg.go.dev/golang.org/x/tools/cmd/stringer
-func (k Kind) String() string {
-	switch k {
-	case RebalanceRecommendationKind:
-		return "RebalanceRecommendation"
-	case ScheduledChangeKind:
-		return "ScheduledChange"
-	case SpotInterruptionKind:
-		return "SpotInterruption"
-	case StateChangeKind:
-		return "StateChange"
-	case NoOpKind:
-		return "NoOp"
-	default:
-		return fmt.Sprintf("Unsupported Kind %d", k)
-	}
-}
 
 type Metadata struct {
 	Account    string    `json:"account"`

@@ -27,9 +27,8 @@ import (
 )
 
 var (
-	//nolint:govet
 	CleanableObjects = []functional.Pair[client.Object, client.ObjectList]{
-		{&v1alpha1.AWSNodeTemplate{}, &v1alpha1.AWSNodeTemplateList{}},
+		{First: &v1alpha1.AWSNodeTemplate{}, Second: &v1alpha1.AWSNodeTemplateList{}},
 	}
 )
 
@@ -45,7 +44,7 @@ func (env *Environment) Cleanup(opts ...common.Option) {
 		defer fmt.Println("------- END AWS CLEANUP -------")
 	}
 	env.ExpectSettingsDeleted()
-	env.Environment.CleanupObjects(CleanableObjects, options)
+	env.Environment.CleanupObjects(CleanableObjects)
 	env.Environment.Cleanup(opts...)
 }
 

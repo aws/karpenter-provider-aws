@@ -29,14 +29,6 @@ const (
 )
 
 var (
-	enabled = prometheus.NewGauge(
-		prometheus.GaugeOpts{
-			Namespace: metrics.Namespace,
-			Subsystem: subsystem,
-			Name:      "enabled",
-			Help:      "Whether the message polling is currently enabled.",
-		},
-	)
 	receivedMessages = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metrics.Namespace,
@@ -75,5 +67,5 @@ var (
 )
 
 func init() {
-	crmetrics.Registry.MustRegister(enabled, receivedMessages, deletedMessages, messageLatency, actionsPerformed)
+	crmetrics.Registry.MustRegister(receivedMessages, deletedMessages, messageLatency, actionsPerformed)
 }
