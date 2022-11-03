@@ -71,9 +71,10 @@ type CloudProvider struct {
 func New(ctx awscontext.Context) *CloudProvider {
 	kubeDNSIP, err := kubeDNSIP(ctx, ctx.KubernetesInterface)
 	if err != nil {
-		logging.FromContext(ctx).Fatalf("Unable to detect the IP of the kube-dns service, %s", err)
+		logging.FromContext(ctx).Debugf("Unable to detect the IP of the kube-dns service, %s", err)
+	} else {
+		logging.FromContext(ctx).Debugf("Discovered DNS IP %s", kubeDNSIP)
 	}
-	logging.FromContext(ctx).Debugf("Discovered DNS IP %s", kubeDNSIP)
 	ec2api := ec2.New(ctx.Session)
 	if err := checkEC2Connectivity(ctx, ec2api); err != nil {
 		logging.FromContext(ctx).Fatalf("Checking EC2 API connectivity, %s", err)
@@ -174,6 +175,9 @@ func kubeDNSIP(ctx context.Context, kubernetesInterface kubernetes.Interface) (n
 		return nil, err
 	}
 	kubeDNSIP := net.ParseIP(dnsService.Spec.ClusterIP)
+	if kubeDNSIP == nil {
+		return nil, fmt.Errorf("parsing cluster IP")
+	}
 	return kubeDNSIP, nil
 }
 
