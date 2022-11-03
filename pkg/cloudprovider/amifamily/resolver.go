@@ -116,6 +116,24 @@ func New(kubeClient client.Client, ssm ssmiface.SSMAPI, ec2api ec2iface.EC2API, 
 	}
 }
 
+func (r Resolver) GetSupportedAMIsForProvisioner(provider *v1alpha1.AWS, providerRefName string, instanceTypes []cloudprovider.InstanceType, kubeVersion string, options *Options) ([]string, error) {
+	//Can we generate the options here ?
+	amiFamily := GetAMIFamily(provider.AMIFamily, options)
+	amis := []string{}
+	if provider.LaunchTemplateName != nil {
+		//Get the ami from the launch template or from the cache and return. right now we are not getting ami for launch template if specified.
+	}
+	amiIDs, err := r.amiProvider.Get(context.Background(), providerRefName, kubeVersion, instanceTypes, amiFamily)
+	if err != nil {
+		//log error
+		return nil, err
+	}
+	for ami := range amiIDs {
+		amis = append(amis, ami)
+	}
+	return amis, nil
+}
+
 // Resolve generates launch templates using the static options and dynamically generates launch template parameters.
 // Multiple ResolvedTemplates are returned based on the instanceTypes passed in to support special AMIs for certain instance types like GPUs.
 func (r Resolver) Resolve(ctx context.Context, provider *v1alpha1.AWS, nodeRequest *cloudprovider.NodeRequest, options *Options) ([]*LaunchTemplate, error) {
@@ -124,7 +142,7 @@ func (r Resolver) Resolve(ctx context.Context, provider *v1alpha1.AWS, nodeReque
 		return nil, err
 	}
 	amiFamily := GetAMIFamily(provider.AMIFamily, options)
-	amiIDs, err := r.amiProvider.Get(ctx, provider, nodeRequest, options, amiFamily)
+	amiIDs, err := r.amiProvider.Get(ctx, "", options.KubernetesVersion, nodeRequest.InstanceTypeOptions, amiFamily)
 	if err != nil {
 		return nil, err
 	}

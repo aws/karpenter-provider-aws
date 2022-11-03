@@ -58,16 +58,16 @@ type AMI struct {
 
 // Get returns a set of AMIIDs and corresponding instance types. AMI may vary due to architecture, accelerator, etc
 // If AMI overrides are specified in the AWSNodeTemplate, then only those AMIs will be chosen.
-func (p *AMIProvider) Get(ctx context.Context, provider *v1alpha1.AWS, nodeRequest *cloudprovider.NodeRequest, options *Options, amiFamily AMIFamily) (map[string][]cloudprovider.InstanceType, error) {
+func (p *AMIProvider) Get(ctx context.Context, providerRefName string, kubernetesVersion string, instanceTypes []cloudprovider.InstanceType, amiFamily AMIFamily) (map[string][]cloudprovider.InstanceType, error) {
 	amiIDs := map[string][]cloudprovider.InstanceType{}
-	amiRequirements, err := p.getAMIRequirements(ctx, nodeRequest.Template.ProviderRef)
+	amiRequirements, err := p.getAMIRequirements(ctx, providerRefName)
 	if err != nil {
 		return nil, err
 	}
 	if len(amiRequirements) > 0 {
 		// Iterate through AMIs in order of creation date to use latest AMI
 		amis := sortAMIsByCreationDate(amiRequirements)
-		for _, instanceType := range nodeRequest.InstanceTypeOptions {
+		for _, instanceType := range instanceTypes {
 			for _, ami := range amis {
 				if err := instanceType.Requirements().Compatible(amiRequirements[ami]); err == nil {
 					amiIDs[ami.AmiID] = append(amiIDs[ami.AmiID], instanceType)
@@ -79,8 +79,8 @@ func (p *AMIProvider) Get(ctx context.Context, provider *v1alpha1.AWS, nodeReque
 			return nil, fmt.Errorf("no instance types satisfy requirements of amis %v,", lo.Keys(amiRequirements))
 		}
 	} else {
-		for _, instanceType := range nodeRequest.InstanceTypeOptions {
-			amiID, err := p.getDefaultAMIFromSSM(ctx, instanceType, amiFamily.SSMAlias(options.KubernetesVersion, instanceType))
+		for _, instanceType := range instanceTypes {
+			amiID, err := p.getDefaultAMIFromSSM(ctx, instanceType, amiFamily.SSMAlias(kubernetesVersion, instanceType))
 			if err != nil {
 				return nil, err
 			}
@@ -106,11 +106,11 @@ func (p *AMIProvider) getDefaultAMIFromSSM(ctx context.Context, _ cloudprovider.
 	return ami, nil
 }
 
-func (p *AMIProvider) getAMIRequirements(ctx context.Context, providerRef *v1alpha5.ProviderRef) (map[AMI]scheduling.Requirements, error) {
+func (p *AMIProvider) getAMIRequirements(ctx context.Context, providerRefName string) (map[AMI]scheduling.Requirements, error) {
 	amiRequirements := map[AMI]scheduling.Requirements{}
-	if providerRef != nil {
+	if providerRefName != "" {
 		var ant v1alpha1.AWSNodeTemplate
-		if err := p.kubeClient.Get(ctx, types.NamespacedName{Name: providerRef.Name}, &ant); err != nil {
+		if err := p.kubeClient.Get(ctx, types.NamespacedName{Name: providerRefName}, &ant); err != nil {
 			return amiRequirements, fmt.Errorf("retrieving provider reference, %w", err)
 		}
 		if len(ant.Spec.AMISelector) == 0 {
