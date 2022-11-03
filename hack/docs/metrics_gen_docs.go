@@ -250,7 +250,11 @@ func getIdentMapping(identName string) (string, error) {
 	identMapping := map[string]string{
 		"metrics.Namespace": metrics.Namespace,
 		"Namespace":         metrics.Namespace,
-		"nodeSubsystem":     "nodes",
+
+		"nodeSubsystem":           "nodes",
+		"interruptionSubsystem":   "interruption",
+		"nodeTemplateSubsystem":   "nodetemplate",
+		"deprovisioningSubsystem": "deprovisioning",
 	}
 	if v, ok := identMapping[identName]; ok {
 		return v, nil

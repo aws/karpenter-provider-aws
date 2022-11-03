@@ -21,14 +21,14 @@ import (
 	"github.com/aws/karpenter-core/pkg/metrics"
 )
 
-const subSystem = "nodetemplate_infrastructure"
+const interruptionSubsystem = "interruption"
 
 var (
 	infrastructureCreateDuration = prometheus.NewHistogram(
 		prometheus.HistogramOpts{
 			Namespace: metrics.Namespace,
-			Subsystem: subSystem,
-			Name:      "create_time_seconds",
+			Subsystem: interruptionSubsystem,
+			Name:      "infrastructure_create_time_seconds",
 			Help:      "Length of time to create infrastructure.",
 			Buckets:   metrics.DurationBuckets(),
 		},
@@ -36,8 +36,8 @@ var (
 	infrastructureDeleteDuration = prometheus.NewHistogram(
 		prometheus.HistogramOpts{
 			Namespace: metrics.Namespace,
-			Subsystem: subSystem,
-			Name:      "delete_time_seconds",
+			Subsystem: interruptionSubsystem,
+			Name:      "infrastructure_delete_time_seconds",
 			Help:      "Length of time to delete infrastructure.",
 			Buckets:   metrics.DurationBuckets(),
 		},

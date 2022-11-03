@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	subsystem              = "aws_interruption_controller"
+	interruptionSubsystem  = "interruption"
 	messageTypeLabel       = "message_type"
 	actionTypeLabel        = "action_type"
 	terminationReasonLabel = "interruption"
@@ -32,7 +32,7 @@ var (
 	receivedMessages = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metrics.Namespace,
-			Subsystem: subsystem,
+			Subsystem: interruptionSubsystem,
 			Name:      "received_messages",
 			Help:      "Count of messages received from the SQS queue. Broken down by message type and whether the message was actionable.",
 		},
@@ -41,7 +41,7 @@ var (
 	deletedMessages = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Namespace: metrics.Namespace,
-			Subsystem: subsystem,
+			Subsystem: interruptionSubsystem,
 			Name:      "deleted_messages",
 			Help:      "Count of messages deleted from the SQS queue.",
 		},
@@ -49,7 +49,7 @@ var (
 	messageLatency = prometheus.NewHistogram(
 		prometheus.HistogramOpts{
 			Namespace: metrics.Namespace,
-			Subsystem: subsystem,
+			Subsystem: interruptionSubsystem,
 			Name:      "message_latency_time_seconds",
 			Help:      "Length of time between message creation in queue and an action taken on the message by the controller.",
 			Buckets:   metrics.DurationBuckets(),
@@ -58,7 +58,7 @@ var (
 	actionsPerformed = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metrics.Namespace,
-			Subsystem: subsystem,
+			Subsystem: interruptionSubsystem,
 			Name:      "actions_performed",
 			Help:      "Number of notification actions performed. Labeled by action",
 		},
