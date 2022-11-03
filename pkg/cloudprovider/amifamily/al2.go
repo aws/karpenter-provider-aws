@@ -80,7 +80,7 @@ func (a AL2) containerRuntime(instanceTypes []cloudprovider.InstanceType) string
 }
 
 func (a AL2) defaultIPv6DNS(kubeletConfig *v1alpha5.KubeletConfiguration) *v1alpha5.KubeletConfiguration {
-	if a.KubeDNSIP.To4() != nil {
+	if a.KubeDNSIP == nil || a.KubeDNSIP.To4() != nil {
 		return kubeletConfig
 	}
 	if kubeletConfig != nil && len(kubeletConfig.ClusterDNS) != 0 {
