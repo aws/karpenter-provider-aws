@@ -117,14 +117,6 @@ controller:
   # - name: aws-iam-token
   #   mountPath: /var/run/secrets/eks.amazonaws.com/serviceaccount
   #   readOnly: true
-
-  # The maximum length of a batch window. The longer this is, the more pods we can consider for provisioning at one
-  # time which usually results in fewer but larger nodes.
-  batchMaxDuration: 10s
-  # The maximum amount of time with no new ending pods that if exceeded ends the current batching window. If pods arrive
-  # faster than this time, the batching window will be extended up to the maxDuration. If they arrive slower, the pods
-  # will be batched separately.
-  batchIdleDuration: 1s
 webhook:
   logLevel: error
   # -- The container port to use for the webhook.
@@ -133,27 +125,37 @@ webhook:
 logLevel: debug
 # -- Gloabl log encoding
 logEncoding: console
-# -- Cluster name.
-clusterName: ""
-# -- Cluster endpoint.
-clusterEndpoint: ""
-aws:
-  # -- The default instance profile to use when launching nodes
-  defaultInstanceProfile: ""
-  # -- If true then instances that support pod ENI will report a vpc.amazonaws.com/pod-eni resource
-  enablePodENI: false
-  # -- Indicates whether new nodes should use ENI-based pod density
-  # DEPRECATED: Use `.spec.kubeletConfiguration.maxPods` to set pod density on a per-provisioner basis
-  enableENILimitedPodDensity: true
-  # -- If true then assume we can't reach AWS services which don't have a VPC endpoint
-  # This also has the effect of disabling look-ups to the AWS pricing endpoint
-  isolatedVPC: false
-  # -- The node naming convention (either "ip-name" or "resource-name")
-  nodeNameConvention: "ip-name"
-  # -- The VM memory overhead as a percent that will be subtracted from the total memory for all instance types
-  vmMemoryOverheadPercent: 0.075
-  # -- enableInterruptionHandling is currently in BETA and is disabled by default. Enabling interruption handling may
-  # require additional permissions on the controller service account. Additional permissions are outlined in the docs
-  enableInterruptionHandling: false
-  # -- The global tags to use on all AWS infrastructure resources (launch templates, instances, SQS queue, etc.)
-  tags:
+# -- Global Settings to configure Karpenter
+settings:
+  # -- Cluster name.
+  clusterName: ""
+  # -- Cluster endpoint.
+  clusterEndpoint: ""
+  # -- The maximum length of a batch window. The longer this is, the more pods we can consider for provisioning at one
+  # time which usually results in fewer but larger nodes.
+  batchMaxDuration: 10s
+  # -- The maximum amount of time with no new ending pods that if exceeded ends the current batching window. If pods arrive
+  # faster than this time, the batching window will be extended up to the maxDuration. If they arrive slower, the pods
+  # will be batched separately.
+  batchIdleDuration: 1s
+  # -- AWS-specific configuration values
+  aws:
+    # -- The default instance profile to use when launching nodes
+    defaultInstanceProfile: ""
+    # -- If true then instances that support pod ENI will report a vpc.amazonaws.com/pod-eni resource
+    enablePodENI: false
+    # -- Indicates whether new nodes should use ENI-based pod density
+    # DEPRECATED: Use `.spec.kubeletConfiguration.maxPods` to set pod density on a per-provisioner basis
+    enableENILimitedPodDensity: true
+    # -- If true then assume we can't reach AWS services which don't have a VPC endpoint
+    # This also has the effect of disabling look-ups to the AWS pricing endpoint
+    isolatedVPC: false
+    # -- The node naming convention (either "ip-name" or "resource-name")
+    nodeNameConvention: "ip-name"
+    # -- The VM memory overhead as a percent that will be subtracted from the total memory for all instance types
+    vmMemoryOverheadPercent: 0.075
+    # -- enableInterruptionHandling is currently in BETA and is disabled by default. Enabling interruption handling may
+    # require additional permissions on the controller service account. Additional permissions are outlined in the docs
+    enableInterruptionHandling: false
+    # -- The global tags to use on all AWS infrastructure resources (launch templates, instances, SQS queue, etc.)
+    tags:

@@ -17,10 +17,10 @@ CLUSTER_ENDPOINT ?= $(shell kubectl config view --minify -o jsonpath='{.clusters
 AWS_ACCOUNT_ID ?= $(shell aws sts get-caller-identity --query Account --output text)
 KARPENTER_IAM_ROLE_ARN ?= arn:aws:iam::${AWS_ACCOUNT_ID}:role/${CLUSTER_NAME}-karpenter
 HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${KARPENTER_IAM_ROLE_ARN} \
-      		--set clusterName=${CLUSTER_NAME} \
-			--set clusterEndpoint=${CLUSTER_ENDPOINT} \
-			--set aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
-			--set aws.enableInterruptionHandling=true \
+      		--set settings.clusterName=${CLUSTER_NAME} \
+			--set settings.clusterEndpoint=${CLUSTER_ENDPOINT} \
+			--set settings.aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
+			--set settings.aws.enableInterruptionHandling=true \
 			--create-namespace
 
 # CR for local builds of Karpenter
