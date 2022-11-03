@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/eventbridge"
@@ -34,10 +33,6 @@ import (
 	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	awserrors "github.com/aws/karpenter/pkg/errors"
 )
-
-func init() {
-	rand.Seed(time.Now().Unix())
-}
 
 const (
 	ScheduledChangedRule = "ScheduledChangeRule"

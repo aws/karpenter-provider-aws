@@ -20,19 +20,22 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 )
 
-type Finalizer struct{}
+type FinalizerReconciler struct{}
+
+func NewFinalizerReconciler() *FinalizerReconciler {
+	return &FinalizerReconciler{}
+}
 
 // Reconcile adds the finalizer if the nodeTemplate doesn't have it or removes the finalizer
 // if the nodeTemplate is being deleted
-func (r *Finalizer) Reconcile(_ context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) (reconcile.Result, error) {
+func (r *FinalizerReconciler) Reconcile(_ context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) (reconcile.Result, error) {
 	if !nodeTemplate.DeletionTimestamp.IsZero() {
-		controllerutil.RemoveFinalizer(nodeTemplate, v1alpha5.TerminationFinalizer)
+		controllerutil.RemoveFinalizer(nodeTemplate, v1alpha1.InterruptionInfrastructureFinalizer)
 		return reconcile.Result{}, nil
 	}
-	controllerutil.AddFinalizer(nodeTemplate, v1alpha5.TerminationFinalizer)
+	controllerutil.AddFinalizer(nodeTemplate, v1alpha1.InterruptionInfrastructureFinalizer)
 	return reconcile.Result{}, nil
 }

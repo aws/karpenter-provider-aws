@@ -16,7 +16,6 @@ package main
 
 import (
 	"github.com/samber/lo"
-	"k8s.io/utils/clock"
 
 	awscloudprovider "github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/context"
@@ -49,7 +48,7 @@ func main() {
 	operator.
 		WithControllers(ctx, corecontrollers.NewControllers(
 			ctx,
-			clock.RealClock{},
+			operator.Clock,
 			operator.GetClient(),
 			operator.KubernetesInterface,
 			state.NewCluster(operator.SettingsStore.InjectSettings(ctx), operator.Clock, operator.GetClient(), cloudProvider),

@@ -37,7 +37,7 @@ data:
   pipelines-trigger.sh: |+
     #!/usr/bin/env bash
     set -euo pipefail
-    for suite in "Integration" "Consolidation" "Utilization" "Notification"; do
+    for suite in "Integration" "Consolidation" "Utilization" "Interruption"; do
        cat <<EOF | kubectl create -f -
      apiVersion: tekton.dev/v1beta1
      kind: PipelineRun

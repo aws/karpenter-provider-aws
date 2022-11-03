@@ -81,6 +81,8 @@ func (e *AtomicError) Reset() {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.err = nil
+	e.calls = 0
+	e.maxCalls = 0
 }
 
 func (e *AtomicError) IsNil() bool {

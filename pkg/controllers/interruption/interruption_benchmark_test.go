@@ -48,6 +48,7 @@ import (
 	awscontext "github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/controllers/interruption"
 	"github.com/aws/karpenter/pkg/controllers/interruption/events"
+	"github.com/aws/karpenter/pkg/controllers/nodetemplate"
 	"github.com/aws/karpenter/pkg/controllers/providers"
 	awstest "github.com/aws/karpenter/pkg/test"
 
@@ -181,6 +182,7 @@ func benchmarkNotificationController(b *testing.B, messageCount int) {
 }
 
 type providerSet struct {
+	kubeClient          client.Client
 	sqsProvider         *providers.SQS
 	eventBridgeProvider *providers.EventBridge
 }
@@ -192,7 +194,7 @@ func newProviders(ctx context.Context) providerSet {
 			awsclient.DefaultRetryer{NumMaxRetries: awsclient.DefaultRetryerMaxNumRetries},
 		),
 	))
-	sqsProvider = providers.NewSQS(ctx, sqs.New(sess))
+	sqsProvider = providers.NewSQS(sqs.New(sess))
 	eventBridgeProvider = providers.NewEventBridge(eventbridge.New(sess), sqsProvider)
 	return providerSet{
 		sqsProvider:         sqsProvider,
@@ -201,10 +203,11 @@ func newProviders(ctx context.Context) providerSet {
 }
 
 func (p *providerSet) makeInfrastructure(ctx context.Context) error {
-	infraProvider := providers.NewInfrastructure(p.sqsProvider, p.eventBridgeProvider)
-	if err := infraProvider.Create(ctx); err != nil {
+	infraReconciler := nodetemplate.NewInfrastructureReconciler(p.kubeClient, p.sqsProvider, p.eventBridgeProvider)
+	if err := infraReconciler.CreateInfrastructure(ctx); err != nil {
 		return fmt.Errorf("creating infrastructure, %w", err)
 	}
+
 	if err := p.sqsProvider.SetQueueAttributes(ctx, map[string]*string{
 		sqs.QueueAttributeNameMessageRetentionPeriod: aws.String("1200"), // 20 minutes for this test
 	}); err != nil {
@@ -214,8 +217,11 @@ func (p *providerSet) makeInfrastructure(ctx context.Context) error {
 }
 
 func (p *providerSet) cleanupInfrastructure(ctx context.Context) error {
-	infraProvider := providers.NewInfrastructure(p.sqsProvider, p.eventBridgeProvider)
-	return infraProvider.Delete(ctx)
+	infraReconciler := nodetemplate.NewInfrastructureReconciler(p.kubeClient, p.sqsProvider, p.eventBridgeProvider)
+	if err := infraReconciler.DeleteInfrastructure(ctx); err != nil {
+		return fmt.Errorf("deleting infrastructure, %w", err)
+	}
+	return nil
 }
 
 func (p *providerSet) provisionMessages(ctx context.Context, messages ...interface{}) error {

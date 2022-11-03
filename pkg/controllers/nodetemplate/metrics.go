@@ -24,14 +24,6 @@ import (
 const subSystem = "nodetemplate_infrastructure"
 
 var (
-	infrastructureHealthy = prometheus.NewGauge(
-		prometheus.GaugeOpts{
-			Namespace: metrics.Namespace,
-			Subsystem: subSystem,
-			Name:      "healthy",
-			Help:      "Whether the infrastructure provisioned by the controller is healthy.",
-		},
-	)
 	infrastructureCreateDuration = prometheus.NewHistogram(
 		prometheus.HistogramOpts{
 			Namespace: metrics.Namespace,
@@ -53,5 +45,5 @@ var (
 )
 
 func init() {
-	crmetrics.Registry.MustRegister(infrastructureHealthy, infrastructureCreateDuration, infrastructureDeleteDuration)
+	crmetrics.Registry.MustRegister(infrastructureCreateDuration, infrastructureDeleteDuration)
 }

@@ -48,15 +48,15 @@ func init() {
 // if there is. If there are no templates, then it de-provisions the infrastructure.
 type Controller struct {
 	kubeClient     client.Client
-	finalizer      *Finalizer
-	infrastructure *Infrastructure
+	finalizer      *FinalizerReconciler
+	infrastructure *InfrastructureReconciler
 }
 
 func NewController(kubeClient client.Client, sqsProvider *providers.SQS, eventBridgeProvider *providers.EventBridge) *Controller {
 	return &Controller{
 		kubeClient:     kubeClient,
-		finalizer:      &Finalizer{},
-		infrastructure: &Infrastructure{kubeClient: kubeClient, sqsProvider: sqsProvider, eventBridgeProvider: eventBridgeProvider},
+		finalizer:      NewFinalizerReconciler(),
+		infrastructure: NewInfrastructureReconciler(kubeClient, sqsProvider, eventBridgeProvider),
 	}
 }
 
