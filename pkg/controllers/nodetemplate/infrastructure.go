@@ -122,7 +122,7 @@ func (i *InfrastructureReconciler) ensureQueue(ctx context.Context) error {
 	if !queueExists {
 		logging.FromContext(ctx).Debugf("Queue not found, creating the SQS interruption queue")
 		if err := i.sqsProvider.CreateQueue(ctx); err != nil {
-			return fmt.Errorf("creating the SQSS interruption queue with policy, %w", err)
+			return fmt.Errorf("creating the SQS interruption queue with policy, %w", err)
 		}
 	}
 	// Always attempt to set the queue attributes, even after creation to help set the queue policy
