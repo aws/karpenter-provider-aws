@@ -74,7 +74,10 @@ deflake:
 coverage:
 	go tool cover -html coverage.out -o coverage.html
 
-verify: tidy download codegen ## Verify code. Includes dependencies, linting, formatting, etc
+verify: tidy download ## Verify code. Includes dependencies, linting, formatting, etc
+	go generate ./...
+	hack/boilerplate.sh
+	curl https://raw.githubusercontent.com/aws/karpenter-core/v0.0.1/chart/crds/karpenter.sh_provisioners.yaml > pkg/apis/crds/karpenter.sh_provisioners.yaml
 	$(foreach dir,$(MOD_DIRS),cd $(dir) && golangci-lint run $(newline))
 	@git diff --quiet ||\
 		{ echo "New file modification detected in the Git working tree. Please check in before commit."; git --no-pager diff --name-only | uniq | awk '{print "  - " $$0}'; \
@@ -108,15 +111,6 @@ install:  ## Deploy the latest released version into your ~/.kube/config cluster
 
 delete: ## Delete the controller from your ~/.kube/config cluster
 	helm uninstall karpenter --namespace karpenter
-
-codegen: ## Generate code.
-	controller-gen \
-		object:headerFile="hack/boilerplate.go.txt" \
-		crd \
-		paths="./pkg/..." \
-		output:crd:artifacts:config=charts/karpenter/crds
-	hack/boilerplate.sh
-	curl https://raw.githubusercontent.com/aws/karpenter-core/v0.0.1/chart/crds/karpenter.sh_provisioners.yaml > charts/karpenter/crds/karpenter.sh_provisioners.yaml
 
 docgen: ## Generate docs
 	go run hack/docs/metrics_gen_docs.go pkg/ $(KARPENTER_CORE_DIR)/pkg website/content/en/preview/tasks/metrics.md
@@ -156,7 +150,7 @@ tidy: ## Recursively "go mod tidy" on all directories where go.mod exists
 download: ## Recursively "go mod download" on all directories where go.mod exists
 	$(foreach dir,$(MOD_DIRS),cd $(dir) && go mod download $(newline))
 
-.PHONY: help dev ci release test battletest e2etests verify tidy download codegen docgen apply delete toolchain licenses vulncheck issues website nightly snapshot
+.PHONY: help dev ci release test battletest e2etests verify tidy download docgen apply delete toolchain licenses vulncheck issues website nightly snapshot
 
 define newline
 

@@ -18,8 +18,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"path/filepath"
-	"runtime"
 	"testing"
 	"time"
 
@@ -43,8 +41,10 @@ import (
 	"github.com/aws/karpenter-core/pkg/apis/config/settings"
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/cloudprovider/fake"
+	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	"github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
+	"github.com/aws/karpenter/pkg/apis"
 	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	awscache "github.com/aws/karpenter/pkg/cache"
@@ -88,23 +88,20 @@ func TestAPIs(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	env = test.NewEnvironment(ctx, func(e *test.Environment) {
-		fakeClock = &clock.FakeClock{}
-		cloudProvider = &fake.CloudProvider{}
+	env = test.NewEnvironment(scheme.Scheme, apis.CRDs...)
+	fakeClock = &clock.FakeClock{}
+	cloudProvider = &fake.CloudProvider{}
 
-		nodeTemplate = awstest.AWSNodeTemplate()
-		ExpectApplied(ctx, e.Client, nodeTemplate)
+	nodeTemplate = awstest.AWSNodeTemplate()
+	ExpectApplied(ctx, env.Client, nodeTemplate)
 
-		recorder = test.NewEventRecorder()
-		unavailableOfferingsCache = awscache.NewUnavailableOfferings(cache.New(awscache.UnavailableOfferingsTTL, awscontext.CacheCleanupInterval))
+	recorder = test.NewEventRecorder()
+	unavailableOfferingsCache = awscache.NewUnavailableOfferings(cache.New(awscache.UnavailableOfferingsTTL, awscontext.CacheCleanupInterval))
 
-		sqsapi = &awsfake.SQSAPI{}
-		sqsProvider = providers.NewSQS(sqsapi)
-		eventbridgeapi = &awsfake.EventBridgeAPI{}
-		eventBridgeProvider = providers.NewEventBridge(eventbridgeapi, sqsProvider)
-	})
-	env.CRDDirectoryPaths = append(env.CRDDirectoryPaths, relativeToRoot("charts/karpenter/crds"))
-	Expect(env.Start()).To(Succeed(), "Failed to start environment")
+	sqsapi = &awsfake.SQSAPI{}
+	sqsProvider = providers.NewSQS(sqsapi)
+	eventbridgeapi = &awsfake.EventBridgeAPI{}
+	eventBridgeProvider = providers.NewEventBridge(eventbridgeapi, sqsProvider)
 })
 
 var _ = AfterSuite(func() {
@@ -380,10 +377,4 @@ func makeProviderID(instanceID string) string {
 
 func makeInstanceID() string {
 	return fmt.Sprintf("i-%s", randomdata.Alphanumeric(17))
-}
-
-func relativeToRoot(path string) string {
-	_, file, _, _ := runtime.Caller(0)
-	manifestsRoot := filepath.Join(filepath.Dir(file), "..", "..", "..")
-	return filepath.Join(manifestsRoot, path)
 }
