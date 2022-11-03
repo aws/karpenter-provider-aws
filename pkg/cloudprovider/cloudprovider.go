@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -166,6 +167,11 @@ func getCABundle(ctx context.Context, restConfig *rest.Config) (*string, error) 
 }
 
 func kubeDNSIP(ctx context.Context, kubernetesInterface kubernetes.Interface) (net.IP, error) {
+	envIp := os.Getenv("KARPENTER_KUBERNETES_DNS_IP")
+	if envIp != "" {
+		return net.ParseIP(envIp), nil
+	}
+
 	if kubernetesInterface == nil {
 		return nil, fmt.Errorf("no K8s client provided")
 	}
