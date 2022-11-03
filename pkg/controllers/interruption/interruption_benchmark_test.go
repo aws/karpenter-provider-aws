@@ -93,12 +93,7 @@ func benchmarkNotificationController(b *testing.B, messageCount int) {
 	}
 	ctx = settingsStore.InjectSettings(context.Background())
 	ctx = injection.WithOptions(ctx, opts)
-	env = test.NewEnvironment(ctx, func(e *test.Environment) {})
-	env.CRDDirectoryPaths = append(env.CRDDirectoryPaths, relativeToRoot("charts/karpenter/crds"))
-	if err := env.Start(); err != nil {
-		b.Fatalf("Starting envirionment, %v", err)
-	}
-
+	env = test.NewEnvironment(scheme.Scheme)
 	// Stop the test environment after the test completes
 	defer func() {
 		if err := retry.Do(func() error {

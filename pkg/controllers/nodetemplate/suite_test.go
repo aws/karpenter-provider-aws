@@ -17,8 +17,6 @@ package nodetemplate_test
 import (
 	"context"
 	"fmt"
-	"path/filepath"
-	"runtime"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -36,8 +34,10 @@ import (
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/operator/injection"
 	"github.com/aws/karpenter-core/pkg/operator/options"
+	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	"github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
+	"github.com/aws/karpenter/pkg/apis"
 	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/controllers/nodetemplate"
@@ -72,18 +72,14 @@ func TestAPIs(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	env = test.NewEnvironment(ctx, func(e *test.Environment) {
-		opts = defaultOpts
-		Expect(opts.Validate()).To(Succeed(), "Failed to validate options")
-		e.Ctx = injection.WithOptions(e.Ctx, opts)
-
-		sqsapi = &awsfake.SQSAPI{}
-		eventbridgeapi = &awsfake.EventBridgeAPI{}
-		sqsProvider = providers.NewSQS(sqsapi)
-		eventBridgeProvider = providers.NewEventBridge(eventbridgeapi, sqsProvider)
-	})
-	env.CRDDirectoryPaths = append(env.CRDDirectoryPaths, relativeToRoot("charts/karpenter/crds"))
-	Expect(env.Start()).To(Succeed(), "Failed to start environment")
+	env = test.NewEnvironment(scheme.Scheme, apis.CRDs...)
+	opts = defaultOpts
+	Expect(opts.Validate()).To(Succeed(), "Failed to validate options")
+	ctx = injection.WithOptions(ctx, opts)
+	sqsapi = &awsfake.SQSAPI{}
+	eventbridgeapi = &awsfake.EventBridgeAPI{}
+	sqsProvider = providers.NewSQS(sqsapi)
+	eventBridgeProvider = providers.NewEventBridge(eventbridgeapi, sqsProvider)
 })
 
 var _ = AfterSuite(func() {
@@ -365,10 +361,4 @@ var _ = Describe("AWSNodeTemplate", func() {
 
 func awsErrWithCode(code string) awserr.Error {
 	return awserr.New(code, "", fmt.Errorf(""))
-}
-
-func relativeToRoot(path string) string {
-	_, file, _, _ := runtime.Caller(0)
-	manifestsRoot := filepath.Join(filepath.Dir(file), "..", "..", "..")
-	return filepath.Join(manifestsRoot, path)
 }
