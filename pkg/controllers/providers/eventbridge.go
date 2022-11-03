@@ -29,8 +29,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter-core/pkg/operator/injection"
-	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
+	"github.com/aws/karpenter/pkg/apis/config/settings"
 	awserrors "github.com/aws/karpenter/pkg/errors"
 )
 
@@ -171,7 +170,7 @@ func (eb *EventBridge) DiscoverRules(ctx context.Context) (map[string]Rule, erro
 		}
 		for _, tag := range out.Tags {
 			if aws.StringValue(tag.Key) == v1alpha5.DiscoveryTagKey &&
-				aws.StringValue(tag.Value) == injection.GetOptions(ctx).ClusterName {
+				aws.StringValue(tag.Value) == settings.FromContext(ctx).ClusterName {
 
 				// If we succeed to parse the rule name, we should store it by its rule type
 				t, err := parseRuleName(aws.StringValue(rule.Name))
@@ -231,14 +230,14 @@ func (eb *EventBridge) getTags(ctx context.Context) []*eventbridge.Tag {
 		[]*eventbridge.Tag{
 			{
 				Key:   aws.String(v1alpha5.DiscoveryTagKey),
-				Value: aws.String(injection.GetOptions(ctx).ClusterName),
+				Value: aws.String(settings.FromContext(ctx).ClusterName),
 			},
 			{
 				Key:   aws.String(v1alpha5.ManagedByTagKey),
-				Value: aws.String(injection.GetOptions(ctx).ClusterName),
+				Value: aws.String(settings.FromContext(ctx).ClusterName),
 			},
 		},
-		lo.MapToSlice(awssettings.FromContext(ctx).Tags, func(k, v string) *eventbridge.Tag {
+		lo.MapToSlice(settings.FromContext(ctx).Tags, func(k, v string) *eventbridge.Tag {
 			return &eventbridge.Tag{
 				Key:   aws.String(k),
 				Value: aws.String(v),

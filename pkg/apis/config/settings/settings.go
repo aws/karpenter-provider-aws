@@ -59,8 +59,8 @@ var defaultSettings = Settings{
 }
 
 type Settings struct {
-	ClusterName                string             `json:"clusterName" validate:"required"`
-	ClusterEndpoint            string             `json:"clusterEndpoint" validate:"required"`
+	ClusterName                string             `json:"aws.clusterName" validate:"required"`
+	ClusterEndpoint            string             `json:"aws.clusterEndpoint" validate:"required"`
 	DefaultInstanceProfile     string             `json:"aws.defaultInstanceProfile"`
 	EnablePodENI               bool               `json:"aws.enablePodENI,string"`
 	EnableENILimitedPodDensity bool               `json:"aws.enableENILimitedPodDensity,string"`
@@ -76,8 +76,8 @@ func NewSettingsFromConfigMap(cm *v1.ConfigMap) (Settings, error) {
 	s := defaultSettings
 
 	if err := configmap.Parse(cm.Data,
-		configmap.AsString("clusterName", &s.ClusterName),
-		configmap.AsString("clusterEndpoint", &s.ClusterEndpoint),
+		configmap.AsString("aws.clusterName", &s.ClusterName),
+		configmap.AsString("aws.clusterEndpoint", &s.ClusterEndpoint),
 		configmap.AsString("aws.defaultInstanceProfile", &s.DefaultInstanceProfile),
 		configmap.AsBool("aws.enablePodENI", &s.EnablePodENI),
 		configmap.AsBool("aws.enableENILimitedPodDensity", &s.EnableENILimitedPodDensity),

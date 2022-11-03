@@ -87,7 +87,7 @@ Flatten Values Map using "." syntax
   {{- if kindOf $val | eq "map" -}}
     {{- list $val $sublabel | include "flattenMap" -}}
   {{- else -}}
-  {{- if not (kindIs "invalid" $val) -}}
+  {{ if not (kindIs "invalid" $val) }}
 {{ $sublabel | quote }}: {{ $val | quote }}
   {{- end -}}
 {{- end -}}

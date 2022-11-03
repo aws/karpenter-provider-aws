@@ -41,8 +41,8 @@ var _ = Describe("Validation", func() {
 	It("should succeed to set defaults", func() {
 		cm := &v1.ConfigMap{
 			Data: map[string]string{
-				"clusterEndpoint": "https://00000000000000000000000.gr7.us-west-2.eks.amazonaws.com",
-				"clusterName":     "my-cluster",
+				"aws.clusterEndpoint": "https://00000000000000000000000.gr7.us-west-2.eks.amazonaws.com",
+				"aws.clusterName":     "my-cluster",
 			},
 		}
 		s, _ := settings.NewSettingsFromConfigMap(cm)
@@ -57,8 +57,8 @@ var _ = Describe("Validation", func() {
 	It("should succeed to set custom values", func() {
 		cm := &v1.ConfigMap{
 			Data: map[string]string{
-				"clusterEndpoint":                "https://00000000000000000000000.gr7.us-west-2.eks.amazonaws.com",
-				"clusterName":                    "my-cluster",
+				"aws.clusterEndpoint":            "https://00000000000000000000000.gr7.us-west-2.eks.amazonaws.com",
+				"aws.clusterName":                "my-cluster",
 				"aws.defaultInstanceProfile":     "karpenter",
 				"aws.enablePodENI":               "true",
 				"aws.enableENILimitedPodDensity": "false",
@@ -84,7 +84,7 @@ var _ = Describe("Validation", func() {
 		defer ExpectPanic()
 		cm := &v1.ConfigMap{
 			Data: map[string]string{
-				"clusterEndpoint": "https://00000000000000000000000.gr7.us-west-2.eks.amazonaws.com",
+				"aws.clusterEndpoint": "https://00000000000000000000000.gr7.us-west-2.eks.amazonaws.com",
 			},
 		}
 		_, _ = settings.NewSettingsFromConfigMap(cm)
@@ -93,7 +93,7 @@ var _ = Describe("Validation", func() {
 		defer ExpectPanic()
 		cm := &v1.ConfigMap{
 			Data: map[string]string{
-				"clusterName": "my-name",
+				"aws.clusterName": "my-name",
 			},
 		}
 		_, _ = settings.NewSettingsFromConfigMap(cm)
@@ -102,8 +102,8 @@ var _ = Describe("Validation", func() {
 		defer ExpectPanic()
 		cm := &v1.ConfigMap{
 			Data: map[string]string{
-				"clusterName":     "my-name",
-				"clusterEndpoint": "00000000000000000000000.gr7.us-west-2.eks.amazonaws.com",
+				"aws.clusterName":     "my-name",
+				"aws.clusterEndpoint": "00000000000000000000000.gr7.us-west-2.eks.amazonaws.com",
 			},
 		}
 		_, _ = settings.NewSettingsFromConfigMap(cm)
@@ -112,8 +112,8 @@ var _ = Describe("Validation", func() {
 		defer ExpectPanic()
 		cm := &v1.ConfigMap{
 			Data: map[string]string{
-				"clusterEndpoint":             "https://00000000000000000000000.gr7.us-west-2.eks.amazonaws.com",
-				"clusterName":                 "my-cluster",
+				"aws.clusterEndpoint":         "https://00000000000000000000000.gr7.us-west-2.eks.amazonaws.com",
+				"aws.clusterName":             "my-cluster",
 				"aws.vmMemoryOverheadPercent": "-0.01",
 			},
 		}
@@ -124,8 +124,8 @@ var _ = Describe("Validation", func() {
 var _ = Describe("Unmarshalling", func() {
 	It("should succeed to unmarshal default data", func() {
 		data := lo.Assign(settings.Registration.DefaultData, map[string]string{
-			"clusterName":     "my-name",
-			"clusterEndpoint": "https://00000000000000000000000.gr7.us-west-2.eks.amazonaws.com",
+			"aws.clusterName":     "my-name",
+			"aws.clusterEndpoint": "https://00000000000000000000000.gr7.us-west-2.eks.amazonaws.com",
 		})
 		cm := &v1.ConfigMap{
 			Data: data,
