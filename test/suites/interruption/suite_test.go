@@ -107,7 +107,8 @@ var _ = Describe("Interruption", Label("AWS"), func() {
 		instanceID := parseProviderID(node.Spec.ProviderID)
 
 		By("Interrupting the spot instance")
-		_, events, _ := env.InterruptionAPI.Interrupt(env.Context, []string{instanceID}, 0, true)
+		_, events, err := env.InterruptionAPI.Interrupt(env.Context, []string{instanceID}, 0, true)
+		Expect(err).ToNot(HaveOccurred())
 
 		// Monitor the events channel
 		done := make(chan struct{})

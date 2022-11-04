@@ -43,6 +43,7 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	awscache "github.com/aws/karpenter/pkg/cache"
 	awscontext "github.com/aws/karpenter/pkg/context"
@@ -103,14 +104,14 @@ func benchmarkNotificationController(b *testing.B, messageCount int) {
 		}
 	}()
 
-	providers := newProviders(env.Ctx)
-	if err := providers.makeInfrastructure(env.Ctx); err != nil {
+	providers := newProviders(ctx)
+	if err := providers.makeInfrastructure(ctx); err != nil {
 		b.Fatalf("standing up infrastructure, %v", err)
 	}
 	// Cleanup the infrastructure after the test completes
 	defer func() {
 		if err := retry.Do(func() error {
-			return providers.cleanupInfrastructure(env.Ctx)
+			return providers.cleanupInfrastructure(ctx)
 		}); err != nil {
 			b.Fatalf("deleting infrastructure, %v", err)
 		}
@@ -132,20 +133,20 @@ func benchmarkNotificationController(b *testing.B, messageCount int) {
 
 	messages, nodes := makeDiverseMessagesAndNodes(messageCount)
 
-	logging.FromContext(env.Ctx).Infof("Provisioning %d nodes", messageCount)
-	if err := provisionNodes(env.Ctx, env.Client, nodes); err != nil {
+	logging.FromContext(ctx).Infof("Provisioning %d nodes", messageCount)
+	if err := provisionNodes(ctx, env.Client, nodes); err != nil {
 		b.Fatalf("provisioning nodes, %v", err)
 	}
-	logging.FromContext(env.Ctx).Infof("Completed provisioning %d nodes", messageCount)
+	logging.FromContext(ctx).Infof("Completed provisioning %d nodes", messageCount)
 
-	logging.FromContext(env.Ctx).Infof("Provisioning %d messages into the SQS Queue", messageCount)
-	if err := providers.provisionMessages(env.Ctx, messages...); err != nil {
+	logging.FromContext(ctx).Infof("Provisioning %d messages into the SQS Queue", messageCount)
+	if err := providers.provisionMessages(ctx, messages...); err != nil {
 		b.Fatalf("provisioning messages, %v", err)
 	}
-	logging.FromContext(env.Ctx).Infof("Completed provisioning %d messages into the SQS Queue", messageCount)
+	logging.FromContext(ctx).Infof("Completed provisioning %d messages into the SQS Queue", messageCount)
 
 	m, err := controllerruntime.NewManager(env.Config, controllerruntime.Options{
-		BaseContext: func() context.Context { return logging.WithLogger(env.Ctx, zap.NewNop().Sugar()) },
+		BaseContext: func() context.Context { return logging.WithLogger(ctx, zap.NewNop().Sugar()) },
 	})
 	if err != nil {
 		b.Fatalf("creating manager, %v", err)
@@ -160,12 +161,12 @@ func benchmarkNotificationController(b *testing.B, messageCount int) {
 	start := time.Now()
 	managerErr := make(chan error)
 	go func() {
-		logging.FromContext(env.Ctx).Infof("Starting controller manager")
-		managerErr <- m.Start(env.Ctx)
+		logging.FromContext(ctx).Infof("Starting controller manager")
+		managerErr <- m.Start(ctx)
 	}()
 
 	select {
-	case <-providers.monitorMessagesProcessed(env.Ctx, recorder, messageCount):
+	case <-providers.monitorMessagesProcessed(ctx, recorder, messageCount):
 	case err = <-managerErr:
 		b.Fatalf("running manager, %v", err)
 	}

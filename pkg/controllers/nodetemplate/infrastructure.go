@@ -29,6 +29,7 @@ import (
 	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/controllers/providers"
+	"github.com/aws/karpenter/pkg/errors"
 )
 
 type InfrastructureReconciler struct {
@@ -67,6 +68,10 @@ func (i *InfrastructureReconciler) Reconcile(ctx context.Context, nodeTemplate *
 	} else if len(list.Items) >= 1 {
 		if i.lastInfrastructureReconcile.Add(time.Minute * 5).Before(time.Now()) {
 			if err := i.CreateInfrastructure(ctx); err != nil {
+				if errors.IsRecentlyDeleted(err) {
+					logging.FromContext(ctx).Debugf("Interruption queue recently deleted, retrying after one minute")
+					return reconcile.Result{RequeueAfter: time.Minute}, nil
+				}
 				return reconcile.Result{}, err
 			}
 			i.lastInfrastructureReconcile = time.Now()
@@ -120,7 +125,7 @@ func (i *InfrastructureReconciler) ensureQueue(ctx context.Context) error {
 		return fmt.Errorf("checking the SQS interruption queue existence, %w", err)
 	}
 	if !queueExists {
-		logging.FromContext(ctx).Debugf("Queue not found, creating the SQS interruption queue")
+		logging.FromContext(ctx).Debugf("Interruption queue not found, creating the SQS interruption queue")
 		if err := i.sqsProvider.CreateQueue(ctx); err != nil {
 			return fmt.Errorf("creating the SQS interruption queue with policy, %w", err)
 		}
