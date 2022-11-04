@@ -79,15 +79,6 @@ var provider *v1alpha1.AWS
 var pricingProvider *PricingProvider
 var settingsStore coretest.SettingsStore
 
-var defaultOpts = options.Options{
-	ClusterName:               "test-cluster",
-	ClusterEndpoint:           "https://test-cluster",
-	AWSNodeNameConvention:     string(options.IPName),
-	AWSENILimitedPodDensity:   true,
-	AWSEnablePodENI:           true,
-	AWSDefaultInstanceProfile: "test-instance-profile",
-}
-
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
 	RegisterFailHandler(Fail)
@@ -96,14 +87,9 @@ func TestAWS(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(scheme.Scheme, apis.CRDs...)
-
-	opts = defaultOpts
-	Expect(opts.Validate()).To(Succeed(), "Failed to validate options")
-
-	ctx = injection.WithOptions(ctx, opts)
 	settingsStore = coretest.SettingsStore{
 		settings.ContextKey:    coretest.Settings(),
-		awssettings.ContextKey: awssettings.Settings{},
+		awssettings.ContextKey: test.Settings(),
 	}
 	ctx = settingsStore.InjectSettings(ctx)
 	ctx, stop = context.WithCancel(ctx)
@@ -165,11 +151,10 @@ var _ = AfterSuite(func() {
 })
 
 var _ = BeforeEach(func() {
-	opts = defaultOpts
 	ctx = injection.WithOptions(ctx, opts)
 	settingsStore = coretest.SettingsStore{
 		settings.ContextKey:    coretest.Settings(),
-		awssettings.ContextKey: awssettings.Settings{},
+		awssettings.ContextKey: test.Settings(),
 	}
 	ctx = settingsStore.InjectSettings(ctx)
 

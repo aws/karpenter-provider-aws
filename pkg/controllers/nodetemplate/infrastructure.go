@@ -90,7 +90,7 @@ func (i *InfrastructureReconciler) CreateInfrastructure(ctx context.Context) err
 	if err := i.ensureEventBridge(ctx); err != nil {
 		return fmt.Errorf("ensuring eventBridge rules and targets, %w", err)
 	}
-	logging.FromContext(ctx).Infof("Ensured existence of interruption-handling infrastructure")
+	logging.FromContext(ctx).Debugf("Reconciled the interruption-handling infrastructure")
 	return nil
 }
 
@@ -111,7 +111,7 @@ func (i *InfrastructureReconciler) DeleteInfrastructure(ctx context.Context) err
 	if err != nil {
 		return err
 	}
-	logging.FromContext(ctx).Infof("Deprovisioned the interruption-handling infrastructure")
+	logging.FromContext(ctx).Debugf("Deleted the interruption-handling infrastructure")
 	return nil
 }
 
@@ -134,7 +134,6 @@ func (i *InfrastructureReconciler) ensureQueue(ctx context.Context) error {
 	if err := i.sqsProvider.SetQueueAttributes(ctx, nil); err != nil {
 		return fmt.Errorf("setting queue attributes for interruption queue, %w", err)
 	}
-	logging.FromContext(ctx).Debugf("Reconciled the SQS interruption queue")
 	return nil
 }
 
@@ -143,7 +142,6 @@ func (i *InfrastructureReconciler) deleteQueue(ctx context.Context) error {
 	if err := i.sqsProvider.DeleteQueue(ctx); err != nil {
 		return fmt.Errorf("deleting the the SQS interruption queue, %w", err)
 	}
-	logging.FromContext(ctx).Debugf("Deleted the SQS interruption queue")
 	return nil
 }
 
@@ -152,7 +150,6 @@ func (i *InfrastructureReconciler) ensureEventBridge(ctx context.Context) error 
 	if err := i.eventBridgeProvider.CreateRules(ctx); err != nil {
 		return fmt.Errorf("creating EventBridge interruption rules, %w", err)
 	}
-	logging.FromContext(ctx).Debugf("Reconciled the EventBridge interruption rules")
 	return nil
 }
 
@@ -160,6 +157,5 @@ func (i *InfrastructureReconciler) deleteEventBridge(ctx context.Context) error 
 	if err := i.eventBridgeProvider.DeleteRules(ctx); err != nil {
 		return fmt.Errorf("deleting the EventBridge interruption rules, %w", err)
 	}
-	logging.FromContext(ctx).Debugf("Deleted the EventBridge interruption rules")
 	return nil
 }

@@ -24,17 +24,14 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"knative.dev/pkg/ptr"
 
-	"github.com/aws/karpenter-core/pkg/apis/config/settings"
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
-	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages/scheduledchange"
@@ -57,9 +54,11 @@ func TestInterruption(t *testing.T) {
 
 var _ = BeforeEach(func() {
 	env.BeforeEach()
-	env.ExpectSettingsCreatedOrUpdated(settings.Registration.DefaultData, awssettings.Registration.DefaultData, lo.Assign(map[string]string{
-		"aws.enableInterruptionHandling": "true",
-	}))
+	env.ExpectSettingsOverridden(
+		map[string]string{
+			"aws.enableInterruptionHandling": "true",
+		},
+	)
 })
 var _ = AfterEach(func() { env.Cleanup() })
 var _ = AfterEach(func() { env.ForceCleanup() })

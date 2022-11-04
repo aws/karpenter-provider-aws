@@ -17,10 +17,10 @@ CLUSTER_ENDPOINT ?= $(shell kubectl config view --minify -o jsonpath='{.clusters
 AWS_ACCOUNT_ID ?= $(shell aws sts get-caller-identity --query Account --output text)
 KARPENTER_IAM_ROLE_ARN ?= arn:aws:iam::${AWS_ACCOUNT_ID}:role/${CLUSTER_NAME}-karpenter
 HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${KARPENTER_IAM_ROLE_ARN} \
-      		--set clusterName=${CLUSTER_NAME} \
-			--set clusterEndpoint=${CLUSTER_ENDPOINT} \
-			--set aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
-			--set aws.enableInterruptionHandling=true \
+      		--set settings.aws.clusterName=${CLUSTER_NAME} \
+			--set settings.aws.clusterEndpoint=${CLUSTER_ENDPOINT} \
+			--set settings.aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
+			--set settings.aws.enableInterruptionHandling=true \
 			--create-namespace
 
 # CR for local builds of Karpenter
@@ -115,7 +115,7 @@ delete: ## Delete the controller from your ~/.kube/config cluster
 docgen: ## Generate docs
 	go run hack/docs/metrics_gen_docs.go pkg/ $(KARPENTER_CORE_DIR)/pkg website/content/en/preview/tasks/metrics.md
 	go run hack/docs/instancetypes_gen_docs.go website/content/en/preview/AWS/instance-types.md
-	go run hack/docs/configuration_gen_docs.go website/content/en/preview/tasks/configuration.md
+	go run hack/docs/configuration_gen_docs.go website/content/en/preview/tasks/globalsettings.md
 
 api-code-gen: ## Auto generate files based on AWS APIs response
 	$(WITH_GOFLAGS) ./hack/api-code-gen.sh

@@ -14,13 +14,6 @@ There are two main configuration mechanisms that can be used to configure Karpen
 
 | Environment Variable | CLI Flag | Description |
 |--|--|--|
-| AWS_DEFAULT_INSTANCE_PROFILE | \-\-aws-default-instance-profile | The default instance profile to use when provisioning nodes in AWS|
-| AWS_ENABLE_POD_ENI | \-\-aws-enable-pod-eni | If true then instances that support pod ENI will report a vpc.amazonaws.com/pod-eni resource (default = false)|
-| AWS_ENI_LIMITED_POD_DENSITY | \-\-aws-eni-limited-pod-density | Indicates whether new nodes should use ENI-based pod density. DEPRECATED: Use `.spec.kubeletConfiguration.maxPods` to set pod density on a per-provisioner basis (default = true)|
-| AWS_ISOLATED_VPC | \-\-aws-isolated-vpc | If true then assume we can't reach AWS services which don't have a VPC endpoint. This also has the effect of disabling look-ups to the AWS pricing endpoint. (default = false)|
-| AWS_NODE_NAME_CONVENTION | \-\-aws-node-name-convention | The node naming convention used by the AWS cloud provider. DEPRECATION WARNING: this field may be deprecated at any time (default = ip-name)|
-| CLUSTER_ENDPOINT | \-\-cluster-endpoint | The external kubernetes cluster endpoint for new nodes to connect with|
-| CLUSTER_NAME | \-\-cluster-name | The kubernetes cluster name for resource discovery|
 | ENABLE_PROFILING | \-\-enable-profiling | Enable the profiling on the metric endpoint (default = false)|
 | HEALTH_PROBE_PORT | \-\-health-probe-port | The port the health probe endpoint binds to for reporting controller health (default = 8081)|
 | KARPENTER_SERVICE | \-\-karpenter-service | The Karpenter Service name for the dynamic webhook certificate|
@@ -29,7 +22,6 @@ There are two main configuration mechanisms that can be used to configure Karpen
 | LEADER_ELECT | \-\-leader-elect | Start leader election client and gain leadership before executing the main loop. Enable this when running replicated components for high availability. (default = true)|
 | MEMORY_LIMIT | \-\-memory-limit | Memory limit on the container running the controller. The GC soft memory limit is set to 90% of this value. (default = -1)|
 | METRICS_PORT | \-\-metrics-port | The port the metric endpoint binds to for operating metrics about the controller itself (default = 8080)|
-| VM_MEMORY_OVERHEAD | \-\-vm-memory-overhead | The VM memory overhead as a percent that will be subtracted from the total memory for all instance types (default = 0.075)|
 | WEBHOOK_PORT | \-\-webhook-port | The port the webhook endpoint binds to for validation and mutation of resources (default = 8443)|
 
 [comment]: <> (end docs generated content from hack/docs/configuration_gen_docs.go)
@@ -52,6 +44,24 @@ data:
   # faster than this time, the batching window will be extended up to the maxDuration. If they arrive slower, the pods
   # will be batched separately.
   batchIdleDuration: 1s
+  # [REQUIRED] The kubernetes cluster name for resource discovery
+  aws.clusterName: karpenter-cluster
+  # [REQUIRED] The external kubernetes cluster endpoint for new nodes to connect with
+  aws.clusterEndpoint: https://00000000000000000000000000000000.gr7.us-west-2.eks.amazonaws.com
+  # The default instance profile to use when provisioning nodes
+  aws.defaultInstanceProfile: karpenter-instance-profile
+  # If true, then instances that support pod ENI will report a vpc.amazonaws.com/pod-eni resource
+  aws.enablePodENI: "false"
+  # Indicates whether new nodes should use ENI-based pod density. DEPRECATED: Use `.spec.kubeletConfiguration.maxPods` to set pod density on a per-provisioner basis
+  aws.enableENILimitedPodDensity: "true"
+  # If true, then assume we can't reach AWS services which don't have a VPC endpoint
+  # This also has the effect of disabling look-ups to the AWS pricing endpoint
+  aws.isolatedVPC: "false"
+  # The node naming convention (either "ip-name" or "resource-name")
+  aws.nodeNameConvention: ip-name
+  # The VM memory overhead as a percent that will be subtracted 
+  # from the total memory for all instance types 
+  aws.vmMemoryOverheadPercent: "0.075"
   # Any global tag value can be specified by including the "aws.tags.<tag-key>" prefix
   # associated with the value in the key-value tag pair
   aws.tags.custom-tag: custom-tag-value

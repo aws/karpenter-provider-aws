@@ -25,9 +25,8 @@ import (
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter-core/pkg/operator/injection"
 	"github.com/aws/karpenter-core/pkg/utils/atomic"
-	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
+	"github.com/aws/karpenter/pkg/apis/config/settings"
 	awserrors "github.com/aws/karpenter/pkg/errors"
 )
 
@@ -91,7 +90,7 @@ func NewSQS(client sqsiface.SQSAPI) *SQS {
 }
 
 func (s *SQS) QueueName(ctx context.Context) string {
-	return lo.Substring(injection.GetOptions(ctx).ClusterName, 0, 80)
+	return lo.Substring(settings.FromContext(ctx).ClusterName, 0, 80)
 }
 
 func (s *SQS) CreateQueue(ctx context.Context) error {
@@ -271,12 +270,12 @@ func (s *SQS) getQueuePolicy(ctx context.Context) (*queuePolicy, error) {
 
 func (s *SQS) getTags(ctx context.Context) map[string]*string {
 	return lo.Assign(
-		lo.MapEntries(awssettings.FromContext(ctx).Tags, func(k, v string) (string, *string) {
+		lo.MapEntries(settings.FromContext(ctx).Tags, func(k, v string) (string, *string) {
 			return k, lo.ToPtr(v)
 		}),
 		map[string]*string{
-			v1alpha5.DiscoveryTagKey: aws.String(injection.GetOptions(ctx).ClusterName),
-			v1alpha5.ManagedByTagKey: aws.String(injection.GetOptions(ctx).ClusterName),
+			v1alpha5.DiscoveryTagKey: aws.String(settings.FromContext(ctx).ClusterName),
+			v1alpha5.ManagedByTagKey: aws.String(settings.FromContext(ctx).ClusterName),
 		},
 	)
 }

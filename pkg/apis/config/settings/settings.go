@@ -18,13 +18,23 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strings"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/samber/lo"
+	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/configmap"
 
 	"github.com/aws/karpenter-core/pkg/apis/config"
+)
+
+type NodeNameConvention string
+
+const (
+	IPName       NodeNameConvention = "ip-name"
+	ResourceName NodeNameConvention = "resource-name"
 )
 
 var ContextKey = Registration
@@ -36,13 +46,55 @@ var Registration = &config.Registration{
 }
 
 var defaultSettings = Settings{
+	ClusterName:                "",
+	ClusterEndpoint:            "",
+	DefaultInstanceProfile:     "",
+	EnablePodENI:               false,
+	EnableENILimitedPodDensity: true,
+	IsolatedVPC:                false,
+	NodeNameConvention:         IPName,
+	VMMemoryOverheadPercent:    0.075,
 	EnableInterruptionHandling: false,
 	Tags:                       map[string]string{},
 }
 
 type Settings struct {
-	EnableInterruptionHandling bool              `json:"aws.enableInterruptionHandling,string"`
-	Tags                       map[string]string `json:"aws.tags,omitempty"`
+	ClusterName                string             `json:"aws.clusterName" validate:"required"`
+	ClusterEndpoint            string             `json:"aws.clusterEndpoint" validate:"required"`
+	DefaultInstanceProfile     string             `json:"aws.defaultInstanceProfile"`
+	EnablePodENI               bool               `json:"aws.enablePodENI,string"`
+	EnableENILimitedPodDensity bool               `json:"aws.enableENILimitedPodDensity,string"`
+	IsolatedVPC                bool               `json:"aws.isolatedVPC,string"`
+	NodeNameConvention         NodeNameConvention `json:"aws.nodeNameConvention" validate:"required"`
+	VMMemoryOverheadPercent    float64            `json:"aws.vmMemoryOverheadPercent,string" validate:"min=0"`
+	EnableInterruptionHandling bool               `json:"aws.enableInterruptionHandling,string"`
+	Tags                       map[string]string  `json:"aws.tags,omitempty"`
+}
+
+// NewSettingsFromConfigMap creates a Settings from the supplied ConfigMap
+func NewSettingsFromConfigMap(cm *v1.ConfigMap) (Settings, error) {
+	s := defaultSettings
+
+	if err := configmap.Parse(cm.Data,
+		configmap.AsString("aws.clusterName", &s.ClusterName),
+		configmap.AsString("aws.clusterEndpoint", &s.ClusterEndpoint),
+		configmap.AsString("aws.defaultInstanceProfile", &s.DefaultInstanceProfile),
+		configmap.AsBool("aws.enablePodENI", &s.EnablePodENI),
+		configmap.AsBool("aws.enableENILimitedPodDensity", &s.EnableENILimitedPodDensity),
+		configmap.AsBool("aws.isolatedVPC", &s.IsolatedVPC),
+		AsTypedString("aws.nodeNameConvention", &s.NodeNameConvention),
+		configmap.AsFloat64("aws.vmMemoryOverheadPercent", &s.VMMemoryOverheadPercent),
+		configmap.AsBool("aws.enableInterruptionHandling", &s.EnableInterruptionHandling),
+		AsMap("aws.tags", &s.Tags),
+	); err != nil {
+		// Failing to parse means that there is some error in the Settings, so we should crash
+		panic(fmt.Sprintf("parsing settings, %v", err))
+	}
+	if err := s.Validate(); err != nil {
+		// Failing to validate means that there is some error in the Settings, so we should crash
+		panic(fmt.Sprintf("validating settings, %v", err))
+	}
+	return s, nil
 }
 
 func (s Settings) MarshalJSON() ([]byte, error) {
@@ -70,24 +122,38 @@ func (s Settings) MarshalJSON() ([]byte, error) {
 func (s Settings) Data() (map[string]string, error) {
 	d := map[string]string{}
 
-	if err := json.Unmarshal(lo.Must(json.Marshal(defaultSettings)), &d); err != nil {
-		return d, fmt.Errorf("unmarshalling json data, %w", err)
+	raw, err := json.Marshal(s)
+	if err != nil {
+		return nil, fmt.Errorf("marshaling settings, %w", err)
+	}
+	if err = json.Unmarshal(raw, &d); err != nil {
+		return d, fmt.Errorf("unmarshalling settings, %w", err)
 	}
 	return d, nil
 }
 
-// NewSettingsFromConfigMap creates a Settings from the supplied ConfigMap
-func NewSettingsFromConfigMap(cm *v1.ConfigMap) (Settings, error) {
-	s := defaultSettings
+// Validate leverages struct tags with go-playground/validator so you can define a struct with custom
+// validation on fields i.e.
+//
+//	type ExampleStruct struct {
+//	    Example  metav1.Duration `json:"example" validate:"required,min=10m"`
+//	}
+func (s Settings) Validate() error {
+	validate := validator.New()
+	return multierr.Combine(
+		s.validateEndpoint(),
+		validate.Struct(s),
+	)
+}
 
-	if err := configmap.Parse(cm.Data,
-		configmap.AsBool("aws.enableInterruptionHandling", &s.EnableInterruptionHandling),
-		AsMap("aws.tags", &s.Tags),
-	); err != nil {
-		// Failing to parse means that there is some error in the Settings, so we should crash
-		panic(fmt.Sprintf("parsing config data, %v", err))
+func (s Settings) validateEndpoint() error {
+	endpoint, err := url.Parse(s.ClusterEndpoint)
+	// url.Parse() will accept a lot of input without error; make
+	// sure it's a real URL
+	if err != nil || !endpoint.IsAbs() || endpoint.Hostname() == "" {
+		return fmt.Errorf("\"%s\" not a valid clusterEndpoint URL", s.ClusterEndpoint)
 	}
-	return s, nil
+	return nil
 }
 
 func ToContext(ctx context.Context, s Settings) context.Context {
@@ -101,6 +167,16 @@ func FromContext(ctx context.Context) Settings {
 		panic("settings doesn't exist in context")
 	}
 	return data.(Settings)
+}
+
+// AsTypedString passes the value at key through into the target, if it exists.
+func AsTypedString[T ~string](key string, target *T) configmap.ParseFunc {
+	return func(data map[string]string) error {
+		if raw, ok := data[key]; ok {
+			*target = T(raw)
+		}
+		return nil
+	}
 }
 
 // AsMap parses any value with the prefix key into a map with suffixes as keys and values as values in the target map.

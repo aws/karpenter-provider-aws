@@ -32,6 +32,7 @@ import (
 
 func main() {
 	ctx, operator := operator.NewOperator()
+	ctx = operator.SettingsStore.InjectSettings(ctx)
 	awsCtx := context.NewOrDie(cloudprovider.Context{
 		Context:             ctx,
 		Clock:               operator.Clock,

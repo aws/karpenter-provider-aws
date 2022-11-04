@@ -31,9 +31,9 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
-	"github.com/aws/karpenter-core/pkg/operator/injection"
 	"github.com/aws/karpenter-core/pkg/scheduling"
 	"github.com/aws/karpenter-core/pkg/utils/resources"
+	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
 )
@@ -68,8 +68,8 @@ func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, kc *v1alph
 	instanceType.maxPods = instanceType.computeMaxPods(ctx, kc)
 
 	// Precompute to minimize memory/compute overhead
-	instanceType.resources = instanceType.computeResources(injection.GetOptions(ctx).AWSEnablePodENI)
-	instanceType.overhead = instanceType.computeOverhead(injection.GetOptions(ctx).VMMemoryOverhead, kc)
+	instanceType.resources = instanceType.computeResources(awssettings.FromContext(ctx).EnablePodENI)
+	instanceType.overhead = instanceType.computeOverhead(awssettings.FromContext(ctx).VMMemoryOverheadPercent, kc)
 	instanceType.requirements = instanceType.computeRequirements()
 	return instanceType
 }
@@ -368,7 +368,7 @@ func (i *InstanceType) computeMaxPods(ctx context.Context, kc *v1alpha5.KubeletC
 	switch {
 	case kc != nil && kc.MaxPods != nil:
 		mp = ptr.Int64(int64(ptr.Int32Value(kc.MaxPods)))
-	case !injection.GetOptions(ctx).AWSENILimitedPodDensity:
+	case !awssettings.FromContext(ctx).EnableENILimitedPodDensity:
 		mp = ptr.Int64(110)
 	default:
 		mp = ptr.Int64(i.eniLimitedPods())

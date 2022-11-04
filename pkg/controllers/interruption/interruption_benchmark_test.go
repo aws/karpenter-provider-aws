@@ -33,6 +33,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/eventbridge"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/patrickmn/go-cache"
+	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
@@ -44,21 +45,19 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
-	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
+	"github.com/aws/karpenter/pkg/apis/config/settings"
 	awscache "github.com/aws/karpenter/pkg/cache"
 	awscontext "github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/controllers/interruption"
 	"github.com/aws/karpenter/pkg/controllers/interruption/events"
 	"github.com/aws/karpenter/pkg/controllers/nodetemplate"
 	"github.com/aws/karpenter/pkg/controllers/providers"
-	awstest "github.com/aws/karpenter/pkg/test"
+	"github.com/aws/karpenter/pkg/test"
 
-	"github.com/aws/karpenter-core/pkg/apis/config/settings"
+	coresettings "github.com/aws/karpenter-core/pkg/apis/config/settings"
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/cloudprovider/fake"
-	"github.com/aws/karpenter-core/pkg/operator/injection"
-	"github.com/aws/karpenter-core/pkg/operator/options"
-	"github.com/aws/karpenter-core/pkg/test"
+	coretest "github.com/aws/karpenter-core/pkg/test"
 )
 
 var r = rand.New(rand.NewSource(time.Now().Unix()))
@@ -81,34 +80,31 @@ func BenchmarkNotification100(b *testing.B) {
 
 //nolint:gocyclo
 func benchmarkNotificationController(b *testing.B, messageCount int) {
-	opts := options.Options{
-		AWSIsolatedVPC: true,
-		ClusterName:    "karpenter-notification-benchmarking",
-	}
 	fakeClock = &clock.FakeClock{}
-	settingsStore := test.SettingsStore{
-		settings.ContextKey: test.Settings(),
-		awssettings.ContextKey: awssettings.Settings{
-			EnableInterruptionHandling: true,
-		},
+	settingsStore := coretest.SettingsStore{
+		coresettings.ContextKey: coretest.Settings(),
+		settings.ContextKey: test.Settings(test.SettingOptions{
+			ClusterName:                lo.ToPtr("karpenter-notification-benchmarking"),
+			IsolatedVPC:                lo.ToPtr(true),
+			EnableInterruptionHandling: lo.ToPtr(true),
+		}),
 	}
 	ctx = settingsStore.InjectSettings(context.Background())
-	ctx = injection.WithOptions(ctx, opts)
-	env = test.NewEnvironment(scheme.Scheme)
-	// Stop the test environment after the test completes
+	env = coretest.NewEnvironment(scheme.Scheme)
+	// Stop the coretest environment after the coretest completes
 	defer func() {
 		if err := retry.Do(func() error {
 			return env.Stop()
 		}); err != nil {
-			b.Fatalf("stopping test environment, %v", err)
+			b.Fatalf("stopping coretest environment, %v", err)
 		}
 	}()
 
-	providers := newProviders(ctx)
+	providers := newProviders()
 	if err := providers.makeInfrastructure(ctx); err != nil {
 		b.Fatalf("standing up infrastructure, %v", err)
 	}
-	// Cleanup the infrastructure after the test completes
+	// Cleanup the infrastructure after the coretest completes
 	defer func() {
 		if err := retry.Do(func() error {
 			return providers.cleanupInfrastructure(ctx)
@@ -118,13 +114,13 @@ func benchmarkNotificationController(b *testing.B, messageCount int) {
 	}()
 
 	// Load all the fundamental components before setting up the controllers
-	recorder = test.NewEventRecorder()
+	recorder = coretest.NewEventRecorder()
 	cloudProvider = &fake.CloudProvider{}
 
 	unavailableOfferingsCache = awscache.NewUnavailableOfferings(cache.New(awscache.UnavailableOfferingsTTL, awscontext.CacheCleanupInterval))
 
 	// Provision a single AWS Node Template to allow interruption reconciliation
-	if err := env.Client.Create(ctx, awstest.AWSNodeTemplate()); err != nil {
+	if err := env.Client.Create(ctx, test.AWSNodeTemplate()); err != nil {
 		b.Fatalf("creating AWS node template, %v", err)
 	}
 
@@ -183,7 +179,7 @@ type providerSet struct {
 	eventBridgeProvider *providers.EventBridge
 }
 
-func newProviders(ctx context.Context) providerSet {
+func newProviders() providerSet {
 	sess := session.Must(session.NewSession(
 		request.WithRetryer(
 			&aws.Config{STSRegionalEndpoint: endpoints.RegionalSTSEndpoint},
@@ -205,7 +201,7 @@ func (p *providerSet) makeInfrastructure(ctx context.Context) error {
 	}
 
 	if err := p.sqsProvider.SetQueueAttributes(ctx, map[string]*string{
-		sqs.QueueAttributeNameMessageRetentionPeriod: aws.String("1200"), // 20 minutes for this test
+		sqs.QueueAttributeNameMessageRetentionPeriod: aws.String("1200"), // 20 minutes for this coretest
 	}); err != nil {
 		return fmt.Errorf("updating message retention period, %w", err)
 	}
@@ -229,16 +225,16 @@ func (p *providerSet) provisionMessages(ctx context.Context, messages ...interfa
 	return multierr.Combine(errs...)
 }
 
-func (p *providerSet) monitorMessagesProcessed(ctx context.Context, eventRecorder *test.EventRecorder, expectedProcessed int) <-chan struct{} {
+func (p *providerSet) monitorMessagesProcessed(ctx context.Context, eventRecorder *coretest.EventRecorder, expectedProcessed int) <-chan struct{} {
 	done := make(chan struct{})
 	totalProcessed := 0
 	go func() {
 		for totalProcessed < expectedProcessed {
-			totalProcessed = eventRecorder.Calls(events.InstanceStopping(test.Node()).Reason) +
-				eventRecorder.Calls(events.InstanceTerminating(test.Node()).Reason) +
-				eventRecorder.Calls(events.InstanceUnhealthy(test.Node()).Reason) +
-				eventRecorder.Calls(events.InstanceRebalanceRecommendation(test.Node()).Reason) +
-				eventRecorder.Calls(events.InstanceSpotInterrupted(test.Node()).Reason)
+			totalProcessed = eventRecorder.Calls(events.InstanceStopping(coretest.Node()).Reason) +
+				eventRecorder.Calls(events.InstanceTerminating(coretest.Node()).Reason) +
+				eventRecorder.Calls(events.InstanceUnhealthy(coretest.Node()).Reason) +
+				eventRecorder.Calls(events.InstanceRebalanceRecommendation(coretest.Node()).Reason) +
+				eventRecorder.Calls(events.InstanceSpotInterrupted(coretest.Node()).Reason)
 			logging.FromContext(ctx).Infof("Processed %d messages from the queue", totalProcessed)
 			time.Sleep(time.Second)
 		}
@@ -286,7 +282,7 @@ func makeScheduledChangeMessagesAndNodes(count int) ([]interface{}, []*v1.Node) 
 	for i := 0; i < count; i++ {
 		instanceID := makeInstanceID()
 		msgs = append(msgs, scheduledChangeMessage(instanceID))
-		nodes = append(nodes, test.Node(test.NodeOptions{
+		nodes = append(nodes, coretest.Node(coretest.NodeOptions{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{
 					v1alpha5.ProvisionerNameLabelKey: "default",
@@ -305,7 +301,7 @@ func makeStateChangeMessagesAndNodes(count int, states []string) ([]interface{},
 		state := states[r.Intn(len(states))]
 		instanceID := makeInstanceID()
 		msgs = append(msgs, stateChangeMessage(instanceID, state))
-		nodes = append(nodes, test.Node(test.NodeOptions{
+		nodes = append(nodes, coretest.Node(coretest.NodeOptions{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{
 					v1alpha5.ProvisionerNameLabelKey: "default",
@@ -323,7 +319,7 @@ func makeSpotInterruptionMessagesAndNodes(count int) ([]interface{}, []*v1.Node)
 	for i := 0; i < count; i++ {
 		instanceID := makeInstanceID()
 		msgs = append(msgs, spotInterruptionMessage(instanceID))
-		nodes = append(nodes, test.Node(test.NodeOptions{
+		nodes = append(nodes, coretest.Node(coretest.NodeOptions{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{
 					v1alpha5.ProvisionerNameLabelKey: "default",

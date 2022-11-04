@@ -38,14 +38,14 @@ import (
 	_ "knative.dev/pkg/system/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/aws/karpenter-core/pkg/apis/config/settings"
+	coresettings "github.com/aws/karpenter-core/pkg/apis/config/settings"
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter-core/pkg/cloudprovider/fake"
+	corefake "github.com/aws/karpenter-core/pkg/cloudprovider/fake"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
-	"github.com/aws/karpenter-core/pkg/test"
+	coretest "github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
 	"github.com/aws/karpenter/pkg/apis"
-	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
+	"github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	awscache "github.com/aws/karpenter/pkg/cache"
 	awscontext "github.com/aws/karpenter/pkg/context"
@@ -56,8 +56,8 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages/statechange"
 	"github.com/aws/karpenter/pkg/controllers/providers"
 	"github.com/aws/karpenter/pkg/errors"
-	awsfake "github.com/aws/karpenter/pkg/fake"
-	awstest "github.com/aws/karpenter/pkg/test"
+	"github.com/aws/karpenter/pkg/fake"
+	"github.com/aws/karpenter/pkg/test"
 )
 
 const (
@@ -69,15 +69,15 @@ const (
 )
 
 var ctx context.Context
-var env *test.Environment
+var env *coretest.Environment
 var nodeTemplate *v1alpha1.AWSNodeTemplate
-var sqsapi *awsfake.SQSAPI
-var eventbridgeapi *awsfake.EventBridgeAPI
-var cloudProvider *fake.CloudProvider
+var sqsapi *fake.SQSAPI
+var eventbridgeapi *fake.EventBridgeAPI
+var cloudProvider *corefake.CloudProvider
 var sqsProvider *providers.SQS
 var eventBridgeProvider *providers.EventBridge
 var unavailableOfferingsCache *awscache.UnavailableOfferings
-var recorder *test.EventRecorder
+var recorder *coretest.EventRecorder
 var fakeClock *clock.FakeClock
 var controller *interruption.Controller
 
@@ -88,19 +88,19 @@ func TestAPIs(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	env = test.NewEnvironment(scheme.Scheme, apis.CRDs...)
+	env = coretest.NewEnvironment(scheme.Scheme, apis.CRDs...)
 	fakeClock = &clock.FakeClock{}
-	cloudProvider = &fake.CloudProvider{}
+	cloudProvider = &corefake.CloudProvider{}
 
-	nodeTemplate = awstest.AWSNodeTemplate()
+	nodeTemplate = test.AWSNodeTemplate()
 	ExpectApplied(ctx, env.Client, nodeTemplate)
 
-	recorder = test.NewEventRecorder()
+	recorder = coretest.NewEventRecorder()
 	unavailableOfferingsCache = awscache.NewUnavailableOfferings(cache.New(awscache.UnavailableOfferingsTTL, awscontext.CacheCleanupInterval))
 
-	sqsapi = &awsfake.SQSAPI{}
+	sqsapi = &fake.SQSAPI{}
 	sqsProvider = providers.NewSQS(sqsapi)
-	eventbridgeapi = &awsfake.EventBridgeAPI{}
+	eventbridgeapi = &fake.EventBridgeAPI{}
 	eventBridgeProvider = providers.NewEventBridge(eventbridgeapi, sqsProvider)
 })
 
@@ -110,11 +110,11 @@ var _ = AfterSuite(func() {
 
 var _ = BeforeEach(func() {
 	controller = interruption.NewController(env.Client, fakeClock, recorder, sqsProvider, unavailableOfferingsCache)
-	settingsStore := test.SettingsStore{
-		settings.ContextKey: test.Settings(),
-		awssettings.ContextKey: awssettings.Settings{
-			EnableInterruptionHandling: true,
-		},
+	settingsStore := coretest.SettingsStore{
+		coresettings.ContextKey: coretest.Settings(),
+		settings.ContextKey: test.Settings(test.SettingOptions{
+			EnableInterruptionHandling: lo.ToPtr(true),
+		}),
 	}
 	ctx = settingsStore.InjectSettings(ctx)
 })
@@ -129,7 +129,7 @@ var _ = AfterEach(func() {
 var _ = Describe("AWSInterruption", func() {
 	Context("Processing Messages", func() {
 		It("should delete the node when receiving a spot interruption warning", func() {
-			node := test.Node(test.NodeOptions{
+			node := coretest.Node(coretest.NodeOptions{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						v1alpha5.ProvisionerNameLabelKey: "default",
@@ -145,7 +145,7 @@ var _ = Describe("AWSInterruption", func() {
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
 		})
 		It("should delete the node when receiving a scheduled change message", func() {
-			node := test.Node(test.NodeOptions{
+			node := coretest.Node(coretest.NodeOptions{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						v1alpha5.ProvisionerNameLabelKey: "default",
@@ -165,7 +165,7 @@ var _ = Describe("AWSInterruption", func() {
 			var messages []interface{}
 			for _, state := range []string{"terminated", "stopped", "stopping", "shutting-down"} {
 				instanceID := makeInstanceID()
-				nodes = append(nodes, test.Node(test.NodeOptions{
+				nodes = append(nodes, coretest.Node(coretest.NodeOptions{
 					ObjectMeta: metav1.ObjectMeta{
 						Labels: map[string]string{
 							v1alpha5.ProvisionerNameLabelKey: "default",
@@ -187,7 +187,7 @@ var _ = Describe("AWSInterruption", func() {
 			var instanceIDs []string
 			for i := 0; i < 100; i++ {
 				instanceIDs = append(instanceIDs, makeInstanceID())
-				nodes = append(nodes, test.Node(test.NodeOptions{
+				nodes = append(nodes, coretest.Node(coretest.NodeOptions{
 					ObjectMeta: metav1.ObjectMeta{
 						Labels: map[string]string{
 							v1alpha5.ProvisionerNameLabelKey: "default",
@@ -210,7 +210,7 @@ var _ = Describe("AWSInterruption", func() {
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(100))
 		})
 		It("should not delete a node when not owned by provisioner", func() {
-			node := test.Node(test.NodeOptions{
+			node := coretest.Node(coretest.NodeOptions{
 				ProviderID: makeProviderID(string(uuid.NewUUID())),
 			})
 			ExpectMessagesCreated(spotInterruptionMessage(node.Spec.ProviderID))
@@ -235,7 +235,7 @@ var _ = Describe("AWSInterruption", func() {
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
 		})
 		It("should delete a state change message when the state isn't in accepted states", func() {
-			node := test.Node(test.NodeOptions{
+			node := coretest.Node(coretest.NodeOptions{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						v1alpha5.ProvisionerNameLabelKey: "default",
@@ -251,11 +251,11 @@ var _ = Describe("AWSInterruption", func() {
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
 		})
 		It("should mark the ICE cache for the offering when getting a spot interruption warning", func() {
-			node := test.Node(test.NodeOptions{
+			node := coretest.Node(coretest.NodeOptions{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						v1alpha5.ProvisionerNameLabelKey: "default",
-						v1.LabelTopologyZone:             "test-zone-1a",
+						v1.LabelTopologyZone:             "coretest-zone-1a",
 						v1.LabelInstanceTypeStable:       "t3.large",
 						v1alpha5.LabelCapacityType:       v1alpha1.CapacityTypeSpot,
 					},
@@ -269,17 +269,17 @@ var _ = Describe("AWSInterruption", func() {
 			ExpectNotFound(ctx, env.Client, node)
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
 
-			// Expect a t3.large in test-zone-1a to be added to the ICE cache
-			Expect(unavailableOfferingsCache.IsUnavailable("t3.large", "test-zone-1a", v1alpha1.CapacityTypeSpot)).To(BeTrue())
+			// Expect a t3.large in coretest-zone-1a to be added to the ICE cache
+			Expect(unavailableOfferingsCache.IsUnavailable("t3.large", "coretest-zone-1a", v1alpha1.CapacityTypeSpot)).To(BeTrue())
 		})
 	})
 	Context("Error Handling", func() {
 		It("should send an error on polling when AccessDenied", func() {
-			sqsapi.ReceiveMessageBehavior.Error.Set(awsErrWithCode(errors.AccessDeniedCode), awsfake.MaxCalls(0))
+			sqsapi.ReceiveMessageBehavior.Error.Set(awsErrWithCode(errors.AccessDeniedCode), fake.MaxCalls(0))
 			ExpectReconcileFailed(ctx, controller, types.NamespacedName{})
 		})
 		It("should send an error on polling when QueueDeletedRecently", func() {
-			sqsapi.GetQueueURLBehavior.Error.Set(awsErrWithCode(sqs.ErrCodeQueueDeletedRecently), awsfake.MaxCalls(0))
+			sqsapi.GetQueueURLBehavior.Error.Set(awsErrWithCode(sqs.ErrCodeQueueDeletedRecently), fake.MaxCalls(0))
 			ExpectReconcileFailed(ctx, controller, types.NamespacedName{})
 		})
 	})

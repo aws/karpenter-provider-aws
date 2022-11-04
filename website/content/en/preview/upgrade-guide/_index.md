@@ -100,6 +100,15 @@ By adopting this practice we allow our users who are early adopters to test out 
 ## Upgrading to v0.19.0+
 * The karpenter webhook and controller containers are combined into a single binary, which requires changes to the helm chart. If your Karpenter installation (helm or otherwise) currently customizes the karpenter webhook, your deployment tooling may require minor changes.
 * Instance category defaults are now explicitly persisted in the Provisioner, rather than handled implicitly in memory. By default, Provisioners will limit instance category to c,m,r. If any instance type constraints are applied, it will override this default. If you have created Provisioners in the past with unconstrained instance type, family, or category, Karpenter will now more flexibly use instance types than before. If you would like to apply these constraints, they must be included in the Provisioner CRD.
+* The following CLI options/environment variables are now removed and replaced in favor of pulling settings dynamically from the `karpenter-global-settings` ConfigMap. See the [Global Settings docs](../tasks/globalsettings) for more details on configuring the new values in the ConfigMap.
+   * `CLUSTER_NAME` -> `aws.clusterName`
+   * `CLUSTER_ENDPOINT` -> `aws.clusterEndpoint`
+   * `AWS_DEFAULT_INSTANCE_PROFILE` -> `aws.defaultInstanceProfile`
+   * `AWS_ENABLE_POD_ENI` -> `aws.enablePodENI`
+   * `AWS_ENI_LIMITED_POD_DENSITY` -> `aws.enableENILimitedPodDensity`
+   * `AWS_ISOLATED_VPC` -> `aws.isolatedVPC`
+   * `AWS_NODE_NAME_CONVENTION` -> `aws.nodeNameConvention`
+   * `VM_MEMORY_OVERHEAD` -> `aws.vmMemoryOverheadPercent`
 
 ## Upgrading to v0.18.0+
 * v0.18.0 removes the `karpenter_consolidation_nodes_created` and `karpenter_consolidation_nodes_terminated` prometheus metrics in favor of the more generic `karpenter_nodes_created` and `karpenter_nodes_terminated` metrics. You can still see nodes created and terminated by consolidation by checking the `reason` label on the metrics. Check out all the metrics published by Karpenter [here](../tasks/metrics/).
