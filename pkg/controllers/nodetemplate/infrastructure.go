@@ -69,7 +69,7 @@ func (i *InfrastructureReconciler) Reconcile(ctx context.Context, nodeTemplate *
 		if i.lastInfrastructureReconcile.Add(time.Minute * 5).Before(time.Now()) {
 			if err := i.CreateInfrastructure(ctx); err != nil {
 				if errors.IsRecentlyDeleted(err) {
-					logging.FromContext(ctx).Debugf("Interruption queue recently deleted, retrying after one minute")
+					logging.FromContext(ctx).Errorf("Interruption queue recently deleted, retrying after one minute")
 					return reconcile.Result{RequeueAfter: time.Minute}, nil
 				}
 				return reconcile.Result{}, err
