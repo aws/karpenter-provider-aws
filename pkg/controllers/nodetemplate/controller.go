@@ -22,7 +22,6 @@ import (
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	"k8s.io/apimachinery/pkg/api/equality"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"knative.dev/pkg/logging"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -65,10 +64,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named(Name))
 	stored := &v1alpha1.AWSNodeTemplate{}
 	if err := c.kubeClient.Get(ctx, req.NamespacedName, stored); err != nil {
-		if errors.IsNotFound(err) {
-			return reconcile.Result{}, nil
-		}
-		return reconcile.Result{}, err
+		return reconcile.Result{}, client.IgnoreNotFound(err)
 	}
 
 	nodeTemplate := stored.DeepCopy()
