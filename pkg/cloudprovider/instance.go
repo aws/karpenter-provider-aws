@@ -160,7 +160,7 @@ func (p *InstanceProvider) launchInstance(ctx context.Context, provider *v1alpha
 		},
 	}
 	if capacityType == v1alpha5.CapacityTypeSpot {
-		createFleetInput.SpotOptions = &ec2.SpotOptionsRequest{AllocationStrategy: aws.String(ec2.SpotAllocationStrategyCapacityOptimizedPrioritized)}
+		createFleetInput.SpotOptions = &ec2.SpotOptionsRequest{AllocationStrategy: aws.String(ec2.AllocationStrategyPriceCapacityOptimized)}
 	} else {
 		createFleetInput.OnDemandOptions = &ec2.OnDemandOptionsRequest{AllocationStrategy: aws.String(ec2.FleetOnDemandAllocationStrategyLowestPrice)}
 	}
@@ -272,7 +272,7 @@ func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.Inst
 	})
 
 	var overrides []*ec2.FleetLaunchTemplateOverridesRequest
-	for i, offering := range unwrappedOfferings {
+	for _, offering := range unwrappedOfferings {
 		if capacityType != offering.CapacityType {
 			continue
 		}
@@ -289,12 +289,6 @@ func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.Inst
 			// This is technically redundant, but is useful if we have to parse insufficient capacity errors from
 			// CreateFleet so that we can figure out the zone rather than additional API calls to look up the subnet
 			AvailabilityZone: subnet.AvailabilityZone,
-		}
-		// Add a priority for spot requests since we are using the capacity-optimized-prioritized spot allocation strategy
-		// to reduce the likelihood of getting an excessively large instance type.
-		// instanceTypeOptions are sorted by vcpus and memory so this prioritizes smaller instance types.
-		if capacityType == v1alpha5.CapacityTypeSpot {
-			override.Priority = aws.Float64(float64(i))
 		}
 		overrides = append(overrides, override)
 	}
