@@ -99,22 +99,26 @@ func New(ctx awscontext.Context) *CloudProvider {
 	}
 }
 
-func (c *CloudProvider) IsNodeDrifted(ctx context.Context, node *v1.Node, provisioner *v1alpha5.Provisioner) bool {
+func (c *CloudProvider) GetDriftedNodes(ctx context.Context, provisioner *v1alpha5.Provisioner, nodes []v1.Node) []v1.Node {
 	instanceTypes, _ := c.GetInstanceTypes(context.Background(), provisioner)
-	kubeVersion, _ := c.instanceProvider.launchTemplateProvider.kubeServerVersion(context.Background())
-	var options *amifamily.Options// No clue where to get these options from.
+
 	aws, err := c.getProvider(ctx, provisioner.Spec.Provider, provisioner.Spec.ProviderRef)
-	amis, err :=  c.instanceProvider.launchTemplateProvider.amiFamily.GetSupportedAMIsForProvisioner(aws, "providerRefName,where to get that?", instanceTypes, kubeVersion, options)
+	amis, err :=  c.instanceProvider.launchTemplateProvider.GetSupportedAMIsForProvisioner(ctx, aws, provisioner.Spec.ProviderRef , instanceTypes)
 	if err != nil {
 		//Log and return false ?
-		return false
+		return []v1.Node{}
 	}
-	//Check if any of the amis in the array is matching the node label ?
-	nodeAmi := node.Annotations[v1alpha5.AmiAnnotationKey]
-	_, drifted :=  lo.Find(amis, func (amiM string) bool {
-		return amiM == nodeAmi
+	if len(amis) == 0 {
+		//Log
+		return []v1.Node{}
+	}
+	return lo.Filter(nodes, func(node v1.Node, _ int) bool {
+		nodeAmi :=  node.Labels[v1alpha1.LabelInstanceAMIID]
+		if nodeAmi == "" {
+			return false
+		}
+		return !lo.Contains(amis, nodeAmi)
 	})
-	return drifted
 }
 
 // checkEC2Connectivity makes a dry-run call to DescribeInstanceTypes.  If it fails, we provide an early indicator that we

@@ -18,9 +18,11 @@ require (
 	k8s.io/apimachinery v0.25.2
 	k8s.io/client-go v0.25.2
 	k8s.io/utils v0.0.0-20220728103510-ee6ede2d64ed
-	knative.dev/pkg v0.0.0-20221011175852-714b7630a836
+	knative.dev/pkg v0.0.0-20221031132215-6eb8f1845a9d
 	sigs.k8s.io/controller-runtime v0.13.0
 )
+
+replace github.com/aws/karpenter-core => ../karpenter-core/
 
 require (
 	contrib.go.opencensus.io/exporter/ocagent v0.7.1-0.20200907061046-05415f1de66d // indirect

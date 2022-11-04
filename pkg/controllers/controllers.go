@@ -17,9 +17,13 @@ package controllers
 import (
 	"github.com/aws/karpenter-core/pkg/controllers/state"
 	"github.com/aws/karpenter-core/pkg/operator/controller"
+	"github.com/aws/karpenter/pkg/cloudprovider"
 	awscontext "github.com/aws/karpenter/pkg/context"
+	"github.com/aws/karpenter/pkg/controllers/drift"
 )
 
-func NewControllers(ctx awscontext.Context, cluster *state.Cluster) []controller.Controller {
-	return []controller.Controller{}
+func NewControllers(ctx awscontext.Context, cluster *state.Cluster, cloudProvider *cloudprovider.CloudProvider) []controller.Controller {
+	return []controller.Controller{
+		drift.NewController(ctx.KubeClient, cluster, cloudProvider),
+	}
 }

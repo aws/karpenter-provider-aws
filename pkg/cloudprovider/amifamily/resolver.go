@@ -116,14 +116,14 @@ func New(kubeClient client.Client, ssm ssmiface.SSMAPI, ec2api ec2iface.EC2API, 
 	}
 }
 
-func (r Resolver) GetSupportedAMIsForProvisioner(provider *v1alpha1.AWS, providerRefName string, instanceTypes []cloudprovider.InstanceType, kubeVersion string, options *Options) ([]string, error) {
+func (r Resolver) GetSupportedAMIsForProvisioner(ant *v1alpha1.AWS,  providerRef *v1alpha5.ProviderRef, instanceTypes []cloudprovider.InstanceType, options *Options) ([]string, error) {
 	//Can we generate the options here ?
-	amiFamily := GetAMIFamily(provider.AMIFamily, options)
+	amiFamily := GetAMIFamily(ant.AMIFamily, options)
 	amis := []string{}
-	if provider.LaunchTemplateName != nil {
+	if ant.LaunchTemplateName != nil {
 		//Get the ami from the launch template or from the cache and return. right now we are not getting ami for launch template if specified.
 	}
-	amiIDs, err := r.amiProvider.Get(context.Background(), providerRefName, kubeVersion, instanceTypes, amiFamily)
+	amiIDs, err := r.amiProvider.Get(context.Background(), providerRef, options, instanceTypes, amiFamily)
 	if err != nil {
 		//log error
 		return nil, err
@@ -142,7 +142,7 @@ func (r Resolver) Resolve(ctx context.Context, provider *v1alpha1.AWS, nodeReque
 		return nil, err
 	}
 	amiFamily := GetAMIFamily(provider.AMIFamily, options)
-	amiIDs, err := r.amiProvider.Get(ctx, "", options.KubernetesVersion, nodeRequest.InstanceTypeOptions, amiFamily)
+	amiIDs, err := r.amiProvider.Get(ctx, nodeRequest.Template.ProviderRef, options, nodeRequest.InstanceTypeOptions, amiFamily)
 	if err != nil {
 		return nil, err
 	}
