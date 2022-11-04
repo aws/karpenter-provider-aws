@@ -94,7 +94,11 @@ Resources:
               - events:DeleteRule
               - events:RemoveTargets
               - events:ListTagsForResource
+            Condition:
+              StringEquals:
+                aws:ResourceTag/karpenter.sh/discovery: !Sub "${ClusterName}"
           - Effect: Allow
             Resource: "*"
             Action:
+              # Read Operations
               - events:ListRules

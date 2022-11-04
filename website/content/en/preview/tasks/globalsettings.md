@@ -50,11 +50,11 @@ data:
   aws.clusterEndpoint: https://00000000000000000000000000000000.gr7.us-west-2.eks.amazonaws.com
   # The default instance profile to use when provisioning nodes
   aws.defaultInstanceProfile: karpenter-instance-profile
-  # If true then instances that support pod ENI will report a vpc.amazonaws.com/pod-eni resource
+  # If true, then instances that support pod ENI will report a vpc.amazonaws.com/pod-eni resource
   aws.enablePodENI: "false"
   # Indicates whether new nodes should use ENI-based pod density. DEPRECATED: Use `.spec.kubeletConfiguration.maxPods` to set pod density on a per-provisioner basis
   aws.enableENILimitedPodDensity: "true"
-  # If true then assume we can't reach AWS services which don't have a VPC endpoint
+  # If true, then assume we can't reach AWS services which don't have a VPC endpoint
   # This also has the effect of disabling look-ups to the AWS pricing endpoint
   aws.isolatedVPC: "false"
   # The node naming convention (either "ip-name" or "resource-name")

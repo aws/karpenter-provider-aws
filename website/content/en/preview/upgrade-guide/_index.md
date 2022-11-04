@@ -100,7 +100,7 @@ By adopting this practice we allow our users who are early adopters to test out 
 ## Upgrading to v0.19.0+
 * The karpenter webhook and controller containers are combined into a single binary, which requires changes to the helm chart. If your Karpenter installation (helm or otherwise) currently customizes the karpenter webhook, your deployment tooling may require minor changes.
 * Instance category defaults are now explicitly persisted in the Provisioner, rather than handled implicitly in memory. By default, Provisioners will limit instance category to c,m,r. If any instance type constraints are applied, it will override this default. If you have created Provisioners in the past with unconstrained instance type, family, or category, Karpenter will now more flexibly use instance types than before. If you would like to apply these constraints, they must be included in the Provisioner CRD.
-* The following CLI options/environment variables are now removed and replaced in favor of pulling settings dynamically from the `karpenter-global-settings` ConfigMap. See the [Global Settings docs](../tasks/globalsettings.md) for more details on configuring the new values in the ConfigMap.
+* The following CLI options/environment variables are now removed and replaced in favor of pulling settings dynamically from the `karpenter-global-settings` ConfigMap. See the [Global Settings docs](../tasks/globalsettings) for more details on configuring the new values in the ConfigMap.
    * `CLUSTER_NAME` -> `aws.clusterName`
    * `CLUSTER_ENDPOINT` -> `aws.clusterEndpoint`
    * `AWS_DEFAULT_INSTANCE_PROFILE` -> `aws.defaultInstanceProfile`

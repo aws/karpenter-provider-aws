@@ -29,6 +29,7 @@ import (
 	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/controllers/providers"
+	"github.com/aws/karpenter/pkg/errors"
 )
 
 type InfrastructureReconciler struct {
@@ -67,6 +68,10 @@ func (i *InfrastructureReconciler) Reconcile(ctx context.Context, nodeTemplate *
 	} else if len(list.Items) >= 1 {
 		if i.lastInfrastructureReconcile.Add(time.Minute * 5).Before(time.Now()) {
 			if err := i.CreateInfrastructure(ctx); err != nil {
+				if errors.IsRecentlyDeleted(err) {
+					logging.FromContext(ctx).Debugf("Interruption queue recently deleted, retrying after one minute")
+					return reconcile.Result{RequeueAfter: time.Minute}, nil
+				}
 				return reconcile.Result{}, err
 			}
 			i.lastInfrastructureReconcile = time.Now()
@@ -85,7 +90,7 @@ func (i *InfrastructureReconciler) CreateInfrastructure(ctx context.Context) err
 	if err := i.ensureEventBridge(ctx); err != nil {
 		return fmt.Errorf("ensuring eventBridge rules and targets, %w", err)
 	}
-	logging.FromContext(ctx).Infof("Ensured existence of interruption-handling infrastructure")
+	logging.FromContext(ctx).Debugf("Reconciled the interruption-handling infrastructure")
 	return nil
 }
 
@@ -106,7 +111,7 @@ func (i *InfrastructureReconciler) DeleteInfrastructure(ctx context.Context) err
 	if err != nil {
 		return err
 	}
-	logging.FromContext(ctx).Infof("Deprovisioned the interruption-handling infrastructure")
+	logging.FromContext(ctx).Debugf("Deleted the interruption-handling infrastructure")
 	return nil
 }
 
@@ -120,7 +125,7 @@ func (i *InfrastructureReconciler) ensureQueue(ctx context.Context) error {
 		return fmt.Errorf("checking the SQS interruption queue existence, %w", err)
 	}
 	if !queueExists {
-		logging.FromContext(ctx).Debugf("Queue not found, creating the SQS interruption queue")
+		logging.FromContext(ctx).Debugf("Interruption queue not found, creating the SQS interruption queue")
 		if err := i.sqsProvider.CreateQueue(ctx); err != nil {
 			return fmt.Errorf("creating the SQS interruption queue with policy, %w", err)
 		}
@@ -129,7 +134,6 @@ func (i *InfrastructureReconciler) ensureQueue(ctx context.Context) error {
 	if err := i.sqsProvider.SetQueueAttributes(ctx, nil); err != nil {
 		return fmt.Errorf("setting queue attributes for interruption queue, %w", err)
 	}
-	logging.FromContext(ctx).Debugf("Reconciled the SQS interruption queue")
 	return nil
 }
 
@@ -138,7 +142,6 @@ func (i *InfrastructureReconciler) deleteQueue(ctx context.Context) error {
 	if err := i.sqsProvider.DeleteQueue(ctx); err != nil {
 		return fmt.Errorf("deleting the the SQS interruption queue, %w", err)
 	}
-	logging.FromContext(ctx).Debugf("Deleted the SQS interruption queue")
 	return nil
 }
 
@@ -147,7 +150,6 @@ func (i *InfrastructureReconciler) ensureEventBridge(ctx context.Context) error 
 	if err := i.eventBridgeProvider.CreateRules(ctx); err != nil {
 		return fmt.Errorf("creating EventBridge interruption rules, %w", err)
 	}
-	logging.FromContext(ctx).Debugf("Reconciled the EventBridge interruption rules")
 	return nil
 }
 
@@ -155,6 +157,5 @@ func (i *InfrastructureReconciler) deleteEventBridge(ctx context.Context) error 
 	if err := i.eventBridgeProvider.DeleteRules(ctx); err != nil {
 		return fmt.Errorf("deleting the EventBridge interruption rules, %w", err)
 	}
-	logging.FromContext(ctx).Debugf("Deleted the EventBridge interruption rules")
 	return nil
 }

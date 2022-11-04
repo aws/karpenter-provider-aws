@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -133,7 +134,8 @@ var _ = Describe("AWSNodeTemplate", func() {
 				sqsapi.GetQueueURLBehavior.Error.Set(awsErrWithCode(sqs.ErrCodeQueueDoesNotExist), fake.MaxCalls(0)) // This mocks the queue not existing
 				sqsapi.CreateQueueBehavior.Error.Set(awsErrWithCode(sqs.ErrCodeQueueDeletedRecently), fake.MaxCalls(0))
 
-				ExpectReconcileFailed(ctx, controller, client.ObjectKeyFromObject(provider))
+				result := ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provider))
+				Expect(result.RequeueAfter).To(Equal(time.Minute))
 				Expect(sqsapi.CreateQueueBehavior.FailedCalls()).To(Equal(1))
 			})
 		})
