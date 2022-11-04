@@ -117,9 +117,9 @@ spec:
         karpenter oci://public.ecr.aws/karpenter/karpenter \
         --version v0-$(git rev-parse HEAD) \
         --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="arn:aws:iam::$(cat $(results.account-id.path)):role/$(params.cluster-name)-karpenter" \
-        --set clusterName=$(params.cluster-name) \
-        --set clusterEndpoint=$(cat /root/.kube/config | grep server | awk '{print $2}') \
-        --set aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-$(params.cluster-name) \
-        --set controller.batchIdleDuration=10s \
-        --set controller.enableInterruptionHandling=true \
+        --set settings.aws.clusterName=$(params.cluster-name) \
+        --set settings.aws.clusterEndpoint=$(cat /root/.kube/config | grep server | awk '{print $2}') \
+        --set settings.aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-$(params.cluster-name) \
+        --set settings.batchIdleDuration=10s \
+        --set settings.aws.enableInterruptionHandling=true \
         --wait

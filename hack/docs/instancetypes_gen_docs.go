@@ -35,10 +35,11 @@ import (
 	"k8s.io/client-go/rest"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter-core/pkg/operator/injection"
-	"github.com/aws/karpenter-core/pkg/operator/options"
+	coretest "github.com/aws/karpenter-core/pkg/test"
+	"github.com/aws/karpenter/pkg/apis/config/settings"
 	awscloudprovider "github.com/aws/karpenter/pkg/cloudprovider"
 	awscontext "github.com/aws/karpenter/pkg/context"
+	"github.com/aws/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/utils/resources"
@@ -53,13 +54,15 @@ func main() {
 
 	os.Setenv("AWS_SDK_LOAD_CONFIG", "true")
 	os.Setenv("AWS_REGION", "us-east-1")
-	os.Setenv("CLUSTER_NAME", "docs-gen")
-	os.Setenv("CLUSTER_ENDPOINT", "https://docs-gen.aws")
-	os.Setenv("AWS_ISOLATED_VPC", "true") // disable pricing lookup
 
-	opts := options.New()
-	opts = opts.MustParse()
-	ctx := injection.WithOptions(context.Background(), *opts)
+	settingsStore := coretest.SettingsStore{
+		settings.ContextKey: test.Settings(test.SettingOptions{
+			ClusterName:     lo.ToPtr("docs-gen"),
+			ClusterEndpoint: lo.ToPtr("https://docs-gen.aws"),
+			IsolatedVPC:     lo.ToPtr(true), // disable pricing lookup
+		}),
+	}
+	ctx := settingsStore.InjectSettings(context.Background())
 
 	cp := NewAWSCloudProviderForCodeGen(ctx)
 	provider := v1alpha1.AWS{SubnetSelector: map[string]string{
