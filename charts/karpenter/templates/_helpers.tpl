@@ -72,3 +72,24 @@ Create the name of the service account to use
 {{- print "policy/v1beta1" -}}
 {{- end -}}
 {{- end -}}
+
+{{/*
+Flatten Values Map using "." syntax
+*/}}
+{{- define "flattenMap" -}}
+{{- $map := first . -}}
+{{- $label := last . -}}
+{{- range $key, $val := $map -}}
+  {{- $sublabel := $key -}}
+  {{- if $label -}}
+  {{- $sublabel = list $label $key | join "." -}}
+  {{- end -}}
+  {{- if kindOf $val | eq "map" -}}
+    {{- list $val $sublabel | include "flattenMap" -}}
+  {{- else -}}
+  {{ if not (kindIs "invalid" $val) }}
+{{ $sublabel | quote }}: {{ $val | quote }}
+  {{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}

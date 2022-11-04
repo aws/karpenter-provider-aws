@@ -40,6 +40,7 @@ import (
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/aws/karpenter-core/pkg/apis/config/settings"
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/controllers/provisioning"
 	"github.com/aws/karpenter-core/pkg/operator/injection"
@@ -201,7 +202,6 @@ var _ = Describe("LaunchTemplates", func() {
 			Expect(node.Labels).To(HaveKey(v1.LabelInstanceTypeStable))
 		})
 		It("should apply provider labels to the node", func() {
-			opts.AWSENILimitedPodDensity = false
 			fakeEC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
 				{
 					ImageId:      aws.String("ami-123"),
@@ -304,15 +304,15 @@ var _ = Describe("LaunchTemplates", func() {
 				"tag1": "tag1value",
 				"tag2": "tag2value",
 			}
-			settings := awssettings.Settings{
-				Tags: map[string]string{
-					"customTag1": "value1",
-					"customTag2": "value2",
-				},
+			settingsTags := map[string]string{
+				"customTag1": "value1",
+				"customTag2": "value2",
 			}
 
 			// Inject custom settings into the current context
-			settingsStore[awssettings.ContextKey] = settings
+			settingsStore[awssettings.ContextKey] = test.Settings(test.SettingOptions{
+				Tags: settingsTags,
+			})
 			ctx = settingsStore.InjectSettings(ctx)
 
 			prov = provisioning.NewProvisioner(injection.WithOptions(ctx, opts), env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster, settingsStore)
@@ -327,31 +327,31 @@ var _ = Describe("LaunchTemplates", func() {
 
 			// tags should be included in instance, volume, and fleet tag specification
 			Expect(*createFleetInput.TagSpecifications[0].ResourceType).To(Equal(ec2.ResourceTypeInstance))
-			ExpectTags(createFleetInput.TagSpecifications[0].Tags, settings.Tags)
+			ExpectTags(createFleetInput.TagSpecifications[0].Tags, settingsTags)
 
 			Expect(*createFleetInput.TagSpecifications[1].ResourceType).To(Equal(ec2.ResourceTypeVolume))
-			ExpectTags(createFleetInput.TagSpecifications[1].Tags, settings.Tags)
+			ExpectTags(createFleetInput.TagSpecifications[1].Tags, settingsTags)
 
 			Expect(*createFleetInput.TagSpecifications[2].ResourceType).To(Equal(ec2.ResourceTypeFleet))
-			ExpectTags(createFleetInput.TagSpecifications[2].Tags, settings.Tags)
+			ExpectTags(createFleetInput.TagSpecifications[2].Tags, settingsTags)
 		})
 		It("should override global tags with provider tags", func() {
 			provider.Tags = map[string]string{
 				"tag1": "tag1value",
 				"tag2": "tag2value",
 			}
-			settings := awssettings.Settings{
-				Tags: map[string]string{
-					"tag1": "custom1",
-					"tag2": "custom2",
-				},
+			settingsTags := map[string]string{
+				"tag1": "custom1",
+				"tag2": "custom2",
 			}
 
 			// Inject custom settings into the current context
-			settingsStore[awssettings.ContextKey] = settings
+			settingsStore[awssettings.ContextKey] = test.Settings(test.SettingOptions{
+				Tags: settingsTags,
+			})
 			ctx = settingsStore.InjectSettings(ctx)
 
-			prov = provisioning.NewProvisioner(injection.WithOptions(ctx, opts), env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster, settingsStore)
+			prov = provisioning.NewProvisioner(ctx, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster, settingsStore)
 			controller = provisioning.NewController(env.Client, prov, recorder)
 
 			ExpectApplied(ctx, env.Client, test.Provisioner(coretest.ProvisionerOptions{Provider: provider}))
@@ -364,15 +364,15 @@ var _ = Describe("LaunchTemplates", func() {
 			// tags should be included in instance, volume, and fleet tag specification
 			Expect(*createFleetInput.TagSpecifications[0].ResourceType).To(Equal(ec2.ResourceTypeInstance))
 			ExpectTags(createFleetInput.TagSpecifications[0].Tags, provider.Tags)
-			ExpectTagsNotFound(createFleetInput.TagSpecifications[0].Tags, settings.Tags)
+			ExpectTagsNotFound(createFleetInput.TagSpecifications[0].Tags, settingsTags)
 
 			Expect(*createFleetInput.TagSpecifications[1].ResourceType).To(Equal(ec2.ResourceTypeVolume))
 			ExpectTags(createFleetInput.TagSpecifications[1].Tags, provider.Tags)
-			ExpectTagsNotFound(createFleetInput.TagSpecifications[0].Tags, settings.Tags)
+			ExpectTagsNotFound(createFleetInput.TagSpecifications[0].Tags, settingsTags)
 
 			Expect(*createFleetInput.TagSpecifications[2].ResourceType).To(Equal(ec2.ResourceTypeFleet))
 			ExpectTags(createFleetInput.TagSpecifications[2].Tags, provider.Tags)
-			ExpectTagsNotFound(createFleetInput.TagSpecifications[0].Tags, settings.Tags)
+			ExpectTagsNotFound(createFleetInput.TagSpecifications[0].Tags, settingsTags)
 		})
 	})
 	Context("Block Device Mappings", func() {
@@ -634,23 +634,35 @@ var _ = Describe("LaunchTemplates", func() {
 	})
 	Context("AL2", func() {
 		It("should calculate memory overhead based on eni limited pods when ENI limited", func() {
-			opts.AWSENILimitedPodDensity = true
-			opts.VMMemoryOverhead = 0 // cutting a factor out of the equation
+			settingsStore = coretest.SettingsStore{
+				settings.ContextKey: test.Settings(),
+				awssettings.ContextKey: test.Settings(test.SettingOptions{
+					EnableENILimitedPodDensity: lo.ToPtr(false),
+					VMMemoryOverheadPercent:    lo.ToPtr[float64](0),
+				}),
+			}
+			ctx = settingsStore.InjectSettings(ctx)
+
 			provider.AMIFamily = &v1alpha1.AMIFamilyAL2
 			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 			Expect(err).To(BeNil())
-			ctx = injection.WithOptions(ctx, opts)
 			it := NewInstanceType(ctx, instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
 			overhead := it.Overhead()
 			Expect(overhead.Memory().String()).To(Equal("1093Mi"))
 		})
 		It("should calculate memory overhead based on eni limited pods when not ENI limited", func() {
-			opts.AWSENILimitedPodDensity = false
-			opts.VMMemoryOverhead = 0 // cutting a factor out of the equation
+			settingsStore = coretest.SettingsStore{
+				settings.ContextKey: test.Settings(),
+				awssettings.ContextKey: test.Settings(test.SettingOptions{
+					EnableENILimitedPodDensity: lo.ToPtr(false),
+					VMMemoryOverheadPercent:    lo.ToPtr[float64](0),
+				}),
+			}
+			ctx = settingsStore.InjectSettings(ctx)
+
 			provider.AMIFamily = &v1alpha1.AMIFamilyAL2
 			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 			Expect(err).To(BeNil())
-			ctx = injection.WithOptions(ctx, opts)
 			it := NewInstanceType(ctx, instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
 			overhead := it.Overhead()
 			Expect(overhead.Memory().String()).To(Equal("1093Mi"))
@@ -658,23 +670,35 @@ var _ = Describe("LaunchTemplates", func() {
 	})
 	Context("Bottlerocket", func() {
 		It("should calculate memory overhead based on eni limited pods when ENI limited", func() {
-			opts.AWSENILimitedPodDensity = true
-			opts.VMMemoryOverhead = 0 // cutting a factor out of the equation
+			settingsStore = coretest.SettingsStore{
+				settings.ContextKey: test.Settings(),
+				awssettings.ContextKey: test.Settings(test.SettingOptions{
+					EnableENILimitedPodDensity: lo.ToPtr(true),
+					VMMemoryOverheadPercent:    lo.ToPtr[float64](0),
+				}),
+			}
+			ctx = settingsStore.InjectSettings(ctx)
+
 			provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
 			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 			Expect(err).To(BeNil())
-			ctx = injection.WithOptions(ctx, opts)
 			it := NewInstanceType(ctx, instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
 			overhead := it.Overhead()
 			Expect(overhead.Memory().String()).To(Equal("1093Mi"))
 		})
 		It("should calculate memory overhead based on max pods when not ENI limited", func() {
-			opts.AWSENILimitedPodDensity = false
-			opts.VMMemoryOverhead = 0 // cutting a factor out of the equation
+			settingsStore = coretest.SettingsStore{
+				settings.ContextKey: test.Settings(),
+				awssettings.ContextKey: test.Settings(test.SettingOptions{
+					EnableENILimitedPodDensity: lo.ToPtr(false),
+					VMMemoryOverheadPercent:    lo.ToPtr[float64](0),
+				}),
+			}
+			ctx = settingsStore.InjectSettings(ctx)
+
 			provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
 			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 			Expect(err).To(BeNil())
-			ctx = injection.WithOptions(ctx, opts)
 			it := NewInstanceType(ctx, instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", provider, nil)
 			overhead := it.Overhead()
 			Expect(overhead.Memory().String()).To(Equal("1665Mi"))
@@ -682,8 +706,6 @@ var _ = Describe("LaunchTemplates", func() {
 	})
 	Context("User Data", func() {
 		It("should not specify --use-max-pods=false when using ENI-based pod density", func() {
-			opts.AWSENILimitedPodDensity = true
-			ctx = injection.WithOptions(ctx, opts)
 			prov = provisioning.NewProvisioner(ctx, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster, settingsStore)
 			controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
 			ExpectApplied(ctx, env.Client, test.Provisioner(coretest.ProvisionerOptions{Provider: provider}))
@@ -695,8 +717,14 @@ var _ = Describe("LaunchTemplates", func() {
 			Expect(string(userData)).NotTo(ContainSubstring("--use-max-pods false"))
 		})
 		It("should specify --use-max-pods=false when not using ENI-based pod density", func() {
-			opts.AWSENILimitedPodDensity = false
-			ctx = injection.WithOptions(ctx, opts)
+			settingsStore = coretest.SettingsStore{
+				settings.ContextKey: test.Settings(),
+				awssettings.ContextKey: test.Settings(test.SettingOptions{
+					EnableENILimitedPodDensity: lo.ToPtr(false),
+				}),
+			}
+			ctx = settingsStore.InjectSettings(ctx)
+
 			prov = provisioning.NewProvisioner(ctx, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster, settingsStore)
 			controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
 			ExpectApplied(ctx, env.Client, test.Provisioner(coretest.ProvisionerOptions{Provider: provider}))
@@ -972,8 +1000,14 @@ var _ = Describe("LaunchTemplates", func() {
 		})
 		Context("Bottlerocket", func() {
 			It("should merge in custom user data", func() {
-				opts.AWSENILimitedPodDensity = false
-				ctx = injection.WithOptions(ctx, opts)
+				settingsStore = coretest.SettingsStore{
+					settings.ContextKey: test.Settings(),
+					awssettings.ContextKey: test.Settings(test.SettingOptions{
+						EnableENILimitedPodDensity: lo.ToPtr(false),
+					}),
+				}
+				ctx = settingsStore.InjectSettings(ctx)
+
 				prov = provisioning.NewProvisioner(ctx, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster, settingsStore)
 				controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
 
@@ -1007,8 +1041,14 @@ var _ = Describe("LaunchTemplates", func() {
 				Expect(expectedUserData).To(Equal(actualUserData))
 			})
 			It("should bootstrap when custom user data is empty", func() {
-				opts.AWSENILimitedPodDensity = false
-				ctx = injection.WithOptions(ctx, opts)
+				settingsStore = coretest.SettingsStore{
+					settings.ContextKey: test.Settings(),
+					awssettings.ContextKey: test.Settings(test.SettingOptions{
+						EnableENILimitedPodDensity: lo.ToPtr(false),
+					}),
+				}
+				ctx = settingsStore.InjectSettings(ctx)
+
 				prov = provisioning.NewProvisioner(ctx, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster, settingsStore)
 				controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
 
@@ -1038,8 +1078,14 @@ var _ = Describe("LaunchTemplates", func() {
 				Expect(expectedUserData).To(Equal(actualUserData))
 			})
 			It("should not bootstrap when provider ref points to a non-existent resource", func() {
-				opts.AWSENILimitedPodDensity = false
-				ctx = injection.WithOptions(ctx, opts)
+				settingsStore = coretest.SettingsStore{
+					settings.ContextKey: test.Settings(),
+					awssettings.ContextKey: test.Settings(test.SettingOptions{
+						EnableENILimitedPodDensity: lo.ToPtr(false),
+					}),
+				}
+				ctx = settingsStore.InjectSettings(ctx)
+
 				prov = provisioning.NewProvisioner(ctx, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster, settingsStore)
 				controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
 
@@ -1176,8 +1222,14 @@ var _ = Describe("LaunchTemplates", func() {
 		})
 		Context("AL2 Custom UserData", func() {
 			It("should merge in custom user data", func() {
-				opts.AWSENILimitedPodDensity = false
-				ctx = injection.WithOptions(ctx, opts)
+				settingsStore = coretest.SettingsStore{
+					settings.ContextKey: test.Settings(),
+					awssettings.ContextKey: test.Settings(test.SettingOptions{
+						EnableENILimitedPodDensity: lo.ToPtr(false),
+					}),
+				}
+				ctx = settingsStore.InjectSettings(ctx)
+
 				prov = provisioning.NewProvisioner(ctx, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster, settingsStore)
 				controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
 
@@ -1199,8 +1251,14 @@ var _ = Describe("LaunchTemplates", func() {
 				Expect(expectedUserData).To(Equal(string(userData)))
 			})
 			It("should handle empty custom user data", func() {
-				opts.AWSENILimitedPodDensity = false
-				ctx = injection.WithOptions(ctx, opts)
+				settingsStore = coretest.SettingsStore{
+					settings.ContextKey: test.Settings(),
+					awssettings.ContextKey: test.Settings(test.SettingOptions{
+						EnableENILimitedPodDensity: lo.ToPtr(false),
+					}),
+				}
+				ctx = settingsStore.InjectSettings(ctx)
+
 				prov = provisioning.NewProvisioner(ctx, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster, settingsStore)
 				controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
 				nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
@@ -1220,7 +1278,6 @@ var _ = Describe("LaunchTemplates", func() {
 				Expect(expectedUserData).To(Equal(string(userData)))
 			})
 			It("should not bootstrap invalid MIME UserData", func() {
-				opts.AWSENILimitedPodDensity = false
 				nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 					UserData: aws.String("#/bin/bash\n ./not-mime.sh"),
 					AWS:      *provider,
@@ -1235,7 +1292,6 @@ var _ = Describe("LaunchTemplates", func() {
 		})
 		Context("Custom AMI Selector", func() {
 			It("should use ami selector specified in AWSNodeTemplate", func() {
-				opts.AWSENILimitedPodDensity = false
 				nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 					UserData:    nil,
 					AMISelector: map[string]string{"karpenter.sh/discovery": "my-cluster"},
@@ -1257,7 +1313,6 @@ var _ = Describe("LaunchTemplates", func() {
 				Expect("ami-123").To(Equal(*input.LaunchTemplateData.ImageId))
 			})
 			It("should copy over userData untouched when AMIFamily is Custom", func() {
-				opts.AWSENILimitedPodDensity = false
 				provider.AMIFamily = &v1alpha1.AMIFamilyCustom
 				nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 					UserData:    aws.String("special user data"),
@@ -1281,7 +1336,6 @@ var _ = Describe("LaunchTemplates", func() {
 				Expect("special user data").To(Equal(string(userData)))
 			})
 			It("should correctly use ami selector with specific IDs in AWSNodeTemplate", func() {
-				opts.AWSENILimitedPodDensity = false
 				nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 					UserData:    nil,
 					AMISelector: map[string]string{"aws-ids": "ami-123,ami-456"},
@@ -1317,7 +1371,6 @@ var _ = Describe("LaunchTemplates", func() {
 				Expect(actualFilter).To(Equal(expectedFilter))
 			})
 			It("should create multiple launch templates when multiple amis are discovered with non-equivalent requirements", func() {
-				opts.AWSENILimitedPodDensity = false
 				fakeEC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
 					{
 						ImageId:      aws.String("ami-123"),
@@ -1351,7 +1404,6 @@ var _ = Describe("LaunchTemplates", func() {
 				Expect(expectedImageIds.Equal(actualImageIds)).To(BeTrue())
 			})
 			It("should create a launch template with the newest compatible AMI when multiple amis are discovered", func() {
-				opts.AWSENILimitedPodDensity = false
 				fakeEC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
 					{
 						ImageId:      aws.String("ami-123"),
@@ -1395,7 +1447,6 @@ var _ = Describe("LaunchTemplates", func() {
 			})
 
 			It("should fail if no amis match selector.", func() {
-				opts.AWSENILimitedPodDensity = false
 				fakeEC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{}})
 				nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 					UserData:    nil,
@@ -1410,7 +1461,6 @@ var _ = Describe("LaunchTemplates", func() {
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(0))
 			})
 			It("should fail if no instanceType matches ami requirements.", func() {
-				opts.AWSENILimitedPodDensity = false
 				fakeEC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
 					{ImageId: aws.String("ami-123"), Architecture: aws.String("newnew"), CreationDate: aws.String("2022-01-01T12:00:00Z")},
 				}})
@@ -1427,7 +1477,6 @@ var _ = Describe("LaunchTemplates", func() {
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(0))
 			})
 			It("should choose amis from SSM if no selector specified in AWSNodeTemplate", func() {
-				opts.AWSENILimitedPodDensity = false
 				nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 					UserData: nil,
 					AWS:      *provider,

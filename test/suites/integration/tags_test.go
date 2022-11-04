@@ -20,7 +20,6 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 
-	"github.com/aws/karpenter-core/pkg/apis/config/settings"
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
@@ -58,7 +57,7 @@ var _ = Describe("Tags", func() {
 			},
 		})
 
-		env.ExpectSettingsCreatedOrUpdated(settings.Registration.DefaultData, map[string]string{
+		env.ExpectSettingsOverridden(map[string]string{
 			"aws.tags.TestTag": "TestVal",
 		})
 		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})

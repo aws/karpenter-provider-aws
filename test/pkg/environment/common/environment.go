@@ -30,8 +30,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	coreapis "github.com/aws/karpenter-core/pkg/apis"
-	"github.com/aws/karpenter-core/pkg/operator/injection"
-	"github.com/aws/karpenter-core/pkg/operator/options"
 	"github.com/aws/karpenter-core/pkg/utils/env"
 	"github.com/aws/karpenter-core/pkg/utils/project"
 	"github.com/aws/karpenter/pkg/apis"
@@ -59,11 +57,6 @@ func NewEnvironment(t *testing.T) (*Environment, error) {
 	}
 	gomega.SetDefaultEventuallyTimeout(5 * time.Minute)
 	gomega.SetDefaultEventuallyPollingInterval(1 * time.Second)
-
-	opts := options.Options{
-		ClusterName: clusterName,
-	}
-	ctx = injection.WithOptions(ctx, opts)
 	return &Environment{
 		Context:     ctx,
 		ClusterName: clusterName,
