@@ -74,6 +74,7 @@ func (env *Environment) BeforeEach(opts ...Option) {
 		fmt.Println("------- START BEFORE -------")
 		defer fmt.Println("------- END BEFORE -------")
 	}
+	env.Context = env.SettingsStore.InjectSettings(env.Context)
 
 	stop = make(chan struct{})
 	testStartTime = time.Now()

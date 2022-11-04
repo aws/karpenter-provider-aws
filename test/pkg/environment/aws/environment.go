@@ -44,11 +44,8 @@ type Environment struct {
 	InterruptionAPI *itn.ITN
 }
 
-func NewEnvironment(t *testing.T) (*Environment, error) {
-	env, err := common.NewEnvironment(t)
-	if err != nil {
-		return nil, err
-	}
+func NewEnvironment(t *testing.T) *Environment {
+	env := common.NewEnvironment(t)
 	session := session.Must(session.NewSessionWithOptions(session.Options{SharedConfigState: session.SharedConfigEnable}))
 
 	return &Environment{
@@ -59,5 +56,9 @@ func NewEnvironment(t *testing.T) (*Environment, error) {
 		IAMAPI:          *iam.New(session),
 		InterruptionAPI: itn.New(lo.Must(config.LoadDefaultConfig(env.Context))),
 		SQSProvider:     providers.NewSQS(sqs.New(session)),
-	}, nil
+	}
+}
+
+func (env *Environment) Stop() {
+	env.Environment.Stop()
 }
