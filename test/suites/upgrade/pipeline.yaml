@@ -27,7 +27,7 @@ spec:
 
   - name: setup
     taskRef:
-      name: setup
+      name: pre-upgrade-setup
     params:
     - name: cluster-name
       value: $(params.cluster-name)
