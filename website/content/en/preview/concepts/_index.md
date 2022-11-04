@@ -69,6 +69,7 @@ Karpenter handles all clean-up work needed to properly delete the node.
 * **Empty nodes**: When the last workload pod running on a Karpenter-managed node is gone, the node is annotated with an emptiness timestamp.
 Once that "node empty" time-to-live (`ttlSecondsAfterEmpty`) is reached, finalization is triggered.
 * **Consolidation**: If enabled, Karpenter will work to actively reduce cluster cost by identifying when nodes can be removed as their workloads will run on other nodes in the cluster and when nodes can be replaced with cheaper variants due to a change in the workloads.
+* **Interruption**: If enabled, Karpenter will watch for upcoming involuntary interruption events that could affect your nodes (health events, spot interruption, etc.) and will cordon, drain, and terminate the node(s) ahead of the event to reduce workload disruption.
 
 For more details on how Karpenter deletes nodes, see [Deprovisioning nodes](../tasks/deprovisioning) for details.
 
@@ -116,7 +117,18 @@ To perform these actions, Karpenter simulates all pods being evicted from a cand
 
 If as a result of the scheduling simulation all pods can run on existing nodes, the candidate node is simply deleted.  If all pods can run on a combination of existing nodes and a cheaper node, we launch the cheaper node and delete the candidate node which causes the pods to be evicted and re-created by their controllers in order to be rescheduled.
 
-For Node Replacement to work well, your provisioner must allow selecting from a variety of instance types with varying amounts of allocatable resources.  Consolidation will only consider launching nodes using instance types which are allowed by your provisioner. 
+For Node Replacement to work well, your provisioner must allow selecting from a variety of instance types with varying amounts of allocatable resources.  Consolidation will only consider launching nodes using instance types which are allowed by your provisioner.
+
+### Interruption
+
+If interruption-handling is enabled for the controller, Karpenter will watch for upcoming involuntary interruption events that would cause disruption to your workloads. These interruption events include:
+
+* Spot Interruption Warnings
+* Scheduled Change Health Events (Maintenance Events)
+* Instance Terminating Events
+* Instance Stopping Events
+
+When Karpenter detects one of these events will occur to your nodes, it automatically cordons, drains, and terminates the node(s) ahead of the interruption event to give the maximum amount of time for workload cleanup prior to compute disruption. This enables scenarios where the `terminationGracePeriod` for your workloads may be long or cleanup for your workloads is critical, and you want enough time to be able to gracefully clean-up your pods.
 
 ### Kubernetes cluster autoscaler
 Like Karpenter, [Kubernetes Cluster Autoscaler](https://github.com/kubernetes/autoscaler/tree/master/cluster-autoscaler) is

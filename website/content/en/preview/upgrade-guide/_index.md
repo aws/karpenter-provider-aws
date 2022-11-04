@@ -40,9 +40,9 @@ Karpenter ships with a few Custom Resource Definitions (CRDs). These CRDs are pa
 In general, you can reapply the CRDs in the `crds` directory of the Karpenter helm chart:
 
 ```shell
-kubectl replace -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}charts/karpenter/crds/karpenter.sh_provisioners.yaml
+kubectl replace -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}pkg/apis/crds/karpenter.sh_provisioners.yaml
 
-kubectl replace -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}charts/karpenter/crds/karpenter.k8s.aws_awsnodetemplates.yaml
+kubectl replace -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}pkg/apis/crds/karpenter.k8s.aws_awsnodetemplates.yaml
 ```
 
 ## How Do We Break Incompatibility?
@@ -100,7 +100,9 @@ By adopting this practice we allow our users who are early adopters to test out 
 ## Upgrading to v0.19.0+
 * The karpenter webhook and controller containers are combined into a single binary, which requires changes to the helm chart. If your Karpenter installation (helm or otherwise) currently customizes the karpenter webhook, your deployment tooling may require minor changes.
 * Instance category defaults are now explicitly persisted in the Provisioner, rather than handled implicitly in memory. By default, Provisioners will limit instance category to c,m,r. If any instance type constraints are applied, it will override this default. If you have created Provisioners in the past with unconstrained instance type, family, or category, Karpenter will now more flexibly use instance types than before. If you would like to apply these constraints, they must be included in the Provisioner CRD.
+* Karpenter CRD raw YAML URLs have migrated from `https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}charts/karpenter/crds/...` to `https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}pkg/apis/crds/...`. If you reference static Karpenter CRDs or rely on `kubectl replace -f` to apply these CRDs from their remote location, you will need to migrate to the new location.
 * The following CLI options/environment variables are now removed and replaced in favor of pulling settings dynamically from the `karpenter-global-settings` ConfigMap. See the [Global Settings docs](../tasks/globalsettings) for more details on configuring the new values in the ConfigMap.
+
    * `CLUSTER_NAME` -> `aws.clusterName`
    * `CLUSTER_ENDPOINT` -> `aws.clusterEndpoint`
    * `AWS_DEFAULT_INSTANCE_PROFILE` -> `aws.defaultInstanceProfile`

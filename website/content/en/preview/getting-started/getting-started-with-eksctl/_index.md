@@ -116,6 +116,10 @@ Install the chart passing in the cluster details and the Karpenter role ARN.
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step08-apply-helm-chart.sh" language="bash"%}}
 
+### Optional Configuration
+
+This section describes optional ways to configure Karpenter to enhance its capabilities.
+
 #### Deploy a temporary Prometheus and Grafana stack (optional)
 
 The following commands will deploy a Prometheus and Grafana stack that is suitable for this guide but does not include persistent storage or other configurations that would be necessary for monitoring a production deployment of Karpenter. This deployment includes two Karpenter dashboards that are automatically onboarded to Grafana. They provide a variety of visualization examples on Karpenter metrics.
@@ -130,13 +134,26 @@ The new stack has only one user, `admin`, and the password is stored in a secret
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step11-grafana-get-password.sh" language="bash"%}}
 
-#### Deploy the AWS Node Termination Handler to handle Spot interruptions gracefully (optional)
+#### Enable Interruption Handling (optional)
 
-The following commands will deploy the AWS Node Termination Handler as a DaemonSet to run on Spot nodes to handle spot interruption notifications, 
-spot rebalance recommendations, and EC2 scheduled maintenance events. Learn more about the AWS Node Termination Handler and more advanced configurations 
-[here](https://github.com/aws/aws-node-termination-handler). 
+Interruption handling allows for Karpenter to watch for spot interruption notifications, spot rebalance recommendations, and EC2 scheduled maintenance events. Karpenter enables this feature by watching an SQS queue which receives critical events from AWS services which may affect your nodes. To simplify the process of standing-up and configuring this infrastructure, Karpenter automatically provisions and continually reconciles the state of the SQS queue and EventBridge rules that are needed to enable notification of these events.
 
-{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step12-install-nth.sh" language="bash"%}}
+By enabling Karpenter interruption handling, you are allowing Karpenter to provision the following infrastructure in your account:
+
+* SQS Queue (named after your EKS cluster name)
+* EventBridge Rules (prefixed with `Karpenter-`)
+
+{{% alert title="Note" color="primary" %}}
+All infrastructure that Karpenter creates and deploys to your account is tagged with the `karpenter.sh/discovery: ${CLUSTER_NAME}` and the `karpenter.sh/managed-by: ${CLUSTER_NAME}` tags for ease of discovery
+{{% /alert %}}
+
+Permission to provisions these rules is given through the `KarpenterEventPolicy` provisioned through the [CloudFormation template](#create-the-karpenternode-iam-role) deployed above.
+
+To enable the interruption handling feature flag, upgrade helm using the 
+
+{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step12-enable-interruption-handling.sh" language="bash"%}}
+
+For more details on how Karpenter handles interruption events, see the [Interruption Handling docs](../../tasks/deprovisioning#interruption).
 
 ### Provisioner
 

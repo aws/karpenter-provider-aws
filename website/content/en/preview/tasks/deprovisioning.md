@@ -23,6 +23,7 @@ There are both automated and manual ways of deprovisioning nodes provisioned by 
 * **Node empty**: Karpenter notes when the last workload (non-daemonset) pod stops running on a node. From that point, Karpenter waits the number of seconds set by `ttlSecondsAfterEmpty` in the provisioner, then Karpenter requests to delete the node. This feature can keep costs down by removing nodes that are no longer being used for workloads.
 * **Node expired**: Karpenter requests to delete the node after a set number of seconds, based on the provisioner `ttlSecondsUntilExpired`  value, from the time the node was provisioned. One use case for node expiry is to handle node upgrades. Old nodes (with a potentially outdated Kubernetes version or operating system) are deleted, and replaced with nodes on the current version (assuming that you requested the latest version, rather than a specific version).
 * **Consolidation**: Karpenter works to actively reduce cluster cost by identifying when nodes can be removed as their workloads will run on other nodes in the cluster and when nodes can be replaced with cheaper variants due to a change in the workloads.
+* **Interruption**: If enabled, Karpenter will watch for upcoming involuntary interruption events that could affect your nodes (health events, spot interruption, etc.) and will cordon, drain, and terminate the node(s) ahead of the event to reduce workload disruption.
 
 {{% alert title="Note" color="primary" %}}
 - Automated deprovisioning is configured through the ProvisionerSpec `.ttlSecondsAfterEmpty`
@@ -60,7 +61,6 @@ All the pod objects get deleted by a garbage collection process later, because t
 
 ## Consolidation
 
-
 Karpenter has two mechanisms for cluster consolidation:
 - Deletion - A node is eligible for deletion if all of its pods can run on free capacity of other nodes in the cluster.  
 - Replace - A node can be replaced if all of its pods can run on a combination of free capacity of other nodes in the cluster and a single cheaper replacement node. 
@@ -74,6 +74,42 @@ When there are multiple nodes that could be potentially deleted or replaced, Kar
 {{% alert title="Note" color="primary" %}}
 For spot nodes, Karpenter only uses the deletion consolidation mechanism.  It will not replace a spot node with a cheaper spot node.  Spot instance types are selected with the `capacity-optimized-prioritized` strategy and often the cheapest spot instance type is not launched due to the likelihood of interruption. Consolidation would then replace the spot instance with a cheaper instance negating the `capacity-optimized-prioritized` strategy entirely and increasing interruption rate.  
 {{% /alert %}}
+
+## Interruption
+
+If interruption-handling is enabled for the controller, Karpenter will watch for upcoming involuntary interruption events that would cause disruption to your workloads. These interruption events include:
+
+* Spot Interruption Warnings
+* Scheduled Change Health Events (Maintenance Events)
+* Instance Terminating Events
+* Instance Stopping Events
+
+When Karpenter detects one of these events will occur to your nodes, it automatically cordons, drains, and terminates the node(s) ahead of the interruption event to give the maximum amount of time for workload cleanup prior to compute disruption. This enables scenarios where the `terminationGracePeriod` for your workloads may be long or cleanup for your workloads is critical, and you want enough time to be able to gracefully clean-up your pods.
+
+Karpenter enables this feature by watching an SQS queue which receives critical events from AWS services which may affect your nodes. To simplify the process of standing-up and configuring this infrastructure, Karpenter automatically provisions and continually reconciles the state of the SQS queue and EventBridge rules that are needed to enable notification of these events.
+
+By enabling Karpenter interruption handling, you are allowing Karpenter to provision the following infrastructure in your account:
+
+* SQS Queue (named after your EKS cluster name)
+* EventBridge Rules (prefixed with `Karpenter-`)
+
+{{% alert title="Note" color="primary" %}}
+All infrastructure that Karpenter creates and deploys to your account is tagged with the `karpenter.sh/discovery: ${CLUSTER_NAME}` and the `karpenter.sh/managed-by: ${CLUSTER_NAME}` tags for ease of discovery
+{{% /alert %}}
+
+To enable the interruption handling feature flag, configure the `karpenter-global-settings` ConfigMap with the following value
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: karpenter-global-settings
+  namespace: karpenter
+data:
+  ...
+  aws.enableInterruptionHandling: "true"
+  ...
+```
 
 ## What can cause deprovisioning to fail?
 
