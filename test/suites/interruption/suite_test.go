@@ -32,6 +32,7 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
+	"github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages/scheduledchange"
@@ -45,9 +46,10 @@ var provider *v1alpha1.AWSNodeTemplate
 func TestInterruption(t *testing.T) {
 	RegisterFailHandler(Fail)
 	BeforeSuite(func() {
-		var err error
-		env, err = aws.NewEnvironment(t)
-		Expect(err).ToNot(HaveOccurred())
+		env = aws.NewEnvironment(t)
+	})
+	AfterSuite(func() {
+		env.Stop()
 	})
 	RunSpecs(t, "Interruption")
 }
@@ -68,8 +70,8 @@ var _ = Describe("Interruption", Label("AWS"), func() {
 	It("should terminate the spot instance and spin-up a new node on spot interruption warning", func() {
 		By("Creating a single healthy node with a healthy deployment")
 		provider = awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{
 			Requirements: []v1.NodeSelectorRequirement{
@@ -136,8 +138,8 @@ var _ = Describe("Interruption", Label("AWS"), func() {
 	It("should terminate the node at the API server when the EC2 instance is stopped", func() {
 		By("Creating a single healthy node with a healthy deployment")
 		provider = awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{
 			Requirements: []v1.NodeSelectorRequirement{
@@ -177,8 +179,8 @@ var _ = Describe("Interruption", Label("AWS"), func() {
 	It("should terminate the node at the API server when the EC2 instance is terminated", func() {
 		By("Creating a single healthy node with a healthy deployment")
 		provider = awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{
 			Requirements: []v1.NodeSelectorRequirement{
@@ -218,8 +220,8 @@ var _ = Describe("Interruption", Label("AWS"), func() {
 	It("should terminate the node when receiving a scheduled change health event", func() {
 		By("Creating a single healthy node with a healthy deployment")
 		provider = awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{
 			Requirements: []v1.NodeSelectorRequirement{

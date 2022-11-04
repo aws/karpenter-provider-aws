@@ -22,6 +22,7 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
+	"github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	awstest "github.com/aws/karpenter/pkg/test"
 
@@ -32,8 +33,8 @@ import (
 var _ = Describe("Emptiness", func() {
 	It("should terminate an empty node", func() {
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{
 			ProviderRef:          &v1alpha5.ProviderRef{Name: provider.Name},

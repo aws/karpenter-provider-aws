@@ -25,6 +25,7 @@ import (
 	"knative.dev/pkg/ptr"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/apis/config/settings"
 	awstest "github.com/aws/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-core/pkg/test"
@@ -34,8 +35,8 @@ import (
 var _ = Describe("Expiration", func() {
 	It("should expire the node after the TTLSecondsUntilExpired is reached", func() {
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{
 			ProviderRef:            &v1alpha5.ProviderRef{Name: provider.Name},
@@ -66,8 +67,8 @@ var _ = Describe("Expiration", func() {
 	})
 	It("should replace expired node with a single node and schedule all pods", func() {
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{
 			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},

@@ -23,6 +23,7 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
+	"github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	awstest "github.com/aws/karpenter/pkg/test"
 )
@@ -64,8 +65,8 @@ var _ = Describe("Webhooks", func() {
 			It("should error when provider and providerRef are combined", func() {
 				Expect(env.Client.Create(env, test.Provisioner(test.ProvisionerOptions{
 					Provider: v1alpha1.AWS{
-						SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-						SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
+						SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+						SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 					},
 					ProviderRef: &v1alpha5.ProviderRef{Name: "test"},
 				}))).ToNot(Succeed())
@@ -164,15 +165,15 @@ var _ = Describe("Webhooks", func() {
 			It("should error when amiSelector is not defined for amiFamily Custom", func() {
 				Expect(env.Client.Create(env, awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 					AMIFamily:             &v1alpha1.AMIFamilyCustom,
-					SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-					SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
+					SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+					SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 				}}))).ToNot(Succeed())
 			})
 			It("should fail if both userdata and launchTemplate are set", func() {
 				Expect(env.Client.Create(env, awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 					LaunchTemplate:        v1alpha1.LaunchTemplate{LaunchTemplateName: ptr.String("lt")},
-					SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-					SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
+					SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+					SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 				},
 					UserData: ptr.String("data"),
 				}))).ToNot(Succeed())
@@ -180,16 +181,16 @@ var _ = Describe("Webhooks", func() {
 			It("should fail if both amiSelector and launchTemplate are set", func() {
 				Expect(env.Client.Create(env, awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 					LaunchTemplate:        v1alpha1.LaunchTemplate{LaunchTemplateName: ptr.String("lt")},
-					SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-					SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
+					SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+					SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 				},
 					AMISelector: map[string]string{"foo": "bar"},
 				}))).ToNot(Succeed())
 			})
 			It("should fail for poorly formatted aws-ids", func() {
 				Expect(env.Client.Create(env, awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-					SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-					SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
+					SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+					SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 				},
 					AMISelector: map[string]string{"aws-ids": "must-start-with-ami"},
 				}))).ToNot(Succeed())

@@ -28,9 +28,10 @@ var env *aws.Environment
 func TestIntegration(t *testing.T) {
 	RegisterFailHandler(Fail)
 	BeforeSuite(func() {
-		var err error
-		env, err = aws.NewEnvironment(t)
-		Expect(err).ToNot(HaveOccurred())
+		env = aws.NewEnvironment(t)
+	})
+	AfterSuite(func() {
+		env.Stop()
 	})
 	RunSpecs(t, "Integration")
 }
