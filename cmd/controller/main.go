@@ -17,12 +17,12 @@ package main
 import (
 	"github.com/samber/lo"
 
-	awscloudprovider "github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/controllers"
 	"github.com/aws/karpenter/pkg/webhooks"
 
-	"github.com/aws/karpenter-core/pkg/cloudprovider"
+	corecloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/cloudprovider/metrics"
 	corecontrollers "github.com/aws/karpenter-core/pkg/controllers"
 	"github.com/aws/karpenter-core/pkg/controllers/state"
@@ -32,8 +32,7 @@ import (
 
 func main() {
 	ctx, operator := operator.NewOperator()
-	ctx = operator.SettingsStore.InjectSettings(ctx)
-	awsCtx := context.NewOrDie(cloudprovider.Context{
+	awsCtx := context.NewOrDie(corecloudprovider.Context{
 		Context:             ctx,
 		Clock:               operator.Clock,
 		RESTConfig:          operator.RESTConfig,
@@ -42,7 +41,7 @@ func main() {
 		EventRecorder:       operator.EventRecorder,
 		StartAsync:          operator.Elected(),
 	})
-	awsCloudProvider := awscloudprovider.New(awsCtx)
+	awsCloudProvider := cloudprovider.New(awsCtx)
 	lo.Must0(operator.AddHealthzCheck("cloud-provider", awsCloudProvider.LivenessProbe))
 	cloudProvider := metrics.Decorate(awsCloudProvider)
 
@@ -52,7 +51,7 @@ func main() {
 			operator.Clock,
 			operator.GetClient(),
 			operator.KubernetesInterface,
-			state.NewCluster(operator.SettingsStore.InjectSettings(ctx), operator.Clock, operator.GetClient(), cloudProvider),
+			state.NewCluster(ctx, operator.Clock, operator.GetClient(), cloudProvider),
 			operator.EventRecorder,
 			operator.SettingsStore,
 			cloudProvider,
