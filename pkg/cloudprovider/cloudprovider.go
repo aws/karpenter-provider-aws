@@ -100,25 +100,29 @@ func New(ctx awscontext.Context) *CloudProvider {
 }
 
 func (c *CloudProvider) GetDriftedNodes(ctx context.Context, provisioner *v1alpha5.Provisioner, nodes []v1.Node) []v1.Node {
-	instanceTypes, _ := c.GetInstanceTypes(context.Background(), provisioner)
-
-	aws, err := c.getProvider(ctx, provisioner.Spec.Provider, provisioner.Spec.ProviderRef)
-	amis, err :=  c.instanceProvider.launchTemplateProvider.GetSupportedAMIsForProvisioner(ctx, aws, provisioner.Spec.ProviderRef , instanceTypes)
-	if err != nil {
-		//Log and return false ?
-		return []v1.Node{}
-	}
-	if len(amis) == 0 {
-		//Log
-		return []v1.Node{}
-	}
-	return lo.Filter(nodes, func(node v1.Node, _ int) bool {
-		nodeAmi :=  node.Labels[v1alpha1.LabelInstanceAMIID]
-		if nodeAmi == "" {
-			return false
+	driftedNodesMap := map[string]bool{}
+	var driftedNodes []v1.Node
+	//Consider if provisioner should be a part of this interface
+	for _, drifter := range []interface {
+		GetDriftedNodes([]v1.Node) []v1.Node
+	}{
+		&AmiDrifter{
+			provisioner: provisioner,
+			ctx: ctx,
+			c: c,
+		},
+	}{
+		//Execute Drifters
+		for _, node := range drifter.GetDriftedNodes(nodes) {
+			//Check first in the map, one node can be drifted by multiple drifter implementations
+			if _, ok := driftedNodesMap[node.Name]; !ok {
+				driftedNodes = append(driftedNodes, node)
+			}
+			driftedNodesMap[node.Name] = true
 		}
-		return !lo.Contains(amis, nodeAmi)
-	})
+	}
+	logging.FromContext(ctx).Infof("Found %d drifted nodes", len(driftedNodes))
+	return driftedNodes
 }
 
 // checkEC2Connectivity makes a dry-run call to DescribeInstanceTypes.  If it fails, we provide an early indicator that we

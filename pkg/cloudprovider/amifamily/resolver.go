@@ -16,6 +16,7 @@ package amifamily
 
 import (
 	"context"
+	"knative.dev/pkg/logging"
 	"net"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -116,16 +117,13 @@ func New(kubeClient client.Client, ssm ssmiface.SSMAPI, ec2api ec2iface.EC2API, 
 	}
 }
 
-func (r Resolver) GetSupportedAMIsForProvisioner(ant *v1alpha1.AWS,  providerRef *v1alpha5.ProviderRef, instanceTypes []cloudprovider.InstanceType, options *Options) ([]string, error) {
-	//Can we generate the options here ?
+func (r Resolver) ResolveAmisForProvisioner(ctx context.Context, ant *v1alpha1.AWS, providerRef *v1alpha5.ProviderRef, instanceTypes []cloudprovider.InstanceType, options *Options) ([]string, error) {
 	amiFamily := GetAMIFamily(ant.AMIFamily, options)
-	amis := []string{}
-	if ant.LaunchTemplateName != nil {
-		//Get the ami from the launch template or from the cache and return. right now we are not getting ami for launch template if specified.
-	}
-	amiIDs, err := r.amiProvider.Get(context.Background(), providerRef, options, instanceTypes, amiFamily)
+	var amis []string
+	amiIDs, err := r.amiProvider.Get(ctx, providerRef, options, instanceTypes, amiFamily)
 	if err != nil {
 		//log error
+		logging.FromContext(ctx).Errorf("resolving amis %w", err)
 		return nil, err
 	}
 	for ami := range amiIDs {

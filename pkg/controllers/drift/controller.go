@@ -10,6 +10,7 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"knative.dev/pkg/logging"
 	"net/http"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -18,6 +19,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+	"time"
 )
 
 const controllerName = "drift"
@@ -37,27 +39,36 @@ func NewController(kubeClient client.Client, cluster *state.Cluster, cloudProvid
 	}
 }
 
-func (r DriftController) Reconcile(ctx context.Context, request controllerruntime.Request) (reconcile.Result, error) {
+func (r DriftController) Reconcile(ctx context.Context, req controllerruntime.Request) (reconcile.Result, error) {
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named(controllerName).With("provisioner", req.Name))
+
 	provisioner := &v1alpha5.Provisioner{}
-	if err := r.kubeClient.Get(ctx, request.NamespacedName, provisioner); err != nil {
+	if err := r.kubeClient.Get(ctx, req.NamespacedName, provisioner); err != nil {
 		return reconcile.Result{}, nil
 	}
 
 	nodes := v1.NodeList{}
-	if err := r.kubeClient.List(ctx, &nodes, client.MatchingLabels{v1alpha5.ProvisionerNameLabelKey: request.Name}); err != nil {
+	if err := r.kubeClient.List(ctx, &nodes, client.MatchingLabels{v1alpha5.ProvisionerNameLabelKey: req.Name}); err != nil {
 		return reconcile.Result{}, err
 	}
 
 	driftedNodes := r.cloudProvider.GetDriftedNodes(ctx, provisioner, nodes.Items)
 	for _, driftedNode := range driftedNodes {
+		//Check for already drifted node and continue
+		if _, ok :=  driftedNode.Annotations[v1alpha5.DriftedAnnotationKey]; ok {
+			continue
+		}
+
 		stored := driftedNode.DeepCopy()
 		driftedNode.Annotations[v1alpha5.DriftedAnnotationKey] = "true"
 		if err := r.kubeClient.Patch(ctx, &driftedNode, client.MergeFrom(stored)); err != nil {
 			return reconcile.Result{}, fmt.Errorf("patching node, %w", err)
 		}
+		logging.FromContext(ctx).Infof("Marked node %s as Drifted", driftedNode.Name)
 	}
 
-	return reconcile.Result{}, nil
+	//Todo: Decide time
+	return reconcile.Result{RequeueAfter: 30 * time.Minute}, nil
 }
 
 func (c DriftController) Builder(ctx context.Context, m manager.Manager) operatorcontroller.Builder {
@@ -66,7 +77,9 @@ func (c DriftController) Builder(ctx context.Context, m manager.Manager) operato
 		Named(controllerName).
 		For(&v1alpha5.Provisioner{}).
 		Watches(
-			//Not sure if this is necessary
+			//Todo:RemoveComment: Not sure if this is necessary, or if primary watch should be AwsNodeTemplate,
+			//but I think its better to reconcile Provisioner as getInstanceType in cloudprovider is deeply rooted
+			//in provisioner, so we do need the reference of it, even if we primarily reconcile AwsNodeTemplate
 			&source.Kind{Type: &v1alpha1.AWSNodeTemplate{}},
 			handler.EnqueueRequestsFromMapFunc(func(o client.Object) []reconcile.Request {
 				x := o.(*v1alpha1.AWSNodeTemplate)
