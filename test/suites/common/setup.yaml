@@ -26,7 +26,6 @@ spec:
   workspaces:
     - name: ws
   steps:
-
   - name: discover-environment
     image: public.ecr.aws/karpenter-testing/tools:latest
     script: |
