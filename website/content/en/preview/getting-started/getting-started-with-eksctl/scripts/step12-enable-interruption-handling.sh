@@ -3,4 +3,5 @@ helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter --vers
   --set aws.clusterName=${CLUSTER_NAME} \
   --set aws.clusterEndpoint=${CLUSTER_ENDPOINT} \
   --set aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
+  --set aws.enableInterruptionHandling=true \
   --wait
