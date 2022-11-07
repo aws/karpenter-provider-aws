@@ -11,8 +11,8 @@ import (
 
 type AmiDrifter struct {
 	provisioner *v1alpha5.Provisioner
-	ctx context.Context
-	c	*CloudProvider
+	ctx         context.Context
+	c           *CloudProvider
 }
 
 func (ad *AmiDrifter) GetDriftedNodes(nodes []v1.Node) []v1.Node {
@@ -45,4 +45,3 @@ func (ad *AmiDrifter) GetDriftedNodes(nodes []v1.Node) []v1.Node {
 		return !lo.Contains(amis, nodeAmi)
 	})
 }
-

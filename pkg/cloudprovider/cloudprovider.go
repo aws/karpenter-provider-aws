@@ -108,10 +108,10 @@ func (c *CloudProvider) GetDriftedNodes(ctx context.Context, provisioner *v1alph
 	}{
 		&AmiDrifter{
 			provisioner: provisioner,
-			ctx: ctx,
-			c: c,
+			ctx:         ctx,
+			c:           c,
 		},
-	}{
+	} {
 		//Execute Drifters
 		for _, node := range drifter.GetDriftedNodes(nodes) {
 			//Check first in the map, one node can be drifted by multiple drifter implementations

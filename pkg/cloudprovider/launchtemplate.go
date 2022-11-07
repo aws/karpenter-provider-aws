@@ -48,10 +48,10 @@ import (
 )
 
 const (
-	launchTemplateNameFormat      = "Karpenter-%s-%s"
-	karpenterManagedTagKey        = "karpenter.k8s.aws/cluster"
-	kubernetesVersionCacheKey     = "kubernetesVersion"
-	launchTemplateKeyFormatForAmi = "Karpenter-LT-Ami-%s"
+	launchTemplateNameFormat         = "Karpenter-%s-%s"
+	karpenterManagedTagKey           = "karpenter.k8s.aws/cluster"
+	kubernetesVersionCacheKey        = "kubernetesVersion"
+	launchTemplateKeyFormatForAmi    = "Karpenter-LT-Ami-%s"
 	launchTemplateAmiCacheExpiration = 30 * time.Minute
 )
 

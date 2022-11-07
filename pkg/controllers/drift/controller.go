@@ -26,16 +26,16 @@ import (
 const controllerName = "drift"
 
 type DriftController struct {
-	kubeClient     client.Client
-	cluster        *state.Cluster
-	cloudProvider  *cloudprovider.CloudProvider
+	kubeClient    client.Client
+	cluster       *state.Cluster
+	cloudProvider *cloudprovider.CloudProvider
 }
 
 // NewController constructs a controller instance
 func NewController(kubeClient client.Client, cluster *state.Cluster, cloudProvider *cloudprovider.CloudProvider) *DriftController {
 	return &DriftController{
-		kubeClient:  kubeClient,
-		cluster: cluster,
+		kubeClient:    kubeClient,
+		cluster:       cluster,
 		cloudProvider: cloudProvider,
 	}
 }
@@ -65,7 +65,7 @@ func (r DriftController) Reconcile(ctx context.Context, req controllerruntime.Re
 	driftedNodes := r.cloudProvider.GetDriftedNodes(ctx, provisioner, nodes.Items)
 	for _, driftedNode := range driftedNodes {
 		//Check for already drifted node and continue
-		if _, ok :=  driftedNode.Annotations[v1alpha5.DriftedAnnotationKey]; ok {
+		if _, ok := driftedNode.Annotations[v1alpha5.DriftedAnnotationKey]; ok {
 			continue
 		}
 
@@ -92,7 +92,7 @@ func (c DriftController) Builder(ctx context.Context, m manager.Manager) operato
 			//in provisioner, so we do need the reference of it, even if we primarily reconcile AwsNodeTemplate
 			&source.Kind{Type: &v1alpha1.AWSNodeTemplate{}},
 			handler.EnqueueRequestsFromMapFunc(func(o client.Object) []reconcile.Request {
-				reconcileList :=  []reconcile.Request{}
+				reconcileList := []reconcile.Request{}
 				x, ok := o.(*v1alpha1.AWSNodeTemplate)
 				if !ok {
 					logging.FromContext(ctx).Debugf("Not able to cast AWSNodeTemplate in EnqueueRequestsFromMapFunc")
@@ -105,9 +105,9 @@ func (c DriftController) Builder(ctx context.Context, m manager.Manager) operato
 					logging.FromContext(ctx).Errorf("listing provisioners for AWSNodeTemplate reconciliation %w", err)
 					return reconcileList
 				}
-				for _,provisioner := range provisionerList.Items {
-					if  provisioner.Spec.ProviderRef != nil && provisioner.Spec.ProviderRef.Name ==  x.Name {
-						reconcileList = append(reconcileList, reconcile.Request{NamespacedName: types.NamespacedName{Name:provisioner.GetName()}})
+				for _, provisioner := range provisionerList.Items {
+					if provisioner.Spec.ProviderRef != nil && provisioner.Spec.ProviderRef.Name == x.Name {
+						reconcileList = append(reconcileList, reconcile.Request{NamespacedName: types.NamespacedName{Name: provisioner.GetName()}})
 					}
 				}
 				return reconcileList
@@ -118,4 +118,3 @@ func (c DriftController) Builder(ctx context.Context, m manager.Manager) operato
 func (c DriftController) LivenessProbe(_ *http.Request) error {
 	return nil
 }
-
