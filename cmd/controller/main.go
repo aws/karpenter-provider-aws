@@ -20,9 +20,11 @@ import (
 	corecontrollers "github.com/aws/karpenter-core/pkg/controllers"
 	"github.com/aws/karpenter-core/pkg/controllers/state"
 	"github.com/aws/karpenter-core/pkg/operator"
+	corewebhooks "github.com/aws/karpenter-core/pkg/webhooks"
 	awscloudprovider "github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/controllers"
+	"github.com/aws/karpenter/pkg/webhooks"
 	"github.com/samber/lo"
 	"k8s.io/utils/clock"
 )
@@ -54,12 +56,12 @@ func main() {
 			operator.SettingsStore,
 			cloudProvider,
 		)...).
-		//WithWebhooks(corewebhooks.NewWebhooks()...).
+		WithWebhooks(corewebhooks.NewWebhooks()...).
 		WithControllers(ctx, controllers.NewControllers(
 			awsCtx,
 			clusterState,
 			awsCloudProvider,
 		)...).
-		//WithWebhooks(webhooks.NewWebhooks()...).
+		WithWebhooks(webhooks.NewWebhooks()...).
 		Start(ctx)
 }

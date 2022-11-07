@@ -99,6 +99,33 @@ func launchTemplateName(options *amifamily.LaunchTemplate) string {
 	return fmt.Sprintf(launchTemplateNameFormat, options.ClusterName, fmt.Sprint(hash))
 }
 
+func (p *LaunchTemplateProvider) Get(ctx context.Context, provider *v1alpha1.AWS, nodeRequest *cloudprovider.NodeRequest, additionalLabels map[string]string) (map[string][]cloudprovider.InstanceType, error) {
+	p.Lock()
+	defer p.Unlock()
+	// If Launch Template is directly specified then just use it
+	if provider.LaunchTemplateName != nil {
+		return map[string][]cloudprovider.InstanceType{ptr.StringValue(provider.LaunchTemplateName): nodeRequest.InstanceTypeOptions}, nil
+	}
+	options, err := p.createAmiOptions(ctx, provider, lo.Assign(nodeRequest.Template.Labels, additionalLabels))
+	if err != nil {
+		return nil, err
+	}
+	resolvedLaunchTemplates, err := p.amiFamily.Resolve(ctx, provider, nodeRequest, options)
+	if err != nil {
+		return nil, err
+	}
+	launchTemplates := map[string][]cloudprovider.InstanceType{}
+	for _, resolvedLaunchTemplate := range resolvedLaunchTemplates {
+		// Ensure the launch template exists, or create it
+		ec2LaunchTemplate, err := p.ensureLaunchTemplate(ctx, resolvedLaunchTemplate)
+		if err != nil {
+			return nil, err
+		}
+		launchTemplates[*ec2LaunchTemplate.LaunchTemplateName] = resolvedLaunchTemplate.InstanceTypes
+	}
+	return launchTemplates, nil
+}
+
 func (p *LaunchTemplateProvider) GetAmisForProvisioner(ctx context.Context, ant *v1alpha1.AWS, providerRef *v1alpha5.ProviderRef, instanceTypes []cloudprovider.InstanceType) ([]string, error) {
 	if ant.LaunchTemplateName != nil {
 		logging.FromContext(ctx).Debug("Provisioner with Launch template, getting ami for launch template")
@@ -142,33 +169,6 @@ func (p *LaunchTemplateProvider) createAmiOptions(ctx context.Context, provider 
 		KubernetesVersion:       kubeServerVersion,
 		KubeDNSIP:               p.kubeDNSIP,
 	}, nil
-}
-
-func (p *LaunchTemplateProvider) Get(ctx context.Context, provider *v1alpha1.AWS, nodeRequest *cloudprovider.NodeRequest, additionalLabels map[string]string) (map[string][]cloudprovider.InstanceType, error) {
-	p.Lock()
-	defer p.Unlock()
-	// If Launch Template is directly specified then just use it
-	if provider.LaunchTemplateName != nil {
-		return map[string][]cloudprovider.InstanceType{ptr.StringValue(provider.LaunchTemplateName): nodeRequest.InstanceTypeOptions}, nil
-	}
-	options, err := p.createAmiOptions(ctx, provider, lo.Assign(nodeRequest.Template.Labels, additionalLabels))
-	if err != nil {
-		return nil, err
-	}
-	resolvedLaunchTemplates, err := p.amiFamily.Resolve(ctx, provider, nodeRequest, options)
-	if err != nil {
-		return nil, err
-	}
-	launchTemplates := map[string][]cloudprovider.InstanceType{}
-	for _, resolvedLaunchTemplate := range resolvedLaunchTemplates {
-		// Ensure the launch template exists, or create it
-		ec2LaunchTemplate, err := p.ensureLaunchTemplate(ctx, resolvedLaunchTemplate)
-		if err != nil {
-			return nil, err
-		}
-		launchTemplates[*ec2LaunchTemplate.LaunchTemplateName] = resolvedLaunchTemplate.InstanceTypes
-	}
-	return launchTemplates, nil
 }
 
 func (p *LaunchTemplateProvider) getAmiFromLaunchTemplate(ctx context.Context, launchTemplateName string) (string, error) {

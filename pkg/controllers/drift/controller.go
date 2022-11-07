@@ -8,6 +8,7 @@ import (
 	operatorcontroller "github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"knative.dev/pkg/logging"
@@ -52,6 +53,15 @@ func (r DriftController) Reconcile(ctx context.Context, req controllerruntime.Re
 		return reconcile.Result{}, err
 	}
 
+	alreadyDriftedNodes := lo.Filter(nodes.Items, func(node v1.Node, _ int) bool {
+		_, drifted := node.Annotations[v1alpha5.DriftedAnnotationKey]
+		return drifted
+	})
+
+	if len(alreadyDriftedNodes) == len(nodes.Items) {
+		return reconcile.Result{}, nil
+	}
+
 	driftedNodes := r.cloudProvider.GetDriftedNodes(ctx, provisioner, nodes.Items)
 	for _, driftedNode := range driftedNodes {
 		//Check for already drifted node and continue
@@ -67,7 +77,7 @@ func (r DriftController) Reconcile(ctx context.Context, req controllerruntime.Re
 		logging.FromContext(ctx).Infof("Marked node %s as Drifted", driftedNode.Name)
 	}
 
-	//Todo: Decide time
+	//Todo: Decide time for periodic reconciliation
 	return reconcile.Result{RequeueAfter: 30 * time.Minute}, nil
 }
 
@@ -82,12 +92,17 @@ func (c DriftController) Builder(ctx context.Context, m manager.Manager) operato
 			//in provisioner, so we do need the reference of it, even if we primarily reconcile AwsNodeTemplate
 			&source.Kind{Type: &v1alpha1.AWSNodeTemplate{}},
 			handler.EnqueueRequestsFromMapFunc(func(o client.Object) []reconcile.Request {
-				x := o.(*v1alpha1.AWSNodeTemplate)
 				reconcileList :=  []reconcile.Request{}
+				x, ok := o.(*v1alpha1.AWSNodeTemplate)
+				if !ok {
+					logging.FromContext(ctx).Debugf("Not able to cast AWSNodeTemplate in EnqueueRequestsFromMapFunc")
+					return reconcileList
+				}
 				provisionerList := &v1alpha5.ProvisionerList{}
 				err := c.kubeClient.List(ctx, provisionerList)
 				if err != nil {
 					//log
+					logging.FromContext(ctx).Errorf("listing provisioners for AWSNodeTemplate reconciliation %w", err)
 					return reconcileList
 				}
 				for _,provisioner := range provisionerList.Items {

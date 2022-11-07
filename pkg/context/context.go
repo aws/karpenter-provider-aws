@@ -62,8 +62,7 @@ func NewOrDie(ctx cloudprovider.Context) Context {
 			client.DefaultRetryer{NumMaxRetries: client.DefaultRetryerMaxNumRetries},
 		),
 	)))
-	*sess.Config.Region = "us-west-2"
-	if  false || *sess.Config.Region == ""  {
+	if  *sess.Config.Region == ""  {
 		logging.FromContext(ctx).Debug("AWS region not configured, asking EC2 Instance Metadata Service")
 		region, err := ec2metadata.New(sess).Region()
 		*sess.Config.Region = lo.Must(region, err, "failed to get region from metadata server")
