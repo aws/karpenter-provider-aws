@@ -51,7 +51,7 @@ import (
 
 const (
 	// MaxInstanceTypes defines the number of instance type options to pass to CreateFleet
-	MaxInstanceTypes = 20
+	MaxInstanceTypes = 60
 )
 
 func init() {
