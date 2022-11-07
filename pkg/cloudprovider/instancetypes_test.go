@@ -30,9 +30,10 @@ import (
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"knative.dev/pkg/ptr"
 
+	"github.com/aws/karpenter/pkg/test"
+
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	coretest "github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/controllers/provisioning"
