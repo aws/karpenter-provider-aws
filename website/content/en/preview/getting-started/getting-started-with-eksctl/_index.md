@@ -147,7 +147,7 @@ By enabling Karpenter interruption handling, you are allowing Karpenter to provi
 All infrastructure that Karpenter creates and deploys to your account is tagged with the `karpenter.sh/discovery: ${CLUSTER_NAME}` and the `karpenter.sh/managed-by: ${CLUSTER_NAME}` tags for ease of discovery
 {{% /alert %}}
 
-Permission to provisions these rules is given through the `KarpenterEventPolicy` provisioned through the [CloudFormation template](#create-the-karpenternode-iam-role) deployed above.
+Permission to provision these rules is given through the `KarpenterEventPolicy`, created through the [CloudFormation template](#create-the-karpenternode-iam-role) deployed above.
 
 To enable the interruption handling feature flag, upgrade helm using the 
 

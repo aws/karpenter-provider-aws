@@ -86,6 +86,10 @@ If interruption-handling is enabled for the controller, Karpenter will watch for
 
 When Karpenter detects one of these events will occur to your nodes, it automatically cordons, drains, and terminates the node(s) ahead of the interruption event to give the maximum amount of time for workload cleanup prior to compute disruption. This enables scenarios where the `terminationGracePeriod` for your workloads may be long or cleanup for your workloads is critical, and you want enough time to be able to gracefully clean-up your pods.
 
+{{% alert title="Note" color="warning" %}}
+Karpenter publishes Kubernetes events to the node for all events listed above in addition to __Spot Reblanace Recommendations__. Karpenter does not currently support cordon, drain, and terminate logic for Spot Rebalance Recommendations.
+{{% /alert %}}
+
 Karpenter enables this feature by watching an SQS queue which receives critical events from AWS services which may affect your nodes. To simplify the process of standing-up and configuring this infrastructure, Karpenter automatically provisions and continually reconciles the state of the SQS queue and EventBridge rules that are needed to enable notification of these events.
 
 By enabling Karpenter interruption handling, you are allowing Karpenter to provision the following infrastructure in your account:
