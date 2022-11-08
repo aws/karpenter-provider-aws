@@ -20,7 +20,6 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	. "knative.dev/pkg/logging/testing"
 
@@ -118,25 +117,5 @@ var _ = Describe("Validation", func() {
 			},
 		}
 		_, _ = settings.NewSettingsFromConfigMap(cm)
-	})
-})
-
-var _ = Describe("Unmarshalling", func() {
-	It("should succeed to unmarshal default data", func() {
-		data := lo.Assign(settings.Registration.DefaultData, map[string]string{
-			"aws.clusterName":     "my-name",
-			"aws.clusterEndpoint": "https://00000000000000000000000.gr7.us-west-2.eks.amazonaws.com",
-		})
-		cm := &v1.ConfigMap{
-			Data: data,
-		}
-		s, _ := settings.NewSettingsFromConfigMap(cm)
-		Expect(s.DefaultInstanceProfile).To(Equal(""))
-		Expect(s.EnablePodENI).To(BeFalse())
-		Expect(s.EnableENILimitedPodDensity).To(BeTrue())
-		Expect(s.IsolatedVPC).To(BeFalse())
-		Expect(s.NodeNameConvention).To(Equal(settings.IPName))
-		Expect(s.VMMemoryOverheadPercent).To(Equal(0.075))
-		Expect(len(s.Tags)).To(BeZero())
 	})
 })

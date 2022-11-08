@@ -22,7 +22,6 @@ import (
 	"strings"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/configmap"
@@ -42,7 +41,6 @@ var ContextKey = Registration
 var Registration = &config.Registration{
 	ConfigMapName: "karpenter-global-settings",
 	Constructor:   NewSettingsFromConfigMap,
-	DefaultData:   lo.Must(defaultSettings.Data()),
 }
 
 var defaultSettings = Settings{
@@ -95,28 +93,6 @@ func NewSettingsFromConfigMap(cm *v1.ConfigMap) (Settings, error) {
 		panic(fmt.Sprintf("validating settings, %v", err))
 	}
 	return s, nil
-}
-
-func (s Settings) MarshalJSON() ([]byte, error) {
-	type internal Settings
-	d := map[string]string{}
-
-	// Store a value of tags locally, so we can marshal the rest of the struct
-	tags := s.Tags
-	s.Tags = nil
-
-	raw, err := json.Marshal(internal(s))
-	if err != nil {
-		return nil, fmt.Errorf("marshaling settings, %w", err)
-	}
-	if err = json.Unmarshal(raw, &d); err != nil {
-		return nil, fmt.Errorf("unmarshalling settings into map, %w", err)
-	}
-	// Rewind the tags from the map into separate values
-	if err = FromMap(tags)("aws.tags", &d); err != nil {
-		return nil, fmt.Errorf("rewinding tags into map, %w", err)
-	}
-	return json.Marshal(d)
 }
 
 func (s Settings) Data() (map[string]string, error) {

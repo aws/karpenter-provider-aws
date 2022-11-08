@@ -32,6 +32,14 @@ import (
 	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
 
+	"github.com/aws/karpenter/pkg/apis"
+	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
+	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	awscache "github.com/aws/karpenter/pkg/cache"
+	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
+	awscontext "github.com/aws/karpenter/pkg/context"
+	"github.com/aws/karpenter/pkg/test"
+
 	"github.com/aws/karpenter-core/pkg/apis/config/settings"
 	corev1alpha5 "github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/controllers/provisioning"
@@ -42,13 +50,6 @@ import (
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
-	"github.com/aws/karpenter/pkg/apis"
-	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	awscache "github.com/aws/karpenter/pkg/cache"
-	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
-	awscontext "github.com/aws/karpenter/pkg/context"
-	"github.com/aws/karpenter/pkg/test"
 
 	"github.com/aws/karpenter/pkg/fake"
 )

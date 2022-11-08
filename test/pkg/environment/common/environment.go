@@ -62,7 +62,7 @@ func NewEnvironment(t *testing.T) *Environment {
 	os.Setenv(system.NamespaceEnvKey, "karpenter")
 	kubernetesInterface := kubernetes.NewForConfigOrDie(config)
 	cmw := informer.NewInformedWatcher(kubernetesInterface, system.Namespace())
-	settingsStore := settingsstore.WatchSettingsOrDie(ctx, kubernetesInterface, cmw, coresettings.Registration, settings.Registration)
+	settingsStore := settingsstore.NewWatcherOrDie(ctx, kubernetesInterface, cmw, coresettings.Registration, settings.Registration)
 	lo.Must0(cmw.Start(ctx.Done()))
 
 	gomega.SetDefaultEventuallyTimeout(5 * time.Minute)
