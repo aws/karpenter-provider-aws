@@ -39,7 +39,7 @@ import (
 
 var ctx context.Context
 
-func TestIntegration(t *testing.T) {
+func TestV1Alpha5(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "v1alpha5")
 	ctx = TestContextWithLogger(t)
@@ -56,6 +56,18 @@ var _ = Describe("Provisioner", func() {
 	})
 
 	Context("SetDefaults", func() {
+		It("should default OS to linux", func() {
+			SetDefaults(ctx, provisioner)
+			Expect(scheduling.NewNodeSelectorRequirements(provisioner.Spec.Requirements...).Get(v1.LabelOSStable)).
+				To(Equal(scheduling.NewRequirement(v1.LabelOSStable, v1.NodeSelectorOpIn, string(v1.Linux))))
+		})
+		It("should not default OS if set", func() {
+			provisioner.Spec.Requirements = append(provisioner.Spec.Requirements,
+				v1.NodeSelectorRequirement{Key: v1.LabelOSStable, Operator: v1.NodeSelectorOpDoesNotExist})
+			SetDefaults(ctx, provisioner)
+			Expect(scheduling.NewNodeSelectorRequirements(provisioner.Spec.Requirements...).Get(v1.LabelOSStable)).
+				To(Equal(scheduling.NewRequirement(v1.LabelOSStable, v1.NodeSelectorOpDoesNotExist)))
+		})
 		It("should default architecture to amd64", func() {
 			SetDefaults(ctx, provisioner)
 			Expect(scheduling.NewNodeSelectorRequirements(provisioner.Spec.Requirements...).Get(v1.LabelArchStable)).
