@@ -106,7 +106,7 @@ func (p *InstanceProvider) Create(ctx context.Context, provider *v1alpha1.AWS, n
 	)
 
 	// Convert Instance to Node
-	return p.instanceToNode(ctx, instance, nodeRequest.InstanceTypeOptions), nil
+	return p.instanceToNode(ctx, instance, nodeRequest), nil
 }
 
 func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
@@ -313,8 +313,8 @@ func (p *InstanceProvider) getInstance(ctx context.Context, id string) (*ec2.Ins
 	return instance, nil
 }
 
-func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Instance, instanceTypes []cloudprovider.InstanceType) *v1.Node {
-	for _, instanceType := range instanceTypes {
+func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Instance, nodeRequest *cloudprovider.NodeRequest) *v1.Node {
+	for _, instanceType := range nodeRequest.InstanceTypeOptions {
 		if instanceType.Name() == aws.StringValue(instance.InstanceType) {
 			nodeName := strings.ToLower(aws.StringValue(instance.PrivateDnsName))
 			if awssettings.FromContext(ctx).NodeNameConvention == awssettings.ResourceName {
@@ -322,6 +322,14 @@ func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Ins
 			}
 
 			labels := map[string]string{}
+
+			// First, constrain the labels on the node by the nodeRequest requirements. Then, constraint them
+			// more (if possible) by the instance type requirements
+			for key, req := range nodeRequest.Template.Requirements {
+				if req.Len() == 1 {
+					labels[key] = req.Values()[0]
+				}
+			}
 			for key, req := range instanceType.Requirements() {
 				if req.Len() == 1 {
 					labels[key] = req.Values()[0]
