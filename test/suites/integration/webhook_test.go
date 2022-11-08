@@ -38,7 +38,12 @@ var _ = Describe("Webhooks", func() {
 				env.ExpectCreated(provisioner)
 				env.ExpectFound(provisioner)
 
-				Expect(len(provisioner.Spec.Requirements)).To(Equal(4))
+				Expect(len(provisioner.Spec.Requirements)).To(Equal(5))
+				Expect(provisioner.Spec.Requirements).To(ContainElement(v1.NodeSelectorRequirement{
+					Key:      v1.LabelOSStable,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{string(v1.Linux)},
+				}))
 				Expect(provisioner.Spec.Requirements).To(ContainElement(v1.NodeSelectorRequirement{
 					Key:      v1alpha5.LabelCapacityType,
 					Operator: v1.NodeSelectorOpIn,
@@ -58,6 +63,67 @@ var _ = Describe("Webhooks", func() {
 					Key:      v1alpha1.LabelInstanceGeneration,
 					Operator: v1.NodeSelectorOpGt,
 					Values:   []string{"2"},
+				}))
+			})
+			It("shouldn't default if requirements are set", func() {
+				provisioner := test.Provisioner(test.ProvisionerOptions{
+					ProviderRef: &v1alpha5.ProviderRef{Name: "test"},
+					Requirements: []v1.NodeSelectorRequirement{
+						{
+							Key:      v1.LabelOSStable,
+							Operator: v1.NodeSelectorOpIn,
+							Values:   []string{string(v1.Windows)},
+						},
+						{
+							Key:      v1alpha5.LabelCapacityType,
+							Operator: v1.NodeSelectorOpIn,
+							Values:   []string{v1alpha5.CapacityTypeSpot},
+						},
+						{
+							Key:      v1.LabelArchStable,
+							Operator: v1.NodeSelectorOpIn,
+							Values:   []string{v1alpha5.ArchitectureArm64},
+						},
+						{
+							Key:      v1alpha1.LabelInstanceCategory,
+							Operator: v1.NodeSelectorOpIn,
+							Values:   []string{"g"},
+						},
+						{
+							Key:      v1alpha1.LabelInstanceGeneration,
+							Operator: v1.NodeSelectorOpIn,
+							Values:   []string{"4"},
+						},
+					},
+				})
+				env.ExpectCreated(provisioner)
+				env.ExpectFound(provisioner)
+
+				Expect(len(provisioner.Spec.Requirements)).To(Equal(5))
+				Expect(provisioner.Spec.Requirements).To(ContainElement(v1.NodeSelectorRequirement{
+					Key:      v1.LabelOSStable,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{string(v1.Windows)},
+				}))
+				Expect(provisioner.Spec.Requirements).To(ContainElement(v1.NodeSelectorRequirement{
+					Key:      v1alpha5.LabelCapacityType,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{v1alpha5.CapacityTypeSpot},
+				}))
+				Expect(provisioner.Spec.Requirements).To(ContainElement(v1.NodeSelectorRequirement{
+					Key:      v1.LabelArchStable,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{v1alpha5.ArchitectureArm64},
+				}))
+				Expect(provisioner.Spec.Requirements).To(ContainElement(v1.NodeSelectorRequirement{
+					Key:      v1alpha1.LabelInstanceCategory,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{"g"},
+				}))
+				Expect(provisioner.Spec.Requirements).To(ContainElement(v1.NodeSelectorRequirement{
+					Key:      v1alpha1.LabelInstanceGeneration,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{"4"},
 				}))
 			})
 		})

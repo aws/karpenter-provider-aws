@@ -45,6 +45,13 @@ func (p *Provisioner) Validate(ctx context.Context) (errs *apis.FieldError) {
 func (p *Provisioner) SetDefaults(ctx context.Context) {
 	requirements := scheduling.NewNodeSelectorRequirements(p.Spec.Requirements...)
 
+	// default to linux OS
+	if !requirements.Has(v1.LabelOSStable) {
+		p.Spec.Requirements = append(p.Spec.Requirements, v1.NodeSelectorRequirement{
+			Key: v1.LabelOSStable, Operator: v1.NodeSelectorOpIn, Values: []string{string(v1.Linux)},
+		})
+	}
+
 	// default to amd64
 	if !requirements.Has(v1.LabelArchStable) {
 		p.Spec.Requirements = append(p.Spec.Requirements, v1.NodeSelectorRequirement{
