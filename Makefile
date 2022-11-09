@@ -105,8 +105,8 @@ apply: build ## Deploy the controller from the current state of your git reposit
 		--set controller.image=$(CONTROLLER_IMG)
 
 install:  ## Deploy the latest released version into your ~/.kube/config cluster
-	@echo Upgrading to $(shell grep version charts/karpenter/Chart.yaml)
-	helm upgrade --install karpenter charts/karpenter --namespace ${SYSTEM_NAMESPACE} \
+	@echo Upgrading to ${KARPENTER_VERSION}
+	helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter --version ${KARPENTER_VERSION} --namespace ${SYSTEM_NAMESPACE} \
 		$(HELM_OPTS)
 
 delete: ## Delete the controller from your ~/.kube/config cluster
