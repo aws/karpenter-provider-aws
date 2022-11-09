@@ -37,14 +37,14 @@ import (
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 
-	"github.com/aws/karpenter-core/pkg/cloudprovider"
-	"github.com/aws/karpenter-core/pkg/operator/injection"
-	"github.com/aws/karpenter-core/pkg/utils/pretty"
 	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
 	awscontext "github.com/aws/karpenter/pkg/context"
 	awserrors "github.com/aws/karpenter/pkg/errors"
+
+	"github.com/aws/karpenter-core/pkg/cloudprovider"
+	"github.com/aws/karpenter-core/pkg/utils/pretty"
 )
 
 const (
@@ -158,9 +158,9 @@ func (p *LaunchTemplateProvider) createAmiOptions(ctx context.Context, provider 
 		return nil, err
 	}
 	return &amifamily.Options{
-		ClusterName:             injection.GetOptions(ctx).ClusterName,
-		ClusterEndpoint:         injection.GetOptions(ctx).ClusterEndpoint,
-		AWSENILimitedPodDensity: injection.GetOptions(ctx).AWSENILimitedPodDensity,
+		ClusterName:             awssettings.FromContext(ctx).ClusterName,
+		ClusterEndpoint:         awssettings.FromContext(ctx).ClusterEndpoint,
+		AWSENILimitedPodDensity: awssettings.FromContext(ctx).EnableENILimitedPodDensity,
 		InstanceProfile:         instanceProfile,
 		SecurityGroupsIDs:       securityGroupsIDs,
 		Tags:                    lo.Assign(awssettings.FromContext(ctx).Tags, provider.Tags),
@@ -326,7 +326,7 @@ func (p *LaunchTemplateProvider) Invalidate(ctx context.Context, ltName string) 
 // hydrateCache queries for existing Launch Templates created by Karpenter for the current cluster and adds to the LT cache.
 // Any error during hydration will result in a panic
 func (p *LaunchTemplateProvider) hydrateCache(ctx context.Context) {
-	clusterName := injection.GetOptions(ctx).ClusterName
+	clusterName := awssettings.FromContext(ctx).ClusterName
 	logging.FromContext(ctx).Debugf("Hydrating the launch template cache with tags matching \"%s: %s\"", karpenterManagedTagKey, clusterName)
 	if err := p.ec2api.DescribeLaunchTemplatesPagesWithContext(ctx, &ec2.DescribeLaunchTemplatesInput{
 		Filters: []*ec2.Filter{{Name: aws.String(fmt.Sprintf("tag:%s", karpenterManagedTagKey)), Values: []*string{aws.String(clusterName)}}},
@@ -364,7 +364,7 @@ func (p *LaunchTemplateProvider) getInstanceProfile(ctx context.Context, provide
 	if provider.InstanceProfile != nil {
 		return aws.StringValue(provider.InstanceProfile), nil
 	}
-	defaultProfile := injection.GetOptions(ctx).AWSDefaultInstanceProfile
+	defaultProfile := awssettings.FromContext(ctx).DefaultInstanceProfile
 	if defaultProfile == "" {
 		return "", errors.New("neither spec.provider.instanceProfile nor --aws-default-instance-profile is specified")
 	}

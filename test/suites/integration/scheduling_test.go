@@ -27,6 +27,7 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
+	"github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 
 	awstest "github.com/aws/karpenter/pkg/test"
@@ -36,10 +37,13 @@ import (
 var _ = Describe("Scheduling", func() {
 	It("should support well known labels", func() {
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
-		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
+		provisioner := test.Provisioner(test.ProvisionerOptions{
+			ProviderRef:  &v1alpha5.ProviderRef{Name: provider.Name},
+			Requirements: []v1.NodeSelectorRequirement{{Key: v1alpha1.LabelInstanceCategory, Operator: v1.NodeSelectorOpExists}},
+		})
 		nodeSelector := map[string]string{
 			// Well Known
 			v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
@@ -86,8 +90,8 @@ var _ = Describe("Scheduling", func() {
 	})
 	It("should provision a node for naked pods", func() {
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
 		pod := test.Pod()
@@ -98,8 +102,8 @@ var _ = Describe("Scheduling", func() {
 	})
 	It("should provision a node for a deployment", Label(common.NoWatch), Label(common.NoEvents), func() {
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
 
@@ -110,8 +114,8 @@ var _ = Describe("Scheduling", func() {
 	})
 	It("should provision a node for a self-affinity deployment", func() {
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
 		// just two pods as they all need to land on the same node
@@ -137,8 +141,8 @@ var _ = Describe("Scheduling", func() {
 	})
 	It("should provision three nodes for a zonal topology spread", func() {
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
 
@@ -167,8 +171,8 @@ var _ = Describe("Scheduling", func() {
 	})
 	It("should provision a node using a provisioner with higher priority", func() {
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
 
 		provisionerLowPri := test.Provisioner(test.ProvisionerOptions{

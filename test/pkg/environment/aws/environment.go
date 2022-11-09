@@ -17,12 +17,17 @@ package aws
 import (
 	"testing"
 
+	"github.com/aws/amazon-ec2-spot-interrupter/pkg/itn"
+	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/iam"
+	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/aws/aws-sdk-go/service/sts"
+	"github.com/samber/lo"
 
+	"github.com/aws/karpenter/pkg/controllers/providers"
 	"github.com/aws/karpenter/test/pkg/environment/common"
 )
 
@@ -34,20 +39,26 @@ type Environment struct {
 	SSMAPI ssm.SSM
 	STSAPI sts.STS
 	IAMAPI iam.IAM
+
+	SQSProvider     *providers.SQS
+	InterruptionAPI *itn.ITN
 }
 
-func NewEnvironment(t *testing.T) (*Environment, error) {
-	env, err := common.NewEnvironment(t)
-	if err != nil {
-		return nil, err
-	}
+func NewEnvironment(t *testing.T) *Environment {
+	env := common.NewEnvironment(t)
 	session := session.Must(session.NewSessionWithOptions(session.Options{SharedConfigState: session.SharedConfigEnable}))
 
 	return &Environment{
-		Region:      *session.Config.Region,
-		Environment: env,
-		EC2API:      *ec2.New(session),
-		SSMAPI:      *ssm.New(session),
-		IAMAPI:      *iam.New(session),
-	}, nil
+		Region:          *session.Config.Region,
+		Environment:     env,
+		EC2API:          *ec2.New(session),
+		SSMAPI:          *ssm.New(session),
+		IAMAPI:          *iam.New(session),
+		InterruptionAPI: itn.New(lo.Must(config.LoadDefaultConfig(env.Context))),
+		SQSProvider:     providers.NewSQS(sqs.New(session)),
+	}
+}
+
+func (env *Environment) Stop() {
+	env.Environment.Stop()
 }

@@ -64,3 +64,41 @@ Resources:
             Action:
               - iam:PassRole
             Resource: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/KarpenterNodeRole-${ClusterName}"
+  KarpenterEventPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub "KarpenterEventPolicy-${ClusterName}"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Resource: !Sub "arn:${AWS::Partition}:sqs:${AWS::Region}:${AWS::AccountId}:${ClusterName}"
+            Action:
+              # Write Operations
+              - sqs:CreateQueue
+              - sqs:TagQueue
+              - sqs:SetQueueAttributes
+              - sqs:DeleteQueue
+              - sqs:DeleteMessage
+              # Read Operations
+              - sqs:GetQueueUrl
+              - sqs:GetQueueAttributes
+              - sqs:ReceiveMessage
+          - Effect: Allow
+            Resource: !Sub "arn:${AWS::Partition}:events:${AWS::Region}:${AWS::AccountId}:rule/Karpenter-*"
+            Action:
+              # Write Operations
+              - events:PutRule
+              - events:TagResource
+              - events:PutTargets
+              - events:DeleteRule
+              - events:RemoveTargets
+              - events:ListTagsForResource
+            Condition:
+              StringEquals:
+                aws:ResourceTag/karpenter.sh/discovery: !Sub "${ClusterName}"
+          - Effect: Allow
+            Resource: "*"
+            Action:
+              # Read Operations
+              - events:ListRules

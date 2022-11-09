@@ -23,12 +23,9 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws/session"
 
+	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	awscache "github.com/aws/karpenter/pkg/cache"
 	awscontext "github.com/aws/karpenter/pkg/context"
-
-	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter-core/pkg/cloudprovider"
-	"github.com/aws/karpenter-core/pkg/operator/injection"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -39,9 +36,12 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 
+	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+
+	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/utils/functional"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 )
 
 const (
@@ -75,7 +75,7 @@ func NewInstanceTypeProvider(ctx context.Context, sess *session.Session, ec2api 
 			NewPricingAPI(sess, *sess.Config.Region),
 			ec2api,
 			*sess.Config.Region,
-			injection.GetOptions(ctx).AWSIsolatedVPC,
+			awssettings.FromContext(ctx).IsolatedVPC,
 			startAsync,
 		),
 		cache:                cache.New(InstanceTypesAndZonesCacheTTL, awscontext.CacheCleanupInterval),

@@ -69,24 +69,12 @@ spec:
           env:
             - name: KUBERNETES_MIN_VERSION
               value: "1.19.0-0"
-          {{- if .Values.clusterName }}
-            - name: CLUSTER_NAME
-              value: {{ .Values.clusterName }}
-          {{- end }}
-          {{- if .Values.clusterEndpoint }}
-            - name: CLUSTER_ENDPOINT
-              value: {{ .Values.clusterEndpoint }}
-          {{- end }}
             - name: KARPENTER_SERVICE
               value: {{ include "karpenter.fullname" . }}
             - name: SYSTEM_NAMESPACE
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-          {{- if .Values.aws.defaultInstanceProfile }}
-            - name: AWS_DEFAULT_INSTANCE_PROFILE
-              value: {{ .Values.aws.defaultInstanceProfile }}
-          {{- end }}
             - name: MEMORY_LIMIT
               valueFrom:
                 resourceFieldRef:

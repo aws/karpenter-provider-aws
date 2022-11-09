@@ -10,9 +10,9 @@ spec:
       description: Uniquely identifies a cluster name for the suite.
     - name: kubernetes-version
       description: Kubernetes version to deploy
-      default: "1.21"
+      default: "1.23"
     - name: from-git-ref
-      default: v0.16.1
+      default: v0.17.0
       description: Git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release.
     - name: git-repo-url
       description: the git repo url can be used to run tests on a fork
@@ -27,7 +27,7 @@ spec:
 
   - name: setup
     taskRef:
-      name: setup
+      name: pre-upgrade-setup
     params:
     - name: cluster-name
       value: $(params.cluster-name)

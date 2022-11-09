@@ -299,12 +299,12 @@ resource "helm_release" "karpenter" {
   }
 
   set {
-    name  = "clusterName"
+    name  = "aws.clusterName"
     value = module.eks.cluster_id
   }
 
   set {
-    name  = "clusterEndpoint"
+    name  = "aws.clusterEndpoint"
     value = module.eks.cluster_endpoint
   }
 

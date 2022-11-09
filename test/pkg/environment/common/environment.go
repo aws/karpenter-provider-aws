@@ -17,63 +17,69 @@ package common
 import (
 	"context"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/onsi/gomega"
+	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	"knative.dev/pkg/configmap/informer"
 	loggingtesting "knative.dev/pkg/logging/testing"
+	"knative.dev/pkg/system"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	coreapis "github.com/aws/karpenter-core/pkg/apis"
-	"github.com/aws/karpenter-core/pkg/utils/env"
+	coresettings "github.com/aws/karpenter-core/pkg/apis/config/settings"
+	"github.com/aws/karpenter-core/pkg/operator/settingsstore"
 	"github.com/aws/karpenter-core/pkg/utils/project"
 	"github.com/aws/karpenter/pkg/apis"
+	"github.com/aws/karpenter/pkg/apis/config/settings"
 )
 
 type Environment struct {
 	context.Context
-	ClusterName       string
+
 	Client            client.Client
 	KubeClient        kubernetes.Interface
 	Monitor           *Monitor
+	SettingsStore     settingsstore.Store
 	StartingNodeCount int
+
+	cancel context.CancelFunc
 }
 
-func NewEnvironment(t *testing.T) (*Environment, error) {
+func NewEnvironment(t *testing.T) *Environment {
 	ctx := loggingtesting.TestContextWithLogger(t)
+	ctx, cancel := context.WithCancel(ctx)
 	config := NewConfig()
-	client, err := NewClient(config)
-	if err != nil {
-		return nil, err
-	}
-	clusterName, err := DiscoverClusterName(config)
-	if err != nil {
-		return nil, err
-	}
+	client := lo.Must(NewClient(config))
+
+	os.Setenv(system.NamespaceEnvKey, "karpenter")
+	kubernetesInterface := kubernetes.NewForConfigOrDie(config)
+	cmw := informer.NewInformedWatcher(kubernetesInterface, system.Namespace())
+	settingsStore := settingsstore.NewWatcherOrDie(ctx, kubernetesInterface, cmw, coresettings.Registration, settings.Registration)
+	lo.Must0(cmw.Start(ctx.Done()))
+
 	gomega.SetDefaultEventuallyTimeout(5 * time.Minute)
 	gomega.SetDefaultEventuallyPollingInterval(1 * time.Second)
+	return &Environment{
+		Context:       ctx,
+		Client:        client,
+		KubeClient:    kubernetes.NewForConfigOrDie(config),
+		SettingsStore: settingsStore,
+		Monitor:       NewMonitor(ctx, client),
 
-	return &Environment{Context: ctx,
-		ClusterName: clusterName,
-		Client:      client,
-		KubeClient:  kubernetes.NewForConfigOrDie(config),
-		Monitor:     NewMonitor(ctx, client),
-	}, nil
+		cancel: cancel,
+	}
 }
 
-func DiscoverClusterName(config *rest.Config) (string, error) {
-	if clusterName := env.WithDefaultString("CLUSTER_NAME", ""); clusterName != "" {
-		return clusterName, nil
-	}
-	if config.ExecProvider != nil && len(config.ExecProvider.Args) > 5 {
-		return config.ExecProvider.Args[5], nil
-	}
-	return "", fmt.Errorf("-cluster-name is not set and could not be discovered")
+func (env *Environment) Stop() {
+	env.cancel()
 }
 
 func NewConfig() *rest.Config {

@@ -3,16 +3,19 @@ module github.com/aws/karpenter/test
 go 1.19
 
 require (
+	github.com/aws/amazon-ec2-spot-interrupter v0.0.9
 	github.com/aws/aws-sdk-go v1.44.127
+	github.com/aws/aws-sdk-go-v2/config v1.17.10
 	github.com/aws/karpenter v0.18.0
-	github.com/aws/karpenter-core v0.0.2-0.20221031163135-0c39b59ed935
+	github.com/aws/karpenter-core v0.0.2-0.20221107233643-3fe2b14c2805
 	github.com/onsi/ginkgo/v2 v2.4.0
-	github.com/onsi/gomega v1.23.0
+	github.com/onsi/gomega v1.24.0
 	github.com/samber/lo v1.33.0
+	go.uber.org/multierr v1.8.0
 	k8s.io/api v0.25.2
 	k8s.io/apimachinery v0.25.2
 	k8s.io/client-go v0.25.2
-	knative.dev/pkg v0.0.0-20221014164553-b812affa3893
+	knative.dev/pkg v0.0.0-20221031132215-6eb8f1845a9d
 	sigs.k8s.io/controller-runtime v0.13.0
 )
 
@@ -20,6 +23,20 @@ require (
 	github.com/Pallinder/go-randomdata v1.2.0 // indirect
 	github.com/PuerkitoBio/purell v1.1.1 // indirect
 	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
+	github.com/aws/aws-sdk-go-v2 v1.17.1 // indirect
+	github.com/aws/aws-sdk-go-v2/credentials v1.12.23 // indirect
+	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.12.19 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.25 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.19 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/ini v1.3.26 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ec2 v1.37.0 // indirect
+	github.com/aws/aws-sdk-go-v2/service/fis v1.12.3 // indirect
+	github.com/aws/aws-sdk-go-v2/service/iam v1.18.3 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.9.19 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sso v1.11.25 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.13.8 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sts v1.17.1 // indirect
+	github.com/aws/smithy-go v1.13.4 // indirect
 	github.com/benbjohnson/clock v1.1.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blendle/zapdriver v1.3.1 // indirect
@@ -61,7 +78,6 @@ require (
 	github.com/prometheus/procfs v0.8.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
-	go.uber.org/multierr v1.8.0 // indirect
 	go.uber.org/zap v1.23.0 // indirect
 	golang.org/x/crypto v0.0.0-20220315160706-3147a52a75dd // indirect
 	golang.org/x/exp v0.0.0-20220303212507-bbda1eaf7a17 // indirect

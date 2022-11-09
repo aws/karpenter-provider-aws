@@ -20,9 +20,9 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 
-	"github.com/aws/karpenter-core/pkg/apis/config/settings"
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
+	"github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 
 	awstest "github.com/aws/karpenter/pkg/test"
@@ -32,8 +32,8 @@ var _ = Describe("Tags", func() {
 	It("should tag all associated resources", func() {
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 			AWS: v1alpha1.AWS{
-				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-				SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
+				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 				Tags:                  map[string]string{"TestTag": "TestVal"},
 			},
 		})
@@ -53,12 +53,12 @@ var _ = Describe("Tags", func() {
 	It("should tag all associated resources with global tags", func() {
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 			AWS: v1alpha1.AWS{
-				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-				SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
+				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			},
 		})
 
-		env.ExpectSettingsCreatedOrUpdated(settings.Registration.DefaultData, map[string]string{
+		env.ExpectSettingsOverridden(map[string]string{
 			"aws.tags.TestTag": "TestVal",
 		})
 		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})

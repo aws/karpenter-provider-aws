@@ -10,8 +10,4 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 data:
-  "batchMaxDuration": "{{ .Values.controller.batchMaxDuration }}"
-  "batchIdleDuration": "{{ .Values.controller.batchIdleDuration }}"
-  {{- range $tag, $value := .Values.aws.tags }}
-  "aws.tags.{{ $tag }}": "{{ $value }}"
-  {{- end }}
+  {{- list .Values.settings "" | include "flattenMap" | indent 2 }}

@@ -15,23 +15,24 @@ limitations under the License.
 package main
 
 import (
-	"github.com/aws/karpenter-core/pkg/cloudprovider"
+	"github.com/samber/lo"
+
+	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/context"
+	"github.com/aws/karpenter/pkg/controllers"
+	"github.com/aws/karpenter/pkg/webhooks"
+
+	corecloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/cloudprovider/metrics"
 	corecontrollers "github.com/aws/karpenter-core/pkg/controllers"
 	"github.com/aws/karpenter-core/pkg/controllers/state"
 	"github.com/aws/karpenter-core/pkg/operator"
 	corewebhooks "github.com/aws/karpenter-core/pkg/webhooks"
-	awscloudprovider "github.com/aws/karpenter/pkg/cloudprovider"
-	"github.com/aws/karpenter/pkg/context"
-	"github.com/aws/karpenter/pkg/controllers"
-	"github.com/aws/karpenter/pkg/webhooks"
-	"github.com/samber/lo"
-	"k8s.io/utils/clock"
 )
 
 func main() {
 	ctx, operator := operator.NewOperator()
-	awsCtx := context.NewOrDie(cloudprovider.Context{
+	awsCtx := context.NewOrDie(corecloudprovider.Context{
 		Context:             ctx,
 		Clock:               operator.Clock,
 		RESTConfig:          operator.RESTConfig,
@@ -40,18 +41,17 @@ func main() {
 		EventRecorder:       operator.EventRecorder,
 		StartAsync:          operator.Elected(),
 	})
-	awsCloudProvider := awscloudprovider.New(awsCtx)
+	awsCloudProvider := cloudprovider.New(awsCtx)
 	lo.Must0(operator.AddHealthzCheck("cloud-provider", awsCloudProvider.LivenessProbe))
 	cloudProvider := metrics.Decorate(awsCloudProvider)
 
-	clusterState := state.NewCluster(operator.SettingsStore.InjectSettings(ctx), operator.Clock, operator.GetClient(), cloudProvider)
 	operator.
 		WithControllers(ctx, corecontrollers.NewControllers(
 			ctx,
-			clock.RealClock{},
+			operator.Clock,
 			operator.GetClient(),
 			operator.KubernetesInterface,
-			clusterState,
+			state.NewCluster(ctx, operator.Clock, operator.GetClient(), cloudProvider),
 			operator.EventRecorder,
 			operator.SettingsStore,
 			cloudProvider,
@@ -59,7 +59,6 @@ func main() {
 		WithWebhooks(corewebhooks.NewWebhooks()...).
 		WithControllers(ctx, controllers.NewControllers(
 			awsCtx,
-			clusterState,
 			awsCloudProvider,
 		)...).
 		WithWebhooks(webhooks.NewWebhooks()...).

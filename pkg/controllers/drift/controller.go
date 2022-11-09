@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter-core/pkg/controllers/state"
 	operatorcontroller "github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider"
@@ -27,15 +26,13 @@ const controllerName = "drift"
 
 type DriftController struct {
 	kubeClient    client.Client
-	cluster       *state.Cluster
 	cloudProvider *cloudprovider.CloudProvider
 }
 
 // NewController constructs a controller instance
-func NewController(kubeClient client.Client, cluster *state.Cluster, cloudProvider *cloudprovider.CloudProvider) *DriftController {
+func NewController(kubeClient client.Client, cloudProvider *cloudprovider.CloudProvider) *DriftController {
 	return &DriftController{
 		kubeClient:    kubeClient,
-		cluster:       cluster,
 		cloudProvider: cloudProvider,
 	}
 }

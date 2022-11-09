@@ -8,16 +8,36 @@ description: >
 ---
 <!-- this document is generated from hack/docs/metrics_gen_docs.go -->
 Karpenter makes several metrics available in Prometheus format to allow monitoring cluster provisioning status. These metrics are available by default at `karpenter.karpenter.svc.cluster.local:8080/metrics` configurable via the `METRICS_PORT` environment variable documented [here](../configuration)
-## Consolidation Metrics
+## Deprovisioning Metrics
 
-### `karpenter_consolidation_actions_performed`
-Number of consolidation actions performed. Labeled by action.
+### `karpenter_deprovisioning_actions_performed`
+Number of deprovisioning actions performed. Labeled by action.
 
-### `karpenter_consolidation_evaluation_duration_seconds`
-Duration of the consolidation evaluation process in seconds.
+### `karpenter_deprovisioning_evaluation_duration_seconds`
+Duration of the deprovisioning evaluation process in seconds.
 
-### `karpenter_consolidation_replacement_node_initialized_seconds`
+### `karpenter_deprovisioning_replacement_node_initialized_seconds`
 Amount of time required for a replacement node to become initialized.
+
+## Interruption Metrics
+
+### `karpenter_interruption_actions_performed`
+Number of notification actions performed. Labeled by action
+
+### `karpenter_interruption_deleted_messages`
+Count of messages deleted from the SQS queue.
+
+### `karpenter_interruption_infrastructure_create_time_seconds`
+Length of time to create infrastructure.
+
+### `karpenter_interruption_infrastructure_delete_time_seconds`
+Length of time to delete infrastructure.
+
+### `karpenter_interruption_message_latency_time_seconds`
+Length of time between message creation in queue and an action taken on the message by the controller.
+
+### `karpenter_interruption_received_messages`
+Count of messages received from the SQS queue. Broken down by message type and whether the message was actionable.
 
 ## Provisioner Metrics
 
@@ -48,10 +68,10 @@ Number of nodes terminated in total by Karpenter. Labeled by reason the node was
 The time taken between a node's deletion request and the removal of its finalizer
 
 ### `karpenter_nodes_total_daemon_limits`
-Node total daemon requests are the resource requested by DaemonSet pods bound to nodes.
+Node total daemon limits are the resources specified by DaemonSet pod limits.
 
 ### `karpenter_nodes_total_daemon_requests`
-Node total daemon limits are the resources specified by DaemonSet pod limits.
+Node total daemon requests are the resource requested by DaemonSet pods bound to nodes.
 
 ### `karpenter_nodes_total_pod_limits`
 Node total pod limits are the resources specified by non-DaemonSet pod limits.

@@ -44,16 +44,18 @@ import (
 )
 
 var (
-	//nolint:govet
 	CleanableObjects = []functional.Pair[client.Object, client.ObjectList]{
-		{&v1.Pod{}, &v1.PodList{}},
-		{&appsv1.Deployment{}, &appsv1.DeploymentList{}},
-		{&appsv1.DaemonSet{}, &appsv1.DaemonSetList{}},
-		{&policyv1.PodDisruptionBudget{}, &policyv1.PodDisruptionBudgetList{}},
-		{&v1.PersistentVolumeClaim{}, &v1.PersistentVolumeClaimList{}},
-		{&v1.PersistentVolume{}, &v1.PersistentVolumeList{}},
-		{&storagev1.StorageClass{}, &storagev1.StorageClassList{}},
-		{&v1alpha5.Provisioner{}, &v1alpha5.ProvisionerList{}},
+		{First: &v1.Pod{}, Second: &v1.PodList{}},
+		{First: &appsv1.Deployment{}, Second: &appsv1.DeploymentList{}},
+		{First: &appsv1.DaemonSet{}, Second: &appsv1.DaemonSetList{}},
+		{First: &policyv1.PodDisruptionBudget{}, Second: &policyv1.PodDisruptionBudgetList{}},
+		{First: &v1.PersistentVolumeClaim{}, Second: &v1.PersistentVolumeClaimList{}},
+		{First: &v1.PersistentVolume{}, Second: &v1.PersistentVolumeList{}},
+		{First: &storagev1.StorageClass{}, Second: &storagev1.StorageClassList{}},
+		{First: &v1alpha5.Provisioner{}, Second: &v1alpha5.ProvisionerList{}},
+	}
+	ForceCleanableObjects = []functional.Pair[client.Object, client.ObjectList]{
+		{First: &v1.Node{}, Second: &v1.NodeList{}},
 	}
 )
 
@@ -72,6 +74,7 @@ func (env *Environment) BeforeEach(opts ...Option) {
 		fmt.Println("------- START BEFORE -------")
 		defer fmt.Println("------- END BEFORE -------")
 	}
+	env.Context = env.SettingsStore.InjectSettings(env.Context)
 
 	stop = make(chan struct{})
 	testStartTime = time.Now()
@@ -215,7 +218,7 @@ func (env *Environment) Cleanup(opts ...Option) {
 		fmt.Println("------- START CLEANUP -------")
 		defer fmt.Println("------- END CLEANUP -------")
 	}
-	env.CleanupObjects(CleanableObjects, options)
+	env.CleanupObjects(CleanableObjects)
 	env.eventuallyExpectScaleDown()
 	env.expectNoCrashes()
 }
@@ -228,16 +231,7 @@ func (env *Environment) ForceCleanup(opts ...Option) {
 	}
 
 	// Delete all the nodes if they weren't deleted by the provisioner propagation
-	Expect(env.Client.DeleteAllOf(env, &v1.Node{},
-		client.HasLabels([]string{test.DiscoveryLabel}),
-		client.PropagationPolicy(metav1.DeletePropagationForeground),
-	)).To(Succeed())
-	Eventually(func(g Gomega) {
-		stored := &v1.NodeList{}
-		g.Expect(env.Client.List(env, stored,
-			client.HasLabels([]string{test.DiscoveryLabel}))).To(Succeed())
-		g.Expect(len(stored.Items)).To(BeZero())
-	}).Should(Succeed())
+	env.CleanupObjects(ForceCleanableObjects)
 }
 
 func (env *Environment) AfterEach(opts ...Option) {
@@ -254,7 +248,7 @@ func (env *Environment) AfterEach(opts ...Option) {
 	env.printControllerLogs(&v1.PodLogOptions{Container: "controller"})
 }
 
-func (env *Environment) CleanupObjects(cleanableObjects []functional.Pair[client.Object, client.ObjectList], options Options) {
+func (env *Environment) CleanupObjects(cleanableObjects []functional.Pair[client.Object, client.ObjectList]) {
 	namespaces := &v1.NamespaceList{}
 	Expect(env.Client.List(env, namespaces)).To(Succeed())
 	wg := sync.WaitGroup{}

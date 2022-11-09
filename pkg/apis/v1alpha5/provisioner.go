@@ -23,6 +23,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 )
 
@@ -42,23 +43,37 @@ func (p *Provisioner) Validate(ctx context.Context) (errs *apis.FieldError) {
 }
 
 func (p *Provisioner) SetDefaults(ctx context.Context) {
-	for key, value := range map[string]string{
-		v1alpha5.LabelCapacityType: ec2.DefaultTargetCapacityTypeOnDemand,
-		v1.LabelArchStable:         v1alpha5.ArchitectureAmd64,
-	} {
-		hasLabel := false
-		if _, ok := p.Spec.Labels[key]; ok {
-			hasLabel = true
-		}
-		for _, requirement := range p.Spec.Requirements {
-			if requirement.Key == key {
-				hasLabel = true
-			}
-		}
-		if !hasLabel {
-			p.Spec.Requirements = append(p.Spec.Requirements, v1.NodeSelectorRequirement{
-				Key: key, Operator: v1.NodeSelectorOpIn, Values: []string{value},
-			})
-		}
+	requirements := scheduling.NewNodeSelectorRequirements(p.Spec.Requirements...)
+
+	// default to linux OS
+	if !requirements.Has(v1.LabelOSStable) {
+		p.Spec.Requirements = append(p.Spec.Requirements, v1.NodeSelectorRequirement{
+			Key: v1.LabelOSStable, Operator: v1.NodeSelectorOpIn, Values: []string{string(v1.Linux)},
+		})
+	}
+
+	// default to amd64
+	if !requirements.Has(v1.LabelArchStable) {
+		p.Spec.Requirements = append(p.Spec.Requirements, v1.NodeSelectorRequirement{
+			Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha5.ArchitectureAmd64},
+		})
+	}
+
+	// default to on-demand
+	if !requirements.Has(v1alpha5.LabelCapacityType) {
+		p.Spec.Requirements = append(p.Spec.Requirements, v1.NodeSelectorRequirement{
+			Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{ec2.DefaultTargetCapacityTypeOnDemand},
+		})
+	}
+
+	// default to C, M, R categories if no instance type constraints are specified
+	if !requirements.Has(v1.LabelInstanceTypeStable) &&
+		!requirements.Has(v1alpha1.LabelInstanceFamily) &&
+		!requirements.Has(v1alpha1.LabelInstanceCategory) &&
+		!requirements.Has(v1alpha1.LabelInstanceGeneration) {
+		p.Spec.Requirements = append(p.Spec.Requirements, []v1.NodeSelectorRequirement{
+			{Key: v1alpha1.LabelInstanceCategory, Operator: v1.NodeSelectorOpIn, Values: []string{"c", "m", "r"}},
+			{Key: v1alpha1.LabelInstanceGeneration, Operator: v1.NodeSelectorOpGt, Values: []string{"2"}},
+		}...)
 	}
 }

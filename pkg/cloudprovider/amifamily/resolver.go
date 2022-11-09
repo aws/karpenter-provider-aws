@@ -29,12 +29,12 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
-
-	"github.com/aws/karpenter-core/pkg/cloudprovider"
-	"github.com/aws/karpenter-core/pkg/utils/pretty"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily/bootstrap"
+
+	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/cloudprovider"
+	"github.com/aws/karpenter-core/pkg/utils/pretty"
 )
 
 var DefaultEBS = v1alpha1.BlockDevice{
@@ -188,7 +188,7 @@ func GetAMIFamily(amiFamily *string, options *Options) AMIFamily {
 func (o Options) DefaultMetadataOptions() *v1alpha1.MetadataOptions {
 	return &v1alpha1.MetadataOptions{
 		HTTPEndpoint:            aws.String(ec2.LaunchTemplateInstanceMetadataEndpointStateEnabled),
-		HTTPProtocolIPv6:        aws.String(lo.Ternary(o.KubeDNSIP.To4() == nil, ec2.LaunchTemplateInstanceMetadataProtocolIpv6Enabled, ec2.LaunchTemplateInstanceMetadataProtocolIpv6Disabled)),
+		HTTPProtocolIPv6:        aws.String(lo.Ternary(o.KubeDNSIP == nil || o.KubeDNSIP.To4() != nil, ec2.LaunchTemplateInstanceMetadataProtocolIpv6Disabled, ec2.LaunchTemplateInstanceMetadataProtocolIpv6Enabled)),
 		HTTPPutResponseHopLimit: aws.Int64(2),
 		HTTPTokens:              aws.String(ec2.LaunchTemplateHttpTokensStateRequired),
 	}
