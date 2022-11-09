@@ -24,29 +24,29 @@ import (
 
 const controllerName = "drift"
 
-type DriftController struct {
+type Drift struct {
 	kubeClient    client.Client
 	cloudProvider *cloudprovider.CloudProvider
 }
 
 // NewController constructs a controller instance
-func NewController(kubeClient client.Client, cloudProvider *cloudprovider.CloudProvider) *DriftController {
-	return &DriftController{
+func NewController(kubeClient client.Client, cloudProvider *cloudprovider.CloudProvider) *Drift {
+	return &Drift{
 		kubeClient:    kubeClient,
 		cloudProvider: cloudProvider,
 	}
 }
 
-func (r DriftController) Reconcile(ctx context.Context, req controllerruntime.Request) (reconcile.Result, error) {
+func (d Drift) Reconcile(ctx context.Context, req controllerruntime.Request) (reconcile.Result, error) {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named(controllerName).With("provisioner", req.Name))
 
 	provisioner := &v1alpha5.Provisioner{}
-	if err := r.kubeClient.Get(ctx, req.NamespacedName, provisioner); err != nil {
+	if err := d.kubeClient.Get(ctx, req.NamespacedName, provisioner); err != nil {
 		return reconcile.Result{}, nil
 	}
 
 	nodes := v1.NodeList{}
-	if err := r.kubeClient.List(ctx, &nodes, client.MatchingLabels{v1alpha5.ProvisionerNameLabelKey: req.Name}); err != nil {
+	if err := d.kubeClient.List(ctx, &nodes, client.MatchingLabels{v1alpha5.ProvisionerNameLabelKey: req.Name}); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -59,7 +59,7 @@ func (r DriftController) Reconcile(ctx context.Context, req controllerruntime.Re
 		return reconcile.Result{}, nil
 	}
 
-	driftedNodes := r.cloudProvider.GetDriftedNodes(ctx, provisioner, nodes.Items)
+	driftedNodes := d.cloudProvider.GetDriftedNodes(ctx, provisioner, nodes.Items)
 	for _, driftedNode := range driftedNodes {
 		//Check for already drifted node and continue
 		if _, ok := driftedNode.Annotations[v1alpha5.DriftedAnnotationKey]; ok {
@@ -68,17 +68,16 @@ func (r DriftController) Reconcile(ctx context.Context, req controllerruntime.Re
 
 		stored := driftedNode.DeepCopy()
 		driftedNode.Annotations[v1alpha5.DriftedAnnotationKey] = "true"
-		if err := r.kubeClient.Patch(ctx, &driftedNode, client.MergeFrom(stored)); err != nil {
+		if err := d.kubeClient.Patch(ctx, &driftedNode, client.MergeFrom(stored)); err != nil {
 			return reconcile.Result{}, fmt.Errorf("patching node, %w", err)
 		}
 		logging.FromContext(ctx).Infof("Marked node %s as Drifted", driftedNode.Name)
 	}
 
-	//Todo: Decide time for periodic reconciliation
 	return reconcile.Result{RequeueAfter: 30 * time.Minute}, nil
 }
 
-func (c DriftController) Builder(ctx context.Context, m manager.Manager) operatorcontroller.Builder {
+func (d Drift) Builder(ctx context.Context, m manager.Manager) operatorcontroller.Builder {
 	return controllerruntime.
 		NewControllerManagedBy(m).
 		Named(controllerName).
@@ -96,7 +95,7 @@ func (c DriftController) Builder(ctx context.Context, m manager.Manager) operato
 					return reconcileList
 				}
 				provisionerList := &v1alpha5.ProvisionerList{}
-				err := c.kubeClient.List(ctx, provisionerList)
+				err := d.kubeClient.List(ctx, provisionerList)
 				if err != nil {
 					//log
 					logging.FromContext(ctx).Errorf("listing provisioners for AWSNodeTemplate reconciliation %w", err)
@@ -112,6 +111,6 @@ func (c DriftController) Builder(ctx context.Context, m manager.Manager) operato
 		).WithOptions(controller.Options{MaxConcurrentReconciles: 10})
 }
 
-func (c DriftController) LivenessProbe(_ *http.Request) error {
+func (d Drift) LivenessProbe(_ *http.Request) error {
 	return nil
 }
