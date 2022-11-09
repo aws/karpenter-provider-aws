@@ -80,26 +80,30 @@ var _ = Describe("LaunchTemplates", func() {
 
 		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("ImageId", HaveValue(Equal(customAMI))))
 	})
-	// TODO @njtran add back in
-	// It("should use the most recent AMI when discovering multiple", func() {
-	// 	oldCustomAMI := selectCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", 2)
-	// 	provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-	// 		SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-	// 		SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-	// 		AMIFamily:             &v1alpha1.AMIFamilyCustom,
-	// 	},
-	// 		AMISelector: map[string]string{"aws-ids": fmt.Sprintf("%s,%s", customAMI, oldCustomAMI)},
-	// 		UserData:    aws.String(fmt.Sprintf("#!/bin/bash\n/etc/eks/bootstrap.sh '%s'", settings.FromContext(env.Context).ClusterName)),
-	// 	})
-	// 	provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
-	// 	pod := test.Pod()
+	It("should use the most recent AMI when discovering multiple", func() {
+		// choose an old static image
+		parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
+			Name: aws.String("/aws/service/eks/optimized-ami/1.23/amazon-linux-2/amazon-eks-node-1.23-v20221101/image_id"),
+		})
+		Expect(err).To(BeNil())
+		oldCustomAMI := *parameter.Parameter.Value
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			AMIFamily:             &v1alpha1.AMIFamilyCustom,
+		},
+			AMISelector: map[string]string{"aws-ids": fmt.Sprintf("%s,%s", customAMI, oldCustomAMI)},
+			UserData:    aws.String(fmt.Sprintf("#!/bin/bash\n/etc/eks/bootstrap.sh '%s'", settings.FromContext(env.Context).ClusterName)),
+		})
+		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
+		pod := test.Pod()
 
-	// 	env.ExpectCreated(pod, provider, provisioner)
-	// 	env.EventuallyExpectHealthy(pod)
-	// 	env.ExpectCreatedNodeCount("==", 1)
+		env.ExpectCreated(pod, provider, provisioner)
+		env.EventuallyExpectHealthy(pod)
+		env.ExpectCreatedNodeCount("==", 1)
 
-	// 	env.ExpectInstance(pod.Spec.NodeName).To(HaveField("ImageId", HaveValue(Equal(customAMI))))
-	// })
+		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("ImageId", HaveValue(Equal(customAMI))))
+	})
 	It("should merge UserData contents for AL2 AMIFamily", func() {
 		content, err := os.ReadFile("testdata/al2_userdata_input.golden")
 		Expect(err).ToNot(HaveOccurred())
