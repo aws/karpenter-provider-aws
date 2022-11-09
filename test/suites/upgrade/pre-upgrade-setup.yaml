@@ -122,6 +122,5 @@ spec:
           --set clusterName=$(params.cluster-name) \
           --set clusterEndpoint=$(cat /root/.kube/config | grep server | awk '{print $2}') \
           --set aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-$(params.cluster-name) \
-          --set controller.batchIdleDuration=10s \
           --set controller.enableInterruptionHandling=true \
           --wait

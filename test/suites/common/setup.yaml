@@ -119,6 +119,5 @@ spec:
         --set settings.aws.clusterName=$(params.cluster-name) \
         --set settings.aws.clusterEndpoint=$(cat /root/.kube/config | grep server | awk '{print $2}') \
         --set settings.aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-$(params.cluster-name) \
-        --set settings.batchIdleDuration=10s \
         --set settings.aws.enableInterruptionHandling=true \
         --wait

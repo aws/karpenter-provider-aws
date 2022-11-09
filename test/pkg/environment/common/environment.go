@@ -45,6 +45,7 @@ type Environment struct {
 	context.Context
 
 	Client            client.Client
+	Config            *rest.Config
 	KubeClient        kubernetes.Interface
 	Monitor           *Monitor
 	SettingsStore     settingsstore.Store
@@ -69,6 +70,7 @@ func NewEnvironment(t *testing.T) *Environment {
 	gomega.SetDefaultEventuallyPollingInterval(1 * time.Second)
 	return &Environment{
 		Context:       ctx,
+		Config:        config,
 		Client:        client,
 		KubeClient:    kubernetes.NewForConfigOrDie(config),
 		SettingsStore: settingsStore,
