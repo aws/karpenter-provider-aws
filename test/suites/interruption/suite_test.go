@@ -22,8 +22,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go/service/eventbridge"
+	"github.com/aws/aws-sdk-go/service/sqs"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -258,6 +261,58 @@ var _ = Describe("Interruption", Label("AWS"), func() {
 		env.ExpectMessagesCreated(scheduledChangeMessage(env.Region, "000000000000", instanceID))
 		env.EventuallyExpectNotFoundAssertion(node).WithTimeout(time.Minute) // shorten the timeout since we should react faster
 		env.EventuallyExpectHealthyPodCount(selector, 1)
+	})
+	Context("Infrastructure", func() {
+		It("should deploy the infrastructure with global tags", func() {
+			env.ExpectSettingsOverridden(
+				map[string]string{
+					"aws.tags.custom-tag":  "custom-value",
+					"aws.tags.custom-tag2": "custom-value",
+				},
+			)
+			provider = awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
+				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			}})
+			env.ExpectCreated(provider)
+			env.EventuallyExpectQueueCreated()
+			env.EventuallyExpectEventBridgeRulesCreated()
+
+			// Expect EventBridge Rules to have the global tags
+			rules, err := env.EventBridgeProvider.DiscoverRules(env.Context)
+			Expect(err).ToNot(HaveOccurred())
+			for _, rule := range rules {
+				out, err := env.EventBridgeAPI.DescribeRuleWithContext(env.Context, &eventbridge.DescribeRuleInput{
+					Name: lo.ToPtr(rule.Name),
+				})
+				Expect(err).ToNot(HaveOccurred())
+				tagOut, err := env.EventBridgeAPI.ListTagsForResourceWithContext(env.Context, &eventbridge.ListTagsForResourceInput{
+					ResourceARN: out.Arn,
+				})
+				Expect(err).ToNot(HaveOccurred())
+
+				tagMap := lo.SliceToMap(tagOut.Tags, func(t *eventbridge.Tag) (k, v string) {
+					return lo.FromPtr(t.Key), lo.FromPtr(t.Value)
+				})
+				Expect(tagMap).To(HaveKeyWithValue("custom-tag", "custom-value"))
+				Expect(tagMap).To(HaveKeyWithValue("custom-tag2", "custom-value"))
+			}
+
+			queueURL, err := env.SQSProvider.DiscoverQueueURL(env.Context)
+			Expect(err).ToNot(HaveOccurred())
+
+			// Expect SQS Queue to have the global tags
+			out, err := env.SQSAPI.ListQueueTags(&sqs.ListQueueTagsInput{
+				QueueUrl: lo.ToPtr(queueURL),
+			})
+			Expect(err).ToNot(HaveOccurred())
+
+			tagMap := lo.MapEntries(out.Tags, func(k string, v *string) (string, string) {
+				return k, lo.FromPtr(v)
+			})
+			Expect(tagMap).To(HaveKeyWithValue("custom-tag", "custom-value"))
+			Expect(tagMap).To(HaveKeyWithValue("custom-tag2", "custom-value"))
+		})
 	})
 })
 
