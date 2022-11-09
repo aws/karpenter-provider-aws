@@ -91,6 +91,14 @@ func (env *Environment) EventuallyExpectQueueCreated() {
 	}).Should(Succeed())
 }
 
+func (env *Environment) EventuallyExpectEventBridgeRulesCreated() {
+	Eventually(func(g Gomega) {
+		rules, err := env.EventBridgeProvider.DiscoverRules(env.Context)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(len(rules)).To(BeNumerically("==", 4))
+	}).Should(Succeed())
+}
+
 func (env *Environment) ExpectMessagesCreated(msgs ...interface{}) {
 	wg := &sync.WaitGroup{}
 	mu := &sync.Mutex{}
