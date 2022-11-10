@@ -48,11 +48,9 @@ import (
 )
 
 const (
-	launchTemplateNameFormat         = "Karpenter-%s-%s"
-	karpenterManagedTagKey           = "karpenter.k8s.aws/cluster"
-	kubernetesVersionCacheKey        = "kubernetesVersion"
-	launchTemplateKeyFormatForAmi    = "Karpenter-LT-Ami-%s"
-	launchTemplateAmiCacheExpiration = 30 * time.Minute
+	launchTemplateNameFormat  = "Karpenter-%s-%s"
+	karpenterManagedTagKey    = "karpenter.k8s.aws/cluster"
+	kubernetesVersionCacheKey = "kubernetesVersion"
 )
 
 type LaunchTemplateProvider struct {
@@ -128,13 +126,8 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, provider *v1alpha1.AWS
 
 func (p *LaunchTemplateProvider) GetAmisForProvisioner(ctx context.Context, ant *v1alpha1.AWS, providerRef *v1alpha5.ProviderRef, instanceTypes []cloudprovider.InstanceType) ([]string, error) {
 	if ant.LaunchTemplateName != nil {
-		logging.FromContext(ctx).Debug("Provisioner with Launch template, getting ami for launch template")
-		ami, err := p.getAmiFromLaunchTemplate(ctx, *ant.LaunchTemplateName)
-		if err != nil {
-			return nil, err
-		}
-		logging.FromContext(ctx).Debugf("Found %s with launch template %s", ami, *ant.LaunchTemplateName)
-		return []string{ami}, nil
+		logging.FromContext(ctx).Debug("Provisioner with Launch template, returning 0 amis since LaunchTemplates will be deprecated.")
+		return []string{}, nil
 	}
 	options, err := p.createAmiOptions(ctx, ant, map[string]string{})
 	if err != nil {
@@ -169,45 +162,6 @@ func (p *LaunchTemplateProvider) createAmiOptions(ctx context.Context, provider 
 		KubernetesVersion:       kubeServerVersion,
 		KubeDNSIP:               p.kubeDNSIP,
 	}, nil
-}
-
-func (p *LaunchTemplateProvider) getAmiFromLaunchTemplate(ctx context.Context, launchTemplateName string) (string, error) {
-	var amiId string
-	launchTemplateKeyName := fmt.Sprintf(launchTemplateKeyFormatForAmi, launchTemplateName)
-	if ami, ok := p.cache.Get(launchTemplateKeyName); ok {
-		amiId = ami.(string)
-		logging.FromContext(ctx).Debugf("Found %s from cache for launch template %s", ami, launchTemplateName)
-		return amiId, nil
-	}
-
-	output, err := p.ec2api.DescribeLaunchTemplatesWithContext(ctx, &ec2.DescribeLaunchTemplatesInput{
-		LaunchTemplateNames: []*string{aws.String(launchTemplateName)},
-	})
-
-	if awserrors.IsNotFound(err) {
-		return "", fmt.Errorf("creating finding template, %w", err)
-	} else if err != nil {
-		return "", fmt.Errorf("describing launch templates, %w", err)
-	} else if len(output.LaunchTemplates) != 1 {
-		return "", fmt.Errorf("expected to find one launch template, but found %d", len(output.LaunchTemplates))
-	} else {
-		defaultLTVersion := fmt.Sprintf("%d", *output.LaunchTemplates[0].DefaultVersionNumber)
-		logging.FromContext(ctx).Debugf("Found %s for launch template %s", defaultLTVersion, launchTemplateName)
-
-		launchTemplateId := output.LaunchTemplates[0].LaunchTemplateId
-		launchTemplateData, err := p.ec2api.DescribeLaunchTemplateVersions(&ec2.DescribeLaunchTemplateVersionsInput{
-			LaunchTemplateId: launchTemplateId,
-			Versions:         []*string{aws.String(defaultLTVersion)},
-		})
-		if err != nil {
-			return "", fmt.Errorf("while finding ami for launch template %s %w", launchTemplateName, err)
-		}
-		amiId = *launchTemplateData.LaunchTemplateVersions[0].LaunchTemplateData.ImageId
-	}
-	//todo:check for the correct expiration, for now kept it to be 30 mins.
-	p.cache.Set(launchTemplateKeyName, amiId, launchTemplateAmiCacheExpiration)
-	logging.FromContext(ctx).Debugf("Found %s for launch template %s", amiId, launchTemplateName)
-	return amiId, nil
 }
 
 func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, options *amifamily.LaunchTemplate) (*ec2.LaunchTemplate, error) {
