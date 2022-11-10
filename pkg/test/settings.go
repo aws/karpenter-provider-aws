@@ -32,7 +32,7 @@ type SettingOptions struct {
 	IsolatedVPC                *bool
 	NodeNameConvention         *awssettings.NodeNameConvention
 	VMMemoryOverheadPercent    *float64
-	EnableInterruptionHandling *bool
+	InterruptionQueueName      *string
 	Tags                       map[string]string
 }
 
@@ -52,7 +52,7 @@ func Settings(overrides ...SettingOptions) awssettings.Settings {
 		IsolatedVPC:                lo.FromPtrOr(options.IsolatedVPC, false),
 		NodeNameConvention:         lo.FromPtrOr(options.NodeNameConvention, awssettings.IPName),
 		VMMemoryOverheadPercent:    lo.FromPtrOr(options.VMMemoryOverheadPercent, 0.075),
-		EnableInterruptionHandling: lo.FromPtrOr(options.EnableInterruptionHandling, false),
+		InterruptionQueueName:      lo.FromPtrOr(options.InterruptionQueueName, ""),
 		Tags:                       options.Tags,
 	}
 }

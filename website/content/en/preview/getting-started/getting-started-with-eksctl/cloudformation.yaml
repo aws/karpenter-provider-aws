@@ -48,6 +48,7 @@ Resources:
               - ec2:CreateTags
               - ec2:TerminateInstances
               - ec2:DeleteLaunchTemplate
+              - sqs:DeleteMessage
               # Read Operations
               - ec2:DescribeLaunchTemplates
               - ec2:DescribeInstances
@@ -60,45 +61,74 @@ Resources:
               - ec2:DescribeSpotPriceHistory
               - ssm:GetParameter
               - pricing:GetProducts
-          - Effect: Allow
-            Action:
-              - iam:PassRole
-            Resource: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/KarpenterNodeRole-${ClusterName}"
-  KarpenterEventPolicy:
-    Type: AWS::IAM::ManagedPolicy
-    Properties:
-      ManagedPolicyName: !Sub "KarpenterEventPolicy-${ClusterName}"
-      PolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Resource: !Sub "arn:${AWS::Partition}:sqs:${AWS::Region}:${AWS::AccountId}:${ClusterName}"
-            Action:
-              # Write Operations
-              - sqs:CreateQueue
-              - sqs:TagQueue
-              - sqs:SetQueueAttributes
-              - sqs:DeleteQueue
-              - sqs:DeleteMessage
-              # Read Operations
               - sqs:GetQueueUrl
               - sqs:GetQueueAttributes
               - sqs:ReceiveMessage
           - Effect: Allow
-            Resource: !Sub "arn:${AWS::Partition}:events:${AWS::Region}:${AWS::AccountId}:rule/Karpenter-*"
             Action:
-              # Write Operations
-              - events:PutRule
-              - events:TagResource
-              - events:PutTargets
-              - events:DeleteRule
-              - events:RemoveTargets
-              - events:ListTagsForResource
-            Condition:
-              StringEquals:
-                aws:ResourceTag/karpenter.sh/discovery: !Sub "${ClusterName}"
+              - iam:PassRole
+            Resource: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/KarpenterNodeRole-${ClusterName}"
+  KarpenterInterruptionQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub "${ClusterName}"
+      MessageRetentionPeriod: 300
+  KarpenterInterruptionQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref KarpenterInterruptionQueue
+      PolicyDocument:
+        Id: EC2InterruptionPolicy
+        Statement:
           - Effect: Allow
-            Resource: "*"
-            Action:
-              # Read Operations
-              - events:ListRules
+            Principal:
+              Service:
+                - events.amazonaws.com
+                - sqs.amazonaws.com
+            Action: sqs:SendMessage
+            Resource: !GetAtt KarpenterInterruptionQueue.Arn
+  ScheduledChangeRule:
+    Type: 'AWS::Events::Rule'
+    Properties:
+      EventPattern:
+        source:
+          - aws.health
+        detail-type:
+          - AWS Health Event
+      Targets:
+        - Id: KarpenterInterruptionQueueTarget
+          Arn: !GetAtt KarpenterInterruptionQueue.Arn
+  SpotInterruptionRule:
+    Type: 'AWS::Events::Rule'
+    Properties:
+      EventPattern:
+        source:
+          - aws.ec2
+        detail-type:
+          - EC2 Spot Instance Interruption Warning
+      Targets:
+        - Id: KarpenterInterruptionQueueTarget
+          Arn: !GetAtt KarpenterInterruptionQueue.Arn
+  RebalanceRule:
+    Type: 'AWS::Events::Rule'
+    Properties:
+      EventPattern:
+        source:
+          - aws.ec2
+        detail-type:
+          - EC2 Instance Rebalance Recommendation
+      Targets:
+        - Id: KarpenterInterruptionQueueTarget
+          Arn: !GetAtt KarpenterInterruptionQueue.Arn
+  InstanceStateChangeRule:
+    Type: 'AWS::Events::Rule'
+    Properties:
+      EventPattern:
+        source:
+          - aws.ec2
+        detail-type:
+          - EC2 Instance State-change Notification
+      Targets:
+        - Id: KarpenterInterruptionQueueTarget
+          Arn: !GetAtt KarpenterInterruptionQueue.Arn

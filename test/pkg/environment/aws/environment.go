@@ -21,13 +21,12 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/eventbridge"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/samber/lo"
 
-	"github.com/aws/karpenter/pkg/controllers/providers"
+	"github.com/aws/karpenter/pkg/controllers/interruption"
 	"github.com/aws/karpenter/test/pkg/environment/common"
 )
 
@@ -35,35 +34,27 @@ type Environment struct {
 	*common.Environment
 	Region string
 
-	EC2API         *ec2.EC2
-	SSMAPI         *ssm.SSM
-	IAMAPI         *iam.IAM
-	SQSAPI         *sqs.SQS
-	EventBridgeAPI *eventbridge.EventBridge
+	EC2API *ec2.EC2
+	SSMAPI *ssm.SSM
+	IAMAPI *iam.IAM
 
-	SQSProvider         *providers.SQS
-	EventBridgeProvider *providers.EventBridge
-	InterruptionAPI     *itn.ITN
+	SQSProvider     *interruption.SQSProvider
+	InterruptionAPI *itn.ITN
 }
 
 func NewEnvironment(t *testing.T) *Environment {
 	env := common.NewEnvironment(t)
 	session := session.Must(session.NewSessionWithOptions(session.Options{SharedConfigState: session.SharedConfigEnable}))
 
-	ret := &Environment{
+	return &Environment{
 		Region:          *session.Config.Region,
 		Environment:     env,
 		EC2API:          ec2.New(session),
 		SSMAPI:          ssm.New(session),
 		IAMAPI:          iam.New(session),
-		SQSAPI:          sqs.New(session),
-		EventBridgeAPI:  eventbridge.New(session),
 		InterruptionAPI: itn.New(lo.Must(config.LoadDefaultConfig(env.Context))),
+		SQSProvider:     interruption.NewSQSProvider(sqs.New(session)),
 	}
-	ret.SQSProvider = providers.NewSQS(ret.SQSAPI)
-	ret.EventBridgeProvider = providers.NewEventBridge(ret.EventBridgeAPI, ret.SQSProvider)
-
-	return ret
 }
 
 func (env *Environment) Stop() {
