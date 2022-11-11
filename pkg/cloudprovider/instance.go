@@ -266,11 +266,6 @@ func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.Inst
 		unwrappedOfferings = append(unwrappedOfferings, ofs...)
 	}
 
-	// Sort all the potential offerings by each individual offering price
-	sort.Slice(unwrappedOfferings, func(i, j int) bool {
-		return unwrappedOfferings[i].Price < unwrappedOfferings[j].Price
-	})
-
 	var overrides []*ec2.FleetLaunchTemplateOverridesRequest
 	for _, offering := range unwrappedOfferings {
 		if capacityType != offering.CapacityType {
@@ -283,14 +278,13 @@ func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.Inst
 		if !ok {
 			continue
 		}
-		override := &ec2.FleetLaunchTemplateOverridesRequest{
+		overrides = append(overrides, &ec2.FleetLaunchTemplateOverridesRequest{
 			InstanceType: aws.String(offering.parentInstanceTypeName),
 			SubnetId:     subnet.SubnetId,
 			// This is technically redundant, but is useful if we have to parse insufficient capacity errors from
 			// CreateFleet so that we can figure out the zone rather than additional API calls to look up the subnet
 			AvailabilityZone: subnet.AvailabilityZone,
-		}
-		overrides = append(overrides, override)
+		})
 	}
 	return overrides
 }
