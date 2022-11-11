@@ -30,13 +30,10 @@ const (
 // SQSBehavior must be reset between tests otherwise tests will
 // pollute each other.
 type SQSBehavior struct {
-	CreateQueueBehavior        MockedFunction[sqs.CreateQueueInput, sqs.CreateQueueOutput]
 	GetQueueURLBehavior        MockedFunction[sqs.GetQueueUrlInput, sqs.GetQueueUrlOutput]
 	GetQueueAttributesBehavior MockedFunction[sqs.GetQueueAttributesInput, sqs.GetQueueAttributesOutput]
-	SetQueueAttributesBehavior MockedFunction[sqs.SetQueueAttributesInput, sqs.SetQueueAttributesOutput]
 	ReceiveMessageBehavior     MockedFunction[sqs.ReceiveMessageInput, sqs.ReceiveMessageOutput]
 	DeleteMessageBehavior      MockedFunction[sqs.DeleteMessageInput, sqs.DeleteMessageOutput]
-	DeleteQueueBehavior        MockedFunction[sqs.DeleteQueueInput, sqs.DeleteQueueOutput]
 }
 
 type SQSAPI struct {
@@ -47,19 +44,10 @@ type SQSAPI struct {
 // Reset must be called between tests otherwise tests will pollute
 // each other.
 func (s *SQSAPI) Reset() {
-	s.CreateQueueBehavior.Reset()
 	s.GetQueueURLBehavior.Reset()
 	s.GetQueueAttributesBehavior.Reset()
-	s.SetQueueAttributesBehavior.Reset()
 	s.ReceiveMessageBehavior.Reset()
 	s.DeleteMessageBehavior.Reset()
-	s.DeleteQueueBehavior.Reset()
-}
-
-func (s *SQSAPI) CreateQueueWithContext(_ context.Context, input *sqs.CreateQueueInput, _ ...request.Option) (*sqs.CreateQueueOutput, error) {
-	return s.CreateQueueBehavior.WithDefault(&sqs.CreateQueueOutput{
-		QueueUrl: aws.String(dummyQueueURL),
-	}).Invoke(input)
 }
 
 //nolint:revive,stylecheck
@@ -77,18 +65,10 @@ func (s *SQSAPI) GetQueueAttributesWithContext(_ context.Context, input *sqs.Get
 	}).Invoke(input)
 }
 
-func (s *SQSAPI) SetQueueAttributesWithContext(_ context.Context, input *sqs.SetQueueAttributesInput, _ ...request.Option) (*sqs.SetQueueAttributesOutput, error) {
-	return s.SetQueueAttributesBehavior.Invoke(input)
-}
-
 func (s *SQSAPI) ReceiveMessageWithContext(_ context.Context, input *sqs.ReceiveMessageInput, _ ...request.Option) (*sqs.ReceiveMessageOutput, error) {
 	return s.ReceiveMessageBehavior.Invoke(input)
 }
 
 func (s *SQSAPI) DeleteMessageWithContext(_ context.Context, input *sqs.DeleteMessageInput, _ ...request.Option) (*sqs.DeleteMessageOutput, error) {
 	return s.DeleteMessageBehavior.Invoke(input)
-}
-
-func (s *SQSAPI) DeleteQueueWithContext(_ context.Context, input *sqs.DeleteQueueInput, _ ...request.Option) (*sqs.DeleteQueueOutput, error) {
-	return s.DeleteQueueBehavior.Invoke(input)
 }

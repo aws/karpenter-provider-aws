@@ -77,7 +77,7 @@ For spot nodes, Karpenter only uses the deletion consolidation mechanism.  It wi
 
 ## Interruption
 
-If interruption-handling is enabled for the controller, Karpenter will watch for upcoming involuntary interruption events that would cause disruption to your workloads. These interruption events include:
+If interruption-handling is enabled, Karpenter will watch for upcoming involuntary interruption events that would cause disruption to your workloads. These interruption events include:
 
 * Spot Interruption Warnings
 * Scheduled Change Health Events (Maintenance Events)
@@ -90,18 +90,9 @@ When Karpenter detects one of these events will occur to your nodes, it automati
 Karpenter publishes Kubernetes events to the node for all events listed above in addition to __Spot Reblanace Recommendations__. Karpenter does not currently support cordon, drain, and terminate logic for Spot Rebalance Recommendations.
 {{% /alert %}}
 
-Karpenter enables this feature by watching an SQS queue which receives critical events from AWS services which may affect your nodes. To simplify the process of standing-up and configuring this infrastructure, Karpenter automatically provisions and continually reconciles the state of the SQS queue and EventBridge rules that are needed to enable notification of these events.
+Karpenter enables this feature by watching an SQS queue which receives critical events from AWS services which may affect your nodes. Karpenter requires that an SQS queue be provisioned and EventBridge rules and targets be added that forward interruption events from AWS services to the SQS queue. Karpenter provides details for provisioning this infrastructure in the [Cloudformation template in the Getting Started Guide](../../getting-started/getting-started-with-eksctl/#create-the-karpenter-infrastructure-and-iam-roles).
 
-By enabling Karpenter interruption handling, you are allowing Karpenter to provision the following infrastructure in your account:
-
-* SQS Queue (named after your EKS cluster name)
-* EventBridge Rules (prefixed with `Karpenter-`)
-
-{{% alert title="Note" color="primary" %}}
-All infrastructure that Karpenter creates and deploys to your account is tagged with the `karpenter.sh/discovery: ${CLUSTER_NAME}` and the `karpenter.sh/managed-by: ${CLUSTER_NAME}` tags for ease of discovery
-{{% /alert %}}
-
-To enable the interruption handling feature flag, configure the `karpenter-global-settings` ConfigMap with the following value
+To enable the interruption handling feature flag, configure the `karpenter-global-settings` ConfigMap with the following value mapped to the name of the interruption queue that handles interruption events.
 
 ```yaml
 apiVersion: v1
@@ -111,7 +102,7 @@ metadata:
   namespace: karpenter
 data:
   ...
-  aws.enableInterruptionHandling: "true"
+  aws.interruptionQueueName: karpenter-cluster
   ...
 ```
 

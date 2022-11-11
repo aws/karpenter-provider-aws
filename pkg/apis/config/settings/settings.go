@@ -52,7 +52,7 @@ var defaultSettings = Settings{
 	IsolatedVPC:                false,
 	NodeNameConvention:         IPName,
 	VMMemoryOverheadPercent:    0.075,
-	EnableInterruptionHandling: false,
+	InterruptionQueueName:      "",
 	Tags:                       map[string]string{},
 }
 
@@ -65,7 +65,7 @@ type Settings struct {
 	IsolatedVPC                bool               `json:"aws.isolatedVPC,string"`
 	NodeNameConvention         NodeNameConvention `json:"aws.nodeNameConvention" validate:"required"`
 	VMMemoryOverheadPercent    float64            `json:"aws.vmMemoryOverheadPercent,string" validate:"min=0"`
-	EnableInterruptionHandling bool               `json:"aws.enableInterruptionHandling,string"`
+	InterruptionQueueName      string             `json:"aws.interruptionQueueName,string"`
 	Tags                       map[string]string  `json:"aws.tags,omitempty"`
 }
 
@@ -82,7 +82,7 @@ func NewSettingsFromConfigMap(cm *v1.ConfigMap) (Settings, error) {
 		configmap.AsBool("aws.isolatedVPC", &s.IsolatedVPC),
 		AsTypedString("aws.nodeNameConvention", &s.NodeNameConvention),
 		configmap.AsFloat64("aws.vmMemoryOverheadPercent", &s.VMMemoryOverheadPercent),
-		configmap.AsBool("aws.enableInterruptionHandling", &s.EnableInterruptionHandling),
+		configmap.AsString("aws.interruptionQueueName", &s.InterruptionQueueName),
 		AsMap("aws.tags", &s.Tags),
 	); err != nil {
 		// Failing to parse means that there is some error in the Settings, so we should crash

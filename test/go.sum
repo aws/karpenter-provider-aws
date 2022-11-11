@@ -44,6 +44,7 @@ github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751/go.mod h1:LOuy
 github.com/alecthomas/units v0.0.0-20151022065526-2efee857e7cf/go.mod h1:ybxpYRFXyAe+OPACYpWeL0wqObRcbAqCMya13uyzqw0=
 github.com/alecthomas/units v0.0.0-20190717042225-c3de453c63f4/go.mod h1:ybxpYRFXyAe+OPACYpWeL0wqObRcbAqCMya13uyzqw0=
 github.com/alecthomas/units v0.0.0-20190924025748-f65c72e2690d/go.mod h1:rBZYJk541a8SKzHPHnH3zbiI+7dagKZ0cgpgrD7Fyho=
+github.com/avast/retry-go v3.0.0+incompatible h1:4SOWQ7Qs+oroOTQOYnAHqelpCO0biHSxpiH9JdtuBj0=
 github.com/aws/amazon-ec2-spot-interrupter v0.0.9 h1:2yRK7f29tPhrkFBn1lg6QZNjY3iE1ovsjom99OnBCDw=
 github.com/aws/amazon-ec2-spot-interrupter v0.0.9/go.mod h1:TwqwmD9RUPwjjcyklxGlzxIxbA6oRfDn6lQf0Muu8/A=
 github.com/aws/aws-sdk-go v1.44.127 h1:IoO2VfuIQg1aMXnl8l6OpNUKT4Qq5CnJMOyIWoTYXj0=
