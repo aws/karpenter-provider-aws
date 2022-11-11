@@ -23,5 +23,5 @@ spec:
   subnetSelector:
     karpenter.sh/discovery: ${CLUSTER_NAME}
   securityGroupSelector:
-    karpenter.sh/discovery: ${CLUSTER_NAME}
+    kubernetes.io/cluster/${CLUSTER_NAME}: '*'
 EOF
