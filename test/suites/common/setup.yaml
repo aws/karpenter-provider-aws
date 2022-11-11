@@ -97,7 +97,8 @@ spec:
       --cluster "$(params.cluster-name)" \
       --arn "arn:aws:iam::$(cat $(results.account-id.path)):role/KarpenterNodeRole-$(params.cluster-name)" \
       --group system:bootstrappers \
-      --group system:nodes
+      --group system:nodes \
+      --group eks:kube-proxy-windows
 
       eksctl create iamserviceaccount \
         --cluster "$(params.cluster-name)" --name karpenter --namespace karpenter \

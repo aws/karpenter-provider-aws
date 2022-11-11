@@ -33,6 +33,8 @@ import (
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 )
 
 func (env *Environment) ExpectCreatedWithOffset(offset int, objects ...client.Object) {
@@ -154,6 +156,21 @@ func (env *Environment) ExpectUniqueNodeNames(selector labels.Selector, uniqueNa
 	ExpectWithOffset(1, len(nodeNames)).To(BeNumerically("==", uniqueNames))
 }
 
+func (env *Environment) EventuallyExpectCreatedNodesInitialized() {
+	EventuallyWithOffset(1, func(g Gomega) {
+		nodes := env.Monitor.CreatedNodes()
+		nodeNames := sets.NewString(lo.Map(nodes, func(n *v1.Node, _ int) string { return n.Name })...)
+		for _, node := range nodes {
+			if nodeNames.Has(node.Name) {
+				_, ok := node.Labels[v1alpha5.LabelNodeInitialized]
+				g.Expect(ok).To(BeTrue())
+				nodeNames.Delete(node.Name)
+			}
+		}
+		g.Expect(nodeNames.Len()).To(BeNumerically("==", 0))
+	}).Should(Succeed())
+}
+
 func (env *Environment) eventuallyExpectScaleDown() {
 	EventuallyWithOffset(1, func(g Gomega) {
 		// expect the current node count to be what it was when the test started
@@ -176,10 +193,6 @@ func (env *Environment) EventuallyExpectNotFoundAssertionWithOffset(offset int, 
 			g.Expect(errors.IsNotFound(err)).To(BeTrue())
 		}
 	})
-}
-
-func (env *Environment) ExpectDeploymentCreatedAndHealthy(numPods int) {
-
 }
 
 func (env *Environment) ExpectCreatedNodeCount(comparator string, nodeCount int) {
@@ -265,4 +278,10 @@ func (env *Environment) EventuallyExpectAvgUtilization(resource v1.ResourceName,
 	EventuallyWithOffset(1, func(g Gomega) {
 		g.Expect(env.Monitor.AvgUtilization(resource)).To(BeNumerically(comparator, value))
 	}, 10*time.Minute).Should(Succeed())
+}
+
+func (env *Environment) ExpectKubeServerVersion() string {
+	serverVersion, err := env.KubeClient.Discovery().ServerVersion()
+	ExpectWithOffset(1, err).ToNot(HaveOccurred())
+	return fmt.Sprintf("%s.%s", serverVersion.Major, strings.TrimSuffix(serverVersion.Minor, "+"))
 }

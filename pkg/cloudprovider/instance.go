@@ -323,7 +323,7 @@ func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Ins
 
 			labels := map[string]string{}
 
-			// First, constrain the labels on the node by the nodeRequest requirements. Then, constraint them
+			// First, constrain the labels on the node by the nodeRequest requirements. Then, constrain them
 			// more (if possible) by the instance type requirements
 			for key, req := range nodeRequest.Template.Requirements {
 				if req.Len() == 1 {

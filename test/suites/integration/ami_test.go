@@ -83,7 +83,7 @@ var _ = Describe("LaunchTemplates", func() {
 	It("should use the most recent AMI when discovering multiple", func() {
 		// choose an old static image
 		parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
-			Name: aws.String("/aws/service/eks/optimized-ami/1.23/amazon-linux-2/amazon-eks-node-1.23-v20221101/image_id"),
+			Name: aws.String(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/amazon-eks-node-%s-v20221101/image_id", env.ExpectKubeServerVersion(), env.ExpectKubeServerVersion())),
 		})
 		Expect(err).To(BeNil())
 		oldCustomAMI := *parameter.Parameter.Value

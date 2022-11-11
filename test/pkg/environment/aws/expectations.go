@@ -15,6 +15,9 @@ limitations under the License.
 package aws
 
 import (
+	"context"
+	"encoding/base64"
+	"fmt"
 	"net"
 	"strings"
 	"sync"
@@ -23,8 +26,15 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	. "github.com/onsi/ginkgo/v2" //nolint:revive,stylecheck
 	. "github.com/onsi/gomega"    //nolint:revive,stylecheck
+	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/transport"
+	"knative.dev/pkg/logging"
+
+	"github.com/aws/karpenter/pkg/apis/config/settings"
 )
 
 func (env *Environment) ExpectInstance(nodeName string) Assertion {
@@ -109,4 +119,48 @@ func (env *Environment) ExpectMessagesCreated(msgs ...interface{}) {
 	}
 	wg.Wait()
 	ExpectWithOffset(1, err).To(Succeed())
+}
+
+func (env *Environment) ExpectWindowsUserData() string {
+	caBundle, err := getCABundle(env.Context, env.Config)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred())
+	kubeDNS, err := kubeDNSIP(env.Context, env.KubeClient)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred())
+	return fmt.Sprintf(`<powershell>
+[string]$EKSBootstrapScriptFile = "$env:ProgramFiles\Amazon\EKS\Start-EKSBootstrap.ps1"
+& $EKSBootstrapScriptFile -EKSClusterName "%s" -APIServerEndpoint "%s" -Base64ClusterCA "%s" -DNSClusterIP "%s" -ContainerRuntime "docker"
+</powershell>`,
+		settings.FromContext(env.Context).ClusterName, settings.FromContext(env.Context).ClusterEndpoint, lo.FromPtr(caBundle), kubeDNS.String())
+}
+
+func getCABundle(ctx context.Context, restConfig *rest.Config) (*string, error) {
+	// Discover CA Bundle from the REST client. We could alternatively
+	// have used the simpler client-go InClusterConfig() method.
+	// However, that only works when Karpenter is running as a Pod
+	// within the same cluster it's managing.
+	transportConfig, err := restConfig.TransportConfig()
+	if err != nil {
+		return nil, fmt.Errorf("discovering caBundle, loading transport config, %w", err)
+	}
+	_, err = transport.TLSConfigFor(transportConfig) // fills in CAData!
+	if err != nil {
+		return nil, fmt.Errorf("discovering caBundle, loading TLS config, %w", err)
+	}
+	logging.FromContext(ctx).Debugf("Discovered caBundle, length %d", len(transportConfig.TLS.CAData))
+	return lo.ToPtr(base64.StdEncoding.EncodeToString(transportConfig.TLS.CAData)), nil
+}
+
+func kubeDNSIP(ctx context.Context, kubernetesInterface kubernetes.Interface) (net.IP, error) {
+	if kubernetesInterface == nil {
+		return nil, fmt.Errorf("no K8s client provided")
+	}
+	dnsService, err := kubernetesInterface.CoreV1().Services("kube-system").Get(ctx, "kube-dns", metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	ret := net.ParseIP(dnsService.Spec.ClusterIP)
+	if ret == nil {
+		return nil, fmt.Errorf("parsing cluster IP")
+	}
+	return ret, nil
 }
