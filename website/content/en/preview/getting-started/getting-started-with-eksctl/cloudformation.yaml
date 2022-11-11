@@ -48,7 +48,6 @@ Resources:
               - ec2:CreateTags
               - ec2:TerminateInstances
               - ec2:DeleteLaunchTemplate
-              - sqs:DeleteMessage
               # Read Operations
               - ec2:DescribeLaunchTemplates
               - ec2:DescribeInstances
@@ -61,9 +60,15 @@ Resources:
               - ec2:DescribeSpotPriceHistory
               - ssm:GetParameter
               - pricing:GetProducts
+          - Effect: Allow
+            Action:
+              # Write Operations
+              - sqs:DeleteMessage
+              # Read Operations
               - sqs:GetQueueUrl
               - sqs:GetQueueAttributes
               - sqs:ReceiveMessage
+            Resource: !GetAtt KarpenterInterruptionQueue.Arn
           - Effect: Allow
             Action:
               - iam:PassRole
