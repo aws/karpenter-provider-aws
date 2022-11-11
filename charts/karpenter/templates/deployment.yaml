@@ -70,7 +70,7 @@ spec:
             - name: KARPENTER_SERVICE
               value: {{ include "karpenter.fullname" . }}
             - name: WEBHOOK_PORT
-              value: {{ .Values.webhook.port }}
+              value: "{{ .Values.webhook.port }}"
             - name: SYSTEM_NAMESPACE
               valueFrom:
                 fieldRef:
