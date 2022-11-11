@@ -27,6 +27,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/samber/lo"
+
 	"github.com/aws/karpenter-core/pkg/metrics"
 )
 
@@ -78,7 +80,10 @@ description: >
 	previousSubsystem := ""
 	for _, metric := range allMetrics {
 		if metric.subsystem != previousSubsystem {
-			fmt.Fprintf(f, "## %s%s Metrics\n", strings.ToTitle(metric.subsystem[0:1]), metric.subsystem[1:])
+			subsystemTitle := strings.Join(lo.Map(strings.Split(metric.subsystem, "_"), func(s string, _ int) string {
+				return fmt.Sprintf("%s%s", strings.ToTitle(s[0:1]), s[1:])
+			}), " ")
+			fmt.Fprintf(f, "## %s Metrics\n", subsystemTitle)
 			previousSubsystem = metric.subsystem
 			fmt.Fprintln(f)
 		}

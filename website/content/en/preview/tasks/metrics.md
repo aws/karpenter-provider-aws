@@ -92,7 +92,7 @@ Pod state is the current state of pods. This metric can be used several ways as 
 ### `karpenter_cloudprovider_duration_seconds`
 Duration of cloud provider method calls. Labeled by the controller, method name and provider.
 
-## Allocation_controller Metrics
+## Allocation Controller Metrics
 
 ### `karpenter_allocation_controller_scheduling_duration_seconds`
 Duration of scheduling process in seconds. Broken down by provisioner and error.
