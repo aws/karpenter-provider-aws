@@ -97,13 +97,13 @@ func (p *InstanceProvider) Create(ctx context.Context, provider *v1alpha1.AWS, n
 	); err != nil {
 		return nil, fmt.Errorf("retrieving node name for instance %s, %w", aws.StringValue(instance.InstanceId), err)
 	}
-	logging.FromContext(ctx).Infof("Launched instance: %s, hostname: %s, type: %s, zone: %s, capacityType: %s",
-		aws.StringValue(instance.InstanceId),
-		aws.StringValue(instance.PrivateDnsName),
-		aws.StringValue(instance.InstanceType),
-		aws.StringValue(instance.Placement.AvailabilityZone),
-		getCapacityType(instance),
-	)
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With(
+		"launchedInstance", aws.StringValue(instance.InstanceId),
+		"hostname", aws.StringValue(instance.PrivateDnsName),
+		"type", aws.StringValue(instance.InstanceType),
+		"zone", aws.StringValue(instance.Placement.AvailabilityZone),
+		"capacityType", getCapacityType(instance)))
+	logging.FromContext(ctx).Infof("Launched new instance:")
 
 	// Convert Instance to Node
 	return p.instanceToNode(ctx, instance, nodeRequest.InstanceTypeOptions), nil

@@ -128,18 +128,19 @@ func benchmarkNotificationController(b *testing.B, messageCount int) {
 	interruptionController := interruption.NewController(env.Client, fakeClock, recorder, providers.sqsProvider, unavailableOfferingsCache)
 
 	messages, nodes := makeDiverseMessagesAndNodes(messageCount)
-
-	logging.FromContext(ctx).Infof("Provisioning %d nodes", messageCount)
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With(
+		"numberOfNodes", messageCount))
+	logging.FromContext(ctx).Infof("Provisioning nodes")
 	if err := provisionNodes(ctx, env.Client, nodes); err != nil {
 		b.Fatalf("provisioning nodes, %v", err)
 	}
-	logging.FromContext(ctx).Infof("Completed provisioning %d nodes", messageCount)
+	logging.FromContext(ctx).Infof("Completed provisioning nodes")
 
-	logging.FromContext(ctx).Infof("Provisioning %d messages into the SQS Queue", messageCount)
+	logging.FromContext(ctx).Infof("Provisioning messages into the SQS Queue")
 	if err := providers.provisionMessages(ctx, messages...); err != nil {
 		b.Fatalf("provisioning messages, %v", err)
 	}
-	logging.FromContext(ctx).Infof("Completed provisioning %d messages into the SQS Queue", messageCount)
+	logging.FromContext(ctx).Infof("Completed provisioning messages into the SQS Queue")
 
 	m, err := controllerruntime.NewManager(env.Config, controllerruntime.Options{
 		BaseContext: func() context.Context { return logging.WithLogger(ctx, zap.NewNop().Sugar()) },
@@ -235,7 +236,9 @@ func (p *providerSet) monitorMessagesProcessed(ctx context.Context, eventRecorde
 				eventRecorder.Calls(events.InstanceUnhealthy(coretest.Node()).Reason) +
 				eventRecorder.Calls(events.InstanceRebalanceRecommendation(coretest.Node()).Reason) +
 				eventRecorder.Calls(events.InstanceSpotInterrupted(coretest.Node()).Reason)
-			logging.FromContext(ctx).Infof("Processed %d messages from the queue", totalProcessed)
+			ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With(
+				"totalProcessed", totalProcessed))
+			logging.FromContext(ctx).Infof("Processed messages from the queue")
 			time.Sleep(time.Second)
 		}
 		close(done)
