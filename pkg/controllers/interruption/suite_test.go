@@ -54,7 +54,6 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages/scheduledchange"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages/spotinterruption"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages/statechange"
-	"github.com/aws/karpenter/pkg/controllers/providers"
 	"github.com/aws/karpenter/pkg/errors"
 	"github.com/aws/karpenter/pkg/fake"
 	"github.com/aws/karpenter/pkg/test"
@@ -72,10 +71,8 @@ var ctx context.Context
 var env *coretest.Environment
 var nodeTemplate *v1alpha1.AWSNodeTemplate
 var sqsapi *fake.SQSAPI
-var eventbridgeapi *fake.EventBridgeAPI
 var cloudProvider *corefake.CloudProvider
-var sqsProvider *providers.SQS
-var eventBridgeProvider *providers.EventBridge
+var sqsProvider *interruption.SQSProvider
 var unavailableOfferingsCache *awscache.UnavailableOfferings
 var recorder *coretest.EventRecorder
 var fakeClock *clock.FakeClock
@@ -99,9 +96,7 @@ var _ = BeforeSuite(func() {
 	unavailableOfferingsCache = awscache.NewUnavailableOfferings(cache.New(awscache.UnavailableOfferingsTTL, awscontext.CacheCleanupInterval))
 
 	sqsapi = &fake.SQSAPI{}
-	sqsProvider = providers.NewSQS(sqsapi)
-	eventbridgeapi = &fake.EventBridgeAPI{}
-	eventBridgeProvider = providers.NewEventBridge(eventbridgeapi, sqsProvider)
+	sqsProvider = interruption.NewSQSProvider(sqsapi)
 })
 
 var _ = AfterSuite(func() {
@@ -113,7 +108,7 @@ var _ = BeforeEach(func() {
 	settingsStore := coretest.SettingsStore{
 		coresettings.ContextKey: coretest.Settings(),
 		settings.ContextKey: test.Settings(test.SettingOptions{
-			EnableInterruptionHandling: lo.ToPtr(true),
+			InterruptionQueueName: lo.ToPtr("test-cluster"),
 		}),
 	}
 	ctx = settingsStore.InjectSettings(ctx)
@@ -121,7 +116,6 @@ var _ = BeforeEach(func() {
 
 var _ = AfterEach(func() {
 	sqsapi.Reset()
-	eventbridgeapi.Reset()
 	ExpectCleanedUp(ctx, env.Client)
 	ExpectDeleted(ctx, env.Client, nodeTemplate)
 })

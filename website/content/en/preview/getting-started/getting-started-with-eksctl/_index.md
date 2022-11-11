@@ -82,15 +82,15 @@ Karpenter itself can run anywhere, including on [self-managed node groups](https
 
 Karpenter will provision EC2 instances in your account.
 
-### Create the KarpenterNode IAM Role
+### Create the Karpenter Infrastructure and IAM Roles
 
-Instances launched by Karpenter must run with an InstanceProfile that grants permissions necessary to run containers and configure networking. Karpenter discovers the InstanceProfile using the name `KarpenterNodeRole-${ClusterName}`.
-
-First, create the IAM resources using AWS CloudFormation.
+Karpenter requires IAM permissions to launch and connect instances and requires infrastructure to monitor [interruption events](../../../tasks/deprovisioning/#interruption). This command provisions the relevant infrastrucutre and IAM roles using Cloudformation.
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step03-iam-cloud-formation.sh" language="bash"%}}
 
-Second, grant access to instances using the profile to connect to the cluster. This command adds the Karpenter node role to your aws-auth configmap, allowing nodes with this role to connect to the cluster.
+### Grant Access to Nodes to Join the Cluster
+
+Instances launched by Karpenter must run with an InstanceProfile that grants permissions necessary to run containers and configure networking. Karpenter discovers the InstanceProfile using the name `KarpenterNodeRole-${ClusterName}`. This command adds the Karpenter node role to your aws-auth configmap, allowing nodes to connect.
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step04-grant-access.sh" language="bash"%}}
 
@@ -134,27 +134,6 @@ The new stack has only one user, `admin`, and the password is stored in a secret
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step11-grafana-get-password.sh" language="bash"%}}
 
-#### Enable Interruption Handling (optional)
-
-Interruption handling allows for Karpenter to watch for spot interruption notifications, spot rebalance recommendations, and EC2 scheduled maintenance events. Karpenter enables this feature by watching an SQS queue which receives critical events from AWS services which may affect your nodes. To simplify the process of standing-up and configuring this infrastructure, Karpenter automatically provisions and continually reconciles the state of the SQS queue and EventBridge rules that are needed to enable notification of these events.
-
-By enabling Karpenter interruption handling, you are allowing Karpenter to provision the following infrastructure in your account:
-
-* SQS Queue (named after your EKS cluster name)
-* EventBridge Rules (prefixed with `Karpenter-`)
-
-{{% alert title="Note" color="primary" %}}
-All infrastructure that Karpenter creates and deploys to your account is tagged with the `karpenter.sh/discovery: ${CLUSTER_NAME}` and the `karpenter.sh/managed-by: ${CLUSTER_NAME}` tags for ease of discovery
-{{% /alert %}}
-
-Permission to provision these rules is given through the `KarpenterEventPolicy`, created through the [CloudFormation template](#create-the-karpenternode-iam-role) deployed above.
-
-To enable the interruption handling feature flag, upgrade helm using the 
-
-{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step12-enable-interruption-handling.sh" language="bash"%}}
-
-For more details on how Karpenter handles interruption events, see the [Interruption Handling docs](../../tasks/deprovisioning#interruption).
-
 ### Provisioner
 
 A single Karpenter provisioner is capable of handling many different pod
@@ -175,7 +154,7 @@ Review the [provisioner CRD]({{<ref "../../provisioner.md" >}}) for more informa
 
 Note: This provisioner will create capacity as long as the sum of all created capacity is less than the specified limit.
 
-{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step13-add-provisioner.sh" language="bash"%}}
+{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step12-add-provisioner.sh" language="bash"%}}
 
 ## First Use
 
@@ -186,14 +165,14 @@ Create some pods using a deployment, and watch Karpenter provision nodes in resp
 
 This deployment uses the [pause image](https://www.ianlewis.org/en/almighty-pause-container) and starts with zero replicas.
 
-{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step14-automatic-node-provisioning.sh" language="bash"%}}
+{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step13-automatic-node-provisioning.sh" language="bash"%}}
 
 ### Automatic Node Termination
 
 Now, delete the deployment. After 30 seconds (`ttlSecondsAfterEmpty`),
 Karpenter should terminate the now empty nodes.
 
-{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step15-deprovisioning.sh" language="bash"%}}
+{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step14-deprovisioning.sh" language="bash"%}}
 
 ### Manual Node Termination
 
@@ -203,10 +182,10 @@ finalizer to the node object, which blocks deletion until all pods are
 drained and the instance is terminated. Keep in mind, this only works for
 nodes provisioned by Karpenter.
 
-{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step16-delete-node.sh" language="bash"%}}
+{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step15-delete-node.sh" language="bash"%}}
 
 ## Cleanup
 
 To avoid additional charges, remove the demo infrastructure from your AWS account.
 
-{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step17-cleanup.sh" language="bash"%}}
+{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step16-cleanup.sh" language="bash"%}}

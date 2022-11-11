@@ -103,7 +103,6 @@ spec:
         --cluster "$(params.cluster-name)" --name karpenter --namespace karpenter \
         --role-name "$(params.cluster-name)-karpenter" \
         --attach-policy-arn "arn:aws:iam::$(cat $(results.account-id.path)):policy/KarpenterControllerPolicy-$(params.cluster-name)" \
-        --attach-policy-arn "arn:aws:iam::$(cat $(results.account-id.path)):policy/KarpenterEventPolicy-$(params.cluster-name)" \
         --role-only \
         --approve
 
@@ -119,5 +118,5 @@ spec:
         --set settings.aws.clusterName=$(params.cluster-name) \
         --set settings.aws.clusterEndpoint=$(cat /root/.kube/config | grep server | awk '{print $2}') \
         --set settings.aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-$(params.cluster-name) \
-        --set settings.aws.enableInterruptionHandling=true \
+        --set settings.aws.interruptionQueueName=$(params.cluster-name) \
         --wait
