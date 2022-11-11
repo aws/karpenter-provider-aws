@@ -16,14 +16,15 @@ package settings
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/url"
 	"strings"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/imdario/mergo"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/yaml"
 	"knative.dev/pkg/configmap"
 
 	"github.com/aws/karpenter-core/pkg/apis/config"
@@ -39,8 +40,9 @@ const (
 var ContextKey = Registration
 
 var Registration = &config.Registration{
-	ConfigMapName: "karpenter-global-settings",
-	Constructor:   NewSettingsFromConfigMap,
+	ConfigMapName:        "karpenter-global-settings",
+	ConfigMapConstructor: NewSettingsFromConfigMap,
+	FileConstructor:      NewSettingsFromFile,
 }
 
 var defaultSettings = Settings{
@@ -57,20 +59,20 @@ var defaultSettings = Settings{
 }
 
 type Settings struct {
-	ClusterName                string             `json:"aws.clusterName" validate:"required"`
-	ClusterEndpoint            string             `json:"aws.clusterEndpoint" validate:"required"`
-	DefaultInstanceProfile     string             `json:"aws.defaultInstanceProfile"`
-	EnablePodENI               bool               `json:"aws.enablePodENI,string"`
-	EnableENILimitedPodDensity bool               `json:"aws.enableENILimitedPodDensity,string"`
-	IsolatedVPC                bool               `json:"aws.isolatedVPC,string"`
-	NodeNameConvention         NodeNameConvention `json:"aws.nodeNameConvention" validate:"required"`
-	VMMemoryOverheadPercent    float64            `json:"aws.vmMemoryOverheadPercent,string" validate:"min=0"`
-	InterruptionQueueName      string             `json:"aws.interruptionQueueName,string"`
-	Tags                       map[string]string  `json:"aws.tags,omitempty"`
+	ClusterName                string             `json:"clusterName" yaml:"clusterName" validate:"required"`
+	ClusterEndpoint            string             `json:"clusterEndpoint" yaml:"clusterEndpoint" validate:"required"`
+	DefaultInstanceProfile     string             `json:"defaultInstanceProfile" yaml:"defaultInstanceProfile"`
+	EnablePodENI               bool               `json:"enablePodENI,string" yaml:"enablePodENI"`
+	EnableENILimitedPodDensity bool               `json:"enableENILimitedPodDensity,string" yaml:"enableENILimitedPodDensity"`
+	IsolatedVPC                bool               `json:"isolatedVPC,string" yaml:"isolatedVPC"`
+	NodeNameConvention         NodeNameConvention `json:"nodeNameConvention" yaml:"nodeNameConvention" validate:"required"`
+	VMMemoryOverheadPercent    float64            `json:"vmMemoryOverheadPercent,string" yaml:"vmMemoryOverheadPercent" validate:"min=0"`
+	InterruptionQueueName      string             `json:"interruptionQueueName,string" yaml:"interruptionQueueName"`
+	Tags                       map[string]string  `json:"tags,omitempty" yaml:"tags"`
 }
 
 // NewSettingsFromConfigMap creates a Settings from the supplied ConfigMap
-func NewSettingsFromConfigMap(cm *v1.ConfigMap) (Settings, error) {
+func NewSettingsFromConfigMap(cm *v1.ConfigMap) (interface{}, error) {
 	s := defaultSettings
 
 	if err := configmap.Parse(cm.Data,
@@ -95,17 +97,25 @@ func NewSettingsFromConfigMap(cm *v1.ConfigMap) (Settings, error) {
 	return s, nil
 }
 
-func (s Settings) Data() (map[string]string, error) {
-	d := map[string]string{}
+func NewSettingsFromFile(raw []byte) (interface{}, error) {
+	s := defaultSettings
 
-	raw, err := json.Marshal(s)
-	if err != nil {
-		return nil, fmt.Errorf("marshaling settings, %w", err)
+	type internal struct {
+		AWS Settings `yaml:"aws"`
 	}
-	if err = json.Unmarshal(raw, &d); err != nil {
-		return d, fmt.Errorf("unmarshalling settings, %w", err)
+	i := internal{}
+
+	if err := yaml.Unmarshal(raw, &i); err != nil {
+		panic(fmt.Sprintf("parsing settings from file, %v", err))
 	}
-	return d, nil
+	if err := mergo.Merge(&s, i.AWS, mergo.WithOverride); err != nil {
+		panic(fmt.Sprintf("merging settings, %v", err))
+	}
+	if err := s.Validate(); err != nil {
+		// Failing to validate means that there is some error in the Settings, so we should crash
+		panic(fmt.Sprintf("validating settings, %v", err))
+	}
+	return s, nil
 }
 
 // Validate leverages struct tags with go-playground/validator so you can define a struct with custom

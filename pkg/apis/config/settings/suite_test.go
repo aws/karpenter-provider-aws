@@ -20,6 +20,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	. "knative.dev/pkg/logging/testing"
 
@@ -44,7 +45,7 @@ var _ = Describe("Validation", func() {
 				"aws.clusterName":     "my-cluster",
 			},
 		}
-		s, _ := settings.NewSettingsFromConfigMap(cm)
+		s := lo.Must(settings.NewSettingsFromConfigMap(cm)).(settings.Settings)
 		Expect(s.DefaultInstanceProfile).To(Equal(""))
 		Expect(s.EnablePodENI).To(BeFalse())
 		Expect(s.EnableENILimitedPodDensity).To(BeTrue())
@@ -68,7 +69,7 @@ var _ = Describe("Validation", func() {
 				"aws.tags.tag2":                  "value2",
 			},
 		}
-		s, _ := settings.NewSettingsFromConfigMap(cm)
+		s := lo.Must(settings.NewSettingsFromConfigMap(cm)).(settings.Settings)
 		Expect(s.DefaultInstanceProfile).To(Equal("karpenter"))
 		Expect(s.EnablePodENI).To(BeTrue())
 		Expect(s.EnableENILimitedPodDensity).To(BeFalse())

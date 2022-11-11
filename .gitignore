@@ -14,3 +14,4 @@ go.work.sum
 
 # Project Specific
 *.csv
+settings.yaml

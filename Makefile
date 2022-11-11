@@ -45,19 +45,8 @@ ci-non-test: verify licenses vulncheck ## Runs checks other than tests
 ci: toolchain ci-non-tests ci-tests ## Run all steps used by continuous integration
 
 run: ## Run Karpenter controller binary against your local cluster
-	kubectl create configmap -n ${SYSTEM_NAMESPACE} karpenter-global-settings \
-		--from-literal=aws.clusterName=${CLUSTER_NAME} \
-		--from-literal=aws.clusterEndpoint=${CLUSTER_ENDPOINT} \
-		--from-literal=aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
-		--from-literal=aws.interruptionQueueName=${CLUSTER_NAME} \
-		--dry-run=client -o yaml | kubectl apply -f -
-
-
 	SYSTEM_NAMESPACE=${SYSTEM_NAMESPACE} KUBERNETES_MIN_VERSION="1.19.0-0" LEADER_ELECT=false DISABLE_WEBHOOK=true \
-		go run ./cmd/controller/main.go
-
-clean-run: ## Clean resources deployed by the run target
-	kubectl delete configmap -n ${SYSTEM_NAMESPACE} karpenter-global-settings --ignore-not-found
+		go run ./cmd/controller/main.go --settings-file=settings.yaml
 
 test: ## Run tests
 	go test -v ./pkg/... --ginkgo.focus="${FOCUS}"
