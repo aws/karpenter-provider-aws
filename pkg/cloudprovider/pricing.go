@@ -377,7 +377,8 @@ func (p *PricingProvider) updateSpotPricing(ctx context.Context) error {
 			spotPrice, err := strconv.ParseFloat(spotPriceStr, 64)
 			// these errors shouldn't occur, but if pricing API does have an error, we ignore the record
 			if err != nil {
-				logging.FromContext(ctx).Debugf("unable to parse price record %#v", sph)
+				ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("priceRecord", sph))
+				logging.FromContext(ctx).Debugf("unable to parse price record")
 				continue
 			}
 			if sph.Timestamp == nil {

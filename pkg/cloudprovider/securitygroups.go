@@ -101,7 +101,8 @@ func (p *SecurityGroupProvider) getSecurityGroups(ctx context.Context, filters [
 	}
 	p.cache.SetDefault(fmt.Sprint(hash), output.SecurityGroups)
 	if p.cm.HasChanged("security-groups", output.SecurityGroups) {
-		logging.FromContext(ctx).Debugf("Discovered security groups: %s", p.securityGroupIds(output.SecurityGroups))
+		ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("securityGroup", p.securityGroupIds(output.SecurityGroups)))
+		logging.FromContext(ctx).Debugf("Discovered security groups")
 	}
 	return output.SecurityGroups, nil
 }

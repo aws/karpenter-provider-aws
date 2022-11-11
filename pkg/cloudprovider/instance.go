@@ -122,7 +122,8 @@ func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
 		}
 		if _, errMsg := p.getInstance(ctx, aws.StringValue(id)); err != nil {
 			if awserrors.IsInstanceTerminated(errMsg) || awserrors.IsNotFound(errMsg) {
-				logging.FromContext(ctx).Debugf("Instance already terminated, %s", node.Name)
+				ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("nodeName", node.Name))
+				logging.FromContext(ctx).Debugf("Instance already terminated")
 				return nil
 			}
 			err = multierr.Append(err, errMsg)

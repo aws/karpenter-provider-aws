@@ -52,12 +52,13 @@ func (u *UnavailableOfferings) IsUnavailable(instanceType, zone, capacityType st
 // MarkUnavailable communicates recently observed temporary capacity shortages in the provided offerings
 func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, unavailableReason, instanceType, zone, capacityType string) {
 	// even if the key is already in the cache, we still need to call Set to extend the cached entry's TTL
-	logging.FromContext(ctx).Debugf("%s for offering { instanceType: %s, zone: %s, capacityType: %s }, avoiding for %s",
-		unavailableReason,
-		instanceType,
-		zone,
-		capacityType,
-		UnavailableOfferingsTTL)
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With(
+		"unavailableReason", unavailableReason,
+		"instanceType", instanceType,
+		"zone", zone,
+		"capacityType", capacityType,
+		"UnavailableOfferingsTTL", UnavailableOfferingsTTL))
+	logging.FromContext(ctx).Debugf("unavailableReason for offering")
 	u.cache.SetDefault(u.key(instanceType, zone, capacityType), struct{}{})
 }
 
