@@ -316,6 +316,7 @@ Accelerator (e.g., GPU) values include
 - `nvidia.com/gpu`
 - `amd.com/gpu`
 - `aws.amazon.com/neuron`
+- `habana.ai/gaudi`
 
 Karpenter supports accelerators, such as GPUs.
 
@@ -340,4 +341,5 @@ Refer to general [Kubernetes GPU](https://kubernetes.io/docs/tasks/manage-gpus/s
 * `nvidia.com/gpu`: [NVIDIA device plugin for Kubernetes](https://github.com/NVIDIA/k8s-device-plugin)
 * `amd.com/gpu`: [AMD GPU device plugin for Kubernetes](https://github.com/RadeonOpenCompute/k8s-device-plugin)
 * `aws.amazon.com/neuron`: [Kubernetes environment setup for Neuron](https://github.com/aws/aws-neuron-sdk/blob/master/neuron-deploy/tutorials/tutorial-k8s.rst)
+* `habana.ai/gaudi`: [Habana device plugin for Kubernetes](https://docs.habana.ai/en/latest/Orchestration/Gaudi_Kubernetes/Habana_Device_Plugin_for_Kubernetes.html)
 {{% /alert %}}

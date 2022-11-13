@@ -389,7 +389,8 @@ func (p *InstanceProvider) prioritizeInstanceTypes(instanceTypes []cloudprovider
 		itRes := it.Resources()
 		if !resources.IsZero(itRes[v1alpha1.ResourceAWSNeuron]) ||
 			!resources.IsZero(itRes[v1alpha1.ResourceAMDGPU]) ||
-			!resources.IsZero(itRes[v1alpha1.ResourceNVIDIAGPU]) {
+			!resources.IsZero(itRes[v1alpha1.ResourceNVIDIAGPU]) ||
+			!resources.IsZero(itRes[v1alpha1.ResourceHabanaGaudi]) {
 			continue
 		}
 		genericInstanceTypes = append(genericInstanceTypes, it)

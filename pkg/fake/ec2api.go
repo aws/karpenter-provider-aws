@@ -594,6 +594,38 @@ func (e *EC2API) DescribeInstanceTypesPagesWithContext(_ context.Context, _ *ec2
 					Ipv4AddressesPerInterface: aws.Int64(50),
 				},
 			},
+			{
+				InstanceType:                  aws.String("dl1.24xlarge"),
+				SupportedUsageClasses:         DefaultSupportedUsageClasses,
+				SupportedVirtualizationTypes:  []*string{aws.String("hvm")},
+				BurstablePerformanceSupported: aws.Bool(false),
+				BareMetal:                     aws.Bool(false),
+				Hypervisor:                    aws.String("nitro"),
+				ProcessorInfo: &ec2.ProcessorInfo{
+					SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
+				},
+				VCpuInfo: &ec2.VCpuInfo{
+					DefaultCores: aws.Int64(48),
+					DefaultVCpus: aws.Int64(96),
+				},
+				MemoryInfo: &ec2.MemoryInfo{
+					SizeInMiB: aws.Int64(786432),
+				},
+				GpuInfo: &ec2.GpuInfo{
+					Gpus: []*ec2.GpuDeviceInfo{{
+						Name:         aws.String("Gaudi HL-205"),
+						Manufacturer: aws.String("Habana"),
+						Count:        aws.Int64(8),
+						MemoryInfo: &ec2.GpuDeviceMemoryInfo{
+							SizeInMiB: aws.Int64(32768),
+						},
+					}},
+				},
+				NetworkInfo: &ec2.NetworkInfo{
+					MaximumNetworkInterfaces:  aws.Int64(60),
+					Ipv4AddressesPerInterface: aws.Int64(50),
+				},
+			},
 		},
 	}, false)
 	return nil
@@ -648,6 +680,14 @@ func (e *EC2API) DescribeInstanceTypeOfferingsPagesWithContext(_ context.Context
 			},
 			{
 				InstanceType: aws.String("p3.8xlarge"),
+				Location:     aws.String("test-zone-1b"),
+			},
+			{
+				InstanceType: aws.String("dl1.24xlarge"),
+				Location:     aws.String("test-zone-1a"),
+			},
+			{
+				InstanceType: aws.String("dl1.24xlarge"),
 				Location:     aws.String("test-zone-1b"),
 			},
 			{
