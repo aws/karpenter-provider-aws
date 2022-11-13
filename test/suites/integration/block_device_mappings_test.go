@@ -37,7 +37,8 @@ var _ = Describe("BlockDeviceMappings", func() {
 				LaunchTemplate: v1alpha1.LaunchTemplate{
 					BlockDeviceMappings: []*v1alpha1.BlockDeviceMapping{
 						{
-							DeviceName: aws.String("/dev/xvda"),
+							DeviceName:  aws.String("/dev/xvda"),
+							VirtualName: aws.String("ephemeral1"),
 							EBS: &v1alpha1.BlockDevice{
 								VolumeSize:          resources.Quantity("10G"),
 								VolumeType:          aws.String("io2"),
@@ -60,6 +61,7 @@ var _ = Describe("BlockDeviceMappings", func() {
 		Expect(len(instance.BlockDeviceMappings)).To(Equal(1))
 		Expect(instance.BlockDeviceMappings[0]).ToNot(BeNil())
 		Expect(instance.BlockDeviceMappings[0]).To(HaveField("DeviceName", HaveValue(Equal("/dev/xvda"))))
+		Expect(instance.BlockDeviceMappings[0]).To(HaveField("VirtualName", HaveValue(Equal("ephemeral1"))))
 		Expect(instance.BlockDeviceMappings[0].Ebs).To(HaveField("DeleteOnTermination", HaveValue(BeTrue())))
 		volume := env.GetVolume(instance.BlockDeviceMappings[0].Ebs.VolumeId)
 		Expect(volume).To(HaveField("Encrypted", HaveValue(BeTrue())))
