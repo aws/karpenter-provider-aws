@@ -127,7 +127,7 @@ type MetadataOptions struct {
 type BlockDeviceMapping struct {
 	// The device name (for example, /dev/sdh or xvdh).
 	DeviceName *string `json:"deviceName,omitempty"`
-	// The device name for instance store volumes (for example, ephermal1)
+	// The device name for instance store volumes (for example, ephemeral1)
 	VirtualName *string `json:"virtualName,omitempty"`
 	// EBS contains parameters used to automatically set up EBS volumes when an instance is launched.
 	EBS *BlockDevice `json:"ebs,omitempty"`
