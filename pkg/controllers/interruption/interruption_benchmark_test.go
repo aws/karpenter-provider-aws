@@ -121,7 +121,7 @@ func benchmarkNotificationController(b *testing.B, messageCount int) {
 
 	messages, nodes := makeDiverseMessagesAndNodes(messageCount)
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With(
-		"numberOfNodes", messageCount))
+		"number-of-nodes", messageCount))
 	logging.FromContext(ctx).Infof("Provisioning nodes")
 	if err := provisionNodes(ctx, env.Client, nodes); err != nil {
 		b.Fatalf("provisioning nodes, %v", err)

@@ -145,7 +145,7 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, provider *v1alpha1.AWS
 func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, options *amifamily.LaunchTemplate) (*ec2.LaunchTemplate, error) {
 	var launchTemplate *ec2.LaunchTemplate
 	name := launchTemplateName(options)
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("templateName", name))
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("template-name", name))
 	// Read from cache
 	if launchTemplate, ok := p.cache.Get(name); ok {
 		p.cache.SetDefault(name, launchTemplate)
@@ -210,7 +210,7 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, optio
 	if err != nil {
 		return nil, err
 	}
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("templateName", *output.LaunchTemplate.LaunchTemplateName))
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("template-name", *output.LaunchTemplate.LaunchTemplateName))
 	logging.FromContext(ctx).Debugf("Created launch template")
 	return output.LaunchTemplate, nil
 }
@@ -253,7 +253,7 @@ func (p *LaunchTemplateProvider) Invalidate(ctx context.Context, ltName string) 
 	defer p.Unlock()
 	defer p.cache.OnEvicted(p.cachedEvictedFunc(ctx))
 	p.cache.OnEvicted(nil)
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("launchTemplateName", ltName))
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("launch-template-name", ltName))
 	logging.FromContext(ctx).Debugf("Invalidating launch template in the cache because it no longer exists")
 	p.cache.Delete(ltName)
 }
@@ -262,7 +262,7 @@ func (p *LaunchTemplateProvider) Invalidate(ctx context.Context, ltName string) 
 // Any error during hydration will result in a panic
 func (p *LaunchTemplateProvider) hydrateCache(ctx context.Context) {
 	clusterName := awssettings.FromContext(ctx).ClusterName
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("karpenterManagedTagKey", karpenterManagedTagKey, "clusterName", clusterName))
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("karpenter-managed-tag-key", karpenterManagedTagKey, "clusterName", clusterName))
 	logging.FromContext(ctx).Debugf("Hydrating the launch template cache with tags matching")
 	if err := p.ec2api.DescribeLaunchTemplatesPagesWithContext(ctx, &ec2.DescribeLaunchTemplatesInput{
 		Filters: []*ec2.Filter{{Name: aws.String(fmt.Sprintf("tag:%s", karpenterManagedTagKey)), Values: []*string{aws.String(clusterName)}}},
@@ -274,7 +274,7 @@ func (p *LaunchTemplateProvider) hydrateCache(ctx context.Context) {
 	}); err != nil {
 		logging.FromContext(ctx).Errorf(fmt.Sprintf("Unable to hydrate the AWS launch template cache, %s", err))
 	}
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("itemsCount", p.cache.ItemCount()))
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("items-count", p.cache.ItemCount()))
 	logging.FromContext(ctx).Debugf("Finished hydrating the launch template cache")
 }
 
@@ -293,7 +293,7 @@ func (p *LaunchTemplateProvider) cachedEvictedFunc(ctx context.Context) func(str
 			logging.FromContext(ctx).Errorf("Unable to delete launch template, %v", err)
 			return
 		}
-		ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("launchTemplateName", aws.StringValue(launchTemplate.LaunchTemplateName), "LaunchTemplateId", aws.StringValue(launchTemplate.LaunchTemplateId)))
+		ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("launch-template-name", aws.StringValue(launchTemplate.LaunchTemplateName), "LaunchTemplateId", aws.StringValue(launchTemplate.LaunchTemplateId)))
 		logging.FromContext(ctx).Debugf("Deleted launch template")
 	}
 }
