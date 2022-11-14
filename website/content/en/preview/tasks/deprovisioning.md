@@ -33,6 +33,8 @@ default values for them and will not terminate nodes for that purpose.
 - Keep in mind that a small NodeExpiry results in a higher churn in cluster activity. So, for
 example, if a cluster brings up all nodes at once, all the pods on those nodes would fall into
 the same batching window on expiration.
+
+- Pods without an ownerRef (also called "controllerless" or "naked" pods) will be evicted during voluntary node disruption, such as expiration or consolidation. A pod with the annotation `karpenter.sh/do-not-evict: true` will cause its node to be opted out from voluntary node disruption workflows.
 {{% /alert %}}
 
 * **Node deleted**: You could use `kubectl` to manually remove a single Karpenter node:
@@ -135,7 +137,7 @@ Review what [disruptions are](https://kubernetes.io/docs/concepts/workloads/pods
 
 ### Pod set to do-not-evict
 
-If a pod exists with the annotation `karpenter.sh/do-not-evict: true` on a node, and a request is made to delete the node, Karpenter will not drain any pods from that node or otherwise try to delete the node. Nodes that have pods with a `do-not-evict` annotation are not considered for consolidation, though their unused capacity is considered for the purposes of running pods from other nodes which can ber consolidated. This annotation will have no effect for static pods, pods that tolerate `NoSchedule`, or pods terminating past their graceful termination period. 
+If a pod exists with the annotation `karpenter.sh/do-not-evict: true` on a node, and a request is made to delete the node, Karpenter will not drain any pods from that node or otherwise try to delete the node. Nodes that have pods with a `do-not-evict` annotation are not considered for consolidation, though their unused capacity is considered for the purposes of running pods from other nodes which can be consolidated. This annotation will have no effect for static pods, pods that tolerate `NoSchedule`, or pods terminating past their graceful termination period.
 
 This is useful for pods that you want to run from start to finish without interruption.
 Examples might include a real-time, interactive game that you don't want to interrupt or a long batch job (such as you might have with machine learning) that would need to start over if it were interrupted.
@@ -145,7 +147,3 @@ If you want to terminate a node with a `do-not-evict` pod, you can simply remove
 ### Scheduling Constraints (Consolidation Only)
 
 Consolidation will be unable to consolidate a node if, as a result of its scheduling simulation, it determines that the pods on a node cannot run on other nodes due to inter-pod affinity/anti-affinity, topology spread constraints, or some other scheduling restriction that couldn't be fulfilled.
-
-### Controllerless Pods (Consolidation Only)
-
-Consolidation will not attempt to consolidate a node that is running pods that are not owned by a controller (e.g. a `ReplicaSet`).  In general we cannot assume that these pods would be recreated if they were evicted from the node that they are currently running on.
