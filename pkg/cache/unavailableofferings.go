@@ -53,11 +53,11 @@ func (u *UnavailableOfferings) IsUnavailable(instanceType, zone, capacityType st
 func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, unavailableReason, instanceType, zone, capacityType string) {
 	// even if the key is already in the cache, we still need to call Set to extend the cached entry's TTL
 	logging.FromContext(ctx).With(
-		"unavailableReason", unavailableReason,
-		"instanceType", instanceType,
+		"unavailable-reason", unavailableReason,
+		"instance-type", instanceType,
 		"zone", zone,
-		"capacityType", capacityType,
-		"UnavailableOfferingsTTL", UnavailableOfferingsTTL).Debugf("unavailableReason for offering")
+		"capacity-type", capacityType,
+		"Unavailable-offeringsTTL", UnavailableOfferingsTTL).Debugf("unavailableReason for offering")
 	u.cache.SetDefault(u.key(instanceType, zone, capacityType), struct{}{})
 }
 
