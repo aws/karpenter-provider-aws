@@ -103,13 +103,14 @@ func (p *InstanceProvider) Create(ctx context.Context, provider *v1alpha1.AWS, n
 		"type", aws.StringValue(instance.InstanceType),
 		"zone", aws.StringValue(instance.Placement.AvailabilityZone),
 		"capacityType", getCapacityType(instance)))
-	logging.FromContext(ctx).Infof("Launched new instance:")
+	logging.FromContext(ctx).Infof("Launched new instance")
 
 	// Convert Instance to Node
 	return p.instanceToNode(ctx, instance, nodeRequest.InstanceTypeOptions), nil
 }
 
 func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("node", node.Name))
 	id, err := utils.ParseInstanceID(node)
 	if err != nil {
 		return fmt.Errorf("getting instance ID for node %s, %w", node.Name, err)
@@ -122,7 +123,6 @@ func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
 		}
 		if _, errMsg := p.getInstance(ctx, aws.StringValue(id)); err != nil {
 			if awserrors.IsInstanceTerminated(errMsg) || awserrors.IsNotFound(errMsg) {
-				ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("nodeName", node.Name))
 				logging.FromContext(ctx).Debugf("Instance already terminated")
 				return nil
 			}

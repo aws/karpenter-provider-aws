@@ -139,9 +139,7 @@ func (b *CreateFleetBatcher) runCalls() {
 		if err != nil {
 			// shouldn't occur, but if it does we log an error and just modify the caller's input so we
 			// can continue to launch instances
-			ctx := logging.WithLogger(context.Background(), logging.FromContext(context.Background()).With(
-				"error", err))
-			logging.FromContext(ctx).Infof("error copying input")
+			logging.FromContext(context.Background()).Infof("error copying input, %s", err)
 			input = call.input
 		}
 		input.TargetCapacitySpecification.SetTotalTargetCapacity(int64(len(requestBatch)))

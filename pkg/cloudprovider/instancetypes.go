@@ -222,7 +222,7 @@ func (p *InstanceTypeProvider) getInstanceTypes(ctx context.Context) (map[string
 		return nil, fmt.Errorf("fetching instance types using ec2.DescribeInstanceTypes, %w", err)
 	}
 	if p.cm.HasChanged("instance-types", instanceTypes) {
-		ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("numberOfInstanceTypes", len(instanceTypes)))
+		ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("countInstanceTypes", len(instanceTypes)))
 		logging.FromContext(ctx).Debugf("Discovered EC2 instance types")
 	}
 	p.cache.SetDefault(InstanceTypesCacheKey, instanceTypes)

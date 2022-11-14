@@ -145,7 +145,7 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, provider *v1alpha1.AWS
 func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, options *amifamily.LaunchTemplate) (*ec2.LaunchTemplate, error) {
 	var launchTemplate *ec2.LaunchTemplate
 	name := launchTemplateName(options)
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("launchTemplateName", name))
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("templateName", name))
 	// Read from cache
 	if launchTemplate, ok := p.cache.Get(name); ok {
 		p.cache.SetDefault(name, launchTemplate)
@@ -210,7 +210,7 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, optio
 	if err != nil {
 		return nil, err
 	}
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("launchTemplateName", *output.LaunchTemplate.LaunchTemplateName))
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("templateName", *output.LaunchTemplate.LaunchTemplateName))
 	logging.FromContext(ctx).Debugf("Created launch template")
 	return output.LaunchTemplate, nil
 }
