@@ -169,6 +169,7 @@ func (p *InstanceProvider) launchInstance(ctx context.Context, provider *v1alpha
 	if err != nil {
 		if awserrors.IsLaunchTemplateNotFound(err) {
 			for _, lt := range launchTemplateConfigs {
+				ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("launch-template-name", aws.StringValue(lt.LaunchTemplateSpecification.LaunchTemplateName)))
 				p.launchTemplateProvider.Invalidate(ctx, aws.StringValue(lt.LaunchTemplateSpecification.LaunchTemplateName))
 			}
 			return nil, fmt.Errorf("creating fleet %w", err)

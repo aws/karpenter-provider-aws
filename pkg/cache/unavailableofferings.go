@@ -57,7 +57,7 @@ func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, unavailableR
 		"instance-type", instanceType,
 		"zone", zone,
 		"capacity-type", capacityType,
-		"Unavailable-offeringsTTL", UnavailableOfferingsTTL).Debugf("unavailableReason for offering")
+		"unavailable-offerings-ttl", UnavailableOfferingsTTL).Debugf("unavailableReason for offering")
 	u.cache.SetDefault(u.key(instanceType, zone, capacityType), struct{}{})
 }
 

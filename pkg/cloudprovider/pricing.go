@@ -264,9 +264,7 @@ func (p *PricingProvider) updateOnDemandPricing(ctx context.Context) error {
 	p.onDemandPrices = lo.Assign(onDemandPrices, onDemandMetalPrices)
 	p.onDemandUpdateTime = time.Now()
 	if p.cm.HasChanged("on-demand-prices", p.onDemandPrices) {
-		ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With(
-			"instance-types", len(p.onDemandPrices)))
-		logging.FromContext(ctx).Infof("updated on-demand pricing")
+		logging.FromContext(ctx).With("instance-types", len(p.onDemandPrices)).Infof("updated on-demand pricing")
 	}
 	return nil
 }
@@ -379,8 +377,7 @@ func (p *PricingProvider) updateSpotPricing(ctx context.Context) error {
 			spotPrice, err := strconv.ParseFloat(spotPriceStr, 64)
 			// these errors shouldn't occur, but if pricing API does have an error, we ignore the record
 			if err != nil {
-				ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("price-record", sph))
-				logging.FromContext(ctx).Debugf("unable to parse price record")
+				logging.FromContext(ctx).Debugf("unable to parse price record %#v", sph)
 				continue
 			}
 			if sph.Timestamp == nil {
@@ -416,10 +413,9 @@ func (p *PricingProvider) updateSpotPricing(ctx context.Context) error {
 
 	p.spotUpdateTime = time.Now()
 	if p.cm.HasChanged("spot-prices", p.spotPrices) {
-		ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With(
+		logging.FromContext(ctx).With(
 			"instance-types", len(p.onDemandPrices),
-			"offerings", totalOfferings))
-		logging.FromContext(ctx).Infof("updated spot pricing with instance types and offerings")
+			"offerings", totalOfferings).Infof("updated spot pricing with instance types and offerings")
 	}
 	return nil
 }

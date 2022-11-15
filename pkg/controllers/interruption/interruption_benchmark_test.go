@@ -77,6 +77,7 @@ func BenchmarkNotification100(b *testing.B) {
 
 //nolint:gocyclo
 func benchmarkNotificationController(b *testing.B, messageCount int) {
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("number-of-nodes", messageCount))
 	fakeClock = &clock.FakeClock{}
 	settingsStore := coretest.SettingsStore{
 		coresettings.ContextKey: coretest.Settings(),
@@ -120,8 +121,6 @@ func benchmarkNotificationController(b *testing.B, messageCount int) {
 	interruptionController := interruption.NewController(env.Client, fakeClock, recorder, providers.sqsProvider, unavailableOfferingsCache)
 
 	messages, nodes := makeDiverseMessagesAndNodes(messageCount)
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With(
-		"number-of-nodes", messageCount))
 	logging.FromContext(ctx).Infof("Provisioning nodes")
 	if err := provisionNodes(ctx, env.Client, nodes); err != nil {
 		b.Fatalf("provisioning nodes, %v", err)
@@ -231,9 +230,7 @@ func (p *providerSet) monitorMessagesProcessed(ctx context.Context, eventRecorde
 				eventRecorder.Calls(events.InstanceUnhealthy(coretest.Node()).Reason) +
 				eventRecorder.Calls(events.InstanceRebalanceRecommendation(coretest.Node()).Reason) +
 				eventRecorder.Calls(events.InstanceSpotInterrupted(coretest.Node()).Reason)
-			ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With(
-				"totalProcessed", totalProcessed))
-			logging.FromContext(ctx).Infof("Processed messages from the queue")
+			logging.FromContext(ctx).With("totalProcessed", totalProcessed).Infof("Processed messages from the queue")
 			time.Sleep(time.Second)
 		}
 		close(done)
