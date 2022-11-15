@@ -9,24 +9,18 @@ For full Karpenter documentation please checkout [https://karpenter.sh](https://
 
 ## Installing the Chart
 
-Before the chart can be installed the repo needs to be added to Helm, run the following commands to add the repo.
-
-```bash
-helm repo add karpenter https://charts.karpenter.sh/
-helm repo update
-```
-
 You can follow the detailed installation instruction in the [documentation](https://karpenter.sh/v{{ template "chart.version" . }}/getting-started/getting-started-with-eksctl/#install) which covers the Karpenter prerequisites and installation options. The outcome of these instructions should result in something like the following command.
 
 ```bash
 helm upgrade --install --namespace karpenter --create-namespace \
-  karpenter karpenter/{{ template "chart.name" . }} \
-  --version {{ template "chart.version" . }} \
+  karpenter oci://public.ecr.aws/karpenter/{{ template "chart.name" . }} \
+  --version v{{ template "chart.version" . }} \
   --set serviceAccount.annotations.eks\.amazonaws\.com/role-arn=${KARPENTER_IAM_ROLE_ARN} \
-  --set clusterName=${CLUSTER_NAME} \
-  --set clusterEndpoint=${CLUSTER_ENDPOINT} \
-  --set aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
-  --wait # for the defaulting webhook to install before creating a Provisioner
+  --set settings.aws.clusterName=${CLUSTER_NAME} \
+  --set settings.aws.clusterEndpoint=${CLUSTER_ENDPOINT} \
+  --set settings.aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
+  --set settings.aws.interruptionQueueName=${CLUSTER_NAME} \
+  --wait
 ```
 
 {{ template "chart.requirementsSection" . }}
