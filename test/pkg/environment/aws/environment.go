@@ -19,6 +19,10 @@ import (
 
 	"github.com/aws/amazon-ec2-spot-interrupter/pkg/itn"
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/client"
+	"github.com/aws/aws-sdk-go/aws/endpoints"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/iam"
@@ -44,7 +48,15 @@ type Environment struct {
 
 func NewEnvironment(t *testing.T) *Environment {
 	env := common.NewEnvironment(t)
-	session := session.Must(session.NewSessionWithOptions(session.Options{SharedConfigState: session.SharedConfigEnable}))
+	session := session.Must(session.NewSessionWithOptions(
+		session.Options{
+			Config: *request.WithRetryer(
+				&aws.Config{STSRegionalEndpoint: endpoints.RegionalSTSEndpoint},
+				client.DefaultRetryer{NumMaxRetries: client.DefaultRetryerMaxNumRetries},
+			),
+			SharedConfigState: session.SharedConfigEnable,
+		},
+	))
 
 	return &Environment{
 		Region:          *session.Config.Region,

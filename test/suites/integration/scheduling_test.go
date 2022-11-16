@@ -290,7 +290,7 @@ var _ = Describe("Scheduling", func() {
 			env.ExpectCreatedNodeCount("==", 1)
 			env.EventuallyExpectCreatedNodesInitialized()
 		})
-		It("should provision nodes for a deployments that requests vpc.amazonaws.com/pod-eni (security groups for pods)", func() {
+		It("should provision nodes for a deployment that requests vpc.amazonaws.com/pod-eni (security groups for pods)", func() {
 			ExpectPodENIEnabled()
 			DeferCleanup(func() {
 				ExpectPodENIDisabled()
