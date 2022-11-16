@@ -16,7 +16,6 @@ package amifamily
 
 import (
 	"context"
-	"knative.dev/pkg/logging"
 	"net"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -117,8 +116,8 @@ func New(kubeClient client.Client, ssm ssmiface.SSMAPI, ec2api ec2iface.EC2API, 
 	}
 }
 
-func (r Resolver) ResolveAmis(ctx context.Context, ant *v1alpha1.AWS, providerRef *v1alpha5.ProviderRef, instanceTypes []cloudprovider.InstanceType, options *Options) (map[string][]cloudprovider.InstanceType, error) {
-	amiFamily := GetAMIFamily(ant.AMIFamily, options)
+func (r Resolver) ResolveAmis(ctx context.Context, provider *v1alpha1.AWS, providerRef *v1alpha5.ProviderRef, instanceTypes []cloudprovider.InstanceType, options *Options) (map[string][]cloudprovider.InstanceType, error) {
+	amiFamily := GetAMIFamily(provider.AMIFamily, options)
 	amiIDs, err := r.amiProvider.Get(ctx, providerRef, options, instanceTypes, amiFamily)
 	if err != nil {
 		return nil, err

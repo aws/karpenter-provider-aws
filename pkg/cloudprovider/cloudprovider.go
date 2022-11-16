@@ -21,7 +21,8 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"regexp"
+
+	"github.com/aws/karpenter/pkg/utils"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -103,31 +104,32 @@ func New(ctx awscontext.Context) *CloudProvider {
 	}
 }
 
-func (c *CloudProvider) IsNodeDrifted(ctx context.Context, provisioner *v1alpha5.Provisioner, node v1.Node) bool {
-	instanceTypes, _ := c.GetInstanceTypes(context.Background(), provisioner)
+func (c *CloudProvider) IsNodeDrifted(ctx context.Context, provisioner *v1alpha5.Provisioner, node v1.Node) (bool, error) {
+	instanceTypes, _ := c.GetInstanceTypes(ctx, provisioner)
 	aws, err := c.getProvider(ctx, provisioner.Spec.Provider, provisioner.Spec.ProviderRef)
 	if err != nil {
-		logging.FromContext(ctx).Errorf("getting provider for drift %w", err)
-		return false
+		return false, err
 	}
 
 	amis, err := c.instanceProvider.launchTemplateProvider.GetAmisForProvisioner(ctx, aws, provisioner.Spec.ProviderRef, instanceTypes)
 	if err != nil {
-		logging.FromContext(ctx).Errorf("getting drift amis %w", err)
-		return false
+		return false, err
 	}
 
-	nodeAmi, _ := node.Labels[v1alpha1.LabelInstanceAMIID]
-	isValidAmi, _ := regexp.MatchString("ami-[^\\s]*", nodeAmi)
-	if !isValidAmi {
-		nodeAmi, err = getAmiFromEC2Instance(ctx, c.ec2Api, node)
-		logging.FromContext(ctx).Errorf("describing ec2 instance for ami drift %w", err)
+	nodeAmi, ok := node.Labels[v1alpha1.LabelInstanceAMIID]
+	if !ok {
+		instanceId, err := utils.ParseInstanceID(&node)
 		if err != nil {
-			return false
+			return false, err
 		}
+		instance, err := c.instanceProvider.getInstance(ctx, *instanceId)
+		if err != nil {
+			return false, err
+		}
+		nodeAmi = *instance.ImageId
 	}
 
-	return !lo.Contains(amis, nodeAmi)
+	return !lo.Contains(amis, nodeAmi), nil
 }
 
 // checkEC2Connectivity makes a dry-run call to DescribeInstanceTypes.  If it fails, we provide an early indicator that we
@@ -139,31 +141,6 @@ func checkEC2Connectivity(ctx context.Context, api *ec2.EC2) error {
 		return nil
 	}
 	return err
-}
-
-// todo:Need some input on this from maintainers.
-func getAmiFromEC2Instance(ctx context.Context, api *ec2.EC2, node v1.Node) (string, error) {
-	filters := []*ec2.Filter{
-		&ec2.Filter{
-
-			Name: aws.String("Name"),
-			Values: []*string{
-				aws.String(node.GetName()),
-			},
-		},
-	}
-	instances, err := api.DescribeInstancesWithContext(ctx, &ec2.DescribeInstancesInput{
-		Filters: filters,
-	})
-	if err != nil {
-		return "", err
-	}
-
-	if len(instances.Reservations) == 0 {
-		return "", fmt.Errorf("describing instances")
-	}
-
-	return *instances.Reservations[0].Instances[0].ImageId, nil
 }
 
 // Create a node given the constraints.

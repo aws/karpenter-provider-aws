@@ -40,30 +40,30 @@ func (d Drift) Reconcile(ctx context.Context, req controllerruntime.Request) (re
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named(controllerName).With("provisioner", req.Name))
 	node := &v1.Node{}
 	if err := d.kubeClient.Get(ctx, req.NamespacedName, node); err != nil {
-		return reconcile.Result{}, nil
-	}
-
-	if _, drifted := node.Annotations[v1alpha5.DriftedAnnotationKey]; drifted {
-		return reconcile.Result{}, nil
+		return reconcile.Result{}, fmt.Errorf("getting node, %w", err)
 	}
 
 	provisionerName, provisionerExists := node.Labels[v1alpha5.ProvisionerNameLabelKey]
 	if !provisionerExists {
-		//Only karpenter owned Nodes.
+		return reconcile.Result{}, nil
+	}
+
+	if drifted, ok := node.Annotations[v1alpha5.DriftedAnnotationKey]; ok && drifted == "true" {
 		return reconcile.Result{}, nil
 	}
 
 	provisioner := &v1alpha5.Provisioner{}
 	if err := d.kubeClient.Get(ctx, types.NamespacedName{Name: provisionerName}, provisioner); err != nil {
-		return reconcile.Result{}, nil
+		return reconcile.Result{}, fmt.Errorf("getting provisioner, %w", err)
 	}
 
-	drifted := d.cloudProvider.IsNodeDrifted(ctx, provisioner, *node)
-	if drifted {
+	if drifted, err := d.cloudProvider.IsNodeDrifted(ctx, provisioner, *node); err != nil {
+		return reconcile.Result{}, fmt.Errorf("getting drift for node, %w", err)
+	} else if drifted {
 		stored := node.DeepCopy()
 		node.Annotations[v1alpha5.DriftedAnnotationKey] = "true"
 		if err := d.kubeClient.Patch(ctx, node, client.MergeFrom(stored)); err != nil {
-			return reconcile.Result{}, fmt.Errorf("patching node, %w", err)
+			return reconcile.Result{RequeueAfter: 60 * time.Second}, fmt.Errorf("patching node, %w", err)
 		}
 	}
 
@@ -109,9 +109,7 @@ func (d Drift) Builder(ctx context.Context, m manager.Manager) operatorcontrolle
 			&source.Kind{Type: &v1alpha1.AWSNodeTemplate{}},
 			handler.EnqueueRequestsFromMapFunc(func(o client.Object) (requests []reconcile.Request) {
 				provisioners := &v1alpha5.ProvisionerList{}
-				//Indexer is needed for this.
 				if err := d.kubeClient.List(ctx, provisioners, client.MatchingFields{".spec.providerRef.name": o.GetName()}); err != nil {
-					//log
 					logging.FromContext(ctx).Errorf("listing provisioners for AWSNodeTemplate reconciliation %w", err)
 					return requests
 				}
