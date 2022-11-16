@@ -77,7 +77,7 @@ func BenchmarkNotification100(b *testing.B) {
 
 //nolint:gocyclo
 func benchmarkNotificationController(b *testing.B, messageCount int) {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("number-of-nodes", messageCount))
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("message-count", messageCount))
 	fakeClock = &clock.FakeClock{}
 	settingsStore := coretest.SettingsStore{
 		coresettings.ContextKey: coretest.Settings(),
@@ -230,7 +230,7 @@ func (p *providerSet) monitorMessagesProcessed(ctx context.Context, eventRecorde
 				eventRecorder.Calls(events.InstanceUnhealthy(coretest.Node()).Reason) +
 				eventRecorder.Calls(events.InstanceRebalanceRecommendation(coretest.Node()).Reason) +
 				eventRecorder.Calls(events.InstanceSpotInterrupted(coretest.Node()).Reason)
-			logging.FromContext(ctx).With("totalProcessed", totalProcessed).Infof("Processed messages from the queue")
+			logging.FromContext(ctx).With("processed-message-count", totalProcessed).Infof("Processed messages from the queue")
 			time.Sleep(time.Second)
 		}
 		close(done)

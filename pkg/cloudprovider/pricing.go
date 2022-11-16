@@ -264,7 +264,7 @@ func (p *PricingProvider) updateOnDemandPricing(ctx context.Context) error {
 	p.onDemandPrices = lo.Assign(onDemandPrices, onDemandMetalPrices)
 	p.onDemandUpdateTime = time.Now()
 	if p.cm.HasChanged("on-demand-prices", p.onDemandPrices) {
-		logging.FromContext(ctx).With("instance-types", len(p.onDemandPrices)).Infof("updated on-demand pricing")
+		logging.FromContext(ctx).With("instance-type-count", len(p.onDemandPrices)).Infof("updated on-demand pricing")
 	}
 	return nil
 }
@@ -414,8 +414,8 @@ func (p *PricingProvider) updateSpotPricing(ctx context.Context) error {
 	p.spotUpdateTime = time.Now()
 	if p.cm.HasChanged("spot-prices", p.spotPrices) {
 		logging.FromContext(ctx).With(
-			"instance-types", len(p.onDemandPrices),
-			"offerings", totalOfferings).Infof("updated spot pricing with instance types and offerings")
+			"instance-type-count", len(p.onDemandPrices),
+			"offering-count", totalOfferings).Infof("updated spot pricing with instance types and offerings")
 	}
 	return nil
 }
