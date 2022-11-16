@@ -91,13 +91,6 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 	if settings.FromContext(ctx).InterruptionQueueName == "" {
 		return reconcile.Result{RequeueAfter: time.Second * 10}, nil
 	}
-	queueExists, err := c.sqsProvider.QueueExists(ctx)
-	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("checking queue existence, %w", err)
-	}
-	if !queueExists {
-		return reconcile.Result{RequeueAfter: time.Second * 10}, nil
-	}
 	sqsMessages, err := c.sqsProvider.GetSQSMessages(ctx)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("getting messages from queue, %w", err)
