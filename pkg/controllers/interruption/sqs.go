@@ -18,10 +18,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	syncatomic "sync/atomic"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
+	"github.com/samber/lo"
 
 	"github.com/aws/karpenter-core/pkg/utils/atomic"
 	"github.com/aws/karpenter/pkg/apis/config/settings"
@@ -29,8 +31,10 @@ import (
 )
 
 type SQSProvider struct {
-	client   sqsiface.SQSAPI
-	queueURL atomic.Lazy[string]
+	client sqsiface.SQSAPI
+
+	queueURL  atomic.Lazy[string]
+	queueName syncatomic.Pointer[string]
 }
 
 func NewSQSProvider(client sqsiface.SQSAPI) *SQSProvider {
@@ -62,13 +66,21 @@ func (s *SQSProvider) QueueExists(ctx context.Context) (bool, error) {
 }
 
 func (s *SQSProvider) DiscoverQueueURL(ctx context.Context) (string, error) {
+	if settings.FromContext(ctx).InterruptionQueueName != lo.FromPtr(s.queueName.Load()) {
+		res, err := s.queueURL.TryGet(ctx, atomic.IgnoreCacheOption)
+		if err != nil {
+			return res, err
+		}
+		s.queueName.Store(lo.ToPtr(settings.FromContext(ctx).InterruptionQueueName))
+		return res, nil
+	}
 	return s.queueURL.TryGet(ctx)
 }
 
 func (s *SQSProvider) GetSQSMessages(ctx context.Context) ([]*sqs.Message, error) {
 	queueURL, err := s.DiscoverQueueURL(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("fetching queue url, %w", err)
+		return nil, fmt.Errorf("discovering queue url, %w", err)
 	}
 
 	input := &sqs.ReceiveMessageInput{
