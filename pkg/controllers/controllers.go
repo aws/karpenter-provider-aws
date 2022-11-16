@@ -24,7 +24,6 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/interruption"
 )
 
-
 func NewControllers(ctx awscontext.Context, cloudProvider *cloudprovider.CloudProvider) []controller.Controller {
 	return []controller.Controller{
 		interruption.NewController(ctx.KubeClient, ctx.Clock, ctx.EventRecorder, interruption.NewSQSProvider(sqs.New(ctx.Session)), ctx.UnavailableOfferingsCache),

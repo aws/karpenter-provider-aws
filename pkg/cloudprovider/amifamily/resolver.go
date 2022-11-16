@@ -117,21 +117,6 @@ func New(kubeClient client.Client, ssm ssmiface.SSMAPI, ec2api ec2iface.EC2API, 
 	}
 }
 
-func (r Resolver) ResolveAmisForProvisioner(ctx context.Context, ant *v1alpha1.AWS, providerRef *v1alpha5.ProviderRef, instanceTypes []cloudprovider.InstanceType, options *Options) ([]string, error) {
-	amiFamily := GetAMIFamily(ant.AMIFamily, options)
-	var amis []string
-	amiIDs, err := r.amiProvider.Get(ctx, providerRef, options, instanceTypes, amiFamily)
-	if err != nil {
-		//log error
-		logging.FromContext(ctx).Errorf("resolving amis %w", err)
-		return nil, err
-	}
-	for ami := range amiIDs {
-		amis = append(amis, ami)
-	}
-	return amis, nil
-}
-
 func (r Resolver) ResolveAmis(ctx context.Context, ant *v1alpha1.AWS, providerRef *v1alpha5.ProviderRef, instanceTypes []cloudprovider.InstanceType, options *Options) (map[string][]cloudprovider.InstanceType, error) {
 	amiFamily := GetAMIFamily(ant.AMIFamily, options)
 	amiIDs, err := r.amiProvider.Get(ctx, providerRef, options, instanceTypes, amiFamily)
