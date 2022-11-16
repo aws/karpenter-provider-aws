@@ -96,7 +96,6 @@ var _ = BeforeSuite(func() {
 	unavailableOfferingsCache = awscache.NewUnavailableOfferings(cache.New(awscache.UnavailableOfferingsTTL, awscontext.CacheCleanupInterval))
 
 	sqsapi = &fake.SQSAPI{}
-	sqsProvider = interruption.NewSQSProvider(sqsapi)
 })
 
 var _ = AfterSuite(func() {
@@ -104,6 +103,7 @@ var _ = AfterSuite(func() {
 })
 
 var _ = BeforeEach(func() {
+	sqsProvider = interruption.NewSQSProvider(sqsapi)
 	controller = interruption.NewController(env.Client, fakeClock, recorder, sqsProvider, unavailableOfferingsCache)
 	settingsStore := coretest.SettingsStore{
 		coresettings.ContextKey: coretest.Settings(),
@@ -135,6 +135,7 @@ var _ = Describe("AWSInterruption", func() {
 			ExpectApplied(ctx, env.Client, node)
 
 			ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
+			Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(Equal(1))
 			ExpectNotFound(ctx, env.Client, node)
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
 		})
@@ -151,6 +152,7 @@ var _ = Describe("AWSInterruption", func() {
 			ExpectApplied(ctx, env.Client, node)
 
 			ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
+			Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(Equal(1))
 			ExpectNotFound(ctx, env.Client, node)
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
 		})
@@ -173,6 +175,7 @@ var _ = Describe("AWSInterruption", func() {
 			ExpectApplied(ctx, env.Client, lo.Map(nodes, func(n *v1.Node, _ int) client.Object { return n })...)
 
 			ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
+			Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(Equal(1))
 			ExpectNotFound(ctx, env.Client, lo.Map(nodes, func(n *v1.Node, _ int) client.Object { return n })...)
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(4))
 		})
@@ -200,6 +203,7 @@ var _ = Describe("AWSInterruption", func() {
 			ExpectApplied(ctx, env.Client, lo.Map(nodes, func(n *v1.Node, _ int) client.Object { return n })...)
 
 			ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
+			Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(Equal(1))
 			ExpectNotFound(ctx, env.Client, lo.Map(nodes, func(n *v1.Node, _ int) client.Object { return n })...)
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(100))
 		})
@@ -211,6 +215,7 @@ var _ = Describe("AWSInterruption", func() {
 			ExpectApplied(ctx, env.Client, node)
 
 			ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
+			Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(Equal(1))
 			ExpectNodeExists(ctx, env.Client, node.Name)
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
 		})
@@ -226,6 +231,7 @@ var _ = Describe("AWSInterruption", func() {
 			ExpectMessagesCreated(badMessage)
 
 			ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
+			Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(Equal(1))
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
 		})
 		It("should delete a state change message when the state isn't in accepted states", func() {
@@ -241,6 +247,7 @@ var _ = Describe("AWSInterruption", func() {
 			ExpectApplied(ctx, env.Client, node)
 
 			ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
+			Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(Equal(1))
 			ExpectNodeExists(ctx, env.Client, node.Name)
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
 		})
@@ -260,6 +267,7 @@ var _ = Describe("AWSInterruption", func() {
 			ExpectApplied(ctx, env.Client, node)
 
 			ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
+			Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(Equal(1))
 			ExpectNotFound(ctx, env.Client, node)
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
 
@@ -268,13 +276,47 @@ var _ = Describe("AWSInterruption", func() {
 		})
 	})
 	Context("Error Handling", func() {
+		It("should send an error on polling when QueueNotExists", func() {
+			sqsapi.ReceiveMessageBehavior.Error.Set(awsErrWithCode(sqs.ErrCodeQueueDoesNotExist), fake.MaxCalls(0))
+			ExpectReconcileFailed(ctx, controller, types.NamespacedName{})
+		})
 		It("should send an error on polling when AccessDenied", func() {
 			sqsapi.ReceiveMessageBehavior.Error.Set(awsErrWithCode(errors.AccessDeniedCode), fake.MaxCalls(0))
 			ExpectReconcileFailed(ctx, controller, types.NamespacedName{})
 		})
-		It("should send an error on polling when QueueDeletedRecently", func() {
-			sqsapi.GetQueueURLBehavior.Error.Set(awsErrWithCode(sqs.ErrCodeQueueDeletedRecently), fake.MaxCalls(0))
-			ExpectReconcileFailed(ctx, controller, types.NamespacedName{})
+	})
+	Context("Configuration", func() {
+		It("should not poll SQS if interruption queue is disabled", func() {
+			settingsStore := coretest.SettingsStore{
+				coresettings.ContextKey: coretest.Settings(),
+				settings.ContextKey: test.Settings(test.SettingOptions{
+					InterruptionQueueName: lo.ToPtr(""),
+				}),
+			}
+			ctx = settingsStore.InjectSettings(ctx)
+			ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
+			Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(Equal(0))
+		})
+		It("should only call the get queue url once if the queue name doesn't change", func() {
+			for i := 0; i < 100; i++ {
+				ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
+			}
+			Expect(sqsapi.GetQueueURLBehavior.SuccessfulCalls()).To(Equal(1))
+		})
+		It("should re-request the queue url from SQS if queue name changes", func() {
+			for i := 0; i < 10; i++ {
+				ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
+			}
+			Expect(sqsapi.GetQueueURLBehavior.SuccessfulCalls()).To(Equal(1))
+			settingsStore := coretest.SettingsStore{
+				coresettings.ContextKey: coretest.Settings(),
+				settings.ContextKey: test.Settings(test.SettingOptions{
+					InterruptionQueueName: lo.ToPtr("other-queue-name"),
+				}),
+			}
+			ctx = settingsStore.InjectSettings(ctx)
+			ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
+			Expect(sqsapi.GetQueueURLBehavior.SuccessfulCalls()).To(Equal(2))
 		})
 	})
 })

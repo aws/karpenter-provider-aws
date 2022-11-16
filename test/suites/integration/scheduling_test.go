@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	"knative.dev/pkg/ptr"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
@@ -289,7 +290,11 @@ var _ = Describe("Scheduling", func() {
 			env.ExpectCreatedNodeCount("==", 1)
 			env.EventuallyExpectCreatedNodesInitialized()
 		})
-		It("should provision nodes for a deployments that requests vpc.amazonaws.com/pod-eni (security groups for pods)", func() {
+		It("should provision nodes for a deployment that requests vpc.amazonaws.com/pod-eni (security groups for pods)", func() {
+			ExpectPodENIEnabled()
+			DeferCleanup(func() {
+				ExpectPodENIDisabled()
+			})
 			env.ExpectSettingsOverridden(map[string]string{
 				"aws.enablePodENI": "true",
 			})
@@ -409,4 +414,14 @@ func ExpectNvidiaDevicePluginDeleted() {
 			Namespace: "kube-system",
 		},
 	})
+}
+
+func ExpectPodENIEnabled() {
+	env.ExpectDaemonSetEnvironmentVariableUpdatedWithOffset(1, types.NamespacedName{Namespace: "kube-system", Name: "aws-node"},
+		"ENABLE_POD_ENI", "true")
+}
+
+func ExpectPodENIDisabled() {
+	env.ExpectDaemonSetEnvironmentVariableUpdatedWithOffset(1, types.NamespacedName{Namespace: "kube-system", Name: "aws-node"},
+		"ENABLE_POD_ENI", "false")
 }

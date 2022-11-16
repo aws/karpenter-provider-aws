@@ -16,7 +16,7 @@ spec:
       terminationGracePeriodSeconds: 0
       containers:
         - name: inflate
-          image: public.ecr.aws/eks-distro/kubernetes/pause:3.2
+          image: public.ecr.aws/eks-distro/kubernetes/pause:3.7
           resources:
             requests:
               cpu: 1
