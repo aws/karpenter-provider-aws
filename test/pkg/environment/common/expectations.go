@@ -24,6 +24,7 @@ import (
 	. "github.com/onsi/ginkgo/v2" //nolint:revive,stylecheck
 	. "github.com/onsi/gomega"    //nolint:revive,stylecheck
 	"github.com/samber/lo"
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -279,4 +280,31 @@ func (env *Environment) EventuallyExpectAvgUtilization(resource v1.ResourceName,
 	EventuallyWithOffset(1, func(g Gomega) {
 		g.Expect(env.Monitor.AvgUtilization(resource)).To(BeNumerically(comparator, value))
 	}, 10*time.Minute).Should(Succeed())
+}
+
+func (env *Environment) ExpectDaemonSetEnvironmentVariableUpdated(obj client.ObjectKey, name, value string) {
+	env.ExpectDaemonSetEnvironmentVariableUpdatedWithOffset(1, obj, name, value)
+}
+
+func (env *Environment) ExpectDaemonSetEnvironmentVariableUpdatedWithOffset(offset int, obj client.ObjectKey, name, value string) {
+	ds := &appsv1.DaemonSet{}
+	ExpectWithOffset(offset+1, env.Client.Get(env.Context, obj, ds)).To(Succeed())
+	ExpectWithOffset(offset+1, len(ds.Spec.Template.Spec.Containers)).To(BeNumerically("==", 1))
+	patch := client.MergeFrom(ds.DeepCopy())
+
+	// If the value is found, update it. Else, create it
+	found := false
+	for i, v := range ds.Spec.Template.Spec.Containers[0].Env {
+		if v.Name == name {
+			ds.Spec.Template.Spec.Containers[0].Env[i].Value = value
+			found = true
+		}
+	}
+	if !found {
+		ds.Spec.Template.Spec.Containers[0].Env = append(ds.Spec.Template.Spec.Containers[0].Env, v1.EnvVar{
+			Name:  name,
+			Value: value,
+		})
+	}
+	ExpectWithOffset(offset+1, env.Client.Patch(env.Context, ds, patch)).To(Succeed())
 }
