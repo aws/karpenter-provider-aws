@@ -192,8 +192,8 @@ func (env *Environment) startPodMonitor(stop <-chan struct{}) {
 func (env *Environment) startNodeMonitor(stop <-chan struct{}) {
 	factory := informers.NewSharedInformerFactoryWithOptions(env.KubeClient, time.Second*30,
 		informers.WithTweakListOptions(func(l *metav1.ListOptions) { l.LabelSelector = v1alpha5.ProvisionerNameLabelKey }))
-	podInformer := factory.Core().V1().Nodes().Informer()
-	podInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+	nodeInformer := factory.Core().V1().Nodes().Informer()
+	nodeInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			node := obj.(*v1.Node)
 			if _, ok := node.Labels[test.DiscoveryLabel]; ok {

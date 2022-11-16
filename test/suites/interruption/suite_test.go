@@ -56,11 +56,7 @@ func TestInterruption(t *testing.T) {
 
 var _ = BeforeEach(func() {
 	env.BeforeEach()
-	env.ExpectSettingsOverridden(
-		map[string]string{
-			"aws.enableInterruptionHandling": "true",
-		},
-	)
+	env.ExpectQueueExists()
 })
 var _ = AfterEach(func() { env.Cleanup() })
 var _ = AfterEach(func() { env.ForceCleanup() })
@@ -96,7 +92,6 @@ var _ = Describe("Interruption", Label("AWS"), func() {
 		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 
 		env.ExpectCreated(provider, provisioner, dep)
-		env.EventuallyExpectQueueCreated()
 
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 1)
@@ -164,7 +159,6 @@ var _ = Describe("Interruption", Label("AWS"), func() {
 		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 
 		env.ExpectCreated(provider, provisioner, dep)
-		env.EventuallyExpectQueueCreated()
 
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 1)
@@ -205,7 +199,6 @@ var _ = Describe("Interruption", Label("AWS"), func() {
 		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 
 		env.ExpectCreated(provider, provisioner, dep)
-		env.EventuallyExpectQueueCreated()
 
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 1)
@@ -246,7 +239,6 @@ var _ = Describe("Interruption", Label("AWS"), func() {
 		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 
 		env.ExpectCreated(provider, provisioner, dep)
-		env.EventuallyExpectQueueCreated()
 
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 1)

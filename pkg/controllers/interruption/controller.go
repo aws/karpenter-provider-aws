@@ -40,7 +40,6 @@ import (
 	interruptionevents "github.com/aws/karpenter/pkg/controllers/interruption/events"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages/statechange"
-	"github.com/aws/karpenter/pkg/controllers/providers"
 	"github.com/aws/karpenter/pkg/errors"
 	"github.com/aws/karpenter/pkg/utils"
 
@@ -70,13 +69,13 @@ type Controller struct {
 	kubeClient                client.Client
 	clk                       clock.Clock
 	recorder                  events.Recorder
-	sqsProvider               *providers.SQS
+	sqsProvider               *SQSProvider
 	unavailableOfferingsCache *cache.UnavailableOfferings
 	parser                    *EventParser
 }
 
 func NewController(kubeClient client.Client, clk clock.Clock, recorder events.Recorder,
-	sqsProvider *providers.SQS, unavailableOfferingsCache *cache.UnavailableOfferings) *Controller {
+	sqsProvider *SQSProvider, unavailableOfferingsCache *cache.UnavailableOfferings) *Controller {
 
 	return &Controller{
 		kubeClient:                kubeClient,
@@ -89,7 +88,7 @@ func NewController(kubeClient client.Client, clk clock.Clock, recorder events.Re
 }
 
 func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconcile.Result, error) {
-	if !settings.FromContext(ctx).EnableInterruptionHandling {
+	if settings.FromContext(ctx).InterruptionQueueName == "" {
 		return reconcile.Result{RequeueAfter: time.Second * 10}, nil
 	}
 	queueExists, err := c.sqsProvider.QueueExists(ctx)
@@ -155,6 +154,9 @@ func (c *Controller) handleMessage(ctx context.Context, instanceIDMap map[string
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("messageKind", msg.Kind()))
 	receivedMessages.WithLabelValues(string(msg.Kind())).Inc()
 
+	if msg.Kind() == messages.NoOpKind {
+		return nil
+	}
 	var failedNodeNames []string
 	for _, instanceID := range msg.EC2InstanceIDs() {
 		node, ok := instanceIDMap[instanceID]

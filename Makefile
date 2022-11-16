@@ -20,7 +20,7 @@ HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${K
       		--set settings.aws.clusterName=${CLUSTER_NAME} \
 			--set settings.aws.clusterEndpoint=${CLUSTER_ENDPOINT} \
 			--set settings.aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
-			--set settings.aws.enableInterruptionHandling=true \
+			--set settings.aws.interruptionQueueName=${CLUSTER_NAME} \
 			--create-namespace
 
 # CR for local builds of Karpenter
@@ -45,11 +45,19 @@ ci-non-test: verify licenses vulncheck ## Runs checks other than tests
 ci: toolchain ci-non-tests ci-tests ## Run all steps used by continuous integration
 
 run: ## Run Karpenter controller binary against your local cluster
-	SYSTEM_NAMESPACE=${SYSTEM_NAMESPACE} go run ./cmd/controller/main.go \
-		--cluster-name=${CLUSTER_NAME} \
-		--cluster-endpoint=${CLUSTER_ENDPOINT} \
-		--aws-default-instance-profile=KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
-		--leader-elect=false
+	kubectl create configmap -n ${SYSTEM_NAMESPACE} karpenter-global-settings \
+		--from-literal=aws.clusterName=${CLUSTER_NAME} \
+		--from-literal=aws.clusterEndpoint=${CLUSTER_ENDPOINT} \
+		--from-literal=aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
+		--from-literal=aws.interruptionQueueName=${CLUSTER_NAME} \
+		--dry-run=client -o yaml | kubectl apply -f -
+
+
+	SYSTEM_NAMESPACE=${SYSTEM_NAMESPACE} KUBERNETES_MIN_VERSION="1.19.0-0" LEADER_ELECT=false DISABLE_WEBHOOK=true \
+		go run ./cmd/controller/main.go
+
+clean-run: ## Clean resources deployed by the run target
+	kubectl delete configmap -n ${SYSTEM_NAMESPACE} karpenter-global-settings --ignore-not-found
 
 test: ## Run tests
 	go test -v ./pkg/... --ginkgo.focus="${FOCUS}"
@@ -81,7 +89,7 @@ verify: tidy download ## Verify code. Includes dependencies, linting, formatting
 	$(foreach dir,$(MOD_DIRS),cd $(dir) && golangci-lint run $(newline))
 	@git diff --quiet ||\
 		{ echo "New file modification detected in the Git working tree. Please check in before commit."; git --no-pager diff --name-only | uniq | awk '{print "  - " $$0}'; \
-		if [ "${CI}" == 'true' ]; then\
+		if [ "${CI}" = true ]; then\
 			exit 1;\
 		fi;}
 	@echo "Validating codegen/docgen build scripts..."
@@ -105,8 +113,8 @@ apply: build ## Deploy the controller from the current state of your git reposit
 		--set controller.image=$(CONTROLLER_IMG)
 
 install:  ## Deploy the latest released version into your ~/.kube/config cluster
-	@echo Upgrading to $(shell grep version charts/karpenter/Chart.yaml)
-	helm upgrade --install karpenter charts/karpenter --namespace ${SYSTEM_NAMESPACE} \
+	@echo Upgrading to ${KARPENTER_VERSION}
+	helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter --version ${KARPENTER_VERSION} --namespace ${SYSTEM_NAMESPACE} \
 		$(HELM_OPTS)
 
 delete: ## Delete the controller from your ~/.kube/config cluster
@@ -116,6 +124,7 @@ docgen: ## Generate docs
 	go run hack/docs/metrics_gen_docs.go pkg/ $(KARPENTER_CORE_DIR)/pkg website/content/en/preview/tasks/metrics.md
 	go run hack/docs/instancetypes_gen_docs.go website/content/en/preview/AWS/instance-types.md
 	go run hack/docs/configuration_gen_docs.go website/content/en/preview/tasks/globalsettings.md
+	cd charts/karpenter && helm-docs
 
 api-code-gen: ## Auto generate files based on AWS APIs response
 	$(WITH_GOFLAGS) ./hack/api-code-gen.sh

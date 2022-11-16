@@ -30,7 +30,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/eventbridge"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
@@ -50,8 +49,6 @@ import (
 	awscontext "github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/controllers/interruption"
 	"github.com/aws/karpenter/pkg/controllers/interruption/events"
-	"github.com/aws/karpenter/pkg/controllers/nodetemplate"
-	"github.com/aws/karpenter/pkg/controllers/providers"
 	"github.com/aws/karpenter/pkg/test"
 
 	coresettings "github.com/aws/karpenter-core/pkg/apis/config/settings"
@@ -84,9 +81,9 @@ func benchmarkNotificationController(b *testing.B, messageCount int) {
 	settingsStore := coretest.SettingsStore{
 		coresettings.ContextKey: coretest.Settings(),
 		settings.ContextKey: test.Settings(test.SettingOptions{
-			ClusterName:                lo.ToPtr("karpenter-notification-benchmarking"),
-			IsolatedVPC:                lo.ToPtr(true),
-			EnableInterruptionHandling: lo.ToPtr(true),
+			ClusterName:           lo.ToPtr("karpenter-notification-benchmarking"),
+			IsolatedVPC:           lo.ToPtr(true),
+			InterruptionQueueName: lo.ToPtr("test-cluster"),
 		}),
 	}
 	ctx = settingsStore.InjectSettings(context.Background())
@@ -100,7 +97,7 @@ func benchmarkNotificationController(b *testing.B, messageCount int) {
 		}
 	}()
 
-	providers := newProviders()
+	providers := newProviders(env.Client)
 	if err := providers.makeInfrastructure(ctx); err != nil {
 		b.Fatalf("standing up infrastructure, %v", err)
 	}
@@ -118,11 +115,6 @@ func benchmarkNotificationController(b *testing.B, messageCount int) {
 	cloudProvider = &fake.CloudProvider{}
 
 	unavailableOfferingsCache = awscache.NewUnavailableOfferings(cache.New(awscache.UnavailableOfferingsTTL, awscontext.CacheCleanupInterval))
-
-	// Provision a single AWS Node Template to allow interruption reconciliation
-	if err := env.Client.Create(ctx, test.AWSNodeTemplate()); err != nil {
-		b.Fatalf("creating AWS node template, %v", err)
-	}
 
 	// Set-up the controllers
 	interruptionController := interruption.NewController(env.Client, fakeClock, recorder, providers.sqsProvider, unavailableOfferingsCache)
@@ -174,44 +166,47 @@ func benchmarkNotificationController(b *testing.B, messageCount int) {
 }
 
 type providerSet struct {
-	kubeClient          client.Client
-	sqsProvider         *providers.SQS
-	eventBridgeProvider *providers.EventBridge
+	kubeClient  client.Client
+	sqsAPI      *sqs.SQS
+	sqsProvider *interruption.SQSProvider
 }
 
-func newProviders() providerSet {
+func newProviders(kubeClient client.Client) providerSet {
 	sess := session.Must(session.NewSession(
 		request.WithRetryer(
 			&aws.Config{STSRegionalEndpoint: endpoints.RegionalSTSEndpoint},
 			awsclient.DefaultRetryer{NumMaxRetries: awsclient.DefaultRetryerMaxNumRetries},
 		),
 	))
-	sqsProvider = providers.NewSQS(sqs.New(sess))
-	eventBridgeProvider = providers.NewEventBridge(eventbridge.New(sess), sqsProvider)
+	sqsAPI := sqs.New(sess)
 	return providerSet{
-		sqsProvider:         sqsProvider,
-		eventBridgeProvider: eventBridgeProvider,
+		kubeClient:  kubeClient,
+		sqsAPI:      sqsAPI,
+		sqsProvider: interruption.NewSQSProvider(sqsAPI),
 	}
 }
 
 func (p *providerSet) makeInfrastructure(ctx context.Context) error {
-	infraReconciler := nodetemplate.NewInfrastructureReconciler(p.kubeClient, p.sqsProvider, p.eventBridgeProvider)
-	if err := infraReconciler.CreateInfrastructure(ctx); err != nil {
-		return fmt.Errorf("creating infrastructure, %w", err)
-	}
-
-	if err := p.sqsProvider.SetQueueAttributes(ctx, map[string]*string{
-		sqs.QueueAttributeNameMessageRetentionPeriod: aws.String("1200"), // 20 minutes for this coretest
+	if _, err := p.sqsAPI.CreateQueueWithContext(ctx, &sqs.CreateQueueInput{
+		QueueName: lo.ToPtr(settings.FromContext(ctx).InterruptionQueueName),
+		Attributes: map[string]*string{
+			sqs.QueueAttributeNameMessageRetentionPeriod: aws.String("1200"), // 20 minutes for this test
+		},
 	}); err != nil {
-		return fmt.Errorf("updating message retention period, %w", err)
+		return fmt.Errorf("creating sqs queue, %w", err)
 	}
 	return nil
 }
 
 func (p *providerSet) cleanupInfrastructure(ctx context.Context) error {
-	infraReconciler := nodetemplate.NewInfrastructureReconciler(p.kubeClient, p.sqsProvider, p.eventBridgeProvider)
-	if err := infraReconciler.DeleteInfrastructure(ctx); err != nil {
-		return fmt.Errorf("deleting infrastructure, %w", err)
+	queueURL, err := p.sqsProvider.DiscoverQueueURL(ctx)
+	if err != nil {
+		return fmt.Errorf("discovering queue url for deletion, %w", err)
+	}
+	if _, err = p.sqsAPI.DeleteQueueWithContext(ctx, &sqs.DeleteQueueInput{
+		QueueUrl: lo.ToPtr(queueURL),
+	}); err != nil {
+		return fmt.Errorf("deleting sqs queue, %w", err)
 	}
 	return nil
 }

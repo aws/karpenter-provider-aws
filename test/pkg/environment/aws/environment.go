@@ -24,10 +24,9 @@ import (
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/aws/aws-sdk-go/service/ssm"
-	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/samber/lo"
 
-	"github.com/aws/karpenter/pkg/controllers/providers"
+	"github.com/aws/karpenter/pkg/controllers/interruption"
 	"github.com/aws/karpenter/test/pkg/environment/common"
 )
 
@@ -35,12 +34,11 @@ type Environment struct {
 	*common.Environment
 	Region string
 
-	EC2API ec2.EC2
-	SSMAPI ssm.SSM
-	STSAPI sts.STS
-	IAMAPI iam.IAM
+	EC2API *ec2.EC2
+	SSMAPI *ssm.SSM
+	IAMAPI *iam.IAM
 
-	SQSProvider     *providers.SQS
+	SQSProvider     *interruption.SQSProvider
 	InterruptionAPI *itn.ITN
 }
 
@@ -51,11 +49,11 @@ func NewEnvironment(t *testing.T) *Environment {
 	return &Environment{
 		Region:          *session.Config.Region,
 		Environment:     env,
-		EC2API:          *ec2.New(session),
-		SSMAPI:          *ssm.New(session),
-		IAMAPI:          *iam.New(session),
+		EC2API:          ec2.New(session),
+		SSMAPI:          ssm.New(session),
+		IAMAPI:          iam.New(session),
 		InterruptionAPI: itn.New(lo.Must(config.LoadDefaultConfig(env.Context))),
-		SQSProvider:     providers.NewSQS(sqs.New(session)),
+		SQSProvider:     interruption.NewSQSProvider(sqs.New(session)),
 	}
 }
 

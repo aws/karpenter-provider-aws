@@ -92,8 +92,8 @@ extraVolumes: []
 
 controller:
   # -- Controller image.
-  image: "public.ecr.aws/karpenter/controller:v0.18.1@sha256:4a5ee97a6e0dd08b632b5a95f189c457a13de30a9d7ef53a6b346538fbdd953d"
-  # -- SecurityContext for the controller container.
+  image: "public.ecr.aws/karpenter/controller:v0.19.0@sha256:1140dc6931fa2db059f2eceeed08ce6e53038996dce56fa08b511c41872f6119"
+  # -- SecurityContext for the controller container.G
   securityContext: {}
   # -- Additional environment variables for the controller pod.
   env: []
@@ -154,8 +154,8 @@ settings:
     nodeNameConvention: "ip-name"
     # -- The VM memory overhead as a percent that will be subtracted from the total memory for all instance types
     vmMemoryOverheadPercent: 0.075
-    # -- enableInterruptionHandling is currently in BETA and is disabled by default. Enabling interruption handling may
-    # require additional permissions on the controller service account. Additional permissions are outlined in the docs
-    enableInterruptionHandling: false
+    # -- interruptionQueueName is currently in ALPHA and is disabled by default. Enabling interruption handling may
+    # require additional permissions on the controller service account. Additional permissions are outlined in the docs.
+    interruptionQueueName: ""
     # -- The global tags to use on all AWS infrastructure resources (launch templates, instances, SQS queue, etc.)
     tags:

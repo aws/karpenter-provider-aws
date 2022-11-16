@@ -64,13 +64,13 @@ spec:
           {{- end }}
           image: {{ .Values.controller.image }}
           imagePullPolicy: {{ .Values.imagePullPolicy }}
-          args:
-            - -webhook-port={{ .Values.webhook.port }}
           env:
             - name: KUBERNETES_MIN_VERSION
               value: "1.19.0-0"
             - name: KARPENTER_SERVICE
               value: {{ include "karpenter.fullname" . }}
+            - name: WEBHOOK_PORT
+              value: "{{ .Values.webhook.port }}"
             - name: SYSTEM_NAMESPACE
               valueFrom:
                 fieldRef:

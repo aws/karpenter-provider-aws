@@ -83,12 +83,10 @@ func (env *Environment) GetVolume(volumeID *string) ec2.Volume {
 	return *dvo.Volumes[0]
 }
 
-func (env *Environment) EventuallyExpectQueueCreated() {
-	EventuallyWithOffset(1, func(g Gomega) {
-		exists, err := env.SQSProvider.QueueExists(env.Context)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(exists).To(BeTrue())
-	}).Should(Succeed())
+func (env *Environment) ExpectQueueExists() {
+	exists, err := env.SQSProvider.QueueExists(env.Context)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred())
+	ExpectWithOffset(1, exists).To(BeTrue())
 }
 
 func (env *Environment) ExpectMessagesCreated(msgs ...interface{}) {
