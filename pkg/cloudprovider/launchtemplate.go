@@ -167,7 +167,7 @@ func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, optio
 		return nil, fmt.Errorf("expected to find one launch template, but found %d", len(output.LaunchTemplates))
 	} else {
 		if p.cm.HasChanged("launchtemplate-"+name, name) {
-			logging.FromContext(ctx).Debugf("Discovered launch template")
+			logging.FromContext(ctx).Debugf("discovered launch template")
 		}
 		launchTemplate = output.LaunchTemplates[0]
 	}
@@ -210,7 +210,7 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, optio
 	if err != nil {
 		return nil, err
 	}
-	logging.FromContext(ctx).Debugf("Created launch template")
+	logging.FromContext(ctx).Debugf("created launch template")
 	return output.LaunchTemplate, nil
 }
 
@@ -252,7 +252,7 @@ func (p *LaunchTemplateProvider) Invalidate(ctx context.Context, ltName string) 
 	defer p.Unlock()
 	defer p.cache.OnEvicted(p.cachedEvictedFunc(ctx))
 	p.cache.OnEvicted(nil)
-	logging.FromContext(ctx).Debugf("Invalidating launch template in the cache because it no longer exists")
+	logging.FromContext(ctx).Debugf("invalidating launch template in the cache because it no longer exists")
 	p.cache.Delete(ltName)
 }
 
@@ -261,7 +261,7 @@ func (p *LaunchTemplateProvider) Invalidate(ctx context.Context, ltName string) 
 func (p *LaunchTemplateProvider) hydrateCache(ctx context.Context) {
 	clusterName := awssettings.FromContext(ctx).ClusterName
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("tag-key", karpenterManagedTagKey, "tag-value", clusterName))
-	logging.FromContext(ctx).Debugf("Hydrating the launch template cache with tags matching")
+	logging.FromContext(ctx).Debugf("hydrating the launch template cache with tags matching")
 	if err := p.ec2api.DescribeLaunchTemplatesPagesWithContext(ctx, &ec2.DescribeLaunchTemplatesInput{
 		Filters: []*ec2.Filter{{Name: aws.String(fmt.Sprintf("tag:%s", karpenterManagedTagKey)), Values: []*string{aws.String(clusterName)}}},
 	}, func(output *ec2.DescribeLaunchTemplatesOutput, _ bool) bool {
@@ -272,7 +272,7 @@ func (p *LaunchTemplateProvider) hydrateCache(ctx context.Context) {
 	}); err != nil {
 		logging.FromContext(ctx).Errorf(fmt.Sprintf("Unable to hydrate the AWS launch template cache, %s", err))
 	}
-	logging.FromContext(ctx).With("item-count", p.cache.ItemCount()).Debugf("Finished hydrating the launch template cache")
+	logging.FromContext(ctx).With("item-count", p.cache.ItemCount()).Debugf("finished hydrating the launch template cache")
 }
 
 func (p *LaunchTemplateProvider) cachedEvictedFunc(ctx context.Context) func(string, interface{}) {
@@ -290,7 +290,7 @@ func (p *LaunchTemplateProvider) cachedEvictedFunc(ctx context.Context) func(str
 			logging.FromContext(ctx).Errorf("Unable to delete launch template, %v", err)
 			return
 		}
-		logging.FromContext(ctx).With("launch-template-id", aws.StringValue(launchTemplate.LaunchTemplateId)).Debugf("Deleted launch template")
+		logging.FromContext(ctx).With("launch-template-id", aws.StringValue(launchTemplate.LaunchTemplateId)).Debugf("deleted launch template")
 	}
 }
 
@@ -316,7 +316,7 @@ func (p *LaunchTemplateProvider) kubeServerVersion(ctx context.Context) (string,
 	version := fmt.Sprintf("%s.%s", serverVersion.Major, strings.TrimSuffix(serverVersion.Minor, "+"))
 	p.cache.SetDefault(kubernetesVersionCacheKey, version)
 	if p.cm.HasChanged("kubernete-version", version) {
-		logging.FromContext(ctx).With("version", version).Debugf("Discovered kubernetes version")
+		logging.FromContext(ctx).With("version", version).Debugf("discovered kubernetes version")
 	}
 	return version, nil
 }

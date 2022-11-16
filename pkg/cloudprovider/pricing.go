@@ -107,7 +107,7 @@ func NewPricingProvider(ctx context.Context, pricing pricingiface.PricingAPI, ec
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("pricing"))
 
 	if isolatedVPC {
-		logging.FromContext(ctx).Infof("Assuming isolated VPC, pricing information will not be updated")
+		logging.FromContext(ctx).Infof("assuming isolated VPC, pricing information will not be updated")
 	} else {
 		go func() {
 			// perform an initial price update at startup

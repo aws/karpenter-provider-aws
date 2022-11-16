@@ -102,7 +102,7 @@ func (p *AMIProvider) getDefaultAMIFromSSM(ctx context.Context, _ cloudprovider.
 	ami := aws.StringValue(output.Parameter.Value)
 	p.ssmCache.SetDefault(ssmQuery, ami)
 	if p.cm.HasChanged("ssmquery-"+ssmQuery, ami) {
-		logging.FromContext(ctx).With("ami", ami, "query", ssmQuery).Debugf("Discovered new ami")
+		logging.FromContext(ctx).With("ami", ami, "query", ssmQuery).Debugf("discovered new ami")
 	}
 	return ami, nil
 }
@@ -155,7 +155,7 @@ func (p *AMIProvider) fetchAMIsFromEC2(ctx context.Context, amiSelector map[stri
 	p.ec2Cache.SetDefault(fmt.Sprint(hash), output.Images)
 	amiIDs := lo.Map(output.Images, func(ami *ec2.Image, _ int) string { return *ami.ImageId })
 	if p.cm.HasChanged("amiIDs", amiIDs) {
-		logging.FromContext(ctx).With("amiIDs", amiIDs).Debugf("Discovered images")
+		logging.FromContext(ctx).With("ami-ids", amiIDs).Debugf("discovered images")
 	}
 	return output.Images, nil
 }

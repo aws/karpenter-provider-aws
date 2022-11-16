@@ -72,9 +72,9 @@ type CloudProvider struct {
 func New(ctx awscontext.Context) *CloudProvider {
 	kubeDNSIP, err := kubeDNSIP(ctx, ctx.KubernetesInterface)
 	if err != nil {
-		logging.FromContext(ctx).Debugf("Unable to detect the IP of the kube-dns service, %s", err)
+		logging.FromContext(ctx).Debugf("unable to detect the IP of the kube-dns service, %s", err)
 	} else {
-		logging.FromContext(ctx).Debugf("Discovered DNS IP %s", kubeDNSIP)
+		logging.FromContext(ctx).With("dns-ip", kubeDNSIP).Debugf("discovered DNS IP")
 	}
 	ec2api := ec2.New(ctx.Session)
 	if err := checkEC2Connectivity(ctx, ec2api); err != nil {
@@ -163,7 +163,7 @@ func getCABundle(ctx context.Context, restConfig *rest.Config) (*string, error) 
 	if err != nil {
 		return nil, fmt.Errorf("discovering caBundle, loading TLS config, %w", err)
 	}
-	logging.FromContext(ctx).Debugf("Discovered caBundle, length %d", len(transportConfig.TLS.CAData))
+	logging.FromContext(ctx).With("cBundle-count", len(transportConfig.TLS.CAData)).Debugf("discovered caBundle")
 	return ptr.String(base64.StdEncoding.EncodeToString(transportConfig.TLS.CAData)), nil
 }
 
