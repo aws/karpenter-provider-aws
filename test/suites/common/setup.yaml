@@ -111,9 +111,13 @@ spec:
     workingDir: $(workspaces.ws.path)
     script: |
       aws eks update-kubeconfig --name $(params.cluster-name)
+      version=$(git describe --tags --always)
+      if [[ ! "${version}" =~ ^v[0-9]+.[0-9]+.[0-9]+$ ]]; then
+        version="v0-$(git rev-parse HEAD)"
+      fi
       helm upgrade --install --kubeconfig /root/.kube/config --namespace karpenter --create-namespace \
         karpenter oci://public.ecr.aws/karpenter/karpenter \
-        --version v0-$(git rev-parse HEAD) \
+        --version "${version}" \
         --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="arn:aws:iam::$(cat $(results.account-id.path)):role/$(params.cluster-name)-karpenter" \
         --set settings.aws.clusterName=$(params.cluster-name) \
         --set settings.aws.clusterEndpoint=$(cat /root/.kube/config | grep server | awk '{print $2}') \
