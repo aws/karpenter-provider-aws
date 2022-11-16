@@ -222,7 +222,7 @@ func (p *InstanceTypeProvider) getInstanceTypes(ctx context.Context) (map[string
 	}
 	if p.cm.HasChanged("instance-types", instanceTypes) {
 		logging.FromContext(ctx).With(
-			"instance-type-count", len(instanceTypes)).Debugf("discovered ec2 instance types")
+			"instance-type-count", len(instanceTypes)).Debugf("discovered EC2 instance types")
 	}
 	p.cache.SetDefault(InstanceTypesCacheKey, instanceTypes)
 	return instanceTypes, nil
