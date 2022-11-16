@@ -33,6 +33,8 @@ import (
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 )
 
 func (env *Environment) ExpectCreatedWithOffset(offset int, objects ...client.Object) {
@@ -152,6 +154,18 @@ func (env *Environment) ExpectUniqueNodeNames(selector labels.Selector, uniqueNa
 		nodeNames.Insert(pod.Spec.NodeName)
 	}
 	ExpectWithOffset(1, len(nodeNames)).To(BeNumerically("==", uniqueNames))
+}
+
+func (env *Environment) EventuallyExpectCreatedNodesInitialized() {
+	EventuallyWithOffset(1, func(g Gomega) {
+		nodes := env.Monitor.CreatedNodes()
+		nodeNames := sets.NewString(lo.Map(nodes, func(n *v1.Node, _ int) string { return n.Name })...)
+		initializedNodeNames := sets.NewString(lo.FilterMap(nodes, func(n *v1.Node, _ int) (string, bool) {
+			_, ok := n.Labels[v1alpha5.LabelNodeInitialized]
+			return n.Name, ok
+		})...)
+		g.Expect(nodeNames.Equal(initializedNodeNames)).To(BeTrue())
+	}).Should(Succeed())
 }
 
 func (env *Environment) eventuallyExpectScaleDown() {
