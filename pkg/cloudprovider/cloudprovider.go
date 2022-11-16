@@ -163,7 +163,6 @@ func getCABundle(ctx context.Context, restConfig *rest.Config) (*string, error) 
 	if err != nil {
 		return nil, fmt.Errorf("discovering caBundle, loading TLS config, %w", err)
 	}
-	logging.FromContext(ctx).With("cBundle-count", len(transportConfig.TLS.CAData)).Debugf("discovered caBundle")
 	return ptr.String(base64.StdEncoding.EncodeToString(transportConfig.TLS.CAData)), nil
 }
 
