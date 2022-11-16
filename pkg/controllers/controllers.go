@@ -16,13 +16,16 @@ package controllers
 
 import (
 	"github.com/aws/aws-sdk-go/service/sqs"
+	"knative.dev/pkg/logging"
 
 	"github.com/aws/karpenter-core/pkg/operator/controller"
 	awscontext "github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/controllers/interruption"
+	"github.com/aws/karpenter/pkg/utils/project"
 )
 
 func NewControllers(ctx awscontext.Context) []controller.Controller {
+	logging.FromContext(ctx).Infof("Initializing with version %s", project.Version)
 	return []controller.Controller{
 		interruption.NewController(ctx.KubeClient, ctx.Clock, ctx.EventRecorder, interruption.NewSQSProvider(sqs.New(ctx.Session)), ctx.UnavailableOfferingsCache),
 	}
