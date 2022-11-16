@@ -132,6 +132,15 @@ func (r Resolver) ResolveAmisForProvisioner(ctx context.Context, ant *v1alpha1.A
 	return amis, nil
 }
 
+func (r Resolver) ResolveAmis(ctx context.Context, ant *v1alpha1.AWS, providerRef *v1alpha5.ProviderRef, instanceTypes []cloudprovider.InstanceType, options *Options) (map[string][]cloudprovider.InstanceType, error) {
+	amiFamily := GetAMIFamily(ant.AMIFamily, options)
+	amiIDs, err := r.amiProvider.Get(ctx, providerRef, options, instanceTypes, amiFamily)
+	if err != nil {
+		return nil, err
+	}
+	return amiIDs, nil
+}
+
 // Resolve generates launch templates using the static options and dynamically generates launch template parameters.
 // Multiple ResolvedTemplates are returned based on the instanceTypes passed in to support special AMIs for certain instance types like GPUs.
 func (r Resolver) Resolve(ctx context.Context, provider *v1alpha1.AWS, nodeRequest *cloudprovider.NodeRequest, options *Options) ([]*LaunchTemplate, error) {
@@ -140,7 +149,7 @@ func (r Resolver) Resolve(ctx context.Context, provider *v1alpha1.AWS, nodeReque
 		return nil, err
 	}
 	amiFamily := GetAMIFamily(provider.AMIFamily, options)
-	amiIDs, err := r.amiProvider.Get(ctx, nodeRequest.Template.ProviderRef, options, nodeRequest.InstanceTypeOptions, amiFamily)
+	amiIDs, err := r.ResolveAmis(ctx, provider, nodeRequest.Template.ProviderRef, nodeRequest.InstanceTypeOptions, options)
 	if err != nil {
 		return nil, err
 	}

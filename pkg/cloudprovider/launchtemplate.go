@@ -124,16 +124,19 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, provider *v1alpha1.AWS
 	return launchTemplates, nil
 }
 
-func (p *LaunchTemplateProvider) GetAmisForProvisioner(ctx context.Context, ant *v1alpha1.AWS, providerRef *v1alpha5.ProviderRef, instanceTypes []cloudprovider.InstanceType) ([]string, error) {
-	if ant.LaunchTemplateName != nil {
-		logging.FromContext(ctx).Debug("Provisioner with Launch template, returning 0 amis since LaunchTemplates will be deprecated.")
-		return []string{}, nil
+func (p *LaunchTemplateProvider) GetAmisForProvisioner(ctx context.Context, provider *v1alpha1.AWS, providerRef *v1alpha5.ProviderRef, instanceTypes []cloudprovider.InstanceType) ([]string, error) {
+	if provider.LaunchTemplateName != nil {
+		return nil, fmt.Errorf("using a custom Launch Template which is deprecated")
 	}
-	options, err := p.createAmiOptions(ctx, ant, map[string]string{})
+	options, err := p.createAmiOptions(ctx, provider, map[string]string{})
 	if err != nil {
 		return nil, err
 	}
-	return p.amiFamily.ResolveAmisForProvisioner(ctx, ant, providerRef, instanceTypes, options)
+	amiIds, err := p.amiFamily.ResolveAmis(ctx, provider, providerRef, instanceTypes, options)
+	if err != nil {
+		return nil, err
+	}
+	return lo.Keys(amiIds), nil
 }
 
 func (p *LaunchTemplateProvider) createAmiOptions(ctx context.Context, provider *v1alpha1.AWS, additionalLabels map[string]string) (*amifamily.Options, error) {
