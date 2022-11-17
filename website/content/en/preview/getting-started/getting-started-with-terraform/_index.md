@@ -312,7 +312,15 @@ resource "helm_release" "karpenter" {
     name  = "settings.aws.defaultInstanceProfile"
     value = aws_iam_instance_profile.karpenter.name
   }
+  # public.ecr.aws requires an authorization token
+  repository_username = data.aws_ecrpublic_authorization_token.helm.user_name
+  repository_password = data.aws_ecrpublic_authorization_token.helm.password
+  lifecycle {
+    ignore_changes = [ repository_password ]
+  }
 }
+
+data "aws_ecrpublic_authorization_token" "helm" {}
 ```
 
 Since we've added a new provider (helm), you'll need to run `terraform init` again
