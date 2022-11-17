@@ -150,7 +150,7 @@ func (c *CloudProvider) Name() string {
 	return "aws"
 }
 
-func getCABundle(_ context.Context, restConfig *rest.Config) (*string, error) {
+func getCABundle(restConfig *rest.Config) (*string, error) {
 	// Discover CA Bundle from the REST client. We could alternatively
 	// have used the simpler client-go InClusterConfig() method.
 	// However, that only works when Karpenter is running as a Pod

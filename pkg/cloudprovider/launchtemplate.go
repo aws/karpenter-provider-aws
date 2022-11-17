@@ -210,7 +210,7 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, optio
 	if err != nil {
 		return nil, err
 	}
-	logging.FromContext(ctx).Debugf("created launch template")
+	logging.FromContext(ctx).With("launch-template-id", aws.StringValue(output.LaunchTemplate.LaunchTemplateId)).Debugf("created launch template")
 	return output.LaunchTemplate, nil
 }
 
@@ -290,7 +290,7 @@ func (p *LaunchTemplateProvider) cachedEvictedFunc(ctx context.Context) func(str
 			logging.FromContext(ctx).Errorf("Unable to delete launch template, %v", err)
 			return
 		}
-		logging.FromContext(ctx).With("launch-template-id", aws.StringValue(launchTemplate.LaunchTemplateId)).Debugf("deleted launch template")
+		logging.FromContext(ctx).Debugf("deleted launch template")
 	}
 }
 
@@ -316,7 +316,7 @@ func (p *LaunchTemplateProvider) kubeServerVersion(ctx context.Context) (string,
 	version := fmt.Sprintf("%s.%s", serverVersion.Major, strings.TrimSuffix(serverVersion.Minor, "+"))
 	p.cache.SetDefault(kubernetesVersionCacheKey, version)
 	if p.cm.HasChanged("kubernete-version", version) {
-		logging.FromContext(ctx).With("version", version).Debugf("discovered kubernetes version")
+		logging.FromContext(ctx).With("kubernete-version", version).Debugf("discovered kubernetes version")
 	}
 	return version, nil
 }
