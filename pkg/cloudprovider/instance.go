@@ -106,7 +106,7 @@ func (p *InstanceProvider) Create(ctx context.Context, provider *v1alpha1.AWS, n
 	)
 
 	// Convert Instance to Node
-	return p.instanceToNode(ctx, instance, nodeRequest.InstanceTypeOptions), nil
+	return p.instanceToNode(instance, nodeRequest.InstanceTypeOptions), nil
 }
 
 func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
@@ -304,23 +304,16 @@ func (p *InstanceProvider) getInstance(ctx context.Context, id string) (*ec2.Ins
 	if *instance.State.Name == ec2.InstanceStateNameTerminated {
 		return nil, awserrors.InstanceTerminatedError{Err: fmt.Errorf("instance is in terminated state")}
 	}
-	if awssettings.FromContext(ctx).NodeNameConvention == awssettings.ResourceName {
-		return instance, nil
-	}
 	if len(aws.StringValue(instance.PrivateDnsName)) == 0 {
 		return nil, multierr.Append(err, fmt.Errorf("got instance %s but PrivateDnsName was not set", aws.StringValue(instance.InstanceId)))
 	}
 	return instance, nil
 }
 
-func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Instance, instanceTypes []cloudprovider.InstanceType) *v1.Node {
+func (p *InstanceProvider) instanceToNode(instance *ec2.Instance, instanceTypes []cloudprovider.InstanceType) *v1.Node {
 	for _, instanceType := range instanceTypes {
 		if instanceType.Name() == aws.StringValue(instance.InstanceType) {
 			nodeName := strings.ToLower(aws.StringValue(instance.PrivateDnsName))
-			if awssettings.FromContext(ctx).NodeNameConvention == awssettings.ResourceName {
-				nodeName = aws.StringValue(instance.InstanceId)
-			}
-
 			labels := map[string]string{}
 			for key, req := range instanceType.Requirements() {
 				if req.Len() == 1 {
