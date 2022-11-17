@@ -36,9 +36,9 @@ import (
 	coreapis "github.com/aws/karpenter-core/pkg/apis"
 	coresettings "github.com/aws/karpenter-core/pkg/apis/config/settings"
 	"github.com/aws/karpenter-core/pkg/operator/settingsstore"
-	"github.com/aws/karpenter-core/pkg/utils/project"
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/config/settings"
+	"github.com/aws/karpenter/pkg/utils/project"
 )
 
 type Environment struct {

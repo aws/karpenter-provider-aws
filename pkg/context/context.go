@@ -29,9 +29,9 @@ import (
 	"knative.dev/pkg/logging"
 
 	awscache "github.com/aws/karpenter/pkg/cache"
+	"github.com/aws/karpenter/pkg/utils/project"
 
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
-	"github.com/aws/karpenter-core/pkg/utils/project"
 )
 
 const (

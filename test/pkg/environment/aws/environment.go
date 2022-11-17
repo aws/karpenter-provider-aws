@@ -52,7 +52,7 @@ func NewEnvironment(t *testing.T) *Environment {
 		session.Options{
 			Config: *request.WithRetryer(
 				&aws.Config{STSRegionalEndpoint: endpoints.RegionalSTSEndpoint},
-				client.DefaultRetryer{NumMaxRetries: client.DefaultRetryerMaxNumRetries},
+				client.DefaultRetryer{NumMaxRetries: 10},
 			),
 			SharedConfigState: session.SharedConfigEnable,
 		},
