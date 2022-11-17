@@ -247,7 +247,8 @@ func (p *LaunchTemplateProvider) volumeSize(quantity *resource.Quantity) *int64 
 }
 
 // Invalidate deletes a launch template from cache if it exists
-func (p *LaunchTemplateProvider) Invalidate(ctx context.Context, ltName string) {
+func (p *LaunchTemplateProvider) Invalidate(ctx context.Context, ltName string, ltID string) {
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("launch-template-name", ltName, "launch-template-id", ltID))
 	p.Lock()
 	defer p.Unlock()
 	defer p.cache.OnEvicted(p.cachedEvictedFunc(ctx))
