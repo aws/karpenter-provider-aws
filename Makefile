@@ -42,8 +42,6 @@ ci-test: battletest coverage ## Runs tests and submits coverage
 
 ci-non-test: verify licenses vulncheck ## Runs checks other than tests
 
-ci: toolchain ci-non-test ci-test ## Run all steps used by continuous integration
-
 run: ## Run Karpenter controller binary against your local cluster
 	kubectl create configmap -n ${SYSTEM_NAMESPACE} karpenter-global-settings \
 		--from-literal=aws.clusterName=${CLUSTER_NAME} \
