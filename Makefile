@@ -157,6 +157,11 @@ tidy: ## Recursively "go mod tidy" on all directories where go.mod exists
 download: ## Recursively "go mod download" on all directories where go.mod exists
 	$(foreach dir,$(MOD_DIRS),cd $(dir) && go mod download $(newline))
 
+update-core: ## Update karpenter-core to latest
+	go get -u github.com/aws/karpenter-core
+	go mod tidy
+	cd test/ && go get -u github.com/aws/karpenter-core && go mod tidy 
+
 .PHONY: help dev ci release test battletest e2etests verify tidy download docgen apply delete toolchain licenses vulncheck issues website nightly snapshot
 
 define newline
