@@ -54,6 +54,29 @@ var _ = Describe("Subnets", func() {
 
 		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("SubnetId", HaveValue(Equal(firstSubnet))))
 	})
+	It("should use the subnet-id selector with resource based naming", func() {
+		subnets := getSubnets(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
+		Expect(len(subnets)).ToNot(Equal(0))
+		shuffledAZs := lo.Shuffle(lo.Keys(subnets))
+		firstSubnet := subnets[shuffledAZs[0]][0]
+
+		enableResourceNameDNSArecord(firstSubnet)
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+			AWS: v1alpha1.AWS{
+				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+				SubnetSelector:        map[string]string{"aws-ids": firstSubnet},
+			},
+		})
+		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
+		pod := test.Pod()
+
+		env.ExpectCreated(pod, provider, provisioner)
+		env.EventuallyExpectHealthy(pod)
+		env.ExpectCreatedNodeCount("==", 1)
+
+		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("SubnetId", HaveValue(Equal(firstSubnet))))
+		disabledResourceNameDNSArecord(firstSubnet)
+	})
 
 	It("should use a subnet within the AZ requested", func() {
 		subnets := getSubnets(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
@@ -107,4 +130,28 @@ func getSubnets(tags map[string]string) map[string][]string {
 	})
 	Expect(err).To(BeNil())
 	return subnets
+}
+
+func enableResourceNameDNSArecord(subnetID string) {
+	input := &ec2.ModifySubnetAttributeInput{
+		EnableResourceNameDnsARecordOnLaunch: &ec2.AttributeBooleanValue{
+			Value: aws.Bool(true),
+		},
+		SubnetId: aws.String(subnetID),
+	}
+
+	_, err := env.EC2API.ModifySubnetAttribute(input)
+	Expect(err).To(BeNil())
+}
+
+func disabledResourceNameDNSArecord(subnetID string) {
+	input := &ec2.ModifySubnetAttributeInput{
+		EnableResourceNameDnsARecordOnLaunch: &ec2.AttributeBooleanValue{
+			Value: aws.Bool(false),
+		},
+		SubnetId: aws.String(subnetID),
+	}
+
+	_, err := env.EC2API.ModifySubnetAttribute(input)
+	Expect(err).To(BeNil())
 }
