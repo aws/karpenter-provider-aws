@@ -61,6 +61,10 @@ var _ = Describe("Subnets", func() {
 		firstSubnet := subnets[shuffledAZs[0]][0]
 
 		enableResourceNameDNSArecord(firstSubnet)
+		DeferCleanup(func() {
+			disabledResourceNameDNSArecord(firstSubnet)
+		})
+
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 			AWS: v1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
@@ -75,7 +79,6 @@ var _ = Describe("Subnets", func() {
 		env.ExpectCreatedNodeCount("==", 1)
 
 		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("SubnetId", HaveValue(Equal(firstSubnet))))
-		disabledResourceNameDNSArecord(firstSubnet)
 	})
 
 	It("should use a subnet within the AZ requested", func() {
