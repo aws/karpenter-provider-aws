@@ -70,7 +70,7 @@ func (p *SubnetProvider) Get(ctx context.Context, provider *v1alpha1.AWS) ([]*ec
 	p.cache.SetDefault(fmt.Sprint(hash), output.Subnets)
 	subnetLog := prettySubnets(output.Subnets)
 	if p.cm.HasChanged("subnets", subnetLog) {
-		logging.FromContext(ctx).Debugf("Discovered subnets: %s", subnetLog)
+		logging.FromContext(ctx).With("subnets", subnetLog).Debugf("discovered subnets")
 	}
 	return output.Subnets, nil
 }
