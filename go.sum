@@ -66,8 +66,8 @@ github.com/avast/retry-go v3.0.0+incompatible h1:4SOWQ7Qs+oroOTQOYnAHqelpCO0biHS
 github.com/avast/retry-go v3.0.0+incompatible/go.mod h1:XtSnn+n/sHqQIpZ10K1qAevBhOOCWBLXXy3hyiqqBrY=
 github.com/aws/aws-sdk-go v1.44.135 h1:DJJP/CkEpgafA5p5jlY9VzDRyKrfABVixzIxrK/3tWU=
 github.com/aws/aws-sdk-go v1.44.135/go.mod h1:aVsgQcEevwlmQ7qHE9I3h+dtQgpqhFB+i8Phjh7fkwI=
-github.com/aws/karpenter-core v0.0.2-0.20221118021604-bfef8348f7ec h1:tUxLM+1BmIxGDdLE1zoMd5o4OUGPA+DBzsis51CX8cA=
-github.com/aws/karpenter-core v0.0.2-0.20221118021604-bfef8348f7ec/go.mod h1:pL62Soi1AxZ0uZxdr78PXZCjxKnJpCug60gjzGFtMog=
+github.com/aws/karpenter-core v0.0.2-0.20221118200725-6e02c5aefdab h1:8VWHjXEOvn+l6Y08IVzgxBFt0k8K0wrNz3/BBdq5Cs0=
+github.com/aws/karpenter-core v0.0.2-0.20221118200725-6e02c5aefdab/go.mod h1:pL62Soi1AxZ0uZxdr78PXZCjxKnJpCug60gjzGFtMog=
 github.com/benbjohnson/clock v1.1.0 h1:Q92kusRqC1XV2MjkWETPvjJVqKetz1OzxZB7mHJLju8=
 github.com/benbjohnson/clock v1.1.0/go.mod h1:J11/hYXuz8f4ySSvYwY0FKfm+ezbsZBKZxNJlLklBHA=
 github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973/go.mod h1:Dwedo/Wpr24TaqPxmxbtue+5NUziq4I4S80YR8gNf3Q=
