@@ -97,19 +97,19 @@ func (p *InstanceProvider) Create(ctx context.Context, provider *v1alpha1.AWS, n
 	); err != nil {
 		return nil, fmt.Errorf("retrieving node name for instance %s, %w", aws.StringValue(instance.InstanceId), err)
 	}
-	logging.FromContext(ctx).Infof("Launched instance: %s, hostname: %s, type: %s, zone: %s, capacityType: %s",
-		aws.StringValue(instance.InstanceId),
-		aws.StringValue(instance.PrivateDnsName),
-		aws.StringValue(instance.InstanceType),
-		aws.StringValue(instance.Placement.AvailabilityZone),
-		getCapacityType(instance),
-	)
+	logging.FromContext(ctx).With(
+		"launched-instance", aws.StringValue(instance.InstanceId),
+		"hostname", aws.StringValue(instance.PrivateDnsName),
+		"type", aws.StringValue(instance.InstanceType),
+		"zone", aws.StringValue(instance.Placement.AvailabilityZone),
+		"capacity-type", getCapacityType(instance)).Infof("launched new instance")
 
 	// Convert Instance to Node
 	return p.instanceToNode(instance, nodeRequest.InstanceTypeOptions), nil
 }
 
 func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("node", node.Name))
 	id, err := utils.ParseInstanceID(node)
 	if err != nil {
 		return fmt.Errorf("getting instance ID for node %s, %w", node.Name, err)
@@ -122,7 +122,7 @@ func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
 		}
 		if _, errMsg := p.getInstance(ctx, aws.StringValue(id)); err != nil {
 			if awserrors.IsInstanceTerminated(errMsg) || awserrors.IsNotFound(errMsg) {
-				logging.FromContext(ctx).Debugf("Instance already terminated, %s", node.Name)
+				logging.FromContext(ctx).Debugf("instance already terminated")
 				return nil
 			}
 			err = multierr.Append(err, errMsg)
@@ -169,7 +169,7 @@ func (p *InstanceProvider) launchInstance(ctx context.Context, provider *v1alpha
 	if err != nil {
 		if awserrors.IsLaunchTemplateNotFound(err) {
 			for _, lt := range launchTemplateConfigs {
-				p.launchTemplateProvider.Invalidate(ctx, aws.StringValue(lt.LaunchTemplateSpecification.LaunchTemplateName))
+				p.launchTemplateProvider.Invalidate(ctx, aws.StringValue(lt.LaunchTemplateSpecification.LaunchTemplateName), aws.StringValue(lt.LaunchTemplateSpecification.LaunchTemplateId))
 			}
 			return nil, fmt.Errorf("creating fleet %w", err)
 		}
