@@ -193,10 +193,6 @@ func (env *Environment) EventuallyExpectNotFoundAssertionWithOffset(offset int, 
 	})
 }
 
-func (env *Environment) ExpectDeploymentCreatedAndHealthy(numPods int) {
-
-}
-
 func (env *Environment) ExpectCreatedNodeCount(comparator string, nodeCount int) {
 	ExpectWithOffset(1, env.Monitor.CreatedNodeCount()).To(BeNumerically(comparator, nodeCount),
 		fmt.Sprintf("expected %d created nodes, had %d", nodeCount, env.Monitor.CreatedNodeCount()))
