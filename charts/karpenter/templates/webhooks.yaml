@@ -63,6 +63,7 @@ webhooks:
         operations:
           - CREATE
           - UPDATE
+          - DELETE
         resources:
           - awsnodetemplates
           - awsnodetemplates/status
