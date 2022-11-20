@@ -301,7 +301,7 @@ To correct the problem if it occurs, you can use the approach that AWS EBS uses,
         "Sid": "Allow access through EBS for all principals in the account that are authorized to use EBS",
         "Effect": "Allow",
         "Principal": {
-            "AWS": ""
+            "AWS": "*"
         },
         "Action": [
             "kms:Encrypt",
