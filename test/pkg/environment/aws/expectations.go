@@ -31,11 +31,6 @@ func (env *Environment) ExpectInstance(nodeName string) Assertion {
 	return Expect(env.GetInstance(nodeName))
 }
 
-func (env *Environment) ExceptNodeNameToContainInstanceID(nodeName string) {
-	instance := env.GetInstance(nodeName)
-	Expect(strings.Split(nodeName, ".")[0]).To(Equal(aws.StringValue(instance.InstanceId)))
-}
-
 func (env *Environment) ExpectIPv6ClusterDNS() string {
 	dnsService, err := env.Environment.KubeClient.CoreV1().Services("kube-system").Get(env.Context, "kube-dns", metav1.GetOptions{})
 	Expect(err).ToNot(HaveOccurred())
