@@ -60,9 +60,9 @@ var _ = Describe("Subnets", func() {
 
 		allSubnets := lo.Flatten(lo.Values(subnets))
 
-		enableResourceBasedNaming(allSubnets...)
+		ExpectResourceBasedNamingEnabled(allSubnets...)
 		DeferCleanup(func() {
-			disableResourceBasedNaming(allSubnets...)
+			ExpectResourceBasedNamingDisabled(allSubnets...)
 		})
 
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
@@ -135,7 +135,7 @@ func getSubnets(tags map[string]string) map[string][]string {
 	return subnets
 }
 
-func enableResourceBasedNaming(subnetIDs ...string) {
+func ExpectResourceBasedNamingEnabled(subnetIDs ...string) {
 	for subnetID := range subnetIDs {
 		_, err := env.EC2API.ModifySubnetAttribute(&ec2.ModifySubnetAttributeInput{
 			EnableResourceNameDnsARecordOnLaunch: &ec2.AttributeBooleanValue{
@@ -152,7 +152,7 @@ func enableResourceBasedNaming(subnetIDs ...string) {
 	}
 }
 
-func disableResourceBasedNaming(subnetIDs ...string) {
+func ExpectResourceBasedNamingDisabled(subnetIDs ...string) {
 	for subnetID := range subnetIDs {
 		_, err := env.EC2API.ModifySubnetAttribute(&ec2.ModifySubnetAttributeInput{
 			EnableResourceNameDnsARecordOnLaunch: &ec2.AttributeBooleanValue{
