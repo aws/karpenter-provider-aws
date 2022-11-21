@@ -268,7 +268,7 @@ func (env *Environment) CleanupObjects(cleanableObjects []functional.Pair[client
 					g.Expect(env.Client.List(env, stored,
 						client.InNamespace(namespace),
 						client.HasLabels([]string{test.DiscoveryLabel}))).To(Succeed())
-					items, err := meta.ExtractList(objList)
+					items, err := meta.ExtractList(stored)
 					g.Expect(err).To(Succeed())
 					g.Expect(len(items)).To(BeZero())
 				}).Should(Succeed())
