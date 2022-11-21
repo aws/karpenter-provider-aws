@@ -291,6 +291,10 @@ spec:
       pid.available: 10%
 ```
 
+{{% alert title="Soft Eviction Thresholds on Bottlerocket" color="warning" %}}
+Bottlerocket AMIFamily currently does not support `evictionSoft` configuration. If a Provisioner contains a `provider` or `providerRef` to a node template that will launch a Bottlerocket instance, the `evictionSoft` value will be ignored for scheduling and for configuring the kubelet.
+{{% /alert %}}
+
 #### Supported Eviction Signals
 
 | Eviction Signal | Description |
@@ -323,6 +327,10 @@ spec:
       pid.available: 2m
     evictionMaxPodGracePeriod: 3m
 ```
+
+{{% alert title="Soft Eviction Grace Periods on Bottlerocket" color="warning" %}}
+Bottlerocket AMIFamily currently does not support `evictionSoftGracePeriod` configuration. If a Provisioner contains a `provider` or `providerRef` to a node template that will launch a Bottlerocket instance, the `evictionSoftGracePeriod` value will be ignored for scheduling and for configuring the kubelet.
+{{% /alert %}}
 
 ### Pod Density
 
