@@ -263,7 +263,7 @@ func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.Inst
 		ofs := lo.Map(cloudprovider.AvailableOfferings(it), func(of cloudprovider.Offering, _ int) offeringWithParentName {
 			return offeringWithParentName{
 				Offering:               of,
-				parentInstanceTypeName: it.Name(),
+				parentInstanceTypeName: it.Name,
 			}
 		})
 		unwrappedOfferings = append(unwrappedOfferings, ofs...)
@@ -330,10 +330,10 @@ func (p *InstanceProvider) getInstance(ctx context.Context, id string) (*ec2.Ins
 
 func (p *InstanceProvider) instanceToNode(instance *ec2.Instance, instanceTypes []cloudprovider.InstanceType) *v1.Node {
 	for _, instanceType := range instanceTypes {
-		if instanceType.Name() == aws.StringValue(instance.InstanceType) {
+		if instanceType.Name == aws.StringValue(instance.InstanceType) {
 			nodeName := strings.ToLower(aws.StringValue(instance.PrivateDnsName))
 			labels := map[string]string{}
-			for key, req := range instanceType.Requirements() {
+			for key, req := range instanceType.Requirements {
 				if req.Len() == 1 {
 					labels[key] = req.Values()[0]
 				}

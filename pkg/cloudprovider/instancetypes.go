@@ -38,7 +38,6 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 
-	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/utils/functional"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
@@ -85,7 +84,7 @@ func NewInstanceTypeProvider(ctx context.Context, sess *session.Session, ec2api 
 }
 
 // Get all instance type options
-func (p *InstanceTypeProvider) Get(ctx context.Context, provider *v1alpha1.AWS, kc *v1alpha5.KubeletConfiguration) ([]cloudprovider.InstanceType, error) {
+func (p *InstanceTypeProvider) Get(ctx context.Context, provider *v1alpha1.AWS) ([]cloudprovider.InstanceType, error) {
 	p.Lock()
 	defer p.Unlock()
 	// Get InstanceTypes from EC2
@@ -102,7 +101,7 @@ func (p *InstanceTypeProvider) Get(ctx context.Context, provider *v1alpha1.AWS, 
 
 	for _, i := range instanceTypes {
 		instanceTypeName := aws.StringValue(i.InstanceType)
-		instanceType := NewInstanceType(ctx, i, kc, p.region, provider, p.createOfferings(ctx, i, instanceTypeZones[instanceTypeName]))
+		instanceType := NewInstanceType(ctx, i, p.region, provider, p.createOfferings(ctx, i, instanceTypeZones[instanceTypeName]))
 		result = append(result, instanceType)
 	}
 	return result, nil

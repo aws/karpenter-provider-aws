@@ -36,9 +36,9 @@ type AL2 struct {
 // SSMAlias returns the AMI Alias to query SSM
 func (a AL2) SSMAlias(version string, instanceType cloudprovider.InstanceType) string {
 	amiSuffix := ""
-	if !resources.IsZero(instanceType.Resources()[v1alpha1.ResourceNVIDIAGPU]) || !resources.IsZero(instanceType.Resources()[v1alpha1.ResourceAWSNeuron]) {
+	if !resources.IsZero(instanceType.Capacity[v1alpha1.ResourceNVIDIAGPU]) || !resources.IsZero(instanceType.Capacity[v1alpha1.ResourceAWSNeuron]) {
 		amiSuffix = "-gpu"
-	} else if instanceType.Requirements().Get(v1.LabelArchStable).Has(v1alpha5.ArchitectureArm64) {
+	} else if instanceType.Requirements.Get(v1.LabelArchStable).Has(v1alpha5.ArchitectureArm64) {
 		amiSuffix = fmt.Sprintf("-%s", v1alpha5.ArchitectureArm64)
 	}
 	return fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2%s/recommended/image_id", version, amiSuffix)
@@ -72,7 +72,7 @@ func (a AL2) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []v1.
 // instanceTypes passed in since the AL2 EKS Optimized AMI does not support inferentia instances w/ containerd.
 // this should be removed once the EKS Optimized AMI supports all GPUs.
 func (a AL2) containerRuntime(instanceTypes []cloudprovider.InstanceType) string {
-	instanceResources := instanceTypes[0].Resources()
+	instanceResources := instanceTypes[0].Capacity
 	if resources.IsZero(instanceResources[v1alpha1.ResourceAWSNeuron]) {
 		return "containerd"
 	}

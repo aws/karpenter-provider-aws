@@ -34,7 +34,7 @@ type Ubuntu struct {
 
 // SSMAlias returns the AMI Alias to query SSM
 func (u Ubuntu) SSMAlias(version string, instanceType cloudprovider.InstanceType) string {
-	return fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/%s/hvm/ebs-gp2/ami-id", version, instanceType.Requirements().Get(v1.LabelArchStable).Values()[0])
+	return fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/%s/hvm/ebs-gp2/ami-id", version, instanceType.Requirements.Get(v1.LabelArchStable).Values()[0])
 }
 
 // UserData returns the default userdata script for the AMI Family

@@ -134,7 +134,7 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, provisioner *v1alp
 		return nil, err
 	}
 	// TODO, break this coupling
-	instanceTypes, err := c.instanceTypeProvider.Get(ctx, aws, provisioner.Spec.KubeletConfiguration)
+	instanceTypes, err := c.instanceTypeProvider.Get(ctx, aws)
 	if err != nil {
 		return nil, err
 	}

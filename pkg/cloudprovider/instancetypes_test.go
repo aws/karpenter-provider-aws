@@ -813,8 +813,8 @@ var _ = Describe("Instance Types", func() {
 			Expect(err).To(BeNil())
 			instanceTypeNames := sets.NewString()
 			for _, it := range instanceTypes {
-				instanceTypeNames.Insert(it.Name())
-				if it.Name() == "m5.xlarge" {
+				instanceTypeNames.Insert(it.Name)
+				if it.Name == "m5.xlarge" {
 					// should have no valid offerings
 					Expect(cloudprovider.AvailableOfferings(it)).To(HaveLen(0))
 				}

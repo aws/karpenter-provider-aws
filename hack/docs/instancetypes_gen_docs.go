@@ -120,12 +120,12 @@ below are the resources available with some assumptions and after the instance o
 	labelNameMap := sets.String{}
 	resourceNameMap := sets.String{}
 	for _, it := range instanceTypes {
-		familyName := strings.Split(it.Name(), ".")[0]
+		familyName := strings.Split(it.Name, ".")[0]
 		families[familyName] = append(families[familyName], it)
-		for labelName := range it.Requirements() {
+		for labelName := range it.Requirements {
 			labelNameMap.Insert(labelName)
 		}
-		for resourceName := range it.Resources() {
+		for resourceName := range it.Capacity {
 			resourceNameMap.Insert(string(resourceName))
 		}
 	}
@@ -149,33 +149,34 @@ below are the resources available with some assumptions and after the instance o
 		sort.Slice(families[familyName], func(a, b int) bool {
 			lhs := families[familyName][a]
 			rhs := families[familyName][b]
-			lhsResources := lhs.Resources()
-			rhsResources := rhs.Resources()
+			lhsResources := lhs.Capacity
+			rhsResources := rhs.Capacity
 			if cpuCmp := resources.Cmp(*lhsResources.Cpu(), *rhsResources.Cpu()); cpuCmp != 0 {
 				return cpuCmp < 0
 			}
 			if memCmp := resources.Cmp(*lhsResources.Memory(), *rhsResources.Memory()); memCmp != 0 {
 				return memCmp < 0
 			}
-			return lhs.Name() < rhs.Name()
+			return lhs.Name < rhs.Name
 		})
 
 		for _, it := range families[familyName] {
-			fmt.Fprintf(f, "### `%s`\n", it.Name())
+			fmt.Fprintf(f, "### `%s`\n", it.Name)
+			overhead := resources.Merge(it.Overhead.KubeReserved, it.Overhead.SystemReserved, it.Overhead.EvictionThreshold)
 			minusOverhead := v1.ResourceList{}
-			for k, v := range it.Resources() {
+			for k, v := range it.Capacity {
 				if v.IsZero() {
 					continue
 				}
 				cp := v.DeepCopy()
-				cp.Sub(it.Overhead()[k])
+				cp.Sub(overhead[k])
 				minusOverhead[k] = cp
 			}
 			fmt.Fprintln(f, "#### Labels")
 			fmt.Fprintln(f, " | Label | Value |")
 			fmt.Fprintln(f, " |--|--|")
 			for _, label := range labelNames {
-				req, ok := it.Requirements()[label]
+				req, ok := it.Requirements[label]
 				if !ok {
 					continue
 				}

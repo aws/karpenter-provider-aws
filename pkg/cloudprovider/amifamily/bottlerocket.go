@@ -42,10 +42,10 @@ type Bottlerocket struct {
 func (b Bottlerocket) SSMAlias(version string, instanceType cloudprovider.InstanceType) string {
 	arch := "x86_64"
 	amiSuffix := ""
-	if !resources.IsZero(instanceType.Resources()[v1alpha1.ResourceNVIDIAGPU]) {
+	if !resources.IsZero(instanceType.Capacity[v1alpha1.ResourceNVIDIAGPU]) {
 		amiSuffix = "-nvidia"
 	}
-	if instanceType.Requirements().Get(v1.LabelArchStable).Has(v1alpha5.ArchitectureArm64) {
+	if instanceType.Requirements.Get(v1.LabelArchStable).Has(v1alpha5.ArchitectureArm64) {
 		arch = v1alpha5.ArchitectureArm64
 	}
 	return fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s%s/%s/latest/image_id", version, amiSuffix, arch)

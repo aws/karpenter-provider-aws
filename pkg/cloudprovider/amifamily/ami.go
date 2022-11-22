@@ -70,7 +70,7 @@ func (p *AMIProvider) Get(ctx context.Context, provider *v1alpha1.AWS, nodeReque
 		amis := sortAMIsByCreationDate(amiRequirements)
 		for _, instanceType := range nodeRequest.InstanceTypeOptions {
 			for _, ami := range amis {
-				if err := instanceType.Requirements().Compatible(amiRequirements[ami]); err == nil {
+				if err := instanceType.Requirements.Compatible(amiRequirements[ami]); err == nil {
 					amiIDs[ami.AmiID] = append(amiIDs[ami.AmiID], instanceType)
 					break
 				}
