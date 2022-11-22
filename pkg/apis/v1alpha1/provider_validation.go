@@ -222,7 +222,7 @@ func (a *AWS) validateDeviceName(blockDeviceMapping *BlockDeviceMapping) *apis.F
 
 func (a *AWS) validateEBS(blockDeviceMapping *BlockDeviceMapping) (errs *apis.FieldError) {
 	if blockDeviceMapping.EBS == nil {
-		return apis.ErrMissingField("ebs")
+		return nil
 	}
 	for _, err := range []*apis.FieldError{
 		a.validateVolumeType(blockDeviceMapping),

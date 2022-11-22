@@ -221,10 +221,12 @@ func (p *LaunchTemplateProvider) blockDeviceMappings(blockDeviceMappings []*v1al
 	}
 	blockDeviceMappingsRequest := []*ec2.LaunchTemplateBlockDeviceMappingRequest{}
 	for _, blockDeviceMapping := range blockDeviceMappings {
-		blockDeviceMappingsRequest = append(blockDeviceMappingsRequest, &ec2.LaunchTemplateBlockDeviceMappingRequest{
+		bdm := &ec2.LaunchTemplateBlockDeviceMappingRequest{
 			DeviceName:  blockDeviceMapping.DeviceName,
 			VirtualName: blockDeviceMapping.VirtualName,
-			Ebs: &ec2.LaunchTemplateEbsBlockDeviceRequest{
+		}
+		if blockDeviceMapping.EBS != nil {
+			bdm.Ebs = &ec2.LaunchTemplateEbsBlockDeviceRequest{
 				DeleteOnTermination: blockDeviceMapping.EBS.DeleteOnTermination,
 				Encrypted:           blockDeviceMapping.EBS.Encrypted,
 				VolumeType:          blockDeviceMapping.EBS.VolumeType,
@@ -233,8 +235,9 @@ func (p *LaunchTemplateProvider) blockDeviceMappings(blockDeviceMappings []*v1al
 				KmsKeyId:            blockDeviceMapping.EBS.KMSKeyID,
 				SnapshotId:          blockDeviceMapping.EBS.SnapshotID,
 				VolumeSize:          p.volumeSize(blockDeviceMapping.EBS.VolumeSize),
-			},
-		})
+			}
+		}
+		blockDeviceMappingsRequest = append(blockDeviceMappingsRequest, bdm)
 	}
 	return blockDeviceMappingsRequest
 }

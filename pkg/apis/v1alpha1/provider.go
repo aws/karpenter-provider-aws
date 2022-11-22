@@ -76,7 +76,7 @@ type LaunchTemplate struct {
 	// +optional
 	MetadataOptions *MetadataOptions `json:"metadataOptions,omitempty"`
 	// BlockDeviceMappings to be applied to provisioned nodes.
-	// +optionals
+	// +optional
 	BlockDeviceMappings []*BlockDeviceMapping `json:"blockDeviceMappings,omitempty"`
 }
 
@@ -128,18 +128,22 @@ type BlockDeviceMapping struct {
 	// The device name (for example, /dev/sdh or xvdh).
 	DeviceName *string `json:"deviceName,omitempty"`
 	// The device name for instance store volumes (for example, ephemeral1)
+	// +optional
 	VirtualName *string `json:"virtualName,omitempty"`
 	// EBS contains parameters used to automatically set up EBS volumes when an instance is launched.
+	// +optional
 	EBS *BlockDevice `json:"ebs,omitempty"`
 }
 
 type BlockDevice struct {
 	// DeleteOnTermination indicates whether the EBS volume is deleted on instance termination.
+	// +optional
 	DeleteOnTermination *bool `json:"deleteOnTermination,omitempty"`
 
 	// Encrypted indicates whether the EBS volume is encrypted. Encrypted volumes can only
 	// be attached to instances that support Amazon EBS encryption. If you are creating
 	// a volume from a snapshot, you can't specify an encryption value.
+	// +optional
 	Encrypted *bool `json:"encrypted,omitempty"`
 
 	// IOPS is the number of I/O operations per second (IOPS). For gp3, io1, and io2 volumes,
@@ -161,16 +165,20 @@ type BlockDevice struct {
 	//
 	// This parameter is supported for io1, io2, and gp3 volumes only. This parameter
 	// is not supported for gp2, st1, sc1, or standard volumes.
+	// +optional
 	IOPS *int64 `json:"iops,omitempty"`
 
 	// KMSKeyID (ARN) of the symmetric Key Management Service (KMS) CMK used for encryption.
+	// +optional
 	KMSKeyID *string `json:"kmsKeyID,omitempty"`
 
 	// SnapshotID is the ID of an EBS snapshot
+	// +optional
 	SnapshotID *string `json:"snapshotID,omitempty"`
 
 	// Throughput to provision for a gp3 volume, with a maximum of 1,000 MiB/s.
 	// Valid Range: Minimum value of 125. Maximum value of 1000.
+	// +optional
 	Throughput *int64 `json:"throughput,omitempty"`
 
 	// VolumeSize in GiBs. You must specify either a snapshot ID or
@@ -184,11 +192,13 @@ type BlockDevice struct {
 	//    * st1 and sc1: 125-16,384
 	//
 	//    * standard: 1-1,024
+	// +optional
 	VolumeSize *resource.Quantity `json:"volumeSize,omitempty"`
 
 	// VolumeType of the block device.
 	// For more information, see Amazon EBS volume types (https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSVolumeTypes.html)
 	// in the Amazon Elastic Compute Cloud User Guide.
+	// +optional
 	VolumeType *string `json:"volumeType,omitempty"`
 }
 
