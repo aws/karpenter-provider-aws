@@ -78,7 +78,7 @@ func New(ctx awscontext.Context) *CloudProvider {
 	}
 	ec2api := ec2.New(ctx.Session)
 	if err := checkEC2Connectivity(ctx, ec2api); err != nil {
-		logging.FromContext(ctx).Fatalf("Checking EC2 API connectivity, %s", err)
+		logging.FromContext(ctx).Errorf("Checking EC2 API connectivity, %s", err)
 	}
 	subnetProvider := NewSubnetProvider(ec2api)
 	instanceTypeProvider := NewInstanceTypeProvider(ctx, ctx.Session, ec2api, subnetProvider, ctx.UnavailableOfferingsCache, ctx.StartAsync)
