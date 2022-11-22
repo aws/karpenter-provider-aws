@@ -20,7 +20,9 @@ Follow the clean-up instructions to reduce any charges.
 
 ## Install
 
-Karpenter is installed in clusters with a helm chart.
+Karpenter is installed in clusters with a helm chart. In this example, an EKS Managed Node group
+is provisioned to support Karpenter. For running Karpenter on EKS Fargate Profiles, see
+[this example](https://github.com/terraform-aws-modules/terraform-aws-eks/tree/master/examples/karpenter).
 
 Karpenter additionally requires IAM Roles for Service Accounts (IRSA). IRSA
 permits Karpenter (within the cluster) to make privileged requests to AWS (as
