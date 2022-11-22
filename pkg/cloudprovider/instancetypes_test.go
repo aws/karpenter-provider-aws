@@ -104,6 +104,26 @@ var _ = Describe("Instance Types", func() {
 			}
 		}
 	})
+	It("should de-prioritize gpu types", func() {
+		ExpectApplied(ctx, env.Client, provisioner)
+		for _, pod := range ExpectProvisioned(ctx, env.Client, recorder, controller, prov,
+			coretest.UnschedulablePod(coretest.PodOptions{
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
+					Limits:   v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
+				},
+			})) {
+			ExpectScheduled(ctx, env.Client, pod)
+		}
+		Expect(fakeEC2API.CalledWithCreateFleetInput.Len()).To(Equal(1))
+		call := fakeEC2API.CalledWithCreateFleetInput.Pop()
+		_ = call
+		for _, ltc := range call.LaunchTemplateConfigs {
+			for _, ovr := range ltc.Overrides {
+				Expect(strings.HasPrefix(aws.StringValue(ovr.InstanceType), "g")).To(BeFalse())
+			}
+		}
+	})
 	It("should launch on metal", func() {
 		// add a provisioner requirement for instance type exists to remove our default filter for metal sizes
 		provisioner.Spec.Requirements = append(provisioner.Spec.Requirements, v1.NodeSelectorRequirement{
@@ -114,7 +134,7 @@ var _ = Describe("Instance Types", func() {
 		for _, pod := range ExpectProvisioned(ctx, env.Client, recorder, controller, prov,
 			coretest.UnschedulablePod(coretest.PodOptions{
 				NodeSelector: map[string]string{
-					v1.LabelInstanceTypeStable: "m5.metal",
+					v1alpha1.LabelInstanceSize: "metal",
 				},
 				ResourceRequirements: v1.ResourceRequirements{
 					Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
