@@ -185,7 +185,7 @@ Karpenter's native interruption handling offers two main benefits over the stand
 ### Why am I receiving QueueNotFound errors when I set `aws.interruptionQueueName`?
 Karpenter requires a queue to exist that receives event messages from EC2 and health services in order to handle interruption messages properly for nodes.
 
-Details on the types of events that Karpenter handles can be found in the [Deprovisioning Docs]({{< ref "./tasks/deprovisioning/#interruption" >}}).
+Details on the types of events that Karpenter handles can be found in the [Interruption Handling Docs]({{< ref "./tasks/deprovisioning/#interruption" >}}).
 
 Details on provisioning the SQS queue and EventBridge rules can be found in the [Getting Started Guide]({{< ref "./getting-started/getting-started-with-eksctl/#create-the-karpenter-infrastructure-and-iam-roles" >}}).
 
