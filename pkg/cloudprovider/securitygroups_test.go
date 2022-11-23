@@ -56,6 +56,18 @@ var _ = Describe("Security Groups", func() {
 			"test-sg-2",
 		))
 	})
+	It("should discover security groups by tags", func() {
+		provider.SecurityGroupSelector = map[string]string{"Name": "test-security-group-1,test-security-group-2"}
+		ExpectApplied(ctx, env.Client, test.Provisioner(coretest.ProvisionerOptions{Provider: provider}))
+		pod := ExpectProvisioned(ctx, env.Client, recorder, controller, prov, coretest.UnschedulablePod())[0]
+		ExpectScheduled(ctx, env.Client, pod)
+		Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+		input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+		Expect(aws.StringValueSlice(input.LaunchTemplateData.SecurityGroupIds)).To(ConsistOf(
+			"test-sg-1",
+			"test-sg-2",
+		))
+	})
 	It("should discover security groups by ID", func() {
 		nodeTemplate.Spec.SecurityGroupSelector = map[string]string{"aws-ids": "sg-test1"}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
