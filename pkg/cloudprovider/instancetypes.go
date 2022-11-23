@@ -23,6 +23,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws/session"
 
+	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	awscache "github.com/aws/karpenter/pkg/cache"
 	awscontext "github.com/aws/karpenter/pkg/context"
@@ -84,7 +85,7 @@ func NewInstanceTypeProvider(ctx context.Context, sess *session.Session, ec2api 
 }
 
 // Get all instance type options
-func (p *InstanceTypeProvider) Get(ctx context.Context, provider *v1alpha1.AWS) ([]cloudprovider.InstanceType, error) {
+func (p *InstanceTypeProvider) Get(ctx context.Context, kc *v1alpha5.KubeletConfiguration, provider *v1alpha1.AWS) ([]*cloudprovider.InstanceType, error) {
 	p.Lock()
 	defer p.Unlock()
 	// Get InstanceTypes from EC2
@@ -97,11 +98,11 @@ func (p *InstanceTypeProvider) Get(ctx context.Context, provider *v1alpha1.AWS) 
 	if err != nil {
 		return nil, err
 	}
-	var result []cloudprovider.InstanceType
+	var result []*cloudprovider.InstanceType
 
 	for _, i := range instanceTypes {
 		instanceTypeName := aws.StringValue(i.InstanceType)
-		instanceType := NewInstanceType(ctx, i, p.region, provider, p.createOfferings(ctx, i, instanceTypeZones[instanceTypeName]))
+		instanceType := NewInstanceType(ctx, i, kc, p.region, provider, p.createOfferings(ctx, i, instanceTypeZones[instanceTypeName]))
 		result = append(result, instanceType)
 	}
 	return result, nil

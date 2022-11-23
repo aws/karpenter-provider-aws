@@ -39,7 +39,7 @@ type Bottlerocket struct {
 }
 
 // SSMAlias returns the AMI Alias to query SSM
-func (b Bottlerocket) SSMAlias(version string, instanceType cloudprovider.InstanceType) string {
+func (b Bottlerocket) SSMAlias(version string, instanceType *cloudprovider.InstanceType) string {
 	arch := "x86_64"
 	amiSuffix := ""
 	if !resources.IsZero(instanceType.Capacity[v1alpha1.ResourceNVIDIAGPU]) {
@@ -52,7 +52,7 @@ func (b Bottlerocket) SSMAlias(version string, instanceType cloudprovider.Instan
 }
 
 // UserData returns the default userdata script for the AMI Family
-func (b Bottlerocket) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []v1.Taint, labels map[string]string, caBundle *string, _ []cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper {
+func (b Bottlerocket) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []v1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper {
 	return bootstrap.Bottlerocket{
 		Options: bootstrap.Options{
 			ClusterName:             b.Options.ClusterName,

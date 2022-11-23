@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"math"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -26,6 +27,7 @@ import (
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"knative.dev/pkg/ptr"
 
 	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
@@ -45,36 +47,40 @@ var (
 	instanceTypeScheme = regexp.MustCompile(`(^[a-z]+)(\-[0-9]+tb)?([0-9]+).*\.`)
 )
 
-func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, region string, provider *v1alpha1.AWS, offerings []cloudprovider.Offering) cloudprovider.InstanceType {
+func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, kc *v1alpha5.KubeletConfiguration,
+	region string, provider *v1alpha1.AWS, offerings cloudprovider.Offerings) *cloudprovider.InstanceType {
+
 	amiFamily := amifamily.GetAMIFamily(provider.AMIFamily, &amifamily.Options{})
-	return cloudprovider.InstanceType{
+	return &cloudprovider.InstanceType{
 		Name:         aws.StringValue(info.InstanceType),
-		Requirements: computeRequirements(ctx, info, offerings, region),
+		Requirements: computeRequirements(ctx, info, offerings, region, amiFamily, kc),
 		Offerings:    offerings,
-		Capacity:     computeResources(ctx, info, amiFamily, provider.BlockDeviceMappings),
-		Overhead: cloudprovider.InstanceTypeOverhead{
-			KubeReserved:      kubeReservedResources(cpu(info), pods(ctx, info)),
-			SystemReserved:    systemReservedResources(),
-			EvictionThreshold: evictionThreshold(),
+		Capacity:     computeCapacity(ctx, info, amiFamily, provider.BlockDeviceMappings, kc),
+		Overhead: &cloudprovider.InstanceTypeOverhead{
+			KubeReserved:      kubeReservedResources(cpu(info), pods(ctx, info, amiFamily, kc), eniLimitedPods(info), amiFamily, kc),
+			SystemReserved:    systemReservedResources(kc),
+			EvictionThreshold: evictionThreshold(memory(ctx, info), amiFamily, kc),
 		},
 	}
 }
 
-func computeRequirements(ctx context.Context, info *ec2.InstanceTypeInfo, offerings []cloudprovider.Offering, region string) scheduling.Requirements {
+func computeRequirements(ctx context.Context, info *ec2.InstanceTypeInfo, offerings cloudprovider.Offerings, region string,
+	amiFamily amifamily.AMIFamily, kc *v1alpha5.KubeletConfiguration) scheduling.Requirements {
+
 	// TODO joinnis: Switch the AvailableOfferings call back to the cloudprovider.AvailableOfferings call
 	requirements := scheduling.NewRequirements(
 		// Well Known Upstream
 		scheduling.NewRequirement(v1.LabelInstanceTypeStable, v1.NodeSelectorOpIn, aws.StringValue(info.InstanceType)),
 		scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, getArchitecture(info)),
 		scheduling.NewRequirement(v1.LabelOSStable, v1.NodeSelectorOpIn, string(v1.Linux)),
-		scheduling.NewRequirement(v1.LabelTopologyZone, v1.NodeSelectorOpIn, lo.Map(offerings, func(o cloudprovider.Offering, _ int) string { return o.Zone })...),
+		scheduling.NewRequirement(v1.LabelTopologyZone, v1.NodeSelectorOpIn, lo.Map(offerings.Available(), func(o cloudprovider.Offering, _ int) string { return o.Zone })...),
 		scheduling.NewRequirement(v1.LabelTopologyRegion, v1.NodeSelectorOpIn, region),
 		// Well Known to Karpenter
-		scheduling.NewRequirement(v1alpha5.LabelCapacityType, v1.NodeSelectorOpIn, lo.Map(offerings, func(o cloudprovider.Offering, _ int) string { return o.CapacityType })...),
+		scheduling.NewRequirement(v1alpha5.LabelCapacityType, v1.NodeSelectorOpIn, lo.Map(offerings.Available(), func(o cloudprovider.Offering, _ int) string { return o.CapacityType })...),
 		// Well Known to AWS
 		scheduling.NewRequirement(v1alpha1.LabelInstanceCPU, v1.NodeSelectorOpIn, fmt.Sprint(aws.Int64Value(info.VCpuInfo.DefaultVCpus))),
 		scheduling.NewRequirement(v1alpha1.LabelInstanceMemory, v1.NodeSelectorOpIn, fmt.Sprint(aws.Int64Value(info.MemoryInfo.SizeInMiB))),
-		scheduling.NewRequirement(v1alpha1.LabelInstancePods, v1.NodeSelectorOpIn, fmt.Sprint(pods(ctx, info))),
+		scheduling.NewRequirement(v1alpha1.LabelInstancePods, v1.NodeSelectorOpIn, fmt.Sprint(pods(ctx, info, amiFamily, kc))),
 		scheduling.NewRequirement(v1alpha1.LabelInstanceCategory, v1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1alpha1.LabelInstanceFamily, v1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1alpha1.LabelInstanceGeneration, v1.NodeSelectorOpDoesNotExist),
@@ -120,12 +126,14 @@ func getArchitecture(info *ec2.InstanceTypeInfo) string {
 	return fmt.Sprint(aws.StringValueSlice(info.ProcessorInfo.SupportedArchitectures)) // Unrecognized, but used for error printing
 }
 
-func computeResources(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily amifamily.AMIFamily, blockDeviceMappings []*v1alpha1.BlockDeviceMapping) v1.ResourceList {
+func computeCapacity(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily amifamily.AMIFamily,
+	blockDeviceMappings []*v1alpha1.BlockDeviceMapping, kc *v1alpha5.KubeletConfiguration) v1.ResourceList {
+
 	return v1.ResourceList{
 		v1.ResourceCPU:              *cpu(info),
 		v1.ResourceMemory:           *memory(ctx, info),
 		v1.ResourceEphemeralStorage: *ephemeralStorage(amiFamily, blockDeviceMappings),
-		v1.ResourcePods:             *pods(ctx, info),
+		v1.ResourcePods:             *pods(ctx, info, amiFamily, kc),
 		v1alpha1.ResourceAWSPodENI:  *awsPodENI(ctx, aws.StringValue(info.InstanceType)),
 		v1alpha1.ResourceNVIDIAGPU:  *nvidiaGPUs(info),
 		v1alpha1.ResourceAMDGPU:     *amdGPUs(info),
@@ -140,7 +148,7 @@ func cpu(info *ec2.InstanceTypeInfo) *resource.Quantity {
 func memory(ctx context.Context, info *ec2.InstanceTypeInfo) *resource.Quantity {
 	mem := resources.Quantity(fmt.Sprintf("%dMi", *info.MemoryInfo.SizeInMiB))
 	// Account for VM overhead in calculation
-	mem.Sub(resource.MustParse(fmt.Sprintf("%dMi", int64(math.Ceil(float64(*info.MemoryInfo.SizeInMiB)*awssettings.FromContext(ctx).VMMemoryOverheadPercent/1024/1024)))))
+	mem.Sub(resource.MustParse(fmt.Sprintf("%dMi", int64(math.Ceil(float64(mem.Value())*awssettings.FromContext(ctx).VMMemoryOverheadPercent/1024/1024)))))
 	return mem
 }
 
@@ -148,7 +156,7 @@ func memory(ctx context.Context, info *ec2.InstanceTypeInfo) *resource.Quantity 
 func ephemeralStorage(amiFamily amifamily.AMIFamily, blockDeviceMappings []*v1alpha1.BlockDeviceMapping) *resource.Quantity {
 	if len(blockDeviceMappings) != 0 {
 		switch amiFamily.(type) {
-		case amifamily.Custom:
+		case *amifamily.Custom:
 			return blockDeviceMappings[len(blockDeviceMappings)-1].EBS.VolumeSize
 		default:
 			ephemeralBlockDevice := amiFamily.EphemeralBlockDevice()
@@ -209,20 +217,27 @@ func awsNeurons(info *ec2.InstanceTypeInfo) *resource.Quantity {
 // The number of pods per node is calculated using the formula:
 // max number of ENIs * (IPv4 Addresses per ENI -1) + 2
 // https://github.com/awslabs/amazon-eks-ami/blob/master/files/eni-max-pods.txt#L20
-func eniLimitedPods(info *ec2.InstanceTypeInfo) int64 {
-	return *info.NetworkInfo.MaximumNetworkInterfaces*(*info.NetworkInfo.Ipv4AddressesPerInterface-1) + 2
+func eniLimitedPods(info *ec2.InstanceTypeInfo) *resource.Quantity {
+	return resources.Quantity(fmt.Sprint(*info.NetworkInfo.MaximumNetworkInterfaces*(*info.NetworkInfo.Ipv4AddressesPerInterface-1) + 2))
 }
 
-func systemReservedResources() v1.ResourceList {
+func systemReservedResources(kc *v1alpha5.KubeletConfiguration) v1.ResourceList {
 	// default system-reserved resources: https://kubernetes.io/docs/tasks/administer-cluster/reserve-compute-resources/#system-reserved
-	return v1.ResourceList{
+	resources := v1.ResourceList{
 		v1.ResourceCPU:              resource.MustParse("100m"),
 		v1.ResourceMemory:           resource.MustParse("100Mi"),
 		v1.ResourceEphemeralStorage: resource.MustParse("1Gi"),
 	}
+	if kc != nil && kc.SystemReserved != nil {
+		return lo.Assign(resources, kc.SystemReserved)
+	}
+	return resources
 }
 
-func kubeReservedResources(cpus, pods *resource.Quantity) v1.ResourceList {
+func kubeReservedResources(cpus, pods, eniLimitedPods *resource.Quantity, amiFamily amifamily.AMIFamily, kc *v1alpha5.KubeletConfiguration) v1.ResourceList {
+	if amiFamily.FeatureFlags().UsesENILimitedMemoryOverhead {
+		pods = eniLimitedPods
+	}
 	resources := v1.ResourceList{
 		v1.ResourceMemory:           resource.MustParse(fmt.Sprintf("%dMi", (11*pods.Value())+255)),
 		v1.ResourceEphemeralStorage: resource.MustParse("1Gi"), // default kube-reserved ephemeral-storage
@@ -249,19 +264,77 @@ func kubeReservedResources(cpus, pods *resource.Quantity) v1.ResourceList {
 			resources[v1.ResourceCPU] = *cpuOverhead
 		}
 	}
+	if kc != nil && kc.KubeReserved != nil {
+		return lo.Assign(resources, kc.KubeReserved)
+	}
 	return resources
 }
 
-func evictionThreshold() v1.ResourceList {
-	return v1.ResourceList{
+func evictionThreshold(memory *resource.Quantity, amiFamily amifamily.AMIFamily, kc *v1alpha5.KubeletConfiguration) v1.ResourceList {
+	overhead := v1.ResourceList{
 		v1.ResourceMemory: resource.MustParse("100Mi"),
 	}
+	if kc == nil {
+		return overhead
+	}
+
+	override := v1.ResourceList{}
+	var evictionSignals []map[string]string
+	if kc.EvictionHard != nil {
+		evictionSignals = append(evictionSignals, kc.EvictionHard)
+	}
+	if kc.EvictionSoft != nil && amiFamily.FeatureFlags().EvictionSoftEnabled {
+		evictionSignals = append(evictionSignals, kc.EvictionSoft)
+	}
+
+	for _, m := range evictionSignals {
+		temp := v1.ResourceList{}
+		if v, ok := m[memoryAvailable]; ok {
+			if strings.HasSuffix(v, "%") {
+				p := mustParsePercentage(v)
+
+				// Calculation is node.capacity * evictionHard[memory.available] if percentage
+				// From https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/#eviction-signals
+				temp[v1.ResourceMemory] = resource.MustParse(fmt.Sprint(math.Ceil(float64(memory.Value()) / 100 * p)))
+			} else {
+				temp[v1.ResourceMemory] = resource.MustParse(v)
+			}
+		}
+		override = resources.MaxResources(override, temp)
+	}
+	// Assign merges maps from left to right so overrides will always be taken last
+	return lo.Assign(overhead, override)
 }
 
-func pods(ctx context.Context, info *ec2.InstanceTypeInfo) *resource.Quantity {
-	return resources.Quantity(fmt.Sprint(lo.Ternary(awssettings.FromContext(ctx).EnableENILimitedPodDensity, eniLimitedPods(info), 110)))
+func pods(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily amifamily.AMIFamily, kc *v1alpha5.KubeletConfiguration) *resource.Quantity {
+	var count int64
+	switch {
+	case kc != nil && kc.MaxPods != nil:
+		count = int64(ptr.Int32Value(kc.MaxPods))
+	case !awssettings.FromContext(ctx).EnableENILimitedPodDensity:
+		count = 110
+	default:
+		count = eniLimitedPods(info).Value()
+	}
+	if kc != nil && ptr.Int32Value(kc.PodsPerCore) > 0 && amiFamily.FeatureFlags().PodsPerCoreEnabled {
+		count = lo.Min([]int64{int64(ptr.Int32Value(kc.PodsPerCore)) * ptr.Int64Value(info.VCpuInfo.DefaultVCpus), count})
+	}
+	return resources.Quantity(fmt.Sprint(count))
 }
 
 func lowerKabobCase(s string) string {
 	return strings.ToLower(strings.ReplaceAll(s, " ", "-"))
+}
+
+func mustParsePercentage(v string) float64 {
+	p, err := strconv.ParseFloat(strings.Trim(v, "%"), 64)
+	if err != nil {
+		panic(fmt.Sprintf("expected percentage value to be a float but got %s, %v", v, err))
+	}
+	// Setting percentage value to 100% is considered disabling the threshold according to
+	// https://kubernetes.io/docs/reference/config-api/kubelet-config.v1beta1/
+	if p == 100 {
+		p = 0
+	}
+	return p
 }

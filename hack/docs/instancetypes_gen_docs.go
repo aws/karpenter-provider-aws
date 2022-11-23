@@ -116,7 +116,7 @@ below are the resources available with some assumptions and after the instance o
 
 	// generate a map of family -> instance types along with some other sorted lists.  The sorted lists ensure we
 	// generate consistent docs every run.
-	families := map[string][]cloudprovider.InstanceType{}
+	families := map[string][]*cloudprovider.InstanceType{}
 	labelNameMap := sets.String{}
 	resourceNameMap := sets.String{}
 	for _, it := range instanceTypes {
@@ -162,16 +162,7 @@ below are the resources available with some assumptions and after the instance o
 
 		for _, it := range families[familyName] {
 			fmt.Fprintf(f, "### `%s`\n", it.Name)
-			overhead := resources.Merge(it.Overhead.KubeReserved, it.Overhead.SystemReserved, it.Overhead.EvictionThreshold)
-			minusOverhead := v1.ResourceList{}
-			for k, v := range it.Capacity {
-				if v.IsZero() {
-					continue
-				}
-				cp := v.DeepCopy()
-				cp.Sub(overhead[k])
-				minusOverhead[k] = cp
-			}
+			minusOverhead := resources.Subtract(it.Capacity, it.Overhead.Total())
 			fmt.Fprintln(f, "#### Labels")
 			fmt.Fprintln(f, " | Label | Value |")
 			fmt.Fprintln(f, " |--|--|")
