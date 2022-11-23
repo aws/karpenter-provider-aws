@@ -24,6 +24,7 @@ import (
 	. "github.com/onsi/ginkgo/v2" //nolint:revive,stylecheck
 	. "github.com/onsi/gomega"    //nolint:revive,stylecheck
 	"github.com/samber/lo"
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,6 +34,8 @@ import (
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 )
 
 func (env *Environment) ExpectCreatedWithOffset(offset int, objects ...client.Object) {
@@ -154,6 +157,18 @@ func (env *Environment) ExpectUniqueNodeNames(selector labels.Selector, uniqueNa
 	ExpectWithOffset(1, len(nodeNames)).To(BeNumerically("==", uniqueNames))
 }
 
+func (env *Environment) EventuallyExpectCreatedNodesInitialized() {
+	EventuallyWithOffset(1, func(g Gomega) {
+		nodes := env.Monitor.CreatedNodes()
+		nodeNames := sets.NewString(lo.Map(nodes, func(n *v1.Node, _ int) string { return n.Name })...)
+		initializedNodeNames := sets.NewString(lo.FilterMap(nodes, func(n *v1.Node, _ int) (string, bool) {
+			_, ok := n.Labels[v1alpha5.LabelNodeInitialized]
+			return n.Name, ok
+		})...)
+		g.Expect(nodeNames.Equal(initializedNodeNames)).To(BeTrue())
+	}).Should(Succeed())
+}
+
 func (env *Environment) eventuallyExpectScaleDown() {
 	EventuallyWithOffset(1, func(g Gomega) {
 		// expect the current node count to be what it was when the test started
@@ -265,4 +280,31 @@ func (env *Environment) EventuallyExpectAvgUtilization(resource v1.ResourceName,
 	EventuallyWithOffset(1, func(g Gomega) {
 		g.Expect(env.Monitor.AvgUtilization(resource)).To(BeNumerically(comparator, value))
 	}, 10*time.Minute).Should(Succeed())
+}
+
+func (env *Environment) ExpectDaemonSetEnvironmentVariableUpdated(obj client.ObjectKey, name, value string) {
+	env.ExpectDaemonSetEnvironmentVariableUpdatedWithOffset(1, obj, name, value)
+}
+
+func (env *Environment) ExpectDaemonSetEnvironmentVariableUpdatedWithOffset(offset int, obj client.ObjectKey, name, value string) {
+	ds := &appsv1.DaemonSet{}
+	ExpectWithOffset(offset+1, env.Client.Get(env.Context, obj, ds)).To(Succeed())
+	ExpectWithOffset(offset+1, len(ds.Spec.Template.Spec.Containers)).To(BeNumerically("==", 1))
+	patch := client.MergeFrom(ds.DeepCopy())
+
+	// If the value is found, update it. Else, create it
+	found := false
+	for i, v := range ds.Spec.Template.Spec.Containers[0].Env {
+		if v.Name == name {
+			ds.Spec.Template.Spec.Containers[0].Env[i].Value = value
+			found = true
+		}
+	}
+	if !found {
+		ds.Spec.Template.Spec.Containers[0].Env = append(ds.Spec.Template.Spec.Containers[0].Env, v1.EnvVar{
+			Name:  name,
+			Value: value,
+		})
+	}
+	ExpectWithOffset(offset+1, env.Client.Patch(env.Context, ds, patch)).To(Succeed())
 }

@@ -187,7 +187,7 @@ func (p *InstanceTypeProvider) getInstanceTypeZones(ctx context.Context, provide
 		return nil, fmt.Errorf("describing instance type zone offerings, %w", err)
 	}
 	if p.cm.HasChanged("zonal-offerings", provider.SubnetSelector) {
-		logging.FromContext(ctx).Debugf("Discovered EC2 instance types zonal offerings for subnets %s", pretty.Concise(provider.SubnetSelector))
+		logging.FromContext(ctx).With("subnet-selector", pretty.Concise(provider.SubnetSelector)).Debugf("discovered EC2 instance types zonal offerings for subnets")
 	}
 	p.cache.SetDefault(cacheKey, instanceTypeZones)
 	return instanceTypeZones, nil
@@ -221,7 +221,8 @@ func (p *InstanceTypeProvider) getInstanceTypes(ctx context.Context) (map[string
 		return nil, fmt.Errorf("fetching instance types using ec2.DescribeInstanceTypes, %w", err)
 	}
 	if p.cm.HasChanged("instance-types", instanceTypes) {
-		logging.FromContext(ctx).Debugf("Discovered %d EC2 instance types", len(instanceTypes))
+		logging.FromContext(ctx).With(
+			"instance-type-count", len(instanceTypes)).Debugf("discovered EC2 instance types")
 	}
 	p.cache.SetDefault(InstanceTypesCacheKey, instanceTypes)
 	return instanceTypes, nil

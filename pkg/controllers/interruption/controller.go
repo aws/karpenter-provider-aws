@@ -91,13 +91,6 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 	if settings.FromContext(ctx).InterruptionQueueName == "" {
 		return reconcile.Result{RequeueAfter: time.Second * 10}, nil
 	}
-	queueExists, err := c.sqsProvider.QueueExists(ctx)
-	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("checking queue existence, %w", err)
-	}
-	if !queueExists {
-		return reconcile.Result{RequeueAfter: time.Second * 10}, nil
-	}
 	sqsMessages, err := c.sqsProvider.GetSQSMessages(ctx)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("getting messages from queue, %w", err)
@@ -218,7 +211,7 @@ func (c *Controller) deleteNode(ctx context.Context, node *v1.Node) error {
 		}
 		return fmt.Errorf("deleting the node on interruption message, %w", err)
 	}
-	logging.FromContext(ctx).Infof("Deleted node from interruption message")
+	logging.FromContext(ctx).Infof("deleted node from interruption message")
 	c.recorder.Publish(interruptionevents.NodeTerminatingOnInterruption(node))
 	metrics.NodesTerminatedCounter.WithLabelValues(terminationReasonLabel).Inc()
 	return nil

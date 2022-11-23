@@ -128,8 +128,6 @@ Setting a value here enables node expiry. After nodes reach the defined age in s
 
 Note that Karpenter does not automatically add jitter to this value. If multiple instances are created in a small amount of time, they will expire at very similar times. Consider defining a [pod disruption budget](https://kubernetes.io/docs/tasks/run-application/configure-pdb/) to prevent excessive workload disruption.
 
-
-
 ## spec.requirements
 
 Kubernetes defines the following [Well-Known Labels](https://kubernetes.io/docs/reference/labels-annotations-taints/), and cloud providers (e.g., AWS) implement them. They are defined at the "spec.requirements" section of the Provisioner API.
@@ -297,6 +295,10 @@ spec:
       pid.available: 10%
 ```
 
+{{% alert title="Soft Eviction Thresholds on Bottlerocket" color="warning" %}}
+Bottlerocket AMIFamily currently does not support `evictionSoft` configuration. If a Provisioner contains a `provider` or `providerRef` to a node template that will launch a Bottlerocket instance, the `evictionSoft` value will be ignored for scheduling and for configuring the kubelet.
+{{% /alert %}}
+
 #### Supported Eviction Signals
 
 | Eviction Signal | Description |
@@ -329,6 +331,10 @@ spec:
       pid.available: 2m
     evictionMaxPodGracePeriod: 3m
 ```
+
+{{% alert title="Soft Eviction Grace Periods on Bottlerocket" color="warning" %}}
+Bottlerocket AMIFamily currently does not support `evictionSoftGracePeriod` configuration. If a Provisioner contains a `provider` or `providerRef` to a node template that will launch a Bottlerocket instance, the `evictionSoftGracePeriod` value will be ignored for scheduling and for configuring the kubelet.
+{{% /alert %}}
 
 ### Pod Density
 
