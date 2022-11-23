@@ -78,9 +78,10 @@ func (p *SecurityGroupProvider) getFilters(provider *v1alpha1.AWS) []*ec2.Filter
 				Values: aws.StringSlice(filterValues),
 			})
 		} else {
+			filterValues := functional.SplitCommaSeparatedString(value)
 			filters = append(filters, &ec2.Filter{
 				Name:   aws.String(fmt.Sprintf("tag:%s", key)),
-				Values: []*string{aws.String(value)},
+				Values: aws.StringSlice(filterValues),
 			})
 		}
 	}
