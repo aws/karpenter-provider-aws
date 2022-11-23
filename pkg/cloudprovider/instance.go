@@ -42,7 +42,6 @@ import (
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/scheduling"
-	"github.com/aws/karpenter-core/pkg/utils/functional"
 	"github.com/aws/karpenter-core/pkg/utils/resources"
 )
 
@@ -387,14 +386,9 @@ func (p *InstanceProvider) getCapacityType(nodeRequest *cloudprovider.NodeReques
 func (p *InstanceProvider) prioritizeInstanceTypes(instanceTypes []cloudprovider.InstanceType) []cloudprovider.InstanceType {
 	var genericInstanceTypes []cloudprovider.InstanceType
 	for _, it := range instanceTypes {
-		it := it.(*InstanceType)
-		// allow regular instance families and prioritize all others last
-		if !functional.HasAnyPrefix(*it.InstanceType, "m", "c", "r", "a", "t", "i") {
-			continue
-		}
-		// deprioritize metal even if our opinionated filter isn't apply due to something like an instance family
+		// deprioritize metal even if our opinionated filter isn't applied due to something like an instance family
 		// requirement
-		if aws.BoolValue(it.BareMetal) {
+		if it.Requirements().Get(v1alpha1.LabelInstanceSize).Has("metal") {
 			continue
 		}
 
