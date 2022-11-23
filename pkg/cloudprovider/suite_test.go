@@ -32,6 +32,7 @@ import (
 	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
 
+	"github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter/pkg/apis"
 	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
@@ -70,7 +71,7 @@ var instanceTypeProvider *InstanceTypeProvider
 var fakeEC2API *fake.EC2API
 var fakePricingAPI *fake.PricingAPI
 var prov *provisioning.Provisioner
-var controller *provisioning.Controller
+var provisioningController controller.Controller
 var cloudProvider *CloudProvider
 var cluster *state.Cluster
 var recorder *coretest.EventRecorder
@@ -141,7 +142,7 @@ var _ = BeforeSuite(func() {
 	cluster = state.NewCluster(ctx, fakeClock, env.Client, cloudProvider)
 	recorder = coretest.NewEventRecorder()
 	prov = provisioning.NewProvisioner(ctx, env.Client, env.KubernetesInterface.CoreV1(), recorder, cloudProvider, cluster, coretest.SettingsStore{})
-	controller = provisioning.NewController(env.Client, prov, recorder)
+	provisioningController = provisioning.NewController(env.Client, prov, recorder)
 
 	env.CRDDirectoryPaths = append(env.CRDDirectoryPaths, RelativeToRoot("charts/karpenter/crds"))
 })
@@ -191,7 +192,7 @@ var _ = AfterEach(func() {
 
 var _ = Describe("Allocation", func() {
 	Context("Defaulting", func() {
-		// Intent here is that if updates occur on the controller, the Provisioner doesn't need to be recreated
+		// Intent here is that if updates occur on the provisioningController, the Provisioner doesn't need to be recreated
 		It("should not set the InstanceProfile with the default if none provided in Provisioner", func() {
 			provisioner.SetDefaults(ctx)
 			constraints, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
@@ -220,7 +221,7 @@ var _ = Describe("Allocation", func() {
 			provisioner = coretest.Provisioner(coretest.ProvisionerOptions{Provider: provider})
 			provisioner.SetDefaults(ctx)
 			ExpectApplied(ctx, env.Client, provisioner)
-			pod := ExpectProvisioned(ctx, env.Client, recorder, controller, prov, coretest.UnschedulablePod())[0]
+			pod := ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(fakeEC2API.CalledWithCreateFleetInput.Len()).To(Equal(1))
 			createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop()
@@ -229,7 +230,7 @@ var _ = Describe("Allocation", func() {
 		It("should default to no EC2 Context", func() {
 			provisioner.SetDefaults(ctx)
 			ExpectApplied(ctx, env.Client, provisioner)
-			pod := ExpectProvisioned(ctx, env.Client, recorder, controller, prov, coretest.UnschedulablePod())[0]
+			pod := ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(fakeEC2API.CalledWithCreateFleetInput.Len()).To(Equal(1))
 			createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop()
