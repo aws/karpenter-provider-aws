@@ -128,13 +128,13 @@ func (c *CloudProvider) LivenessProbe(req *http.Request) error {
 }
 
 // GetInstanceTypes returns all available InstanceTypes
-func (c *CloudProvider) GetInstanceTypes(ctx context.Context, provisioner *v1alpha5.Provisioner) ([]cloudprovider.InstanceType, error) {
+func (c *CloudProvider) GetInstanceTypes(ctx context.Context, provisioner *v1alpha5.Provisioner) ([]*cloudprovider.InstanceType, error) {
 	aws, err := c.getProvider(ctx, provisioner.Spec.Provider, provisioner.Spec.ProviderRef)
 	if err != nil {
 		return nil, err
 	}
 	// TODO, break this coupling
-	instanceTypes, err := c.instanceTypeProvider.Get(ctx, aws, provisioner.Spec.KubeletConfiguration)
+	instanceTypes, err := c.instanceTypeProvider.Get(ctx, provisioner.Spec.KubeletConfiguration, aws)
 	if err != nil {
 		return nil, err
 	}
