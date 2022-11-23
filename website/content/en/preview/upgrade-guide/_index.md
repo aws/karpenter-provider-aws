@@ -97,6 +97,9 @@ By adopting this practice we allow our users who are early adopters to test out 
 
 # Released Upgrade Notes
 
+## Upgrading to v0.20.0+
+* Prior to v0.20.0, Karpenter would prioritize certain instance type categories absent of any requirements in the Provisioner. v0.20.0+ removes prioritizing these instance type categories ("m", "c", "r", "a", "t", "i") in code. Bare Metal and GPU instance types are still deprioritized and only used if no other instance types are compatible with the node requirements. This means that, now, you will need to explicitly define the instance types, sizes or categories you want to allow in your Provisioner; otherwise, it is possible that you receive more exotic instance types.
+
 ## Upgrading to v0.19.0+
 * The karpenter webhook and controller containers are combined into a single binary, which requires changes to the helm chart. If your Karpenter installation (helm or otherwise) currently customizes the karpenter webhook, your deployment tooling may require minor changes.
 * Instance category defaults are now explicitly persisted in the Provisioner, rather than handled implicitly in memory. By default, Provisioners will limit instance category to c,m,r. If any instance type constraints are applied, it will override this default. If you have created Provisioners in the past with unconstrained instance type, family, or category, Karpenter will now more flexibly use instance types than before. If you would like to apply these constraints, they must be included in the Provisioner CRD.
