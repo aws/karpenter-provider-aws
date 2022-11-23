@@ -44,7 +44,7 @@ var DefaultEBS = v1alpha1.BlockDevice{
 
 // Resolver is able to fill-in dynamic launch template parameters
 type Resolver struct {
-	amiProvider      *AMIProvider
+	AmiProvider      *AMIProvider
 	UserDataProvider *UserDataProvider
 }
 
@@ -104,7 +104,7 @@ func (d DefaultFamily) FeatureFlags() FeatureFlags {
 // New constructs a new launch template Resolver
 func New(kubeClient client.Client, ssm ssmiface.SSMAPI, ec2api ec2iface.EC2API, ssmCache *cache.Cache, ec2Cache *cache.Cache) *Resolver {
 	return &Resolver{
-		amiProvider: &AMIProvider{
+		AmiProvider: &AMIProvider{
 			ssm:        ssm,
 			ssmCache:   ssmCache,
 			ec2Cache:   ec2Cache,
@@ -116,15 +116,6 @@ func New(kubeClient client.Client, ssm ssmiface.SSMAPI, ec2api ec2iface.EC2API, 
 	}
 }
 
-func (r Resolver) ResolveAmis(ctx context.Context, provider *v1alpha1.AWS, providerRef *v1alpha5.ProviderRef, instanceTypes []cloudprovider.InstanceType, options *Options) (map[string][]cloudprovider.InstanceType, error) {
-	amiFamily := GetAMIFamily(provider.AMIFamily, options)
-	amiIDs, err := r.amiProvider.Get(ctx, providerRef, options, instanceTypes, amiFamily)
-	if err != nil {
-		return nil, err
-	}
-	return amiIDs, nil
-}
-
 // Resolve generates launch templates using the static options and dynamically generates launch template parameters.
 // Multiple ResolvedTemplates are returned based on the instanceTypes passed in to support special AMIs for certain instance types like GPUs.
 func (r Resolver) Resolve(ctx context.Context, provider *v1alpha1.AWS, nodeRequest *cloudprovider.NodeRequest, options *Options) ([]*LaunchTemplate, error) {
@@ -133,7 +124,7 @@ func (r Resolver) Resolve(ctx context.Context, provider *v1alpha1.AWS, nodeReque
 		return nil, err
 	}
 	amiFamily := GetAMIFamily(provider.AMIFamily, options)
-	amiIDs, err := r.ResolveAmis(ctx, provider, nodeRequest.Template.ProviderRef, nodeRequest.InstanceTypeOptions, options)
+	amiIDs, err := r.AmiProvider.Get(ctx, nodeRequest.Template.ProviderRef, options, nodeRequest.InstanceTypeOptions, amiFamily)
 	if err != nil {
 		return nil, err
 	}

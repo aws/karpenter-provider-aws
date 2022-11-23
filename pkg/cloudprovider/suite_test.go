@@ -16,6 +16,7 @@ package cloudprovider
 
 import (
 	"context"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net"
 	"path/filepath"
 	"runtime"
@@ -234,6 +235,36 @@ var _ = Describe("Allocation", func() {
 			Expect(fakeEC2API.CalledWithCreateFleetInput.Len()).To(Equal(1))
 			createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop()
 			Expect(createFleetInput.Context).To(BeNil())
+		})
+	})
+	Context("Node Drift", func() {
+		It("should detect drift if ami gets changed", func() {
+			node := coretest.Node(coretest.NodeOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						v1alpha1.LabelInstanceAMIID: "ami-changed",
+					},
+				},
+			})
+			isDrifted, err := cloudProvider.IsNodeDrifted(ctx, provisioner, *node)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(isDrifted).To(BeTrue())
+		})
+		It("should not detect drift if ami isn't changed", func() {
+			aws, _ := cloudProvider.getProvider(ctx, provisioner.Spec.Provider, provisioner.Spec.ProviderRef)
+			instanceTypes, _ := cloudProvider.GetInstanceTypes(ctx, provisioner)
+			validAmis, err := cloudProvider.instanceProvider.launchTemplateProvider.GetAmisForProvider(ctx, aws, provisioner.Spec.ProviderRef, instanceTypes)
+			Expect(err).ToNot(HaveOccurred())
+			node := coretest.Node(coretest.NodeOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						v1alpha1.LabelInstanceAMIID: validAmis[0],
+					},
+				},
+			})
+			isDrifted, err := cloudProvider.IsNodeDrifted(ctx, provisioner, *node)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(isDrifted).To(BeFalse())
 		})
 	})
 })

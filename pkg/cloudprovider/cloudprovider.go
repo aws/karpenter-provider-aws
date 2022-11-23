@@ -105,26 +105,29 @@ func New(ctx awscontext.Context) *CloudProvider {
 }
 
 func (c *CloudProvider) IsNodeDrifted(ctx context.Context, provisioner *v1alpha5.Provisioner, node v1.Node) (bool, error) {
-	instanceTypes, _ := c.GetInstanceTypes(ctx, provisioner)
+	instanceTypes, err := c.GetInstanceTypes(ctx, provisioner)
+	if err != nil {
+		return false, fmt.Errorf("getting instanceTypes, %w", err)
+	}
 	aws, err := c.getProvider(ctx, provisioner.Spec.Provider, provisioner.Spec.ProviderRef)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("getting provider, %w", err)
 	}
 
-	amis, err := c.instanceProvider.launchTemplateProvider.GetAmisForProvisioner(ctx, aws, provisioner.Spec.ProviderRef, instanceTypes)
+	amis, err := c.instanceProvider.launchTemplateProvider.GetAmisForProvider(ctx, aws, provisioner.Spec.ProviderRef, instanceTypes)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("getting amis, %w", err)
 	}
 
 	nodeAmi, ok := node.Labels[v1alpha1.LabelInstanceAMIID]
 	if !ok {
-		instanceId, err := utils.ParseInstanceID(&node)
+		instanceID, err := utils.ParseInstanceID(&node)
 		if err != nil {
 			return false, err
 		}
-		instance, err := c.instanceProvider.getInstance(ctx, *instanceId)
+		instance, err := c.instanceProvider.getInstance(ctx, *instanceID)
 		if err != nil {
-			return false, err
+			return false, fmt.Errorf("getting instance, %w", err)
 		}
 		nodeAmi = *instance.ImageId
 	}

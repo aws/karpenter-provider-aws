@@ -124,7 +124,7 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, provider *v1alpha1.AWS
 	return launchTemplates, nil
 }
 
-func (p *LaunchTemplateProvider) GetAmisForProvisioner(ctx context.Context, provider *v1alpha1.AWS, providerRef *v1alpha5.ProviderRef, instanceTypes []cloudprovider.InstanceType) ([]string, error) {
+func (p *LaunchTemplateProvider) GetAmisForProvider(ctx context.Context, provider *v1alpha1.AWS, providerRef *v1alpha5.ProviderRef, instanceTypes []cloudprovider.InstanceType) ([]string, error) {
 	if provider.LaunchTemplateName != nil {
 		return nil, fmt.Errorf("using a custom Launch Template which is deprecated")
 	}
@@ -132,10 +132,8 @@ func (p *LaunchTemplateProvider) GetAmisForProvisioner(ctx context.Context, prov
 	if err != nil {
 		return nil, err
 	}
-	amiIds, err := p.amiFamily.ResolveAmis(ctx, provider, providerRef, instanceTypes, options)
-	if err != nil {
-		return nil, err
-	}
+	amifamily := amifamily.GetAMIFamily(provider.AMIFamily, options)
+	amiIds, err := p.amiFamily.AmiProvider.Get(ctx, providerRef, options, instanceTypes, amifamily)
 	return lo.Keys(amiIds), nil
 }
 

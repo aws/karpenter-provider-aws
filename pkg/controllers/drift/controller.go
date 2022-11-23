@@ -48,7 +48,7 @@ func (d Drift) Reconcile(ctx context.Context, req controllerruntime.Request) (re
 		return reconcile.Result{}, nil
 	}
 
-	if drifted, ok := node.Annotations[v1alpha5.DriftedAnnotationKey]; ok && drifted == "true" {
+	if drifted, ok := node.Labels[v1alpha5.DriftedLabelKey]; ok && drifted == "true" {
 		return reconcile.Result{}, nil
 	}
 
@@ -61,9 +61,9 @@ func (d Drift) Reconcile(ctx context.Context, req controllerruntime.Request) (re
 		return reconcile.Result{}, fmt.Errorf("getting drift for node, %w", err)
 	} else if drifted {
 		stored := node.DeepCopy()
-		node.Annotations[v1alpha5.DriftedAnnotationKey] = "true"
+		node.Labels[v1alpha5.DriftedLabelKey] = "true"
 		if err := d.kubeClient.Patch(ctx, node, client.MergeFrom(stored)); err != nil {
-			return reconcile.Result{RequeueAfter: 60 * time.Second}, fmt.Errorf("patching node, %w", err)
+			return reconcile.Result{}, fmt.Errorf("patching node, %w", err)
 		}
 	}
 
@@ -71,14 +71,7 @@ func (d Drift) Reconcile(ctx context.Context, req controllerruntime.Request) (re
 }
 
 func (d Drift) Builder(ctx context.Context, m manager.Manager) operatorcontroller.Builder {
-	if err := m.GetFieldIndexer().IndexField(ctx, &v1alpha5.Provisioner{}, ".spec.providerRef.name", func(rawObj client.Object) []string {
-		provisioner := rawObj.(*v1alpha5.Provisioner)
-		return []string{provisioner.Spec.ProviderRef.Name}
-	}); err != nil {
-		//todo:Need inputs on this, or this indexer needs to be put somewhere else or removed altogether
-	}
-
-	return controllerruntime.
+	builder := controllerruntime.
 		NewControllerManagedBy(m).
 		Named(controllerName).
 		For(&v1.Node{}).
@@ -92,12 +85,12 @@ func (d Drift) Builder(ctx context.Context, m manager.Manager) operatorcontrolle
 				// Ensure provisioner has a defined AWSNodeTemplate
 				nodeTemplate := &v1alpha1.AWSNodeTemplate{}
 				if err := d.kubeClient.Get(ctx, types.NamespacedName{Name: provisioner.Spec.ProviderRef.Name}, nodeTemplate); err != nil {
-					logging.FromContext(ctx).Errorf("Failed to get AWSNodeTemplates when mapping drift watch events, %s", err)
+					logging.FromContext(ctx).Errorf("getting AWSNodeTemplates when mapping drift watch events, %s", err)
 					return requests
 				}
 				nodes := &v1.NodeList{}
 				if err := d.kubeClient.List(ctx, nodes, client.MatchingLabels(map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name})); err != nil {
-					logging.FromContext(ctx).Errorf("Failed to list nodes when mapping drift watch events, %s", err)
+					logging.FromContext(ctx).Errorf("listing nodes when mapping drift watch events, %s", err)
 					return requests
 				}
 				for _, node := range nodes.Items {
@@ -105,27 +98,38 @@ func (d Drift) Builder(ctx context.Context, m manager.Manager) operatorcontrolle
 				}
 				return requests
 			})).
-		Watches(
-			&source.Kind{Type: &v1alpha1.AWSNodeTemplate{}},
-			handler.EnqueueRequestsFromMapFunc(func(o client.Object) (requests []reconcile.Request) {
-				provisioners := &v1alpha5.ProvisionerList{}
-				if err := d.kubeClient.List(ctx, provisioners, client.MatchingFields{".spec.providerRef.name": o.GetName()}); err != nil {
-					logging.FromContext(ctx).Errorf("listing provisioners for AWSNodeTemplate reconciliation %w", err)
+		WithOptions(controller.Options{MaxConcurrentReconciles: 10})
+
+	if err := m.GetFieldIndexer().IndexField(ctx, &v1alpha5.Provisioner{}, ".spec.providerRef.name", func(rawObj client.Object) []string {
+		provisioner := rawObj.(*v1alpha5.Provisioner)
+		return []string{provisioner.Spec.ProviderRef.Name}
+	}); err != nil {
+		//Return early, controller won't be able to get provisioners related to AWSNodeTemplate if the index field failed
+		logging.FromContext(ctx).Errorf("creating index for provisioner while building drift controller, %w", err)
+		return builder
+	}
+
+	return builder.Watches(
+		&source.Kind{Type: &v1alpha1.AWSNodeTemplate{}},
+		handler.EnqueueRequestsFromMapFunc(func(o client.Object) (requests []reconcile.Request) {
+			provisioners := &v1alpha5.ProvisionerList{}
+			if err := d.kubeClient.List(ctx, provisioners, client.MatchingFields{".spec.providerRef.name": o.GetName()}); err != nil {
+				logging.FromContext(ctx).Errorf("listing provisioners for AWSNodeTemplate reconciliation %w", err)
+				return requests
+			}
+			for _, provisioner := range provisioners.Items {
+				nodes := &v1.NodeList{}
+				if err := d.kubeClient.List(ctx, nodes, client.MatchingLabels(map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name})); err != nil {
+					logging.FromContext(ctx).Errorf("listing nodes when mapping drift watch events, %s", err)
 					return requests
 				}
-				for _, provisioner := range provisioners.Items {
-					nodes := &v1.NodeList{}
-					if err := d.kubeClient.List(ctx, nodes, client.MatchingLabels(map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name})); err != nil {
-						logging.FromContext(ctx).Errorf("Failed to list nodes when mapping drift watch events, %s", err)
-						return requests
-					}
-					for _, node := range nodes.Items {
-						requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Name: node.Name}})
-					}
+				for _, node := range nodes.Items {
+					requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Name: node.Name}})
 				}
-				return requests
-			}),
-		).WithOptions(controller.Options{MaxConcurrentReconciles: 10})
+			}
+			return requests
+		}),
+	)
 }
 
 func (d Drift) LivenessProbe(_ *http.Request) error {
