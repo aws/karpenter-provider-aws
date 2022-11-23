@@ -68,6 +68,7 @@ var unavailableOfferingsCache *awscache.UnavailableOfferings
 var instanceTypeCache *cache.Cache
 var instanceTypeProvider *InstanceTypeProvider
 var fakeEC2API *fake.EC2API
+var fakeIAMAPI *fake.IAMAPI
 var fakePricingAPI *fake.PricingAPI
 var prov *provisioning.Provisioner
 var controller *provisioning.Controller
@@ -104,6 +105,7 @@ var _ = BeforeSuite(func() {
 	ec2Cache = cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)
 	instanceTypeCache = cache.New(InstanceTypesAndZonesCacheTTL, awscontext.CacheCleanupInterval)
 	fakeEC2API = &fake.EC2API{}
+	fakeIAMAPI = &fake.IAMAPI{}
 	fakePricingAPI = &fake.PricingAPI{}
 	pricingProvider = NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
 	subnetProvider := &SubnetProvider{
@@ -128,6 +130,7 @@ var _ = BeforeSuite(func() {
 		instanceTypeProvider: instanceTypeProvider,
 		instanceProvider: NewInstanceProvider(ctx, fakeEC2API, instanceTypeProvider, subnetProvider, &LaunchTemplateProvider{
 			ec2api:                fakeEC2API,
+			iamapi:                fakeIAMAPI,
 			amiFamily:             amifamily.New(env.Client, fake.SSMAPI{}, fakeEC2API, ssmCache, ec2Cache),
 			kubernetesInterface:   env.KubernetesInterface,
 			securityGroupProvider: securityGroupProvider,

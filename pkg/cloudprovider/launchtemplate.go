@@ -27,6 +27,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go/service/iam"
+	"github.com/aws/aws-sdk-go/service/iam/iamiface"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
@@ -54,6 +56,7 @@ const (
 type LaunchTemplateProvider struct {
 	sync.Mutex
 	ec2api                ec2iface.EC2API
+	iamapi                iamiface.IAMAPI
 	kubernetesInterface   kubernetes.Interface
 	amiFamily             *amifamily.Resolver
 	securityGroupProvider *SecurityGroupProvider
@@ -63,9 +66,10 @@ type LaunchTemplateProvider struct {
 	kubeDNSIP             net.IP
 }
 
-func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, kubernetesInterface kubernetes.Interface, amiFamily *amifamily.Resolver, securityGroupProvider *SecurityGroupProvider, caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP) *LaunchTemplateProvider {
+func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, iamapi iamiface.IAMAPI, kubernetesInterface kubernetes.Interface, amiFamily *amifamily.Resolver, securityGroupProvider *SecurityGroupProvider, caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP) *LaunchTemplateProvider {
 	l := &LaunchTemplateProvider{
 		ec2api:                ec2api,
+		iamapi:                iamapi,
 		kubernetesInterface:   kubernetesInterface,
 		amiFamily:             amiFamily,
 		securityGroupProvider: securityGroupProvider,
@@ -296,6 +300,19 @@ func (p *LaunchTemplateProvider) cachedEvictedFunc(ctx context.Context) func(str
 }
 
 func (p *LaunchTemplateProvider) getInstanceProfile(ctx context.Context, provider *v1alpha1.AWS) (string, error) {
+	// If a Role is defined, attempt to look up the InstanceProfile from the Role
+	// https://docs.aws.amazon.com/sdk-for-go/api/service/iam/#IAM.ListInstanceProfilesForRole
+	if provider.Role != nil {
+		res, err := p.iamapi.ListInstanceProfilesForRoleWithContext(ctx, &iam.ListInstanceProfilesForRoleInput{MaxItems: aws.Int64(1), RoleName: provider.Role})
+		if err != nil {
+			logging.FromContext(ctx).Errorf("Unable to List InstanceProfiles for Role, %v", err)
+		} else {
+			if len(res.InstanceProfiles) > 0 {
+				return aws.StringValue(res.InstanceProfiles[0].InstanceProfileName), nil
+			}
+		}
+	}
+
 	if provider.InstanceProfile != nil {
 		return aws.StringValue(provider.InstanceProfile), nil
 	}

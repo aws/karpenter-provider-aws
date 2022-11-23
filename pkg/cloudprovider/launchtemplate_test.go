@@ -1514,6 +1514,15 @@ var _ = Describe("LaunchTemplates", func() {
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 				Expect(*input.LaunchTemplateData.IamInstanceProfile.Name).To(Equal("test-instance-profile"))
 			})
+			It("should lookup the InstanceProfile if Role specified on the Provisioner", func() {
+				provider.Role = aws.String("overridden-role")
+				ExpectApplied(ctx, env.Client, test.Provisioner(coretest.ProvisionerOptions{Provider: provider}))
+				pod := ExpectProvisioned(ctx, env.Client, recorder, controller, prov, coretest.UnschedulablePod())[0]
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+				Expect(*input.LaunchTemplateData.IamInstanceProfile.Name).To(Equal("test-role-instance-profile"))
+			})
 			It("should use the instance profile on the Provisioner when specified", func() {
 				provider.InstanceProfile = aws.String("overridden-profile")
 				ExpectApplied(ctx, env.Client, test.Provisioner(coretest.ProvisionerOptions{Provider: provider}))

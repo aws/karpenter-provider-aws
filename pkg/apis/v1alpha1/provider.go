@@ -40,6 +40,9 @@ type AWS struct {
 	// InstanceProfile is the AWS identity that instances use.
 	// +optional
 	InstanceProfile *string `json:"instanceProfile,omitempty"`
+	// Role is the AWS Role associated with the InstanceProfile which should be used
+	// +optional
+	Role *string `json:"role,omitempty"`
 	// SubnetSelector discovers subnets by tags. A value of "" is a wildcard.
 	// +optional
 	SubnetSelector map[string]string `json:"subnetSelector,omitempty"`

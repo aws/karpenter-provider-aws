@@ -189,6 +189,10 @@ spec:
                       credentials are not available."
                     type: string
                 type: object
+              role:
+                description: Role is the AWS Role associated with the InstanceProfile
+                  which should be used
+                type: string
               securityGroupSelector:
                 additionalProperties:
                   type: string

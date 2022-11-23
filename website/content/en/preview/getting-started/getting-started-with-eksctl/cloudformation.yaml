@@ -58,6 +58,7 @@ Resources:
               - ec2:DescribeInstanceTypeOfferings
               - ec2:DescribeAvailabilityZones
               - ec2:DescribeSpotPriceHistory
+              - iam:ListInstanceProfilesForRole
               - ssm:GetParameter
               - pricing:GetProducts
           - Effect: Allow

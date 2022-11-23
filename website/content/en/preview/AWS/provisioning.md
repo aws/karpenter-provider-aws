@@ -62,6 +62,16 @@ spec:
   instanceProfile: MyInstanceProfile
 ```
 
+### Role
+
+A `Role` which should be associated with the ec2 instance.
+Can be used instead of defining an `InstanceProfile` - the `InstanceProfile` will be looked up automatically from this `Role`.
+
+```
+spec:
+  role: MyIAMRole
+```
+
 ### SubnetSelector (required)
 
 Karpenter discovers subnets using [AWS tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html).
