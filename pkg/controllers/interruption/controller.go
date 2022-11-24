@@ -17,7 +17,6 @@ package interruption
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"strings"
 	"time"
 
@@ -120,13 +119,12 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 	return reconcile.Result{}, multierr.Combine(errs...)
 }
 
-func (c *Controller) Builder(_ context.Context, m manager.Manager) corecontroller.Builder {
-	return corecontroller.NewSingletonManagedBy(m).
-		Named("interruption")
+func (c *Controller) Name() string {
+	return "interruption"
 }
 
-func (c *Controller) LivenessProbe(_ *http.Request) error {
-	return nil
+func (c *Controller) Builder(_ context.Context, m manager.Manager) corecontroller.Builder {
+	return corecontroller.NewSingletonManagedBy(m)
 }
 
 // parseMessage parses the passed SQS message into an internal Message interface
