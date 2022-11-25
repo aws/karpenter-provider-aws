@@ -29,10 +29,6 @@ import (
 )
 
 var _ = Describe("MetadataOptions", func() {
-	BeforeEach(func() {
-
-	})
-
 	It("should use specified metadata options", func() {
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 			AWS: v1alpha1.AWS{
@@ -64,5 +60,4 @@ var _ = Describe("MetadataOptions", func() {
 			InstanceMetadataTags:    aws.String("disabled"),
 		}))))
 	})
-
 })

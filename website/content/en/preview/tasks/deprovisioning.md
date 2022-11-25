@@ -64,8 +64,8 @@ All the pod objects get deleted by a garbage collection process later, because t
 ## Consolidation
 
 Karpenter has two mechanisms for cluster consolidation:
-- Deletion - A node is eligible for deletion if all of its pods can run on free capacity of other nodes in the cluster.  
-- Replace - A node can be replaced if all of its pods can run on a combination of free capacity of other nodes in the cluster and a single cheaper replacement node. 
+- Deletion - A node is eligible for deletion if all of its pods can run on free capacity of other nodes in the cluster.
+- Replace - A node can be replaced if all of its pods can run on a combination of free capacity of other nodes in the cluster and a single cheaper replacement node.
 
 Consolidation has three mechanisms that are performed in order to attempt to identify a consolidation action:
 1) Empty Node Consolidation - Delete any entirely empty nodes in parallel
@@ -81,7 +81,7 @@ When there are multiple nodes that could be potentially deleted or replaced, Kar
 * nodes with lower priority pods
 
 {{% alert title="Note" color="primary" %}}
-For spot nodes, Karpenter only uses the deletion consolidation mechanism.  It will not replace a spot node with a cheaper spot node.  Spot instance types are selected with the `price-capacity-optimized` strategy and often the cheapest spot instance type is not launched due to the likelihood of interruption. Consolidation would then replace the spot instance with a cheaper instance negating the `price-capacity-optimized` strategy entirely and increasing interruption rate.  
+For spot nodes, Karpenter only uses the deletion consolidation mechanism.  It will not replace a spot node with a cheaper spot node.  Spot instance types are selected with the `price-capacity-optimized` strategy and often the cheapest spot instance type is not launched due to the likelihood of interruption. Consolidation would then replace the spot instance with a cheaper instance negating the `price-capacity-optimized` strategy entirely and increasing interruption rate.
 {{% /alert %}}
 
 ## Interruption
@@ -113,6 +113,30 @@ data:
   ...
   aws.interruptionQueueName: karpenter-cluster
   ...
+```
+
+## Disabling Deprovisioning
+
+Nodes may opted out of deprovisioning using an annotation.
+
+### Supported Annotations
+
+| Annotation                      | Effect                            |
+| ------------------------------- | --------------------------------- |
+| karpenter.sh/do-not-consolidate | The node will not be consolidated |
+
+### Example: Disable Consolidation
+
+The annotation `karpenter.sh/do-not-consolidate` will be applied to all nodes launched by this provisioner, which will prevent them from being considered in consolidation calculations.
+
+```yaml
+apiVersion: karpenter.sh/v1alpha5
+kind: Provisioner
+metadata:
+  name: default
+spec:
+  annotations: # will be applied to all nodes
+    karpenter.sh/do-not-consolidate: "true"
 ```
 
 ## What can cause deprovisioning to fail?
