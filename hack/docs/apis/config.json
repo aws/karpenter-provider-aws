@@ -1,0 +1,43 @@
+{
+  "hideMemberFields": [
+    "TypeMeta"
+  ],
+  "hideTypePatterns": [
+    "ParseError$",
+    "List$"
+  ],
+  "externalPackages": [
+    {
+      "typeMatchPrefix": "^k8s\\.io/apimachinery/pkg/apis/meta/v1\\.Duration$",
+      "docsURLTemplate": "https://godoc.org/k8s.io/apimachinery/pkg/apis/meta/v1#Duration"
+    },
+    {
+      "typeMatchPrefix": "^k8s\\.io/apimachinery/pkg/apis/meta/v1\\.Condition$",
+      "docsURLTemplate": "https://godoc.org/k8s.io/apimachinery/pkg/apis/meta/v1#Condition"
+    },
+    {
+      "typeMatchPrefix": "^k8s\\.io/apimachinery/pkg/api/resource\\.Quantity$",
+      "docsURLTemplate": "https://godoc.org/k8s.io/apimachinery/pkg/api/resource#Quantity"
+    },
+    {
+      "typeMatchPrefix": "^k8s\\.io/(api|apimachinery/pkg/apis)/",
+      "docsURLTemplate": "https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.25/#{{lower .TypeIdentifier}}-{{arrIndex .PackageSegments -1}}-{{arrIndex .PackageSegments -2}}"
+    },
+    {
+      "typeMatchPrefix": "^k8s\\.io/apiextensions-apiserver/pkg/apis/apiextensions/v1\\.JSON$",
+      "docsURLTemplate": "https://pkg.go.dev/k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1?tab=doc#JSON"
+    },
+    {
+      "typeMatchPrefix": "^knative\\.dev/pkg/apis",
+      "docsURLTemplate": "https://pkg.go.dev/knative.dev/pkg/apis/#{{.TypeIdentifier}}"
+    }
+  ],
+  "typeDisplayNamePrefixOverrides": {
+    "k8s.io/api/": "Kubernetes ",
+    "k8s.io/apimachinery/pkg/apis/": "Kubernetes ",
+    "k8s.io/apiextensions-apiserver/": "Kubernetes ",
+    "k8s.io/apimachinery/pkg/runtime/": "Kubernetes ",
+    "knative.dev/pkg/apis.": "Knative "
+  },
+  "markdownDisabled": false
+}
