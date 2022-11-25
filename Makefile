@@ -2,6 +2,13 @@ export K8S_VERSION ?= 1.23.x
 export KUBEBUILDER_ASSETS ?= ${HOME}/.kubebuilder/bin
 CLUSTER_NAME ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].name}' | rev | cut -d"/" -f1 | rev | cut -d"." -f1)
 
+# If gobin not set, use $GOPATH/bin.
+ifeq (,$(shell go env GOBIN))
+export GOBIN=$(shell go env GOPATH)/bin
+else
+export GOBIN=$(shell go env GOBIN)
+endif
+
 ## Inject the app version into project.Version
 ifdef SNAPSHOT_TAG
 LDFLAGS ?= -ldflags=-X=github.com/aws/karpenter/pkg/utils/project.Version=$(SNAPSHOT_TAG)
@@ -118,11 +125,24 @@ install:  ## Deploy the latest released version into your ~/.kube/config cluster
 delete: ## Delete the controller from your ~/.kube/config cluster
 	helm uninstall karpenter --namespace karpenter
 
-docgen: ## Generate docs
+docgen: crd-docgen ## Generate docs
 	go run hack/docs/metrics_gen_docs.go pkg/ $(KARPENTER_CORE_DIR)/pkg website/content/en/preview/tasks/metrics.md
 	go run hack/docs/instancetypes_gen_docs.go website/content/en/preview/AWS/instance-types.md
 	go run hack/docs/configuration_gen_docs.go website/content/en/preview/tasks/globalsettings.md
 	cd charts/karpenter && helm-docs
+
+# Find or download gen-crd-api-reference-docs
+GEN_CRD_API_REFERENCE_DOCS = $(GOBIN)/gen-crd-api-reference-docs
+.PHONY: gen-crd-api-reference-docs
+gen-crd-api-reference-docs: ## Download gen-crd-api-reference-docs locally if necessary
+	$(call go-install-tool,$(GEN_CRD_API_REFERENCE_DOCS),github.com/ahmetb/gen-crd-api-reference-docs@e327d0730470cbd61b06300f81c5fcf91c23c113)
+
+.PHONY: crd-docgen
+crd-docgen: gen-crd-api-reference-docs ## Generate API reference documentation
+	$(GEN_CRD_API_REFERENCE_DOCS) -api-dir $(shell realpath --relative-to=$$(pwd) $(KARPENTER_CORE_DIR))/pkg/apis -config ./hack/docs/apis/config.json -template-dir ./hack/docs/apis/template -out-file website/content/en/preview/reference/core-apis.md
+	sed -i '' '1s/^/---\ntitle: "Core"\nlinkTitle: "Core"\nDescription: >\n  Karpenter Core API Reference\n---\n/' website/content/en/preview/reference/core-apis.md
+	$(GEN_CRD_API_REFERENCE_DOCS) -api-dir ../karpenter/pkg/apis -config ./hack/docs/apis/config.json -template-dir ./hack/docs/apis/template -out-file website/content/en/preview/reference/aws-apis.md
+	sed -i '' '1s/^/---\ntitle: "AWS"\nlinkTitle: "AWS"\nDescription: >\n  Karpenter AWS API Reference\n---\n/' website/content/en/preview/reference/aws-apis.md
 
 api-code-gen: ## Auto generate files based on AWS APIs response
 	$(WITH_GOFLAGS) ./hack/api-code-gen.sh
@@ -161,6 +181,19 @@ update-core: ## Update karpenter-core to latest
 	go get -u github.com/aws/karpenter-core
 	go mod tidy
 	cd test/ && go get -u github.com/aws/karpenter-core && go mod tidy 
+
+# go-install-tool will 'go install' any package $2 and install it to $1.
+define go-install-tool
+@[ -f $(1) ] || { \
+set -e ;\
+TMP_DIR=$$(mktemp -d) ;\
+cd $$TMP_DIR ;\
+go mod init tmp ;\
+echo "Downloading $(2)" ;\
+env -i bash -c "GOBIN=$(GOBIN) PATH=$(PATH) GOPROXY=$(shell go env GOPROXY) GOPATH=$(shell go env GOPATH) GOCACHE=$(shell go env GOCACHE) go install $(2)" ;\
+rm -rf $$TMP_DIR ;\
+}
+endef
 
 .PHONY: help dev ci release test battletest e2etests verify tidy download docgen apply delete toolchain licenses vulncheck issues website nightly snapshot
 

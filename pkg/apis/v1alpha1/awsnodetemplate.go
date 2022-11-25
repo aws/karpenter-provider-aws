@@ -32,10 +32,12 @@ type AWSNodeTemplateSpec struct {
 	AMISelector map[string]string `json:"amiSelector,omitempty"`
 }
 
-// AWSNodeTemplate is the Schema for the AWSNodeTemplate API
+// +genclient
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:path=awsnodetemplates,scope=Cluster,categories=karpenter
 // +kubebuilder:subresource:status
+
+// AWSNodeTemplate is the Schema for the AWSNodeTemplate API
 type AWSNodeTemplate struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
