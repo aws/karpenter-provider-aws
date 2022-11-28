@@ -124,7 +124,7 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, provider *v1alpha1.AWS
 	return launchTemplates, nil
 }
 
-func (p *LaunchTemplateProvider) GetAmisForProvider(ctx context.Context, provider *v1alpha1.AWS, providerRef *v1alpha5.ProviderRef, instanceTypes []*cloudprovider.InstanceType) ([]string, error) {
+func (p *LaunchTemplateProvider) GetAMIsForProvider(ctx context.Context, provider *v1alpha1.AWS, providerRef *v1alpha5.ProviderRef, instanceTypes []*cloudprovider.InstanceType) ([]string, error) {
 	if provider.LaunchTemplateName != nil {
 		return nil, fmt.Errorf("using a custom Launch Template which is deprecated")
 	}

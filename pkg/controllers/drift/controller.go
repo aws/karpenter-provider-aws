@@ -21,7 +21,7 @@ import (
 	"time"
 )
 
-const controllerName = "drift"
+var _ operatorcontroller.TypedController[*v1.Node] = (*Drift)(nil)
 
 type Drift struct {
 	kubeClient    client.Client
@@ -29,19 +29,19 @@ type Drift struct {
 }
 
 // NewController constructs a controller instance
-func NewController(kubeClient client.Client, cloudProvider *cloudprovider.CloudProvider) *Drift {
-	return &Drift{
+func NewController(kubeClient client.Client, cloudProvider *cloudprovider.CloudProvider) operatorcontroller.Controller {
+	return operatorcontroller.Typed[*v1.Node](kubeClient, &Drift{
 		kubeClient:    kubeClient,
 		cloudProvider: cloudProvider,
-	}
+	})
 }
 
-func (d Drift) Reconcile(ctx context.Context, req controllerruntime.Request) (reconcile.Result, error) {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named(controllerName).With("provisioner", req.Name))
-	node := &v1.Node{}
-	if err := d.kubeClient.Get(ctx, req.NamespacedName, node); err != nil {
-		return reconcile.Result{}, fmt.Errorf("getting node, %w", err)
-	}
+func (c *Drift) Name() string {
+	return "drift"
+}
+
+func (d Drift) Reconcile(ctx context.Context, node *v1.Node) (reconcile.Result, error) {
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named(d.Name()).With("node", node.Name))
 
 	provisionerName, provisionerExists := node.Labels[v1alpha5.ProvisionerNameLabelKey]
 	if !provisionerExists {
@@ -57,7 +57,7 @@ func (d Drift) Reconcile(ctx context.Context, req controllerruntime.Request) (re
 		return reconcile.Result{}, fmt.Errorf("getting provisioner, %w", err)
 	}
 
-	if drifted, err := d.cloudProvider.IsNodeDrifted(ctx, provisioner, *node); err != nil {
+	if drifted, err := d.cloudProvider.IsNodeDrifted(ctx, provisioner, node); err != nil {
 		return reconcile.Result{}, fmt.Errorf("getting drift for node, %w", err)
 	} else if drifted {
 		stored := node.DeepCopy()
@@ -73,7 +73,6 @@ func (d Drift) Reconcile(ctx context.Context, req controllerruntime.Request) (re
 func (d Drift) Builder(ctx context.Context, m manager.Manager) operatorcontroller.Builder {
 	builder := controllerruntime.
 		NewControllerManagedBy(m).
-		Named(controllerName).
 		For(&v1.Node{}).
 		Watches(
 			&source.Kind{Type: &v1alpha5.Provisioner{}},
@@ -106,10 +105,10 @@ func (d Drift) Builder(ctx context.Context, m manager.Manager) operatorcontrolle
 	}); err != nil {
 		//Return early, controller won't be able to get provisioners related to AWSNodeTemplate if the index field failed
 		logging.FromContext(ctx).Errorf("creating index for provisioner while building drift controller, %w", err)
-		return builder
+		return operatorcontroller.Adapt(builder)
 	}
 
-	return builder.Watches(
+	return operatorcontroller.Adapt(builder.Watches(
 		&source.Kind{Type: &v1alpha1.AWSNodeTemplate{}},
 		handler.EnqueueRequestsFromMapFunc(func(o client.Object) (requests []reconcile.Request) {
 			provisioners := &v1alpha5.ProvisionerList{}
@@ -129,7 +128,7 @@ func (d Drift) Builder(ctx context.Context, m manager.Manager) operatorcontrolle
 			}
 			return requests
 		}),
-	)
+	))
 }
 
 func (d Drift) LivenessProbe(_ *http.Request) error {

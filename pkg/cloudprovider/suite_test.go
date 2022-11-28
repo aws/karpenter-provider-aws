@@ -247,14 +247,14 @@ var _ = Describe("Allocation", func() {
 					},
 				},
 			})
-			isDrifted, err := cloudProvider.IsNodeDrifted(ctx, provisioner, *node)
+			isDrifted, err := cloudProvider.IsNodeDrifted(ctx, provisioner, node)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(isDrifted).To(BeTrue())
 		})
 		It("should not detect drift if ami isn't changed", func() {
 			aws, _ := cloudProvider.getProvider(ctx, provisioner.Spec.Provider, provisioner.Spec.ProviderRef)
 			instanceTypes, _ := cloudProvider.GetInstanceTypes(ctx, provisioner)
-			validAmis, err := cloudProvider.instanceProvider.launchTemplateProvider.GetAmisForProvider(ctx, aws, provisioner.Spec.ProviderRef, instanceTypes)
+			validAmis, err := cloudProvider.instanceProvider.launchTemplateProvider.GetAMIsForProvider(ctx, aws, provisioner.Spec.ProviderRef, instanceTypes)
 			Expect(err).ToNot(HaveOccurred())
 			node := coretest.Node(coretest.NodeOptions{
 				ObjectMeta: metav1.ObjectMeta{
@@ -263,7 +263,7 @@ var _ = Describe("Allocation", func() {
 					},
 				},
 			})
-			isDrifted, err := cloudProvider.IsNodeDrifted(ctx, provisioner, *node)
+			isDrifted, err := cloudProvider.IsNodeDrifted(ctx, provisioner, node)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(isDrifted).To(BeFalse())
 		})
