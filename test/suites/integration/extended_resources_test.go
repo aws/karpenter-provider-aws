@@ -16,8 +16,12 @@ package integration_test
 
 import (
 	"fmt"
+	"os"
+	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
 	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -161,18 +165,19 @@ var _ = Describe("Extended Resources", func() {
 		env.EventuallyExpectCreatedNodesInitialized()
 	})
 	It("should provision nodes for a deployment that requests amd.com/gpu", func() {
-		fmt.Println("Adding new test")
-
-		//ExpectAMDDevicePluginCreated()
+		ExpectAMDDevicePluginCreated()
 		DeferCleanup(func() {
-			fmt.Println("Done")
-			//ExpectAMDDevicePluginDeleted()
+			ExpectAMDDevicePluginDeleted()
 		})
 
+		content, err := os.ReadFile("testdata/amd_driver_input.golden")
+		Expect(err).ToNot(HaveOccurred())
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-		}})
+		},
+			UserData: aws.String(string(content)),
+		})
 		provisioner := test.Provisioner(test.ProvisionerOptions{
 			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
 			Requirements: []v1.NodeSelectorRequirement{
@@ -201,53 +206,11 @@ var _ = Describe("Extended Resources", func() {
 		})
 		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 		env.ExpectCreated(provisioner, provider, dep)
-		env.EventuallyExpectHealthyPodCount(selector, numPods)
+		EventuallyWithOffset(1, func(g Gomega) {
+			g.Expect(env.Monitor.RunningPodsCount(selector)).To(Equal(numPods))
+		}).WithTimeout(10 * time.Minute).Should(Succeed()) // The node needs addtional time to install the AMD GPU driver
 		env.ExpectCreatedNodeCount("==", 1)
 		env.EventuallyExpectCreatedNodesInitialized()
-	})
-	It("should provision nodes for a deployment that requests aws.amazon.com/neuron", func() {
-		fmt.Println("Adding new test")
-
-		// ExpectAMDDevicePluginCreated()
-		// DeferCleanup(func() {
-		// 	ExpectAMDDevicePluginDeleted()
-		// })
-
-		// provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-		// 	SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-		// 	SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-		// }})
-		// provisioner := test.Provisioner(test.ProvisionerOptions{
-		// 	ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
-		// 	Requirements: []v1.NodeSelectorRequirement{
-		// 		{
-		// 			Key:      v1alpha1.LabelInstanceCategory,
-		// 			Operator: v1.NodeSelectorOpExists,
-		// 		},
-		// 	},
-		// })
-		// numPods := 1
-		// dep := test.Deployment(test.DeploymentOptions{
-		// 	Replicas: int32(numPods),
-		// 	PodOptions: test.PodOptions{
-		// 		ObjectMeta: metav1.ObjectMeta{
-		// 			Labels: map[string]string{"app": "large-app"},
-		// 		},
-		// 		ResourceRequirements: v1.ResourceRequirements{
-		// 			Requests: v1.ResourceList{
-		// 				"amd.com/gpu": resource.MustParse("1"),
-		// 			},
-		// 			Limits: v1.ResourceList{
-		// 				"amd.com/gpu": resource.MustParse("1"),
-		// 			},
-		// 		},
-		// 	},
-		// })
-		// selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
-		// env.ExpectCreated(provisioner, provider, dep)
-		// env.EventuallyExpectHealthyPodCount(selector, numPods)
-		// env.ExpectCreatedNodeCount("==", 1)
-		// env.EventuallyExpectCreatedNodesInitialized()
 	})
 })
 
@@ -411,10 +374,6 @@ func ExpectAMDDevicePluginDeleted() {
 		},
 	})
 }
-
-// ExpectAmazonNeuronDevicePluginCreated() {
-
-// }
 
 func ExpectPodENIEnabled() {
 	env.ExpectDaemonSetEnvironmentVariableUpdatedWithOffset(1, types.NamespacedName{Namespace: "kube-system", Name: "aws-node"},
