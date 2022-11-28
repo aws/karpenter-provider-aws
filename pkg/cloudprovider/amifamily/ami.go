@@ -59,8 +59,8 @@ type AMI struct {
 
 // Get returns a set of AMIIDs and corresponding instance types. AMI may vary due to architecture, accelerator, etc
 // If AMI overrides are specified in the AWSNodeTemplate, then only those AMIs will be chosen.
-func (p *AMIProvider) Get(ctx context.Context, provider *v1alpha1.AWS, nodeRequest *cloudprovider.NodeRequest, options *Options, amiFamily AMIFamily) (map[string][]cloudprovider.InstanceType, error) {
-	amiIDs := map[string][]cloudprovider.InstanceType{}
+func (p *AMIProvider) Get(ctx context.Context, provider *v1alpha1.AWS, nodeRequest *cloudprovider.NodeRequest, options *Options, amiFamily AMIFamily) (map[string][]*cloudprovider.InstanceType, error) {
+	amiIDs := map[string][]*cloudprovider.InstanceType{}
 	amiRequirements, err := p.getAMIRequirements(ctx, nodeRequest.Template.ProviderRef)
 	if err != nil {
 		return nil, err
@@ -70,7 +70,7 @@ func (p *AMIProvider) Get(ctx context.Context, provider *v1alpha1.AWS, nodeReque
 		amis := sortAMIsByCreationDate(amiRequirements)
 		for _, instanceType := range nodeRequest.InstanceTypeOptions {
 			for _, ami := range amis {
-				if err := instanceType.Requirements().Compatible(amiRequirements[ami]); err == nil {
+				if err := instanceType.Requirements.Compatible(amiRequirements[ami]); err == nil {
 					amiIDs[ami.AmiID] = append(amiIDs[ami.AmiID], instanceType)
 					break
 				}
@@ -81,7 +81,7 @@ func (p *AMIProvider) Get(ctx context.Context, provider *v1alpha1.AWS, nodeReque
 		}
 	} else {
 		for _, instanceType := range nodeRequest.InstanceTypeOptions {
-			amiID, err := p.getDefaultAMIFromSSM(ctx, instanceType, amiFamily.SSMAlias(options.KubernetesVersion, instanceType))
+			amiID, err := p.getDefaultAMIFromSSM(ctx, amiFamily.SSMAlias(options.KubernetesVersion, instanceType))
 			if err != nil {
 				return nil, err
 			}
@@ -91,7 +91,7 @@ func (p *AMIProvider) Get(ctx context.Context, provider *v1alpha1.AWS, nodeReque
 	return amiIDs, nil
 }
 
-func (p *AMIProvider) getDefaultAMIFromSSM(ctx context.Context, _ cloudprovider.InstanceType, ssmQuery string) (string, error) {
+func (p *AMIProvider) getDefaultAMIFromSSM(ctx context.Context, ssmQuery string) (string, error) {
 	if id, ok := p.ssmCache.Get(ssmQuery); ok {
 		return id.(string), nil
 	}

@@ -20,7 +20,9 @@ Follow the clean-up instructions to reduce any charges.
 
 ## Install
 
-Karpenter is installed in clusters with a helm chart.
+Karpenter is installed in clusters with a helm chart. In this example, an EKS Managed Node group
+is provisioned to support Karpenter. For running Karpenter on EKS Fargate Profiles, see
+[this example](https://github.com/terraform-aws-modules/terraform-aws-eks/tree/master/examples/karpenter).
 
 Karpenter additionally requires IAM Roles for Service Accounts (IRSA). IRSA
 permits Karpenter (within the cluster) to make privileged requests to AWS (as
@@ -33,10 +35,10 @@ Install these tools before proceeding:
 1. [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2-linux.html)
 2. `kubectl` - [the Kubernetes CLI](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/)
 3. `terraform` - [infrastructure-as-code tool made by HashiCorp](https://learn.hashicorp.com/tutorials/terraform/install-cli)
-4. `helm` - [the package manager for Kubernetes](https://helm.sh/docs/intro/install/)
 
-Login to the AWS CLI with a user that has sufficient privileges to create a
-cluster.
+[Configure the AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-quickstart.html)
+with a user that has sufficient privileges to create an EKS cluster. Verify that the CLI can
+authenticate properly by running `aws sts get-caller-identity`.
 
 ### Setting up Variables
 
@@ -78,54 +80,61 @@ locals {
 
   # Used to determine correct partition (i.e. - `aws`, `aws-gov`, `aws-cn`, etc.)
   partition = data.aws_partition.current.partition
+
+  vpc_cidr = "10.0.0.0/16"
+  azs      = slice(data.aws_availability_zones.available.names, 0, 3)
 }
 
 data "aws_partition" "current" {}
+data "aws_availability_zones" "available" {}
+data "aws_ecrpublic_authorization_token" "token" {}
 ```
 
 ### Create a Cluster
 
-We're going to use two different Terraform modules to create our cluster - one
-to create the VPC and another for the cluster itself. The key part of this is
-that we need to tag the VPC subnets that we want to use for the worker nodes.
+We're going to use three different Terraform modules to create our cluster
+1. [`eks`](https://registry.terraform.io/modules/terraform-aws-modules/eks/aws/latest) which creates the EKS cluster and associated cluster resources
+2. [`karpenter`](https://registry.terraform.io/modules/terraform-aws-modules/eks/aws/latest/submodules/karpenter) which creates Karpenter IAM role(s), instance profile, SQS queue, and EvnetBridge rules
+3. [`vpc`](https://registry.terraform.io/modules/terraform-aws-modules/vpc/aws/latest) which creates a VPC suitable for provisioning our cluster
 
-Add the following to your `main.tf` to create a VPC and EKS cluster.
+
+Add the following to your `main.tf` to create the VPC and EKS cluster.
 
 ```hcl
 module "vpc" {
   # https://registry.terraform.io/modules/terraform-aws-modules/vpc/aws/latest
   source  = "terraform-aws-modules/vpc/aws"
-  version = "3.14.2"
+  version = "3.18.1"
 
   name = local.cluster_name
-  cidr = "10.0.0.0/16"
+  cidr = local.vpc_cidr
 
-  azs             = ["us-east-1a", "us-east-1b", "us-east-1c"]
-  private_subnets = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
-  public_subnets  = ["10.0.101.0/24", "10.0.102.0/24", "10.0.103.0/24"]
+  azs             = local.azs
+  private_subnets = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 4, k)]
+  public_subnets  = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 8, k + 48)]
 
-  enable_nat_gateway     = true
-  single_nat_gateway     = true
-  one_nat_gateway_per_az = false
+  enable_nat_gateway   = true
+  single_nat_gateway   = true
+  enable_dns_hostnames = true
 
   public_subnet_tags = {
-    "kubernetes.io/cluster/${local.cluster_name}" = "shared"
-    "kubernetes.io/role/elb"                      = 1
+    "kubernetes.io/role/elb" = 1
   }
 
   private_subnet_tags = {
-    "kubernetes.io/cluster/${local.cluster_name}" = "shared"
-    "kubernetes.io/role/internal-elb"             = 1
+    "kubernetes.io/role/internal-elb" = 1
+    # Tags subnets for Karpenter auto-discovery
+    "karpenter.sh/discovery" = "true"
   }
 }
 
 module "eks" {
   # https://registry.terraform.io/modules/terraform-aws-modules/eks/aws/latest
   source  = "terraform-aws-modules/eks/aws"
-  version = "18.29.0"
+  version = "18.31.0"
 
   cluster_name    = local.cluster_name
-  cluster_version = "1.22"
+  cluster_version = "1.24"
 
   vpc_id     = module.vpc.vpc_id
   subnet_ids = module.vpc.private_subnets
@@ -148,7 +157,7 @@ module "eks" {
     # NOTE - if creating multiple security groups with this module, only tag the
     # security group that Karpenter should utilize with the following tag
     # (i.e. - at most, only one security group should have this tag in your account)
-    "karpenter.sh/discovery/${local.cluster_name}" = local.cluster_name
+    "karpenter.sh/discovery" = local.cluster_name
   }
 
   # Only need one node to get Karpenter up and running.
@@ -164,23 +173,13 @@ module "eks" {
       min_size     = 2
       max_size     = 3
       desired_size = 2
-
-      iam_role_additional_policies = [
-        # Required by Karpenter
-        "arn:${local.partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"
-      ]
-
-      tags = {
-        # This will tag the launch template created for use by Karpenter
-        "karpenter.sh/discovery/${local.cluster_name}" = local.cluster_name
-      }
     }
   }
 }
 ```
 
 At this point, go ahead and apply what we've done to create the VPC and
-EKS cluster. This may take some time.
+EKS cluster. This will take approximately 12-15 minutes to create.
 
 ```bash
 terraform init
@@ -197,65 +196,37 @@ aws iam create-service-linked-role --aws-service-name spot.amazonaws.com
 # An error occurred (InvalidInput) when calling the CreateServiceLinkedRole operation: Service role name AWSServiceRoleForEC2Spot has been taken in this account, please try a different suffix.
 ```
 
-### Configure the KarpenterNode IAM Role
+### Create the Karpenter AWS Resources
 
 The EKS module creates an IAM role for the EKS managed node group nodes. We'll use that for
-Karpenter (so we don't have to reconfigure the aws-auth ConfigMap), but we need
-to create an instance profile we can reference.
+Karpenter (so we don't have to reconfigure the aws-auth ConfigMap for a new role), but we need
+to create an instance profile we can reference. We will utilize the `karpenter` sub-module to
+create the necessary AWS resources required by Karpenter, including those necessary to support
+node termination handling (SQS queue and EventBridge rules).
 
-Add the following to your `main.tf` to create the instance profile.
+Add the following to your `main.tf` to create:
+- AWS IAM instance profile Karpenter will assign to nodes created
+- AWS IAM role for service accounts (IRSA) used by the Karpenter controller
+- AWS SQS queue and EventBridge rules for node termination handling
 
 ```hcl
-resource "aws_iam_instance_profile" "karpenter" {
-  name = "KarpenterNodeInstanceProfile-${local.cluster_name}"
-  role = module.eks.eks_managed_node_groups["initial"].iam_role_name
+module "karpenter" {
+  source  = "terraform-aws-modules/eks/aws//modules/karpenter"
+  version = "18.31.0"
+
+  cluster_name = module.eks.cluster_name
+
+  irsa_oidc_provider_arn          = module.eks.oidc_provider_arn
+  irsa_namespace_service_accounts = ["karpenter:karpenter"]
+
+  # Since Karpenter is running on an EKS Managed Node group,
+  # we can re-use the role that was created for the node group
+  create_iam_role = false
+  iam_role_arn    = module.eks.eks_managed_node_groups["initial"].iam_role_arn
 }
 ```
 
 Go ahead and apply the changes.
-
-```bash
-terraform apply
-```
-
-Now, Karpenter can use this instance profile to launch new EC2 instances and
-those instances will be able to connect to your cluster.
-
-### Create the KarpenterController IAM Role
-
-Karpenter requires permissions like launching instances, which means it needs
-an IAM role that grants it access. The config below will create an AWS IAM
-Role, attach a policy, and authorize the Service Account to assume the role
-using [IRSA](https://docs.aws.amazon.com/emr/latest/EMR-on-EKS-DevelopmentGuide/setting-up-enable-IAM.html).
-We will create the ServiceAccount and connect it to this role during the Helm
-chart install.
-
-Add the following to your `main.tf` to create the IAM role for the Karpenter service account.
-
-```hcl
-module "karpenter_irsa" {
-  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
-  version = "5.3.1"
-
-  role_name                          = "karpenter-controller-${local.cluster_name}"
-  attach_karpenter_controller_policy = true
-
-  karpenter_tag_key               = "karpenter.sh/discovery/${local.cluster_name}"
-  karpenter_controller_cluster_id = module.eks.cluster_id
-  karpenter_controller_node_iam_role_arns = [
-    module.eks.eks_managed_node_groups["initial"].iam_role_arn
-  ]
-
-  oidc_providers = {
-    ex = {
-      provider_arn               = module.eks.oidc_provider_arn
-      namespace_service_accounts = ["karpenter:karpenter"]
-    }
-  }
-}
-```
-
-Since we've added a new module, you'll need to run `terraform init` again before applying the changes.
 
 ```bash
 terraform init
@@ -264,11 +235,10 @@ terraform apply
 
 ### Install Karpenter Helm Chart
 
-Use helm to deploy Karpenter to the cluster. We are going to use the
-`helm_release` Terraform resource to do the deploy and pass in the cluster
-details and IAM role Karpenter needs to assume.
+We are going to use the `helm_release` Terraform resource to do the deploy and pass
+in the cluster details and IAM role Karpenter needs to assume.
 
-Add the following to your `main.tf` to provision Karpenter via a Helm chart.
+Add the following to your `main.tf` to provision Karpenter via its Helm chart.
 
 ```hcl
 provider "helm" {
@@ -279,7 +249,7 @@ provider "helm" {
     exec {
       api_version = "client.authentication.k8s.io/v1beta1"
       command     = "aws"
-      args        = ["eks", "get-token", "--cluster-name", local.cluster_name]
+      args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name]
     }
   }
 }
@@ -288,19 +258,16 @@ resource "helm_release" "karpenter" {
   namespace        = "karpenter"
   create_namespace = true
 
-  name       = "karpenter"
-  repository = "oci://public.ecr.aws/karpenter"
-  chart      = "karpenter"
-  version    = "{{< param "latest_release_version" >}}"
-
-  set {
-    name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
-    value = module.karpenter_irsa.iam_role_arn
-  }
+  name                = "karpenter"
+  repository          = "oci://public.ecr.aws/karpenter"
+  repository_username = data.aws_ecrpublic_authorization_token.token.user_name
+  repository_password = data.aws_ecrpublic_authorization_token.token.password
+  chart               = "karpenter"
+  version             = "{{< param "latest_release_version" >}}"
 
   set {
     name  = "settings.aws.clusterName"
-    value = module.eks.cluster_id
+    value = module.eks.cluster_name
   }
 
   set {
@@ -309,8 +276,18 @@ resource "helm_release" "karpenter" {
   }
 
   set {
+    name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
+    value = module.karpenter.irsa_arn
+  }
+
+  set {
     name  = "settings.aws.defaultInstanceProfile"
-    value = aws_iam_instance_profile.karpenter.name
+    value = module.karpenter.instance_profile_name
+  }
+
+  set {
+    name  = "settings.aws.interruptionQueueName"
+    value = module.karpenter.queue_name
   }
 }
 ```
@@ -358,32 +335,47 @@ provider "kubectl" {
   exec {
     api_version = "client.authentication.k8s.io/v1beta1"
     command     = "aws"
-    args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_id]
+    args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name]
   }
 }
 
 resource "kubectl_manifest" "karpenter_provisioner" {
   yaml_body = <<-YAML
-  apiVersion: karpenter.sh/v1alpha5
-  kind: Provisioner
-  metadata:
-    name: default
-  spec:
-    requirements:
-      - key: karpenter.sh/capacity-type
-        operator: In
-        values: ["spot"]
-    limits:
-      resources:
-        cpu: 1000
-    provider:
+    apiVersion: karpenter.sh/v1alpha5
+    kind: Provisioner
+    metadata:
+      name: default
+    spec:
+      requirements:
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["spot"]
+      limits:
+        resources:
+          cpu: 1000
+      providerRef:
+        name: default
+      ttlSecondsAfterEmpty: 30
+  YAML
+
+  depends_on = [
+    helm_release.karpenter
+  ]
+}
+
+resource "kubectl_manifest" "karpenter_node_template" {
+  yaml_body = <<-YAML
+    apiVersion: karpenter.k8s.aws/v1alpha1
+    kind: AWSNodeTemplate
+    metadata:
+      name: default
+    spec:
       subnetSelector:
-        Name: "*private*"
+        karpenter.sh/discovery: "true"
       securityGroupSelector:
-        karpenter.sh/discovery/${module.eks.cluster_id}: ${module.eks.cluster_id}
+        karpenter.sh/discovery: ${module.eks.cluster_name}
       tags:
-        karpenter.sh/discovery/${module.eks.cluster_id}: ${module.eks.cluster_id}
-    ttlSecondsAfterEmpty: 30
+        karpenter.sh/discovery: ${module.eks.cluster_name}
   YAML
 
   depends_on = [
@@ -434,7 +426,7 @@ spec:
       terminationGracePeriodSeconds: 0
       containers:
         - name: inflate
-          image: public.ecr.aws/eks-distro/kubernetes/pause:3.2
+          image: public.ecr.aws/eks-distro/kubernetes/pause:3.7
           resources:
             requests:
               cpu: 1
@@ -477,8 +469,4 @@ created LaunchTemplates.
 kubectl delete deployment inflate
 kubectl delete node -l karpenter.sh/provisioner-name=default
 terraform destroy
-aws ec2 describe-launch-templates \
-    | jq -r ".LaunchTemplates[].LaunchTemplateName" \
-    | grep -i "Karpenter-karpenter-demo" \
-    | xargs -I{} aws ec2 delete-launch-template --launch-template-name {}
 ```

@@ -172,6 +172,23 @@ error: error validating "provisioner.yaml": error validating data: ValidationErr
 
 The `startupTaints` parameter was added in v0.10.0.  Helm upgrades do not upgrade the CRD describing the provisioner, so it must be done manually. For specific details, see the [Upgrade Guide]({{< ref "./upgrade-guide/#upgrading-to-v0100" >}})
 
+## Interruption Handling
+
+### Should I use Karpenter interruption handling alongside Node Termination Handler?
+No. We recommend against using Node Termination Handler alongside Karpenter due to conflicts that could occur from the two components handling the same events.
+
+### Why should I migrate from Node Termination Handler?
+Karpenter's native interruption handling offers two main benefits over the standalone Node Termination Handler component:
+1. You don't have to manage and maintain a separate component to exclusively handle interruption events.
+2. Karpenter's native interruption handling coordinates with other deprovisoining so that consolidation, expiration, etc. can be aware of interruption events and vice-versa.
+
+### Why am I receiving QueueNotFound errors when I set `aws.interruptionQueueName`?
+Karpenter requires a queue to exist that receives event messages from EC2 and health services in order to handle interruption messages properly for nodes.
+
+Details on the types of events that Karpenter handles can be found in the [Interruption Handling Docs]({{< ref "./tasks/deprovisioning/#interruption" >}}).
+
+Details on provisioning the SQS queue and EventBridge rules can be found in the [Getting Started Guide]({{< ref "./getting-started/getting-started-with-eksctl/#create-the-karpenter-infrastructure-and-iam-roles" >}}).
+
 ## Consolidation
 
 ### Why do I sometimes see an extra node get launched when updating a deployment that remains empty and is later removed?
