@@ -3967,7 +3967,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-local-nvme|7600|
  |karpenter.k8s.aws/instance-memory|786432|
- |karpenter.k8s.aws/instance-pods|737|
+ |karpenter.k8s.aws/instance-pods|345|
  |karpenter.k8s.aws/instance-size|48xlarge|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
@@ -3977,9 +3977,9 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|191350m|
  |ephemeral-storage|18Gi|
- |memory|718887Mi|
+ |memory|723199Mi|
  |nvidia.com/gpu|8|
- |pods|737|
+ |pods|345|
  |vpc.amazonaws.com/pod-eni|107|
 ## g5g Family
 ### `g5g.xlarge`
@@ -11977,6 +11977,29 @@ below are the resources available with some assumptions and after the instance o
  |cpu|446710m|
  |ephemeral-storage|18Gi|
  |memory|17450228Mi|
+ |pods|737|
+## u-24tb1 Family
+### `u-24tb1.112xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|u|
+ |karpenter.k8s.aws/instance-cpu|448|
+ |karpenter.k8s.aws/instance-family|u-24tb1|
+ |karpenter.k8s.aws/instance-generation|1|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|25165824|
+ |karpenter.k8s.aws/instance-pods|737|
+ |karpenter.k8s.aws/instance-size|112xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|u-24tb1.112xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|446710m|
+ |ephemeral-storage|18Gi|
+ |memory|23269825Mi|
  |pods|737|
 ## u-3tb1 Family
 ### `u-3tb1.56xlarge`

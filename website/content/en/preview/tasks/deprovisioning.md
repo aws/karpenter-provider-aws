@@ -67,6 +67,13 @@ Karpenter has two mechanisms for cluster consolidation:
 - Deletion - A node is eligible for deletion if all of its pods can run on free capacity of other nodes in the cluster.  
 - Replace - A node can be replaced if all of its pods can run on a combination of free capacity of other nodes in the cluster and a single cheaper replacement node. 
 
+Consolidation has three mechanisms that are performed in order to attempt to identify a consolidation action:
+1) Empty Node Consolidation - Delete any entirely empty nodes in parallel
+2) Multi-Node Consolidation - Try to delete two or more nodes in parallel, possibly launching a single replacement that is cheaper than the price of all nodes being removed
+3) Single-Node Consolidation - Try to delete any single node, possibly launching a single replacement that is cheaper than the price of that node
+
+It's impractical to examine all possible consolidation options for multi-node consolidation, so Karpenter uses a heuristic to identify a likely set of nodes that can be consolidated.  For single-node consolidation we consider each node in the cluster individually.
+
 When there are multiple nodes that could be potentially deleted or replaced, Karpenter choose to consolidate the node that overall disrupts your workloads the least by preferring to terminate:
 
 * nodes running fewer pods

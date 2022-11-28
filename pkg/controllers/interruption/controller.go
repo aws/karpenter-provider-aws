@@ -17,7 +17,6 @@ package interruption
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"strings"
 	"time"
 
@@ -33,7 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/aws/karpenter/pkg/apis"
+	"github.com/aws/karpenter-core/pkg/utils/pretty"
 	"github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cache"
@@ -43,17 +42,11 @@ import (
 	"github.com/aws/karpenter/pkg/errors"
 	"github.com/aws/karpenter/pkg/utils"
 
-	"github.com/aws/karpenter-core/pkg/events"
-	"github.com/aws/karpenter-core/pkg/operator/scheme"
-
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/events"
 	"github.com/aws/karpenter-core/pkg/metrics"
 	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
 )
-
-func init() {
-	lo.Must0(apis.AddToScheme(scheme.Scheme))
-}
 
 type Action string
 
@@ -72,6 +65,7 @@ type Controller struct {
 	sqsProvider               *SQSProvider
 	unavailableOfferingsCache *cache.UnavailableOfferings
 	parser                    *EventParser
+	cm                        *pretty.ChangeMonitor
 }
 
 func NewController(kubeClient client.Client, clk clock.Clock, recorder events.Recorder,
@@ -84,6 +78,7 @@ func NewController(kubeClient client.Client, clk clock.Clock, recorder events.Re
 		sqsProvider:               sqsProvider,
 		unavailableOfferingsCache: unavailableOfferingsCache,
 		parser:                    NewEventParser(DefaultParsers...),
+		cm:                        pretty.NewChangeMonitor(),
 	}
 }
 
@@ -91,12 +86,9 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 	if settings.FromContext(ctx).InterruptionQueueName == "" {
 		return reconcile.Result{RequeueAfter: time.Second * 10}, nil
 	}
-	queueExists, err := c.sqsProvider.QueueExists(ctx)
-	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("checking queue existence, %w", err)
-	}
-	if !queueExists {
-		return reconcile.Result{RequeueAfter: time.Second * 10}, nil
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("queue", settings.FromContext(ctx).InterruptionQueueName))
+	if c.cm.HasChanged(settings.FromContext(ctx).InterruptionQueueName, nil) {
+		logging.FromContext(ctx).Infof("watching interruption queue")
 	}
 	sqsMessages, err := c.sqsProvider.GetSQSMessages(ctx)
 	if err != nil {
@@ -127,13 +119,12 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 	return reconcile.Result{}, multierr.Combine(errs...)
 }
 
-func (c *Controller) Builder(_ context.Context, m manager.Manager) corecontroller.Builder {
-	return corecontroller.NewSingletonManagedBy(m).
-		Named("interruption")
+func (c *Controller) Name() string {
+	return "interruption"
 }
 
-func (c *Controller) LivenessProbe(_ *http.Request) error {
-	return nil
+func (c *Controller) Builder(_ context.Context, m manager.Manager) corecontroller.Builder {
+	return corecontroller.NewSingletonManagedBy(m)
 }
 
 // parseMessage parses the passed SQS message into an internal Message interface
@@ -218,7 +209,7 @@ func (c *Controller) deleteNode(ctx context.Context, node *v1.Node) error {
 		}
 		return fmt.Errorf("deleting the node on interruption message, %w", err)
 	}
-	logging.FromContext(ctx).Infof("Deleted node from interruption message")
+	logging.FromContext(ctx).Infof("deleted node from interruption message")
 	c.recorder.Publish(interruptionevents.NodeTerminatingOnInterruption(node))
 	metrics.NodesTerminatedCounter.WithLabelValues(terminationReasonLabel).Inc()
 	return nil

@@ -343,3 +343,23 @@ Refer to general [Kubernetes GPU](https://kubernetes.io/docs/tasks/manage-gpus/s
 * `aws.amazon.com/neuron`: [Kubernetes environment setup for Neuron](https://github.com/aws/aws-neuron-sdk/blob/master/neuron-deploy/tutorials/tutorial-k8s.rst)
 * `habana.ai/gaudi`: [Habana device plugin for Kubernetes](https://docs.habana.ai/en/latest/Orchestration/Gaudi_Kubernetes/Habana_Device_Plugin_for_Kubernetes.html)
 {{% /alert %}}
+
+### Pod ENI (Security Groups for Pods)
+[Pod ENI](https://github.com/aws/amazon-vpc-cni-k8s#enable_pod_eni-v170) is a feature of the AWS VPC CNI Plugin which allows an Elastic Network Interface (ENI) to be allocated directly to a Pod. When enabled, the `vpc.amazonaws.com/pod-eni` extended resource is added to supported nodes. The Pod ENI feature can be used independently, but is most often used in conjunction with Security Groups for Pods.  Follow the below instructions to enable support for Pod ENI and/or Security Groups for Pods in Karpenter.
+
+{{% alert title="Note" color="primary" %}}
+You must enable Pod ENI support in the AWS VPC CNI Plugin before enabling Pod ENI support in Karpenter.  Please refer to the [Security Groups for Pods documentation](https://docs.aws.amazon.com/eks/latest/userguide/security-groups-for-pods.html) for instructions.
+{{% /alert %}}
+
+Now that Pod ENI support is enabled in the AWS VPC CNI Plugin, you can enable Pod ENI support in Karpenter by setting the `settings.aws.enablePodENI` Helm chart value to `true`.
+
+Here is an example of a pod-eni resource defined in a deployment manifest:
+```
+spec:
+  template:
+    spec:
+      containers:
+      - resources:
+          limits:
+            vpc.amazonaws.com/pod-eni: "1"
+```

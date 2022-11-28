@@ -40,7 +40,6 @@ import (
 
 	coresettings "github.com/aws/karpenter-core/pkg/apis/config/settings"
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
-	corefake "github.com/aws/karpenter-core/pkg/cloudprovider/fake"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
@@ -69,9 +68,7 @@ const (
 
 var ctx context.Context
 var env *coretest.Environment
-var nodeTemplate *v1alpha1.AWSNodeTemplate
 var sqsapi *fake.SQSAPI
-var cloudProvider *corefake.CloudProvider
 var sqsProvider *interruption.SQSProvider
 var unavailableOfferingsCache *awscache.UnavailableOfferings
 var recorder *coretest.EventRecorder
@@ -87,16 +84,9 @@ func TestAPIs(t *testing.T) {
 var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(scheme.Scheme, apis.CRDs...)
 	fakeClock = &clock.FakeClock{}
-	cloudProvider = &corefake.CloudProvider{}
-
-	nodeTemplate = test.AWSNodeTemplate()
-	ExpectApplied(ctx, env.Client, nodeTemplate)
-
 	recorder = coretest.NewEventRecorder()
 	unavailableOfferingsCache = awscache.NewUnavailableOfferings(cache.New(awscache.UnavailableOfferingsTTL, awscontext.CacheCleanupInterval))
-
 	sqsapi = &fake.SQSAPI{}
-	sqsProvider = interruption.NewSQSProvider(sqsapi)
 })
 
 var _ = AfterSuite(func() {
@@ -104,6 +94,7 @@ var _ = AfterSuite(func() {
 })
 
 var _ = BeforeEach(func() {
+	sqsProvider = interruption.NewSQSProvider(sqsapi)
 	controller = interruption.NewController(env.Client, fakeClock, recorder, sqsProvider, unavailableOfferingsCache)
 	settingsStore := coretest.SettingsStore{
 		coresettings.ContextKey: coretest.Settings(),
@@ -117,7 +108,6 @@ var _ = BeforeEach(func() {
 var _ = AfterEach(func() {
 	sqsapi.Reset()
 	ExpectCleanedUp(ctx, env.Client)
-	ExpectDeleted(ctx, env.Client, nodeTemplate)
 })
 
 var _ = Describe("AWSInterruption", func() {
@@ -135,6 +125,7 @@ var _ = Describe("AWSInterruption", func() {
 			ExpectApplied(ctx, env.Client, node)
 
 			ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
+			Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(Equal(1))
 			ExpectNotFound(ctx, env.Client, node)
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
 		})
@@ -151,6 +142,7 @@ var _ = Describe("AWSInterruption", func() {
 			ExpectApplied(ctx, env.Client, node)
 
 			ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
+			Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(Equal(1))
 			ExpectNotFound(ctx, env.Client, node)
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
 		})
@@ -173,6 +165,7 @@ var _ = Describe("AWSInterruption", func() {
 			ExpectApplied(ctx, env.Client, lo.Map(nodes, func(n *v1.Node, _ int) client.Object { return n })...)
 
 			ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
+			Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(Equal(1))
 			ExpectNotFound(ctx, env.Client, lo.Map(nodes, func(n *v1.Node, _ int) client.Object { return n })...)
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(4))
 		})
@@ -200,6 +193,7 @@ var _ = Describe("AWSInterruption", func() {
 			ExpectApplied(ctx, env.Client, lo.Map(nodes, func(n *v1.Node, _ int) client.Object { return n })...)
 
 			ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
+			Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(Equal(1))
 			ExpectNotFound(ctx, env.Client, lo.Map(nodes, func(n *v1.Node, _ int) client.Object { return n })...)
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(100))
 		})
@@ -211,6 +205,7 @@ var _ = Describe("AWSInterruption", func() {
 			ExpectApplied(ctx, env.Client, node)
 
 			ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
+			Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(Equal(1))
 			ExpectNodeExists(ctx, env.Client, node.Name)
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
 		})
@@ -226,6 +221,7 @@ var _ = Describe("AWSInterruption", func() {
 			ExpectMessagesCreated(badMessage)
 
 			ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
+			Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(Equal(1))
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
 		})
 		It("should delete a state change message when the state isn't in accepted states", func() {
@@ -241,6 +237,7 @@ var _ = Describe("AWSInterruption", func() {
 			ExpectApplied(ctx, env.Client, node)
 
 			ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
+			Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(Equal(1))
 			ExpectNodeExists(ctx, env.Client, node.Name)
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
 		})
@@ -260,6 +257,7 @@ var _ = Describe("AWSInterruption", func() {
 			ExpectApplied(ctx, env.Client, node)
 
 			ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
+			Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(Equal(1))
 			ExpectNotFound(ctx, env.Client, node)
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
 
@@ -268,13 +266,47 @@ var _ = Describe("AWSInterruption", func() {
 		})
 	})
 	Context("Error Handling", func() {
+		It("should send an error on polling when QueueNotExists", func() {
+			sqsapi.ReceiveMessageBehavior.Error.Set(awsErrWithCode(sqs.ErrCodeQueueDoesNotExist), fake.MaxCalls(0))
+			ExpectReconcileFailed(ctx, controller, types.NamespacedName{})
+		})
 		It("should send an error on polling when AccessDenied", func() {
 			sqsapi.ReceiveMessageBehavior.Error.Set(awsErrWithCode(errors.AccessDeniedCode), fake.MaxCalls(0))
 			ExpectReconcileFailed(ctx, controller, types.NamespacedName{})
 		})
-		It("should send an error on polling when QueueDeletedRecently", func() {
-			sqsapi.GetQueueURLBehavior.Error.Set(awsErrWithCode(sqs.ErrCodeQueueDeletedRecently), fake.MaxCalls(0))
-			ExpectReconcileFailed(ctx, controller, types.NamespacedName{})
+	})
+	Context("Configuration", func() {
+		It("should not poll SQS if interruption queue is disabled", func() {
+			settingsStore := coretest.SettingsStore{
+				coresettings.ContextKey: coretest.Settings(),
+				settings.ContextKey: test.Settings(test.SettingOptions{
+					InterruptionQueueName: lo.ToPtr(""),
+				}),
+			}
+			ctx = settingsStore.InjectSettings(ctx)
+			ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
+			Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(Equal(0))
+		})
+		It("should only call the get queue url once if the queue name doesn't change", func() {
+			for i := 0; i < 100; i++ {
+				ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
+			}
+			Expect(sqsapi.GetQueueURLBehavior.SuccessfulCalls()).To(Equal(1))
+		})
+		It("should re-request the queue url from SQS if queue name changes", func() {
+			for i := 0; i < 10; i++ {
+				ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
+			}
+			Expect(sqsapi.GetQueueURLBehavior.SuccessfulCalls()).To(Equal(1))
+			settingsStore := coretest.SettingsStore{
+				coresettings.ContextKey: coretest.Settings(),
+				settings.ContextKey: test.Settings(test.SettingOptions{
+					InterruptionQueueName: lo.ToPtr("other-queue-name"),
+				}),
+			}
+			ctx = settingsStore.InjectSettings(ctx)
+			ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
+			Expect(sqsapi.GetQueueURLBehavior.SuccessfulCalls()).To(Equal(2))
 		})
 	})
 })

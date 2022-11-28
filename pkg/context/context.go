@@ -29,9 +29,9 @@ import (
 	"knative.dev/pkg/logging"
 
 	awscache "github.com/aws/karpenter/pkg/cache"
+	"github.com/aws/karpenter/pkg/utils/project"
 
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
-	"github.com/aws/karpenter-core/pkg/utils/project"
 )
 
 const (
@@ -63,11 +63,11 @@ func NewOrDie(ctx cloudprovider.Context) Context {
 		),
 	)))
 	if *sess.Config.Region == "" {
-		logging.FromContext(ctx).Debug("AWS region not configured, asking EC2 Instance Metadata Service")
+		logging.FromContext(ctx).Debug("AWS region not configured, asking EC2 instance metadata service")
 		region, err := ec2metadata.New(sess).Region()
 		*sess.Config.Region = lo.Must(region, err, "failed to get region from metadata server")
 	}
-	logging.FromContext(ctx).Debugf("Using AWS region %s", *sess.Config.Region)
+	logging.FromContext(ctx).With("region", *sess.Config.Region).Debugf("using AWS region")
 	return Context{
 		Context:                   ctx,
 		Session:                   sess,

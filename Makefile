@@ -42,8 +42,6 @@ ci-test: battletest coverage ## Runs tests and submits coverage
 
 ci-non-test: verify licenses vulncheck ## Runs checks other than tests
 
-ci: toolchain ci-non-tests ci-tests ## Run all steps used by continuous integration
-
 run: ## Run Karpenter controller binary against your local cluster
 	kubectl create configmap -n ${SYSTEM_NAMESPACE} karpenter-global-settings \
 		--from-literal=aws.clusterName=${CLUSTER_NAME} \
@@ -158,6 +156,11 @@ tidy: ## Recursively "go mod tidy" on all directories where go.mod exists
 
 download: ## Recursively "go mod download" on all directories where go.mod exists
 	$(foreach dir,$(MOD_DIRS),cd $(dir) && go mod download $(newline))
+
+update-core: ## Update karpenter-core to latest
+	go get -u github.com/aws/karpenter-core
+	go mod tidy
+	cd test/ && go get -u github.com/aws/karpenter-core && go mod tidy 
 
 .PHONY: help dev ci release test battletest e2etests verify tidy download docgen apply delete toolchain licenses vulncheck issues website nightly snapshot
 

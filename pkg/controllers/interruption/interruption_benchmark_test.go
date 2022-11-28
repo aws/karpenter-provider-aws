@@ -53,7 +53,6 @@ import (
 
 	coresettings "github.com/aws/karpenter-core/pkg/apis/config/settings"
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter-core/pkg/cloudprovider/fake"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 )
 
@@ -77,6 +76,7 @@ func BenchmarkNotification100(b *testing.B) {
 
 //nolint:gocyclo
 func benchmarkNotificationController(b *testing.B, messageCount int) {
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("message-count", messageCount))
 	fakeClock = &clock.FakeClock{}
 	settingsStore := coretest.SettingsStore{
 		coresettings.ContextKey: coretest.Settings(),
@@ -112,26 +112,23 @@ func benchmarkNotificationController(b *testing.B, messageCount int) {
 
 	// Load all the fundamental components before setting up the controllers
 	recorder = coretest.NewEventRecorder()
-	cloudProvider = &fake.CloudProvider{}
-
 	unavailableOfferingsCache = awscache.NewUnavailableOfferings(cache.New(awscache.UnavailableOfferingsTTL, awscontext.CacheCleanupInterval))
 
 	// Set-up the controllers
 	interruptionController := interruption.NewController(env.Client, fakeClock, recorder, providers.sqsProvider, unavailableOfferingsCache)
 
 	messages, nodes := makeDiverseMessagesAndNodes(messageCount)
-
-	logging.FromContext(ctx).Infof("Provisioning %d nodes", messageCount)
+	logging.FromContext(ctx).Infof("provisioning nodes")
 	if err := provisionNodes(ctx, env.Client, nodes); err != nil {
 		b.Fatalf("provisioning nodes, %v", err)
 	}
-	logging.FromContext(ctx).Infof("Completed provisioning %d nodes", messageCount)
+	logging.FromContext(ctx).Infof("completed provisioning nodes")
 
-	logging.FromContext(ctx).Infof("Provisioning %d messages into the SQS Queue", messageCount)
+	logging.FromContext(ctx).Infof("provisioning messages into the SQS Queue")
 	if err := providers.provisionMessages(ctx, messages...); err != nil {
 		b.Fatalf("provisioning messages, %v", err)
 	}
-	logging.FromContext(ctx).Infof("Completed provisioning %d messages into the SQS Queue", messageCount)
+	logging.FromContext(ctx).Infof("completed provisioning messages into the SQS Queue")
 
 	m, err := controllerruntime.NewManager(env.Config, controllerruntime.Options{
 		BaseContext: func() context.Context { return logging.WithLogger(ctx, zap.NewNop().Sugar()) },
@@ -149,7 +146,7 @@ func benchmarkNotificationController(b *testing.B, messageCount int) {
 	start := time.Now()
 	managerErr := make(chan error)
 	go func() {
-		logging.FromContext(ctx).Infof("Starting controller manager")
+		logging.FromContext(ctx).Infof("starting controller manager")
 		managerErr <- m.Start(ctx)
 	}()
 
@@ -230,7 +227,7 @@ func (p *providerSet) monitorMessagesProcessed(ctx context.Context, eventRecorde
 				eventRecorder.Calls(events.InstanceUnhealthy(coretest.Node()).Reason) +
 				eventRecorder.Calls(events.InstanceRebalanceRecommendation(coretest.Node()).Reason) +
 				eventRecorder.Calls(events.InstanceSpotInterrupted(coretest.Node()).Reason)
-			logging.FromContext(ctx).Infof("Processed %d messages from the queue", totalProcessed)
+			logging.FromContext(ctx).With("processed-message-count", totalProcessed).Infof("processed messages from the queue")
 			time.Sleep(time.Second)
 		}
 		close(done)

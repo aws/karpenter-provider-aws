@@ -23,6 +23,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws/session"
 
+	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	awscache "github.com/aws/karpenter/pkg/cache"
 	awscontext "github.com/aws/karpenter/pkg/context"
@@ -38,7 +39,6 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 
-	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/utils/functional"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
@@ -85,7 +85,7 @@ func NewInstanceTypeProvider(ctx context.Context, sess *session.Session, ec2api 
 }
 
 // Get all instance type options
-func (p *InstanceTypeProvider) Get(ctx context.Context, provider *v1alpha1.AWS, kc *v1alpha5.KubeletConfiguration) ([]cloudprovider.InstanceType, error) {
+func (p *InstanceTypeProvider) Get(ctx context.Context, kc *v1alpha5.KubeletConfiguration, provider *v1alpha1.AWS) ([]*cloudprovider.InstanceType, error) {
 	p.Lock()
 	defer p.Unlock()
 	// Get InstanceTypes from EC2
@@ -98,7 +98,7 @@ func (p *InstanceTypeProvider) Get(ctx context.Context, provider *v1alpha1.AWS, 
 	if err != nil {
 		return nil, err
 	}
-	var result []cloudprovider.InstanceType
+	var result []*cloudprovider.InstanceType
 
 	for _, i := range instanceTypes {
 		instanceTypeName := aws.StringValue(i.InstanceType)
@@ -187,7 +187,7 @@ func (p *InstanceTypeProvider) getInstanceTypeZones(ctx context.Context, provide
 		return nil, fmt.Errorf("describing instance type zone offerings, %w", err)
 	}
 	if p.cm.HasChanged("zonal-offerings", provider.SubnetSelector) {
-		logging.FromContext(ctx).Debugf("Discovered EC2 instance types zonal offerings for subnets %s", pretty.Concise(provider.SubnetSelector))
+		logging.FromContext(ctx).With("subnet-selector", pretty.Concise(provider.SubnetSelector)).Debugf("discovered EC2 instance types zonal offerings for subnets")
 	}
 	p.cache.SetDefault(cacheKey, instanceTypeZones)
 	return instanceTypeZones, nil
@@ -221,7 +221,8 @@ func (p *InstanceTypeProvider) getInstanceTypes(ctx context.Context) (map[string
 		return nil, fmt.Errorf("fetching instance types using ec2.DescribeInstanceTypes, %w", err)
 	}
 	if p.cm.HasChanged("instance-types", instanceTypes) {
-		logging.FromContext(ctx).Debugf("Discovered %d EC2 instance types", len(instanceTypes))
+		logging.FromContext(ctx).With(
+			"instance-type-count", len(instanceTypes)).Debugf("discovered EC2 instance types")
 	}
 	p.cache.SetDefault(InstanceTypesCacheKey, instanceTypes)
 	return instanceTypes, nil

@@ -59,7 +59,7 @@ type PricingProvider struct {
 
 // zonalPricing is used to capture the per-zone price
 // for spot data as well as the default price
-// based on on-demand price when the controller first
+// based on on-demand price when the provisioningController first
 // comes up
 type zonalPricing struct {
 	defaultPrice float64 // Used until we get the spot pricing data
@@ -84,9 +84,7 @@ func NewPricingAPI(sess *session.Session, region string) pricingiface.PricingAPI
 	}
 	// pricing API doesn't have an endpoint in all regions
 	pricingAPIRegion := "us-east-1"
-	if strings.HasPrefix(region, "cn-") {
-		pricingAPIRegion = "cn-north-1"
-	} else if strings.HasPrefix(region, "ap-") {
+	if strings.HasPrefix(region, "ap-") {
 		pricingAPIRegion = "ap-south-1"
 	}
 	return pricing.New(sess, &aws.Config{Region: aws.String(pricingAPIRegion)})
@@ -107,7 +105,7 @@ func NewPricingProvider(ctx context.Context, pricing pricingiface.PricingAPI, ec
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("pricing"))
 
 	if isolatedVPC {
-		logging.FromContext(ctx).Infof("Assuming isolated VPC, pricing information will not be updated")
+		logging.FromContext(ctx).Infof("assuming isolated VPC, pricing information will not be updated")
 	} else {
 		go func() {
 			// perform an initial price update at startup
@@ -264,7 +262,7 @@ func (p *PricingProvider) updateOnDemandPricing(ctx context.Context) error {
 	p.onDemandPrices = lo.Assign(onDemandPrices, onDemandMetalPrices)
 	p.onDemandUpdateTime = time.Now()
 	if p.cm.HasChanged("on-demand-prices", p.onDemandPrices) {
-		logging.FromContext(ctx).Infof("updated on-demand pricing with %d instance types", len(p.onDemandPrices))
+		logging.FromContext(ctx).With("instance-type-count", len(p.onDemandPrices)).Infof("updated on-demand pricing")
 	}
 	return nil
 }
@@ -413,7 +411,9 @@ func (p *PricingProvider) updateSpotPricing(ctx context.Context) error {
 
 	p.spotUpdateTime = time.Now()
 	if p.cm.HasChanged("spot-prices", p.spotPrices) {
-		logging.FromContext(ctx).Infof("updated spot pricing with %d instance types and %d offerings", len(p.spotPrices), totalOfferings)
+		logging.FromContext(ctx).With(
+			"instance-type-count", len(p.onDemandPrices),
+			"offering-count", totalOfferings).Infof("updated spot pricing with instance types and offerings")
 	}
 	return nil
 }

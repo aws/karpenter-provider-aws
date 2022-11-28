@@ -70,13 +70,13 @@ type LaunchTemplate struct {
 	BlockDeviceMappings []*v1alpha1.BlockDeviceMapping
 	MetadataOptions     *v1alpha1.MetadataOptions
 	AMIID               string
-	InstanceTypes       []cloudprovider.InstanceType `hash:"ignore"`
+	InstanceTypes       []*cloudprovider.InstanceType `hash:"ignore"`
 }
 
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters
 type AMIFamily interface {
-	UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []core.Taint, labels map[string]string, caBundle *string, instanceTypes []cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper
-	SSMAlias(version string, instanceType cloudprovider.InstanceType) string
+	UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []core.Taint, labels map[string]string, caBundle *string, instanceTypes []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper
+	SSMAlias(version string, instanceType *cloudprovider.InstanceType) string
 	DefaultBlockDeviceMappings() []*v1alpha1.BlockDeviceMapping
 	DefaultMetadataOptions() *v1alpha1.MetadataOptions
 	EphemeralBlockDevice() *string

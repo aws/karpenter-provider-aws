@@ -72,9 +72,9 @@ type CloudProvider struct {
 func New(ctx awscontext.Context) *CloudProvider {
 	kubeDNSIP, err := kubeDNSIP(ctx, ctx.KubernetesInterface)
 	if err != nil {
-		logging.FromContext(ctx).Debugf("Unable to detect the IP of the kube-dns service, %s", err)
+		logging.FromContext(ctx).Debugf("unable to detect the IP of the kube-dns service, %s", err)
 	} else {
-		logging.FromContext(ctx).Debugf("Discovered DNS IP %s", kubeDNSIP)
+		logging.FromContext(ctx).With("dns-ip", kubeDNSIP).Debugf("discovered DNS IP")
 	}
 	ec2api := ec2.New(ctx.Session)
 	if err := checkEC2Connectivity(ctx, ec2api); err != nil {
@@ -92,7 +92,7 @@ func New(ctx awscontext.Context) *CloudProvider {
 				ctx.KubernetesInterface,
 				amifamily.New(ctx.KubeClient, ssm.New(ctx.Session), ec2api, cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval), cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)),
 				NewSecurityGroupProvider(ec2api),
-				lo.Must(getCABundle(ctx, ctx.RESTConfig)),
+				lo.Must(getCABundle(ctx.RESTConfig)),
 				ctx.StartAsync,
 				kubeDNSIP,
 			),
@@ -128,13 +128,13 @@ func (c *CloudProvider) LivenessProbe(req *http.Request) error {
 }
 
 // GetInstanceTypes returns all available InstanceTypes
-func (c *CloudProvider) GetInstanceTypes(ctx context.Context, provisioner *v1alpha5.Provisioner) ([]cloudprovider.InstanceType, error) {
+func (c *CloudProvider) GetInstanceTypes(ctx context.Context, provisioner *v1alpha5.Provisioner) ([]*cloudprovider.InstanceType, error) {
 	aws, err := c.getProvider(ctx, provisioner.Spec.Provider, provisioner.Spec.ProviderRef)
 	if err != nil {
 		return nil, err
 	}
 	// TODO, break this coupling
-	instanceTypes, err := c.instanceTypeProvider.Get(ctx, aws, provisioner.Spec.KubeletConfiguration)
+	instanceTypes, err := c.instanceTypeProvider.Get(ctx, provisioner.Spec.KubeletConfiguration, aws)
 	if err != nil {
 		return nil, err
 	}
@@ -150,7 +150,7 @@ func (c *CloudProvider) Name() string {
 	return "aws"
 }
 
-func getCABundle(ctx context.Context, restConfig *rest.Config) (*string, error) {
+func getCABundle(restConfig *rest.Config) (*string, error) {
 	// Discover CA Bundle from the REST client. We could alternatively
 	// have used the simpler client-go InClusterConfig() method.
 	// However, that only works when Karpenter is running as a Pod
@@ -163,7 +163,6 @@ func getCABundle(ctx context.Context, restConfig *rest.Config) (*string, error) 
 	if err != nil {
 		return nil, fmt.Errorf("discovering caBundle, loading TLS config, %w", err)
 	}
-	logging.FromContext(ctx).Debugf("Discovered caBundle, length %d", len(transportConfig.TLS.CAData))
 	return ptr.String(base64.StdEncoding.EncodeToString(transportConfig.TLS.CAData)), nil
 }
 

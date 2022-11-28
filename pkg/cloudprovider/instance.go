@@ -34,6 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 
+	"github.com/aws/karpenter-core/pkg/utils/resources"
 	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	awserrors "github.com/aws/karpenter/pkg/errors"
@@ -42,8 +43,6 @@ import (
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/scheduling"
-	"github.com/aws/karpenter-core/pkg/utils/functional"
-	"github.com/aws/karpenter-core/pkg/utils/resources"
 )
 
 var (
@@ -97,19 +96,19 @@ func (p *InstanceProvider) Create(ctx context.Context, provider *v1alpha1.AWS, n
 	); err != nil {
 		return nil, fmt.Errorf("retrieving node name for instance %s, %w", aws.StringValue(instance.InstanceId), err)
 	}
-	logging.FromContext(ctx).Infof("Launched instance: %s, hostname: %s, type: %s, zone: %s, capacityType: %s",
-		aws.StringValue(instance.InstanceId),
-		aws.StringValue(instance.PrivateDnsName),
-		aws.StringValue(instance.InstanceType),
-		aws.StringValue(instance.Placement.AvailabilityZone),
-		getCapacityType(instance),
-	)
+	logging.FromContext(ctx).With(
+		"launched-instance", aws.StringValue(instance.InstanceId),
+		"hostname", aws.StringValue(instance.PrivateDnsName),
+		"type", aws.StringValue(instance.InstanceType),
+		"zone", aws.StringValue(instance.Placement.AvailabilityZone),
+		"capacity-type", getCapacityType(instance)).Infof("launched new instance")
 
 	// Convert Instance to Node
-	return p.instanceToNode(ctx, instance, nodeRequest.InstanceTypeOptions), nil
+	return p.instanceToNode(instance, nodeRequest.InstanceTypeOptions), nil
 }
 
 func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("node", node.Name))
 	id, err := utils.ParseInstanceID(node)
 	if err != nil {
 		return fmt.Errorf("getting instance ID for node %s, %w", node.Name, err)
@@ -122,7 +121,7 @@ func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
 		}
 		if _, errMsg := p.getInstance(ctx, aws.StringValue(id)); err != nil {
 			if awserrors.IsInstanceTerminated(errMsg) || awserrors.IsNotFound(errMsg) {
-				logging.FromContext(ctx).Debugf("Instance already terminated, %s", node.Name)
+				logging.FromContext(ctx).Debugf("instance already terminated")
 				return nil
 			}
 			err = multierr.Append(err, errMsg)
@@ -133,6 +132,8 @@ func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
 	return nil
 }
 
+// can remove cyclo ignore after China launch price-capacity-optimized
+// nolint: gocyclo
 func (p *InstanceProvider) launchInstance(ctx context.Context, provider *v1alpha1.AWS, nodeRequest *cloudprovider.NodeRequest) (*string, error) {
 	capacityType := p.getCapacityType(nodeRequest)
 	// Get Launch Template Configs, which may differ due to GPU or Architecture requirements
@@ -159,7 +160,9 @@ func (p *InstanceProvider) launchInstance(ctx context.Context, provider *v1alpha
 			{ResourceType: aws.String(ec2.ResourceTypeFleet), Tags: tags},
 		},
 	}
-	if capacityType == v1alpha5.CapacityTypeSpot {
+	if capacityType == v1alpha5.CapacityTypeSpot && strings.HasPrefix(p.instanceTypeProvider.region, "cn-") {
+		createFleetInput.SpotOptions = &ec2.SpotOptionsRequest{AllocationStrategy: aws.String(ec2.AllocationStrategyCapacityOptimizedPrioritized)}
+	} else if capacityType == v1alpha5.CapacityTypeSpot {
 		createFleetInput.SpotOptions = &ec2.SpotOptionsRequest{AllocationStrategy: aws.String(ec2.AllocationStrategyPriceCapacityOptimized)}
 	} else {
 		createFleetInput.OnDemandOptions = &ec2.OnDemandOptionsRequest{AllocationStrategy: aws.String(ec2.FleetOnDemandAllocationStrategyLowestPrice)}
@@ -169,7 +172,7 @@ func (p *InstanceProvider) launchInstance(ctx context.Context, provider *v1alpha
 	if err != nil {
 		if awserrors.IsLaunchTemplateNotFound(err) {
 			for _, lt := range launchTemplateConfigs {
-				p.launchTemplateProvider.Invalidate(ctx, aws.StringValue(lt.LaunchTemplateSpecification.LaunchTemplateName))
+				p.launchTemplateProvider.Invalidate(ctx, aws.StringValue(lt.LaunchTemplateSpecification.LaunchTemplateName), aws.StringValue(lt.LaunchTemplateSpecification.LaunchTemplateId))
 			}
 			return nil, fmt.Errorf("creating fleet %w", err)
 		}
@@ -239,7 +242,7 @@ func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, provide
 
 // getOverrides creates and returns launch template overrides for the cross product of instanceTypeOptions and subnets (with subnets being constrained by
 // zones and the offerings in instanceTypeOptions)
-func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.InstanceType, subnets []*ec2.Subnet, zones *scheduling.Requirement, capacityType string) []*ec2.FleetLaunchTemplateOverridesRequest {
+func (p *InstanceProvider) getOverrides(instanceTypeOptions []*cloudprovider.InstanceType, subnets []*ec2.Subnet, zones *scheduling.Requirement, capacityType string) []*ec2.FleetLaunchTemplateOverridesRequest {
 	// sort subnets in ascending order of available IP addresses and populate map with most available subnet per AZ
 	zonalSubnets := map[string]*ec2.Subnet{}
 	sort.Slice(subnets, func(i, j int) bool {
@@ -257,17 +260,22 @@ func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.Inst
 	}
 	var unwrappedOfferings []offeringWithParentName
 	for _, it := range instanceTypeOptions {
-		ofs := lo.Map(cloudprovider.AvailableOfferings(it), func(of cloudprovider.Offering, _ int) offeringWithParentName {
+		ofs := lo.Map(it.Offerings.Available(), func(of cloudprovider.Offering, _ int) offeringWithParentName {
 			return offeringWithParentName{
 				Offering:               of,
-				parentInstanceTypeName: it.Name(),
+				parentInstanceTypeName: it.Name,
 			}
 		})
 		unwrappedOfferings = append(unwrappedOfferings, ofs...)
 	}
 
+	// Sort all the potential offerings by each individual offering price
+	sort.Slice(unwrappedOfferings, func(i, j int) bool {
+		return unwrappedOfferings[i].Price < unwrappedOfferings[j].Price
+	})
+
 	var overrides []*ec2.FleetLaunchTemplateOverridesRequest
-	for _, offering := range unwrappedOfferings {
+	for i, offering := range unwrappedOfferings {
 		if capacityType != offering.CapacityType {
 			continue
 		}
@@ -278,13 +286,23 @@ func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.Inst
 		if !ok {
 			continue
 		}
-		overrides = append(overrides, &ec2.FleetLaunchTemplateOverridesRequest{
+		override := &ec2.FleetLaunchTemplateOverridesRequest{
 			InstanceType: aws.String(offering.parentInstanceTypeName),
 			SubnetId:     subnet.SubnetId,
 			// This is technically redundant, but is useful if we have to parse insufficient capacity errors from
 			// CreateFleet so that we can figure out the zone rather than additional API calls to look up the subnet
 			AvailabilityZone: subnet.AvailabilityZone,
-		})
+		}
+
+		// For China regions (until price-capacity-optimized is released)
+		// Add a priority for spot requests since we are using the capacity-optimized-prioritized spot allocation strategy
+		// to reduce the likelihood of getting an excessively large instance type.
+		// instanceTypeOptions are sorted by vcpus and memory so this prioritizes smaller instance types.
+		if capacityType == v1alpha5.CapacityTypeSpot && strings.HasPrefix(p.instanceTypeProvider.region, "cn-") {
+			override.Priority = aws.Float64(float64(i))
+		}
+
+		overrides = append(overrides, override)
 	}
 	return overrides
 }
@@ -304,25 +322,18 @@ func (p *InstanceProvider) getInstance(ctx context.Context, id string) (*ec2.Ins
 	if *instance.State.Name == ec2.InstanceStateNameTerminated {
 		return nil, awserrors.InstanceTerminatedError{Err: fmt.Errorf("instance is in terminated state")}
 	}
-	if awssettings.FromContext(ctx).NodeNameConvention == awssettings.ResourceName {
-		return instance, nil
-	}
 	if len(aws.StringValue(instance.PrivateDnsName)) == 0 {
 		return nil, multierr.Append(err, fmt.Errorf("got instance %s but PrivateDnsName was not set", aws.StringValue(instance.InstanceId)))
 	}
 	return instance, nil
 }
 
-func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Instance, instanceTypes []cloudprovider.InstanceType) *v1.Node {
+func (p *InstanceProvider) instanceToNode(instance *ec2.Instance, instanceTypes []*cloudprovider.InstanceType) *v1.Node {
 	for _, instanceType := range instanceTypes {
-		if instanceType.Name() == aws.StringValue(instance.InstanceType) {
+		if instanceType.Name == aws.StringValue(instance.InstanceType) {
 			nodeName := strings.ToLower(aws.StringValue(instance.PrivateDnsName))
-			if awssettings.FromContext(ctx).NodeNameConvention == awssettings.ResourceName {
-				nodeName = aws.StringValue(instance.InstanceId)
-			}
-
 			labels := map[string]string{}
-			for key, req := range instanceType.Requirements() {
+			for key, req := range instanceType.Requirements {
 				if req.Len() == 1 {
 					labels[key] = req.Values()[0]
 				}
@@ -359,7 +370,7 @@ func (p *InstanceProvider) updateUnavailableOfferingsCache(ctx context.Context, 
 func (p *InstanceProvider) getCapacityType(nodeRequest *cloudprovider.NodeRequest) string {
 	if nodeRequest.Template.Requirements.Get(v1alpha5.LabelCapacityType).Has(v1alpha5.CapacityTypeSpot) {
 		for _, instanceType := range nodeRequest.InstanceTypeOptions {
-			for _, offering := range cloudprovider.AvailableOfferings(instanceType) {
+			for _, offering := range instanceType.Offerings.Available() {
 				if nodeRequest.Template.Requirements.Get(v1.LabelTopologyZone).Has(offering.Zone) && offering.CapacityType == v1alpha5.CapacityTypeSpot {
 					return v1alpha5.CapacityTypeSpot
 				}
@@ -372,17 +383,12 @@ func (p *InstanceProvider) getCapacityType(nodeRequest *cloudprovider.NodeReques
 // prioritizeInstanceTypes is used to eliminate less desirable instance types (like GPUs) from the list of possible instance types when
 // a set of more appropriate instance types would work. If a set of more desirable instance types is not found, then the original slice
 // of instance types are returned.
-func (p *InstanceProvider) prioritizeInstanceTypes(instanceTypes []cloudprovider.InstanceType) []cloudprovider.InstanceType {
-	var genericInstanceTypes []cloudprovider.InstanceType
+func (p *InstanceProvider) prioritizeInstanceTypes(instanceTypes []*cloudprovider.InstanceType) []*cloudprovider.InstanceType {
+	var genericInstanceTypes []*cloudprovider.InstanceType
 	for _, it := range instanceTypes {
-		it := it.(*InstanceType)
-		// allow regular instance families and prioritize all others last
-		if !functional.HasAnyPrefix(*it.InstanceType, "m", "c", "r", "a", "t", "i") {
-			continue
-		}
-		// deprioritize metal even if our opinionated filter isn't apply due to something like an instance family
+		// deprioritize metal even if our opinionated filter isn't applied due to something like an instance family
 		// requirement
-		if aws.BoolValue(it.BareMetal) {
+		if it.Requirements.Get(v1alpha1.LabelInstanceSize).Has("metal") {
 			continue
 		}
 
