@@ -15,7 +15,6 @@ limitations under the License.
 package integration_test
 
 import (
-	"fmt"
 	"os"
 	"time"
 
