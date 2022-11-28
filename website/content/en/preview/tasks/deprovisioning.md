@@ -117,7 +117,7 @@ data:
 
 ## Disabling Deprovisioning
 
-Nodes may opted out of deprovisioning using an annotation.
+Nodes can be opted out of deprovisioning using an annotation.
 
 ### Supported Annotations
 
