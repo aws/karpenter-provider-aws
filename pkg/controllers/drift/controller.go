@@ -87,15 +87,7 @@ func (d Drift) Builder(ctx context.Context, m manager.Manager) operatorcontrolle
 					logging.FromContext(ctx).Errorf("getting AWSNodeTemplates when mapping drift watch events, %s", err)
 					return requests
 				}
-				nodes := &v1.NodeList{}
-				if err := d.kubeClient.List(ctx, nodes, client.MatchingLabels(map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name})); err != nil {
-					logging.FromContext(ctx).Errorf("listing nodes when mapping drift watch events, %s", err)
-					return requests
-				}
-				for _, node := range nodes.Items {
-					requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Name: node.Name}})
-				}
-				return requests
+				return getReconcileRequest(ctx, provisioner, d.kubeClient)
 			})).
 		WithOptions(controller.Options{MaxConcurrentReconciles: 10})
 
@@ -117,18 +109,24 @@ func (d Drift) Builder(ctx context.Context, m manager.Manager) operatorcontrolle
 				return requests
 			}
 			for _, provisioner := range provisioners.Items {
-				nodes := &v1.NodeList{}
-				if err := d.kubeClient.List(ctx, nodes, client.MatchingLabels(map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name})); err != nil {
-					logging.FromContext(ctx).Errorf("listing nodes when mapping drift watch events, %s", err)
-					return requests
-				}
-				for _, node := range nodes.Items {
-					requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Name: node.Name}})
-				}
+				return getReconcileRequest(ctx, &provisioner, d.kubeClient)
 			}
 			return requests
 		}),
 	))
+}
+
+func getReconcileRequest(ctx context.Context, provisioner *v1alpha5.Provisioner, kubeClient client.Client) (requests []reconcile.Request){
+	nodes := &v1.NodeList{}
+	if err := kubeClient.List(ctx, nodes, client.MatchingLabels(map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name})); err != nil {
+		logging.FromContext(ctx).Errorf("listing nodes when mapping drift watch events, %s", err)
+		return requests
+	}
+	for _, node := range nodes.Items {
+		requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Name: node.Name}})
+	}
+
+	return requests
 }
 
 func (d Drift) LivenessProbe(_ *http.Request) error {
