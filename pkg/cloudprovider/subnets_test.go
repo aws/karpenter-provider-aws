@@ -33,7 +33,7 @@ import (
 var _ = Describe("Subnets", func() {
 	It("should default to the cluster's subnets", func() {
 		ExpectApplied(ctx, env.Client, test.Provisioner(coretest.ProvisionerOptions{Provider: provider}))
-		pod := ExpectProvisioned(ctx, env.Client, recorder, controller, prov, coretest.UnschedulablePod(
+		pod := ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, coretest.UnschedulablePod(
 			coretest.PodOptions{NodeSelector: map[string]string{v1.LabelArchStable: v1alpha5.ArchitectureAmd64}}))[0]
 		ExpectScheduled(ctx, env.Client, pod)
 		Expect(fakeEC2API.CalledWithCreateFleetInput.Len()).To(Equal(1))
@@ -63,7 +63,7 @@ var _ = Describe("Subnets", func() {
 				Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
 		}})
 		ExpectApplied(ctx, env.Client, test.Provisioner(coretest.ProvisionerOptions{Provider: provider}))
-		pod := ExpectProvisioned(ctx, env.Client, recorder, controller, prov, coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}}))[0]
+		pod := ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}}))[0]
 		ExpectScheduled(ctx, env.Client, pod)
 		createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop()
 		Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-2"))
@@ -77,7 +77,7 @@ var _ = Describe("Subnets", func() {
 		}})
 		provider.SubnetSelector = map[string]string{"Name": "test-subnet-1"}
 		ExpectApplied(ctx, env.Client, test.Provisioner(coretest.ProvisionerOptions{Provider: provider}))
-		podSubnet1 := ExpectProvisioned(ctx, env.Client, recorder, controller, prov, coretest.UnschedulablePod())[0]
+		podSubnet1 := ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
 		ExpectScheduled(ctx, env.Client, podSubnet1)
 		createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop()
 		Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-1"))
@@ -87,7 +87,7 @@ var _ = Describe("Subnets", func() {
 			SecurityGroupSelector: map[string]string{"*": "*"},
 		}})
 		ExpectApplied(ctx, env.Client, provisioner)
-		podSubnet2 := ExpectProvisioned(ctx, env.Client, recorder, controller, prov, coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name}}))[0]
+		podSubnet2 := ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name}}))[0]
 		ExpectScheduled(ctx, env.Client, podSubnet2)
 		createFleetInput = fakeEC2API.CalledWithCreateFleetInput.Pop()
 		Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-2"))
@@ -95,7 +95,7 @@ var _ = Describe("Subnets", func() {
 	It("should discover subnet by ID", func() {
 		provider.SubnetSelector = map[string]string{"aws-ids": "subnet-test1"}
 		ExpectApplied(ctx, env.Client, test.Provisioner(coretest.ProvisionerOptions{Provider: provider}))
-		pod := ExpectProvisioned(ctx, env.Client, recorder, controller, prov, coretest.UnschedulablePod())[0]
+		pod := ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
 		ExpectScheduled(ctx, env.Client, pod)
 		createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop()
 		Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("subnet-test1"))
@@ -103,7 +103,7 @@ var _ = Describe("Subnets", func() {
 	It("should discover subnets by IDs", func() {
 		provider.SubnetSelector = map[string]string{"aws-ids": "subnet-test1,subnet-test2"}
 		ExpectApplied(ctx, env.Client, test.Provisioner(coretest.ProvisionerOptions{Provider: provider}))
-		pod := ExpectProvisioned(ctx, env.Client, recorder, controller, prov, coretest.UnschedulablePod())[0]
+		pod := ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
 		ExpectScheduled(ctx, env.Client, pod)
 		createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop()
 		Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf(
@@ -114,7 +114,7 @@ var _ = Describe("Subnets", func() {
 	It("should discover subnets by IDs and tags", func() {
 		provider.SubnetSelector = map[string]string{"aws-ids": "subnet-test1,subnet-test2", "foo": "bar"}
 		ExpectApplied(ctx, env.Client, test.Provisioner(coretest.ProvisionerOptions{Provider: provider}))
-		pod := ExpectProvisioned(ctx, env.Client, recorder, controller, prov, coretest.UnschedulablePod())[0]
+		pod := ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
 		ExpectScheduled(ctx, env.Client, pod)
 		createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop()
 		Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf(
@@ -125,7 +125,7 @@ var _ = Describe("Subnets", func() {
 	It("should discover subnets by IDs intersected with tags", func() {
 		provider.SubnetSelector = map[string]string{"aws-ids": "subnet-test2", "foo": "bar"}
 		ExpectApplied(ctx, env.Client, test.Provisioner(coretest.ProvisionerOptions{Provider: provider}))
-		pod := ExpectProvisioned(ctx, env.Client, recorder, controller, prov, coretest.UnschedulablePod())[0]
+		pod := ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
 		ExpectScheduled(ctx, env.Client, pod)
 		createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop()
 		Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf(

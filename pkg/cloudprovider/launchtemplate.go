@@ -97,12 +97,12 @@ func launchTemplateName(options *amifamily.LaunchTemplate) string {
 	return fmt.Sprintf(launchTemplateNameFormat, options.ClusterName, fmt.Sprint(hash))
 }
 
-func (p *LaunchTemplateProvider) Get(ctx context.Context, provider *v1alpha1.AWS, nodeRequest *cloudprovider.NodeRequest, additionalLabels map[string]string) (map[string][]cloudprovider.InstanceType, error) {
+func (p *LaunchTemplateProvider) Get(ctx context.Context, provider *v1alpha1.AWS, nodeRequest *cloudprovider.NodeRequest, additionalLabels map[string]string) (map[string][]*cloudprovider.InstanceType, error) {
 	p.Lock()
 	defer p.Unlock()
 	// If Launch Template is directly specified then just use it
 	if provider.LaunchTemplateName != nil {
-		return map[string][]cloudprovider.InstanceType{ptr.StringValue(provider.LaunchTemplateName): nodeRequest.InstanceTypeOptions}, nil
+		return map[string][]*cloudprovider.InstanceType{ptr.StringValue(provider.LaunchTemplateName): nodeRequest.InstanceTypeOptions}, nil
 	}
 	options, err := p.createAmiOptions(ctx, provider, lo.Assign(nodeRequest.Template.Labels, additionalLabels))
 	if err != nil {
@@ -112,7 +112,7 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, provider *v1alpha1.AWS
 	if err != nil {
 		return nil, err
 	}
-	launchTemplates := map[string][]cloudprovider.InstanceType{}
+	launchTemplates := map[string][]*cloudprovider.InstanceType{}
 	for _, resolvedLaunchTemplate := range resolvedLaunchTemplates {
 		// Ensure the launch template exists, or create it
 		ec2LaunchTemplate, err := p.ensureLaunchTemplate(ctx, resolvedLaunchTemplate)
@@ -124,7 +124,7 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, provider *v1alpha1.AWS
 	return launchTemplates, nil
 }
 
-func (p *LaunchTemplateProvider) GetAmisForProvider(ctx context.Context, provider *v1alpha1.AWS, providerRef *v1alpha5.ProviderRef, instanceTypes []cloudprovider.InstanceType) ([]string, error) {
+func (p *LaunchTemplateProvider) GetAmisForProvider(ctx context.Context, provider *v1alpha1.AWS, providerRef *v1alpha5.ProviderRef, instanceTypes []*cloudprovider.InstanceType) ([]string, error) {
 	if provider.LaunchTemplateName != nil {
 		return nil, fmt.Errorf("using a custom Launch Template which is deprecated")
 	}

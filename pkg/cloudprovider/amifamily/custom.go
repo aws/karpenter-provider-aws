@@ -30,7 +30,7 @@ type Custom struct {
 }
 
 // UserData returns the default userdata script for the AMI Family
-func (c Custom) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []v1.Taint, labels map[string]string, caBundle *string, _ []cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper {
+func (c Custom) UserData(_ *v1alpha5.KubeletConfiguration, _ []v1.Taint, _ map[string]string, _ *string, _ []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper {
 	return bootstrap.Custom{
 		Options: bootstrap.Options{
 			CustomUserData: customUserData,
@@ -38,7 +38,7 @@ func (c Custom) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []
 	}
 }
 
-func (c Custom) SSMAlias(version string, instanceType cloudprovider.InstanceType) string {
+func (c Custom) SSMAlias(_ string, _ *cloudprovider.InstanceType) string {
 	return "/unknown"
 }
 
