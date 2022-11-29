@@ -160,7 +160,7 @@ var _ = Describe("Extended Resources", func() {
 		env.ExpectCreatedNodeCount("==", 1)
 		env.EventuallyExpectCreatedNodesInitialized()
 	})
-  	It("should provision nodes for a deployment that requests amd.com/gpu", func() {
+	It("should provision nodes for a deployment that requests amd.com/gpu", func() {
 		ExpectAMDDevicePluginCreated()
 
 		content, err := os.ReadFile("testdata/amd_driver_input.sh")
@@ -205,7 +205,7 @@ var _ = Describe("Extended Resources", func() {
 		env.ExpectCreatedNodeCount("==", 1)
 		env.EventuallyExpectCreatedNodesInitialized()
 	})
-  	// Need to subscribe to the AMI to run the test succesfully
+	// Need to subscribe to the AMI to run the test succesfully
 	// https://aws.amazon.com/marketplace/pp/prodview-st5jc2rk3phr2?sr=0-2&ref_=beagle&applicationId=AWSMPContessa
 	It("should provision nodes for a deployment that requests habana.ai/gaudi", func() {
 		ExpectHabanaDevicePluginCreated()
