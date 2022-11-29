@@ -78,9 +78,6 @@ func (d Drift) Builder(ctx context.Context, m manager.Manager) operatorcontrolle
 			&source.Kind{Type: &v1alpha5.Provisioner{}},
 			handler.EnqueueRequestsFromMapFunc(func(o client.Object) (requests []reconcile.Request) {
 				provisioner := o.(*v1alpha5.Provisioner)
-				if provisioner.Spec.ProviderRef == nil {
-					return requests
-				}
 				// Ensure provisioner has a defined AWSNodeTemplate
 				nodeTemplate := &v1alpha1.AWSNodeTemplate{}
 				if err := d.kubeClient.Get(ctx, types.NamespacedName{Name: provisioner.Spec.ProviderRef.Name}, nodeTemplate); err != nil {
@@ -109,7 +106,7 @@ func (d Drift) Builder(ctx context.Context, m manager.Manager) operatorcontrolle
 				return requests
 			}
 			for _, provisioner := range provisioners.Items {
-				return getReconcileRequest(ctx, &provisioner, d.kubeClient)
+				requests = append(requests, getReconcileRequest(ctx, &provisioner, d.kubeClient)...)
 			}
 			return requests
 		}),
