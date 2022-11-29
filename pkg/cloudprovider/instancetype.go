@@ -138,7 +138,7 @@ func computeCapacity(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily 
 		v1alpha1.ResourceNVIDIAGPU:   *nvidiaGPUs(info),
 		v1alpha1.ResourceAMDGPU:      *amdGPUs(info),
 		v1alpha1.ResourceAWSNeuron:   *awsNeurons(info),
-		v1alpha1.ResourceHabanaGaudi: *habanaGaudis(),
+		v1alpha1.ResourceHabanaGaudi: *habanaGaudis(info),
 	}
 }
 
@@ -225,16 +225,6 @@ func habanaGaudis(info *ec2.InstanceTypeInfo) *resource.Quantity {
 		}
 	}
 	return resources.Quantity(fmt.Sprint(count))
-}
-
-func (i *InstanceType) computeOverhead(vmMemOverhead float64, kc *v1alpha5.KubeletConfiguration) v1.ResourceList {
-	srr := i.systemReservedResources(kc)
-	krr := i.kubeReservedResources(kc)
-	misc := i.miscResources(vmMemOverhead)
-	et := i.evictionThreshold(kc, misc[v1.ResourceMemory])
-	overhead := resources.Merge(srr, krr, et, misc)
-
-	return overhead
 }
 
 // The number of pods per node is calculated using the formula:
