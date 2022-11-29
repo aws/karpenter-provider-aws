@@ -40,9 +40,6 @@ import (
 var _ = Describe("Extended Resources", func() {
 	It("should provision nodes for a deployment that requests nvidia.com/gpu", func() {
 		ExpectNvidiaDevicePluginCreated()
-		DeferCleanup(func() {
-			ExpectNvidiaDevicePluginDeleted()
-		})
 
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
@@ -165,9 +162,6 @@ var _ = Describe("Extended Resources", func() {
 	})
 	It("should provision nodes for a deployment that requests amd.com/gpu", func() {
 		ExpectAMDDevicePluginCreated()
-		DeferCleanup(func() {
-			ExpectAMDDevicePluginDeleted()
-		})
 
 		content, err := os.ReadFile("testdata/amd_driver_input.sh")
 		Expect(err).ToNot(HaveOccurred())
@@ -283,15 +277,6 @@ func ExpectNvidiaDevicePluginCreated() {
 	})
 }
 
-func ExpectNvidiaDevicePluginDeleted() {
-	env.ExpectDeletedWithOffset(1, &appsv1.DaemonSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "nvidia-device-plugin-daemonset",
-			Namespace: "kube-system",
-		},
-	})
-}
-
 func ExpectAMDDevicePluginCreated() {
 	env.ExpectCreatedWithOffset(1, &appsv1.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
@@ -361,15 +346,6 @@ func ExpectAMDDevicePluginCreated() {
 					},
 				},
 			},
-		},
-	})
-}
-
-func ExpectAMDDevicePluginDeleted() {
-	env.ExpectDeletedWithOffset(1, &appsv1.DaemonSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "amdgpu-device-plugin-daemonset",
-			Namespace: "kube-system",
 		},
 	})
 }
