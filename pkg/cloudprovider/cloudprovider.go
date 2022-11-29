@@ -70,6 +70,7 @@ type CloudProvider struct {
 	instanceProvider     *InstanceProvider
 	kubeClient           k8sClient.Client
 	ec2Api               *ec2.EC2
+	amiProvider          *amifamily.AMIProvider
 }
 
 func New(ctx awscontext.Context) *CloudProvider {
@@ -85,16 +86,18 @@ func New(ctx awscontext.Context) *CloudProvider {
 	}
 	subnetProvider := NewSubnetProvider(ec2api)
 	instanceTypeProvider := NewInstanceTypeProvider(ctx, ctx.Session, ec2api, subnetProvider, ctx.UnavailableOfferingsCache, ctx.StartAsync)
+	amiProvider := amifamily.NewAmiProvider(ctx.KubeClient, ssm.New(ctx.Session), ec2api, cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval), cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval), ctx.KubernetesInterface)
+	amiResolver := amifamily.New(ctx.KubeClient, amiProvider)
 	return &CloudProvider{
 		ec2Api:               ec2api,
 		kubeClient:           ctx.KubeClient,
 		instanceTypeProvider: instanceTypeProvider,
+		amiProvider:          amiProvider,
 		instanceProvider: NewInstanceProvider(ctx, ec2api, instanceTypeProvider, subnetProvider,
 			NewLaunchTemplateProvider(
 				ctx,
 				ec2api,
-				ctx.KubernetesInterface,
-				amifamily.New(ctx.KubeClient, ssm.New(ctx.Session), ec2api, cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval), cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)),
+				amiResolver,
 				NewSecurityGroupProvider(ec2api),
 				lo.Must(getCABundle(ctx.RESTConfig)),
 				ctx.StartAsync,
@@ -112,11 +115,17 @@ func (c *CloudProvider) IsNodeDrifted(ctx context.Context, provisioner *v1alpha5
 	nodeInstanceType := lo.Filter(instanceTypes, func(instType *cloudprovider.InstanceType, _ int) bool {
 		return instType.Name == node.Labels[v1.LabelInstanceTypeStable]
 	})
+	if len(nodeInstanceType) == 0 {
+		return false, fmt.Errorf("getting nodeInstanceType")
+	}
 	aws, err := c.getProvider(ctx, provisioner.Spec.Provider, provisioner.Spec.ProviderRef)
 	if err != nil {
 		return false, fmt.Errorf("getting provider, %w", err)
 	}
-	amis, err := c.instanceProvider.launchTemplateProvider.GetAMIsForProvider(ctx, aws, provisioner.Spec.ProviderRef, nodeInstanceType)
+	if aws.LaunchTemplateName != nil {
+		return false, fmt.Errorf("using a custom Launch Template which is deprecated")
+	}
+	amis, err := c.amiProvider.GetAMIsForProvider(ctx, provisioner.Spec.ProviderRef, nodeInstanceType, aws.AMIFamily)
 	if err != nil {
 		return false, fmt.Errorf("getting amis, %w", err)
 	}

@@ -69,6 +69,7 @@ var internalUnavailableOfferingsCache *cache.Cache
 var unavailableOfferingsCache *awscache.UnavailableOfferings
 var instanceTypeCache *cache.Cache
 var instanceTypeProvider *InstanceTypeProvider
+var amiProvider *amifamily.AMIProvider
 var fakeEC2API *fake.EC2API
 var fakePricingAPI *fake.PricingAPI
 var prov *provisioning.Provisioner
@@ -108,6 +109,7 @@ var _ = BeforeSuite(func() {
 	fakeEC2API = &fake.EC2API{}
 	fakePricingAPI = &fake.PricingAPI{}
 	pricingProvider = NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
+	amiProvider = amifamily.NewAmiProvider(env.Client, fake.SSMAPI{}, fakeEC2API, ssmCache, ec2Cache, env.KubernetesInterface)
 	subnetProvider := &SubnetProvider{
 		ec2api: fakeEC2API,
 		cache:  subnetCache,
@@ -128,10 +130,10 @@ var _ = BeforeSuite(func() {
 	}
 	cloudProvider = &CloudProvider{
 		instanceTypeProvider: instanceTypeProvider,
+		amiProvider:          amiProvider,
 		instanceProvider: NewInstanceProvider(ctx, fakeEC2API, instanceTypeProvider, subnetProvider, &LaunchTemplateProvider{
 			ec2api:                fakeEC2API,
-			amiFamily:             amifamily.New(env.Client, fake.SSMAPI{}, fakeEC2API, ssmCache, ec2Cache),
-			kubernetesInterface:   env.KubernetesInterface,
+			amiFamily:             amifamily.New(env.Client, amiProvider),
 			securityGroupProvider: securityGroupProvider,
 			cache:                 launchTemplateCache,
 			caBundle:              ptr.String("ca-bundle"),
@@ -240,10 +242,12 @@ var _ = Describe("Allocation", func() {
 	})
 	Context("Node Drift", func() {
 		It("should detect drift if ami gets changed", func() {
+			instanceTypes, _ := cloudProvider.GetInstanceTypes(ctx, provisioner)
 			node := coretest.Node(coretest.NodeOptions{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						v1alpha1.LabelInstanceAMIID: "ami-changed",
+						v1.LabelInstanceTypeStable:  instanceTypes[0].Name,
 					},
 				},
 			})
@@ -254,7 +258,24 @@ var _ = Describe("Allocation", func() {
 		It("should not detect drift if ami isn't changed", func() {
 			aws, _ := cloudProvider.getProvider(ctx, provisioner.Spec.Provider, provisioner.Spec.ProviderRef)
 			instanceTypes, _ := cloudProvider.GetInstanceTypes(ctx, provisioner)
-			validAmis, err := cloudProvider.instanceProvider.launchTemplateProvider.GetAMIsForProvider(ctx, aws, provisioner.Spec.ProviderRef, instanceTypes)
+			validAmis, err := amiProvider.GetAMIsForProvider(ctx, provisioner.Spec.ProviderRef, instanceTypes, aws.AMIFamily)
+			Expect(err).ToNot(HaveOccurred())
+			node := coretest.Node(coretest.NodeOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						v1alpha1.LabelInstanceAMIID: validAmis[0],
+						v1.LabelInstanceTypeStable:  instanceTypes[0].Name,
+					},
+				},
+			})
+			isDrifted, err := cloudProvider.IsNodeDrifted(ctx, provisioner, node)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(isDrifted).To(BeFalse())
+		})
+		It("should error drift if node doesn't have instance-type label", func() {
+			aws, _ := cloudProvider.getProvider(ctx, provisioner.Spec.Provider, provisioner.Spec.ProviderRef)
+			instanceTypes, _ := cloudProvider.GetInstanceTypes(ctx, provisioner)
+			validAmis, err := amiProvider.GetAMIsForProvider(ctx, provisioner.Spec.ProviderRef, instanceTypes, aws.AMIFamily)
 			Expect(err).ToNot(HaveOccurred())
 			node := coretest.Node(coretest.NodeOptions{
 				ObjectMeta: metav1.ObjectMeta{
@@ -264,7 +285,7 @@ var _ = Describe("Allocation", func() {
 				},
 			})
 			isDrifted, err := cloudProvider.IsNodeDrifted(ctx, provisioner, node)
-			Expect(err).ToNot(HaveOccurred())
+			Expect(err).To(HaveOccurred())
 			Expect(isDrifted).To(BeFalse())
 		})
 	})

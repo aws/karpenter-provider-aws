@@ -20,9 +20,6 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
-	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	core "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -33,7 +30,6 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
-	"github.com/aws/karpenter-core/pkg/utils/pretty"
 )
 
 var DefaultEBS = v1alpha1.BlockDevice{
@@ -44,7 +40,7 @@ var DefaultEBS = v1alpha1.BlockDevice{
 
 // Resolver is able to fill-in dynamic launch template parameters
 type Resolver struct {
-	AmiProvider      *AMIProvider
+	amiProvider      *AMIProvider
 	UserDataProvider *UserDataProvider
 }
 
@@ -102,18 +98,15 @@ func (d DefaultFamily) FeatureFlags() FeatureFlags {
 }
 
 // New constructs a new launch template Resolver
-func New(kubeClient client.Client, ssm ssmiface.SSMAPI, ec2api ec2iface.EC2API, ssmCache *cache.Cache, ec2Cache *cache.Cache) *Resolver {
+func New(kubeClient client.Client, amiProvider *AMIProvider) *Resolver {
 	return &Resolver{
-		AmiProvider: &AMIProvider{
-			ssm:        ssm,
-			ssmCache:   ssmCache,
-			ec2Cache:   ec2Cache,
-			kubeClient: kubeClient,
-			ec2api:     ec2api,
-			cm:         pretty.NewChangeMonitor(),
-		},
+		amiProvider:      amiProvider,
 		UserDataProvider: NewUserDataProvider(kubeClient),
 	}
+}
+
+func (r Resolver) GetKubernetesVersion(ctx context.Context) (string, error) {
+	return r.amiProvider.KubeServerVersion(ctx)
 }
 
 // Resolve generates launch templates using the static options and dynamically generates launch template parameters.
@@ -124,7 +117,7 @@ func (r Resolver) Resolve(ctx context.Context, provider *v1alpha1.AWS, nodeReque
 		return nil, err
 	}
 	amiFamily := GetAMIFamily(provider.AMIFamily, options)
-	amiIDs, err := r.AmiProvider.Get(ctx, nodeRequest.Template.ProviderRef, options, nodeRequest.InstanceTypeOptions, amiFamily)
+	amiIDs, err := r.amiProvider.Get(ctx, nodeRequest.Template.ProviderRef, options.KubernetesVersion, nodeRequest.InstanceTypeOptions, amiFamily)
 	if err != nil {
 		return nil, err
 	}

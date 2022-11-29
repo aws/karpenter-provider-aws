@@ -20,11 +20,8 @@ import (
 	"fmt"
 	"math"
 	"net"
-	"strings"
 	"sync"
 	"time"
-
-	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -33,7 +30,6 @@ import (
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/client-go/kubernetes"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 
@@ -48,15 +44,13 @@ import (
 )
 
 const (
-	launchTemplateNameFormat  = "Karpenter-%s-%s"
-	karpenterManagedTagKey    = "karpenter.k8s.aws/cluster"
-	kubernetesVersionCacheKey = "kubernetesVersion"
+	launchTemplateNameFormat = "Karpenter-%s-%s"
+	karpenterManagedTagKey   = "karpenter.k8s.aws/cluster"
 )
 
 type LaunchTemplateProvider struct {
 	sync.Mutex
 	ec2api                ec2iface.EC2API
-	kubernetesInterface   kubernetes.Interface
 	amiFamily             *amifamily.Resolver
 	securityGroupProvider *SecurityGroupProvider
 	cache                 *cache.Cache
@@ -65,10 +59,9 @@ type LaunchTemplateProvider struct {
 	kubeDNSIP             net.IP
 }
 
-func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, kubernetesInterface kubernetes.Interface, amiFamily *amifamily.Resolver, securityGroupProvider *SecurityGroupProvider, caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP) *LaunchTemplateProvider {
+func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, amiFamily *amifamily.Resolver, securityGroupProvider *SecurityGroupProvider, caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP) *LaunchTemplateProvider {
 	l := &LaunchTemplateProvider{
 		ec2api:                ec2api,
-		kubernetesInterface:   kubernetesInterface,
 		amiFamily:             amiFamily,
 		securityGroupProvider: securityGroupProvider,
 		cache:                 cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval),
@@ -124,19 +117,6 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, provider *v1alpha1.AWS
 	return launchTemplates, nil
 }
 
-func (p *LaunchTemplateProvider) GetAMIsForProvider(ctx context.Context, provider *v1alpha1.AWS, providerRef *v1alpha5.ProviderRef, instanceTypes []*cloudprovider.InstanceType) ([]string, error) {
-	if provider.LaunchTemplateName != nil {
-		return nil, fmt.Errorf("using a custom Launch Template which is deprecated")
-	}
-	options, err := p.createAmiOptions(ctx, provider, map[string]string{})
-	if err != nil {
-		return nil, err
-	}
-	amifamily := amifamily.GetAMIFamily(provider.AMIFamily, options)
-	amiIds, err := p.amiFamily.AmiProvider.Get(ctx, providerRef, options, instanceTypes, amifamily)
-	return lo.Keys(amiIds), nil
-}
-
 func (p *LaunchTemplateProvider) createAmiOptions(ctx context.Context, provider *v1alpha1.AWS, additionalLabels map[string]string) (*amifamily.Options, error) {
 	instanceProfile, err := p.getInstanceProfile(ctx, provider)
 	if err != nil {
@@ -147,7 +127,7 @@ func (p *LaunchTemplateProvider) createAmiOptions(ctx context.Context, provider 
 	if err != nil {
 		return nil, err
 	}
-	kubeServerVersion, err := p.kubeServerVersion(ctx)
+	kubeServerVersion, err := p.amiFamily.GetKubernetesVersion(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -301,9 +281,6 @@ func (p *LaunchTemplateProvider) hydrateCache(ctx context.Context) {
 
 func (p *LaunchTemplateProvider) cachedEvictedFunc(ctx context.Context) func(string, interface{}) {
 	return func(key string, lt interface{}) {
-		if key == kubernetesVersionCacheKey {
-			return
-		}
 		p.Lock()
 		defer p.Unlock()
 		if _, expiration, _ := p.cache.GetWithExpiration(key); expiration.After(time.Now()) {
@@ -327,20 +304,4 @@ func (p *LaunchTemplateProvider) getInstanceProfile(ctx context.Context, provide
 		return "", errors.New("neither spec.provider.instanceProfile nor --aws-default-instance-profile is specified")
 	}
 	return defaultProfile, nil
-}
-
-func (p *LaunchTemplateProvider) kubeServerVersion(ctx context.Context) (string, error) {
-	if version, ok := p.cache.Get(kubernetesVersionCacheKey); ok {
-		return version.(string), nil
-	}
-	serverVersion, err := p.kubernetesInterface.Discovery().ServerVersion()
-	if err != nil {
-		return "", err
-	}
-	version := fmt.Sprintf("%s.%s", serverVersion.Major, strings.TrimSuffix(serverVersion.Minor, "+"))
-	p.cache.SetDefault(kubernetesVersionCacheKey, version)
-	if p.cm.HasChanged("kubernete-version", version) {
-		logging.FromContext(ctx).With("kubernete-version", version).Debugf("discovered kubernetes version")
-	}
-	return version, nil
 }

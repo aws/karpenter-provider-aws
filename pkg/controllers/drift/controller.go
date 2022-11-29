@@ -113,7 +113,7 @@ func (d Drift) Builder(ctx context.Context, m manager.Manager) operatorcontrolle
 	))
 }
 
-func getReconcileRequest(ctx context.Context, provisioner *v1alpha5.Provisioner, kubeClient client.Client) (requests []reconcile.Request){
+func getReconcileRequest(ctx context.Context, provisioner *v1alpha5.Provisioner, kubeClient client.Client) (requests []reconcile.Request) {
 	nodes := &v1.NodeList{}
 	if err := kubeClient.List(ctx, nodes, client.MatchingLabels(map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name})); err != nil {
 		logging.FromContext(ctx).Errorf("listing nodes when mapping drift watch events, %s", err)
