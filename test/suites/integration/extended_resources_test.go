@@ -169,7 +169,7 @@ var _ = Describe("Extended Resources", func() {
 			ExpectAMDDevicePluginDeleted()
 		})
 
-		content, err := os.ReadFile("testdata/amd_driver_input.golden")
+		content, err := os.ReadFile("testdata/amd_driver_input.txt")
 		Expect(err).ToNot(HaveOccurred())
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
