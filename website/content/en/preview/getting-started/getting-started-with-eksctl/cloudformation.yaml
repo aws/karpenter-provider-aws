@@ -73,13 +73,6 @@ Resources:
             Action:
               - iam:PassRole
             Resource: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/KarpenterNodeRole-${ClusterName}"
-          -  Effect: Allow
-             Action:
-              - s3:s3:Get*
-              - s3:List*
-              - s3-object-lambda:Get*
-              - s3-object-lambda:List*
-             Resource: "*"
   KarpenterInterruptionQueue:
     Type: AWS::SQS::Queue
     Properties:
