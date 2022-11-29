@@ -34,6 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 
+	"github.com/aws/karpenter-core/pkg/utils/resources"
 	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	awserrors "github.com/aws/karpenter/pkg/errors"
@@ -42,7 +43,6 @@ import (
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/scheduling"
-	"github.com/aws/karpenter-core/pkg/utils/resources"
 )
 
 var (
@@ -242,7 +242,7 @@ func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, provide
 
 // getOverrides creates and returns launch template overrides for the cross product of instanceTypeOptions and subnets (with subnets being constrained by
 // zones and the offerings in instanceTypeOptions)
-func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.InstanceType, subnets []*ec2.Subnet, zones *scheduling.Requirement, capacityType string) []*ec2.FleetLaunchTemplateOverridesRequest {
+func (p *InstanceProvider) getOverrides(instanceTypeOptions []*cloudprovider.InstanceType, subnets []*ec2.Subnet, zones *scheduling.Requirement, capacityType string) []*ec2.FleetLaunchTemplateOverridesRequest {
 	// sort subnets in ascending order of available IP addresses and populate map with most available subnet per AZ
 	zonalSubnets := map[string]*ec2.Subnet{}
 	sort.Slice(subnets, func(i, j int) bool {
@@ -260,10 +260,10 @@ func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.Inst
 	}
 	var unwrappedOfferings []offeringWithParentName
 	for _, it := range instanceTypeOptions {
-		ofs := lo.Map(cloudprovider.AvailableOfferings(it), func(of cloudprovider.Offering, _ int) offeringWithParentName {
+		ofs := lo.Map(it.Offerings.Available(), func(of cloudprovider.Offering, _ int) offeringWithParentName {
 			return offeringWithParentName{
 				Offering:               of,
-				parentInstanceTypeName: it.Name(),
+				parentInstanceTypeName: it.Name,
 			}
 		})
 		unwrappedOfferings = append(unwrappedOfferings, ofs...)
@@ -328,12 +328,12 @@ func (p *InstanceProvider) getInstance(ctx context.Context, id string) (*ec2.Ins
 	return instance, nil
 }
 
-func (p *InstanceProvider) instanceToNode(instance *ec2.Instance, instanceTypes []cloudprovider.InstanceType) *v1.Node {
+func (p *InstanceProvider) instanceToNode(instance *ec2.Instance, instanceTypes []*cloudprovider.InstanceType) *v1.Node {
 	for _, instanceType := range instanceTypes {
-		if instanceType.Name() == aws.StringValue(instance.InstanceType) {
+		if instanceType.Name == aws.StringValue(instance.InstanceType) {
 			nodeName := strings.ToLower(aws.StringValue(instance.PrivateDnsName))
 			labels := map[string]string{}
-			for key, req := range instanceType.Requirements() {
+			for key, req := range instanceType.Requirements {
 				if req.Len() == 1 {
 					labels[key] = req.Values()[0]
 				}
@@ -370,7 +370,7 @@ func (p *InstanceProvider) updateUnavailableOfferingsCache(ctx context.Context, 
 func (p *InstanceProvider) getCapacityType(nodeRequest *cloudprovider.NodeRequest) string {
 	if nodeRequest.Template.Requirements.Get(v1alpha5.LabelCapacityType).Has(v1alpha5.CapacityTypeSpot) {
 		for _, instanceType := range nodeRequest.InstanceTypeOptions {
-			for _, offering := range cloudprovider.AvailableOfferings(instanceType) {
+			for _, offering := range instanceType.Offerings.Available() {
 				if nodeRequest.Template.Requirements.Get(v1.LabelTopologyZone).Has(offering.Zone) && offering.CapacityType == v1alpha5.CapacityTypeSpot {
 					return v1alpha5.CapacityTypeSpot
 				}
@@ -383,19 +383,17 @@ func (p *InstanceProvider) getCapacityType(nodeRequest *cloudprovider.NodeReques
 // prioritizeInstanceTypes is used to eliminate less desirable instance types (like GPUs) from the list of possible instance types when
 // a set of more appropriate instance types would work. If a set of more desirable instance types is not found, then the original slice
 // of instance types are returned.
-func (p *InstanceProvider) prioritizeInstanceTypes(instanceTypes []cloudprovider.InstanceType) []cloudprovider.InstanceType {
-	var genericInstanceTypes []cloudprovider.InstanceType
+func (p *InstanceProvider) prioritizeInstanceTypes(instanceTypes []*cloudprovider.InstanceType) []*cloudprovider.InstanceType {
+	var genericInstanceTypes []*cloudprovider.InstanceType
 	for _, it := range instanceTypes {
 		// deprioritize metal even if our opinionated filter isn't applied due to something like an instance family
 		// requirement
-		if it.Requirements().Get(v1alpha1.LabelInstanceSize).Has("metal") {
+		if it.Requirements.Get(v1alpha1.LabelInstanceSize).Has("metal") {
 			continue
 		}
-
-		itRes := it.Resources()
-		if !resources.IsZero(itRes[v1alpha1.ResourceAWSNeuron]) ||
-			!resources.IsZero(itRes[v1alpha1.ResourceAMDGPU]) ||
-			!resources.IsZero(itRes[v1alpha1.ResourceNVIDIAGPU]) {
+		if !resources.IsZero(it.Capacity[v1alpha1.ResourceAWSNeuron]) ||
+			!resources.IsZero(it.Capacity[v1alpha1.ResourceAMDGPU]) ||
+			!resources.IsZero(it.Capacity[v1alpha1.ResourceNVIDIAGPU]) {
 			continue
 		}
 		genericInstanceTypes = append(genericInstanceTypes, it)

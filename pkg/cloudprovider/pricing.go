@@ -59,7 +59,7 @@ type PricingProvider struct {
 
 // zonalPricing is used to capture the per-zone price
 // for spot data as well as the default price
-// based on on-demand price when the controller first
+// based on on-demand price when the provisioningController first
 // comes up
 type zonalPricing struct {
 	defaultPrice float64 // Used until we get the spot pricing data
