@@ -391,12 +391,10 @@ func (p *InstanceProvider) prioritizeInstanceTypes(instanceTypes []*cloudprovide
 		if it.Requirements.Get(v1alpha1.LabelInstanceSize).Has("metal") {
 			continue
 		}
-
-		itRes := it.Resources()
-		if !resources.IsZero(itRes[v1alpha1.ResourceAWSNeuron]) ||
-			!resources.IsZero(itRes[v1alpha1.ResourceAMDGPU]) ||
-			!resources.IsZero(itRes[v1alpha1.ResourceNVIDIAGPU]) ||
-			!resources.IsZero(itRes[v1alpha1.ResourceHabanaGaudi]) {
+		if !resources.IsZero(it.Capacity[v1alpha1.ResourceAWSNeuron]) ||
+			!resources.IsZero(it.Capacity[v1alpha1.ResourceAMDGPU]) ||
+			!resources.IsZero(it.Capacity[v1alpha1.ResourceNVIDIAGPU]) ||
+			!resources.IsZero(it.Capacity[v1alpha1.ResourceHabanaGaudi]) {
 			continue
 		}
 		genericInstanceTypes = append(genericInstanceTypes, it)

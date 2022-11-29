@@ -158,6 +158,59 @@ var _ = Describe("Extended Resources", func() {
 		env.ExpectCreatedNodeCount("==", 1)
 		env.EventuallyExpectCreatedNodesInitialized()
 	})
+	// Need to subscribe to the AMI to run the test succesfully
+	// https://aws.amazon.com/marketplace/pp/prodview-st5jc2rk3phr2?sr=0-2&ref_=beagle&applicationId=AWSMPContessa
+	It("should provision nodes for a deployment that requests habana.ai/gaudi", func() {
+		ExpectHabanaDevicePluginCreated()
+		DeferCleanup(func() {
+			ExpectHabanaDevicePluginDeleted()
+		})
+
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+			AWS: v1alpha1.AWS{
+				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			},
+			AMISelector: map[string]string{"aws-ids": "ami-0fae925f94979981f"},
+		})
+		provisioner := test.Provisioner(test.ProvisionerOptions{
+			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
+			Requirements: []v1.NodeSelectorRequirement{
+				{
+					Key:      v1alpha5.LabelCapacityType,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{v1alpha5.CapacityTypeOnDemand},
+				},
+				{
+					Key:      v1alpha1.LabelInstanceCategory,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{"c", "m", "r", "p", "g", "dl"},
+				},
+			},
+		})
+		numPods := 1
+		dep := test.Deployment(test.DeploymentOptions{
+			Replicas: int32(numPods),
+			PodOptions: test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "large-app"},
+				},
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{
+						"habana.ai/gaudi": resource.MustParse("1"),
+					},
+					Limits: v1.ResourceList{
+						"habana.ai/gaudi": resource.MustParse("1"),
+					},
+				},
+			},
+		})
+		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
+		env.ExpectCreated(provisioner, provider, dep)
+		env.EventuallyExpectHealthyPodCount(selector, numPods)
+		env.ExpectCreatedNodeCount("==", 1)
+		env.EventuallyExpectCreatedNodesInitialized()
+	})
 })
 
 func ExpectNvidiaDevicePluginCreated() {
@@ -235,6 +288,91 @@ func ExpectNvidiaDevicePluginDeleted() {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "nvidia-device-plugin-daemonset",
 			Namespace: "kube-system",
+		},
+	})
+}
+
+func ExpectHabanaDevicePluginCreated() {
+	env.ExpectCreatedWithOffset(1, &v1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "habana-system",
+		},
+	})
+
+	env.ExpectCreatedWithOffset(1, &appsv1.DaemonSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "habanalabs-device-plugin-daemonset",
+			Namespace: "habana-system",
+		},
+		Spec: appsv1.DaemonSetSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"name": "habanalabs-device-plugin-ds",
+				},
+			},
+			UpdateStrategy: appsv1.DaemonSetUpdateStrategy{
+				Type: appsv1.RollingUpdateDaemonSetStrategyType,
+			},
+			Template: v1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"scheduler.alpha.kubernetes.io/critical-pod": "",
+					},
+					Labels: map[string]string{
+						"name": "habanalabs-device-plugin-ds",
+					},
+				},
+				Spec: v1.PodSpec{
+					Tolerations: []v1.Toleration{
+						{
+							Key:      "habana.ai/gaudi",
+							Operator: v1.TolerationOpExists,
+							Effect:   v1.TaintEffectNoSchedule,
+						},
+					},
+					PriorityClassName: "system-node-critical",
+					Containers: []v1.Container{
+						{
+							Name:  "habanalabs-device-plugin-ctr",
+							Image: "vault.habana.ai/docker-k8s-device-plugin/docker-k8s-device-plugin:latest",
+							SecurityContext: &v1.SecurityContext{
+								Privileged: lo.ToPtr(true),
+							},
+							VolumeMounts: []v1.VolumeMount{
+								{
+									Name:      "device-plugin",
+									MountPath: "/var/lib/kubelet/device-plugins",
+								},
+							},
+						},
+					},
+					Volumes: []v1.Volume{
+						{
+							Name: "device-plugin",
+							VolumeSource: v1.VolumeSource{
+								HostPath: &v1.HostPathVolumeSource{
+									Path: "/var/lib/kubelet/device-plugins",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	})
+}
+
+func ExpectHabanaDevicePluginDeleted() {
+	env.ExpectDeletedWithOffset(1, &appsv1.DaemonSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "habanalabs-device-plugin-daemonset",
+			Namespace: "habana-system",
+		},
+	})
+
+	env.ExpectDeletedWithOffset(1, &v1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "habana-system",
 		},
 	})
 }

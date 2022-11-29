@@ -130,15 +130,15 @@ func computeCapacity(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily 
 	blockDeviceMappings []*v1alpha1.BlockDeviceMapping, kc *v1alpha5.KubeletConfiguration) v1.ResourceList {
 
 	return v1.ResourceList{
-		v1.ResourceCPU:               *i.cpu(),
-		v1.ResourceMemory:            *i.memory(),
-		v1.ResourceEphemeralStorage:  *i.ephemeralStorage(),
-		v1.ResourcePods:              *i.pods(),
-		v1alpha1.ResourceAWSPodENI:   *i.awsPodENI(enablePodENI),
-		v1alpha1.ResourceNVIDIAGPU:   *i.nvidiaGPUs(),
-		v1alpha1.ResourceAMDGPU:      *i.amdGPUs(),
-		v1alpha1.ResourceAWSNeuron:   *i.awsNeurons(),
-		v1alpha1.ResourceHabanaGaudi: *i.habanaGaudis(),
+		v1.ResourceCPU:               *cpu(info),
+		v1.ResourceMemory:            *memory(ctx, info),
+		v1.ResourceEphemeralStorage:  *ephemeralStorage(amiFamily, blockDeviceMappings),
+		v1.ResourcePods:              *pods(ctx, info, amiFamily, kc),
+		v1alpha1.ResourceAWSPodENI:   *awsPodENI(ctx, aws.StringValue(info.InstanceType)),
+		v1alpha1.ResourceNVIDIAGPU:   *nvidiaGPUs(info),
+		v1alpha1.ResourceAMDGPU:      *amdGPUs(info),
+		v1alpha1.ResourceAWSNeuron:   *awsNeurons(info),
+		v1alpha1.ResourceHabanaGaudi: *habanaGaudis(info),
 	}
 }
 
@@ -215,26 +215,16 @@ func awsNeurons(info *ec2.InstanceTypeInfo) *resource.Quantity {
 	return resources.Quantity(fmt.Sprint(count))
 }
 
-func (i *InstanceType) habanaGaudis() *resource.Quantity {
+func habanaGaudis(info *ec2.InstanceTypeInfo) *resource.Quantity {
 	count := int64(0)
-	if i.GpuInfo != nil {
-		for _, gpu := range i.GpuInfo.Gpus {
+	if info.GpuInfo != nil {
+		for _, gpu := range info.GpuInfo.Gpus {
 			if *gpu.Manufacturer == "Habana" {
 				count += *gpu.Count
 			}
 		}
 	}
 	return resources.Quantity(fmt.Sprint(count))
-}
-
-func (i *InstanceType) computeOverhead(vmMemOverhead float64, kc *v1alpha5.KubeletConfiguration) v1.ResourceList {
-	srr := i.systemReservedResources(kc)
-	krr := i.kubeReservedResources(kc)
-	misc := i.miscResources(vmMemOverhead)
-	et := i.evictionThreshold(kc, misc[v1.ResourceMemory])
-	overhead := resources.Merge(srr, krr, et, misc)
-
-	return overhead
 }
 
 // The number of pods per node is calculated using the formula:
