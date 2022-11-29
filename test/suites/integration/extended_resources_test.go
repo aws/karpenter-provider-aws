@@ -209,9 +209,6 @@ var _ = Describe("Extended Resources", func() {
 	// https://aws.amazon.com/marketplace/pp/prodview-st5jc2rk3phr2?sr=0-2&ref_=beagle&applicationId=AWSMPContessa
 	It("should provision nodes for a deployment that requests habana.ai/gaudi", func() {
 		ExpectHabanaDevicePluginCreated()
-		DeferCleanup(func() {
-			ExpectHabanaDevicePluginDeleted()
-		})
 
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 			AWS: v1alpha1.AWS{
