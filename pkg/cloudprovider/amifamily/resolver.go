@@ -69,10 +69,14 @@ type LaunchTemplate struct {
 	InstanceTypes       []*cloudprovider.InstanceType `hash:"ignore"`
 }
 
+type SSMResolver interface {
+	SSMAlias(version string, instanceType *cloudprovider.InstanceType) string
+}
+
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters
 type AMIFamily interface {
+	SSMResolver
 	UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []core.Taint, labels map[string]string, caBundle *string, instanceTypes []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper
-	SSMAlias(version string, instanceType *cloudprovider.InstanceType) string
 	DefaultBlockDeviceMappings() []*v1alpha1.BlockDeviceMapping
 	DefaultMetadataOptions() *v1alpha1.MetadataOptions
 	EphemeralBlockDevice() *string
@@ -159,6 +163,19 @@ func GetAMIFamily(amiFamily *string, options *Options) AMIFamily {
 		return &Custom{Options: options}
 	default:
 		return &AL2{Options: options}
+	}
+}
+
+func GetSSMResolverForAMI(amiFamily *string) SSMResolver {
+	switch aws.StringValue(amiFamily) {
+		case v1alpha1.AMIFamilyBottlerocket:
+			return &Bottlerocket{}
+		case v1alpha1.AMIFamilyUbuntu:
+			return &Ubuntu{}
+		case v1alpha1.AMIFamilyCustom:
+			return &Custom{}
+		default:
+			return &AL2{}
 	}
 }
 
