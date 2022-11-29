@@ -151,7 +151,7 @@ var _ = Describe("AMI", func() {
 
 	Context("UserData", func() {
 		It("should merge UserData contents for AL2 AMIFamily", func() {
-			content, err := os.ReadFile("testdata/al2_userdata_input.golden")
+			content, err := os.ReadFile("testdata/al2_userdata_input.sh")
 			Expect(err).ToNot(HaveOccurred())
 			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
@@ -180,7 +180,7 @@ var _ = Describe("AMI", func() {
 			Expect(string(actualUserData)).To(ContainSubstring("Running custom user data script"))
 		})
 		It("should merge UserData contents for Bottlerocket AMIFamily", func() {
-			content, err := os.ReadFile("testdata/br_userdata_input.golden")
+			content, err := os.ReadFile("testdata/br_userdata_input.sh")
 			Expect(err).ToNot(HaveOccurred())
 			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
