@@ -213,7 +213,7 @@ var _ = Describe("Instance Types", func() {
 	It("should launch instances for Habana GPU resource requests", func() {
 		nodeNames := sets.NewString()
 		ExpectApplied(ctx, env.Client, provisioner)
-		for _, pod := range ExpectProvisioned(ctx, env.Client, recorder, controller, prov,
+		for _, pod := range ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov,
 			coretest.UnschedulablePod(coretest.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{
 					Requests: v1.ResourceList{v1alpha1.ResourceHabanaGaudi: resource.MustParse("1")},
@@ -774,11 +774,11 @@ var _ = Describe("Instance Types", func() {
 				},
 			}}}
 			ExpectApplied(ctx, env.Client, provisioner)
-			pod = ExpectProvisioned(ctx, env.Client, recorder, controller, prov, pod)[0]
+			pod = ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, pod)[0]
 			// it should've tried to pack them in test-zone-1a on a dl1.24xlarge then hit insufficient capacity, the next attempt will try test-zone-1b
 			ExpectNotScheduled(ctx, env.Client, pod)
 
-			pod = ExpectProvisioned(ctx, env.Client, recorder, controller, prov, pod)[0]
+			pod = ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, pod)[0]
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(SatisfyAll(
 				HaveKeyWithValue(v1.LabelInstanceTypeStable, "dl1.24xlarge"),
