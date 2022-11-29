@@ -205,7 +205,7 @@ var _ = Describe("Extended Resources", func() {
 		env.ExpectCreatedNodeCount("==", 1)
 		env.EventuallyExpectCreatedNodesInitialized()
 	})
-	// Need to subscribe to the AMI to run the test succesfully
+	// Need to subscribe to the AMI to run the test successfully
 	// https://aws.amazon.com/marketplace/pp/prodview-st5jc2rk3phr2?sr=0-2&ref_=beagle&applicationId=AWSMPContessa
 	It("should provision nodes for a deployment that requests habana.ai/gaudi", func() {
 		ExpectHabanaDevicePluginCreated()
