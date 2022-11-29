@@ -15,7 +15,12 @@ limitations under the License.
 package integration_test
 
 import (
+	"os"
+	"time"
+
+	"github.com/aws/aws-sdk-go/aws"
 	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -35,9 +40,6 @@ import (
 var _ = Describe("Extended Resources", func() {
 	It("should provision nodes for a deployment that requests nvidia.com/gpu", func() {
 		ExpectNvidiaDevicePluginCreated()
-		DeferCleanup(func() {
-			ExpectNvidiaDevicePluginDeleted()
-		})
 
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
@@ -158,7 +160,52 @@ var _ = Describe("Extended Resources", func() {
 		env.ExpectCreatedNodeCount("==", 1)
 		env.EventuallyExpectCreatedNodesInitialized()
 	})
-	// Need to subscribe to the AMI to run the test succesfully
+  It("should provision nodes for a deployment that requests amd.com/gpu", func() {
+		ExpectAMDDevicePluginCreated()
+
+		content, err := os.ReadFile("testdata/amd_driver_input.sh")
+		Expect(err).ToNot(HaveOccurred())
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+		},
+			UserData: aws.String(string(content)),
+		})
+		provisioner := test.Provisioner(test.ProvisionerOptions{
+			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
+			Requirements: []v1.NodeSelectorRequirement{
+				{
+					Key:      v1alpha1.LabelInstanceCategory,
+					Operator: v1.NodeSelectorOpExists,
+				},
+			},
+		})
+		numPods := 1
+		dep := test.Deployment(test.DeploymentOptions{
+			Replicas: int32(numPods),
+			PodOptions: test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "large-app"},
+				},
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{
+						"amd.com/gpu": resource.MustParse("1"),
+					},
+					Limits: v1.ResourceList{
+						"amd.com/gpu": resource.MustParse("1"),
+					},
+				},
+			},
+		})
+		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
+		env.ExpectCreated(provisioner, provider, dep)
+		EventuallyWithOffset(1, func(g Gomega) {
+			g.Expect(env.Monitor.RunningPodsCount(selector)).To(Equal(numPods))
+		}).WithTimeout(10 * time.Minute).Should(Succeed()) // The node needs additional time to install the AMD GPU driver
+		env.ExpectCreatedNodeCount("==", 1)
+		env.EventuallyExpectCreatedNodesInitialized()
+	})
+  // Need to subscribe to the AMI to run the test succesfully
 	// https://aws.amazon.com/marketplace/pp/prodview-st5jc2rk3phr2?sr=0-2&ref_=beagle&applicationId=AWSMPContessa
 	It("should provision nodes for a deployment that requests habana.ai/gaudi", func() {
 		ExpectHabanaDevicePluginCreated()
@@ -283,11 +330,75 @@ func ExpectNvidiaDevicePluginCreated() {
 	})
 }
 
-func ExpectNvidiaDevicePluginDeleted() {
-	env.ExpectDeletedWithOffset(1, &appsv1.DaemonSet{
+func ExpectAMDDevicePluginCreated() {
+	env.ExpectCreatedWithOffset(1, &appsv1.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "nvidia-device-plugin-daemonset",
+			Name:      "amdgpu-device-plugin-daemonset",
 			Namespace: "kube-system",
+		},
+		Spec: appsv1.DaemonSetSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"name": "amdgpu-dp-ds",
+				},
+			},
+			Template: v1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"name": "amdgpu-dp-ds",
+					},
+				},
+				Spec: v1.PodSpec{
+					PriorityClassName: "system-node-critical",
+					Tolerations: []v1.Toleration{
+						{
+							Key:      "amd.com/gpu",
+							Operator: v1.TolerationOpExists,
+							Effect:   v1.TaintEffectNoSchedule,
+						},
+					},
+					Containers: []v1.Container{
+						{
+							Name:  "amdgpu-dp-cntr",
+							Image: "rocm/k8s-device-plugin",
+							SecurityContext: &v1.SecurityContext{
+								AllowPrivilegeEscalation: lo.ToPtr(false),
+								Capabilities: &v1.Capabilities{
+									Drop: []v1.Capability{"ALL"},
+								},
+							},
+							VolumeMounts: []v1.VolumeMount{
+								{
+									Name:      "dp",
+									MountPath: "/var/lib/kubelet/device-plugins",
+								},
+								{
+									Name:      "sys",
+									MountPath: "/sys",
+								},
+							},
+						},
+					},
+					Volumes: []v1.Volume{
+						{
+							Name: "dp",
+							VolumeSource: v1.VolumeSource{
+								HostPath: &v1.HostPathVolumeSource{
+									Path: "/var/lib/kubelet/device-plugins",
+								},
+							},
+						},
+						{
+							Name: "sys",
+							VolumeSource: v1.VolumeSource{
+								HostPath: &v1.HostPathVolumeSource{
+									Path: "/sys",
+								},
+							},
+						},
+					},
+				},
+			},
 		},
 	})
 }
@@ -358,21 +469,6 @@ func ExpectHabanaDevicePluginCreated() {
 					},
 				},
 			},
-		},
-	})
-}
-
-func ExpectHabanaDevicePluginDeleted() {
-	env.ExpectDeletedWithOffset(1, &appsv1.DaemonSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "habanalabs-device-plugin-daemonset",
-			Namespace: "habana-system",
-		},
-	})
-
-	env.ExpectDeletedWithOffset(1, &v1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "habana-system",
 		},
 	})
 }
