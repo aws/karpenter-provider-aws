@@ -69,7 +69,6 @@ type CloudProvider struct {
 	instanceTypeProvider *InstanceTypeProvider
 	instanceProvider     *InstanceProvider
 	kubeClient           k8sClient.Client
-	ec2Api               *ec2.EC2
 	amiProvider          *amifamily.AMIProvider
 }
 
@@ -89,7 +88,6 @@ func New(ctx awscontext.Context) *CloudProvider {
 	amiProvider := amifamily.NewAmiProvider(ctx.KubeClient, ssm.New(ctx.Session), ec2api, cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval), cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval), ctx.KubernetesInterface)
 	amiResolver := amifamily.New(ctx.KubeClient, amiProvider)
 	return &CloudProvider{
-		ec2Api:               ec2api,
 		kubeClient:           ctx.KubeClient,
 		instanceTypeProvider: instanceTypeProvider,
 		amiProvider:          amiProvider,

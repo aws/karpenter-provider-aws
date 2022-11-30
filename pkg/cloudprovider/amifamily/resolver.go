@@ -168,14 +168,14 @@ func GetAMIFamily(amiFamily *string, options *Options) AMIFamily {
 
 func GetSSMResolverForAMI(amiFamily *string) SSMResolver {
 	switch aws.StringValue(amiFamily) {
-		case v1alpha1.AMIFamilyBottlerocket:
-			return &Bottlerocket{}
-		case v1alpha1.AMIFamilyUbuntu:
-			return &Ubuntu{}
-		case v1alpha1.AMIFamilyCustom:
-			return &Custom{}
-		default:
-			return &AL2{}
+	case v1alpha1.AMIFamilyBottlerocket:
+		return &Bottlerocket{}
+	case v1alpha1.AMIFamilyUbuntu:
+		return &Ubuntu{}
+	case v1alpha1.AMIFamilyCustom:
+		return &Custom{}
+	default:
+		return &AL2{}
 	}
 }
 

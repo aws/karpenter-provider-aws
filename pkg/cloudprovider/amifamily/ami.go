@@ -96,7 +96,6 @@ func (p *AMIProvider) KubeServerVersion(ctx context.Context) (string, error) {
 }
 
 func (p *AMIProvider) GetAMIsForProvider(ctx context.Context, providerRef *v1alpha5.ProviderRef, instanceTypes []*cloudprovider.InstanceType, amiFamily *string) ([]string, error) {
-	//p.Get is only using SSMAlias func on the family, so its safe to pass an empty object ?
 	ssmResolver := GetSSMResolverForAMI(amiFamily)
 	kubernetesVersion, err := p.KubeServerVersion(ctx)
 	if err != nil {
