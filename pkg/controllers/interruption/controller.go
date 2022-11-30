@@ -88,7 +88,7 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 	}
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("queue", settings.FromContext(ctx).InterruptionQueueName))
 	if c.cm.HasChanged(settings.FromContext(ctx).InterruptionQueueName, nil) {
-		logging.FromContext(ctx).Infof("watching interruption queue")
+		logging.FromContext(ctx).Debugf("watching interruption queue")
 	}
 	sqsMessages, err := c.sqsProvider.GetSQSMessages(ctx)
 	if err != nil {

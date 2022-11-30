@@ -27,7 +27,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/sets"
-	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"knative.dev/pkg/ptr"
 
 	"github.com/aws/karpenter/pkg/test"
@@ -35,7 +34,6 @@ import (
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 
-	"github.com/aws/karpenter-core/pkg/controllers/provisioning"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
 
 	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
@@ -144,13 +142,8 @@ var _ = Describe("Instance Types", func() {
 		}
 	})
 	It("should fail to launch AWS Pod ENI if the command line option enabling it isn't set", func() {
-		settingsStore[awssettings.ContextKey] = test.Settings(test.SettingOptions{
-			EnablePodENI: lo.ToPtr(false),
-		})
+		settingsStore[awssettings.ContextKey] = test.Settings(test.SettingOptions{EnablePodENI: lo.ToPtr(false)})
 		ctx = settingsStore.InjectSettings(ctx)
-
-		prov = provisioning.NewProvisioner(ctx, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster, coretest.SettingsStore{})
-		provisioningController = provisioning.NewController(env.Client, prov, recorder)
 		ExpectApplied(ctx, env.Client, provisioner)
 		for _, pod := range ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov,
 			coretest.UnschedulablePod(coretest.PodOptions{

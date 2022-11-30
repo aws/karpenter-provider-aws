@@ -74,7 +74,7 @@ func New(ctx awscontext.Context) *CloudProvider {
 	if err != nil {
 		logging.FromContext(ctx).Debugf("unable to detect the IP of the kube-dns service, %s", err)
 	} else {
-		logging.FromContext(ctx).With("dns-ip", kubeDNSIP).Debugf("discovered DNS IP")
+		logging.FromContext(ctx).With("kube-dns-ip", kubeDNSIP).Debugf("discovered kube dns")
 	}
 	ec2api := ec2.New(ctx.Session)
 	if err := checkEC2Connectivity(ctx, ec2api); err != nil {
