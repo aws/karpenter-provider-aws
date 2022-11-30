@@ -101,7 +101,8 @@ kind: Provisioner
 metadata:
   name: gpu
 spec:
-  ttlSecondsAfterEmpty: 60
+  consolidation:
+    enabled: true
   requirements:
   - key: node.kubernetes.io/instance-type
     operator: In
@@ -123,7 +124,8 @@ kind: Provisioner
 metadata:
   name: cilium-startup
 spec:
-  ttlSecondsAfterEmpty: 60
+  consolidation:
+    enabled: true
   startupTaints:
   - key: node.cilium.io/agent-not-ready
     value: "true"
