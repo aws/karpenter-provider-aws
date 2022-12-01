@@ -190,7 +190,7 @@ Specify AMIs explicitly by ID:
 
 ### UserData
 
-You can control the UserData that needs to be applied to your worker nodes via this field. Review the [Custom UserData documentation](../operating-systems/) to learn more.
+You can control the UserData that needs to be applied to your worker nodes via this field. Review the [Operating Systems documentation](../operating-systems/) to learn more.
 
 ### Tags
 

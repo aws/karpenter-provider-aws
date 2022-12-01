@@ -232,7 +232,7 @@ See the Karpenter [Best Practices Guide](https://aws.github.io/aws-eks-best-prac
 
 ## Missing subnetSelector and securityGroupSelector tags causes provisioning failures
 
-Starting with Karpenter v0.5.5, if you are using Karpenter-generated launch template, provisioners require that [subnetSelector]({{<ref "./tasks/provisioning/#subnetselector" >}}) and [securityGroupSelector]({{<ref "./tasks/provisioning/#securitygroupselector" >}}) tags be set to match your cluster.
+Starting with Karpenter v0.5.5, if you are using Karpenter-generated launch template, provisioners require that [subnetSelector]({{<ref "./tasks/node-templates#subnetselector" >}}) and [securityGroupSelector]({{<ref "./tasks/node-templates#securitygroupselector" >}}) tags be set to match your cluster.
 The [Provisioner]({{<ref "./getting-started/getting-started-with-eksctl/#provisioner" >}}) section in the Karpenter Getting Started Guide uses the following example:
 
 ```text
@@ -287,7 +287,7 @@ Instead using of the eksctl role, you can shorten the name to anything you like,
 
 ## Node terminates before ready on failed encrypted EBS volume
 If you are using a custom launch template and an encrypted EBS volume, the IAM principal launching the node may not have sufficient permissions to use the KMS customer managed key (CMK) for the EC2 EBS root volume.
-This issue also applies to [Block Device Mappings]({{<ref "./tasks/provisioning/#block-device-mappings" >}}) specified in the Provisioner.
+This issue also applies to [Block Device Mappings]({{<ref "./tasks/node-templates/#block-device-mappings" >}}) specified in the Provisioner.
 In either case, this results in the node terminating almost immediately upon creation.
 
 Keep in mind that it is possible that EBS Encryption can be enabled without your knowledge.

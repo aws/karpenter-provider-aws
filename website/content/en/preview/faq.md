@@ -22,7 +22,7 @@ Start with Karpenter's GitHub [cloudprovider](https://github.com/aws/karpenter/t
 By default, Karpenter uses Amazon Linux 2 images.
 
 ### Can I provide my own custom operating system images?
-Karpenter has multiple mechanisms for configuring the [operating system]({{< ref "./aws/operating-systems/" >}}) for your nodes.
+Karpenter has multiple mechanisms for configuring the [operating system]({{< ref "./tasks/operating-systems/" >}}) for your nodes.
 
 ### Can Karpenter deal with workloads for mixed architecture cluster (arm vs. amd)?
 Karpenter is flexible to multi architecture configurations using [well known labels]({{< ref "./tasks/scheduling.md">}}).
@@ -90,11 +90,11 @@ However, you can use Session Manager (SSM) or EC2 Instance Connect to gain shell
 See [Node NotReady]({{< ref "./troubleshooting/#node-notready" >}}) troubleshooting for an example of starting an SSM session from the command line or [EC2 Instance Connect](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-set-up.html) documentation to connect to nodes using SSH.
 
 Though not recommended, if you need to access Karpenter-managed nodes without AWS credentials, you can add SSH keys using AWSNodeTemplate.
-See [Custom User Data]({{< ref "./aws/operating-systems/" >}}) for details.
+See [Custom User Data]({{< ref "./tasks/operating-systems/" >}}) for details.
 
 ### Can I set total limits of CPU and memory for a provisioner?
 Yes, the setting is provider-specific.
-See examples in [Accelerators, GPU]({{< ref "./tasks/provisioning/#accelerators-gpu" >}}) Karpenter documentation.
+See examples in [Accelerators, GPU]({{< ref "./tasks/node-templates/#accelerators-gpu" >}}) Karpenter documentation.
 
 ### Can I mix spot and on-demand EC2 run types?
 Yes, see [Example Provisioner Resource]({{< ref "./provisioner/#example-provisioner-resource" >}}) for an example.
