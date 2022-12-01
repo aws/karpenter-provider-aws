@@ -94,7 +94,7 @@ See [Custom User Data]({{< ref "./aws/operating-systems/" >}}) for details.
 
 ### Can I set total limits of CPU and memory for a provisioner?
 Yes, the setting is provider-specific.
-See examples in [Accelerators, GPU]({{< ref "./aws/provisioning/#accelerators-gpu" >}}) Karpenter documentation.
+See examples in [Accelerators, GPU]({{< ref "./tasks/provisioning/#accelerators-gpu" >}}) Karpenter documentation.
 
 ### Can I mix spot and on-demand EC2 run types?
 Yes, see [Example Provisioner Resource]({{< ref "./provisioner/#example-provisioner-resource" >}}) for an example.
@@ -117,7 +117,7 @@ The EC2 fleet API attempts to provision the instance type based on an allocation
 If you are using the on-demand capacity type, then Karpenter uses the `lowest-price` allocation strategy.
 So fleet will provision the lowest priced instance type it can get from the 60 instance types Karpenter passed to the EC2 fleet API.
 If the instance type is unavailable for some reason, then fleet will move on to the next cheapest instance type.
-If you are using the spot capacity type, Karpenter uses the price-capacity-optimized allocation strategy. This tells fleet to find the instance type that EC2 has the most capacity for while also considering price. This allocation strategy will balance cost and decrease the probability of a spot interruption happening in the near term. 
+If you are using the spot capacity type, Karpenter uses the price-capacity-optimized allocation strategy. This tells fleet to find the instance type that EC2 has the most capacity for while also considering price. This allocation strategy will balance cost and decrease the probability of a spot interruption happening in the near term.
 See [Choose the appropriate allocation strategy](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-fleet-allocation-strategy.html#ec2-fleet-allocation-use-cases) for information on fleet optimization.
 
 ### What if there is no Spot capacity? Will Karpenter use On-Demand?
