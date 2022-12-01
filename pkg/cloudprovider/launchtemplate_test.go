@@ -15,7 +15,6 @@ limitations under the License.
 package cloudprovider
 
 import (
-	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -36,8 +35,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
-	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
@@ -48,7 +45,6 @@ import (
 	"github.com/aws/karpenter-core/pkg/apis/config/settings"
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/controllers/provisioning"
-	"github.com/aws/karpenter-core/pkg/operator/injection"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
 )
@@ -316,9 +312,6 @@ var _ = Describe("LaunchTemplates", func() {
 			})
 			ctx = settingsStore.InjectSettings(ctx)
 
-			prov = provisioning.NewProvisioner(injection.WithOptions(ctx, opts), env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster, settingsStore)
-			provisioningController = provisioning.NewController(env.Client, prov, recorder)
-
 			ExpectApplied(ctx, env.Client, test.Provisioner(coretest.ProvisionerOptions{Provider: provider}))
 			pod := ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
 			ExpectScheduled(ctx, env.Client, pod)
@@ -352,7 +345,6 @@ var _ = Describe("LaunchTemplates", func() {
 			})
 			ctx = settingsStore.InjectSettings(ctx)
 
-			prov = provisioning.NewProvisioner(ctx, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster, settingsStore)
 			provisioningController = provisioning.NewController(env.Client, prov, recorder)
 
 			ExpectApplied(ctx, env.Client, test.Provisioner(coretest.ProvisionerOptions{Provider: provider}))
@@ -707,10 +699,8 @@ var _ = Describe("LaunchTemplates", func() {
 	})
 	Context("User Data", func() {
 		It("should not specify --use-max-pods=false when using ENI-based pod density", func() {
-			prov = provisioning.NewProvisioner(ctx, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster, settingsStore)
-			controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
 			ExpectApplied(ctx, env.Client, test.Provisioner(coretest.ProvisionerOptions{Provider: provider}))
-			pod := ExpectProvisioned(ctx, env.Client, recorder, controllerWithOpts, prov, coretest.UnschedulablePod())[0]
+			pod := ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
@@ -718,18 +708,11 @@ var _ = Describe("LaunchTemplates", func() {
 			Expect(string(userData)).NotTo(ContainSubstring("--use-max-pods false"))
 		})
 		It("should specify --use-max-pods=false when not using ENI-based pod density", func() {
-			settingsStore = coretest.SettingsStore{
-				settings.ContextKey: test.Settings(),
-				awssettings.ContextKey: test.Settings(test.SettingOptions{
-					EnableENILimitedPodDensity: lo.ToPtr(false),
-				}),
-			}
+			settingsStore[awssettings.ContextKey] = test.Settings(test.SettingOptions{EnableENILimitedPodDensity: lo.ToPtr(false)})
 			ctx = settingsStore.InjectSettings(ctx)
 
-			prov = provisioning.NewProvisioner(ctx, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster, settingsStore)
-			controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
 			ExpectApplied(ctx, env.Client, test.Provisioner(coretest.ProvisionerOptions{Provider: provider}))
-			pod := ExpectProvisioned(ctx, env.Client, recorder, controllerWithOpts, prov, coretest.UnschedulablePod())[0]
+			pod := ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
@@ -1001,16 +984,8 @@ var _ = Describe("LaunchTemplates", func() {
 		})
 		Context("Bottlerocket", func() {
 			It("should merge in custom user data", func() {
-				settingsStore = coretest.SettingsStore{
-					settings.ContextKey: test.Settings(),
-					awssettings.ContextKey: test.Settings(test.SettingOptions{
-						EnableENILimitedPodDensity: lo.ToPtr(false),
-					}),
-				}
+				settingsStore[awssettings.ContextKey] = test.Settings(test.SettingOptions{EnableENILimitedPodDensity: lo.ToPtr(false)})
 				ctx = settingsStore.InjectSettings(ctx)
-
-				prov = provisioning.NewProvisioner(ctx, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster, settingsStore)
-				controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
 
 				provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
 				content, _ := os.ReadFile("testdata/br_userdata_input.golden")
@@ -1026,7 +1001,7 @@ var _ = Describe("LaunchTemplates", func() {
 				})
 				ExpectApplied(ctx, env.Client, newProvisioner)
 				Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(newProvisioner), newProvisioner)).To(Succeed())
-				pod := ExpectProvisioned(ctx, env.Client, recorder, controllerWithOpts, prov, coretest.UnschedulablePod(coretest.PodOptions{
+				pod := ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, coretest.UnschedulablePod(coretest.PodOptions{
 					Tolerations: []v1.Toleration{{Operator: v1.TolerationOpExists}},
 				}))[0]
 				ExpectScheduled(ctx, env.Client, pod)
@@ -1037,21 +1012,11 @@ var _ = Describe("LaunchTemplates", func() {
 				// Newlines are always added for missing TOML fields, so strip them out before comparisons.
 				actualUserData := strings.Replace(string(userData), "\n", "", -1)
 				expectedUserData := strings.Replace(fmt.Sprintf(string(content), newProvisioner.Name), "\n", "", -1)
-				logging.FromContext(context.Background()).Info(expectedUserData)
-				logging.FromContext(context.Background()).Info(actualUserData)
 				Expect(expectedUserData).To(Equal(actualUserData))
 			})
 			It("should bootstrap when custom user data is empty", func() {
-				settingsStore = coretest.SettingsStore{
-					settings.ContextKey: test.Settings(),
-					awssettings.ContextKey: test.Settings(test.SettingOptions{
-						EnableENILimitedPodDensity: lo.ToPtr(false),
-					}),
-				}
+				settingsStore[awssettings.ContextKey] = test.Settings(test.SettingOptions{EnableENILimitedPodDensity: lo.ToPtr(false)})
 				ctx = settingsStore.InjectSettings(ctx)
-
-				prov = provisioning.NewProvisioner(ctx, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster, settingsStore)
-				controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
 
 				provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
 				nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
@@ -1066,7 +1031,7 @@ var _ = Describe("LaunchTemplates", func() {
 				})
 				ExpectApplied(ctx, env.Client, newProvisioner)
 				Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(newProvisioner), newProvisioner)).To(Succeed())
-				pod := ExpectProvisioned(ctx, env.Client, recorder, controllerWithOpts, prov, coretest.UnschedulablePod(coretest.PodOptions{
+				pod := ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, coretest.UnschedulablePod(coretest.PodOptions{
 					Tolerations: []v1.Toleration{{Operator: v1.TolerationOpExists}},
 				}))[0]
 				ExpectScheduled(ctx, env.Client, pod)
@@ -1079,21 +1044,13 @@ var _ = Describe("LaunchTemplates", func() {
 				Expect(expectedUserData).To(Equal(actualUserData))
 			})
 			It("should not bootstrap when provider ref points to a non-existent resource", func() {
-				settingsStore = coretest.SettingsStore{
-					settings.ContextKey: test.Settings(),
-					awssettings.ContextKey: test.Settings(test.SettingOptions{
-						EnableENILimitedPodDensity: lo.ToPtr(false),
-					}),
-				}
+				settingsStore[awssettings.ContextKey] = test.Settings(test.SettingOptions{EnableENILimitedPodDensity: lo.ToPtr(false)})
 				ctx = settingsStore.InjectSettings(ctx)
-
-				prov = provisioning.NewProvisioner(ctx, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster, settingsStore)
-				controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
 
 				provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
 				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: "doesnotexist"}})
 				ExpectApplied(ctx, env.Client, newProvisioner)
-				pod := ExpectProvisioned(ctx, env.Client, recorder, controllerWithOpts, prov, coretest.UnschedulablePod())[0]
+				pod := ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
 				// This will not be scheduled since we were pointed to a non-existent awsnodetemplate resource.
 				ExpectNotScheduled(ctx, env.Client, pod)
 			})
@@ -1223,16 +1180,8 @@ var _ = Describe("LaunchTemplates", func() {
 		})
 		Context("AL2 Custom UserData", func() {
 			It("should merge in custom user data", func() {
-				settingsStore = coretest.SettingsStore{
-					settings.ContextKey: test.Settings(),
-					awssettings.ContextKey: test.Settings(test.SettingOptions{
-						EnableENILimitedPodDensity: lo.ToPtr(false),
-					}),
-				}
+				settingsStore[awssettings.ContextKey] = test.Settings(test.SettingOptions{EnableENILimitedPodDensity: lo.ToPtr(false)})
 				ctx = settingsStore.InjectSettings(ctx)
-
-				prov = provisioning.NewProvisioner(ctx, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster, settingsStore)
-				controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
 
 				content, _ := os.ReadFile("testdata/al2_userdata_input.golden")
 				nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
@@ -1242,7 +1191,7 @@ var _ = Describe("LaunchTemplates", func() {
 				ExpectApplied(ctx, env.Client, nodeTemplate)
 				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
 				ExpectApplied(ctx, env.Client, newProvisioner)
-				pod := ExpectProvisioned(ctx, env.Client, recorder, controllerWithOpts, prov, coretest.UnschedulablePod())[0]
+				pod := ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
@@ -1252,16 +1201,8 @@ var _ = Describe("LaunchTemplates", func() {
 				Expect(expectedUserData).To(Equal(string(userData)))
 			})
 			It("should handle empty custom user data", func() {
-				settingsStore = coretest.SettingsStore{
-					settings.ContextKey: test.Settings(),
-					awssettings.ContextKey: test.Settings(test.SettingOptions{
-						EnableENILimitedPodDensity: lo.ToPtr(false),
-					}),
-				}
+				settingsStore[awssettings.ContextKey] = test.Settings(test.SettingOptions{EnableENILimitedPodDensity: lo.ToPtr(false)})
 				ctx = settingsStore.InjectSettings(ctx)
-
-				prov = provisioning.NewProvisioner(ctx, env.Client, corev1.NewForConfigOrDie(env.Config), recorder, cloudProvider, cluster, settingsStore)
-				controllerWithOpts := provisioning.NewController(env.Client, prov, recorder)
 				nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 					UserData: nil,
 					AWS:      *provider,
@@ -1269,7 +1210,7 @@ var _ = Describe("LaunchTemplates", func() {
 				ExpectApplied(ctx, env.Client, nodeTemplate)
 				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
 				ExpectApplied(ctx, env.Client, newProvisioner)
-				pod := ExpectProvisioned(ctx, env.Client, recorder, controllerWithOpts, prov, coretest.UnschedulablePod())[0]
+				pod := ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()

@@ -141,10 +141,11 @@ var _ = BeforeSuite(func() {
 	fakeClock = clock.NewFakeClock(time.Now())
 	cluster = state.NewCluster(ctx, fakeClock, env.Client, cloudProvider)
 	recorder = coretest.NewEventRecorder()
-	prov = provisioning.NewProvisioner(ctx, env.Client, env.KubernetesInterface.CoreV1(), recorder, cloudProvider, cluster, coretest.SettingsStore{})
+	prov = provisioning.NewProvisioner(ctx, env.Client, env.KubernetesInterface.CoreV1(), recorder, cloudProvider, cluster)
 	provisioningController = provisioning.NewController(env.Client, prov, recorder)
 
 	env.CRDDirectoryPaths = append(env.CRDDirectoryPaths, RelativeToRoot("charts/karpenter/crds"))
+	provisioning.WaitForClusterSync = false
 })
 
 var _ = AfterSuite(func() {
@@ -159,7 +160,6 @@ var _ = BeforeEach(func() {
 		awssettings.ContextKey: test.Settings(),
 	}
 	ctx = settingsStore.InjectSettings(ctx)
-
 	provider = &v1alpha1.AWS{
 		AMIFamily:             aws.String(v1alpha1.AMIFamilyAL2),
 		SubnetSelector:        map[string]string{"*": "*"},
@@ -174,6 +174,7 @@ var _ = BeforeEach(func() {
 		}},
 	})
 
+	recorder.Reset()
 	fakeEC2API.Reset()
 	fakePricingAPI.Reset()
 	launchTemplateCache.Flush()
