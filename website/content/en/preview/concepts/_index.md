@@ -77,7 +77,7 @@ For more details on how Karpenter deletes nodes, see [Deprovisioning nodes](../t
 
 A straight-forward way to upgrade nodes is to set `ttlSecondsUntilExpired`.
 Nodes will be terminated after a set period of time and will be replaced with newer nodes using the latest discovered AMI.
-See more in [AWSNodeTemplate](../tasks/awsnodetemplate).
+See more in [AWSNodeTemplate](../tasks/node-templates).
 
 ### Constraints
 

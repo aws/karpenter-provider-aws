@@ -160,7 +160,7 @@ EC2 AMI IDs may be specified by using the key `aws-ids` and then passing the IDs
 * If multiple AMIs are found that can be used, Karpenter will randomly choose any one.
 * If no AMIs are found that can be used, then no nodes will be provisioned.
 
-For additional data on how UserData is configured for Custom AMIs, and how more requirements can be specified for custom AMIs, follow [this documentation](../operating-systems/#custom-amis).
+For additional data on how UserData is configured for Custom AMIs, and how more requirements can be specified for custom AMIs, follow [this documentation](./operating-systems/#custom-amis).
 
 **Examples**
 
@@ -190,7 +190,7 @@ Specify AMIs explicitly by ID:
 
 ### UserData
 
-You can control the UserData that needs to be applied to your worker nodes via this field. Review the [Operating Systems documentation](../operating-systems/) to learn more.
+You can control the UserData that needs to be applied to your worker nodes via this field. Review the [Operating Systems documentation](./operating-systems/) to learn more.
 
 ### Tags
 
