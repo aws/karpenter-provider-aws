@@ -42,7 +42,7 @@ import (
 	"github.com/aws/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-core/pkg/apis/config/settings"
-	corev1alpha5 "github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
+	corev1alpha5 "github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/controllers/provisioning"
 	"github.com/aws/karpenter-core/pkg/controllers/state"
 	"github.com/aws/karpenter-core/pkg/operator/injection"

@@ -22,7 +22,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/service/ec2"
 
-	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 )
