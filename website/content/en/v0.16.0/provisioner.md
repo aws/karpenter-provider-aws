@@ -19,14 +19,14 @@ spec:
   # that can't be removed.  Mutually exclusive with the ttlSecondsAfterEmpty parameter.
   consolidation:
     enabled: true
-    
+
   # If omitted, the feature is disabled and nodes will never expire.  If set to less time than it requires for a node
   # to become ready, the node may expire before any pods successfully start.
   ttlSecondsUntilExpired: 2592000 # 30 Days = 60 * 60 * 24 * 30 Seconds;
 
   # If omitted, the feature is disabled, nodes will never scale down due to low utilization
   ttlSecondsAfterEmpty: 30
-  
+
   # Priority given to the provisioner when the scheduler considers which provisioner
   # to select. Higher weights indicate higher priority when comparing provisioners.
   # Specifying no weight is equivalent to specifying a weight of 0.
@@ -91,19 +91,7 @@ spec:
 
 ## Node deprovisioning
 
-If neither of these values are set, Karpenter will *not* delete instances. It is recommended to set the `ttlSecondsAfterEmpty` value, to enable scale down of the cluster.
-
-### spec.ttlSecondsAfterEmpty
-
-Setting a value here enables Karpenter to delete empty/unnecessary instances. DaemonSets are excluded from considering a node "empty". This value is in seconds.
-
-### spec.ttlSecondsUntilExpired
-
-Setting a value here enables node expiry. After nodes reach the defined age in seconds, they will be deleted, even if in use. This enables nodes to effectively be periodically "upgraded" by replacing them with newly provisioned instances.
-
-Note that Karpenter does not automatically add jitter to this value. If multiple instances are created in a small amount of time, they will expire at very similar times. Consider defining a [pod disruption budget](https://kubernetes.io/docs/tasks/run-application/configure-pdb/) to prevent excessive workload disruption.
-
-
+You can configure Karpenter to deprovision instances through your Provisioner in multiple ways. You can use `spec.TTLSecondsAfterEmpty`, `spec.ttlSecondsUntilExpired` or `spec.consolidation.enabled`. Read [Deprovisioning](./tasks/deprovisioning.md) for more.
 
 ## spec.requirements
 
@@ -191,7 +179,7 @@ Karpenter also allows `karpenter.sh/capacity-type` to be used as a topology key 
 
 ## spec.weight
 
-Karpenter allows you to describe provisioner preferences through a `weight` mechanism similar to how weight is described with [pod and node affinities](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity). 
+Karpenter allows you to describe provisioner preferences through a `weight` mechanism similar to how weight is described with [pod and node affinities](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity).
 
 For more information on weighting provisioners, see the [Weighting Provisioners section](../tasks/scheduling#weighting-provisioners) in the scheduling details.
 

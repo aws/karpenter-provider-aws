@@ -32,6 +32,10 @@ default values for them and will not terminate nodes for that purpose.
 - Keep in mind that a small NodeExpiry results in a higher churn in cluster activity. So, for
 example, if a cluster brings up all nodes at once, all the pods on those nodes would fall into
 the same batching window on expiration.
+
+- Note that Karpenter does not automatically add jitter to this value. If multiple instances are created in a small amount of time, they will expire at very similar times. Consider defining a [pod disruption budget](https://kubernetes.io/docs/tasks/run-application/configure-pdb/) to prevent excessive workload disruption.
+
+- Using preferred anti-affinity and topology spreads can reduce the effectiveness of consolidation. At node launch, Karpenter attempts to satisfy affinity and topology spread preferences. In order to reduce node churn, consolidation must also attempt to satisfy these constraints to avoid immediately consolidating nodes after they launch. This means that consolidation may not deprovision nodes in order to avoid violating preferences, even if kube-scheduler can fit the host pods elsewhere.
 {{% /alert %}}
 
 * **Node deleted**: You could use `kubectl` to manually remove a single Karpenter node:
@@ -62,8 +66,8 @@ All the pod objects get deleted by a garbage collection process later, because t
 
 
 Karpenter has two mechanisms for cluster consolidation:
-- Deletion - A node is eligible for deletion if all of its pods can run on free capacity of other nodes in the cluster.  
-- Replace - A node can be replaced if all of its pods can run on a combination of free capacity of other nodes in the cluster and a single cheaper replacement node. 
+- Deletion - A node is eligible for deletion if all of its pods can run on free capacity of other nodes in the cluster.
+- Replace - A node can be replaced if all of its pods can run on a combination of free capacity of other nodes in the cluster and a single cheaper replacement node.
 
 When there are multiple nodes that could be potentially deleted or replaced, Karpenter choose to consolidate the node that overall disrupts your workloads the least by preferring to terminate:
 
@@ -72,7 +76,7 @@ When there are multiple nodes that could be potentially deleted or replaced, Kar
 * nodes with lower priority pods
 
 {{% alert title="Note" color="primary" %}}
-Karpenter only uses the deletion consolidation mechanism for spot nodes.  It will not replace a spot node with a cheaper spot node.  Spot instance types are selected with the `capacity-optimized-prioritized` strategy and often the cheapest spot instance type is not launched due to the likelihood of interruption. Consolidation would then replace the spot instance with a cheaper instance negating the `capacity-optimized-prioritized` strategy entirely and increasing interruption rate.  
+Karpenter only uses the deletion consolidation mechanism for spot nodes.  It will not replace a spot node with a cheaper spot node.  Spot instance types are selected with the `capacity-optimized-prioritized` strategy and often the cheapest spot instance type is not launched due to the likelihood of interruption. Consolidation would then replace the spot instance with a cheaper instance negating the `capacity-optimized-prioritized` strategy entirely and increasing interruption rate.
 {{% /alert %}}
 
 ## What can cause deprovisioning to fail?
@@ -104,7 +108,7 @@ Review what [disruptions are](https://kubernetes.io/docs/concepts/workloads/pods
 
 ### Pod set to do-not-evict
 
-If a pod exists with the annotation `karpenter.sh/do-not-evict: true` on a node, and a request is made to delete the node, Karpenter will not drain any pods from that node or otherwise try to delete the node. Nodes that have pods with a `do-not-evict` annotation are not considered for consolidation, though their unused capacity is considered for the purposes of running pods from other nodes which can ber consolidated. This annotation will have no effect for static pods, pods that tolerate `NoSchedule`, or pods terminating past their graceful termination period. 
+If a pod exists with the annotation `karpenter.sh/do-not-evict: true` on a node, and a request is made to delete the node, Karpenter will not drain any pods from that node or otherwise try to delete the node. Nodes that have pods with a `do-not-evict` annotation are not considered for consolidation, though their unused capacity is considered for the purposes of running pods from other nodes which can ber consolidated. This annotation will have no effect for static pods, pods that tolerate `NoSchedule`, or pods terminating past their graceful termination period.
 
 This is useful for pods that you want to run from start to finish without interruption.
 Examples might include a real-time, interactive game that you don't want to interrupt or a long batch job (such as you might have with machine learning) that would need to start over if it were interrupted.

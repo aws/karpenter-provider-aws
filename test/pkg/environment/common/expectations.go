@@ -36,10 +36,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/test"
 )
 
 func (env *Environment) ExpectCreatedWithOffset(offset int, objects ...client.Object) {
 	for _, object := range objects {
+		object.SetLabels(lo.Assign(object.GetLabels(), map[string]string{
+			test.DiscoveryLabel: "unspecified",
+		}))
 		ExpectWithOffset(offset+1, env.Client.Create(env, object)).To(Succeed())
 	}
 }
