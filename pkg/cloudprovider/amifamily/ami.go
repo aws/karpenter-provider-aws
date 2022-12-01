@@ -95,13 +95,13 @@ func (p *AMIProvider) KubeServerVersion(ctx context.Context) (string, error) {
 	return version, nil
 }
 
-func (p *AMIProvider) GetAMIsForProvider(ctx context.Context, providerRef *v1alpha5.ProviderRef, instanceTypes []*cloudprovider.InstanceType, amiFamily *string) ([]string, error) {
-	ssmResolver := GetSSMResolverForAMI(amiFamily)
+func (p *AMIProvider) GetAMIsForProvider(ctx context.Context, providerRef *v1alpha5.ProviderRef, instanceTypes []*cloudprovider.InstanceType, amiFamilyName *string) ([]string, error) {
+	amiFamily := GetAMIFamily(amiFamilyName, &Options{})
 	kubernetesVersion, err := p.KubeServerVersion(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("getting kubernetes version %w", err)
 	}
-	amiIds, err := p.Get(ctx, providerRef, kubernetesVersion, instanceTypes, ssmResolver)
+	amiIds, err := p.Get(ctx, providerRef, kubernetesVersion, instanceTypes, amiFamily)
 	if err != nil {
 		return nil, fmt.Errorf("getting amiIds %w", err)
 	}
@@ -110,7 +110,7 @@ func (p *AMIProvider) GetAMIsForProvider(ctx context.Context, providerRef *v1alp
 
 // Get returns a set of AMIIDs and corresponding instance types. AMI may vary due to architecture, accelerator, etc
 // If AMI overrides are specified in the AWSNodeTemplate, then only those AMIs will be chosen.
-func (p *AMIProvider) Get(ctx context.Context, providerRef *v1alpha5.ProviderRef, kubenetesVersion string, instanceTypes []*cloudprovider.InstanceType, ssmResolver SSMResolver) (map[string][]*cloudprovider.InstanceType, error) {
+func (p *AMIProvider) Get(ctx context.Context, providerRef *v1alpha5.ProviderRef, kubenetesVersion string, instanceTypes []*cloudprovider.InstanceType, amiFamily AMIFamily) (map[string][]*cloudprovider.InstanceType, error) {
 	amiIDs := map[string][]*cloudprovider.InstanceType{}
 	amiRequirements, err := p.getAMIRequirements(ctx, providerRef)
 	if err != nil {
@@ -132,7 +132,7 @@ func (p *AMIProvider) Get(ctx context.Context, providerRef *v1alpha5.ProviderRef
 		}
 	} else {
 		for _, instanceType := range instanceTypes {
-			amiID, err := p.getDefaultAMIFromSSM(ctx, ssmResolver.SSMAlias(kubenetesVersion, instanceType))
+			amiID, err := p.getDefaultAMIFromSSM(ctx, amiFamily.SSMAlias(kubenetesVersion, instanceType))
 			if err != nil {
 				return nil, err
 			}
