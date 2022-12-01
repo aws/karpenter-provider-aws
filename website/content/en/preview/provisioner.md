@@ -360,4 +360,4 @@ Review the [resource limit task](../tasks/set-resource-limits) for more informat
 
 This field points to the cloud provider-specific custom resource. Reference the appropriate documentation:
 
-- [AWS](../aws/provisioning/)
+- [AWS](./tasks/node-templates/)

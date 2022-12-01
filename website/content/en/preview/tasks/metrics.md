@@ -1,7 +1,7 @@
 ---
 title: "Metrics"
 linkTitle: "Metrics"
-weight: 100
+weight: 12
 
 description: >
   Inspect Karpenter Metrics
@@ -90,4 +90,3 @@ Duration of cloud provider method calls. Labeled by the controller, method name 
 
 ### `karpenter_allocation_controller_scheduling_duration_seconds`
 Duration of scheduling process in seconds. Broken down by provisioner and error.
-

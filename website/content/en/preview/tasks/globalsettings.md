@@ -1,7 +1,7 @@
 ---
 title: "Global Settings"
 linkTitle: "Global Settings"
-weight: 5
+weight: 13
 description: >
   Configure Karpenter
 ---
@@ -60,8 +60,8 @@ data:
   aws.isolatedVPC: "false"
   # The node naming convention (either "ip-name" or "resource-name")
   aws.nodeNameConvention: ip-name
-  # The VM memory overhead as a percent that will be subtracted 
-  # from the total memory for all instance types 
+  # The VM memory overhead as a percent that will be subtracted
+  # from the total memory for all instance types
   aws.vmMemoryOverheadPercent: "0.075"
   # Interruption Handling is currently in ALPHA and is disabled by default. Enabling interruption handling may
   # require additional permissions on the controller service account. Additional permissions are outlined in the docs
