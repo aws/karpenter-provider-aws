@@ -1,9 +1,9 @@
 ---
-title: "Concepts"
-linkTitle: "Concepts"
-weight: 10
+title: "Overview"
+linkTitle: "Overview"
+weight: 1
 description: >
-  Understand key concepts of Karpenter
+  Understand high level Karpenter concepts
 ---
 
 Users fall under two basic roles: Kubernetes cluster administrators and application developers.
@@ -130,7 +130,7 @@ If interruption-handling is enabled for the controller, Karpenter will watch for
 When Karpenter detects one of these events will occur to your nodes, it automatically cordons, drains, and terminates the node(s) ahead of the interruption event to give the maximum amount of time for workload cleanup prior to compute disruption. This enables scenarios where the `terminationGracePeriod` for your workloads may be long or cleanup for your workloads is critical, and you want enough time to be able to gracefully clean-up your pods.
 
 {{% alert title="Note" color="warning" %}}
-Karpenter publishes Kubernetes events to the node for all events listed above in addition to __Spot Rebalance Recommendations__. Karpenter does not currently support cordon, drain, and terminate logic for Spot Rebalance Recommendations.
+Karpenter publishes Kubernetes events to the node for all events listed above in addition to __Spot Reblanace Recommendations__. Karpenter does not currently support cordon, drain, and terminate logic for Spot Rebalance Recommendations.
 {{% /alert %}}
 
 ### Kubernetes cluster autoscaler

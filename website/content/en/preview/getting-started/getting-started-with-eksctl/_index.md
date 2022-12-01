@@ -84,7 +84,7 @@ Karpenter will provision EC2 instances in your account.
 
 ### Create the Karpenter Infrastructure and IAM Roles
 
-Karpenter requires IAM permissions to launch and connect instances and requires infrastructure to monitor [interruption events]({{<ref "../../tasks/deprovisioning/#interruption" >}}). This command provisions the relevant infrastrucutre and IAM roles using Cloudformation.
+Karpenter requires IAM permissions to launch and connect instances and requires infrastructure to monitor [interruption events]({{<ref "../../concepts/deprovisioning/#interruption" >}}). This command provisions the relevant infrastrucutre and IAM roles using Cloudformation.
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step03-iam-cloud-formation.sh" language="bash"%}}
 
@@ -149,7 +149,7 @@ Depending how these resources are shared between clusters, you may need to use d
 The `ttlSecondsAfterEmpty` value configures Karpenter to terminate empty nodes.
 This behavior can be disabled by leaving the value undefined.
 
-Review the [provisioner CRD]({{<ref "../../provisioner.md" >}}) for more information. For example,
+Review the [provisioner CRD]({{<ref "../../concepts/provisioning.md" >}}) for more information. For example,
 `ttlSecondsUntilExpired` configures Karpenter to terminate nodes when a maximum age is reached.
 
 Note: This provisioner will create capacity as long as the sum of all created capacity is less than the specified limit.
