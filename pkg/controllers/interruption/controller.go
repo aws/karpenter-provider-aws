@@ -42,7 +42,7 @@ import (
 	"github.com/aws/karpenter/pkg/errors"
 	"github.com/aws/karpenter/pkg/utils"
 
-	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/events"
 	"github.com/aws/karpenter-core/pkg/metrics"
 	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
@@ -88,7 +88,7 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 	}
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("queue", settings.FromContext(ctx).InterruptionQueueName))
 	if c.cm.HasChanged(settings.FromContext(ctx).InterruptionQueueName, nil) {
-		logging.FromContext(ctx).Infof("watching interruption queue")
+		logging.FromContext(ctx).Debugf("watching interruption queue")
 	}
 	sqsMessages, err := c.sqsProvider.GetSQSMessages(ctx)
 	if err != nil {

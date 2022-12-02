@@ -25,7 +25,7 @@ import (
 )
 
 func NewControllers(ctx awscontext.Context) []controller.Controller {
-	logging.FromContext(ctx).Infof("Initializing with version %s", project.Version)
+	logging.FromContext(ctx).With("version", project.Version).Debugf("discovered version")
 	return []controller.Controller{
 		interruption.NewController(ctx.KubeClient, ctx.Clock, ctx.EventRecorder, interruption.NewSQSProvider(sqs.New(ctx.Session)), ctx.UnavailableOfferingsCache),
 	}

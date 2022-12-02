@@ -83,7 +83,7 @@ coverage:
 verify: tidy download ## Verify code. Includes dependencies, linting, formatting, etc
 	go generate ./...
 	hack/boilerplate.sh
-	curl https://raw.githubusercontent.com/aws/karpenter-core/v0.0.1/chart/crds/karpenter.sh_provisioners.yaml > pkg/apis/crds/karpenter.sh_provisioners.yaml
+	curl https://raw.githubusercontent.com/aws/karpenter-core/main/pkg/apis/crds/karpenter.sh_provisioners.yaml > pkg/apis/crds/karpenter.sh_provisioners.yaml
 	$(foreach dir,$(MOD_DIRS),cd $(dir) && golangci-lint run $(newline))
 	@git diff --quiet ||\
 		{ echo "New file modification detected in the Git working tree. Please check in before commit."; git --no-pager diff --name-only | uniq | awk '{print "  - " $$0}'; \
@@ -120,7 +120,7 @@ delete: ## Delete the controller from your ~/.kube/config cluster
 
 docgen: ## Generate docs
 	go run hack/docs/metrics_gen_docs.go pkg/ $(KARPENTER_CORE_DIR)/pkg website/content/en/preview/tasks/metrics.md
-	go run hack/docs/instancetypes_gen_docs.go website/content/en/preview/AWS/instance-types.md
+	go run hack/docs/instancetypes_gen_docs.go website/content/en/preview/tasks/instance-types.md
 	go run hack/docs/configuration_gen_docs.go website/content/en/preview/tasks/globalsettings.md
 	cd charts/karpenter && helm-docs
 
@@ -160,7 +160,7 @@ download: ## Recursively "go mod download" on all directories where go.mod exist
 update-core: ## Update karpenter-core to latest
 	go get -u github.com/aws/karpenter-core
 	go mod tidy
-	cd test/ && go get -u github.com/aws/karpenter-core && go mod tidy 
+	cd test/ && go get -u github.com/aws/karpenter-core && go mod tidy
 
 .PHONY: help dev ci release test battletest e2etests verify tidy download docgen apply delete toolchain licenses vulncheck issues website nightly snapshot
 

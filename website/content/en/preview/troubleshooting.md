@@ -1,7 +1,7 @@
 ---
 title: "Troubleshooting"
 linkTitle: "Troubleshooting"
-weight: 100
+weight: 90
 description: >
   Troubleshoot Karpenter problems
 ---
@@ -232,15 +232,16 @@ See the Karpenter [Best Practices Guide](https://aws.github.io/aws-eks-best-prac
 
 ## Missing subnetSelector and securityGroupSelector tags causes provisioning failures
 
-Starting with Karpenter v0.5.5, if you are using Karpenter-generated launch template, provisioners require that [subnetSelector]({{<ref "./aws/provisioning/#subnetselector" >}}) and [securityGroupSelector]({{<ref "./aws/provisioning/#securitygroupselector" >}}) tags be set to match your cluster.
+Starting with Karpenter v0.5.5, if you are using Karpenter-generated launch template, provisioners require that [subnetSelector]({{<ref "./tasks/node-templates/#subnetselector" >}}) and [securityGroupSelector]({{<ref "./tasks/node-templates/#securitygroupselector" >}}) tags be set to match your cluster.
 The [Provisioner]({{<ref "./getting-started/getting-started-with-eksctl/#provisioner" >}}) section in the Karpenter Getting Started Guide uses the following example:
 
 ```text
-provider:
-    subnetSelector:
-      karpenter.sh/discovery: ${CLUSTER_NAME}
-    securityGroupSelector:
-      karpenter.sh/discovery: ${CLUSTER_NAME}
+kind: AWSNodeTemplate
+spec:
+  subnetSelector:
+    karpenter.sh/discovery: ${CLUSTER_NAME}
+  securityGroupSelector:
+    karpenter.sh/discovery: ${CLUSTER_NAME}
 ```
 To check your subnet and security group selectors, type the following:
 
@@ -286,7 +287,7 @@ Instead using of the eksctl role, you can shorten the name to anything you like,
 
 ## Node terminates before ready on failed encrypted EBS volume
 If you are using a custom launch template and an encrypted EBS volume, the IAM principal launching the node may not have sufficient permissions to use the KMS customer managed key (CMK) for the EC2 EBS root volume.
-This issue also applies to [Block Device Mappings]({{<ref "./aws/provisioning/#block-device-mappings" >}}) specified in the Provisioner.
+This issue also applies to [Block Device Mappings]({{<ref "./tasks/node-templates/#block-device-mappings" >}}) specified in the Provisioner.
 In either case, this results in the node terminating almost immediately upon creation.
 
 Keep in mind that it is possible that EBS Encryption can be enabled without your knowledge.
@@ -349,11 +350,6 @@ metadata:
 spec:
   labels:
     vpc.amazonaws.com/has-trunk-attached: "false"
-  provider:
-    subnetSelector:
-      karpenter.sh/discovery: karpenter-demo
-    securityGroupSelector:
-      karpenter.sh/discovery: karpenter-demo
   ttlSecondsAfterEmpty: 30
 ```
 ## Stale pricing data on isolated subnet
@@ -378,4 +374,4 @@ If Helm is showing an error when trying to install Karpenter helm charts:
  - Verify that the image you are trying to pull actually exists in [gallery.ecr.aws/karpenter](https://gallery.ecr.aws/karpenter/karpenter)
  - Sometimes Helm generates a generic error, you can add the --debug switch to any of the helm commands in this doc for more verbose error messages
  - If you are getting a 403 forbidden error, you can try `docker logout public.ecr.aws` as explained [here](https://docs.aws.amazon.com/AmazonECR/latest/public/public-troubleshooting.html)
- - If you are receiving this error: `Error: failed to download "oci://public.ecr.aws/karpenter/karpenter" at version "0.17.0"`, then you need to prepend a `v` to the version number: `v0.17.0`. Before Karpenter moved to OCI helm charts (pre-v0.17.0), both `v0.16.0` and `0.16.0` would work, but OCI charts require an exact version match. 
+ - If you are receiving this error: `Error: failed to download "oci://public.ecr.aws/karpenter/karpenter" at version "0.17.0"`, then you need to prepend a `v` to the version number: `v0.17.0`. Before Karpenter moved to OCI helm charts (pre-v0.17.0), both `v0.16.0` and `0.16.0` would work, but OCI charts require an exact version match.
