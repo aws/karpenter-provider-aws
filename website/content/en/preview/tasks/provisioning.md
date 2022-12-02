@@ -1,7 +1,7 @@
 ---
 title: "Provisioning"
 linkTitle: "Provisioning"
-weight: 5
+weight: 1
 description: >
   Learn about Karpenter provisioners
 ---
@@ -55,8 +55,6 @@ spec:
     - key: "karpenter.sh/capacity-type"
       operator: In
       values: ["spot", "on-demand"]
-  provider:
-    instanceProfile: myprofile-cluster101
 ```
 With these settings, the provisioner is able to launch nodes in three availability zones and is flexible to both spot and on-demand purchase types.
 

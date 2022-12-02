@@ -29,7 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
@@ -160,7 +160,7 @@ var _ = Describe("Extended Resources", func() {
 		env.ExpectCreatedNodeCount("==", 1)
 		env.EventuallyExpectCreatedNodesInitialized()
 	})
-  	It("should provision nodes for a deployment that requests amd.com/gpu", func() {
+	It("should provision nodes for a deployment that requests amd.com/gpu", func() {
 		ExpectAMDDevicePluginCreated()
 
 		content, err := os.ReadFile("testdata/amd_driver_input.sh")
@@ -205,7 +205,7 @@ var _ = Describe("Extended Resources", func() {
 		env.ExpectCreatedNodeCount("==", 1)
 		env.EventuallyExpectCreatedNodesInitialized()
 	})
-  	// Need to subscribe to the AMI to run the test successfully
+	// Need to subscribe to the AMI to run the test successfully
 	// https://aws.amazon.com/marketplace/pp/prodview-st5jc2rk3phr2?sr=0-2&ref_=beagle&applicationId=AWSMPContessa
 	It("should provision nodes for a deployment that requests habana.ai/gaudi", func() {
 		ExpectHabanaDevicePluginCreated()

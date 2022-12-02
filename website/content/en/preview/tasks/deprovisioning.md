@@ -1,7 +1,7 @@
 ---
 title: "Deprovisioning"
 linkTitle: "Deprovisioning"
-weight: 10
+weight: 3
 description: >
   Understand different ways Karpenter deprovisions nodes
 ---

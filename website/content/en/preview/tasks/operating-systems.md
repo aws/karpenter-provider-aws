@@ -1,7 +1,7 @@
 ---
 title: "Operating Systems"
-linkTitle: "Custom User Data and AMI"
-weight: 200
+linkTitle: "Operating Systems"
+weight: 5
 description: >
   Learn how to configure custom UserData and AMIs with Karpenter
 ---

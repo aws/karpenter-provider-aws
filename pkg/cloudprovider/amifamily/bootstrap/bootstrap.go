@@ -17,7 +17,7 @@ package bootstrap
 import (
 	core "k8s.io/api/core/v1"
 
-	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 )
 
 // Options is the node bootstrapping parameters passed from Karpenter to the provisioning node

@@ -1,7 +1,7 @@
 ---
 title: "Metrics"
 linkTitle: "Metrics"
-weight: 100
+weight: 12
 
 description: >
   Inspect Karpenter Metrics

@@ -1,7 +1,7 @@
 ---
 title: "Instance Types"
 linkTitle: "Instance Types"
-weight: 100
+weight: 6
 
 description: >
   Evaluate Instance Type Resources
