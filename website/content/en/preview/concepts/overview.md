@@ -35,20 +35,19 @@ Once privileges are in place, Karpenter is deployed with a Helm chart.
 
 ### Configuring provisioners
 
-Karpenter's job is to add nodes to handle unschedulable pods, schedule pods on those nodes, and remove the nodes when they are not needed.
-To configure Karpenter, you create *provisioners* that define how Karpenter manages unschedulable pods and expires nodes.
+Karpenter's job is to add nodes to handle unschedulable pods and remove the nodes when they are not needed.
+To configure Karpenter, you create *provisioners* that define node provisioning constraints and deprovisioning behaviors.
 Here are some things to know about the Karpenter provisioner:
 
-* **Unschedulable pods**: Karpenter only attempts to schedule pods that have a status condition `Unschedulable=True`, which the kube scheduler sets when it fails to schedule the pod to existing capacity.
+* **Unschedulable pods**: Karpenter only responds to pods that have a status condition `Unschedulable=True`, which the kube scheduler sets when it fails to schedule the pod to existing capacity.
 
 * **Provisioner CR**: Karpenter defines a Custom Resource called a Provisioner to specify provisioning configuration.
-Each provisioner manages a distinct set of nodes, but pods can be scheduled to any provisioner that supports its scheduling constraints.
+Each provisioner manages a distinct set of nodes, but pods schedule to nodes launched by any provisioner that supports its scheduling constraints.
 A provisioner contains constraints that impact the nodes that can be provisioned and attributes of those nodes (such timers for removing nodes).
 See [Provisioner API](../provisioner) for a description of settings and the [Provisioning](../tasks/provisioning) task for provisioner examples.
 
 * **Well-known labels**: The provisioner can use well-known Kubernetes labels to allow pods to request only certain instance types, architectures, operating systems, or other attributes when creating nodes.
-See [Well-Known Labels, Annotations and Taints](https://kubernetes.io/docs/reference/labels-annotations-taints/) for details.
-Keep in mind that only a subset of these labels are supported in Karpenter, as described later.
+See upstream [Well-Known Labels, Annotations and Taints](https://kubernetes.io/docs/reference/labels-annotations-taints/) and [Karpenter Supported Labels](./scheduling#supported-labels) for details.
 
 * **Deprovisioning nodes**: A provisioner can also include time-to-live values to indicate when nodes should be deprovisioned after a set amount of time from when they were created or after they becomes empty of deployed pods.
 
@@ -130,7 +129,7 @@ If interruption-handling is enabled for the controller, Karpenter will watch for
 When Karpenter detects one of these events will occur to your nodes, it automatically cordons, drains, and terminates the node(s) ahead of the interruption event to give the maximum amount of time for workload cleanup prior to compute disruption. This enables scenarios where the `terminationGracePeriod` for your workloads may be long or cleanup for your workloads is critical, and you want enough time to be able to gracefully clean-up your pods.
 
 {{% alert title="Note" color="warning" %}}
-Karpenter publishes Kubernetes events to the node for all events listed above in addition to __Spot Reblanace Recommendations__. Karpenter does not currently support cordon, drain, and terminate logic for Spot Rebalance Recommendations.
+Karpenter publishes Kubernetes events to the node for all events listed above in addition to __Spot Rebalance Recommendations__. Karpenter does not currently support cordon, drain, and terminate logic for Spot Rebalance Recommendations.
 {{% /alert %}}
 
 ### Kubernetes cluster autoscaler
