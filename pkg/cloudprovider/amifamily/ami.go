@@ -169,11 +169,6 @@ func getFilters(amiSelector map[string]string) []*ec2.Filter {
 				Name:   aws.String("image-id"),
 				Values: aws.StringSlice(filterValues),
 			})
-		} else if key == "name" {
-			filters = append(filters, &ec2.Filter{
-				Name:   aws.String("name"),
-				Values: []*string{aws.String(value)},
-			})
 		} else {
 			filters = append(filters, &ec2.Filter{
 				Name:   aws.String(fmt.Sprintf("tag:%s", key)),
