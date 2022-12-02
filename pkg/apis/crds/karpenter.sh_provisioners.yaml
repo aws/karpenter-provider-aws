@@ -41,6 +41,11 @@ spec:
               Node properties are determined from a combination of provisioner and
               pod scheduling constraints.
             properties:
+              annotations:
+                additionalProperties:
+                  type: string
+                description: Annotations are applied to every node.
+                type: object
               consolidation:
                 description: Consolidation are the consolidation parameters
                 properties:

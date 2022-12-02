@@ -76,9 +76,8 @@ For more details on how Karpenter deletes nodes, see [Deprovisioning nodes](../t
 ### Upgrading nodes
 
 A straight-forward way to upgrade nodes is to set `ttlSecondsUntilExpired`.
-Nodes will be terminated after a set period of time and will be replaced with newer nodes using the latest [EKS Optimized AMI](https://docs.aws.amazon.com/eks/latest/userguide/eks-optimized-amis.html) or the AMI specified in the `$LATEST` version of your launch template.
-
-Understanding the following concepts will help you in carrying out the tasks just described.
+Nodes will be terminated after a set period of time and will be replaced with newer nodes using the latest discovered AMI.
+See more in [AWSNodeTemplate](../tasks/node-templates).
 
 ### Constraints
 
@@ -113,7 +112,7 @@ If consolidation is enabled for a provisioner, Karpenter attempts to reduce the 
 - Node Deletion
 - Node Replacement
 
-To perform these actions, Karpenter simulates all pods being evicted from a candidate node and then looks at the results of the scheduling simulation to determine if those pods can run on a combination of existing nodes in the cluster and a new cheaper node.  This operation takes into consideration all scheduling constraints placed on your workloads and provisioners (e.g. taints, tolerations, node selectors, inter-pod affinity, etc).  
+To perform these actions, Karpenter simulates all pods being evicted from a candidate node and then looks at the results of the scheduling simulation to determine if those pods can run on a combination of existing nodes in the cluster and a new cheaper node.  This operation takes into consideration all scheduling constraints placed on your workloads and provisioners (e.g. taints, tolerations, node selectors, inter-pod affinity, etc).
 
 If as a result of the scheduling simulation all pods can run on existing nodes, the candidate node is simply deleted.  If all pods can run on a combination of existing nodes and a cheaper node, we launch the cheaper node and delete the candidate node which causes the pods to be evicted and re-created by their controllers in order to be rescheduled.
 
