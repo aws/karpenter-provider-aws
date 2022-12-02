@@ -23,9 +23,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
-	"knative.dev/pkg/logging"
 
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	awscontext "github.com/aws/karpenter/pkg/context"
@@ -53,25 +51,26 @@ func (p *SubnetProvider) Get(ctx context.Context, provider *v1alpha1.AWS) ([]*ec
 	p.Lock()
 	defer p.Unlock()
 	filters := getFilters(provider)
-	hash, err := hashstructure.Hash(filters, hashstructure.FormatV2, nil)
-	if err != nil {
-		return nil, err
-	}
-	if subnets, ok := p.cache.Get(fmt.Sprint(hash)); ok {
-		return subnets.([]*ec2.Subnet), nil
-	}
+	// hash, err := hashstructure.Hash(filters, hashstructure.FormatV2, nil)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// subnets, ok := p.cache.Get(fmt.Sprint(hash))
+	// if !ok {
+	// 	return nil, fmt.Errorf("no subnets matched selector %v", provider.SubnetSelector)
+	// }
 	output, err := p.ec2api.DescribeSubnetsWithContext(ctx, &ec2.DescribeSubnetsInput{Filters: filters})
 	if err != nil {
 		return nil, fmt.Errorf("describing subnets %s, %w", pretty.Concise(filters), err)
 	}
-	if len(output.Subnets) == 0 {
-		return nil, fmt.Errorf("no subnets matched selector %v", provider.SubnetSelector)
-	}
-	p.cache.SetDefault(fmt.Sprint(hash), output.Subnets)
-	subnetLog := prettySubnets(output.Subnets)
-	if p.cm.HasChanged("subnets", subnetLog) {
-		logging.FromContext(ctx).With("subnets", subnetLog).Debugf("discovered subnets")
-	}
+	// if len(output.Subnets) == 0 {
+	// 	return nil, fmt.Errorf("no subnets matched selector %v", provider.SubnetSelector)
+	// }
+	// p.cache.SetDefault(fmt.Sprint(hash), output.Subnets)
+	// subnetLog := prettySubnets(output.Subnets)
+	// if p.cm.HasChanged("subnets", subnetLog) {
+	// 	logging.FromContext(ctx).With("subnets", subnetLog).Debugf("discovered subnets")
+	// }
 	return output.Subnets, nil
 }
 
@@ -105,12 +104,4 @@ func getFilters(provider *v1alpha1.AWS) []*ec2.Filter {
 		}
 	}
 	return filters
-}
-
-func prettySubnets(subnets []*ec2.Subnet) []string {
-	names := []string{}
-	for _, subnet := range subnets {
-		names = append(names, fmt.Sprintf("%s (%s)", aws.StringValue(subnet.SubnetId), aws.StringValue(subnet.AvailabilityZone)))
-	}
-	return names
 }

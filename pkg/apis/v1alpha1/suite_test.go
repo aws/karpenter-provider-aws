@@ -15,6 +15,8 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"fmt"
+
 	"context"
 	"strings"
 	"testing"
@@ -43,6 +45,7 @@ var _ = Describe("Validation", func() {
 		ant = &AWSNodeTemplate{
 			ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName())},
 			Spec:       AWSNodeTemplateSpec{},
+			Status:     AWSNodeTemplateStatus{},
 		}
 	})
 
@@ -56,6 +59,14 @@ var _ = Describe("Validation", func() {
 			ant.Spec.LaunchTemplateName = ptr.String("someLaunchTemplate")
 			ant.Spec.UserData = ptr.String("someUserData")
 			Expect(ant.Validate(ctx)).To(Not(Succeed()))
+		})
+	})
+
+	// Need to make sure to add tests for AWS node template status
+	Context("Node Status", func() {
+		It("should succd if node status empty", func() {
+			ant.Status.Subnets = append(ant.Status.Subnets, strings.ToLower(randomdata.SillyName()), strings.ToLower(randomdata.SillyName()), strings.ToLower(randomdata.SillyName()))
+			fmt.Println(ant)
 		})
 	})
 })

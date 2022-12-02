@@ -213,6 +213,18 @@ spec:
                   being provisioned with the correct configuration.
                 type: string
             type: object
+          status:
+            description: Need to Document Might need to validate
+            properties:
+              securityGroups:
+                items:
+                  type: string
+                type: array
+              subnet:
+                items:
+                  type: string
+                type: array
+            type: object
         type: object
     served: true
     storage: true

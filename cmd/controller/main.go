@@ -59,6 +59,7 @@ func main() {
 		WithWebhooks(corewebhooks.NewWebhooks()...).
 		WithControllers(ctx, controllers.NewControllers(
 			awsCtx,
+			cloudProvider,
 		)...).
 		WithWebhooks(webhooks.NewWebhooks()...).
 		Start(ctx)

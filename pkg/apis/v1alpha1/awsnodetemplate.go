@@ -18,6 +18,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// Need to Document
+// Might need to validate
+type AWSNodeTemplateStatus struct {
+	Subnets        []string `json:"subnet,omitempty"`
+	SecurityGroups []string `json:"securityGroups,omitempty"`
+}
+
 // AWSNodeTemplateSpec is the top level specification for the AWS Karpenter Provider.
 // This will contain configuration necessary to launch instances in AWS.
 type AWSNodeTemplateSpec struct {
@@ -40,7 +47,8 @@ type AWSNodeTemplate struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec AWSNodeTemplateSpec `json:"spec,omitempty"`
+	Spec   AWSNodeTemplateSpec   `json:"spec,omitempty"`
+	Status AWSNodeTemplateStatus `json:"status,omitempty"`
 }
 
 // AWSNodeTemplateList contains a list of AWSNodeTemplate
