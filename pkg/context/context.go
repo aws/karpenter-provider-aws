@@ -52,6 +52,8 @@ type Context struct {
 
 	Session                   *session.Session
 	UnavailableOfferingsCache *awscache.UnavailableOfferings
+	SubnetCache               *cache.Cache
+	SecurityGroupCache        *cache.Cache
 }
 
 func NewOrDie(ctx cloudprovider.Context) Context {
@@ -72,6 +74,8 @@ func NewOrDie(ctx cloudprovider.Context) Context {
 		Context:                   ctx,
 		Session:                   sess,
 		UnavailableOfferingsCache: awscache.NewUnavailableOfferings(cache.New(awscache.UnavailableOfferingsTTL, CacheCleanupInterval)),
+		SubnetCache:               cache.New(cache.NoExpiration, cache.NoExpiration),
+		SecurityGroupCache:        cache.New(cache.NoExpiration, cache.NoExpiration),
 	}
 }
 

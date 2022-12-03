@@ -24,10 +24,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
-	"knative.dev/pkg/logging"
 
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	awscontext "github.com/aws/karpenter/pkg/context"
 
 	"github.com/aws/karpenter-core/pkg/utils/functional"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
@@ -40,11 +38,11 @@ type SecurityGroupProvider struct {
 	cm     *pretty.ChangeMonitor
 }
 
-func NewSecurityGroupProvider(ec2api ec2iface.EC2API) *SecurityGroupProvider {
+func NewSecurityGroupProvider(ec2api ec2iface.EC2API, c *cache.Cache) *SecurityGroupProvider {
 	return &SecurityGroupProvider{
 		ec2api: ec2api,
 		cm:     pretty.NewChangeMonitor(),
-		cache:  cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval),
+		cache:  c,
 	}
 }
 
@@ -92,24 +90,7 @@ func (p *SecurityGroupProvider) getSecurityGroups(ctx context.Context, filters [
 	if err != nil {
 		return nil, err
 	}
-	if securityGroups, ok := p.cache.Get(fmt.Sprint(hash)); ok {
-		return securityGroups.([]*ec2.SecurityGroup), nil
-	}
-	output, err := p.ec2api.DescribeSecurityGroupsWithContext(ctx, &ec2.DescribeSecurityGroupsInput{Filters: filters})
-	if err != nil {
-		return nil, fmt.Errorf("describing security groups %+v, %w", filters, err)
-	}
-	p.cache.SetDefault(fmt.Sprint(hash), output.SecurityGroups)
-	if p.cm.HasChanged("security-groups", output.SecurityGroups) {
-		logging.FromContext(ctx).With("security-groups", p.securityGroupIds(output.SecurityGroups)).Debugf("discovered security groups")
-	}
-	return output.SecurityGroups, nil
-}
+	securityGroups, _ := p.cache.Get(fmt.Sprint(hash))
 
-func (p *SecurityGroupProvider) securityGroupIds(securityGroups []*ec2.SecurityGroup) []string {
-	names := []string{}
-	for _, securityGroup := range securityGroups {
-		names = append(names, aws.StringValue(securityGroup.GroupId))
-	}
-	return names
+	return securityGroups.([]*ec2.SecurityGroup), nil
 }

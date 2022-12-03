@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package hydrate_memory
+package nodetemplatestatus
 
 import (
 	"context"
@@ -41,65 +41,86 @@ import (
 )
 
 type Controller struct {
-	cloudprovider corecloudprovider.CloudProvider
-	kubeClient    k8sClient.Client
-	ec2api        ec2iface.EC2API
-	cache         *cache.Cache
-	cm            *pretty.ChangeMonitor
+	cloudprovider      corecloudprovider.CloudProvider
+	kubeClient         k8sClient.Client
+	ec2api             ec2iface.EC2API
+	subnetCache        *cache.Cache
+	securityGroupCache *cache.Cache
+	cm                 *pretty.ChangeMonitor
 }
 
 func NewController(ctx awscontext.Context, cloudProvider corecloudprovider.CloudProvider) *Controller {
 	return &Controller{
-		cloudprovider: cloudProvider,
-		kubeClient:    ctx.KubeClient,
-		ec2api:        ec2.New(ctx.Session),
-		cache:         cache.New(cache.NoExpiration, cache.NoExpiration),
-		cm:            pretty.NewChangeMonitor(),
+		cloudprovider:      cloudProvider,
+		kubeClient:         ctx.KubeClient,
+		ec2api:             ec2.New(ctx.Session),
+		subnetCache:        ctx.SubnetCache,
+		securityGroupCache: ctx.SecurityGroupCache,
+		cm:                 pretty.NewChangeMonitor(),
 	}
 }
 
 func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	var ant v1alpha1.AWSNodeTemplate
 	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: req.Name}, &ant); err != nil {
-		return reconcile.Result{Requeue: false}, fmt.Errorf("getting providerRef, %w", err)
+		return reconcile.Result{Requeue: false}, nil
 	}
 
-	filters := getFilters(&ant.Spec.AWS)
-	hash, err := hashstructure.Hash(filters, hashstructure.FormatV2, nil)
+	subnetFilters := c.getSubnetFilters(&ant.Spec.AWS)
+	securityGroupFilters := c.getSecurityGroupFilters(&ant.Spec.AWS)
+
+	subnetHash, err := hashstructure.Hash(subnetFilters, hashstructure.FormatV2, nil)
 	if err != nil {
-		return reconcile.Result{}, err
+		return reconcile.Result{RequeueAfter: 1 * time.Minute}, err
+	}
+	securityGroupHash, err := hashstructure.Hash(securityGroupFilters, hashstructure.FormatV2, nil)
+	if err != nil {
+		return reconcile.Result{RequeueAfter: 1 * time.Minute}, err
 	}
 
-	output, err := c.ec2api.DescribeSubnetsWithContext(ctx, &ec2.DescribeSubnetsInput{Filters: filters})
+	subnetOutput, err := c.ec2api.DescribeSubnetsWithContext(ctx, &ec2.DescribeSubnetsInput{Filters: subnetFilters})
 	if err != nil {
 		// Back off and retry to describe the subnets
-		return reconcile.Result{RequeueAfter: 1 * time.Minute}, fmt.Errorf("describing subnets %s, %w", pretty.Concise(filters), err)
+		return reconcile.Result{RequeueAfter: 1 * time.Minute}, fmt.Errorf("describing subnets %s, %w", pretty.Concise(subnetFilters), err)
 	}
-	if len(output.Subnets) == 0 {
+	if len(subnetOutput.Subnets) == 0 {
 		// Back off and retry to see if there are any new subnets
 		return reconcile.Result{RequeueAfter: 5 * time.Minute}, fmt.Errorf("no subnets matched selector %v", ant.Spec.AWS.SubnetSelector)
 	}
 
-	subnetLog := prettySubnets(output.Subnets)
+	securityGroupOutput, err := c.ec2api.DescribeSecurityGroupsWithContext(ctx, &ec2.DescribeSecurityGroupsInput{Filters: securityGroupFilters})
+	if err != nil {
+		// Back off and retry to describe the subnets
+		return reconcile.Result{RequeueAfter: 1 * time.Minute}, fmt.Errorf("describing security groups %+v, %w", securityGroupFilters, err)
+	}
 
+	subnetLog := prettySubnets(subnetOutput.Subnets)
+	c.subnetCache.SetDefault(fmt.Sprint(subnetHash), subnetOutput.Subnets)
 	if c.cm.HasChanged(fmt.Sprintf("subnets-ids (%s)", req.Name), subnetLog) {
 		logging.FromContext(ctx).With("subnets", subnetLog).Debugf("discovered subnets for AWSNodeTemplate (%s)", req.Name)
 
-		c.cache.SetDefault(fmt.Sprint(hash), output.Subnets)
-
 		ant.Status.Subnets = nil
 		ant.Status.Subnets = append(ant.Status.Subnets, subnetLog...)
+	}
 
-		if err := c.kubeClient.Status().Update(ctx, &ant); err != nil {
-			return reconcile.Result{RequeueAfter: 1 * time.Minute}, fmt.Errorf("updating AWSNodeTemplate, %w", err)
-		}
+	securityGroupIds := c.securityGroupIds(securityGroupOutput.SecurityGroups)
+	c.securityGroupCache.SetDefault(fmt.Sprint(securityGroupHash), securityGroupOutput.SecurityGroups)
+	if c.cm.HasChanged("security-groups", securityGroupOutput.SecurityGroups) {
+		logging.FromContext(ctx).With("security-groups", securityGroupIds).Debugf("discovered security groups")
+
+		ant.Status.SecurityGroups = nil
+		ant.Status.SecurityGroups = append(ant.Status.SecurityGroups, securityGroupIds...)
+	}
+
+	if err := c.kubeClient.Status().Update(ctx, &ant); err != nil {
+		return reconcile.Result{RequeueAfter: 1 * time.Minute}, fmt.Errorf("updating AWSNodeTemplate, %w", err)
 	}
 
 	return reconcile.Result{RequeueAfter: 5 * time.Minute}, nil
 }
 
 func (c *Controller) Name() string {
-	return "Hydrate Memory"
+	return "Update Subnets"
 }
 
 func (c *Controller) Builder(_ context.Context, m manager.Manager) corecontroller.Builder {
@@ -110,7 +131,7 @@ func (c *Controller) Builder(_ context.Context, m manager.Manager) corecontrolle
 			WithOptions(controller.Options{MaxConcurrentReconciles: 10}))
 }
 
-func getFilters(provider *v1alpha1.AWS) []*ec2.Filter {
+func (c *Controller) getSubnetFilters(provider *v1alpha1.AWS) []*ec2.Filter {
 	filters := []*ec2.Filter{}
 	// Filter by subnet
 	for key, value := range provider.SubnetSelector {
@@ -135,10 +156,37 @@ func getFilters(provider *v1alpha1.AWS) []*ec2.Filter {
 	return filters
 }
 
+func (c *Controller) getSecurityGroupFilters(provider *v1alpha1.AWS) []*ec2.Filter {
+	filters := []*ec2.Filter{}
+	for key, value := range provider.SecurityGroupSelector {
+		if key == "aws-ids" {
+			filterValues := functional.SplitCommaSeparatedString(value)
+			filters = append(filters, &ec2.Filter{
+				Name:   aws.String("group-id"),
+				Values: aws.StringSlice(filterValues),
+			})
+		} else {
+			filters = append(filters, &ec2.Filter{
+				Name:   aws.String(fmt.Sprintf("tag:%s", key)),
+				Values: []*string{aws.String(value)},
+			})
+		}
+	}
+	return filters
+}
+
 func prettySubnets(subnets []*ec2.Subnet) []string {
 	names := []string{}
 	for _, subnet := range subnets {
 		names = append(names, fmt.Sprintf("%s (%s)", aws.StringValue(subnet.SubnetId), aws.StringValue(subnet.AvailabilityZone)))
+	}
+	return names
+}
+
+func (c *Controller) securityGroupIds(securityGroups []*ec2.SecurityGroup) []string {
+	names := []string{}
+	for _, securityGroup := range securityGroups {
+		names = append(names, aws.StringValue(securityGroup.GroupId))
 	}
 	return names
 }

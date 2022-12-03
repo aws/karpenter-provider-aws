@@ -23,10 +23,10 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	awscontext "github.com/aws/karpenter/pkg/context"
 
 	"github.com/aws/karpenter-core/pkg/utils/functional"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
@@ -39,39 +39,28 @@ type SubnetProvider struct {
 	cm     *pretty.ChangeMonitor
 }
 
-func NewSubnetProvider(ec2api ec2iface.EC2API) *SubnetProvider {
+func NewSubnetProvider(ec2api ec2iface.EC2API, c *cache.Cache) *SubnetProvider {
 	return &SubnetProvider{
 		ec2api: ec2api,
 		cm:     pretty.NewChangeMonitor(),
-		cache:  cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval),
+		cache:  c,
 	}
 }
 
 func (p *SubnetProvider) Get(ctx context.Context, provider *v1alpha1.AWS) ([]*ec2.Subnet, error) {
 	p.Lock()
 	defer p.Unlock()
-	filters := getFilters(provider)
-	// hash, err := hashstructure.Hash(filters, hashstructure.FormatV2, nil)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// subnets, ok := p.cache.Get(fmt.Sprint(hash))
-	// if !ok {
-	// 	return nil, fmt.Errorf("no subnets matched selector %v", provider.SubnetSelector)
-	// }
-	output, err := p.ec2api.DescribeSubnetsWithContext(ctx, &ec2.DescribeSubnetsInput{Filters: filters})
+	filters := p.getFilters(provider)
+	hash, err := hashstructure.Hash(filters, hashstructure.FormatV2, nil)
 	if err != nil {
-		return nil, fmt.Errorf("describing subnets %s, %w", pretty.Concise(filters), err)
+		return nil, err
 	}
-	// if len(output.Subnets) == 0 {
-	// 	return nil, fmt.Errorf("no subnets matched selector %v", provider.SubnetSelector)
-	// }
-	// p.cache.SetDefault(fmt.Sprint(hash), output.Subnets)
-	// subnetLog := prettySubnets(output.Subnets)
-	// if p.cm.HasChanged("subnets", subnetLog) {
-	// 	logging.FromContext(ctx).With("subnets", subnetLog).Debugf("discovered subnets")
-	// }
-	return output.Subnets, nil
+	subnets, ok := p.cache.Get(fmt.Sprint(hash))
+	if !ok {
+		return nil, fmt.Errorf("no subnets matched selector %v", provider.SubnetSelector)
+	}
+
+	return subnets.([]*ec2.Subnet), nil
 }
 
 func (p *SubnetProvider) LivenessProbe(req *http.Request) error {
@@ -81,7 +70,7 @@ func (p *SubnetProvider) LivenessProbe(req *http.Request) error {
 	return nil
 }
 
-func getFilters(provider *v1alpha1.AWS) []*ec2.Filter {
+func (p *SubnetProvider) getFilters(provider *v1alpha1.AWS) []*ec2.Filter {
 	filters := []*ec2.Filter{}
 	// Filter by subnet
 	for key, value := range provider.SubnetSelector {

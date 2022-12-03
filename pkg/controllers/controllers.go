@@ -20,8 +20,8 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/operator/controller"
 	awscontext "github.com/aws/karpenter/pkg/context"
-	"github.com/aws/karpenter/pkg/controllers/hydrate_memory"
 	"github.com/aws/karpenter/pkg/controllers/interruption"
+	"github.com/aws/karpenter/pkg/controllers/nodetemplatestatus"
 	"github.com/aws/karpenter/pkg/utils/project"
 
 	corecloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
@@ -31,6 +31,6 @@ func NewControllers(ctx awscontext.Context, cloudProvider corecloudprovider.Clou
 	logging.FromContext(ctx).Infof("Initializing with version %s", project.Version)
 	return []controller.Controller{
 		interruption.NewController(ctx.KubeClient, ctx.Clock, ctx.EventRecorder, interruption.NewSQSProvider(sqs.New(ctx.Session)), ctx.UnavailableOfferingsCache),
-		hydrate_memory.NewController(ctx, cloudProvider),
+		nodetemplatestatus.NewController(ctx, cloudProvider),
 	}
 }

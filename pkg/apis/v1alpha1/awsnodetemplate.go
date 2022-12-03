@@ -18,8 +18,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// Need to Document
-// Might need to validate
+// AWSNodeTemplateStatus is the top level specification for the AWS Karpenter Provider.
+// This will contain the current status of the Subnets and Security Groups of the template
 type AWSNodeTemplateStatus struct {
 	Subnets        []string `json:"subnet,omitempty"`
 	SecurityGroups []string `json:"securityGroups,omitempty"`
