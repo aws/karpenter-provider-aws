@@ -124,11 +124,10 @@ func (c *CloudProvider) IsNodeDrifted(ctx context.Context, provisioner *v1alpha5
 	if nodeTemplate.Spec.LaunchTemplateName != nil {
 		return false, fmt.Errorf("using a custom Launch Template which is deprecated")
 	}
-	amis, err := c.amiProvider.GetAMIs(ctx, nodeTemplate, nodeInstanceType, nodeTemplate.Spec.AMIFamily)
+	amis, err := c.amiProvider.Get(ctx, nodeTemplate, nodeInstanceType, amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, &amifamily.Options{}))
 	if err != nil {
 		return false, fmt.Errorf("getting amis, %w", err)
 	}
-
 	nodeAmi, ok := node.Labels[v1alpha1.LabelInstanceAMIID]
 	if !ok {
 		instanceID, err := utils.ParseInstanceID(node)
@@ -142,7 +141,7 @@ func (c *CloudProvider) IsNodeDrifted(ctx context.Context, provisioner *v1alpha5
 		nodeAmi = *instance.ImageId
 	}
 
-	return !lo.Contains(amis, nodeAmi), nil
+	return !lo.Contains(lo.Keys(amis), nodeAmi), nil
 }
 
 // checkEC2Connectivity makes a dry-run call to DescribeInstanceTypes.  If it fails, we provide an early indicator that we

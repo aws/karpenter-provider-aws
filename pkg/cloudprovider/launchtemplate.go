@@ -127,10 +127,6 @@ func (p *LaunchTemplateProvider) createAmiOptions(ctx context.Context, nodeTempl
 	if err != nil {
 		return nil, err
 	}
-	kubeServerVersion, err := p.amiFamily.GetKubernetesVersion(ctx)
-	if err != nil {
-		return nil, err
-	}
 	return &amifamily.Options{
 		ClusterName:             awssettings.FromContext(ctx).ClusterName,
 		ClusterEndpoint:         awssettings.FromContext(ctx).ClusterEndpoint,
@@ -140,7 +136,6 @@ func (p *LaunchTemplateProvider) createAmiOptions(ctx context.Context, nodeTempl
 		Tags:                    lo.Assign(awssettings.FromContext(ctx).Tags, nodeTemplate.Spec.Tags),
 		Labels:                  labels,
 		CABundle:                p.caBundle,
-		KubernetesVersion:       kubeServerVersion,
 		KubeDNSIP:               p.kubeDNSIP,
 	}, nil
 }

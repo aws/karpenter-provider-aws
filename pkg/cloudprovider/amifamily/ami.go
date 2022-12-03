@@ -95,22 +95,13 @@ func (p *AMIProvider) KubeServerVersion(ctx context.Context) (string, error) {
 	return version, nil
 }
 
-func (p *AMIProvider) GetAMIs(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, instanceTypes []*cloudprovider.InstanceType, amiFamilyName *string) ([]string, error) {
-	amiFamily := GetAMIFamily(amiFamilyName, &Options{})
+// Get returns a set of AMIIDs and corresponding instance types. AMI may vary due to architecture, accelerator, etc
+// If AMI overrides are specified in the AWSNodeTemplate, then only those AMIs will be chosen.
+func (p *AMIProvider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, instanceTypes []*cloudprovider.InstanceType, amiFamily AMIFamily) (map[string][]*cloudprovider.InstanceType, error) {
 	kubernetesVersion, err := p.KubeServerVersion(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("getting kubernetes version %w", err)
 	}
-	amiIds, err := p.Get(ctx, nodeTemplate, kubernetesVersion, instanceTypes, amiFamily)
-	if err != nil {
-		return nil, fmt.Errorf("getting amiIds %w", err)
-	}
-	return lo.Keys(amiIds), nil
-}
-
-// Get returns a set of AMIIDs and corresponding instance types. AMI may vary due to architecture, accelerator, etc
-// If AMI overrides are specified in the AWSNodeTemplate, then only those AMIs will be chosen.
-func (p *AMIProvider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, kubernetesVersion string, instanceTypes []*cloudprovider.InstanceType, amiFamily AMIFamily) (map[string][]*cloudprovider.InstanceType, error) {
 	amiIDs := map[string][]*cloudprovider.InstanceType{}
 	amiRequirements, err := p.getAMIRequirements(ctx, nodeTemplate)
 	if err != nil {

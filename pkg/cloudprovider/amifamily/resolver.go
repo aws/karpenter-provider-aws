@@ -51,7 +51,6 @@ type Options struct {
 	InstanceProfile         string
 	CABundle                *string `hash:"ignore"`
 	// Level-triggered fields that may change out of sync.
-	KubernetesVersion string
 	SecurityGroupsIDs []string
 	Tags              map[string]string
 	Labels            map[string]string `hash:"ignore"`
@@ -111,7 +110,7 @@ func (r Resolver) GetKubernetesVersion(ctx context.Context) (string, error) {
 // Multiple ResolvedTemplates are returned based on the instanceTypes passed in to support special AMIs for certain instance types like GPUs.
 func (r Resolver) Resolve(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, nodeRequest *cloudprovider.NodeRequest, options *Options) ([]*LaunchTemplate, error) {
 	amiFamily := GetAMIFamily(nodeTemplate.Spec.AMIFamily, options)
-	amiIDs, err := r.amiProvider.Get(ctx, nodeTemplate, options.KubernetesVersion, nodeRequest.InstanceTypeOptions, amiFamily)
+	amiIDs, err := r.amiProvider.Get(ctx, nodeTemplate, nodeRequest.InstanceTypeOptions, amiFamily)
 	if err != nil {
 		return nil, err
 	}

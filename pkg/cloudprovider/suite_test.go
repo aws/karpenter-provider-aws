@@ -17,17 +17,15 @@ package cloudprovider
 import (
 	"context"
 	"net"
-	"path/filepath"
-	"runtime"
 	"testing"
 	"time"
 
+	"github.com/samber/lo"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/patrickmn/go-cache"
 	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	clock "k8s.io/utils/clock/testing"
 	"knative.dev/pkg/ptr"
@@ -69,6 +67,7 @@ var securityGroupCache *cache.Cache
 var subnetCache *cache.Cache
 var ssmCache *cache.Cache
 var ec2Cache *cache.Cache
+var kubernetesVersionCache *cache.Cache
 var internalUnavailableOfferingsCache *cache.Cache
 var unavailableOfferingsCache *awscache.UnavailableOfferings
 var instanceTypeCache *cache.Cache
@@ -109,11 +108,12 @@ var _ = BeforeSuite(func() {
 	subnetCache = cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)
 	ssmCache = cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)
 	ec2Cache = cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)
+	kubernetesVersionCache = cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)
 	instanceTypeCache = cache.New(InstanceTypesAndZonesCacheTTL, awscontext.CacheCleanupInterval)
 	fakeEC2API = &fake.EC2API{}
 	fakePricingAPI = &fake.PricingAPI{}
 	pricingProvider = NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
-	amiProvider = amifamily.NewAMIProvider(env.Client, fake.SSMAPI{}, fakeEC2API, ssmCache, ec2Cache, env.KubernetesInterface)
+	amiProvider = amifamily.NewAMIProvider(env.Client, env.KubernetesInterface, fake.SSMAPI{}, fakeEC2API, ssmCache, ec2Cache, kubernetesVersionCache)
 	subnetProvider := &SubnetProvider{
 		ec2api: fakeEC2API,
 		cache:  subnetCache,
@@ -150,8 +150,6 @@ var _ = BeforeSuite(func() {
 	recorder = coretest.NewEventRecorder()
 	prov = provisioning.NewProvisioner(ctx, env.Client, env.KubernetesInterface.CoreV1(), recorder, cloudProvider, cluster)
 	provisioningController = provisioning.NewController(env.Client, prov, recorder)
-
-	env.CRDDirectoryPaths = append(env.CRDDirectoryPaths, RelativeToRoot("charts/karpenter/crds"))
 	provisioning.WaitForClusterSync = false
 })
 
@@ -205,6 +203,7 @@ var _ = BeforeEach(func() {
 	internalUnavailableOfferingsCache.Flush()
 	ssmCache.Flush()
 	ec2Cache.Flush()
+	kubernetesVersionCache.Flush()
 	instanceTypeCache.Flush()
 	cloudProvider.instanceProvider.launchTemplateProvider.kubeDNSIP = net.ParseIP("10.0.100.10")
 })
@@ -262,6 +261,7 @@ var _ = Describe("Allocation", func() {
 	})
 	Context("Node Drift", func() {
 		It("should detect drift if ami gets changed", func() {
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			instanceTypes, _ := cloudProvider.GetInstanceTypes(ctx, provisioner)
 			node := coretest.Node(coretest.NodeOptions{
 				ObjectMeta: metav1.ObjectMeta{
@@ -276,14 +276,14 @@ var _ = Describe("Allocation", func() {
 			Expect(isDrifted).To(BeTrue())
 		})
 		It("should not detect drift if ami isn't changed", func() {
-			aws, _ := cloudProvider.getProvider(ctx, provisioner.Spec.Provider, provisioner.Spec.ProviderRef)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			instanceTypes, _ := cloudProvider.GetInstanceTypes(ctx, provisioner)
-			validAmis, err := amiProvider.GetAMIsForProvider(ctx, provisioner.Spec.ProviderRef, instanceTypes, aws.AMIFamily)
+			validAmis, err := amiProvider.Get(ctx, nodeTemplate, instanceTypes, amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, &amifamily.Options{}))
 			Expect(err).ToNot(HaveOccurred())
 			node := coretest.Node(coretest.NodeOptions{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						v1alpha1.LabelInstanceAMIID: validAmis[0],
+						v1alpha1.LabelInstanceAMIID: lo.Keys(validAmis)[0],
 						v1.LabelInstanceTypeStable:  instanceTypes[0].Name,
 					},
 				},
@@ -293,20 +293,22 @@ var _ = Describe("Allocation", func() {
 			Expect(isDrifted).To(BeFalse())
 		})
 		It("should error drift if node doesn't have instance-type label", func() {
-			aws, _ := cloudProvider.getProvider(ctx, provisioner.Spec.Provider, provisioner.Spec.ProviderRef)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			instanceTypes, _ := cloudProvider.GetInstanceTypes(ctx, provisioner)
-			validAmis, err := amiProvider.GetAMIsForProvider(ctx, provisioner.Spec.ProviderRef, instanceTypes, aws.AMIFamily)
+			validAmis, err := amiProvider.Get(ctx, nodeTemplate, instanceTypes, amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, &amifamily.Options{}))
 			Expect(err).ToNot(HaveOccurred())
 			node := coretest.Node(coretest.NodeOptions{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						v1alpha1.LabelInstanceAMIID: validAmis[0],
+						v1alpha1.LabelInstanceAMIID: lo.Keys(validAmis)[0],
 					},
 				},
 			})
 			isDrifted, err := cloudProvider.IsNodeDrifted(ctx, provisioner, node)
 			Expect(err).To(HaveOccurred())
 			Expect(isDrifted).To(BeFalse())
+		})
+	})
 	Context("Provider Backwards Compatibility", func() {
 		It("should launch a node using provider defaults", func() {
 			provisioner := test.Provisioner(coretest.ProvisionerOptions{
@@ -398,9 +400,3 @@ var _ = Describe("Allocation", func() {
 		})
 	})
 })
-
-func RelativeToRoot(path string) string {
-	_, file, _, _ := runtime.Caller(0)
-	manifestsRoot := filepath.Join(filepath.Dir(file), "..", "..")
-	return filepath.Join(manifestsRoot, path)
-}

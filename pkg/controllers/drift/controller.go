@@ -27,6 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
@@ -61,7 +62,8 @@ func (c *Controller) Reconcile(ctx context.Context, node *v1.Node) (reconcile.Re
 		return reconcile.Result{}, nil
 	}
 
-	if drifted, ok := node.Labels[v1alpha5.DriftedLabelKey]; ok && drifted == "true" {
+	// TODO: change this label to the karpenter-core drift label
+	if drifted, ok := node.Labels["drifted"]; ok && drifted == "true" {
 		return reconcile.Result{}, nil
 	}
 
@@ -73,7 +75,7 @@ func (c *Controller) Reconcile(ctx context.Context, node *v1.Node) (reconcile.Re
 	if drifted, err := c.cloudProvider.IsNodeDrifted(ctx, provisioner, node); err != nil {
 		return reconcile.Result{}, fmt.Errorf("getting drift for node, %w", err)
 	} else if drifted {
-		node.Labels[v1alpha5.DriftedLabelKey] = "true"
+		node.Labels["drifted"] = "true"
 	}
 
 	return reconcile.Result{RequeueAfter: 30 * time.Minute}, nil
@@ -103,12 +105,16 @@ func (c *Controller) Builder(ctx context.Context, m manager.Manager) corecontrol
 					logging.FromContext(ctx).Errorf("listing provisioners for AWSNodeTemplate reconciliation %w", err)
 					return requests
 				}
-				for _, provisioner := range provisioners.Items {
-					requests = append(requests, getReconcileRequests(ctx, &provisioner, c.kubeClient)...)
+				for i := range provisioners.Items {
+					requests = append(requests, getReconcileRequests(ctx, &provisioners.Items[i], c.kubeClient)...)
 				}
 				return requests
 			}),
 		).
+		WithEventFilter(predicate.NewPredicateFuncs(func(o client.Object) bool {
+			_, ok := o.GetLabels()[v1alpha5.ProvisionerNameLabelKey]
+			return ok
+		})).
 		WithOptions(controller.Options{MaxConcurrentReconciles: 10}))
 }
 
