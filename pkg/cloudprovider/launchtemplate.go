@@ -265,7 +265,7 @@ func (p *LaunchTemplateProvider) Invalidate(ctx context.Context, ltName string, 
 func (p *LaunchTemplateProvider) hydrateCache(ctx context.Context) {
 	clusterName := awssettings.FromContext(ctx).ClusterName
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("tag-key", karpenterManagedTagKey, "tag-value", clusterName))
-	logging.FromContext(ctx).Debugf("hydrating the launch template cache with tags matching")
+	logging.FromContext(ctx).Debugf("hydrating the launch template cache")
 	if err := p.ec2api.DescribeLaunchTemplatesPagesWithContext(ctx, &ec2.DescribeLaunchTemplatesInput{
 		Filters: []*ec2.Filter{{Name: aws.String(fmt.Sprintf("tag:%s", karpenterManagedTagKey)), Values: []*string{aws.String(clusterName)}}},
 	}, func(output *ec2.DescribeLaunchTemplatesOutput, _ bool) bool {

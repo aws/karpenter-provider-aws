@@ -116,19 +116,7 @@ spec:
 
 ## Node deprovisioning
 
-If neither of these values are set, Karpenter will *not* delete instances. It is recommended to set the `ttlSecondsAfterEmpty` value, to enable scale down of the cluster.
-
-### spec.ttlSecondsAfterEmpty
-
-Setting a value here enables Karpenter to delete empty/unnecessary instances. DaemonSets are excluded from considering a node "empty". This value is in seconds.
-
-### spec.ttlSecondsUntilExpired
-
-Setting a value here enables node expiry. After nodes reach the defined age in seconds, they will be deleted, even if in use. This enables nodes to effectively be periodically "upgraded" by replacing them with newly provisioned instances.
-
-Note that Karpenter does not automatically add jitter to this value. If multiple instances are created in a small amount of time, they will expire at very similar times. Consider defining a [pod disruption budget](https://kubernetes.io/docs/tasks/run-application/configure-pdb/) to prevent excessive workload disruption.
-
-
+You can configure Karpenter to deprovision instances through your Provisioner in multiple ways. You can use `spec.TTLSecondsAfterEmpty`, `spec.ttlSecondsUntilExpired` or `spec.consolidation.enabled`. Read [Deprovisioning](../tasks/deprovisioning/) for more.
 
 ## spec.requirements
 
@@ -271,7 +259,7 @@ For more information on the default `--system-reserved` and `--kube-reserved` co
 
 ### Eviction Thresholds
 
-The kubelet supports eviction thresholds by default. When enough memory or file system pressure is exerted on the node, the kubelet will begin to evict pods to ensure that system daemons and other system processes can continue to run in a healthy manner. 
+The kubelet supports eviction thresholds by default. When enough memory or file system pressure is exerted on the node, the kubelet will begin to evict pods to ensure that system daemons and other system processes can continue to run in a healthy manner.
 
 Kubelet has the notion of [hard evictions](https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/#hard-eviction-thresholds) and [soft evictions](https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/#soft-eviction-thresholds). In hard evictions, pods are evicted as soon as a threshold is met, with no grace period to terminate. Soft evictions, on the other hand, provide an opportunity for pods to be terminated gracefully. They do so by sending a termination signal to pods that are planning to be evicted and allowing those pods to terminate up to their grace period.
 
@@ -372,4 +360,4 @@ Review the [resource limit task](../tasks/set-resource-limits) for more informat
 
 This field points to the cloud provider-specific custom resource. Reference the appropriate documentation:
 
-- [AWS](../aws/provisioning/)
+- [AWS](./tasks/node-templates/)

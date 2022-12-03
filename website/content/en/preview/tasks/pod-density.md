@@ -1,24 +1,24 @@
 ---
 title: "Control Pod Density"
 linkTitle: "Control Pod Density"
-weight: 20
+weight: 11
 description: >
   Learn ways to specify pod density with Karpenter
 ---
 
-Pod density is the number of pods per node. 
+Pod density is the number of pods per node.
 
 Kubernetes has a default limit of 110 pods per node. If you are using the EKS Optimized AMI on AWS, the [number of pods is limited by instance type](https://github.com/awslabs/amazon-eks-ami/blob/master/files/eni-max-pods.txt) in the default configuration.
 
 ## Increase Pod Density
 
-### Networking Limitations 
+### Networking Limitations
 
 *☁️ AWS Specific*
 
 By default, the number of pods on a node is limited by both the number of networking interfaces (ENIs) that may be attached to an instance type and the number of IP addresses that can be assigned to each ENI.  See [IP addresses per network interface per instance type](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-eni.html#AvailableIpPerENI) for a more detailed information on these instance types' limits.
 
-Karpenter can be configured to disable nodes' ENI-based pod density.  This is especially useful for small to medium instance types which have a lower ENI-based pod density. 
+Karpenter can be configured to disable nodes' ENI-based pod density.  This is especially useful for small to medium instance types which have a lower ENI-based pod density.
 
 {{% alert title="Note" color="primary" %}}
 When using small instance types, it may be necessary to enable [prefix assignment mode](https://aws.amazon.com/blogs/containers/amazon-vpc-cni-increases-pods-per-node-limits/) in the AWS VPC CNI plugin to more pods per node.  Prefix assignment mode was introduced in AWS VPC CNI v1.9 and allows ENIs to manage a broader set of IP addresses.  Much higher pod densities are supported as a result.
@@ -51,7 +51,7 @@ Environment variables for the Karpenter controller may be specified as [helm cha
 
 ## Limit Pod Density
 
-Generally, increasing pod density is more efficient. However, some use cases exist for limiting pod density. 
+Generally, increasing pod density is more efficient. However, some use cases exist for limiting pod density.
 
 ### Topology Spread
 
@@ -62,7 +62,7 @@ You can use [topology spread]({{< relref "scheduling.md#topology-spread" >}}) fe
 
 Exclude large instance sizes to reduce the blast radius of an EC2 instance failure.
 
-Consider setting up upper or lower boundaries on target instance sizes with the node.kubernetes.io/instance-type key. 
+Consider setting up upper or lower boundaries on target instance sizes with the node.kubernetes.io/instance-type key.
 
 The following example shows how to avoid provisioning large Graviton instances in order to reduce the impact of individual instance failures:
 
@@ -76,7 +76,3 @@ The following example shows how to avoid provisioning large Graviton instances i
       'r6gd.16xlarge'
       'c6g.16xlarge'
 ```
-
-
-
-

@@ -36,7 +36,7 @@ import (
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 
@@ -219,11 +219,6 @@ func getFilters(amiSelector map[string]string) []*ec2.Filter {
 			filters = append(filters, &ec2.Filter{
 				Name:   aws.String("image-id"),
 				Values: aws.StringSlice(filterValues),
-			})
-		} else if key == "name" {
-			filters = append(filters, &ec2.Filter{
-				Name:   aws.String("name"),
-				Values: []*string{aws.String(value)},
 			})
 		} else {
 			filters = append(filters, &ec2.Filter{

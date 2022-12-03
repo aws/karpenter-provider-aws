@@ -63,11 +63,11 @@ func NewOrDie(ctx cloudprovider.Context) Context {
 		),
 	)))
 	if *sess.Config.Region == "" {
-		logging.FromContext(ctx).Debug("AWS region not configured, asking EC2 instance metadata service")
+		logging.FromContext(ctx).Debug("retrieving region from IMDS")
 		region, err := ec2metadata.New(sess).Region()
 		*sess.Config.Region = lo.Must(region, err, "failed to get region from metadata server")
 	}
-	logging.FromContext(ctx).With("region", *sess.Config.Region).Debugf("using AWS region")
+	logging.FromContext(ctx).With("region", *sess.Config.Region).Debugf("discovered region")
 	return Context{
 		Context:                   ctx,
 		Session:                   sess,

@@ -68,7 +68,7 @@ func main() {
 	fmt.Fprintf(f, `---
 title: "Metrics"
 linkTitle: "Metrics"
-weight: 100
+weight: 12
 
 description: >
   Inspect Karpenter Metrics
