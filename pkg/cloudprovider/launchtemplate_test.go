@@ -910,7 +910,7 @@ var _ = Describe("LaunchTemplates", func() {
 			userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 			Expect(string(userData)).To(ContainSubstring("--container-runtime dockerd"))
 		})
-		It("should specify --container-runtime docker when using Neuron GPUs", func() {
+		It("should specify --container-runtime containerd when using Neuron GPUs", func() {
 			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{{Key: v1alpha1.LabelInstanceCategory, Operator: v1.NodeSelectorOpExists}}
 			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, coretest.UnschedulablePod(coretest.PodOptions{
@@ -928,7 +928,7 @@ var _ = Describe("LaunchTemplates", func() {
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
-			Expect(string(userData)).To(ContainSubstring("--container-runtime docker"))
+			Expect(string(userData)).To(ContainSubstring("--container-runtime containerd"))
 		})
 		It("should specify --container-runtime containerd when using Nvidia GPUs", func() {
 			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{{Key: v1alpha1.LabelInstanceCategory, Operator: v1.NodeSelectorOpExists}}
