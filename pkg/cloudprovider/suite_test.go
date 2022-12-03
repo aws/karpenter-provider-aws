@@ -25,6 +25,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/patrickmn/go-cache"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	clock "k8s.io/utils/clock/testing"
 	"knative.dev/pkg/ptr"
 
@@ -32,7 +34,6 @@ import (
 	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
 
-	"github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter/pkg/apis"
 	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
@@ -40,6 +41,8 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
 	awscontext "github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/test"
+
+	"github.com/aws/karpenter-core/pkg/operator/controller"
 
 	"github.com/aws/karpenter-core/pkg/apis/config/settings"
 	corev1alpha5 "github.com/aws/karpenter-core/pkg/apis/v1alpha5"
@@ -77,7 +80,7 @@ var cluster *state.Cluster
 var recorder *coretest.EventRecorder
 var fakeClock *clock.FakeClock
 var provisioner *corev1alpha5.Provisioner
-var provider *v1alpha1.AWS
+var nodeTemplate *v1alpha1.AWSNodeTemplate
 var pricingProvider *PricingProvider
 var settingsStore coretest.SettingsStore
 
@@ -160,18 +163,33 @@ var _ = BeforeEach(func() {
 		awssettings.ContextKey: test.Settings(),
 	}
 	ctx = settingsStore.InjectSettings(ctx)
-	provider = &v1alpha1.AWS{
-		AMIFamily:             aws.String(v1alpha1.AMIFamilyAL2),
-		SubnetSelector:        map[string]string{"*": "*"},
-		SecurityGroupSelector: map[string]string{"*": "*"},
+	nodeTemplate = &v1alpha1.AWSNodeTemplate{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: coretest.RandomName(),
+		},
+		Spec: v1alpha1.AWSNodeTemplateSpec{
+			AWS: v1alpha1.AWS{
+				AMIFamily:             aws.String(v1alpha1.AMIFamilyAL2),
+				SubnetSelector:        map[string]string{"*": "*"},
+				SecurityGroupSelector: map[string]string{"*": "*"},
+			},
+		},
 	}
-
+	nodeTemplate.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   v1alpha1.SchemeGroupVersion.Group,
+		Version: v1alpha1.SchemeGroupVersion.Version,
+		Kind:    "AWSNodeTemplate",
+	})
 	provisioner = test.Provisioner(coretest.ProvisionerOptions{
-		Provider: provider,
 		Requirements: []v1.NodeSelectorRequirement{{
 			Key:      v1alpha1.LabelInstanceCategory,
 			Operator: v1.NodeSelectorOpExists,
 		}},
+		ProviderRef: &corev1alpha5.ProviderRef{
+			APIVersion: nodeTemplate.APIVersion,
+			Kind:       nodeTemplate.Kind,
+			Name:       nodeTemplate.Name,
+		},
 	})
 
 	recorder.Reset()
@@ -230,12 +248,102 @@ var _ = Describe("Allocation", func() {
 		})
 		It("should default to no EC2 Context", func() {
 			provisioner.SetDefaults(ctx)
-			ExpectApplied(ctx, env.Client, provisioner)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(fakeEC2API.CalledWithCreateFleetInput.Len()).To(Equal(1))
 			createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop()
 			Expect(createFleetInput.Context).To(BeNil())
+		})
+	})
+	Context("Provider Backwards Compatibility", func() {
+		It("should launch a node using provider defaults", func() {
+			provisioner := test.Provisioner(coretest.ProvisionerOptions{
+				Provider: v1alpha1.AWS{
+					AMIFamily:             aws.String(v1alpha1.AMIFamilyAL2),
+					SubnetSelector:        map[string]string{"*": "*"},
+					SecurityGroupSelector: map[string]string{"*": "*"},
+				},
+				Requirements: []v1.NodeSelectorRequirement{{
+					Key:      v1alpha1.LabelInstanceCategory,
+					Operator: v1.NodeSelectorOpExists,
+				}},
+			})
+			ExpectApplied(ctx, env.Client, provisioner)
+			pod := ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
+			ExpectScheduled(ctx, env.Client, pod)
+
+			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+			firstLt := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+			Expect(fakeEC2API.CalledWithCreateFleetInput.Len()).To(Equal(1))
+
+			createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop()
+			launchTemplate := createFleetInput.LaunchTemplateConfigs[0].LaunchTemplateSpecification
+			Expect(createFleetInput.LaunchTemplateConfigs).To(HaveLen(1))
+
+			Expect(*createFleetInput.LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName).
+				To(Equal(*firstLt.LaunchTemplateName))
+			Expect(firstLt.LaunchTemplateData.BlockDeviceMappings[0].Ebs.Encrypted).To(Equal(aws.Bool(true)))
+			Expect(*launchTemplate.Version).To(Equal("$Latest"))
+		})
+		It("should discover security groups by ID", func() {
+			provisioner := test.Provisioner(coretest.ProvisionerOptions{
+				Provider: v1alpha1.AWS{
+					AMIFamily:             aws.String(v1alpha1.AMIFamilyAL2),
+					SubnetSelector:        map[string]string{"*": "*"},
+					SecurityGroupSelector: map[string]string{"aws-ids": "sg-test1"},
+				},
+				Requirements: []v1.NodeSelectorRequirement{{
+					Key:      v1alpha1.LabelInstanceCategory,
+					Operator: v1.NodeSelectorOpExists,
+				}},
+			})
+			ExpectApplied(ctx, env.Client, provisioner)
+			pod := ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+			Expect(aws.StringValueSlice(input.LaunchTemplateData.SecurityGroupIds)).To(ConsistOf(
+				"sg-test1",
+			))
+		})
+		It("should discover subnets by ID", func() {
+			provisioner := test.Provisioner(coretest.ProvisionerOptions{
+				Provider: v1alpha1.AWS{
+					AMIFamily:             aws.String(v1alpha1.AMIFamilyAL2),
+					SubnetSelector:        map[string]string{"aws-ids": "subnet-test1"},
+					SecurityGroupSelector: map[string]string{"*": "*"},
+				},
+				Requirements: []v1.NodeSelectorRequirement{{
+					Key:      v1alpha1.LabelInstanceCategory,
+					Operator: v1.NodeSelectorOpExists,
+				}},
+			})
+			ExpectApplied(ctx, env.Client, provisioner)
+			pod := ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
+			ExpectScheduled(ctx, env.Client, pod)
+			createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop()
+			Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("subnet-test1"))
+		})
+		It("should use the instance profile on the Provisioner when specified", func() {
+			provisioner := test.Provisioner(coretest.ProvisionerOptions{
+				Provider: v1alpha1.AWS{
+					AMIFamily:             aws.String(v1alpha1.AMIFamilyAL2),
+					SubnetSelector:        map[string]string{"*": "*"},
+					SecurityGroupSelector: map[string]string{"*": "*"},
+					InstanceProfile:       aws.String("overridden-profile"),
+				},
+				Requirements: []v1.NodeSelectorRequirement{{
+					Key:      v1alpha1.LabelInstanceCategory,
+					Operator: v1.NodeSelectorOpExists,
+				}},
+			})
+			ExpectApplied(ctx, env.Client, provisioner)
+			pod := ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+			Expect(*input.LaunchTemplateData.IamInstanceProfile.Name).To(Equal("overridden-profile"))
 		})
 	})
 })

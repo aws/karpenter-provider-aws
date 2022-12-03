@@ -113,11 +113,11 @@ func checkEC2Connectivity(ctx context.Context, api *ec2.EC2) error {
 
 // Create a node given the constraints.
 func (c *CloudProvider) Create(ctx context.Context, nodeRequest *cloudprovider.NodeRequest) (*v1.Node, error) {
-	aws, err := c.getProvider(ctx, nodeRequest.Template.Provider, nodeRequest.Template.ProviderRef)
+	nodeTemplate, err := c.resolveNodeTemplate(ctx, nodeRequest.Template.Provider, nodeRequest.Template.ProviderRef)
 	if err != nil {
 		return nil, err
 	}
-	return c.instanceProvider.Create(ctx, aws, nodeRequest)
+	return c.instanceProvider.Create(ctx, nodeTemplate, nodeRequest)
 }
 
 func (c *CloudProvider) LivenessProbe(req *http.Request) error {
@@ -129,12 +129,12 @@ func (c *CloudProvider) LivenessProbe(req *http.Request) error {
 
 // GetInstanceTypes returns all available InstanceTypes
 func (c *CloudProvider) GetInstanceTypes(ctx context.Context, provisioner *v1alpha5.Provisioner) ([]*cloudprovider.InstanceType, error) {
-	aws, err := c.getProvider(ctx, provisioner.Spec.Provider, provisioner.Spec.ProviderRef)
+	nodeTemplate, err := c.resolveNodeTemplate(ctx, provisioner.Spec.Provider, provisioner.Spec.ProviderRef)
 	if err != nil {
 		return nil, err
 	}
 	// TODO, break this coupling
-	instanceTypes, err := c.instanceTypeProvider.Get(ctx, provisioner.Spec.KubeletConfiguration, aws)
+	instanceTypes, err := c.instanceTypeProvider.Get(ctx, provisioner.Spec.KubeletConfiguration, nodeTemplate)
 	if err != nil {
 		return nil, err
 	}
@@ -181,17 +181,18 @@ func kubeDNSIP(ctx context.Context, kubernetesInterface kubernetes.Interface) (n
 	return kubeDNSIP, nil
 }
 
-func (c *CloudProvider) getProvider(ctx context.Context, provider *runtime.RawExtension, providerRef *v1alpha5.ProviderRef) (*v1alpha1.AWS, error) {
+func (c *CloudProvider) resolveNodeTemplate(ctx context.Context, provider *runtime.RawExtension, providerRef *v1alpha5.ProviderRef) (*v1alpha1.AWSNodeTemplate, error) {
+	nodeTemplate := &v1alpha1.AWSNodeTemplate{}
 	if providerRef != nil {
-		var ant v1alpha1.AWSNodeTemplate
-		if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: providerRef.Name}, &ant); err != nil {
+		if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: providerRef.Name}, nodeTemplate); err != nil {
 			return nil, fmt.Errorf("getting providerRef, %w", err)
 		}
-		return &ant.Spec.AWS, nil
+		return nodeTemplate, nil
 	}
 	aws, err := v1alpha1.Deserialize(provider)
 	if err != nil {
 		return nil, err
 	}
-	return aws, nil
+	nodeTemplate.Spec.AWS = lo.FromPtr(aws)
+	return nodeTemplate, nil
 }

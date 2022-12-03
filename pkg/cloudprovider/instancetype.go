@@ -48,14 +48,14 @@ var (
 )
 
 func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, kc *v1alpha5.KubeletConfiguration,
-	region string, provider *v1alpha1.AWS, offerings cloudprovider.Offerings) *cloudprovider.InstanceType {
+	region string, nodeTemplate *v1alpha1.AWSNodeTemplate, offerings cloudprovider.Offerings) *cloudprovider.InstanceType {
 
-	amiFamily := amifamily.GetAMIFamily(provider.AMIFamily, &amifamily.Options{})
+	amiFamily := amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, &amifamily.Options{})
 	return &cloudprovider.InstanceType{
 		Name:         aws.StringValue(info.InstanceType),
 		Requirements: computeRequirements(ctx, info, offerings, region, amiFamily, kc),
 		Offerings:    offerings,
-		Capacity:     computeCapacity(ctx, info, amiFamily, provider.BlockDeviceMappings, kc),
+		Capacity:     computeCapacity(ctx, info, amiFamily, nodeTemplate.Spec.BlockDeviceMappings, kc),
 		Overhead: &cloudprovider.InstanceTypeOverhead{
 			KubeReserved:      kubeReservedResources(cpu(info), pods(ctx, info, amiFamily, kc), eniLimitedPods(info), amiFamily, kc),
 			SystemReserved:    systemReservedResources(kc),
