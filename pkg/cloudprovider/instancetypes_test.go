@@ -203,6 +203,34 @@ var _ = Describe("Instance Types", func() {
 		}
 		Expect(nodeNames.Len()).To(Equal(2))
 	})
+	It("should launch instances for Habana GPU resource requests", func() {
+		nodeNames := sets.NewString()
+		ExpectApplied(ctx, env.Client, provisioner)
+		for _, pod := range ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov,
+			coretest.UnschedulablePod(coretest.PodOptions{
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{v1alpha1.ResourceHabanaGaudi: resource.MustParse("1")},
+					Limits:   v1.ResourceList{v1alpha1.ResourceHabanaGaudi: resource.MustParse("1")},
+				},
+			}),
+			coretest.UnschedulablePod(coretest.PodOptions{
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{v1alpha1.ResourceHabanaGaudi: resource.MustParse("2")},
+					Limits:   v1.ResourceList{v1alpha1.ResourceHabanaGaudi: resource.MustParse("2")},
+				},
+			}),
+			coretest.UnschedulablePod(coretest.PodOptions{
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{v1alpha1.ResourceHabanaGaudi: resource.MustParse("4")},
+					Limits:   v1.ResourceList{v1alpha1.ResourceHabanaGaudi: resource.MustParse("4")},
+				},
+			})) {
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "dl1.24xlarge"))
+			nodeNames.Insert(node.Name)
+		}
+		Expect(nodeNames.Len()).To(Equal(1))
+	})
 	It("should launch instances for AWS Neuron resource requests", func() {
 		nodeNames := sets.NewString()
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
@@ -721,6 +749,33 @@ var _ = Describe("Instance Types", func() {
 			pod = ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, pod)[0]
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "inf1.6xlarge"))
+		})
+		It("should launch instances in a different zone on second reconciliation attempt with Insufficient Capacity Error Cache fallback", func() {
+			fakeEC2API.InsufficientCapacityPools.Set([]fake.CapacityPool{{CapacityType: v1alpha5.CapacityTypeOnDemand, InstanceType: "dl1.24xlarge", Zone: "test-zone-1a"}})
+			pod := coretest.UnschedulablePod(coretest.PodOptions{
+				NodeSelector: map[string]string{v1.LabelInstanceTypeStable: "dl1.24xlarge"},
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{v1alpha1.ResourceHabanaGaudi: resource.MustParse("1")},
+					Limits:   v1.ResourceList{v1alpha1.ResourceHabanaGaudi: resource.MustParse("1")},
+				},
+			})
+			pod.Spec.Affinity = &v1.Affinity{NodeAffinity: &v1.NodeAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []v1.PreferredSchedulingTerm{
+				{
+					Weight: 1, Preference: v1.NodeSelectorTerm{MatchExpressions: []v1.NodeSelectorRequirement{
+						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
+					}},
+				},
+			}}}
+			ExpectApplied(ctx, env.Client, provisioner)
+			pod = ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, pod)[0]
+			// it should've tried to pack them in test-zone-1a on a dl1.24xlarge then hit insufficient capacity, the next attempt will try test-zone-1b
+			ExpectNotScheduled(ctx, env.Client, pod)
+
+			pod = ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, pod)[0]
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(node.Labels).To(SatisfyAll(
+				HaveKeyWithValue(v1.LabelInstanceTypeStable, "dl1.24xlarge"),
+				HaveKeyWithValue(v1.LabelTopologyZone, "test-zone-1b")))
 		})
 		It("should launch on-demand capacity if flexible to both spot and on-demand, but spot is unavailable", func() {
 			Expect(fakeEC2API.DescribeInstanceTypesPagesWithContext(ctx, &ec2.DescribeInstanceTypesInput{}, func(dito *ec2.DescribeInstanceTypesOutput, b bool) bool {

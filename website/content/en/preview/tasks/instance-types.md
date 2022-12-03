@@ -3484,6 +3484,7 @@ below are the resources available with some assumptions and after the instance o
  |cpu|95590m|
  |ephemeral-storage|18Gi|
  |memory|694632Mi|
+ |habana.ai/gaudi|8|
  |pods|2942|
  |vpc.amazonaws.com/pod-eni|62|
 ## g3 Family

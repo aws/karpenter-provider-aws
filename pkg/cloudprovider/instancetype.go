@@ -130,14 +130,15 @@ func computeCapacity(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily 
 	blockDeviceMappings []*v1alpha1.BlockDeviceMapping, kc *v1alpha5.KubeletConfiguration) v1.ResourceList {
 
 	return v1.ResourceList{
-		v1.ResourceCPU:              *cpu(info),
-		v1.ResourceMemory:           *memory(ctx, info),
-		v1.ResourceEphemeralStorage: *ephemeralStorage(amiFamily, blockDeviceMappings),
-		v1.ResourcePods:             *pods(ctx, info, amiFamily, kc),
-		v1alpha1.ResourceAWSPodENI:  *awsPodENI(ctx, aws.StringValue(info.InstanceType)),
-		v1alpha1.ResourceNVIDIAGPU:  *nvidiaGPUs(info),
-		v1alpha1.ResourceAMDGPU:     *amdGPUs(info),
-		v1alpha1.ResourceAWSNeuron:  *awsNeurons(info),
+		v1.ResourceCPU:               *cpu(info),
+		v1.ResourceMemory:            *memory(ctx, info),
+		v1.ResourceEphemeralStorage:  *ephemeralStorage(amiFamily, blockDeviceMappings),
+		v1.ResourcePods:              *pods(ctx, info, amiFamily, kc),
+		v1alpha1.ResourceAWSPodENI:   *awsPodENI(ctx, aws.StringValue(info.InstanceType)),
+		v1alpha1.ResourceNVIDIAGPU:   *nvidiaGPUs(info),
+		v1alpha1.ResourceAMDGPU:      *amdGPUs(info),
+		v1alpha1.ResourceAWSNeuron:   *awsNeurons(info),
+		v1alpha1.ResourceHabanaGaudi: *habanaGaudis(info),
 	}
 }
 
@@ -209,6 +210,18 @@ func awsNeurons(info *ec2.InstanceTypeInfo) *resource.Quantity {
 	if info.InferenceAcceleratorInfo != nil {
 		for _, accelerator := range info.InferenceAcceleratorInfo.Accelerators {
 			count += *accelerator.Count
+		}
+	}
+	return resources.Quantity(fmt.Sprint(count))
+}
+
+func habanaGaudis(info *ec2.InstanceTypeInfo) *resource.Quantity {
+	count := int64(0)
+	if info.GpuInfo != nil {
+		for _, gpu := range info.GpuInfo.Gpus {
+			if *gpu.Manufacturer == "Habana" {
+				count += *gpu.Count
+			}
 		}
 	}
 	return resources.Quantity(fmt.Sprint(count))
