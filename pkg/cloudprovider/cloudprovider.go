@@ -117,14 +117,14 @@ func (c *CloudProvider) IsNodeDrifted(ctx context.Context, provisioner *v1alpha5
 	if len(nodeInstanceType) == 0 {
 		return false, fmt.Errorf("getting nodeInstanceType")
 	}
-	aws, err := c.getProvider(ctx, provisioner.Spec.Provider, provisioner.Spec.ProviderRef)
+	nodeTemplate, err := c.resolveNodeTemplate(ctx, provisioner.Spec.Provider, provisioner.Spec.ProviderRef)
 	if err != nil {
-		return false, fmt.Errorf("getting provider, %w", err)
+		return false, fmt.Errorf("resolving node template, %w", err)
 	}
-	if aws.LaunchTemplateName != nil {
+	if nodeTemplate.Spec.LaunchTemplateName != nil {
 		return false, fmt.Errorf("using a custom Launch Template which is deprecated")
 	}
-	amis, err := c.amiProvider.GetAMIsForProvider(ctx, provisioner.Spec.ProviderRef, nodeInstanceType, aws.AMIFamily)
+	amis, err := c.amiProvider.GetAMIs(ctx, nodeTemplate, nodeInstanceType, nodeTemplate.Spec.AMIFamily)
 	if err != nil {
 		return false, fmt.Errorf("getting amis, %w", err)
 	}

@@ -21,8 +21,8 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/vuln/client"
 	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
