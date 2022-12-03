@@ -1,12 +1,24 @@
+/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package drift
 
 import (
 	"context"
 	"fmt"
-	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
-	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/cloudprovider"
+	"time"
+
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"knative.dev/pkg/logging"
@@ -17,7 +29,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
-	"time"
+
+	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
+	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
+	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/cloudprovider"
 )
 
 var _ corecontroller.TypedController[*v1.Node] = (*Controller)(nil)
@@ -39,8 +55,7 @@ func (c *Controller) Name() string {
 	return "drift"
 }
 
-func (d Controller) Reconcile(ctx context.Context, node *v1.Node) (reconcile.Result, error) {
-
+func (c *Controller) Reconcile(ctx context.Context, node *v1.Node) (reconcile.Result, error) {
 	provisionerName, provisionerExists := node.Labels[v1alpha5.ProvisionerNameLabelKey]
 	if !provisionerExists {
 		return reconcile.Result{}, nil
@@ -51,11 +66,11 @@ func (d Controller) Reconcile(ctx context.Context, node *v1.Node) (reconcile.Res
 	}
 
 	provisioner := &v1alpha5.Provisioner{}
-	if err := d.kubeClient.Get(ctx, types.NamespacedName{Name: provisionerName}, provisioner); err != nil {
+	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: provisionerName}, provisioner); err != nil {
 		return reconcile.Result{}, fmt.Errorf("getting provisioner, %w", err)
 	}
 
-	if drifted, err := d.cloudProvider.IsNodeDrifted(ctx, provisioner, node); err != nil {
+	if drifted, err := c.cloudProvider.IsNodeDrifted(ctx, provisioner, node); err != nil {
 		return reconcile.Result{}, fmt.Errorf("getting drift for node, %w", err)
 	} else if drifted {
 		node.Labels[v1alpha5.DriftedLabelKey] = "true"
@@ -64,8 +79,8 @@ func (d Controller) Reconcile(ctx context.Context, node *v1.Node) (reconcile.Res
 	return reconcile.Result{RequeueAfter: 30 * time.Minute}, nil
 }
 
-func (d Controller) Builder(ctx context.Context, m manager.Manager) corecontroller.Builder {
-	builder := controllerruntime.
+func (c *Controller) Builder(ctx context.Context, m manager.Manager) corecontroller.Builder {
+	return corecontroller.Adapt(controllerruntime.
 		NewControllerManagedBy(m).
 		For(&v1.Node{}).
 		Watches(
@@ -74,37 +89,27 @@ func (d Controller) Builder(ctx context.Context, m manager.Manager) corecontroll
 				provisioner := o.(*v1alpha5.Provisioner)
 				// Ensure provisioner has a defined AWSNodeTemplate
 				nodeTemplate := &v1alpha1.AWSNodeTemplate{}
-				if err := d.kubeClient.Get(ctx, types.NamespacedName{Name: provisioner.Spec.ProviderRef.Name}, nodeTemplate); err != nil {
+				if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: provisioner.Spec.ProviderRef.Name}, nodeTemplate); err != nil {
 					logging.FromContext(ctx).Errorf("getting AWSNodeTemplates when mapping drift watch events, %s", err)
 					return requests
 				}
-				return getReconcileRequests(ctx, provisioner, d.kubeClient)
+				return getReconcileRequests(ctx, provisioner, c.kubeClient)
 			})).
-		WithOptions(controller.Options{MaxConcurrentReconciles: 10})
-
-	if err := m.GetFieldIndexer().IndexField(ctx, &v1alpha5.Provisioner{}, ".spec.providerRef.name", func(rawObj client.Object) []string {
-		provisioner := rawObj.(*v1alpha5.Provisioner)
-		return []string{provisioner.Spec.ProviderRef.Name}
-	}); err != nil {
-		//Return early, controller won't be able to get provisioners related to AWSNodeTemplate if the index field failed
-		logging.FromContext(ctx).Errorf("creating index for provisioner while building drift controller, %w", err)
-		return corecontroller.Adapt(builder)
-	}
-
-	return corecontroller.Adapt(builder.Watches(
-		&source.Kind{Type: &v1alpha1.AWSNodeTemplate{}},
-		handler.EnqueueRequestsFromMapFunc(func(o client.Object) (requests []reconcile.Request) {
-			provisioners := &v1alpha5.ProvisionerList{}
-			if err := d.kubeClient.List(ctx, provisioners, client.MatchingFields{".spec.providerRef.name": o.GetName()}); err != nil {
-				logging.FromContext(ctx).Errorf("listing provisioners for AWSNodeTemplate reconciliation %w", err)
+		Watches(
+			&source.Kind{Type: &v1alpha1.AWSNodeTemplate{}},
+			handler.EnqueueRequestsFromMapFunc(func(o client.Object) (requests []reconcile.Request) {
+				provisioners := &v1alpha5.ProvisionerList{}
+				if err := c.kubeClient.List(ctx, provisioners, client.MatchingFields{".spec.providerRef.name": o.GetName()}); err != nil {
+					logging.FromContext(ctx).Errorf("listing provisioners for AWSNodeTemplate reconciliation %w", err)
+					return requests
+				}
+				for _, provisioner := range provisioners.Items {
+					requests = append(requests, getReconcileRequests(ctx, &provisioner, c.kubeClient)...)
+				}
 				return requests
-			}
-			for _, provisioner := range provisioners.Items {
-				requests = append(requests, getReconcileRequests(ctx, &provisioner, d.kubeClient)...)
-			}
-			return requests
-		}),
-	))
+			}),
+		).
+		WithOptions(controller.Options{MaxConcurrentReconciles: 10}))
 }
 
 func getReconcileRequests(ctx context.Context, provisioner *v1alpha5.Provisioner, kubeClient client.Client) (requests []reconcile.Request) {
@@ -116,6 +121,5 @@ func getReconcileRequests(ctx context.Context, provisioner *v1alpha5.Provisioner
 	for _, node := range nodes.Items {
 		requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Name: node.Name}})
 	}
-
 	return requests
 }

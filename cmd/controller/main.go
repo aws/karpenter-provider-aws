@@ -16,7 +16,9 @@ package main
 
 import (
 	"github.com/samber/lo"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/controllers"
@@ -44,6 +46,15 @@ func main() {
 	awsCloudProvider := cloudprovider.New(awsCtx)
 	lo.Must0(operator.AddHealthzCheck("cloud-provider", awsCloudProvider.LivenessProbe))
 	cloudProvider := metrics.Decorate(awsCloudProvider)
+
+	// Setup field indexers for AWS controllers
+	lo.Must0(operator.Manager.GetFieldIndexer().IndexField(ctx, &v1alpha5.Provisioner{}, ".spec.providerRef.name", func(o client.Object) []string {
+		provisioner := o.(*v1alpha5.Provisioner)
+		if provisioner.Spec.ProviderRef == nil {
+			return []string{""}
+		}
+		return []string{provisioner.Spec.ProviderRef.Name}
+	}), "failed to setup providerRef indexer")
 
 	operator.
 		WithControllers(ctx, corecontrollers.NewControllers(

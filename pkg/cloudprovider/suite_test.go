@@ -16,12 +16,13 @@ package cloudprovider
 
 import (
 	"context"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net"
 	"path/filepath"
 	"runtime"
 	"testing"
 	"time"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/patrickmn/go-cache"
@@ -109,7 +110,7 @@ var _ = BeforeSuite(func() {
 	fakeEC2API = &fake.EC2API{}
 	fakePricingAPI = &fake.PricingAPI{}
 	pricingProvider = NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
-	amiProvider = amifamily.NewAmiProvider(env.Client, fake.SSMAPI{}, fakeEC2API, ssmCache, ec2Cache, env.KubernetesInterface)
+	amiProvider = amifamily.NewAMIProvider(env.Client, fake.SSMAPI{}, fakeEC2API, ssmCache, ec2Cache, env.KubernetesInterface)
 	subnetProvider := &SubnetProvider{
 		ec2api: fakeEC2API,
 		cache:  subnetCache,

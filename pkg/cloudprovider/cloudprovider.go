@@ -85,7 +85,8 @@ func New(ctx awscontext.Context) *CloudProvider {
 	}
 	subnetProvider := NewSubnetProvider(ec2api)
 	instanceTypeProvider := NewInstanceTypeProvider(ctx, ctx.Session, ec2api, subnetProvider, ctx.UnavailableOfferingsCache, ctx.StartAsync)
-	amiProvider := amifamily.NewAmiProvider(ctx.KubeClient, ssm.New(ctx.Session), ec2api, cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval), cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval), ctx.KubernetesInterface)
+	amiProvider := amifamily.NewAMIProvider(ctx.KubeClient, ctx.KubernetesInterface, ssm.New(ctx.Session), ec2api,
+		cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval), cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval), cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval))
 	amiResolver := amifamily.New(ctx.KubeClient, amiProvider)
 	return &CloudProvider{
 		kubeClient:           ctx.KubeClient,
