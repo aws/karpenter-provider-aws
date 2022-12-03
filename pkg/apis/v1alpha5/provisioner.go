@@ -35,7 +35,7 @@ func (p *Provisioner) Validate(ctx context.Context) (errs *apis.FieldError) {
 	if p.Spec.Provider == nil {
 		return nil
 	}
-	provider, err := v1alpha1.Deserialize(p.Spec.Provider)
+	provider, err := v1alpha1.DeserializeProvider(p.Spec.Provider.Raw)
 	if err != nil {
 		return apis.ErrGeneric(err.Error())
 	}

@@ -115,9 +115,9 @@ func New(kubeClient client.Client, ssm ssmiface.SSMAPI, ec2api ec2iface.EC2API, 
 
 // Resolve generates launch templates using the static options and dynamically generates launch template parameters.
 // Multiple ResolvedTemplates are returned based on the instanceTypes passed in to support special AMIs for certain instance types like GPUs.
-func (r Resolver) Resolve(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, nodeRequest *cloudprovider.NodeRequest, options *Options) ([]*LaunchTemplate, error) {
+func (r Resolver) Resolve(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, machine *cloudprovider.Machine, options *Options) ([]*LaunchTemplate, error) {
 	amiFamily := GetAMIFamily(nodeTemplate.Spec.AMIFamily, options)
-	amiIDs, err := r.amiProvider.Get(ctx, nodeTemplate, nodeRequest, options, amiFamily)
+	amiIDs, err := r.amiProvider.Get(ctx, nodeTemplate, machine, options, amiFamily)
 	if err != nil {
 		return nil, err
 	}
@@ -126,8 +126,8 @@ func (r Resolver) Resolve(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTem
 		resolved := &LaunchTemplate{
 			Options: options,
 			UserData: amiFamily.UserData(
-				nodeRequest.Template.KubeletConfiguration,
-				append(nodeRequest.Template.Taints, nodeRequest.Template.StartupTaints...),
+				machine.Spec.Kubelet,
+				append(machine.Spec.Taints, machine.Spec.StartupTaints...),
 				options.Labels,
 				options.CABundle,
 				instanceTypes,

@@ -81,6 +81,33 @@ var _ = Describe("Instance Types", func() {
 			ExpectNotScheduled(ctx, env.Client, pod)
 		}
 	})
+	It("should order instance types by price", func() {
+		// TODO: validate that we are considering the top offerings by price using auto-generated data from the larger
+		// describe instance types API
+		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+		for _, pod := range ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov,
+			coretest.UnschedulablePod(coretest.PodOptions{
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
+					Limits:   v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
+				},
+			})) {
+			ExpectScheduled(ctx, env.Client, pod)
+		}
+		it, err := cloudProvider.GetInstanceTypes(ctx, provisioner)
+		Expect(err).To(BeNil())
+		fmt.Println(it)
+		Expect(fakeEC2API.CalledWithCreateFleetInput.Len()).To(Equal(1))
+		call := fakeEC2API.CalledWithCreateFleetInput.Pop()
+		_ = call
+		for _, ltc := range call.LaunchTemplateConfigs {
+			for _, ovr := range ltc.Overrides {
+
+				Expect(strings.HasSuffix(aws.StringValue(ovr.InstanceType), "metal")).To(BeFalse())
+			}
+		}
+
+	})
 	It("should de-prioritize metal", func() {
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 		for _, pod := range ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov,
