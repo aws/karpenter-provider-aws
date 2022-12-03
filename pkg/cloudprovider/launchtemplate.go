@@ -90,18 +90,18 @@ func launchTemplateName(options *amifamily.LaunchTemplate) string {
 	return fmt.Sprintf(launchTemplateNameFormat, options.ClusterName, fmt.Sprint(hash))
 }
 
-func (p *LaunchTemplateProvider) Get(ctx context.Context, provider *v1alpha1.AWS, nodeRequest *cloudprovider.NodeRequest, additionalLabels map[string]string) (map[string][]*cloudprovider.InstanceType, error) {
+func (p *LaunchTemplateProvider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, nodeRequest *cloudprovider.NodeRequest, additionalLabels map[string]string) (map[string][]*cloudprovider.InstanceType, error) {
 	p.Lock()
 	defer p.Unlock()
 	// If Launch Template is directly specified then just use it
-	if provider.LaunchTemplateName != nil {
-		return map[string][]*cloudprovider.InstanceType{ptr.StringValue(provider.LaunchTemplateName): nodeRequest.InstanceTypeOptions}, nil
+	if nodeTemplate.Spec.LaunchTemplateName != nil {
+		return map[string][]*cloudprovider.InstanceType{ptr.StringValue(nodeTemplate.Spec.LaunchTemplateName): nodeRequest.InstanceTypeOptions}, nil
 	}
-	options, err := p.createAmiOptions(ctx, provider, lo.Assign(nodeRequest.Template.Labels, additionalLabels))
+	options, err := p.createAmiOptions(ctx, nodeTemplate, lo.Assign(nodeRequest.Template.Labels, additionalLabels))
 	if err != nil {
 		return nil, err
 	}
-	resolvedLaunchTemplates, err := p.amiFamily.Resolve(ctx, provider, nodeRequest, options)
+	resolvedLaunchTemplates, err := p.amiFamily.Resolve(ctx, nodeTemplate, nodeRequest, options)
 	if err != nil {
 		return nil, err
 	}
@@ -117,13 +117,13 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, provider *v1alpha1.AWS
 	return launchTemplates, nil
 }
 
-func (p *LaunchTemplateProvider) createAmiOptions(ctx context.Context, provider *v1alpha1.AWS, additionalLabels map[string]string) (*amifamily.Options, error) {
-	instanceProfile, err := p.getInstanceProfile(ctx, provider)
+func (p *LaunchTemplateProvider) createAmiOptions(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, labels map[string]string) (*amifamily.Options, error) {
+	instanceProfile, err := p.getInstanceProfile(ctx, nodeTemplate)
 	if err != nil {
 		return nil, err
 	}
 	// Get constrained security groups
-	securityGroupsIDs, err := p.securityGroupProvider.Get(ctx, provider)
+	securityGroupsIDs, err := p.securityGroupProvider.Get(ctx, nodeTemplate)
 	if err != nil {
 		return nil, err
 	}
@@ -137,8 +137,8 @@ func (p *LaunchTemplateProvider) createAmiOptions(ctx context.Context, provider 
 		AWSENILimitedPodDensity: awssettings.FromContext(ctx).EnableENILimitedPodDensity,
 		InstanceProfile:         instanceProfile,
 		SecurityGroupsIDs:       securityGroupsIDs,
-		Tags:                    lo.Assign(awssettings.FromContext(ctx).Tags, provider.Tags),
-		Labels:                  additionalLabels,
+		Tags:                    lo.Assign(awssettings.FromContext(ctx).Tags, nodeTemplate.Spec.Tags),
+		Labels:                  labels,
 		CABundle:                p.caBundle,
 		KubernetesVersion:       kubeServerVersion,
 		KubeDNSIP:               p.kubeDNSIP,
@@ -295,9 +295,9 @@ func (p *LaunchTemplateProvider) cachedEvictedFunc(ctx context.Context) func(str
 	}
 }
 
-func (p *LaunchTemplateProvider) getInstanceProfile(ctx context.Context, provider *v1alpha1.AWS) (string, error) {
-	if provider.InstanceProfile != nil {
-		return aws.StringValue(provider.InstanceProfile), nil
+func (p *LaunchTemplateProvider) getInstanceProfile(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) (string, error) {
+	if nodeTemplate.Spec.InstanceProfile != nil {
+		return aws.StringValue(nodeTemplate.Spec.InstanceProfile), nil
 	}
 	defaultProfile := awssettings.FromContext(ctx).DefaultInstanceProfile
 	if defaultProfile == "" {

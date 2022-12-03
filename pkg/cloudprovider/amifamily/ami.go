@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/vuln/client"
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -32,9 +33,7 @@ import (
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"knative.dev/pkg/logging"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 
@@ -96,13 +95,13 @@ func (p *AMIProvider) KubeServerVersion(ctx context.Context) (string, error) {
 	return version, nil
 }
 
-func (p *AMIProvider) GetAMIsForProvider(ctx context.Context, providerRef *v1alpha5.ProviderRef, instanceTypes []*cloudprovider.InstanceType, amiFamilyName *string) ([]string, error) {
+func (p *AMIProvider) GetAMIs(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, instanceTypes []*cloudprovider.InstanceType, amiFamilyName *string) ([]string, error) {
 	amiFamily := GetAMIFamily(amiFamilyName, &Options{})
 	kubernetesVersion, err := p.KubeServerVersion(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("getting kubernetes version %w", err)
 	}
-	amiIds, err := p.Get(ctx, providerRef, kubernetesVersion, instanceTypes, amiFamily)
+	amiIds, err := p.Get(ctx, nodeTemplate, kubernetesVersion, instanceTypes, amiFamily)
 	if err != nil {
 		return nil, fmt.Errorf("getting amiIds %w", err)
 	}
@@ -111,9 +110,9 @@ func (p *AMIProvider) GetAMIsForProvider(ctx context.Context, providerRef *v1alp
 
 // Get returns a set of AMIIDs and corresponding instance types. AMI may vary due to architecture, accelerator, etc
 // If AMI overrides are specified in the AWSNodeTemplate, then only those AMIs will be chosen.
-func (p *AMIProvider) Get(ctx context.Context, providerRef *v1alpha5.ProviderRef, kubernetesVersion string, instanceTypes []*cloudprovider.InstanceType, amiFamily AMIFamily) (map[string][]*cloudprovider.InstanceType, error) {
+func (p *AMIProvider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, kubernetesVersion string, instanceTypes []*cloudprovider.InstanceType, amiFamily AMIFamily) (map[string][]*cloudprovider.InstanceType, error) {
 	amiIDs := map[string][]*cloudprovider.InstanceType{}
-	amiRequirements, err := p.getAMIRequirements(ctx, providerRef)
+	amiRequirements, err := p.getAMIRequirements(ctx, nodeTemplate)
 	if err != nil {
 		return nil, err
 	}
@@ -159,19 +158,11 @@ func (p *AMIProvider) getDefaultAMIFromSSM(ctx context.Context, ssmQuery string)
 	return ami, nil
 }
 
-func (p *AMIProvider) getAMIRequirements(ctx context.Context, providerRef *v1alpha5.ProviderRef) (map[AMI]scheduling.Requirements, error) {
-	amiRequirements := map[AMI]scheduling.Requirements{}
-	if providerRef != nil {
-		var ant v1alpha1.AWSNodeTemplate
-		if err := p.kubeClient.Get(ctx, types.NamespacedName{Name: providerRef.Name}, &ant); err != nil {
-			return amiRequirements, fmt.Errorf("retrieving provider reference, %w", err)
-		}
-		if len(ant.Spec.AMISelector) == 0 {
-			return amiRequirements, nil
-		}
-		return p.selectAMIs(ctx, ant.Spec.AMISelector)
+func (p *AMIProvider) getAMIRequirements(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) (map[AMI]scheduling.Requirements, error) {
+	if len(nodeTemplate.Spec.AMISelector) == 0 {
+		return map[AMI]scheduling.Requirements{}, nil
 	}
-	return amiRequirements, nil
+	return p.selectAMIs(ctx, nodeTemplate.Spec.AMISelector)
 }
 
 func (p *AMIProvider) selectAMIs(ctx context.Context, amiSelector map[string]string) (map[AMI]scheduling.Requirements, error) {

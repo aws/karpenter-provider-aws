@@ -48,11 +48,11 @@ func NewSecurityGroupProvider(ec2api ec2iface.EC2API) *SecurityGroupProvider {
 	}
 }
 
-func (p *SecurityGroupProvider) Get(ctx context.Context, provider *v1alpha1.AWS) ([]string, error) {
+func (p *SecurityGroupProvider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) ([]string, error) {
 	p.Lock()
 	defer p.Unlock()
 	// Get SecurityGroups
-	securityGroups, err := p.getSecurityGroups(ctx, p.getFilters(provider))
+	securityGroups, err := p.getSecurityGroups(ctx, p.getFilters(nodeTemplate))
 	if err != nil {
 		return nil, err
 	}
@@ -68,9 +68,9 @@ func (p *SecurityGroupProvider) Get(ctx context.Context, provider *v1alpha1.AWS)
 	return securityGroupIds, nil
 }
 
-func (p *SecurityGroupProvider) getFilters(provider *v1alpha1.AWS) []*ec2.Filter {
+func (p *SecurityGroupProvider) getFilters(nodeTemplate *v1alpha1.AWSNodeTemplate) []*ec2.Filter {
 	filters := []*ec2.Filter{}
-	for key, value := range provider.SecurityGroupSelector {
+	for key, value := range nodeTemplate.Spec.SecurityGroupSelector {
 		if key == "aws-ids" {
 			filterValues := functional.SplitCommaSeparatedString(value)
 			filters = append(filters, &ec2.Filter{
