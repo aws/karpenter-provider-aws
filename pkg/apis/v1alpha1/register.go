@@ -23,7 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/util/sets"
 
-	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 )
 
 var (
@@ -53,10 +53,11 @@ var (
 		AMIFamilyAL2:          sets.NewString("dockerd", "containerd"),
 		AMIFamilyUbuntu:       sets.NewString("dockerd", "containerd"),
 	}
-	ResourceNVIDIAGPU v1.ResourceName = "nvidia.com/gpu"
-	ResourceAMDGPU    v1.ResourceName = "amd.com/gpu"
-	ResourceAWSNeuron v1.ResourceName = "aws.amazon.com/neuron"
-	ResourceAWSPodENI v1.ResourceName = "vpc.amazonaws.com/pod-eni"
+	ResourceNVIDIAGPU   v1.ResourceName = "nvidia.com/gpu"
+	ResourceAMDGPU      v1.ResourceName = "amd.com/gpu"
+	ResourceAWSNeuron   v1.ResourceName = "aws.amazon.com/neuron"
+	ResourceHabanaGaudi v1.ResourceName = "habana.ai/gaudi"
+	ResourceAWSPodENI   v1.ResourceName = "vpc.amazonaws.com/pod-eni"
 
 	LabelInstanceHypervisor      = LabelDomain + "/instance-hypervisor"
 	LabelInstanceCategory        = LabelDomain + "/instance-category"

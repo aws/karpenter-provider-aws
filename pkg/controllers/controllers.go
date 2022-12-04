@@ -23,12 +23,10 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/interruption"
 	"github.com/aws/karpenter/pkg/controllers/nodetemplatestatus"
 	"github.com/aws/karpenter/pkg/utils/project"
-
-	corecloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
 )
 
-func NewControllers(ctx awscontext.Context, cloudProvider corecloudprovider.CloudProvider) []controller.Controller {
-	logging.FromContext(ctx).Infof("Initializing with version %s", project.Version)
+func NewControllers(ctx awscontext.Context) []controller.Controller {
+	logging.FromContext(ctx).With("version", project.Version).Debugf("discovered version")
 	return []controller.Controller{
 		interruption.NewController(ctx.KubeClient, ctx.Clock, ctx.EventRecorder, interruption.NewSQSProvider(sqs.New(ctx.Session)), ctx.UnavailableOfferingsCache),
 		nodetemplatestatus.NewController(ctx, cloudProvider),

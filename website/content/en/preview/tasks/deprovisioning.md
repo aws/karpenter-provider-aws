@@ -1,7 +1,7 @@
 ---
 title: "Deprovisioning"
 linkTitle: "Deprovisioning"
-weight: 10
+weight: 3
 description: >
   Understand different ways Karpenter deprovisions nodes
 ---
@@ -115,6 +115,30 @@ data:
   ...
   aws.interruptionQueueName: karpenter-cluster
   ...
+```
+
+## Disabling Deprovisioning
+
+Nodes can be opted out of deprovisioning using an annotation.
+
+### Supported Annotations
+
+| Annotation                      | Effect                            |
+| ------------------------------- | --------------------------------- |
+| karpenter.sh/do-not-consolidate | The node will not be consolidated |
+
+### Example: Disable Consolidation
+
+The annotation `karpenter.sh/do-not-consolidate` will be applied to all nodes launched by this provisioner, which will prevent them from being considered in consolidation calculations.
+
+```yaml
+apiVersion: karpenter.sh/v1alpha5
+kind: Provisioner
+metadata:
+  name: default
+spec:
+  annotations: # will be applied to all nodes
+    karpenter.sh/do-not-consolidate: "true"
 ```
 
 ## What can cause deprovisioning to fail?

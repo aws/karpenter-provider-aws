@@ -47,10 +47,10 @@ func NewSubnetProvider(ec2api ec2iface.EC2API, c *cache.Cache) *SubnetProvider {
 	}
 }
 
-func (p *SubnetProvider) Get(ctx context.Context, provider *v1alpha1.AWS) ([]*ec2.Subnet, error) {
+func (p *SubnetProvider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) ([]*ec2.Subnet, error) {
 	p.Lock()
 	defer p.Unlock()
-	filters := p.getFilters(provider)
+	filters := getFilters(nodeTemplate)
 	hash, err := hashstructure.Hash(filters, hashstructure.FormatV2, nil)
 	if err != nil {
 		return nil, err
@@ -70,10 +70,10 @@ func (p *SubnetProvider) LivenessProbe(req *http.Request) error {
 	return nil
 }
 
-func (p *SubnetProvider) getFilters(provider *v1alpha1.AWS) []*ec2.Filter {
+func getFilters(nodeTemplate *v1alpha1.AWSNodeTemplate) []*ec2.Filter {
 	filters := []*ec2.Filter{}
 	// Filter by subnet
-	for key, value := range provider.SubnetSelector {
+	for key, value := range nodeTemplate.Spec.SubnetSelector {
 		if key == "aws-ids" {
 			filterValues := functional.SplitCommaSeparatedString(value)
 			filters = append(filters, &ec2.Filter{

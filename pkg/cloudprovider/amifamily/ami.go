@@ -29,11 +29,9 @@ import (
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"knative.dev/pkg/logging"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 
@@ -44,12 +42,11 @@ import (
 )
 
 type AMIProvider struct {
-	ssmCache   *cache.Cache
-	ec2Cache   *cache.Cache
-	ssm        ssmiface.SSMAPI
-	kubeClient client.Client
-	ec2api     ec2iface.EC2API
-	cm         *pretty.ChangeMonitor
+	ssmCache *cache.Cache
+	ec2Cache *cache.Cache
+	ssm      ssmiface.SSMAPI
+	ec2api   ec2iface.EC2API
+	cm       *pretty.ChangeMonitor
 }
 
 type AMI struct {
@@ -59,9 +56,9 @@ type AMI struct {
 
 // Get returns a set of AMIIDs and corresponding instance types. AMI may vary due to architecture, accelerator, etc
 // If AMI overrides are specified in the AWSNodeTemplate, then only those AMIs will be chosen.
-func (p *AMIProvider) Get(ctx context.Context, provider *v1alpha1.AWS, nodeRequest *cloudprovider.NodeRequest, options *Options, amiFamily AMIFamily) (map[string][]*cloudprovider.InstanceType, error) {
+func (p *AMIProvider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, nodeRequest *cloudprovider.NodeRequest, options *Options, amiFamily AMIFamily) (map[string][]*cloudprovider.InstanceType, error) {
 	amiIDs := map[string][]*cloudprovider.InstanceType{}
-	amiRequirements, err := p.getAMIRequirements(ctx, nodeRequest.Template.ProviderRef)
+	amiRequirements, err := p.getAMIRequirements(ctx, nodeTemplate)
 	if err != nil {
 		return nil, err
 	}
@@ -107,19 +104,11 @@ func (p *AMIProvider) getDefaultAMIFromSSM(ctx context.Context, ssmQuery string)
 	return ami, nil
 }
 
-func (p *AMIProvider) getAMIRequirements(ctx context.Context, providerRef *v1alpha5.ProviderRef) (map[AMI]scheduling.Requirements, error) {
-	amiRequirements := map[AMI]scheduling.Requirements{}
-	if providerRef != nil {
-		var ant v1alpha1.AWSNodeTemplate
-		if err := p.kubeClient.Get(ctx, types.NamespacedName{Name: providerRef.Name}, &ant); err != nil {
-			return amiRequirements, fmt.Errorf("retrieving provider reference, %w", err)
-		}
-		if len(ant.Spec.AMISelector) == 0 {
-			return amiRequirements, nil
-		}
-		return p.selectAMIs(ctx, ant.Spec.AMISelector)
+func (p *AMIProvider) getAMIRequirements(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) (map[AMI]scheduling.Requirements, error) {
+	if len(nodeTemplate.Spec.AMISelector) == 0 {
+		return map[AMI]scheduling.Requirements{}, nil
 	}
-	return amiRequirements, nil
+	return p.selectAMIs(ctx, nodeTemplate.Spec.AMISelector)
 }
 
 func (p *AMIProvider) selectAMIs(ctx context.Context, amiSelector map[string]string) (map[AMI]scheduling.Requirements, error) {
@@ -168,11 +157,6 @@ func getFilters(amiSelector map[string]string) []*ec2.Filter {
 			filters = append(filters, &ec2.Filter{
 				Name:   aws.String("image-id"),
 				Values: aws.StringSlice(filterValues),
-			})
-		} else if key == "name" {
-			filters = append(filters, &ec2.Filter{
-				Name:   aws.String("name"),
-				Values: []*string{aws.String(value)},
 			})
 		} else {
 			filters = append(filters, &ec2.Filter{

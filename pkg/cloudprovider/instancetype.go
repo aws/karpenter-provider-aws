@@ -33,7 +33,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
 
-	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/scheduling"
 	"github.com/aws/karpenter-core/pkg/utils/resources"
@@ -48,14 +48,14 @@ var (
 )
 
 func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, kc *v1alpha5.KubeletConfiguration,
-	region string, provider *v1alpha1.AWS, offerings cloudprovider.Offerings) *cloudprovider.InstanceType {
+	region string, nodeTemplate *v1alpha1.AWSNodeTemplate, offerings cloudprovider.Offerings) *cloudprovider.InstanceType {
 
-	amiFamily := amifamily.GetAMIFamily(provider.AMIFamily, &amifamily.Options{})
+	amiFamily := amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, &amifamily.Options{})
 	return &cloudprovider.InstanceType{
 		Name:         aws.StringValue(info.InstanceType),
 		Requirements: computeRequirements(ctx, info, offerings, region, amiFamily, kc),
 		Offerings:    offerings,
-		Capacity:     computeCapacity(ctx, info, amiFamily, provider.BlockDeviceMappings, kc),
+		Capacity:     computeCapacity(ctx, info, amiFamily, nodeTemplate.Spec.BlockDeviceMappings, kc),
 		Overhead: &cloudprovider.InstanceTypeOverhead{
 			KubeReserved:      kubeReservedResources(cpu(info), pods(ctx, info, amiFamily, kc), eniLimitedPods(info), amiFamily, kc),
 			SystemReserved:    systemReservedResources(kc),
@@ -130,14 +130,15 @@ func computeCapacity(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily 
 	blockDeviceMappings []*v1alpha1.BlockDeviceMapping, kc *v1alpha5.KubeletConfiguration) v1.ResourceList {
 
 	return v1.ResourceList{
-		v1.ResourceCPU:              *cpu(info),
-		v1.ResourceMemory:           *memory(ctx, info),
-		v1.ResourceEphemeralStorage: *ephemeralStorage(amiFamily, blockDeviceMappings),
-		v1.ResourcePods:             *pods(ctx, info, amiFamily, kc),
-		v1alpha1.ResourceAWSPodENI:  *awsPodENI(ctx, aws.StringValue(info.InstanceType)),
-		v1alpha1.ResourceNVIDIAGPU:  *nvidiaGPUs(info),
-		v1alpha1.ResourceAMDGPU:     *amdGPUs(info),
-		v1alpha1.ResourceAWSNeuron:  *awsNeurons(info),
+		v1.ResourceCPU:               *cpu(info),
+		v1.ResourceMemory:            *memory(ctx, info),
+		v1.ResourceEphemeralStorage:  *ephemeralStorage(amiFamily, blockDeviceMappings),
+		v1.ResourcePods:              *pods(ctx, info, amiFamily, kc),
+		v1alpha1.ResourceAWSPodENI:   *awsPodENI(ctx, aws.StringValue(info.InstanceType)),
+		v1alpha1.ResourceNVIDIAGPU:   *nvidiaGPUs(info),
+		v1alpha1.ResourceAMDGPU:      *amdGPUs(info),
+		v1alpha1.ResourceAWSNeuron:   *awsNeurons(info),
+		v1alpha1.ResourceHabanaGaudi: *habanaGaudis(info),
 	}
 }
 
@@ -209,6 +210,18 @@ func awsNeurons(info *ec2.InstanceTypeInfo) *resource.Quantity {
 	if info.InferenceAcceleratorInfo != nil {
 		for _, accelerator := range info.InferenceAcceleratorInfo.Accelerators {
 			count += *accelerator.Count
+		}
+	}
+	return resources.Quantity(fmt.Sprint(count))
+}
+
+func habanaGaudis(info *ec2.InstanceTypeInfo) *resource.Quantity {
+	count := int64(0)
+	if info.GpuInfo != nil {
+		for _, gpu := range info.GpuInfo.Gpus {
+			if *gpu.Manufacturer == "Habana" {
+				count += *gpu.Count
+			}
 		}
 	}
 	return resources.Quantity(fmt.Sprint(count))

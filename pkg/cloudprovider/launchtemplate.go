@@ -95,19 +95,19 @@ func launchTemplateName(options *amifamily.LaunchTemplate) string {
 	return fmt.Sprintf(launchTemplateNameFormat, options.ClusterName, fmt.Sprint(hash))
 }
 
-func (p *LaunchTemplateProvider) Get(ctx context.Context, provider *v1alpha1.AWS, nodeRequest *cloudprovider.NodeRequest, additionalLabels map[string]string) (map[string][]*cloudprovider.InstanceType, error) {
+func (p *LaunchTemplateProvider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, nodeRequest *cloudprovider.NodeRequest, additionalLabels map[string]string) (map[string][]*cloudprovider.InstanceType, error) {
 	p.Lock()
 	defer p.Unlock()
 	// If Launch Template is directly specified then just use it
-	if provider.LaunchTemplateName != nil {
-		return map[string][]*cloudprovider.InstanceType{ptr.StringValue(provider.LaunchTemplateName): nodeRequest.InstanceTypeOptions}, nil
+	if nodeTemplate.Spec.LaunchTemplateName != nil {
+		return map[string][]*cloudprovider.InstanceType{ptr.StringValue(nodeTemplate.Spec.LaunchTemplateName): nodeRequest.InstanceTypeOptions}, nil
 	}
-	instanceProfile, err := p.getInstanceProfile(ctx, provider)
+	instanceProfile, err := p.getInstanceProfile(ctx, nodeTemplate)
 	if err != nil {
 		return nil, err
 	}
 	// Get constrained security groups
-	securityGroupsIDs, err := p.securityGroupProvider.Get(ctx, provider)
+	securityGroupsIDs, err := p.securityGroupProvider.Get(ctx, nodeTemplate)
 	if err != nil {
 		return nil, err
 	}
@@ -115,13 +115,13 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, provider *v1alpha1.AWS
 	if err != nil {
 		return nil, err
 	}
-	resolvedLaunchTemplates, err := p.amiFamily.Resolve(ctx, provider, nodeRequest, &amifamily.Options{
+	resolvedLaunchTemplates, err := p.amiFamily.Resolve(ctx, nodeTemplate, nodeRequest, &amifamily.Options{
 		ClusterName:             awssettings.FromContext(ctx).ClusterName,
 		ClusterEndpoint:         awssettings.FromContext(ctx).ClusterEndpoint,
 		AWSENILimitedPodDensity: awssettings.FromContext(ctx).EnableENILimitedPodDensity,
 		InstanceProfile:         instanceProfile,
 		SecurityGroupsIDs:       securityGroupsIDs,
-		Tags:                    lo.Assign(awssettings.FromContext(ctx).Tags, provider.Tags),
+		Tags:                    lo.Assign(awssettings.FromContext(ctx).Tags, nodeTemplate.Spec.Tags),
 		Labels:                  lo.Assign(nodeRequest.Template.Labels, additionalLabels),
 		CABundle:                p.caBundle,
 		KubernetesVersion:       kubeServerVersion,
@@ -262,7 +262,7 @@ func (p *LaunchTemplateProvider) Invalidate(ctx context.Context, ltName string, 
 func (p *LaunchTemplateProvider) hydrateCache(ctx context.Context) {
 	clusterName := awssettings.FromContext(ctx).ClusterName
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("tag-key", karpenterManagedTagKey, "tag-value", clusterName))
-	logging.FromContext(ctx).Debugf("hydrating the launch template cache with tags matching")
+	logging.FromContext(ctx).Debugf("hydrating the launch template cache")
 	if err := p.ec2api.DescribeLaunchTemplatesPagesWithContext(ctx, &ec2.DescribeLaunchTemplatesInput{
 		Filters: []*ec2.Filter{{Name: aws.String(fmt.Sprintf("tag:%s", karpenterManagedTagKey)), Values: []*string{aws.String(clusterName)}}},
 	}, func(output *ec2.DescribeLaunchTemplatesOutput, _ bool) bool {
@@ -295,9 +295,9 @@ func (p *LaunchTemplateProvider) cachedEvictedFunc(ctx context.Context) func(str
 	}
 }
 
-func (p *LaunchTemplateProvider) getInstanceProfile(ctx context.Context, provider *v1alpha1.AWS) (string, error) {
-	if provider.InstanceProfile != nil {
-		return aws.StringValue(provider.InstanceProfile), nil
+func (p *LaunchTemplateProvider) getInstanceProfile(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) (string, error) {
+	if nodeTemplate.Spec.InstanceProfile != nil {
+		return aws.StringValue(nodeTemplate.Spec.InstanceProfile), nil
 	}
 	defaultProfile := awssettings.FromContext(ctx).DefaultInstanceProfile
 	if defaultProfile == "" {
