@@ -57,7 +57,7 @@ func (p *SubnetProvider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNode
 	}
 	subnets, ok := p.cache.Get(fmt.Sprint(hash))
 	if !ok {
-		return nil, fmt.Errorf("no subnets matched selector %v", provider.SubnetSelector)
+		return nil, fmt.Errorf("no subnets matched selector %v", nodeTemplate.Spec.AWS.SubnetSelector)
 	}
 
 	return subnets.([]*ec2.Subnet), nil
