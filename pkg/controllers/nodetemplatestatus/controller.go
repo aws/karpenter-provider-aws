@@ -98,22 +98,22 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	c.subnetCache.SetDefault(fmt.Sprint(subnetHash), subnetOutput.Subnets)
 	if c.cm.HasChanged(fmt.Sprintf("subnets-ids (%s)", req.Name), subnetLog) {
 		logging.FromContext(ctx).With("subnets", subnetLog).Debugf("discovered subnets for AWSNodeTemplate (%s)", req.Name)
-
-		ant.Status.Subnets = nil
-		ant.Status.Subnets = append(ant.Status.Subnets, subnetLog...)
 	}
+
+	ant.Status.Subnets = nil
+	ant.Status.Subnets = append(ant.Status.Subnets, subnetLog...)
 
 	securityGroupIds := c.securityGroupIds(securityGroupOutput.SecurityGroups)
 	c.securityGroupCache.SetDefault(fmt.Sprint(securityGroupHash), securityGroupOutput.SecurityGroups)
 	if c.cm.HasChanged("security-groups", securityGroupOutput.SecurityGroups) {
 		logging.FromContext(ctx).With("security-groups", securityGroupIds).Debugf("discovered security groups")
-
-		ant.Status.SecurityGroups = nil
-		ant.Status.SecurityGroups = append(ant.Status.SecurityGroups, securityGroupIds...)
 	}
 
+	ant.Status.SecurityGroups = nil
+	ant.Status.SecurityGroups = append(ant.Status.SecurityGroups, securityGroupIds...)
+
 	if err := c.kubeClient.Status().Update(ctx, &ant); err != nil {
-		return reconcile.Result{RequeueAfter: 1 * time.Minute}, fmt.Errorf("updating AWSNodeTemplate, %w", err)
+		return reconcile.Result{RequeueAfter: 30 * time.Second}, nil
 	}
 
 	return reconcile.Result{RequeueAfter: 5 * time.Minute}, nil

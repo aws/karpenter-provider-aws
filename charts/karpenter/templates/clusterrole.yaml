@@ -40,3 +40,7 @@ rules:
     resources: ["mutatingwebhookconfigurations"]
     verbs: ["update"]
     resourceNames: ["defaulting.webhook.karpenter.k8s.aws"]
+  # Write
+  - apiGroups: ["karpenter.k8s.aws"]
+    resources: ["awsnodetemplates/status"]
+    verbs: ["update"]
