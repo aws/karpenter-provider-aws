@@ -43,17 +43,17 @@ func NewSubnetCollector(ec2api ec2iface.EC2API, sc *cache.Cache, changeManger *p
 	}
 }
 
-func (s *SubnetCollector) getListOfSubnets(ctx context.Context, requestName string, nodeTemplate *v1alpha1.AWSNodeTemplate) error {
-	subnetFilters := s.getSubnetFilters(&nodeTemplate.Spec.AWS)
+func (s *SubnetCollector) getListOfSubnets(ctx context.Context, requestName string, nodeTemplate *v1alpha1.AWSNodeTemplate) ([]string, error) {
+	filters := s.getSubnetFilters(&nodeTemplate.Spec.AWS)
 
-	subnetHash, err := hashstructure.Hash(subnetFilters, hashstructure.FormatV2, nil)
+	subnetHash, err := hashstructure.Hash(filters, hashstructure.FormatV2, nil)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	subnetOutput, err := s.getSubnetsFromEC2(ctx, s.ec2api, subnetFilters, nodeTemplate)
+	subnetOutput, err := s.getSubnetsFromEC2(ctx, s.ec2api, filters, nodeTemplate)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	subnetLog := s.prettySubnets(subnetOutput.Subnets)
@@ -62,10 +62,7 @@ func (s *SubnetCollector) getListOfSubnets(ctx context.Context, requestName stri
 		logging.FromContext(ctx).With("subnets", subnetLog).Debugf("discovered subnets for AWSNodeTemplate (%s)", requestName)
 	}
 
-	nodeTemplate.Status.Subnets = nil
-	nodeTemplate.Status.Subnets = append(nodeTemplate.Status.Subnets, subnetLog...)
-
-	return nil
+	return subnetLog, nil
 }
 
 func (s *SubnetCollector) getSubnetsFromEC2(ctx context.Context, ec2api ec2iface.EC2API, subnetFilters []*ec2.Filter, nodeTemplate *v1alpha1.AWSNodeTemplate) (*ec2.DescribeSubnetsOutput, error) {
