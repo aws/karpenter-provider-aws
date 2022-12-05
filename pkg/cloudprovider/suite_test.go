@@ -40,6 +40,8 @@ import (
 	awscache "github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
 	awscontext "github.com/aws/karpenter/pkg/context"
+	"github.com/aws/karpenter/pkg/controllers/securitygroups"
+	"github.com/aws/karpenter/pkg/controllers/subnet"
 	"github.com/aws/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-core/pkg/operator/controller"
@@ -83,6 +85,8 @@ var provisioner *corev1alpha5.Provisioner
 var nodeTemplate *v1alpha1.AWSNodeTemplate
 var pricingProvider *PricingProvider
 var settingsStore coretest.SettingsStore
+var subnetController *subnet.Controller
+var securityGroupsController *securitygroups.Controller
 
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -111,9 +115,7 @@ var _ = BeforeSuite(func() {
 	fakePricingAPI = &fake.PricingAPI{}
 	pricingProvider = NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
 	subnetProvider := &SubnetProvider{
-		ec2api: fakeEC2API,
-		cache:  subnetCache,
-		cm:     pretty.NewChangeMonitor(),
+		cache: subnetCache,
 	}
 	instanceTypeProvider = &InstanceTypeProvider{
 		ec2api:               fakeEC2API,
@@ -124,9 +126,7 @@ var _ = BeforeSuite(func() {
 		cm:                   pretty.NewChangeMonitor(),
 	}
 	securityGroupProvider := &SecurityGroupProvider{
-		ec2api: fakeEC2API,
-		cache:  securityGroupCache,
-		cm:     pretty.NewChangeMonitor(),
+		cache: securityGroupCache,
 	}
 	cloudProvider = &CloudProvider{
 		instanceTypeProvider: instanceTypeProvider,
@@ -146,6 +146,8 @@ var _ = BeforeSuite(func() {
 	recorder = coretest.NewEventRecorder()
 	prov = provisioning.NewProvisioner(ctx, env.Client, env.KubernetesInterface.CoreV1(), recorder, cloudProvider, cluster)
 	provisioningController = provisioning.NewController(env.Client, prov, recorder)
+	subnetController = subnet.NewController(env.Client, fakeEC2API, subnetCache, cloudProvider)
+	securityGroupsController = securitygroups.NewController(env.Client, fakeEC2API, securityGroupCache, cloudProvider)
 
 	env.CRDDirectoryPaths = append(env.CRDDirectoryPaths, RelativeToRoot("charts/karpenter/crds"))
 	provisioning.WaitForClusterSync = false

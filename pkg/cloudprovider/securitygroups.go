@@ -21,28 +21,22 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 
 	"github.com/aws/karpenter-core/pkg/utils/functional"
-	"github.com/aws/karpenter-core/pkg/utils/pretty"
 )
 
 type SecurityGroupProvider struct {
 	sync.Mutex
-	ec2api ec2iface.EC2API
-	cache  *cache.Cache
-	cm     *pretty.ChangeMonitor
+	cache *cache.Cache
 }
 
-func NewSecurityGroupProvider(ec2api ec2iface.EC2API, c *cache.Cache) *SecurityGroupProvider {
+func NewSecurityGroupProvider(c *cache.Cache) *SecurityGroupProvider {
 	return &SecurityGroupProvider{
-		ec2api: ec2api,
-		cm:     pretty.NewChangeMonitor(),
-		cache:  c,
+		cache: c,
 	}
 }
 
@@ -85,7 +79,7 @@ func (p *SecurityGroupProvider) getFilters(nodeTemplate *v1alpha1.AWSNodeTemplat
 	return filters
 }
 
-func (p *SecurityGroupProvider) getSecurityGroups(ctx context.Context, filters []*ec2.Filter) ([]*ec2.SecurityGroup, error) {
+func (p *SecurityGroupProvider) getSecurityGroups(_ context.Context, filters []*ec2.Filter) ([]*ec2.SecurityGroup, error) {
 	hash, err := hashstructure.Hash(filters, hashstructure.FormatV2, nil)
 	if err != nil {
 		return nil, err

@@ -22,28 +22,22 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 
 	"github.com/aws/karpenter-core/pkg/utils/functional"
-	"github.com/aws/karpenter-core/pkg/utils/pretty"
 )
 
 type SubnetProvider struct {
 	sync.Mutex
-	ec2api ec2iface.EC2API
-	cache  *cache.Cache
-	cm     *pretty.ChangeMonitor
+	cache *cache.Cache
 }
 
-func NewSubnetProvider(ec2api ec2iface.EC2API, c *cache.Cache) *SubnetProvider {
+func NewSubnetProvider(c *cache.Cache) *SubnetProvider {
 	return &SubnetProvider{
-		ec2api: ec2api,
-		cm:     pretty.NewChangeMonitor(),
-		cache:  c,
+		cache: c,
 	}
 }
 
