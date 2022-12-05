@@ -53,9 +53,8 @@ type EC2Behavior struct {
 	DescribeAvailabilityZonesOutput     AtomicPtr[ec2.DescribeAvailabilityZonesOutput]
 	DescribeSpotPriceHistoryInput       AtomicPtr[ec2.DescribeSpotPriceHistoryInput]
 	DescribeSpotPriceHistoryOutput      AtomicPtr[ec2.DescribeSpotPriceHistoryOutput]
-	CalledWithCreateFleetInput          AtomicPtrSlice[ec2.CreateFleetInput]
+	CreateFleetBehavior                 MockedFunction[ec2.CreateFleetInput, ec2.CreateFleetOutput]
 	CalledWithCreateLaunchTemplateInput AtomicPtrSlice[ec2.CreateLaunchTemplateInput]
-	CreateFleetOutput                   AtomicPtr[ec2.CreateFleetOutput]
 	CalledWithDescribeImagesInput       AtomicPtrSlice[ec2.DescribeImagesInput]
 	Instances                           sync.Map
 	LaunchTemplates                     sync.Map
@@ -82,8 +81,7 @@ func (e *EC2API) Reset() {
 	e.DescribeInstanceTypesOutput.Reset()
 	e.DescribeInstanceTypeOfferingsOutput.Reset()
 	e.DescribeAvailabilityZonesOutput.Reset()
-	e.CreateFleetOutput.Reset()
-	e.CalledWithCreateFleetInput.Reset()
+	e.CreateFleetBehavior.Reset()
 	e.CalledWithCreateLaunchTemplateInput.Reset()
 	e.CalledWithDescribeImagesInput.Reset()
 	e.DescribeSpotPriceHistoryInput.Reset()
@@ -102,16 +100,6 @@ func (e *EC2API) Reset() {
 
 // nolint: gocyclo
 func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFleetInput, _ ...request.Option) (*ec2.CreateFleetOutput, error) {
-	if !e.NextError.IsNil() {
-		defer e.NextError.Reset()
-		return nil, e.NextError.Get()
-	}
-	e.CalledWithCreateFleetInput.Add(input)
-
-	if !e.CreateFleetOutput.IsNil() {
-		return e.CreateFleetOutput.Clone(), nil
-	}
-
 	if input.LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName == nil {
 		return nil, fmt.Errorf("missing launch template name")
 	}
@@ -180,7 +168,7 @@ func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFlee
 			},
 		})
 	}
-	return result, nil
+	return e.CreateFleetBehavior.WithDefault(result).Invoke(input)
 }
 
 func (e *EC2API) CreateLaunchTemplateWithContext(_ context.Context, input *ec2.CreateLaunchTemplateInput, _ ...request.Option) (*ec2.CreateLaunchTemplateOutput, error) {
