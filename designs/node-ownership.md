@@ -1,10 +1,10 @@
 # Karpenter Node Ownership
 
-_Provisioning is used throughout this doc to reference Karpenter scheduling and spinning up a node. This can apply to both the pending pod scheduling loop and also the consolidation scheduling loop. Essentially, any scheduling loop where Karpenter launches pods._
+_Provisioning is used throughout this doc to reference Karpenter scheduling and spinning up a node. This can apply to both the pending pod scheduling loop and also the consolidation scheduling loop. Essentially, any scheduling loop where Karpenter launches nodes._
 
 ## 🔑  Summary
 
-Karpenter’s current node creation logic causes consistency issues as well as race conditions that lead to leaked instances and reduced node launch performance. With these changes, Karpenter will no longer create nodes, and instead allow the Kubelet to register and deregister the Node with the apiserver. As a result, Karpenter needs a new way to model in flight capacity: instances that have been launched, but have not yet been registered as a Node.
+Karpenter’s current node creation logic causes consistency issues as well as race conditions that lead to leaked instances and reduced node launch performance. With these changes, Karpenter will no longer create nodes, and instead allow the Kubelet and cloud controller managers to register and deregister the Node with the apiserver. As a result, Karpenter needs a new way to model in flight capacity: instances that have been launched, but have not yet been registered as a Node.
 
 The recommendation is that this in-flight capacity should be modeled as an internal Machine CR that represents a Karpenter provisioner/consolidation scheduling decision. This has the following benefits:
 
@@ -151,8 +151,8 @@ Karpenter will no longer create node objects or launch instances as part of the 
 1. Introduction of the Machine CR as a representation of a “scheduling decision” to launch by the CloudProvider
 2. Migration of Deprovisioning mechanisms from watching and monitoring the Node object to watching and monitoring the Machine CR
 3. Migration of the Node termination finalizer to Machine to orchestrate the cordoning, draining, and deletion
-4. Required Garbage Collection of any Machines that don’t have Nodes mapped to them
-5. Liveness checks for Nodes that don’t register or become ready after a certain time to delete the backing instance
+4. Required Garbage Collection of any Machines that don’t have Nodes mapped to them to handle Node termination and CloudProivder instance termination
+6. Liveness checks for Nodes that don’t register or become ready after a certain TTL to delete the backing Machine
 
 ### In-Memory Node Store
 
