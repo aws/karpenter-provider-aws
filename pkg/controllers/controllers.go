@@ -22,8 +22,7 @@ import (
 	"github.com/aws/karpenter-core/pkg/operator/controller"
 	awscontext "github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/controllers/interruption"
-	"github.com/aws/karpenter/pkg/controllers/securitygroups"
-	"github.com/aws/karpenter/pkg/controllers/subnet"
+	"github.com/aws/karpenter/pkg/controllers/nodetemplatestatus"
 	"github.com/aws/karpenter/pkg/utils/project"
 
 	corecloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
@@ -33,7 +32,6 @@ func NewControllers(ctx awscontext.Context, cloudProvider corecloudprovider.Clou
 	logging.FromContext(ctx).With("version", project.Version).Debugf("discovered version")
 	return []controller.Controller{
 		interruption.NewController(ctx.KubeClient, ctx.Clock, ctx.EventRecorder, interruption.NewSQSProvider(sqs.New(ctx.Session)), ctx.UnavailableOfferingsCache),
-		subnet.NewController(ctx.KubeClient, ec2.New(ctx.Session), ctx.SubnetCache, cloudProvider),
-		securitygroups.NewController(ctx.KubeClient, ec2.New(ctx.Session), ctx.SecurityGroupCache, cloudProvider),
+		nodetemplatestatus.NewController(ctx.KubeClient, ec2.New(ctx.Session), ctx.SubnetCache, ctx.SecurityGroupCache),
 	}
 }

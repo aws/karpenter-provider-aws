@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package securitygroups
+package nodetemplatestatus
 
 import (
 	"context"
@@ -24,37 +24,34 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	k8sClient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 
-	corecloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
 	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter-core/pkg/utils/functional"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/apis/v1alpha5"
 )
 
 type Controller struct {
-	cloudprovider      corecloudprovider.CloudProvider
 	kubeClient         k8sClient.Client
-	ec2api             ec2iface.EC2API
+	subnet             *SubnetCollector
 	securityGroupCache *cache.Cache
-	cm                 *pretty.ChangeMonitor
 }
 
-func NewController(client k8sClient.Client, ec2api ec2iface.EC2API, SecurityGroupCache *cache.Cache, cloudProvider corecloudprovider.CloudProvider) *Controller {
+func NewController(client k8sClient.Client, ec2api ec2iface.EC2API, subnetCache *cache.Cache, SecurityGroupCache *cache.Cache) *Controller {
 	return &Controller{
-		cloudprovider:      cloudProvider,
 		kubeClient:         client,
-		ec2api:             ec2api,
+		subnet:             NewSubnetCollector(ec2api, subnetCache, pretty.NewChangeMonitor()),
 		securityGroupCache: SecurityGroupCache,
-		cm:                 pretty.NewChangeMonitor(),
 	}
 }
 
@@ -64,44 +61,62 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: false}, fmt.Errorf("could Not find AWSNodeTemplate %w", err)
 	}
 
-	securityGroupFilters := c.getSecurityGroupFilters(&ant.Spec.AWS)
-
-	securityGroupHash, err := hashstructure.Hash(securityGroupFilters, hashstructure.FormatV2, nil)
-	if err != nil {
+	if err := c.subnet.getListOfSubnets(ctx, req.Name, &ant); err != nil {
 		return reconcile.Result{RequeueAfter: 1 * time.Minute}, err
 	}
 
-	securityGroupOutput, err := c.ec2api.DescribeSecurityGroupsWithContext(ctx, &ec2.DescribeSecurityGroupsInput{Filters: securityGroupFilters})
-	if err != nil {
-		// Back off and retry to describe the subnets
-		return reconcile.Result{RequeueAfter: 1 * time.Minute}, fmt.Errorf("describing security groups %+v, %w", securityGroupFilters, err)
-	}
+	// securityGroupFilters := c.getSecurityGroupFilters(&ant.Spec.AWS)
 
-	securityGroupIds := c.securityGroupIds(securityGroupOutput.SecurityGroups)
-	c.securityGroupCache.SetDefault(fmt.Sprint(securityGroupHash), securityGroupOutput.SecurityGroups)
-	if c.cm.HasChanged("security-groups", securityGroupOutput.SecurityGroups) {
-		logging.FromContext(ctx).With("security-groups", securityGroupIds).Debugf("discovered security groups")
-	}
+	// securityGroupHash, err := hashstructure.Hash(securityGroupFilters, hashstructure.FormatV2, nil)
+	// if err != nil {
+	// 	return reconcile.Result{RequeueAfter: 1 * time.Minute}, err
+	// }
 
-	ant.Status.SecurityGroups = nil
-	ant.Status.SecurityGroups = append(ant.Status.SecurityGroups, securityGroupIds...)
+	// securityGroupOutput, err := c.ec2api.DescribeSecurityGroupsWithContext(ctx, &ec2.DescribeSecurityGroupsInput{Filters: securityGroupFilters})
+	// if err != nil {
+	// 	// Back off and retry to describe the subnets
+	// 	return reconcile.Result{RequeueAfter: 1 * time.Minute}, fmt.Errorf("describing security groups %+v, %w", securityGroupFilters, err)
+	// }
 
-	if err := c.kubeClient.Status().Update(ctx, &ant); err != nil {
-		return reconcile.Result{RequeueAfter: 30 * time.Second}, fmt.Errorf("could not update status of AWSNodeTemplate %w", err)
-	}
+	// securityGroupIds := c.securityGroupIds(securityGroupOutput.SecurityGroups)
+	// c.securityGroupCache.SetDefault(fmt.Sprint(securityGroupHash), securityGroupOutput.SecurityGroups)
+	// if c.cm.HasChanged("security-groups", securityGroupOutput.SecurityGroups) {
+	// 	logging.FromContext(ctx).With("security-groups", securityGroupIds).Debugf("discovered security groups for AWSNodeTemplate (%s)", req.Name)
+	// }
+
+	// ant.Status.SecurityGroups = nil
+	// ant.Status.SecurityGroups = append(ant.Status.SecurityGroups, securityGroupIds...)
+
+	// if err := c.kubeClient.Status().Update(ctx, &ant); err != nil {
+	// 	return reconcile.Result{RequeueAfter: 30 * time.Second}, fmt.Errorf("could not update status of AWSNodeTemplate %w", err)
+	// }
 
 	return reconcile.Result{RequeueAfter: 5 * time.Minute}, nil
 }
 
 func (c *Controller) Name() string {
-	return "Security Groups"
+	return "Subnets"
 }
 
-func (c *Controller) Builder(_ context.Context, m manager.Manager) corecontroller.Builder {
+func (c *Controller) Builder(ctx context.Context, m manager.Manager) corecontroller.Builder {
 	return corecontroller.Adapt(
 		controllerruntime.NewControllerManagedBy(m).
 			Named(c.Name()).
 			For(&v1alpha1.AWSNodeTemplate{}).
+			Watches(
+				&source.Kind{Type: &v1alpha5.Provisioner{}},
+				handler.EnqueueRequestsFromMapFunc(func(o k8sClient.Object) (requests []reconcile.Request) {
+					var provisioner v1alpha5.Provisioner
+					if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: o.GetName()}, &provisioner); err != nil {
+						logging.FromContext(ctx).Errorf("Failed to get provisioner, %s", err)
+						return requests
+					}
+					if provisioner.Spec.Provider != nil && provisioner.Spec.ProviderRef == nil {
+						requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Name: provisioner.Name}})
+					}
+					return requests
+				}),
+			).
 			WithOptions(controller.Options{MaxConcurrentReconciles: 10}))
 }
 
