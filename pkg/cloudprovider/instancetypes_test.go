@@ -205,7 +205,7 @@ var _ = Describe("Instance Types", func() {
 	})
 	It("should launch instances for Habana GPU resource requests", func() {
 		nodeNames := sets.NewString()
-		ExpectApplied(ctx, env.Client, provisioner)
+		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 		for _, pod := range ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov,
 			coretest.UnschedulablePod(coretest.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{
@@ -750,7 +750,7 @@ var _ = Describe("Instance Types", func() {
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "inf1.6xlarge"))
 		})
-		It("should launch instances in a different zone on second reconciliation attempt with Insufficient Capacity Error Cache fallback", func() {
+		It("should launch instances in a different zone on second reconciliation attempt with Insufficient Capacity Error Cache fallback (Habana)", func() {
 			fakeEC2API.InsufficientCapacityPools.Set([]fake.CapacityPool{{CapacityType: v1alpha5.CapacityTypeOnDemand, InstanceType: "dl1.24xlarge", Zone: "test-zone-1a"}})
 			pod := coretest.UnschedulablePod(coretest.PodOptions{
 				NodeSelector: map[string]string{v1.LabelInstanceTypeStable: "dl1.24xlarge"},
@@ -766,7 +766,7 @@ var _ = Describe("Instance Types", func() {
 					}},
 				},
 			}}}
-			ExpectApplied(ctx, env.Client, provisioner)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod = ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, pod)[0]
 			// it should've tried to pack them in test-zone-1a on a dl1.24xlarge then hit insufficient capacity, the next attempt will try test-zone-1b
 			ExpectNotScheduled(ctx, env.Client, pod)
