@@ -84,7 +84,7 @@ The concept of layered constraints is key to using Karpenter.
 With no constraints defined in provisioners and none requested from pods being deployed, Karpenter chooses from the entire universe of features available to your cloud provider.
 Nodes can be created using any instance type and run in any zones.
 
-An application developer can tighten the constraints defined in a provisioner by the cluster administrator by defining additional scheduling constraints in their pod spec.
+An application developer can tighten the constraints defined in a provisioner by defining additional scheduling constraints in their pod spec.
 Refer to the description of Karpenter constraints in the Application Developer section below for details.
 
 ### Scheduling
