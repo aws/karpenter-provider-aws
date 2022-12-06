@@ -20,12 +20,13 @@ import (
 
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/aws/karpenter-core/pkg/utils/pretty"
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/utils"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"knative.dev/pkg/logging"
+
+	"github.com/aws/karpenter-core/pkg/utils/pretty"
+	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/utils"
 )
 
 type SecurityGroupsCollector struct {
@@ -50,7 +51,7 @@ func (s *SecurityGroupsCollector) getListOfSecurityGroups(ctx context.Context, r
 		return nil, err
 	}
 
-	securityGroupOutput, err := s.getSecurityGroupsFromEC2(ctx, s.ec2api, filters, nodeTemplate)
+	securityGroupOutput, err := s.getSecurityGroupsFromEC2(ctx, filters, nodeTemplate)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +65,7 @@ func (s *SecurityGroupsCollector) getListOfSecurityGroups(ctx context.Context, r
 	return securityGroupIdsList, nil
 }
 
-func (s *SecurityGroupsCollector) getSecurityGroupsFromEC2(ctx context.Context, ec2api ec2iface.EC2API, securityGroupFilters []*ec2.Filter, nodeTemplate *v1alpha1.AWSNodeTemplate) (*ec2.DescribeSecurityGroupsOutput, error) {
+func (s *SecurityGroupsCollector) getSecurityGroupsFromEC2(ctx context.Context, securityGroupFilters []*ec2.Filter, nodeTemplate *v1alpha1.AWSNodeTemplate) (*ec2.DescribeSecurityGroupsOutput, error) {
 	securityGroupOutput, err := s.ec2api.DescribeSecurityGroupsWithContext(ctx, &ec2.DescribeSecurityGroupsInput{Filters: securityGroupFilters})
 	if err != nil {
 		// Back off and retry to describe the subnets

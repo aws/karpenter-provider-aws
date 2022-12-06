@@ -20,10 +20,11 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/karpenter-core/pkg/utils/functional"
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/ptr"
+
+	"github.com/aws/karpenter-core/pkg/utils/functional"
+	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 )
 
 // ParseInstanceID parses the provider ID stored on the node to get the instance ID
