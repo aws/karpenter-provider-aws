@@ -208,6 +208,7 @@ var _ = Describe("Extended Resources", func() {
 	// Need to subscribe to the AMI to run the test successfully
 	// https://aws.amazon.com/marketplace/pp/prodview-st5jc2rk3phr2?sr=0-2&ref_=beagle&applicationId=AWSMPContessa
 	It("should provision nodes for a deployment that requests habana.ai/gaudi", func() {
+		Skip("skipping test on an exotic instance type")
 		ExpectHabanaDevicePluginCreated()
 
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
