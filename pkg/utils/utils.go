@@ -81,9 +81,9 @@ func SubnetIds(subnets []*ec2.Subnet) []string {
 
 // GetSubnetFilters parses the AWSNodeTemplate to collect the Security Group filters
 // from the Security Group tags
-func GetSecurityGroupFilters(provider *v1alpha1.AWS) []*ec2.Filter {
+func GetSecurityGroupFilters(provider *v1alpha1.AWSNodeTemplate) []*ec2.Filter {
 	filters := []*ec2.Filter{}
-	for key, value := range provider.SecurityGroupSelector {
+	for key, value := range provider.Spec.SecurityGroupSelector {
 		if key == "aws-ids" {
 			filterValues := functional.SplitCommaSeparatedString(value)
 			filters = append(filters, &ec2.Filter{

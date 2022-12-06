@@ -15,8 +15,11 @@ limitations under the License.
 package cloudprovider
 
 import (
+	"fmt"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/mitchellh/hashstructure/v2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
@@ -25,6 +28,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/fake"
 	"github.com/aws/karpenter/pkg/test"
+	"github.com/aws/karpenter/pkg/utils"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	coretest "github.com/aws/karpenter-core/pkg/test"
@@ -139,5 +143,17 @@ var _ = Describe("Subnets", func() {
 		Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf(
 			"subnet-test2",
 		))
+	})
+	It("should make sure AWSNodeTemplate subnets are grabed from the cache", func() {
+		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+		ExpectReconcileSucceeded(ctx, nodeTemplateController, types.NamespacedName{Name: nodeTemplate.Name, Namespace: nodeTemplate.Namespace})
+		filters := utils.GetSubnetFilters(nodeTemplate)
+		hash, _ := hashstructure.Hash(filters, hashstructure.FormatV2, nil)
+		subnets, ok := subnetCache.Get(fmt.Sprint(hash))
+		Expect(ok).To(BeTrue())
+		Expect(len(subnets.([]*ec2.Subnet))).To(BeNumerically("==", 3))
+		pod := ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, coretest.UnschedulablePod(
+			coretest.PodOptions{NodeSelector: map[string]string{v1.LabelArchStable: v1alpha5.ArchitectureAmd64}}))[0]
+		ExpectScheduled(ctx, env.Client, pod)
 	})
 })
