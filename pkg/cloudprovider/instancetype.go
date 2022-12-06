@@ -251,17 +251,18 @@ func habanaGaudis(info *ec2.InstanceTypeInfo) *resource.Quantity {
 
 func awsNitroEnclaves(info *ec2.InstanceTypeInfo) *resource.Quantity {
 	count := int64(0)
-	arch := getArchitecture(info)
+	architecture := getArchitecture(info)
+	hypervisor := aws.StringValue(info.Hypervisor)
 	parts := getInstanceTypeParts(info)
 	cpus := cpu(info)
 
-	if arch == v1alpha5.ArchitectureAmd64 {
+	if architecture == v1alpha5.ArchitectureAmd64 && hypervisor == "nitro" {
 		if !lo.Contains([]string{"t3", "t3a", "u-"}, parts.category) {
 			if cpus.Value() >= 4 {
 				count = 1
 			}
 		}
-	} else if arch == v1alpha5.ArchitectureArm64 {
+	} else if architecture == v1alpha5.ArchitectureArm64 && hypervisor == "nitro" {
 		if !lo.Contains([]string{"a1", "t4g", "g5g", "im4gn", "is4gen"}, parts.category) {
 			if cpus.Value() >= 2 {
 				count = 1
