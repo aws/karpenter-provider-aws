@@ -3,7 +3,7 @@ title: "Provisioning"
 linkTitle: "Provisioning"
 weight: 1
 description: >
-  Learn about Karpenter provisioners
+  Learn about Karpenter Provisioners
 ---
 
 When you first installed Karpenter, you set up a default Provisioner.
@@ -15,14 +15,14 @@ The Provisioner can be set to do things like:
 * Limit node creation to certain zones, instance types, and computer architectures
 * Set defaults for node expiration
 
-You can change your provisioner or add other provisioners to Karpenter.
+You can change your Provisioner or add other Provisioners to Karpenter.
 Here are things you should know about Provisioners:
 
 * Karpenter won't do anything if there is not at least one Provisioner configured.
 * Each Provisioner that is configured is looped through by Karpenter.
 * If Karpenter encounters a taint in the Provisioner that is not tolerated by a Pod, Karpenter won't use that Provisioner to provision the pod.
 * If Karpenter encounters a startup taint in the Provisioner it will be applied to nodes that are provisioned, but pods do not need to tolerate the taint.  Karpenter assumes that the taint is temporary and some other system will remove the taint.
-* It is recommended to create Provisioners that are mutually exclusive. So no Pod should match multiple Provisioners. If multiple Provisioners are matched, Karpenter will use the Provisioner with the highest [weight](link-to-priority).
+* It is recommended to create Provisioners that are mutually exclusive. So no Pod should match multiple Provisioners. If multiple Provisioners are matched, Karpenter will use the Provisioner with the highest [weight](#specweight).
 
 ```yaml
 apiVersion: karpenter.sh/v1alpha5
@@ -206,7 +206,7 @@ Karpenter also allows `karpenter.sh/capacity-type` to be used as a topology key 
 
 Karpenter allows you to describe provisioner preferences through a `weight` mechanism similar to how weight is described with [pod and node affinities](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity).
 
-For more information on weighting provisioners, see the [Weighting Provisioners section](../scheduling#weighting-provisioners) in the scheduling details.
+For more information on weighting Provisioners, see the [Weighting Provisioners section](../scheduling#weighting-provisioners) in the scheduling details.
 
 ## spec.kubeletConfiguration
 
