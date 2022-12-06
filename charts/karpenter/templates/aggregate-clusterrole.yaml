@@ -16,6 +16,7 @@ rules:
   - apiGroups: ["karpenter.k8s.aws"]
     resources: ["awsnodetemplates"]
     verbs: ["get", "list", "watch", "create", "delete", "patch"]
+{{- if .Values.rbac.aggregateToViewEnabled }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -35,3 +36,4 @@ rules:
   - apiGroups: ["karpenter.k8s.aws"]
     resources: ["awsnodetemplates"]
     verbs: ["get", "list", "watch"]
+{{- end -}}
