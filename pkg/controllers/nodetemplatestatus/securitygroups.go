@@ -51,7 +51,7 @@ func (s *SecurityGroupsCollector) getListOfSecurityGroups(ctx context.Context, r
 		return nil, err
 	}
 
-	securityGroupOutput, err := s.getSecurityGroupsFromEC2(ctx, filters, nodeTemplate)
+	securityGroupOutput, err := s.getSecurityGroupsFromEC2(ctx, filters)
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +65,7 @@ func (s *SecurityGroupsCollector) getListOfSecurityGroups(ctx context.Context, r
 	return securityGroupIdsList, nil
 }
 
-func (s *SecurityGroupsCollector) getSecurityGroupsFromEC2(ctx context.Context, securityGroupFilters []*ec2.Filter, nodeTemplate *v1alpha1.AWSNodeTemplate) (*ec2.DescribeSecurityGroupsOutput, error) {
+func (s *SecurityGroupsCollector) getSecurityGroupsFromEC2(ctx context.Context, securityGroupFilters []*ec2.Filter) (*ec2.DescribeSecurityGroupsOutput, error) {
 	securityGroupOutput, err := s.ec2api.DescribeSecurityGroupsWithContext(ctx, &ec2.DescribeSecurityGroupsInput{Filters: securityGroupFilters})
 	if err != nil {
 		// Back off and retry to describe the subnets
