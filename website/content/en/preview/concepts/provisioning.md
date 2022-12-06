@@ -22,7 +22,7 @@ Here are things you should know about Provisioners:
 * Each Provisioner that is configured is looped through by Karpenter.
 * If Karpenter encounters a taint in the Provisioner that is not tolerated by a Pod, Karpenter won't use that Provisioner to provision the pod.
 * If Karpenter encounters a startup taint in the Provisioner it will be applied to nodes that are provisioned, but pods do not need to tolerate the taint.  Karpenter assumes that the taint is temporary and some other system will remove the taint.
-* It is recommended to create Provisioners that are mutually exclusive. So no Pod should match multiple Provisioners. If multiple Provisioners are matched, Karpenter will randomly choose which to use.
+* It is recommended to create Provisioners that are mutually exclusive. So no Pod should match multiple Provisioners. If multiple Provisioners are matched, Karpenter will use the Provisioner with the highest [weight](link-to-priority).
 
 ```yaml
 apiVersion: karpenter.sh/v1alpha5
