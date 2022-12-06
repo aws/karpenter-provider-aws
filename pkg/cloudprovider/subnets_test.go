@@ -15,8 +15,6 @@ limitations under the License.
 package cloudprovider
 
 import (
-	"fmt"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	. "github.com/onsi/ginkgo/v2"
@@ -85,7 +83,6 @@ var _ = Describe("Subnets", func() {
 		ExpectReconcileSucceeded(ctx, nodeTemplateController, types.NamespacedName{Name: nodeTemplate.Name, Namespace: nodeTemplate.Namespace})
 		podSubnet1 := ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
 		ExpectScheduled(ctx, env.Client, podSubnet1)
-		fmt.Println("Here")
 		createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop()
 		Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-1"))
 		provisioner = test.Provisioner(coretest.ProvisionerOptions{Provider: &v1alpha1.AWS{
@@ -94,8 +91,6 @@ var _ = Describe("Subnets", func() {
 		}})
 		ExpectApplied(ctx, env.Client, provisioner)
 		podSubnet2 := ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name}}))[0]
-		fmt.Println("Here2")
-		fmt.Println(provisioner.Spec.ProviderRef)
 		ExpectScheduled(ctx, env.Client, podSubnet2)
 		createFleetInput = fakeEC2API.CalledWithCreateFleetInput.Pop()
 		Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-2"))

@@ -39,9 +39,9 @@ type SubnetProvider struct {
 	cm     *pretty.ChangeMonitor
 }
 
-func NewSubnetProvider(ec2 ec2iface.EC2API, c *cache.Cache) *SubnetProvider {
+func NewSubnetProvider(ec2api ec2iface.EC2API, c *cache.Cache) *SubnetProvider {
 	return &SubnetProvider{
-		ec2api: ec2,
+		ec2api: ec2api,
 		cache:  c,
 		cm:     pretty.NewChangeMonitor(),
 	}
