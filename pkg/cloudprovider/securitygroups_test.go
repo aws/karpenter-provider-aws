@@ -19,6 +19,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/aws/karpenter/pkg/test"
 
@@ -31,6 +32,7 @@ import (
 var _ = Describe("Security Groups", func() {
 	It("should default to the clusters security groups", func() {
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+		ExpectReconcileSucceeded(ctx, nodeTemplateController, types.NamespacedName{Name: nodeTemplate.Name, Namespace: nodeTemplate.Namespace})
 		pod := ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
 		ExpectScheduled(ctx, env.Client, pod)
 		Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
@@ -47,6 +49,7 @@ var _ = Describe("Security Groups", func() {
 			{GroupId: aws.String("test-sg-2"), Tags: []*ec2.Tag{{Key: aws.String("kubernetes.io/cluster/test-cluster"), Value: aws.String("test-sg-2")}}},
 		}})
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+		ExpectReconcileSucceeded(ctx, nodeTemplateController, types.NamespacedName{Name: nodeTemplate.Name, Namespace: nodeTemplate.Namespace})
 		pod := ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
 		ExpectScheduled(ctx, env.Client, pod)
 		Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
@@ -59,6 +62,7 @@ var _ = Describe("Security Groups", func() {
 	It("should discover security groups by ID", func() {
 		nodeTemplate.Spec.SecurityGroupSelector = map[string]string{"aws-ids": "sg-test1"}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+		ExpectReconcileSucceeded(ctx, nodeTemplateController, types.NamespacedName{Name: nodeTemplate.Name, Namespace: nodeTemplate.Namespace})
 		pod := ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
 		ExpectScheduled(ctx, env.Client, pod)
 		Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
@@ -74,6 +78,7 @@ var _ = Describe("Security Groups", func() {
 			Kind:       nodeTemplate.Kind,
 			Name:       nodeTemplate.Name,
 		}}), nodeTemplate)
+		ExpectReconcileSucceeded(ctx, nodeTemplateController, types.NamespacedName{Name: nodeTemplate.Name, Namespace: nodeTemplate.Namespace})
 		pod := ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
 		ExpectScheduled(ctx, env.Client, pod)
 		Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
@@ -90,6 +95,7 @@ var _ = Describe("Security Groups", func() {
 			Kind:       nodeTemplate.Kind,
 			Name:       nodeTemplate.Name,
 		}}), nodeTemplate)
+		ExpectReconcileSucceeded(ctx, nodeTemplateController, types.NamespacedName{Name: nodeTemplate.Name, Namespace: nodeTemplate.Namespace})
 		pod := ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
 		ExpectScheduled(ctx, env.Client, pod)
 		Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
@@ -106,6 +112,7 @@ var _ = Describe("Security Groups", func() {
 			Kind:       nodeTemplate.Kind,
 			Name:       nodeTemplate.Name,
 		}}), nodeTemplate)
+		ExpectReconcileSucceeded(ctx, nodeTemplateController, types.NamespacedName{Name: nodeTemplate.Name, Namespace: nodeTemplate.Namespace})
 		pod := ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
 		ExpectScheduled(ctx, env.Client, pod)
 		Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
