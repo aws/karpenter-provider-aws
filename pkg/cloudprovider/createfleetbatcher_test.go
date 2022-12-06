@@ -75,8 +75,8 @@ var _ = Describe("CreateFleet Batching", func() {
 		wg.Wait()
 
 		Expect(receivedInstance).To(BeNumerically("==", 5))
-		Expect(fakeEC2API.CalledWithCreateFleetInput.Len()).To(BeNumerically("==", 1))
-		call := fakeEC2API.CalledWithCreateFleetInput.Pop()
+		Expect(fakeEC2API.CreateFleetBehavior.CalledWithInput.Len()).To(BeNumerically("==", 1))
+		call := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
 		Expect(*call.TargetCapacitySpecification.TotalTargetCapacity).To(BeNumerically("==", 5))
 	})
 	It("should batch different inputs into multiple calls", func() {
@@ -143,9 +143,9 @@ var _ = Describe("CreateFleet Batching", func() {
 		wg.Wait()
 
 		Expect(receivedInstance).To(BeNumerically("==", 5))
-		Expect(fakeEC2API.CalledWithCreateFleetInput.Len()).To(BeNumerically("==", 2))
-		east2Call := fakeEC2API.CalledWithCreateFleetInput.Pop()
-		east1Call := fakeEC2API.CalledWithCreateFleetInput.Pop()
+		Expect(fakeEC2API.CreateFleetBehavior.CalledWithInput.Len()).To(BeNumerically("==", 2))
+		east2Call := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
+		east1Call := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
 		if *east2Call.TargetCapacitySpecification.TotalTargetCapacity > *east1Call.TargetCapacitySpecification.TotalTargetCapacity {
 			east2Call, east1Call = east1Call, east2Call
 		}
@@ -173,7 +173,7 @@ var _ = Describe("CreateFleet Batching", func() {
 			},
 		}
 
-		fakeEC2API.CreateFleetOutput.Set(&ec2.CreateFleetOutput{
+		fakeEC2API.CreateFleetBehavior.Output.Set(&ec2.CreateFleetOutput{
 			Errors: []*ec2.CreateFleetError{
 				{
 					ErrorCode:    aws.String("some-error"),
@@ -239,8 +239,8 @@ var _ = Describe("CreateFleet Batching", func() {
 		}
 		wg.Wait()
 
-		Expect(fakeEC2API.CalledWithCreateFleetInput.Len()).To(BeNumerically("==", 1))
-		call := fakeEC2API.CalledWithCreateFleetInput.Pop()
+		Expect(fakeEC2API.CreateFleetBehavior.CalledWithInput.Len()).To(BeNumerically("==", 1))
+		call := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
 		// requested 5 instances
 		Expect(*call.TargetCapacitySpecification.TotalTargetCapacity).To(BeNumerically("==", 5))
 		// but got three instances and two failures
@@ -266,7 +266,7 @@ var _ = Describe("CreateFleet Batching", func() {
 			},
 		}
 
-		fakeEC2API.CreateFleetOutput.Set(&ec2.CreateFleetOutput{
+		fakeEC2API.CreateFleetBehavior.Output.Set(&ec2.CreateFleetOutput{
 			Errors: []*ec2.CreateFleetError{
 				{
 					ErrorCode:    aws.String("some-error"),
@@ -334,8 +334,8 @@ var _ = Describe("CreateFleet Batching", func() {
 		}
 		wg.Wait()
 
-		Expect(fakeEC2API.CalledWithCreateFleetInput.Len()).To(BeNumerically("==", 1))
-		call := fakeEC2API.CalledWithCreateFleetInput.Pop()
+		Expect(fakeEC2API.CreateFleetBehavior.CalledWithInput.Len()).To(BeNumerically("==", 1))
+		call := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
 		// requested 5 instances
 		Expect(*call.TargetCapacitySpecification.TotalTargetCapacity).To(BeNumerically("==", 5))
 		// but got three instances and the errors were returned to all five calls

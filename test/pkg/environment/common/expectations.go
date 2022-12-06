@@ -107,6 +107,12 @@ func (env *Environment) ExpectSettingsOverridden(data ...map[string]string) {
 	cm := env.ExpectSettings()
 	cm.Data = lo.Assign(append([]map[string]string{cm.Data}, data...)...)
 	env.ExpectCreatedOrUpdated(cm)
+	// Wait for updated settings to be injected into context since the batching logic
+	// may be using stale settings.
+	// While this doesn't ensure the issue doesn't happen, the default BatchIdleTime is
+	// 1 second. Since we control the provisioning logic in tests, 5 seconds is sufficient
+	// to significantly reduce the chance that any races will occur with stale settings.
+	time.Sleep(5 * time.Second)
 }
 
 func (env *Environment) ExpectFound(obj client.Object) {

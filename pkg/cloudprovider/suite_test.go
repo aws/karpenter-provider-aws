@@ -150,7 +150,6 @@ var _ = BeforeSuite(func() {
 	recorder = coretest.NewEventRecorder()
 	prov = provisioning.NewProvisioner(ctx, env.Client, env.KubernetesInterface.CoreV1(), recorder, cloudProvider, cluster)
 	provisioningController = provisioning.NewController(env.Client, prov, recorder)
-	provisioning.WaitForClusterSync = false
 })
 
 var _ = AfterSuite(func() {
@@ -243,19 +242,19 @@ var _ = Describe("Allocation", func() {
 			provisioner = coretest.Provisioner(coretest.ProvisionerOptions{Provider: provider})
 			provisioner.SetDefaults(ctx)
 			ExpectApplied(ctx, env.Client, provisioner)
-			pod := ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
+			pod := ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
 			ExpectScheduled(ctx, env.Client, pod)
-			Expect(fakeEC2API.CalledWithCreateFleetInput.Len()).To(Equal(1))
-			createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop()
+			Expect(fakeEC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
+			createFleetInput := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
 			Expect(aws.StringValue(createFleetInput.Context)).To(Equal("context-1234"))
 		})
 		It("should default to no EC2 Context", func() {
 			provisioner.SetDefaults(ctx)
 			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-			pod := ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
+			pod := ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
 			ExpectScheduled(ctx, env.Client, pod)
-			Expect(fakeEC2API.CalledWithCreateFleetInput.Len()).To(Equal(1))
-			createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop()
+			Expect(fakeEC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
+			createFleetInput := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
 			Expect(createFleetInput.Context).To(BeNil())
 		})
 	})
@@ -323,14 +322,14 @@ var _ = Describe("Allocation", func() {
 				}},
 			})
 			ExpectApplied(ctx, env.Client, provisioner)
-			pod := ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
+			pod := ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
 			ExpectScheduled(ctx, env.Client, pod)
 
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			firstLt := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
-			Expect(fakeEC2API.CalledWithCreateFleetInput.Len()).To(Equal(1))
+			Expect(fakeEC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
 
-			createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop()
+			createFleetInput := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
 			launchTemplate := createFleetInput.LaunchTemplateConfigs[0].LaunchTemplateSpecification
 			Expect(createFleetInput.LaunchTemplateConfigs).To(HaveLen(1))
 
@@ -352,7 +351,7 @@ var _ = Describe("Allocation", func() {
 				}},
 			})
 			ExpectApplied(ctx, env.Client, provisioner)
-			pod := ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
+			pod := ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
@@ -373,9 +372,9 @@ var _ = Describe("Allocation", func() {
 				}},
 			})
 			ExpectApplied(ctx, env.Client, provisioner)
-			pod := ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
+			pod := ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
 			ExpectScheduled(ctx, env.Client, pod)
-			createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop()
+			createFleetInput := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
 			Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("subnet-test1"))
 		})
 		It("should use the instance profile on the Provisioner when specified", func() {
@@ -392,7 +391,7 @@ var _ = Describe("Allocation", func() {
 				}},
 			})
 			ExpectApplied(ctx, env.Client, provisioner)
-			pod := ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
+			pod := ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()

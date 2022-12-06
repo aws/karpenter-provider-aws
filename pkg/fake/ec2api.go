@@ -53,9 +53,8 @@ type EC2Behavior struct {
 	DescribeAvailabilityZonesOutput     AtomicPtr[ec2.DescribeAvailabilityZonesOutput]
 	DescribeSpotPriceHistoryInput       AtomicPtr[ec2.DescribeSpotPriceHistoryInput]
 	DescribeSpotPriceHistoryOutput      AtomicPtr[ec2.DescribeSpotPriceHistoryOutput]
-	CalledWithCreateFleetInput          AtomicPtrSlice[ec2.CreateFleetInput]
+	CreateFleetBehavior                 MockedFunction[ec2.CreateFleetInput, ec2.CreateFleetOutput]
 	CalledWithCreateLaunchTemplateInput AtomicPtrSlice[ec2.CreateLaunchTemplateInput]
-	CreateFleetOutput                   AtomicPtr[ec2.CreateFleetOutput]
 	CalledWithDescribeImagesInput       AtomicPtrSlice[ec2.DescribeImagesInput]
 	Instances                           sync.Map
 	LaunchTemplates                     sync.Map
@@ -82,8 +81,7 @@ func (e *EC2API) Reset() {
 	e.DescribeInstanceTypesOutput.Reset()
 	e.DescribeInstanceTypeOfferingsOutput.Reset()
 	e.DescribeAvailabilityZonesOutput.Reset()
-	e.CreateFleetOutput.Reset()
-	e.CalledWithCreateFleetInput.Reset()
+	e.CreateFleetBehavior.Reset()
 	e.CalledWithCreateLaunchTemplateInput.Reset()
 	e.CalledWithDescribeImagesInput.Reset()
 	e.DescribeSpotPriceHistoryInput.Reset()
@@ -102,16 +100,6 @@ func (e *EC2API) Reset() {
 
 // nolint: gocyclo
 func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFleetInput, _ ...request.Option) (*ec2.CreateFleetOutput, error) {
-	if !e.NextError.IsNil() {
-		defer e.NextError.Reset()
-		return nil, e.NextError.Get()
-	}
-	e.CalledWithCreateFleetInput.Add(input)
-
-	if !e.CreateFleetOutput.IsNil() {
-		return e.CreateFleetOutput.Clone(), nil
-	}
-
 	if input.LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName == nil {
 		return nil, fmt.Errorf("missing launch template name")
 	}
@@ -180,7 +168,7 @@ func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFlee
 			},
 		})
 	}
-	return result, nil
+	return e.CreateFleetBehavior.WithDefault(result).Invoke(input)
 }
 
 func (e *EC2API) CreateLaunchTemplateWithContext(_ context.Context, input *ec2.CreateLaunchTemplateInput, _ ...request.Option) (*ec2.CreateLaunchTemplateOutput, error) {
@@ -594,6 +582,38 @@ func (e *EC2API) DescribeInstanceTypesPagesWithContext(_ context.Context, _ *ec2
 					Ipv4AddressesPerInterface: aws.Int64(50),
 				},
 			},
+			{
+				InstanceType:                  aws.String("dl1.24xlarge"),
+				SupportedUsageClasses:         DefaultSupportedUsageClasses,
+				SupportedVirtualizationTypes:  []*string{aws.String("hvm")},
+				BurstablePerformanceSupported: aws.Bool(false),
+				BareMetal:                     aws.Bool(false),
+				Hypervisor:                    aws.String("nitro"),
+				ProcessorInfo: &ec2.ProcessorInfo{
+					SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
+				},
+				VCpuInfo: &ec2.VCpuInfo{
+					DefaultCores: aws.Int64(48),
+					DefaultVCpus: aws.Int64(96),
+				},
+				MemoryInfo: &ec2.MemoryInfo{
+					SizeInMiB: aws.Int64(786432),
+				},
+				GpuInfo: &ec2.GpuInfo{
+					Gpus: []*ec2.GpuDeviceInfo{{
+						Name:         aws.String("Gaudi HL-205"),
+						Manufacturer: aws.String("Habana"),
+						Count:        aws.Int64(8),
+						MemoryInfo: &ec2.GpuDeviceMemoryInfo{
+							SizeInMiB: aws.Int64(32768),
+						},
+					}},
+				},
+				NetworkInfo: &ec2.NetworkInfo{
+					MaximumNetworkInterfaces:  aws.Int64(60),
+					Ipv4AddressesPerInterface: aws.Int64(50),
+				},
+			},
 		},
 	}, false)
 	return nil
@@ -648,6 +668,14 @@ func (e *EC2API) DescribeInstanceTypeOfferingsPagesWithContext(_ context.Context
 			},
 			{
 				InstanceType: aws.String("p3.8xlarge"),
+				Location:     aws.String("test-zone-1b"),
+			},
+			{
+				InstanceType: aws.String("dl1.24xlarge"),
+				Location:     aws.String("test-zone-1a"),
+			},
+			{
+				InstanceType: aws.String("dl1.24xlarge"),
 				Location:     aws.String("test-zone-1b"),
 			},
 			{

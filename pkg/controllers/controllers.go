@@ -16,9 +16,10 @@ package controllers
 
 import (
 	"github.com/aws/aws-sdk-go/service/sqs"
+	"knative.dev/pkg/logging"
+
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/controllers/drift"
-	"knative.dev/pkg/logging"
 
 	"github.com/aws/karpenter-core/pkg/operator/controller"
 	awscontext "github.com/aws/karpenter/pkg/context"
