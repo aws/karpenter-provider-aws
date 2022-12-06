@@ -56,6 +56,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	subnetList, err := c.subnet.getListOfSubnets(ctx, req.Name, &ant)
 	if err != nil {
+		// Back off and retry reconciliation
 		return reconcile.Result{RequeueAfter: 1 * time.Minute}, err
 	}
 
@@ -64,6 +65,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	securityGroupIds, err := c.securityGroups.getListOfSecurityGroups(ctx, req.Name, &ant)
 	if err != nil {
+		// Back off and retry reconciliation
 		return reconcile.Result{RequeueAfter: 1 * time.Minute}, err
 	}
 

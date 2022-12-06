@@ -43,6 +43,8 @@ func ParseInstanceID(node *v1.Node) (*string, error) {
 	return nil, fmt.Errorf("parsing instance id %s", node.Spec.ProviderID)
 }
 
+// GetSubnetFilters parses the AWSNodeTemplate to collect the subnet filters
+// from the Subnet tags
 func GetSubnetFilters(provider *v1alpha1.AWSNodeTemplate) []*ec2.Filter {
 	filters := []*ec2.Filter{}
 	// Filter by subnet
@@ -68,13 +70,17 @@ func GetSubnetFilters(provider *v1alpha1.AWSNodeTemplate) []*ec2.Filter {
 	return filters
 }
 
-func PrettySubnets(subnets []*ec2.Subnet) []string {
+// SubnetIds parses the subnet object to collect the Subnet ids
+func SubnetIds(subnets []*ec2.Subnet) []string {
 	names := []string{}
 	for _, subnet := range subnets {
 		names = append(names, fmt.Sprintf("%s (%s)", aws.StringValue(subnet.SubnetId), aws.StringValue(subnet.AvailabilityZone)))
 	}
 	return names
 }
+
+// GetSubnetFilters parses the AWSNodeTemplate to collect the Security Group filters
+// from the Security Group tags
 func GetSecurityGroupFilters(provider *v1alpha1.AWS) []*ec2.Filter {
 	filters := []*ec2.Filter{}
 	for key, value := range provider.SecurityGroupSelector {
@@ -94,6 +100,7 @@ func GetSecurityGroupFilters(provider *v1alpha1.AWS) []*ec2.Filter {
 	return filters
 }
 
+// SecurityGroupIds parses the Security Groups object to collect the Security Groups ids
 func SecurityGroupIds(securityGroups []*ec2.SecurityGroup) []string {
 	names := []string{}
 	for _, securityGroup := range securityGroups {

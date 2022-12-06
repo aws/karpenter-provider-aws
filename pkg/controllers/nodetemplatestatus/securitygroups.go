@@ -43,6 +43,8 @@ func NewSecurityGroupsCollector(ec2api ec2iface.EC2API, sgc *cache.Cache, change
 	}
 }
 
+// Collects the Security Groups information and stores the inforamtion in the cache
+// return a list of Security Group ids
 func (s *SecurityGroupsCollector) getListOfSecurityGroups(ctx context.Context, requestName string, nodeTemplate *v1alpha1.AWSNodeTemplate) ([]string, error) {
 	filters := utils.GetSecurityGroupFilters(&nodeTemplate.Spec.AWS)
 
@@ -65,6 +67,7 @@ func (s *SecurityGroupsCollector) getListOfSecurityGroups(ctx context.Context, r
 	return securityGroupIdsList, nil
 }
 
+// Creates a call to EC2 to request the Security Group information
 func (s *SecurityGroupsCollector) getSecurityGroupsFromEC2(ctx context.Context, securityGroupFilters []*ec2.Filter) (*ec2.DescribeSecurityGroupsOutput, error) {
 	securityGroupOutput, err := s.ec2api.DescribeSecurityGroupsWithContext(ctx, &ec2.DescribeSecurityGroupsInput{Filters: securityGroupFilters})
 	if err != nil {

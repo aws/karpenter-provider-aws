@@ -43,6 +43,8 @@ func NewSubnetCollector(ec2api ec2iface.EC2API, sc *cache.Cache, changeManger *p
 	}
 }
 
+// Collects the Subnet information and stores the information in the cache
+// return a list of Subnet ids
 func (s *SubnetCollector) getListOfSubnets(ctx context.Context, requestName string, nodeTemplate *v1alpha1.AWSNodeTemplate) ([]string, error) {
 	filters := utils.GetSubnetFilters(nodeTemplate)
 
@@ -51,12 +53,12 @@ func (s *SubnetCollector) getListOfSubnets(ctx context.Context, requestName stri
 		return nil, err
 	}
 
-	subnetOutput, err := s.getSubnetsFromEC2(ctx, s.ec2api, filters, nodeTemplate)
+	subnetOutput, err := s.getSubnetsFromEC2(ctx, filters, nodeTemplate)
 	if err != nil {
 		return nil, err
 	}
 
-	subnetLog := utils.PrettySubnets(subnetOutput.Subnets)
+	subnetLog := utils.SubnetIds(subnetOutput.Subnets)
 	s.subnetCache.SetDefault(fmt.Sprint(subnetHash), subnetOutput.Subnets)
 	if s.cm.HasChanged(fmt.Sprintf("subnets-ids (%s)", requestName), subnetLog) {
 		logging.FromContext(ctx).With("subnets", subnetLog).Debugf("discovered subnets for AWSNodeTemplate (%s)", requestName)
@@ -65,14 +67,13 @@ func (s *SubnetCollector) getListOfSubnets(ctx context.Context, requestName stri
 	return subnetLog, nil
 }
 
-func (s *SubnetCollector) getSubnetsFromEC2(ctx context.Context, ec2api ec2iface.EC2API, subnetFilters []*ec2.Filter, nodeTemplate *v1alpha1.AWSNodeTemplate) (*ec2.DescribeSubnetsOutput, error) {
-	subnetOutput, err := ec2api.DescribeSubnetsWithContext(ctx, &ec2.DescribeSubnetsInput{Filters: subnetFilters})
+// Creates a call to EC2 to request the Security Group information
+func (s *SubnetCollector) getSubnetsFromEC2(ctx context.Context, subnetFilters []*ec2.Filter, nodeTemplate *v1alpha1.AWSNodeTemplate) (*ec2.DescribeSubnetsOutput, error) {
+	subnetOutput, err := s.ec2api.DescribeSubnetsWithContext(ctx, &ec2.DescribeSubnetsInput{Filters: subnetFilters})
 	if err != nil {
-		// Back off and retry to describe the subnets
 		return nil, fmt.Errorf("describing subnets %s, %w", pretty.Concise(subnetFilters), err)
 	}
 	if len(subnetOutput.Subnets) == 0 {
-		// Back off and retry to see if there are any new subnets
 		return nil, fmt.Errorf("no subnets matched selector %v", nodeTemplate.Spec.AWS.SubnetSelector)
 	}
 

@@ -85,6 +85,7 @@ var _ = Describe("Subnets", func() {
 		ExpectScheduled(ctx, env.Client, podSubnet1)
 		createFleetInput := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
 		Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-1"))
+
 		provisioner = test.Provisioner(coretest.ProvisionerOptions{Provider: &v1alpha1.AWS{
 			SubnetSelector:        map[string]string{"Name": "test-subnet-2"},
 			SecurityGroupSelector: map[string]string{"*": "*"},
