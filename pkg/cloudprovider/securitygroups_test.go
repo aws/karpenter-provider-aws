@@ -33,7 +33,7 @@ var _ = Describe("Security Groups", func() {
 	It("should default to the clusters security groups", func() {
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 		ExpectReconcileSucceeded(ctx, nodeTemplateController, types.NamespacedName{Name: nodeTemplate.Name, Namespace: nodeTemplate.Namespace})
-		pod := ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
+		pod := ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
 		ExpectScheduled(ctx, env.Client, pod)
 		Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 		input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
@@ -50,7 +50,7 @@ var _ = Describe("Security Groups", func() {
 		}})
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 		ExpectReconcileSucceeded(ctx, nodeTemplateController, types.NamespacedName{Name: nodeTemplate.Name, Namespace: nodeTemplate.Namespace})
-		pod := ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
+		pod := ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
 		ExpectScheduled(ctx, env.Client, pod)
 		Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 		input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
@@ -63,7 +63,7 @@ var _ = Describe("Security Groups", func() {
 		nodeTemplate.Spec.SecurityGroupSelector = map[string]string{"aws-ids": "sg-test1"}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 		ExpectReconcileSucceeded(ctx, nodeTemplateController, types.NamespacedName{Name: nodeTemplate.Name, Namespace: nodeTemplate.Namespace})
-		pod := ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
+		pod := ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
 		ExpectScheduled(ctx, env.Client, pod)
 		Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 		input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
@@ -79,7 +79,7 @@ var _ = Describe("Security Groups", func() {
 			Name:       nodeTemplate.Name,
 		}}), nodeTemplate)
 		ExpectReconcileSucceeded(ctx, nodeTemplateController, types.NamespacedName{Name: nodeTemplate.Name, Namespace: nodeTemplate.Namespace})
-		pod := ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
+		pod := ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
 		ExpectScheduled(ctx, env.Client, pod)
 		Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 		input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
@@ -96,7 +96,7 @@ var _ = Describe("Security Groups", func() {
 			Name:       nodeTemplate.Name,
 		}}), nodeTemplate)
 		ExpectReconcileSucceeded(ctx, nodeTemplateController, types.NamespacedName{Name: nodeTemplate.Name, Namespace: nodeTemplate.Namespace})
-		pod := ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
+		pod := ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
 		ExpectScheduled(ctx, env.Client, pod)
 		Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 		input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
@@ -113,7 +113,7 @@ var _ = Describe("Security Groups", func() {
 			Name:       nodeTemplate.Name,
 		}}), nodeTemplate)
 		ExpectReconcileSucceeded(ctx, nodeTemplateController, types.NamespacedName{Name: nodeTemplate.Name, Namespace: nodeTemplate.Namespace})
-		pod := ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
+		pod := ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
 		ExpectScheduled(ctx, env.Client, pod)
 		Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 		input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
