@@ -74,7 +74,7 @@ pullPrivateReplica(){
   authenticatePrivateRepo
   RELEASE_TYPE=$1
   RELEASE_IDENTIFIER=$2
-  PULL_THROUGH_CACHE_PATH="${PRIVATE_PULL_THROUGH_HOST}/ecr-public/karpenter/"
+  PULL_THROUGH_CACHE_PATH="${PRIVATE_PULL_THROUGH_HOST}/ecr-public/${ECR_GALLERY_NAME}/"
 
   docker pull "${PULL_THROUGH_CACHE_PATH}controller:${RELEASE_IDENTIFIER}"
 }
