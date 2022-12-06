@@ -125,10 +125,7 @@ func (c *CloudProvider) Create(ctx context.Context, machine *corev1alpha1.Machin
 	if err != nil {
 		return nil, fmt.Errorf("resolving instance types, %w", err)
 	}
-	return c.instanceProvider.Create(ctx, nodeTemplate, &cloudprovider.Machine{
-		Machine:       machine,
-		InstanceTypes: instanceTypes,
-	})
+	return c.instanceProvider.Create(ctx, nodeTemplate, machine, instanceTypes)
 }
 
 func (c *CloudProvider) LivenessProbe(req *http.Request) error {

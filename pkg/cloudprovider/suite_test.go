@@ -191,6 +191,10 @@ var _ = BeforeEach(func() {
 		},
 	})
 
+	// Reset the pricing provider, so we don't cross-pollinate pricing data
+	pricingProvider = NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
+	instanceTypeProvider.pricingProvider = pricingProvider
+
 	recorder.Reset()
 	fakeEC2API.Reset()
 	fakePricingAPI.Reset()
