@@ -103,7 +103,7 @@ The first supported cloud provider is AWS, although Karpenter is designed to wor
 Separating Kubernetes and AWS-specific settings allows Karpenter a clean path to integrating with other cloud providers.
 
 While using Kubernetes well-known labels, the provisioner can set some values that are specific to the cloud provider.
-So, for example, to include a certain instance type, you could use the Kubernetes label `node.kubernetes.io/instance-type`, but set its value to an AWS instance type (such as `m5.large` or `m5.2xlarge`).
+For example, to include a certain instance type, you could use the Kubernetes label `node.kubernetes.io/instance-type`, but set its value to an AWS instance type (such as `m5.large` or `m5.2xlarge`).
 
 ### Consolidation
 
