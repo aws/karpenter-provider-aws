@@ -72,9 +72,11 @@ func (c *Controller) Reconcile(ctx context.Context, node *v1.Node) (reconcile.Re
 		return reconcile.Result{}, fmt.Errorf("getting provisioner, %w", err)
 	}
 
-	if drifted, err := c.cloudProvider.IsNodeDrifted(ctx, provisioner, node); err != nil {
+	drifted, err := c.cloudProvider.IsNodeDrifted(ctx, provisioner, node)
+	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("getting drift for node, %w", err)
-	} else if drifted {
+	} 
+	if drifted {
 		node.Labels["drifted"] = "true"
 	}
 

@@ -259,7 +259,7 @@ var _ = Describe("Allocation", func() {
 		})
 	})
 	Context("Node Drift", func() {
-		It("should detect drift if ami gets changed", func() {
+		It("should detect drift when the AMI is not valid", func() {
 			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			instanceTypes, _ := cloudProvider.GetInstanceTypes(ctx, provisioner)
 			node := coretest.Node(coretest.NodeOptions{
@@ -274,7 +274,7 @@ var _ = Describe("Allocation", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(isDrifted).To(BeTrue())
 		})
-		It("should not detect drift if ami isn't changed", func() {
+		It("should not detect drift when the AMI is valid", func() {
 			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			instanceTypes, _ := cloudProvider.GetInstanceTypes(ctx, provisioner)
 			validAmis, err := amiProvider.Get(ctx, nodeTemplate, instanceTypes, amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, &amifamily.Options{}))

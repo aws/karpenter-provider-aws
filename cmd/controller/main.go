@@ -47,7 +47,7 @@ func main() {
 	lo.Must0(operator.AddHealthzCheck("cloud-provider", awsCloudProvider.LivenessProbe))
 	cloudProvider := metrics.Decorate(awsCloudProvider)
 
-	// Setup field indexers for AWS controllers
+	// Setup field indexers for AWS controllers to save computation for looking up providerRef
 	lo.Must0(operator.Manager.GetFieldIndexer().IndexField(ctx, &v1alpha5.Provisioner{}, ".spec.providerRef.name", func(o client.Object) []string {
 		provisioner := o.(*v1alpha5.Provisioner)
 		if provisioner.Spec.ProviderRef == nil {
