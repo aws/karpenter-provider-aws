@@ -18,12 +18,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/aws/karpenter-core/pkg/utils/functional"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/utils"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"knative.dev/pkg/logging"
@@ -44,7 +43,7 @@ func NewSecurityGroupsCollector(ec2api ec2iface.EC2API, sgc *cache.Cache, change
 }
 
 func (s *SecurityGroupsCollector) getListOfSecurityGroups(ctx context.Context, requestName string, nodeTemplate *v1alpha1.AWSNodeTemplate) ([]string, error) {
-	filters := s.getSecurityGroupFilters(&nodeTemplate.Spec.AWS)
+	filters := utils.GetSecurityGroupFilters(&nodeTemplate.Spec.AWS)
 
 	securityGroupHash, err := hashstructure.Hash(filters, hashstructure.FormatV2, nil)
 	if err != nil {
@@ -56,7 +55,7 @@ func (s *SecurityGroupsCollector) getListOfSecurityGroups(ctx context.Context, r
 		return nil, err
 	}
 
-	securityGroupIdsList := s.securityGroupIds(securityGroupOutput.SecurityGroups)
+	securityGroupIdsList := utils.SecurityGroupIds(securityGroupOutput.SecurityGroups)
 	s.securityGroupCache.SetDefault(fmt.Sprint(securityGroupHash), securityGroupOutput.SecurityGroups)
 	if s.cm.HasChanged("security-groups", securityGroupOutput.SecurityGroups) {
 		logging.FromContext(ctx).With("security-groups", securityGroupIdsList).Debugf("discovered security groups for AWSNodeTemplate (%s)", requestName)
@@ -73,31 +72,4 @@ func (s *SecurityGroupsCollector) getSecurityGroupsFromEC2(ctx context.Context, 
 	}
 
 	return securityGroupOutput, nil
-}
-
-func (s *SecurityGroupsCollector) getSecurityGroupFilters(provider *v1alpha1.AWS) []*ec2.Filter {
-	filters := []*ec2.Filter{}
-	for key, value := range provider.SecurityGroupSelector {
-		if key == "aws-ids" {
-			filterValues := functional.SplitCommaSeparatedString(value)
-			filters = append(filters, &ec2.Filter{
-				Name:   aws.String("group-id"),
-				Values: aws.StringSlice(filterValues),
-			})
-		} else {
-			filters = append(filters, &ec2.Filter{
-				Name:   aws.String(fmt.Sprintf("tag:%s", key)),
-				Values: []*string{aws.String(value)},
-			})
-		}
-	}
-	return filters
-}
-
-func (s *SecurityGroupsCollector) securityGroupIds(securityGroups []*ec2.SecurityGroup) []string {
-	names := []string{}
-	for _, securityGroup := range securityGroups {
-		names = append(names, aws.StringValue(securityGroup.GroupId))
-	}
-	return names
 }

@@ -88,7 +88,6 @@ var _ = Describe("Subnets", func() {
 		fmt.Println("Here")
 		createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop()
 		Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-1"))
-		fmt.Println(provisioner.Spec.Provider)
 		provisioner = test.Provisioner(coretest.ProvisionerOptions{Provider: &v1alpha1.AWS{
 			SubnetSelector:        map[string]string{"Name": "test-subnet-2"},
 			SecurityGroupSelector: map[string]string{"*": "*"},

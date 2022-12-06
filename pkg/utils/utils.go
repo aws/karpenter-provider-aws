@@ -18,6 +18,10 @@ import (
 	"fmt"
 	"regexp"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/karpenter-core/pkg/utils/functional"
+	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/ptr"
 )
@@ -36,4 +40,63 @@ func ParseInstanceID(node *v1.Node) (*string, error) {
 		}
 	}
 	return nil, fmt.Errorf("parsing instance id %s", node.Spec.ProviderID)
+}
+
+func GetSubnetFilters(provider *v1alpha1.AWSNodeTemplate) []*ec2.Filter {
+	filters := []*ec2.Filter{}
+	// Filter by subnet
+	for key, value := range provider.Spec.SubnetSelector {
+		if key == "aws-ids" {
+			filterValues := functional.SplitCommaSeparatedString(value)
+			filters = append(filters, &ec2.Filter{
+				Name:   aws.String("subnet-id"),
+				Values: aws.StringSlice(filterValues),
+			})
+		} else if value == "*" {
+			filters = append(filters, &ec2.Filter{
+				Name:   aws.String("tag-key"),
+				Values: []*string{aws.String(key)},
+			})
+		} else {
+			filters = append(filters, &ec2.Filter{
+				Name:   aws.String(fmt.Sprintf("tag:%s", key)),
+				Values: []*string{aws.String(value)},
+			})
+		}
+	}
+	return filters
+}
+
+func PrettySubnets(subnets []*ec2.Subnet) []string {
+	names := []string{}
+	for _, subnet := range subnets {
+		names = append(names, fmt.Sprintf("%s (%s)", aws.StringValue(subnet.SubnetId), aws.StringValue(subnet.AvailabilityZone)))
+	}
+	return names
+}
+func GetSecurityGroupFilters(provider *v1alpha1.AWS) []*ec2.Filter {
+	filters := []*ec2.Filter{}
+	for key, value := range provider.SecurityGroupSelector {
+		if key == "aws-ids" {
+			filterValues := functional.SplitCommaSeparatedString(value)
+			filters = append(filters, &ec2.Filter{
+				Name:   aws.String("group-id"),
+				Values: aws.StringSlice(filterValues),
+			})
+		} else {
+			filters = append(filters, &ec2.Filter{
+				Name:   aws.String(fmt.Sprintf("tag:%s", key)),
+				Values: []*string{aws.String(value)},
+			})
+		}
+	}
+	return filters
+}
+
+func SecurityGroupIds(securityGroups []*ec2.SecurityGroup) []string {
+	names := []string{}
+	for _, securityGroup := range securityGroups {
+		names = append(names, aws.StringValue(securityGroup.GroupId))
+	}
+	return names
 }

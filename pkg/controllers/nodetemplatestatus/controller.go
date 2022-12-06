@@ -86,19 +86,5 @@ func (c *Controller) Builder(ctx context.Context, m manager.Manager) corecontrol
 		controllerruntime.NewControllerManagedBy(m).
 			Named(c.Name()).
 			For(&v1alpha1.AWSNodeTemplate{}).
-			// Watches(
-			// 	&source.Kind{Type: &v1alpha5.Provisioner{}},
-			// 	handler.EnqueueRequestsFromMapFunc(func(o k8sClient.Object) (requests []reconcile.Request) {
-			// 		var provisioner v1alpha5.Provisioner
-			// 		if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: o.GetName()}, &provisioner); err != nil {
-			// 			logging.FromContext(ctx).Errorf("Failed to get provisioner, %s", err)
-			// 			return requests
-			// 		}
-			// 		if provisioner.Spec.Provider != nil && provisioner.Spec.ProviderRef == nil {
-			// 			requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Name: provisioner.Name}})
-			// 		}
-			// 		return requests
-			// 	}),
-			// ).
 			WithOptions(controller.Options{MaxConcurrentReconciles: 10}))
 }

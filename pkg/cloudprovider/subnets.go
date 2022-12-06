@@ -20,41 +20,60 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
+	"knative.dev/pkg/logging"
 
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/utils"
 
-	"github.com/aws/karpenter-core/pkg/utils/functional"
+	"github.com/aws/karpenter-core/pkg/utils/pretty"
 )
 
 type SubnetProvider struct {
 	sync.Mutex
-	cache *cache.Cache
+	ec2api ec2iface.EC2API
+	cache  *cache.Cache
+	cm     *pretty.ChangeMonitor
 }
 
-func NewSubnetProvider(c *cache.Cache) *SubnetProvider {
+func NewSubnetProvider(ec2 ec2iface.EC2API, c *cache.Cache) *SubnetProvider {
 	return &SubnetProvider{
-		cache: c,
+		ec2api: ec2,
+		cache:  c,
+		cm:     pretty.NewChangeMonitor(),
 	}
 }
 
 func (p *SubnetProvider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) ([]*ec2.Subnet, error) {
 	p.Lock()
 	defer p.Unlock()
-	filters := getFilters(nodeTemplate)
+	filters := utils.GetSubnetFilters(nodeTemplate)
 	hash, err := hashstructure.Hash(filters, hashstructure.FormatV2, nil)
 	if err != nil {
 		return nil, err
 	}
-	subnets, ok := p.cache.Get(fmt.Sprint(hash))
-	if !ok {
-		return nil, fmt.Errorf("no subnets matched selector %v", nodeTemplate.Spec.AWS.SubnetSelector)
+	if subnets, ok := p.cache.Get(fmt.Sprint(hash)); ok {
+		return subnets.([]*ec2.Subnet), nil
 	}
 
-	return subnets.([]*ec2.Subnet), nil
+	fmt.Println(p.ec2api)
+	output, err := p.ec2api.DescribeSubnetsWithContext(ctx, &ec2.DescribeSubnetsInput{Filters: filters})
+	if err != nil {
+		return nil, fmt.Errorf("describing subnets %s, %w", pretty.Concise(filters), err)
+	}
+	if len(output.Subnets) == 0 {
+		return nil, fmt.Errorf("no subnets matched selector %v", nodeTemplate.Spec.SubnetSelector)
+	}
+	p.cache.SetDefault(fmt.Sprint(hash), output.Subnets)
+	subnetLog := utils.PrettySubnets(output.Subnets)
+	if p.cm.HasChanged(fmt.Sprintf("subnets-ids (provisioner-%s)", nodeTemplate.Name), subnetLog) {
+		logging.FromContext(ctx).With("subnets", subnetLog).Debugf("discovered subnets")
+	}
+
+	return output.Subnets, nil
 }
 
 func (p *SubnetProvider) LivenessProbe(req *http.Request) error {
@@ -62,29 +81,4 @@ func (p *SubnetProvider) LivenessProbe(req *http.Request) error {
 	//nolint: staticcheck
 	p.Unlock()
 	return nil
-}
-
-func getFilters(nodeTemplate *v1alpha1.AWSNodeTemplate) []*ec2.Filter {
-	filters := []*ec2.Filter{}
-	// Filter by subnet
-	for key, value := range nodeTemplate.Spec.SubnetSelector {
-		if key == "aws-ids" {
-			filterValues := functional.SplitCommaSeparatedString(value)
-			filters = append(filters, &ec2.Filter{
-				Name:   aws.String("subnet-id"),
-				Values: aws.StringSlice(filterValues),
-			})
-		} else if value == "*" {
-			filters = append(filters, &ec2.Filter{
-				Name:   aws.String("tag-key"),
-				Values: []*string{aws.String(key)},
-			})
-		} else {
-			filters = append(filters, &ec2.Filter{
-				Name:   aws.String(fmt.Sprintf("tag:%s", key)),
-				Values: []*string{aws.String(value)},
-			})
-		}
-	}
-	return filters
 }
