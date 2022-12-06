@@ -21,22 +21,30 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
+	"knative.dev/pkg/logging"
 
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/utils"
 
 	"github.com/aws/karpenter-core/pkg/utils/functional"
+	"github.com/aws/karpenter-core/pkg/utils/pretty"
 )
 
 type SecurityGroupProvider struct {
 	sync.Mutex
-	cache *cache.Cache
+	ec2api ec2iface.EC2API
+	cache  *cache.Cache
+	cm     *pretty.ChangeMonitor
 }
 
-func NewSecurityGroupProvider(c *cache.Cache) *SecurityGroupProvider {
+func NewSecurityGroupProvider(ec2api ec2iface.EC2API, c *cache.Cache) *SecurityGroupProvider {
 	return &SecurityGroupProvider{
-		cache: c,
+		ec2api: ec2api,
+		cm:     pretty.NewChangeMonitor(),
+		cache:  c,
 	}
 }
 
@@ -79,12 +87,21 @@ func (p *SecurityGroupProvider) getFilters(nodeTemplate *v1alpha1.AWSNodeTemplat
 	return filters
 }
 
-func (p *SecurityGroupProvider) getSecurityGroups(_ context.Context, filters []*ec2.Filter) ([]*ec2.SecurityGroup, error) {
+func (p *SecurityGroupProvider) getSecurityGroups(ctx context.Context, filters []*ec2.Filter) ([]*ec2.SecurityGroup, error) {
 	hash, err := hashstructure.Hash(filters, hashstructure.FormatV2, nil)
 	if err != nil {
 		return nil, err
 	}
-	securityGroups, _ := p.cache.Get(fmt.Sprint(hash))
-
-	return securityGroups.([]*ec2.SecurityGroup), nil
+	if securityGroups, ok := p.cache.Get(fmt.Sprint(hash)); ok {
+		return securityGroups.([]*ec2.SecurityGroup), nil
+	}
+	output, err := p.ec2api.DescribeSecurityGroupsWithContext(ctx, &ec2.DescribeSecurityGroupsInput{Filters: filters})
+	if err != nil {
+		return nil, fmt.Errorf("describing security groups %+v, %w", filters, err)
+	}
+	p.cache.SetDefault(fmt.Sprint(hash), output.SecurityGroups)
+	if p.cm.HasChanged("security-groups", output.SecurityGroups) {
+		logging.FromContext(ctx).With("security-groups", utils.SecurityGroupIds(output.SecurityGroups)).Debugf("discovered security groups")
+	}
+	return output.SecurityGroups, nil
 }

@@ -91,7 +91,7 @@ func New(ctx awscontext.Context) *CloudProvider {
 				ec2api,
 				ctx.KubernetesInterface,
 				amifamily.New(ctx.KubeClient, ssm.New(ctx.Session), ec2api, cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval), cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)),
-				NewSecurityGroupProvider(ctx.SecurityGroupCache),
+				NewSecurityGroupProvider(ec2api, ctx.SecurityGroupCache),
 				lo.Must(getCABundle(ctx.RESTConfig)),
 				ctx.StartAsync,
 				kubeDNSIP,

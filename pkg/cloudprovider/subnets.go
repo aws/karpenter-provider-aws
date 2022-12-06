@@ -59,7 +59,6 @@ func (p *SubnetProvider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNode
 		return subnets.([]*ec2.Subnet), nil
 	}
 
-	fmt.Println(p.ec2api)
 	output, err := p.ec2api.DescribeSubnetsWithContext(ctx, &ec2.DescribeSubnetsInput{Filters: filters})
 	if err != nil {
 		return nil, fmt.Errorf("describing subnets %s, %w", pretty.Concise(filters), err)

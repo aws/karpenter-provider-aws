@@ -113,7 +113,9 @@ var _ = BeforeSuite(func() {
 	fakePricingAPI = &fake.PricingAPI{}
 	pricingProvider = NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
 	subnetProvider := &SubnetProvider{
-		cache: subnetCache,
+		ec2api: fakeEC2API,
+		cache:  subnetCache,
+		cm:     pretty.NewChangeMonitor(),
 	}
 	instanceTypeProvider = &InstanceTypeProvider{
 		ec2api:               fakeEC2API,
@@ -124,7 +126,9 @@ var _ = BeforeSuite(func() {
 		cm:                   pretty.NewChangeMonitor(),
 	}
 	securityGroupProvider := &SecurityGroupProvider{
-		cache: securityGroupCache,
+		ec2api: fakeEC2API,
+		cache:  securityGroupCache,
+		cm:     pretty.NewChangeMonitor(),
 	}
 	cloudProvider = &CloudProvider{
 		instanceTypeProvider: instanceTypeProvider,
