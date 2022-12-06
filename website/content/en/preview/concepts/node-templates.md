@@ -35,7 +35,7 @@ spec:
   blockDeviceMappings: [ ... ]   # optional, configures storage devices for the instance
 
 ```
-Refer to [Provisioner API]({{<ref "../provisioner.md" >}}) for settings applicable to all providers.
+Refer to [Provisioner API]({{<ref "./provisioning" >}}) for settings applicable to all providers.
 See below for other AWS provider-specific parameters.
 
 ### SubnetSelector (required)

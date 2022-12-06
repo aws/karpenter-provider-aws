@@ -212,7 +212,7 @@ You can specify a set of AMIs for a provisioner to use by specifying an AMISelec
 Karpenter will automatically determine the architecture that an EC2 AMI is compatible with (amd64, arm64), but other constraints of an AMI can be expressed as tags on the EC2 AMI.
 For example, if you want to limit an EC2 AMI to only be used with instanceTypes that have an `nvidia` GPU, you can specify an EC2 tag with a key of `karpenter.k8s.aws/instance-gpu-manufacturer` and value `nvidia` on that AMI.
 
-All labels defined [in the scheduling documentation](../../tasks/scheduling#supported-labels) can be used as requirements for an EC2 AMI.
+All labels defined [in the scheduling documentation](./scheduling#supported-labels) can be used as requirements for an EC2 AMI.
 
 ```bash
 > aws ec2 describe-images --image-id ami-123 --query Images[0].Tags

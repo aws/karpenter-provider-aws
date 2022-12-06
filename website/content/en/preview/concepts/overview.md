@@ -1,9 +1,9 @@
 ---
-title: "Concepts"
-linkTitle: "Concepts"
-weight: 10
+title: "Overview"
+linkTitle: "Overview"
+weight: 1
 description: >
-  Understand key concepts of Karpenter
+  Understand high level Karpenter concepts
 ---
 
 Users fall under two basic roles: Kubernetes cluster administrators and application developers.
@@ -28,29 +28,28 @@ As part of the installation process, you need credentials from the underlying cl
 
 [Getting Started with Karpenter on AWS](../getting-started)
 describes the process of installing Karpenter on an AWS cloud provider.
-Because requests to add and delete nodes and schedule pods are made through Kubernetes, AWS IAM Roles for Service Accounts (IRSA) are needed by your Kubernetes cluster to make privileged requests to AWS.
+Because requests to create and delete nodes are made from a Kubernetes pod, AWS IAM Roles for Service Accounts (IRSA) are needed by your Kubernetes cluster to make privileged requests to AWS.
 For example, Karpenter uses AWS IRSA roles to grant the permissions needed to describe EC2 instance types and create EC2 instances.
 
 Once privileges are in place, Karpenter is deployed with a Helm chart.
 
 ### Configuring provisioners
 
-Karpenter's job is to add nodes to handle unschedulable pods, schedule pods on those nodes, and remove the nodes when they are not needed.
-To configure Karpenter, you create *provisioners* that define how Karpenter manages unschedulable pods and expires nodes.
+Karpenter's job is to create nodes to handle unschedulable pods and remove the nodes when they are not needed.
+To configure Karpenter, you create *provisioners* that define node provisioning constraints and deprovisioning behaviors.
 Here are some things to know about the Karpenter provisioner:
 
-* **Unschedulable pods**: Karpenter only attempts to schedule pods that have a status condition `Unschedulable=True`, which the kube scheduler sets when it fails to schedule the pod to existing capacity.
+* **Unschedulable pods**: Karpenter only responds to pods that have a status condition `Unschedulable=True`, which the kube scheduler sets when it fails to schedule the pod to existing capacity.
 
 * **Provisioner CR**: Karpenter defines a Custom Resource called a Provisioner to specify provisioning configuration.
-Each provisioner manages a distinct set of nodes, but pods can be scheduled to any provisioner that supports its scheduling constraints.
-A provisioner contains constraints that impact the nodes that can be provisioned and attributes of those nodes (such timers for removing nodes).
+Each provisioner manages a distinct set of nodes, but pods schedule to nodes launched by any provisioner that supports its scheduling constraints.
+A provisioner contains constraints that impact the nodes that can be provisioned and attributes of those nodes (such as timers for removing nodes).
 See [Provisioner API](../provisioner) for a description of settings and the [Provisioning](../tasks/provisioning) task for provisioner examples.
 
 * **Well-known labels**: The provisioner can use well-known Kubernetes labels to allow pods to request only certain instance types, architectures, operating systems, or other attributes when creating nodes.
-See [Well-Known Labels, Annotations and Taints](https://kubernetes.io/docs/reference/labels-annotations-taints/) for details.
-Keep in mind that only a subset of these labels are supported in Karpenter, as described later.
+See upstream [Well-Known Labels, Annotations and Taints](https://kubernetes.io/docs/reference/labels-annotations-taints/) and [Karpenter Supported Labels](./scheduling#supported-labels) for details.
 
-* **Deprovisioning nodes**: A provisioner can also include time-to-live values to indicate when nodes should be deprovisioned after a set amount of time from when they were created or after they becomes empty of deployed pods.
+* **Deprovisioning nodes**: A provisioner can also include time-to-live values to indicate when nodes should be deprovisioned after a set amount of time from when they were created or after they become empty of deployed pods.
 
 * **Multiple provisioners**: Multiple provisioners can be configured on the same cluster.
 For example, you might want to configure different teams on the same cluster to run on completely separate capacity.
@@ -85,8 +84,7 @@ The concept of layered constraints is key to using Karpenter.
 With no constraints defined in provisioners and none requested from pods being deployed, Karpenter chooses from the entire universe of features available to your cloud provider.
 Nodes can be created using any instance type and run in any zones.
 
-An application developer can tighten the constraints defined in a provisioner by the cluster administrator by defining additional scheduling constraints in their pod spec.
-Refer to the description of Karpenter constraints in the Application Developer section below for details.
+An application developer can tighten the constraints defined in a provisioner by the cluster administrator by defining additional [scheduling constraints](./scheduling.md) in their pod spec.
 
 ### Scheduling
 
@@ -104,7 +102,7 @@ The first supported cloud provider is AWS, although Karpenter is designed to wor
 Separating Kubernetes and AWS-specific settings allows Karpenter a clean path to integrating with other cloud providers.
 
 While using Kubernetes well-known labels, the provisioner can set some values that are specific to the cloud provider.
-So, for example, to include a certain instance type, you could use the Kubernetes label `node.kubernetes.io/instance-type`, but set its value to an AWS instance type (such as `m5.large` or `m5.2xlarge`).
+For example, to include a certain instance type, you could use the Kubernetes label `node.kubernetes.io/instance-type`, but set its value to an AWS instance type (such as `m5.large` or `m5.2xlarge`).
 
 ### Consolidation
 

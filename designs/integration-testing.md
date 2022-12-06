@@ -1,10 +1,6 @@
----
-title: "Testing Guide"
-linkTitle: "Testing Guide"
-weight: 100
-description: >
-  Learn about Karpenter testing
----
+# Integration Testing
+author: @njtran
+
 Currently, users can only test Karpenter by adding to a list of integration tests run in a mock environment or installing and testing Karpenter on a real cluster. Users who want to run more comprehensive tests are limited by the lack of test automation and configurability.
 
 To increase testing of Karpenter, this document introduces plans to create infrastructure and tools to extend the current mechanisms and enable developers to contribute with more confidence.
