@@ -262,6 +262,40 @@ var _ = Describe("Instance Types", func() {
 		}
 		Expect(nodeNames.Len()).To(Equal(2))
 	})
+	It("should launch instances for Nitro Enclave Resource Requests", func() {
+		nodeNames := sets.NewString()
+		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+		for _, pod := range ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov,
+			coretest.UnschedulablePod(coretest.PodOptions{
+				NodeSelector: map[string]string{
+					v1.LabelInstanceTypeStable: "m5.xlarge",
+				},
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{v1alpha1.ResourceAWSNitroEnclaves: resource.MustParse("1")},
+					Limits:   v1.ResourceList{v1alpha1.ResourceAWSNitroEnclaves: resource.MustParse("1")},
+				},
+			})) {
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "m5.xlarge"))
+			nodeNames.Insert(node.Name)
+		}
+		Expect(nodeNames.Len()).To(Equal(1))
+	})
+	It("should not launch instances for Nitro Enclave when node requirements not met", func() {
+		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+		for _, pod := range ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov,
+			coretest.UnschedulablePod(coretest.PodOptions{
+				NodeSelector: map[string]string{
+					v1.LabelInstanceTypeStable: "t3.large",
+				},
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{v1alpha1.ResourceAWSNitroEnclaves: resource.MustParse("1")},
+					Limits:   v1.ResourceList{v1alpha1.ResourceAWSNitroEnclaves: resource.MustParse("1")},
+				},
+			})) {
+			ExpectNotScheduled(ctx, env.Client, pod)
+		}
+	})
 	It("should set pods to 110 if not using ENI-based pod density", func() {
 		settingsStore[awssettings.ContextKey] = test.Settings(test.SettingOptions{
 			EnableENILimitedPodDensity: lo.ToPtr(false),
