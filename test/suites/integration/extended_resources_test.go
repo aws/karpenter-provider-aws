@@ -255,6 +255,48 @@ var _ = Describe("Extended Resources", func() {
 		env.ExpectCreatedNodeCount("==", 1)
 		env.EventuallyExpectCreatedNodesInitialized()
 	})
+	It("should provision nodes for a deployment that requests aws.ec2.nitro/nitro_enclaves", func() {
+		ExpectNitroEnclavesPluginCreated()
+	
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+			AWS: v1alpha1.AWS{
+				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			},
+		})
+		provisioner := test.Provisioner(test.ProvisionerOptions{
+			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
+			Requirements: []v1.NodeSelectorRequirement{
+				{
+					Key:      v1alpha5.LabelCapacityType,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{v1alpha5.CapacityTypeOnDemand},
+				},
+			},
+		})
+		numPods := 1
+		dep := test.Deployment(test.DeploymentOptions{
+			Replicas: int32(numPods),
+			PodOptions: test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "nitro-enclave"},
+				},
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{
+						"aws.ec2.nitro/nitro_enclaves": resource.MustParse("1"),
+					},
+					Limits: v1.ResourceList{
+						"aws.ec2.nitro/nitro_enclaves": resource.MustParse("1"),
+					},
+				},
+			},
+		})
+		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
+		env.ExpectCreated(provisioner, provider, dep)
+		env.EventuallyExpectHealthyPodCount(selector, numPods)
+		env.ExpectCreatedNodeCount("==", 1)
+		env.EventuallyExpectCreatedNodesInitialized()
+	})
 })
 
 func ExpectNvidiaDevicePluginCreated() {
@@ -460,6 +502,103 @@ func ExpectHabanaDevicePluginCreated() {
 							VolumeSource: v1.VolumeSource{
 								HostPath: &v1.HostPathVolumeSource{
 									Path: "/var/lib/kubelet/device-plugins",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	})
+}
+
+func ExpectNitroEnclavesPluginCreated() {
+	env.ExpectCreatedWithOffset(1, &v1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "nitro-enclaves",
+		},
+	})
+
+	env.ExpectCreatedWithOffset(1, &appsv1.DaemonSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "aws-nitro-enclaves-k8s-daemonset",
+			Namespace: "nitro-enclaves",
+		},
+		Spec: appsv1.DaemonSetSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"name": "aws-nitro-enclaves-k8s-dp",
+				},
+			},
+			UpdateStrategy: appsv1.DaemonSetUpdateStrategy{
+				Type: appsv1.RollingUpdateDaemonSetStrategyType,
+			},
+			Template: v1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"node.kubernetes.io/bootstrap-checkpoint": "true",
+					},
+					Labels: map[string]string{
+						"name": "aws-nitro-enclaves-k8s-dp",
+					},
+				},
+				Spec: v1.PodSpec{
+					Tolerations: []v1.Toleration{
+						{
+							Key:      "aws.ec2.nitro/nitro_enclaves",
+							Operator: v1.TolerationOpExists,
+							Effect:   v1.TaintEffectNoSchedule,
+						},
+					},
+					PriorityClassName: "system-node-critical",
+					Containers: []v1.Container{
+						{
+							Name:  "aws-nitro-enclaves-k8s-dp",
+							Image: "public.ecr.aws/aws-nitro-enclaves/aws-nitro-enclaves-k8s-device-plugin:latest",
+							SecurityContext: &v1.SecurityContext{
+								AllowPrivilegeEscalation: lo.ToPtr(false),
+								Capabilities: &v1.Capabilities{
+									Drop: []v1.Capability{"ALL"},
+								},
+							},
+							VolumeMounts: []v1.VolumeMount{
+								{
+									Name:      "device-plugin",
+									MountPath: "/var/lib/kubelet/device-plugins",
+								},
+								{
+									Name:      "dev-dir",
+									MountPath: "/dev",
+								},
+								{
+									Name:      "sys-dir",
+									MountPath: "/sys",
+								},
+							},
+						},
+					},
+					Volumes: []v1.Volume{
+						{
+							Name: "device-plugin",
+							VolumeSource: v1.VolumeSource{
+								HostPath: &v1.HostPathVolumeSource{
+									Path: "/var/lib/kubelet/device-plugins",
+								},
+							},
+						},
+						{
+							Name: "dev-dir",
+							VolumeSource: v1.VolumeSource{
+								HostPath: &v1.HostPathVolumeSource{
+									Path: "/dev",
+								},
+							},
+						},
+						{
+							Name: "sys-dir",
+							VolumeSource: v1.VolumeSource{
+								HostPath: &v1.HostPathVolumeSource{
+									Path: "/sys",
 								},
 							},
 						},
