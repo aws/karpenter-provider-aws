@@ -258,11 +258,13 @@ var _ = Describe("Extended Resources", func() {
 	It("should provision nodes for a deployment that requests aws.ec2.nitro/nitro_enclaves", func() {
 		ExpectNitroEnclavesPluginCreated()
 	
-		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
-			AWS: v1alpha1.AWS{
+		content, err := os.ReadFile("testdata/nitro_enclaves_input.sh")
+		Expect(err).ToNot(HaveOccurred())
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			},
+			UserData: aws.String(string(content)),
 		})
 		provisioner := test.Provisioner(test.ProvisionerOptions{
 			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
@@ -281,6 +283,8 @@ var _ = Describe("Extended Resources", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{"app": "nitro-enclave"},
 				},
+				// Not yet built hoping this can be stored somewhere publically it is the hello image from https://docs.aws.amazon.com/enclaves/latest/user/kubernetes.html#prepare-image
+				Image: "<image>",
 				ResourceRequirements: v1.ResourceRequirements{
 					Requests: v1.ResourceList{
 						"aws.ec2.nitro/nitro_enclaves": resource.MustParse("1"),
