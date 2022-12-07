@@ -86,7 +86,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 }
 
 func (c *Controller) Name() string {
-	return "Subnets"
+	return "AWSNodeTemplate Status"
 }
 
 func (c *Controller) Builder(ctx context.Context, m manager.Manager) corecontroller.Builder {
