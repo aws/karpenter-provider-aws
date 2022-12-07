@@ -23,11 +23,13 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
+	v1 "k8s.io/api/core/v1"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	awstest "github.com/aws/karpenter/pkg/test"
 )
@@ -52,6 +54,38 @@ var _ = Describe("Subnets", func() {
 		env.ExpectCreatedNodeCount("==", 1)
 
 		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("SecurityGroups", ContainElement(&securityGroups[0])))
+	})
+
+	It("should have an update AWSNodeTemplate stauts for security groups", func() {
+		subnets := getSubnets(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
+		Expect(len(subnets)).ToNot(Equal(0))
+		shuffledAZs := lo.Shuffle(lo.Keys(subnets))
+
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+			AWS: v1alpha1.AWS{
+				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			},
+		})
+		provisioner := test.Provisioner(test.ProvisionerOptions{
+			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
+			Requirements: []v1.NodeSelectorRequirement{
+				{
+					Key:      v1.LabelZoneFailureDomainStable,
+					Operator: "In",
+					Values:   []string{shuffledAZs[0]},
+				},
+			},
+		})
+		pod := test.Pod()
+
+		env.ExpectCreated(pod, provider, provisioner)
+		env.EventuallyExpectHealthy(pod)
+		env.ExpectCreatedNodeCount("==", 1)
+
+		var ant v1alpha1.AWSNodeTemplate
+		Expect(env.Client.Get(env, client.ObjectKeyFromObject(provider), &ant)).To(Succeed())
+		Expect(len(ant.Status.SecurityGroups)).ToNot(BeZero())
 	})
 })
 

@@ -30,6 +30,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	awstest "github.com/aws/karpenter/pkg/test"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var _ = Describe("Subnets", func() {
@@ -85,6 +86,38 @@ var _ = Describe("Subnets", func() {
 		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("SubnetId", Or(
 			lo.Map(subnets[shuffledAZs[0]], func(subnetID string, _ int) types.GomegaMatcher { return HaveValue(Equal(subnetID)) })...,
 		)))
+	})
+
+	It("should have an update AWSNodeTemplate stauts for subnets", func() {
+		subnets := getSubnets(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
+		Expect(len(subnets)).ToNot(Equal(0))
+		shuffledAZs := lo.Shuffle(lo.Keys(subnets))
+
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+			AWS: v1alpha1.AWS{
+				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			},
+		})
+		provisioner := test.Provisioner(test.ProvisionerOptions{
+			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
+			Requirements: []v1.NodeSelectorRequirement{
+				{
+					Key:      v1.LabelZoneFailureDomainStable,
+					Operator: "In",
+					Values:   []string{shuffledAZs[0]},
+				},
+			},
+		})
+		pod := test.Pod()
+
+		env.ExpectCreated(pod, provider, provisioner)
+		env.EventuallyExpectHealthy(pod)
+		env.ExpectCreatedNodeCount("==", 1)
+
+		var ant v1alpha1.AWSNodeTemplate
+		Expect(env.Client.Get(env, client.ObjectKeyFromObject(provider), &ant)).To(Succeed())
+		Expect(len(ant.Status.Subnets)).ToNot(BeZero())
 	})
 })
 
