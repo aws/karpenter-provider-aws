@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/types"
+	"knative.dev/pkg/logging"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	k8sClient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -50,8 +51,13 @@ func NewController(client k8sClient.Client, ec2api ec2iface.EC2API, subnetCache 
 
 func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	var ant v1alpha1.AWSNodeTemplate
-	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: req.Name}, &ant); err != nil {
-		return reconcile.Result{Requeue: false}, fmt.Errorf("could Not find AWSNodeTemplate %w", err)
+	err := c.kubeClient.Get(ctx, types.NamespacedName{Name: req.Name}, &ant)
+	if err != nil {
+		if err.Error() == fmt.Sprintf("AWSNodeTemplate.karpenter.k8s.aws \"%s\" not found", req.Name) {
+			logging.FromContext(ctx).Info("could not find AWSNodeTemplate (%s)", req.Name)
+			return reconcile.Result{Requeue: false}, nil
+		}
+		return reconcile.Result{Requeue: false}, fmt.Errorf("%w", err)
 	}
 
 	subnetList, err := c.subnet.getListOfSubnets(ctx, req.Name, &ant)

@@ -60,7 +60,7 @@ func (s *SecurityGroupsCollector) getListOfSecurityGroups(ctx context.Context, r
 
 	securityGroupIdsList := utils.SecurityGroupIds(securityGroupOutput.SecurityGroups)
 	s.securityGroupCache.SetDefault(fmt.Sprint(securityGroupHash), securityGroupOutput.SecurityGroups)
-	if s.cm.HasChanged("security-groups", securityGroupOutput.SecurityGroups) {
+	if s.cm.HasChanged(fmt.Sprintf("security-groups (%s)", requestName), securityGroupOutput.SecurityGroups) {
 		logging.FromContext(ctx).With("security-groups", securityGroupIdsList).Debugf("discovered security groups for AWSNodeTemplate (%s)", requestName)
 	}
 
