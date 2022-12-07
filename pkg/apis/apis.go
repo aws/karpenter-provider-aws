@@ -18,6 +18,7 @@ package apis
 import (
 	_ "embed"
 
+	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -46,3 +47,7 @@ var (
 	AWSNodeTemplateCRD []byte
 	CRDs               = append(apis.CRDs, lo.Must(functional.Unmarshal[v1.CustomResourceDefinition](AWSNodeTemplateCRD)))
 )
+
+func init() {
+	lo.Must0(AddToScheme(scheme.Scheme))
+}

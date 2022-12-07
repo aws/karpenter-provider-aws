@@ -23,7 +23,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/patrickmn/go-cache"
-	"github.com/samber/lo"
 	. "knative.dev/pkg/logging/testing"
 	_ "knative.dev/pkg/system/testing"
 
@@ -68,7 +67,6 @@ func TestAPIs(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(scheme.Scheme, apis.CRDs...)
-	lo.Must0(apis.AddToScheme(scheme.Scheme))
 	settingsStore = coretest.SettingsStore{
 		coresettings.ContextKey: coretest.Settings(),
 		coresettings.ContextKey: test.Settings(),

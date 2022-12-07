@@ -47,7 +47,6 @@ import (
 	coreapis "github.com/aws/karpenter-core/pkg/apis"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
-	"github.com/aws/karpenter-core/pkg/operator/scheme"
 )
 
 const (
@@ -58,7 +57,6 @@ const (
 func init() {
 	v1alpha5.NormalizedLabels = lo.Assign(v1alpha5.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": v1.LabelTopologyZone})
 	coreapis.Settings = coreapis.Settings.Union(apis.Settings)
-	lo.Must0(apis.AddToScheme(scheme.Scheme))
 }
 
 var _ cloudprovider.CloudProvider = (*CloudProvider)(nil)
