@@ -19,9 +19,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/aws/karpenter-core/pkg/operator/injection"
-	"github.com/aws/karpenter-core/pkg/operator/options"
-	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	"github.com/mitchellh/hashstructure/v2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -30,8 +27,16 @@ import (
 	. "knative.dev/pkg/logging/testing"
 	_ "knative.dev/pkg/system/testing"
 
+	"github.com/aws/karpenter-core/pkg/operator/injection"
+	"github.com/aws/karpenter-core/pkg/operator/options"
+	"github.com/aws/karpenter-core/pkg/operator/scheme"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
+
 	"github.com/aws/karpenter-core/pkg/apis/config/settings"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
@@ -43,9 +48,6 @@ import (
 	"github.com/aws/karpenter/pkg/fake"
 	"github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/pkg/utils"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 )
 
 var ctx context.Context
@@ -67,7 +69,7 @@ func TestAPIs(t *testing.T) {
 var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(scheme.Scheme, apis.CRDs...)
 	lo.Must0(apis.AddToScheme(scheme.Scheme))
-	settingsStore := coretest.SettingsStore{
+	settingsStore = coretest.SettingsStore{
 		coresettings.ContextKey: coretest.Settings(),
 		coresettings.ContextKey: test.Settings(),
 	}
@@ -126,14 +128,16 @@ var _ = Describe("AWSNodeTemplateStatusController", func() {
 		var ant v1alpha1.AWSNodeTemplate
 		ExpectApplied(ctx, env.Client, nodeTemplate)
 		ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{Name: nodeTemplate.Name, Namespace: nodeTemplate.Namespace})
-		env.Client.Get(ctx, types.NamespacedName{Name: nodeTemplate.Name}, &ant)
+		err := env.Client.Get(ctx, types.NamespacedName{Name: nodeTemplate.Name}, &ant)
+		Expect(err).To(BeNil())
 		Expect(len(ant.Status.Subnets)).To(Equal(3))
 	})
 	It("Should update AWSNodeTemplate status for Security Groups", func() {
 		var ant v1alpha1.AWSNodeTemplate
 		ExpectApplied(ctx, env.Client, nodeTemplate)
 		ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{Name: nodeTemplate.Name, Namespace: nodeTemplate.Namespace})
-		env.Client.Get(ctx, types.NamespacedName{Name: nodeTemplate.Name}, &ant)
+		err := env.Client.Get(ctx, types.NamespacedName{Name: nodeTemplate.Name}, &ant)
+		Expect(err).To(BeNil())
 		Expect(len(ant.Status.SecurityGroups)).To(Equal(3))
 	})
 	It("Should update Subnet Cache with subnet information", func() {
