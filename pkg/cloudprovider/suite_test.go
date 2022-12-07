@@ -16,6 +16,8 @@ package cloudprovider
 
 import (
 	"context"
+	"fmt"
+	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"net"
 	"testing"
 	"time"
@@ -44,6 +46,7 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/operator/controller"
 
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/karpenter-core/pkg/apis/config/settings"
 	corev1alpha5 "github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/controllers/provisioning"
@@ -54,8 +57,11 @@ import (
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
-
 	"github.com/aws/karpenter/pkg/fake"
+)
+
+const (
+	defaultRegion = "us-west-2"
 )
 
 var ctx context.Context
@@ -277,13 +283,15 @@ var _ = Describe("Allocation", func() {
 		It("should not detect drift when the AMI is valid", func() {
 			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			instanceTypes, _ := cloudProvider.GetInstanceTypes(ctx, provisioner)
-			validAmis, err := amiProvider.Get(ctx, nodeTemplate, instanceTypes, amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, &amifamily.Options{}))
+			//The ami should belong to the instance type that is selected
+			selectedInstanceType := instanceTypes[0]
+			validAmis, err := amiProvider.Get(ctx, nodeTemplate, []*cloudprovider.InstanceType{selectedInstanceType}, amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, &amifamily.Options{}))
 			Expect(err).ToNot(HaveOccurred())
 			node := coretest.Node(coretest.NodeOptions{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						v1alpha1.LabelInstanceAMIID: lo.Keys(validAmis)[0],
-						v1.LabelInstanceTypeStable:  instanceTypes[0].Name,
+						v1.LabelInstanceTypeStable:  selectedInstanceType.Name,
 					},
 				},
 			})
@@ -303,6 +311,58 @@ var _ = Describe("Allocation", func() {
 					},
 				},
 			})
+			isDrifted, err := cloudProvider.IsNodeDrifted(ctx, provisioner, node)
+			Expect(err).To(HaveOccurred())
+			Expect(isDrifted).To(BeFalse())
+		})
+		It("should be able to fetch the ami to detect drift if node doesn't have ami label", func() {
+			//Create an instance first, so we can call describe instance on that.
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			provisioner := test.Provisioner(coretest.ProvisionerOptions{
+				Provider: v1alpha1.AWS{
+					AMIFamily:             aws.String(v1alpha1.AMIFamilyAL2),
+					SubnetSelector:        map[string]string{"*": "*"},
+					SecurityGroupSelector: map[string]string{"*": "*"},
+				},
+				Requirements: []v1.NodeSelectorRequirement{{
+					Key:      v1alpha1.LabelInstanceCategory,
+					Operator: v1.NodeSelectorOpExists,
+				}},
+			})
+			ExpectApplied(ctx, env.Client, provisioner)
+			pod := ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(fakeEC2API.CalledWithDescribeInstanceWithContext.Len()).To(Equal(1))
+			fakeEC2API.CalledWithDescribeInstanceWithContext.Pop()
+			//At this time we have an instance in our collection
+			var instanceId string
+			var instance *ec2.Instance
+			fakeEC2API.Instances.Range(func(k any, v any) bool {
+				instanceId = k.(string)
+				instance = v.(*ec2.Instance)
+				return true
+			})
+			Expect(instanceId).ToNot(BeEmpty())
+			Expect(instance).ToNot(BeNil())
+			instance.SetImageId("changed-ami")
+
+			instanceTypes, _ := cloudProvider.GetInstanceTypes(ctx, provisioner)
+			node := coretest.Node(coretest.NodeOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						v1.LabelInstanceTypeStable: instanceTypes[0].Name,
+					},
+				},
+				ProviderID: makeProviderID(instanceId),
+			})
+			isDrifted, err := cloudProvider.IsNodeDrifted(ctx, provisioner, node)
+			Expect(fakeEC2API.CalledWithDescribeInstanceWithContext.Len()).To(Equal(1))
+			Expect(isDrifted).To(BeTrue())
+			Expect(err).ToNot(HaveOccurred())
+		})
+		It("should error drift if node doesn't have provider id and ami label", func() {
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			node := coretest.Node()
 			isDrifted, err := cloudProvider.IsNodeDrifted(ctx, provisioner, node)
 			Expect(err).To(HaveOccurred())
 			Expect(isDrifted).To(BeFalse())
@@ -399,3 +459,7 @@ var _ = Describe("Allocation", func() {
 		})
 	})
 })
+
+func makeProviderID(instanceID string) string {
+	return fmt.Sprintf("aws:///%s/%s", defaultRegion, instanceID)
+}

@@ -43,23 +43,24 @@ type CapacityPool struct {
 // EC2Behavior must be reset between tests otherwise tests will
 // pollute each other.
 type EC2Behavior struct {
-	DescribeInstancesOutput             AtomicPtr[ec2.DescribeInstancesOutput]
-	DescribeImagesOutput                AtomicPtr[ec2.DescribeImagesOutput]
-	DescribeLaunchTemplatesOutput       AtomicPtr[ec2.DescribeLaunchTemplatesOutput]
-	DescribeSubnetsOutput               AtomicPtr[ec2.DescribeSubnetsOutput]
-	DescribeSecurityGroupsOutput        AtomicPtr[ec2.DescribeSecurityGroupsOutput]
-	DescribeInstanceTypesOutput         AtomicPtr[ec2.DescribeInstanceTypesOutput]
-	DescribeInstanceTypeOfferingsOutput AtomicPtr[ec2.DescribeInstanceTypeOfferingsOutput]
-	DescribeAvailabilityZonesOutput     AtomicPtr[ec2.DescribeAvailabilityZonesOutput]
-	DescribeSpotPriceHistoryInput       AtomicPtr[ec2.DescribeSpotPriceHistoryInput]
-	DescribeSpotPriceHistoryOutput      AtomicPtr[ec2.DescribeSpotPriceHistoryOutput]
-	CreateFleetBehavior                 MockedFunction[ec2.CreateFleetInput, ec2.CreateFleetOutput]
-	CalledWithCreateLaunchTemplateInput AtomicPtrSlice[ec2.CreateLaunchTemplateInput]
-	CalledWithDescribeImagesInput       AtomicPtrSlice[ec2.DescribeImagesInput]
-	Instances                           sync.Map
-	LaunchTemplates                     sync.Map
-	InsufficientCapacityPools           atomic.Slice[CapacityPool]
-	NextError                           AtomicError
+	DescribeInstancesOutput               AtomicPtr[ec2.DescribeInstancesOutput]
+	DescribeImagesOutput                  AtomicPtr[ec2.DescribeImagesOutput]
+	DescribeLaunchTemplatesOutput         AtomicPtr[ec2.DescribeLaunchTemplatesOutput]
+	DescribeSubnetsOutput                 AtomicPtr[ec2.DescribeSubnetsOutput]
+	DescribeSecurityGroupsOutput          AtomicPtr[ec2.DescribeSecurityGroupsOutput]
+	DescribeInstanceTypesOutput           AtomicPtr[ec2.DescribeInstanceTypesOutput]
+	DescribeInstanceTypeOfferingsOutput   AtomicPtr[ec2.DescribeInstanceTypeOfferingsOutput]
+	DescribeAvailabilityZonesOutput       AtomicPtr[ec2.DescribeAvailabilityZonesOutput]
+	DescribeSpotPriceHistoryInput         AtomicPtr[ec2.DescribeSpotPriceHistoryInput]
+	DescribeSpotPriceHistoryOutput        AtomicPtr[ec2.DescribeSpotPriceHistoryOutput]
+	CreateFleetBehavior                   MockedFunction[ec2.CreateFleetInput, ec2.CreateFleetOutput]
+	CalledWithCreateLaunchTemplateInput   AtomicPtrSlice[ec2.CreateLaunchTemplateInput]
+	CalledWithDescribeImagesInput         AtomicPtrSlice[ec2.DescribeImagesInput]
+	CalledWithDescribeInstanceWithContext AtomicPtrSlice[ec2.DescribeInstancesInput]
+	Instances                             sync.Map
+	LaunchTemplates                       sync.Map
+	InsufficientCapacityPools             atomic.Slice[CapacityPool]
+	NextError                             AtomicError
 }
 
 type EC2API struct {
@@ -84,6 +85,7 @@ func (e *EC2API) Reset() {
 	e.CreateFleetBehavior.Reset()
 	e.CalledWithCreateLaunchTemplateInput.Reset()
 	e.CalledWithDescribeImagesInput.Reset()
+	e.CalledWithDescribeInstanceWithContext.Reset()
 	e.DescribeSpotPriceHistoryInput.Reset()
 	e.DescribeSpotPriceHistoryOutput.Reset()
 	e.Instances.Range(func(k, v any) bool {
@@ -190,7 +192,7 @@ func (e *EC2API) DescribeInstancesWithContext(_ context.Context, input *ec2.Desc
 	if !e.DescribeInstancesOutput.IsNil() {
 		return e.DescribeInstancesOutput.Clone(), nil
 	}
-
+	e.CalledWithDescribeInstanceWithContext.Add(input)
 	instances := []*ec2.Instance{}
 	for _, instanceID := range input.InstanceIds {
 		instance, _ := e.Instances.Load(*instanceID)
