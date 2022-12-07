@@ -102,11 +102,11 @@ By adopting this practice we allow our users who are early adopters to test out 
 
 ## Upgrading to v0.19.0+
 * The karpenter webhook and controller containers are combined into a single binary, which requires changes to the helm chart. If your Karpenter installation (helm or otherwise) currently customizes the karpenter webhook, your deployment tooling may require minor changes.
-* Karpenter now supports native interruption handling. If you were previously using Node Termination Handler for spot interruption handling and health events, you will need to remove the component from your cluster before enabling `aws.interruptionQueueName`. For more details on Karpenter's interruption handling, see the [Interruption Handling Docs]({{< ref "../tasks/deprovisioning/#interruption" >}}). For common questions on the migration process, see the [FAQ]({{< ref "../faq/#interruption-handling" >}})
+* Karpenter now supports native interruption handling. If you were previously using Node Termination Handler for spot interruption handling and health events, you will need to remove the component from your cluster before enabling `aws.interruptionQueueName`. For more details on Karpenter's interruption handling, see the [Interruption Handling Docs]({{< ref "./concepts/deprovisioning/#interruption" >}}). For common questions on the migration process, see the [FAQ]({{< ref "./faq/#interruption-handling" >}})
 * Instance category defaults are now explicitly persisted in the Provisioner, rather than handled implicitly in memory. By default, Provisioners will limit instance category to c,m,r. If any instance type constraints are applied, it will override this default. If you have created Provisioners in the past with unconstrained instance type, family, or category, Karpenter will now more flexibly use instance types than before. If you would like to apply these constraints, they must be included in the Provisioner CRD.
 * Karpenter CRD raw YAML URLs have migrated from `https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}charts/karpenter/crds/...` to `https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}pkg/apis/crds/...`. If you reference static Karpenter CRDs or rely on `kubectl replace -f` to apply these CRDs from their remote location, you will need to migrate to the new location.
 * Pods without an ownerRef (also called "controllerless" or "naked" pods) will now be evicted by default during node termination and consolidation.  Users can prevent controllerless pods from being voluntarily disrupted by applying the `karpenter.sh/do-not-evict: true` annotation to the pods in question.
-* The following CLI options/environment variables are now removed and replaced in favor of pulling settings dynamically from the `karpenter-global-settings` ConfigMap. See the [Global Settings docs](../tasks/globalsettings) for more details on configuring the new values in the ConfigMap.
+* The following CLI options/environment variables are now removed and replaced in favor of pulling settings dynamically from the `karpenter-global-settings` ConfigMap. See the [Global Settings docs](../concepts/globalsettings) for more details on configuring the new values in the ConfigMap.
 
    * `CLUSTER_NAME` -> `aws.clusterName`
    * `CLUSTER_ENDPOINT` -> `aws.clusterEndpoint`
@@ -118,11 +118,11 @@ By adopting this practice we allow our users who are early adopters to test out 
    * `VM_MEMORY_OVERHEAD` -> `aws.vmMemoryOverheadPercent`
 
 ## Upgrading to v0.18.0+
-* v0.18.0 removes the `karpenter_consolidation_nodes_created` and `karpenter_consolidation_nodes_terminated` prometheus metrics in favor of the more generic `karpenter_nodes_created` and `karpenter_nodes_terminated` metrics. You can still see nodes created and terminated by consolidation by checking the `reason` label on the metrics. Check out all the metrics published by Karpenter [here](../tasks/metrics/).
+* v0.18.0 removes the `karpenter_consolidation_nodes_created` and `karpenter_consolidation_nodes_terminated` prometheus metrics in favor of the more generic `karpenter_nodes_created` and `karpenter_nodes_terminated` metrics. You can still see nodes created and terminated by consolidation by checking the `reason` label on the metrics. Check out all the metrics published by Karpenter [here](../concepts/metrics/).
 
 ## Upgrading to v0.17.0+
 Karpenter's Helm chart package is now stored in [Karpenter's OCI (Open Container Initiative) registry](https://gallery.ecr.aws/karpenter/karpenter). The Helm CLI supports the new format since [v3.8.0+](https://helm.sh/docs/topics/registries/).
-With this change [charts.karpenter.sh](https://charts.karpenter.sh/) is no longer updated but preserved to allow using older Karpenter versions. For examples on working with the Karpenter helm charts look at [Install Karpenter Helm Chart]({{< ref "../getting-started/getting-started-with-eksctl/#install-karpenter-helm-chart" >}}).
+With this change [charts.karpenter.sh](https://charts.karpenter.sh/) is no longer updated but preserved to allow using older Karpenter versions. For examples on working with the Karpenter helm charts look at [Install Karpenter Helm Chart]({{< ref "./getting-started/getting-started-with-eksctl/#install-karpenter-helm-chart" >}}).
 
 Users who have scripted the installation or upgrading of Karpenter need to adjust their scripts with the following changes:
 1. There is no longer a need to add the Karpenter helm repo to helm

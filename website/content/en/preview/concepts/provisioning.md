@@ -1,13 +1,28 @@
 ---
-title: "Provisioner API"
-linkTitle: "Provisioner API"
-weight: 70
-date: 2017-01-05
+title: "Provisioning"
+linkTitle: "Provisioning"
+weight: 1
 description: >
-  Provisioner API reference page
+  Learn about Karpenter Provisioners
 ---
 
-## Example Provisioner Resource
+When you first installed Karpenter, you set up a default Provisioner.
+The Provisioner sets constraints on the nodes that can be created by Karpenter and the pods that can run on those nodes.
+The Provisioner can be set to do things like:
+
+* Define taints to limit the pods that can run on nodes Karpenter creates
+* Define any startup taints to inform Karpenter that it should taint the node initially, but that the taint is temporary.
+* Limit node creation to certain zones, instance types, and computer architectures
+* Set defaults for node expiration
+
+You can change your Provisioner or add other Provisioners to Karpenter.
+Here are things you should know about Provisioners:
+
+* Karpenter won't do anything if there is not at least one Provisioner configured.
+* Each Provisioner that is configured is looped through by Karpenter.
+* If Karpenter encounters a taint in the Provisioner that is not tolerated by a Pod, Karpenter won't use that Provisioner to provision the pod.
+* If Karpenter encounters a startup taint in the Provisioner it will be applied to nodes that are provisioned, but pods do not need to tolerate the taint.  Karpenter assumes that the taint is temporary and some other system will remove the taint.
+* It is recommended to create Provisioners that are mutually exclusive. So no Pod should match multiple Provisioners. If multiple Provisioners are matched, Karpenter will use the Provisioner with the highest [weight](#specweight).
 
 ```yaml
 apiVersion: karpenter.sh/v1alpha5
@@ -15,29 +30,15 @@ kind: Provisioner
 metadata:
   name: default
 spec:
-  # Enables consolidation which attempts to reduce cluster cost by both removing un-needed nodes and down-sizing those
-  # that can't be removed.  Mutually exclusive with the ttlSecondsAfterEmpty parameter.
-  consolidation:
-    enabled: true
-
-  # If omitted, the feature is disabled and nodes will never expire.  If set to less time than it requires for a node
-  # to become ready, the node may expire before any pods successfully start.
-  ttlSecondsUntilExpired: 2592000 # 30 Days = 60 * 60 * 24 * 30 Seconds;
-
-  # If omitted, the feature is disabled, nodes will never scale down due to low utilization
-  ttlSecondsAfterEmpty: 30
-
-  # Priority given to the provisioner when the scheduler considers which provisioner
-  # to select. Higher weights indicate higher priority when comparing provisioners.
-  # Specifying no weight is equivalent to specifying a weight of 0.
-  weight: 10
+  # References cloud provider-specific custom resource, see your cloud provider specific documentation
+  providerRef:
+    name: default
 
   # Provisioned nodes will have these taints
   # Taints may prevent pods from scheduling if they are not tolerated by the pod.
   taints:
     - key: example.com/special-taint
       effect: NoSchedule
-
 
   # Provisioned nodes will have these taints, but pods do not need to tolerate these taints to be provisioned by this
   # provisioner. These taints are expected to be temporary and some other entity (e.g. a DaemonSet) is responsible for
@@ -60,7 +61,7 @@ spec:
     - key: "karpenter.k8s.aws/instance-cpu"
       operator: In
       values: ["4", "8", "16", "32"]
-    - key: karpenter.k8s.aws/instance-hypervisor
+    - key: "karpenter.k8s.aws/instance-hypervisor"
       operator: In
       values: ["nitro"]
     - key: "topology.kubernetes.io/zone"
@@ -109,14 +110,23 @@ spec:
       cpu: "1000"
       memory: 1000Gi
 
-  # References cloud provider-specific custom resource, see your cloud provider specific documentation
-  providerRef:
-    name: default
+  # Enables consolidation which attempts to reduce cluster cost by both removing un-needed nodes and down-sizing those
+  # that can't be removed.  Mutually exclusive with the ttlSecondsAfterEmpty parameter.
+  consolidation:
+    enabled: true
+
+  # If omitted, the feature is disabled and nodes will never expire.  If set to less time than it requires for a node
+  # to become ready, the node may expire before any pods successfully start.
+  ttlSecondsUntilExpired: 2592000 # 30 Days = 60 * 60 * 24 * 30 Seconds;
+
+  # If omitted, the feature is disabled, nodes will never scale down due to low utilization
+  ttlSecondsAfterEmpty: 30
+
+  # Priority given to the provisioner when the scheduler considers which provisioner
+  # to select. Higher weights indicate higher priority when comparing provisioners.
+  # Specifying no weight is equivalent to specifying a weight of 0.
+  weight: 10
 ```
-
-## Node deprovisioning
-
-You can configure Karpenter to deprovision instances through your Provisioner in multiple ways. You can use `spec.TTLSecondsAfterEmpty`, `spec.ttlSecondsUntilExpired` or `spec.consolidation.enabled`. Read [Deprovisioning](../tasks/deprovisioning/) for more.
 
 ## spec.requirements
 
@@ -134,11 +144,7 @@ For example, an instance type may be specified using a nodeSelector in a pod spe
 
 Generally, instance types should be a list and not a single value. Leaving this field undefined is recommended, as it maximizes choices for efficiently placing pods.
 
-☁️ **AWS**
-
-Review [AWS instance types](https://aws.amazon.com/ec2/instance-types/).
-
-The default value includes most instance types with the exclusion of [non-HVM](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/virtualization_types.html).  The full list of supported instance types can be seen [here](../aws/instance-types/)
+Review [AWS instance types](../instance-types). Most instance types are supported with the exclusion of [non-HVM](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/virtualization_types.html).
 
 **Example**
 
@@ -166,9 +172,6 @@ spec:
 
 - key: `topology.kubernetes.io/zone`
 - value example: `us-east-1c`
-
-☁️ **AWS**
-
 - value list: `aws ec2 describe-availability-zones --region <region-name>`
 
 Karpenter can be configured to create nodes in a particular zone. Note that the Availability Zone `us-east-1a` for your AWS account might not have the same location as `us-east-1a` for another AWS account.
@@ -189,9 +192,6 @@ Karpenter supports `amd64` nodes, and `arm64` nodes.
 ### Capacity Type
 
 - key: `karpenter.sh/capacity-type`
-
-☁️ **AWS**
-
 - values
   - `spot`
   - `on-demand` (default)
@@ -206,7 +206,7 @@ Karpenter also allows `karpenter.sh/capacity-type` to be used as a topology key 
 
 Karpenter allows you to describe provisioner preferences through a `weight` mechanism similar to how weight is described with [pod and node affinities](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity).
 
-For more information on weighting provisioners, see the [Weighting Provisioners section](../tasks/scheduling#weighting-provisioners) in the scheduling details.
+For more information on weighting Provisioners, see the [Weighting Provisioners section](../scheduling#weighting-provisioners) in the scheduling details.
 
 ## spec.kubeletConfiguration
 
@@ -354,10 +354,78 @@ Memory limits are described with a [`BinarySI` value, such as 1000Gi.](https://k
 
 Karpenter limits instance types when scheduling to those that will not exceed the specified limits.  If a limit has been exceeded, nodes provisioning is prevented until some nodes have been terminated.
 
-Review the [resource limit task](../tasks/set-resource-limits) for more information.
+Review [resource limits](../set-resource-limits) for more information.
 
 ## spec.providerRef
 
-This field points to the cloud provider-specific custom resource. Reference the appropriate documentation:
+This field points to the cloud provider-specific custom resource. Learn more about [AWSNodeTemplates](../node-templates/).
 
-- [AWS](./tasks/node-templates/)
+## spec.consolidation
+
+You can configure Karpenter to deprovision instances through your Provisioner in multiple ways. You can use `spec.TTLSecondsAfterEmpty`, `spec.ttlSecondsUntilExpired` or `spec.consolidation.enabled`. Read [Deprovisioning](../deprovisioning/) for more.
+
+
+## Example: Restricting Instance Types
+
+Not all workloads are able to run on any instance type. Some use cases may be sensitive to a specific hardware generation or cannot tolerate burstable compute. You can specify a variety of well known labels to control the set of instance types available to be provisioned.
+
+```yaml
+apiVersion: karpenter.sh/v1alpha5
+kind: Provisioner
+metadata:
+  name: default
+spec:
+  requirements:
+    # Include general purpose instance families
+    - key: karpenter.k8s.aws/instance-family
+      operator: In
+      values: [c5, m5, r5]
+    # Exclude smaller instance sizes
+    - key: karpenter.k8s.aws/instance-size
+      operator: NotIn
+      values: [nano, micro, small, large]
+    # Exclude a specific instance type
+    - key: node.kubernetes.io/instance-type
+      operator: NotIn
+      values: [m5.24xlarge]
+```
+
+## Example: Isolating Expensive Hardware
+
+A provisioner can be set up to only provision nodes on particular processor types.
+The following example sets a taint that only allows pods with tolerations for Nvidia GPUs to be scheduled:
+
+```yaml
+apiVersion: karpenter.sh/v1alpha5
+kind: Provisioner
+metadata:
+  name: gpu
+spec:
+  ttlSecondsAfterEmpty: 60
+  requirements:
+  - key: node.kubernetes.io/instance-type
+    operator: In
+    values: ["p3.8xlarge", "p3.16xlarge"]
+  taints:
+  - key: nvidia.com/gpu
+    value: "true"
+    effect: NoSchedule
+```
+In order for a pod to run on a node defined in this provisioner, it must tolerate `nvidia.com/gpu` in its pod spec.
+
+### Example: Adding the Cilium Startup Taint
+
+Per the Cilium [docs](https://docs.cilium.io/en/stable/gettingstarted/taints/),  it's recommended to place a taint of `node.cilium.io/agent-not-ready=true:NoExecute` on nodes to allow Cilium to configure networking prior to other pods starting.  This can be accomplished via the use of Karpenter `startupTaints`.  These taints are placed on the node, but pods aren't required to tolerate these taints to be considered for provisioning.
+
+```yaml
+apiVersion: karpenter.sh/v1alpha5
+kind: Provisioner
+metadata:
+  name: cilium-startup
+spec:
+  ttlSecondsAfterEmpty: 60
+  startupTaints:
+  - key: node.cilium.io/agent-not-ready
+    value: "true"
+    effect: NoExecute
+```
