@@ -35,15 +35,15 @@ import (
 type SecurityGroupProvider struct {
 	sync.Mutex
 	ec2api ec2iface.EC2API
-	cache  *cache.Cache
+	Cache  *cache.Cache
 	cm     *pretty.ChangeMonitor
 }
 
-func NewSecurityGroupProvider(ec2api ec2iface.EC2API, c *cache.Cache) *SecurityGroupProvider {
+func NewSecurityGroupProvider(ec2api ec2iface.EC2API) *SecurityGroupProvider {
 	return &SecurityGroupProvider{
 		ec2api: ec2api,
 		cm:     pretty.NewChangeMonitor(),
-		cache:  c,
+		Cache:  cache.New(cache.NoExpiration, cache.NoExpiration),
 	}
 }
 
@@ -72,14 +72,14 @@ func (p *SecurityGroupProvider) getSecurityGroups(ctx context.Context, filters [
 	if err != nil {
 		return nil, err
 	}
-	if securityGroups, ok := p.cache.Get(fmt.Sprint(hash)); ok {
+	if securityGroups, ok := p.Cache.Get(fmt.Sprint(hash)); ok {
 		return securityGroups.([]*ec2.SecurityGroup), nil
 	}
 	output, err := p.ec2api.DescribeSecurityGroupsWithContext(ctx, &ec2.DescribeSecurityGroupsInput{Filters: filters})
 	if err != nil {
 		return nil, fmt.Errorf("describing security groups %+v, %w", filters, err)
 	}
-	p.cache.SetDefault(fmt.Sprint(hash), output.SecurityGroups)
+	p.Cache.SetDefault(fmt.Sprint(hash), output.SecurityGroups)
 	if p.cm.HasChanged("security-groups (provisioner-%s)", output.SecurityGroups) {
 		logging.FromContext(ctx).With("security-groups", utils.SecurityGroupIds(output.SecurityGroups)).Debugf("discovered security groups")
 	}

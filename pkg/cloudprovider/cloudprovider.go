@@ -64,9 +64,11 @@ func init() {
 var _ cloudprovider.CloudProvider = (*CloudProvider)(nil)
 
 type CloudProvider struct {
-	instanceTypeProvider *InstanceTypeProvider
-	instanceProvider     *InstanceProvider
-	kubeClient           k8sClient.Client
+	instanceTypeProvider  *InstanceTypeProvider
+	instanceProvider      *InstanceProvider
+	SubnetProvider        *SubnetProvider
+	SecurityGroupProvider *SecurityGroupProvider
+	kubeClient            k8sClient.Client
 }
 
 func New(ctx awscontext.Context) *CloudProvider {
@@ -80,18 +82,21 @@ func New(ctx awscontext.Context) *CloudProvider {
 	if err := checkEC2Connectivity(ctx, ec2api); err != nil {
 		logging.FromContext(ctx).Fatalf("Checking EC2 API connectivity, %s", err)
 	}
-	subnetProvider := NewSubnetProvider(ec2api, ctx.SubnetCache)
-	instanceTypeProvider := NewInstanceTypeProvider(ctx, ctx.Session, ec2api, subnetProvider, ctx.UnavailableOfferingsCache, ctx.StartAsync)
+	subnet := NewSubnetProvider(ec2api)
+	securityGroup := NewSecurityGroupProvider(ec2api)
+	instanceTypeProvider := NewInstanceTypeProvider(ctx, ctx.Session, ec2api, subnet, ctx.UnavailableOfferingsCache, ctx.StartAsync)
 	return &CloudProvider{
-		kubeClient:           ctx.KubeClient,
-		instanceTypeProvider: instanceTypeProvider,
-		instanceProvider: NewInstanceProvider(ctx, ec2api, instanceTypeProvider, subnetProvider,
+		kubeClient:            ctx.KubeClient,
+		SubnetProvider:        subnet,
+		SecurityGroupProvider: securityGroup,
+		instanceTypeProvider:  instanceTypeProvider,
+		instanceProvider: NewInstanceProvider(ctx, ec2api, instanceTypeProvider, subnet,
 			NewLaunchTemplateProvider(
 				ctx,
 				ec2api,
 				ctx.KubernetesInterface,
 				amifamily.New(ctx.KubeClient, ssm.New(ctx.Session), ec2api, cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval), cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)),
-				NewSecurityGroupProvider(ec2api, ctx.SecurityGroupCache),
+				securityGroup,
 				lo.Must(getCABundle(ctx.RESTConfig)),
 				ctx.StartAsync,
 				kubeDNSIP,

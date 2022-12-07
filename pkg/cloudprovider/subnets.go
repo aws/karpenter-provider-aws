@@ -35,15 +35,15 @@ import (
 type SubnetProvider struct {
 	sync.Mutex
 	ec2api ec2iface.EC2API
-	cache  *cache.Cache
+	Cache  *cache.Cache
 	cm     *pretty.ChangeMonitor
 }
 
-func NewSubnetProvider(ec2api ec2iface.EC2API, c *cache.Cache) *SubnetProvider {
+func NewSubnetProvider(ec2api ec2iface.EC2API) *SubnetProvider {
 	return &SubnetProvider{
 		ec2api: ec2api,
 		cm:     pretty.NewChangeMonitor(),
-		cache:  c,
+		Cache:  cache.New(cache.NoExpiration, cache.NoExpiration),
 	}
 }
 
@@ -55,7 +55,7 @@ func (p *SubnetProvider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNode
 	if err != nil {
 		return nil, err
 	}
-	if subnets, ok := p.cache.Get(fmt.Sprint(hash)); ok {
+	if subnets, ok := p.Cache.Get(fmt.Sprint(hash)); ok {
 		return subnets.([]*ec2.Subnet), nil
 	}
 	output, err := p.ec2api.DescribeSubnetsWithContext(ctx, &ec2.DescribeSubnetsInput{Filters: filters})
@@ -65,7 +65,7 @@ func (p *SubnetProvider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNode
 	if len(output.Subnets) == 0 {
 		return nil, fmt.Errorf("no subnets matched selector %v", nodeTemplate.Spec.SubnetSelector)
 	}
-	p.cache.SetDefault(fmt.Sprint(hash), output.Subnets)
+	p.Cache.SetDefault(fmt.Sprint(hash), output.Subnets)
 	subnetLog := utils.SubnetIds(output.Subnets)
 	if p.cm.HasChanged(fmt.Sprintf("subnets-ids (provisioner-%s)", nodeTemplate.Name), subnetLog) {
 		logging.FromContext(ctx).With("subnets", subnetLog).Debugf("discovered subnets")
