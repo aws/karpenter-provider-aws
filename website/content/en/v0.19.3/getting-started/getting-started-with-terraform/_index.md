@@ -62,9 +62,9 @@ terraform {
       source  = "hashicorp/helm"
       version = "~> 2.5"
     }
-    kubectl = {
-      source  = "gavinbunney/kubectl"
-      version = "~> 1.14"
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "~> 2.16"
     }
   }
 }
@@ -349,42 +349,68 @@ Add the following to your `main.tf` to deploy the Karpenter provisioner.
 Note: This provisioner will create capacity as long as the sum of all created capacity is less than the specified limit.
 
 ```hcl
-provider "kubectl" {
-  apply_retry_count      = 5
+provider "kubernetes" {
   host                   = module.eks.cluster_endpoint
   cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
-  load_config_file       = false
 
   exec {
     api_version = "client.authentication.k8s.io/v1beta1"
     command     = "aws"
-    args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_id]
+    args        = ["eks", "get-token", "--cluster-name", local.cluster_name]
   }
 }
 
-resource "kubectl_manifest" "karpenter_provisioner" {
-  yaml_body = <<-YAML
-  apiVersion: karpenter.sh/v1alpha5
-  kind: Provisioner
-  metadata:
-    name: default
-  spec:
-    requirements:
-      - key: karpenter.sh/capacity-type
-        operator: In
-        values: ["spot"]
-    limits:
-      resources:
-        cpu: 1000
-    provider:
-      subnetSelector:
-        Name: "*private*"
-      securityGroupSelector:
-        karpenter.sh/discovery/${module.eks.cluster_id}: ${module.eks.cluster_id}
-      tags:
-        karpenter.sh/discovery/${module.eks.cluster_id}: ${module.eks.cluster_id}
-    ttlSecondsAfterEmpty: 30
-  YAML
+resource "kubernetes_manifest" "karpenter_provisioner" {
+  manifest = {
+    apiVersion = "karpenter.sh/v1alpha5"
+    kind       = "Provisioner"
+
+    metadata = {
+      name = "default"
+    }
+
+    spec = {
+      provider = {
+        subnetSelector = {
+          "Name" = "*private*"
+        }
+        
+        securityGroupSelector = {
+          "karpenter.sh/discovery/${module.eks.cluster_id}" = "${module.eks.cluster_id}"
+        }
+        
+        tags = {
+          "karpenter.sh/discovery/${module.eks.cluster_id}" = "${module.eks.cluster_id}"
+        }
+      }
+
+      limits = {
+        resources = {
+          cpu    = "1000"
+        }
+      }
+
+      labels = {
+        "node.k8s.controlant.com/role" = "general"
+      }
+
+      requirements = [
+        {
+          key      = "karpenter.sh/capacity-type"
+          operator = "In"
+          values   = ["spot"]
+        },
+      ]
+
+      ttlSecondsAfterEmpty = 30
+    }
+  }
+
+  computed_fields = ["spec.requirements"]
+
+  field_manager {
+    force_conflicts = true
+  }
 
   depends_on = [
     helm_release.karpenter
@@ -392,7 +418,7 @@ resource "kubectl_manifest" "karpenter_provisioner" {
 }
 ```
 
-Since we've added a new provider (kubectl), you'll need to run `terraform init` again
+Since we've added a new provider (kubernetes), you'll need to run `terraform init` again
 before applying the changes to deploy the Karpenter provisioner.
 
 ```bash
