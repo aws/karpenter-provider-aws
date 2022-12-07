@@ -16,7 +16,9 @@ package utils
 
 import (
 	"fmt"
+	"path/filepath"
 	"regexp"
+	"runtime"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -107,4 +109,10 @@ func SecurityGroupIds(securityGroups []*ec2.SecurityGroup) []string {
 		names = append(names, aws.StringValue(securityGroup.GroupId))
 	}
 	return names
+}
+
+func RelativeToRoot(path string) string {
+	_, file, _, _ := runtime.Caller(0)
+	manifestsRoot := filepath.Join(filepath.Dir(file), "..", "..")
+	return filepath.Join(manifestsRoot, path)
 }

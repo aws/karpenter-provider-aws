@@ -17,8 +17,6 @@ package cloudprovider
 import (
 	"context"
 	"net"
-	"path/filepath"
-	"runtime"
 	"testing"
 	"time"
 
@@ -42,6 +40,7 @@ import (
 	awscontext "github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/controllers/nodetemplatestatus"
 	"github.com/aws/karpenter/pkg/test"
+	"github.com/aws/karpenter/pkg/utils"
 
 	"github.com/aws/karpenter-core/pkg/operator/controller"
 
@@ -150,7 +149,7 @@ var _ = BeforeSuite(func() {
 	provisioningController = provisioning.NewController(env.Client, prov, recorder)
 	nodeTemplateController = nodetemplatestatus.NewController(env.Client, fakeEC2API, subnetCache, securityGroupCache)
 
-	env.CRDDirectoryPaths = append(env.CRDDirectoryPaths, RelativeToRoot("charts/karpenter/crds"))
+	env.CRDDirectoryPaths = append(env.CRDDirectoryPaths, utils.RelativeToRoot("charts/karpenter/crds"))
 })
 
 var _ = AfterSuite(func() {
@@ -349,9 +348,3 @@ var _ = Describe("Allocation", func() {
 		})
 	})
 })
-
-func RelativeToRoot(path string) string {
-	_, file, _, _ := runtime.Caller(0)
-	manifestsRoot := filepath.Join(filepath.Dir(file), "..", "..")
-	return filepath.Join(manifestsRoot, path)
-}

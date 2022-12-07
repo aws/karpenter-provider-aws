@@ -151,7 +151,7 @@ var _ = Describe("Subnets", func() {
 		hash, _ := hashstructure.Hash(filters, hashstructure.FormatV2, nil)
 		subnets, ok := subnetCache.Get(fmt.Sprint(hash))
 		Expect(ok).To(BeTrue())
-		Expect(len(subnets.([]*ec2.Subnet))).To(BeNumerically("==", 3))
+		Expect(len(subnets.([]*ec2.Subnet))).To(Equal(3))
 		pod := ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, coretest.UnschedulablePod(
 			coretest.PodOptions{NodeSelector: map[string]string{v1.LabelArchStable: v1alpha5.ArchitectureAmd64}}))[0]
 		ExpectScheduled(ctx, env.Client, pod)
