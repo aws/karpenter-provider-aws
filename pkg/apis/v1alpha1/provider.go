@@ -15,13 +15,8 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"encoding/json"
-	"fmt"
-
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 )
 
 // AWS contains parameters specific to this cloud provider
@@ -190,12 +185,9 @@ type BlockDevice struct {
 	VolumeType *string `json:"volumeType,omitempty"`
 }
 
-func Deserialize(provider *v1alpha5.Provider) (*AWS, error) {
-	if provider == nil {
-		return nil, fmt.Errorf("invariant violated: spec.provider is not defined. Is the validating webhook installed?")
-	}
+func DeserializeProvider(raw []byte) (*AWS, error) {
 	a := &AWS{}
-	_, gvk, err := codec.UniversalDeserializer().Decode(provider.Raw, nil, a)
+	_, gvk, err := codec.UniversalDeserializer().Decode(raw, nil, a)
 	if err != nil {
 		return nil, err
 	}
@@ -203,16 +195,4 @@ func Deserialize(provider *v1alpha5.Provider) (*AWS, error) {
 		a.SetGroupVersionKind(*gvk)
 	}
 	return a, nil
-}
-
-func (a *AWS) Serialize(provider *v1alpha5.Provider) error {
-	if provider == nil {
-		return fmt.Errorf("invariant violated: spec.provider is not defined. Is the validating webhook installed?")
-	}
-	bytes, err := json.Marshal(a)
-	if err != nil {
-		return err
-	}
-	provider.Raw = bytes
-	return nil
 }

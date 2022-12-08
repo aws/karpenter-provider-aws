@@ -28,10 +28,11 @@ import (
 	"knative.dev/pkg/ptr"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/apis/config/settings"
 	awstest "github.com/aws/karpenter/pkg/test"
 
-	"github.com/aws/karpenter-core/pkg/scheduling"
+	pscheduling "github.com/aws/karpenter-core/pkg/controllers/provisioning/scheduling"
 	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 )
@@ -241,7 +242,7 @@ func getDaemonSetPodCount(provisioner *v1alpha5.Provisioner) int {
 	count := 0
 	for _, daemonSet := range daemonSetList.Items {
 		p := &v1.Pod{Spec: daemonSet.Spec.Template.Spec}
-		nodeTemplate := scheduling.NewNodeTemplate(provisioner)
+		nodeTemplate := pscheduling.NewMachineTemplate(provisioner)
 		if err := nodeTemplate.Taints.Tolerates(p); err != nil {
 			continue
 		}

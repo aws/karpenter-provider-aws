@@ -30,7 +30,6 @@ import (
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -39,12 +38,14 @@ import (
 	"knative.dev/pkg/ptr"
 	k8sClient "sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/aws/karpenter-core/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
 	awscontext "github.com/aws/karpenter/pkg/context"
 
 	coreapis "github.com/aws/karpenter-core/pkg/apis"
+	corev1alpha1 "github.com/aws/karpenter-core/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
@@ -112,12 +113,21 @@ func checkEC2Connectivity(ctx context.Context, api *ec2.EC2) error {
 }
 
 // Create a node given the constraints.
-func (c *CloudProvider) Create(ctx context.Context, nodeRequest *cloudprovider.NodeRequest) (*v1.Node, error) {
-	nodeTemplate, err := c.resolveNodeTemplate(ctx, nodeRequest.Template.Provider, nodeRequest.Template.ProviderRef)
+func (c *CloudProvider) Create(ctx context.Context, machine *corev1alpha1.Machine) (*v1.Node, error) {
+	nodeTemplate, err := c.resolveNodeTemplate(ctx, []byte(machine.
+		Annotations[v1alpha5.ProviderCompatabilityAnnotationKey]), machine.
+		Spec.MachineTemplateRef)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("resolving node template, %w", err)
 	}
-	return c.instanceProvider.Create(ctx, nodeTemplate, nodeRequest)
+	instanceTypes, err := c.resolveInstanceTypes(ctx, machine)
+	if err != nil {
+		return nil, fmt.Errorf("resolving instance types, %w", err)
+	}
+	if len(instanceTypes) == 0 {
+		return nil, fmt.Errorf("all requested instance types were unavailable during launch")
+	}
+	return c.instanceProvider.Create(ctx, nodeTemplate, machine, instanceTypes)
 }
 
 func (c *CloudProvider) LivenessProbe(req *http.Request) error {
@@ -129,7 +139,17 @@ func (c *CloudProvider) LivenessProbe(req *http.Request) error {
 
 // GetInstanceTypes returns all available InstanceTypes
 func (c *CloudProvider) GetInstanceTypes(ctx context.Context, provisioner *v1alpha5.Provisioner) ([]*cloudprovider.InstanceType, error) {
-	nodeTemplate, err := c.resolveNodeTemplate(ctx, provisioner.Spec.Provider, provisioner.Spec.ProviderRef)
+	var nodeTemplate *v1alpha1.AWSNodeTemplate
+	var err error
+	if provisioner.Spec.ProviderRef != nil {
+		nodeTemplate, err = c.resolveNodeTemplate(ctx, nil, &v1.ObjectReference{
+			APIVersion: provisioner.Spec.ProviderRef.APIVersion,
+			Kind:       provisioner.Spec.ProviderRef.Kind,
+			Name:       provisioner.Spec.ProviderRef.Name,
+		})
+	} else {
+		nodeTemplate, err = c.resolveNodeTemplate(ctx, provisioner.Spec.Provider.Raw, nil)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -181,18 +201,37 @@ func kubeDNSIP(ctx context.Context, kubernetesInterface kubernetes.Interface) (n
 	return kubeDNSIP, nil
 }
 
-func (c *CloudProvider) resolveNodeTemplate(ctx context.Context, provider *runtime.RawExtension, providerRef *v1alpha5.ProviderRef) (*v1alpha1.AWSNodeTemplate, error) {
+func (c *CloudProvider) resolveNodeTemplate(ctx context.Context, raw []byte, objRef *v1.ObjectReference) (*v1alpha1.AWSNodeTemplate, error) {
 	nodeTemplate := &v1alpha1.AWSNodeTemplate{}
-	if providerRef != nil {
-		if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: providerRef.Name}, nodeTemplate); err != nil {
+	if objRef != nil {
+		if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: objRef.Name}, nodeTemplate); err != nil {
 			return nil, fmt.Errorf("getting providerRef, %w", err)
 		}
 		return nodeTemplate, nil
 	}
-	aws, err := v1alpha1.Deserialize(provider)
+	aws, err := v1alpha1.DeserializeProvider(raw)
 	if err != nil {
 		return nil, err
 	}
 	nodeTemplate.Spec.AWS = lo.FromPtr(aws)
 	return nodeTemplate, nil
+}
+
+func (c *CloudProvider) resolveInstanceTypes(ctx context.Context, machine *corev1alpha1.Machine) ([]*cloudprovider.InstanceType, error) {
+	provisionerName, ok := machine.Labels[v1alpha5.ProvisionerNameLabelKey]
+	if !ok {
+		return nil, fmt.Errorf("finding provisioner owner")
+	}
+	provisioner := &v1alpha5.Provisioner{}
+	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: provisionerName}, provisioner); err != nil {
+		return nil, fmt.Errorf("getting provisioner owner, %w", err)
+	}
+	instanceTypes, err := c.GetInstanceTypes(ctx, provisioner)
+	if err != nil {
+		return nil, fmt.Errorf("getting instance types, %w", err)
+	}
+	reqs := scheduling.NewNodeSelectorRequirements(machine.Spec.Requirements...)
+	return lo.Filter(instanceTypes, func(i *cloudprovider.InstanceType, _ int) bool {
+		return reqs.Get(v1.LabelInstanceTypeStable).Has(i.Name) && len(i.Offerings.Requirements(reqs).Available()) > 0
+	}), nil
 }
