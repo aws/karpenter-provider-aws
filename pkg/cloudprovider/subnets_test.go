@@ -15,20 +15,15 @@ limitations under the License.
 package cloudprovider
 
 import (
-	"fmt"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/mitchellh/hashstructure/v2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/fake"
 	"github.com/aws/karpenter/pkg/test"
-	"github.com/aws/karpenter/pkg/utils"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	coretest "github.com/aws/karpenter-core/pkg/test"
@@ -38,7 +33,6 @@ import (
 var _ = Describe("Subnets", func() {
 	It("should default to the cluster's subnets", func() {
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-		ExpectReconcileSucceeded(ctx, nodeTemplateController, types.NamespacedName{Name: nodeTemplate.Name, Namespace: nodeTemplate.Namespace})
 		pod := ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, coretest.UnschedulablePod(
 			coretest.PodOptions{NodeSelector: map[string]string{v1.LabelArchStable: v1alpha5.ArchitectureAmd64}}))[0]
 		ExpectScheduled(ctx, env.Client, pod)
@@ -68,8 +62,8 @@ var _ = Describe("Subnets", func() {
 			{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1a"), AvailableIpAddressCount: aws.Int64(100),
 				Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
 		}})
+		HydrateSubnetAndSecurityGroupCache()
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-		ExpectReconcileSucceeded(ctx, nodeTemplateController, types.NamespacedName{Name: nodeTemplate.Name, Namespace: nodeTemplate.Namespace})
 		pod := ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}}))[0]
 		ExpectScheduled(ctx, env.Client, pod)
 		createFleetInput := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
@@ -83,8 +77,8 @@ var _ = Describe("Subnets", func() {
 				Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
 		}})
 		nodeTemplate.Spec.SubnetSelector = map[string]string{"Name": "test-subnet-1"}
+		HydrateSubnetAndSecurityGroupCache()
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-		ExpectReconcileSucceeded(ctx, nodeTemplateController, types.NamespacedName{Name: nodeTemplate.Name, Namespace: nodeTemplate.Namespace})
 		podSubnet1 := ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
 		ExpectScheduled(ctx, env.Client, podSubnet1)
 		createFleetInput := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
@@ -103,7 +97,6 @@ var _ = Describe("Subnets", func() {
 	It("should discover subnet by ID", func() {
 		nodeTemplate.Spec.SubnetSelector = map[string]string{"aws-ids": "subnet-test1"}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-		ExpectReconcileSucceeded(ctx, nodeTemplateController, types.NamespacedName{Name: nodeTemplate.Name, Namespace: nodeTemplate.Namespace})
 		pod := ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
 		ExpectScheduled(ctx, env.Client, pod)
 		createFleetInput := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
@@ -112,7 +105,6 @@ var _ = Describe("Subnets", func() {
 	It("should discover subnets by IDs", func() {
 		nodeTemplate.Spec.SubnetSelector = map[string]string{"aws-ids": "subnet-test1,subnet-test2"}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-		ExpectReconcileSucceeded(ctx, nodeTemplateController, types.NamespacedName{Name: nodeTemplate.Name, Namespace: nodeTemplate.Namespace})
 		pod := ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
 		ExpectScheduled(ctx, env.Client, pod)
 		createFleetInput := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
@@ -124,7 +116,6 @@ var _ = Describe("Subnets", func() {
 	It("should discover subnets by IDs and tags", func() {
 		nodeTemplate.Spec.SubnetSelector = map[string]string{"aws-ids": "subnet-test1,subnet-test2", "foo": "bar"}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-		ExpectReconcileSucceeded(ctx, nodeTemplateController, types.NamespacedName{Name: nodeTemplate.Name, Namespace: nodeTemplate.Namespace})
 		pod := ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
 		ExpectScheduled(ctx, env.Client, pod)
 		createFleetInput := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
@@ -136,24 +127,11 @@ var _ = Describe("Subnets", func() {
 	It("should discover subnets by IDs intersected with tags", func() {
 		nodeTemplate.Spec.SubnetSelector = map[string]string{"aws-ids": "subnet-test2", "foo": "bar"}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-		ExpectReconcileSucceeded(ctx, nodeTemplateController, types.NamespacedName{Name: nodeTemplate.Name, Namespace: nodeTemplate.Namespace})
 		pod := ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
 		ExpectScheduled(ctx, env.Client, pod)
 		createFleetInput := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
 		Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf(
 			"subnet-test2",
 		))
-	})
-	It("should make sure AWSNodeTemplate subnets are grabed from the cache", func() {
-		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-		ExpectReconcileSucceeded(ctx, nodeTemplateController, types.NamespacedName{Name: nodeTemplate.Name, Namespace: nodeTemplate.Namespace})
-		filters := utils.GetSubnetFilters(nodeTemplate)
-		hash, _ := hashstructure.Hash(filters, hashstructure.FormatV2, nil)
-		subnets, ok := subnetCache.Get(fmt.Sprint(hash))
-		Expect(ok).To(BeTrue())
-		Expect(len(subnets.([]*ec2.Subnet))).To(Equal(3))
-		pod := ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, coretest.UnschedulablePod(
-			coretest.PodOptions{NodeSelector: map[string]string{v1.LabelArchStable: v1alpha5.ArchitectureAmd64}}))[0]
-		ExpectScheduled(ctx, env.Client, pod)
 	})
 })

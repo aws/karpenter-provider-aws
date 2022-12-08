@@ -28,24 +28,24 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/patrickmn/go-cache"
 
 	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
-	"github.com/aws/karpenter-core/pkg/utils/pretty"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/utils"
 )
 
 type Controller struct {
 	kubeClient     k8sClient.Client
-	subnet         *SubnetCollector
-	securityGroups *SecurityGroupsCollector
+	subnet         *cloudprovider.SubnetProvider
+	securityGroups *cloudprovider.SecurityGroupProvider
 }
 
-func NewController(client k8sClient.Client, ec2api ec2iface.EC2API, subnetCache *cache.Cache, SecurityGroupCache *cache.Cache) *Controller {
+func NewController(client k8sClient.Client, ec2api ec2iface.EC2API, subnetProvider *cloudprovider.SubnetProvider, securityGroups *cloudprovider.SecurityGroupProvider) *Controller {
 	return &Controller{
 		kubeClient:     client,
-		subnet:         NewSubnetCollector(ec2api, subnetCache, pretty.NewChangeMonitor()),
-		securityGroups: NewSecurityGroupsCollector(ec2api, SecurityGroupCache, pretty.NewChangeMonitor()),
+		subnet:         subnetProvider,
+		securityGroups: securityGroups,
 	}
 }
 
@@ -60,16 +60,17 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: false}, fmt.Errorf("%w", err)
 	}
 
-	subnetList, err := c.subnet.getListOfSubnets(ctx, req.Name, &ant)
+	subnetList, err := c.subnet.Get(ctx, &ant, true)
+	subnetLog := utils.SubnetIds(subnetList)
 	if err != nil {
 		// Back off and retry reconciliation
 		return reconcile.Result{RequeueAfter: 1 * time.Minute}, err
 	}
 
 	ant.Status.Subnets = nil
-	ant.Status.Subnets = append(ant.Status.Subnets, subnetList...)
+	ant.Status.Subnets = append(ant.Status.Subnets, subnetLog...)
 
-	securityGroupIds, err := c.securityGroups.getListOfSecurityGroups(ctx, req.Name, &ant)
+	securityGroupIds, err := c.securityGroups.Get(ctx, &ant, true)
 	if err != nil {
 		// Back off and retry reconciliation
 		return reconcile.Result{RequeueAfter: 1 * time.Minute}, err

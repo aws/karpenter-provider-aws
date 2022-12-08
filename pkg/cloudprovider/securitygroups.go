@@ -48,11 +48,11 @@ func NewSecurityGroupProvider(ec2api ec2iface.EC2API) *SecurityGroupProvider {
 	}
 }
 
-func (p *SecurityGroupProvider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) ([]string, error) {
+func (p *SecurityGroupProvider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, fromNodeTemplateController bool) ([]string, error) {
 	p.Lock()
 	defer p.Unlock()
 	// Get SecurityGroups
-	securityGroups, err := p.getSecurityGroups(ctx, utils.GetSecurityGroupFilters(nodeTemplate))
+	securityGroups, err := p.getSecurityGroups(ctx, utils.GetSecurityGroupFilters(nodeTemplate), fromNodeTemplateController)
 	if err != nil {
 		return nil, err
 	}
@@ -68,13 +68,15 @@ func (p *SecurityGroupProvider) Get(ctx context.Context, nodeTemplate *v1alpha1.
 	return securityGroupIds, nil
 }
 
-func (p *SecurityGroupProvider) getSecurityGroups(ctx context.Context, filters []*ec2.Filter) ([]*ec2.SecurityGroup, error) {
+func (p *SecurityGroupProvider) getSecurityGroups(ctx context.Context, filters []*ec2.Filter, fromNodeTemplateController bool) ([]*ec2.SecurityGroup, error) {
 	hash, err := hashstructure.Hash(filters, hashstructure.FormatV2, nil)
 	if err != nil {
 		return nil, err
 	}
-	if securityGroups, ok := p.Cache.Get(fmt.Sprint(hash)); ok {
-		return securityGroups.([]*ec2.SecurityGroup), nil
+	if !fromNodeTemplateController {
+		if securityGroups, ok := p.Cache.Get(fmt.Sprint(hash)); ok {
+			return securityGroups.([]*ec2.SecurityGroup), nil
+		}
 	}
 	output, err := p.ec2api.DescribeSecurityGroupsWithContext(ctx, &ec2.DescribeSecurityGroupsInput{Filters: filters})
 	if err != nil {

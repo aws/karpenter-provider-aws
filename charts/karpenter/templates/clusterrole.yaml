@@ -43,4 +43,4 @@ rules:
   # Write
   - apiGroups: ["karpenter.k8s.aws"]
     resources: ["awsnodetemplates/status"]
-    verbs: ["update"]
+    verbs: ["patch", "update"]

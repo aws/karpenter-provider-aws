@@ -107,7 +107,7 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, nodeTemplate *v1alpha1
 		return nil, err
 	}
 	// Get constrained security groups
-	securityGroupsIDs, err := p.securityGroupProvider.Get(ctx, nodeTemplate)
+	securityGroupsIDs, err := p.securityGroupProvider.Get(ctx, nodeTemplate, false)
 	if err != nil {
 		return nil, err
 	}

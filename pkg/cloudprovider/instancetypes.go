@@ -163,7 +163,7 @@ func (p *InstanceTypeProvider) getInstanceTypeZones(ctx context.Context, nodeTem
 	}
 
 	// Constrain AZs from subnets
-	subnets, err := p.subnetProvider.Get(ctx, nodeTemplate)
+	subnets, err := p.subnetProvider.Get(ctx, nodeTemplate, false)
 	if err != nil {
 		return nil, err
 	}

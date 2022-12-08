@@ -16,13 +16,10 @@ package nodetemplatestatus_test
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
-	"github.com/mitchellh/hashstructure/v2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/patrickmn/go-cache"
 	. "knative.dev/pkg/logging/testing"
 	_ "knative.dev/pkg/system/testing"
 
@@ -31,7 +28,6 @@ import (
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -42,7 +38,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis"
 	coresettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	awscontext "github.com/aws/karpenter/pkg/context"
+	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/controllers/nodetemplatestatus"
 	"github.com/aws/karpenter/pkg/fake"
 	"github.com/aws/karpenter/pkg/test"
@@ -53,8 +49,8 @@ var ctx context.Context
 var env *coretest.Environment
 var fakeEC2API *fake.EC2API
 var opts options.Options
-var subnetCache *cache.Cache
-var securityGroupCache *cache.Cache
+var subnetProvider *cloudprovider.SubnetProvider
+var securityGroupProvider *cloudprovider.SecurityGroupProvider
 var nodeTemplate *v1alpha1.AWSNodeTemplate
 var controller *nodetemplatestatus.Controller
 var settingsStore coretest.SettingsStore
@@ -74,10 +70,9 @@ var _ = BeforeSuite(func() {
 	ctx = settingsStore.InjectSettings(ctx)
 
 	fakeEC2API = &fake.EC2API{}
-	subnetCache = cache.New(awscontext.CacheTTL*5, awscontext.CacheCleanupInterval)
-	securityGroupCache = cache.New(awscontext.CacheTTL*5, awscontext.CacheCleanupInterval)
+	subnetProvider = cloudprovider.NewSubnetProvider(fakeEC2API)
+	securityGroupProvider = cloudprovider.NewSecurityGroupProvider(fakeEC2API)
 
-	fmt.Println(utils.RelativeToRoot("charts/karpenter/crds"))
 	env.CRDDirectoryPaths = append(env.CRDDirectoryPaths, utils.RelativeToRoot("charts/karpenter/crds"))
 })
 
@@ -110,11 +105,9 @@ var _ = BeforeEach(func() {
 		Version: v1alpha1.SchemeGroupVersion.Version,
 		Kind:    "AWSNodeTemplate",
 	})
-	controller = nodetemplatestatus.NewController(env.Client, fakeEC2API, subnetCache, securityGroupCache)
+	controller = nodetemplatestatus.NewController(env.Client, fakeEC2API, subnetProvider, securityGroupProvider)
 
 	fakeEC2API.Reset()
-	securityGroupCache.Flush()
-	subnetCache.Flush()
 })
 
 var _ = AfterEach(func() {
@@ -137,23 +130,5 @@ var _ = Describe("AWSNodeTemplateStatusController", func() {
 		err := env.Client.Get(ctx, types.NamespacedName{Name: nodeTemplate.Name}, &ant)
 		Expect(err).To(BeNil())
 		Expect(len(ant.Status.SecurityGroups)).To(Equal(3))
-	})
-	It("Should update Subnet Cache with subnet information", func() {
-		ExpectApplied(ctx, env.Client, nodeTemplate)
-		ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{Name: nodeTemplate.Name, Namespace: nodeTemplate.Namespace})
-		filters := utils.GetSubnetFilters(nodeTemplate)
-		hash, _ := hashstructure.Hash(filters, hashstructure.FormatV2, nil)
-		subnets, ok := subnetCache.Get(fmt.Sprint(hash))
-		Expect(ok).To(BeTrue())
-		Expect(len(subnets.([]*ec2.Subnet))).To(Equal(3))
-	})
-	It("Should update SecurityGroup Cache with Security Group information", func() {
-		ExpectApplied(ctx, env.Client, nodeTemplate)
-		ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{Name: nodeTemplate.Name, Namespace: nodeTemplate.Namespace})
-		filters := utils.GetSecurityGroupFilters(nodeTemplate)
-		hash, _ := hashstructure.Hash(filters, hashstructure.FormatV2, nil)
-		securityGroups, ok := securityGroupCache.Get(fmt.Sprint(hash))
-		Expect(ok).To(BeTrue())
-		Expect(len(securityGroups.([]*ec2.SecurityGroup))).To(Equal(3))
 	})
 })

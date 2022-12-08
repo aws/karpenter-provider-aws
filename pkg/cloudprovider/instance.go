@@ -214,7 +214,7 @@ func (p *InstanceProvider) checkODFallback(nodeRequest *cloudprovider.NodeReques
 
 func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, nodeRequest *cloudprovider.NodeRequest, capacityType string) ([]*ec2.FleetLaunchTemplateConfigRequest, error) {
 	// Get subnets given the constraints
-	subnets, err := p.subnetProvider.Get(ctx, nodeTemplate)
+	subnets, err := p.subnetProvider.Get(ctx, nodeTemplate, false)
 	if err != nil {
 		return nil, fmt.Errorf("getting subnets, %w", err)
 	}

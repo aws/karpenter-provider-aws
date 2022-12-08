@@ -36,7 +36,7 @@ import (
 type SubnetProvider struct {
 	sync.Mutex
 	ec2api ec2iface.EC2API
-	Cache  *cache.Cache
+	cache  *cache.Cache
 	cm     *pretty.ChangeMonitor
 }
 
@@ -44,11 +44,11 @@ func NewSubnetProvider(ec2api ec2iface.EC2API) *SubnetProvider {
 	return &SubnetProvider{
 		ec2api: ec2api,
 		cm:     pretty.NewChangeMonitor(),
-		Cache:  cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval),
+		cache:  cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval),
 	}
 }
 
-func (p *SubnetProvider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) ([]*ec2.Subnet, error) {
+func (p *SubnetProvider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, fromNodeTemplateController bool) ([]*ec2.Subnet, error) {
 	p.Lock()
 	defer p.Unlock()
 	filters := utils.GetSubnetFilters(nodeTemplate)
@@ -56,10 +56,11 @@ func (p *SubnetProvider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNode
 	if err != nil {
 		return nil, err
 	}
-	if subnets, ok := p.Cache.Get(fmt.Sprint(hash)); ok {
-		return subnets.([]*ec2.Subnet), nil
+	if !fromNodeTemplateController {
+		if subnets, ok := p.cache.Get(fmt.Sprint(hash)); ok {
+			return subnets.([]*ec2.Subnet), nil
+		}
 	}
-	// The section below is to alow backward compatibility for provisioner.Spec.provider
 	output, err := p.ec2api.DescribeSubnetsWithContext(ctx, &ec2.DescribeSubnetsInput{Filters: filters})
 	if err != nil {
 		return nil, fmt.Errorf("describing subnets %s, %w", pretty.Concise(filters), err)
@@ -67,9 +68,9 @@ func (p *SubnetProvider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNode
 	if len(output.Subnets) == 0 {
 		return nil, fmt.Errorf("no subnets matched selector %v", nodeTemplate.Spec.SubnetSelector)
 	}
-	p.Cache.SetDefault(fmt.Sprint(hash), output.Subnets)
+	p.cache.SetDefault(fmt.Sprint(hash), output.Subnets)
 	subnetLog := utils.SubnetIds(output.Subnets)
-	if p.cm.HasChanged(fmt.Sprintf("subnets-ids (provisioner-%s)", nodeTemplate.Name), subnetLog) {
+	if p.cm.HasChanged(fmt.Sprintf("subnets-ids (%s-%s)", nodeTemplate.Kind, nodeTemplate.Name), subnetLog) {
 		logging.FromContext(ctx).With("subnets", subnetLog).Debugf("discovered subnets")
 	}
 

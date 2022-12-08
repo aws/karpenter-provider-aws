@@ -16,11 +16,14 @@ package cloudprovider
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"testing"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,7 +41,6 @@ import (
 	awscache "github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
 	awscontext "github.com/aws/karpenter/pkg/context"
-	"github.com/aws/karpenter/pkg/controllers/nodetemplatestatus"
 	"github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/pkg/utils"
 
@@ -83,7 +85,6 @@ var provisioner *corev1alpha5.Provisioner
 var nodeTemplate *v1alpha1.AWSNodeTemplate
 var pricingProvider *PricingProvider
 var settingsStore coretest.SettingsStore
-var nodeTemplateController *nodetemplatestatus.Controller
 
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -113,7 +114,7 @@ var _ = BeforeSuite(func() {
 	pricingProvider = NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
 	subnetProvider := &SubnetProvider{
 		ec2api: fakeEC2API,
-		Cache:  subnetCache,
+		cache:  subnetCache,
 		cm:     pretty.NewChangeMonitor(),
 	}
 	instanceTypeProvider = &InstanceTypeProvider{
@@ -147,7 +148,6 @@ var _ = BeforeSuite(func() {
 	recorder = coretest.NewEventRecorder()
 	prov = provisioning.NewProvisioner(ctx, env.Client, env.KubernetesInterface.CoreV1(), recorder, cloudProvider, cluster)
 	provisioningController = provisioning.NewController(env.Client, prov, recorder)
-	nodeTemplateController = nodetemplatestatus.NewController(env.Client, fakeEC2API, subnetCache, securityGroupCache)
 
 	env.CRDDirectoryPaths = append(env.CRDDirectoryPaths, utils.RelativeToRoot("charts/karpenter/crds"))
 })
@@ -204,6 +204,8 @@ var _ = BeforeEach(func() {
 	ec2Cache.Flush()
 	instanceTypeCache.Flush()
 	cloudProvider.instanceProvider.launchTemplateProvider.kubeDNSIP = net.ParseIP("10.0.100.10")
+
+	HydrateSubnetAndSecurityGroupCache()
 })
 
 var _ = AfterEach(func() {
@@ -348,3 +350,13 @@ var _ = Describe("Allocation", func() {
 		})
 	})
 })
+
+func HydrateSubnetAndSecurityGroupCache() {
+	filters := utils.GetSubnetFilters(nodeTemplate)
+	subnetHash, _ := hashstructure.Hash(filters, hashstructure.FormatV2, nil)
+	securityGrouphash, _ := hashstructure.Hash(filters, hashstructure.FormatV2, nil)
+	subnetOutput, _ := fakeEC2API.DescribeSubnetsWithContext(ctx, &ec2.DescribeSubnetsInput{Filters: filters})
+	securityGroupOutput, _ := fakeEC2API.DescribeSecurityGroupsWithContext(ctx, &ec2.DescribeSecurityGroupsInput{Filters: filters})
+	subnetCache.SetDefault(fmt.Sprint(subnetHash), subnetOutput.Subnets)
+	securityGroupCache.SetDefault(fmt.Sprint(securityGrouphash), securityGroupOutput.SecurityGroups)
+}
