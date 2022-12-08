@@ -32,7 +32,6 @@ import (
 	"knative.dev/pkg/logging"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
-
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
@@ -56,7 +55,9 @@ type AMI struct {
 
 // Get returns a set of AMIIDs and corresponding instance types. AMI may vary due to architecture, accelerator, etc
 // If AMI overrides are specified in the AWSNodeTemplate, then only those AMIs will be chosen.
-func (p *AMIProvider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, nodeRequest *cloudprovider.NodeRequest, options *Options, amiFamily AMIFamily) (map[string][]*cloudprovider.InstanceType, error) {
+func (p *AMIProvider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate,
+	instanceTypes []*cloudprovider.InstanceType, options *Options, amiFamily AMIFamily) (map[string][]*cloudprovider.InstanceType, error) {
+
 	amiIDs := map[string][]*cloudprovider.InstanceType{}
 	amiRequirements, err := p.getAMIRequirements(ctx, nodeTemplate)
 	if err != nil {
@@ -65,7 +66,7 @@ func (p *AMIProvider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTem
 	if len(amiRequirements) > 0 {
 		// Iterate through AMIs in order of creation date to use latest AMI
 		amis := sortAMIsByCreationDate(amiRequirements)
-		for _, instanceType := range nodeRequest.InstanceTypeOptions {
+		for _, instanceType := range instanceTypes {
 			for _, ami := range amis {
 				if err := instanceType.Requirements.Compatible(amiRequirements[ami]); err == nil {
 					amiIDs[ami.AmiID] = append(amiIDs[ami.AmiID], instanceType)
@@ -77,7 +78,7 @@ func (p *AMIProvider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTem
 			return nil, fmt.Errorf("no instance types satisfy requirements of amis %v,", lo.Keys(amiRequirements))
 		}
 	} else {
-		for _, instanceType := range nodeRequest.InstanceTypeOptions {
+		for _, instanceType := range instanceTypes {
 			amiID, err := p.getDefaultAMIFromSSM(ctx, amiFamily.SSMAlias(options.KubernetesVersion, instanceType))
 			if err != nil {
 				return nil, err

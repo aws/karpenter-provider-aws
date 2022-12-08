@@ -35,6 +35,7 @@ import (
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 
+	corev1alpha1 "github.com/aws/karpenter-core/pkg/apis/v1alpha1"
 	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
@@ -95,12 +96,14 @@ func launchTemplateName(options *amifamily.LaunchTemplate) string {
 	return fmt.Sprintf(launchTemplateNameFormat, options.ClusterName, fmt.Sprint(hash))
 }
 
-func (p *LaunchTemplateProvider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, nodeRequest *cloudprovider.NodeRequest, additionalLabels map[string]string) (map[string][]*cloudprovider.InstanceType, error) {
+func (p *LaunchTemplateProvider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, machine *corev1alpha1.Machine,
+	instanceTypes []*cloudprovider.InstanceType, additionalLabels map[string]string) (map[string][]*cloudprovider.InstanceType, error) {
+
 	p.Lock()
 	defer p.Unlock()
 	// If Launch Template is directly specified then just use it
 	if nodeTemplate.Spec.LaunchTemplateName != nil {
-		return map[string][]*cloudprovider.InstanceType{ptr.StringValue(nodeTemplate.Spec.LaunchTemplateName): nodeRequest.InstanceTypeOptions}, nil
+		return map[string][]*cloudprovider.InstanceType{ptr.StringValue(nodeTemplate.Spec.LaunchTemplateName): instanceTypes}, nil
 	}
 	instanceProfile, err := p.getInstanceProfile(ctx, nodeTemplate)
 	if err != nil {
@@ -115,14 +118,14 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, nodeTemplate *v1alpha1
 	if err != nil {
 		return nil, err
 	}
-	resolvedLaunchTemplates, err := p.amiFamily.Resolve(ctx, nodeTemplate, nodeRequest, &amifamily.Options{
+	resolvedLaunchTemplates, err := p.amiFamily.Resolve(ctx, nodeTemplate, machine, instanceTypes, &amifamily.Options{
 		ClusterName:             awssettings.FromContext(ctx).ClusterName,
 		ClusterEndpoint:         awssettings.FromContext(ctx).ClusterEndpoint,
 		AWSENILimitedPodDensity: awssettings.FromContext(ctx).EnableENILimitedPodDensity,
 		InstanceProfile:         instanceProfile,
 		SecurityGroupsIDs:       securityGroupsIDs,
 		Tags:                    lo.Assign(awssettings.FromContext(ctx).Tags, nodeTemplate.Spec.Tags),
-		Labels:                  lo.Assign(nodeRequest.Template.Labels, additionalLabels),
+		Labels:                  lo.Assign(machine.Labels, additionalLabels),
 		CABundle:                p.caBundle,
 		KubernetesVersion:       kubeServerVersion,
 		KubeDNSIP:               p.kubeDNSIP,

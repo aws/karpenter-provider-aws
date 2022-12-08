@@ -16,6 +16,7 @@ package cloudprovider
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -29,6 +30,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/ptr"
 
+	"github.com/aws/karpenter-core/pkg/cloudprovider"
+	"github.com/aws/karpenter-core/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
@@ -81,6 +84,50 @@ var _ = Describe("Instance Types", func() {
 			ExpectNotScheduled(ctx, env.Client, pod)
 		}
 	})
+	It("should order the instance types by price and only consider the cheapest ones", func() {
+		instances := makeFakeInstances()
+		fakeEC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
+			InstanceTypes: makeFakeInstances(),
+		})
+		fakeEC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{
+			InstanceTypeOfferings: makeFakeInstanceOfferings(instances),
+		})
+		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+		for _, pod := range ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov,
+			coretest.UnschedulablePod(coretest.PodOptions{
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
+					Limits:   v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
+				},
+			})) {
+			ExpectScheduled(ctx, env.Client, pod)
+		}
+		its, err := cloudProvider.GetInstanceTypes(ctx, provisioner)
+		Expect(err).To(BeNil())
+		// Order all the instances by their price
+		// We need some way to deterministically order them if their prices match
+		reqs := scheduling.NewNodeSelectorRequirements(provisioner.Spec.Requirements...)
+		sort.Slice(its, func(i, j int) bool {
+			iPrice := its[i].Offerings.Requirements(reqs).Cheapest().Price
+			jPrice := its[j].Offerings.Requirements(reqs).Cheapest().Price
+			if iPrice == jPrice {
+				return its[i].Name < its[j].Name
+			}
+			return iPrice < jPrice
+		})
+		// Expect that the launch template overrides gives the 60 cheapest instance types
+		expected := sets.NewString(lo.Map(its[:MaxInstanceTypes], func(i *cloudprovider.InstanceType, _ int) string {
+			return i.Name
+		})...)
+		Expect(fakeEC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
+		call := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
+		Expect(call.LaunchTemplateConfigs).To(HaveLen(1))
+
+		Expect(call.LaunchTemplateConfigs[0].Overrides).To(HaveLen(MaxInstanceTypes))
+		for _, override := range call.LaunchTemplateConfigs[0].Overrides {
+			Expect(expected.Has(aws.StringValue(override.InstanceType))).To(BeTrue(), fmt.Sprintf("expected %s to exist in set", aws.StringValue(override.InstanceType)))
+		}
+	})
 	It("should de-prioritize metal", func() {
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 		for _, pod := range ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov,
@@ -94,7 +141,6 @@ var _ = Describe("Instance Types", func() {
 		}
 		Expect(fakeEC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
 		call := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
-		_ = call
 		for _, ltc := range call.LaunchTemplateConfigs {
 			for _, ovr := range ltc.Overrides {
 				Expect(strings.HasSuffix(aws.StringValue(ovr.InstanceType), "metal")).To(BeFalse())
@@ -114,7 +160,6 @@ var _ = Describe("Instance Types", func() {
 		}
 		Expect(fakeEC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
 		call := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
-		_ = call
 		for _, ltc := range call.LaunchTemplateConfigs {
 			for _, ovr := range ltc.Overrides {
 				Expect(strings.HasPrefix(aws.StringValue(ovr.InstanceType), "g")).To(BeFalse())
@@ -946,3 +991,43 @@ var _ = Describe("Instance Types", func() {
 		})
 	})
 })
+
+func makeFakeInstances() []*ec2.InstanceTypeInfo {
+	var instanceTypes []*ec2.InstanceTypeInfo
+	// Use keys from the static pricing data so that we guarantee pricing for the data
+	// Create uniform instance data so all of them schedule for a given pod
+	for k := range initialOnDemandPrices {
+		instanceTypes = append(instanceTypes, &ec2.InstanceTypeInfo{
+			InstanceType: aws.String(k),
+			ProcessorInfo: &ec2.ProcessorInfo{
+				SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
+			},
+			VCpuInfo: &ec2.VCpuInfo{
+				DefaultCores: aws.Int64(1),
+				DefaultVCpus: aws.Int64(2),
+			},
+			MemoryInfo: &ec2.MemoryInfo{
+				SizeInMiB: aws.Int64(8192),
+			},
+			NetworkInfo: &ec2.NetworkInfo{
+				MaximumNetworkInterfaces:  aws.Int64(3),
+				Ipv4AddressesPerInterface: aws.Int64(10),
+			},
+			SupportedUsageClasses: fake.DefaultSupportedUsageClasses,
+		})
+	}
+	return instanceTypes
+}
+
+func makeFakeInstanceOfferings(instanceTypes []*ec2.InstanceTypeInfo) []*ec2.InstanceTypeOffering {
+	var instanceTypeOfferings []*ec2.InstanceTypeOffering
+
+	// Create uniform instance offering data so all of them schedule for a given pod
+	for _, instanceType := range instanceTypes {
+		instanceTypeOfferings = append(instanceTypeOfferings, &ec2.InstanceTypeOffering{
+			InstanceType: instanceType.InstanceType,
+			Location:     aws.String("test-zone-1a"),
+		})
+	}
+	return instanceTypeOfferings
+}

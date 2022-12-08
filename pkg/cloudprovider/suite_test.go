@@ -191,6 +191,10 @@ var _ = BeforeEach(func() {
 		},
 	})
 
+	// Reset the pricing provider, so we don't cross-pollinate pricing data
+	pricingProvider = NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
+	instanceTypeProvider.pricingProvider = pricingProvider
+
 	recorder.Reset()
 	fakeEC2API.Reset()
 	fakePricingAPI.Reset()
@@ -213,7 +217,7 @@ var _ = Describe("Allocation", func() {
 		// Intent here is that if updates occur on the provisioningController, the Provisioner doesn't need to be recreated
 		It("should not set the InstanceProfile with the default if none provided in Provisioner", func() {
 			provisioner.SetDefaults(ctx)
-			constraints, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
+			constraints, err := v1alpha1.DeserializeProvider(provisioner.Spec.Provider.Raw)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(constraints.InstanceProfile).To(BeNil())
 		})
@@ -233,7 +237,7 @@ var _ = Describe("Allocation", func() {
 	})
 	Context("EC2 Context", func() {
 		It("should set context on the CreateFleet request if specified on the Provisioner", func() {
-			provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
+			provider, err := v1alpha1.DeserializeProvider(provisioner.Spec.Provider.Raw)
 			Expect(err).ToNot(HaveOccurred())
 			provider.Context = aws.String("context-1234")
 			provisioner = coretest.Provisioner(coretest.ProvisionerOptions{Provider: provider})
