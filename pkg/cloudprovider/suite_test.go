@@ -148,8 +148,6 @@ var _ = BeforeSuite(func() {
 	recorder = coretest.NewEventRecorder()
 	prov = provisioning.NewProvisioner(ctx, env.Client, env.KubernetesInterface.CoreV1(), recorder, cloudProvider, cluster)
 	provisioningController = provisioning.NewController(env.Client, prov, recorder)
-
-	env.CRDDirectoryPaths = append(env.CRDDirectoryPaths, utils.RelativeToRoot("charts/karpenter/crds"))
 })
 
 var _ = AfterSuite(func() {

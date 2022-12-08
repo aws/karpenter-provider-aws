@@ -31,7 +31,7 @@ import (
 	awscache "github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/utils/project"
 
-	"github.com/aws/karpenter-core/pkg/cloudprovider"
+	core_cloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
 )
 
 const (
@@ -48,13 +48,13 @@ const (
 
 // Context is injected into the AWS CloudProvider's factories
 type Context struct {
-	cloudprovider.Context
+	core_cloudprovider.Context
 
 	Session                   *session.Session
 	UnavailableOfferingsCache *awscache.UnavailableOfferings
 }
 
-func NewOrDie(ctx cloudprovider.Context) Context {
+func NewOrDie(ctx core_cloudprovider.Context) Context {
 	ctx.Context = logging.WithLogger(ctx, logging.FromContext(ctx).Named("aws"))
 	sess := withUserAgent(session.Must(session.NewSession(
 		request.WithRetryer(

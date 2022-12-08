@@ -22,17 +22,18 @@ import (
 	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
 	_ "knative.dev/pkg/system/testing"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter-core/pkg/operator/injection"
 	"github.com/aws/karpenter-core/pkg/operator/options"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 
-	"github.com/aws/aws-sdk-go/aws"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/aws/karpenter-core/pkg/apis/config/settings"
+	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
 	"github.com/aws/karpenter/pkg/apis"
@@ -42,7 +43,6 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/nodetemplate"
 	"github.com/aws/karpenter/pkg/fake"
 	"github.com/aws/karpenter/pkg/test"
-	"github.com/aws/karpenter/pkg/utils"
 )
 
 var ctx context.Context
@@ -52,7 +52,7 @@ var opts options.Options
 var subnetProvider *cloudprovider.SubnetProvider
 var securityGroupProvider *cloudprovider.SecurityGroupProvider
 var nodeTemplate *v1alpha1.AWSNodeTemplate
-var controller *nodetemplate.Controller
+var controller corecontroller.Controller
 var settingsStore coretest.SettingsStore
 
 func TestAPIs(t *testing.T) {
@@ -72,8 +72,6 @@ var _ = BeforeSuite(func() {
 	fakeEC2API = &fake.EC2API{}
 	subnetProvider = cloudprovider.NewSubnetProvider(fakeEC2API)
 	securityGroupProvider = cloudprovider.NewSecurityGroupProvider(fakeEC2API)
-
-	env.CRDDirectoryPaths = append(env.CRDDirectoryPaths, utils.RelativeToRoot("charts/karpenter/crds"))
 })
 
 var _ = AfterSuite(func() {
@@ -94,7 +92,6 @@ var _ = BeforeEach(func() {
 		},
 		Spec: v1alpha1.AWSNodeTemplateSpec{
 			AWS: v1alpha1.AWS{
-				AMIFamily:             aws.String(v1alpha1.AMIFamilyAL2),
 				SubnetSelector:        map[string]string{"*": "*"},
 				SecurityGroupSelector: map[string]string{"*": "*"},
 			},
@@ -116,19 +113,17 @@ var _ = AfterEach(func() {
 
 var _ = Describe("AWSNodeTemplateStatusController", func() {
 	It("Should update AWSNodeTemplate status for Subnets", func() {
-		var ant v1alpha1.AWSNodeTemplate
 		ExpectApplied(ctx, env.Client, nodeTemplate)
-		ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{Name: nodeTemplate.Name, Namespace: nodeTemplate.Namespace})
-		err := env.Client.Get(ctx, types.NamespacedName{Name: nodeTemplate.Name}, &ant)
+		ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+		err := env.Client.Get(ctx, types.NamespacedName{Name: nodeTemplate.Name}, nodeTemplate)
 		Expect(err).To(BeNil())
-		Expect(len(ant.Status.Subnets)).To(Equal(3))
+		Expect(len(nodeTemplate.Status.Subnets)).To(Equal(3))
 	})
 	It("Should update AWSNodeTemplate status for Security Groups", func() {
-		var ant v1alpha1.AWSNodeTemplate
 		ExpectApplied(ctx, env.Client, nodeTemplate)
-		ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{Name: nodeTemplate.Name, Namespace: nodeTemplate.Namespace})
-		err := env.Client.Get(ctx, types.NamespacedName{Name: nodeTemplate.Name}, &ant)
+		ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+		err := env.Client.Get(ctx, types.NamespacedName{Name: nodeTemplate.Name}, nodeTemplate)
 		Expect(err).To(BeNil())
-		Expect(len(ant.Status.SecurityGroups)).To(Equal(3))
+		Expect(len(nodeTemplate.Status.SecurityGroups)).To(Equal(3))
 	})
 })

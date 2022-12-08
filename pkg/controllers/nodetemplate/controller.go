@@ -19,8 +19,6 @@ import (
 	"fmt"
 	"time"
 
-	"k8s.io/apimachinery/pkg/types"
-	"knative.dev/pkg/logging"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	k8sClient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -35,32 +33,25 @@ import (
 	"github.com/aws/karpenter/pkg/utils"
 )
 
+var _ corecontroller.TypedController[*v1alpha1.AWSNodeTemplate] = (*Controller)(nil)
+
 type Controller struct {
 	kubeClient     k8sClient.Client
 	subnet         *cloudprovider.SubnetProvider
 	securityGroups *cloudprovider.SecurityGroupProvider
 }
 
-func NewController(client k8sClient.Client, ec2api ec2iface.EC2API, subnetProvider *cloudprovider.SubnetProvider, securityGroups *cloudprovider.SecurityGroupProvider) *Controller {
-	return &Controller{
+func NewController(client k8sClient.Client, ec2api ec2iface.EC2API, subnetProvider *cloudprovider.SubnetProvider, securityGroups *cloudprovider.SecurityGroupProvider) corecontroller.Controller {
+
+	return corecontroller.Typed[*v1alpha1.AWSNodeTemplate](client, &Controller{
 		kubeClient:     client,
 		subnet:         subnetProvider,
 		securityGroups: securityGroups,
-	}
+	})
 }
 
-func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	var ant v1alpha1.AWSNodeTemplate
-	err := c.kubeClient.Get(ctx, types.NamespacedName{Name: req.Name}, &ant)
-	if err != nil {
-		if err.Error() == fmt.Sprintf("AWSNodeTemplate.karpenter.k8s.aws \"%s\" not found", req.Name) {
-			logging.FromContext(ctx).Info("could not find AWSNodeTemplate (%s)", req.Name)
-			return reconcile.Result{Requeue: false}, nil
-		}
-		return reconcile.Result{Requeue: false}, fmt.Errorf("%w", err)
-	}
-
-	subnetList, err := c.subnet.Get(ctx, &ant, true)
+func (c *Controller) Reconcile(ctx context.Context, ant *v1alpha1.AWSNodeTemplate) (reconcile.Result, error) {
+	subnetList, err := c.subnet.Get(ctx, ant, true)
 	subnetLog := utils.SubnetIds(subnetList)
 	if err != nil {
 		// Back off and retry reconciliation
@@ -70,7 +61,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	ant.Status.Subnets = nil
 	ant.Status.Subnets = append(ant.Status.Subnets, subnetLog...)
 
-	securityGroupIds, err := c.securityGroups.Get(ctx, &ant, true)
+	securityGroupIds, err := c.securityGroups.Get(ctx, ant, true)
 	if err != nil {
 		// Back off and retry reconciliation
 		return reconcile.Result{RequeueAfter: 1 * time.Minute}, err
@@ -79,7 +70,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	ant.Status.SecurityGroups = nil
 	ant.Status.SecurityGroups = append(ant.Status.SecurityGroups, securityGroupIds...)
 
-	if err := c.kubeClient.Status().Update(ctx, &ant); err != nil {
+	if err := c.kubeClient.Status().Update(ctx, ant); err != nil {
 		return reconcile.Result{RequeueAfter: 30 * time.Second}, fmt.Errorf("could not update status of AWSNodeTemplate %w", err)
 	}
 
