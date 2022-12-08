@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package nodetemplatestatus_test
+package nodetemplate_test
 
 import (
 	"context"
@@ -39,7 +39,7 @@ import (
 	coresettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider"
-	"github.com/aws/karpenter/pkg/controllers/nodetemplatestatus"
+	"github.com/aws/karpenter/pkg/controllers/nodetemplate"
 	"github.com/aws/karpenter/pkg/fake"
 	"github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/pkg/utils"
@@ -52,7 +52,7 @@ var opts options.Options
 var subnetProvider *cloudprovider.SubnetProvider
 var securityGroupProvider *cloudprovider.SecurityGroupProvider
 var nodeTemplate *v1alpha1.AWSNodeTemplate
-var controller *nodetemplatestatus.Controller
+var controller *nodetemplate.Controller
 var settingsStore coretest.SettingsStore
 
 func TestAPIs(t *testing.T) {
@@ -105,7 +105,7 @@ var _ = BeforeEach(func() {
 		Version: v1alpha1.SchemeGroupVersion.Version,
 		Kind:    "AWSNodeTemplate",
 	})
-	controller = nodetemplatestatus.NewController(env.Client, fakeEC2API, subnetProvider, securityGroupProvider)
+	controller = nodetemplate.NewController(env.Client, fakeEC2API, subnetProvider, securityGroupProvider)
 
 	fakeEC2API.Reset()
 })
