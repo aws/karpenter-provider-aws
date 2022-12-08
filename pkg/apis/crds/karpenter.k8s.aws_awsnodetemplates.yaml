@@ -219,10 +219,18 @@ spec:
               the Subnets and Security Groups of the template
             properties:
               securityGroups:
+                description: The SecurityGroups field will contain the current Security
+                  Groups ids that are availbe to the cluster under the AWSNodeTemplate
+                  Security Groups selectors. The field will list of strings with the
+                  Security Groups ids
                 items:
                   type: string
                 type: array
               subnet:
+                description: The Subnet field will contain the current subnet ids
+                  that are availbe to the cluster under the AWSNodeTemplate Subnet
+                  selectors. The field will list of strings with the Subnet id and
+                  avaiblity zone
                 items:
                   type: string
                 type: array
