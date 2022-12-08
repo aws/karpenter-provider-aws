@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"reflect"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -125,6 +124,9 @@ func (c *CloudProvider) Create(ctx context.Context, machine *corev1alpha1.Machin
 	if err != nil {
 		return nil, fmt.Errorf("resolving instance types, %w", err)
 	}
+	if len(instanceTypes) == 0 {
+		return nil, fmt.Errorf("all requested instance types were unavailable during launch")
+	}
 	return c.instanceProvider.Create(ctx, nodeTemplate, machine, instanceTypes)
 }
 
@@ -216,15 +218,12 @@ func (c *CloudProvider) resolveNodeTemplate(ctx context.Context, raw []byte, obj
 }
 
 func (c *CloudProvider) resolveInstanceTypes(ctx context.Context, machine *corev1alpha1.Machine) ([]*cloudprovider.InstanceType, error) {
-	owner, ok := lo.Find(machine.OwnerReferences, func(o metav1.OwnerReference) bool {
-		return o.APIVersion == v1alpha5.SchemeGroupVersion.String() &&
-			o.Kind == reflect.TypeOf(v1alpha5.Provisioner{}).Name()
-	})
+	provisionerName, ok := machine.Labels[v1alpha5.ProvisionerNameLabelKey]
 	if !ok {
 		return nil, fmt.Errorf("finding provisioner owner")
 	}
 	provisioner := &v1alpha5.Provisioner{}
-	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: owner.Name}, provisioner); err != nil {
+	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: provisionerName}, provisioner); err != nil {
 		return nil, fmt.Errorf("getting provisioner owner, %w", err)
 	}
 	instanceTypes, err := c.GetInstanceTypes(ctx, provisioner)
@@ -233,6 +232,6 @@ func (c *CloudProvider) resolveInstanceTypes(ctx context.Context, machine *corev
 	}
 	reqs := scheduling.NewNodeSelectorRequirements(machine.Spec.Requirements...)
 	return lo.Filter(instanceTypes, func(i *cloudprovider.InstanceType, _ int) bool {
-		return reqs.Get(v1.LabelInstanceTypeStable).Has(i.Name)
+		return reqs.Get(v1.LabelInstanceTypeStable).Has(i.Name) && len(i.Offerings.Requirements(reqs).Available()) > 0
 	}), nil
 }

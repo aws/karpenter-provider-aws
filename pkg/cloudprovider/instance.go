@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 	"time"
@@ -247,7 +248,7 @@ func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, nodeTem
 
 // getOverrides creates and returns launch template overrides for the cross product of InstanceTypes and subnets (with subnets being constrained by
 // zones and the offerings in InstanceTypes)
-func (p *InstanceProvider) getOverrides(InstanceTypes []*cloudprovider.InstanceType, subnets []*ec2.Subnet, zones *scheduling.Requirement, capacityType string) []*ec2.FleetLaunchTemplateOverridesRequest {
+func (p *InstanceProvider) getOverrides(instanceTypes []*cloudprovider.InstanceType, subnets []*ec2.Subnet, zones *scheduling.Requirement, capacityType string) []*ec2.FleetLaunchTemplateOverridesRequest {
 	// sort subnets in ascending order of available IP addresses and populate map with most available subnet per AZ
 	zonalSubnets := map[string]*ec2.Subnet{}
 	sort.Slice(subnets, func(i, j int) bool {
@@ -264,7 +265,7 @@ func (p *InstanceProvider) getOverrides(InstanceTypes []*cloudprovider.InstanceT
 		parentInstanceTypeName string
 	}
 	var unwrappedOfferings []offeringWithParentName
-	for _, it := range InstanceTypes {
+	for _, it := range instanceTypes {
 		ofs := lo.Map(it.Offerings.Available(), func(of cloudprovider.Offering, _ int) offeringWithParentName {
 			return offeringWithParentName{
 				Offering:               of,
@@ -390,8 +391,14 @@ func (p *InstanceProvider) getCapacityType(machine *corev1alpha1.Machine, instan
 func orderInstanceTypesByPrice(instanceTypes []*cloudprovider.InstanceType, requirements scheduling.Requirements) []*cloudprovider.InstanceType {
 	// Order instance types so that we get the cheapest instance types of the available offerings
 	sort.Slice(instanceTypes, func(i, j int) bool {
-		iPrice := instanceTypes[i].Offerings.Available().Requirements(requirements).Cheapest().Price
-		jPrice := instanceTypes[j].Offerings.Available().Requirements(requirements).Cheapest().Price
+		iPrice := math.MaxFloat64
+		jPrice := math.MaxFloat64
+		if len(instanceTypes[i].Offerings.Available().Requirements(requirements)) > 0 {
+			iPrice = instanceTypes[i].Offerings.Available().Requirements(requirements).Cheapest().Price
+		}
+		if len(instanceTypes[j].Offerings.Available().Requirements(requirements)) > 0 {
+			jPrice = instanceTypes[j].Offerings.Available().Requirements(requirements).Cheapest().Price
+		}
 		if iPrice == jPrice {
 			return instanceTypes[i].Name < instanceTypes[j].Name
 		}
