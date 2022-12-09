@@ -193,7 +193,8 @@ This step is only necessary if this is the first time you're using EC2 Spot in t
 ```bash
 aws iam create-service-linked-role --aws-service-name spot.amazonaws.com
 # If the role has already been successfully created, you will see:
-# An error occurred (InvalidInput) when calling the CreateServiceLinkedRole operation: Service role name AWSServiceRoleForEC2Spot has been taken in this account, please try a different suffix.
+# An error occurred (InvalidInput) when calling the CreateServiceLinkedRole operation: 
+# Service role name AWSServiceRoleForEC2Spot has been taken in this account, please try a different suffix.
 ```
 
 ### Create the Karpenter AWS Resources
