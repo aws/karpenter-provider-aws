@@ -161,8 +161,8 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, provisioner *v1alp
 	return instanceTypes, nil
 }
 
-func (c *CloudProvider) Delete(ctx context.Context, node *v1.Node) error {
-	return c.instanceProvider.Terminate(ctx, node)
+func (c *CloudProvider) Delete(ctx context.Context, machine *corev1alpha1.Machine) error {
+	return c.instanceProvider.Terminate(ctx, machine)
 }
 
 // Name returns the CloudProvider implementation name.
