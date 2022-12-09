@@ -134,7 +134,7 @@ var _ = Describe("Provisioner", func() {
 
 		Context("SubnetSelector", func() {
 			It("should not allow empty string keys or values", func() {
-				provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
+				provider, err := v1alpha1.DeserializeProvider(provisioner.Spec.Provider.Raw)
 				Expect(err).ToNot(HaveOccurred())
 				for key, value := range map[string]string{
 					"":    "value",
@@ -147,14 +147,14 @@ var _ = Describe("Provisioner", func() {
 		})
 		Context("SecurityGroupSelector", func() {
 			It("should not allow with a custom launch template", func() {
-				provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
+				provider, err := v1alpha1.DeserializeProvider(provisioner.Spec.Provider.Raw)
 				Expect(err).ToNot(HaveOccurred())
 				provider.LaunchTemplateName = aws.String("my-lt")
 				provider.SecurityGroupSelector = map[string]string{"key": "value"}
 				Expect(Validate(ctx, test.Provisioner(test.ProvisionerOptions{Provider: provider}))).ToNot(Succeed())
 			})
 			It("should not allow empty string keys or values", func() {
-				provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
+				provider, err := v1alpha1.DeserializeProvider(provisioner.Spec.Provider.Raw)
 				Expect(err).ToNot(HaveOccurred())
 				for key, value := range map[string]string{
 					"":    "value",
@@ -191,7 +191,7 @@ var _ = Describe("Provisioner", func() {
 		})
 		Context("MetadataOptions", func() {
 			It("should not allow with a custom launch template", func() {
-				provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
+				provider, err := v1alpha1.DeserializeProvider(provisioner.Spec.Provider.Raw)
 				Expect(err).ToNot(HaveOccurred())
 				provider.LaunchTemplateName = aws.String("my-lt")
 				provider.MetadataOptions = &v1alpha1.MetadataOptions{}
@@ -199,7 +199,7 @@ var _ = Describe("Provisioner", func() {
 				Expect(Validate(ctx, test.Provisioner(test.ProvisionerOptions{Provider: provider}))).ToNot(Succeed())
 			})
 			It("should allow missing values", func() {
-				provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
+				provider, err := v1alpha1.DeserializeProvider(provisioner.Spec.Provider.Raw)
 				Expect(err).ToNot(HaveOccurred())
 				provider.MetadataOptions = &v1alpha1.MetadataOptions{}
 				provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
@@ -207,7 +207,7 @@ var _ = Describe("Provisioner", func() {
 			})
 			Context("HTTPEndpoint", func() {
 				It("should allow enum values", func() {
-					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider, err := v1alpha1.DeserializeProvider(provisioner.Spec.Provider.Raw)
 					Expect(err).ToNot(HaveOccurred())
 					for i := range ec2.LaunchTemplateInstanceMetadataEndpointState_Values() {
 						value := ec2.LaunchTemplateInstanceMetadataEndpointState_Values()[i]
@@ -219,7 +219,7 @@ var _ = Describe("Provisioner", func() {
 					}
 				})
 				It("should not allow non-enum values", func() {
-					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider, err := v1alpha1.DeserializeProvider(provisioner.Spec.Provider.Raw)
 					Expect(err).ToNot(HaveOccurred())
 					provider.MetadataOptions = &v1alpha1.MetadataOptions{
 						HTTPEndpoint: aws.String(randomdata.SillyName()),
@@ -230,7 +230,7 @@ var _ = Describe("Provisioner", func() {
 			})
 			Context("HTTPProtocolIpv6", func() {
 				It("should allow enum values", func() {
-					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider, err := v1alpha1.DeserializeProvider(provisioner.Spec.Provider.Raw)
 					Expect(err).ToNot(HaveOccurred())
 					for i := range ec2.LaunchTemplateInstanceMetadataProtocolIpv6_Values() {
 						value := ec2.LaunchTemplateInstanceMetadataProtocolIpv6_Values()[i]
@@ -242,7 +242,7 @@ var _ = Describe("Provisioner", func() {
 					}
 				})
 				It("should not allow non-enum values", func() {
-					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider, err := v1alpha1.DeserializeProvider(provisioner.Spec.Provider.Raw)
 					Expect(err).ToNot(HaveOccurred())
 					provider.MetadataOptions = &v1alpha1.MetadataOptions{
 						HTTPProtocolIPv6: aws.String(randomdata.SillyName()),
@@ -253,7 +253,7 @@ var _ = Describe("Provisioner", func() {
 			})
 			Context("HTTPPutResponseHopLimit", func() {
 				It("should validate inside accepted range", func() {
-					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider, err := v1alpha1.DeserializeProvider(provisioner.Spec.Provider.Raw)
 					Expect(err).ToNot(HaveOccurred())
 					provider.MetadataOptions = &v1alpha1.MetadataOptions{
 						HTTPPutResponseHopLimit: aws.Int64(int64(randomdata.Number(1, 65))),
@@ -262,7 +262,7 @@ var _ = Describe("Provisioner", func() {
 					Expect(provisioner.Validate(ctx)).To(Succeed())
 				})
 				It("should not validate outside accepted range", func() {
-					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider, err := v1alpha1.DeserializeProvider(provisioner.Spec.Provider.Raw)
 					Expect(err).ToNot(HaveOccurred())
 					provider.MetadataOptions = &v1alpha1.MetadataOptions{}
 					// We expect to be able to invalidate any hop limit between
@@ -284,7 +284,7 @@ var _ = Describe("Provisioner", func() {
 			})
 			Context("HTTPTokens", func() {
 				It("should allow enum values", func() {
-					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider, err := v1alpha1.DeserializeProvider(provisioner.Spec.Provider.Raw)
 					Expect(err).ToNot(HaveOccurred())
 					for _, value := range ec2.LaunchTemplateHttpTokensState_Values() {
 						provider.MetadataOptions = &v1alpha1.MetadataOptions{
@@ -295,7 +295,7 @@ var _ = Describe("Provisioner", func() {
 					}
 				})
 				It("should not allow non-enum values", func() {
-					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider, err := v1alpha1.DeserializeProvider(provisioner.Spec.Provider.Raw)
 					Expect(err).ToNot(HaveOccurred())
 					provider.MetadataOptions = &v1alpha1.MetadataOptions{
 						HTTPTokens: aws.String(randomdata.SillyName()),
@@ -305,7 +305,7 @@ var _ = Describe("Provisioner", func() {
 			})
 			Context("BlockDeviceMappings", func() {
 				It("should not allow with a custom launch template", func() {
-					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider, err := v1alpha1.DeserializeProvider(provisioner.Spec.Provider.Raw)
 					Expect(err).ToNot(HaveOccurred())
 					provider.LaunchTemplateName = aws.String("my-lt")
 					provider.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{{
@@ -317,7 +317,7 @@ var _ = Describe("Provisioner", func() {
 					Expect(Validate(ctx, test.Provisioner(test.ProvisionerOptions{Provider: provider}))).ToNot(Succeed())
 				})
 				It("should validate minimal device mapping", func() {
-					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider, err := v1alpha1.DeserializeProvider(provisioner.Spec.Provider.Raw)
 					Expect(err).ToNot(HaveOccurred())
 					provider.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{{
 						DeviceName: aws.String("/dev/xvda"),
@@ -328,7 +328,7 @@ var _ = Describe("Provisioner", func() {
 					Expect(Validate(ctx, test.Provisioner(test.ProvisionerOptions{Provider: provider}))).ToNot(Succeed())
 				})
 				It("should validate ebs device mapping with snapshotID only", func() {
-					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider, err := v1alpha1.DeserializeProvider(provisioner.Spec.Provider.Raw)
 					Expect(err).ToNot(HaveOccurred())
 					provider.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{{
 						DeviceName: aws.String("/dev/xvda"),
@@ -339,7 +339,7 @@ var _ = Describe("Provisioner", func() {
 					Expect(Validate(ctx, test.Provisioner(test.ProvisionerOptions{Provider: provider}))).ToNot(Succeed())
 				})
 				It("should not allow volume size below minimum", func() {
-					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider, err := v1alpha1.DeserializeProvider(provisioner.Spec.Provider.Raw)
 					Expect(err).ToNot(HaveOccurred())
 					provider.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{{
 						DeviceName: aws.String("/dev/xvda"),
@@ -350,7 +350,7 @@ var _ = Describe("Provisioner", func() {
 					Expect(Validate(ctx, test.Provisioner(test.ProvisionerOptions{Provider: provider}))).ToNot(Succeed())
 				})
 				It("should not allow volume size above max", func() {
-					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider, err := v1alpha1.DeserializeProvider(provisioner.Spec.Provider.Raw)
 					Expect(err).ToNot(HaveOccurred())
 					provider.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{{
 						DeviceName: aws.String("/dev/xvda"),
@@ -361,7 +361,7 @@ var _ = Describe("Provisioner", func() {
 					Expect(Validate(ctx, test.Provisioner(test.ProvisionerOptions{Provider: provider}))).ToNot(Succeed())
 				})
 				It("should not allow nil device name", func() {
-					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider, err := v1alpha1.DeserializeProvider(provisioner.Spec.Provider.Raw)
 					Expect(err).ToNot(HaveOccurred())
 					provider.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{{
 						EBS: &v1alpha1.BlockDevice{
@@ -371,7 +371,7 @@ var _ = Describe("Provisioner", func() {
 					Expect(Validate(ctx, test.Provisioner(test.ProvisionerOptions{Provider: provider}))).ToNot(Succeed())
 				})
 				It("should not allow nil volume size", func() {
-					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider, err := v1alpha1.DeserializeProvider(provisioner.Spec.Provider.Raw)
 					Expect(err).ToNot(HaveOccurred())
 					provider.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{{
 						DeviceName: aws.String("/dev/xvda"),
@@ -380,7 +380,7 @@ var _ = Describe("Provisioner", func() {
 					Expect(Validate(ctx, test.Provisioner(test.ProvisionerOptions{Provider: provider}))).ToNot(Succeed())
 				})
 				It("should not allow empty ebs block", func() {
-					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider, err := v1alpha1.DeserializeProvider(provisioner.Spec.Provider.Raw)
 					Expect(err).ToNot(HaveOccurred())
 					provider.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{{
 						DeviceName: aws.String("/dev/xvda"),

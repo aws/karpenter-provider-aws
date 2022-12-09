@@ -4,10 +4,10 @@ go 1.19
 
 require (
 	github.com/aws/amazon-ec2-spot-interrupter v0.0.9
-	github.com/aws/aws-sdk-go v1.44.150
+	github.com/aws/aws-sdk-go v1.44.154
 	github.com/aws/aws-sdk-go-v2/config v1.18.3
 	github.com/aws/karpenter v0.18.0
-	github.com/aws/karpenter-core v0.0.2-0.20221205173459-064a52f2f9e1
+	github.com/aws/karpenter-core v0.0.2-0.20221207071807-fae4eac425cc
 	github.com/onsi/ginkgo/v2 v2.5.1
 	github.com/onsi/gomega v1.24.1
 	github.com/samber/lo v1.36.0
@@ -72,8 +72,8 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/prometheus/client_golang v1.13.0 // indirect
-	github.com/prometheus/client_model v0.2.0 // indirect
+	github.com/prometheus/client_golang v1.14.0 // indirect
+	github.com/prometheus/client_model v0.3.0 // indirect
 	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/procfs v0.8.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect

@@ -2,4 +2,4 @@
 /docs/tasks/running-pods/       /docs/tasks/scheduling/
 /docs/provisioner-crd/	        /docs/provisioner/
 /docs/faqs/	                    /docs/faq/
-/docs/*     	                /v0.19.3/:splat
+/docs/*     	                /v0.20.0/:splat

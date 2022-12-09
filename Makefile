@@ -103,7 +103,7 @@ setup: ## Sets up the IAM roles needed prior to deploying the karpenter-controll
 	CLUSTER_NAME=${CLUSTER_NAME} ./$(GETTING_STARTED_SCRIPT_DIR)/add-roles.sh $(KARPENTER_VERSION)
 
 build: ## Build the Karpenter controller images using ko build
-	$(eval CONTROLLER_IMG=$(shell $(WITH_GOFLAGS) ko build -B github.com/aws/karpenter/cmd/controller))
+	$(eval CONTROLLER_IMG=$(shell $(WITH_GOFLAGS) KO_DOCKER_REPO="$(KO_DOCKER_REPO)" ko build -B github.com/aws/karpenter/cmd/controller))
 
 apply: build ## Deploy the controller from the current state of your git repository into your ~/.kube/config cluster
 	helm upgrade --install karpenter charts/karpenter --namespace ${SYSTEM_NAMESPACE} \
@@ -119,9 +119,9 @@ delete: ## Delete the controller from your ~/.kube/config cluster
 	helm uninstall karpenter --namespace karpenter
 
 docgen: ## Generate docs
-	go run hack/docs/metrics_gen_docs.go pkg/ $(KARPENTER_CORE_DIR)/pkg website/content/en/preview/tasks/metrics.md
-	go run hack/docs/instancetypes_gen_docs.go website/content/en/preview/tasks/instance-types.md
-	go run hack/docs/configuration_gen_docs.go website/content/en/preview/tasks/globalsettings.md
+	go run hack/docs/metrics_gen_docs.go pkg/ $(KARPENTER_CORE_DIR)/pkg website/content/en/preview/concepts/metrics.md
+	go run hack/docs/instancetypes_gen_docs.go website/content/en/preview/concepts/instance-types.md
+	go run hack/docs/configuration_gen_docs.go website/content/en/preview/concepts/globalsettings.md
 	cd charts/karpenter && helm-docs
 
 api-code-gen: ## Auto generate files based on AWS APIs response

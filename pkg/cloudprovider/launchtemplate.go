@@ -33,6 +33,7 @@ import (
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 
+	corev1alpha1 "github.com/aws/karpenter-core/pkg/apis/v1alpha1"
 	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
@@ -90,12 +91,14 @@ func launchTemplateName(options *amifamily.LaunchTemplate) string {
 	return fmt.Sprintf(launchTemplateNameFormat, options.ClusterName, fmt.Sprint(hash))
 }
 
-func (p *LaunchTemplateProvider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, nodeRequest *cloudprovider.NodeRequest, additionalLabels map[string]string) (map[string][]*cloudprovider.InstanceType, error) {
+func (p *LaunchTemplateProvider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, machine *corev1alpha1.Machine,
+	instanceTypes []*cloudprovider.InstanceType, additionalLabels map[string]string) (map[string][]*cloudprovider.InstanceType, error) {
+
 	p.Lock()
 	defer p.Unlock()
 	// If Launch Template is directly specified then just use it
 	if nodeTemplate.Spec.LaunchTemplateName != nil {
-		return map[string][]*cloudprovider.InstanceType{ptr.StringValue(nodeTemplate.Spec.LaunchTemplateName): nodeRequest.InstanceTypeOptions}, nil
+		return map[string][]*cloudprovider.InstanceType{ptr.StringValue(nodeTemplate.Spec.LaunchTemplateName): instanceTypes}, nil
 	}
 	options, err := p.createAmiOptions(ctx, nodeTemplate, lo.Assign(nodeRequest.Template.Labels, additionalLabels))
 	if err != nil {
