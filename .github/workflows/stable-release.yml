@@ -28,6 +28,14 @@ jobs:
           ref: ${{ env.TAG_COMMIT }}
       - uses: ./.github/actions/install-go-and-dependencies
       - uses: ./.github/actions/authenticate-aws
+      - run: echo ${{ secrets.GITHUB_TOKEN }}
+      - run: echo ${{ github.actor }}
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Publish Snapshot Release
         run: make release
       - name: Checkout the repository out again at the given SHA from the artifact

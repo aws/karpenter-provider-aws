@@ -5,6 +5,8 @@ config(){
   AWS_ACCOUNT_ID="071440425669"
   ECR_GALLERY_NAME="karpenter"
   RELEASE_REPO=${RELEASE_REPO:-public.ecr.aws/${ECR_GALLERY_NAME}/}
+  RELEASE_REPO_GH=${RELEASE_REPO_GH:-ghcr.io/${GITHUB_ACCOUNT}/karpenter}
+
   PRIVATE_PULL_THROUGH_HOST="${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com"
   SNS_TOPIC_ARN="arn:aws:sns:us-east-1:${AWS_ACCOUNT_ID}:KarpenterReleases"
   CURRENT_MAJOR_VERSION="0"
@@ -86,6 +88,20 @@ publishHelmChart() {
     helm lint karpenter
     helm package karpenter --version $HELM_CHART_VERSION
     helm push "${HELM_CHART_FILE_NAME}" "oci://${RELEASE_REPO}"
+    rm "${HELM_CHART_FILE_NAME}"
+    cd ..
+}
+
+publishHelmChartToGHCR() {
+    CHART_NAME=$1
+    HELM_CHART_VERSION=$2
+    HELM_CHART_FILE_NAME="${CHART_NAME}-${HELM_CHART_VERSION}.tgz"
+
+    cd charts
+    helm dependency update "${CHART_NAME}"
+    helm lint "${CHART_NAME}"
+    helm package "${CHART_NAME}" --version $HELM_CHART_VERSION
+    helm push "${HELM_CHART_FILE_NAME}" "oci://${RELEASE_REPO_GH}"
     rm "${HELM_CHART_FILE_NAME}"
     cd ..
 }
