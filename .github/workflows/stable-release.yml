@@ -28,8 +28,6 @@ jobs:
           ref: ${{ env.TAG_COMMIT }}
       - uses: ./.github/actions/install-go-and-dependencies
       - uses: ./.github/actions/authenticate-aws
-      - run: echo ${{ secrets.GITHUB_TOKEN }}
-      - run: echo ${{ github.actor }}
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v2
         with:
