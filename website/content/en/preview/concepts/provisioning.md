@@ -246,10 +246,9 @@ spec:
 
 ☁️ **AWS**
 
-You can specify the container runtime to be either `dockerd` or `containerd`.
+You can specify the container runtime to be either `dockerd` or `containerd`. By default, `containerd` is used.
 
-* `dockerd` will be chosen by default for [Inferentia instanceTypes](https://aws.amazon.com/ec2/instance-types/inf1/). For all other instances `containerd` is the default.
-* You can only use `containerd` with the Bottlerocket AMI Family.
+* `containerd` is the only valid container runtime when using the Bottlerocket AMI Family or when using the AL2 AMI Family and K8s version 1.24+
 
 ### Reserved Resources
 
