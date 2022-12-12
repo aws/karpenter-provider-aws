@@ -57,8 +57,8 @@ func (c *Controller) Reconcile(ctx context.Context, ant *v1alpha1.AWSNodeTemplat
 		return reconcile.Result{RequeueAfter: 1 * time.Minute}, err
 	}
 
-	ant.Status.SubnetsIDs = nil
-	ant.Status.SubnetsIDs = append(ant.Status.SubnetsIDs, subnetLog...)
+	ant.Status.SubnetIDs = nil
+	ant.Status.SubnetIDs = append(ant.Status.SubnetIDs, subnetLog...)
 
 	securityGroupIds, err := c.securityGroups.Get(ctx, ant, true)
 	if err != nil {
@@ -66,8 +66,8 @@ func (c *Controller) Reconcile(ctx context.Context, ant *v1alpha1.AWSNodeTemplat
 		return reconcile.Result{RequeueAfter: 1 * time.Minute}, err
 	}
 
-	ant.Status.SecurityGroupsIDs = nil
-	ant.Status.SecurityGroupsIDs = append(ant.Status.SecurityGroupsIDs, securityGroupIds...)
+	ant.Status.SecurityGroupIDs = nil
+	ant.Status.SecurityGroupIDs = append(ant.Status.SecurityGroupIDs, securityGroupIds...)
 
 	if err := c.kubeClient.Status().Update(ctx, ant); err != nil {
 		return reconcile.Result{RequeueAfter: 30 * time.Second}, fmt.Errorf("could not update status of AWSNodeTemplate %w", err)

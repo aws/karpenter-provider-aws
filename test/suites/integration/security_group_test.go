@@ -86,7 +86,7 @@ var _ = Describe("Subnets", func() {
 
 		var ant v1alpha1.AWSNodeTemplate
 		Expect(env.Client.Get(env, client.ObjectKeyFromObject(provider), &ant)).To(Succeed())
-		Expect(len(ant.Status.SecurityGroups)).ToNot(BeZero())
+		Expect(len(ant.Status.SecurityGroupIDs)).ToNot(BeZero())
 	})
 })
 

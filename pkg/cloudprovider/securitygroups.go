@@ -52,7 +52,7 @@ func (p *SecurityGroupProvider) Get(ctx context.Context, nodeTemplate *v1alpha1.
 	p.Lock()
 	defer p.Unlock()
 	// Get SecurityGroups
-	securityGroups, err := p.getSecurityGroups(ctx, getFilters(nodeTemplate), fromNodeTemplateController)
+	securityGroups, err := p.getSecurityGroups(ctx, p.getFilters(nodeTemplate), fromNodeTemplateController)
 	if err != nil {
 		return nil, err
 	}
