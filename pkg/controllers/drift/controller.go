@@ -20,6 +20,7 @@ import (
 	"time"
 
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"knative.dev/pkg/logging"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -31,21 +32,24 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	"github.com/samber/lo"
+
+	corev1alpha1 "github.com/aws/karpenter-core/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
+	corecloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
 	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/cloudprovider"
 )
 
 var _ corecontroller.TypedController[*v1.Node] = (*Controller)(nil)
 
 type Controller struct {
 	kubeClient    client.Client
-	cloudProvider *cloudprovider.CloudProvider
+	cloudProvider corecloudprovider.CloudProvider
 }
 
 // NewController constructs a controller instance
-func NewController(kubeClient client.Client, cloudProvider *cloudprovider.CloudProvider) corecontroller.Controller {
+func NewController(kubeClient client.Client, cloudProvider corecloudprovider.CloudProvider) corecontroller.Controller {
 	return corecontroller.Typed[*v1.Node](kubeClient, &Controller{
 		kubeClient:    kubeClient,
 		cloudProvider: cloudProvider,
@@ -62,25 +66,30 @@ func (c *Controller) Reconcile(ctx context.Context, node *v1.Node) (reconcile.Re
 		return reconcile.Result{}, nil
 	}
 
-	// TODO: change this label to the karpenter-core drift label
-	if drifted, ok := node.Labels["drifted"]; ok && drifted == "true" {
+	if node.Annotations[v1alpha5.VoluntaryDisruptionAnnotationKey] == v1alpha5.VoluntaryDisruptionDriftedAnnotationValue {
 		return reconcile.Result{}, nil
 	}
 
 	provisioner := &v1alpha5.Provisioner{}
-	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: provisionerName}, provisioner); err != nil {
+	err := c.kubeClient.Get(ctx, types.NamespacedName{Name: provisionerName}, provisioner)
+	if errors.IsNotFound(err) {
+		return reconcile.Result{}, nil
+	}
+	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("getting provisioner, %w", err)
 	}
 
-	drifted, err := c.cloudProvider.IsNodeDrifted(ctx, provisioner, node)
+	drifted, err := c.cloudProvider.IsMachineDrifted(ctx, corev1alpha1.MachineFromNode(node))
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("getting drift for node, %w", err)
-	} 
-	if drifted {
-		node.Labels["drifted"] = "true"
 	}
-
-	return reconcile.Result{RequeueAfter: 30 * time.Minute}, nil
+	if drifted {
+		node.Annotations = lo.Assign(node.Annotations, map[string]string{
+			v1alpha5.VoluntaryDisruptionAnnotationKey: v1alpha5.VoluntaryDisruptionDriftedAnnotationValue,
+		})
+	}
+	// Requeue after 5 minutes for the cache TTL
+	return reconcile.Result{RequeueAfter: 5 * time.Minute}, nil
 }
 
 func (c *Controller) Builder(ctx context.Context, m manager.Manager) corecontroller.Builder {
@@ -91,12 +100,6 @@ func (c *Controller) Builder(ctx context.Context, m manager.Manager) corecontrol
 			&source.Kind{Type: &v1alpha5.Provisioner{}},
 			handler.EnqueueRequestsFromMapFunc(func(o client.Object) (requests []reconcile.Request) {
 				provisioner := o.(*v1alpha5.Provisioner)
-				// Ensure provisioner has a defined AWSNodeTemplate
-				nodeTemplate := &v1alpha1.AWSNodeTemplate{}
-				if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: provisioner.Spec.ProviderRef.Name}, nodeTemplate); err != nil {
-					logging.FromContext(ctx).Errorf("getting AWSNodeTemplates when mapping drift watch events, %s", err)
-					return requests
-				}
 				return getReconcileRequests(ctx, provisioner, c.kubeClient)
 			})).
 		Watches(

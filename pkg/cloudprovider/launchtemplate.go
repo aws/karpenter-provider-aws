@@ -100,11 +100,11 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, nodeTemplate *v1alpha1
 	if nodeTemplate.Spec.LaunchTemplateName != nil {
 		return map[string][]*cloudprovider.InstanceType{ptr.StringValue(nodeTemplate.Spec.LaunchTemplateName): instanceTypes}, nil
 	}
-	options, err := p.createAmiOptions(ctx, nodeTemplate, lo.Assign(nodeRequest.Template.Labels, additionalLabels))
+	options, err := p.createAmiOptions(ctx, nodeTemplate, lo.Assign(machine.Labels, additionalLabels))
 	if err != nil {
 		return nil, err
 	}
-	resolvedLaunchTemplates, err := p.amiFamily.Resolve(ctx, nodeTemplate, nodeRequest, options)
+	resolvedLaunchTemplates, err := p.amiFamily.Resolve(ctx, nodeTemplate, machine, instanceTypes, options)
 	if err != nil {
 		return nil, err
 	}

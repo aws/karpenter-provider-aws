@@ -22,6 +22,8 @@ import (
 	"net"
 	"net/http"
 
+	"github.com/aws/karpenter/pkg/apis"
+	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/utils"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -41,8 +43,6 @@ import (
 	k8sClient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter-core/pkg/scheduling"
-	"github.com/aws/karpenter/pkg/apis"
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
 	awscontext "github.com/aws/karpenter/pkg/context"
 
@@ -50,7 +50,6 @@ import (
 	corev1alpha1 "github.com/aws/karpenter-core/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
-	"github.com/aws/karpenter-core/pkg/operator/scheme"
 )
 
 const (
@@ -61,7 +60,6 @@ const (
 func init() {
 	v1alpha5.NormalizedLabels = lo.Assign(v1alpha5.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": v1.LabelTopologyZone})
 	coreapis.Settings = coreapis.Settings.Union(apis.Settings)
-	lo.Must0(apis.AddToScheme(scheme.Scheme))
 }
 
 var _ cloudprovider.CloudProvider = (*CloudProvider)(nil)
@@ -105,44 +103,6 @@ func New(ctx awscontext.Context) *CloudProvider {
 			),
 		),
 	}
-}
-
-func (c *CloudProvider) IsNodeDrifted(ctx context.Context, provisioner *v1alpha5.Provisioner, node *v1.Node) (bool, error) {
-	instanceTypes, err := c.GetInstanceTypes(ctx, provisioner)
-	if err != nil {
-		return false, fmt.Errorf("getting instanceTypes, %w", err)
-	}
-	nodeInstanceType := lo.Filter(instanceTypes, func(instType *cloudprovider.InstanceType, _ int) bool {
-		return instType.Name == node.Labels[v1.LabelInstanceTypeStable]
-	})
-	if len(nodeInstanceType) == 0 {
-		return false, fmt.Errorf("getting nodeInstanceType")
-	}
-	nodeTemplate, err := c.resolveNodeTemplate(ctx, provisioner.Spec.Provider, provisioner.Spec.ProviderRef)
-	if err != nil {
-		return false, fmt.Errorf("resolving node template, %w", err)
-	}
-	if nodeTemplate.Spec.LaunchTemplateName != nil {
-		return false, fmt.Errorf("using a custom Launch Template which is deprecated")
-	}
-	amis, err := c.amiProvider.Get(ctx, nodeTemplate, nodeInstanceType, amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, &amifamily.Options{}))
-	if err != nil {
-		return false, fmt.Errorf("getting amis, %w", err)
-	}
-	nodeAmi, ok := node.Labels[v1alpha1.LabelInstanceAMIID]
-	if !ok {
-		instanceID, err := utils.ParseInstanceID(node)
-		if err != nil {
-			return false, err
-		}
-		instance, err := c.instanceProvider.getInstance(ctx, *instanceID)
-		if err != nil {
-			return false, fmt.Errorf("getting instance, %w", err)
-		}
-		nodeAmi = *instance.ImageId
-	}
-
-	return !lo.Contains(lo.Keys(amis), nodeAmi), nil
 }
 
 // checkEC2Connectivity makes a dry-run call to DescribeInstanceTypes.  If it fails, we provide an early indicator that we
@@ -209,6 +169,27 @@ func (c *CloudProvider) Delete(ctx context.Context, node *v1.Node) error {
 	return c.instanceProvider.Terminate(ctx, node)
 }
 
+func (c *CloudProvider) IsMachineDrifted(ctx context.Context, machine *corev1alpha1.Machine) (bool, error) {
+	// Not needed when GetInstanceTypes removes provisioner dependency
+	provisioner := &v1alpha5.Provisioner{}
+	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: machine.Labels[v1alpha5.ProvisionerNameLabelKey]}, provisioner); err != nil {
+		return false, k8sClient.IgnoreNotFound(fmt.Errorf("getting provisioner, %w", err))
+	}
+	nodeTemplate, err := c.resolveNodeTemplate(ctx, nil, &v1.ObjectReference{
+		APIVersion: provisioner.Spec.ProviderRef.APIVersion,
+		Kind:       provisioner.Spec.ProviderRef.Kind,
+		Name:       provisioner.Spec.ProviderRef.Name,
+	})
+	if err != nil {
+		return false, k8sClient.IgnoreNotFound(fmt.Errorf("resolving node template, %w", err))
+	}
+	amiDrifted, err := c.isAMIDrifted(ctx, machine, provisioner, nodeTemplate)
+	if err != nil {
+		return false, err
+	}
+	return amiDrifted, nil
+}
+
 // Name returns the CloudProvider implementation name.
 func (c *CloudProvider) Name() string {
 	return "aws"
@@ -243,6 +224,37 @@ func kubeDNSIP(ctx context.Context, kubernetesInterface kubernetes.Interface) (n
 		return nil, fmt.Errorf("parsing cluster IP")
 	}
 	return kubeDNSIP, nil
+}
+
+func (c *CloudProvider) isAMIDrifted(ctx context.Context, machine *corev1alpha1.Machine, provisioner *v1alpha5.Provisioner, nodeTemplate *v1alpha1.AWSNodeTemplate) (bool, error) {
+	instanceTypes, err := c.GetInstanceTypes(ctx, provisioner)
+	if err != nil {
+		return false, fmt.Errorf("getting instanceTypes, %w", err)
+	}
+	nodeInstanceType, found := lo.Find(instanceTypes, func(instType *cloudprovider.InstanceType) bool {
+		return instType.Name == machine.Labels[v1.LabelInstanceTypeStable]
+	})
+	if !found {
+		return false, fmt.Errorf("getting node instance type")
+	}
+	if nodeTemplate.Spec.LaunchTemplateName != nil {
+		return false, nil
+	}
+	amis, err := c.amiProvider.Get(ctx, nodeTemplate, []*cloudprovider.InstanceType{nodeInstanceType},
+		amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, &amifamily.Options{}))
+	if err != nil {
+		return false, fmt.Errorf("getting amis, %w", err)
+	}
+	// Get InstanceID to fetch from EC2
+	instanceID, err := utils.ParseMachineInstanceID(machine)
+	if err != nil {
+		return false, err
+	}
+	instance, err := c.instanceProvider.getInstance(ctx, instanceID)
+	if err != nil {
+		return false, fmt.Errorf("getting instance, %w", err)
+	}
+	return !lo.Contains(lo.Keys(amis), *instance.ImageId), nil
 }
 
 func (c *CloudProvider) resolveNodeTemplate(ctx context.Context, raw []byte, objRef *v1.ObjectReference) (*v1alpha1.AWSNodeTemplate, error) {

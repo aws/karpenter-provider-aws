@@ -103,15 +103,11 @@ func New(kubeClient client.Client, amiProvider *AMIProvider) *Resolver {
 	}
 }
 
-func (r Resolver) GetKubernetesVersion(ctx context.Context) (string, error) {
-	return r.amiProvider.KubeServerVersion(ctx)
-}
-
 // Resolve generates launch templates using the static options and dynamically generates launch template parameters.
 // Multiple ResolvedTemplates are returned based on the instanceTypes passed in to support special AMIs for certain instance types like GPUs.
 func (r Resolver) Resolve(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, machine *corev1alpha1.Machine, instanceTypes []*cloudprovider.InstanceType, options *Options) ([]*LaunchTemplate, error) {
 	amiFamily := GetAMIFamily(nodeTemplate.Spec.AMIFamily, options)
-	amiIDs, err := r.amiProvider.Get(ctx, nodeTemplate, nodeRequest.InstanceTypeOptions, amiFamily)
+	amiIDs, err := r.amiProvider.Get(ctx, nodeTemplate, instanceTypes, amiFamily)
 	if err != nil {
 		return nil, err
 	}

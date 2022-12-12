@@ -51,7 +51,7 @@ func main() {
 	lo.Must0(operator.Manager.GetFieldIndexer().IndexField(ctx, &v1alpha5.Provisioner{}, ".spec.providerRef.name", func(o client.Object) []string {
 		provisioner := o.(*v1alpha5.Provisioner)
 		if provisioner.Spec.ProviderRef == nil {
-			return []string{""}
+			return nil
 		}
 		return []string{provisioner.Spec.ProviderRef.Name}
 	}), "failed to setup providerRef indexer")
