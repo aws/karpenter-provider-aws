@@ -24,12 +24,12 @@ type AWSNodeTemplateStatus struct {
 	// cluster under the AWSNodeTemplate Subnet selectors. The field will list of strings
 	// with the Subnet id and avaiblity zone
 	// +optional
-	Subnets []string `json:"subnetIds,omitempty"`
+	SubnetsIDs []string `json:"subnetIds,omitempty"`
 	// The SecurityGroups field will contain the current Security Groups ids that are availbe to the
 	// cluster under the AWSNodeTemplate Security Groups selectors. The field will list of strings
 	// with the Security Groups ids
 	// +optional
-	SecurityGroups []string `json:"securityGroupIds,omitempty"`
+	SecurityGroupsIDs []string `json:"securityGroupIds,omitempty"`
 }
 
 // AWSNodeTemplateSpec is the top level specification for the AWS Karpenter Provider.

@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"sync"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/mitchellh/hashstructure/v2"
@@ -28,8 +29,8 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	awscontext "github.com/aws/karpenter/pkg/context"
-	"github.com/aws/karpenter/pkg/utils"
 
+	"github.com/aws/karpenter-core/pkg/utils/functional"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
 )
 
@@ -51,7 +52,7 @@ func NewSubnetProvider(ec2api ec2iface.EC2API) *SubnetProvider {
 func (p *SubnetProvider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, fromNodeTemplateController bool) ([]*ec2.Subnet, error) {
 	p.Lock()
 	defer p.Unlock()
-	filters := utils.GetSubnetFilters(nodeTemplate)
+	filters := getFilters(nodeTemplate)
 	hash, err := hashstructure.Hash(filters, hashstructure.FormatV2, nil)
 	if err != nil {
 		return nil, err
@@ -69,11 +70,10 @@ func (p *SubnetProvider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNode
 		return nil, fmt.Errorf("no subnets matched selector %v", nodeTemplate.Spec.SubnetSelector)
 	}
 	p.cache.SetDefault(fmt.Sprint(hash), output.Subnets)
-	subnetLog := utils.SubnetIds(output.Subnets)
+	subnetLog := PrettySubnets(output.Subnets)
 	if p.cm.HasChanged(fmt.Sprintf("subnets-ids (%s-%s)", nodeTemplate.Kind, nodeTemplate.Name), subnetLog) {
 		logging.FromContext(ctx).With("subnets", subnetLog).Debugf("discovered subnets")
 	}
-
 	return output.Subnets, nil
 }
 
@@ -82,4 +82,37 @@ func (p *SubnetProvider) LivenessProbe(req *http.Request) error {
 	//nolint: staticcheck
 	p.Unlock()
 	return nil
+}
+
+func getFilters(nodeTemplate *v1alpha1.AWSNodeTemplate) []*ec2.Filter {
+	filters := []*ec2.Filter{}
+	// Filter by subnet
+	for key, value := range nodeTemplate.Spec.SubnetSelector {
+		if key == "aws-ids" {
+			filterValues := functional.SplitCommaSeparatedString(value)
+			filters = append(filters, &ec2.Filter{
+				Name:   aws.String("subnet-id"),
+				Values: aws.StringSlice(filterValues),
+			})
+		} else if value == "*" {
+			filters = append(filters, &ec2.Filter{
+				Name:   aws.String("tag-key"),
+				Values: []*string{aws.String(key)},
+			})
+		} else {
+			filters = append(filters, &ec2.Filter{
+				Name:   aws.String(fmt.Sprintf("tag:%s", key)),
+				Values: []*string{aws.String(value)},
+			})
+		}
+	}
+	return filters
+}
+
+func PrettySubnets(subnets []*ec2.Subnet) []string {
+	names := []string{}
+	for _, subnet := range subnets {
+		names = append(names, fmt.Sprintf("%s (%s)", aws.StringValue(subnet.SubnetId), aws.StringValue(subnet.AvailabilityZone)))
+	}
+	return names
 }

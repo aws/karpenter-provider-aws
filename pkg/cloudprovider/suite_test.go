@@ -42,7 +42,6 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
 	awscontext "github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/test"
-	"github.com/aws/karpenter/pkg/utils"
 
 	"github.com/aws/karpenter-core/pkg/operator/controller"
 
@@ -127,7 +126,7 @@ var _ = BeforeSuite(func() {
 	}
 	securityGroupProvider := &SecurityGroupProvider{
 		ec2api: fakeEC2API,
-		Cache:  securityGroupCache,
+		cache:  securityGroupCache,
 		cm:     pretty.NewChangeMonitor(),
 	}
 	cloudProvider = &CloudProvider{
@@ -354,7 +353,7 @@ var _ = Describe("Allocation", func() {
 })
 
 func HydrateSubnetAndSecurityGroupCache() {
-	filters := utils.GetSubnetFilters(nodeTemplate)
+	filters := getFilters(nodeTemplate)
 	subnetHash, _ := hashstructure.Hash(filters, hashstructure.FormatV2, nil)
 	securityGrouphash, _ := hashstructure.Hash(filters, hashstructure.FormatV2, nil)
 	subnetOutput, _ := fakeEC2API.DescribeSubnetsWithContext(ctx, &ec2.DescribeSubnetsInput{Filters: filters})

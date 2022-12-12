@@ -6,10 +6,6 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.8.0
   creationTimestamp: null
   name: provisioners.karpenter.sh
-  labels:
-    app.kubernetes.io/managed-by: Helm
-    meta.helm.sh/release-name: karpenter
-    meta.helm.sh/release-namespace: {{ .Release.Namespace }}
 spec:
   group: karpenter.sh
   names:

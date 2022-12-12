@@ -28,15 +28,15 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	awscontext "github.com/aws/karpenter/pkg/context"
-	"github.com/aws/karpenter/pkg/utils"
 
+	"github.com/aws/karpenter-core/pkg/utils/functional"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
 )
 
 type SecurityGroupProvider struct {
 	sync.Mutex
 	ec2api ec2iface.EC2API
-	Cache  *cache.Cache
+	cache  *cache.Cache
 	cm     *pretty.ChangeMonitor
 }
 
@@ -44,7 +44,7 @@ func NewSecurityGroupProvider(ec2api ec2iface.EC2API) *SecurityGroupProvider {
 	return &SecurityGroupProvider{
 		ec2api: ec2api,
 		cm:     pretty.NewChangeMonitor(),
-		Cache:  cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval),
+		cache:  cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval),
 	}
 }
 
@@ -52,7 +52,7 @@ func (p *SecurityGroupProvider) Get(ctx context.Context, nodeTemplate *v1alpha1.
 	p.Lock()
 	defer p.Unlock()
 	// Get SecurityGroups
-	securityGroups, err := p.getSecurityGroups(ctx, utils.GetSecurityGroupFilters(nodeTemplate), fromNodeTemplateController)
+	securityGroups, err := p.getSecurityGroups(ctx, getFilters(nodeTemplate), fromNodeTemplateController)
 	if err != nil {
 		return nil, err
 	}
@@ -68,13 +68,32 @@ func (p *SecurityGroupProvider) Get(ctx context.Context, nodeTemplate *v1alpha1.
 	return securityGroupIds, nil
 }
 
+func (p *SecurityGroupProvider) getFilters(nodeTemplate *v1alpha1.AWSNodeTemplate) []*ec2.Filter {
+	filters := []*ec2.Filter{}
+	for key, value := range nodeTemplate.Spec.SecurityGroupSelector {
+		if key == "aws-ids" {
+			filterValues := functional.SplitCommaSeparatedString(value)
+			filters = append(filters, &ec2.Filter{
+				Name:   aws.String("group-id"),
+				Values: aws.StringSlice(filterValues),
+			})
+		} else {
+			filters = append(filters, &ec2.Filter{
+				Name:   aws.String(fmt.Sprintf("tag:%s", key)),
+				Values: []*string{aws.String(value)},
+			})
+		}
+	}
+	return filters
+}
+
 func (p *SecurityGroupProvider) getSecurityGroups(ctx context.Context, filters []*ec2.Filter, fromNodeTemplateController bool) ([]*ec2.SecurityGroup, error) {
 	hash, err := hashstructure.Hash(filters, hashstructure.FormatV2, nil)
 	if err != nil {
 		return nil, err
 	}
 	if !fromNodeTemplateController {
-		if securityGroups, ok := p.Cache.Get(fmt.Sprint(hash)); ok {
+		if securityGroups, ok := p.cache.Get(fmt.Sprint(hash)); ok {
 			return securityGroups.([]*ec2.SecurityGroup), nil
 		}
 	}
@@ -82,9 +101,17 @@ func (p *SecurityGroupProvider) getSecurityGroups(ctx context.Context, filters [
 	if err != nil {
 		return nil, fmt.Errorf("describing security groups %+v, %w", filters, err)
 	}
-	p.Cache.SetDefault(fmt.Sprint(hash), output.SecurityGroups)
+	p.cache.SetDefault(fmt.Sprint(hash), output.SecurityGroups)
 	if p.cm.HasChanged("security-groups (provisioner-%s)", output.SecurityGroups) {
-		logging.FromContext(ctx).With("security-groups", utils.SecurityGroupIds(output.SecurityGroups)).Debugf("discovered security groups")
+		logging.FromContext(ctx).With("security-groups", p.securityGroupIds(output.SecurityGroups)).Debugf("discovered security groups")
 	}
 	return output.SecurityGroups, nil
+}
+
+func (p *SecurityGroupProvider) securityGroupIds(securityGroups []*ec2.SecurityGroup) []string {
+	names := []string{}
+	for _, securityGroup := range securityGroups {
+		names = append(names, aws.StringValue(securityGroup.GroupId))
+	}
+	return names
 }

@@ -30,7 +30,6 @@ import (
 	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider"
-	"github.com/aws/karpenter/pkg/utils"
 )
 
 var _ corecontroller.TypedController[*v1alpha1.AWSNodeTemplate] = (*Controller)(nil)
@@ -52,14 +51,14 @@ func NewController(client k8sClient.Client, ec2api ec2iface.EC2API, subnetProvid
 
 func (c *Controller) Reconcile(ctx context.Context, ant *v1alpha1.AWSNodeTemplate) (reconcile.Result, error) {
 	subnetList, err := c.subnet.Get(ctx, ant, true)
-	subnetLog := utils.SubnetIds(subnetList)
+	subnetLog := cloudprovider.PrettySubnets(subnetList)
 	if err != nil {
 		// Back off and retry reconciliation
 		return reconcile.Result{RequeueAfter: 1 * time.Minute}, err
 	}
 
-	ant.Status.Subnets = nil
-	ant.Status.Subnets = append(ant.Status.Subnets, subnetLog...)
+	ant.Status.SubnetsIDs = nil
+	ant.Status.SubnetsIDs = append(ant.Status.SubnetsIDs, subnetLog...)
 
 	securityGroupIds, err := c.securityGroups.Get(ctx, ant, true)
 	if err != nil {
@@ -67,8 +66,8 @@ func (c *Controller) Reconcile(ctx context.Context, ant *v1alpha1.AWSNodeTemplat
 		return reconcile.Result{RequeueAfter: 1 * time.Minute}, err
 	}
 
-	ant.Status.SecurityGroups = nil
-	ant.Status.SecurityGroups = append(ant.Status.SecurityGroups, securityGroupIds...)
+	ant.Status.SecurityGroupsIDs = nil
+	ant.Status.SecurityGroupsIDs = append(ant.Status.SecurityGroupsIDs, securityGroupIds...)
 
 	if err := c.kubeClient.Status().Update(ctx, ant); err != nil {
 		return reconcile.Result{RequeueAfter: 30 * time.Second}, fmt.Errorf("could not update status of AWSNodeTemplate %w", err)

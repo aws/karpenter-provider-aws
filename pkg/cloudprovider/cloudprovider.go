@@ -81,21 +81,21 @@ func New(ctx awscontext.Context) *CloudProvider {
 	if err := checkEC2Connectivity(ctx, ec2api); err != nil {
 		logging.FromContext(ctx).Fatalf("Checking EC2 API connectivity, %s", err)
 	}
-	subnet := NewSubnetProvider(ec2api)
-	securityGroup := NewSecurityGroupProvider(ec2api)
-	instanceTypeProvider := NewInstanceTypeProvider(ctx, ctx.Session, ec2api, subnet, ctx.UnavailableOfferingsCache, ctx.StartAsync)
+	subnetProvider := NewSubnetProvider(ec2api)
+	securityGroupProvider := NewSecurityGroupProvider(ec2api)
+	instanceTypeProvider := NewInstanceTypeProvider(ctx, ctx.Session, ec2api, subnetProvider, ctx.UnavailableOfferingsCache, ctx.StartAsync)
 	return &CloudProvider{
 		kubeClient:            ctx.KubeClient,
-		SubnetProvider:        subnet,
-		SecurityGroupProvider: securityGroup,
+		SubnetProvider:        subnetProvider,
+		SecurityGroupProvider: securityGroupProvider,
 		instanceTypeProvider:  instanceTypeProvider,
-		instanceProvider: NewInstanceProvider(ctx, ec2api, instanceTypeProvider, subnet,
+		instanceProvider: NewInstanceProvider(ctx, ec2api, instanceTypeProvider, subnetProvider,
 			NewLaunchTemplateProvider(
 				ctx,
 				ec2api,
 				ctx.KubernetesInterface,
 				amifamily.New(ctx.KubeClient, ssm.New(ctx.Session), ec2api, cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval), cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)),
-				securityGroup,
+				securityGroupProvider,
 				lo.Must(getCABundle(ctx.RESTConfig)),
 				ctx.StartAsync,
 				kubeDNSIP,
