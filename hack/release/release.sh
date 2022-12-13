@@ -16,6 +16,8 @@ setEnvVariables
 authenticate
 buildImages
 cosignImages
+# TODO: re-enable after fixing the authentication problem
+#publishHelmChartToGHCR "karpenter-crd" "${HELM_CHART_VERSION}"
 publishHelmChart
 
 if [[ $IS_STABLE_RELEASE == true ]]; then
