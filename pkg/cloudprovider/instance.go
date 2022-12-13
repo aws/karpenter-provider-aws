@@ -219,7 +219,7 @@ func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, nodeTem
 	instanceTypes []*cloudprovider.InstanceType, capacityType string) ([]*ec2.FleetLaunchTemplateConfigRequest, error) {
 
 	// Get subnets given the constraints
-	subnets, err := p.subnetProvider.Get(ctx, nodeTemplate, false)
+	subnets, err := p.subnetProvider.Get(ctx, nodeTemplate)
 	if err != nil {
 		return nil, fmt.Errorf("getting subnets, %w", err)
 	}

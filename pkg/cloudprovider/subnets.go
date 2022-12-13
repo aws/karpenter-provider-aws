@@ -45,11 +45,11 @@ func NewSubnetProvider(ec2api ec2iface.EC2API) *SubnetProvider {
 	return &SubnetProvider{
 		ec2api: ec2api,
 		cm:     pretty.NewChangeMonitor(),
-		cache:  cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval),
+		cache:  cache.New(awscontext.CacheTTL*5, awscontext.CacheCleanupInterval),
 	}
 }
 
-func (p *SubnetProvider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, fromNodeTemplateController bool) ([]*ec2.Subnet, error) {
+func (p *SubnetProvider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) ([]*ec2.Subnet, error) {
 	p.Lock()
 	defer p.Unlock()
 	filters := getFilters(nodeTemplate)
@@ -57,10 +57,9 @@ func (p *SubnetProvider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNode
 	if err != nil {
 		return nil, err
 	}
-	if !fromNodeTemplateController {
-		if subnets, ok := p.cache.Get(fmt.Sprint(hash)); ok {
-			return subnets.([]*ec2.Subnet), nil
-		}
+	if subnets, ok := p.cache.Get(fmt.Sprint(hash)); ok {
+		fmt.Println("Subnet Here")
+		return subnets.([]*ec2.Subnet), nil
 	}
 	output, err := p.ec2api.DescribeSubnetsWithContext(ctx, &ec2.DescribeSubnetsInput{Filters: filters})
 	if err != nil {

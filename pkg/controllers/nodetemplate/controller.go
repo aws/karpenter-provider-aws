@@ -50,7 +50,8 @@ func NewController(client k8sClient.Client, ec2api ec2iface.EC2API, subnetProvid
 }
 
 func (c *Controller) Reconcile(ctx context.Context, ant *v1alpha1.AWSNodeTemplate) (reconcile.Result, error) {
-	subnetList, err := c.subnet.Get(ctx, ant, true)
+	fmt.Println("Controller Here")
+	subnetList, err := c.subnet.Get(ctx, ant)
 	subnetLog := cloudprovider.PrettySubnets(subnetList)
 	if err != nil {
 		// Back off and retry reconciliation
@@ -60,7 +61,7 @@ func (c *Controller) Reconcile(ctx context.Context, ant *v1alpha1.AWSNodeTemplat
 	ant.Status.SubnetIDs = nil
 	ant.Status.SubnetIDs = append(ant.Status.SubnetIDs, subnetLog...)
 
-	securityGroupIds, err := c.securityGroups.Get(ctx, ant, true)
+	securityGroupIds, err := c.securityGroups.Get(ctx, ant)
 	if err != nil {
 		// Back off and retry reconciliation
 		return reconcile.Result{RequeueAfter: 1 * time.Minute}, err
