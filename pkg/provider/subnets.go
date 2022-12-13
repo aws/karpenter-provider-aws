@@ -12,13 +12,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package cloudprovider
+package provider
 
 import (
 	"context"
 	"fmt"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -28,7 +29,6 @@ import (
 	"knative.dev/pkg/logging"
 
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	awscontext "github.com/aws/karpenter/pkg/context"
 
 	"github.com/aws/karpenter-core/pkg/utils/functional"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
@@ -45,7 +45,7 @@ func NewSubnetProvider(ec2api ec2iface.EC2API) *SubnetProvider {
 	return &SubnetProvider{
 		ec2api: ec2api,
 		cm:     pretty.NewChangeMonitor(),
-		cache:  cache.New(awscontext.CacheTTL*5, awscontext.CacheCleanupInterval),
+		cache:  cache.New(time.Minute*5, time.Minute*10),
 	}
 }
 
@@ -58,7 +58,6 @@ func (p *SubnetProvider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNode
 		return nil, err
 	}
 	if subnets, ok := p.cache.Get(fmt.Sprint(hash)); ok {
-		fmt.Println("Subnet Here")
 		return subnets.([]*ec2.Subnet), nil
 	}
 	output, err := p.ec2api.DescribeSubnetsWithContext(ctx, &ec2.DescribeSubnetsInput{Filters: filters})
@@ -81,6 +80,12 @@ func (p *SubnetProvider) LivenessProbe(req *http.Request) error {
 	//nolint: staticcheck
 	p.Unlock()
 	return nil
+}
+
+func (p *SubnetProvider) ResetCache() {
+	p.Lock()
+	defer p.Unlock()
+	p.cache.Flush()
 }
 
 func getFilters(nodeTemplate *v1alpha1.AWSNodeTemplate) []*ec2.Filter {

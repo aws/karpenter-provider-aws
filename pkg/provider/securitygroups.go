@@ -12,12 +12,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package cloudprovider
+package provider
 
 import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -27,7 +28,6 @@ import (
 	"knative.dev/pkg/logging"
 
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	awscontext "github.com/aws/karpenter/pkg/context"
 
 	"github.com/aws/karpenter-core/pkg/utils/functional"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
@@ -44,7 +44,7 @@ func NewSecurityGroupProvider(ec2api ec2iface.EC2API) *SecurityGroupProvider {
 	return &SecurityGroupProvider{
 		ec2api: ec2api,
 		cm:     pretty.NewChangeMonitor(),
-		cache:  cache.New(awscontext.CacheTTL*5, awscontext.CacheCleanupInterval),
+		cache:  cache.New(time.Minute*5, time.Minute*10),
 	}
 }
 
@@ -66,6 +66,12 @@ func (p *SecurityGroupProvider) Get(ctx context.Context, nodeTemplate *v1alpha1.
 		securityGroupIds = append(securityGroupIds, aws.StringValue(securityGroup.GroupId))
 	}
 	return securityGroupIds, nil
+}
+
+func (p *SecurityGroupProvider) ResetCache() {
+	p.Lock()
+	defer p.Unlock()
+	p.cache.Flush()
 }
 
 func (p *SecurityGroupProvider) getFilters(nodeTemplate *v1alpha1.AWSNodeTemplate) []*ec2.Filter {

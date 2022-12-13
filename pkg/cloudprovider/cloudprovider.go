@@ -17,14 +17,10 @@ package cloudprovider
 import (
 	"context"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"net"
 	"net/http"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
@@ -63,11 +59,9 @@ func init() {
 var _ cloudprovider.CloudProvider = (*CloudProvider)(nil)
 
 type CloudProvider struct {
-	instanceTypeProvider  *InstanceTypeProvider
-	instanceProvider      *InstanceProvider
-	SubnetProvider        *SubnetProvider
-	SecurityGroupProvider *SecurityGroupProvider
-	kubeClient            k8sClient.Client
+	instanceTypeProvider *InstanceTypeProvider
+	instanceProvider     *InstanceProvider
+	kubeClient           k8sClient.Client
 }
 
 func New(ctx awscontext.Context) *CloudProvider {
@@ -77,42 +71,23 @@ func New(ctx awscontext.Context) *CloudProvider {
 	} else {
 		logging.FromContext(ctx).With("kube-dns-ip", kubeDNSIP).Debugf("discovered kube dns")
 	}
-	ec2api := ec2.New(ctx.Session)
-	if err := checkEC2Connectivity(ctx, ec2api); err != nil {
-		logging.FromContext(ctx).Fatalf("Checking EC2 API connectivity, %s", err)
-	}
-	subnetProvider := NewSubnetProvider(ec2api)
-	securityGroupProvider := NewSecurityGroupProvider(ec2api)
-	instanceTypeProvider := NewInstanceTypeProvider(ctx, ctx.Session, ec2api, subnetProvider, ctx.UnavailableOfferingsCache, ctx.StartAsync)
+	instanceTypeProvider := NewInstanceTypeProvider(ctx, ctx.Session, ctx.Ec2api, ctx.SubnetProvider, ctx.UnavailableOfferingsCache, ctx.StartAsync)
 	return &CloudProvider{
-		kubeClient:            ctx.KubeClient,
-		SubnetProvider:        subnetProvider,
-		SecurityGroupProvider: securityGroupProvider,
-		instanceTypeProvider:  instanceTypeProvider,
-		instanceProvider: NewInstanceProvider(ctx, ec2api, instanceTypeProvider, subnetProvider,
+		kubeClient:           ctx.KubeClient,
+		instanceTypeProvider: instanceTypeProvider,
+		instanceProvider: NewInstanceProvider(ctx, ctx.Ec2api, instanceTypeProvider, ctx.SubnetProvider,
 			NewLaunchTemplateProvider(
 				ctx,
-				ec2api,
+				ctx.Ec2api,
 				ctx.KubernetesInterface,
-				amifamily.New(ctx.KubeClient, ssm.New(ctx.Session), ec2api, cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval), cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)),
-				securityGroupProvider,
+				amifamily.New(ctx.KubeClient, ssm.New(ctx.Session), ctx.Ec2api, cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval), cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)),
+				ctx.SecurityGroupProvider,
 				lo.Must(getCABundle(ctx.RESTConfig)),
 				ctx.StartAsync,
 				kubeDNSIP,
 			),
 		),
 	}
-}
-
-// checkEC2Connectivity makes a dry-run call to DescribeInstanceTypes.  If it fails, we provide an early indicator that we
-// are having issues connecting to the EC2 API.
-func checkEC2Connectivity(ctx context.Context, api *ec2.EC2) error {
-	_, err := api.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{DryRun: aws.Bool(true)})
-	var aerr awserr.Error
-	if errors.As(err, &aerr) && aerr.Code() == "DryRunOperation" {
-		return nil
-	}
-	return err
 }
 
 // Create a node given the constraints.

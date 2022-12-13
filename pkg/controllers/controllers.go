@@ -20,17 +20,16 @@ import (
 	"knative.dev/pkg/logging"
 
 	"github.com/aws/karpenter-core/pkg/operator/controller"
-	"github.com/aws/karpenter/pkg/cloudprovider"
 	awscontext "github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/controllers/interruption"
 	"github.com/aws/karpenter/pkg/controllers/nodetemplate"
 	"github.com/aws/karpenter/pkg/utils/project"
 )
 
-func NewControllers(ctx awscontext.Context, cloudprovider *cloudprovider.CloudProvider) []controller.Controller {
+func NewControllers(ctx awscontext.Context) []controller.Controller {
 	logging.FromContext(ctx).With("version", project.Version).Debugf("discovered version")
 	return []controller.Controller{
 		interruption.NewController(ctx.KubeClient, ctx.Clock, ctx.EventRecorder, interruption.NewSQSProvider(sqs.New(ctx.Session)), ctx.UnavailableOfferingsCache),
-		nodetemplate.NewController(ctx.KubeClient, ec2.New(ctx.Session), cloudprovider.SubnetProvider, cloudprovider.SecurityGroupProvider),
+		nodetemplate.NewController(ctx.KubeClient, ec2.New(ctx.Session), ctx.SubnetProvider, ctx.SecurityGroupProvider),
 	}
 }

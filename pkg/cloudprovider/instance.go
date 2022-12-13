@@ -39,6 +39,7 @@ import (
 	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	awserrors "github.com/aws/karpenter/pkg/errors"
+	"github.com/aws/karpenter/pkg/provider"
 	"github.com/aws/karpenter/pkg/utils"
 
 	"github.com/aws/karpenter-core/pkg/utils/resources"
@@ -55,12 +56,12 @@ var (
 type InstanceProvider struct {
 	ec2api                 ec2iface.EC2API
 	instanceTypeProvider   *InstanceTypeProvider
-	subnetProvider         *SubnetProvider
+	subnetProvider         *provider.SubnetProvider
 	launchTemplateProvider *LaunchTemplateProvider
 	createFleetBatcher     *CreateFleetBatcher
 }
 
-func NewInstanceProvider(ctx context.Context, ec2api ec2iface.EC2API, instanceTypeProvider *InstanceTypeProvider, subnetProvider *SubnetProvider, launchTemplateProvider *LaunchTemplateProvider) *InstanceProvider {
+func NewInstanceProvider(ctx context.Context, ec2api ec2iface.EC2API, instanceTypeProvider *InstanceTypeProvider, subnetProvider *provider.SubnetProvider, launchTemplateProvider *LaunchTemplateProvider) *InstanceProvider {
 	return &InstanceProvider{
 		ec2api:                 ec2api,
 		instanceTypeProvider:   instanceTypeProvider,

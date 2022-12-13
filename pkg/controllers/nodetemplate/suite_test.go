@@ -39,9 +39,9 @@ import (
 	"github.com/aws/karpenter/pkg/apis"
 	coresettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/controllers/nodetemplate"
 	"github.com/aws/karpenter/pkg/fake"
+	"github.com/aws/karpenter/pkg/provider"
 	"github.com/aws/karpenter/pkg/test"
 )
 
@@ -49,8 +49,8 @@ var ctx context.Context
 var env *coretest.Environment
 var fakeEC2API *fake.EC2API
 var opts options.Options
-var subnetProvider *cloudprovider.SubnetProvider
-var securityGroupProvider *cloudprovider.SecurityGroupProvider
+var subnetProvider *provider.SubnetProvider
+var securityGroupProvider *provider.SecurityGroupProvider
 var nodeTemplate *v1alpha1.AWSNodeTemplate
 var controller corecontroller.Controller
 var settingsStore coretest.SettingsStore
@@ -70,8 +70,8 @@ var _ = BeforeSuite(func() {
 	ctx = settingsStore.InjectSettings(ctx)
 
 	fakeEC2API = &fake.EC2API{}
-	subnetProvider = cloudprovider.NewSubnetProvider(fakeEC2API)
-	securityGroupProvider = cloudprovider.NewSecurityGroupProvider(fakeEC2API)
+	subnetProvider = provider.NewSubnetProvider(fakeEC2API)
+	securityGroupProvider = provider.NewSecurityGroupProvider(fakeEC2API)
 })
 
 var _ = AfterSuite(func() {

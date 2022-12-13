@@ -16,14 +16,11 @@ package cloudprovider
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"testing"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -41,6 +38,7 @@ import (
 	awscache "github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
 	awscontext "github.com/aws/karpenter/pkg/context"
+	"github.com/aws/karpenter/pkg/provider"
 	"github.com/aws/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-core/pkg/operator/controller"
@@ -64,8 +62,6 @@ var stop context.CancelFunc
 var opts options.Options
 var env *coretest.Environment
 var launchTemplateCache *cache.Cache
-var securityGroupCache *cache.Cache
-var subnetCache *cache.Cache
 var ssmCache *cache.Cache
 var ec2Cache *cache.Cache
 var internalUnavailableOfferingsCache *cache.Cache
@@ -84,6 +80,8 @@ var provisioner *corev1alpha5.Provisioner
 var nodeTemplate *v1alpha1.AWSNodeTemplate
 var pricingProvider *PricingProvider
 var settingsStore coretest.SettingsStore
+var subnetProvider *provider.SubnetProvider
+var securityGroupProvider *provider.SecurityGroupProvider
 
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -103,19 +101,13 @@ var _ = BeforeSuite(func() {
 	launchTemplateCache = cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)
 	internalUnavailableOfferingsCache = cache.New(awscache.UnavailableOfferingsTTL, awscontext.CacheCleanupInterval)
 	unavailableOfferingsCache = awscache.NewUnavailableOfferings(internalUnavailableOfferingsCache)
-	securityGroupCache = cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)
-	subnetCache = cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)
 	ssmCache = cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)
 	ec2Cache = cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)
 	instanceTypeCache = cache.New(InstanceTypesAndZonesCacheTTL, awscontext.CacheCleanupInterval)
 	fakeEC2API = &fake.EC2API{}
 	fakePricingAPI = &fake.PricingAPI{}
 	pricingProvider = NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
-	subnetProvider := &SubnetProvider{
-		ec2api: fakeEC2API,
-		cache:  subnetCache,
-		cm:     pretty.NewChangeMonitor(),
-	}
+	subnetProvider = provider.NewSubnetProvider(fakeEC2API)
 	instanceTypeProvider = &InstanceTypeProvider{
 		ec2api:               fakeEC2API,
 		subnetProvider:       subnetProvider,
@@ -124,11 +116,7 @@ var _ = BeforeSuite(func() {
 		unavailableOfferings: unavailableOfferingsCache,
 		cm:                   pretty.NewChangeMonitor(),
 	}
-	securityGroupProvider := &SecurityGroupProvider{
-		ec2api: fakeEC2API,
-		cache:  securityGroupCache,
-		cm:     pretty.NewChangeMonitor(),
-	}
+	securityGroupProvider = provider.NewSecurityGroupProvider(fakeEC2API)
 	cloudProvider = &CloudProvider{
 		instanceTypeProvider: instanceTypeProvider,
 		instanceProvider: NewInstanceProvider(ctx, fakeEC2API, instanceTypeProvider, subnetProvider, &LaunchTemplateProvider{
@@ -198,15 +186,14 @@ var _ = BeforeEach(func() {
 	fakeEC2API.Reset()
 	fakePricingAPI.Reset()
 	launchTemplateCache.Flush()
-	securityGroupCache.Flush()
-	subnetCache.Flush()
 	internalUnavailableOfferingsCache.Flush()
 	ssmCache.Flush()
 	ec2Cache.Flush()
 	instanceTypeCache.Flush()
-	cloudProvider.instanceProvider.launchTemplateProvider.kubeDNSIP = net.ParseIP("10.0.100.10")
+	subnetProvider.ResetCache()
+	securityGroupProvider.ResetCache()
 
-	HydrateSubnetAndSecurityGroupCache()
+	cloudProvider.instanceProvider.launchTemplateProvider.kubeDNSIP = net.ParseIP("10.0.100.10")
 })
 
 var _ = AfterEach(func() {
@@ -351,13 +338,3 @@ var _ = Describe("Allocation", func() {
 		})
 	})
 })
-
-func HydrateSubnetAndSecurityGroupCache() {
-	filters := getFilters(nodeTemplate)
-	subnetHash, _ := hashstructure.Hash(filters, hashstructure.FormatV2, nil)
-	securityGrouphash, _ := hashstructure.Hash(filters, hashstructure.FormatV2, nil)
-	subnetOutput, _ := fakeEC2API.DescribeSubnetsWithContext(ctx, &ec2.DescribeSubnetsInput{Filters: filters})
-	securityGroupOutput, _ := fakeEC2API.DescribeSecurityGroupsWithContext(ctx, &ec2.DescribeSecurityGroupsInput{Filters: filters})
-	subnetCache.SetDefault(fmt.Sprint(subnetHash), subnetOutput.Subnets)
-	securityGroupCache.SetDefault(fmt.Sprint(securityGrouphash), securityGroupOutput.SecurityGroups)
-}

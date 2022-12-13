@@ -15,20 +15,26 @@ limitations under the License.
 package context
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/client"
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	"knative.dev/pkg/logging"
 
 	awscache "github.com/aws/karpenter/pkg/cache"
+	"github.com/aws/karpenter/pkg/provider"
 	"github.com/aws/karpenter/pkg/utils/project"
 
 	cloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
@@ -52,6 +58,9 @@ type Context struct {
 
 	Session                   *session.Session
 	UnavailableOfferingsCache *awscache.UnavailableOfferings
+	Ec2api                    ec2iface.EC2API
+	SubnetProvider            *provider.SubnetProvider
+	SecurityGroupProvider     *provider.SecurityGroupProvider
 }
 
 func NewOrDie(ctx cloudprovider.Context) Context {
@@ -68,10 +77,20 @@ func NewOrDie(ctx cloudprovider.Context) Context {
 		*sess.Config.Region = lo.Must(region, err, "failed to get region from metadata server")
 	}
 	logging.FromContext(ctx).With("region", *sess.Config.Region).Debugf("discovered region")
+
+	ec2api := ec2.New(sess)
+	if err := checkEC2Connectivity(ctx, ec2api); err != nil {
+		logging.FromContext(ctx).Fatalf("Checking EC2 API connectivity, %s", err)
+	}
+	subnetProvider := provider.NewSubnetProvider(ec2api)
+	securityGroupProvider := provider.NewSecurityGroupProvider(ec2api)
 	return Context{
 		Context:                   ctx,
 		Session:                   sess,
 		UnavailableOfferingsCache: awscache.NewUnavailableOfferings(cache.New(awscache.UnavailableOfferingsTTL, CacheCleanupInterval)),
+		Ec2api:                    ec2api,
+		SubnetProvider:            subnetProvider,
+		SecurityGroupProvider:     securityGroupProvider,
 	}
 }
 
@@ -80,4 +99,15 @@ func withUserAgent(sess *session.Session) *session.Session {
 	userAgent := fmt.Sprintf("karpenter.sh-%s", project.Version)
 	sess.Handlers.Build.PushBack(request.MakeAddToUserAgentFreeFormHandler(userAgent))
 	return sess
+}
+
+// checkEC2Connectivity makes a dry-run call to DescribeInstanceTypes.  If it fails, we provide an early indicator that we
+// are having issues connecting to the EC2 API.
+func checkEC2Connectivity(ctx context.Context, api *ec2.EC2) error {
+	_, err := api.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{DryRun: aws.Bool(true)})
+	var aerr awserr.Error
+	if errors.As(err, &aerr) && aerr.Code() == "DryRunOperation" {
+		return nil
+	}
+	return err
 }

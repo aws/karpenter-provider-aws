@@ -41,6 +41,7 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
 	awscontext "github.com/aws/karpenter/pkg/context"
 	awserrors "github.com/aws/karpenter/pkg/errors"
+	"github.com/aws/karpenter/pkg/provider"
 
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
@@ -57,14 +58,14 @@ type LaunchTemplateProvider struct {
 	ec2api                ec2iface.EC2API
 	kubernetesInterface   kubernetes.Interface
 	amiFamily             *amifamily.Resolver
-	securityGroupProvider *SecurityGroupProvider
+	securityGroupProvider *provider.SecurityGroupProvider
 	cache                 *cache.Cache
 	caBundle              *string
 	cm                    *pretty.ChangeMonitor
 	kubeDNSIP             net.IP
 }
 
-func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, kubernetesInterface kubernetes.Interface, amiFamily *amifamily.Resolver, securityGroupProvider *SecurityGroupProvider, caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP) *LaunchTemplateProvider {
+func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, kubernetesInterface kubernetes.Interface, amiFamily *amifamily.Resolver, securityGroupProvider *provider.SecurityGroupProvider, caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP) *LaunchTemplateProvider {
 	l := &LaunchTemplateProvider{
 		ec2api:                ec2api,
 		kubernetesInterface:   kubernetesInterface,

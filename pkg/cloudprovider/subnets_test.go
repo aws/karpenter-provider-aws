@@ -62,7 +62,6 @@ var _ = Describe("Subnets", func() {
 			{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1a"), AvailableIpAddressCount: aws.Int64(100),
 				Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
 		}})
-		HydrateSubnetAndSecurityGroupCache()
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 		pod := ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}}))[0]
 		ExpectScheduled(ctx, env.Client, pod)
@@ -77,7 +76,6 @@ var _ = Describe("Subnets", func() {
 				Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
 		}})
 		nodeTemplate.Spec.SubnetSelector = map[string]string{"Name": "test-subnet-1"}
-		HydrateSubnetAndSecurityGroupCache()
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 		podSubnet1 := ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
 		ExpectScheduled(ctx, env.Client, podSubnet1)

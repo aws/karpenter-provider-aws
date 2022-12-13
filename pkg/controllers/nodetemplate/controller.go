@@ -29,18 +29,18 @@ import (
 
 	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/provider"
 )
 
 var _ corecontroller.TypedController[*v1alpha1.AWSNodeTemplate] = (*Controller)(nil)
 
 type Controller struct {
 	kubeClient     k8sClient.Client
-	subnet         *cloudprovider.SubnetProvider
-	securityGroups *cloudprovider.SecurityGroupProvider
+	subnet         *provider.SubnetProvider
+	securityGroups *provider.SecurityGroupProvider
 }
 
-func NewController(client k8sClient.Client, ec2api ec2iface.EC2API, subnetProvider *cloudprovider.SubnetProvider, securityGroups *cloudprovider.SecurityGroupProvider) corecontroller.Controller {
+func NewController(client k8sClient.Client, ec2api ec2iface.EC2API, subnetProvider *provider.SubnetProvider, securityGroups *provider.SecurityGroupProvider) corecontroller.Controller {
 
 	return corecontroller.Typed[*v1alpha1.AWSNodeTemplate](client, &Controller{
 		kubeClient:     client,
@@ -52,7 +52,7 @@ func NewController(client k8sClient.Client, ec2api ec2iface.EC2API, subnetProvid
 func (c *Controller) Reconcile(ctx context.Context, ant *v1alpha1.AWSNodeTemplate) (reconcile.Result, error) {
 	fmt.Println("Controller Here")
 	subnetList, err := c.subnet.Get(ctx, ant)
-	subnetLog := cloudprovider.PrettySubnets(subnetList)
+	subnetLog := provider.PrettySubnets(subnetList)
 	if err != nil {
 		// Back off and retry reconciliation
 		return reconcile.Result{RequeueAfter: 1 * time.Minute}, err
