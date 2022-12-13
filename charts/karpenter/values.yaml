@@ -92,7 +92,7 @@ extraVolumes: []
 
 controller:
   # -- Controller image.
-  image: "public.ecr.aws/karpenter/controller:v0.20.0@sha256:0aff2bc797652b72ad4a7417664959f2531118f54713ff19c98bae4253519180"
+  image: "public.ecr.aws/karpenter/controller:v0.20.1@sha256:965350e703deddf68f4b3fcbdcb6e6af7f2c3fb5c9a4b7dcd1ba513ede216b99"
   # -- SecurityContext for the controller container.
   securityContext: {}
   # -- Additional environment variables for the controller pod.
