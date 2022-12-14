@@ -179,7 +179,7 @@ No. We recommend against using Node Termination Handler alongside Karpenter due 
 ### Why should I migrate from Node Termination Handler?
 Karpenter's native interruption handling offers two main benefits over the standalone Node Termination Handler component:
 1. You don't have to manage and maintain a separate component to exclusively handle interruption events.
-2. Karpenter's native interruption handling coordinates with other deprovisoining so that consolidation, expiration, etc. can be aware of interruption events and vice-versa.
+2. Karpenter's native interruption handling coordinates with other deprovisioning so that consolidation, expiration, etc. can be aware of interruption events and vice-versa.
 
 ### Why am I receiving QueueNotFound errors when I set `aws.interruptionQueueName`?
 Karpenter requires a queue to exist that receives event messages from EC2 and health services in order to handle interruption messages properly for nodes.
