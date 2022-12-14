@@ -165,6 +165,10 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, provisioner *v1alp
 	return instanceTypes, nil
 }
 
+func (c *CloudProvider) IsMachineDrifted(_ context.Context, _ *corev1alpha1.Machine) (bool, error) {
+	return false, nil
+}
+
 func (c *CloudProvider) Delete(ctx context.Context, node *v1.Node) error {
 	return c.instanceProvider.Terminate(ctx, node)
 }
