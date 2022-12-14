@@ -73,6 +73,12 @@ Select subnets using wildcards:
 
 ```
 
+Select subnets using comma separated tag values:
+```
+  subnetSelector:
+    Name: "Public1,Public2"
+```
+
 Specify subnets explicitly by ID:
 ```yaml
   subnetSelector:
