@@ -18,7 +18,11 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
+
+	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -41,11 +45,14 @@ import (
 )
 
 type AMIProvider struct {
-	ssmCache *cache.Cache
-	ec2Cache *cache.Cache
-	ssm      ssmiface.SSMAPI
-	ec2api   ec2iface.EC2API
-	cm       *pretty.ChangeMonitor
+	ssmCache               *cache.Cache
+	ec2Cache               *cache.Cache
+	kubernetesVersionCache *cache.Cache
+	ssm                    ssmiface.SSMAPI
+	kubeClient             client.Client
+	ec2api                 ec2iface.EC2API
+	cm                     *pretty.ChangeMonitor
+	kubernetesInterface    kubernetes.Interface
 }
 
 type AMI struct {
@@ -53,11 +60,47 @@ type AMI struct {
 	CreationDate string
 }
 
+const (
+	kubernetesVersionCacheKey = "kubernetesVersion"
+)
+
+func NewAMIProvider(kubeClient client.Client, kubernetesInterface kubernetes.Interface, ssm ssmiface.SSMAPI, ec2api ec2iface.EC2API,
+	ssmCache, ec2Cache, kubernetesVersionCache *cache.Cache) *AMIProvider {
+	return &AMIProvider{
+		ssmCache:               ssmCache,
+		ec2Cache:               ec2Cache,
+		kubernetesVersionCache: kubernetesVersionCache,
+		ssm:                    ssm,
+		kubeClient:             kubeClient,
+		ec2api:                 ec2api,
+		cm:                     pretty.NewChangeMonitor(),
+		kubernetesInterface:    kubernetesInterface,
+	}
+}
+
+func (p *AMIProvider) KubeServerVersion(ctx context.Context) (string, error) {
+	if version, ok := p.kubernetesVersionCache.Get(kubernetesVersionCacheKey); ok {
+		return version.(string), nil
+	}
+	serverVersion, err := p.kubernetesInterface.Discovery().ServerVersion()
+	if err != nil {
+		return "", err
+	}
+	version := fmt.Sprintf("%s.%s", serverVersion.Major, strings.TrimSuffix(serverVersion.Minor, "+"))
+	p.kubernetesVersionCache.SetDefault(kubernetesVersionCacheKey, version)
+	if p.cm.HasChanged("kubernetes-version", version) {
+		logging.FromContext(ctx).With("kubernetes-version", version).Debugf("discovered kubernetes version")
+	}
+	return version, nil
+}
+
 // Get returns a set of AMIIDs and corresponding instance types. AMI may vary due to architecture, accelerator, etc
 // If AMI overrides are specified in the AWSNodeTemplate, then only those AMIs will be chosen.
-func (p *AMIProvider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate,
-	instanceTypes []*cloudprovider.InstanceType, options *Options, amiFamily AMIFamily) (map[string][]*cloudprovider.InstanceType, error) {
-
+func (p *AMIProvider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, instanceTypes []*cloudprovider.InstanceType, amiFamily AMIFamily) (map[string][]*cloudprovider.InstanceType, error) {
+	kubernetesVersion, err := p.KubeServerVersion(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("getting kubernetes version %w", err)
+	}
 	amiIDs := map[string][]*cloudprovider.InstanceType{}
 	amiRequirements, err := p.getAMIRequirements(ctx, nodeTemplate)
 	if err != nil {
@@ -79,7 +122,7 @@ func (p *AMIProvider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTem
 		}
 	} else {
 		for _, instanceType := range instanceTypes {
-			amiID, err := p.getDefaultAMIFromSSM(ctx, amiFamily.SSMAlias(options.KubernetesVersion, instanceType))
+			amiID, err := p.getDefaultAMIFromSSM(ctx, amiFamily.SSMAlias(kubernetesVersion, instanceType))
 			if err != nil {
 				return nil, err
 			}

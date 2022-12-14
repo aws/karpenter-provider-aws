@@ -21,6 +21,10 @@ import (
 	"net"
 	"net/http"
 
+	"github.com/aws/karpenter/pkg/apis"
+	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/utils"
+
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
@@ -35,8 +39,6 @@ import (
 	k8sClient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter-core/pkg/scheduling"
-	"github.com/aws/karpenter/pkg/apis"
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
 	awscontext "github.com/aws/karpenter/pkg/context"
 
@@ -62,6 +64,7 @@ type CloudProvider struct {
 	instanceTypeProvider *InstanceTypeProvider
 	instanceProvider     *InstanceProvider
 	kubeClient           k8sClient.Client
+	amiProvider          *amifamily.AMIProvider
 }
 
 func New(ctx awscontext.Context) *CloudProvider {
@@ -72,15 +75,18 @@ func New(ctx awscontext.Context) *CloudProvider {
 		logging.FromContext(ctx).With("kube-dns-ip", kubeDNSIP).Debugf("discovered kube dns")
 	}
 	instanceTypeProvider := NewInstanceTypeProvider(ctx, ctx.Session, ctx.Ec2api, ctx.SubnetProvider, ctx.UnavailableOfferingsCache, ctx.StartAsync)
+	amiProvider := amifamily.NewAMIProvider(ctx.KubeClient, ctx.KubernetesInterface, ssm.New(ctx.Session), ctx.Ec2api,
+		cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval), cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval), cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval))
+	amiResolver := amifamily.New(ctx.KubeClient, amiProvider)
 	return &CloudProvider{
 		kubeClient:           ctx.KubeClient,
 		instanceTypeProvider: instanceTypeProvider,
+		amiProvider:          amiProvider,
 		instanceProvider: NewInstanceProvider(ctx, ctx.Ec2api, instanceTypeProvider, ctx.SubnetProvider,
 			NewLaunchTemplateProvider(
 				ctx,
 				ctx.Ec2api,
-				ctx.KubernetesInterface,
-				amifamily.New(ctx.KubeClient, ssm.New(ctx.Session), ctx.Ec2api, cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval), cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)),
+				amiResolver,
 				ctx.SecurityGroupProvider,
 				lo.Must(getCABundle(ctx.RESTConfig)),
 				ctx.StartAsync,
@@ -139,12 +145,29 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, provisioner *v1alp
 	return instanceTypes, nil
 }
 
-func (c *CloudProvider) IsMachineDrifted(_ context.Context, _ *corev1alpha1.Machine) (bool, error) {
-	return false, nil
-}
-
 func (c *CloudProvider) Delete(ctx context.Context, node *v1.Node) error {
 	return c.instanceProvider.Terminate(ctx, node)
+}
+
+func (c *CloudProvider) IsMachineDrifted(ctx context.Context, machine *corev1alpha1.Machine) (bool, error) {
+	// Not needed when GetInstanceTypes removes provisioner dependency
+	provisioner := &v1alpha5.Provisioner{}
+	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: machine.Labels[v1alpha5.ProvisionerNameLabelKey]}, provisioner); err != nil {
+		return false, k8sClient.IgnoreNotFound(fmt.Errorf("getting provisioner, %w", err))
+	}
+	nodeTemplate, err := c.resolveNodeTemplate(ctx, nil, &v1.ObjectReference{
+		APIVersion: provisioner.Spec.ProviderRef.APIVersion,
+		Kind:       provisioner.Spec.ProviderRef.Kind,
+		Name:       provisioner.Spec.ProviderRef.Name,
+	})
+	if err != nil {
+		return false, k8sClient.IgnoreNotFound(fmt.Errorf("resolving node template, %w", err))
+	}
+	amiDrifted, err := c.isAMIDrifted(ctx, machine, provisioner, nodeTemplate)
+	if err != nil {
+		return false, err
+	}
+	return amiDrifted, nil
 }
 
 // Name returns the CloudProvider implementation name.
@@ -181,6 +204,37 @@ func kubeDNSIP(ctx context.Context, kubernetesInterface kubernetes.Interface) (n
 		return nil, fmt.Errorf("parsing cluster IP")
 	}
 	return kubeDNSIP, nil
+}
+
+func (c *CloudProvider) isAMIDrifted(ctx context.Context, machine *corev1alpha1.Machine, provisioner *v1alpha5.Provisioner, nodeTemplate *v1alpha1.AWSNodeTemplate) (bool, error) {
+	instanceTypes, err := c.GetInstanceTypes(ctx, provisioner)
+	if err != nil {
+		return false, fmt.Errorf("getting instanceTypes, %w", err)
+	}
+	nodeInstanceType, found := lo.Find(instanceTypes, func(instType *cloudprovider.InstanceType) bool {
+		return instType.Name == machine.Labels[v1.LabelInstanceTypeStable]
+	})
+	if !found {
+		return false, fmt.Errorf("getting node instance type")
+	}
+	if nodeTemplate.Spec.LaunchTemplateName != nil {
+		return false, nil
+	}
+	amis, err := c.amiProvider.Get(ctx, nodeTemplate, []*cloudprovider.InstanceType{nodeInstanceType},
+		amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, &amifamily.Options{}))
+	if err != nil {
+		return false, fmt.Errorf("getting amis, %w", err)
+	}
+	// Get InstanceID to fetch from EC2
+	instanceID, err := utils.ParseMachineInstanceID(machine)
+	if err != nil {
+		return false, err
+	}
+	instance, err := c.instanceProvider.getInstance(ctx, instanceID)
+	if err != nil {
+		return false, fmt.Errorf("getting instance, %w", err)
+	}
+	return !lo.Contains(lo.Keys(amis), *instance.ImageId), nil
 }
 
 func (c *CloudProvider) resolveNodeTemplate(ctx context.Context, raw []byte, objRef *v1.ObjectReference) (*v1alpha1.AWSNodeTemplate, error) {
