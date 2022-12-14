@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"math"
 	"net"
-	"strings"
 	"sync"
 	"time"
 
@@ -31,7 +30,6 @@ import (
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/client-go/kubernetes"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 
@@ -47,15 +45,13 @@ import (
 )
 
 const (
-	launchTemplateNameFormat  = "Karpenter-%s-%s"
-	karpenterManagedTagKey    = "karpenter.k8s.aws/cluster"
-	kubernetesVersionCacheKey = "kubernetesVersion"
+	launchTemplateNameFormat = "Karpenter-%s-%s"
+	karpenterManagedTagKey   = "karpenter.k8s.aws/cluster"
 )
 
 type LaunchTemplateProvider struct {
 	sync.Mutex
 	ec2api                ec2iface.EC2API
-	kubernetesInterface   kubernetes.Interface
 	amiFamily             *amifamily.Resolver
 	securityGroupProvider *SecurityGroupProvider
 	cache                 *cache.Cache
@@ -64,10 +60,9 @@ type LaunchTemplateProvider struct {
 	kubeDNSIP             net.IP
 }
 
-func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, kubernetesInterface kubernetes.Interface, amiFamily *amifamily.Resolver, securityGroupProvider *SecurityGroupProvider, caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP) *LaunchTemplateProvider {
+func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, amiFamily *amifamily.Resolver, securityGroupProvider *SecurityGroupProvider, caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP) *LaunchTemplateProvider {
 	l := &LaunchTemplateProvider{
 		ec2api:                ec2api,
-		kubernetesInterface:   kubernetesInterface,
 		amiFamily:             amiFamily,
 		securityGroupProvider: securityGroupProvider,
 		cache:                 cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval),
@@ -105,31 +100,11 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, nodeTemplate *v1alpha1
 	if nodeTemplate.Spec.LaunchTemplateName != nil {
 		return map[string][]*cloudprovider.InstanceType{ptr.StringValue(nodeTemplate.Spec.LaunchTemplateName): instanceTypes}, nil
 	}
-	instanceProfile, err := p.getInstanceProfile(ctx, nodeTemplate)
+	options, err := p.createAmiOptions(ctx, nodeTemplate, lo.Assign(machine.Labels, additionalLabels))
 	if err != nil {
 		return nil, err
 	}
-	// Get constrained security groups
-	securityGroupsIDs, err := p.securityGroupProvider.Get(ctx, nodeTemplate)
-	if err != nil {
-		return nil, err
-	}
-	kubeServerVersion, err := p.kubeServerVersion(ctx)
-	if err != nil {
-		return nil, err
-	}
-	resolvedLaunchTemplates, err := p.amiFamily.Resolve(ctx, nodeTemplate, machine, instanceTypes, &amifamily.Options{
-		ClusterName:             awssettings.FromContext(ctx).ClusterName,
-		ClusterEndpoint:         awssettings.FromContext(ctx).ClusterEndpoint,
-		AWSENILimitedPodDensity: awssettings.FromContext(ctx).EnableENILimitedPodDensity,
-		InstanceProfile:         instanceProfile,
-		SecurityGroupsIDs:       securityGroupsIDs,
-		Tags:                    lo.Assign(awssettings.FromContext(ctx).Tags, nodeTemplate.Spec.Tags),
-		Labels:                  lo.Assign(machine.Labels, additionalLabels),
-		CABundle:                p.caBundle,
-		KubernetesVersion:       kubeServerVersion,
-		KubeDNSIP:               p.kubeDNSIP,
-	})
+	resolvedLaunchTemplates, err := p.amiFamily.Resolve(ctx, nodeTemplate, machine, instanceTypes, options)
 	if err != nil {
 		return nil, err
 	}
@@ -143,6 +118,29 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, nodeTemplate *v1alpha1
 		launchTemplates[*ec2LaunchTemplate.LaunchTemplateName] = resolvedLaunchTemplate.InstanceTypes
 	}
 	return launchTemplates, nil
+}
+
+func (p *LaunchTemplateProvider) createAmiOptions(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, labels map[string]string) (*amifamily.Options, error) {
+	instanceProfile, err := p.getInstanceProfile(ctx, nodeTemplate)
+	if err != nil {
+		return nil, err
+	}
+	// Get constrained security groups
+	securityGroupsIDs, err := p.securityGroupProvider.Get(ctx, nodeTemplate)
+	if err != nil {
+		return nil, err
+	}
+	return &amifamily.Options{
+		ClusterName:             awssettings.FromContext(ctx).ClusterName,
+		ClusterEndpoint:         awssettings.FromContext(ctx).ClusterEndpoint,
+		AWSENILimitedPodDensity: awssettings.FromContext(ctx).EnableENILimitedPodDensity,
+		InstanceProfile:         instanceProfile,
+		SecurityGroupsIDs:       securityGroupsIDs,
+		Tags:                    lo.Assign(awssettings.FromContext(ctx).Tags, nodeTemplate.Spec.Tags),
+		Labels:                  labels,
+		CABundle:                p.caBundle,
+		KubeDNSIP:               p.kubeDNSIP,
+	}, nil
 }
 
 func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, options *amifamily.LaunchTemplate) (*ec2.LaunchTemplate, error) {
@@ -281,9 +279,6 @@ func (p *LaunchTemplateProvider) hydrateCache(ctx context.Context) {
 
 func (p *LaunchTemplateProvider) cachedEvictedFunc(ctx context.Context) func(string, interface{}) {
 	return func(key string, lt interface{}) {
-		if key == kubernetesVersionCacheKey {
-			return
-		}
 		p.Lock()
 		defer p.Unlock()
 		if _, expiration, _ := p.cache.GetWithExpiration(key); expiration.After(time.Now()) {
@@ -307,20 +302,4 @@ func (p *LaunchTemplateProvider) getInstanceProfile(ctx context.Context, nodeTem
 		return "", errors.New("neither spec.provider.instanceProfile nor --aws-default-instance-profile is specified")
 	}
 	return defaultProfile, nil
-}
-
-func (p *LaunchTemplateProvider) kubeServerVersion(ctx context.Context) (string, error) {
-	if version, ok := p.cache.Get(kubernetesVersionCacheKey); ok {
-		return version.(string), nil
-	}
-	serverVersion, err := p.kubernetesInterface.Discovery().ServerVersion()
-	if err != nil {
-		return "", err
-	}
-	version := fmt.Sprintf("%s.%s", serverVersion.Major, strings.TrimSuffix(serverVersion.Minor, "+"))
-	p.cache.SetDefault(kubernetesVersionCacheKey, version)
-	if p.cm.HasChanged("kubernete-version", version) {
-		logging.FromContext(ctx).With("kubernete-version", version).Debugf("discovered kubernetes version")
-	}
-	return version, nil
 }

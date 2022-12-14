@@ -118,12 +118,12 @@ func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
 		return fmt.Errorf("getting instance ID for node %s, %w", node.Name, err)
 	}
 	if _, err = p.ec2api.TerminateInstancesWithContext(ctx, &ec2.TerminateInstancesInput{
-		InstanceIds: []*string{id},
+		InstanceIds: []*string{aws.String(id)},
 	}); err != nil {
 		if awserrors.IsNotFound(err) {
 			return nil
 		}
-		if _, errMsg := p.getInstance(ctx, aws.StringValue(id)); err != nil {
+		if _, errMsg := p.getInstance(ctx, id); err != nil {
 			if awserrors.IsInstanceTerminated(errMsg) || awserrors.IsNotFound(errMsg) {
 				logging.FromContext(ctx).Debugf("instance already terminated")
 				return nil
