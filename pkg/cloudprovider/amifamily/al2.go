@@ -49,7 +49,7 @@ func (a AL2) SSMAlias(version string, instanceType *cloudprovider.InstanceType) 
 // guaranteeing it won't cause spurious hash differences.
 // AL2 userdata also works on Ubuntu
 func (a AL2) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []v1.Taint, labels map[string]string, caBundle *string, instanceTypes []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper {
-	containerRuntime := aws.String(a.containerRuntime(instanceTypes))
+	containerRuntime := aws.String("containerd")
 	if kubeletConfig != nil && kubeletConfig.ContainerRuntime != nil {
 		containerRuntime = kubeletConfig.ContainerRuntime
 	}
@@ -66,17 +66,6 @@ func (a AL2) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []v1.
 			CustomUserData:          customUserData,
 		},
 	}
-}
-
-// containerRuntime will return the proper container runtime based on the capabilities of the
-// instanceTypes passed in since the AL2 EKS Optimized AMI does not support inferentia instances w/ containerd.
-// this should be removed once the EKS Optimized AMI supports all GPUs.
-func (a AL2) containerRuntime(instanceTypes []*cloudprovider.InstanceType) string {
-	instanceResources := instanceTypes[0].Capacity
-	if resources.IsZero(instanceResources[v1alpha1.ResourceAWSNeuron]) {
-		return "containerd"
-	}
-	return "dockerd"
 }
 
 func (a AL2) defaultIPv6DNS(kubeletConfig *v1alpha5.KubeletConfiguration) *v1alpha5.KubeletConfiguration {
