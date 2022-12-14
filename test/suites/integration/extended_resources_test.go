@@ -201,7 +201,7 @@ var _ = Describe("Extended Resources", func() {
 		env.ExpectCreated(provisioner, provider, dep)
 		EventuallyWithOffset(1, func(g Gomega) {
 			g.Expect(env.Monitor.RunningPodsCount(selector)).To(Equal(numPods))
-		}).WithTimeout(10 * time.Minute).Should(Succeed()) // The node needs additional time to install the AMD GPU driver
+		}).WithTimeout(15 * time.Minute).Should(Succeed()) // The node needs additional time to install the AMD GPU driver
 		env.ExpectCreatedNodeCount("==", 1)
 		env.EventuallyExpectCreatedNodesInitialized()
 	})
