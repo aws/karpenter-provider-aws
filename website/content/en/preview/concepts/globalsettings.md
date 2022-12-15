@@ -75,9 +75,9 @@ data:
 ### Feature Gates
 Karpenter uses [feature gates](https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/#feature-gates-for-alpha-or-beta-features). You can add a feature gate's ConfigKey to the `karpenter-global-settings` ConfigMap above with the desired value.
 
-| Feature | Default | Stage | Since | Until | Config Key |
-|---|---|---|---|---|---|
-| Drift | false  | Alpha | v0.21.0 |  | featureGates.driftEnabled |
+| Feature | Default |         Config Key        | Stage |  Since  | Until |
+|---------|---------|---------------------------|-------|---------|-------|
+|  Drift  |  false  | featureGates.driftEnabled | Alpha | v0.21.0 |       |
 
 
 ### Batching Parameters

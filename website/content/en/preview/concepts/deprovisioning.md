@@ -24,7 +24,7 @@ There are both automated and manual ways of deprovisioning nodes provisioned by 
 * **Node expired**: Karpenter requests to delete the node after a set number of seconds, based on the provisioner `ttlSecondsUntilExpired`  value, from the time the node was provisioned. One use case for node expiry is to handle node upgrades. Old nodes (with a potentially outdated Kubernetes version or operating system) are deleted, and replaced with nodes on the current version (assuming that you requested the latest version, rather than a specific version).
 * **Consolidation**: Karpenter works to actively reduce cluster cost by identifying when nodes can be removed as their workloads will run on other nodes in the cluster and when nodes can be replaced with cheaper variants due to a change in the workloads.
 * **Interruption**: If enabled, Karpenter will watch for upcoming involuntary interruption events that could affect your nodes (health events, spot interruption, etc.) and will cordon, drain, and terminate the node(s) ahead of the event to reduce workload disruption.
-* **Drift**: If enabled, Karpenter will deprovision nodes that have drifted from provisioning specifications. Once the node is annotated as drifted, Karpenter will deprovision the nodes and provision replacement nodes with the correct provisioning requirements when needed. Currently, Karpenter will only automatically mark nodes as drifted in the case of a drifted AMI.
+* **Drift**: Karpenter will deprovision nodes that have drifted from their desired specification. Once the node is annotated as drifted, Karpenter will deprovision the nodes and provision replacement nodes with the correct provisioning requirements when needed. Currently, Karpenter will only automatically mark nodes as drifted in the case of a drifted AMI.
 
 {{% alert title="Note" color="primary" %}}
 - Automated deprovisioning is configured through the ProvisionerSpec `.ttlSecondsAfterEmpty`
@@ -131,7 +131,7 @@ data:
 
 ## Drift
 
-If drift is enabled, Karpenter will deprovision nodes that have been marked as drifted with the annotation `karpenter.sh/voluntary-disruption: "drifted"`. Karpenter will automatically mark nodes as drifted if the AMI that is used on the instance does not match the AMI set by the AWSNodeTemplate. Check the [AWSNodeTemplate Docs]({{<ref "./node-templates" >}}) settings for more.
+If drift is enabled, Karpenter will deprovision nodes that have been marked as drifted with the annotation `karpenter.sh/voluntary-disruption: "drifted"`. Karpenter will automatically cordon, drain, and terminate nodes, while respecting any PDBs or `do-not-evict` pods that are configured. Karpenter will automatically mark nodes as drifted if the AMI that is used on the instance does not match the AMI set by the AWSNodeTemplate. Check the [AWSNodeTemplate Docs]({{<ref "./node-templates" >}}) settings for more.
 
 If users annotate their own nodes with `karpenter.sh/voluntary-disruption: "drifted"`, Karpenter will respect the annotation and deprovision the nodes.
 
