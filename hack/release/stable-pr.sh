@@ -16,7 +16,10 @@ git config pull.rebase false
 BRANCH_NAME="release-${RELEASE_VERSION}"
 git checkout -b "${BRANCH_NAME}"
 git add website
-git add charts
+git add charts/karpenter/Chart.yaml
+git add charts/karpenter/Chart.lock
+git add charts/karpenter/values.yaml
+git add charts/karpenter/README.md
 git commit -m "Stable Release updates Release ${RELEASE_VERSION}."
 git push --set-upstream origin "${BRANCH_NAME}"
 echo "STABLE_RELEASE_VERSION=${RELEASE_VERSION}" >> $GITHUB_ENV
