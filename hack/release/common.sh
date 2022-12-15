@@ -12,40 +12,28 @@ config(){
   SNS_TOPIC_ARN="arn:aws:sns:us-east-1:${AWS_ACCOUNT_ID}:KarpenterReleases"
   CURRENT_MAJOR_VERSION="0"
   RELEASE_PLATFORM="--platform=linux/amd64,linux/arm64"
+
+  RELEASE_TYPE_STABLE="stable"
+  RELEASE_TYPE_SNAPSHOT="snapshot"
 }
 
-setEnvVariables(){
-  if [ -z ${RELEASE_VERSION+x} ];then
-    echo "Required env variable RELEASE_VERSION not set"
-    exit 1
-  fi
+release() {
+  RELEASE_VERSION=$1
+  echo "Release Type: $(releaseType "${RELEASE_VERSION}")
+Release Version: ${RELEASE_VERSION}
+Commit: $(git rev-parse HEAD)
+Helm Chart Version $(helmChartVersion $RELEASE_VERSION)"
 
-  IS_STABLE_RELEASE=false
-  if [[ "${RELEASE_VERSION}" == v* ]]; then
-    IS_STABLE_RELEASE=true
-  fi
-
-  if [[ $IS_STABLE_RELEASE == true ]]; then
-    HELM_CHART_VERSION=$RELEASE_VERSION
-  else
-    HELM_CHART_VERSION="v${CURRENT_MAJOR_VERSION}-${RELEASE_VERSION}"
-  fi
-
-  echo "Is Stable Release? ${IS_STABLE_RELEASE}, Helm Chart Version ${HELM_CHART_VERSION} "
-
-  # TODO restore https://reproducible-builds.org/docs/source-date-epoch/
-  DATE_FMT="+%Y-%m-%dT%H:%M:%SZ"
-  if [ -z "${SOURCE_DATE_EPOCH-}" ]; then
-      BUILD_DATE=$(date -u ${DATE_FMT})
-  else
-      BUILD_DATE=$(date -u -d "${SOURCE_DATE_EPOCH}" "${DATE_FMT}" 2>/dev/null || date -u -r "${SOURCE_DATE_EPOCH}" "$(DATE_FMT)" 2>/dev/null || date -u "$(DATE_FMT)")
-  fi
-
-  COSIGN_FLAGS="-a GIT_HASH=$(git rev-parse HEAD) -a GIT_VERSION=${RELEASE_VERSION} -a BUILD_DATE=${BUILD_DATE}"
+  authenticate
+  buildImages
+  cosignImages
+  publishHelmChart
+  notifyRelease $RELEASE_VERSION
+  pullPrivateReplica $RELEASE_VERSION
 }
 
 authenticate() {
-    aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${RELEASE_REPO}
+  aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${RELEASE_REPO}
 }
 
 authenticatePrivateRepo() {
@@ -54,19 +42,52 @@ authenticatePrivateRepo() {
 
 buildImages() {
     CONTROLLER_DIGEST=$(GOFLAGS=${GOFLAGS} KO_DOCKER_REPO=${RELEASE_REPO} ko publish -B -t ${RELEASE_VERSION} ${RELEASE_PLATFORM} ./cmd/controller)
+    HELM_CHART_VERSION=$(helmChartVersion $RELEASE_VERSION)
     yq e -i ".controller.image = \"${CONTROLLER_DIGEST}\"" charts/karpenter/values.yaml
     yq e -i ".appVersion = \"${RELEASE_VERSION#v}\"" charts/karpenter/Chart.yaml
     yq e -i ".version = \"${HELM_CHART_VERSION#v}\"" charts/karpenter/Chart.yaml
 }
 
+releaseType(){
+  RELEASE_VERSION=$1
+
+  if [[ "${RELEASE_VERSION}" == v* ]]; then
+    echo $RELEASE_TYPE_STABLE
+  else
+    echo $RELEASE_TYPE_SNAPSHOT
+  fi
+}
+
+helmChartVersion(){
+    RELEASE_VERSION=$1
+    if [[ $(releaseType $RELEASE_VERSION) == $RELEASE_TYPE_STABLE ]]; then
+      echo $RELEASE_VERSION
+    fi
+
+    if [[ $(releaseType $RELEASE_VERSION) == $RELEASE_TYPE_SNAPSHOT ]]; then
+      echo "v${CURRENT_MAJOR_VERSION}-${RELEASE_VERSION}"
+    fi
+}
+
+buildDate(){
+    # TODO restore https://reproducible-builds.org/docs/source-date-epoch/
+    DATE_FMT="+%Y-%m-%dT%H:%M:%SZ"
+    if [ -z "${SOURCE_DATE_EPOCH-}" ]; then
+        echo $(date -u ${DATE_FMT})
+    else
+        echo$(date -u -d "${SOURCE_DATE_EPOCH}" "${DATE_FMT}" 2>/dev/null || date -u -r "${SOURCE_DATE_EPOCH}" "$(DATE_FMT)" 2>/dev/null || date -u "$(DATE_FMT)")
+    fi
+}
+
 cosignImages() {
+    COSIGN_FLAGS="-a GIT_HASH=$(git rev-parse HEAD) -a GIT_VERSION=${RELEASE_VERSION} -a BUILD_DATE=$(buildDate)}"
     COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_FLAGS} ${CONTROLLER_DIGEST}
 }
 
 notifyRelease() {
-    RELEASE_TYPE=$1
-    RELEASE_IDENTIFIER=$2
-    MESSAGE="{\"releaseType\":\"${RELEASE_TYPE}\",\"releaseIdentifier\":\"${RELEASE_IDENTIFIER}\"}"
+    RELEASE_VERSION=$1
+    RELEASE_TYPE=$(releaseType $RELEASE_VERSION)
+    MESSAGE="{\"releaseType\":\"${RELEASE_TYPE}\",\"releaseIdentifier\":\"${RELEASE_VERSION}\"}"
     aws sns publish \
         --topic-arn ${SNS_TOPIC_ARN} \
         --message ${MESSAGE} \
@@ -75,17 +96,19 @@ notifyRelease() {
 
 pullPrivateReplica(){
   authenticatePrivateRepo
-  RELEASE_TYPE=$1
-  RELEASE_IDENTIFIER=$2
+  RELEASE_IDENTIFIER=$1
+  RELEASE_TYPE=$(releaseType $RELEASE_VERSION)
   PULL_THROUGH_CACHE_PATH="${PRIVATE_PULL_THROUGH_HOST}/ecr-public/${ECR_GALLERY_NAME}/"
 
   docker pull "${PULL_THROUGH_CACHE_PATH}controller:${RELEASE_IDENTIFIER}"
 }
 
 publishHelmChart() {
+    HELM_CHART_VERSION=$(helmChartVersion $RELEASE_VERSION)
     HELM_CHART_FILE_NAME="karpenter-${HELM_CHART_VERSION}.tgz"
 
     cd charts
+    helm dependency update "karpenter"
     helm lint karpenter
     helm package karpenter --version $HELM_CHART_VERSION
     helm push "${HELM_CHART_FILE_NAME}" "oci://${RELEASE_REPO}"
@@ -95,7 +118,8 @@ publishHelmChart() {
 
 publishHelmChartToGHCR() {
     CHART_NAME=$1
-    HELM_CHART_VERSION=$2
+    RELEASE_VERSION=$2
+    HELM_CHART_VERSION=$(helmChartVersion $RELEASE_VERSION)
     HELM_CHART_FILE_NAME="${CHART_NAME}-${HELM_CHART_VERSION}.tgz"
 
     cd charts
