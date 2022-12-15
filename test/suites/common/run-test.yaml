@@ -15,7 +15,11 @@ spec:
       description: the git repo url can be used to run tests on a fork
       default: "https://github.com/aws/karpenter"
     - name: git-ref
-      description: Git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release.
+      description: Git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release. e.g. HEAD,#PR_NUMBER
+      default: ""
+    - name: git-fetch-origin
+      description: Required if git-ref is about a PR - What if anything should be fetched from the origin? e.g. pull/ID/head:#1234
+      default: ""
   workspaces:
     - name: ws
   steps:
@@ -25,8 +29,16 @@ spec:
     workingDir: $(workspaces.ws.path)
     script: |
       echo "Cloning $(params.git-repo-url)"
+      echo "Fetching - Optional: $(params.git-fetch-origin)"
       echo "Checking out git ref: $(params.git-ref)"
-      git clone $(params.git-repo-url).git .
+
+      git clone $(params.git-repo-url).git
+
+      if [ "$(params.git-fetch-origin)" != "" ]; then
+        echo "fetching $(params.git-fetch-origin)"
+        git fetch origin "$(params.git-fetch-origin)"
+      fi
+
       git checkout $(params.git-ref)
 
   - name: go-test
