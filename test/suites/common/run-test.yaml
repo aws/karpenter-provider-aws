@@ -27,11 +27,12 @@ spec:
       echo "Cloning $(params.git-repo-url)"
       git clone $(params.git-repo-url).git
 
+      cd $(echo $(params.git-repo-url) | cut -d"/" -f5)
       echo "Fetching: $(params.git-ref)"
-      git fetch origin ${params.git-ref}
+      git fetch origin $(params.git-ref)
 
-      echo "Checking out git ref: $(echo ${params.git-ref} | cut -d":" -f2)"
-      git checkout origin $(echo ${params.git-ref} | cut -d":" -f2)
+      echo "Checking out git ref: $(echo $(params.git-ref) | cut -d":" -f2)"
+      git checkout $(echo $(params.git-ref)| cut -d":" -f2)
   - name: go-test
     image: public.ecr.aws/karpenter-testing/tools:latest
     workingDir: $(workspaces.ws.path)
