@@ -175,6 +175,9 @@ func (c *CloudProvider) IsMachineDrifted(ctx context.Context, machine *corev1alp
 	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: machine.Labels[v1alpha5.ProvisionerNameLabelKey]}, provisioner); err != nil {
 		return false, k8sClient.IgnoreNotFound(fmt.Errorf("getting provisioner, %w", err))
 	}
+	if provisioner.Spec.ProviderRef == nil {
+		return false, fmt.Errorf("providerRef must be defined for Drift")
+	}
 	nodeTemplate, err := c.resolveNodeTemplate(ctx, nil, &v1.ObjectReference{
 		APIVersion: provisioner.Spec.ProviderRef.APIVersion,
 		Kind:       provisioner.Spec.ProviderRef.Kind,
