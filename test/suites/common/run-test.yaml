@@ -18,7 +18,7 @@ spec:
       description: Git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release. e.g. HEAD,#PR_NUMBER
       default: ""
     - name: git-fetch-origin
-      description: Required if git-ref is about a PR - What if anything should be fetched from the origin? e.g. pull/ID/head:#1234
+      description: What should git fetch if anything? To run tests against a PR use pull/123/head:branchname, and set git-ref to branchname.
       default: ""
   workspaces:
     - name: ws
