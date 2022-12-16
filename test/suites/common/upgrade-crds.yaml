@@ -10,9 +10,7 @@ spec:
     - name: cluster-name
       description: Name of the cluster under test.
     - name: git-ref
-      description: Git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release. e.g. HEAD,#PR_NUMBER
-    - name: git-fetch-origin
-      description: Required if git-ref is about a PR - What if anything should be fetched from the origin? e.g. pull/ID/head:#1234
+      description: Git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release.
   workspaces:
     - name: ws
   steps:

@@ -15,11 +15,8 @@ spec:
       description: the git repo url can be used to run tests on a fork
       default: "https://github.com/aws/karpenter"
     - name: git-ref
-      description: Git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release. e.g. HEAD,#PR_NUMBER
       default: HEAD
-    - name: git-fetch-origin
-      description: What should git fetch if anything? To run tests against a PR use pull/123/head:branchname, and set git-ref to branchname.
-      default: ""
+      description: Git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release.
     - name: test-filter
       description: Test filter passed to `go test -run`
     - name: cleanup
@@ -39,8 +36,6 @@ spec:
       value: $(params.git-repo-url)
     - name: git-ref
       value: $(params.git-ref)
-    - name: git-fetch-origin
-      value: $(params.git-fetch-origin)
 
   - name: run-test
     taskRef:
@@ -52,8 +47,6 @@ spec:
       value: $(params.git-repo-url)
     - name: git-ref
       value: $(params.git-ref)
-    - name: git-fetch-origin
-      value: $(params.git-fetch-origin)
     - name: test-filter
       value: $(params.test-filter)
     runAfter:

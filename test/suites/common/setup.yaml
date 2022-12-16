@@ -19,11 +19,7 @@ spec:
       description: the git repo url can be used to run tests on a fork
       default: "https://github.com/aws/karpenter"
     - name: git-ref
-      description: Git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release. e.g. HEAD,#PR_NUMBER
-      default: HEAD
-    - name: git-fetch-origin
-      description: What should git fetch if anything? To run tests against a PR use pull/123/head:branchname, and set git-ref to branchname.
-      default: ""
+      description: Git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release.
   results:
     - name: account-id
     - name: region
