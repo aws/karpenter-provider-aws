@@ -30,7 +30,7 @@ spec:
       git clone $(params.git-repo-url).git
 
       git fetch origin ${params.git-ref}
-      git checkout $(echo ${params.git-ref} | cut -d":" -f2)
+      git checkout origin $(echo ${params.git-ref} | cut -d":" -f2)
 
   - name: go-test
     image: public.ecr.aws/karpenter-testing/tools:latest
