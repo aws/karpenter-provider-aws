@@ -25,9 +25,8 @@ spec:
     workingDir: $(workspaces.ws.path)
     script: |
       echo "Cloning $(params.git-repo-url)"
-      git clone $(params.git-repo-url).git
+      git clone $(params.git-repo-url).git .
 
-      cd $(echo $(params.git-repo-url) | cut -d"/" -f5)
       echo "Fetching: $(params.git-ref)"
       git fetch origin $(params.git-ref)
 
