@@ -97,9 +97,7 @@ notifyRelease() {
 pullPrivateReplica(){
   authenticatePrivateRepo
   RELEASE_IDENTIFIER=$1
-  RELEASE_TYPE=$(releaseType $RELEASE_VERSION)
   PULL_THROUGH_CACHE_PATH="${PRIVATE_PULL_THROUGH_HOST}/ecr-public/${ECR_GALLERY_NAME}/"
-
   docker pull "${PULL_THROUGH_CACHE_PATH}controller:${RELEASE_IDENTIFIER}"
 }
 
