@@ -130,9 +130,6 @@ api-code-gen: ## Auto generate files based on AWS APIs response
 stable-release-pr: ## Generate PR for stable release
 	$(WITH_GOFLAGS) ./hack/release/stable-pr.sh
 
-nightly: ## Tag the latest snapshot release with timestamp
-	./hack/release/add-snapshot-tag.sh $(shell git rev-parse HEAD) $(shell date +"%Y%m%d") "nightly"
-
 release: ## Builds and publishes stable release if env var RELEASE_VERSION is set, or a snapshot release otherwise
 	$(WITH_GOFLAGS) ./hack/release/release.sh
 
