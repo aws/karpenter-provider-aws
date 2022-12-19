@@ -227,9 +227,9 @@ spec:
                 type: array
               subnetIds:
                 description: The Subnet field will contain the current subnet ids
-                  that are availbe to the cluster under the AWSNodeTemplate Subnet
-                  selectors. The field will list of strings with the Subnet id and
-                  avaiblity zone
+                  that are available to the cluster under the AWSNodeTemplate Subnet
+                  selectors. The field will be a list of strings with the Subnet ID
+                  and availability zone.
                 items:
                   type: string
                 type: array

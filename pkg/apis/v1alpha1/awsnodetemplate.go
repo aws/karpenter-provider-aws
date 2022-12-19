@@ -18,11 +18,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// This will contain the current status of the Subnets and Security Groups of the template
+// This will contain the resource IDs used by the AWSNodeTemplate
 type AWSNodeTemplateStatus struct {
-	// The Subnet field will contain the current subnet ids that are availbe to the
-	// cluster under the AWSNodeTemplate Subnet selectors. The field will list of strings
-	// with the Subnet id and avaiblity zone
+	// The Subnet field will contain the current subnet ids that are available to the
+	// cluster under the AWSNodeTemplate Subnet selectors. The field will be a list of strings
+	// with the Subnet ID and availability zone.
 	// +optional
 	SubnetIDs []string `json:"subnetIds,omitempty"`
 	// The SecurityGroups field will contain the current Security Groups ids that are availbe to the
