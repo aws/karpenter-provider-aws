@@ -45,3 +45,8 @@ func (a SSMAPI) GetParameterWithContext(ctx context.Context, input *ssm.GetParam
 		Parameter: &ssm.Parameter{Value: aws.String(fmt.Sprintf("test-ami-id-%x", hc))},
 	}, nil
 }
+
+func (a *SSMAPI) Reset() {
+	a.GetParameterOutput = nil
+	a.WantErr = nil
+}

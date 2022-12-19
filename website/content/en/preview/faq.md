@@ -12,20 +12,19 @@ See [Configuring provisioners]({{< ref "./concepts/#configuring-provisioners" >}
 
 ### What cloud providers are supported?
 AWS is the first cloud provider supported by Karpenter, although it is designed to be used with other cloud providers as well.
-See [Cloud provider]({{< ref "./concepts/#cloud-provider" >}}) for details.
 
 ### Can I write my own cloud provider for Karpenter?
 Yes, but there is no documentation yet for it.
-Start with Karpenter's GitHub [cloudprovider](https://github.com/aws/karpenter/tree{{< githubRelRef >}}pkg/cloudprovider) documentation to see how the AWS provider is built, but there are other sections of the code that will require changes too.
+Start with Karpenter's GitHub [cloudprovider](https://github.com/aws/karpenter-core/tree{{< githubRelRef >}}pkg/cloudprovider) documentation to see how the AWS provider is built, but there are other sections of the code that will require changes too.
 
 ### What operating system nodes does Karpenter deploy?
 By default, Karpenter uses Amazon Linux 2 images.
 
 ### Can I provide my own custom operating system images?
-Karpenter has multiple mechanisms for configuring the [operating system]({{< ref "./aws/operating-systems/" >}}) for your nodes.
+Karpenter has multiple mechanisms for configuring the [operating system]({{< ref "./concepts/operating-systems/" >}}) for your nodes.
 
 ### Can Karpenter deal with workloads for mixed architecture cluster (arm vs. amd)?
-Karpenter is flexible to multi architecture configurations using [well known labels]({{< ref "./tasks/scheduling.md">}}).
+Karpenter is flexible to multi architecture configurations using [well known labels]({{< ref "./concepts/scheduling/#supported-labels">}}).
 
 ### What RBAC access is required?
 All of the required RBAC rules can be found in the helm chart template.
@@ -52,18 +51,18 @@ We expect most users will use a mixed approach in the near term and provisioner-
 
 ### How does Karpenter interact with Kubernetes features?
 * Kubernetes Cluster Autoscaler: Karpenter can work alongside cluster autoscaler.
-See [Kubernetes cluster autoscaler]({{< ref "./concepts/#kubernetes-cluster-autoscaler" >}}) for details.
+See [Kubernetes cluster autoscaler]({{< ref "./concepts/overview/#kubernetes-cluster-autoscaler" >}}) for details.
 * Kubernetes Scheduler: Karpenter focuses on scheduling pods that the Kubernetes scheduler has marked as unschedulable.
-See [Scheduling]({{< ref "./concepts/#scheduling" >}}) for details on how Karpenter interacts with the Kubernetes scheduler.
+See [Scheduling]({{< ref "./concepts/scheduling" >}}) for details on how Karpenter interacts with the Kubernetes scheduler.
 
 ## Provisioning
 
 ### What features does the Karpenter provisioner support?
-See [Provisioner API]({{< ref "./provisioner" >}}) for provisioner examples and descriptions of features.
+See [Provisioner API]({{< ref "./concepts/provisioning" >}}) for provisioner examples and descriptions of features.
 
 ### Can I create multiple (team-based) provisioners on a cluster?
 Yes, provisioners can identify multiple teams based on labels.
-See [Provisioner API]({{< ref "./provisioner" >}}) for details.
+See [Provisioner API]({{< ref "./concepts/provisioning" >}}) for details.
 
 ### If multiple provisioners are defined, which will my pod use?
 
@@ -90,14 +89,14 @@ However, you can use Session Manager (SSM) or EC2 Instance Connect to gain shell
 See [Node NotReady]({{< ref "./troubleshooting/#node-notready" >}}) troubleshooting for an example of starting an SSM session from the command line or [EC2 Instance Connect](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-set-up.html) documentation to connect to nodes using SSH.
 
 Though not recommended, if you need to access Karpenter-managed nodes without AWS credentials, you can add SSH keys using AWSNodeTemplate.
-See [Custom User Data]({{< ref "./aws/operating-systems/" >}}) for details.
+See [Custom User Data]({{< ref "./concepts/operating-systems/" >}}) for details.
 
 ### Can I set total limits of CPU and memory for a provisioner?
 Yes, the setting is provider-specific.
-See examples in [Accelerators, GPU]({{< ref "./aws/provisioning/#accelerators-gpu" >}}) Karpenter documentation.
+See examples in [Accelerators, GPU]({{< ref "./concepts/node-templates/#accelerators-gpu" >}}) Karpenter documentation.
 
 ### Can I mix spot and on-demand EC2 run types?
-Yes, see [Example Provisioner Resource]({{< ref "./provisioner/#example-provisioner-resource" >}}) for an example.
+Yes, see [Provisioning]({{< ref "./concepts/provisioning/" >}}) for an example.
 
 ### Can I restrict EC2 instance types?
 
@@ -117,7 +116,7 @@ The EC2 fleet API attempts to provision the instance type based on an allocation
 If you are using the on-demand capacity type, then Karpenter uses the `lowest-price` allocation strategy.
 So fleet will provision the lowest priced instance type it can get from the 60 instance types Karpenter passed to the EC2 fleet API.
 If the instance type is unavailable for some reason, then fleet will move on to the next cheapest instance type.
-If you are using the spot capacity type, Karpenter uses the price-capacity-optimized allocation strategy. This tells fleet to find the instance type that EC2 has the most capacity for while also considering price. This allocation strategy will balance cost and decrease the probability of a spot interruption happening in the near term. 
+If you are using the spot capacity type, Karpenter uses the price-capacity-optimized allocation strategy. This tells fleet to find the instance type that EC2 has the most capacity for while also considering price. This allocation strategy will balance cost and decrease the probability of a spot interruption happening in the near term.
 See [Choose the appropriate allocation strategy](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-fleet-allocation-strategy.html#ec2-fleet-allocation-use-cases) for information on fleet optimization.
 
 ### What if there is no Spot capacity? Will Karpenter use On-Demand?
@@ -135,21 +134,29 @@ Today, Karpenter will warn you if the number of instances in your Provisioner is
 Technically, Karpenter has a concept of an “offering” for each instance type, which is a combination of zone and capacity type (equivalent in the AWS cloud provider to an EC2 purchase option – Spot or On-Demand).
 Whenever the Fleet API returns an insufficient capacity error for Spot instances, those particular offerings are temporarily removed from consideration (across the entire provisioner) so that Karpenter can make forward progress with different options.
 
+## Scheduling
+
+### When using preferred scheduling constraints, Karpenter launches the correct number of nodes at first.  Why do they then sometimes get consolidated immediately? 
+
+`kube-scheduler` is responsible for the scheduling of pods, while Karpenter launches the capacity. When using any sort of preferred scheduling constraint, `kube-scheduler` will schedule pods to nodes anytime it is possible.  
+
+As an example, suppose you scale up a deployment with a preferred zonal topology spread and none of the newly created pods can run on your existing cluster.  Karpenter will then launch multiple nodes to satisfy that preference.  If a) one of the nodes becomes ready slightly faster than other nodes and b) has enough capacity for multiple pods, `kube-scheduler` will schedule as many pods as possible to the single ready node so they won't remain unschedulable. It doesn't consider the in-flight capacity that will be ready in a few seconds.  If all of the pods fit on the single node, the remaining nodes that Karpenter has launched aren't needed when they become ready and consolidation will delete them.
+
 ## Workloads
 
 ### How can someone deploying pods take advantage of Karpenter?
 
-See [Application developer]({{< ref "./concepts/#application-developer" >}}) for descriptions of how Karpenter matches nodes with pod requests.
+See [Application developer]({{< ref "./concepts/overview/#application-developer" >}}) for descriptions of how Karpenter matches nodes with pod requests.
 
 ### Can I use Karpenter with EBS disks per availability zone?
-Yes.  See [Persistent Volume Topology]({{< ref "./tasks/scheduling#persistent-volume-topology" >}}) for details.
+Yes.  See [Persistent Volume Topology]({{< ref "./concepts/scheduling#persistent-volume-topology" >}}) for details.
 
 ### Can I set `--max-pods` on my nodes?
 Not yet.
 
 ## Deprovisioning
 ### How does Karpenter deprovision nodes?
-See [Deprovisioning nodes]({{< ref "./tasks/deprovisioning" >}}) for information on how Karpenter deprovisions nodes.
+See [Deprovisioning nodes]({{< ref "./concepts/deprovisioning" >}}) for information on how Karpenter deprovisions nodes.
 
 ## Upgrading
 
@@ -171,6 +178,23 @@ error: error validating "provisioner.yaml": error validating data: ValidationErr
 ```
 
 The `startupTaints` parameter was added in v0.10.0.  Helm upgrades do not upgrade the CRD describing the provisioner, so it must be done manually. For specific details, see the [Upgrade Guide]({{< ref "./upgrade-guide/#upgrading-to-v0100" >}})
+
+## Interruption Handling
+
+### Should I use Karpenter interruption handling alongside Node Termination Handler?
+No. We recommend against using Node Termination Handler alongside Karpenter due to conflicts that could occur from the two components handling the same events.
+
+### Why should I migrate from Node Termination Handler?
+Karpenter's native interruption handling offers two main benefits over the standalone Node Termination Handler component:
+1. You don't have to manage and maintain a separate component to exclusively handle interruption events.
+2. Karpenter's native interruption handling coordinates with other deprovisoining so that consolidation, expiration, etc. can be aware of interruption events and vice-versa.
+
+### Why am I receiving QueueNotFound errors when I set `aws.interruptionQueueName`?
+Karpenter requires a queue to exist that receives event messages from EC2 and health services in order to handle interruption messages properly for nodes.
+
+Details on the types of events that Karpenter handles can be found in the [Interruption Handling Docs]({{< ref "./concepts/deprovisioning/#interruption" >}}).
+
+Details on provisioning the SQS queue and EventBridge rules can be found in the [Getting Started Guide]({{< ref "./getting-started/getting-started-with-eksctl/#create-the-karpenter-infrastructure-and-iam-roles" >}}).
 
 ## Consolidation
 

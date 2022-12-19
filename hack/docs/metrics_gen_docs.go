@@ -68,7 +68,7 @@ func main() {
 	fmt.Fprintf(f, `---
 title: "Metrics"
 linkTitle: "Metrics"
-weight: 100
+weight: 12
 
 description: >
   Inspect Karpenter Metrics
@@ -76,7 +76,7 @@ description: >
 `)
 	fmt.Fprintf(f, "<!-- this document is generated from hack/docs/metrics_gen_docs.go -->\n")
 	fmt.Fprintf(f, "Karpenter makes several metrics available in Prometheus format to allow monitoring cluster provisioning status. "+
-		"These metrics are available by default at `karpenter.karpenter.svc.cluster.local:8080/metrics` configurable via the `METRICS_PORT` environment variable documented [here](../configuration)\n")
+		"These metrics are available by default at `karpenter.karpenter.svc.cluster.local:8080/metrics` configurable via the `METRICS_PORT` environment variable documented [here](../globalsettings)\n")
 	previousSubsystem := ""
 	for _, metric := range allMetrics {
 		if metric.subsystem != previousSubsystem {

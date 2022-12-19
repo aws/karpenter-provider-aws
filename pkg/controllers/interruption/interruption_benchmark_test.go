@@ -52,8 +52,7 @@ import (
 	"github.com/aws/karpenter/pkg/test"
 
 	coresettings "github.com/aws/karpenter-core/pkg/apis/config/settings"
-	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter-core/pkg/cloudprovider/fake"
+	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 )
 
@@ -113,8 +112,6 @@ func benchmarkNotificationController(b *testing.B, messageCount int) {
 
 	// Load all the fundamental components before setting up the controllers
 	recorder = coretest.NewEventRecorder()
-	cloudProvider = &fake.CloudProvider{}
-
 	unavailableOfferingsCache = awscache.NewUnavailableOfferings(cache.New(awscache.UnavailableOfferingsTTL, awscontext.CacheCleanupInterval))
 
 	// Set-up the controllers

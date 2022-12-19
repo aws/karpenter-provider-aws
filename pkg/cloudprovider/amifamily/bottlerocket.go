@@ -28,7 +28,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 
-	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 )
@@ -39,20 +39,20 @@ type Bottlerocket struct {
 }
 
 // SSMAlias returns the AMI Alias to query SSM
-func (b Bottlerocket) SSMAlias(version string, instanceType cloudprovider.InstanceType) string {
+func (b Bottlerocket) SSMAlias(version string, instanceType *cloudprovider.InstanceType) string {
 	arch := "x86_64"
 	amiSuffix := ""
-	if !resources.IsZero(instanceType.Resources()[v1alpha1.ResourceNVIDIAGPU]) {
+	if !resources.IsZero(instanceType.Capacity[v1alpha1.ResourceNVIDIAGPU]) {
 		amiSuffix = "-nvidia"
 	}
-	if instanceType.Requirements().Get(v1.LabelArchStable).Has(v1alpha5.ArchitectureArm64) {
+	if instanceType.Requirements.Get(v1.LabelArchStable).Has(v1alpha5.ArchitectureArm64) {
 		arch = v1alpha5.ArchitectureArm64
 	}
 	return fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s%s/%s/latest/image_id", version, amiSuffix, arch)
 }
 
 // UserData returns the default userdata script for the AMI Family
-func (b Bottlerocket) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []v1.Taint, labels map[string]string, caBundle *string, _ []cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper {
+func (b Bottlerocket) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []v1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper {
 	return bootstrap.Bottlerocket{
 		Options: bootstrap.Options{
 			ClusterName:             b.Options.ClusterName,

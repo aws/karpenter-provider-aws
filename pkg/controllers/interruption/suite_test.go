@@ -39,8 +39,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	coresettings "github.com/aws/karpenter-core/pkg/apis/config/settings"
-	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
-	corefake "github.com/aws/karpenter-core/pkg/cloudprovider/fake"
+	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
@@ -69,9 +68,7 @@ const (
 
 var ctx context.Context
 var env *coretest.Environment
-var nodeTemplate *v1alpha1.AWSNodeTemplate
 var sqsapi *fake.SQSAPI
-var cloudProvider *corefake.CloudProvider
 var sqsProvider *interruption.SQSProvider
 var unavailableOfferingsCache *awscache.UnavailableOfferings
 var recorder *coretest.EventRecorder
@@ -87,14 +84,8 @@ func TestAPIs(t *testing.T) {
 var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(scheme.Scheme, apis.CRDs...)
 	fakeClock = &clock.FakeClock{}
-	cloudProvider = &corefake.CloudProvider{}
-
-	nodeTemplate = test.AWSNodeTemplate()
-	ExpectApplied(ctx, env.Client, nodeTemplate)
-
 	recorder = coretest.NewEventRecorder()
 	unavailableOfferingsCache = awscache.NewUnavailableOfferings(cache.New(awscache.UnavailableOfferingsTTL, awscontext.CacheCleanupInterval))
-
 	sqsapi = &fake.SQSAPI{}
 })
 
@@ -117,7 +108,6 @@ var _ = BeforeEach(func() {
 var _ = AfterEach(func() {
 	sqsapi.Reset()
 	ExpectCleanedUp(ctx, env.Client)
-	ExpectDeleted(ctx, env.Client, nodeTemplate)
 })
 
 var _ = Describe("AWSInterruption", func() {

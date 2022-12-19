@@ -20,7 +20,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	v1 "k8s.io/api/core/v1"
 
-	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/utils/resources"
@@ -34,11 +34,11 @@ type AL2 struct {
 }
 
 // SSMAlias returns the AMI Alias to query SSM
-func (a AL2) SSMAlias(version string, instanceType cloudprovider.InstanceType) string {
+func (a AL2) SSMAlias(version string, instanceType *cloudprovider.InstanceType) string {
 	amiSuffix := ""
-	if !resources.IsZero(instanceType.Resources()[v1alpha1.ResourceNVIDIAGPU]) || !resources.IsZero(instanceType.Resources()[v1alpha1.ResourceAWSNeuron]) {
+	if !resources.IsZero(instanceType.Capacity[v1alpha1.ResourceNVIDIAGPU]) || !resources.IsZero(instanceType.Capacity[v1alpha1.ResourceAWSNeuron]) {
 		amiSuffix = "-gpu"
-	} else if instanceType.Requirements().Get(v1.LabelArchStable).Has(v1alpha5.ArchitectureArm64) {
+	} else if instanceType.Requirements.Get(v1.LabelArchStable).Has(v1alpha5.ArchitectureArm64) {
 		amiSuffix = fmt.Sprintf("-%s", v1alpha5.ArchitectureArm64)
 	}
 	return fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2%s/recommended/image_id", version, amiSuffix)
@@ -48,8 +48,8 @@ func (a AL2) SSMAlias(version string, instanceType cloudprovider.InstanceType) s
 // even if elements of those inputs are in differing orders,
 // guaranteeing it won't cause spurious hash differences.
 // AL2 userdata also works on Ubuntu
-func (a AL2) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []v1.Taint, labels map[string]string, caBundle *string, instanceTypes []cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper {
-	containerRuntime := aws.String(a.containerRuntime(instanceTypes))
+func (a AL2) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []v1.Taint, labels map[string]string, caBundle *string, instanceTypes []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper {
+	containerRuntime := aws.String("containerd")
 	if kubeletConfig != nil && kubeletConfig.ContainerRuntime != nil {
 		containerRuntime = kubeletConfig.ContainerRuntime
 	}
@@ -66,17 +66,6 @@ func (a AL2) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []v1.
 			CustomUserData:          customUserData,
 		},
 	}
-}
-
-// containerRuntime will return the proper container runtime based on the capabilities of the
-// instanceTypes passed in since the AL2 EKS Optimized AMI does not support inferentia instances w/ containerd.
-// this should be removed once the EKS Optimized AMI supports all GPUs.
-func (a AL2) containerRuntime(instanceTypes []cloudprovider.InstanceType) string {
-	instanceResources := instanceTypes[0].Resources()
-	if resources.IsZero(instanceResources[v1alpha1.ResourceAWSNeuron]) {
-		return "containerd"
-	}
-	return "dockerd"
 }
 
 func (a AL2) defaultIPv6DNS(kubeletConfig *v1alpha5.KubeletConfiguration) *v1alpha5.KubeletConfiguration {

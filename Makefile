@@ -83,7 +83,7 @@ coverage:
 verify: tidy download ## Verify code. Includes dependencies, linting, formatting, etc
 	go generate ./...
 	hack/boilerplate.sh
-	curl https://raw.githubusercontent.com/aws/karpenter-core/v0.0.1/chart/crds/karpenter.sh_provisioners.yaml > pkg/apis/crds/karpenter.sh_provisioners.yaml
+	curl https://raw.githubusercontent.com/aws/karpenter-core/main/pkg/apis/crds/karpenter.sh_provisioners.yaml > pkg/apis/crds/karpenter.sh_provisioners.yaml
 	$(foreach dir,$(MOD_DIRS),cd $(dir) && golangci-lint run $(newline))
 	@git diff --quiet ||\
 		{ echo "New file modification detected in the Git working tree. Please check in before commit."; git --no-pager diff --name-only | uniq | awk '{print "  - " $$0}'; \
@@ -103,7 +103,7 @@ setup: ## Sets up the IAM roles needed prior to deploying the karpenter-controll
 	CLUSTER_NAME=${CLUSTER_NAME} ./$(GETTING_STARTED_SCRIPT_DIR)/add-roles.sh $(KARPENTER_VERSION)
 
 build: ## Build the Karpenter controller images using ko build
-	$(eval CONTROLLER_IMG=$(shell $(WITH_GOFLAGS) ko build -B github.com/aws/karpenter/cmd/controller))
+	$(eval CONTROLLER_IMG=$(shell $(WITH_GOFLAGS) KO_DOCKER_REPO="$(KO_DOCKER_REPO)" ko build -B github.com/aws/karpenter/cmd/controller))
 
 apply: build ## Deploy the controller from the current state of your git repository into your ~/.kube/config cluster
 	helm upgrade --install karpenter charts/karpenter --namespace ${SYSTEM_NAMESPACE} \
@@ -119,9 +119,9 @@ delete: ## Delete the controller from your ~/.kube/config cluster
 	helm uninstall karpenter --namespace karpenter
 
 docgen: ## Generate docs
-	go run hack/docs/metrics_gen_docs.go pkg/ $(KARPENTER_CORE_DIR)/pkg website/content/en/preview/tasks/metrics.md
-	go run hack/docs/instancetypes_gen_docs.go website/content/en/preview/AWS/instance-types.md
-	go run hack/docs/configuration_gen_docs.go website/content/en/preview/tasks/globalsettings.md
+	go run hack/docs/metrics_gen_docs.go pkg/ $(KARPENTER_CORE_DIR)/pkg website/content/en/preview/concepts/metrics.md
+	go run hack/docs/instancetypes_gen_docs.go website/content/en/preview/concepts/instance-types.md
+	go run hack/docs/configuration_gen_docs.go website/content/en/preview/concepts/globalsettings.md
 	cd charts/karpenter && helm-docs
 
 api-code-gen: ## Auto generate files based on AWS APIs response
@@ -130,11 +130,11 @@ api-code-gen: ## Auto generate files based on AWS APIs response
 stable-release-pr: ## Generate PR for stable release
 	$(WITH_GOFLAGS) ./hack/release/stable-pr.sh
 
-nightly: ## Tag the latest snapshot release with timestamp
-	./hack/release/add-snapshot-tag.sh $(shell git rev-parse HEAD) $(shell date +"%Y%m%d") "nightly"
-
 release: ## Builds and publishes stable release if env var RELEASE_VERSION is set, or a snapshot release otherwise
 	$(WITH_GOFLAGS) ./hack/release/release.sh
+
+release-crd: ## Packages and publishes a karpenter-crd helm chart
+	$(WITH_GOFLAGS) ./hack/release/release-crd.sh
 
 prepare-website: ## prepare the website for release
 	./hack/release/prepare-website.sh
@@ -160,7 +160,7 @@ download: ## Recursively "go mod download" on all directories where go.mod exist
 update-core: ## Update karpenter-core to latest
 	go get -u github.com/aws/karpenter-core
 	go mod tidy
-	cd test/ && go get -u github.com/aws/karpenter-core && go mod tidy 
+	cd test/ && go get -u github.com/aws/karpenter-core && go mod tidy
 
 .PHONY: help dev ci release test battletest e2etests verify tidy download docgen apply delete toolchain licenses vulncheck issues website nightly snapshot
 

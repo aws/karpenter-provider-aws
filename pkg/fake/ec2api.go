@@ -28,7 +28,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/samber/lo"
 
-	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 
 	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter-core/pkg/utils/atomic"
@@ -53,10 +53,10 @@ type EC2Behavior struct {
 	DescribeAvailabilityZonesOutput     AtomicPtr[ec2.DescribeAvailabilityZonesOutput]
 	DescribeSpotPriceHistoryInput       AtomicPtr[ec2.DescribeSpotPriceHistoryInput]
 	DescribeSpotPriceHistoryOutput      AtomicPtr[ec2.DescribeSpotPriceHistoryOutput]
-	CalledWithCreateFleetInput          AtomicPtrSlice[ec2.CreateFleetInput]
+	CreateFleetBehavior                 MockedFunction[ec2.CreateFleetInput, ec2.CreateFleetOutput]
 	CalledWithCreateLaunchTemplateInput AtomicPtrSlice[ec2.CreateLaunchTemplateInput]
-	CreateFleetOutput                   AtomicPtr[ec2.CreateFleetOutput]
 	CalledWithDescribeImagesInput       AtomicPtrSlice[ec2.DescribeImagesInput]
+	CalledWithDescribeInstancesInput    AtomicPtrSlice[ec2.DescribeInstancesInput]
 	Instances                           sync.Map
 	LaunchTemplates                     sync.Map
 	InsufficientCapacityPools           atomic.Slice[CapacityPool]
@@ -82,10 +82,10 @@ func (e *EC2API) Reset() {
 	e.DescribeInstanceTypesOutput.Reset()
 	e.DescribeInstanceTypeOfferingsOutput.Reset()
 	e.DescribeAvailabilityZonesOutput.Reset()
-	e.CreateFleetOutput.Reset()
-	e.CalledWithCreateFleetInput.Reset()
+	e.CreateFleetBehavior.Reset()
 	e.CalledWithCreateLaunchTemplateInput.Reset()
 	e.CalledWithDescribeImagesInput.Reset()
+	e.CalledWithDescribeInstancesInput.Reset()
 	e.DescribeSpotPriceHistoryInput.Reset()
 	e.DescribeSpotPriceHistoryOutput.Reset()
 	e.Instances.Range(func(k, v any) bool {
@@ -102,16 +102,6 @@ func (e *EC2API) Reset() {
 
 // nolint: gocyclo
 func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFleetInput, _ ...request.Option) (*ec2.CreateFleetOutput, error) {
-	if !e.NextError.IsNil() {
-		defer e.NextError.Reset()
-		return nil, e.NextError.Get()
-	}
-	e.CalledWithCreateFleetInput.Add(input)
-
-	if !e.CreateFleetOutput.IsNil() {
-		return e.CreateFleetOutput.Clone(), nil
-	}
-
 	if input.LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName == nil {
 		return nil, fmt.Errorf("missing launch template name")
 	}
@@ -180,7 +170,7 @@ func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFlee
 			},
 		})
 	}
-	return result, nil
+	return e.CreateFleetBehavior.WithDefault(result).Invoke(input)
 }
 
 func (e *EC2API) CreateLaunchTemplateWithContext(_ context.Context, input *ec2.CreateLaunchTemplateInput, _ ...request.Option) (*ec2.CreateLaunchTemplateOutput, error) {
@@ -202,7 +192,7 @@ func (e *EC2API) DescribeInstancesWithContext(_ context.Context, input *ec2.Desc
 	if !e.DescribeInstancesOutput.IsNil() {
 		return e.DescribeInstancesOutput.Clone(), nil
 	}
-
+	e.CalledWithDescribeInstancesInput.Add(input)
 	instances := []*ec2.Instance{}
 	for _, instanceID := range input.InstanceIds {
 		instance, _ := e.Instances.Load(*instanceID)
@@ -360,242 +350,7 @@ func (e *EC2API) DescribeInstanceTypesPagesWithContext(_ context.Context, _ *ec2
 		fn(e.DescribeInstanceTypesOutput.Clone(), false)
 		return nil
 	}
-	fn(&ec2.DescribeInstanceTypesOutput{
-		InstanceTypes: []*ec2.InstanceTypeInfo{
-			{
-				InstanceType:                  aws.String("t3.large"),
-				SupportedUsageClasses:         DefaultSupportedUsageClasses,
-				SupportedVirtualizationTypes:  []*string{aws.String("hvm")},
-				BurstablePerformanceSupported: aws.Bool(true),
-				BareMetal:                     aws.Bool(false),
-				Hypervisor:                    aws.String("nitro"),
-				ProcessorInfo: &ec2.ProcessorInfo{
-					SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
-				},
-				VCpuInfo: &ec2.VCpuInfo{
-					DefaultCores: aws.Int64(1),
-					DefaultVCpus: aws.Int64(2),
-				},
-				MemoryInfo: &ec2.MemoryInfo{
-					SizeInMiB: aws.Int64(8 * 1024),
-				},
-				NetworkInfo: &ec2.NetworkInfo{
-					MaximumNetworkInterfaces:  aws.Int64(3),
-					Ipv4AddressesPerInterface: aws.Int64(12),
-				},
-			},
-			{
-				InstanceType:                  aws.String("m5.large"),
-				SupportedUsageClasses:         DefaultSupportedUsageClasses,
-				SupportedVirtualizationTypes:  []*string{aws.String("hvm")},
-				BurstablePerformanceSupported: aws.Bool(false),
-				BareMetal:                     aws.Bool(false),
-				Hypervisor:                    aws.String("nitro"),
-				ProcessorInfo: &ec2.ProcessorInfo{
-					SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
-				},
-				VCpuInfo: &ec2.VCpuInfo{
-					DefaultCores: aws.Int64(1),
-					DefaultVCpus: aws.Int64(2),
-				},
-				MemoryInfo: &ec2.MemoryInfo{
-					SizeInMiB: aws.Int64(8 * 1024),
-				},
-				NetworkInfo: &ec2.NetworkInfo{
-					MaximumNetworkInterfaces:  aws.Int64(3),
-					Ipv4AddressesPerInterface: aws.Int64(30),
-				},
-			},
-			{
-				InstanceType:                  aws.String("m5.xlarge"),
-				SupportedUsageClasses:         DefaultSupportedUsageClasses,
-				SupportedVirtualizationTypes:  []*string{aws.String("hvm")},
-				BurstablePerformanceSupported: aws.Bool(false),
-				BareMetal:                     aws.Bool(false),
-				Hypervisor:                    aws.String("nitro"),
-				ProcessorInfo: &ec2.ProcessorInfo{
-					SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
-				},
-				VCpuInfo: &ec2.VCpuInfo{
-					DefaultCores: aws.Int64(2),
-					DefaultVCpus: aws.Int64(4),
-				},
-				MemoryInfo: &ec2.MemoryInfo{
-					SizeInMiB: aws.Int64(16 * 1024),
-				},
-				NetworkInfo: &ec2.NetworkInfo{
-					MaximumNetworkInterfaces:  aws.Int64(4),
-					Ipv4AddressesPerInterface: aws.Int64(15),
-				},
-			},
-			{
-				InstanceType:                  aws.String("p3.8xlarge"),
-				SupportedUsageClasses:         DefaultSupportedUsageClasses,
-				SupportedVirtualizationTypes:  []*string{aws.String("hvm")},
-				BurstablePerformanceSupported: aws.Bool(false),
-				BareMetal:                     aws.Bool(false),
-				Hypervisor:                    aws.String("xen"),
-				ProcessorInfo: &ec2.ProcessorInfo{
-					SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
-				},
-				VCpuInfo: &ec2.VCpuInfo{
-					DefaultCores: aws.Int64(16),
-					DefaultVCpus: aws.Int64(32),
-				},
-				MemoryInfo: &ec2.MemoryInfo{
-					SizeInMiB: aws.Int64(249856),
-				},
-				GpuInfo: &ec2.GpuInfo{
-					Gpus: []*ec2.GpuDeviceInfo{{
-						Name:         aws.String("Nvidia V100"), // In reality this value is `V100`, but this exercises lower kabob casing
-						Manufacturer: aws.String("NVIDIA"),
-						Count:        aws.Int64(4),
-						MemoryInfo: &ec2.GpuDeviceMemoryInfo{
-							SizeInMiB: aws.Int64(16384),
-						},
-					}},
-				},
-				NetworkInfo: &ec2.NetworkInfo{
-					MaximumNetworkInterfaces:  aws.Int64(4),
-					Ipv4AddressesPerInterface: aws.Int64(60),
-				},
-			},
-			{
-				InstanceType:                  aws.String("g4dn.8xlarge"),
-				SupportedUsageClasses:         DefaultSupportedUsageClasses,
-				SupportedVirtualizationTypes:  []*string{aws.String("hvm")},
-				BurstablePerformanceSupported: aws.Bool(false),
-				BareMetal:                     aws.Bool(false),
-				Hypervisor:                    aws.String("nitro"),
-				ProcessorInfo: &ec2.ProcessorInfo{
-					SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
-				},
-				VCpuInfo: &ec2.VCpuInfo{
-					DefaultCores: aws.Int64(16),
-					DefaultVCpus: aws.Int64(32),
-				},
-				MemoryInfo: &ec2.MemoryInfo{
-					SizeInMiB: aws.Int64(131072),
-				},
-				GpuInfo: &ec2.GpuInfo{
-					Gpus: []*ec2.GpuDeviceInfo{{
-						Name:         aws.String("t4"),
-						Manufacturer: aws.String("NVIDIA"),
-						Count:        aws.Int64(1),
-						MemoryInfo: &ec2.GpuDeviceMemoryInfo{
-							SizeInMiB: aws.Int64(16384),
-						},
-					}},
-				},
-				NetworkInfo: &ec2.NetworkInfo{
-					MaximumNetworkInterfaces:  aws.Int64(4),
-					Ipv4AddressesPerInterface: aws.Int64(15),
-				},
-				InstanceStorageInfo: &ec2.InstanceStorageInfo{
-					NvmeSupport:   aws.String("required"),
-					TotalSizeInGB: aws.Int64(900),
-				},
-			},
-			{
-				InstanceType:                  aws.String("c6g.large"),
-				SupportedUsageClasses:         DefaultSupportedUsageClasses,
-				SupportedVirtualizationTypes:  []*string{aws.String("hvm")},
-				BurstablePerformanceSupported: aws.Bool(false),
-				BareMetal:                     aws.Bool(false),
-				Hypervisor:                    aws.String("nitro"),
-				ProcessorInfo: &ec2.ProcessorInfo{
-					SupportedArchitectures: aws.StringSlice([]string{v1alpha5.ArchitectureArm64}),
-				},
-				VCpuInfo: &ec2.VCpuInfo{
-					DefaultCores: aws.Int64(2),
-					DefaultVCpus: aws.Int64(2),
-				},
-				MemoryInfo: &ec2.MemoryInfo{
-					SizeInMiB: aws.Int64(4 * 1024),
-				},
-				NetworkInfo: &ec2.NetworkInfo{
-					MaximumNetworkInterfaces:  aws.Int64(4),
-					Ipv4AddressesPerInterface: aws.Int64(60),
-				},
-			},
-			{
-				InstanceType:                  aws.String("inf1.2xlarge"),
-				SupportedUsageClasses:         DefaultSupportedUsageClasses,
-				SupportedVirtualizationTypes:  []*string{aws.String("hvm")},
-				BurstablePerformanceSupported: aws.Bool(false),
-				BareMetal:                     aws.Bool(false),
-				Hypervisor:                    aws.String("nitro"),
-				ProcessorInfo: &ec2.ProcessorInfo{
-					SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
-				},
-				VCpuInfo: &ec2.VCpuInfo{
-					DefaultCores: aws.Int64(4),
-					DefaultVCpus: aws.Int64(8),
-				},
-				MemoryInfo: &ec2.MemoryInfo{
-					SizeInMiB: aws.Int64(16384),
-				},
-				InferenceAcceleratorInfo: &ec2.InferenceAcceleratorInfo{
-					Accelerators: []*ec2.InferenceDeviceInfo{{
-						Manufacturer: aws.String("AWS"),
-						Count:        aws.Int64(1),
-					}}},
-				NetworkInfo: &ec2.NetworkInfo{
-					MaximumNetworkInterfaces:  aws.Int64(4),
-					Ipv4AddressesPerInterface: aws.Int64(60),
-				},
-			},
-			{
-				InstanceType:                  aws.String("inf1.6xlarge"),
-				SupportedUsageClasses:         DefaultSupportedUsageClasses,
-				SupportedVirtualizationTypes:  []*string{aws.String("hvm")},
-				BurstablePerformanceSupported: aws.Bool(false),
-				BareMetal:                     aws.Bool(false),
-				Hypervisor:                    aws.String("nitro"),
-				ProcessorInfo: &ec2.ProcessorInfo{
-					SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
-				},
-				VCpuInfo: &ec2.VCpuInfo{
-					DefaultCores: aws.Int64(12),
-					DefaultVCpus: aws.Int64(24),
-				},
-				MemoryInfo: &ec2.MemoryInfo{
-					SizeInMiB: aws.Int64(49152),
-				},
-				InferenceAcceleratorInfo: &ec2.InferenceAcceleratorInfo{
-					Accelerators: []*ec2.InferenceDeviceInfo{{
-						Manufacturer: aws.String("AWS"),
-						Count:        aws.Int64(4),
-					}}},
-				NetworkInfo: &ec2.NetworkInfo{
-					MaximumNetworkInterfaces:  aws.Int64(4),
-					Ipv4AddressesPerInterface: aws.Int64(60),
-				},
-			},
-			{
-				InstanceType:                  aws.String("m5.metal"),
-				SupportedUsageClasses:         DefaultSupportedUsageClasses,
-				SupportedVirtualizationTypes:  []*string{aws.String("hvm")},
-				BurstablePerformanceSupported: aws.Bool(false),
-				BareMetal:                     aws.Bool(true),
-				Hypervisor:                    nil,
-				ProcessorInfo: &ec2.ProcessorInfo{
-					SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
-				},
-				VCpuInfo: &ec2.VCpuInfo{
-					DefaultCores: aws.Int64(48),
-					DefaultVCpus: aws.Int64(96),
-				},
-				MemoryInfo: &ec2.MemoryInfo{
-					SizeInMiB: aws.Int64(393216),
-				},
-				NetworkInfo: &ec2.NetworkInfo{
-					MaximumNetworkInterfaces:  aws.Int64(15),
-					Ipv4AddressesPerInterface: aws.Int64(50),
-				},
-			},
-		},
-	}, false)
+	fn(defaultDescribeInstanceTypesOutput, false)
 	return nil
 }
 
@@ -648,6 +403,14 @@ func (e *EC2API) DescribeInstanceTypeOfferingsPagesWithContext(_ context.Context
 			},
 			{
 				InstanceType: aws.String("p3.8xlarge"),
+				Location:     aws.String("test-zone-1b"),
+			},
+			{
+				InstanceType: aws.String("dl1.24xlarge"),
+				Location:     aws.String("test-zone-1a"),
+			},
+			{
+				InstanceType: aws.String("dl1.24xlarge"),
 				Location:     aws.String("test-zone-1b"),
 			},
 			{

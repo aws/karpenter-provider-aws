@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 	"time"
@@ -34,16 +35,17 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 
+	corev1alpha1 "github.com/aws/karpenter-core/pkg/apis/v1alpha1"
 	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	awserrors "github.com/aws/karpenter/pkg/errors"
 	"github.com/aws/karpenter/pkg/utils"
 
-	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/utils/resources"
+
+	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/scheduling"
-	"github.com/aws/karpenter-core/pkg/utils/functional"
-	"github.com/aws/karpenter-core/pkg/utils/resources"
 )
 
 var (
@@ -72,17 +74,18 @@ func NewInstanceProvider(ctx context.Context, ec2api ec2iface.EC2API, instanceTy
 // instanceTypes should be sorted by priority for spot capacity type.
 // If spot is not used, the instanceTypes are not required to be sorted
 // because we are using ec2 fleet's lowest-price OD allocation strategy
-func (p *InstanceProvider) Create(ctx context.Context, provider *v1alpha1.AWS, nodeRequest *cloudprovider.NodeRequest) (*v1.Node, error) {
-	nodeRequest.InstanceTypeOptions = p.prioritizeInstanceTypes(nodeRequest.InstanceTypeOptions)
-	if len(nodeRequest.InstanceTypeOptions) > MaxInstanceTypes {
-		nodeRequest.InstanceTypeOptions = nodeRequest.InstanceTypeOptions[0:MaxInstanceTypes]
+func (p *InstanceProvider) Create(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, machine *corev1alpha1.Machine, instanceTypes []*cloudprovider.InstanceType) (*v1.Node, error) {
+	instanceTypes = filterInstanceTypes(instanceTypes)
+	instanceTypes = orderInstanceTypesByPrice(instanceTypes, scheduling.NewNodeSelectorRequirements(machine.Spec.Requirements...))
+	if len(instanceTypes) > MaxInstanceTypes {
+		instanceTypes = instanceTypes[0:MaxInstanceTypes]
 	}
 
-	id, err := p.launchInstance(ctx, provider, nodeRequest)
+	id, err := p.launchInstance(ctx, nodeTemplate, machine, instanceTypes)
 	if awserrors.IsLaunchTemplateNotFound(err) {
 		// retry once if launch template is not found. This allows karpenter to generate a new LT if the
 		// cache was out-of-sync on the first try
-		id, err = p.launchInstance(ctx, provider, nodeRequest)
+		id, err = p.launchInstance(ctx, nodeTemplate, machine, instanceTypes)
 	}
 	if err != nil {
 		return nil, err
@@ -105,7 +108,7 @@ func (p *InstanceProvider) Create(ctx context.Context, provider *v1alpha1.AWS, n
 		"capacity-type", getCapacityType(instance)).Infof("launched new instance")
 
 	// Convert Instance to Node
-	return p.instanceToNode(instance, nodeRequest.InstanceTypeOptions), nil
+	return p.instanceToNode(instance, instanceTypes), nil
 }
 
 func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
@@ -115,12 +118,12 @@ func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
 		return fmt.Errorf("getting instance ID for node %s, %w", node.Name, err)
 	}
 	if _, err = p.ec2api.TerminateInstancesWithContext(ctx, &ec2.TerminateInstancesInput{
-		InstanceIds: []*string{id},
+		InstanceIds: []*string{aws.String(id)},
 	}); err != nil {
 		if awserrors.IsNotFound(err) {
 			return nil
 		}
-		if _, errMsg := p.getInstance(ctx, aws.StringValue(id)); err != nil {
+		if _, errMsg := p.getInstance(ctx, id); err != nil {
 			if awserrors.IsInstanceTerminated(errMsg) || awserrors.IsNotFound(errMsg) {
 				logging.FromContext(ctx).Debugf("instance already terminated")
 				return nil
@@ -135,21 +138,21 @@ func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
 
 // can remove cyclo ignore after China launch price-capacity-optimized
 // nolint: gocyclo
-func (p *InstanceProvider) launchInstance(ctx context.Context, provider *v1alpha1.AWS, nodeRequest *cloudprovider.NodeRequest) (*string, error) {
-	capacityType := p.getCapacityType(nodeRequest)
+func (p *InstanceProvider) launchInstance(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, machine *corev1alpha1.Machine, instanceTypes []*cloudprovider.InstanceType) (*string, error) {
+	capacityType := p.getCapacityType(machine, instanceTypes)
 	// Get Launch Template Configs, which may differ due to GPU or Architecture requirements
-	launchTemplateConfigs, err := p.getLaunchTemplateConfigs(ctx, provider, nodeRequest, capacityType)
+	launchTemplateConfigs, err := p.getLaunchTemplateConfigs(ctx, nodeTemplate, machine, instanceTypes, capacityType)
 	if err != nil {
 		return nil, fmt.Errorf("getting launch template configs, %w", err)
 	}
-	if err := p.checkODFallback(nodeRequest, launchTemplateConfigs); err != nil {
+	if err := p.checkODFallback(machine, instanceTypes, launchTemplateConfigs); err != nil {
 		logging.FromContext(ctx).Warn(err.Error())
 	}
 	// Create fleet
-	tags := v1alpha1.MergeTags(ctx, awssettings.FromContext(ctx).Tags, provider.Tags, map[string]string{fmt.Sprintf("kubernetes.io/cluster/%s", awssettings.FromContext(ctx).ClusterName): "owned"})
+	tags := v1alpha1.MergeTags(ctx, awssettings.FromContext(ctx).Tags, nodeTemplate.Spec.Tags, map[string]string{fmt.Sprintf("kubernetes.io/cluster/%s", awssettings.FromContext(ctx).ClusterName): "owned"})
 	createFleetInput := &ec2.CreateFleetInput{
 		Type:                  aws.String(ec2.FleetTypeInstant),
-		Context:               provider.Context,
+		Context:               nodeTemplate.Spec.Context,
 		LaunchTemplateConfigs: launchTemplateConfigs,
 		TargetCapacitySpecification: &ec2.TargetCapacitySpecificationRequest{
 			DefaultTargetCapacityType: aws.String(capacityType),
@@ -190,42 +193,44 @@ func (p *InstanceProvider) launchInstance(ctx context.Context, provider *v1alpha
 	return createFleetOutput.Instances[0].InstanceIds[0], nil
 }
 
-func (p *InstanceProvider) checkODFallback(nodeRequest *cloudprovider.NodeRequest, launchTemplateConfigs []*ec2.FleetLaunchTemplateConfigRequest) error {
+func (p *InstanceProvider) checkODFallback(machine *corev1alpha1.Machine, instanceTypes []*cloudprovider.InstanceType, launchTemplateConfigs []*ec2.FleetLaunchTemplateConfigRequest) error {
 	// only evaluate for on-demand fallback if the capacity type for the request is OD and both OD and spot are allowed in requirements
-	if p.getCapacityType(nodeRequest) != v1alpha5.CapacityTypeOnDemand || !nodeRequest.Template.Requirements.Get(v1alpha5.LabelCapacityType).Has(v1alpha5.CapacityTypeSpot) {
+	if p.getCapacityType(machine, instanceTypes) != v1alpha5.CapacityTypeOnDemand || !scheduling.NewNodeSelectorRequirements(machine.Spec.Requirements...).Get(v1alpha5.LabelCapacityType).Has(v1alpha5.CapacityTypeSpot) {
 		return nil
 	}
 
 	// loop through the LT configs for currently considered instance types to get the flexibility count
-	instanceTypes := map[string]struct{}{}
+	instanceTypeZones := map[string]struct{}{}
 	for _, ltc := range launchTemplateConfigs {
 		for _, override := range ltc.Overrides {
 			if override.InstanceType != nil {
-				instanceTypes[*override.InstanceType] = struct{}{}
+				instanceTypeZones[*override.InstanceType] = struct{}{}
 			}
 		}
 	}
 	if len(instanceTypes) < instanceTypeFlexibilityThreshold {
 		return fmt.Errorf("at least %d instance types are recommended when flexible to spot but requesting on-demand, "+
-			"the current provisioning request only has %d instance type options", instanceTypeFlexibilityThreshold, len(nodeRequest.InstanceTypeOptions))
+			"the current provisioning request only has %d instance type options", instanceTypeFlexibilityThreshold, len(instanceTypes))
 	}
 	return nil
 }
 
-func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, provider *v1alpha1.AWS, nodeRequest *cloudprovider.NodeRequest, capacityType string) ([]*ec2.FleetLaunchTemplateConfigRequest, error) {
+func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, machine *corev1alpha1.Machine,
+	instanceTypes []*cloudprovider.InstanceType, capacityType string) ([]*ec2.FleetLaunchTemplateConfigRequest, error) {
+
 	// Get subnets given the constraints
-	subnets, err := p.subnetProvider.Get(ctx, provider)
+	subnets, err := p.subnetProvider.Get(ctx, nodeTemplate)
 	if err != nil {
 		return nil, fmt.Errorf("getting subnets, %w", err)
 	}
 	var launchTemplateConfigs []*ec2.FleetLaunchTemplateConfigRequest
-	launchTemplates, err := p.launchTemplateProvider.Get(ctx, provider, nodeRequest, map[string]string{v1alpha5.LabelCapacityType: capacityType})
+	launchTemplates, err := p.launchTemplateProvider.Get(ctx, nodeTemplate, machine, instanceTypes, map[string]string{v1alpha5.LabelCapacityType: capacityType})
 	if err != nil {
 		return nil, fmt.Errorf("getting launch templates, %w", err)
 	}
 	for launchTemplateName, instanceTypes := range launchTemplates {
 		launchTemplateConfig := &ec2.FleetLaunchTemplateConfigRequest{
-			Overrides: p.getOverrides(instanceTypes, subnets, nodeRequest.Template.Requirements.Get(v1.LabelTopologyZone), capacityType),
+			Overrides: p.getOverrides(instanceTypes, subnets, scheduling.NewNodeSelectorRequirements(machine.Spec.Requirements...).Get(v1.LabelTopologyZone), capacityType),
 			LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{
 				LaunchTemplateName: aws.String(launchTemplateName),
 				Version:            aws.String("$Latest"),
@@ -241,9 +246,9 @@ func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, provide
 	return launchTemplateConfigs, nil
 }
 
-// getOverrides creates and returns launch template overrides for the cross product of instanceTypeOptions and subnets (with subnets being constrained by
-// zones and the offerings in instanceTypeOptions)
-func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.InstanceType, subnets []*ec2.Subnet, zones *scheduling.Requirement, capacityType string) []*ec2.FleetLaunchTemplateOverridesRequest {
+// getOverrides creates and returns launch template overrides for the cross product of InstanceTypes and subnets (with subnets being constrained by
+// zones and the offerings in InstanceTypes)
+func (p *InstanceProvider) getOverrides(instanceTypes []*cloudprovider.InstanceType, subnets []*ec2.Subnet, zones *scheduling.Requirement, capacityType string) []*ec2.FleetLaunchTemplateOverridesRequest {
 	// sort subnets in ascending order of available IP addresses and populate map with most available subnet per AZ
 	zonalSubnets := map[string]*ec2.Subnet{}
 	sort.Slice(subnets, func(i, j int) bool {
@@ -260,11 +265,11 @@ func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.Inst
 		parentInstanceTypeName string
 	}
 	var unwrappedOfferings []offeringWithParentName
-	for _, it := range instanceTypeOptions {
-		ofs := lo.Map(cloudprovider.AvailableOfferings(it), func(of cloudprovider.Offering, _ int) offeringWithParentName {
+	for _, it := range instanceTypes {
+		ofs := lo.Map(it.Offerings.Available(), func(of cloudprovider.Offering, _ int) offeringWithParentName {
 			return offeringWithParentName{
 				Offering:               of,
-				parentInstanceTypeName: it.Name(),
+				parentInstanceTypeName: it.Name,
 			}
 		})
 		unwrappedOfferings = append(unwrappedOfferings, ofs...)
@@ -298,7 +303,7 @@ func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.Inst
 		// For China regions (until price-capacity-optimized is released)
 		// Add a priority for spot requests since we are using the capacity-optimized-prioritized spot allocation strategy
 		// to reduce the likelihood of getting an excessively large instance type.
-		// instanceTypeOptions are sorted by vcpus and memory so this prioritizes smaller instance types.
+		// InstanceTypes are sorted by vcpus and memory so this prioritizes smaller instance types.
 		if capacityType == v1alpha5.CapacityTypeSpot && strings.HasPrefix(p.instanceTypeProvider.region, "cn-") {
 			override.Priority = aws.Float64(float64(i))
 		}
@@ -329,12 +334,12 @@ func (p *InstanceProvider) getInstance(ctx context.Context, id string) (*ec2.Ins
 	return instance, nil
 }
 
-func (p *InstanceProvider) instanceToNode(instance *ec2.Instance, instanceTypes []cloudprovider.InstanceType) *v1.Node {
+func (p *InstanceProvider) instanceToNode(instance *ec2.Instance, instanceTypes []*cloudprovider.InstanceType) *v1.Node {
 	for _, instanceType := range instanceTypes {
-		if instanceType.Name() == aws.StringValue(instance.InstanceType) {
+		if instanceType.Name == aws.StringValue(instance.InstanceType) {
 			nodeName := strings.ToLower(aws.StringValue(instance.PrivateDnsName))
 			labels := map[string]string{}
-			for key, req := range instanceType.Requirements() {
+			for key, req := range instanceType.Requirements {
 				if req.Len() == 1 {
 					labels[key] = req.Values()[0]
 				}
@@ -368,11 +373,13 @@ func (p *InstanceProvider) updateUnavailableOfferingsCache(ctx context.Context, 
 // getCapacityType selects spot if both constraints are flexible and there is an
 // available offering. The AWS Cloud Provider defaults to [ on-demand ], so spot
 // must be explicitly included in capacity type requirements.
-func (p *InstanceProvider) getCapacityType(nodeRequest *cloudprovider.NodeRequest) string {
-	if nodeRequest.Template.Requirements.Get(v1alpha5.LabelCapacityType).Has(v1alpha5.CapacityTypeSpot) {
-		for _, instanceType := range nodeRequest.InstanceTypeOptions {
-			for _, offering := range cloudprovider.AvailableOfferings(instanceType) {
-				if nodeRequest.Template.Requirements.Get(v1.LabelTopologyZone).Has(offering.Zone) && offering.CapacityType == v1alpha5.CapacityTypeSpot {
+func (p *InstanceProvider) getCapacityType(machine *corev1alpha1.Machine, instanceTypes []*cloudprovider.InstanceType) string {
+	requirements := scheduling.NewNodeSelectorRequirements(machine.
+		Spec.Requirements...)
+	if requirements.Get(v1alpha5.LabelCapacityType).Has(v1alpha5.CapacityTypeSpot) {
+		for _, instanceType := range instanceTypes {
+			for _, offering := range instanceType.Offerings.Available() {
+				if requirements.Get(v1.LabelTopologyZone).Has(offering.Zone) && offering.CapacityType == v1alpha5.CapacityTypeSpot {
 					return v1alpha5.CapacityTypeSpot
 				}
 			}
@@ -381,27 +388,40 @@ func (p *InstanceProvider) getCapacityType(nodeRequest *cloudprovider.NodeReques
 	return v1alpha5.CapacityTypeOnDemand
 }
 
-// prioritizeInstanceTypes is used to eliminate less desirable instance types (like GPUs) from the list of possible instance types when
+func orderInstanceTypesByPrice(instanceTypes []*cloudprovider.InstanceType, requirements scheduling.Requirements) []*cloudprovider.InstanceType {
+	// Order instance types so that we get the cheapest instance types of the available offerings
+	sort.Slice(instanceTypes, func(i, j int) bool {
+		iPrice := math.MaxFloat64
+		jPrice := math.MaxFloat64
+		if len(instanceTypes[i].Offerings.Available().Requirements(requirements)) > 0 {
+			iPrice = instanceTypes[i].Offerings.Available().Requirements(requirements).Cheapest().Price
+		}
+		if len(instanceTypes[j].Offerings.Available().Requirements(requirements)) > 0 {
+			jPrice = instanceTypes[j].Offerings.Available().Requirements(requirements).Cheapest().Price
+		}
+		if iPrice == jPrice {
+			return instanceTypes[i].Name < instanceTypes[j].Name
+		}
+		return iPrice < jPrice
+	})
+	return instanceTypes
+}
+
+// filterInstanceTypes is used to eliminate less desirable instance types (like GPUs) from the list of possible instance types when
 // a set of more appropriate instance types would work. If a set of more desirable instance types is not found, then the original slice
 // of instance types are returned.
-func (p *InstanceProvider) prioritizeInstanceTypes(instanceTypes []cloudprovider.InstanceType) []cloudprovider.InstanceType {
-	var genericInstanceTypes []cloudprovider.InstanceType
+func filterInstanceTypes(instanceTypes []*cloudprovider.InstanceType) []*cloudprovider.InstanceType {
+	var genericInstanceTypes []*cloudprovider.InstanceType
 	for _, it := range instanceTypes {
-		it := it.(*InstanceType)
-		// allow regular instance families and prioritize all others last
-		if !functional.HasAnyPrefix(*it.InstanceType, "m", "c", "r", "a", "t", "i") {
-			continue
-		}
-		// deprioritize metal even if our opinionated filter isn't apply due to something like an instance family
+		// deprioritize metal even if our opinionated filter isn't applied due to something like an instance family
 		// requirement
-		if aws.BoolValue(it.BareMetal) {
+		if it.Requirements.Get(v1alpha1.LabelInstanceSize).Has("metal") {
 			continue
 		}
-
-		itRes := it.Resources()
-		if !resources.IsZero(itRes[v1alpha1.ResourceAWSNeuron]) ||
-			!resources.IsZero(itRes[v1alpha1.ResourceAMDGPU]) ||
-			!resources.IsZero(itRes[v1alpha1.ResourceNVIDIAGPU]) {
+		if !resources.IsZero(it.Capacity[v1alpha1.ResourceAWSNeuron]) ||
+			!resources.IsZero(it.Capacity[v1alpha1.ResourceAMDGPU]) ||
+			!resources.IsZero(it.Capacity[v1alpha1.ResourceNVIDIAGPU]) ||
+			!resources.IsZero(it.Capacity[v1alpha1.ResourceHabanaGaudi]) {
 			continue
 		}
 		genericInstanceTypes = append(genericInstanceTypes, it)
