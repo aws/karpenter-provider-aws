@@ -214,8 +214,7 @@ spec:
                 type: string
             type: object
           status:
-            description: This will contain the current status of the Subnets and Security
-              Groups of the template
+            description: This will contain the resource IDs used by the AWSNodeTemplate
             properties:
               securityGroupIds:
                 description: The SecurityGroups field will contain the current Security

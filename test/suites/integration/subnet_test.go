@@ -89,10 +89,9 @@ var _ = Describe("Subnets", func() {
 		)))
 	})
 
-	It("should have an update AWSNodeTemplate stauts for subnets", func() {
-		subnets := getSubnets(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
+	It("should have the AWSNodeTemplateStatus for subnets", func() {
+		subnets := getSubnetList(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
 		Expect(len(subnets)).ToNot(Equal(0))
-		shuffledAZs := lo.Shuffle(lo.Keys(subnets))
 
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 			AWS: v1alpha1.AWS{
@@ -100,25 +99,12 @@ var _ = Describe("Subnets", func() {
 				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			},
 		})
-		provisioner := test.Provisioner(test.ProvisionerOptions{
-			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
-			Requirements: []v1.NodeSelectorRequirement{
-				{
-					Key:      v1.LabelZoneFailureDomainStable,
-					Operator: "In",
-					Values:   []string{shuffledAZs[0]},
-				},
-			},
-		})
-		pod := test.Pod()
 
-		env.ExpectCreated(pod, provider, provisioner)
-		env.EventuallyExpectHealthy(pod)
-		env.ExpectCreatedNodeCount("==", 1)
+		env.ExpectCreated(provider)
 
 		var ant v1alpha1.AWSNodeTemplate
 		Expect(env.Client.Get(env, client.ObjectKeyFromObject(provider), &ant)).To(Succeed())
-		Expect(len(ant.Status.SubnetIDs)).ToNot(BeZero())
+		Expect(ant.Status.SubnetIDs).To(Equal(subnets))
 	})
 })
 
@@ -136,6 +122,25 @@ func getSubnets(tags map[string]string) map[string][]string {
 	err := env.EC2API.DescribeSubnetsPages(&ec2.DescribeSubnetsInput{Filters: filters}, func(dso *ec2.DescribeSubnetsOutput, _ bool) bool {
 		for _, subnet := range dso.Subnets {
 			subnets[*subnet.AvailabilityZone] = append(subnets[*subnet.AvailabilityZone], *subnet.SubnetId)
+		}
+		return true
+	})
+	Expect(err).To(BeNil())
+	return subnets
+}
+
+func getSubnetList(tags map[string]string) []string {
+	var filters []*ec2.Filter
+	for key, val := range tags {
+		filters = append(filters, &ec2.Filter{
+			Name:   aws.String(fmt.Sprintf("tag:%s", key)),
+			Values: []*string{aws.String(val)},
+		})
+	}
+	var subnets []string
+	err := env.EC2API.DescribeSubnetsPages(&ec2.DescribeSubnetsInput{Filters: filters}, func(dso *ec2.DescribeSubnetsOutput, _ bool) bool {
+		for _, subnet := range dso.Subnets {
+			subnets = append(subnets, fmt.Sprintf("%s (%s)", *subnet.SubnetId, *subnet.AvailabilityZone))
 		}
 		return true
 	})

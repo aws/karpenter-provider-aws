@@ -34,7 +34,8 @@ import (
 	"knative.dev/pkg/logging"
 
 	awscache "github.com/aws/karpenter/pkg/cache"
-	"github.com/aws/karpenter/pkg/provider"
+	"github.com/aws/karpenter/pkg/providers/securitygroup"
+	"github.com/aws/karpenter/pkg/providers/subnet"
 	"github.com/aws/karpenter/pkg/utils/project"
 
 	cloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
@@ -59,8 +60,8 @@ type Context struct {
 	Session                   *session.Session
 	UnavailableOfferingsCache *awscache.UnavailableOfferings
 	Ec2api                    ec2iface.EC2API
-	SubnetProvider            *provider.SubnetProvider
-	SecurityGroupProvider     *provider.SecurityGroupProvider
+	SubnetProvider            *subnet.Provider
+	SecurityGroupProvider     *securitygroup.Provider
 }
 
 func NewOrDie(ctx cloudprovider.Context) Context {
@@ -80,10 +81,10 @@ func NewOrDie(ctx cloudprovider.Context) Context {
 
 	ec2api := ec2.New(sess)
 	if err := checkEC2Connectivity(ctx, ec2api); err != nil {
-		logging.FromContext(ctx).Fatalf("Checking EC2 API connectivity, %s", err)
+		logging.FromContext(ctx).Fatalf("checking EC2 API connectivity, %s", err)
 	}
-	subnetProvider := provider.NewSubnetProvider(ec2api)
-	securityGroupProvider := provider.NewSecurityGroupProvider(ec2api)
+	subnetProvider := subnet.NewProvider(ec2api)
+	securityGroupProvider := securitygroup.NewProvider(ec2api)
 	return Context{
 		Context:                   ctx,
 		Session:                   sess,

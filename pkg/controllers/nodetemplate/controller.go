@@ -16,7 +16,6 @@ package nodetemplate
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -29,50 +28,44 @@ import (
 
 	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/provider"
+	"github.com/aws/karpenter/pkg/providers/securitygroup"
+	"github.com/aws/karpenter/pkg/providers/subnet"
 )
 
 var _ corecontroller.TypedController[*v1alpha1.AWSNodeTemplate] = (*Controller)(nil)
 
 type Controller struct {
-	kubeClient     k8sClient.Client
-	subnet         *provider.SubnetProvider
-	securityGroups *provider.SecurityGroupProvider
+	kubeClient            k8sClient.Client
+	subnetProvider        *subnet.Provider
+	securityGroupProvider *securitygroup.Provider
 }
 
-func NewController(client k8sClient.Client, ec2api ec2iface.EC2API, subnetProvider *provider.SubnetProvider, securityGroups *provider.SecurityGroupProvider) corecontroller.Controller {
+func NewController(client k8sClient.Client, ec2api ec2iface.EC2API, subnetProvider *subnet.Provider, securityGroups *securitygroup.Provider) corecontroller.Controller {
 
 	return corecontroller.Typed[*v1alpha1.AWSNodeTemplate](client, &Controller{
-		kubeClient:     client,
-		subnet:         subnetProvider,
-		securityGroups: securityGroups,
+		kubeClient:            client,
+		subnetProvider:        subnetProvider,
+		securityGroupProvider: securityGroups,
 	})
 }
 
 func (c *Controller) Reconcile(ctx context.Context, ant *v1alpha1.AWSNodeTemplate) (reconcile.Result, error) {
-	fmt.Println("Controller Here")
-	subnetList, err := c.subnet.Get(ctx, ant)
-	subnetLog := provider.PrettySubnets(subnetList)
+	subnetList, err := c.subnetProvider.Get(ctx, ant)
+	subnetLog := subnet.PrettySubnets(subnetList)
 	if err != nil {
 		// Back off and retry reconciliation
-		return reconcile.Result{RequeueAfter: 1 * time.Minute}, err
+		return reconcile.Result{}, err
 	}
 
-	ant.Status.SubnetIDs = nil
-	ant.Status.SubnetIDs = append(ant.Status.SubnetIDs, subnetLog...)
+	ant.Status.SubnetIDs = subnetLog
 
-	securityGroupIds, err := c.securityGroups.Get(ctx, ant)
+	securityGroupIds, err := c.securityGroupProvider.Get(ctx, ant)
 	if err != nil {
 		// Back off and retry reconciliation
-		return reconcile.Result{RequeueAfter: 1 * time.Minute}, err
+		return reconcile.Result{}, err
 	}
 
-	ant.Status.SecurityGroupIDs = nil
-	ant.Status.SecurityGroupIDs = append(ant.Status.SecurityGroupIDs, securityGroupIds...)
-
-	if err := c.kubeClient.Status().Update(ctx, ant); err != nil {
-		return reconcile.Result{RequeueAfter: 30 * time.Second}, fmt.Errorf("could not update status of AWSNodeTemplate %w", err)
-	}
+	ant.Status.SecurityGroupIDs = securityGroupIds
 
 	return reconcile.Result{RequeueAfter: 5 * time.Minute}, nil
 }

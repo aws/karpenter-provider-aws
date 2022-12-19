@@ -23,7 +23,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
-	v1 "k8s.io/api/core/v1"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -57,10 +56,14 @@ var _ = Describe("Subnets", func() {
 		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("SecurityGroups", ContainElement(&securityGroups[0])))
 	})
 
-	It("should have an update AWSNodeTemplate stauts for security groups", func() {
-		subnets := getSubnets(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
-		Expect(len(subnets)).ToNot(Equal(0))
-		shuffledAZs := lo.Shuffle(lo.Keys(subnets))
+	It("should update the AWSNodeTemplateStatus for security groups", func() {
+		securityGroup := getSecurityGroups(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
+		Expect(len(securityGroup)).ToNot(Equal(0))
+		var securityGroupID []string
+
+		for _, secGroup := range securityGroup {
+			securityGroupID = append(securityGroupID, *secGroup.GroupId)
+		}
 
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 			AWS: v1alpha1.AWS{
@@ -68,25 +71,12 @@ var _ = Describe("Subnets", func() {
 				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			},
 		})
-		provisioner := test.Provisioner(test.ProvisionerOptions{
-			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
-			Requirements: []v1.NodeSelectorRequirement{
-				{
-					Key:      v1.LabelZoneFailureDomainStable,
-					Operator: "In",
-					Values:   []string{shuffledAZs[0]},
-				},
-			},
-		})
-		pod := test.Pod()
 
-		env.ExpectCreated(pod, provider, provisioner)
-		env.EventuallyExpectHealthy(pod)
-		env.ExpectCreatedNodeCount("==", 1)
+		env.ExpectCreated(provider)
 
 		var ant v1alpha1.AWSNodeTemplate
 		Expect(env.Client.Get(env, client.ObjectKeyFromObject(provider), &ant)).To(Succeed())
-		Expect(len(ant.Status.SecurityGroupIDs)).ToNot(BeZero())
+		Expect(ant.Status.SecurityGroupIDs).To(Equal(securityGroupID))
 	})
 })
 

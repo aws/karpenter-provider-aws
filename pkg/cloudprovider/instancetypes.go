@@ -26,7 +26,7 @@ import (
 	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	awscache "github.com/aws/karpenter/pkg/cache"
 	awscontext "github.com/aws/karpenter/pkg/context"
-	"github.com/aws/karpenter/pkg/provider"
+	"github.com/aws/karpenter/pkg/providers/subnet"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 
@@ -56,7 +56,7 @@ type InstanceTypeProvider struct {
 	sync.Mutex
 	region          string
 	ec2api          ec2iface.EC2API
-	subnetProvider  *provider.SubnetProvider
+	subnetProvider  *subnet.Provider
 	pricingProvider *PricingProvider
 	// Has one cache entry for all the instance types (key: InstanceTypesCacheKey)
 	// Has one cache entry for all the zones for each subnet selector (key: InstanceTypesZonesCacheKeyPrefix:<hash_of_selector>)
@@ -66,7 +66,7 @@ type InstanceTypeProvider struct {
 	cm                   *pretty.ChangeMonitor
 }
 
-func NewInstanceTypeProvider(ctx context.Context, sess *session.Session, ec2api ec2iface.EC2API, subnetProvider *provider.SubnetProvider,
+func NewInstanceTypeProvider(ctx context.Context, sess *session.Session, ec2api ec2iface.EC2API, subnetProvider *subnet.Provider,
 	unavailableOfferingsCache *awscache.UnavailableOfferings, startAsync <-chan struct{}) *InstanceTypeProvider {
 	return &InstanceTypeProvider{
 		ec2api:         ec2api,

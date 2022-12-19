@@ -42,7 +42,8 @@ import (
 	awscache "github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
 	awscontext "github.com/aws/karpenter/pkg/context"
-	"github.com/aws/karpenter/pkg/provider"
+	"github.com/aws/karpenter/pkg/providers/securitygroup"
+	"github.com/aws/karpenter/pkg/providers/subnet"
 	"github.com/aws/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-core/pkg/operator/controller"
@@ -90,8 +91,8 @@ var provisioner *corev1alpha5.Provisioner
 var nodeTemplate *v1alpha1.AWSNodeTemplate
 var pricingProvider *PricingProvider
 var settingsStore coretest.SettingsStore
-var subnetProvider *provider.SubnetProvider
-var securityGroupProvider *provider.SecurityGroupProvider
+var subnetProvider *subnet.Provider
+var securityGroupProvider *securitygroup.Provider
 
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -124,7 +125,7 @@ var _ = BeforeSuite(func() {
 	fakePricingAPI = &fake.PricingAPI{}
 	pricingProvider = NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
 	amiProvider = amifamily.NewAMIProvider(env.Client, env.KubernetesInterface, fakeSSMAPI, fakeEC2API, ssmCache, ec2Cache, kubernetesVersionCache)
-	subnetProvider = provider.NewSubnetProvider(fakeEC2API)
+	subnetProvider = subnet.NewProvider(fakeEC2API)
 	instanceTypeProvider = &InstanceTypeProvider{
 		ec2api:               fakeEC2API,
 		subnetProvider:       subnetProvider,
@@ -133,7 +134,7 @@ var _ = BeforeSuite(func() {
 		unavailableOfferings: unavailableOfferingsCache,
 		cm:                   pretty.NewChangeMonitor(),
 	}
-	securityGroupProvider = provider.NewSecurityGroupProvider(fakeEC2API)
+	securityGroupProvider = securitygroup.NewProvider(fakeEC2API)
 	cloudProvider = &CloudProvider{
 		instanceTypeProvider: instanceTypeProvider,
 		amiProvider:          amiProvider,

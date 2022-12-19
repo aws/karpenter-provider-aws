@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package provider
+package subnet
 
 import (
 	"context"
@@ -34,22 +34,22 @@ import (
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
 )
 
-type SubnetProvider struct {
+type Provider struct {
 	sync.Mutex
 	ec2api ec2iface.EC2API
 	cache  *cache.Cache
 	cm     *pretty.ChangeMonitor
 }
 
-func NewSubnetProvider(ec2api ec2iface.EC2API) *SubnetProvider {
-	return &SubnetProvider{
+func NewProvider(ec2api ec2iface.EC2API) *Provider {
+	return &Provider{
 		ec2api: ec2api,
 		cm:     pretty.NewChangeMonitor(),
 		cache:  cache.New(time.Minute*5, time.Minute*10),
 	}
 }
 
-func (p *SubnetProvider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) ([]*ec2.Subnet, error) {
+func (p *Provider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) ([]*ec2.Subnet, error) {
 	p.Lock()
 	defer p.Unlock()
 	filters := getFilters(nodeTemplate)
@@ -75,14 +75,14 @@ func (p *SubnetProvider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNode
 	return output.Subnets, nil
 }
 
-func (p *SubnetProvider) LivenessProbe(req *http.Request) error {
+func (p *Provider) LivenessProbe(req *http.Request) error {
 	p.Lock()
 	//nolint: staticcheck
 	p.Unlock()
 	return nil
 }
 
-func (p *SubnetProvider) ResetCache() {
+func (p *Provider) ResetCache() {
 	p.Lock()
 	defer p.Unlock()
 	p.cache.Flush()
