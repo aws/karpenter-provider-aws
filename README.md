@@ -1,4 +1,4 @@
-![Build Status](https://img.shields.io/github/workflow/status/aws/karpenter/CI/main)
+[![CI](https://github.com/aws/karpenter/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/aws/karpenter/actions/workflows/ci.yml)
 ![GitHub stars](https://img.shields.io/github/stars/aws/karpenter)
 ![GitHub forks](https://img.shields.io/github/forks/aws/karpenter)
 [![GitHub License](https://img.shields.io/badge/License-Apache%202.0-ff69b4.svg)](https://github.com/aws/karpenter/blob/main/LICENSE)
