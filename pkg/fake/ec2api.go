@@ -56,6 +56,7 @@ type EC2Behavior struct {
 	CreateFleetBehavior                 MockedFunction[ec2.CreateFleetInput, ec2.CreateFleetOutput]
 	CalledWithCreateLaunchTemplateInput AtomicPtrSlice[ec2.CreateLaunchTemplateInput]
 	CalledWithDescribeImagesInput       AtomicPtrSlice[ec2.DescribeImagesInput]
+	CalledWithDescribeInstancesInput    AtomicPtrSlice[ec2.DescribeInstancesInput]
 	Instances                           sync.Map
 	LaunchTemplates                     sync.Map
 	InsufficientCapacityPools           atomic.Slice[CapacityPool]
@@ -84,6 +85,7 @@ func (e *EC2API) Reset() {
 	e.CreateFleetBehavior.Reset()
 	e.CalledWithCreateLaunchTemplateInput.Reset()
 	e.CalledWithDescribeImagesInput.Reset()
+	e.CalledWithDescribeInstancesInput.Reset()
 	e.DescribeSpotPriceHistoryInput.Reset()
 	e.DescribeSpotPriceHistoryOutput.Reset()
 	e.Instances.Range(func(k, v any) bool {
@@ -190,7 +192,7 @@ func (e *EC2API) DescribeInstancesWithContext(_ context.Context, input *ec2.Desc
 	if !e.DescribeInstancesOutput.IsNil() {
 		return e.DescribeInstancesOutput.Clone(), nil
 	}
-
+	e.CalledWithDescribeInstancesInput.Add(input)
 	instances := []*ec2.Instance{}
 	for _, instanceID := range input.InstanceIds {
 		instance, _ := e.Instances.Load(*instanceID)

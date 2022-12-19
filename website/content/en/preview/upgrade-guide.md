@@ -84,12 +84,6 @@ We release a snapshot release for every commit that gets merged into the main re
 Snapshot releases are suitable for testing, and troubleshooting but users should exercise great care if they decide to use them in production environments.
 Snapshot releases are tagged with the git commit hash prefixed by the Karpenter major version. For example `v0-fc17bfc89ebb30a3b102a86012b3e3992ec08adf`. For more detailed examples on how to use snapshot releases look under "Usage" in [Karpenter Helm Chart](https://gallery.ecr.aws/karpenter/karpenter).
 
-## Nightly Releases
-
-Every night we build and release everything that has been checked into the source code. This enables us to detect problems including breaking changes and potential drifts in our external dependencies sooner than we otherwise would.
-It also allows some advanced Karpenter users who have their own nightly builds to test the upcoming changes before they are released. Nightly releases are tagged with date in YYYYMMDD format. For example `20220713`.
-For more examples on how to use nightly releases look under "Usage" in [Karpenter Helm Chart](https://gallery.ecr.aws/karpenter/karpenter).
-
 ## Release Candidates
 
 We consider having release candidates for major and important minor versions. Our release candidates are tagged like `vx.y.z-rc.0`, `vx.y.z-rc.1`. The release candidate will then graduate to `vx.y.z` as a normal stable release.
