@@ -292,8 +292,8 @@ var _ = Describe("Allocation", func() {
 			selectedInstanceType := instanceTypes[0]
 			// Create the instance we want returned from the EC2 API
 			instance := &ec2.Instance{
-				ImageId:               aws.String(makeImageID()),
-				InstanceId:            aws.String(makeInstanceID()),
+				ImageId:               aws.String(validAMI),
+				InstanceId:            aws.String(instanceID),
 				PrivateDnsName:        aws.String(randomdata.IpV4Address()),
 				InstanceType:          selectedInstanceType.InstanceType,
 				SpotInstanceRequestId: aws.String(coretest.RandomName()),
@@ -307,15 +307,45 @@ var _ = Describe("Allocation", func() {
 			node := coretest.Node(coretest.NodeOptions{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						v1alpha1.LabelInstanceAMIID:          "ami-invalid-example",
 						corev1alpha5.ProvisionerNameLabelKey: provisioner.Name,
 						v1.LabelInstanceTypeStable:           *selectedInstanceType.InstanceType,
 					},
 				},
-				ProviderID: makeProviderID(makeInstanceID()),
+				ProviderID: makeProviderID(instanceID),
 			})
 			drifted, err := cloudProvider.IsMachineDrifted(ctx, corev1alpha1.MachineFromNode(node))
 			Expect(err).ToNot(HaveOccurred())
+			Expect(drifted).To(BeFalse())
+		})
+		It("should error if providerRef is not defined", func() {
+			provisioner.Spec.ProviderRef = nil
+			ExpectApplied(ctx, env.Client, provisioner)
+			selectedInstanceType := instanceTypes[0]
+			// Create the instance we want returned from the EC2 API
+			instance := &ec2.Instance{
+				ImageId:               aws.String(validAMI),
+				InstanceId:            aws.String(instanceID),
+				PrivateDnsName:        aws.String(randomdata.IpV4Address()),
+				InstanceType:          selectedInstanceType.InstanceType,
+				SpotInstanceRequestId: aws.String(coretest.RandomName()),
+				State: &ec2.InstanceState{
+					Name: aws.String(ec2.InstanceStateNameRunning),
+				},
+			}
+			fakeEC2API.DescribeInstancesOutput.Set(&ec2.DescribeInstancesOutput{
+				Reservations: []*ec2.Reservation{{Instances: []*ec2.Instance{instance}}},
+			})
+			node := coretest.Node(coretest.NodeOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						corev1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+						v1.LabelInstanceTypeStable:           *selectedInstanceType.InstanceType,
+					},
+				},
+				ProviderID: makeProviderID(instanceID),
+			})
+			drifted, err := cloudProvider.IsMachineDrifted(ctx, corev1alpha1.MachineFromNode(node))
+			Expect(err).To(HaveOccurred())
 			Expect(drifted).To(BeFalse())
 		})
 		It("should not fail if provisioner does not exist", func() {
@@ -323,8 +353,8 @@ var _ = Describe("Allocation", func() {
 			selectedInstanceType := instanceTypes[0]
 			// Create the instance we want returned from the EC2 API
 			instance := &ec2.Instance{
-				ImageId:               aws.String(makeImageID()),
-				InstanceId:            aws.String(makeInstanceID()),
+				ImageId:               aws.String(validAMI),
+				InstanceId:            aws.String(instanceID),
 				PrivateDnsName:        aws.String(randomdata.IpV4Address()),
 				InstanceType:          selectedInstanceType.InstanceType,
 				SpotInstanceRequestId: aws.String(coretest.RandomName()),
@@ -338,12 +368,11 @@ var _ = Describe("Allocation", func() {
 			node := coretest.Node(coretest.NodeOptions{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						v1alpha1.LabelInstanceAMIID:          "ami-invalid-example",
 						corev1alpha5.ProvisionerNameLabelKey: provisioner.Name,
 						v1.LabelInstanceTypeStable:           *selectedInstanceType.InstanceType,
 					},
 				},
-				ProviderID: makeProviderID(makeInstanceID()),
+				ProviderID: makeProviderID(instanceID),
 			})
 			drifted, err := cloudProvider.IsMachineDrifted(ctx, corev1alpha1.MachineFromNode(node))
 			Expect(err).ToNot(HaveOccurred())
@@ -355,7 +384,7 @@ var _ = Describe("Allocation", func() {
 			// Create the instance we want returned from the EC2 API
 			instance := &ec2.Instance{
 				ImageId:               aws.String(makeImageID()),
-				InstanceId:            aws.String(makeInstanceID()),
+				InstanceId:            aws.String(instanceID),
 				PrivateDnsName:        aws.String(randomdata.IpV4Address()),
 				InstanceType:          selectedInstanceType.InstanceType,
 				SpotInstanceRequestId: aws.String(coretest.RandomName()),
@@ -369,12 +398,11 @@ var _ = Describe("Allocation", func() {
 			node := coretest.Node(coretest.NodeOptions{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						v1alpha1.LabelInstanceAMIID:          "ami-invalid-example",
 						corev1alpha5.ProvisionerNameLabelKey: provisioner.Name,
 						v1.LabelInstanceTypeStable:           *selectedInstanceType.InstanceType,
 					},
 				},
-				ProviderID: makeProviderID(makeInstanceID()),
+				ProviderID: makeProviderID(instanceID),
 			})
 			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, corev1alpha1.MachineFromNode(node))
 			Expect(err).ToNot(HaveOccurred())
@@ -430,11 +458,10 @@ var _ = Describe("Allocation", func() {
 			node := coretest.Node(coretest.NodeOptions{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						v1alpha1.LabelInstanceAMIID:          validAMI,
 						corev1alpha5.ProvisionerNameLabelKey: provisioner.Name,
 					},
 				},
-				ProviderID: makeProviderID(makeInstanceID()),
+				ProviderID: makeProviderID(instanceID),
 			})
 			_, err := cloudProvider.IsMachineDrifted(ctx, corev1alpha1.MachineFromNode(node))
 			Expect(err).To(HaveOccurred())
@@ -464,7 +491,7 @@ var _ = Describe("Allocation", func() {
 						corev1alpha5.ProvisionerNameLabelKey: provisioner.Name,
 					},
 				},
-				ProviderID: makeProviderID(*instance.InstanceId),
+				ProviderID: makeProviderID(instanceID),
 			})
 
 			ExpectApplied(ctx, env.Client, node)

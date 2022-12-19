@@ -136,6 +136,9 @@ nightly: ## Tag the latest snapshot release with timestamp
 release: ## Builds and publishes stable release if env var RELEASE_VERSION is set, or a snapshot release otherwise
 	$(WITH_GOFLAGS) ./hack/release/release.sh
 
+release-crd: ## Packages and publishes a karpenter-crd helm chart
+	$(WITH_GOFLAGS) ./hack/release/release-crd.sh
+
 prepare-website: ## prepare the website for release
 	./hack/release/prepare-website.sh
 

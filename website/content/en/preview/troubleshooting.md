@@ -371,6 +371,7 @@ See [Environment Variables / CLI Flags]({{<ref "./concepts/globalsettings/#envir
 If Helm is showing an error when trying to install Karpenter helm charts:
 
  - Ensure you are using a newer Helm version, Helm started supporting OCI images since v3.8.0.
+ - Helm does not have an `helm repo add` concept in OCI, so to install Karpenter you no longer need this
  - Verify that the image you are trying to pull actually exists in [gallery.ecr.aws/karpenter](https://gallery.ecr.aws/karpenter/karpenter)
  - Sometimes Helm generates a generic error, you can add the --debug switch to any of the helm commands in this doc for more verbose error messages
  - If you are getting a 403 forbidden error, you can try `docker logout public.ecr.aws` as explained [here](https://docs.aws.amazon.com/AmazonECR/latest/public/public-troubleshooting.html)
