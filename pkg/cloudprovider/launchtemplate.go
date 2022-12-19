@@ -36,8 +36,8 @@ import (
 	corev1alpha1 "github.com/aws/karpenter-core/pkg/apis/v1alpha1"
 	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	awscache "github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
-	awscontext "github.com/aws/karpenter/pkg/context"
 	awserrors "github.com/aws/karpenter/pkg/errors"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
 
@@ -66,7 +66,7 @@ func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, amiF
 		ec2api:                ec2api,
 		amiFamily:             amiFamily,
 		securityGroupProvider: securityGroupProvider,
-		cache:                 cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval),
+		cache:                 cache.New(awscache.CacheTTL, awscache.CacheCleanupInterval),
 		caBundle:              caBundle,
 		cm:                    pretty.NewChangeMonitor(),
 		kubeDNSIP:             kubeDNSIP,

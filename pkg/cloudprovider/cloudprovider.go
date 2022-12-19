@@ -39,6 +39,7 @@ import (
 	k8sClient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter-core/pkg/scheduling"
+	awscache "github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
 	awscontext "github.com/aws/karpenter/pkg/context"
 
@@ -76,7 +77,7 @@ func New(ctx awscontext.Context) *CloudProvider {
 	}
 	instanceTypeProvider := NewInstanceTypeProvider(ctx, ctx.Session, ctx.Ec2api, ctx.SubnetProvider, ctx.UnavailableOfferingsCache, ctx.StartAsync)
 	amiProvider := amifamily.NewAMIProvider(ctx.KubeClient, ctx.KubernetesInterface, ssm.New(ctx.Session), ctx.Ec2api,
-		cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval), cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval), cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval))
+		cache.New(awscache.CacheTTL, awscache.CacheCleanupInterval), cache.New(awscache.CacheTTL, awscache.CacheCleanupInterval), cache.New(awscache.CacheTTL, awscache.CacheCleanupInterval))
 	amiResolver := amifamily.New(ctx.KubeClient, amiProvider)
 	return &CloudProvider{
 		kubeClient:           ctx.KubeClient,

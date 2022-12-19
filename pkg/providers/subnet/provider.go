@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -27,6 +26,8 @@ import (
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"knative.dev/pkg/logging"
+
+	awscache "github.com/aws/karpenter/pkg/cache"
 
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 
@@ -45,7 +46,7 @@ func NewProvider(ec2api ec2iface.EC2API) *Provider {
 	return &Provider{
 		ec2api: ec2api,
 		cm:     pretty.NewChangeMonitor(),
-		cache:  cache.New(time.Minute*5, time.Minute*10),
+		cache:  cache.New(awscache.CacheTTL*5, awscache.CacheCleanupInterval),
 	}
 }
 

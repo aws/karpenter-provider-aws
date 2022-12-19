@@ -25,7 +25,6 @@ import (
 
 	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	awscache "github.com/aws/karpenter/pkg/cache"
-	awscontext "github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/providers/subnet"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
@@ -80,7 +79,7 @@ func NewInstanceTypeProvider(ctx context.Context, sess *session.Session, ec2api 
 			awssettings.FromContext(ctx).IsolatedVPC,
 			startAsync,
 		),
-		cache:                cache.New(InstanceTypesAndZonesCacheTTL, awscontext.CacheCleanupInterval),
+		cache:                cache.New(InstanceTypesAndZonesCacheTTL, awscache.CacheCleanupInterval),
 		unavailableOfferings: unavailableOfferingsCache,
 		cm:                   pretty.NewChangeMonitor(),
 	}

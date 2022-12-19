@@ -36,7 +36,6 @@ import (
 	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	awscache "github.com/aws/karpenter/pkg/cache"
-	awscontext "github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/controllers/drift"
 	"github.com/aws/karpenter/pkg/fake"
 	"github.com/aws/karpenter/pkg/test"
@@ -82,7 +81,7 @@ var _ = BeforeSuite(func() {
 	recorder = coretest.NewEventRecorder()
 	validAMIs = []string{"ami-123"}
 	cloudProvider = fake.NewCloudProvider(validAMIs...)
-	unavailableOfferingsCache = awscache.NewUnavailableOfferings(cache.New(awscache.UnavailableOfferingsTTL, awscontext.CacheCleanupInterval))
+	unavailableOfferingsCache = awscache.NewUnavailableOfferings(cache.New(awscache.UnavailableOfferingsTTL, awscache.CacheCleanupInterval))
 })
 
 var _ = AfterSuite(func() {

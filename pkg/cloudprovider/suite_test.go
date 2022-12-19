@@ -41,7 +41,6 @@ import (
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	awscache "github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
-	awscontext "github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
 	"github.com/aws/karpenter/pkg/providers/subnet"
 	"github.com/aws/karpenter/pkg/test"
@@ -113,13 +112,13 @@ var _ = BeforeSuite(func() {
 	ctx = settingsStore.InjectSettings(ctx)
 	ctx, stop = context.WithCancel(ctx)
 
-	launchTemplateCache = cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)
-	internalUnavailableOfferingsCache = cache.New(awscache.UnavailableOfferingsTTL, awscontext.CacheCleanupInterval)
+	launchTemplateCache = cache.New(awscache.CacheTTL, awscache.CacheCleanupInterval)
+	internalUnavailableOfferingsCache = cache.New(awscache.UnavailableOfferingsTTL, awscache.CacheCleanupInterval)
 	unavailableOfferingsCache = awscache.NewUnavailableOfferings(internalUnavailableOfferingsCache)
-	ssmCache = cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)
-	ec2Cache = cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)
-	kubernetesVersionCache = cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)
-	instanceTypeCache = cache.New(InstanceTypesAndZonesCacheTTL, awscontext.CacheCleanupInterval)
+	ssmCache = cache.New(awscache.CacheTTL, awscache.CacheCleanupInterval)
+	ec2Cache = cache.New(awscache.CacheTTL, awscache.CacheCleanupInterval)
+	kubernetesVersionCache = cache.New(awscache.CacheTTL, awscache.CacheCleanupInterval)
+	instanceTypeCache = cache.New(InstanceTypesAndZonesCacheTTL, awscache.CacheCleanupInterval)
 	fakeEC2API = &fake.EC2API{}
 	fakeSSMAPI = &fake.SSMAPI{}
 	fakePricingAPI = &fake.PricingAPI{}
