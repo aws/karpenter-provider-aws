@@ -127,7 +127,7 @@ var _ = Describe("Subnets", func() {
 	It("should discover subnets by a single tag", func() {
 		nodeTemplate.Spec.SubnetSelector = map[string]string{"Name": "test-subnet-1"}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-		pod := ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
+		pod := ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
 		ExpectScheduled(ctx, env.Client, pod)
 		createFleetInput := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
 		Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf(
@@ -137,7 +137,7 @@ var _ = Describe("Subnets", func() {
 	It("should discover subnets by tags", func() {
 		nodeTemplate.Spec.SubnetSelector = map[string]string{"Name": "test-subnet-1,test-subnet-2"}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-		pod := ExpectProvisioned(ctx, env.Client, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
+		pod := ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
 		ExpectScheduled(ctx, env.Client, pod)
 		createFleetInput := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
 		Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf(
