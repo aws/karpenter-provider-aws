@@ -27,7 +27,6 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/utils/clock"
 	"knative.dev/pkg/logging"
-	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -254,10 +253,10 @@ func (c *Controller) makeInstanceIDMap(ctx context.Context) (map[string]*v1.Node
 			continue
 		}
 		id, err := utils.ParseInstanceID(node.Spec.ProviderID)
-		if err != nil || id == nil {
+		if err != nil || id == "" {
 			continue
 		}
-		m[ptr.StringValue(id)] = &node
+		m[id] = &node
 	}
 	return m, nil
 }

@@ -69,7 +69,7 @@ battletest: ## Run randomized, racing, code coveraged, tests
 		-tags random_test_delay
 
 e2etests: ## Run the e2e suite against your local cluster
-	cd test && CLUSTER_NAME=${CLUSTER_NAME} go test -p 1 -count 1 -timeout 180m -v ./suites/... --ginkgo.focus="${FOCUS}"
+	cd test && CLUSTER_NAME=${CLUSTER_NAME} go test -p 1 -count 1 -timeout 180m -v ./suites/... --ginkgo.timeout=180m --ginkgo.focus="${FOCUS}"
 
 benchmark:
 	go test -tags=test_performance -run=NoTests -bench=. ./...
@@ -130,11 +130,11 @@ api-code-gen: ## Auto generate files based on AWS APIs response
 stable-release-pr: ## Generate PR for stable release
 	$(WITH_GOFLAGS) ./hack/release/stable-pr.sh
 
-nightly: ## Tag the latest snapshot release with timestamp
-	./hack/release/add-snapshot-tag.sh $(shell git rev-parse HEAD) $(shell date +"%Y%m%d") "nightly"
-
 release: ## Builds and publishes stable release if env var RELEASE_VERSION is set, or a snapshot release otherwise
 	$(WITH_GOFLAGS) ./hack/release/release.sh
+
+release-crd: ## Packages and publishes a karpenter-crd helm chart
+	$(WITH_GOFLAGS) ./hack/release/release-crd.sh
 
 prepare-website: ## prepare the website for release
 	./hack/release/prepare-website.sh

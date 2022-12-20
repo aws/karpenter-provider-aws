@@ -72,6 +72,14 @@ data:
   aws.tags.custom-tag2: custom-tag-value
 ```
 
+### Feature Gates
+Karpenter uses [feature gates](https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/#feature-gates-for-alpha-or-beta-features). You can add a feature gate's ConfigKey to the `karpenter-global-settings` ConfigMap above with the desired value.
+
+| Feature | Default |         Config Key        | Stage |  Since  | Until |
+|---------|---------|---------------------------|-------|---------|-------|
+|  Drift  |  false  | featureGates.driftEnabled | Alpha | v0.21.0 |       |
+
+
 ### Batching Parameters
 
 The batching parameters control how Karpenter batches an incoming stream of pending pods.  Reducing these values may trade off a slightly faster time from pending pod to node launch, in exchange for launching smaller nodes.  Increasing the values can do the inverse.  Karpenter provides reasonable defaults for these values, but if you have specific knowledge about your workloads you can tweak these parameters to match the expected rate of incoming pods.
