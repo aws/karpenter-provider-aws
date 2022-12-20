@@ -145,12 +145,11 @@ For example, an instance type may be specified using a nodeSelector in a pod spe
 - key: `karpenter.k8s.aws/instance-category`
 - key: `karpenter.k8s.aws/instance-generation`
 
-Generally, instance types should be a list and not a single value. Leaving this field undefined is recommended, as it maximizes choices for efficiently placing pods.
+Generally, instance types should be a list and not a single value. Leaving these requirements undefined is recommended, as it maximizes choices for efficiently placing pods.
 
 Review [AWS instance types](../instance-types). Most instance types are supported with the exclusion of [non-HVM](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/virtualization_types.html).
 
-{{% alert title="Defaults" color="warning" %}}
-
+{{% alert title="Defaults" color="secondary" %}}
 If no instance type constraints are defined, Karpenter will set default instance type constraints on your Provisioner that supports most common user workloads:
 
 ```yaml
@@ -179,24 +178,46 @@ IDs.](https://docs.aws.amazon.com/ram/latest/userguide/working-with-az-ids.html)
 
 - key: `kubernetes.io/arch`
 - values
-  - `amd64` (default)
+  - `amd64`
   - `arm64`
 
 Karpenter supports `amd64` nodes, and `arm64` nodes.
 
+{{% alert title="Defaults" color="secondary" %}}
+If no architecture constraint is defined, Karpenter will set the default architecture constraint on your Provisioner that supports most common user workloads:
+
+```yaml
+requirements:
+  - key: kubernetes.io/arch
+    operator: In
+    values: ["amd64"]
+```
+{{% /alert %}}
+
 ### Operating System
  - key: `kubernetes.io/os`
  - values
-   - `linux` (default)
+   - `linux`
 
 Karpenter supports only `linux` nodes at this time.
+
+{{% alert title="Defaults" color="secondary" %}}
+If no operating system constraint is defined, Karpenter will set the default operating system constraint on your Provisioner that supports most common user workloads:
+
+```yaml
+requirements:
+  - key: kubernetes.io/os
+    operator: In
+    values: ["linux"]
+```
+{{% /alert %}}
 
 ### Capacity Type
 
 - key: `karpenter.sh/capacity-type`
 - values
   - `spot`
-  - `on-demand` (default)
+  - `on-demand`
 
 Karpenter supports specifying capacity type, which is analogous to [EC2 purchase options](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-purchasing-options.html).
 
@@ -204,28 +225,16 @@ Karpenter prioritizes Spot offerings if the provisioner allows Spot and on-deman
 
 Karpenter also allows `karpenter.sh/capacity-type` to be used as a topology key for enforcing topology-spread.
 
-### Defaults
+{{% alert title="Defaults" color="secondary" %}}
+If no capacity type constraint is defined, Karpenter will set the default capacity type constraint on your Provisioner that supports most common user workloads:
 
-Karpenter will set default requirements on your behalf if no requirements are specified for a given label. These defaults are based on the most common operating system, architecture, and capacity type that we expect to work for most workloads.
-
-| Label             | Default Value(s) |
-|-------------------|------------------|
-| `kubernetes.io/os` | `linux`          |
-| `kubernetes.io/arch` | `amd64`          |
-| `karpenter.sh/capcity-type` | `on-demand` |
-
-{{% alert title="Note" color="primary" %}}
-Defaults are set by a defaulting webhook such that if you specify a given label requirement, the default will not be set.
+```yaml
+requirements:
+  - key: karpenter.sh/capacity-type
+    operator: In
+    values: ["on-demand"]
+```
 {{% /alert %}}
-
-Additionally, if there are no constraints on instance type (specifying any of `node.kubernetes.io/instance-type`, `karpenter.k8s.aws/instance-family`, `karpenter.k8s.aws/instance-category`, `karpenter.k8s.aws/instance-generation`) then we will set the following requirements on the Provisioner.
-
-| Label             | Default Value(s)  |
-|-------------------|-------------------|
-| `karpenter.k8s.aws/instance-category` | `["c", "m", "r"]` |
-| `karpenter.k8s.aws/instance-generation` | `> 2`             |
-
-
 
 ## spec.weight
 
