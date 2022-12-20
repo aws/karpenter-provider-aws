@@ -37,7 +37,7 @@ var _ = Describe("SecurityGroups", func() {
 		securityGroups := getSecurityGroups(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
 		Expect(len(securityGroups)).To(BeNumerically(">", 1))
 
-		ids := strings.Join(lo.Map(securityGroups, func(sg ec2.GroupIdentifier, _ int) string { return *sg.GroupId }), ",")
+		ids := strings.Join(lo.Map(securityGroups, func(sg SecurityGroup, _ int) string { return *sg.GroupId }), ",")
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 			AWS: v1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"aws-ids": ids},
@@ -62,8 +62,11 @@ var _ = Describe("SecurityGroups", func() {
 
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 			AWS: v1alpha1.AWS{
-				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-				SubnetSelector:        map[string]string{"Name": fmt.Sprintf("%s,%s", *first.GroupName, *last.GroupName)},
+				SecurityGroupSelector: map[string]string{"Name": fmt.Sprintf("%s,%s",
+					aws.StringValue(lo.FindOrElse(first.Tags, &ec2.Tag{}, func(tag *ec2.Tag) bool { return aws.StringValue(tag.Key) == "Name" }).Key),
+					aws.StringValue(lo.FindOrElse(last.Tags, &ec2.Tag{}, func(tag *ec2.Tag) bool { return aws.StringValue(tag.Key) == "Name" }).Key),
+				)},
+				SubnetSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			},
 		})
 		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
@@ -73,12 +76,17 @@ var _ = Describe("SecurityGroups", func() {
 		env.EventuallyExpectHealthy(pod)
 		env.ExpectCreatedNodeCount("==", 1)
 
-		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("SecurityGroups", ConsistOf(*first.GroupId, *last.GroupId)))
+		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("SecurityGroups", ConsistOf(first.GroupIdentifier, last.GroupIdentifier)))
 	})
 })
 
+type SecurityGroup struct {
+	ec2.GroupIdentifier
+	Tags []*ec2.Tag
+}
+
 // getSecurityGroups returns all getSecurityGroups matching the label selector
-func getSecurityGroups(tags map[string]string) []ec2.GroupIdentifier {
+func getSecurityGroups(tags map[string]string) []SecurityGroup {
 	var filters []*ec2.Filter
 	for key, val := range tags {
 		filters = append(filters, &ec2.Filter{
@@ -86,10 +94,13 @@ func getSecurityGroups(tags map[string]string) []ec2.GroupIdentifier {
 			Values: []*string{aws.String(val)},
 		})
 	}
-	var securityGroups []ec2.GroupIdentifier
+	var securityGroups []SecurityGroup
 	err := env.EC2API.DescribeSecurityGroupsPages(&ec2.DescribeSecurityGroupsInput{Filters: filters}, func(dso *ec2.DescribeSecurityGroupsOutput, _ bool) bool {
 		for _, sg := range dso.SecurityGroups {
-			securityGroups = append(securityGroups, ec2.GroupIdentifier{GroupId: sg.GroupId, GroupName: sg.GroupName})
+			securityGroups = append(securityGroups, SecurityGroup{
+				Tags:            sg.Tags,
+				GroupIdentifier: ec2.GroupIdentifier{GroupId: sg.GroupId, GroupName: sg.GroupName},
+			})
 		}
 		return true
 	})
