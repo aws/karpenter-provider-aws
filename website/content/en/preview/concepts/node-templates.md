@@ -63,7 +63,7 @@ Select subnets by name:
 Select subnets using comma separated tag values:
 ```yaml
   subnetSelector:
-    Name: "Public1,Public2"
+    Name: "Name1,Name2"
 ```
 
 Select subnets by an arbitrary AWS tag key/value pair:
