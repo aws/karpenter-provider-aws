@@ -5,12 +5,12 @@ metadata:
   name: default
 spec:
   requirements:
-    - key: karpenter.k8s.aws/instance-family
+    - key: karpenter.k8s.aws/instance-category
       operator: In
       values: [c, m, r]
     - key: karpenter.k8s.aws/instance-generation
       operator: Gt
-      values: ["2"]
+      values: ["4"]
   providerRef:
     name: default
 ---
