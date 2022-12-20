@@ -55,7 +55,7 @@ var _ = Describe("Subnets", func() {
 		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("SubnetId", HaveValue(Equal(firstSubnet))))
 	})
 
-	It("should use the subnet tag selector", func() {
+	It("should use the subnet tag selector with multiple tag values", func() {
 		// Get all the subnets for the cluster
 		subnets := getSubnetNameAndIds(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
 		Expect(len(subnets)).To(BeNumerically(">", 1))
