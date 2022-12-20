@@ -78,7 +78,7 @@ spec:
 
 ```
 
-Specify explicitly by ID:
+Select by ID:
 ```yaml
 spec:
   subnetSelector:
