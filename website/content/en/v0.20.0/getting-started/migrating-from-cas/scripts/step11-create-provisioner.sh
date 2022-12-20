@@ -10,7 +10,7 @@ spec:
       values: [c, m, r]
     - key: karpenter.k8s.aws/instance-generation
       operator: Gt
-      values: ["4"]
+      values: ["2"]
   providerRef:
     name: default
 ---
