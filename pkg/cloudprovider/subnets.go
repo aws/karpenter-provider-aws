@@ -87,10 +87,9 @@ func getFilters(nodeTemplate *v1alpha1.AWSNodeTemplate) []*ec2.Filter {
 	// Filter by subnet
 	for key, value := range nodeTemplate.Spec.SubnetSelector {
 		if key == "aws-ids" {
-			filterValues := functional.SplitCommaSeparatedString(value)
 			filters = append(filters, &ec2.Filter{
 				Name:   aws.String("subnet-id"),
-				Values: aws.StringSlice(filterValues),
+				Values: aws.StringSlice(functional.SplitCommaSeparatedString(value)),
 			})
 		} else if value == "*" {
 			filters = append(filters, &ec2.Filter{
@@ -100,7 +99,7 @@ func getFilters(nodeTemplate *v1alpha1.AWSNodeTemplate) []*ec2.Filter {
 		} else {
 			filters = append(filters, &ec2.Filter{
 				Name:   aws.String(fmt.Sprintf("tag:%s", key)),
-				Values: []*string{aws.String(value)},
+				Values: aws.StringSlice(functional.SplitCommaSeparatedString(value)),
 			})
 		}
 	}

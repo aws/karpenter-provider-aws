@@ -60,6 +60,12 @@ Select subnets by name:
     Name: my-subnet
 ```
 
+Select subnets using comma separated tag values:
+```yaml
+  subnetSelector:
+    Name: "my-subnet-1,my-subnet-2"
+```
+
 Select subnets by an arbitrary AWS tag key/value pair:
 ```yaml
   subnetSelector:
@@ -101,21 +107,21 @@ If multiple securityGroups are printed, you will need a more specific securityGr
 **Examples**
 
 Select all security groups with a specified tag:
-```
+```yaml
 spec:
   securityGroupSelector:
     karpenter.sh/discovery/MyClusterName: '*'
 ```
 
 Select security groups by name, or another tag (all criteria must match):
-```
+```yaml
  securityGroupSelector:
    Name: my-security-group
    MySecurityTag: '' # matches all resources with the tag
 ```
 
 Select security groups by name using a wildcard:
-```
+```yaml
  securityGroupSelector:
    Name: "*Public*"
 ```
