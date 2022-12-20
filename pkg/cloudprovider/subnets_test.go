@@ -134,7 +134,7 @@ var _ = Describe("Subnets", func() {
 			"subnet-test1",
 		))
 	})
-	It("should discover subnets by tags", func() {
+	It("should discover subnets by multiple tag values", func() {
 		nodeTemplate.Spec.SubnetSelector = map[string]string{"Name": "test-subnet-1,test-subnet-2"}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 		pod := ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
