@@ -72,12 +72,14 @@ This can include well-known labels or custom labels you create yourself.
 
 You can use `affinity` to define more complicated constraints, see [Node Affinity](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#node-affinity) for the complete specification.
 
-### Supported Labels
-The following labels are supported by Karpenter. They may be specified as provisioner requirements or pod scheduling constraints. You can also define your own custom labels by specifying `requirements` or `labels` on your Provisioner and select them using `nodeAffinity` or `nodeSelectors` on your Pods.
+### Labels
+Well-known labels may be specified as provisioner requirements or pod scheduling constraints. You can also define your own custom labels by specifying `requirements` or `labels` on your Provisioner and select them using `nodeAffinity` or `nodeSelectors` on your Pods.
 
 {{% alert title="Warning" color="warning" %}}
 Take care to ensure the label domains are correct. A well known label like `karpenter.k8s.aws/instance-family` will enforce node properties, but may be confused with `node.kubernetes.io/instance-family`, which is unknown to Karpenter, and treated as a custom label which will not enforce node properties.
 {{% /alert %}}
+
+#### Well-Known Labels
 
 | Label                                       | Example     | Description                                                                                                                                 |
 | ------------------------------------------- | ----------  | ------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -100,7 +102,17 @@ Take care to ensure the label domains are correct. A well known label like `karp
 | karpenter.k8s.aws/instance-gpu-memory       | 16384       | [AWS Specific] Number of mebibytes of memory on the GPU                                                                                     |
 | karpenter.k8s.aws/instance-local-nvme       | 900         | [AWS Specific] Number of gibibytes of local nvme storage on the instance                                                                    |
 
-### Node selectors
+#### User-Defined Labels
+
+Karpenter is aware of several well-known labels, deriving them from instance type details. If you specify a `nodeSelector` or a required `nodeAffinity` using a label that is not well-known to Karpenter, it will not launch nodes with these labels and pods will remain pending. For Karpenter to become aware that it can schedule for these labels, you must specify the label in the Provisioner requirements with the `Exists` operator:
+
+```yaml
+requirements:
+  - key: user.defined.label/type
+    operator: Exists
+```
+
+#### Node selectors
 
 Here is an example of a `nodeSelector` for selecting nodes:
 
