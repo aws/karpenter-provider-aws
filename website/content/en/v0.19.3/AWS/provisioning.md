@@ -135,13 +135,6 @@ spec:
     karpenter.sh/discovery/MyClusterName: '*'
 ```
 
-Select security groups by comma-separated tag values:
-```
-spec:
-  securityGroupSelector:
-     Name: my-security-group-1,my-security-group-2
-```
-
 Select security groups by name, or another tag (all criteria must match):
 ```
  securityGroupSelector:
