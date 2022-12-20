@@ -135,7 +135,7 @@ spec:
     Name: "*Public*"
 ```
 
-Specify explicitly by ID:
+Select by ID:
 ```yaml
 spec:
  securityGroupSelector:
