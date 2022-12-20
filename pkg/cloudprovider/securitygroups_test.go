@@ -52,7 +52,7 @@ var _ = Describe("Security Groups", func() {
 			"test-sg-2",
 		))
 	})
-	It("should discover security groups by tags", func() {
+	It("should discover security groups by multiple tag values", func() {
 		nodeTemplate.Spec.SecurityGroupSelector = map[string]string{"Name": "test-security-group-1,test-security-group-2"}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 		pod := ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
