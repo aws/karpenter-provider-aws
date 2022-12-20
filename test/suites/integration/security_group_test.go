@@ -37,7 +37,7 @@ var _ = Describe("SecurityGroups", func() {
 		securityGroups := getSecurityGroups(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
 		Expect(len(securityGroups)).To(BeNumerically(">", 1))
 
-		ids := strings.Join(lo.Map(securityGroups, func(sg SecurityGroup, _ int) string { return *sg.GroupId }), ",")
+		ids := strings.Join([]string{*securityGroups[0].GroupId, *securityGroups[1].GroupId}, ",")
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 			AWS: v1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"aws-ids": ids},
@@ -51,7 +51,7 @@ var _ = Describe("SecurityGroups", func() {
 		env.EventuallyExpectHealthy(pod)
 		env.ExpectCreatedNodeCount("==", 1)
 
-		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("SecurityGroups", ConsistOf(&securityGroups[0].GroupIdentifier)))
+		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("SecurityGroups", ConsistOf(&securityGroups[0].GroupIdentifier, &securityGroups[1].GroupIdentifier)))
 	})
 
 	It("should use the security group selector with multiple tag values", func() {
