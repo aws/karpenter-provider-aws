@@ -44,7 +44,7 @@ Here are some things to know about the Karpenter provisioner:
 * **Provisioner CR**: Karpenter defines a Custom Resource called a Provisioner to specify provisioning configuration.
 Each provisioner manages a distinct set of nodes, but pods schedule to nodes launched by any provisioner that supports its scheduling constraints.
 A provisioner contains constraints that impact the nodes that can be provisioned and attributes of those nodes (such as timers for removing nodes).
-See [Provisioner API](../provisioner) for a description of settings and the [Provisioning](../tasks/provisioning) task for provisioner examples.
+See [Provisioning](./provisioning) docs for a description of settings and provisioner examples.
 
 * **Well-known labels**: The provisioner can use well-known Kubernetes labels to allow pods to request only certain instance types, architectures, operating systems, or other attributes when creating nodes.
 See upstream [Well-Known Labels, Annotations and Taints](https://kubernetes.io/docs/reference/labels-annotations-taints/) and [Karpenter Supported Labels](./scheduling#supported-labels) for details.
@@ -70,13 +70,13 @@ Once that "node empty" time-to-live (`ttlSecondsAfterEmpty`) is reached, finaliz
 * **Consolidation**: If enabled, Karpenter will work to actively reduce cluster cost by identifying when nodes can be removed as their workloads will run on other nodes in the cluster and when nodes can be replaced with cheaper variants due to a change in the workloads.
 * **Interruption**: If enabled, Karpenter will watch for upcoming involuntary interruption events that could affect your nodes (health events, spot interruption, etc.) and will cordon, drain, and terminate the node(s) ahead of the event to reduce workload disruption.
 
-For more details on how Karpenter deletes nodes, see [Deprovisioning nodes](../tasks/deprovisioning) for details.
+For more details on how Karpenter deletes nodes, see [Deprovisioning nodes](./deprovisioning) for details.
 
 ### Upgrading nodes
 
 A straight-forward way to upgrade nodes is to set `ttlSecondsUntilExpired`.
 Nodes will be terminated after a set period of time and will be replaced with newer nodes using the latest discovered AMI.
-See more in [AWSNodeTemplate](../tasks/node-templates).
+See more in [AWSNodeTemplate](./node-templates).
 
 ### Constraints
 
@@ -176,4 +176,4 @@ Those that are implemented in Karpenter include:
 * **node.kubernetes.io/instance-type**: For example, node.kubernetes.io/instance-type=m3.medium
 * **topology.kubernetes.io/zone**: For example, topology.kubernetes.io/zone=us-east-1c
 
-For more on how, as a developer, you can add constraints to your pod deployment, see [Scheduling](../tasks/scheduling/) for details.
+For more on how, as a developer, you can add constraints to your pod deployment, see [Scheduling](./scheduling/) for details.
