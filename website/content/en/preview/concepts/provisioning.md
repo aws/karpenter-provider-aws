@@ -202,6 +202,31 @@ Karpenter prioritizes Spot offerings if the provisioner allows Spot and on-deman
 
 Karpenter also allows `karpenter.sh/capacity-type` to be used as a topology key for enforcing topology-spread.
 
+### Defaults
+
+Karpenter will set default requirements on your behalf if no requirements are specified for a given label. These defaults are based on the most common operating system, architecture, and capacity type that we expect to work for most workloads.
+
+| Label             | Default Value(s) |
+|-------------------|------------------|
+| `kubernetes.io/os` | `linux`          |
+| `kubernetes.io/arch` | `amd64`          |
+| `karpenter.sh/capcity-type` | `on-demand` |
+
+{{% alert title="Note" color="primary" %}}
+Defaults are set by a defaulting webhook such that if you specify a given label requirement, the default will not be set.
+{{% /alert %}}
+
+Additionally, if there are no constraints on instance type (specifying any of `node.kubernetes.io/instance-type`, `karpenter.k8s.aws/instance-family`, `karpenter.k8s.aws/instance-category`, `karpenter.k8s.aws/instance-generation`) then we will set the following requirements on the Provisioner.
+
+| Label             | Default Value(s)  |
+|-------------------|-------------------|
+| `karpenter.k8s.aws/instance-category` | `["c", "m", "r"]` |
+| `karpenter.k8s.aws/instance-generation` | `> 2`             |
+
+{{% alert title="Note" color="primary" %}}
+"C", "M" and "R" instance categories were chosen as the default instance categories since these are the most suitable for common user workloads.
+{{% /alert %}}
+
 ## spec.weight
 
 Karpenter allows you to describe provisioner preferences through a `weight` mechanism similar to how weight is described with [pod and node affinities](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity).
