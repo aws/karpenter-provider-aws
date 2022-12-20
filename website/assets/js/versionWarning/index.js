@@ -13,11 +13,12 @@ export function versionWarning() {
   if (viewingVersion !== latestVersion) {
     const alertElement = document.createElement('div')
     alertElement.classList.add('alert', 'alert-warning')
+    latestPageVersion = document.URL.replace(viewingVersion, latestVersion)
     alertElement.innerHTML = `
       <h3>You are viewing Karpenter's <strong>${viewingVersion}</strong> documentation</h3>
       <p>
         Karpenter <strong>${viewingVersion}</strong> is not the latest stable release. 
-        For up-to-date documentation, see the <a href="/${latestVersion}">latest version</a>.
+        For up-to-date documentation, see the <a href="${latestPageVersion}">latest version</a>.
       </p>
     `
     document.querySelector('.td-content').prepend(alertElement)
