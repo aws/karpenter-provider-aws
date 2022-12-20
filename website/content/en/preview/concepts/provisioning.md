@@ -141,32 +141,28 @@ For example, an instance type may be specified using a nodeSelector in a pod spe
 ### Instance Types
 
 - key: `node.kubernetes.io/instance-type`
+- key: `karpenter.k8s.aws/instance-family`
+- key: `karpenter.k8s.aws/instance-category`
+- key: `karpenter.k8s.aws/instance-generation`
 
 Generally, instance types should be a list and not a single value. Leaving this field undefined is recommended, as it maximizes choices for efficiently placing pods.
 
 Review [AWS instance types](../instance-types). Most instance types are supported with the exclusion of [non-HVM](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/virtualization_types.html).
 
-**Example**
+{{% alert title="Defaults" color="warning" %}}
 
-*Set Default with provisioner.yaml*
-
-```yaml
-spec:
-  requirements:
-    - key: node.kubernetes.io/instance-type
-      operator: In
-      values: ["m5.large", "m5.2xlarge"]
-```
-
-*Override with workload manifest (e.g., pod)*
+If no instance type constraints are defined, Karpenter will set default instance type constraints on your Provisioner that supports most common user workloads:
 
 ```yaml
-spec:
-  template:
-    spec:
-      nodeSelector:
-        node.kubernetes.io/instance-type: m5.large
+requirements:
+  - key: karpenter.k8s.aws/instance-category
+    operator: In
+    values: ["c", "m", "r"]
+  - key: karpenter.k8s.aws/instance-generation
+    operator: Gt
+    values: ["2"]
 ```
+{{% /alert %}}
 
 ### Availability Zones
 
@@ -188,6 +184,12 @@ IDs.](https://docs.aws.amazon.com/ram/latest/userguide/working-with-az-ids.html)
 
 Karpenter supports `amd64` nodes, and `arm64` nodes.
 
+### Operating System
+ - key: `kubernetes.io/os`
+ - values
+   - `linux` (default)
+
+Karpenter supports only `linux` nodes at this time.
 
 ### Capacity Type
 
@@ -223,9 +225,7 @@ Additionally, if there are no constraints on instance type (specifying any of `n
 | `karpenter.k8s.aws/instance-category` | `["c", "m", "r"]` |
 | `karpenter.k8s.aws/instance-generation` | `> 2`             |
 
-{{% alert title="Note" color="primary" %}}
-"C", "M" and "R" instance categories were chosen as the default instance categories since these are the most suitable for common user workloads.
-{{% /alert %}}
+
 
 ## spec.weight
 
