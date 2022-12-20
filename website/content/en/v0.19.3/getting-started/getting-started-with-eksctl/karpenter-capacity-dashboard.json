@@ -112,7 +112,7 @@
                     },
                     "editorMode": "builder",
                     "exemplar": false,
-                    "expr": "sum by(action, cluster) (karpenter_consolidation_actions_performed)",
+                    "expr": "sum by(action, cluster) (karpenter_deprovisioning_actions_performed)",
                     "format": "time_series",
                     "instant": false,
                     "legendFormat": "{{cluster}}: {{action}}",
@@ -120,7 +120,7 @@
                     "refId": "A"
                 }
             ],
-            "title": "Consolidation Actions Performed",
+            "title": "Deprovisioning Actions Performed",
             "type": "timeseries"
         },
         {
