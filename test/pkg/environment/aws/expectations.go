@@ -41,39 +41,38 @@ func (env *Environment) ExpectIPv6ClusterDNS() string {
 
 func (env *Environment) GetInstance(nodeName string) ec2.Instance {
 	node := env.Environment.GetNode(nodeName)
-	providerIDSplit := strings.Split(node.Spec.ProviderID, "/")
-	ExpectWithOffset(1, len(providerIDSplit)).ToNot(Equal(0))
-	instanceID := providerIDSplit[len(providerIDSplit)-1]
-	instance, err := env.EC2API.DescribeInstances(&ec2.DescribeInstancesInput{
-		InstanceIds: aws.StringSlice([]string{instanceID}),
-	})
-	ExpectWithOffset(1, err).ToNot(HaveOccurred())
-	ExpectWithOffset(1, instance.Reservations).To(HaveLen(1))
-	ExpectWithOffset(1, instance.Reservations[0].Instances).To(HaveLen(1))
-	return *instance.Reservations[0].Instances[0]
+	return env.GetInstanceByIDWithOffset(1, env.ExpectParsedProviderID(node.Spec.ProviderID))
 }
 
 func (env *Environment) ExpectInstanceStopped(nodeName string) {
 	node := env.Environment.GetNode(nodeName)
-	providerIDSplit := strings.Split(node.Spec.ProviderID, "/")
-	ExpectWithOffset(1, len(providerIDSplit)).ToNot(Equal(0))
-	instanceID := providerIDSplit[len(providerIDSplit)-1]
 	_, err := env.EC2API.StopInstances(&ec2.StopInstancesInput{
 		Force:       aws.Bool(true),
-		InstanceIds: aws.StringSlice([]string{instanceID}),
+		InstanceIds: aws.StringSlice([]string{env.ExpectParsedProviderID(node.Spec.ProviderID)}),
 	})
 	ExpectWithOffset(1, err).To(Succeed())
 }
 
 func (env *Environment) ExpectInstanceTerminated(nodeName string) {
 	node := env.Environment.GetNode(nodeName)
-	providerIDSplit := strings.Split(node.Spec.ProviderID, "/")
-	ExpectWithOffset(1, len(providerIDSplit)).ToNot(Equal(0))
-	instanceID := providerIDSplit[len(providerIDSplit)-1]
 	_, err := env.EC2API.TerminateInstances(&ec2.TerminateInstancesInput{
-		InstanceIds: aws.StringSlice([]string{instanceID}),
+		InstanceIds: aws.StringSlice([]string{env.ExpectParsedProviderID(node.Spec.ProviderID)}),
 	})
 	ExpectWithOffset(1, err).To(Succeed())
+}
+
+func (env *Environment) GetInstanceByID(instanceID string) ec2.Instance {
+	return env.GetInstanceByIDWithOffset(1, instanceID)
+}
+
+func (env *Environment) GetInstanceByIDWithOffset(offset int, instanceID string) ec2.Instance {
+	instance, err := env.EC2API.DescribeInstances(&ec2.DescribeInstancesInput{
+		InstanceIds: aws.StringSlice([]string{instanceID}),
+	})
+	ExpectWithOffset(offset+1, err).ToNot(HaveOccurred())
+	ExpectWithOffset(offset+1, instance.Reservations).To(HaveLen(1))
+	ExpectWithOffset(offset+1, instance.Reservations[0].Instances).To(HaveLen(1))
+	return *instance.Reservations[0].Instances[0]
 }
 
 func (env *Environment) GetVolume(volumeID *string) ec2.Volume {
@@ -109,4 +108,10 @@ func (env *Environment) ExpectMessagesCreated(msgs ...interface{}) {
 	}
 	wg.Wait()
 	ExpectWithOffset(1, err).To(Succeed())
+}
+
+func (env *Environment) ExpectParsedProviderID(providerID string) string {
+	providerIDSplit := strings.Split(providerID, "/")
+	ExpectWithOffset(1, len(providerIDSplit)).ToNot(Equal(0))
+	return providerIDSplit[len(providerIDSplit)-1]
 }
