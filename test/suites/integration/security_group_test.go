@@ -32,10 +32,10 @@ import (
 	awstest "github.com/aws/karpenter/pkg/test"
 )
 
-var _ = Describe("Subnets", func() {
+var _ = Describe("SecurityGroups", func() {
 	It("should use the security-group-id selector", func() {
 		securityGroups := getSecurityGroups(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
-		Expect(len(securityGroups)).ToNot(Equal(0))
+		Expect(len(securityGroups)).To(BeNumerically(">", 1))
 
 		ids := strings.Join(lo.Map(securityGroups, func(sg ec2.GroupIdentifier, _ int) string { return *sg.GroupId }), ",")
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
@@ -52,6 +52,28 @@ var _ = Describe("Subnets", func() {
 		env.ExpectCreatedNodeCount("==", 1)
 
 		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("SecurityGroups", ContainElement(&securityGroups[0])))
+	})
+
+	It("should use the security group selector with multiple tag values", func() {
+		securityGroups := getSecurityGroups(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
+		Expect(len(securityGroups)).To(BeNumerically(">", 1))
+		first := securityGroups[0]
+		last := securityGroups[len(securityGroups)-1]
+
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+			AWS: v1alpha1.AWS{
+				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+				SubnetSelector:        map[string]string{"Name": fmt.Sprintf("%s,%s", *first.GroupName, *last.GroupName)},
+			},
+		})
+		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
+		pod := test.Pod()
+
+		env.ExpectCreated(pod, provider, provisioner)
+		env.EventuallyExpectHealthy(pod)
+		env.ExpectCreatedNodeCount("==", 1)
+
+		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("SecurityGroups", ConsistOf(*first.GroupId, *last.GroupId)))
 	})
 })
 
