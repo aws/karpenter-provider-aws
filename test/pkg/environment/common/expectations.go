@@ -198,7 +198,7 @@ func (env *Environment) EventuallyExpectNotFoundAssertionWithOffset(offset int, 
 	return EventuallyWithOffset(offset, func(g Gomega) {
 		for _, object := range objects {
 			err := env.Client.Get(env, client.ObjectKeyFromObject(object), object)
-			g.Expect(offset+1, errors.IsNotFound(err)).To(BeTrue())
+			g.Expect(errors.IsNotFound(err)).To(BeTrue())
 		}
 	})
 }
