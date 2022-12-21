@@ -58,24 +58,34 @@ clean-run: ## Clean resources deployed by the run target
 	kubectl delete configmap -n ${SYSTEM_NAMESPACE} karpenter-global-settings --ignore-not-found
 
 test: ## Run tests
-	go test -v ./pkg/... --ginkgo.focus="${FOCUS}"
+	go test -v ./pkg/... --ginkgo.focus="${FOCUS}" --ginkgo.v
 
-battletest: ## Run randomized, racing, code coveraged, tests
+battletest: ## Run randomized, racing, code-covered tests
 	go test -v ./pkg/... \
 		-race \
 		-cover -coverprofile=coverage.out -outputdir=. -coverpkg=./pkg/... \
 		--ginkgo.focus="${FOCUS}" \
 		--ginkgo.randomize-all \
+		--ginkgo.v \
 		-tags random_test_delay
 
 e2etests: ## Run the e2e suite against your local cluster
-	cd test && CLUSTER_NAME=${CLUSTER_NAME} go test -p 1 -count 1 -timeout 180m -v ./suites/... --ginkgo.timeout=180m --ginkgo.focus="${FOCUS}"
+	cd test && CLUSTER_NAME=${CLUSTER_NAME} go test -p 1 -count 1 -timeout 180m -v ./suites/... --ginkgo.timeout=180m --ginkgo.focus="${FOCUS}" --gingko.v
 
 benchmark:
 	go test -tags=test_performance -run=NoTests -bench=. ./...
 
-deflake:
+deflake: ## Run randomized, racing, code-covered tests to deflake failures
 	for i in $(shell seq 1 5); do make battletest || exit 1; done
+
+deflake-until-it-fails: ## Run randomized, racing tests until the test fails to catch flakes
+	ginkgo \
+		--race \
+		--focus="${FOCUS}" \
+		--randomize-all \
+		--until-it-fails \
+		-v \
+		./pkg/...
 
 coverage:
 	go tool cover -html coverage.out -o coverage.html

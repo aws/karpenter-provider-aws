@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/Pallinder/go-randomdata"
+	"github.com/samber/lo"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -36,6 +37,7 @@ import (
 	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
 
+	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/apis"
 	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
@@ -204,10 +206,6 @@ var _ = BeforeEach(func() {
 		},
 	})
 
-	// Reset the pricing provider, so we don't cross-pollinate pricing data
-	pricingProvider = NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
-	instanceTypeProvider.pricingProvider = pricingProvider
-
 	recorder.Reset()
 	fakeEC2API.Reset()
 	fakeSSMAPI.Reset()
@@ -221,6 +219,10 @@ var _ = BeforeEach(func() {
 	kubernetesVersionCache.Flush()
 	instanceTypeCache.Flush()
 	cloudProvider.instanceProvider.launchTemplateProvider.kubeDNSIP = net.ParseIP("10.0.100.10")
+
+	// Reset the pricing provider, so we don't cross-pollinate pricing data
+	pricingProvider = NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
+	instanceTypeProvider.pricingProvider = pricingProvider
 })
 
 var _ = AfterEach(func() {
@@ -276,50 +278,46 @@ var _ = Describe("Allocation", func() {
 	})
 	Context("Node Drift", func() {
 		var validAMI string
-		var instanceTypes []*ec2.InstanceTypeInfo
-		var instanceID string
+		var selectedInstanceType *cloudprovider.InstanceType
+		var instance *ec2.Instance
 		BeforeEach(func() {
 			validAMI = makeImageID()
-			instanceTypes = makeFakeInstances()
-			instanceID = makeInstanceID()
-			fakeSSMAPI.GetParameterOutput = (&ssm.GetParameterOutput{
+			fakeSSMAPI.GetParameterOutput = &ssm.GetParameterOutput{
 				Parameter: &ssm.Parameter{Value: aws.String(validAMI)},
-			})
-			fakeEC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
-				InstanceTypes: instanceTypes,
-			})
-			fakeEC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{
-				InstanceTypeOfferings: makeFakeInstanceOfferings(instanceTypes),
-			})
+			}
 			fakeEC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
 				Images: []*ec2.Image{{ImageId: aws.String(validAMI)}},
 			})
-		})
-		It("should not fail if node template does not exist", func() {
-			ExpectApplied(ctx, env.Client, provisioner)
-			selectedInstanceType := instanceTypes[0]
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, provisioner)
+			Expect(err).ToNot(HaveOccurred())
+			selectedInstanceType = instanceTypes[0]
+
 			// Create the instance we want returned from the EC2 API
-			instance := &ec2.Instance{
+			instance = &ec2.Instance{
 				ImageId:               aws.String(validAMI),
-				InstanceId:            aws.String(instanceID),
 				PrivateDnsName:        aws.String(randomdata.IpV4Address()),
-				InstanceType:          selectedInstanceType.InstanceType,
+				InstanceType:          aws.String(selectedInstanceType.Name),
 				SpotInstanceRequestId: aws.String(coretest.RandomName()),
 				State: &ec2.InstanceState{
 					Name: aws.String(ec2.InstanceStateNameRunning),
 				},
+				InstanceId: aws.String(makeInstanceID()),
 			}
 			fakeEC2API.DescribeInstancesOutput.Set(&ec2.DescribeInstancesOutput{
 				Reservations: []*ec2.Reservation{{Instances: []*ec2.Instance{instance}}},
 			})
+		})
+		It("should not fail if node template does not exist", func() {
+			ExpectDeleted(ctx, env.Client, nodeTemplate)
 			node := coretest.Node(coretest.NodeOptions{
+				ProviderID: makeProviderID(lo.FromPtr(instance.InstanceId)),
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						corev1alpha5.ProvisionerNameLabelKey: provisioner.Name,
-						v1.LabelInstanceTypeStable:           *selectedInstanceType.InstanceType,
+						v1.LabelInstanceTypeStable:           selectedInstanceType.Name,
 					},
 				},
-				ProviderID: makeProviderID(instanceID),
 			})
 			drifted, err := cloudProvider.IsMachineDrifted(ctx, corev1alpha1.MachineFromNode(node))
 			Expect(err).ToNot(HaveOccurred())
@@ -328,209 +326,82 @@ var _ = Describe("Allocation", func() {
 		It("should error if providerRef is not defined", func() {
 			provisioner.Spec.ProviderRef = nil
 			ExpectApplied(ctx, env.Client, provisioner)
-			selectedInstanceType := instanceTypes[0]
-			// Create the instance we want returned from the EC2 API
-			instance := &ec2.Instance{
-				ImageId:               aws.String(validAMI),
-				InstanceId:            aws.String(instanceID),
-				PrivateDnsName:        aws.String(randomdata.IpV4Address()),
-				InstanceType:          selectedInstanceType.InstanceType,
-				SpotInstanceRequestId: aws.String(coretest.RandomName()),
-				State: &ec2.InstanceState{
-					Name: aws.String(ec2.InstanceStateNameRunning),
-				},
-			}
-			fakeEC2API.DescribeInstancesOutput.Set(&ec2.DescribeInstancesOutput{
-				Reservations: []*ec2.Reservation{{Instances: []*ec2.Instance{instance}}},
-			})
 			node := coretest.Node(coretest.NodeOptions{
+				ProviderID: makeProviderID(lo.FromPtr(instance.InstanceId)),
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						corev1alpha5.ProvisionerNameLabelKey: provisioner.Name,
-						v1.LabelInstanceTypeStable:           *selectedInstanceType.InstanceType,
+						v1.LabelInstanceTypeStable:           selectedInstanceType.Name,
 					},
 				},
-				ProviderID: makeProviderID(instanceID),
 			})
 			drifted, err := cloudProvider.IsMachineDrifted(ctx, corev1alpha1.MachineFromNode(node))
 			Expect(err).To(HaveOccurred())
 			Expect(drifted).To(BeFalse())
 		})
 		It("should not fail if provisioner does not exist", func() {
-			ExpectApplied(ctx, env.Client, nodeTemplate)
-			selectedInstanceType := instanceTypes[0]
-			// Create the instance we want returned from the EC2 API
-			instance := &ec2.Instance{
-				ImageId:               aws.String(validAMI),
-				InstanceId:            aws.String(instanceID),
-				PrivateDnsName:        aws.String(randomdata.IpV4Address()),
-				InstanceType:          selectedInstanceType.InstanceType,
-				SpotInstanceRequestId: aws.String(coretest.RandomName()),
-				State: &ec2.InstanceState{
-					Name: aws.String(ec2.InstanceStateNameRunning),
-				},
-			}
-			fakeEC2API.DescribeInstancesOutput.Set(&ec2.DescribeInstancesOutput{
-				Reservations: []*ec2.Reservation{{Instances: []*ec2.Instance{instance}}},
-			})
+			ExpectDeleted(ctx, env.Client, provisioner)
 			node := coretest.Node(coretest.NodeOptions{
+				ProviderID: makeProviderID(lo.FromPtr(instance.InstanceId)),
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						corev1alpha5.ProvisionerNameLabelKey: provisioner.Name,
-						v1.LabelInstanceTypeStable:           *selectedInstanceType.InstanceType,
+						v1.LabelInstanceTypeStable:           selectedInstanceType.Name,
 					},
 				},
-				ProviderID: makeProviderID(instanceID),
 			})
 			drifted, err := cloudProvider.IsMachineDrifted(ctx, corev1alpha1.MachineFromNode(node))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(drifted).To(BeFalse())
 		})
 		It("should return drifted if the AMI is not valid", func() {
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-			selectedInstanceType := instanceTypes[0]
-			// Create the instance we want returned from the EC2 API
-			instance := &ec2.Instance{
-				ImageId:               aws.String(makeImageID()),
-				InstanceId:            aws.String(instanceID),
-				PrivateDnsName:        aws.String(randomdata.IpV4Address()),
-				InstanceType:          selectedInstanceType.InstanceType,
-				SpotInstanceRequestId: aws.String(coretest.RandomName()),
-				State: &ec2.InstanceState{
-					Name: aws.String(ec2.InstanceStateNameRunning),
-				},
-			}
-			fakeEC2API.DescribeInstancesOutput.Set(&ec2.DescribeInstancesOutput{
-				Reservations: []*ec2.Reservation{{Instances: []*ec2.Instance{instance}}},
-			})
 			node := coretest.Node(coretest.NodeOptions{
+				ProviderID: makeProviderID(lo.FromPtr(instance.InstanceId)),
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						corev1alpha5.ProvisionerNameLabelKey: provisioner.Name,
-						v1.LabelInstanceTypeStable:           *selectedInstanceType.InstanceType,
+						v1.LabelInstanceTypeStable:           selectedInstanceType.Name,
 					},
 				},
-				ProviderID: makeProviderID(instanceID),
 			})
+			// Instance is a reference to what we return in the GetInstances call
+			instance.ImageId = aws.String(makeImageID())
 			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, corev1alpha1.MachineFromNode(node))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(isDrifted).To(BeTrue())
 		})
 		It("should not return drifted if the AMI is valid", func() {
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-			selectedInstanceType := instanceTypes[0]
-			// Create the instance we want returned from the EC2 API
-			instance := &ec2.Instance{
-				ImageId:               aws.String(validAMI),
-				InstanceId:            aws.String(instanceID),
-				PrivateDnsName:        aws.String(randomdata.IpV4Address()),
-				InstanceType:          selectedInstanceType.InstanceType,
-				SpotInstanceRequestId: aws.String(coretest.RandomName()),
-				State: &ec2.InstanceState{
-					Name: aws.String(ec2.InstanceStateNameRunning),
-				},
-			}
-			fakeEC2API.DescribeInstancesOutput.Set(&ec2.DescribeInstancesOutput{
-				Reservations: []*ec2.Reservation{{Instances: []*ec2.Instance{instance}}},
-			})
 			node := coretest.Node(coretest.NodeOptions{
+				ProviderID: makeProviderID(lo.FromPtr(instance.InstanceId)),
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						corev1alpha5.ProvisionerNameLabelKey: provisioner.Name,
-						v1.LabelInstanceTypeStable:           *selectedInstanceType.InstanceType,
+						v1.LabelInstanceTypeStable:           selectedInstanceType.Name,
 					},
 				},
-				ProviderID: makeProviderID(instanceID),
 			})
 			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, corev1alpha1.MachineFromNode(node))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(isDrifted).To(BeFalse())
 		})
 		It("should error if the node doesn't have the instance-type label", func() {
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-			selectedInstanceType := instanceTypes[0]
-			// Create the instance we want returned from the EC2 API
-			instance := &ec2.Instance{
-				ImageId:               aws.String(validAMI),
-				InstanceId:            aws.String(instanceID),
-				PrivateDnsName:        aws.String(randomdata.IpV4Address()),
-				InstanceType:          selectedInstanceType.InstanceType,
-				SpotInstanceRequestId: aws.String(coretest.RandomName()),
-				State: &ec2.InstanceState{
-					Name: aws.String(ec2.InstanceStateNameRunning),
-				},
-			}
-			fakeEC2API.DescribeInstancesOutput.Set(&ec2.DescribeInstancesOutput{
-				Reservations: []*ec2.Reservation{{Instances: []*ec2.Instance{instance}}},
-			})
 			node := coretest.Node(coretest.NodeOptions{
+				ProviderID: makeProviderID(lo.FromPtr(instance.InstanceId)),
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						corev1alpha5.ProvisionerNameLabelKey: provisioner.Name,
 					},
 				},
-				ProviderID: makeProviderID(instanceID),
 			})
 			_, err := cloudProvider.IsMachineDrifted(ctx, corev1alpha1.MachineFromNode(node))
 			Expect(err).To(HaveOccurred())
 		})
-		It("should call EC2 to detect drift if node doesn't have ami label", func() {
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-			selectedInstanceType := instanceTypes[0]
-			// Create the instance we want returned from the EC2 API
-			instance := &ec2.Instance{
-				ImageId:               aws.String(makeImageID()),
-				InstanceId:            aws.String(instanceID),
-				PrivateDnsName:        aws.String(randomdata.IpV4Address()),
-				InstanceType:          selectedInstanceType.InstanceType,
-				SpotInstanceRequestId: aws.String(coretest.RandomName()),
-				State: &ec2.InstanceState{
-					Name: aws.String(ec2.InstanceStateNameRunning),
-				},
-			}
-			fakeEC2API.DescribeInstancesOutput.Set(&ec2.DescribeInstancesOutput{
-				Reservations: []*ec2.Reservation{{Instances: []*ec2.Instance{instance}}},
-			})
-
-			node := coretest.Node(coretest.NodeOptions{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						v1.LabelInstanceTypeStable:           *selectedInstanceType.InstanceType,
-						corev1alpha5.ProvisionerNameLabelKey: provisioner.Name,
-					},
-				},
-				ProviderID: makeProviderID(instanceID),
-			})
-
-			ExpectApplied(ctx, env.Client, node)
-			node = ExpectNodeExists(ctx, env.Client, node.Name)
-			// Should succeed even though the AMI ID label doesn't exist
-			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, corev1alpha1.MachineFromNode(node))
-			Expect(err).ToNot(HaveOccurred())
-			Expect(isDrifted).To(BeTrue())
-		})
 		It("should error drift if node doesn't have provider id", func() {
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-			selectedInstanceType := instanceTypes[0]
-			// Create the instance we want returned from the EC2 API
-			instance := &ec2.Instance{
-				ImageId:               aws.String(makeImageID()),
-				InstanceId:            aws.String(instanceID),
-				PrivateDnsName:        aws.String(randomdata.IpV4Address()),
-				InstanceType:          selectedInstanceType.InstanceType,
-				SpotInstanceRequestId: aws.String(coretest.RandomName()),
-				State: &ec2.InstanceState{
-					Name: aws.String(ec2.InstanceStateNameRunning),
-				},
-			}
-			fakeEC2API.DescribeInstancesOutput.Set(&ec2.DescribeInstancesOutput{
-				Reservations: []*ec2.Reservation{{Instances: []*ec2.Instance{instance}}},
-			})
 			node := coretest.Node(coretest.NodeOptions{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						corev1alpha5.ProvisionerNameLabelKey: provisioner.Name,
-						v1.LabelInstanceTypeStable:           *selectedInstanceType.InstanceType,
+						v1.LabelInstanceTypeStable:           selectedInstanceType.Name,
 					},
 				},
 			})
