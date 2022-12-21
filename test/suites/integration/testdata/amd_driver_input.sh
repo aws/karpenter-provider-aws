@@ -30,5 +30,5 @@ ExecStart=/bin/bash /tmp/amd-install.sh
 WantedBy=multi-user.target
 EOF
 sudo systemctl enable amd-install.service
-(sleep 30; sudo reboot) &
+(sleep 60; sudo reboot) &
 --BOUNDARY-- 
