@@ -100,7 +100,7 @@ By adopting this practice we allow our users who are early adopters to test out 
 * Instance category defaults are now explicitly persisted in the Provisioner, rather than handled implicitly in memory. By default, Provisioners will limit instance category to c,m,r. If any instance type constraints are applied, it will override this default. If you have created Provisioners in the past with unconstrained instance type, family, or category, Karpenter will now more flexibly use instance types than before. If you would like to apply these constraints, they must be included in the Provisioner CRD.
 * Karpenter CRD raw YAML URLs have migrated from `https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}charts/karpenter/crds/...` to `https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}pkg/apis/crds/...`. If you reference static Karpenter CRDs or rely on `kubectl replace -f` to apply these CRDs from their remote location, you will need to migrate to the new location.
 * Pods without an ownerRef (also called "controllerless" or "naked" pods) will now be evicted by default during node termination and consolidation.  Users can prevent controllerless pods from being voluntarily disrupted by applying the `karpenter.sh/do-not-evict: true` annotation to the pods in question.
-* The following CLI options/environment variables are now removed and replaced in favor of pulling settings dynamically from the `karpenter-global-settings` ConfigMap. See the [Global Settings docs](../concepts/globalsettings) for more details on configuring the new values in the ConfigMap.
+* The following CLI options/environment variables are now removed and replaced in favor of pulling settings dynamically from the `karpenter-global-settings` ConfigMap. See the [Settings docs]({{<ref "./concepts/settings/#environment-variables--cli-flags" >}}) for more details on configuring the new values in the ConfigMap.
 
    * `CLUSTER_NAME` -> `aws.clusterName`
    * `CLUSTER_ENDPOINT` -> `aws.clusterEndpoint`
@@ -112,7 +112,7 @@ By adopting this practice we allow our users who are early adopters to test out 
    * `VM_MEMORY_OVERHEAD` -> `aws.vmMemoryOverheadPercent`
 
 ## Upgrading to v0.18.0+
-* v0.18.0 removes the `karpenter_consolidation_nodes_created` and `karpenter_consolidation_nodes_terminated` prometheus metrics in favor of the more generic `karpenter_nodes_created` and `karpenter_nodes_terminated` metrics. You can still see nodes created and terminated by consolidation by checking the `reason` label on the metrics. Check out all the metrics published by Karpenter [here](../concepts/metrics/).
+* v0.18.0 removes the `karpenter_consolidation_nodes_created` and `karpenter_consolidation_nodes_terminated` prometheus metrics in favor of the more generic `karpenter_nodes_created` and `karpenter_nodes_terminated` metrics. You can still see nodes created and terminated by consolidation by checking the `reason` label on the metrics. Check out all the metrics published by Karpenter [here]({{<ref "./concepts/metrics" >}}).
 
 ## Upgrading to v0.17.0+
 Karpenter's Helm chart package is now stored in [Karpenter's OCI (Open Container Initiative) registry](https://gallery.ecr.aws/karpenter/karpenter). The Helm CLI supports the new format since [v3.8.0+](https://helm.sh/docs/topics/registries/).
@@ -166,7 +166,7 @@ aws ec2 delete-launch-template --launch-template-id <LAUNCH_TEMPLATE_ID>
     operator: Exists
 ```
 
-* v0.14.0 introduces support for custom AMIs without the need for an entire launch template. You must add the `ec2:DescribeImages` permission to the Karpenter Controller Role for this feature to work. This permission is needed for Karpenter to discover custom images specified. Read the [Custom AMI documentation here](../aws/provisioning/#amiselector) to get started
+* v0.14.0 introduces support for custom AMIs without the need for an entire launch template. You must add the `ec2:DescribeImages` permission to the Karpenter Controller Role for this feature to work. This permission is needed for Karpenter to discover custom images specified. Read the [Custom AMI documentation here]({{<ref "./concepts/provisioners#spec-amiselector" >}}) to get started
 * v0.14.0 adds an an additional default toleration (CriticalAddonOnly=Exists) to the Karpenter helm chart. This may cause Karpenter to run on nodes with that use this Taint which previously would not have been schedulable. This can be overridden by using `--set tolerations[0]=null`.
 
 * v0.14.0 deprecates the `AWS_ENI_LIMITED_POD_DENSITY` environment variable in-favor of specifying `spec.kubeletConfiguration.maxPods` on the Provisioner. `AWS_ENI_LIMITED_POD_DENSITY` will continue to work when `maxPods` is not set on the Provisioner. If `maxPods` is set, it will override `AWS_ENI_LIMITED_POD_DENSITY` on that specific Provisioner.

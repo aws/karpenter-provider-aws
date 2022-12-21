@@ -1,6 +1,6 @@
 ---
-title: "Provisioning"
-linkTitle: "Provisioning"
+title: "Provisioners"
+linkTitle: "Provisioners"
 weight: 1
 description: >
   Learn about Karpenter Provisioners
@@ -377,17 +377,41 @@ Bottlerocket AMIFamily currently does not support `podsPerCore` configuration. I
 
 ## spec.limits.resources
 
-The provisioner spec includes a limits section (`spec.limits.resources`), which constrains the maximum amount of resources that the provisioner will manage.
+The provisioner spec includes a limits section (`spec.limits.resources`), which constrains the maximum amount of resources that the provisioner will manage. 
 
-Karpenter supports limits of any resource type that is reported by your cloud provider.
+Karpenter supports limits of any resource type reported by your cloudprovider. It limits instance types when scheduling to those that will not exceed the specified limits.  If a limit has been exceeded, nodes provisioning is prevented until some nodes have been terminated.
+
+```yaml
+apiVersion: karpenter.sh/v1alpha5
+kind: Provisioner
+metadata:
+  name: default
+spec:
+  requirements:
+    - key: karpenter.sh/capacity-type
+      operator: In
+      values: ["spot"]
+  limits:
+    resources:
+      cpu: 1000 
+      memory: 1000Gi
+      nvidia.com/gpu: 2
+```
+
+{{% alert title="Note" color="primary" %}}
+Karpenter provisioning is highly parallel. Because of this, limit checking is eventually consistent, which can result in overrun during rapid scale outs.
+{{% /alert %}}
 
 CPU limits are described with a `DecimalSI` value. Note that the Kubernetes API will coerce this into a string, so we recommend against using integers to avoid GitOps skew.
 
 Memory limits are described with a [`BinarySI` value, such as 1000Gi.](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/#meaning-of-memory)
 
-Karpenter limits instance types when scheduling to those that will not exceed the specified limits.  If a limit has been exceeded, nodes provisioning is prevented until some nodes have been terminated.
+You can view the current consumption of cpu and memory on your cluster by running:
+```
+kubectl get provisioner -o=jsonpath='{.items[0].status}'
+```
 
-Review [resource limits](../set-resource-limits) for more information.
+Review the [Kubernetes core API](https://github.com/kubernetes/api/blob/37748cca582229600a3599b40e9a82a951d8bbbf/core/v1/resource.go#L23) (`k8s.io/api/core/v1`) for more information on `resources`.
 
 ## spec.providerRef
 
@@ -397,8 +421,9 @@ This field points to the cloud provider-specific custom resource. Learn more abo
 
 You can configure Karpenter to deprovision instances through your Provisioner in multiple ways. You can use `spec.TTLSecondsAfterEmpty`, `spec.ttlSecondsUntilExpired` or `spec.consolidation.enabled`. Read [Deprovisioning](../deprovisioning/) for more.
 
+## Examples
 
-## Example: Restricting Instance Types
+### Restricting Instance Types
 
 Not all workloads are able to run on any instance type. Some use cases may be sensitive to a specific hardware generation or cannot tolerate burstable compute. You can specify a variety of well known labels to control the set of instance types available to be provisioned.
 
@@ -423,7 +448,7 @@ spec:
       values: [m5.24xlarge]
 ```
 
-## Example: Isolating Expensive Hardware
+### Isolating Expensive Hardware
 
 A provisioner can be set up to only provision nodes on particular processor types.
 The following example sets a taint that only allows pods with tolerations for Nvidia GPUs to be scheduled:
@@ -446,7 +471,7 @@ spec:
 ```
 In order for a pod to run on a node defined in this provisioner, it must tolerate `nvidia.com/gpu` in its pod spec.
 
-### Example: Adding the Cilium Startup Taint
+### Adding the Cilium Startup Taint
 
 Per the Cilium [docs](https://docs.cilium.io/en/stable/gettingstarted/taints/),  it's recommended to place a taint of `node.cilium.io/agent-not-ready=true:NoExecute` on nodes to allow Cilium to configure networking prior to other pods starting.  This can be accomplished via the use of Karpenter `startupTaints`.  These taints are placed on the node, but pods aren't required to tolerate these taints to be considered for provisioning.
 

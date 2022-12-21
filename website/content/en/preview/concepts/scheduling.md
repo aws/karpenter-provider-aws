@@ -1,7 +1,7 @@
 ---
 title: "Scheduling"
 linkTitle: "Scheduling"
-weight: 4
+weight: 3
 description: >
   Learn about scheduling workloads with Karpenter
 ---
@@ -62,8 +62,60 @@ Its limits are set to 256MiB of memory and 1 CPU.
 Instance type selection math only uses `requests`, but `limits` may be configured to enable resource oversubscription.
 
 
-See [Managing Resources for Containers](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/) for details on resource types supported by Kubernetes, [Specify a memory request and a memory limit](https://kubernetes.io/docs/tasks/configure-pod-container/assign-memory-resource/#specify-a-memory-request-and-a-memory-limit) for examples of memory requests, and [Provisioning Configuration](../../aws/provisioning/) for a list of supported resources.
+See [Managing Resources for Containers](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/) for details on resource types supported by Kubernetes, [Specify a memory request and a memory limit](https://kubernetes.io/docs/tasks/configure-pod-container/assign-memory-resource/#specify-a-memory-request-and-a-memory-limit) for examples of memory requests, and [Provisioner Configuration]({{<ref "./provisioners" >}}) for a list of supported resources.
 
+### Accelerators/GPU Resources
+
+Accelerator (e.g., GPU) values include
+- `nvidia.com/gpu`
+- `amd.com/gpu`
+- `aws.amazon.com/neuron`
+- `habana.ai/gaudi`
+
+Karpenter supports accelerators, such as GPUs.
+
+Additionally, include a resource requirement in the workload manifest. This will cause the GPU dependent pod to be scheduled onto the appropriate node.
+
+Here is an example of an accelerator resource in a workload manifest (e.g., pod):
+
+```yaml
+spec:
+  template:
+    spec:
+      containers:
+      - resources:
+          limits:
+            nvidia.com/gpu: "1"
+```
+{{% alert title="Note" color="primary" %}}
+If you are provisioning GPU nodes, you need to deploy an appropriate GPU device plugin daemonset for those nodes.
+Without the daemonset running, Karpenter will not see those nodes as initialized.
+Refer to general [Kubernetes GPU](https://kubernetes.io/docs/tasks/manage-gpus/scheduling-gpus/#deploying-amd-gpu-device-plugin) docs and the following specific GPU docs:
+* `nvidia.com/gpu`: [NVIDIA device plugin for Kubernetes](https://github.com/NVIDIA/k8s-device-plugin)
+* `amd.com/gpu`: [AMD GPU device plugin for Kubernetes](https://github.com/RadeonOpenCompute/k8s-device-plugin)
+* `aws.amazon.com/neuron`: [Kubernetes environment setup for Neuron](https://github.com/aws-neuron/aws-neuron-sdk/tree/master/src/k8)
+* `habana.ai/gaudi`: [Habana device plugin for Kubernetes](https://docs.habana.ai/en/latest/Orchestration/Gaudi_Kubernetes/Habana_Device_Plugin_for_Kubernetes.html)
+  {{% /alert %}}
+
+### Pod ENI Resources (Security Groups for Pods)
+[Pod ENI](https://github.com/aws/amazon-vpc-cni-k8s#enable_pod_eni-v170) is a feature of the AWS VPC CNI Plugin which allows an Elastic Network Interface (ENI) to be allocated directly to a Pod. When enabled, the `vpc.amazonaws.com/pod-eni` extended resource is added to supported nodes. The Pod ENI feature can be used independently, but is most often used in conjunction with Security Groups for Pods.  Follow the below instructions to enable support for Pod ENI and/or Security Groups for Pods in Karpenter.
+
+{{% alert title="Note" color="primary" %}}
+You must enable Pod ENI support in the AWS VPC CNI Plugin before enabling Pod ENI support in Karpenter.  Please refer to the [Security Groups for Pods documentation](https://docs.aws.amazon.com/eks/latest/userguide/security-groups-for-pods.html) for instructions.
+{{% /alert %}}
+
+Now that Pod ENI support is enabled in the AWS VPC CNI Plugin, you can enable Pod ENI support in Karpenter by setting the `settings.aws.enablePodENI` Helm chart value to `true`.
+
+Here is an example of a pod-eni resource defined in a deployment manifest:
+```
+spec:
+  template:
+    spec:
+      containers:
+      - resources:
+          limits:
+            vpc.amazonaws.com/pod-eni: "1"
+```
 
 ## Selecting nodes
 

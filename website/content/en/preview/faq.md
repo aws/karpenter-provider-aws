@@ -21,7 +21,7 @@ Start with Karpenter's GitHub [cloudprovider](https://github.com/aws/karpenter-c
 By default, Karpenter uses Amazon Linux 2 images.
 
 ### Can I provide my own custom operating system images?
-Karpenter has multiple mechanisms for configuring the [operating system]({{< ref "./concepts/operating-systems/" >}}) for your nodes.
+Karpenter has multiple mechanisms for configuring the [operating system]({{< ref "./concepts/node-templates/#spec-amiselector" >}}) for your nodes.
 
 ### Can Karpenter deal with workloads for mixed architecture cluster (arm vs. amd)?
 Karpenter is flexible to multi architecture configurations using [well known labels]({{< ref "./concepts/scheduling/#supported-labels">}}).
@@ -51,18 +51,18 @@ We expect most users will use a mixed approach in the near term and provisioner-
 
 ### How does Karpenter interact with Kubernetes features?
 * Kubernetes Cluster Autoscaler: Karpenter can work alongside cluster autoscaler.
-See [Kubernetes cluster autoscaler]({{< ref "./concepts/overview/#kubernetes-cluster-autoscaler" >}}) for details.
+See [Kubernetes cluster autoscaler]({{< ref "./concepts/#kubernetes-cluster-autoscaler" >}}) for details.
 * Kubernetes Scheduler: Karpenter focuses on scheduling pods that the Kubernetes scheduler has marked as unschedulable.
 See [Scheduling]({{< ref "./concepts/scheduling" >}}) for details on how Karpenter interacts with the Kubernetes scheduler.
 
 ## Provisioning
 
 ### What features does the Karpenter provisioner support?
-See [Provisioner API]({{< ref "./concepts/provisioning" >}}) for provisioner examples and descriptions of features.
+See [Provisioner API]({{< ref "./concepts/provisioners" >}}) for provisioner examples and descriptions of features.
 
 ### Can I create multiple (team-based) provisioners on a cluster?
 Yes, provisioners can identify multiple teams based on labels.
-See [Provisioner API]({{< ref "./concepts/provisioning" >}}) for details.
+See [Provisioner API]({{< ref "./concepts/provisioners" >}}) for details.
 
 ### If multiple provisioners are defined, which will my pod use?
 
@@ -89,14 +89,14 @@ However, you can use Session Manager (SSM) or EC2 Instance Connect to gain shell
 See [Node NotReady]({{< ref "./troubleshooting/#node-notready" >}}) troubleshooting for an example of starting an SSM session from the command line or [EC2 Instance Connect](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-set-up.html) documentation to connect to nodes using SSH.
 
 Though not recommended, if you need to access Karpenter-managed nodes without AWS credentials, you can add SSH keys using AWSNodeTemplate.
-See [Custom User Data]({{< ref "./concepts/operating-systems/" >}}) for details.
+See [Custom User Data]({{< ref "./concepts/node-templates/#spec-userdata" >}}) for details.
 
 ### Can I set total limits of CPU and memory for a provisioner?
 Yes, the setting is provider-specific.
-See examples in [Accelerators, GPU]({{< ref "./concepts/node-templates/#accelerators-gpu" >}}) Karpenter documentation.
+See examples in [Accelerators, GPU]({{< ref "./concepts/scheduling/#accelerators-gpu-resources" >}}) Karpenter documentation.
 
 ### Can I mix spot and on-demand EC2 run types?
-Yes, see [Provisioning]({{< ref "./concepts/provisioning/" >}}) for an example.
+Yes, see [Provisioning]({{< ref "./concepts/provisioners#examples" >}}) for an example.
 
 ### Can I restrict EC2 instance types?
 
@@ -146,7 +146,7 @@ As an example, suppose you scale up a deployment with a preferred zonal topology
 
 ### How can someone deploying pods take advantage of Karpenter?
 
-See [Application developer]({{< ref "./concepts/overview/#application-developer" >}}) for descriptions of how Karpenter matches nodes with pod requests.
+See [Application developer]({{< ref "./concepts/#application-developer" >}}) for descriptions of how Karpenter matches nodes with pod requests.
 
 ### Can I use Karpenter with EBS disks per availability zone?
 Yes.  See [Persistent Volume Topology]({{< ref "./concepts/scheduling#persistent-volume-topology" >}}) for details.

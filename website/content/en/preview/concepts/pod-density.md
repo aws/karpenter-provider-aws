@@ -1,7 +1,7 @@
 ---
 title: "Control Pod Density"
 linkTitle: "Control Pod Density"
-weight: 11
+weight: 6
 description: >
   Learn ways to specify pod density with Karpenter
 ---
@@ -30,7 +30,7 @@ When using small instance types, it may be necessary to enable [prefix assignmen
 
 Static pod density can be configured at the provisioner level by specifying `maxPods` within the `.spec.kubeletConfiguration`. All nodes spawned by this provisioner will set this `maxPods` value on their kubelet and will account for this value during scheduling.
 
-See [Provisioner API Kubelet Configuration](../../provisioner/#max-pods) for more details.
+See [Provisioner API Kubelet Configuration](./provisioners/#max-pods) for more details.
 
 #### Dynamic Pod Density
 
