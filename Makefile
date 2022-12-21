@@ -70,7 +70,15 @@ battletest: ## Run randomized, racing, code-covered tests
 		-tags random_test_delay
 
 e2etests: ## Run the e2e suite against your local cluster
-	cd test && CLUSTER_NAME=${CLUSTER_NAME} go test -p 1 -count 1 -timeout 180m -v ./suites/... --ginkgo.timeout=180m --ginkgo.focus="${FOCUS}" --gingko.v
+	cd test && CLUSTER_NAME=${CLUSTER_NAME} go test \
+		-p 1 \
+		-count 1 \
+		-timeout 180m \
+		-v \
+		./suites/... \
+		--ginkgo.focus="${FOCUS}" \
+		--ginkgo.timeout=180m \
+		--ginkgo.v
 
 benchmark:
 	go test -tags=test_performance -run=NoTests -bench=. ./...
