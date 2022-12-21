@@ -199,7 +199,7 @@ var _ = Describe("Pricing", func() {
 			},
 		})
 		p := NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
-		Eventually(func() bool { return p.OnDemandLastUpdated().After(updateStart) }, 5*time.Second).Should(BeTrue())
+		Eventually(func() bool { return p.SpotLastUpdated().After(updateStart) }, 5*time.Second).Should(BeTrue())
 		inp := fakeEC2API.DescribeSpotPriceHistoryInput.Clone()
 		Expect(lo.Map(inp.ProductDescriptions, func(x *string, _ int) string { return *x })).
 			To(ContainElements("Linux/UNIX", "Linux/UNIX (Amazon VPC)"))
