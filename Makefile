@@ -60,7 +60,7 @@ clean-run: ## Clean resources deployed by the run target
 test: ## Run tests
 	go test -v ./pkg/... --ginkgo.focus="${FOCUS}" --ginkgo.v
 
-battletest: ## Run randomized, racing, code coveraged, tests
+battletest: ## Run randomized, racing, code-covered tests
 	go test -v ./pkg/... \
 		-race \
 		-cover -coverprofile=coverage.out -outputdir=. -coverpkg=./pkg/... \
@@ -75,7 +75,10 @@ e2etests: ## Run the e2e suite against your local cluster
 benchmark:
 	go test -tags=test_performance -run=NoTests -bench=. ./...
 
-deflake: ## Run randomized, racing tests until the test fails to catch flakes
+deflake: ## Run randomized, racing, code-covered tests to deflake failures
+	for i in $(shell seq 1 5); do make battletest || exit 1; done
+
+deflake-until-it-fails: ## Run randomized, racing tests until the test fails to catch flakes
 	ginkgo \
 		--race \
 		--focus="${FOCUS}" \
