@@ -20,6 +20,7 @@ tools() {
     go install github.com/sigstore/cosign/cmd/cosign@v1.13.1
     go install github.com/gohugoio/hugo@v0.97.3+extended
     go install golang.org/x/vuln/cmd/govulncheck@v0.0.0-20220902211423-27dd78d2ca39
+    go install github.com/onsi/ginkgo/v2/ginkgo@latest
 
     if ! echo "$PATH" | grep -q "${GOPATH:-undefined}/bin\|$HOME/go/bin"; then
         echo "Go workspace's \"bin\" directory is not in PATH. Run 'export PATH=\"\$PATH:\${GOPATH:-\$HOME/go}/bin\"'."

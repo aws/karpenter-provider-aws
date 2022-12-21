@@ -10,7 +10,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: ./.github/actions/install-go-and-dependencies
-      - name: Running tests 10 times to find flaky tests
+      - name: Running tests 5 times to find flaky tests
         run: make deflake
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

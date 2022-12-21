@@ -238,7 +238,7 @@ func (c *CloudProvider) isAMIDrifted(ctx context.Context, machine *corev1alpha1.
 		return instType.Name == machine.Labels[v1.LabelInstanceTypeStable]
 	})
 	if !found {
-		return false, fmt.Errorf("getting node instance type")
+		return false, fmt.Errorf(`finding node instance type "%s"`, machine.Labels[v1.LabelInstanceTypeStable])
 	}
 	if nodeTemplate.Spec.LaunchTemplateName != nil {
 		return false, nil
