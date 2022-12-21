@@ -20,10 +20,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/aws/karpenter/pkg/test"
-
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
-
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
 )
@@ -56,6 +52,18 @@ var _ = Describe("Security Groups", func() {
 			"test-sg-2",
 		))
 	})
+	It("should discover security groups by multiple tag values", func() {
+		nodeTemplate.Spec.SecurityGroupSelector = map[string]string{"Name": "test-security-group-1,test-security-group-2"}
+		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+		pod := ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
+		ExpectScheduled(ctx, env.Client, pod)
+		Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+		input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+		Expect(aws.StringValueSlice(input.LaunchTemplateData.SecurityGroupIds)).To(ConsistOf(
+			"sg-test1",
+			"sg-test2",
+		))
+	})
 	It("should discover security groups by ID", func() {
 		nodeTemplate.Spec.SecurityGroupSelector = map[string]string{"aws-ids": "sg-test1"}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
@@ -69,11 +77,7 @@ var _ = Describe("Security Groups", func() {
 	})
 	It("should discover security groups by IDs", func() {
 		nodeTemplate.Spec.SecurityGroupSelector = map[string]string{"aws-ids": "sg-test1,sg-test2"}
-		ExpectApplied(ctx, env.Client, test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{
-			APIVersion: nodeTemplate.APIVersion,
-			Kind:       nodeTemplate.Kind,
-			Name:       nodeTemplate.Name,
-		}}), nodeTemplate)
+		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 		pod := ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
 		ExpectScheduled(ctx, env.Client, pod)
 		Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
@@ -85,11 +89,7 @@ var _ = Describe("Security Groups", func() {
 	})
 	It("should discover security groups by IDs and tags", func() {
 		nodeTemplate.Spec.SecurityGroupSelector = map[string]string{"aws-ids": "sg-test1,sg-test2", "foo": "bar"}
-		ExpectApplied(ctx, env.Client, test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{
-			APIVersion: nodeTemplate.APIVersion,
-			Kind:       nodeTemplate.Kind,
-			Name:       nodeTemplate.Name,
-		}}), nodeTemplate)
+		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 		pod := ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
 		ExpectScheduled(ctx, env.Client, pod)
 		Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
@@ -101,11 +101,7 @@ var _ = Describe("Security Groups", func() {
 	})
 	It("should discover security groups by IDs intersected with tags", func() {
 		nodeTemplate.Spec.SecurityGroupSelector = map[string]string{"aws-ids": "sg-test2", "foo": "bar"}
-		ExpectApplied(ctx, env.Client, test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{
-			APIVersion: nodeTemplate.APIVersion,
-			Kind:       nodeTemplate.Kind,
-			Name:       nodeTemplate.Name,
-		}}), nodeTemplate)
+		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 		pod := ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
 		ExpectScheduled(ctx, env.Client, pod)
 		Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))

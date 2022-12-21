@@ -48,39 +48,39 @@ If multiple subnets exist for a zone, the one with the most available IP address
 
 **Examples**
 
-Select all subnets with a specified tag:
+Select all with a specified tag key:
 ```yaml
+spec:
   subnetSelector:
     karpenter.sh/discovery/MyClusterName: '*'
 ```
 
-Select subnets by name:
+Select by name and tag (all criteria must match)::
 ```yaml
+spec:
   subnetSelector:
     Name: my-subnet
+    MyTag: '' # matches all resources with the tag
 ```
 
-Select subnets using comma separated tag values:
+Select using comma separated tag values:
 ```yaml
+spec:
   subnetSelector:
     Name: "my-subnet-1,my-subnet-2"
 ```
 
-Select subnets by an arbitrary AWS tag key/value pair:
+Select using wildcards:
 ```yaml
-  subnetSelector:
-    MySubnetTag: value
-```
-
-Select subnets using wildcards:
-```yaml
+spec:
   subnetSelector:
     Name: "*Public*"
 
 ```
 
-Specify subnets explicitly by ID:
+Select by ID:
 ```yaml
+spec:
   subnetSelector:
     aws-ids: "subnet-09fa4a0a8f233a921,subnet-0471ca205b8a129ae"
 ```
@@ -106,28 +106,38 @@ If multiple securityGroups are printed, you will need a more specific securityGr
 
 **Examples**
 
-Select all security groups with a specified tag:
+Select all with a specified tag key:
 ```yaml
 spec:
   securityGroupSelector:
     karpenter.sh/discovery/MyClusterName: '*'
 ```
 
-Select security groups by name, or another tag (all criteria must match):
+Select by name and tag (all criteria must match):
 ```yaml
- securityGroupSelector:
-   Name: my-security-group
-   MySecurityTag: '' # matches all resources with the tag
+spec:
+  securityGroupSelector:
+    Name: my-security-group
+    MyTag: '' # matches all resources with the tag
 ```
 
-Select security groups by name using a wildcard:
+Select by comma-separated tag values:
 ```yaml
- securityGroupSelector:
-   Name: "*Public*"
+spec:
+  securityGroupSelector:
+     Name: "my-security-group-1,my-security-group-2"
 ```
 
-Specify security groups explicitly by ID:
+Select by name using a wildcard:
 ```yaml
+spec:
+  securityGroupSelector:
+    Name: "*Public*"
+```
+
+Select by ID:
+```yaml
+spec:
  securityGroupSelector:
    aws-ids: "sg-063d7acfb4b06c82c,sg-06e0cf9c198874591"
 ```
