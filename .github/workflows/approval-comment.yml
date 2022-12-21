@@ -15,11 +15,12 @@ jobs:
       - name: Save info about the review comment as an artifact for other workflows that run on workflow_run to download them
         run: |
           mkdir -p /tmp/artifacts
-          echo ${{ github.repository }} > /tmp/artifacts/metadata.txt
           echo ${{ github.event.pull_request.number }} >> /tmp/artifacts/metadata.txt
           echo ${{ github.event.review.commit_id }} >> /tmp/artifacts/metadata.txt
+          cat /tmp/artifacts/metadata.txt
       - uses: ./.github/actions/upload-artifact
-      - name: Dump GitHub context
-        run: echo "$GITHUB_CONTEXT"
-        env:
-          GITHUB_CONTEXT: ${{ toJSON(github) }}
+      - uses: ./.github/actions/authenticate-ghcr
+        with:
+          actor: ${{ github.actor }}
+          secret: ${{ secrets.GITHUB_TOKEN }}
+      - run: make release-crd
