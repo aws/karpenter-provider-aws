@@ -19,9 +19,11 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -152,7 +154,11 @@ var _ = Describe("Drift", Label("AWS"), func() {
 
 		delete(pod.Annotations, v1alpha5.DoNotEvictPodAnnotationKey)
 		env.ExpectUpdated(pod)
-		env.EventuallyExpectNotFound(pod, node)
+
+		// We should consistently get the same node existing for a minute
+		Consistently(func(g Gomega) {
+			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), &v1.Node{})).To(Succeed())
+		}).WithTimeout(time.Minute).Should(Succeed())
 	})
 })
 

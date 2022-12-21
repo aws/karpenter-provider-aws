@@ -195,16 +195,12 @@ func (env *Environment) EventuallyExpectNotFoundAssertion(objects ...client.Obje
 }
 
 func (env *Environment) EventuallyExpectNotFoundAssertionWithOffset(offset int, objects ...client.Object) AsyncAssertion {
-	return EventuallyWithOffset(offset+1, func(g Gomega) {
+	return EventuallyWithOffset(offset, func(g Gomega) {
 		for _, object := range objects {
 			err := env.Client.Get(env, client.ObjectKeyFromObject(object), object)
-			g.Expect(errors.IsNotFound(err)).To(BeTrue())
+			g.Expect(offset+1, errors.IsNotFound(err)).To(BeTrue())
 		}
 	})
-}
-
-func (env *Environment) ExpectDeploymentCreatedAndHealthy(numPods int) {
-
 }
 
 func (env *Environment) ExpectCreatedNodeCount(comparator string, nodeCount int) {
