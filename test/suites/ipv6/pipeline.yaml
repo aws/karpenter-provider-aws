@@ -59,6 +59,16 @@ spec:
     - setup
 
   finally:
+  - name: dump-logs-on-failure
+    taskRef:
+      name: dump-logs
+    params:
+      - name: cluster-name
+        value: $(params.cluster-name)
+    when:
+      - input: $(tasks.status)
+        operator: in
+        values: [ "Failed" ]
   - name: cleanup
     taskRef:
       name: cleanup
