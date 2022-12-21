@@ -51,7 +51,7 @@ We expect most users will use a mixed approach in the near term and provisioner-
 
 ### How does Karpenter interact with Kubernetes features?
 * Kubernetes Cluster Autoscaler: Karpenter can work alongside cluster autoscaler.
-See [Kubernetes cluster autoscaler]({{< ref "./concepts/overview/#kubernetes-cluster-autoscaler" >}}) for details.
+See [Kubernetes cluster autoscaler]({{< ref "./concepts/#kubernetes-cluster-autoscaler" >}}) for details.
 * Kubernetes Scheduler: Karpenter focuses on scheduling pods that the Kubernetes scheduler has marked as unschedulable.
 See [Scheduling]({{< ref "./concepts/scheduling" >}}) for details on how Karpenter interacts with the Kubernetes scheduler.
 
@@ -146,7 +146,7 @@ As an example, suppose you scale up a deployment with a preferred zonal topology
 
 ### How can someone deploying pods take advantage of Karpenter?
 
-See [Application developer]({{< ref "./concepts/overview/#application-developer" >}}) for descriptions of how Karpenter matches nodes with pod requests.
+See [Application developer]({{< ref "./concepts/#application-developer" >}}) for descriptions of how Karpenter matches nodes with pod requests.
 
 ### Can I use Karpenter with EBS disks per availability zone?
 Yes.  See [Persistent Volume Topology]({{< ref "./concepts/scheduling#persistent-volume-topology" >}}) for details.
