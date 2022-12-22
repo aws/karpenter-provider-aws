@@ -15,10 +15,10 @@ limitations under the License.
 package integration_test
 
 import (
+	"fmt"
 	"os"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
@@ -163,14 +163,23 @@ var _ = Describe("Extended Resources", func() {
 	It("should provision nodes for a deployment that requests amd.com/gpu", func() {
 		ExpectAMDDevicePluginCreated()
 
-		content, err := os.ReadFile("testdata/amd_driver_input.sh")
+		customAMI = selectCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", 0)
+
+		// We create custom userData that installs the AMD Radeon driver and then performs the EKS bootstrap script
+		// We use a Custom AMI so that we can reboot after we start the kubelet service
+		rawContent, err := os.ReadFile("testdata/amd_driver_input.sh")
 		Expect(err).ToNot(HaveOccurred())
-		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+			AWS: v1alpha1.AWS{
+				AMIFamily:             &v1alpha1.AMIFamilyCustom,
+				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			},
+			AMISelector: map[string]string{
+				"aws-ids": customAMI,
+			},
 		},
-			UserData: aws.String(string(content)),
-		})
+		)
 		provisioner := test.Provisioner(test.ProvisionerOptions{
 			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
 			Requirements: []v1.NodeSelectorRequirement{
@@ -180,6 +189,9 @@ var _ = Describe("Extended Resources", func() {
 				},
 			},
 		})
+		provider.Spec.UserData = lo.ToPtr(fmt.Sprintf(string(rawContent), settings.FromContext(env.Context).ClusterName,
+			settings.FromContext(env.Context).ClusterEndpoint, env.ExpectCABundle(), provisioner.Name))
+
 		numPods := 1
 		dep := test.Deployment(test.DeploymentOptions{
 			Replicas: int32(numPods),
@@ -199,7 +211,7 @@ var _ = Describe("Extended Resources", func() {
 		})
 		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 		env.ExpectCreated(provisioner, provider, dep)
-		EventuallyWithOffset(1, func(g Gomega) {
+		Eventually(func(g Gomega) {
 			g.Expect(env.Monitor.RunningPodsCount(selector)).To(Equal(numPods))
 		}).WithTimeout(15 * time.Minute).Should(Succeed()) // The node needs additional time to install the AMD GPU driver
 		env.ExpectCreatedNodeCount("==", 1)
