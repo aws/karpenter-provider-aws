@@ -18,7 +18,7 @@ _Note: This internal Machine CR will come in as an alpha API and should __not__ 
 
 ## Background
 
-Karpenter currently creates the node object on the Kubernetes api server immediately after creating the VM instance. EKS assumes that, ultimately, the kubelet will be the entity responsible for registering the node to the api-server. This is reflected [through the userData](https://github.com/awslabs/amazon-eks-ami/blob/master/files/bootstrap.sh) where KubeletConfig can be set [that is only properly propogated for all values when the kubelet is the node creator](https://github.com/kubernetes/kubernetes/blob/39c76ba2edeadb84a115cc3fbd9204a2177f1c28/pkg/kubelet/kubelet_node_status.go#L286). However, Karpenter’s current architecture necessitates that it both launches the VM instance and creates the node object on the Kubernetes API server in succession (more on this [below](#why-does-karpenter-createoperate-on-the-node-at-all)).
+Karpenter currently creates the node object on the Kubernetes api server immediately after creating the VM instance. Kubernetes cloud providers (EKS, AKS, GKE, etc.) assume that, ultimately, the kubelet will be the entity responsible for registering the node to the api-server. This is reflected [through the userData](https://github.com/awslabs/amazon-eks-ami/blob/master/files/bootstrap.sh) where KubeletConfig can be set [that is only properly propogated for all values when the kubelet is the node creator](https://github.com/kubernetes/kubernetes/blob/39c76ba2edeadb84a115cc3fbd9204a2177f1c28/pkg/kubelet/kubelet_node_status.go#L286). However, Karpenter’s current architecture necessitates that it both launches the VM instance and creates the node object on the Kubernetes API server in succession (more on this [below](#why-does-karpenter-createoperate-on-the-node-at-all)).
 
 This document describes the current node creation flow for Karpenter as well as the rationale for why Karpenter originally created the node object. It then calls out the specific problems with this approach and recommends an alternative approach to creating the Node object that solves for the current approach’s problems.
 
@@ -144,7 +144,7 @@ Fundamentally, if we do not capture in-flight capacity in the Node object, we ne
 
 ### Kubernetes CRD Object Store (Machine CRD)
 
-Karpenter will no longer create node objects or launch instances as part of the provisioning loop, but, instead, will create Machine CRs at the completion of the provisioning loop. This machine CR will then be picked up by a separate controller that will launch capacity based on the requirements passed from the provisioning loop and will resolve the static values from the **CreateFleet** response into its status.
+Karpenter will no longer create node objects or launch instances as part of the provisioning loop, but, instead, will create Machine CRs at the completion of the provisioning loop. This machine CR will then be picked up by a separate controller that will launch capacity based on the requirements passed from the provisioning loop and will resolve the static values from the **CreateFleet** response into its status. After the instance is launched, the kubelet starts, and the node joins the cluster, machines will be mapped to nodes using the `spec.providerID` of the Node and the `status.providerID` of the Machine.
 
 #### Impact
 
@@ -152,7 +152,9 @@ Karpenter will no longer create node objects or launch instances as part of the 
 2. Migration of Deprovisioning mechanisms from watching and monitoring the Node object to watching and monitoring the Machine CR
 3. Migration of the Node termination finalizer to Machine to orchestrate the cordoning, draining, and deletion
 4. Required Garbage Collection of any Machines that don’t have Nodes mapped to them to handle Node termination and CloudProivder instance termination
-6. Liveness checks for Nodes that don’t register or become ready after a certain TTL to delete the backing Machine
+5. Liveness checks for Nodes that don’t register or become ready after a certain TTL to delete the backing Machine
+6. In-flight representations of Nodes for scheduling become the Machine `.status.allocatable` until the Node registers and initializes its `.status.allocatable`
+7. Mirroring Machine labels and annotations onto Nodes through a reconciliation mechanism after Node join
 
 ### In-Memory Node Store
 
