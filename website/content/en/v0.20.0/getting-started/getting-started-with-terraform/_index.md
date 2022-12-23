@@ -46,7 +46,7 @@ After setting up the tools, set the following environment variables to store
 commonly used values.
 
 ```bash
-export AWS_DEFAULT_REGION="us-east-1"
+export AWS_DEFAULT_REGION="eu-west-1"
 ```
 
 The first thing we need to do is create our `main.tf` file and place the following in it.
@@ -72,7 +72,12 @@ terraform {
 }
 
 provider "aws" {
+  region = "eu-west-1"
+}
+
+provider "aws" {
   region = "us-east-1"
+  alias = "virginia"
 }
 
 locals {
@@ -87,7 +92,9 @@ locals {
 
 data "aws_partition" "current" {}
 data "aws_availability_zones" "available" {}
-data "aws_ecrpublic_authorization_token" "token" {}
+data "aws_ecrpublic_authorization_token" "token" {
+  provider = aws.virginia
+}
 ```
 
 ### Create a Cluster
