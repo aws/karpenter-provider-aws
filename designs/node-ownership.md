@@ -151,7 +151,7 @@ Karpenter will no longer create node objects or launch instances as part of the 
 1. Introduction of the Machine CR as a representation of a “scheduling decision” to launch by the CloudProvider
 2. Migration of Deprovisioning mechanisms from watching and monitoring the Node object to watching and monitoring the Machine CR
 3. Migration of the Node termination finalizer to Machine to orchestrate the cordoning, draining, and deletion
-4. Required Garbage Collection of any Machines that don’t have Nodes mapped to them to handle Node termination and CloudProivder instance termination
+4. Required Garbage Collection of any Machines that don’t have instances mapped to them
 5. Liveness checks for Nodes that don’t register or become ready after a certain TTL to delete the backing Machine
 6. In-flight representations of Nodes for scheduling become the Machine `.status.allocatable` until the Node registers and initializes its `.status.allocatable`
 7. Mirroring Machine labels and annotations onto Nodes through a reconciliation mechanism after Node join
