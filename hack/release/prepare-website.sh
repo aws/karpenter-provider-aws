@@ -1,20 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-#!/usr/bin/env bash
-set -euo pipefail
-
-GIT_TAG=$(git describe --exact-match --tags || echo "none")
-if [ -z ${RELEASE_VERSION+x} ];then
-  echo "Missing required git tag"
-  exit 1
-fi
+ if [ -z ${RELEASE_VERSION+x} ];then
+    echo "missing required environment variable RELEASE_VERSION"
+    exit 1
+  fi
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 source "${SCRIPT_DIR}/common.sh"
 
-echo "RenderingPrep website files for ${GIT_TAG}"
+echo "RenderingPrep website files for ${RELEASE_VERSION}"
 
-createNewWebsiteDirectory $GIT_TAG
-editWebsiteConfig $GIT_TAG
-editWebsiteVersionsMenu $GIT_TAG
+createNewWebsiteDirectory $RELEASE_VERSION
+editWebsiteConfig $RELEASE_VERSION
+editWebsiteVersionsMenu $RELEASE_VERSION
