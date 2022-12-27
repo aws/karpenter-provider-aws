@@ -1,7 +1,7 @@
 ---
 title: "Deprovisioning"
 linkTitle: "Deprovisioning"
-weight: 3
+weight: 4
 description: >
   Understand different ways Karpenter deprovisions nodes
 ---
@@ -15,13 +15,13 @@ These include:
 * Terminating the instance from the cloud provider.
 * Deleting the node from the Kubernetes cluster.
 
-## How Karpenter nodes are deprovisioned
+## Methods
 
 There are both automated and manual ways of deprovisioning nodes provisioned by Karpenter:
 
 * **Provisioner Deletion**: Nodes are considered to be "owned" by the Provisioner that launched them. Karpenter will gracefully terminate nodes when a provisioner is deleted. Nodes may be reparented to another provisioner by modifying their labels. For example: `kubectl label node -l karpenter.sh/provisioner-name=source-provisioner-name karpenter.sh/provisioner-name=destination-provisioner-name --overwrite`.
-* **Node empty**: Karpenter notes when the last workload (non-daemonset) pod stops running on a node. From that point, Karpenter waits the number of seconds set by `ttlSecondsAfterEmpty` in the provisioner, then Karpenter requests to delete the node. This feature can keep costs down by removing nodes that are no longer being used for workloads.
-* **Node expired**: Karpenter requests to delete the node after a set number of seconds, based on the provisioner `ttlSecondsUntilExpired`  value, from the time the node was provisioned. One use case for node expiry is to handle node upgrades. Old nodes (with a potentially outdated Kubernetes version or operating system) are deleted, and replaced with nodes on the current version (assuming that you requested the latest version, rather than a specific version).
+* **Emptiness**: Karpenter notes when the last workload (non-daemonset) pod stops running on a node. From that point, Karpenter waits the number of seconds set by `ttlSecondsAfterEmpty` in the provisioner, then Karpenter requests to delete the node. This feature can keep costs down by removing nodes that are no longer being used for workloads.
+* **Expiration**: Karpenter requests to delete the node after a set number of seconds, based on the provisioner `ttlSecondsUntilExpired`  value, from the time the node was provisioned. One use case for node expiry is to handle node upgrades. Old nodes (with a potentially outdated Kubernetes version or operating system) are deleted, and replaced with nodes on the current version (assuming that you requested the latest version, rather than a specific version).
 * **Consolidation**: Karpenter works to actively reduce cluster cost by identifying when nodes can be removed as their workloads will run on other nodes in the cluster and when nodes can be replaced with cheaper variants due to a change in the workloads.
 * **Interruption**: If enabled, Karpenter will watch for upcoming involuntary interruption events that could affect your nodes (health events, spot interruption, etc.) and will cordon, drain, and terminate the node(s) ahead of the event to reduce workload disruption.
 * **Drift**: Karpenter will deprovision nodes that have drifted from their desired specification. Once the node is annotated as drifted, Karpenter will deprovision the nodes and provision replacement nodes with the correct provisioning requirements when needed. Currently, Karpenter will only automatically mark nodes as drifted in the case of a drifted AMI.
@@ -41,7 +41,7 @@ the same batching window on expiration.
 
 {{% /alert %}}
 
-* **Node deleted**: You could use `kubectl` to manually remove a single Karpenter node:
+* **Node Deletion**: You could use `kubectl` to manually remove a single Karpenter node:
 
     ```bash
     # Delete a specific node
@@ -109,7 +109,7 @@ If interruption-handling is enabled, Karpenter will watch for upcoming involunta
 
 When Karpenter detects one of these events will occur to your nodes, it automatically cordons, drains, and terminates the node(s) ahead of the interruption event to give the maximum amount of time for workload cleanup prior to compute disruption. This enables scenarios where the `terminationGracePeriod` for your workloads may be long or cleanup for your workloads is critical, and you want enough time to be able to gracefully clean-up your pods.
 
-{{% alert title="Note" color="warning" %}}
+{{% alert title="Note" color="primary" %}}
 Karpenter publishes Kubernetes events to the node for all events listed above in addition to __Spot Rebalance Recommendations__. Karpenter does not currently support cordon, drain, and terminate logic for Spot Rebalance Recommendations.
 {{% /alert %}}
 
@@ -135,25 +135,57 @@ If drift is enabled, Karpenter will deprovision nodes that have been marked as d
 
 If users annotate their own nodes with `karpenter.sh/voluntary-disruption: "drifted"`, Karpenter will respect the annotation and deprovision the nodes.
 
-{{% alert title="Note" color="warning" %}}
+{{% alert title="Note" color="primary" %}}
 Karpenter will only automatically mark nodes as drifted in the case of a drifted AMI. More methods of drift will be implemented in the future. Please cut a feature request if you'd like to see more methods implemented.
 {{% /alert %}}
 
-To enable the drift feature flag, refer to [Global Settings]({{<ref "./globalsettings#feature-gates" >}}).
+To enable the drift feature flag, refer to the [Settings Feature Gates]({{<ref "./settings#feature-gates" >}}).
 
 ## Disabling Deprovisioning
 
-Nodes can be opted out of deprovisioning using an annotation.
+### Pod Eviction
 
-### Supported Annotations
+Pods can be opted out of eviction by setting the annotation `karpenter.sh/do-not-evict` on the pod. This is useful for pods that you want to run from start to finish without interruption.
+Examples might include a real-time, interactive game that you don't want to interrupt or a long batch job (such as you might have with machine learning) that would need to start over if it were interrupted.
 
-| Annotation                      | Effect                            |
-| ------------------------------- | --------------------------------- |
-| karpenter.sh/do-not-consolidate | The node will not be consolidated |
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+spec:
+  template:
+    metadata:
+      labels:
+        karpenter.sh/do-not-evict: ""
+```
 
-### Example: Disable Consolidation
+By opting pods out of eviction, you are telling Karpenter that it should not voluntarily remove nodes containing this pod.
 
-The annotation `karpenter.sh/do-not-consolidate` will be applied to all nodes launched by this provisioner, which will prevent them from being considered in consolidation calculations.
+Examples of voluntary node removal that will be prevented by this annotation include:
+- [Consolidation]({{<ref "#consolidation" >}})
+- Emptiness
+- Expiration
+
+{{% alert title="Note" color="primary" %}}
+Voluntary node removal does not include [Interruption]({{<ref "#interruption" >}}), which is considered an involuntary event, since node removal cannot be delayed.
+{{% /alert %}}
+
+This annotation will have no effect for static pods, pods that tolerate `NoSchedule`, or pods terminating past their graceful termination period.
+
+### Node Consolidation
+
+Nodes can be opted out of consolidation deprovisioning by setting the annotation `karpenter.sh/do-not-consolidate` on the node.
+
+```yaml
+apiVersion: karpenter.sh/v1alpha5
+kind: Node
+metadata:
+  annotations:
+    karpenter.sh/do-not-consolidate: ""
+```
+
+#### Example: Disable Consolidation on Provisioner
+
+Provisioner `.spec.annotations` allow you to set annotations that will be applied to all nodes launched by this provisioner. By setting the annotation `karpenter.sh/do-not-consolidate` on the provisioner, you will selectively prevent all nodes launched by this Provisioner from being considered in consolidation calculations.
 
 ```yaml
 apiVersion: karpenter.sh/v1alpha5
@@ -165,7 +197,7 @@ spec:
     karpenter.sh/do-not-consolidate: "true"
 ```
 
-## What can cause deprovisioning to fail?
+## Troubleshooting
 
 There are a few cases where requesting to deprovision a Karpenter node will fail. These include Pod Disruption Budgets and pods that have the `do-not-evict` annotation set.
 
@@ -192,12 +224,9 @@ spec:
 You can set `minAvailable` or `maxUnavailable` as integers or as a percentage.
 Review what [disruptions are](https://kubernetes.io/docs/concepts/workloads/pods/disruptions/), and [how to configure them](https://kubernetes.io/docs/tasks/run-application/configure-pdb/).
 
-### Pod set to do-not-evict
+### Pod set to `do-not-evict`
 
-If a pod exists with the annotation `karpenter.sh/do-not-evict: true` on a node, and a request is made to delete the node, Karpenter will not drain any pods from that node or otherwise try to delete the node. Nodes that have pods with a `do-not-evict` annotation are not considered for consolidation, though their unused capacity is considered for the purposes of running pods from other nodes which can be consolidated. This annotation will have no effect for static pods, pods that tolerate `NoSchedule`, or pods terminating past their graceful termination period.
-
-This is useful for pods that you want to run from start to finish without interruption.
-Examples might include a real-time, interactive game that you don't want to interrupt or a long batch job (such as you might have with machine learning) that would need to start over if it were interrupted.
+If a pod exists with the annotation `karpenter.sh/do-not-evict: true` on a node, and a request is made to delete the node, Karpenter will not drain any pods from that node or otherwise try to delete the node. Nodes that have pods with a `do-not-evict` annotation are not considered for consolidation, though their unused capacity is considered for the purposes of running pods from other nodes which can be consolidated.
 
 If you want to terminate a node with a `do-not-evict` pod, you can simply remove the annotation and the deprovisioning process will continue.
 

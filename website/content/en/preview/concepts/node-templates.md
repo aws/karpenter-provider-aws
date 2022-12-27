@@ -35,10 +35,10 @@ spec:
   blockDeviceMappings: [ ... ]   # optional, configures storage devices for the instance
 
 ```
-Refer to [Provisioner API]({{<ref "./provisioning" >}}) for settings applicable to all providers.
+Refer to the [Provisioner docs]({{<ref "./provisioners" >}}) for settings applicable to all providers.
 See below for other AWS provider-specific parameters.
 
-### SubnetSelector (required)
+## spec.subnetSelector
 
 The `AWSNodeTemplate` discovers subnets using [AWS tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html).
 Subnets may be specified by any AWS tag, including `Name`. Selecting tag values using wildcards (`*`) is supported.
@@ -85,7 +85,7 @@ spec:
     aws-ids: "subnet-09fa4a0a8f233a921,subnet-0471ca205b8a129ae"
 ```
 
-### SecurityGroupSelector (required)
+## spec.securityGroupSelector
 
 The security group of an instance is comparable to a set of firewall rules.
 EKS creates at least two security groups by default, [review the documentation](https://docs.aws.amazon.com/eks/latest/userguide/sec-group-reqs.html) for more info.
@@ -142,7 +142,7 @@ spec:
    aws-ids: "sg-063d7acfb4b06c82c,sg-06e0cf9c198874591"
 ```
 
-### InstanceProfile
+## spec.instanceProfile
 
 An `InstanceProfile` is a way to pass a single IAM role to EC2 instance launched the provisioner.
 A default profile is configured in global settings, but may be overriden here.
@@ -153,7 +153,7 @@ spec:
   instanceProfile: MyInstanceProfile
 ```
 
-### Amazon Machine Image (AMI) Family
+## spec.amiFamily
 
 The AMI used when provisioning nodes can be controlled by the `amiFamily` field. Based on the value set for `amiFamily`, Karpenter will automatically query for the appropriate [EKS optimized AMI](https://docs.aws.amazon.com/eks/latest/userguide/eks-optimized-amis.html) via AWS Systems Manager (SSM). When an `amiFamily` of `Custom` is chosen, then an `amiSelector` must be specified that informs Karpenter on which custom AMIs are to be used.
 
@@ -164,7 +164,7 @@ spec:
   amiFamily: Bottlerocket
 ```
 
-### AMISelector
+## spec.amiSelector
 
 AMISelector is used to configure custom AMIs for Karpenter to use, where the AMIs are discovered through [AWS tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html), similar to `subnetSelector`. This field is optional, and Karpenter will use the latest EKS-optimized AMIs if an amiSelector is not specified.
 
@@ -172,13 +172,37 @@ EC2 AMIs may be specified by any AWS tag, including `Name`. Selecting tag values
 
 EC2 AMI IDs may be specified by using the key `aws-ids` and then passing the IDs as a comma-separated string value.
 
+### AMI Selection
+
+If an `amiSelector` matches more than one AMI, Karpenter will automatically determine which AMI best fits the workloads on the launched worker node under the following constraints:
+
 * When launching nodes, Karpenter automatically determines which architecture a custom AMI is compatible with and will use images that match an instanceType's requirements.
-* If multiple AMIs are found that can be used, Karpenter will randomly choose any one.
+* If multiple AMIs are found that can be used, Karpenter will choose the latest one.
 * If no AMIs are found that can be used, then no nodes will be provisioned.
 
-For additional data on how UserData is configured for Custom AMIs, and how more requirements can be specified for custom AMIs, follow [this documentation](./operating-systems/#custom-amis).
+If you need to express other constraints for an AMI beyond architecture, you can express these constraints as tags on the AMI. For example, if you want to limit an EC2 AMI to only be used with instanceTypes that have an `nvidia` GPU, you can specify an EC2 tag with a key of `karpenter.k8s.aws/instance-gpu-manufacturer` and value `nvidia` on that AMI.
 
-**Examples**
+All labels defined [in the scheduling documentation](./scheduling#supported-labels) can be used as requirements for an EC2 AMI.
+
+```bash
+> aws ec2 describe-images --image-id ami-123 --query Images[0].Tags
+[
+    {
+        "Key": "karpenter.sh/discovery",
+        "Value": "my-cluster"
+    },
+    {
+        "Key": "Name",
+        "Value": "amazon-eks-node-1.21-customized-v0"
+    },
+    {
+        "Key": "karpenter.k8s.aws/instance-gpu-manufacturer",
+        "Value": "nvidia"
+    }
+]
+```
+
+#### Examples 
 
 Select all AMIs with a specified tag:
 ```
@@ -204,11 +228,7 @@ Specify AMIs explicitly by ID:
     aws-ids: "ami-123,ami-456"
 ```
 
-### UserData
-
-You can control the UserData that needs to be applied to your worker nodes via this field. Review the [Operating Systems documentation](./operating-systems/) to learn more.
-
-### Tags
+## spec.tags
 
 Karpenter adds tags to all resources it creates, including EC2 Instances, EBS volumes, and Launch Templates. The default set of AWS tags are listed below.
 
@@ -227,7 +247,7 @@ spec:
     dev.corp.net/team: MyTeam
 ```
 
-### Metadata Options
+## spec.metadataOptions
 
 Control the exposure of [Instance Metadata Service](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-metadata.html) on EC2 Instances launched by this provisioner using a generated launch template.
 
@@ -244,7 +264,7 @@ spec:
     httpTokens: required
 ```
 
-### Block Device Mappings
+## spec.blockDeviceMappings
 
 The `blockDeviceMappings` field in an AWSNodeTemplate can be used to control the Elastic Block Storage (EBS) volumes that Karpenter attaches to provisioned nodes. Karpenter uses default block device mappings for the AMI Family specified. For example, the `Bottlerocket` AMI Family defaults with two block device mappings, one for Bottlerocket's control volume and the other for container resources such as images and logs.
 
@@ -267,94 +287,182 @@ spec:
         snapshotID: snap-0123456789
 ```
 
-## AWS Specific Labels
+## spec.userData
 
-The AWS cloud provider adds several labels to nodes that describe the node resources to make filtering instance types easier. These work at either the provisioner level as requirements or the pod level as node selectors or node affinities.  The complete list, including the instance types they are applied to, is available in the [Instance Types](../instance-types/) documentation.  A sampling of these include:
-- `karpenter.k8s.aws/instance-cpu`
-- `karpenter.k8s.aws/instance-memory`
-- `karpenter.k8s.aws/instance-gpu-name`
-
-The `karpenter.k8s.aws/instance-cpu` and `karpenter.k8s.aws/instance-memory` values are numeric which also allows constructing requirements for them using the `Gt` and `Lt` operators.
-
-The standard rules for `Gt` and `Lt` apply:
-
-1. There can be only one value in the requirement
-2. The value must be an integer
-
-These requirements can be useful to select nodes of a particular "shape". For example the following filters out all instance types with more than 8 CPUs or more than 16 GiB of memory:
+You can control the UserData that is applied to your worker nodes via this field.
 
 ```yaml
-  - key: karpenter.k8s.aws/instance-cpu
-    operator: Lt
-    values:
-    - "9"
-  - key: karpenter.k8s.aws/instance-memory
-    operator: Lt
-    values:
-    - "16385"
-```
-
-A requirement that specifies a specific value for `karpenter.k8s.aws/instance-gpu-name` can be used to select for all instance types that have a particular GPU type.
-
-```yaml
-  - key: karpenter.k8s.aws/instance-gpu-name
-    operator: In
-    values:
-      - "v100"
-```
-
-## Other Resources
-
-### Accelerators, GPU
-
-Accelerator (e.g., GPU) values include
-- `nvidia.com/gpu`
-- `amd.com/gpu`
-- `aws.amazon.com/neuron`
-- `habana.ai/gaudi`
-
-Karpenter supports accelerators, such as GPUs.
-
-
-Additionally, include a resource requirement in the workload manifest. This will cause the GPU dependent pod to be scheduled onto the appropriate node.
-
-Here is an example of an accelerator resource in a workload manifest (e.g., pod):
-
-```yaml
+apiVersion: karpenter.k8s.aws/v1alpha1
+kind: AWSNodeTemplate
+metadata:
+  name: bottlerocket-example
 spec:
-  template:
-    spec:
-      containers:
-      - resources:
-          limits:
-            nvidia.com/gpu: "1"
+  amiFamily: Bottlerocket
+  instanceProfile: MyInstanceProfile
+  subnetSelector:
+    karpenter.sh/discovery: my-cluster
+  securityGroupSelector:
+    karpenter.sh/discovery: my-cluster
+  userData:  |
+    [settings.kubernetes]
+    kube-api-qps = 30
+    [settings.kubernetes.eviction-hard]
+    "memory.available" = "20%"
+  amiSelector:
+    karpenter.sh/discovery: my-cluster
 ```
-{{% alert title="Note" color="primary" %}}
-If you are provisioning GPU nodes, you need to deploy an appropriate GPU device plugin daemonset for those nodes.
-Without the daemonset running, Karpenter will not see those nodes as initialized.
-Refer to general [Kubernetes GPU](https://kubernetes.io/docs/tasks/manage-gpus/scheduling-gpus/#deploying-amd-gpu-device-plugin) docs and the following specific GPU docs:
-* `nvidia.com/gpu`: [NVIDIA device plugin for Kubernetes](https://github.com/NVIDIA/k8s-device-plugin)
-* `amd.com/gpu`: [AMD GPU device plugin for Kubernetes](https://github.com/RadeonOpenCompute/k8s-device-plugin)
-* `aws.amazon.com/neuron`: [Kubernetes environment setup for Neuron](https://github.com/aws-neuron/aws-neuron-sdk/tree/master/src/k8)
-* `habana.ai/gaudi`: [Habana device plugin for Kubernetes](https://docs.habana.ai/en/latest/Orchestration/Gaudi_Kubernetes/Habana_Device_Plugin_for_Kubernetes.html)
-{{% /alert %}}
 
-### Pod ENI (Security Groups for Pods)
-[Pod ENI](https://github.com/aws/amazon-vpc-cni-k8s#enable_pod_eni-v170) is a feature of the AWS VPC CNI Plugin which allows an Elastic Network Interface (ENI) to be allocated directly to a Pod. When enabled, the `vpc.amazonaws.com/pod-eni` extended resource is added to supported nodes. The Pod ENI feature can be used independently, but is most often used in conjunction with Security Groups for Pods.  Follow the below instructions to enable support for Pod ENI and/or Security Groups for Pods in Karpenter.
+This example adds SSH keys to allow remote login to the node (replace *my-authorized_keys* with your key file):
 
 {{% alert title="Note" color="primary" %}}
-You must enable Pod ENI support in the AWS VPC CNI Plugin before enabling Pod ENI support in Karpenter.  Please refer to the [Security Groups for Pods documentation](https://docs.aws.amazon.com/eks/latest/userguide/security-groups-for-pods.html) for instructions.
+Instead of using SSH as set up in this example, you can use Session Manager (SSM) or EC2 Instance Connect to gain shell access to Karpenter nodes.
+See [Node NotReady]({{< ref "../troubleshooting/#node-notready" >}}) troubleshooting for an example of starting an SSM session from the command line or [EC2 Instance Connect](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-set-up.html) documentation to connect to nodes using SSH.
 {{% /alert %}}
 
-Now that Pod ENI support is enabled in the AWS VPC CNI Plugin, you can enable Pod ENI support in Karpenter by setting the `settings.aws.enablePodENI` Helm chart value to `true`.
-
-Here is an example of a pod-eni resource defined in a deployment manifest:
-```
+```yaml
+apiVersion: karpenter.k8s.aws/v1alpha1
+kind: AWSNodeTemplate
+metadata:
+  name: al2-example
 spec:
-  template:
-    spec:
-      containers:
-      - resources:
-          limits:
-            vpc.amazonaws.com/pod-eni: "1"
+  amiFamily: AL2
+  instanceProfile: MyInstanceProfile
+  subnetSelector:
+    karpenter.sh/discovery: my-cluster
+  securityGroupSelector:
+    karpenter.sh/discovery: my-cluster
+  userData: |
+    MIME-Version: 1.0
+    Content-Type: multipart/mixed; boundary="BOUNDARY"
+    --BOUNDARY
+    Content-Type: text/x-shellscript; charset="us-ascii"
+
+    #!/bin/bash
+    mkdir -p ~ec2-user/.ssh/
+    touch ~ec2-user/.ssh/authorized_keys
+    cat >> ~ec2-user/.ssh/authorized_keys <<EOF
+    {{ insertFile "../my-authorized_keys" | indent 4  }}
+    EOF
+    chmod -R go-w ~ec2-user/.ssh/authorized_keys
+    chown -R ec2-user ~ec2-user/.ssh
+    --BOUNDARY--
+```
+
+For more examples on configuring these fields for different AMI families, see the [examples here](https://github.com/aws/karpenter/blob/main/examples/provisioner/launchtemplates).
+
+### Merge Semantics
+
+Karpenter will evaluate and merge the UserData that you specify in the AWSNodeTemplate resources depending upon the AMIFamily that you have chosen.
+
+#### Bottlerocket
+
+* Your UserData must be valid TOML.
+* Karpenter will automatically merge settings to ensure successful bootstrap including `cluster-name`, `api-server` and `cluster-certificate`. Any labels and taints that need to be set based on pod requirements will also be specified in the final merged UserData.
+  * All Kubelet settings that Karpenter applies will override the corresponding settings in the provided UserData. For example, if you've specified `settings.kubernetes.cluster-name`, it will be overridden.
+  * If MaxPods is specified via the binary arg to Karpenter, the value will override anything specified in the UserData.
+  * If ClusterDNS is specified via `spec.kubeletConfiguration`, then that value will override anything specified in the UserData.
+* Unknown TOML fields will be ignored when the final merged UserData is generated by Karpenter.
+
+Consider the following example to understand how your custom UserData settings will be merged in.
+
+Your UserData -
+
+```toml
+[settings.kubernetes.eviction-hard]
+"memory.available" = "12%"
+[settings.kubernetes]
+"unknown-setting" = "unknown"
+[settings.kubernetes.node-labels]
+'field.controlled.by/karpenter': 'will-be-overridden'
+```
+
+Final merged UserData -
+
+```toml
+[settings]
+[settings.kubernetes]
+api-server = 'https://cluster'
+cluster-certificate = 'ca-bundle'
+cluster-name = 'cluster'
+
+[settings.kubernetes.node-labels]
+'karpenter.sh/capacity-type' = 'on-demand'
+'karpenter.sh/provisioner-name' = 'provisioner'
+
+[settings.kubernetes.node-taints]
+
+[settings.kubernetes.eviction-hard]
+'memory.available' = '12%%'
+```
+
+#### AL2 and Ubuntu
+
+* Your UserData must be in the [MIME multi part archive](https://cloudinit.readthedocs.io/en/latest/topics/format.html#mime-multi-part-archive) format.
+* Karpenter will merge a final MIME part to the end of your UserData parts which will bootstrap the worker node. Karpenter will have full control over all the parameters being passed to the bootstrap script.
+  * Karpenter will continue to set MaxPods, ClusterDNS and all other parameters defined in `spec.kubeletConfiguration` as before.
+
+Consider the following example to understand how your custom UserData will be merged -
+
+Your UserData -
+
+```
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="BOUNDARY"
+
+--BOUNDARY
+Content-Type: text/x-shellscript; charset="us-ascii"
+
+#!/bin/bash
+echo "Running custom user data script"
+
+--BOUNDARY--
+```
+
+The final merged UserData that will be applied to your worker nodes -
+
+```
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="//"
+
+--//
+Content-Type: text/x-shellscript; charset="us-ascii"
+
+#!/bin/bash
+echo "Running custom user data script"
+
+--//
+Content-Type: text/x-shellscript; charset="us-ascii"
+
+#!/bin/bash -xe
+exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
+/etc/eks/bootstrap.sh 'test-cluster' --apiserver-endpoint 'https://test-cluster' --b64-cluster-ca 'ca-bundle' \
+--use-max-pods false \
+--container-runtime containerd \
+--kubelet-extra-args '--node-labels=karpenter.sh/capacity-type=on-demand,karpenter.sh/provisioner-name=test  --max-pods=110'
+--//--
+```
+
+You can also set kubelet-config properties by modifying the kubelet-config.json file before the EKS bootstrap script starts the kubelet:
+
+```
+apiVersion: karpenter.k8s.aws/v1alpha1
+kind: AWSNodeTemplate
+metadata:
+  name: kubelet-config-example
+spec:
+  subnetSelector:
+    karpenter.sh/discovery: my-cluster
+  securityGroupSelector:
+    karpenter.sh/discovery: my-cluster
+  userData: |
+    MIME-Version: 1.0
+    Content-Type: multipart/mixed; boundary="BOUNDARY"
+
+    --BOUNDARY
+    Content-Type: text/x-shellscript; charset="us-ascii"
+
+    #!/bin/bash
+    echo "$(jq '.kubeAPIQPS=50' /etc/kubernetes/kubelet/kubelet-config.json)" > /etc/kubernetes/kubelet/kubelet-config.json
+
+    --BOUNDARY--
 ```

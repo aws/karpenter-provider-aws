@@ -1,7 +1,7 @@
 ---
-title: "Global Settings"
-linkTitle: "Global Settings"
-weight: 13
+title: "Settings"
+linkTitle: "Settings"
+weight: 5
 description: >
   Configure Karpenter
 ---
