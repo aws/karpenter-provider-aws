@@ -72,6 +72,10 @@ func (c *CloudProvider) Get(context.Context, string, string) (*v1alpha5.Machine,
 	return nil, nil
 }
 
+func (c *CloudProvider) HydrateMachine(_ context.Context, _ *v1alpha5.Machine) error {
+	return nil
+}
+
 func (c *CloudProvider) Delete(context.Context, *v1alpha5.Machine) error {
 	return nil
 }

@@ -47,6 +47,7 @@ import (
 	awscache "github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
 	awscontext "github.com/aws/karpenter/pkg/context"
+	awserrors "github.com/aws/karpenter/pkg/errors"
 
 	"github.com/aws/karpenter-core/pkg/scheduling"
 
@@ -215,6 +216,40 @@ func (c *CloudProvider) IsMachineDrifted(ctx context.Context, machine *v1alpha5.
 		return false, err
 	}
 	return amiDrifted, nil
+}
+
+// HydrateMachine hydrates an existing instance by making sure that the machine associated with the instance
+// has the corresponding tag value for that machine
+func (c *CloudProvider) HydrateMachine(ctx context.Context, machine *v1alpha5.Machine) error {
+	instanceID, err := utils.ParseInstanceID(machine.Status.ProviderID)
+	if err != nil {
+		return fmt.Errorf("parsing instance id for machine '%s', %w", machine.Name, err)
+	}
+	instance, err := c.instanceProvider.Get(ctx, instanceID)
+
+	if err != nil {
+		if awserrors.IsInstanceTerminated(err) {
+			return cloudprovider.NewMachineNotFoundError(fmt.Errorf("getting instance for machine '%s', %w", machine.Name, err))
+		}
+		return fmt.Errorf("getting instance for machine '%s', %w", machine.Name, err)
+	}
+	// Find the tag for the machine name if it exists
+	tag, ok := lo.Find(instance.Tags, func(tag *ec2.Tag) bool {
+		return aws.StringValue(tag.Key) == v1alpha5.MachineNameLabelKey
+	})
+	if ok {
+		machine.Name = aws.StringValue(tag.Value) // The created machine should be equal to the tag value of the instance
+		return nil
+	}
+	if err = c.instanceProvider.updateTags(ctx, instance, []*ec2.Tag{
+		{
+			Key:   aws.String(v1alpha5.MachineNameLabelKey),
+			Value: aws.String(machine.Name),
+		},
+	}); err != nil {
+		return fmt.Errorf("updating tags for machine '%s', %w", machine.Name, err)
+	}
+	return nil
 }
 
 // Name returns the CloudProvider implementation name.

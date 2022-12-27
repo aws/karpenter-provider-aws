@@ -48,6 +48,7 @@ run: ## Run Karpenter controller binary against your local cluster
 		--from-literal=aws.clusterEndpoint=${CLUSTER_ENDPOINT} \
 		--from-literal=aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
 		--from-literal=aws.interruptionQueueName=${CLUSTER_NAME} \
+		--from-literal=featureGates.machineEnabled=true \
 		--dry-run=client -o yaml | kubectl apply -f -
 
 
@@ -126,7 +127,8 @@ build: ## Build the Karpenter controller images using ko build
 apply: build ## Deploy the controller from the current state of your git repository into your ~/.kube/config cluster
 	helm upgrade --install karpenter charts/karpenter --namespace ${SYSTEM_NAMESPACE} \
 		$(HELM_OPTS) \
-		--set controller.image=$(CONTROLLER_IMG)
+		--set controller.image=$(CONTROLLER_IMG) \
+		--set settings.featureGates.machineEnabled=true
 
 install:  ## Deploy the latest released version into your ~/.kube/config cluster
 	@echo Upgrading to ${KARPENTER_VERSION}

@@ -371,6 +371,17 @@ func (p *InstanceProvider) getOverrides(instanceTypes []*cloudprovider.InstanceT
 	return overrides
 }
 
+func (p *InstanceProvider) updateTags(ctx context.Context, instance *ec2.Instance, tags []*ec2.Tag) error {
+	_, err := p.ec2api.CreateTagsWithContext(ctx, &ec2.CreateTagsInput{
+		Resources: []*string{instance.InstanceId},
+		Tags:      tags,
+	})
+	if err != nil {
+		return fmt.Errorf("creating tags for instance, %w", err)
+	}
+	return nil
+}
+
 func (p *InstanceProvider) updateUnavailableOfferingsCache(ctx context.Context, errors []*ec2.CreateFleetError, capacityType string) {
 	for _, err := range errors {
 		if awserrors.IsUnfulfillableCapacity(err) {
