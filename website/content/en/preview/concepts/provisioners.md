@@ -421,32 +421,7 @@ This field points to the cloud provider-specific custom resource. Learn more abo
 
 You can configure Karpenter to deprovision instances through your Provisioner in multiple ways. You can use `spec.TTLSecondsAfterEmpty`, `spec.ttlSecondsUntilExpired` or `spec.consolidation.enabled`. Read [Deprovisioning](../deprovisioning/) for more.
 
-## Examples
-
-### Restricting Instance Types
-
-Not all workloads are able to run on any instance type. Some use cases may be sensitive to a specific hardware generation or cannot tolerate burstable compute. You can specify a variety of well known labels to control the set of instance types available to be provisioned.
-
-```yaml
-apiVersion: karpenter.sh/v1alpha5
-kind: Provisioner
-metadata:
-  name: default
-spec:
-  requirements:
-    # Include general purpose instance families
-    - key: karpenter.k8s.aws/instance-family
-      operator: In
-      values: [c5, m5, r5]
-    # Exclude smaller instance sizes
-    - key: karpenter.k8s.aws/instance-size
-      operator: NotIn
-      values: [nano, micro, small, large]
-    # Exclude a specific instance type
-    - key: node.kubernetes.io/instance-type
-      operator: NotIn
-      values: [m5.24xlarge]
-```
+## Example Use-Cases
 
 ### Isolating Expensive Hardware
 
@@ -471,7 +446,7 @@ spec:
 ```
 In order for a pod to run on a node defined in this provisioner, it must tolerate `nvidia.com/gpu` in its pod spec.
 
-### Adding the Cilium Startup Taint
+### Cilium Startup Taint
 
 Per the Cilium [docs](https://docs.cilium.io/en/stable/gettingstarted/taints/),  it's recommended to place a taint of `node.cilium.io/agent-not-ready=true:NoExecute` on nodes to allow Cilium to configure networking prior to other pods starting.  This can be accomplished via the use of Karpenter `startupTaints`.  These taints are placed on the node, but pods aren't required to tolerate these taints to be considered for provisioning.
 

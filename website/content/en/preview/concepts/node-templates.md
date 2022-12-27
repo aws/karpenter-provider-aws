@@ -164,14 +164,6 @@ spec:
   amiFamily: Bottlerocket
 ```
 
-### Binpacking Semantics
-
-In order for Karpenter to accurately binpack your pods in a worker node, it needs to know the eventual allocatable capacity on your node. This capacity has several dimensions (cpu, memory, ephemeral-storage) and is a function of the instanceType as well as the AMI.
-
-* When the AMIFamily is *`AL2`, `Bottlerocket` or `Ubuntu`*, Karpenter will bin-pack your pods in the same way as other EKS-optimized AMIs of that family.
-* When the AMIFamily is *`Custom`*, Karpenter assumes that the amount of allocatable cpu, memory and ephemeral-storage is identical to `AL2` EKS-Optimized AMIs, regardless of how the node is being bootstrapped.
-  * When the AMIFamily is *`Custom`*, Karpenter has no way of knowing which ephemeral volume will be used for pods. Therefore, it will default to using the last volume in `spec.blockDeviceMappings` to determine the total available ephemeral capacity on a worker node.
-
 ## spec.amiSelector
 
 AMISelector is used to configure custom AMIs for Karpenter to use, where the AMIs are discovered through [AWS tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html), similar to `subnetSelector`. This field is optional, and Karpenter will use the latest EKS-optimized AMIs if an amiSelector is not specified.
