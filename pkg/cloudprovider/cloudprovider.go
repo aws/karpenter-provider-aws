@@ -23,10 +23,12 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/aws/karpenter-core/pkg/utils/resources"
 	"github.com/aws/karpenter/pkg/apis"
+	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	securitygroup "github.com/aws/karpenter/pkg/providers/securitygroup"
-	subnet "github.com/aws/karpenter/pkg/providers/subnet"
+	"github.com/aws/karpenter/pkg/providers/securitygroup"
+	"github.com/aws/karpenter/pkg/providers/subnet"
 	"github.com/aws/karpenter/pkg/utils"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -45,7 +47,6 @@ import (
 	"knative.dev/pkg/ptr"
 	k8sClient "sigs.k8s.io/controller-runtime/pkg/client"
 
-	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
 	awscontext "github.com/aws/karpenter/pkg/context"
 
@@ -148,6 +149,23 @@ func (c *CloudProvider) Create(ctx context.Context, machine *v1alpha5.Machine) (
 	return c.instanceToNode(ctx, instance, instanceTypes), nil
 }
 
+func (c *CloudProvider) Get(ctx context.Context, machine *v1alpha5.Machine) error {
+	instanceTypes, err := c.resolveInstanceTypes(ctx, machine)
+	if err != nil {
+		return fmt.Errorf("resolving instance types, %w", err)
+	}
+	if len(instanceTypes) == 0 {
+		return fmt.Errorf("all requested instance types were unavailable during launch")
+	}
+	instance, err := c.instanceProvider.Get(ctx, machine)
+	if err != nil {
+		return fmt.Errorf("getting instance, %w", err)
+	}
+	// Resolves instance details into the machine
+	c.instanceIntoMachine(machine, instance, instanceTypes)
+	return nil
+}
+
 func (c *CloudProvider) LivenessProbe(req *http.Request) error {
 	if err := c.instanceTypeProvider.LivenessProbe(req); err != nil {
 		return err
@@ -202,37 +220,6 @@ func (c *CloudProvider) Name() string {
 	return "aws"
 }
 
-func getCABundle(restConfig *rest.Config) (*string, error) {
-	// Discover CA Bundle from the REST client. We could alternatively
-	// have used the simpler client-go InClusterConfig() method.
-	// However, that only works when Karpenter is running as a Pod
-	// within the same cluster it's managing.
-	transportConfig, err := restConfig.TransportConfig()
-	if err != nil {
-		return nil, fmt.Errorf("discovering caBundle, loading transport config, %w", err)
-	}
-	_, err = transport.TLSConfigFor(transportConfig) // fills in CAData!
-	if err != nil {
-		return nil, fmt.Errorf("discovering caBundle, loading TLS config, %w", err)
-	}
-	return ptr.String(base64.StdEncoding.EncodeToString(transportConfig.TLS.CAData)), nil
-}
-
-func kubeDNSIP(ctx context.Context, kubernetesInterface kubernetes.Interface) (net.IP, error) {
-	if kubernetesInterface == nil {
-		return nil, fmt.Errorf("no K8s client provided")
-	}
-	dnsService, err := kubernetesInterface.CoreV1().Services("kube-system").Get(ctx, "kube-dns", metav1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
-	kubeDNSIP := net.ParseIP(dnsService.Spec.ClusterIP)
-	if kubeDNSIP == nil {
-		return nil, fmt.Errorf("parsing cluster IP")
-	}
-	return kubeDNSIP, nil
-}
-
 func (c *CloudProvider) isAMIDrifted(ctx context.Context, machine *v1alpha5.Machine, provisioner *v1alpha5.Provisioner, nodeTemplate *v1alpha1.AWSNodeTemplate) (bool, error) {
 	instanceTypes, err := c.GetInstanceTypes(ctx, provisioner)
 	if err != nil {
@@ -257,7 +244,7 @@ func (c *CloudProvider) isAMIDrifted(ctx context.Context, machine *v1alpha5.Mach
 	if err != nil {
 		return false, err
 	}
-	instance, err := c.instanceProvider.Get(ctx, instanceID)
+	instance, err := c.instanceProvider.GetByID(ctx, instanceID)
 	if err != nil {
 		return false, fmt.Errorf("getting instance, %w", err)
 	}
@@ -295,8 +282,36 @@ func (c *CloudProvider) resolveInstanceTypes(ctx context.Context, machine *v1alp
 	}
 	reqs := scheduling.NewNodeSelectorRequirements(machine.Spec.Requirements...)
 	return lo.Filter(instanceTypes, func(i *cloudprovider.InstanceType, _ int) bool {
-		return reqs.Get(v1.LabelInstanceTypeStable).Has(i.Name) && len(i.Offerings.Requirements(reqs).Available()) > 0
+		return reqs.Compatible(i.Requirements) == nil && len(i.Offerings.Requirements(reqs).Available()) > 0
 	}), nil
+}
+
+func (c *CloudProvider) instanceIntoMachine(machine *v1alpha5.Machine, instance *ec2.Instance, instanceTypes []*cloudprovider.InstanceType) {
+	instanceType, found := lo.Find(instanceTypes, func(i *cloudprovider.InstanceType) bool {
+		return aws.StringValue(instance.InstanceType) == i.Name
+	})
+	if !found {
+		// This should never happen since the launched instance should always come from supported instance types
+		panic("launched instance type not included in instance types set")
+	}
+
+	for key, req := range instanceType.Requirements {
+		if req.Len() == 1 {
+			machine.Labels[key] = req.Values()[0]
+		}
+	}
+	machine.Labels[v1alpha1.LabelInstanceAMIID] = aws.StringValue(instance.ImageId)
+	machine.Labels[v1.LabelTopologyZone] = aws.StringValue(instance.Placement.AvailabilityZone)
+	machine.Labels[v1alpha5.LabelCapacityType] = getCapacityType(instance)
+	machine.Labels[v1alpha5.MachineNameLabelKey] = machine.Name
+	machine.Status.ProviderID = fmt.Sprintf("aws:///%s/%s", aws.StringValue(instance.Placement.AvailabilityZone), aws.StringValue(instance.InstanceId))
+
+	machine.Status.Allocatable = v1.ResourceList{}
+	for k, v := range instanceType.Capacity {
+		if !resources.IsZero(v) {
+			machine.Status.Allocatable[k] = v
+		}
+	}
 }
 
 func (c *CloudProvider) instanceToNode(ctx context.Context, instance *ec2.Instance, instanceTypes []*cloudprovider.InstanceType) *v1.Node {
@@ -328,4 +343,35 @@ func (c *CloudProvider) instanceToNode(ctx context.Context, instance *ec2.Instan
 		}
 	}
 	panic(fmt.Sprintf("unrecognized instance type %s", aws.StringValue(instance.InstanceType)))
+}
+
+func getCABundle(restConfig *rest.Config) (*string, error) {
+	// Discover CA Bundle from the REST client. We could alternatively
+	// have used the simpler client-go InClusterConfig() method.
+	// However, that only works when Karpenter is running as a Pod
+	// within the same cluster it's managing.
+	transportConfig, err := restConfig.TransportConfig()
+	if err != nil {
+		return nil, fmt.Errorf("discovering caBundle, loading transport config, %w", err)
+	}
+	_, err = transport.TLSConfigFor(transportConfig) // fills in CAData!
+	if err != nil {
+		return nil, fmt.Errorf("discovering caBundle, loading TLS config, %w", err)
+	}
+	return ptr.String(base64.StdEncoding.EncodeToString(transportConfig.TLS.CAData)), nil
+}
+
+func kubeDNSIP(ctx context.Context, kubernetesInterface kubernetes.Interface) (net.IP, error) {
+	if kubernetesInterface == nil {
+		return nil, fmt.Errorf("no K8s client provided")
+	}
+	dnsService, err := kubernetesInterface.CoreV1().Services("kube-system").Get(ctx, "kube-dns", metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	kubeDNSIP := net.ParseIP(dnsService.Spec.ClusterIP)
+	if kubeDNSIP == nil {
+		return nil, fmt.Errorf("parsing cluster IP")
+	}
+	return kubeDNSIP, nil
 }
