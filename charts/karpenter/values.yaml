@@ -127,10 +127,20 @@ controller:
   sidecarContainer: []
   # -- Additional volumeMounts for the sidecar - this will be added to the volume mounts on top of extraVolumeMounts
   sidecarVolumeMounts: []
+
+  # -- The container port to use for metrics.
+  metrics:
+    port: 8080
+  # -- The container port to use for http health probe.
+  healthProbe:
+    port: 8081
+
 webhook:
   logLevel: error
   # -- The container port to use for the webhook.
   port: 8443
+
+
 # -- Global log level
 logLevel: debug
 # -- Gloabl log encoding
