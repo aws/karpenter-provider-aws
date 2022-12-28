@@ -223,7 +223,7 @@ func (c *CloudProvider) IsMachineDrifted(ctx context.Context, machine *v1alpha5.
 func (c *CloudProvider) HydrateMachine(ctx context.Context, machine *v1alpha5.Machine) error {
 	instanceID, err := utils.ParseInstanceID(machine.Status.ProviderID)
 	if err != nil {
-		return fmt.Errorf("parsing instance id for machine '%s', %w", machine.Name, err)
+		return fmt.Errorf("parsing instance id, %w", err)
 	}
 	instance, err := c.instanceProvider.Get(ctx, instanceID)
 
@@ -231,7 +231,7 @@ func (c *CloudProvider) HydrateMachine(ctx context.Context, machine *v1alpha5.Ma
 		if awserrors.IsInstanceTerminated(err) {
 			return cloudprovider.NewMachineNotFoundError(fmt.Errorf("getting instance for machine '%s', %w", machine.Name, err))
 		}
-		return fmt.Errorf("getting instance for machine '%s', %w", machine.Name, err)
+		return fmt.Errorf("getting instance for instanceID '%s', %w", instanceID, err)
 	}
 	// Find the tag for the machine name if it exists
 	tag, ok := lo.Find(instance.Tags, func(tag *ec2.Tag) bool {
@@ -247,7 +247,7 @@ func (c *CloudProvider) HydrateMachine(ctx context.Context, machine *v1alpha5.Ma
 			Value: aws.String(machine.Name),
 		},
 	}); err != nil {
-		return fmt.Errorf("updating tags for machine '%s', %w", machine.Name, err)
+		return fmt.Errorf("updating tags for instance '%s', %w", instanceID, err)
 	}
 	return nil
 }
