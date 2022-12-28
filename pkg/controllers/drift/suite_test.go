@@ -133,7 +133,32 @@ var _ = AfterEach(func() {
 
 var _ = Describe("AWSDrift", func() {
 	Context("AMIs", func() {
+		It("should not detect drift if the feature flag is disabled", func() {
+			settingsStore = coretest.SettingsStore{
+				settings.ContextKey:    coretest.Settings(coretest.SettingsOptions{DriftEnabled: false}),
+				awssettings.ContextKey: test.Settings(),
+			}
+			ctx = settingsStore.InjectSettings(ctx)
+			node := coretest.Node(coretest.NodeOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						corev1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+						v1alpha1.LabelInstanceAMIID:          "ami-invalid",
+						v1.LabelInstanceTypeStable:           coretest.RandomName(),
+					},
+				},
+			})
+			ExpectApplied(ctx, env.Client, nodeTemplate, node)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
+			node = ExpectNodeExists(ctx, env.Client, node.Name)
+			Expect(node.Annotations).ToNot(HaveKeyWithValue(corev1alpha5.VoluntaryDisruptionAnnotationKey, corev1alpha5.VoluntaryDisruptionDriftedAnnotationValue))
+		})
 		It("should not detect drift if the provisioner does not exist", func() {
+			settingsStore = coretest.SettingsStore{
+				settings.ContextKey:    coretest.Settings(coretest.SettingsOptions{DriftEnabled: true}),
+				awssettings.ContextKey: test.Settings(),
+			}
+			ctx = settingsStore.InjectSettings(ctx)
 			node := coretest.Node(coretest.NodeOptions{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
@@ -149,6 +174,11 @@ var _ = Describe("AWSDrift", func() {
 			Expect(node.Annotations).ToNot(HaveKeyWithValue(corev1alpha5.VoluntaryDisruptionAnnotationKey, corev1alpha5.VoluntaryDisruptionDriftedAnnotationValue))
 		})
 		It("should detect drift when the AMI is not valid", func() {
+			settingsStore = coretest.SettingsStore{
+				settings.ContextKey:    coretest.Settings(coretest.SettingsOptions{DriftEnabled: true}),
+				awssettings.ContextKey: test.Settings(),
+			}
+			ctx = settingsStore.InjectSettings(ctx)
 			node := coretest.Node(coretest.NodeOptions{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
@@ -164,6 +194,11 @@ var _ = Describe("AWSDrift", func() {
 			Expect(node.Annotations).To(HaveKeyWithValue(corev1alpha5.VoluntaryDisruptionAnnotationKey, corev1alpha5.VoluntaryDisruptionDriftedAnnotationValue))
 		})
 		It("should not detect drift when the AMI is valid", func() {
+			settingsStore = coretest.SettingsStore{
+				settings.ContextKey:    coretest.Settings(coretest.SettingsOptions{DriftEnabled: true}),
+				awssettings.ContextKey: test.Settings(),
+			}
+			ctx = settingsStore.InjectSettings(ctx)
 			node := coretest.Node(coretest.NodeOptions{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{

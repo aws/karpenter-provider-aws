@@ -323,7 +323,7 @@ var _ = Describe("Allocation", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(drifted).To(BeFalse())
 		})
-		It("should error if providerRef is not defined", func() {
+		It("should return false if providerRef is not defined", func() {
 			provisioner.Spec.ProviderRef = nil
 			ExpectApplied(ctx, env.Client, provisioner)
 			node := coretest.Node(coretest.NodeOptions{
@@ -336,7 +336,7 @@ var _ = Describe("Allocation", func() {
 				},
 			})
 			drifted, err := cloudProvider.IsMachineDrifted(ctx, corev1alpha1.MachineFromNode(node))
-			Expect(err).To(HaveOccurred())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(drifted).To(BeFalse())
 		})
 		It("should not fail if provisioner does not exist", func() {

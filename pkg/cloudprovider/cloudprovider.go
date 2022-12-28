@@ -176,7 +176,7 @@ func (c *CloudProvider) IsMachineDrifted(ctx context.Context, machine *corev1alp
 		return false, k8sClient.IgnoreNotFound(fmt.Errorf("getting provisioner, %w", err))
 	}
 	if provisioner.Spec.ProviderRef == nil {
-		return false, fmt.Errorf("providerRef must be defined for Drift")
+		return false, nil
 	}
 	nodeTemplate, err := c.resolveNodeTemplate(ctx, nil, &v1.ObjectReference{
 		APIVersion: provisioner.Spec.ProviderRef.APIVersion,
