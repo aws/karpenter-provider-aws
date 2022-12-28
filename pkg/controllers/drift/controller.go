@@ -34,6 +34,7 @@ import (
 
 	"github.com/samber/lo"
 
+	"github.com/aws/karpenter-core/pkg/apis/config/settings"
 	corev1alpha1 "github.com/aws/karpenter-core/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	corecloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
@@ -61,6 +62,9 @@ func (c *Controller) Name() string {
 }
 
 func (c *Controller) Reconcile(ctx context.Context, node *v1.Node) (reconcile.Result, error) {
+	if !settings.FromContext(ctx).DriftEnabled {
+		return reconcile.Result{}, nil
+	}
 	provisionerName, provisionerExists := node.Labels[v1alpha5.ProvisionerNameLabelKey]
 	if !provisionerExists {
 		return reconcile.Result{}, nil
