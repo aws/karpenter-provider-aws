@@ -128,11 +128,11 @@ controller:
   # -- Additional volumeMounts for the sidecar - this will be added to the volume mounts on top of extraVolumeMounts
   sidecarVolumeMounts: []
 
-  # -- The container port to use for metrics.
   metrics:
+    # -- The container port to use for metrics.
     port: 8080
-  # -- The container port to use for http health probe.
   healthProbe:
+    # -- The container port to use for http health probe.
     port: 8081
 
 webhook:

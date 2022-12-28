@@ -34,10 +34,12 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | controller.env | list | `[]` | Additional environment variables for the controller pod. |
 | controller.errorOutputPaths | list | `["stderr"]` | Controller errorOutputPaths - default to stderr only |
 | controller.extraVolumeMounts | list | `[]` | Additional volumeMounts for the controller pod. |
+| controller.healthProbe.port | int | `8081` | The container port to use for http health probe. |
 | controller.image | string | `"public.ecr.aws/karpenter/controller:v0.23.0@sha256:40aea3b25a33ff2cb44bdecf0417a2642e2a785b4fd30067634ef8f1bd48383c"` | Controller image. |
 | controller.logEncoding | string | `""` | Controller log encoding, defaults to the global log encoding |
 | controller.logLevel | string | `""` | Controller log level, defaults to the global log level |
 | controller.outputPaths | list | `["stdout"]` | Controller outputPaths - default to stdout only |
+| controller.metrics.port | int | `8080` | The container port to use for metrics. |
 | controller.resources | object | `{"limits":{"cpu":1,"memory":"1Gi"},"requests":{"cpu":1,"memory":"1Gi"}}` | Resources for the controller pod. |
 | controller.securityContext | object | `{}` | SecurityContext for the controller container. |
 | controller.sidecarContainer | list | `[]` | Additional sidecarContainer config |
