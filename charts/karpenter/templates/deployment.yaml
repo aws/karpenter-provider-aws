@@ -87,10 +87,10 @@ spec:
           {{- end }}
           ports:
             - name: http-metrics
-              containerPort: 8080
+              containerPort: {{ .Values.controller.metrics.port }}
               protocol: TCP
             - name: http
-              containerPort: 8081
+              containerPort: {{ .Values.controller.http.port }}
               protocol: TCP
             - name: https-webhook
               containerPort: {{ .Values.webhook.port }}
