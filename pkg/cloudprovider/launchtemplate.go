@@ -33,7 +33,7 @@ import (
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 
-	corev1alpha1 "github.com/aws/karpenter-core/pkg/apis/v1alpha1"
+	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
@@ -83,15 +83,7 @@ func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, amiF
 	return l
 }
 
-func launchTemplateName(options *amifamily.LaunchTemplate) string {
-	hash, err := hashstructure.Hash(options, hashstructure.FormatV2, nil)
-	if err != nil {
-		panic(fmt.Sprintf("hashing launch template, %s", err))
-	}
-	return fmt.Sprintf(launchTemplateNameFormat, options.ClusterName, fmt.Sprint(hash))
-}
-
-func (p *LaunchTemplateProvider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, machine *corev1alpha1.Machine,
+func (p *LaunchTemplateProvider) EnsureAll(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, machine *v1alpha5.Machine,
 	instanceTypes []*cloudprovider.InstanceType, additionalLabels map[string]string) (map[string][]*cloudprovider.InstanceType, error) {
 
 	p.Lock()
@@ -120,13 +112,32 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, nodeTemplate *v1alpha1
 	return launchTemplates, nil
 }
 
+// Invalidate deletes a launch template from cache if it exists
+func (p *LaunchTemplateProvider) Invalidate(ctx context.Context, ltName string, ltID string) {
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("launch-template-name", ltName, "launch-template-id", ltID))
+	p.Lock()
+	defer p.Unlock()
+	defer p.cache.OnEvicted(p.cachedEvictedFunc(ctx))
+	p.cache.OnEvicted(nil)
+	logging.FromContext(ctx).Debugf("invalidating launch template in the cache because it no longer exists")
+	p.cache.Delete(ltName)
+}
+
+func launchTemplateName(options *amifamily.LaunchTemplate) string {
+	hash, err := hashstructure.Hash(options, hashstructure.FormatV2, nil)
+	if err != nil {
+		panic(fmt.Sprintf("hashing launch template, %s", err))
+	}
+	return fmt.Sprintf(launchTemplateNameFormat, options.ClusterName, fmt.Sprint(hash))
+}
+
 func (p *LaunchTemplateProvider) createAmiOptions(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, labels map[string]string) (*amifamily.Options, error) {
 	instanceProfile, err := p.getInstanceProfile(ctx, nodeTemplate)
 	if err != nil {
 		return nil, err
 	}
 	// Get constrained security groups
-	securityGroupsIDs, err := p.securityGroupProvider.Get(ctx, nodeTemplate)
+	securityGroupsIDs, err := p.securityGroupProvider.List(ctx, nodeTemplate)
 	if err != nil {
 		return nil, err
 	}
@@ -245,17 +256,6 @@ func (p *LaunchTemplateProvider) volumeSize(quantity *resource.Quantity) *int64 
 		return nil
 	}
 	return aws.Int64(int64(quantity.AsApproximateFloat64() / math.Pow(2, 30)))
-}
-
-// Invalidate deletes a launch template from cache if it exists
-func (p *LaunchTemplateProvider) Invalidate(ctx context.Context, ltName string, ltID string) {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("launch-template-name", ltName, "launch-template-id", ltID))
-	p.Lock()
-	defer p.Unlock()
-	defer p.cache.OnEvicted(p.cachedEvictedFunc(ctx))
-	p.cache.OnEvicted(nil)
-	logging.FromContext(ctx).Debugf("invalidating launch template in the cache because it no longer exists")
-	p.cache.Delete(ltName)
 }
 
 // hydrateCache queries for existing Launch Templates created by Karpenter for the current cluster and adds to the LT cache.
