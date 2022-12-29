@@ -17,40 +17,20 @@ package utils
 import (
 	"fmt"
 	"regexp"
-
-	v1 "k8s.io/api/core/v1"
-
-	corev1alpha1 "github.com/aws/karpenter-core/pkg/apis/v1alpha1"
 )
 
 // ParseInstanceID parses the provider ID stored on the node to get the instance ID
 // associated with a node
-func ParseInstanceID(node *v1.Node) (string, error) {
+func ParseInstanceID(providerID string) (string, error) {
 	r := regexp.MustCompile(`aws:///(?P<AZ>.*)/(?P<InstanceID>.*)`)
-	matches := r.FindStringSubmatch(node.Spec.ProviderID)
+	matches := r.FindStringSubmatch(providerID)
 	if matches == nil {
-		return "", fmt.Errorf("parsing instance id %s", node.Spec.ProviderID)
+		return "", fmt.Errorf("parsing instance id %s", providerID)
 	}
 	for i, name := range r.SubexpNames() {
 		if name == "InstanceID" {
 			return matches[i], nil
 		}
 	}
-	return "", fmt.Errorf("parsing instance id %s", node.Spec.ProviderID)
-}
-
-// ParseInstanceID parses the provider ID stored on the node to get the instance ID
-// associated with a node
-func ParseMachineInstanceID(machine *corev1alpha1.Machine) (string, error) {
-	r := regexp.MustCompile(`aws:///(?P<AZ>.*)/(?P<InstanceID>.*)`)
-	matches := r.FindStringSubmatch(machine.Status.ProviderID)
-	if matches == nil {
-		return "", fmt.Errorf("parsing instance id %s", machine.Status.ProviderID)
-	}
-	for i, name := range r.SubexpNames() {
-		if name == "InstanceID" {
-			return matches[i], nil
-		}
-	}
-	return "", fmt.Errorf("parsing instance id %s", machine.Status.ProviderID)
+	return "", fmt.Errorf("parsing instance id %s", providerID)
 }

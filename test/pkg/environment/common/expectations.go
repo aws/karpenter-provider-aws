@@ -16,6 +16,7 @@ package common
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"strings"
@@ -31,6 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/client-go/transport"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -195,16 +197,12 @@ func (env *Environment) EventuallyExpectNotFoundAssertion(objects ...client.Obje
 }
 
 func (env *Environment) EventuallyExpectNotFoundAssertionWithOffset(offset int, objects ...client.Object) AsyncAssertion {
-	return EventuallyWithOffset(offset+1, func(g Gomega) {
+	return EventuallyWithOffset(offset, func(g Gomega) {
 		for _, object := range objects {
 			err := env.Client.Get(env, client.ObjectKeyFromObject(object), object)
 			g.Expect(errors.IsNotFound(err)).To(BeTrue())
 		}
 	})
-}
-
-func (env *Environment) ExpectDeploymentCreatedAndHealthy(numPods int) {
-
 }
 
 func (env *Environment) ExpectCreatedNodeCount(comparator string, nodeCount int) {
@@ -317,4 +315,17 @@ func (env *Environment) ExpectDaemonSetEnvironmentVariableUpdatedWithOffset(offs
 		})
 	}
 	ExpectWithOffset(offset+1, env.Client.Patch(env.Context, ds, patch)).To(Succeed())
+}
+
+func (env *Environment) ExpectCABundle() string {
+	// Discover CA Bundle from the REST client. We could alternatively
+	// have used the simpler client-go InClusterConfig() method.
+	// However, that only works when Karpenter is running as a Pod
+	// within the same cluster it's managing.
+	transportConfig, err := env.Config.TransportConfig()
+	ExpectWithOffset(1, err).ToNot(HaveOccurred())
+	_, err = transport.TLSConfigFor(transportConfig) // fills in CAData!
+	ExpectWithOffset(1, err).ToNot(HaveOccurred())
+	logging.FromContext(env.Context).Debugf("Discovered caBundle, length %d", len(transportConfig.TLS.CAData))
+	return base64.StdEncoding.EncodeToString(transportConfig.TLS.CAData)
 }

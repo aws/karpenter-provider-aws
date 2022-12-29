@@ -141,32 +141,27 @@ For example, an instance type may be specified using a nodeSelector in a pod spe
 ### Instance Types
 
 - key: `node.kubernetes.io/instance-type`
+- key: `karpenter.k8s.aws/instance-family`
+- key: `karpenter.k8s.aws/instance-category`
+- key: `karpenter.k8s.aws/instance-generation`
 
-Generally, instance types should be a list and not a single value. Leaving this field undefined is recommended, as it maximizes choices for efficiently placing pods.
+Generally, instance types should be a list and not a single value. Leaving these requirements undefined is recommended, as it maximizes choices for efficiently placing pods.
 
 Review [AWS instance types](../instance-types). Most instance types are supported with the exclusion of [non-HVM](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/virtualization_types.html).
 
-**Example**
-
-*Set Default with provisioner.yaml*
-
-```yaml
-spec:
-  requirements:
-    - key: node.kubernetes.io/instance-type
-      operator: In
-      values: ["m5.large", "m5.2xlarge"]
-```
-
-*Override with workload manifest (e.g., pod)*
+{{% alert title="Defaults" color="secondary" %}}
+If no instance type constraints are defined, Karpenter will set default instance type constraints on your Provisioner that supports most common user workloads:
 
 ```yaml
-spec:
-  template:
-    spec:
-      nodeSelector:
-        node.kubernetes.io/instance-type: m5.large
+requirements:
+  - key: karpenter.k8s.aws/instance-category
+    operator: In
+    values: ["c", "m", "r"]
+  - key: karpenter.k8s.aws/instance-generation
+    operator: Gt
+    values: ["2"]
 ```
+{{% /alert %}}
 
 ### Availability Zones
 
@@ -183,24 +178,63 @@ IDs.](https://docs.aws.amazon.com/ram/latest/userguide/working-with-az-ids.html)
 
 - key: `kubernetes.io/arch`
 - values
-  - `amd64` (default)
+  - `amd64`
   - `arm64`
 
 Karpenter supports `amd64` nodes, and `arm64` nodes.
 
+{{% alert title="Defaults" color="secondary" %}}
+If no architecture constraint is defined, Karpenter will set the default architecture constraint on your Provisioner that supports most common user workloads:
+
+```yaml
+requirements:
+  - key: kubernetes.io/arch
+    operator: In
+    values: ["amd64"]
+```
+{{% /alert %}}
+
+### Operating System
+- key: `kubernetes.io/os`
+- values
+  - `linux`
+
+Karpenter supports only `linux` nodes at this time.
+
+{{% alert title="Defaults" color="secondary" %}}
+If no operating system constraint is defined, Karpenter will set the default operating system constraint on your Provisioner that supports most common user workloads:
+
+```yaml
+requirements:
+  - key: kubernetes.io/os
+    operator: In
+    values: ["linux"]
+```
+{{% /alert %}}
 
 ### Capacity Type
 
 - key: `karpenter.sh/capacity-type`
 - values
   - `spot`
-  - `on-demand` (default)
+  - `on-demand`
 
 Karpenter supports specifying capacity type, which is analogous to [EC2 purchase options](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-purchasing-options.html).
 
 Karpenter prioritizes Spot offerings if the provisioner allows Spot and on-demand instances. If the provider API (e.g. EC2 Fleet's API) indicates Spot capacity is unavailable, Karpenter caches that result across all attempts to provision EC2 capacity for that instance type and zone for the next 45 seconds. If there are no other possible offerings available for Spot, Karpenter will attempt to provision on-demand instances, generally within milliseconds.
 
 Karpenter also allows `karpenter.sh/capacity-type` to be used as a topology key for enforcing topology-spread.
+
+{{% alert title="Defaults" color="secondary" %}}
+If no capacity type constraint is defined, Karpenter will set the default capacity type constraint on your Provisioner that supports most common user workloads:
+
+```yaml
+requirements:
+  - key: karpenter.sh/capacity-type
+    operator: In
+    values: ["on-demand"]
+```
+{{% /alert %}}
 
 ## spec.weight
 

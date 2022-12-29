@@ -112,11 +112,11 @@ func (p *InstanceProvider) Create(ctx context.Context, nodeTemplate *v1alpha1.AW
 	return p.instanceToNode(instance, instanceTypes), nil
 }
 
-func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("node", node.Name))
-	id, err := utils.ParseInstanceID(node)
+func (p *InstanceProvider) Terminate(ctx context.Context, machine *corev1alpha1.Machine) error {
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("machine", machine.Name))
+	id, err := utils.ParseInstanceID(machine.Status.ProviderID)
 	if err != nil {
-		return fmt.Errorf("getting instance ID for node %s, %w", node.Name, err)
+		return fmt.Errorf("getting instance ID, %w", err)
 	}
 	if _, err = p.ec2api.TerminateInstancesWithContext(ctx, &ec2.TerminateInstancesInput{
 		InstanceIds: []*string{aws.String(id)},
@@ -132,7 +132,7 @@ func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
 			err = multierr.Append(err, errMsg)
 		}
 
-		return fmt.Errorf("terminating instance %s, %w", node.Name, err)
+		return fmt.Errorf("terminating instance, %w", err)
 	}
 	return nil
 }

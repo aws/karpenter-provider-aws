@@ -79,15 +79,14 @@ func (p *Provider) getFilters(nodeTemplate *v1alpha1.AWSNodeTemplate) []*ec2.Fil
 	filters := []*ec2.Filter{}
 	for key, value := range nodeTemplate.Spec.SecurityGroupSelector {
 		if key == "aws-ids" {
-			filterValues := functional.SplitCommaSeparatedString(value)
 			filters = append(filters, &ec2.Filter{
 				Name:   aws.String("group-id"),
-				Values: aws.StringSlice(filterValues),
+				Values: aws.StringSlice(functional.SplitCommaSeparatedString(value)),
 			})
 		} else {
 			filters = append(filters, &ec2.Filter{
 				Name:   aws.String(fmt.Sprintf("tag:%s", key)),
-				Values: []*string{aws.String(value)},
+				Values: aws.StringSlice(functional.SplitCommaSeparatedString(value)),
 			})
 		}
 	}

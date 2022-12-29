@@ -34,12 +34,12 @@ import (
 	awstest "github.com/aws/karpenter/pkg/test"
 )
 
-var _ = Describe("Subnets", func() {
+var _ = Describe("SecurityGroups", func() {
 	It("should use the security-group-id selector", func() {
 		securityGroups := getSecurityGroups(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
-		Expect(len(securityGroups)).ToNot(Equal(0))
+		Expect(len(securityGroups)).To(BeNumerically(">", 1))
 
-		ids := strings.Join(lo.Map(securityGroups, func(sg ec2.GroupIdentifier, _ int) string { return *sg.GroupId }), ",")
+		ids := strings.Join([]string{*securityGroups[0].GroupId, *securityGroups[1].GroupId}, ",")
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 			AWS: v1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"aws-ids": ids},
@@ -53,7 +53,32 @@ var _ = Describe("Subnets", func() {
 		env.EventuallyExpectHealthy(pod)
 		env.ExpectCreatedNodeCount("==", 1)
 
-		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("SecurityGroups", ContainElement(&securityGroups[0])))
+		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("SecurityGroups", ConsistOf(&securityGroups[0].GroupIdentifier, &securityGroups[1].GroupIdentifier)))
+	})
+
+	It("should use the security group selector with multiple tag values", func() {
+		securityGroups := getSecurityGroups(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
+		Expect(len(securityGroups)).To(BeNumerically(">", 1))
+		first := securityGroups[0]
+		last := securityGroups[len(securityGroups)-1]
+
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+			AWS: v1alpha1.AWS{
+				SecurityGroupSelector: map[string]string{"Name": fmt.Sprintf("%s,%s",
+					aws.StringValue(lo.FindOrElse(first.Tags, &ec2.Tag{}, func(tag *ec2.Tag) bool { return aws.StringValue(tag.Key) == "Name" }).Value),
+					aws.StringValue(lo.FindOrElse(last.Tags, &ec2.Tag{}, func(tag *ec2.Tag) bool { return aws.StringValue(tag.Key) == "Name" }).Value),
+				)},
+				SubnetSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			},
+		})
+		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
+		pod := test.Pod()
+
+		env.ExpectCreated(pod, provider, provisioner)
+		env.EventuallyExpectHealthy(pod)
+		env.ExpectCreatedNodeCount("==", 1)
+
+		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("SecurityGroups", ConsistOf(&first.GroupIdentifier, &last.GroupIdentifier)))
 	})
 
 	It("should update the AWSNodeTemplateStatus for security groups", func() {
@@ -80,8 +105,13 @@ var _ = Describe("Subnets", func() {
 	})
 })
 
+type SecurityGroup struct {
+	ec2.GroupIdentifier
+	Tags []*ec2.Tag
+}
+
 // getSecurityGroups returns all getSecurityGroups matching the label selector
-func getSecurityGroups(tags map[string]string) []ec2.GroupIdentifier {
+func getSecurityGroups(tags map[string]string) []SecurityGroup {
 	var filters []*ec2.Filter
 	for key, val := range tags {
 		filters = append(filters, &ec2.Filter{
@@ -89,10 +119,13 @@ func getSecurityGroups(tags map[string]string) []ec2.GroupIdentifier {
 			Values: []*string{aws.String(val)},
 		})
 	}
-	var securityGroups []ec2.GroupIdentifier
+	var securityGroups []SecurityGroup
 	err := env.EC2API.DescribeSecurityGroupsPages(&ec2.DescribeSecurityGroupsInput{Filters: filters}, func(dso *ec2.DescribeSecurityGroupsOutput, _ bool) bool {
 		for _, sg := range dso.SecurityGroups {
-			securityGroups = append(securityGroups, ec2.GroupIdentifier{GroupId: sg.GroupId, GroupName: sg.GroupName})
+			securityGroups = append(securityGroups, SecurityGroup{
+				Tags:            sg.Tags,
+				GroupIdentifier: ec2.GroupIdentifier{GroupId: sg.GroupId, GroupName: sg.GroupName},
+			})
 		}
 		return true
 	})

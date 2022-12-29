@@ -146,8 +146,8 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, provisioner *v1alp
 	return instanceTypes, nil
 }
 
-func (c *CloudProvider) Delete(ctx context.Context, node *v1.Node) error {
-	return c.instanceProvider.Terminate(ctx, node)
+func (c *CloudProvider) Delete(ctx context.Context, machine *corev1alpha1.Machine) error {
+	return c.instanceProvider.Terminate(ctx, machine)
 }
 
 func (c *CloudProvider) IsMachineDrifted(ctx context.Context, machine *corev1alpha1.Machine) (bool, error) {
@@ -157,7 +157,7 @@ func (c *CloudProvider) IsMachineDrifted(ctx context.Context, machine *corev1alp
 		return false, k8sClient.IgnoreNotFound(fmt.Errorf("getting provisioner, %w", err))
 	}
 	if provisioner.Spec.ProviderRef == nil {
-		return false, fmt.Errorf("providerRef must be defined for Drift")
+		return false, nil
 	}
 	nodeTemplate, err := c.resolveNodeTemplate(ctx, nil, &v1.ObjectReference{
 		APIVersion: provisioner.Spec.ProviderRef.APIVersion,
@@ -219,7 +219,7 @@ func (c *CloudProvider) isAMIDrifted(ctx context.Context, machine *corev1alpha1.
 		return instType.Name == machine.Labels[v1.LabelInstanceTypeStable]
 	})
 	if !found {
-		return false, fmt.Errorf("getting node instance type")
+		return false, fmt.Errorf(`finding node instance type "%s"`, machine.Labels[v1.LabelInstanceTypeStable])
 	}
 	if nodeTemplate.Spec.LaunchTemplateName != nil {
 		return false, nil
@@ -230,7 +230,7 @@ func (c *CloudProvider) isAMIDrifted(ctx context.Context, machine *corev1alpha1.
 		return false, fmt.Errorf("getting amis, %w", err)
 	}
 	// Get InstanceID to fetch from EC2
-	instanceID, err := utils.ParseMachineInstanceID(machine)
+	instanceID, err := utils.ParseInstanceID(machine.Status.ProviderID)
 	if err != nil {
 		return false, err
 	}

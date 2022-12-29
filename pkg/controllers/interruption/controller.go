@@ -252,7 +252,7 @@ func (c *Controller) makeInstanceIDMap(ctx context.Context) (map[string]*v1.Node
 		if _, ok := node.Labels[v1alpha5.ProvisionerNameLabelKey]; !ok {
 			continue
 		}
-		id, err := utils.ParseInstanceID(&node)
+		id, err := utils.ParseInstanceID(node.Spec.ProviderID)
 		if err != nil || id == "" {
 			continue
 		}
