@@ -218,9 +218,9 @@ func (c *CloudProvider) IsMachineDrifted(ctx context.Context, machine *v1alpha5.
 	return amiDrifted, nil
 }
 
-// HydrateMachine hydrates an existing instance by making sure that the machine associated with the instance
+// Hydrate updates an existing instance by making sure that the machine associated with the instance
 // has the corresponding tag value for that machine
-func (c *CloudProvider) HydrateMachine(ctx context.Context, machine *v1alpha5.Machine) error {
+func (c *CloudProvider) Hydrate(ctx context.Context, machine *v1alpha5.Machine) error {
 	instanceID, err := utils.ParseInstanceID(machine.Status.ProviderID)
 	if err != nil {
 		return fmt.Errorf("parsing instance id, %w", err)

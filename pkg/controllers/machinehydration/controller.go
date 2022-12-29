@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package adoption
+package machinehydration
 
 import (
 	"context"
@@ -49,7 +49,7 @@ func NewController(kubeClient client.Client, cloudProvider *cloudprovider.CloudP
 }
 
 func (c *Controller) Name() string {
-	return "adoption"
+	return "machinehydration"
 }
 
 func (c *Controller) Reconcile(ctx context.Context, node *v1.Node) (reconcile.Result, error) {
@@ -89,7 +89,7 @@ func (c *Controller) hydrate(ctx context.Context, node *v1.Node, provisioner *v1
 	logging.WithLogger(ctx, logging.FromContext(ctx).With("machine", machine.Name))
 
 	// Hydrates the machine with the correct values if the instance exists at the cloudprovider
-	if err := c.cloudProvider.HydrateMachine(ctx, machine); err != nil {
+	if err := c.cloudProvider.Hydrate(ctx, machine); err != nil {
 		if corecloudprovider.IsMachineNotFoundError(err) {
 			return nil
 		}
