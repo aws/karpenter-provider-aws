@@ -63,6 +63,9 @@ import (
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
 	"github.com/aws/karpenter/pkg/fake"
+
+	securitygroup "github.com/aws/karpenter/pkg/providers/securitygroup"
+	subnet "github.com/aws/karpenter/pkg/providers/subnet"
 )
 
 var ctx context.Context
@@ -93,6 +96,8 @@ var provisioner *corev1alpha5.Provisioner
 var nodeTemplate *v1alpha1.AWSNodeTemplate
 var pricingProvider *PricingProvider
 var settingsStore coretest.SettingsStore
+var subnetProvider *subnet.Provider
+var securityGroupProvider *securitygroup.Provider
 
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -127,11 +132,7 @@ var _ = BeforeSuite(func() {
 	fakePricingAPI = &fake.PricingAPI{}
 	pricingProvider = NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
 	amiProvider = amifamily.NewAMIProvider(env.Client, env.KubernetesInterface, fakeSSMAPI, fakeEC2API, ssmCache, ec2Cache, kubernetesVersionCache)
-	subnetProvider := &SubnetProvider{
-		ec2api: fakeEC2API,
-		cache:  subnetCache,
-		cm:     pretty.NewChangeMonitor(),
-	}
+	subnetProvider = subnet.NewProvider(fakeEC2API)
 	instanceTypeProvider = &InstanceTypeProvider{
 		ec2api:               fakeEC2API,
 		subnetProvider:       subnetProvider,
@@ -140,11 +141,7 @@ var _ = BeforeSuite(func() {
 		unavailableOfferings: unavailableOfferingsCache,
 		cm:                   pretty.NewChangeMonitor(),
 	}
-	securityGroupProvider := &SecurityGroupProvider{
-		ec2api: fakeEC2API,
-		cache:  securityGroupCache,
-		cm:     pretty.NewChangeMonitor(),
-	}
+	securityGroupProvider = securitygroup.NewProvider(fakeEC2API)
 	cloudProvider = &CloudProvider{
 		instanceTypeProvider: instanceTypeProvider,
 		amiProvider:          amiProvider,
@@ -211,13 +208,13 @@ var _ = BeforeEach(func() {
 	fakeSSMAPI.Reset()
 	fakePricingAPI.Reset()
 	launchTemplateCache.Flush()
-	securityGroupCache.Flush()
-	subnetCache.Flush()
 	internalUnavailableOfferingsCache.Flush()
 	ssmCache.Flush()
 	ec2Cache.Flush()
 	kubernetesVersionCache.Flush()
 	instanceTypeCache.Flush()
+	subnetProvider.ResetCache()
+	securityGroupProvider.ResetCache()
 	cloudProvider.instanceProvider.launchTemplateProvider.kubeDNSIP = net.ParseIP("10.0.100.10")
 
 	// Reset the pricing provider, so we don't cross-pollinate pricing data
