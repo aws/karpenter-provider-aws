@@ -147,14 +147,6 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		provider.Spec.AMISelector = map[string]string{"aws-ids": customAMI}
 		env.ExpectUpdated(provider)
 
-		EventuallyWithOffset(1, func(g Gomega) {
-			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(node), node)).To(Succeed())
-			g.Expect(node.Annotations).To(HaveKeyWithValue(v1alpha5.VoluntaryDisruptionAnnotationKey, v1alpha5.VoluntaryDisruptionDriftedAnnotationValue))
-		}).Should(Succeed())
-
-		delete(pod.Annotations, v1alpha5.DoNotEvictPodAnnotationKey)
-		env.ExpectUpdated(pod)
-
 		// We should consistently get the same node existing for a minute
 		Consistently(func(g Gomega) {
 			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), &v1.Node{})).To(Succeed())
