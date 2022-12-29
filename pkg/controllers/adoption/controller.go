@@ -26,16 +26,13 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/aws/karpenter-core/pkg/apis/config/settings"
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	corecloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
 	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
-	"github.com/aws/karpenter-core/pkg/operator/scheme"
+	machineutil "github.com/aws/karpenter-core/pkg/utils/machine"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 )
 
@@ -56,9 +53,6 @@ func (c *Controller) Name() string {
 }
 
 func (c *Controller) Reconcile(ctx context.Context, node *v1.Node) (reconcile.Result, error) {
-	if !settings.FromContext(ctx).MachineEnabled {
-		return reconcile.Result{}, nil
-	}
 	if node.Spec.ProviderID == "" {
 		return reconcile.Result{}, nil
 	}
@@ -66,7 +60,7 @@ func (c *Controller) Reconcile(ctx context.Context, node *v1.Node) (reconcile.Re
 	if !ok {
 		return reconcile.Result{}, nil
 	}
-	machineList := &v1alpha1.MachineList{}
+	machineList := &v1alpha5.MachineList{}
 	if err := c.kubeClient.List(ctx, machineList, client.Limit(1), client.MatchingFields{"status.providerID": node.Spec.ProviderID}); err != nil {
 		return reconcile.Result{}, fmt.Errorf("listing machines, %w", err)
 	}
@@ -87,17 +81,16 @@ func (c *Controller) Reconcile(ctx context.Context, node *v1.Node) (reconcile.Re
 }
 
 func (c *Controller) hydrate(ctx context.Context, node *v1.Node, provisioner *v1alpha5.Provisioner) error {
-	machine := v1alpha1.NewMachine(node, provisioner)
+	machine := machineutil.New(node, provisioner)
 	machine.Name = MachineNameGenerator.GenerateName(provisioner.Name + "-") // so we know the name before creation
 	machine.Labels = lo.Assign(machine.Labels, map[string]string{
 		v1alpha5.MachineNameLabelKey: machine.Name,
 	})
-	lo.Must0(controllerutil.SetOwnerReference(provisioner, machine, scheme.Scheme))
 	logging.WithLogger(ctx, logging.FromContext(ctx).With("machine", machine.Name))
 
 	// Hydrates the machine with the correct values if the instance exists at the cloudprovider
 	if err := c.cloudProvider.HydrateMachine(ctx, machine); err != nil {
-		if corecloudprovider.IsMachineNotFound(err) {
+		if corecloudprovider.IsMachineNotFoundError(err) {
 			return nil
 		}
 		return fmt.Errorf("hydrating machine, %w", err)
