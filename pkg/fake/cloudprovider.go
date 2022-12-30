@@ -77,6 +77,10 @@ func (c *CloudProvider) IsMachineDrifted(_ context.Context, machine *v1alpha5.Ma
 	return true, nil
 }
 
+func (c *CloudProvider) Get(context.Context, *v1alpha5.Machine) error {
+	return nil
+}
+
 func (c *CloudProvider) Delete(context.Context, *v1alpha5.Machine) error {
 	return nil
 }

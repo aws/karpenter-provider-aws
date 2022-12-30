@@ -161,7 +161,7 @@ func (p *InstanceProvider) Delete(ctx context.Context, machine *v1alpha5.Machine
 			return nil
 		}
 		if _, errMsg := p.GetByID(ctx, id); err != nil {
-			if awserrors.IsInstanceTerminated(errMsg) || awserrors.IsNotFound(errMsg) {
+			if cloudprovider.IsMachineNotFoundError(errMsg) || awserrors.IsNotFound(errMsg) {
 				logging.FromContext(ctx).Debugf("instance already terminated")
 				return nil
 			}

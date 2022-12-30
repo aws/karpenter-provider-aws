@@ -23,13 +23,14 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/aws/karpenter-core/pkg/utils/resources"
 	"github.com/aws/karpenter/pkg/apis"
 	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
 	"github.com/aws/karpenter/pkg/providers/subnet"
 	"github.com/aws/karpenter/pkg/utils"
+
+	"github.com/aws/karpenter-core/pkg/utils/resources"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -146,6 +147,8 @@ func (c *CloudProvider) Create(ctx context.Context, machine *v1alpha5.Machine) (
 	if err != nil {
 		return nil, fmt.Errorf("creating instance, %w", err)
 	}
+	// Resolves instance details into the machine
+	c.instanceIntoMachine(machine, instance, instanceTypes)
 	return c.instanceToNode(ctx, instance, instanceTypes), nil
 }
 
@@ -282,7 +285,9 @@ func (c *CloudProvider) resolveInstanceTypes(ctx context.Context, machine *v1alp
 	}
 	reqs := scheduling.NewNodeSelectorRequirements(machine.Spec.Requirements...)
 	return lo.Filter(instanceTypes, func(i *cloudprovider.InstanceType, _ int) bool {
-		return reqs.Compatible(i.Requirements) == nil && len(i.Offerings.Requirements(reqs).Available()) > 0
+		return reqs.Compatible(i.Requirements) == nil &&
+			len(i.Offerings.Requirements(reqs).Available()) > 0 &&
+			resources.Fits(resources.Merge(machine.Spec.Resources.Requests, i.Overhead.Total()), i.Capacity)
 	}), nil
 }
 
