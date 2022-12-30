@@ -855,7 +855,7 @@ var _ = Describe("Instance Types", func() {
 			ExpectNotScheduled(ctx, env.Client, pod)
 			// capacity shortage is over - expire the item from the cache and try again
 			fakeEC2API.InsufficientCapacityPools.Set([]fake.CapacityPool{})
-			internalUnavailableOfferingsCache.Delete(fmt.Sprintf("%s:%s:%s", v1alpha5.CapacityTypeOnDemand, "inf1.6xlarge", "test-zone-1a"))
+			unavailableOfferingsCache.Delete("inf1.6xlarge", "test-zone-1a", v1alpha5.CapacityTypeOnDemand)
 			pod = ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, pod)[0]
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "inf1.6xlarge"))

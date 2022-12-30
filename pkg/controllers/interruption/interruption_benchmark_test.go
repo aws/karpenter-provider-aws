@@ -31,7 +31,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sqs"
-	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
@@ -46,9 +45,9 @@ import (
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	awscache "github.com/aws/karpenter/pkg/cache"
-	awscontext "github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/controllers/interruption"
 	"github.com/aws/karpenter/pkg/controllers/interruption/events"
+	"github.com/aws/karpenter/pkg/fake"
 	"github.com/aws/karpenter/pkg/test"
 
 	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
@@ -109,7 +108,7 @@ func benchmarkNotificationController(b *testing.B, messageCount int) {
 
 	// Load all the fundamental components before setting up the controllers
 	recorder = coretest.NewEventRecorder()
-	unavailableOfferingsCache = awscache.NewUnavailableOfferings(cache.New(awscache.UnavailableOfferingsTTL, awscontext.CacheCleanupInterval))
+	unavailableOfferingsCache = awscache.NewUnavailableOfferings()
 
 	// Set-up the controllers
 	interruptionController := interruption.NewController(env.Client, fakeClock, recorder, providers.sqsProvider, unavailableOfferingsCache)
@@ -269,7 +268,7 @@ func makeScheduledChangeMessagesAndNodes(count int) ([]interface{}, []*v1.Node) 
 	var msgs []interface{}
 	var nodes []*v1.Node
 	for i := 0; i < count; i++ {
-		instanceID := makeInstanceID()
+		instanceID := fake.InstanceID()
 		msgs = append(msgs, scheduledChangeMessage(instanceID))
 		nodes = append(nodes, coretest.Node(coretest.NodeOptions{
 			ObjectMeta: metav1.ObjectMeta{
@@ -277,7 +276,7 @@ func makeScheduledChangeMessagesAndNodes(count int) ([]interface{}, []*v1.Node) 
 					v1alpha5.ProvisionerNameLabelKey: "default",
 				},
 			},
-			ProviderID: makeProviderID(instanceID),
+			ProviderID: fake.ProviderID(instanceID),
 		}))
 	}
 	return msgs, nodes
@@ -288,7 +287,7 @@ func makeStateChangeMessagesAndNodes(count int, states []string) ([]interface{},
 	var nodes []*v1.Node
 	for i := 0; i < count; i++ {
 		state := states[r.Intn(len(states))]
-		instanceID := makeInstanceID()
+		instanceID := fake.InstanceID()
 		msgs = append(msgs, stateChangeMessage(instanceID, state))
 		nodes = append(nodes, coretest.Node(coretest.NodeOptions{
 			ObjectMeta: metav1.ObjectMeta{
@@ -296,7 +295,7 @@ func makeStateChangeMessagesAndNodes(count int, states []string) ([]interface{},
 					v1alpha5.ProvisionerNameLabelKey: "default",
 				},
 			},
-			ProviderID: makeProviderID(instanceID),
+			ProviderID: fake.ProviderID(instanceID),
 		}))
 	}
 	return msgs, nodes
@@ -306,7 +305,7 @@ func makeSpotInterruptionMessagesAndNodes(count int) ([]interface{}, []*v1.Node)
 	var msgs []interface{}
 	var nodes []*v1.Node
 	for i := 0; i < count; i++ {
-		instanceID := makeInstanceID()
+		instanceID := fake.InstanceID()
 		msgs = append(msgs, spotInterruptionMessage(instanceID))
 		nodes = append(nodes, coretest.Node(coretest.NodeOptions{
 			ObjectMeta: metav1.ObjectMeta{
@@ -314,7 +313,7 @@ func makeSpotInterruptionMessagesAndNodes(count int) ([]interface{}, []*v1.Node)
 					v1alpha5.ProvisionerNameLabelKey: "default",
 				},
 			},
-			ProviderID: makeProviderID(instanceID),
+			ProviderID: fake.ProviderID(instanceID),
 		}))
 	}
 	return msgs, nodes

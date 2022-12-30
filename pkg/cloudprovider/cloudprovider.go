@@ -27,6 +27,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/utils"
 
+	"github.com/aws/karpenter-core/pkg/scheduling"
 	"github.com/aws/karpenter-core/pkg/utils/resources"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -47,9 +48,6 @@ import (
 	awscache "github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
 	awscontext "github.com/aws/karpenter/pkg/context"
-	awserrors "github.com/aws/karpenter/pkg/errors"
-
-	"github.com/aws/karpenter-core/pkg/scheduling"
 
 	coreapis "github.com/aws/karpenter-core/pkg/apis"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
@@ -226,11 +224,7 @@ func (c *CloudProvider) Hydrate(ctx context.Context, machine *v1alpha5.Machine) 
 		return fmt.Errorf("parsing instance id, %w", err)
 	}
 	instance, err := c.instanceProvider.Get(ctx, instanceID)
-
 	if err != nil {
-		if awserrors.IsInstanceTerminated(err) {
-			return cloudprovider.NewMachineNotFoundError(fmt.Errorf("getting instance for machine '%s', %w", machine.Name, err))
-		}
 		return fmt.Errorf("getting instance for instanceID '%s', %w", instanceID, err)
 	}
 	// Find the tag for the machine name if it exists

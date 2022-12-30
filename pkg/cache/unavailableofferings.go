@@ -27,7 +27,8 @@ import (
 )
 
 const (
-	UnavailableOfferingsTTL = 3 * time.Minute
+	UnavailableOfferingsTTL             = 3 * time.Minute
+	UnavailableOfferingsCleanupInterval = 10 * time.Minute
 )
 
 // UnavailableOfferings stores any offerings that return ICE (insufficient capacity errors) when
@@ -39,9 +40,9 @@ type UnavailableOfferings struct {
 	SeqNum uint64
 }
 
-func NewUnavailableOfferings(c *cache.Cache) *UnavailableOfferings {
+func NewUnavailableOfferings() *UnavailableOfferings {
 	return &UnavailableOfferings{
-		cache:  c,
+		cache:  cache.New(UnavailableOfferingsTTL, UnavailableOfferingsCleanupInterval),
 		SeqNum: 0,
 	}
 }
@@ -69,6 +70,14 @@ func (u *UnavailableOfferings) MarkUnavailableForFleetErr(ctx context.Context, f
 	instanceType := aws.StringValue(fleetErr.LaunchTemplateAndOverrides.Overrides.InstanceType)
 	zone := aws.StringValue(fleetErr.LaunchTemplateAndOverrides.Overrides.AvailabilityZone)
 	u.MarkUnavailable(ctx, aws.StringValue(fleetErr.ErrorCode), instanceType, zone, capacityType)
+}
+
+func (u *UnavailableOfferings) Delete(instanceType string, zone string, capacityType string) {
+	u.cache.Delete(u.key(instanceType, zone, capacityType))
+}
+
+func (u *UnavailableOfferings) Flush() {
+	u.cache.Flush()
 }
 
 // key returns the cache key for all offerings in the cache
