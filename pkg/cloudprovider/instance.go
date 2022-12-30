@@ -33,12 +33,13 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 
-	awssettings "github.com/aws/karpenter/pkg/apis/settings"
+	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/batcher"
 	"github.com/aws/karpenter/pkg/cache"
 	awserrors "github.com/aws/karpenter/pkg/errors"
 	"github.com/aws/karpenter/pkg/providers/subnet"
+	"github.com/aws/karpenter/pkg/utils"
 
 	"github.com/aws/karpenter-core/pkg/utils/resources"
 
@@ -156,7 +157,7 @@ func (p *InstanceProvider) List(ctx context.Context, machineName string) ([]*ec2
 				Values: aws.StringSlice([]string{machineName}),
 			},
 			{
-				Name:   aws.String(fmt.Sprintf("tag:kubernetes.io/cluster/%s", awssettings.FromContext(ctx).ClusterName)),
+				Name:   aws.String(fmt.Sprintf("tag:kubernetes.io/cluster/%s", settings.FromContext(ctx).ClusterName)),
 				Values: aws.StringSlice([]string{"*"}),
 			},
 			instanceStateFilter,
@@ -219,8 +220,8 @@ func (p *InstanceProvider) launchInstance(ctx context.Context, nodeTemplate *v1a
 		logging.FromContext(ctx).Warn(err.Error())
 	}
 	// Create fleet
-	tags := v1alpha1.MergeTags(ctx, awssettings.FromContext(ctx).Tags, nodeTemplate.Spec.Tags, map[string]string{
-		fmt.Sprintf("kubernetes.io/cluster/%s", awssettings.FromContext(ctx).ClusterName): "owned",
+	tags := v1alpha1.MergeTags(ctx, settings.FromContext(ctx).Tags, nodeTemplate.Spec.Tags, map[string]string{
+		fmt.Sprintf("kubernetes.io/cluster/%s", settings.FromContext(ctx).ClusterName): "owned",
 	})
 	createFleetInput := &ec2.CreateFleetInput{
 		Type:                  aws.String(ec2.FleetTypeInstant),
@@ -371,15 +372,43 @@ func (p *InstanceProvider) getOverrides(instanceTypes []*cloudprovider.InstanceT
 	return overrides
 }
 
-func (p *InstanceProvider) updateTags(ctx context.Context, instance *ec2.Instance, tags []*ec2.Tag) error {
+func (p *InstanceProvider) Update(ctx context.Context, machine *v1alpha5.Machine) (*ec2.Instance, error) {
 	_, err := p.ec2api.CreateTagsWithContext(ctx, &ec2.CreateTagsInput{
-		Resources: []*string{instance.InstanceId},
-		Tags:      tags,
+		Resources: aws.StringSlice([]string{lo.Must(utils.ParseInstanceID(machine.Status.ProviderID))}),
+		Tags: []*ec2.Tag{
+			{
+				Key:   aws.String(v1alpha5.MachineNameLabelKey),
+				Value: aws.String(machine.Name),
+			},
+			{
+				Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", settings.FromContext(ctx).ClusterName)),
+				Value: aws.String("owned"),
+			},
+		},
 	})
 	if err != nil {
-		return fmt.Errorf("creating tags for instance, %w", err)
+		return nil, fmt.Errorf("updating tags for instance, %w", err)
 	}
-	return nil
+	// Get Instance with backoff retry since EC2 is eventually consistent
+	var instance *ec2.Instance
+	if err = retry.Do(
+		func() error {
+			instance, err = p.Get(ctx, lo.Must(utils.ParseInstanceID(machine.Status.ProviderID)))
+			if _, ok := lo.Find(instance.Tags, func(tag *ec2.Tag) bool {
+				return aws.StringValue(tag.Key) == v1alpha5.MachineNameLabelKey &&
+					aws.StringValue(tag.Value) == machine.Name
+			}); !ok {
+				return fmt.Errorf("instance update hasn't completed")
+			}
+			return err
+		},
+		retry.Delay(1*time.Second),
+		retry.Attempts(6),
+		retry.LastErrorOnly(true),
+	); err != nil {
+		return nil, fmt.Errorf("updating instance %s, %w", lo.Must(utils.ParseInstanceID(machine.Status.ProviderID)), err)
+	}
+	return instance, nil
 }
 
 func (p *InstanceProvider) updateUnavailableOfferingsCache(ctx context.Context, errors []*ec2.CreateFleetError, capacityType string) {

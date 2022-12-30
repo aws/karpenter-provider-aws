@@ -60,6 +60,7 @@ func (c *Controller) Reconcile(ctx context.Context, node *v1.Node) (reconcile.Re
 	if !ok {
 		return reconcile.Result{}, nil
 	}
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("provider-id", node.Spec.ProviderID, "provisioner", provisionerName))
 	machineList := &v1alpha5.MachineList{}
 	if err := c.kubeClient.List(ctx, machineList, client.Limit(1), client.MatchingFields{"status.providerID": node.Spec.ProviderID}); err != nil {
 		return reconcile.Result{}, fmt.Errorf("listing machines, %w", err)
@@ -86,7 +87,7 @@ func (c *Controller) hydrate(ctx context.Context, node *v1.Node, provisioner *v1
 	machine.Labels = lo.Assign(machine.Labels, map[string]string{
 		v1alpha5.MachineNameLabelKey: machine.Name,
 	})
-	logging.WithLogger(ctx, logging.FromContext(ctx).With("machine", machine.Name))
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("machine", machine.Name))
 
 	// Hydrates the machine with the correct values if the instance exists at the cloudprovider
 	if err := c.cloudProvider.Hydrate(ctx, machine); err != nil {

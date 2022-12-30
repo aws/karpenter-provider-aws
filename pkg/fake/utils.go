@@ -22,7 +22,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/samber/lo"
-	"k8s.io/apimachinery/pkg/util/rand"
 )
 
 func InstanceID() string {
@@ -30,15 +29,19 @@ func InstanceID() string {
 }
 
 func RandomProviderID() string {
-	return ProviderID(rand.String(10))
+	return ProviderID(InstanceID())
 }
 
 func ProviderID(id string) string {
-	return fmt.Sprintf("aws:///%s/i-%s", defaultRegion, id)
+	return fmt.Sprintf("aws:///%s/%s", defaultRegion, id)
 }
 
 func ImageID() string {
 	return fmt.Sprintf("ami-%s", randomdata.Alphanumeric(17))
+}
+
+func PrivateDNSName() string {
+	return fmt.Sprintf("ip-192-168-%d-%d.%s.compute.internal", randomdata.Number(0, 256), randomdata.Number(0, 256), defaultRegion)
 }
 
 // SubnetsFromFleetRequest returns a unique slice of subnetIDs passed as overrides from a CreateFleetInput

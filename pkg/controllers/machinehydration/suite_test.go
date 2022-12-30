@@ -369,7 +369,7 @@ var _ = Describe("MachineHydration", func() {
 			expectedName := "my-custom-machine"
 
 			// Set the DescribeInstancesOutput to return an instance with a MachineName label
-			ec2API.DescribeInstancesOutput.Set(&ec2.DescribeInstancesOutput{
+			ec2API.DescribeInstancesBehavior.Output.Set(&ec2.DescribeInstancesOutput{
 				Reservations: []*ec2.Reservation{
 					{
 						Instances: []*ec2.Instance{

@@ -29,6 +29,7 @@ import (
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/utils/sets"
 
 	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter-core/pkg/utils/atomic"
@@ -55,6 +56,7 @@ type EC2Behavior struct {
 	CreateFleetBehavior                 MockedFunction[ec2.CreateFleetInput, ec2.CreateFleetOutput]
 	TerminateInstancesBehavior          MockedFunction[ec2.TerminateInstancesInput, ec2.TerminateInstancesOutput]
 	DescribeInstancesBehavior           MockedFunction[ec2.DescribeInstancesInput, ec2.DescribeInstancesOutput]
+	CreateTagsBehavior                  MockedFunction[ec2.CreateTagsInput, ec2.CreateTagsOutput]
 	CalledWithCreateLaunchTemplateInput AtomicPtrSlice[ec2.CreateLaunchTemplateInput]
 	CalledWithDescribeImagesInput       AtomicPtrSlice[ec2.DescribeImagesInput]
 	Instances                           sync.Map
@@ -206,13 +208,33 @@ func (e *EC2API) CreateLaunchTemplateWithContext(_ context.Context, input *ec2.C
 	return &ec2.CreateLaunchTemplateOutput{LaunchTemplate: launchTemplate}, nil
 }
 
+func (e *EC2API) CreateTagsWithContext(_ context.Context, input *ec2.CreateTagsInput, _ ...request.Option) (*ec2.CreateTagsOutput, error) {
+	// Update passed in instances with the passed tags
+	for _, id := range input.Resources {
+		raw, ok := e.Instances.Load(aws.StringValue(id))
+		if !ok {
+			return nil, fmt.Errorf("instance with id '%s' does not exist", aws.StringValue(id))
+		}
+		instance := raw.(*ec2.Instance)
+
+		// Upsert any tags that have the same key
+		newTagKeys := sets.New[string](lo.Map(input.Tags, func(t *ec2.Tag, _ int) string { return aws.StringValue(t.Key) })...)
+		instance.Tags = lo.Filter(input.Tags, func(t *ec2.Tag, _ int) bool { return newTagKeys.Has(aws.StringValue(t.Key)) })
+		instance.Tags = append(instance.Tags, input.Tags...)
+	}
+	return e.CreateTagsBehavior.Invoke(input)
+}
+
 func (e *EC2API) DescribeInstancesWithContext(_ context.Context, input *ec2.DescribeInstancesInput, _ ...request.Option) (*ec2.DescribeInstancesOutput, error) {
 	if !e.DescribeInstancesBehavior.Error.IsNil() || !e.DescribeInstancesBehavior.Output.IsNil() {
 		return e.DescribeInstancesBehavior.Invoke(input)
 	}
-	instances := []*ec2.Instance{}
+	var instances []*ec2.Instance
 	for _, instanceID := range input.InstanceIds {
 		instance, _ := e.Instances.Load(*instanceID)
+		if instance == nil {
+			continue
+		}
 		instances = append(instances, instance.(*ec2.Instance))
 	}
 	result := &ec2.DescribeInstancesOutput{

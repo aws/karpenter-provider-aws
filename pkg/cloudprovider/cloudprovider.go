@@ -23,7 +23,7 @@ import (
 	"strings"
 
 	"github.com/aws/karpenter/pkg/apis"
-	awssettings "github.com/aws/karpenter/pkg/apis/settings"
+	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/utils"
 
@@ -227,21 +227,22 @@ func (c *CloudProvider) Hydrate(ctx context.Context, machine *v1alpha5.Machine) 
 	if err != nil {
 		return fmt.Errorf("getting instance for instanceID '%s', %w", instanceID, err)
 	}
-	// Find the tag for the machine name if it exists
-	tag, ok := lo.Find(instance.Tags, func(tag *ec2.Tag) bool {
+	// Update the machine with the name stored in the tag value of the instance if it exists
+	// We do this so that when we create the Machine after hydration, the machine-controller is aware
+	// that the instance already exists, so it doesn't create another one
+	if tag, ok := lo.Find(instance.Tags, func(tag *ec2.Tag) bool {
 		return aws.StringValue(tag.Key) == v1alpha5.MachineNameLabelKey
-	})
-	if ok {
-		machine.Name = aws.StringValue(tag.Value) // The created machine should be equal to the tag value of the instance
-		return nil
+	}); ok {
+		machine.Name = aws.StringValue(tag.Value)
+		// If the instance has both machine-name and cluster-name, no need to update
+		if _, ok = lo.Find(instance.Tags, func(tag *ec2.Tag) bool {
+			return aws.StringValue(tag.Key) == fmt.Sprintf("kubernetes.io/cluster/%s", settings.FromContext(ctx).ClusterName)
+		}); ok {
+			return nil
+		}
 	}
-	if err = c.instanceProvider.updateTags(ctx, instance, []*ec2.Tag{
-		{
-			Key:   aws.String(v1alpha5.MachineNameLabelKey),
-			Value: aws.String(machine.Name),
-		},
-	}); err != nil {
-		return fmt.Errorf("updating tags for instance '%s', %w", instanceID, err)
+	if _, err = c.instanceProvider.Update(ctx, machine); err != nil {
+		return fmt.Errorf("updating instance, %w", err)
 	}
 	return nil
 }
@@ -341,7 +342,7 @@ func (c *CloudProvider) instanceToMachine(ctx context.Context, instance *ec2.Ins
 	labels[v1alpha5.MachineNameLabelKey] = machine.Name
 
 	machine.Name = lo.Ternary(
-		awssettings.FromContext(ctx).NodeNameConvention == awssettings.ResourceName,
+		settings.FromContext(ctx).NodeNameConvention == settings.ResourceName,
 		aws.StringValue(instance.InstanceId),
 		strings.ToLower(aws.StringValue(instance.PrivateDnsName)),
 	)
