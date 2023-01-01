@@ -134,7 +134,7 @@ var _ = Describe("Security Group Provider", func() {
 	It("should discover subnet by ID", func() {
 		nodeTemplate.Spec.SubnetSelector = map[string]string{"aws-ids": "subnet-test1"}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-		resolvedSubnetProvider, err := subnetProvider.Get(ctx, nodeTemplate)
+		resolvedSubnetProvider, err := subnetProvider.List(ctx, nodeTemplate)
 		resolvedSubnet := prettySubnets(resolvedSubnetProvider)
 		Expect(err).To(BeNil())
 		Expect(len(resolvedSubnet)).To(Equal(1))
@@ -145,7 +145,7 @@ var _ = Describe("Security Group Provider", func() {
 	It("should discover subnets by IDs", func() {
 		nodeTemplate.Spec.SubnetSelector = map[string]string{"aws-ids": "subnet-test1,subnet-test2"}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-		resolvedSubnetProvider, err := subnetProvider.Get(ctx, nodeTemplate)
+		resolvedSubnetProvider, err := subnetProvider.List(ctx, nodeTemplate)
 		resolvedSubnet := prettySubnets(resolvedSubnetProvider)
 		Expect(err).To(BeNil())
 		Expect(len(resolvedSubnet)).To(Equal(2))
@@ -157,7 +157,7 @@ var _ = Describe("Security Group Provider", func() {
 	It("should discover subnets by IDs and tags", func() {
 		nodeTemplate.Spec.SubnetSelector = map[string]string{"aws-ids": "subnet-test1,subnet-test2", "foo": "bar"}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-		resolvedSubnetProvider, err := subnetProvider.Get(ctx, nodeTemplate)
+		resolvedSubnetProvider, err := subnetProvider.List(ctx, nodeTemplate)
 		resolvedSubnet := prettySubnets(resolvedSubnetProvider)
 		Expect(err).To(BeNil())
 		Expect(len(resolvedSubnet)).To(Equal(2))
@@ -169,7 +169,7 @@ var _ = Describe("Security Group Provider", func() {
 	It("should discover subnets by a single tag", func() {
 		nodeTemplate.Spec.SubnetSelector = map[string]string{"Name": "test-subnet-1"}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-		resolvedSubnetProvider, err := subnetProvider.Get(ctx, nodeTemplate)
+		resolvedSubnetProvider, err := subnetProvider.List(ctx, nodeTemplate)
 		resolvedSubnet := prettySubnets(resolvedSubnetProvider)
 		Expect(err).To(BeNil())
 		Expect(len(resolvedSubnet)).To(Equal(1))
@@ -180,7 +180,7 @@ var _ = Describe("Security Group Provider", func() {
 	It("should discover subnets by multiple tag values", func() {
 		nodeTemplate.Spec.SubnetSelector = map[string]string{"Name": "test-subnet-1,test-subnet-2"}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-		resolvedSubnetProvider, err := subnetProvider.Get(ctx, nodeTemplate)
+		resolvedSubnetProvider, err := subnetProvider.List(ctx, nodeTemplate)
 		resolvedSubnet := prettySubnets(resolvedSubnetProvider)
 		Expect(err).To(BeNil())
 		Expect(len(resolvedSubnet)).To(Equal(2))
@@ -192,7 +192,7 @@ var _ = Describe("Security Group Provider", func() {
 	It("should discover subnets by IDs intersected with tags", func() {
 		nodeTemplate.Spec.SubnetSelector = map[string]string{"aws-ids": "subnet-test2", "foo": "bar"}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-		resolvedSubnetProvider, err := subnetProvider.Get(ctx, nodeTemplate)
+		resolvedSubnetProvider, err := subnetProvider.List(ctx, nodeTemplate)
 		resolvedSubnet := prettySubnets(resolvedSubnetProvider)
 		Expect(err).To(BeNil())
 		Expect(len(resolvedSubnet)).To(Equal(1))

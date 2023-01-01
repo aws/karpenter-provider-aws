@@ -134,7 +134,7 @@ var _ = AfterEach(func() {
 var _ = Describe("Security Group Provider", func() {
 	It("should default to the clusters security groups", func() {
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-		resolvedSecurityGroups, err := securityGroupProvider.Get(ctx, nodeTemplate)
+		resolvedSecurityGroups, err := securityGroupProvider.List(ctx, nodeTemplate)
 		Expect(err).To(BeNil())
 		Expect(len(resolvedSecurityGroups)).To(Equal(3))
 		Expect(resolvedSecurityGroups).To(ConsistOf(
@@ -149,7 +149,7 @@ var _ = Describe("Security Group Provider", func() {
 			{GroupId: aws.String("test-sg-2"), Tags: []*ec2.Tag{{Key: aws.String("kubernetes.io/cluster/test-cluster"), Value: aws.String("test-sg-2")}}},
 		}})
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-		resolvedSecurityGroups, err := securityGroupProvider.Get(ctx, nodeTemplate)
+		resolvedSecurityGroups, err := securityGroupProvider.List(ctx, nodeTemplate)
 		Expect(err).To(BeNil())
 		Expect(len(resolvedSecurityGroups)).To(Equal(2))
 		Expect(resolvedSecurityGroups).To(ConsistOf(
@@ -160,7 +160,7 @@ var _ = Describe("Security Group Provider", func() {
 	It("should discover security groups by multiple tag values", func() {
 		nodeTemplate.Spec.SecurityGroupSelector = map[string]string{"Name": "test-security-group-1,test-security-group-2"}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-		resolvedSecurityGroups, err := securityGroupProvider.Get(ctx, nodeTemplate)
+		resolvedSecurityGroups, err := securityGroupProvider.List(ctx, nodeTemplate)
 		Expect(err).To(BeNil())
 		Expect(len(resolvedSecurityGroups)).To(Equal(2))
 		Expect(resolvedSecurityGroups).To(ConsistOf(
@@ -171,7 +171,7 @@ var _ = Describe("Security Group Provider", func() {
 	It("should discover security groups by ID", func() {
 		nodeTemplate.Spec.SecurityGroupSelector = map[string]string{"aws-ids": "sg-test1"}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-		resolvedSecurityGroups, err := securityGroupProvider.Get(ctx, nodeTemplate)
+		resolvedSecurityGroups, err := securityGroupProvider.List(ctx, nodeTemplate)
 		Expect(err).To(BeNil())
 		Expect(len(resolvedSecurityGroups)).To(Equal(1))
 		Expect(resolvedSecurityGroups).To(ConsistOf(
@@ -181,7 +181,7 @@ var _ = Describe("Security Group Provider", func() {
 	It("should discover security groups by IDs", func() {
 		nodeTemplate.Spec.SecurityGroupSelector = map[string]string{"aws-ids": "sg-test1,sg-test2"}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-		resolvedSecurityGroups, err := securityGroupProvider.Get(ctx, nodeTemplate)
+		resolvedSecurityGroups, err := securityGroupProvider.List(ctx, nodeTemplate)
 		Expect(err).To(BeNil())
 		Expect(len(resolvedSecurityGroups)).To(Equal(2))
 		Expect(resolvedSecurityGroups).To(ConsistOf(
@@ -192,7 +192,7 @@ var _ = Describe("Security Group Provider", func() {
 	It("should discover security groups by IDs and tags", func() {
 		nodeTemplate.Spec.SecurityGroupSelector = map[string]string{"aws-ids": "sg-test1,sg-test2", "foo": "bar"}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-		resolvedSecurityGroups, err := securityGroupProvider.Get(ctx, nodeTemplate)
+		resolvedSecurityGroups, err := securityGroupProvider.List(ctx, nodeTemplate)
 		Expect(err).To(BeNil())
 		Expect(len(resolvedSecurityGroups)).To(Equal(2))
 		Expect(resolvedSecurityGroups).To(ConsistOf(
@@ -203,7 +203,7 @@ var _ = Describe("Security Group Provider", func() {
 	It("should discover security groups by IDs intersected with tags", func() {
 		nodeTemplate.Spec.SecurityGroupSelector = map[string]string{"aws-ids": "sg-test2", "foo": "bar"}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-		resolvedSecurityGroups, err := securityGroupProvider.Get(ctx, nodeTemplate)
+		resolvedSecurityGroups, err := securityGroupProvider.List(ctx, nodeTemplate)
 		Expect(err).To(BeNil())
 		Expect(len(resolvedSecurityGroups)).To(Equal(1))
 		Expect(resolvedSecurityGroups).To(ConsistOf(
