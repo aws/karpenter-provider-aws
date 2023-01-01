@@ -22,7 +22,6 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 
-	corev1alpha1 "github.com/aws/karpenter-core/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	corecloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/test"
@@ -46,7 +45,7 @@ func NewCloudProvider(validAMIs ...string) *CloudProvider {
 	}
 }
 
-func (c *CloudProvider) Create(_ context.Context, _ *corev1alpha1.Machine) (*v1.Node, error) {
+func (c *CloudProvider) Create(_ context.Context, _ *v1alpha5.Machine) (*v1.Node, error) {
 	name := test.RandomName()
 	n := &v1.Node{
 		ObjectMeta: metav1.ObjectMeta{
@@ -68,7 +67,7 @@ func (c *CloudProvider) GetInstanceTypes(_ context.Context, _ *v1alpha5.Provisio
 	}, nil
 }
 
-func (c *CloudProvider) IsMachineDrifted(_ context.Context, machine *corev1alpha1.Machine) (bool, error) {
+func (c *CloudProvider) IsMachineDrifted(_ context.Context, machine *v1alpha5.Machine) (bool, error) {
 	nodeAMI := machine.Labels[v1alpha1.LabelInstanceAMIID]
 	for _, ami := range c.ValidAMIs {
 		if nodeAMI == ami {
@@ -78,7 +77,7 @@ func (c *CloudProvider) IsMachineDrifted(_ context.Context, machine *corev1alpha
 	return true, nil
 }
 
-func (c *CloudProvider) Delete(context.Context, *corev1alpha1.Machine) error {
+func (c *CloudProvider) Delete(context.Context, *v1alpha5.Machine) error {
 	return nil
 }
 

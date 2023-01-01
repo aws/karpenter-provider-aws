@@ -86,8 +86,7 @@ func NewInstanceTypeProvider(ctx context.Context, sess *session.Session, ec2api 
 	}
 }
 
-// Get all instance type options
-func (p *InstanceTypeProvider) Get(ctx context.Context, kc *v1alpha5.KubeletConfiguration, nodeTemplate *v1alpha1.AWSNodeTemplate) ([]*cloudprovider.InstanceType, error) {
+func (p *InstanceTypeProvider) List(ctx context.Context, kc *v1alpha5.KubeletConfiguration, nodeTemplate *v1alpha1.AWSNodeTemplate) ([]*cloudprovider.InstanceType, error) {
 	p.Lock()
 	defer p.Unlock()
 	// Get InstanceTypes from EC2
@@ -164,7 +163,7 @@ func (p *InstanceTypeProvider) getInstanceTypeZones(ctx context.Context, nodeTem
 	}
 
 	// Constrain AZs from subnets
-	subnets, err := p.subnetProvider.Get(ctx, nodeTemplate)
+	subnets, err := p.subnetProvider.List(ctx, nodeTemplate)
 	if err != nil {
 		return nil, err
 	}
