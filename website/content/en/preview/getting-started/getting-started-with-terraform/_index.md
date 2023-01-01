@@ -131,7 +131,7 @@ module "vpc" {
 module "eks" {
   # https://registry.terraform.io/modules/terraform-aws-modules/eks/aws/latest
   source  = "terraform-aws-modules/eks/aws"
-  version = "18.31.0"
+  version = "~> 19.0"
 
   cluster_name    = local.cluster_name
   cluster_version = "1.24"
@@ -139,21 +139,8 @@ module "eks" {
   vpc_id     = module.vpc.vpc_id
   subnet_ids = module.vpc.private_subnets
 
-  # Required for Karpenter role below
-  enable_irsa = true
 
-  node_security_group_additional_rules = {
-    ingress_nodes_karpenter_port = {
-      description                   = "Cluster API to Node group for Karpenter webhook"
-      protocol                      = "tcp"
-      from_port                     = 8443
-      to_port                       = 8443
-      type                          = "ingress"
-      source_cluster_security_group = true
-    }
-  }
-
-  node_security_group_tags = {
+  tags = {
     # NOTE - if creating multiple security groups with this module, only tag the
     # security group that Karpenter should utilize with the following tag
     # (i.e. - at most, only one security group should have this tag in your account)
@@ -212,7 +199,7 @@ Add the following to your `main.tf` to create:
 ```hcl
 module "karpenter" {
   source  = "terraform-aws-modules/eks/aws//modules/karpenter"
-  version = "18.31.0"
+  version = "~> 19.0"
 
   cluster_name = module.eks.cluster_name
 
