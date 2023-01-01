@@ -10,7 +10,7 @@ require (
 	github.com/aws/karpenter-core v0.21.1-0.20221229043026-9b38f8c39e87
 	github.com/onsi/ginkgo/v2 v2.5.1
 	github.com/onsi/gomega v1.24.1
-	github.com/samber/lo v1.36.0
+	github.com/samber/lo v1.37.0
 	go.uber.org/multierr v1.8.0
 	k8s.io/api v0.25.4
 	k8s.io/apimachinery v0.25.4
