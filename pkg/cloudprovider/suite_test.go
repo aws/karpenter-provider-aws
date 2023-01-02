@@ -53,8 +53,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ssm"
 
 	"github.com/aws/karpenter-core/pkg/apis/config/settings"
-	corev1alpha1 "github.com/aws/karpenter-core/pkg/apis/v1alpha1"
-	corev1alpha5 "github.com/aws/karpenter-core/pkg/apis/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/controllers/provisioning"
 	"github.com/aws/karpenter-core/pkg/controllers/state"
 	"github.com/aws/karpenter-core/pkg/operator/injection"
@@ -62,6 +61,7 @@ import (
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
+	machineutil "github.com/aws/karpenter-core/pkg/utils/machine"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
 	"github.com/aws/karpenter/pkg/fake"
 )
@@ -78,6 +78,7 @@ var internalUnavailableOfferingsCache *cache.Cache
 var unavailableOfferingsCache *awscache.UnavailableOfferings
 var instanceTypeCache *cache.Cache
 var instanceTypeProvider *InstanceTypeProvider
+var launchTemplateProvider *LaunchTemplateProvider
 var amiProvider *amifamily.AMIProvider
 var fakeEC2API *fake.EC2API
 var fakeSSMAPI *fake.SSMAPI
@@ -88,7 +89,7 @@ var cloudProvider *CloudProvider
 var cluster *state.Cluster
 var recorder *coretest.EventRecorder
 var fakeClock *clock.FakeClock
-var provisioner *corev1alpha5.Provisioner
+var provisioner *v1alpha5.Provisioner
 var nodeTemplate *v1alpha1.AWSNodeTemplate
 var pricingProvider *PricingProvider
 var settingsStore coretest.SettingsStore
@@ -136,18 +137,19 @@ var _ = BeforeSuite(func() {
 		cm:                   pretty.NewChangeMonitor(),
 	}
 	securityGroupProvider = securitygroup.NewProvider(fakeEC2API)
+	launchTemplateProvider = &LaunchTemplateProvider{
+		ec2api:                fakeEC2API,
+		amiFamily:             amifamily.New(env.Client, amiProvider),
+		securityGroupProvider: securityGroupProvider,
+		cache:                 launchTemplateCache,
+		caBundle:              ptr.String("ca-bundle"),
+		cm:                    pretty.NewChangeMonitor(),
+	}
 	cloudProvider = &CloudProvider{
 		instanceTypeProvider: instanceTypeProvider,
 		amiProvider:          amiProvider,
-		instanceProvider: NewInstanceProvider(ctx, fakeEC2API, instanceTypeProvider, subnetProvider, &LaunchTemplateProvider{
-			ec2api:                fakeEC2API,
-			amiFamily:             amifamily.New(env.Client, amiProvider),
-			securityGroupProvider: securityGroupProvider,
-			cache:                 launchTemplateCache,
-			caBundle:              ptr.String("ca-bundle"),
-			cm:                    pretty.NewChangeMonitor(),
-		}),
-		kubeClient: env.Client,
+		instanceProvider:     NewInstanceProvider(ctx, "", fakeEC2API, unavailableOfferingsCache, instanceTypeProvider, subnetProvider, launchTemplateProvider),
+		kubeClient:           env.Client,
 	}
 	fakeClock = clock.NewFakeClock(time.Now())
 	cluster = state.NewCluster(ctx, fakeClock, env.Client, cloudProvider)
@@ -190,7 +192,7 @@ var _ = BeforeEach(func() {
 			Key:      v1alpha1.LabelInstanceCategory,
 			Operator: v1.NodeSelectorOpExists,
 		}},
-		ProviderRef: &corev1alpha5.ProviderRef{
+		ProviderRef: &v1alpha5.ProviderRef{
 			APIVersion: nodeTemplate.APIVersion,
 			Kind:       nodeTemplate.Kind,
 			Name:       nodeTemplate.Name,
@@ -211,10 +213,17 @@ var _ = BeforeEach(func() {
 	securityGroupProvider.ResetCache()
 
 	cloudProvider.instanceProvider.launchTemplateProvider.kubeDNSIP = net.ParseIP("10.0.100.10")
+	launchTemplateProvider.kubeDNSIP = net.ParseIP("10.0.100.10")
 
 	// Reset the pricing provider, so we don't cross-pollinate pricing data
-	pricingProvider = NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
-	instanceTypeProvider.pricingProvider = pricingProvider
+	instanceTypeProvider = &InstanceTypeProvider{
+		ec2api:               fakeEC2API,
+		subnetProvider:       subnetProvider,
+		cache:                instanceTypeCache,
+		pricingProvider:      NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{})),
+		unavailableOfferings: unavailableOfferingsCache,
+		cm:                   pretty.NewChangeMonitor(),
+	}
 })
 
 var _ = AfterEach(func() {
@@ -233,14 +242,14 @@ var _ = Describe("Allocation", func() {
 		It("should default requirements", func() {
 			provisioner.SetDefaults(ctx)
 			Expect(provisioner.Spec.Requirements).To(ContainElement(v1.NodeSelectorRequirement{
-				Key:      corev1alpha5.LabelCapacityType,
+				Key:      v1alpha5.LabelCapacityType,
 				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{corev1alpha5.CapacityTypeOnDemand},
+				Values:   []string{v1alpha5.CapacityTypeOnDemand},
 			}))
 			Expect(provisioner.Spec.Requirements).To(ContainElement(v1.NodeSelectorRequirement{
 				Key:      v1.LabelArchStable,
 				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{corev1alpha5.ArchitectureAmd64},
+				Values:   []string{v1alpha5.ArchitectureAmd64},
 			}))
 		})
 	})
@@ -306,12 +315,12 @@ var _ = Describe("Allocation", func() {
 				ProviderID: makeProviderID(lo.FromPtr(instance.InstanceId)),
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						corev1alpha5.ProvisionerNameLabelKey: provisioner.Name,
-						v1.LabelInstanceTypeStable:           selectedInstanceType.Name,
+						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+						v1.LabelInstanceTypeStable:       selectedInstanceType.Name,
 					},
 				},
 			})
-			drifted, err := cloudProvider.IsMachineDrifted(ctx, corev1alpha1.MachineFromNode(node))
+			drifted, err := cloudProvider.IsMachineDrifted(ctx, machineutil.NewFromNode(node))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(drifted).To(BeFalse())
 		})
@@ -322,12 +331,12 @@ var _ = Describe("Allocation", func() {
 				ProviderID: makeProviderID(lo.FromPtr(instance.InstanceId)),
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						corev1alpha5.ProvisionerNameLabelKey: provisioner.Name,
-						v1.LabelInstanceTypeStable:           selectedInstanceType.Name,
+						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+						v1.LabelInstanceTypeStable:       selectedInstanceType.Name,
 					},
 				},
 			})
-			drifted, err := cloudProvider.IsMachineDrifted(ctx, corev1alpha1.MachineFromNode(node))
+			drifted, err := cloudProvider.IsMachineDrifted(ctx, machineutil.NewFromNode(node))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(drifted).To(BeFalse())
 		})
@@ -337,12 +346,12 @@ var _ = Describe("Allocation", func() {
 				ProviderID: makeProviderID(lo.FromPtr(instance.InstanceId)),
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						corev1alpha5.ProvisionerNameLabelKey: provisioner.Name,
-						v1.LabelInstanceTypeStable:           selectedInstanceType.Name,
+						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+						v1.LabelInstanceTypeStable:       selectedInstanceType.Name,
 					},
 				},
 			})
-			drifted, err := cloudProvider.IsMachineDrifted(ctx, corev1alpha1.MachineFromNode(node))
+			drifted, err := cloudProvider.IsMachineDrifted(ctx, machineutil.NewFromNode(node))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(drifted).To(BeFalse())
 		})
@@ -351,14 +360,14 @@ var _ = Describe("Allocation", func() {
 				ProviderID: makeProviderID(lo.FromPtr(instance.InstanceId)),
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						corev1alpha5.ProvisionerNameLabelKey: provisioner.Name,
-						v1.LabelInstanceTypeStable:           selectedInstanceType.Name,
+						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+						v1.LabelInstanceTypeStable:       selectedInstanceType.Name,
 					},
 				},
 			})
 			// Instance is a reference to what we return in the GetInstances call
 			instance.ImageId = aws.String(makeImageID())
-			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, corev1alpha1.MachineFromNode(node))
+			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machineutil.NewFromNode(node))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(isDrifted).To(BeTrue())
 		})
@@ -367,12 +376,12 @@ var _ = Describe("Allocation", func() {
 				ProviderID: makeProviderID(lo.FromPtr(instance.InstanceId)),
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						corev1alpha5.ProvisionerNameLabelKey: provisioner.Name,
-						v1.LabelInstanceTypeStable:           selectedInstanceType.Name,
+						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+						v1.LabelInstanceTypeStable:       selectedInstanceType.Name,
 					},
 				},
 			})
-			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, corev1alpha1.MachineFromNode(node))
+			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machineutil.NewFromNode(node))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(isDrifted).To(BeFalse())
 		})
@@ -381,23 +390,23 @@ var _ = Describe("Allocation", func() {
 				ProviderID: makeProviderID(lo.FromPtr(instance.InstanceId)),
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						corev1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
 					},
 				},
 			})
-			_, err := cloudProvider.IsMachineDrifted(ctx, corev1alpha1.MachineFromNode(node))
+			_, err := cloudProvider.IsMachineDrifted(ctx, machineutil.NewFromNode(node))
 			Expect(err).To(HaveOccurred())
 		})
 		It("should error drift if node doesn't have provider id", func() {
 			node := coretest.Node(coretest.NodeOptions{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						corev1alpha5.ProvisionerNameLabelKey: provisioner.Name,
-						v1.LabelInstanceTypeStable:           selectedInstanceType.Name,
+						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+						v1.LabelInstanceTypeStable:       selectedInstanceType.Name,
 					},
 				},
 			})
-			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, corev1alpha1.MachineFromNode(node))
+			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machineutil.NewFromNode(node))
 			Expect(err).To(HaveOccurred())
 			Expect(isDrifted).To(BeFalse())
 		})

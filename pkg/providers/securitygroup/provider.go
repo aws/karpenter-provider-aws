@@ -49,7 +49,7 @@ func NewProvider(ec2api ec2iface.EC2API) *Provider {
 	}
 }
 
-func (p *Provider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) ([]string, error) {
+func (p *Provider) List(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) ([]string, error) {
 	p.Lock()
 	defer p.Unlock()
 	// Get SecurityGroups

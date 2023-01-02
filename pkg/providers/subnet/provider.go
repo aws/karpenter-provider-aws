@@ -50,7 +50,7 @@ func NewProvider(ec2api ec2iface.EC2API) *Provider {
 	}
 }
 
-func (p *Provider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) ([]*ec2.Subnet, error) {
+func (p *Provider) List(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) ([]*ec2.Subnet, error) {
 	p.Lock()
 	defer p.Unlock()
 	filters := getFilters(nodeTemplate)

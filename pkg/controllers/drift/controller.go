@@ -35,10 +35,10 @@ import (
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter-core/pkg/apis/config/settings"
-	corev1alpha1 "github.com/aws/karpenter-core/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	corecloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
 	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
+	machineutil "github.com/aws/karpenter-core/pkg/utils/machine"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 )
 
@@ -83,7 +83,7 @@ func (c *Controller) Reconcile(ctx context.Context, node *v1.Node) (reconcile.Re
 		return reconcile.Result{}, fmt.Errorf("getting provisioner, %w", err)
 	}
 
-	drifted, err := c.cloudProvider.IsMachineDrifted(ctx, corev1alpha1.MachineFromNode(node))
+	drifted, err := c.cloudProvider.IsMachineDrifted(ctx, machineutil.NewFromNode(node))
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("getting drift for node, %w", err)
 	}
