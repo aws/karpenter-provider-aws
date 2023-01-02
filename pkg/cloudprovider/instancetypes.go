@@ -79,7 +79,7 @@ func NewInstanceTypeProvider(ctx context.Context, sess *session.Session, ec2api 
 			awssettings.FromContext(ctx).IsolatedVPC,
 			startAsync,
 		),
-		cache:                cache.New(InstanceTypesAndZonesCacheTTL, awscache.CacheCleanupInterval),
+		cache:                cache.New(InstanceTypesAndZonesCacheTTL, awscache.CleanupInterval),
 		unavailableOfferings: unavailableOfferingsCache,
 		cm:                   pretty.NewChangeMonitor(),
 	}

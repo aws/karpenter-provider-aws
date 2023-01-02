@@ -45,7 +45,7 @@ func NewProvider(ec2api ec2iface.EC2API) *Provider {
 	return &Provider{
 		ec2api: ec2api,
 		cm:     pretty.NewChangeMonitor(),
-		cache:  cache.New(awscache.CacheTTL*5, awscache.CacheCleanupInterval),
+		cache:  cache.New(awscache.TTL*5, awscache.CleanupInterval),
 	}
 }
 
@@ -53,7 +53,7 @@ func (p *Provider) List(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTempl
 	p.Lock()
 	defer p.Unlock()
 	// Get SecurityGroups
-	securityGroups, err := p.getSecurityGroups(ctx, nodeTemplate, p.getFilters(nodeTemplate))
+	securityGroups, err := p.getSecurityGroups(ctx, p.getFilters(nodeTemplate))
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +93,7 @@ func (p *Provider) getFilters(nodeTemplate *v1alpha1.AWSNodeTemplate) []*ec2.Fil
 	return filters
 }
 
-func (p *Provider) getSecurityGroups(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, filters []*ec2.Filter) ([]*ec2.SecurityGroup, error) {
+func (p *Provider) getSecurityGroups(ctx context.Context, filters []*ec2.Filter) ([]*ec2.SecurityGroup, error) {
 	hash, err := hashstructure.Hash(filters, hashstructure.FormatV2, nil)
 	if err != nil {
 		return nil, err
@@ -106,7 +106,7 @@ func (p *Provider) getSecurityGroups(ctx context.Context, nodeTemplate *v1alpha1
 		return nil, fmt.Errorf("describing security groups %+v, %w", filters, err)
 	}
 	p.cache.SetDefault(fmt.Sprint(hash), output.SecurityGroups)
-	if p.cm.HasChanged(fmt.Sprintf("security-groups (%s-%s)", nodeTemplate.Kind, nodeTemplate.Name), output.SecurityGroups) {
+	if p.cm.HasChanged(fmt.Sprintf("security-groups (%d)", hash), output.SecurityGroups) {
 		logging.FromContext(ctx).With("security-groups", p.securityGroupIds(output.SecurityGroups)).Debugf("discovered security groups")
 	}
 	return output.SecurityGroups, nil

@@ -46,7 +46,7 @@ func NewProvider(ec2api ec2iface.EC2API) *Provider {
 	return &Provider{
 		ec2api: ec2api,
 		cm:     pretty.NewChangeMonitor(),
-		cache:  cache.New(awscache.CacheTTL*5, awscache.CacheCleanupInterval),
+		cache:  cache.New(awscache.TTL*5, awscache.CleanupInterval),
 	}
 }
 
@@ -69,8 +69,8 @@ func (p *Provider) List(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTempl
 		return nil, fmt.Errorf("no subnets matched selector %v", nodeTemplate.Spec.SubnetSelector)
 	}
 	p.cache.SetDefault(fmt.Sprint(hash), output.Subnets)
-	subnetLog := PrettySubnets(output.Subnets)
-	if p.cm.HasChanged(fmt.Sprintf("subnets-ids (%s-%s)", nodeTemplate.Kind, nodeTemplate.Name), subnetLog) {
+	subnetLog := Pretty(output.Subnets)
+	if p.cm.HasChanged(fmt.Sprintf("subnets-ids (%d)", hash), subnetLog) {
 		logging.FromContext(ctx).With("subnets", subnetLog).Debugf("discovered subnets")
 	}
 	return output.Subnets, nil
@@ -113,7 +113,7 @@ func getFilters(nodeTemplate *v1alpha1.AWSNodeTemplate) []*ec2.Filter {
 	return filters
 }
 
-func PrettySubnets(subnets []*ec2.Subnet) []string {
+func Pretty(subnets []*ec2.Subnet) []string {
 	names := []string{}
 	for _, subnet := range subnets {
 		names = append(names, fmt.Sprintf("%s (%s)", aws.StringValue(subnet.SubnetId), aws.StringValue(subnet.AvailabilityZone)))

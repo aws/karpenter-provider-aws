@@ -24,8 +24,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-
 	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
@@ -40,7 +38,7 @@ type Controller struct {
 	securityGroupProvider *securitygroup.Provider
 }
 
-func NewController(client k8sClient.Client, ec2api ec2iface.EC2API, subnetProvider *subnet.Provider, securityGroups *securitygroup.Provider) corecontroller.Controller {
+func NewController(client k8sClient.Client, subnetProvider *subnet.Provider, securityGroups *securitygroup.Provider) corecontroller.Controller {
 
 	return corecontroller.Typed[*v1alpha1.AWSNodeTemplate](client, &Controller{
 		kubeClient:            client,
@@ -50,18 +48,15 @@ func NewController(client k8sClient.Client, ec2api ec2iface.EC2API, subnetProvid
 }
 
 func (c *Controller) Reconcile(ctx context.Context, ant *v1alpha1.AWSNodeTemplate) (reconcile.Result, error) {
-	subnetList, err := c.subnetProvider.Get(ctx, ant)
-	subnetLog := subnet.PrettySubnets(subnetList)
+	subnetList, err := c.subnetProvider.List(ctx, ant)
 	if err != nil {
-		// Back off and retry reconciliation
 		return reconcile.Result{}, err
 	}
 
-	ant.Status.SubnetIDs = subnetLog
+	ant.Status.SubnetIDs = subnet.Pretty(subnetList)
 
-	securityGroupIds, err := c.securityGroupProvider.Get(ctx, ant)
+	securityGroupIds, err := c.securityGroupProvider.List(ctx, ant)
 	if err != nil {
-		// Back off and retry reconciliation
 		return reconcile.Result{}, err
 	}
 
@@ -71,13 +66,12 @@ func (c *Controller) Reconcile(ctx context.Context, ant *v1alpha1.AWSNodeTemplat
 }
 
 func (c *Controller) Name() string {
-	return "AWSNodeTemplate Status"
+	return "awsnodetemplate"
 }
 
 func (c *Controller) Builder(ctx context.Context, m manager.Manager) corecontroller.Builder {
 	return corecontroller.Adapt(
 		controllerruntime.NewControllerManagedBy(m).
-			Named(c.Name()).
 			For(&v1alpha1.AWSNodeTemplate{}).
 			WithOptions(controller.Options{MaxConcurrentReconciles: 10}))
 }

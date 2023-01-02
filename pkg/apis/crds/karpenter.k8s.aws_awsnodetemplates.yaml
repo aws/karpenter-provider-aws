@@ -217,18 +217,14 @@ spec:
             description: This will contain the resource IDs used by the AWSNodeTemplate
             properties:
               securityGroupIds:
-                description: The SecurityGroups field will contain the current Security
-                  Groups ids that are availbe to the cluster under the AWSNodeTemplate
-                  Security Groups selectors. The field will list of strings with the
-                  Security Groups ids
+                description: SubnetIDs contains the current ids that are available
+                  to the cluster under the Security Groups selectors.
                 items:
                   type: string
                 type: array
               subnetIds:
-                description: The Subnet field will contain the current subnet ids
-                  that are available to the cluster under the AWSNodeTemplate Subnet
-                  selectors. The field will be a list of strings with the Subnet ID
-                  and availability zone.
+                description: SubnetIDs contains the current ids that are available
+                  to the cluster under the subnet selectors.
                 items:
                   type: string
                 type: array

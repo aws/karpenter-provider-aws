@@ -15,7 +15,6 @@ limitations under the License.
 package controllers
 
 import (
-	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"knative.dev/pkg/logging"
 
@@ -33,7 +32,7 @@ func NewControllers(ctx awscontext.Context, cloudProvider *cloudprovider.CloudPr
 	logging.FromContext(ctx).With("version", project.Version).Debugf("discovered version")
 	return []controller.Controller{
 		interruption.NewController(ctx.KubeClient, ctx.Clock, ctx.EventRecorder, interruption.NewSQSProvider(sqs.New(ctx.Session)), ctx.UnavailableOfferingsCache),
-		nodetemplate.NewController(ctx.KubeClient, ec2.New(ctx.Session), ctx.SubnetProvider, ctx.SecurityGroupProvider),
+		nodetemplate.NewController(ctx.KubeClient, ctx.SubnetProvider, ctx.SecurityGroupProvider),
 		drift.NewController(ctx.KubeClient, cloudProvider),
 	}
 }

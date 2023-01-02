@@ -77,9 +77,9 @@ func New(ctx awscontext.Context) *CloudProvider {
 	} else {
 		logging.FromContext(ctx).With("kube-dns-ip", kubeDNSIP).Debugf("discovered kube dns")
 	}
-	instanceTypeProvider := NewInstanceTypeProvider(ctx, ctx.Session, ctx.Ec2api, ctx.SubnetProvider, ctx.UnavailableOfferingsCache, ctx.StartAsync)
-	amiProvider := amifamily.NewAMIProvider(ctx.KubeClient, ctx.KubernetesInterface, ssm.New(ctx.Session), ctx.Ec2api,
-		cache.New(awscache.CacheTTL, awscache.CacheCleanupInterval), cache.New(awscache.CacheTTL, awscache.CacheCleanupInterval), cache.New(awscache.CacheTTL, awscache.CacheCleanupInterval))
+	instanceTypeProvider := NewInstanceTypeProvider(ctx, ctx.Session, ctx.EC2API, ctx.SubnetProvider, ctx.UnavailableOfferingsCache, ctx.StartAsync)
+	amiProvider := amifamily.NewAMIProvider(ctx.KubeClient, ctx.KubernetesInterface, ssm.New(ctx.Session), ctx.EC2API,
+		cache.New(awscache.TTL, awscache.CleanupInterval), cache.New(awscache.TTL, awscache.CleanupInterval), cache.New(awscache.TTL, awscache.CleanupInterval))
 	amiResolver := amifamily.New(ctx.KubeClient, amiProvider)
 	return &CloudProvider{
 		kubeClient:           ctx.KubeClient,
@@ -88,13 +88,13 @@ func New(ctx awscontext.Context) *CloudProvider {
 		instanceProvider: NewInstanceProvider(
 			ctx,
 			aws.StringValue(ctx.Session.Config.Region),
-			ctx.Ec2api,
+			ctx.EC2API,
 			ctx.UnavailableOfferingsCache,
 			instanceTypeProvider,
 			ctx.SubnetProvider,
 			NewLaunchTemplateProvider(
 				ctx,
-				ctx.Ec2api,
+				ctx.EC2API,
 				amiResolver,
 				ctx.SecurityGroupProvider,
 				lo.Must(getCABundle(ctx.RESTConfig)),

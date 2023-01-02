@@ -46,7 +46,7 @@ type Context struct {
 
 	Session                   *session.Session
 	UnavailableOfferingsCache *awscache.UnavailableOfferings
-	Ec2api                    ec2iface.EC2API
+	EC2API                    ec2iface.EC2API
 	SubnetProvider            *subnet.Provider
 	SecurityGroupProvider     *securitygroup.Provider
 }
@@ -75,8 +75,8 @@ func NewOrDie(ctx cloudprovider.Context) Context {
 	return Context{
 		Context:                   ctx,
 		Session:                   sess,
-		UnavailableOfferingsCache: awscache.NewUnavailableOfferings(cache.New(awscache.UnavailableOfferingsTTL, awscache.CacheCleanupInterval)),
-		Ec2api:                    ec2api,
+		UnavailableOfferingsCache: awscache.NewUnavailableOfferings(cache.New(awscache.UnavailableOfferingsTTL, awscache.CleanupInterval)),
+		EC2API:                    ec2api,
 		SubnetProvider:            subnetProvider,
 		SecurityGroupProvider:     securityGroupProvider,
 	}

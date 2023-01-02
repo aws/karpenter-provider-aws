@@ -81,7 +81,7 @@ var _ = BeforeSuite(func() {
 	recorder = coretest.NewEventRecorder()
 	validAMIs = []string{"ami-123"}
 	cloudProvider = fake.NewCloudProvider(validAMIs...)
-	unavailableOfferingsCache = awscache.NewUnavailableOfferings(cache.New(awscache.UnavailableOfferingsTTL, awscache.CacheCleanupInterval))
+	unavailableOfferingsCache = awscache.NewUnavailableOfferings(cache.New(awscache.UnavailableOfferingsTTL, awscache.CleanupInterval))
 })
 
 var _ = AfterSuite(func() {

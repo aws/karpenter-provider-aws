@@ -84,7 +84,7 @@ var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(scheme.Scheme, apis.CRDs...)
 	fakeClock = &clock.FakeClock{}
 	recorder = coretest.NewEventRecorder()
-	unavailableOfferingsCache = awscache.NewUnavailableOfferings(cache.New(awscache.UnavailableOfferingsTTL, awscache.CacheCleanupInterval))
+	unavailableOfferingsCache = awscache.NewUnavailableOfferings(cache.New(awscache.UnavailableOfferingsTTL, awscache.CleanupInterval))
 	sqsapi = &fake.SQSAPI{}
 })
 

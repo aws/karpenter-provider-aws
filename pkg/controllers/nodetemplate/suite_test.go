@@ -103,7 +103,7 @@ var _ = BeforeEach(func() {
 		Version: v1alpha1.SchemeGroupVersion.Version,
 		Kind:    "AWSNodeTemplate",
 	})
-	controller = nodetemplate.NewController(env.Client, fakeEC2API, subnetProvider, securityGroupProvider)
+	controller = nodetemplate.NewController(env.Client, subnetProvider, securityGroupProvider)
 
 	fakeEC2API.Reset()
 })

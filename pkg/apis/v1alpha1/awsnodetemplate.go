@@ -20,14 +20,12 @@ import (
 
 // This will contain the resource IDs used by the AWSNodeTemplate
 type AWSNodeTemplateStatus struct {
-	// The Subnet field will contain the current subnet ids that are available to the
-	// cluster under the AWSNodeTemplate Subnet selectors. The field will be a list of strings
-	// with the Subnet ID and availability zone.
+	// SubnetIDs contains the current ids that are available to the
+	// cluster under the subnet selectors.
 	// +optional
 	SubnetIDs []string `json:"subnetIds,omitempty"`
-	// The SecurityGroups field will contain the current Security Groups ids that are availbe to the
-	// cluster under the AWSNodeTemplate Security Groups selectors. The field will list of strings
-	// with the Security Groups ids
+	// SubnetIDs contains the current ids that are available to the
+	// cluster under the Security Groups selectors.
 	// +optional
 	SecurityGroupIDs []string `json:"securityGroupIds,omitempty"`
 }
