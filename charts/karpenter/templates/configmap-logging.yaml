@@ -21,8 +21,8 @@ data:
         "initial": 100,
         "thereafter": 100
       },
-      "outputPaths": [{{ include "outputPathsList" . }}]
-      "errorOutputPaths": [{{ include "errorOutputPathsList" . }}]
+      "outputPaths": [{{ include "karpenter.controller.outputPathsList" . }}]
+      "errorOutputPaths": [{{ include "karpenter.controller.errorOutputPathsList" . }}]
       "encoding": "{{ .Values.logEncoding }}",
       "encoderConfig": {
         "timeKey": "time",

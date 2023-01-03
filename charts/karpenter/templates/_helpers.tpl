@@ -97,7 +97,7 @@ Flatten Values Map using "." syntax
 {{/*
 Flatten the stdout logging outputs from args provided
 */}}
-{{- define "outputPathsList" -}}
+{{- define "karpenter.controller.outputPathsList" -}}
 {{ $paths := list -}}
 {{- range .Values.controller.outputPaths -}}
     {{- $paths = printf "%s" . | quote  | append $paths -}}
@@ -108,7 +108,7 @@ Flatten the stdout logging outputs from args provided
 {{/*
 Flatten the stderr logging outputs from args provided
 */}}
-{{- define "errorOutputPathsList" -}}
+{{- define "karpenter.controller.errorOutputPathsList" -}}
 {{ $paths := list -}}
 {{- range .Values.controller.errorOutputPaths -}}
     {{- $paths = printf "%s" . | quote  | append $paths -}}
