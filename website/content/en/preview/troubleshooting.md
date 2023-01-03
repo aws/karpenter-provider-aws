@@ -6,7 +6,43 @@ description: >
   Troubleshoot Karpenter problems
 ---
 
-## Unknown field in Provisioner spec
+## Installation
+
+### Missing Service Linked Role
+Unless your AWS account has already onboarded to EC2 Spot, you will need to create the service linked role to avoid `ServiceLinkedRoleCreationNotPermitted`.
+```
+AuthFailure.ServiceLinkedRoleCreationNotPermitted: The provided credentials do not have permission to create the service-linked role for EC2 Spot Instances
+```
+This can be resolved by creating the [Service Linked Role](https://docs.aws.amazon.com/batch/latest/userguide/spot_fleet_IAM_role.html).
+```
+aws iam create-service-linked-role --aws-service-name spot.amazonaws.com
+```
+
+### Terraform fails to create instance profile when name is too long
+
+In the Getting Started with Terraform instructions to [Configure the KarpenterNode IAM Role]({{<ref "./getting-started/getting-started-with-terraform/#configure-the-karpenternode-iam-role" >}}), the name assigned to the aws_iam_instance_profile cannot exceed 38 characters. If it does, it will fail with a message similar to:
+
+```text
+Error: expected length of name_prefix to be in the range (1 - 38), got with module.eks.aws_iam_role.cluster[0],
+on .terraform/modules/eks/main.tf line 131, in resource "aws_iam_role" "cluster":
+131: name_prefix = var.cluster_iam_role_name != "" ? null : var.cluster_name
+```
+
+Note that it can be easy to run over the 38-character limit considering that the example includes KarpenterNodeInstanceProfile- (29 characters) and -karpenter-demo (15 characters).
+That leaves only four characters for your user name.
+You can reduce the number of characters consumed by changing `KarpenterNodeInstanceProfile-` to something like `KarpenterNode-`.
+
+### Karpenter Role names exceeding 64-character limit
+
+If you use a tool such as AWS CDK to generate your Kubernetes cluster name, when you add Karpenter to your cluster you could end up with a cluster name that is too long to incorporate into your KarpenterNodeRole name (which is limited to 64 characters).
+
+Node role names for Karpenter are created in the form `KarpenterNodeRole-${Cluster_Name}` in the [Create the KarpenterNode IAM Role]({{<ref "./getting-started/getting-started-with-eksctl/#create-the-karpenternode-iam-role" >}}) section of the getting started guide.
+If a long cluster name causes the Karpenter node role name to exceed 64 characters, creating that object will fail.
+
+Keep in mind that `KarpenterNodeRole-` is just a recommendation from the getting started guide.
+Instead using of the eksctl role, you can shorten the name to anything you like, as long as it has the right permissions.
+
+### Unknown field in Provisioner spec
 
 If you are upgrading from an older version of Karpenter, there may have been changes in the CRD between versions. Attempting to utilize newer functionality which is surfaced in newer versions of the CRD may result in the following error message:
 
@@ -18,7 +54,7 @@ If you see this error, you can solve the problem by following the [Custom Resour
 
 Info on whether there has been a change to the CRD between versions of Karpenter can be found in the [Release Notes](../upgrade-guide/#released-upgrade-notes)
 
-## Unable to schedule pod due to insufficient node group instances
+### Unable to schedule pod due to insufficient node group instances
 
 v0.16.0 changed the default replicas from 1 to 2.
 
@@ -30,12 +66,176 @@ To solve this you can either reduce the replicas back from 2 to 1, or ensure the
 
 To do so on AWS increase the `minimum` and `desired` parameters on the node group autoscaling group to launch at lease 2 instances.
 
-## Node not created
+### Helm Error When Pulling the Chart
+
+If Helm is showing an error when trying to install Karpenter helm charts:
+
+- Ensure you are using a newer Helm version, Helm started supporting OCI images since v3.8.0.
+- Helm does not have an `helm repo add` concept in OCI, so to install Karpenter you no longer need this
+- Verify that the image you are trying to pull actually exists in [gallery.ecr.aws/karpenter](https://gallery.ecr.aws/karpenter/karpenter)
+- Sometimes Helm generates a generic error, you can add the --debug switch to any of the helm commands in this doc for more verbose error messages
+- If you are getting a 403 forbidden error, you can try `docker logout public.ecr.aws` as explained [here](https://docs.aws.amazon.com/AmazonECR/latest/public/public-troubleshooting.html)
+- If you are receiving this error: `Error: failed to download "oci://public.ecr.aws/karpenter/karpenter" at version "0.17.0"`, then you need to prepend a `v` to the version number: `v0.17.0`. Before Karpenter moved to OCI helm charts (pre-v0.17.0), both `v0.16.0` and `0.16.0` would work, but OCI charts require an exact version match.
+
+## Uninstallation
+
+### Unable to delete nodes after uninstalling Karpenter
+Karpenter adds a [finalizer](https://github.com/aws/karpenter/pull/466) to nodes that it provisions to support graceful node termination. If Karpenter is uninstalled, these finalizers will cause the API Server to block deletion until the finalizers are removed.
+
+You can fix this by patching the node objects:
+- `kubectl edit node <node_name>` and remove the line that says `karpenter.sh/termination` in the finalizers field.
+- Run the following script that gets all nodes with the finalizer and removes all the finalizers from those nodes.
+  - NOTE: this will remove ALL finalizers from nodes with the karpenter finalizer.
+```{bash}
+kubectl get nodes -ojsonpath='{range .items[*].metadata}{@.name}:{@.finalizers}{"\n"}' | grep "karpenter.sh/termination" | cut -d ':' -f 1 | xargs kubectl patch node --type='json' -p='[{"op": "remove", "path": "/metadata/finalizers"}]'
+```
+
+## Webhooks
+
+### Failed calling webhook "defaulting.webhook.provisioners.karpenter.sh"
+
+If you are not able to create a provisioner due to `Error from server (InternalError): error when creating "provisioner.yaml": Internal error occurred: failed calling webhook "defaulting.webhook.provisioners.karpenter.sh": Post "https://karpenter-webhook.karpenter.svc:443/default-resource?timeout=10s": context deadline exceeded`
+
+Verify that the karpenter pod is running (should see 2/2 containers with a "Ready" status)
+```text
+kubectl get po -A -l app.kubernetes.io/name=karpenter
+NAME                       READY   STATUS    RESTARTS   AGE
+karpenter-7b46fb5c-gcr9z   2/2     Running   0          17h
+```
+
+Karpenter service has endpoints assigned to it
+```text
+kubectl get ep -A -l app.kubernetes.io/name=karpenter
+NAMESPACE   NAME        ENDPOINTS                               AGE
+karpenter   karpenter   192.168.39.88:8443,192.168.39.88:8080   16d
+```
+
+Your security groups are not blocking you from reaching your webhook.
+
+This is especially relevant if you have used `terraform-eks-module` version `>=18` since that version changed its security
+approach, and now it's much more restrictive.
+
+## Provisioning
+
+### DaemonSets can result in deployment failures
+
+For Karpenter versions 0.5.3 and earlier, DaemonSets were not properly considered when provisioning nodes.
+This sometimes caused nodes to be deployed that could not meet the needs of the requested DaemonSets and workloads.
+This issue no longer occurs after Karpenter version 0.5.3 (see [PR #1155](https://github.com/aws/karpenter/pull/1155)).
+
+If you are using a pre-0.5.3 version of Karpenter, one workaround is to set your provisioner to only use larger instance types that you know will be big enough for the DaemonSet and the workload.
+For more information, see [Issue #1084](https://github.com/aws/karpenter/issues/1084).
+Examples of this behavior are included in [Issue #1180](https://github.com/aws/karpenter/issues/1180).
+
+### Unspecified resource requests cause scheduling/bin-pack failures
+
+Not using the Kubernetes [LimitRanges](https://kubernetes.io/docs/concepts/policy/limit-range/) feature to enforce minimum resource request sizes will allow pods with very low or non-existent resource requests to be scheduled.
+This can cause issues as Karpenter bin-packs pods based on the resource requests.
+
+If the resource requests do not reflect the actual resource usage of the pod, Karpenter will place too many of these pods onto the same node resulting in the pods getting CPU throttled or terminated due to the OOM killer.
+This behavior is not unique to Karpenter and can also occur with the standard `kube-scheduler` with pods that don't have accurate resource requests.
+
+To prevent this, you can set LimitRanges on pod deployments on a per-namespace basis.
+See the Karpenter [Best Practices Guide](https://aws.github.io/aws-eks-best-practices/karpenter/#use-limitranges-to-configure-defaults-for-resource-requests-and-limits) for further information on the use of LimitRanges.
+
+### Missing subnetSelector and securityGroupSelector tags causes provisioning failures
+
+Starting with Karpenter v0.5.5, if you are using Karpenter-generated launch template, provisioners require that [subnetSelector]({{<ref "./concepts/node-templates/#subnetselector" >}}) and [securityGroupSelector]({{<ref "./concepts/node-templates/#securitygroupselector" >}}) tags be set to match your cluster.
+The [Provisioner]({{<ref "./getting-started/getting-started-with-eksctl/#provisioner" >}}) section in the Karpenter Getting Started Guide uses the following example:
+
+```text
+kind: AWSNodeTemplate
+spec:
+  subnetSelector:
+    karpenter.sh/discovery: ${CLUSTER_NAME}
+  securityGroupSelector:
+    karpenter.sh/discovery: ${CLUSTER_NAME}
+```
+To check your subnet and security group selectors, type the following:
+
+```bash
+aws ec2 describe-subnets --filters Name=tag:karpenter.sh/discovery,Values=${CLUSTER_NAME}
+```
+*Returns subnets matching the selector*
+
+```bash
+aws ec2 describe-security-groups --filters Name=tag:karpenter.sh/discovery,Values=${CLUSTER_NAME}
+```
+*Returns security groups matching the selector*
+
+Provisioners created without those tags and run in more recent Karpenter versions will fail with this message when you try to run the provisioner:
+
+```text
+ field(s): spec.provider.securityGroupSelector, spec.provider.subnetSelector
+```
+
+### Pods using Security Groups for Pods stuck in "ContainerCreating" state for up to 30 minutes before transitioning to "Running"
+
+When leveraging [Security Groups for Pods](https://docs.aws.amazon.com/eks/latest/userguide/security-groups-for-pods.html), Karpenter will launch nodes as expected but pods will be stuck in "ContainerCreating" state for up to 30 minutes before transitioning to "Running". This is related to an interaction between Karpenter and the [amazon-vpc-resource-controller](https://github.com/aws/amazon-vpc-resource-controller-k8s) when a pod requests `vpc.amazonaws.com/pod-eni` resources.  More info can be found in [issue #1252](https://github.com/aws/karpenter/issues/1252).
+
+To workaround this problem, add the `vpc.amazonaws.com/has-trunk-attached: "false"` label in your Karpenter Provisioner spec and ensure instance-type requirements include [instance-types which support ENI trunking](https://github.com/aws/amazon-vpc-resource-controller-k8s/blob/master/pkg/aws/vpc/limits.go).
+```yaml
+apiVersion: karpenter.sh/v1alpha5
+kind: Provisioner
+metadata:
+  name: default
+spec:
+  labels:
+    vpc.amazonaws.com/has-trunk-attached: "false"
+  ttlSecondsAfterEmpty: 30
+```
+
+## Deprovisioning
+
+### Nodes not deprovisioned
+
+There are a few cases where requesting to deprovision a Karpenter node will fail or will never be attempted. These cases are outlined below in detail.
+
+#### Initialization
+
+Karpenter determines the nodes that it can begin to consider for deprovisioning by looking at the `karpenter.sh/initialized` node label. If this node label is not set on a Node, Karpenter will not consider it for any automatic deprovisioning. For more details on what may be preventing nodes from being initialized, see [Nodes not initialized]({{<ref "#nodes-not-initialized" >}}).
+
+#### Disruption budgets
+
+Karpenter respects Pod Disruption Budgets (PDBs) by using a backoff retry eviction strategy. Pods will never be forcibly deleted, so pods that fail to shut down will prevent a node from deprovisioning.
+Kubernetes PDBs let you specify how much of a Deployment, ReplicationController, ReplicaSet, or StatefulSet must be protected from disruptions when pod eviction requests are made.
+
+PDBs can be used to strike a balance by protecting the application's availability while still allowing a cluster administrator to manage the cluster.
+Here is an example where the pods matching the label `myapp` will block node termination if evicting the pod would reduce the number of available pods below 4.
+
+```yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: myapp-pdb
+spec:
+  minAvailable: 4
+  selector:
+    matchLabels:
+      app: myapp
+```
+
+You can set `minAvailable` or `maxUnavailable` as integers or as a percentage.
+Review what [disruptions are](https://kubernetes.io/docs/concepts/workloads/pods/disruptions/), and [how to configure them](https://kubernetes.io/docs/tasks/run-application/configure-pdb/).
+
+#### `karpenter.sh/do-not-evict` Annotation
+
+If a pod exists with the annotation `karpenter.sh/do-not-evict: true` on a node, and a request is made to delete the node, Karpenter will not drain any pods from that node or otherwise try to delete the node. Nodes that have pods with a `do-not-evict` annotation are not considered for consolidation, though their unused capacity is considered for the purposes of running pods from other nodes which can be consolidated.
+
+If you want to terminate a node with a `do-not-evict` pod, you can simply remove the annotation and the deprovisioning process will continue.
+
+#### Scheduling Constraints (Consolidation Only)
+
+Consolidation will be unable to consolidate a node if, as a result of its scheduling simulation, it determines that the pods on a node cannot run on other nodes due to inter-pod affinity/anti-affinity, topology spread constraints, or some other scheduling restriction that couldn't be fulfilled.
+
+## Node Launch/Readiness
+
+### Node not created
 
 In some circumstances, Karpenter controller can fail to start up a node.
 For example, providing the wrong block storage device name in a custom launch template can result in a failure to start the node and an error similar to:
 
-```
+```bash
 2022-01-19T18:22:23.366Z ERROR controller.provisioning Could not launch node, launching instances, with fleet error(s), InvalidBlockDeviceMapping: Invalid device name /dev/xvda; ...
 ```
 
@@ -43,14 +243,41 @@ You can see errors like this by viewing Karpenter controller logs:
 ```bash
 kubectl get pods -A | grep karpenter
 ```
-```
+```bash
 karpenter     karpenter-XXXX   2/2     Running   2          21d
 ```
 ```bash
 kubectl logs karpenter-XXXX -c controller -n karpenter | less
 ```
 
-## Node NotReady
+### Nodes not initialized
+
+Karpenter uses node initialization to understand when to begin using the real node capacity and allocatable details for scheduling. It also utilizes initialization to determine when it can being consolidating nodes managed by Karpenter.
+
+Karpenter determines node initialization using three factors:
+1. Node readiness
+2. Expected resources are registered
+3. Provisioner startup taints are removed
+
+#### Node Readiness
+
+Karpenter checks the `Ready` condition type and expects it to be `True`.
+
+To see troubleshooting around what might be preventing nodes from becoming ready, see [Node NotReady]({{<ref "#node-notready" >}})
+
+#### Expected resources are registered
+
+Karpenter pull instance type information, including all expected resources that should register to your node. It then expects all these resources to properly register to a non-zero quantity in node `.status.allocatable`.
+
+Common resources that don't register and leave nodes in a non-initialized state:
+1. `nvidia.com/gpu` (or any gpu-based resource): A GPU instance type that supports the `nvidia.com/gpu` resource is launched but the daemon/daemonset to register the resource on the node doesn't exist
+2. `vpc.amazonaws.com/pod-eni`: An instance type is launched by the `ENABLE_POD_ENI` value is set to `false` in the `vpc-cni` plugin. Karpenter will expect that the `vpc.amazonaws.com/pod-eni` will be registered, but it never will.
+
+#### Provisioner startup taints are removed
+
+Karpenter expects all startup taints specified in `.spec.startupTaints` of the provisioner to be completely removed from node `.spec.taints` before it will consider the node initialized.
+
+### Node NotReady
 
 There are cases where the node starts, but fails to join the cluster and is marked "Node NotReady".
 Reasons that a node can fail to join the cluster include:
@@ -147,145 +374,14 @@ If you are not able to resolve the Node NotReady issue on your own, run the [EKS
 
 Reach out to the Karpenter team on [Slack](https://kubernetes.slack.com/archives/C02SFFZSA2K) or [GitHub](https://github.com/aws/karpenter/) if you are still stuck.
 
-## Missing Service Linked Role
-Unless your AWS account has already onboarded to EC2 Spot, you will need to create the service linked role to avoid `ServiceLinkedRoleCreationNotPermitted`.
-```
-AuthFailure.ServiceLinkedRoleCreationNotPermitted: The provided credentials do not have permission to create the service-linked role for EC2 Spot Instances
-```
-This can be resolved by creating the [Service Linked Role](https://docs.aws.amazon.com/batch/latest/userguide/spot_fleet_IAM_role.html).
-```
-aws iam create-service-linked-role --aws-service-name spot.amazonaws.com
-```
-
-## Unable to delete nodes after uninstalling Karpenter
-Karpenter adds a [finalizer](https://github.com/aws/karpenter/pull/466) to nodes that it provisions to support graceful node termination. If Karpenter is uninstalled, these finalizers will cause the API Server to block deletion until the finalizers are removed.
-
-You can fix this by patching the node objects:
-- `kubectl edit node <node_name>` and remove the line that says `karpenter.sh/termination` in the finalizers field.
-- Run the following script that gets all nodes with the finalizer and removes all the finalizers from those nodes.
-   - NOTE: this will remove ALL finalizers from nodes with the karpenter finalizer.
-```{bash}
-kubectl get nodes -ojsonpath='{range .items[*].metadata}{@.name}:{@.finalizers}{"\n"}' | grep "karpenter.sh/termination" | cut -d ':' -f 1 | xargs kubectl patch node --type='json' -p='[{"op": "remove", "path": "/metadata/finalizers"}]'
-```
-
-## Nil issues with Karpenter reallocation
-If you create a Karpenter Provisioner while the webhook to default it is unavailable, it's possible to get unintentionally nil fields. [Related Issue](https://github.com/aws/karpenter/issues/463).
-
-   You may see some logs like this.
-```{bash}
-github.com/aws/karpenter/pkg/controllers/provisioning/v1alpha1/reallocation/utilization.go:84 +0x688
-github.com/aws/karpenter/pkg/controllers/provisioning/v1alpha1/reallocation.(*Controller).Reconcile(0xc000b004c0, 0x23354c0, 0xc000e209f0, 0x235e640, 0xc002566c40, 0x200c786, 0x5, 0xc00259c1b0, 0x1)        github.com/aws/karpenter/pkg/controllers/provisioning/v1alpha1/reallocation/controller.go:72 +0x65
-github.com/aws/karpenter/pkg/controllers.(*GenericController).Reconcile(0xc000b00720, 0x23354c0, 0xc000e209f0, 0xc001db9be0, 0x7, 0xc001db9bd0, 0x7, 0xc000e209f0, 0x7fc864172d20, 0xc0000be2a0, ...)
-```
-This is fixed in Karpenter v0.2.7+. Reinstall Karpenter on the latest version.
-
-## Nodes stuck in pending and not running the kubelet due to outdated CNI
+### Nodes stuck in pending and not running the kubelet due to outdated CNI
 If you have an EC2 instance get launched that is stuck in pending and ultimately not running the kubelet, you may see a message like this in your `/var/log/user-data.log`:
 
 > No entry for c6i.xlarge in /etc/eks/eni-max-pods.txt
 
 This means that your CNI plugin is out of date. You can find instructions on how to update your plugin [here](https://docs.aws.amazon.com/eks/latest/userguide/managing-vpc-cni.html).
 
-## Failed calling webhook "defaulting.webhook.provisioners.karpenter.sh"
-
-If you are not able to create a provisioner due to `Error from server (InternalError): error when creating "provisioner.yaml": Internal error occurred: failed calling webhook "defaulting.webhook.provisioners.karpenter.sh": Post "https://karpenter-webhook.karpenter.svc:443/default-resource?timeout=10s": context deadline exceeded`
-
-Verify that the karpenter pod is running (should see 2/2 containers with a "Ready" status)
-```text
-kubectl get po -A -l app.kubernetes.io/name=karpenter
-NAME                       READY   STATUS    RESTARTS   AGE
-karpenter-7b46fb5c-gcr9z   2/2     Running   0          17h
-```
-
-Karpenter service has endpoints assigned to it
-```text
-kubectl get ep -A -l app.kubernetes.io/name=karpenter
-NAMESPACE   NAME        ENDPOINTS                               AGE
-karpenter   karpenter   192.168.39.88:8443,192.168.39.88:8080   16d
-```
-
-Your security groups are not blocking you from reaching your webhook.
-
-This is especially relevant if you have used `terraform-eks-module` version `>=18` since that version changed its security
-approach, and now it's much more restrictive.
-
-## DaemonSets can result in deployment failures
-
-For Karpenter versions 0.5.3 and earlier, DaemonSets were not properly considered when provisioning nodes.
-This sometimes caused nodes to be deployed that could not meet the needs of the requested DaemonSets and workloads.
-This issue no longer occurs after Karpenter version 0.5.3 (see [PR #1155](https://github.com/aws/karpenter/pull/1155)).
-
-If you are using a pre-0.5.3 version of Karpenter, one workaround is to set your provisioner to only use larger instance types that you know will be big enough for the DaemonSet and the workload.
-For more information, see [Issue #1084](https://github.com/aws/karpenter/issues/1084).
-Examples of this behavior are included in [Issue #1180](https://github.com/aws/karpenter/issues/1180).
-
-## Unspecified resource requests cause scheduling/bin-pack failures
-
-Not using the Kubernetes [LimitRanges](https://kubernetes.io/docs/concepts/policy/limit-range/) feature to enforce minimum resource request sizes will allow pods with very low or non-existent resource requests to be scheduled.
-This can cause issues as Karpenter bin-packs pods based on the resource requests.
-
-If the resource requests do not reflect the actual resource usage of the pod, Karpenter will place too many of these pods onto the same node resulting in the pods getting CPU throttled or terminated due to the OOM killer.
-This behavior is not unique to Karpenter and can also occur with the standard `kube-scheduler` with pods that don't have accurate resource requests.
-
-To prevent this, you can set LimitRanges on pod deployments on a per-namespace basis.
-See the Karpenter [Best Practices Guide](https://aws.github.io/aws-eks-best-practices/karpenter/#use-limitranges-to-configure-defaults-for-resource-requests-and-limits) for further information on the use of LimitRanges.
-
-## Missing subnetSelector and securityGroupSelector tags causes provisioning failures
-
-Starting with Karpenter v0.5.5, if you are using Karpenter-generated launch template, provisioners require that [subnetSelector]({{<ref "./concepts/node-templates/#subnetselector" >}}) and [securityGroupSelector]({{<ref "./concepts/node-templates/#securitygroupselector" >}}) tags be set to match your cluster.
-The [Provisioner]({{<ref "./getting-started/getting-started-with-eksctl/#provisioner" >}}) section in the Karpenter Getting Started Guide uses the following example:
-
-```text
-kind: AWSNodeTemplate
-spec:
-  subnetSelector:
-    karpenter.sh/discovery: ${CLUSTER_NAME}
-  securityGroupSelector:
-    karpenter.sh/discovery: ${CLUSTER_NAME}
-```
-To check your subnet and security group selectors, type the following:
-
-```bash
-aws ec2 describe-subnets --filters Name=tag:karpenter.sh/discovery,Values=${CLUSTER_NAME}
-```
-*Returns subnets matching the selector*
-
-```bash
-aws ec2 describe-security-groups --filters Name=tag:karpenter.sh/discovery,Values=${CLUSTER_NAME}
-```
-*Returns security groups matching the selector*
-
-Provisioners created without those tags and run in more recent Karpenter versions will fail with this message when you try to run the provisioner:
-
-```text
- field(s): spec.provider.securityGroupSelector, spec.provider.subnetSelector
-```
-
-## Terraform fails to create instance profile when name is too long
-
-In the Getting Started with Terraform instructions to [Configure the KarpenterNode IAM Role]({{<ref "./getting-started/getting-started-with-terraform/#configure-the-karpenternode-iam-role" >}}), the name assigned to the aws_iam_instance_profile cannot exceed 38 characters. If it does, it will fail with a message similar to:
-
-```text
-Error: expected length of name_prefix to be in the range (1 - 38), got with module.eks.aws_iam_role.cluster[0],
-on .terraform/modules/eks/main.tf line 131, in resource "aws_iam_role" "cluster":
-131: name_prefix = var.cluster_iam_role_name != "" ? null : var.cluster_name
-```
-
-Note that it can be easy to run over the 38-character limit considering that the example includes KarpenterNodeInstanceProfile- (29 characters) and -karpenter-demo (15 characters).
-That leaves only four characters for your user name.
-You can reduce the number of characters consumed by changing `KarpenterNodeInstanceProfile-` to something like `KarpenterNode-`.
-
-## Karpenter Role names exceeding 64-character limit
-
-If you use a tool such as AWS CDK to generate your Kubernetes cluster name, when you add Karpenter to your cluster you could end up with a cluster name that is too long to incorporate into your KarpenterNodeRole name (which is limited to 64 characters).
-
-Node role names for Karpenter are created in the form `KarpenterNodeRole-${Cluster_Name}` in the [Create the KarpenterNode IAM Role]({{<ref "./getting-started/getting-started-with-eksctl/#create-the-karpenternode-iam-role" >}}) section of the getting started guide.
-If a long cluster name causes the Karpenter node role name to exceed 64 characters, creating that object will fail.
-
-Keep in mind that `KarpenterNodeRole-` is just a recommendation from the getting started guide.
-Instead using of the eksctl role, you can shorten the name to anything you like, as long as it has the right permissions.
-
-## Node terminates before ready on failed encrypted EBS volume
+### Node terminates before ready on failed encrypted EBS volume
 If you are using a custom launch template and an encrypted EBS volume, the IAM principal launching the node may not have sufficient permissions to use the KMS customer managed key (CMK) for the EC2 EBS root volume.
 This issue also applies to [Block Device Mappings]({{<ref "./concepts/node-templates/#block-device-mappings" >}}) specified in the Provisioner.
 In either case, this results in the node terminating almost immediately upon creation.
@@ -337,22 +433,9 @@ To correct the problem if it occurs, you can use the approach that AWS EBS uses,
 ]
 ```
 
-## Pods using Security Groups for Pods stuck in "ContainerCreating" state for up to 30 minutes before transitioning to "Running"
+## Pricing
 
-When leveraging [Security Groups for Pods](https://docs.aws.amazon.com/eks/latest/userguide/security-groups-for-pods.html), Karpenter will launch nodes as expected but pods will be stuck in "ContainerCreating" state for up to 30 minutes before transitioning to "Running". This is related to an interaction between Karpenter and the [amazon-vpc-resource-controller](https://github.com/aws/amazon-vpc-resource-controller-k8s) when a pod requests `vpc.amazonaws.com/pod-eni` resources.  More info can be found in [issue #1252](https://github.com/aws/karpenter/issues/1252).
-
-To workaround this problem, add the `vpc.amazonaws.com/has-trunk-attached: "false"` label in your Karpenter Provisioner spec and ensure instance-type requirements include [instance-types which support ENI trunking](https://github.com/aws/amazon-vpc-resource-controller-k8s/blob/master/pkg/aws/vpc/limits.go).
-```yaml
-apiVersion: karpenter.sh/v1alpha5
-kind: Provisioner
-metadata:
-  name: default
-spec:
-  labels:
-    vpc.amazonaws.com/has-trunk-attached: "false"
-  ttlSecondsAfterEmpty: 30
-```
-## Stale pricing data on isolated subnet
+### Stale pricing data on isolated subnet
 
 The following pricing-related error occurs if you are running Karpenter in an isolated private subnet (no Internet egress via IGW or NAT gateways):
 
@@ -365,14 +448,3 @@ This network timeout occurs because there is no VPC endpoint available for the [
 To workaround this issue, Karpenter ships updated on-demand pricing data as part of the Karpenter binary; however, this means that pricing data will only be updated on Karpenter version upgrades.
 To disable pricing lookups and avoid the error messages, set the AWS_ISOLATED_VPC environment variable (or the `--aws-isolated-vpc` option) to true.
 See [Environment Variables / CLI Flags]({{<ref "./concepts/settings/#environment-variables--cli-flags" >}}) for details.
-
-## Helm Error When Pulling the Chart
-
-If Helm is showing an error when trying to install Karpenter helm charts:
-
- - Ensure you are using a newer Helm version, Helm started supporting OCI images since v3.8.0.
- - Helm does not have an `helm repo add` concept in OCI, so to install Karpenter you no longer need this
- - Verify that the image you are trying to pull actually exists in [gallery.ecr.aws/karpenter](https://gallery.ecr.aws/karpenter/karpenter)
- - Sometimes Helm generates a generic error, you can add the --debug switch to any of the helm commands in this doc for more verbose error messages
- - If you are getting a 403 forbidden error, you can try `docker logout public.ecr.aws` as explained [here](https://docs.aws.amazon.com/AmazonECR/latest/public/public-troubleshooting.html)
- - If you are receiving this error: `Error: failed to download "oci://public.ecr.aws/karpenter/karpenter" at version "0.17.0"`, then you need to prepend a `v` to the version number: `v0.17.0`. Before Karpenter moved to OCI helm charts (pre-v0.17.0), both `v0.16.0` and `0.16.0` would work, but OCI charts require an exact version match.
