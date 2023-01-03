@@ -16,7 +16,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.0.6
 	github.com/prometheus/client_golang v1.14.0
 	github.com/samber/lo v1.36.0
-	go.uber.org/multierr v1.8.0
+	go.uber.org/multierr v1.9.0
 	go.uber.org/zap v1.23.0
 	k8s.io/api v0.25.4
 	k8s.io/apiextensions-apiserver v0.25.4
