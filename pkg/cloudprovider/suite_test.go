@@ -217,7 +217,6 @@ var _ = BeforeEach(func() {
 	instanceTypeCache.Flush()
 	subnetProvider.Reset()
 	securityGroupProvider.Reset()
-	cloudProvider.instanceProvider.launchTemplateProvider.kubeDNSIP = net.ParseIP("10.0.100.10")
 	launchTemplateProvider.kubeDNSIP = net.ParseIP("10.0.100.10")
 
 	// Reset the pricing provider, so we don't cross-pollinate pricing data
