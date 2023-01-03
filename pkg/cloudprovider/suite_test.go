@@ -64,8 +64,8 @@ import (
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
 	"github.com/aws/karpenter/pkg/fake"
 
-	securitygroup "github.com/aws/karpenter/pkg/providers/securitygroup"
-	subnet "github.com/aws/karpenter/pkg/providers/subnet"
+	"github.com/aws/karpenter/pkg/providers/securitygroup"
+	"github.com/aws/karpenter/pkg/providers/subnet"
 )
 
 var ctx context.Context

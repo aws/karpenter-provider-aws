@@ -38,7 +38,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cache"
 	awserrors "github.com/aws/karpenter/pkg/errors"
-	subnet "github.com/aws/karpenter/pkg/providers/subnet"
+	"github.com/aws/karpenter/pkg/providers/subnet"
 	"github.com/aws/karpenter/pkg/utils"
 
 	"github.com/aws/karpenter-core/pkg/utils/resources"

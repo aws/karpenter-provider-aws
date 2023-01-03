@@ -39,7 +39,7 @@ import (
 	"knative.dev/pkg/logging"
 
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	subnet "github.com/aws/karpenter/pkg/providers/subnet"
+	"github.com/aws/karpenter/pkg/providers/subnet"
 
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/utils/functional"

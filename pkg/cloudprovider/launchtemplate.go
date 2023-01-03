@@ -39,7 +39,7 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
 	awscontext "github.com/aws/karpenter/pkg/context"
 	awserrors "github.com/aws/karpenter/pkg/errors"
-	securitygroup "github.com/aws/karpenter/pkg/providers/securitygroup"
+	"github.com/aws/karpenter/pkg/providers/securitygroup"
 
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
