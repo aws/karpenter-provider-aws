@@ -12,12 +12,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package subnet
+package securitygroup
 
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -49,52 +48,33 @@ func NewProvider(ec2api ec2iface.EC2API) *Provider {
 	}
 }
 
-func (p *Provider) List(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) ([]*ec2.Subnet, error) {
+func (p *Provider) List(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) ([]string, error) {
 	p.Lock()
 	defer p.Unlock()
-	filters := getFilters(nodeTemplate)
-	hash, err := hashstructure.Hash(filters, hashstructure.FormatV2, nil)
+	// Get SecurityGroups
+	securityGroups, err := p.getSecurityGroups(ctx, p.getFilters(nodeTemplate))
 	if err != nil {
 		return nil, err
 	}
-	if subnets, ok := p.cache.Get(fmt.Sprint(hash)); ok {
-		return subnets.([]*ec2.Subnet), nil
+	// Fail if no security groups found
+	if len(securityGroups) == 0 {
+		return nil, fmt.Errorf("no security groups exist given constraints")
 	}
-	output, err := p.ec2api.DescribeSubnetsWithContext(ctx, &ec2.DescribeSubnetsInput{Filters: filters})
-	if err != nil {
-		return nil, fmt.Errorf("describing subnets %s, %w", pretty.Concise(filters), err)
+	// Convert to IDs
+	securityGroupIds := []string{}
+	for _, securityGroup := range securityGroups {
+		securityGroupIds = append(securityGroupIds, aws.StringValue(securityGroup.GroupId))
 	}
-	if len(output.Subnets) == 0 {
-		return nil, fmt.Errorf("no subnets matched selector %v", nodeTemplate.Spec.SubnetSelector)
-	}
-	p.cache.SetDefault(fmt.Sprint(hash), output.Subnets)
-	subnetLog := prettySubnets(output.Subnets)
-	if p.cm.HasChanged("subnets", subnetLog) {
-		logging.FromContext(ctx).With("subnets", subnetLog).Debugf("discovered subnets")
-	}
-	return output.Subnets, nil
+	return securityGroupIds, nil
 }
 
-func (p *Provider) LivenessProbe(req *http.Request) error {
-	p.Lock()
-	//nolint: staticcheck
-	p.Unlock()
-	return nil
-}
-
-func getFilters(nodeTemplate *v1alpha1.AWSNodeTemplate) []*ec2.Filter {
+func (p *Provider) getFilters(nodeTemplate *v1alpha1.AWSNodeTemplate) []*ec2.Filter {
 	filters := []*ec2.Filter{}
-	// Filter by subnet
-	for key, value := range nodeTemplate.Spec.SubnetSelector {
+	for key, value := range nodeTemplate.Spec.SecurityGroupSelector {
 		if key == "aws-ids" {
 			filters = append(filters, &ec2.Filter{
-				Name:   aws.String("subnet-id"),
+				Name:   aws.String("group-id"),
 				Values: aws.StringSlice(functional.SplitCommaSeparatedString(value)),
-			})
-		} else if value == "*" {
-			filters = append(filters, &ec2.Filter{
-				Name:   aws.String("tag-key"),
-				Values: []*string{aws.String(key)},
 			})
 		} else {
 			filters = append(filters, &ec2.Filter{
@@ -106,15 +86,34 @@ func getFilters(nodeTemplate *v1alpha1.AWSNodeTemplate) []*ec2.Filter {
 	return filters
 }
 
-func prettySubnets(subnets []*ec2.Subnet) []string {
+func (p *Provider) getSecurityGroups(ctx context.Context, filters []*ec2.Filter) ([]*ec2.SecurityGroup, error) {
+	hash, err := hashstructure.Hash(filters, hashstructure.FormatV2, nil)
+	if err != nil {
+		return nil, err
+	}
+	if securityGroups, ok := p.cache.Get(fmt.Sprint(hash)); ok {
+		return securityGroups.([]*ec2.SecurityGroup), nil
+	}
+	output, err := p.ec2api.DescribeSecurityGroupsWithContext(ctx, &ec2.DescribeSecurityGroupsInput{Filters: filters})
+	if err != nil {
+		return nil, fmt.Errorf("describing security groups %+v, %w", filters, err)
+	}
+	p.cache.SetDefault(fmt.Sprint(hash), output.SecurityGroups)
+	if p.cm.HasChanged("security-groups", output.SecurityGroups) {
+		logging.FromContext(ctx).With("security-groups", p.securityGroupIds(output.SecurityGroups)).Debugf("discovered security groups")
+	}
+	return output.SecurityGroups, nil
+}
+
+func (p *Provider) securityGroupIds(securityGroups []*ec2.SecurityGroup) []string {
 	names := []string{}
-	for _, subnet := range subnets {
-		names = append(names, fmt.Sprintf("%s (%s)", aws.StringValue(subnet.SubnetId), aws.StringValue(subnet.AvailabilityZone)))
+	for _, securityGroup := range securityGroups {
+		names = append(names, aws.StringValue(securityGroup.GroupId))
 	}
 	return names
 }
 
-func (p *Provider) ResetCache() {
+func (p *Provider) Reset() {
 	p.Lock()
 	defer p.Unlock()
 	p.cache.Flush()

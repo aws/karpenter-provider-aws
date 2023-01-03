@@ -123,7 +123,7 @@ var _ = BeforeEach(func() {
 	})
 
 	fakeEC2API.Reset()
-	subnetProvider.ResetCache()
+	subnetProvider.Reset()
 })
 
 var _ = AfterEach(func() {

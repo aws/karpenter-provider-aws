@@ -124,7 +124,7 @@ var _ = BeforeEach(func() {
 	})
 
 	fakeEC2API.Reset()
-	securityGroupProvider.ResetCache()
+	securityGroupProvider.Reset()
 })
 
 var _ = AfterEach(func() {
