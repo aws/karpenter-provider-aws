@@ -48,6 +48,9 @@ RUN aws --version
 RUN curl --silent --location "https://github.com/weaveworks/eksctl/releases/download/v0.116.0/eksctl_$(uname -s)_$(go env GOARCH).tar.gz" | tar xz -C /tmp
 RUN mv /tmp/eksctl /usr/local/bin
 
+# Install helm diff
+RUN helm plugin install https://github.com/databus23/helm-diff
+
 # Show go version
 RUN go version
 

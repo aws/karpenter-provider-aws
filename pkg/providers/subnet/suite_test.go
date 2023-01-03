@@ -64,7 +64,7 @@ func TestAWS(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	env = coretest.NewEnvironment(scheme.Scheme, apis.CRDs...)
+	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
 	settingsStore = coretest.SettingsStore{
 		settings.ContextKey:    coretest.Settings(),
 		awssettings.ContextKey: test.Settings(),
