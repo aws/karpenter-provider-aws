@@ -16,6 +16,7 @@ package common
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"strings"
@@ -31,15 +32,20 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/client-go/transport"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/test"
 )
 
 func (env *Environment) ExpectCreatedWithOffset(offset int, objects ...client.Object) {
 	for _, object := range objects {
+		object.SetLabels(lo.Assign(object.GetLabels(), map[string]string{
+			test.DiscoveryLabel: "unspecified",
+		}))
 		ExpectWithOffset(offset+1, env.Client.Create(env, object)).To(Succeed())
 	}
 }
@@ -103,6 +109,12 @@ func (env *Environment) ExpectSettingsOverridden(data ...map[string]string) {
 	cm := env.ExpectSettings()
 	cm.Data = lo.Assign(append([]map[string]string{cm.Data}, data...)...)
 	env.ExpectCreatedOrUpdated(cm)
+	// Wait for updated settings to be injected into context since the batching logic
+	// may be using stale settings.
+	// While this doesn't ensure the issue doesn't happen, the default BatchIdleTime is
+	// 1 second. Since we control the provisioning logic in tests, 5 seconds is sufficient
+	// to significantly reduce the chance that any races will occur with stale settings.
+	time.Sleep(5 * time.Second)
 }
 
 func (env *Environment) ExpectFound(obj client.Object) {
@@ -185,7 +197,7 @@ func (env *Environment) EventuallyExpectNotFoundAssertion(objects ...client.Obje
 }
 
 func (env *Environment) EventuallyExpectNotFoundAssertionWithOffset(offset int, objects ...client.Object) AsyncAssertion {
-	return EventuallyWithOffset(offset+1, func(g Gomega) {
+	return EventuallyWithOffset(offset, func(g Gomega) {
 		for _, object := range objects {
 			err := env.Client.Get(env, client.ObjectKeyFromObject(object), object)
 			g.Expect(errors.IsNotFound(err)).To(BeTrue())
@@ -303,4 +315,17 @@ func (env *Environment) ExpectDaemonSetEnvironmentVariableUpdatedWithOffset(offs
 		})
 	}
 	ExpectWithOffset(offset+1, env.Client.Patch(env.Context, ds, patch)).To(Succeed())
+}
+
+func (env *Environment) ExpectCABundle() string {
+	// Discover CA Bundle from the REST client. We could alternatively
+	// have used the simpler client-go InClusterConfig() method.
+	// However, that only works when Karpenter is running as a Pod
+	// within the same cluster it's managing.
+	transportConfig, err := env.Config.TransportConfig()
+	ExpectWithOffset(1, err).ToNot(HaveOccurred())
+	_, err = transport.TLSConfigFor(transportConfig) // fills in CAData!
+	ExpectWithOffset(1, err).ToNot(HaveOccurred())
+	logging.FromContext(env.Context).Debugf("Discovered caBundle, length %d", len(transportConfig.TLS.CAData))
+	return base64.StdEncoding.EncodeToString(transportConfig.TLS.CAData)
 }

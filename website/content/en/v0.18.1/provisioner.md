@@ -116,19 +116,7 @@ spec:
 
 ## Node deprovisioning
 
-If neither of these values are set, Karpenter will *not* delete instances. It is recommended to set the `ttlSecondsAfterEmpty` value, to enable scale down of the cluster.
-
-### spec.ttlSecondsAfterEmpty
-
-Setting a value here enables Karpenter to delete empty/unnecessary instances. DaemonSets are excluded from considering a node "empty". This value is in seconds.
-
-### spec.ttlSecondsUntilExpired
-
-Setting a value here enables node expiry. After nodes reach the defined age in seconds, they will be deleted, even if in use. This enables nodes to effectively be periodically "upgraded" by replacing them with newly provisioned instances.
-
-Note that Karpenter does not automatically add jitter to this value. If multiple instances are created in a small amount of time, they will expire at very similar times. Consider defining a [pod disruption budget](https://kubernetes.io/docs/tasks/run-application/configure-pdb/) to prevent excessive workload disruption.
-
-
+You can configure Karpenter to deprovision instances through your Provisioner in multiple ways. You can use `spec.TTLSecondsAfterEmpty`, `spec.ttlSecondsUntilExpired` or `spec.consolidation.enabled`. Read [Deprovisioning](../tasks/deprovisioning/) for more.
 
 ## spec.requirements
 
@@ -143,44 +131,18 @@ For example, an instance type may be specified using a nodeSelector in a pod spe
 ### Instance Types
 
 - key: `node.kubernetes.io/instance-type`
+- key: `karpenter.k8s.aws/instance-family`
+- key: `karpenter.k8s.aws/instance-category`
+- key: `karpenter.k8s.aws/instance-generation`
 
-Generally, instance types should be a list and not a single value. Leaving this field undefined is recommended, as it maximizes choices for efficiently placing pods.
+Generally, instance types should be a list and not a single value. Leaving these requirements undefined is recommended, as it maximizes choices for efficiently placing pods.
 
-☁️ **AWS**
-
-Review [AWS instance types](https://aws.amazon.com/ec2/instance-types/).
-
-The default value includes most instance types with the exclusion of [non-HVM](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/virtualization_types.html).  The full list of supported instance types can be seen [here](../aws/instance-types/)
-
-**Example**
-
-*Set Default with provisioner.yaml*
-
-```yaml
-spec:
-  requirements:
-    - key: node.kubernetes.io/instance-type
-      operator: In
-      values: ["m5.large", "m5.2xlarge"]
-```
-
-*Override with workload manifest (e.g., pod)*
-
-```yaml
-spec:
-  template:
-    spec:
-      nodeSelector:
-        node.kubernetes.io/instance-type: m5.large
-```
+Review [AWS instance types](../AWS/instance-types). Most instance types are supported with the exclusion of [non-HVM](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/virtualization_types.html).
 
 ### Availability Zones
 
 - key: `topology.kubernetes.io/zone`
 - value example: `us-east-1c`
-
-☁️ **AWS**
-
 - value list: `aws ec2 describe-availability-zones --region <region-name>`
 
 Karpenter can be configured to create nodes in a particular zone. Note that the Availability Zone `us-east-1a` for your AWS account might not have the same location as `us-east-1a` for another AWS account.
@@ -192,27 +154,52 @@ IDs.](https://docs.aws.amazon.com/ram/latest/userguide/working-with-az-ids.html)
 
 - key: `kubernetes.io/arch`
 - values
-  - `amd64` (default)
+  - `amd64`
   - `arm64`
 
 Karpenter supports `amd64` nodes, and `arm64` nodes.
 
+{{% alert title="Defaults" color="secondary" %}}
+If no architecture constraint is defined, Karpenter will set the default architecture constraint on your Provisioner that supports most common user workloads:
+
+```yaml
+requirements:
+  - key: kubernetes.io/arch
+    operator: In
+    values: ["amd64"]
+```
+{{% /alert %}}
+
+### Operating System
+- key: `kubernetes.io/os`
+- values
+  - `linux`
+
+Karpenter supports only `linux` nodes at this time.
 
 ### Capacity Type
 
 - key: `karpenter.sh/capacity-type`
-
-☁️ **AWS**
-
 - values
   - `spot`
-  - `on-demand` (default)
+  - `on-demand`
 
 Karpenter supports specifying capacity type, which is analogous to [EC2 purchase options](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-purchasing-options.html).
 
 Karpenter prioritizes Spot offerings if the provisioner allows Spot and on-demand instances. If the provider API (e.g. EC2 Fleet's API) indicates Spot capacity is unavailable, Karpenter caches that result across all attempts to provision EC2 capacity for that instance type and zone for the next 45 seconds. If there are no other possible offerings available for Spot, Karpenter will attempt to provision on-demand instances, generally within milliseconds.
 
 Karpenter also allows `karpenter.sh/capacity-type` to be used as a topology key for enforcing topology-spread.
+
+{{% alert title="Defaults" color="secondary" %}}
+If no capacity type constraint is defined, Karpenter will set the default capacity type constraint on your Provisioner that supports most common user workloads:
+
+```yaml
+requirements:
+  - key: karpenter.sh/capacity-type
+    operator: In
+    values: ["on-demand"]
+```
+{{% /alert %}}
 
 ## spec.weight
 
@@ -271,7 +258,7 @@ For more information on the default `--system-reserved` and `--kube-reserved` co
 
 ### Eviction Thresholds
 
-The kubelet supports eviction thresholds by default. When enough memory or file system pressure is exerted on the node, the kubelet will begin to evict pods to ensure that system daemons and other system processes can continue to run in a healthy manner. 
+The kubelet supports eviction thresholds by default. When enough memory or file system pressure is exerted on the node, the kubelet will begin to evict pods to ensure that system daemons and other system processes can continue to run in a healthy manner.
 
 Kubelet has the notion of [hard evictions](https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/#hard-eviction-thresholds) and [soft evictions](https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/#soft-eviction-thresholds). In hard evictions, pods are evicted as soon as a threshold is met, with no grace period to terminate. Soft evictions, on the other hand, provide an opportunity for pods to be terminated gracefully. They do so by sending a termination signal to pods that are planning to be evicted and allowing those pods to terminate up to their grace period.
 

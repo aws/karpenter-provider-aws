@@ -1,26 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+GIT_TAG=$(git describe --exact-match --tags || echo "no tag")
 HEAD_HASH=$(git rev-parse HEAD)
-if [ -z ${RELEASE_VERSION+x} ];then
-  RELEASE_VERSION=${HEAD_HASH}
-fi
-
-echo "Releasing ${RELEASE_VERSION}, Commit: ${HEAD_HASH}"
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 source "${SCRIPT_DIR}/common.sh"
 
-config
-setEnvVariables
-authenticate
-buildImages
-cosignImages
-publishHelmChart
 
-if [[ $IS_STABLE_RELEASE == true ]]; then
-    notifyRelease "stable" $RELEASE_VERSION
-else
-    pullPrivateReplica "snapshot" $RELEASE_VERSION
-    notifyRelease "snapshot" $HELM_CHART_VERSION
+config
+release $HEAD_HASH #release a snapshot version
+
+if [[ $(releaseType $GIT_TAG) == $RELEASE_TYPE_STABLE ]]; then
+  release $GIT_TAG
 fi

@@ -25,7 +25,7 @@ import (
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 
-	"github.com/aws/karpenter-core/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
@@ -79,6 +79,29 @@ var _ = Describe("Subnets", func() {
 		env.ExpectCreatedNodeCount("==", 1)
 
 		ExceptNodeNameToContainInstanceID(pod.Spec.NodeName)
+	})
+
+	It("should use the subnet tag selector with multiple tag values", func() {
+		// Get all the subnets for the cluster
+		subnets := getSubnetNameAndIds(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
+		Expect(len(subnets)).To(BeNumerically(">", 1))
+		firstSubnet := subnets[0]
+		lastSubnet := subnets[len(subnets)-1]
+
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+			AWS: v1alpha1.AWS{
+				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+				SubnetSelector:        map[string]string{"Name": fmt.Sprintf("%s,%s", firstSubnet.Name, lastSubnet.Name)},
+			},
+		})
+		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
+		pod := test.Pod()
+
+		env.ExpectCreated(pod, provider, provisioner)
+		env.EventuallyExpectHealthy(pod)
+		env.ExpectCreatedNodeCount("==", 1)
+
+		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("SubnetId", HaveValue(BeElementOf(firstSubnet.ID, lastSubnet.ID))))
 	})
 
 	It("should use a subnet within the AZ requested", func() {
@@ -173,4 +196,36 @@ func ExceptNodeNameToContainInstanceID(nodeName string) {
 	instance := env.GetInstance(nodeName)
 	Expect(nodeName).To(Not(Equal(aws.StringValue(instance.InstanceId))))
 	ContainSubstring(nodeName, aws.StringValue(instance.InstanceId))
+}
+
+// SubnetInfo is a simple struct for testing
+type SubnetInfo struct {
+	Name string
+	ID   string
+}
+
+// getSubnetNameAndIds returns all subnets matching the label selector
+func getSubnetNameAndIds(tags map[string]string) []SubnetInfo {
+	var filters []*ec2.Filter
+	for key, val := range tags {
+		filters = append(filters, &ec2.Filter{
+			Name:   aws.String(fmt.Sprintf("tag:%s", key)),
+			Values: []*string{aws.String(val)},
+		})
+	}
+	var subnetInfo []SubnetInfo
+	err := env.EC2API.DescribeSubnetsPages(&ec2.DescribeSubnetsInput{Filters: filters}, func(dso *ec2.DescribeSubnetsOutput, _ bool) bool {
+		for _, subnet := range dso.Subnets {
+			for k := range subnet.Tags {
+				if aws.StringValue(subnet.Tags[k].Key) == "Name" {
+					subnetInfo = append(subnetInfo, SubnetInfo{ID: aws.StringValue(subnet.SubnetId), Name: aws.StringValue(subnet.Tags[k].Value)})
+					break
+				}
+			}
+		}
+		return true
+	})
+
+	Expect(err).To(BeNil())
+	return subnetInfo
 }

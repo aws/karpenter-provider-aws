@@ -50,6 +50,7 @@ COMMUNITY_CONTRIBUTIONS=$(
         .author != "Jason Deal" and
         .author != "Ryan Maleki" and
         .author != "Jonathan Innis" and
+        .author != "Amanuel Engeda" and
         .author != "Brandon Wagner" and
         .author != "Brandon" and
         .author != "Chris Negus" and
@@ -65,6 +66,7 @@ COMMUNITY_CONTRIBUTIONS=$(
         .author != "njtran" and
         .author != "dewjam" and
         .author != "suket22" and
+        .author != "StableRelease" and
         .author != "dependabot[bot]" and
         .author != "github-actions[bot]"
     )

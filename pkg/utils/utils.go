@@ -17,23 +17,20 @@ package utils
 import (
 	"fmt"
 	"regexp"
-
-	v1 "k8s.io/api/core/v1"
-	"knative.dev/pkg/ptr"
 )
 
 // ParseInstanceID parses the provider ID stored on the node to get the instance ID
 // associated with a node
-func ParseInstanceID(node *v1.Node) (*string, error) {
+func ParseInstanceID(providerID string) (string, error) {
 	r := regexp.MustCompile(`aws:///(?P<AZ>.*)/(?P<InstanceID>.*)`)
-	matches := r.FindStringSubmatch(node.Spec.ProviderID)
+	matches := r.FindStringSubmatch(providerID)
 	if matches == nil {
-		return nil, fmt.Errorf("parsing instance id %s", node.Spec.ProviderID)
+		return "", fmt.Errorf("parsing instance id %s", providerID)
 	}
 	for i, name := range r.SubexpNames() {
 		if name == "InstanceID" {
-			return ptr.String(matches[i]), nil
+			return matches[i], nil
 		}
 	}
-	return nil, fmt.Errorf("parsing instance id %s", node.Spec.ProviderID)
+	return "", fmt.Errorf("parsing instance id %s", providerID)
 }

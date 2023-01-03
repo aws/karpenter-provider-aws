@@ -12,7 +12,7 @@ spec:
       description: Kubernetes version to deploy
       default: "1.23"
     - name: from-git-ref
-      default: v0.18.1
+      default: v0.19.3
       description: Git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release.
     - name: git-repo-url
       description: the git repo url can be used to run tests on a fork
@@ -78,6 +78,16 @@ spec:
     - upgrade-crds
 
   finally:
+  - name: dump-logs-on-failure
+    taskRef:
+      name: dump-logs
+    params:
+      - name: cluster-name
+        value: $(params.cluster-name)
+    when:
+      - input: $(tasks.status)
+        operator: in
+        values: [ "Failed" ]
   - name: cleanup
     taskRef:
       name: cleanup

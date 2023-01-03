@@ -42,10 +42,13 @@ spec:
       workingDir: $(workspaces.ws.path)
       script: |
         echo "Cloning $(params.git-repo-url)"
-        echo "Checking out git ref: $(params.git-ref)"
         git clone $(params.git-repo-url).git .
-        git checkout $(params.git-ref)
 
+        echo "Fetching: $(params.git-ref)"
+        git fetch origin $(params.git-ref)
+
+        echo "Checking out git ref: $(echo $(params.git-ref) | cut -d":" -f2)"
+        git checkout $(echo $(params.git-ref)| cut -d":" -f2)
     - name: create-iam-policies
       image: public.ecr.aws/karpenter-testing/tools:latest
       workingDir: $(workspaces.ws.path)
@@ -119,8 +122,8 @@ spec:
           karpenter oci://public.ecr.aws/karpenter/karpenter \
           --version v0-$(git rev-parse HEAD) \
           --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="arn:aws:iam::$(cat $(results.account-id.path)):role/$(params.cluster-name)-karpenter" \
-          --set clusterName=$(params.cluster-name) \
-          --set clusterEndpoint=$(cat /root/.kube/config | grep server | awk '{print $2}') \
-          --set aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-$(params.cluster-name) \
+          --set settings.aws.clusterName=$(params.cluster-name) \
+          --set settings.aws.clusterEndpoint=$(cat /root/.kube/config | grep server | awk '{print $2}') \
+          --set settings.aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-$(params.cluster-name) \
           --set settings.aws.interruptionQueueName=$(params.cluster-name) \
           --wait

@@ -67,6 +67,7 @@ The list of supported resource types is -
 - `nvidia.com/gpu`
 - `amd.com/gpu`
 - `aws.amazon.com/neuron`
+- `habana.ai/gaudi`
 
 Limits will be defined at the per-provisioner level. We'll rely on the `karpenter.sh/provisioner-name` node label when calculating resource usage by a specific provisioner. This is useful when multiple teams share a single cluster and use separate provisioners since each team's resource consumption will be limited separately.
 
