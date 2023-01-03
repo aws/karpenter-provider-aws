@@ -120,3 +120,9 @@ func Pretty(subnets []*ec2.Subnet) []string {
 	}
 	return names
 }
+
+func (p *Provider) Reset() {
+	p.Lock()
+	defer p.Unlock()
+	p.cache.Flush()
+}

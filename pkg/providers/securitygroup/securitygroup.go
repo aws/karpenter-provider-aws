@@ -69,12 +69,6 @@ func (p *Provider) List(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTempl
 	return securityGroupIds, nil
 }
 
-func (p *Provider) ResetCache() {
-	p.Lock()
-	defer p.Unlock()
-	p.cache.Flush()
-}
-
 func (p *Provider) getFilters(nodeTemplate *v1alpha1.AWSNodeTemplate) []*ec2.Filter {
 	filters := []*ec2.Filter{}
 	for key, value := range nodeTemplate.Spec.SecurityGroupSelector {
@@ -118,4 +112,10 @@ func (p *Provider) securityGroupIds(securityGroups []*ec2.SecurityGroup) []strin
 		names = append(names, aws.StringValue(securityGroup.GroupId))
 	}
 	return names
+}
+
+func (p *Provider) Reset() {
+	p.Lock()
+	defer p.Unlock()
+	p.cache.Flush()
 }
