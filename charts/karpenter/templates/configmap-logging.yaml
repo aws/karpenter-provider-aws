@@ -21,8 +21,8 @@ data:
         "initial": 100,
         "thereafter": 100
       },
-      "outputPaths": ["stdout"],
-      "errorOutputPaths": ["stderr"],
+      "outputPaths": [{{ include "outputPathsList" . }}]
+      "errorOutputPaths": [{{ include "errorOutputPathsList" . }}]
       "encoding": "{{ .Values.logEncoding }}",
       "encoderConfig": {
         "timeKey": "time",
