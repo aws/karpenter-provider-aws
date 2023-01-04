@@ -80,7 +80,6 @@ var _ = Describe("Subnets", func() {
 
 		ExceptNodeNameToContainInstanceID(pod.Spec.NodeName)
 	})
-
 	It("should use the subnet tag selector with multiple tag values", func() {
 		// Get all the subnets for the cluster
 		subnets := getSubnetNameAndIds(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
