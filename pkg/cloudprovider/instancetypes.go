@@ -39,6 +39,7 @@ import (
 	"knative.dev/pkg/logging"
 
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/providers/subnet"
 
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/utils/functional"
@@ -55,7 +56,7 @@ type InstanceTypeProvider struct {
 	sync.Mutex
 	region          string
 	ec2api          ec2iface.EC2API
-	subnetProvider  *SubnetProvider
+	subnetProvider  *subnet.Provider
 	pricingProvider *PricingProvider
 	// Has one cache entry for all the instance types (key: InstanceTypesCacheKey)
 	// Has one cache entry for all the zones for each subnet selector (key: InstanceTypesZonesCacheKeyPrefix:<hash_of_selector>)
@@ -65,7 +66,7 @@ type InstanceTypeProvider struct {
 	cm                   *pretty.ChangeMonitor
 }
 
-func NewInstanceTypeProvider(ctx context.Context, sess *session.Session, ec2api ec2iface.EC2API, subnetProvider *SubnetProvider,
+func NewInstanceTypeProvider(ctx context.Context, sess *session.Session, ec2api ec2iface.EC2API, subnetProvider *subnet.Provider,
 	unavailableOfferingsCache *awscache.UnavailableOfferings, startAsync <-chan struct{}) *InstanceTypeProvider {
 	return &InstanceTypeProvider{
 		ec2api:         ec2api,

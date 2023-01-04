@@ -25,6 +25,8 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	securitygroup "github.com/aws/karpenter/pkg/providers/securitygroup"
+	subnet "github.com/aws/karpenter/pkg/providers/subnet"
 	"github.com/aws/karpenter/pkg/utils"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -44,6 +46,7 @@ import (
 	k8sClient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter-core/pkg/scheduling"
+	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
 	awscontext "github.com/aws/karpenter/pkg/context"
 
@@ -82,7 +85,7 @@ func New(ctx awscontext.Context) *CloudProvider {
 	if err := checkEC2Connectivity(ctx, ec2api); err != nil {
 		logging.FromContext(ctx).Fatalf("Checking EC2 API connectivity, %s", err)
 	}
-	subnetProvider := NewSubnetProvider(ec2api)
+	subnetProvider := subnet.NewProvider(ec2api)
 	instanceTypeProvider := NewInstanceTypeProvider(ctx, ctx.Session, ec2api, subnetProvider, ctx.UnavailableOfferingsCache, ctx.StartAsync)
 	amiProvider := amifamily.NewAMIProvider(ctx.KubeClient, ctx.KubernetesInterface, ssm.New(ctx.Session), ec2api,
 		cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval), cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval), cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval))
@@ -102,7 +105,7 @@ func New(ctx awscontext.Context) *CloudProvider {
 				ctx,
 				ec2api,
 				amiResolver,
-				NewSecurityGroupProvider(ec2api),
+				securitygroup.NewProvider(ec2api),
 				lo.Must(getCABundle(ctx.RESTConfig)),
 				ctx.StartAsync,
 				kubeDNSIP,
@@ -141,7 +144,7 @@ func (c *CloudProvider) Create(ctx context.Context, machine *v1alpha5.Machine) (
 	if err != nil {
 		return nil, fmt.Errorf("creating instance, %w", err)
 	}
-	return c.instanceToNode(instance, instanceTypes), nil
+	return c.instanceToNode(ctx, instance, instanceTypes), nil
 }
 
 func (c *CloudProvider) LivenessProbe(req *http.Request) error {
@@ -295,10 +298,13 @@ func (c *CloudProvider) resolveInstanceTypes(ctx context.Context, machine *v1alp
 	}), nil
 }
 
-func (c *CloudProvider) instanceToNode(instance *ec2.Instance, instanceTypes []*cloudprovider.InstanceType) *v1.Node {
+func (c *CloudProvider) instanceToNode(ctx context.Context, instance *ec2.Instance, instanceTypes []*cloudprovider.InstanceType) *v1.Node {
 	for _, instanceType := range instanceTypes {
 		if instanceType.Name == aws.StringValue(instance.InstanceType) {
 			nodeName := strings.ToLower(aws.StringValue(instance.PrivateDnsName))
+			if awssettings.FromContext(ctx).NodeNameConvention == awssettings.ResourceName {
+				nodeName = aws.StringValue(instance.InstanceId)
+			}
 			labels := map[string]string{}
 			for key, req := range instanceType.Requirements {
 				if req.Len() == 1 {
