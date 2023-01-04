@@ -93,7 +93,6 @@ Refer to the description of Karpenter constraints in the Application Developer s
 Karpenter launches nodes in response to pods that the Kubernetes scheduler has marked unschedulable. After solving scheduling constraints and launching capacity, Karpenter launches a machine in your chosen cloud provider.
 
 Once Karpenter brings up a node, that node is available for the Kubernetes scheduler to schedule pods on it as well.
-This is useful if there is additional room in the node due to imperfect packing shape or because workloads finish over time.
 
 ### Cloud provider
 Karpenter makes requests to provision new nodes to the associated cloud provider.
