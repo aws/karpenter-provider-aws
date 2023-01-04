@@ -3,6 +3,10 @@ kind: PodDisruptionBudget
 metadata:
   name: {{ .Values.podDisruptionBudget.name }}
   namespace: {{ .Release.Namespace }}
+  {{- with .Values.additionalAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   maxUnavailable: {{ .Values.podDisruptionBudget.maxUnavailable }}
   selector:
