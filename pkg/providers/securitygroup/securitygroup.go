@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package cloudprovider
+package securitygroup
 
 import (
 	"context"
@@ -33,22 +33,22 @@ import (
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
 )
 
-type SecurityGroupProvider struct {
+type Provider struct {
 	sync.Mutex
 	ec2api ec2iface.EC2API
 	cache  *cache.Cache
 	cm     *pretty.ChangeMonitor
 }
 
-func NewSecurityGroupProvider(ec2api ec2iface.EC2API) *SecurityGroupProvider {
-	return &SecurityGroupProvider{
+func NewProvider(ec2api ec2iface.EC2API) *Provider {
+	return &Provider{
 		ec2api: ec2api,
 		cm:     pretty.NewChangeMonitor(),
 		cache:  cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval),
 	}
 }
 
-func (p *SecurityGroupProvider) List(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) ([]string, error) {
+func (p *Provider) List(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) ([]string, error) {
 	p.Lock()
 	defer p.Unlock()
 	// Get SecurityGroups
@@ -68,7 +68,7 @@ func (p *SecurityGroupProvider) List(ctx context.Context, nodeTemplate *v1alpha1
 	return securityGroupIds, nil
 }
 
-func (p *SecurityGroupProvider) getFilters(nodeTemplate *v1alpha1.AWSNodeTemplate) []*ec2.Filter {
+func (p *Provider) getFilters(nodeTemplate *v1alpha1.AWSNodeTemplate) []*ec2.Filter {
 	filters := []*ec2.Filter{}
 	for key, value := range nodeTemplate.Spec.SecurityGroupSelector {
 		if key == "aws-ids" {
@@ -86,7 +86,7 @@ func (p *SecurityGroupProvider) getFilters(nodeTemplate *v1alpha1.AWSNodeTemplat
 	return filters
 }
 
-func (p *SecurityGroupProvider) getSecurityGroups(ctx context.Context, filters []*ec2.Filter) ([]*ec2.SecurityGroup, error) {
+func (p *Provider) getSecurityGroups(ctx context.Context, filters []*ec2.Filter) ([]*ec2.SecurityGroup, error) {
 	hash, err := hashstructure.Hash(filters, hashstructure.FormatV2, nil)
 	if err != nil {
 		return nil, err
@@ -105,10 +105,16 @@ func (p *SecurityGroupProvider) getSecurityGroups(ctx context.Context, filters [
 	return output.SecurityGroups, nil
 }
 
-func (p *SecurityGroupProvider) securityGroupIds(securityGroups []*ec2.SecurityGroup) []string {
+func (p *Provider) securityGroupIds(securityGroups []*ec2.SecurityGroup) []string {
 	names := []string{}
 	for _, securityGroup := range securityGroups {
 		names = append(names, aws.StringValue(securityGroup.GroupId))
 	}
 	return names
+}
+
+func (p *Provider) Reset() {
+	p.Lock()
+	defer p.Unlock()
+	p.cache.Flush()
 }

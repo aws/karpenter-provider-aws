@@ -134,6 +134,23 @@ Today, Karpenter will warn you if the number of instances in your Provisioner is
 Technically, Karpenter has a concept of an “offering” for each instance type, which is a combination of zone and capacity type (equivalent in the AWS cloud provider to an EC2 purchase option – Spot or On-Demand).
 Whenever the Fleet API returns an insufficient capacity error for Spot instances, those particular offerings are temporarily removed from consideration (across the entire provisioner) so that Karpenter can make forward progress with different options.
 
+### Does Karpenter support IPv6? 
+
+Yes! Karpenter dynamically discovers if you are running in an IPv6 cluster by checking the kube-dns service's cluster-ip. Some EC2 instance types do not support IPv6 and the Amazon VPC CNI only supports instance types that run on the Nitro hypervisor. It's best to add a requirement to your Provisioner to only allow Nitro instance types:
+
+```
+kind: Provisioner
+...
+spec:
+  requirements:
+    - key: karpenter.k8s.aws/instance-hypervisor
+      operator: In
+      values:
+        - nitro
+```
+
+For more documentation on enabling IPv6 with the Amazon VPC CNI, see the [docs](https://docs.aws.amazon.com/eks/latest/userguide/cni-ipv6.html).
+
 ## Scheduling
 
 ### When using preferred scheduling constraints, Karpenter launches the correct number of nodes at first.  Why do they then sometimes get consolidated immediately? 
