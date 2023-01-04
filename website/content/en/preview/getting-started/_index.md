@@ -29,20 +29,21 @@ This guide will also assume you have the `aws` and `kubectl` CLI tools installed
 You can also perform many of these steps in the console, but we will use the command line for simplicity.
 
 ## Get a cluster
-To use Karpenter, you must be running a Kubernetes cluster on a supported cloud provider.
-Currently, only AWS is supported.
-There are several choices of Kubernetes distributions and deployment tools that you can choose from.
-Here are examples:
+To use Karpenter, you must be running a supported Kubernetes cluster on a supported cloud provider.
+Currently, only EKS on AWS is supported.
+Recommended ways of deploying EKS on AWS to use with Karpenter include:
 
 * [Creating an Amazon EKS cluster](https://docs.aws.amazon.com/eks/latest/userguide/create-cluster.html): Use `eksctl` or `aws` CLI tools or the AWS Management console to deploy an EKS cluster.
 * [Amazon EKS Blueprints for Terraform](https://aws-ia.github.io/terraform-aws-eks-blueprints): Follow a basic [Getting Started](https://aws-ia.github.io/terraform-aws-eks-blueprints/v4.18.0/getting-started/) guide and also add modules and add-ons. This includes a [Karpenter](https://aws-ia.github.io/terraform-aws-eks-blueprints/v4.18.0/add-ons/karpenter/) add-on that lets you bypass the instructions in this guide for setting up Karpenter.
+
+Although not supported, Karpenter could work on other Kubernetes distributions running on AWS. For example:
 * [kOps](https://kops.sigs.k8s.io/operations/karpenter/): These instructions describe how to create a kOps Kubernetes cluster in AWS that includes Karpenter.
 
 If you have not already configured Karpenter when you set up your Kubernetes cluster in AWS, follow the instructions below to add Karpenter to your existing cluster.
 
 ## Add Karpenter to an existing cluster
 
-To add Karpenter to your cluster, you need to cread IAM roles, add tags to subnets and security groups, and update the aws-auth ConfigMap.
+To add Karpenter to your cluster, you need to create IAM roles, add tags to subnets and security groups, and update the aws-auth ConfigMap.
 
 ### Create IAM roles
 
