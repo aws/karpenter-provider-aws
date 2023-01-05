@@ -129,6 +129,15 @@ data:
   ...
 ```
 
+#### Permissions
+
+Karpenter requires the following IAM permissions to be assigned to the Karpenter controller IAM role to enable interruption handling on the cluster. These permissions should only be assigned access the SQS queue resource that you have provisioned for Karpenter interruption event handling. 
+
+- sqs:GetQueueAttributes
+- sqs:GetQueueUrl
+- sqs:ReceiveMessage
+- sqs:DeleteMessage
+
 ## Drift
 
 If drift is enabled, Karpenter will deprovision nodes that have been marked as drifted with the annotation `karpenter.sh/voluntary-disruption: "drifted"`. Karpenter will automatically cordon, drain, and terminate nodes, while respecting any PDBs or `do-not-evict` pods that are configured. Karpenter will automatically mark nodes as drifted if the AMI that is used on the instance does not match the AMI set by the AWSNodeTemplate. Check the [AWSNodeTemplate Docs]({{<ref "./node-templates" >}}) settings for more.
