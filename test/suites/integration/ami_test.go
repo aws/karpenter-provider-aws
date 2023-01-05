@@ -18,7 +18,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -37,11 +36,10 @@ import (
 	awstest "github.com/aws/karpenter/pkg/test"
 )
 
-var customAMI string
-
 var _ = Describe("AMI", func() {
+	var customAMI string
 	BeforeEach(func() {
-		customAMI = selectCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", 1)
+		customAMI = env.GetCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", 1)
 	})
 
 	It("should use the AMI defined by the AMI Selector", func() {
@@ -220,20 +218,4 @@ func getInstanceAttribute(nodeName string, attribute string) *ec2.DescribeInstan
 	})
 	Expect(err).ToNot(HaveOccurred())
 	return instanceAttribute
-}
-
-func selectCustomAMI(amiPath string, versionOffset int) string {
-	serverVersion, err := env.KubeClient.Discovery().ServerVersion()
-	Expect(err).To(BeNil())
-	minorVersion, err := strconv.Atoi(strings.TrimSuffix(serverVersion.Minor, "+"))
-	Expect(err).To(BeNil())
-	// Choose a minor version one lesser than the server's minor version. This ensures that we choose an AMI for
-	// this test that wouldn't be selected as Karpenter's SSM default (therefore avoiding false positives), and also
-	// ensures that we aren't violating version skew.
-	version := fmt.Sprintf("%s.%d", serverVersion.Major, minorVersion-versionOffset)
-	parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
-		Name: aws.String(fmt.Sprintf(amiPath, version)),
-	})
-	Expect(err).To(BeNil())
-	return *parameter.Parameter.Value
 }
