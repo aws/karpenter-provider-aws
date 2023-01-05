@@ -199,7 +199,7 @@ Add the following to your `main.tf` to create:
 ```hcl
 module "karpenter" {
   source  = "terraform-aws-modules/eks/aws//modules/karpenter"
-  version = "~> 19.0"
+  version = "19.4.2"
 
   cluster_name = module.eks.cluster_name
 
