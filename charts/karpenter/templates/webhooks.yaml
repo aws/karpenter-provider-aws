@@ -46,6 +46,10 @@ metadata:
   name: validation.webhook.karpenter.k8s.aws
   labels:
     {{- include "karpenter.labels" . | nindent 4 }}
+  {{- with .Values.additionalAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 webhooks:
   - name: validation.webhook.karpenter.k8s.aws
     admissionReviewVersions: ["v1"]

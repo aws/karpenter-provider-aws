@@ -56,7 +56,32 @@ var _ = Describe("Subnets", func() {
 
 		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("SubnetId", HaveValue(Equal(firstSubnet))))
 	})
+	It("should use resource based naming as node names", func() {
+		subnets := getSubnets(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
+		Expect(len(subnets)).ToNot(Equal(0))
 
+		allSubnets := lo.Flatten(lo.Values(subnets))
+
+		ExpectResourceBasedNamingEnabled(allSubnets...)
+		DeferCleanup(func() {
+			ExpectResourceBasedNamingDisabled(allSubnets...)
+		})
+
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+			AWS: v1alpha1.AWS{
+				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			},
+		})
+		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
+		pod := test.Pod()
+
+		env.ExpectCreated(pod, provider, provisioner)
+		env.EventuallyExpectHealthy(pod)
+		env.ExpectCreatedNodeCount("==", 1)
+
+		ExceptNodeNameToContainInstanceID(pod.Spec.NodeName)
+	})
 	It("should use the subnet tag selector with multiple tag values", func() {
 		// Get all the subnets for the cluster
 		subnets := getSubnetNameAndIds(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
@@ -169,6 +194,46 @@ func getSubnetList(tags map[string]string) []string {
 	})
 	Expect(err).To(BeNil())
 	return subnets
+}
+
+func ExpectResourceBasedNamingEnabled(subnetIDs ...string) {
+	for subnetID := range subnetIDs {
+		_, err := env.EC2API.ModifySubnetAttribute(&ec2.ModifySubnetAttributeInput{
+			EnableResourceNameDnsARecordOnLaunch: &ec2.AttributeBooleanValue{
+				Value: aws.Bool(true),
+			},
+			SubnetId: aws.String(subnetIDs[subnetID]),
+		})
+		Expect(err).To(BeNil())
+		_, err = env.EC2API.ModifySubnetAttribute(&ec2.ModifySubnetAttributeInput{
+			PrivateDnsHostnameTypeOnLaunch: aws.String("resource-name"),
+			SubnetId:                       aws.String(subnetIDs[subnetID]),
+		})
+		Expect(err).To(BeNil())
+	}
+}
+
+func ExpectResourceBasedNamingDisabled(subnetIDs ...string) {
+	for subnetID := range subnetIDs {
+		_, err := env.EC2API.ModifySubnetAttribute(&ec2.ModifySubnetAttributeInput{
+			EnableResourceNameDnsARecordOnLaunch: &ec2.AttributeBooleanValue{
+				Value: aws.Bool(false),
+			},
+			SubnetId: aws.String(subnetIDs[subnetID]),
+		})
+		Expect(err).To(BeNil())
+		_, err = env.EC2API.ModifySubnetAttribute(&ec2.ModifySubnetAttributeInput{
+			PrivateDnsHostnameTypeOnLaunch: aws.String("ip-name"),
+			SubnetId:                       aws.String(subnetIDs[subnetID]),
+		})
+		Expect(err).To(BeNil())
+	}
+}
+
+func ExceptNodeNameToContainInstanceID(nodeName string) {
+	instance := env.GetInstance(nodeName)
+	Expect(nodeName).To(Not(Equal(aws.StringValue(instance.InstanceId))))
+	ContainSubstring(nodeName, aws.StringValue(instance.InstanceId))
 }
 
 // SubnetInfo is a simple struct for testing

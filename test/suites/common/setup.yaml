@@ -91,7 +91,7 @@ spec:
       - name: coredns
       - name: kube-proxy
       - name: aws-ebs-csi-driver
-        wellKnownPolicies: 
+        wellKnownPolicies:
           ebsCSIController: true
       EOF
 
@@ -123,3 +123,13 @@ spec:
         --set settings.aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-$(params.cluster-name) \
         --set settings.aws.interruptionQueueName=$(params.cluster-name) \
         --wait
+
+  - name: diff-karpenter
+    image: public.ecr.aws/karpenter-testing/tools:latest
+    workingDir: $(workspaces.ws.path)
+    script: |
+      aws eks update-kubeconfig --name $(params.cluster-name)
+      helm diff upgrade --kubeconfig /root/.kube/config --namespace karpenter \
+        karpenter oci://public.ecr.aws/karpenter/karpenter \
+        --version v0-$(git rev-parse HEAD) \
+        --reuse-values --three-way-merge --detailed-exitcode

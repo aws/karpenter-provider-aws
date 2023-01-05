@@ -63,7 +63,7 @@ func TestAPIs(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	env = coretest.NewEnvironment(scheme.Scheme, apis.CRDs...)
+	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
 	settingsStore = coretest.SettingsStore{
 		coresettings.ContextKey: coretest.Settings(),
 		coresettings.ContextKey: test.Settings(),

@@ -6,7 +6,7 @@ require (
 	github.com/Pallinder/go-randomdata v1.2.0
 	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/aws/aws-sdk-go v1.44.154
-	github.com/aws/karpenter-core v0.21.1-0.20221229043026-9b38f8c39e87
+	github.com/aws/karpenter-core v0.21.1-0.20230103220342-deed22037972
 	github.com/go-playground/validator/v10 v10.11.1
 	github.com/imdario/mergo v0.3.13
 	github.com/mitchellh/hashstructure/v2 v2.0.2
@@ -15,7 +15,7 @@ require (
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pelletier/go-toml/v2 v2.0.6
 	github.com/prometheus/client_golang v1.14.0
-	github.com/samber/lo v1.36.0
+	github.com/samber/lo v1.37.0
 	go.uber.org/multierr v1.9.0
 	go.uber.org/zap v1.23.0
 	k8s.io/api v0.25.4

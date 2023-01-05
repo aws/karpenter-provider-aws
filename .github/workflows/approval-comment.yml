@@ -19,8 +19,3 @@ jobs:
           echo ${{ github.event.review.commit_id }} >> /tmp/artifacts/metadata.txt
           cat /tmp/artifacts/metadata.txt
       - uses: ./.github/actions/upload-artifact
-      - uses: ./.github/actions/authenticate-ghcr
-        with:
-          actor: ${{ github.actor }}
-          secret: ${{ secrets.GITHUB_TOKEN }}
-      - run: make release-crd
