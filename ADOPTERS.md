@@ -5,7 +5,7 @@ Many customers want to learn from others who have already implemented Karpenter 
 The following is a self-reported list of users to help identify adoption and points of contact.
 
 ## Community
-If you would like to ask question from the community please join the [Karpenter slack channel in the Kubernetes Slack](https://kubernetes.slack.com/archives/C02SFFZSA2K) or join the [Karpenter working group](WORKING_GROUP.md) bi-weekly calls.
+If you would like to ask question from the community please join the [Karpenter slack channel in the Kubernetes Slack](https://kubernetes.slack.com/archives/C02SFFZSA2K) or join the [Karpenter working group](https://karpenter.sh/docs/contributing/working-group/) bi-weekly calls.
 
 ## Add yourself
 If you are using Karpenter please consider adding yourself as a user by opening a pull request to this file.
