@@ -27,12 +27,10 @@ import (
 	"github.com/patrickmn/go-cache"
 	"knative.dev/pkg/logging"
 
-	awscache "github.com/aws/karpenter/pkg/cache"
-
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-
 	"github.com/aws/karpenter-core/pkg/utils/functional"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
+	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	awscache "github.com/aws/karpenter/pkg/cache"
 )
 
 type Provider struct {
@@ -49,7 +47,7 @@ func NewProvider(ec2api ec2iface.EC2API) *Provider {
 		ec2api: ec2api,
 		cm:     pretty.NewChangeMonitor(),
 		// TODO: Remove cahce for v1bata1, utlize resolved security groups from the AWSNodeTemplate.status
-		cache: cache.New(TTL, awscache.CleanupInterval),
+		cache: cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
 	}
 }
 

@@ -393,7 +393,10 @@ func (p *InstanceProvider) Update(ctx context.Context, machine *v1alpha5.Machine
 	var instance *ec2.Instance
 	if err = retry.Do(
 		func() error {
-			instance, err = p.Get(ctx, lo.Must(utils.ParseInstanceID(machine.Status.ProviderID)))
+			instance, err = p.GetByID(ctx, lo.Must(utils.ParseInstanceID(machine.Status.ProviderID)))
+			if err != nil {
+				return fmt.Errorf("getting instance, %w", err)
+			}
 			if _, ok := lo.Find(instance.Tags, func(tag *ec2.Tag) bool {
 				return aws.StringValue(tag.Key) == v1alpha5.MachineNameLabelKey &&
 					aws.StringValue(tag.Value) == machine.Name

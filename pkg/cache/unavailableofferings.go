@@ -18,17 +18,11 @@ import (
 	"context"
 	"fmt"
 	"sync/atomic"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/patrickmn/go-cache"
 	"knative.dev/pkg/logging"
-)
-
-const (
-	UnavailableOfferingsTTL             = 3 * time.Minute
-	UnavailableOfferingsCleanupInterval = 10 * time.Minute
 )
 
 // UnavailableOfferings stores any offerings that return ICE (insufficient capacity errors) when
@@ -42,7 +36,7 @@ type UnavailableOfferings struct {
 
 func NewUnavailableOfferings() *UnavailableOfferings {
 	return &UnavailableOfferings{
-		cache:  cache.New(UnavailableOfferingsTTL, UnavailableOfferingsCleanupInterval),
+		cache:  cache.New(UnavailableOfferingsTTL, DefaultCleanupInterval),
 		SeqNum: 0,
 	}
 }
@@ -57,11 +51,11 @@ func (u *UnavailableOfferings) IsUnavailable(instanceType, zone, capacityType st
 func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, unavailableReason, instanceType, zone, capacityType string) {
 	// even if the key is already in the cache, we still need to call Set to extend the cached entry's TTL
 	logging.FromContext(ctx).With(
-		"unavailable-reason", unavailableReason,
+		"reason", unavailableReason,
 		"instance-type", instanceType,
 		"zone", zone,
 		"capacity-type", capacityType,
-		"unavailable-offerings-ttl", UnavailableOfferingsTTL).Debugf("removing offering from offerings")
+		"ttl", UnavailableOfferingsTTL).Debugf("removing offering from offerings")
 	u.cache.SetDefault(u.key(instanceType, zone, capacityType), struct{}{})
 	atomic.AddUint64(&u.SeqNum, 1)
 }

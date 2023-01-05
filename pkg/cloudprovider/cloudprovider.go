@@ -82,7 +82,7 @@ func New(ctx awscontext.Context) *CloudProvider {
 	}
 	instanceTypeProvider := NewInstanceTypeProvider(ctx, ctx.Session, ctx.EC2API, ctx.SubnetProvider, ctx.UnavailableOfferingsCache, ctx.StartAsync)
 	amiProvider := amifamily.NewAMIProvider(ctx.KubeClient, ctx.KubernetesInterface, ssm.New(ctx.Session), ctx.EC2API,
-		cache.New(awscache.TTL, awscache.CleanupInterval), cache.New(awscache.TTL, awscache.CleanupInterval), cache.New(awscache.TTL, awscache.CleanupInterval))
+		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
 	amiResolver := amifamily.New(ctx.KubeClient, amiProvider)
 	return &CloudProvider{
 		kubeClient:           ctx.KubeClient,
@@ -223,7 +223,7 @@ func (c *CloudProvider) Hydrate(ctx context.Context, machine *v1alpha5.Machine) 
 	if err != nil {
 		return fmt.Errorf("parsing instance id, %w", err)
 	}
-	instance, err := c.instanceProvider.Get(ctx, instanceID)
+	instance, err := c.instanceProvider.GetByID(ctx, instanceID)
 	if err != nil {
 		return fmt.Errorf("getting instance for instanceID '%s', %w", instanceID, err)
 	}

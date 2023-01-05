@@ -238,7 +238,7 @@ func (e *EC2API) DescribeInstancesWithContext(_ context.Context, input *ec2.Desc
 		instances = append(instances, instance.(*ec2.Instance))
 	}
 	result := &ec2.DescribeInstancesOutput{
-		Reservations: []*ec2.Reservation{{Instances: instances}},
+		Reservations: []*ec2.Reservation{{Instances: filterInstances(instances, input.Filters)}},
 	}
 	return e.DescribeInstancesBehavior.WithDefault(result).Invoke(input)
 }
@@ -250,6 +250,26 @@ func (e *EC2API) DescribeInstancesPagesWithContext(ctx context.Context, input *e
 	}
 	fn(output, false)
 	return nil
+}
+
+func filterInstances(instances []*ec2.Instance, filters []*ec2.Filter) []*ec2.Instance {
+	var ret []*ec2.Instance
+	for _, instance := range instances {
+		passesFilter := true
+		for _, filter := range filters {
+			switch aws.StringValue(filter.Name) {
+			case "instance-state-name":
+				if !sets.New(aws.StringValueSlice(filter.Values)...).Has(aws.StringValue(instance.State.Name)) {
+					passesFilter = false
+					break
+				}
+			}
+		}
+		if passesFilter {
+			ret = append(ret, instance)
+		}
+	}
+	return ret
 }
 
 func (e *EC2API) DescribeImagesWithContext(_ context.Context, input *ec2.DescribeImagesInput, _ ...request.Option) (*ec2.DescribeImagesOutput, error) {

@@ -18,10 +18,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/rand"
 	"knative.dev/pkg/logging"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -29,11 +29,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/aws/karpenter/pkg/cloudprovider"
+
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	corecloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
 	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
 	machineutil "github.com/aws/karpenter-core/pkg/utils/machine"
-	"github.com/aws/karpenter/pkg/cloudprovider"
 )
 
 type Controller struct {
@@ -63,7 +64,7 @@ func (c *Controller) Reconcile(ctx context.Context, node *v1.Node) (reconcile.Re
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("provider-id", node.Spec.ProviderID, "provisioner", provisionerName))
 	machineList := &v1alpha5.MachineList{}
 	if err := c.kubeClient.List(ctx, machineList, client.Limit(1), client.MatchingFields{"status.providerID": node.Spec.ProviderID}); err != nil {
-		return reconcile.Result{}, fmt.Errorf("listing machines, %w", err)
+		return reconcile.Result{}, err
 	}
 	if len(machineList.Items) > 0 {
 		return reconcile.Result{}, nil
@@ -73,7 +74,7 @@ func (c *Controller) Reconcile(ctx context.Context, node *v1.Node) (reconcile.Re
 		if errors.IsNotFound(err) {
 			return reconcile.Result{}, nil
 		}
-		return reconcile.Result{}, fmt.Errorf("getting provisioner, %w", err)
+		return reconcile.Result{}, err
 	}
 	if err := c.hydrate(ctx, node, provisioner); err != nil {
 		return reconcile.Result{}, fmt.Errorf("hydrating machine from node, %w", err)
@@ -83,10 +84,9 @@ func (c *Controller) Reconcile(ctx context.Context, node *v1.Node) (reconcile.Re
 
 func (c *Controller) hydrate(ctx context.Context, node *v1.Node, provisioner *v1alpha5.Provisioner) error {
 	machine := machineutil.New(node, provisioner)
-	machine.Name = MachineNameGenerator.GenerateName(provisioner.Name + "-") // so we know the name before creation
-	machine.Labels = lo.Assign(machine.Labels, map[string]string{
-		v1alpha5.MachineNameLabelKey: machine.Name,
-	})
+	machine.Name = GenerateName(fmt.Sprintf("%s-", provisioner.Name))
+	machine.Spec.StartupTaints = nil // Assume that startupTaints are nil so that they won't be re-applied to the node
+
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("machine", machine.Name))
 
 	// Hydrates the machine with the correct values if the instance exists at the cloudprovider
@@ -100,7 +100,7 @@ func (c *Controller) hydrate(ctx context.Context, node *v1.Node, provisioner *v1
 		if errors.IsAlreadyExists(err) {
 			return nil
 		}
-		return fmt.Errorf("creating hydrated machine from node, %w", err)
+		return err
 	}
 	logging.FromContext(ctx).Debugf("hydrated machine from node")
 	return nil
@@ -111,4 +111,15 @@ func (c *Controller) Builder(_ context.Context, m manager.Manager) corecontrolle
 		NewControllerManagedBy(m).
 		For(&v1.Node{}).
 		WithOptions(controller.Options{MaxConcurrentReconciles: 10}))
+}
+
+// GenerateName generates a Machine name with the passed base prefix, appended with a random alphanumeric string
+func GenerateName(base string) string {
+	const maxNameLength = 63
+	const randomLength = 15
+
+	if len(base) > (maxNameLength - randomLength) {
+		base = base[:(maxNameLength - randomLength)]
+	}
+	return fmt.Sprintf("%s%s", base, rand.String(randomLength))
 }

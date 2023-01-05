@@ -21,12 +21,14 @@ import (
 	"time"
 
 	"github.com/Pallinder/go-randomdata"
+	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
+
+	. "github.com/aws/karpenter-core/pkg/test/expectations"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/patrickmn/go-cache"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	clock "k8s.io/utils/clock/testing"
@@ -61,7 +63,6 @@ import (
 	"github.com/aws/karpenter-core/pkg/operator/options"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	coretest "github.com/aws/karpenter-core/pkg/test"
-	. "github.com/aws/karpenter-core/pkg/test/expectations"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
 
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
@@ -108,12 +109,12 @@ var _ = BeforeSuite(func() {
 	ctx = settings.ToContext(ctx, test.Settings())
 	ctx, stop = context.WithCancel(ctx)
 
-	launchTemplateCache = cache.New(awscache.TTL, awscache.CleanupInterval)
+	launchTemplateCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	unavailableOfferingsCache = awscache.NewUnavailableOfferings()
-	ssmCache = cache.New(awscache.TTL, awscache.CleanupInterval)
-	ec2Cache = cache.New(awscache.TTL, awscache.CleanupInterval)
-	kubernetesVersionCache = cache.New(awscache.TTL, awscache.CleanupInterval)
-	instanceTypeCache = cache.New(InstanceTypesAndZonesCacheTTL, awscache.CleanupInterval)
+	ssmCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	ec2Cache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	kubernetesVersionCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	instanceTypeCache = cache.New(awscache.InstanceTypesAndZonesTTL, awscache.DefaultCleanupInterval)
 	fakeEC2API = &fake.EC2API{}
 	fakeSSMAPI = &fake.SSMAPI{}
 	fakePricingAPI = &fake.PricingAPI{}

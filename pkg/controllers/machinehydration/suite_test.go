@@ -16,6 +16,7 @@ package machinehydration_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -112,6 +113,13 @@ var _ = Describe("MachineHydration", func() {
 					APIVersion: v1alpha5.TestingGroup + "v1alpha1",
 					Kind:       "NodeTemplate",
 					Name:       "default",
+				},
+				Taints: []v1.Taint{
+					{
+						Key:    "testkey",
+						Value:  "testvalue",
+						Effect: v1.TaintEffectNoSchedule,
+					},
 				},
 			})
 			node := coretest.Node(coretest.NodeOptions{
@@ -270,7 +278,64 @@ var _ = Describe("MachineHydration", func() {
 			Expect(lo.FromPtr(machine.Spec.Kubelet.ContainerRuntime)).To(Equal("containerd"))
 			Expect(lo.FromPtr(machine.Spec.Kubelet.MaxPods)).To(BeNumerically("==", 10))
 		})
-		It("should hydrate many machines from many nodes", func() {
+		It("should not hydrate startupTaints into the machine (to ensure they don't get re-applied)", func() {
+			provisioner := coretest.Provisioner(coretest.ProvisionerOptions{
+				ProviderRef: &v1alpha5.ProviderRef{
+					APIVersion: v1alpha5.TestingGroup + "v1alpha1",
+					Kind:       "NodeTemplate",
+					Name:       "default",
+				},
+				StartupTaints: []v1.Taint{
+					{
+						Key:    "test-taint",
+						Effect: v1.TaintEffectNoExecute,
+						Value:  "test-value",
+					},
+					{
+						Key:    "test-taint2",
+						Effect: v1.TaintEffectNoSchedule,
+						Value:  "test-value2",
+					},
+				},
+			})
+			node := coretest.Node(coretest.NodeOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+						v1alpha5.LabelNodeInitialized:    "true",
+					},
+				},
+				ProviderID: fake.RandomProviderID(),
+				Allocatable: v1.ResourceList{
+					v1.ResourceCPU:              resource.MustParse("1"),
+					v1.ResourceMemory:           resource.MustParse("1Mi"),
+					v1.ResourceEphemeralStorage: resource.MustParse("1Gi"),
+				},
+				Capacity: v1.ResourceList{
+					v1.ResourceCPU:              resource.MustParse("2"),
+					v1.ResourceMemory:           resource.MustParse("2Mi"),
+					v1.ResourceEphemeralStorage: resource.MustParse("2Gi"),
+				},
+			})
+
+			ExpectApplied(ctx, env.Client, provisioner, node)
+			ExpectReconcileSucceeded(ctx, hydrationController, client.ObjectKeyFromObject(node))
+
+			machineList := &v1alpha5.MachineList{}
+			Expect(env.Client.List(ctx, machineList)).To(Succeed())
+			Expect(machineList.Items).To(HaveLen(1))
+			machine := machineList.Items[0]
+
+			// Expect machine to have populated fields from the node
+			Expect(machine.Spec.StartupTaints).To(HaveLen(0))
+
+			// Expect that the instance is tagged with the machine-name and cluster-name tags
+			instance := ExpectInstanceExists(ec2API, instanceID)
+			tag := ExpectMachineTagExists(instance)
+			Expect(aws.StringValue(tag.Value)).To(Equal(machine.Name))
+			ExpectClusterTagExists(ctx, instance)
+		})
+		It("should hydrate from node for many machines from many nodes", func() {
 			provisioner := coretest.Provisioner(coretest.ProvisionerOptions{
 				ProviderRef: &v1alpha5.ProviderRef{
 					APIVersion: v1alpha5.TestingGroup + "v1alpha1",
@@ -441,3 +506,25 @@ var _ = Describe("MachineHydration", func() {
 		})
 	})
 })
+
+func ExpectInstanceExists(api *fake.EC2API, instanceID string) *ec2.Instance {
+	raw, ok := api.Instances.Load(instanceID)
+	Expect(ok).To(BeTrue())
+	return raw.(*ec2.Instance)
+}
+
+func ExpectMachineTagExists(instance *ec2.Instance) *ec2.Tag {
+	tag, ok := lo.Find(instance.Tags, func(t *ec2.Tag) bool {
+		return aws.StringValue(t.Key) == v1alpha5.MachineNameLabelKey
+	})
+	Expect(ok).To(BeTrue())
+	return tag
+}
+
+func ExpectClusterTagExists(ctx context.Context, instance *ec2.Instance) *ec2.Tag {
+	tag, ok := lo.Find(instance.Tags, func(t *ec2.Tag) bool {
+		return aws.StringValue(t.Key) == fmt.Sprintf("kubernetes.io/cluster/%s", settings.FromContext(ctx).ClusterName)
+	})
+	Expect(ok).To(BeTrue())
+	return tag
+}
