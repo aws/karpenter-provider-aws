@@ -65,7 +65,7 @@ func tknArgs(message *notificationMessage, pipelineName, testFilter string) []st
 		prefixFirstPart = strings.ToLower(testFilter)
 	}
 
-	prefixSecondPart := shortenedGitSHA(message.ReleaseIdentifier)
+	prefixSecondPart := strings.ReplaceAll(shortenedGitSHA(message.ReleaseIdentifier), ".", "-")
 	gitRef := message.ReleaseIdentifier
 	if message.PrNumber != noPrNumber {
 		prefixSecondPart = fmt.Sprintf("pr-%s", message.PrNumber)
