@@ -69,18 +69,7 @@ spec:
       - input: $(tasks.status)
         operator: in
         values: [ "Failed" ]
-  - name: cleanup
-    taskRef:
-      name: cleanup
-    params:
-    - name: cluster-name
-      value: $(params.cluster-name)
-    when:
-    - input: $(params.cleanup)
-      operator: in
-      values:
-        - "true"
-  - name: notify-build-failure
+  - name: notify-test-failure
     when:
       - input: $(tasks.status)
         operator: in
@@ -92,7 +81,7 @@ spec:
       value: slack-webhook-secret
     - name: message
       value: ":x: $(context.pipelineRun.name) has failed"
-  - name: notify-build-success
+  - name: notify-test-success
     when:
       - input: $(tasks.status)
         operator: in
@@ -104,3 +93,26 @@ spec:
         value: slack-webhook-secret
       - name: message
         value: ":white_check_mark: $(context.pipelineRun.name) has succeeded"
+  - name: cleanup
+    taskRef:
+      name: cleanup
+    params:
+      - name: cluster-name
+        value: $(params.cluster-name)
+    when:
+      - input: $(params.cleanup)
+        operator: in
+        values:
+          - "true"
+  - name: notify-cleanup-failure
+    when:
+      - input: $(tasks.status)
+        operator: in
+        values: ["Failed"]
+    taskRef:
+      name: notify-slack
+    params:
+      - name: webhook-secret
+        value: slack-webhook-secret
+      - name: message
+        value: ":x: $(context.pipelineRun.name) cleanup has failed"
