@@ -74,7 +74,7 @@ spec:
     - name: webhook-secret
       value: slack-webhook-secret
     - name: message
-      value: ":x:  <http://localhost:9097/#/namespaces/karpenter-tests/pipelineruns/$(context.pipelineRun.name)|$(context.pipelineRun.name)> has failed."
+      value: ":x: $(context.pipelineRun.name) tests failed"
   - name: notify-test-success
     when:
       - input: $(tasks.status)
@@ -86,7 +86,7 @@ spec:
       - name: webhook-secret
         value: slack-webhook-secret
       - name: message
-        value: ":white_check_mark: $(context.pipelineRun.name) has succeeded"
+        value: ":white_check_mark: $(context.pipelineRun.name) tests passed"
   - name: cleanup
     taskRef:
       name: cleanup
@@ -109,4 +109,4 @@ spec:
       - name: webhook-secret
         value: slack-webhook-secret
       - name: message
-        value: ":x: $(context.pipelineRun.name) cleanup has failed"
+        value: ":x: $(context.pipelineRun.name) cleanup failed"
