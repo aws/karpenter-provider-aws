@@ -55,7 +55,7 @@ spec:
       script: |
         aws iam create-service-linked-role --aws-service-name spot.amazonaws.com || true
         aws cloudformation deploy \
-          --stack-name KarpenterIAM-$(params.cluster-name) \
+          --stack-name IAM-$(params.cluster-name) \
           --template-file website/content/en/preview/getting-started/getting-started-with-eksctl/cloudformation.yaml \
           --capabilities CAPABILITY_NAMED_IAM \
           --parameter-overrides "ClusterName=$(params.cluster-name)"
