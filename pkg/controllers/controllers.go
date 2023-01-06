@@ -21,10 +21,11 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/controllers/drift"
 
-	"github.com/aws/karpenter-core/pkg/operator/controller"
 	awscontext "github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/controllers/interruption"
 	"github.com/aws/karpenter/pkg/utils/project"
+
+	"github.com/aws/karpenter-core/pkg/operator/controller"
 )
 
 func NewControllers(ctx awscontext.Context, cloudProvider *cloudprovider.CloudProvider) []controller.Controller {

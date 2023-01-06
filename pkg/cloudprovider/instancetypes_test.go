@@ -30,9 +30,10 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/ptr"
 
+	"github.com/aws/karpenter/pkg/test"
+
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/scheduling"
-	"github.com/aws/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	coretest "github.com/aws/karpenter-core/pkg/test"

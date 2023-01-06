@@ -37,7 +37,6 @@ import (
 	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
 
-	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/apis"
 	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
@@ -46,10 +45,14 @@ import (
 	awscontext "github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/test"
 
+	"github.com/aws/karpenter-core/pkg/cloudprovider"
+
 	"github.com/aws/karpenter-core/pkg/operator/controller"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ssm"
+
+	"github.com/aws/karpenter/pkg/fake"
 
 	"github.com/aws/karpenter-core/pkg/apis/config/settings"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
@@ -62,7 +65,6 @@ import (
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
 	machineutil "github.com/aws/karpenter-core/pkg/utils/machine"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
-	"github.com/aws/karpenter/pkg/fake"
 
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
 	"github.com/aws/karpenter/pkg/providers/subnet"
@@ -158,7 +160,7 @@ var _ = BeforeSuite(func() {
 		kubeClient:           env.Client,
 	}
 	fakeClock = clock.NewFakeClock(time.Now())
-	cluster = state.NewCluster(ctx, fakeClock, env.Client, cloudProvider)
+	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
 	recorder = coretest.NewEventRecorder()
 	prov = provisioning.NewProvisioner(ctx, env.Client, env.KubernetesInterface.CoreV1(), recorder, cloudProvider, cluster)
 	provisioningController = provisioning.NewController(env.Client, prov, recorder)
@@ -205,6 +207,7 @@ var _ = BeforeEach(func() {
 		},
 	})
 
+	cluster.Reset()
 	recorder.Reset()
 	fakeEC2API.Reset()
 	fakeSSMAPI.Reset()
