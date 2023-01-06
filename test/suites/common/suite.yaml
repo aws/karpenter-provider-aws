@@ -74,7 +74,7 @@ spec:
     - name: webhook-secret
       value: slack-webhook-secret
     - name: message
-      value: ":x: $(context.pipelineRun.name) has failed"
+      value: ":x:  <http://localhost:9097/#/namespaces/karpenter-tests/pipelineruns/$(context.pipelineRun.name)|$(context.pipelineRun.name)> has failed."
   - name: notify-test-success
     when:
       - input: $(tasks.status)
