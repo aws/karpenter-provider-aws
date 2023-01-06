@@ -42,7 +42,7 @@ data:
      apiVersion: tekton.dev/v1beta1
      kind: PipelineRun
      metadata:
-       generateName: "$(echo ${suite} | tr '[:upper:]' '[:lower:]')-"
+       generateName: "$(echo ${suite} | tr '[:upper:]' '[:lower:]')-periodic-"
        namespace: karpenter-tests
      spec:
        params:
@@ -58,26 +58,26 @@ data:
      apiVersion: tekton.dev/v1beta1
      kind: PipelineRun
      metadata:
-       generateName: "upgrade-suite"
+       generateName: "upgrade-periodic-"
        namespace: karpenter-tests
      spec:
        pipelineRef:
          name: upgrade
        serviceAccountName: karpenter-tests
     EOF
-    echo "CREATED PIPELINE RUN for upgrade-suite"
+    echo "CREATED PIPELINE RUN for upgrade-periodic"
     cat <<EOF | kubectl create -f -
      apiVersion: tekton.dev/v1beta1
      kind: PipelineRun
      metadata:
-       generateName: "ipv6-suite"
+       generateName: "ipv6-periodic-"
        namespace: karpenter-tests
      spec:
        pipelineRef:
          name: ipv6
        serviceAccountName: karpenter-tests
     EOF
-    echo "CREATED PIPELINE RUN for ipv6-suite"
+    echo "CREATED PIPELINE RUN for ipv6-periodic"
 ---
 apiVersion: batch/v1
 kind: CronJob
