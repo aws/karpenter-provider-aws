@@ -433,6 +433,14 @@ To correct the problem if it occurs, you can use the approach that AWS EBS uses,
 ]
 ```
 
+### Node is not deleted, even though `ttlSecondsUntilExpired` is set or the node is empty
+
+This typically occurs when the node has not been considered fully initialized for some reason.  If you look at the logs, you may see something related to an `Inflight check failed for node...` that gives more information about why the node is not considered initialized.
+
+### Log message of `inflight check failed for node, Expected resource "vpc.amazonaws.com/pod-eni" didn't register on the node` is reported
+
+This error indicates that the `vpc.amazonaws.com/pod-eni` resource was never reported on the node. If you've enabled Pod ENI for Karpenter nodes via the `aws.enablePodENI` setting, you will need to make the corresponding change to the VPC CNI to enable [security groups for pods](https://docs.aws.amazon.com/eks/latest/userguide/security-groups-for-pods.html) which will cause the resource to be registered.
+
 ## Pricing
 
 ### Stale pricing data on isolated subnet
