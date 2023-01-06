@@ -16,9 +16,10 @@ package listener
 
 import (
 	"fmt"
-	"github.com/aws/aws-sdk-go/service/sqs"
 	"strings"
 	"testing"
+
+	"github.com/aws/aws-sdk-go/service/sqs"
 )
 
 func TestTknArgs(t *testing.T) {
@@ -53,10 +54,7 @@ func TestTknArgs(t *testing.T) {
 	}
 
 	for i, test := range tests {
-		args, err := tknArgs(test.msg, test.pipelineName, test.testFilter)
-		if err != nil {
-			t.Fatalf("test #%d unexpected error. %s", i, err)
-		}
+		args := tknArgs(test.msg, test.pipelineName, test.testFilter)
 		argsStr := fmt.Sprintf("%v", args)
 		for _, want := range test.wantArgsToContain {
 			if !strings.Contains(argsStr, want) {

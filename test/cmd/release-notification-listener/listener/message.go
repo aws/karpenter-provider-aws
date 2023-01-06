@@ -31,9 +31,9 @@ const (
 )
 
 type notificationMessage struct {
-	ReleaseType       string `json:releaseType, string`
-	ReleaseIdentifier string `json:releaseIdentifier, string`
-	PrNumber          string `json:prNumber, string`
+	ReleaseType       string `json:"releaseType"`
+	ReleaseIdentifier string `json:"releaseIdentifier"`
+	PrNumber          string `json:"prNumber"`
 }
 
 var (
@@ -65,11 +65,7 @@ func processMessage(queueMessage *sqs.Message, config *config) {
 }
 
 func runTektonCommand(notificationMessage *notificationMessage, pipeline string, filter string) {
-	tknArgs, err := tknArgs(notificationMessage, pipeline, filter)
-	if err != nil {
-		log.Fatalf("failed getting tekton args on message. %s", err)
-	}
-
+	tknArgs := tknArgs(notificationMessage, pipeline, filter)
 	if err := runTests(notificationMessage, tknArgs...); err != nil {
 		log.Printf("failed running pipeline %s tests on message. %s", pipeline, err)
 	}
@@ -79,7 +75,7 @@ func newNotificationMessage(msg *sqs.Message) (*notificationMessage, error) {
 	var queueMessage *notificationMessage
 	err := json.Unmarshal([]byte(*msg.Body), &queueMessage)
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal json. %s", err)
+		return nil, fmt.Errorf("failed to unmarshal json. %w", err)
 	}
 	if queueMessage.PrNumber == "" {
 		queueMessage.PrNumber = noPrNumber
@@ -135,7 +131,7 @@ func deleteMessage(config *config, msg *sqs.Message) error {
 func cmdPath(cmd string) (string, error) {
 	cmdPath, err := exec.LookPath(cmd)
 	if err != nil {
-		return "", fmt.Errorf("failed finding the path to %s. %s", cmd, err)
+		return "", fmt.Errorf("failed finding the path to %s. %w", cmd, err)
 	}
 	return cmdPath, nil
 }

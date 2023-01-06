@@ -46,7 +46,7 @@ func runTests(message *notificationMessage, args ...string) error {
 	cmd := exec.Command(tektonCLICommandPath, args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("failed to execute the tkn command. %s. %s", output, err)
+		return fmt.Errorf("failed to execute the tkn command. %s. %w", output, err)
 	}
 	log.Printf("tkn start pipeline command output: %s", output)
 	return nil
@@ -59,7 +59,7 @@ func shortenedGitSHA(identifier string) string {
 	return identifier
 }
 
-func tknArgs(message *notificationMessage, pipelineName, testFilter string) ([]string, error) {
+func tknArgs(message *notificationMessage, pipelineName, testFilter string) []string {
 	prefixFirstPart := strings.ToLower(pipelineName)
 	if testFilter != "" {
 		prefixFirstPart = strings.ToLower(testFilter)
@@ -96,7 +96,7 @@ func tknArgs(message *notificationMessage, pipelineName, testFilter string) ([]s
 		args = append(args, param)
 	}
 
-	return args, nil
+	return args
 }
 
 func authenticateEKS(config *config) error {
@@ -111,7 +111,7 @@ func authenticateEKS(config *config) error {
 	cmd := exec.Command(awsCLICommandPath, args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("failed to execute the aws command. %s. %s", output, err)
+		return fmt.Errorf("failed to execute the aws command. %s. %w", output, err)
 	}
 	log.Printf("aws output with args %v. %s", args, output)
 	return nil

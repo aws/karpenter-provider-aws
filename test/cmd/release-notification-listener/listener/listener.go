@@ -35,21 +35,18 @@ type config struct {
 
 // Start configures clients and starts listening for messages containing release notifications
 func Start() {
-	config, err := getConfig()
-	if err != nil {
-		log.Fatalf("failed to configure. %s", err)
-	}
+	config := getConfig()
 	log.Printf("config values: %#v", config)
 
 	getSession(config)
 	pollMessages(config)
 }
 
-func getConfig() (*config, error) {
+func getConfig() *config {
 	return &config{
 		queueURL:          os.Getenv(envVarQueueURL),
 		queueRegion:       os.Getenv(envVarQueueAWSRegion),
 		region:            os.Getenv(envVarAWSRegion),
 		tektonClusterName: os.Getenv(envVarTektonClusterName),
-	}, nil
+	}
 }
