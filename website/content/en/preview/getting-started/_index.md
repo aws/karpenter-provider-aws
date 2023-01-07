@@ -45,23 +45,10 @@ If you have not already configured Karpenter when you set up your Kubernetes clu
 
 To add Karpenter to your cluster, you need to create IAM roles, add tags to subnets and security groups, and update the aws-auth ConfigMap.
 
-### Create IAM roles
+### Create IAM role
 
-To get started, create two new IAM roles for nodes provisioned with Karpenter and the Karpenter controller.
+To get started, create a new IAM role for the Karpenter controller
 
-To create the Karpenter node role, use the following policy and commands:
-
-{{% script file="./scripts/step01-node-iam.sh" language="bash" %}}
-
-Now attach the required policies to the role:
-
-{{% script file="./scripts/step02-node-policies.sh" language="bash" %}}
-
-Attach the IAM role to an EC2 instance profile:
-
-{{% script file="./scripts/step03-instance-profile.sh" language="bash" %}}
-
-Next create an IAM role that the Karpenter controller will use to provision new instances.
 The controller will be using [IAM Roles for Service Accounts (IRSA)](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html) which requires an OIDC endpoint.
 
 If you have another option for using IAM credentials with workloads (e.g. [kube2iam](https://github.com/jtblin/kube2iam)) your steps will be different.
@@ -92,30 +79,12 @@ If you have multiple nodegroups or multiple security groups you will need to dec
 
 {{% script file="./scripts/step07-tag-security-groups.sh" language="bash" %}}
 
-### Update aws-auth ConfigMap
-
-You need to allow nodes that are using the node IAM role you just created to join the cluster.
-To do that you have to modify the `aws-auth` ConfigMap in the cluster.
-
-{{% script file="./scripts/step08-edit-aws-auth.sh" language="bash" %}}
-
-You will need to add a section to the mapRoles that looks something like this.
-Replace the `${AWS_ACCOUNT_ID}` variable with your account, but do not replace the `{{EC2PrivateDNSName}}`.
-```
-    - groups:
-      - system:bootstrappers
-      - system:nodes
-      rolearn: arn:aws:iam::${AWS_ACCOUNT_ID}:role/KarpenterInstanceNodeRole
-      username: system:node:{{EC2PrivateDNSName}}
-```
-
-The full aws-auth configmap should have two groups: One for your Karpenter node role and one for your existing node group.
-
 ### Deploy Karpenter
 
-First set the Karpenter release you want to deploy.
+First set the Karpenter release you want to deploy and the IAM instance profile that is used by the existing nodes in your cluster.
 ```bash
 export KARPENTER_VERSION={{< param "latest_release_version" >}}
+export IAM_INSTANCE_PROFILE_NAME=<your instance profile name>
 ```
 
 We can now generate a full Karpenter deployment yaml from the helm chart.
