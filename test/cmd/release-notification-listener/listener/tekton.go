@@ -24,12 +24,15 @@ import (
 const (
 	gitSHAMaxLength = 7
 	noPrNumber      = "none"
+
+	pipelineSuite = "suite"
+	pipelineIPv6  = "ipv6"
 )
 
 var (
 	tektonCLICommandPath string
 	pipelinesAndFilters  = map[string][]string{
-		"suite": []string{
+		pipelineSuite: []string{
 			"Integration",
 			"Consolidation",
 			"Utilization",
@@ -37,7 +40,7 @@ var (
 			"Chaos",
 			"Drift",
 		},
-		"ipv6": []string{},
+		pipelineIPv6: []string{},
 	}
 )
 
@@ -89,6 +92,11 @@ func tknArgs(message *notificationMessage, pipelineName, testFilter string) []st
 		"git-ref=" + gitRef,
 		"test-filter=" + testFilter,
 		"cleanup=true",
+	}
+
+	switch pipelineName {
+	case "ipv6":
+		testRunParams = append(testRunParams, "ip-family=IPv6")
 	}
 
 	for _, param := range testRunParams {
