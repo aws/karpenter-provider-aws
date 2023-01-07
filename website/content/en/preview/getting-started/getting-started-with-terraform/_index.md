@@ -140,6 +140,10 @@ module "eks" {
   subnet_ids = module.vpc.private_subnets
   # Required for Karpenter role below
   enable_irsa = true
+  
+  # 8443/tcp ingress from the control plane is included in the 
+  # recommended rules which is required by Karpenter
+  node_security_group_enable_recommended_rules = true
 
   tags = {
     # NOTE - if creating multiple security groups with this module, only tag the
