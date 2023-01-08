@@ -62,7 +62,7 @@ func main() {
 			operator.Clock,
 			operator.GetClient(),
 			operator.KubernetesInterface,
-			state.NewCluster(ctx, operator.Clock, operator.GetClient(), cloudProvider),
+			state.NewCluster(operator.Clock, operator.GetClient(), cloudProvider),
 			operator.EventRecorder,
 			operator.SettingsStore,
 			cloudProvider,

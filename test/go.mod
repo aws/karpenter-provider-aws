@@ -7,7 +7,7 @@ require (
 	github.com/aws/aws-sdk-go v1.44.154
 	github.com/aws/aws-sdk-go-v2/config v1.18.7
 	github.com/aws/karpenter v0.18.0
-	github.com/aws/karpenter-core v0.21.1-0.20230103220342-deed22037972
+	github.com/aws/karpenter-core v0.21.1-0.20230106175449-a4b051311ca7
 	github.com/onsi/ginkgo/v2 v2.6.1
 	github.com/onsi/gomega v1.24.2
 	github.com/samber/lo v1.37.0
@@ -79,7 +79,7 @@ require (
 	github.com/prometheus/procfs v0.8.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
-	go.uber.org/zap v1.23.0 // indirect
+	go.uber.org/zap v1.24.0 // indirect
 	golang.org/x/crypto v0.0.0-20220315160706-3147a52a75dd // indirect
 	golang.org/x/exp v0.0.0-20220303212507-bbda1eaf7a17 // indirect
 	golang.org/x/net v0.4.0 // indirect
