@@ -35,7 +35,7 @@ default values for them and will not terminate nodes for that purpose.
 example, if a cluster brings up all nodes at once, all the pods on those nodes would fall into
 the same batching window on expiration.
 
-- Pods without an ownerRef (also called "controllerless" or "naked" pods) will be evicted during voluntary node disruption, such as expiration or consolidation. A pod with the annotation `karpenter.sh/do-not-evict: true` will cause its node to be opted out from voluntary node disruption workflows.
+- Pods without an ownerRef (also called "controllerless" or "naked" pods) will be evicted during voluntary node disruption, such as expiration or consolidation. A pod with the annotation `karpenter.sh/do-not-evict: "true"` will cause its node to be opted out from voluntary node disruption workflows.
 
 - Using preferred anti-affinity and topology spreads can reduce the effectiveness of consolidation. At node launch, Karpenter attempts to satisfy affinity and topology spread preferences. In order to reduce node churn, consolidation must also attempt to satisfy these constraints to avoid immediately consolidating nodes after they launch. This means that consolidation may not deprovision nodes in order to avoid violating preferences, even if kube-scheduler can fit the host pods elsewhere.  Karpenter reports these pods via logging to bring awareness to the possible issues they can cause (e.g. `pod default/inflate-anti-self-55894c5d8b-522jd has a preferred Anti-Affinity which can prevent consolidation`).
 
@@ -113,7 +113,7 @@ When Karpenter detects one of these events will occur to your nodes, it automati
 Karpenter publishes Kubernetes events to the node for all events listed above in addition to __Spot Rebalance Recommendations__. Karpenter does not currently support cordon, drain, and terminate logic for Spot Rebalance Recommendations.
 {{% /alert %}}
 
-Karpenter enables this feature by watching an SQS queue which receives critical events from AWS services which may affect your nodes. Karpenter requires that an SQS queue be provisioned and EventBridge rules and targets be added that forward interruption events from AWS services to the SQS queue. Karpenter provides details for provisioning this infrastructure in the [Cloudformation template in the Getting Started Guide](../../getting-started/getting-started-with-eksctl/#create-the-karpenter-infrastructure-and-iam-roles).
+Karpenter enables this feature by watching an SQS queue which receives critical events from AWS services which may affect your nodes. Karpenter requires that an SQS queue be provisioned and EventBridge rules and targets be added that forward interruption events from AWS services to the SQS queue. Karpenter provides details for provisioning this infrastructure in the [CloudFormation template in the Getting Started Guide](../../getting-started/getting-started-with-eksctl/#create-the-karpenter-infrastructure-and-iam-roles).
 
 To enable the interruption handling feature flag, configure the `karpenter-global-settings` ConfigMap with the following value mapped to the name of the interruption queue that handles interruption events.
 
@@ -145,8 +145,8 @@ To enable the drift feature flag, refer to the [Settings Feature Gates]({{<ref "
 
 ### Pod Eviction
 
-Pods can be opted out of eviction by setting the annotation `karpenter.sh/do-not-evict` on the pod. This is useful for pods that you want to run from start to finish without interruption.
-Examples might include a real-time, interactive game that you don't want to interrupt or a long batch job (such as you might have with machine learning) that would need to start over if it were interrupted.
+Pods can be opted out of eviction by setting the annotation `karpenter.sh/do-not-evict: "true"` on the pod. This is useful for pods that you want to run from start to finish without interruption.
+Examples might include a real-time, interactive game that you don't want to interrupt, or a long batch job (such as you might have with machine learning) that would need to start over if it were interrupted.
 
 ```yaml
 apiVersion: apps/v1
@@ -154,11 +154,14 @@ kind: Deployment
 spec:
   template:
     metadata:
-      labels:
-        karpenter.sh/do-not-evict: ""
+      annotations:
+        karpenter.sh/do-not-evict: "true"
 ```
 
 By opting pods out of eviction, you are telling Karpenter that it should not voluntarily remove nodes containing this pod.
+
+However, if a do-not-evict pod is added to a node while the node is draining, the remaining pods will still evict, but that pod will block termination until it is removed.
+In either case, the node will be cordoned to prevent additional work from scheduling.
 
 Examples of voluntary node removal that will be prevented by this annotation include:
 - [Consolidation]({{<ref "#consolidation" >}})
@@ -174,19 +177,19 @@ This annotation will have no effect for static pods, pods that tolerate `NoSched
 
 ### Node Consolidation
 
-Nodes can be opted out of consolidation deprovisioning by setting the annotation `karpenter.sh/do-not-consolidate` on the node.
+Nodes can be opted out of consolidation deprovisioning by setting the annotation `karpenter.sh/do-not-consolidate: "true"` on the node.
 
 ```yaml
 apiVersion: karpenter.sh/v1alpha5
 kind: Node
 metadata:
   annotations:
-    karpenter.sh/do-not-consolidate: ""
+    karpenter.sh/do-not-consolidate: "true"
 ```
 
 #### Example: Disable Consolidation on Provisioner
 
-Provisioner `.spec.annotations` allow you to set annotations that will be applied to all nodes launched by this provisioner. By setting the annotation `karpenter.sh/do-not-consolidate` on the provisioner, you will selectively prevent all nodes launched by this Provisioner from being considered in consolidation calculations.
+Provisioner `.spec.annotations` allow you to set annotations that will be applied to all nodes launched by this provisioner. By setting the annotation `karpenter.sh/do-not-consolidate: "true"` on the provisioner, you will selectively prevent all nodes launched by this Provisioner from being considered in consolidation calculations.
 
 ```yaml
 apiVersion: karpenter.sh/v1alpha5
