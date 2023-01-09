@@ -16,6 +16,7 @@ package listener
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os/exec"
@@ -26,8 +27,13 @@ import (
 )
 
 const (
-	maxNumberOfMessages = 1
-	visibilityTimeOutS  = 60 * 60 * 3
+	maxNumberOfMessages               = 1
+	maxNotificationMessageParamLength = 40 // Length of a git SHA
+	visibilityTimeOutS                = 60
+
+	releaseTypeStable   = "stable"
+	releaseTypeSnapshot = "snapshot"
+	releaseTypePeriodic = "periodic"
 )
 
 type notificationMessage struct {
@@ -39,6 +45,11 @@ type notificationMessage struct {
 var (
 	sqsSvc            *sqs.SQS
 	awsCLICommandPath string
+	validReleaseTypes = map[string]struct{}{
+		releaseTypeStable:   {},
+		releaseTypeSnapshot: {},
+		releaseTypePeriodic: {},
+	}
 )
 
 func processMessage(queueMessage *sqs.Message, config *config) {
@@ -73,14 +84,31 @@ func runTektonCommand(notificationMessage *notificationMessage, pipeline string,
 
 func newNotificationMessage(msg *sqs.Message) (*notificationMessage, error) {
 	var queueMessage *notificationMessage
-	err := json.Unmarshal([]byte(*msg.Body), &queueMessage)
-	if err != nil {
+	if err := json.Unmarshal([]byte(*msg.Body), &queueMessage); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal json. %w", err)
 	}
+
+	if err := queueMessage.validate(); err != nil {
+		return nil, fmt.Errorf("invalid message. %w", err)
+	}
+
 	if queueMessage.PrNumber == "" {
 		queueMessage.PrNumber = noPrNumber
 	}
 	return queueMessage, nil
+}
+
+func (n *notificationMessage) validate() error {
+	if len(n.ReleaseIdentifier) > maxNotificationMessageParamLength || len(n.ReleaseIdentifier) == 0 {
+		return errors.New("releaseIdentifier too long or empty")
+	}
+	if len(n.PrNumber) > maxNotificationMessageParamLength {
+		return errors.New("prNumber too long")
+	}
+	if _, ok := validReleaseTypes[n.ReleaseType]; !ok {
+		return fmt.Errorf("unknown release type %s", n.ReleaseType)
+	}
+	return nil
 }
 
 func getSession(config *config) {

@@ -32,7 +32,7 @@ const (
 var (
 	tektonCLICommandPath string
 	pipelinesAndFilters  = map[string][]string{
-		pipelineSuite: []string{
+		pipelineSuite: {
 			"Integration",
 			"Consolidation",
 			"Utilization",
@@ -40,7 +40,9 @@ var (
 			"Chaos",
 			"Drift",
 		},
-		pipelineIPv6: []string{},
+		pipelineIPv6: {
+			"IPv6",
+		},
 	}
 )
 
