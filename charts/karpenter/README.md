@@ -32,12 +32,15 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | additionalLabels | object | `{}` | Additional labels to add into metadata. |
 | affinity | object | `{"nodeAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":{"nodeSelectorTerms":[{"matchExpressions":[{"key":"karpenter.sh/provisioner-name","operator":"DoesNotExist"}]}]}}}` | Affinity rules for scheduling the pod. |
 | controller.env | list | `[]` | Additional environment variables for the controller pod. |
+| controller.errorOutputPaths | list | `["stderr"]` | Controller errorOutputPaths - default to stderr only |
 | controller.extraVolumeMounts | list | `[]` | Additional volumeMounts for the controller pod. |
 | controller.image | string | `"public.ecr.aws/karpenter/controller:v0.22.0@sha256:33580038c91ba11a88083ccf8f2848bee3f916e70d8bfd25f83f79b2a7a739f7"` | Controller image. |
 | controller.logEncoding | string | `""` | Controller log encoding, defaults to the global log encoding |
 | controller.logLevel | string | `""` | Controller log level, defaults to the global log level |
+| controller.outputPaths | list | `["stdout"]` | Controller outputPaths - default to stdout only |
 | controller.resources | object | `{"limits":{"cpu":1,"memory":"1Gi"},"requests":{"cpu":1,"memory":"1Gi"}}` | Resources for the controller pod. |
 | controller.securityContext | object | `{}` | SecurityContext for the controller container. |
+| controller.sidecarContainer | object | `{}` | Additional sideCarContainer config - this will also inherit volume mounts from deployment |
 | dnsConfig | object | `{}` | Configure DNS Config for the pod |
 | dnsPolicy | string | `"Default"` | Configure the DNS Policy for the pod |
 | extraVolumes | list | `[]` | Additional volumes for the pod. |

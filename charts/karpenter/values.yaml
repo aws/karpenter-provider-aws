@@ -108,6 +108,12 @@ controller:
     limits:
       cpu: 1
       memory: 1Gi
+  # -- Controller outputPaths - default to stdout only
+  outputPaths:
+   - stdout
+  # -- Controller errorOutputPaths - default to stderr only
+  errorOutputPaths:
+    - stderr
   # -- Controller log level, defaults to the global log level
   logLevel: ""
   # -- Controller log encoding, defaults to the global log encoding
@@ -117,6 +123,8 @@ controller:
   # - name: aws-iam-token
   #   mountPath: /var/run/secrets/eks.amazonaws.com/serviceaccount
   #   readOnly: true
+  # -- Additional sideCarContainer config - this will also inherit volume mounts from deployment
+  sidecarContainer: {}
 webhook:
   logLevel: error
   # -- The container port to use for the webhook.
