@@ -47,7 +47,7 @@ To add Karpenter to your cluster, you need to create IAM roles, add tags to subn
 
 ### Create IAM role
 
-To get started, create a new IAM role for the Karpenter controller
+To get started, create a new IAM role for the Karpenter controller.
 
 The controller will be using [IAM Roles for Service Accounts (IRSA)](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html) which requires an OIDC endpoint.
 
