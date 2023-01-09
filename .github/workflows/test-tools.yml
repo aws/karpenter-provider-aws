@@ -1,0 +1,23 @@
+name: PublishReleaseTestTools
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - test/cmd/release-notification-listener/**
+      - test/cmd/tools/**
+  schedule:
+    - cron: '0 13 * * MON'
+permissions:
+  id-token: write
+jobs:
+  test-tools:
+    if: github.repository == 'aws/karpenter'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/install-go-and-dependencies
+      - uses: ./.github/actions/authenticate-aws
+      - run: ./test/cmd/release-notification-listener/push-docker.sh
+      - run: ./test/cmd/tools/push-docker.sh
