@@ -10,7 +10,7 @@ on:
 permissions:
   id-token: write
 jobs:
-  publish-release-test-tools:
+  test-tools:
     if: github.repository == 'aws/karpenter'
     runs-on: ubuntu-latest
     steps:
