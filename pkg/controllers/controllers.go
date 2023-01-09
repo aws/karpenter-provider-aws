@@ -19,7 +19,6 @@ import (
 	"knative.dev/pkg/logging"
 
 	"github.com/aws/karpenter/pkg/cloudprovider"
-	"github.com/aws/karpenter/pkg/controllers/drift"
 
 	awscontext "github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/controllers/interruption"
@@ -32,6 +31,5 @@ func NewControllers(ctx awscontext.Context, cloudProvider *cloudprovider.CloudPr
 	logging.FromContext(ctx).With("version", project.Version).Debugf("discovered version")
 	return []controller.Controller{
 		interruption.NewController(ctx.KubeClient, ctx.Clock, ctx.EventRecorder, interruption.NewSQSProvider(sqs.New(ctx.Session)), ctx.UnavailableOfferingsCache),
-		drift.NewController(ctx.KubeClient, cloudProvider),
 	}
 }
