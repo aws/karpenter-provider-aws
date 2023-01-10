@@ -23,8 +23,13 @@ import (
 )
 
 func TestTknArgs(t *testing.T) {
-	emptyJSON := "{}"
-	msg, err := newNotificationMessage(&sqs.Message{Body: &emptyJSON})
+	basicJSON := "{}"
+	if _, err := newNotificationMessage(&sqs.Message{Body: &basicJSON}); err == nil {
+		t.Fatal("expected validation error")
+	}
+
+	basicJSON = `{"releaseType":"snapshot","releaseIdentifier":"abcd"}`
+	msg, err := newNotificationMessage(&sqs.Message{Body: &basicJSON})
 	if err != nil {
 		t.Fatalf("unexpected error. %s", err)
 	}
@@ -34,12 +39,11 @@ func TestTknArgs(t *testing.T) {
 	}
 	msg.ReleaseIdentifier = "abcd"
 
-	msg2, err := newNotificationMessage(&sqs.Message{Body: &emptyJSON})
+	msg2, err := newNotificationMessage(&sqs.Message{Body: &basicJSON})
 	if err != nil {
 		t.Fatalf("unexpected error. %s", err)
 	}
 	msg2.PrNumber = "123"
-	msg2.ReleaseIdentifier = "abcd"
 
 	var tests = []struct {
 		msg               *notificationMessage

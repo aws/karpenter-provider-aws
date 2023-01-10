@@ -61,7 +61,7 @@ spec:
       automountServiceAccountToken: true
       containers:
         - name: release-notification-listener
-          image: public.ecr.aws/karpenter-testing/release-notification-listener:latest
+          image: public.ecr.aws/karpenter/release-notification-listener:latest
           env:
             - name: QUEUE_URL
               value: "https://sqs.us-east-1.amazonaws.com/958073914028/ReleaseQueue"
