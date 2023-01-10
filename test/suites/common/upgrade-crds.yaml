@@ -15,7 +15,7 @@ spec:
     - name: ws
   steps:
   - name: upgrade-crds
-    image: public.ecr.aws/karpenter-testing/tools:latest
+    image: public.ecr.aws/karpenter/tools:latest
     script: |
       aws eks update-kubeconfig --name $(params.cluster-name)
       kubectl replace -f https://raw.githubusercontent.com/aws/karpenter/$(params.git-ref)/pkg/apis/crds/karpenter.sh_provisioners.yaml
