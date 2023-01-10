@@ -129,6 +129,7 @@ func checkEC2Connectivity(ctx context.Context, api *ec2.EC2) error {
 }
 
 // Create a node given the constraints.
+// TODO @joinnis: Migrate this Create call to return a *v1alpha5.Machine instead of a *v1.Node when machine migration is completed
 func (c *CloudProvider) Create(ctx context.Context, machine *v1alpha5.Machine) (*v1.Node, error) {
 	nodeTemplate, err := c.resolveNodeTemplate(ctx, []byte(machine.
 		Annotations[v1alpha5.ProviderCompatabilityAnnotationKey]), machine.
@@ -147,26 +148,37 @@ func (c *CloudProvider) Create(ctx context.Context, machine *v1alpha5.Machine) (
 	if err != nil {
 		return nil, fmt.Errorf("creating instance, %w", err)
 	}
-	// Resolves instance details into the machine
-	c.instanceIntoMachine(machine, instance, instanceTypes)
+	// Resolves instance details into a machine
+	_, err = c.instanceToMachine(instance, instanceTypes)
+	if err != nil {
+		return nil, fmt.Errorf("resolving instance details into machine, %w", err)
+	}
 	return c.instanceToNode(ctx, instance, instanceTypes), nil
 }
 
-func (c *CloudProvider) Get(ctx context.Context, machine *v1alpha5.Machine) error {
-	instanceTypes, err := c.resolveInstanceTypes(ctx, machine)
+// TODO @joinnis: Remove provisionerName from this call signature once we decouple provisioner from GetInstanceTypes
+func (c *CloudProvider) Get(ctx context.Context, machineName, provisionerName string) (*v1alpha5.Machine, error) {
+	provisioner := &v1alpha5.Provisioner{}
+	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: provisionerName}, provisioner); err != nil {
+		return nil, fmt.Errorf("getting machine provisioner, %w", err)
+	}
+	instanceTypes, err := c.GetInstanceTypes(ctx, provisioner)
 	if err != nil {
-		return fmt.Errorf("resolving instance types, %w", err)
+		return nil, fmt.Errorf("resolving instance types, %w", err)
 	}
 	if len(instanceTypes) == 0 {
-		return fmt.Errorf("all requested instance types were unavailable during launch")
+		return nil, fmt.Errorf("all requested instance types were unavailable during launch")
 	}
-	instance, err := c.instanceProvider.Get(ctx, machine)
+	instance, err := c.instanceProvider.Get(ctx, machineName)
 	if err != nil {
-		return fmt.Errorf("getting instance, %w", err)
+		return nil, fmt.Errorf("getting instance, %w", err)
 	}
-	// Resolves instance details into the machine
-	c.instanceIntoMachine(machine, instance, instanceTypes)
-	return nil
+	// Resolves instance details into a machine
+	machine, err := c.instanceToMachine(instance, instanceTypes)
+	if err != nil {
+		return nil, fmt.Errorf("resolving instance details into machine, %w", err)
+	}
+	return machine, nil
 }
 
 func (c *CloudProvider) LivenessProbe(req *http.Request) error {
@@ -194,8 +206,15 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, provisioner *v1alp
 	return instanceTypes, nil
 }
 
+// TODO @joinnis: Migrate this delete call to use tag-based deleting when machine migration is done
 func (c *CloudProvider) Delete(ctx context.Context, machine *v1alpha5.Machine) error {
-	return c.instanceProvider.Delete(ctx, machine)
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("machine", machine.Name))
+	id, err := utils.ParseInstanceID(machine.Status.ProviderID)
+	if err != nil {
+		return fmt.Errorf("getting instance ID, %w", err)
+	}
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("id", id))
+	return c.instanceProvider.DeleteByID(ctx, id)
 }
 
 func (c *CloudProvider) IsMachineDrifted(ctx context.Context, machine *v1alpha5.Machine) (bool, error) {
@@ -291,32 +310,42 @@ func (c *CloudProvider) resolveInstanceTypes(ctx context.Context, machine *v1alp
 	}), nil
 }
 
-func (c *CloudProvider) instanceIntoMachine(machine *v1alpha5.Machine, instance *ec2.Instance, instanceTypes []*cloudprovider.InstanceType) {
+func (c *CloudProvider) instanceToMachine(instance *ec2.Instance, instanceTypes []*cloudprovider.InstanceType) (*v1alpha5.Machine, error) {
+	machine := &v1alpha5.Machine{}
 	instanceType, found := lo.Find(instanceTypes, func(i *cloudprovider.InstanceType) bool {
 		return aws.StringValue(instance.InstanceType) == i.Name
 	})
 	if !found {
 		// This should never happen since the launched instance should always come from supported instance types
-		panic("launched instance type not included in instance types set")
+		return nil, fmt.Errorf("launched instance type not included in instance types set")
 	}
-
+	labels := map[string]string{}
 	for key, req := range instanceType.Requirements {
 		if req.Len() == 1 {
-			machine.Labels[key] = req.Values()[0]
+			labels[key] = req.Values()[0]
 		}
 	}
-	machine.Labels[v1alpha1.LabelInstanceAMIID] = aws.StringValue(instance.ImageId)
-	machine.Labels[v1.LabelTopologyZone] = aws.StringValue(instance.Placement.AvailabilityZone)
-	machine.Labels[v1alpha5.LabelCapacityType] = getCapacityType(instance)
-	machine.Labels[v1alpha5.MachineNameLabelKey] = machine.Name
+	labels[v1alpha1.LabelInstanceAMIID] = aws.StringValue(instance.ImageId)
+	labels[v1.LabelTopologyZone] = aws.StringValue(instance.Placement.AvailabilityZone)
+	labels[v1alpha5.LabelCapacityType] = getCapacityType(instance)
+	labels[v1alpha5.MachineNameLabelKey] = machine.Name
+
+	machine.Labels = labels
 	machine.Status.ProviderID = fmt.Sprintf("aws:///%s/%s", aws.StringValue(instance.Placement.AvailabilityZone), aws.StringValue(instance.InstanceId))
 
-	machine.Status.Allocatable = v1.ResourceList{}
+	machine.Status.Capacity = v1.ResourceList{}
 	for k, v := range instanceType.Capacity {
+		if !resources.IsZero(v) {
+			machine.Status.Capacity[k] = v
+		}
+	}
+	machine.Status.Allocatable = v1.ResourceList{}
+	for k, v := range instanceType.Allocatable() {
 		if !resources.IsZero(v) {
 			machine.Status.Allocatable[k] = v
 		}
 	}
+	return machine, nil
 }
 
 func (c *CloudProvider) instanceToNode(ctx context.Context, instance *ec2.Instance, instanceTypes []*cloudprovider.InstanceType) *v1.Node {
