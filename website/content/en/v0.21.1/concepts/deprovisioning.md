@@ -162,6 +162,7 @@ By opting pods out of eviction, you are telling Karpenter that it should not vol
 
 Examples of voluntary node removal that will be prevented by this annotation include:
 - [Consolidation]({{<ref "#consolidation" >}})
+- [Drift]({{<ref "#drift" >}})
 - Emptiness
 - Expiration
 

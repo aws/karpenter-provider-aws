@@ -145,7 +145,7 @@ spec:
 ## spec.instanceProfile
 
 An `InstanceProfile` is a way to pass a single IAM role to EC2 instance launched the provisioner.
-A default profile is configured in global settings, but may be overriden here.
+A default profile is configured in global settings, but may be overridden here.
 The `AWSNodeTemplate` will not create an `InstanceProfile` automatically.
 The `InstanceProfile` must refer to a `Role` that has permission to connect to the cluster.
 ```
@@ -202,7 +202,7 @@ All labels defined [in the scheduling documentation](./scheduling#supported-labe
 ]
 ```
 
-#### Examples 
+#### Examples
 
 Select all AMIs with a specified tag:
 ```

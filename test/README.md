@@ -1,7 +1,5 @@
 # Testing Directory
 
-All files and configurations used for testing as detailed in the [Testing Guide](https://karpenter.sh/preview/testing-guide/) live here. Configurations and setup files here will be used in the future to test PRs.
-
 ## File Directory
 - `/infrastructure`: Testing infrastructure
 - `/suites`: [Tekton](https://tekton.dev/) CRDs defining test suites

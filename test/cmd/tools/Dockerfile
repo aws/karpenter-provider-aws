@@ -1,3 +1,4 @@
+# Tools is an image that contains binaries useful for testing karpenter.
 # Please forgive me for this -- build AWS SDK v2 from source, see https://github.com/aws/aws-cli/issues/4685#issuecomment-1094307056
 FROM python:3.9-alpine as installer
 
@@ -47,6 +48,9 @@ RUN aws --version
 # Install eksctl
 RUN curl --silent --location "https://github.com/weaveworks/eksctl/releases/download/v0.116.0/eksctl_$(uname -s)_$(go env GOARCH).tar.gz" | tar xz -C /tmp
 RUN mv /tmp/eksctl /usr/local/bin
+
+# Install helm diff
+RUN helm plugin install https://github.com/databus23/helm-diff
 
 # Show go version
 RUN go version

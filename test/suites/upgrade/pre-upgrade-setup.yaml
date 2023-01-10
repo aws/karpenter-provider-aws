@@ -31,7 +31,7 @@ spec:
     - name: ws
   steps:
     - name: discover-environment
-      image: public.ecr.aws/karpenter-testing/tools:latest
+      image: public.ecr.aws/karpenter/tools:latest
       script: |
         TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
         curl -H "X-aws-ec2-metadata-token: $TOKEN" -v http://169.254.169.254/latest/meta-data/identity-credentials/ec2/info | jq -r ".AccountId" | tr -d '\n' > $(results.account-id.path)
@@ -50,18 +50,18 @@ spec:
         echo "Checking out git ref: $(echo $(params.git-ref) | cut -d":" -f2)"
         git checkout $(echo $(params.git-ref)| cut -d":" -f2)
     - name: create-iam-policies
-      image: public.ecr.aws/karpenter-testing/tools:latest
+      image: public.ecr.aws/karpenter/tools:latest
       workingDir: $(workspaces.ws.path)
       script: |
         aws iam create-service-linked-role --aws-service-name spot.amazonaws.com || true
         aws cloudformation deploy \
-          --stack-name KarpenterIAM-$(params.cluster-name) \
+          --stack-name iam-$(params.cluster-name) \
           --template-file website/content/en/preview/getting-started/getting-started-with-eksctl/cloudformation.yaml \
           --capabilities CAPABILITY_NAMED_IAM \
           --parameter-overrides "ClusterName=$(params.cluster-name)"
 
     - name: create-cluster
-      image: public.ecr.aws/karpenter-testing/tools:latest
+      image: public.ecr.aws/karpenter/tools:latest
       script: |
         cmd="create"
         eksctl get cluster --name $(params.cluster-name) && cmd="upgrade"
@@ -114,7 +114,7 @@ spec:
           --approve
 
     - name: install-karpenter
-      image: public.ecr.aws/karpenter-testing/tools:latest
+      image: public.ecr.aws/karpenter/tools:latest
       workingDir: $(workspaces.ws.path)
       script: |
         aws eks update-kubeconfig --name $(params.cluster-name)

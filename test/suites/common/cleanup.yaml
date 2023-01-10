@@ -15,12 +15,12 @@ spec:
   steps:
 
   - name: delete-cluster
-    image: public.ecr.aws/karpenter-testing/tools:latest
+    image: public.ecr.aws/karpenter/tools:latest
     script: |
       eksctl delete cluster --name $(params.cluster-name) --timeout 60m --wait || true
 
   - name: delete-iam-policies
-    image: public.ecr.aws/karpenter-testing/tools:latest
+    image: public.ecr.aws/karpenter/tools:latest
     script: |
-      aws cloudformation delete-stack --stack-name KarpenterIAM-$(params.cluster-name)
-      aws cloudformation wait stack-delete-complete --stack-name KarpenterIAM-$(params.cluster-name)
+      aws cloudformation delete-stack --stack-name iam-$(params.cluster-name)
+      aws cloudformation wait stack-delete-complete --stack-name iam-$(params.cluster-name)

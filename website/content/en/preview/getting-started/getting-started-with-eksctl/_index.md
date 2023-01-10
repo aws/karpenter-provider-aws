@@ -84,7 +84,7 @@ Karpenter will provision EC2 instances in your account.
 
 ### Create the Karpenter Infrastructure and IAM Roles
 
-Karpenter requires IAM permissions to launch and connect instances and requires infrastructure to monitor [interruption events]({{<ref "../../concepts/deprovisioning/#interruption" >}}). This command provisions the relevant infrastrucutre and IAM roles using Cloudformation.
+Karpenter requires IAM permissions to launch and connect instances and requires infrastructure to monitor [interruption events]({{<ref "../../concepts/deprovisioning/#interruption" >}}). This command provisions the relevant infrastructure and IAM roles using Cloudformation.
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step03-iam-cloud-formation.sh" language="bash"%}}
 

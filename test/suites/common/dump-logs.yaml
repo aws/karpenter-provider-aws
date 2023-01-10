@@ -18,7 +18,7 @@ spec:
       description: Name of the cluster under test.
   steps:
     - name: controller-logs
-      image: public.ecr.aws/karpenter-testing/tools:latest
+      image: public.ecr.aws/karpenter/tools:latest
       script: |
         aws eks update-kubeconfig --name $(params.cluster-name)
         POD_NAME=$(kubectl get pods -n karpenter --no-headers -o custom-columns=":metadata.name" | tail -n 1)
@@ -26,13 +26,13 @@ spec:
         kubectl logs "${POD_NAME}" -n karpenter -c controller
 
     - name: describe-karpenter-pods
-      image: public.ecr.aws/karpenter-testing/tools:latest
+      image: public.ecr.aws/karpenter/tools:latest
       script: |
         aws eks update-kubeconfig --name $(params.cluster-name)
         kubectl describe pods -n karpenter
 
     - name: describe-nodes
-      image: public.ecr.aws/karpenter-testing/tools:latest
+      image: public.ecr.aws/karpenter/tools:latest
       script: |
         aws eks update-kubeconfig --name $(params.cluster-name)
         kubectl describe nodes
