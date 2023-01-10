@@ -75,6 +75,9 @@ topologySpreadConstraints:
   - maxSkew: 1
     topologyKey: topology.kubernetes.io/zone
     whenUnsatisfiable: ScheduleAnyway
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: ScheduleAnyway
 # -- Tolerations to allow the pod to be scheduled to nodes with taints.
 tolerations:
   - key: CriticalAddonsOnly
