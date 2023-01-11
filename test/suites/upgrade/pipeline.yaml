@@ -123,15 +123,3 @@ spec:
         operator: in
         values:
           - "true"
-  - name: notify-cleanup-failure
-    when:
-      - input: $(tasks.status)
-        operator: in
-        values: ["Failed"]
-    taskRef:
-      name: notify-slack
-    params:
-      - name: webhook-secret
-        value: slack-webhook-secret
-      - name: message
-        value: ":x: $(context.pipelineRun.name) cleanup failed"
