@@ -6,8 +6,8 @@ require (
 	github.com/aws/amazon-ec2-spot-interrupter v0.0.9
 	github.com/aws/aws-sdk-go v1.44.154
 	github.com/aws/aws-sdk-go-v2/config v1.18.7
-	github.com/aws/karpenter v0.18.0
-	github.com/aws/karpenter-core v0.22.1-0.20230110175041-7939cc9dceb1
+	github.com/aws/karpenter v0.22.0
+	github.com/aws/karpenter-core v0.22.1
 	github.com/onsi/ginkgo/v2 v2.6.1
 	github.com/onsi/gomega v1.24.2
 	github.com/samber/lo v1.37.0
