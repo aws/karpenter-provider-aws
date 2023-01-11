@@ -100,7 +100,7 @@ spec:
           - "true"
   - name: notify-cleanup-failure
     when:
-      - input: $(tasks.status)
+      - input: $(tasks.cleanup.status)
         operator: in
         values: ["Failed"]
     taskRef:
