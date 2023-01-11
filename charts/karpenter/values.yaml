@@ -92,7 +92,7 @@ extraVolumes: []
 
 controller:
   # -- Controller image.
-  image: "public.ecr.aws/karpenter/controller:v0.22.0@sha256:33580038c91ba11a88083ccf8f2848bee3f916e70d8bfd25f83f79b2a7a739f7"
+  image: "public.ecr.aws/karpenter/controller:v0.22.1@sha256:8aa720d4fc95d4187e1030f4a11996a27181dada9e6054a77b8ae7b4313d3e6b"
   # -- SecurityContext for the controller container.
   securityContext: {}
   # -- Additional environment variables for the controller pod.
@@ -110,7 +110,7 @@ controller:
       memory: 1Gi
   # -- Controller outputPaths - default to stdout only
   outputPaths:
-   - stdout
+    - stdout
   # -- Controller errorOutputPaths - default to stderr only
   errorOutputPaths:
     - stderr
