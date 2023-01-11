@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"log"
 	"os/exec"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -28,6 +29,7 @@ import (
 
 const (
 	maxNumberOfMessages               = 1
+	delayBetweenMessageReads          = time.Minute * 3
 	maxNotificationMessageParamLength = 40 // Length of a git SHA
 	visibilityTimeOutS                = 60
 
@@ -143,6 +145,7 @@ func pollMessages(config *config) {
 
 		for _, queueMessage := range output.Messages {
 			processMessage(queueMessage, config)
+			time.Sleep(delayBetweenMessageReads)
 		}
 	}
 }
