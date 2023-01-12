@@ -171,7 +171,7 @@ func (p *AMIProvider) selectAMIs(ctx context.Context, amiSelector map[string]str
 }
 
 func (p *AMIProvider) fetchAMIsFromEC2(ctx context.Context, amiSelector map[string]string) ([]*ec2.Image, error) {
-	filters := getFilters(amiSelector)
+	filters, owners := getFiltersAndOwners(amiSelector)
 	hash, err := hashstructure.Hash(filters, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	if err != nil {
 		return nil, err
@@ -180,7 +180,7 @@ func (p *AMIProvider) fetchAMIsFromEC2(ctx context.Context, amiSelector map[stri
 		return amis.([]*ec2.Image), nil
 	}
 	// This API is not paginated, so a single call suffices.
-	output, err := p.ec2api.DescribeImagesWithContext(ctx, &ec2.DescribeImagesInput{Filters: filters})
+	output, err := p.ec2api.DescribeImagesWithContext(ctx, &ec2.DescribeImagesInput{Filters: filters, Owners: owners})
 	if err != nil {
 		return nil, fmt.Errorf("describing images %+v, %w", filters, err)
 	}
@@ -193,8 +193,9 @@ func (p *AMIProvider) fetchAMIsFromEC2(ctx context.Context, amiSelector map[stri
 	return output.Images, nil
 }
 
-func getFilters(amiSelector map[string]string) []*ec2.Filter {
+func getFiltersAndOwners(amiSelector map[string]string) ([]*ec2.Filter, []*string) {
 	filters := []*ec2.Filter{}
+	owners := []*string{}
 	for key, value := range amiSelector {
 		if key == "aws-ids" {
 			filterValues := functional.SplitCommaSeparatedString(value)
@@ -203,13 +204,26 @@ func getFilters(amiSelector map[string]string) []*ec2.Filter {
 				Values: aws.StringSlice(filterValues),
 			})
 		} else {
-			filters = append(filters, &ec2.Filter{
-				Name:   aws.String(fmt.Sprintf("tag:%s", key)),
-				Values: []*string{aws.String(value)},
-			})
+			if key == "owners" {
+				ownerValues := functional.SplitCommaSeparatedString(value)
+				for _, owner := range ownerValues {
+					owners = append(owners, &owner)
+				}
+			} else {
+				filters = append(filters, &ec2.Filter{
+					Name:   aws.String(fmt.Sprintf("tag:%s", key)),
+					Values: []*string{aws.String(value)},
+				})
+			}
 		}
 	}
-	return filters
+	if owners == nil {
+		self := "self"
+		amazon := "amazon"
+		owners = []*string{&self, &amazon}
+	}
+
+	return filters, owners
 }
 
 func sortAMIsByCreationDate(amiRequirements map[AMI]scheduling.Requirements) []AMI {
