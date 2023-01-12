@@ -24,6 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/aws/aws-sdk-go/service/ec2"
 	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
@@ -39,7 +40,6 @@ type Controller struct {
 }
 
 func NewController(client k8sClient.Client, subnetProvider *subnet.Provider, securityGroups *securitygroup.Provider) corecontroller.Controller {
-
 	return corecontroller.Typed[*v1alpha1.AWSNodeTemplate](client, &Controller{
 		kubeClient:            client,
 		subnetProvider:        subnetProvider,
@@ -53,16 +53,16 @@ func (c *Controller) Reconcile(ctx context.Context, ant *v1alpha1.AWSNodeTemplat
 		return reconcile.Result{}, err
 	}
 
-	ant.Status.SubnetIDs = subnet.Pretty(subnetList)
+	ant.Status.Subnet = createSubnetStatusList(subnetList)
 
 	securityGroupIds, err := c.securityGroupProvider.List(ctx, ant)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
 
-	ant.Status.SecurityGroupIDs = securityGroupIds
+	ant.Status.SecurityGroupIDs = createSubnetSecurityGroupList(securityGroupIds)
 
-	return reconcile.Result{RequeueAfter: 5 * time.Minute}, nil
+	return reconcile.Result{RequeueAfter: time.Minute}, nil
 }
 
 func (c *Controller) Name() string {
@@ -74,4 +74,32 @@ func (c *Controller) Builder(ctx context.Context, m manager.Manager) corecontrol
 		controllerruntime.NewControllerManagedBy(m).
 			For(&v1alpha1.AWSNodeTemplate{}).
 			WithOptions(controller.Options{MaxConcurrentReconciles: 10}))
+}
+
+func createSubnetStatusList(subnets []*ec2.Subnet) []v1alpha1.SubnetStatus {
+	var result []v1alpha1.SubnetStatus
+
+	for _, ec2subnet := range subnets {
+		stausSubnet := v1alpha1.SubnetStatus{
+			Id:                      *ec2subnet.SubnetId,
+			Zone:                    *ec2subnet.AvailabilityZone,
+			AvailableIpAddressCount: int(*ec2subnet.AvailableIpAddressCount),
+		}
+		result = append(result, stausSubnet)
+	}
+
+	return result
+}
+
+func createSubnetSecurityGroupList(securityGroups []string) []v1alpha1.SecurityGroupStatus {
+	var result []v1alpha1.SecurityGroupStatus
+
+	for _, securitygroupsids := range securityGroups {
+		securityGroupSubnet := v1alpha1.SecurityGroupStatus{
+			Id: securitygroupsids,
+		}
+		result = append(result, securityGroupSubnet)
+	}
+
+	return result
 }

@@ -214,19 +214,36 @@ spec:
                 type: string
             type: object
           status:
-            description: This will contain the resource IDs used by the AWSNodeTemplate
+            description: This will contain the resolved state of the AWSNodeTemplate
             properties:
-              securityGroupIds:
-                description: SubnetIDs contains the current ids that are available
-                  to the cluster under the Security Groups selectors.
+              securityGroup:
+                description: securityGroup contains the current security groups values
+                  that are available to the cluster under the SecurityGroups selectors.
                 items:
-                  type: string
+                  description: This will contain the current state of the resolved
+                    security group values karpenter will be able to use for node launch
+                  properties:
+                    id:
+                      description: Id of a security group
+                      type: string
+                  type: object
                 type: array
-              subnetIds:
-                description: SubnetIDs contains the current ids that are available
+              subnet:
+                description: Subnet contains the current subnet values that are available
                   to the cluster under the subnet selectors.
                 items:
-                  type: string
+                  description: This will contain the current state of the resolved
+                    subnet values karpenter will be able to use for node launch
+                  properties:
+                    availableIpAddressCount:
+                      type: integer
+                    id:
+                      description: Id of a subnet
+                      type: string
+                    zone:
+                      description: The associated avalibiltiy zone
+                      type: string
+                  type: object
                 type: array
             type: object
         type: object

@@ -118,7 +118,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 		ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 		err := env.Client.Get(ctx, types.NamespacedName{Name: nodeTemplate.Name}, nodeTemplate)
 		Expect(err).To(BeNil())
-		Expect(len(nodeTemplate.Status.SubnetIDs)).To(Equal(3))
+		Expect(len(nodeTemplate.Status.Subnet)).To(Equal(3))
 	})
 	It("Should update AWSNodeTemplate status for Security Groups", func() {
 		ExpectApplied(ctx, env.Client, nodeTemplate)

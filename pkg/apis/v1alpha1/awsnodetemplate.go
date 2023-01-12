@@ -18,16 +18,36 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// This will contain the resource IDs used by the AWSNodeTemplate
+// This will contain the current state of the resolved subnet values karpenter
+// will be able to use for node launch
+type SubnetStatus struct {
+	// Id of a subnet
+	// +optional
+	Id string `json:"id,omitempty"`
+	// The associated avalibiltiy zone
+	// +optional
+	Zone                    string `json:"zone,omitempty"`
+	AvailableIpAddressCount int    `json:"availableIpAddressCount,omitempty"`
+}
+
+// This will contain the current state of the resolved security group values karpenter
+// will be able to use for node launch
+type SecurityGroupStatus struct {
+	// Id of a security group
+	// +optional
+	Id string `json:"id,omitempty"`
+}
+
+// This will contain the resolved state of the AWSNodeTemplate
 type AWSNodeTemplateStatus struct {
-	// SubnetIDs contains the current ids that are available to the
+	// Subnet contains the current subnet values that are available to the
 	// cluster under the subnet selectors.
 	// +optional
-	SubnetIDs []string `json:"subnetIds,omitempty"`
-	// SubnetIDs contains the current ids that are available to the
-	// cluster under the Security Groups selectors.
+	Subnet []SubnetStatus `json:"subnet,omitempty"`
+	// securityGroup contains the current security groups values that are available to the
+	// cluster under the SecurityGroups selectors.
 	// +optional
-	SecurityGroupIDs []string `json:"securityGroupIds,omitempty"`
+	SecurityGroupIDs []SecurityGroupStatus `json:"securityGroup,omitempty"`
 }
 
 // AWSNodeTemplateSpec is the top level specification for the AWS Karpenter Provider.
