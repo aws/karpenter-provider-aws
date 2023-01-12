@@ -92,7 +92,7 @@ extraVolumes: []
 
 controller:
   # -- Controller image.
-  image: "public.ecr.aws/karpenter/controller:v0.21.1@sha256:3933b1073c4db27102db116d10b4615b6c50c436ceb8d7e59df946424174d4b1"
+  image: "public.ecr.aws/karpenter/controller:v0.22.1@sha256:8aa720d4fc95d4187e1030f4a11996a27181dada9e6054a77b8ae7b4313d3e6b"
   # -- SecurityContext for the controller container.
   securityContext: {}
   # -- Additional environment variables for the controller pod.
@@ -108,6 +108,12 @@ controller:
     limits:
       cpu: 1
       memory: 1Gi
+  # -- Controller outputPaths - default to stdout only
+  outputPaths:
+    - stdout
+  # -- Controller errorOutputPaths - default to stderr only
+  errorOutputPaths:
+    - stderr
   # -- Controller log level, defaults to the global log level
   logLevel: ""
   # -- Controller log encoding, defaults to the global log encoding
@@ -117,6 +123,8 @@ controller:
   # - name: aws-iam-token
   #   mountPath: /var/run/secrets/eks.amazonaws.com/serviceaccount
   #   readOnly: true
+  # -- Additional sideCarContainer config - this will also inherit volume mounts from deployment
+  sidecarContainer: {}
 webhook:
   logLevel: error
   # -- The container port to use for the webhook.

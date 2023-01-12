@@ -94,7 +94,7 @@ data "aws_ecrpublic_authorization_token" "token" {}
 
 We're going to use three different Terraform modules to create our cluster
 1. [`eks`](https://registry.terraform.io/modules/terraform-aws-modules/eks/aws/latest) which creates the EKS cluster and associated cluster resources
-2. [`karpenter`](https://registry.terraform.io/modules/terraform-aws-modules/eks/aws/latest/submodules/karpenter) which creates Karpenter IAM role(s), instance profile, SQS queue, and EvnetBridge rules
+2. [`karpenter`](https://registry.terraform.io/modules/terraform-aws-modules/eks/aws/latest/submodules/karpenter) which creates Karpenter IAM role(s), instance profile, SQS queue, and EventBridge rules
 3. [`vpc`](https://registry.terraform.io/modules/terraform-aws-modules/vpc/aws/latest) which creates a VPC suitable for provisioning our cluster
 
 

@@ -1,3 +1,4 @@
+# Tools is an image that contains binaries useful for testing karpenter.
 # Please forgive me for this -- build AWS SDK v2 from source, see https://github.com/aws/aws-cli/issues/4685#issuecomment-1094307056
 FROM python:3.9-alpine as installer
 
