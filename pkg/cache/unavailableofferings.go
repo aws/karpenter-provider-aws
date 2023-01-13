@@ -17,6 +17,7 @@ package cache
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -34,12 +35,14 @@ const (
 // GetInstanceTypes responses
 type UnavailableOfferings struct {
 	// key: <capacityType>:<instanceType>:<zone>, value: struct{}{}
-	cache *cache.Cache
+	cache  *cache.Cache
+	SeqNum uint64
 }
 
 func NewUnavailableOfferings(c *cache.Cache) *UnavailableOfferings {
 	return &UnavailableOfferings{
-		cache: c,
+		cache:  c,
+		SeqNum: 0,
 	}
 }
 
@@ -59,6 +62,7 @@ func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, unavailableR
 		"capacity-type", capacityType,
 		"unavailable-offerings-ttl", UnavailableOfferingsTTL).Debugf("removing offering from offerings")
 	u.cache.SetDefault(u.key(instanceType, zone, capacityType), struct{}{})
+	atomic.AddUint64(&u.SeqNum, 1)
 }
 
 func (u *UnavailableOfferings) MarkUnavailableForFleetErr(ctx context.Context, fleetErr *ec2.CreateFleetError, capacityType string) {
