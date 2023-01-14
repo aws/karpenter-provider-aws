@@ -23,11 +23,11 @@ import (
 type SubnetStatus struct {
 	// Id of a subnet
 	// +optional
-	Id string `json:"id,omitempty"`
+	ID string `json:"id,omitempty"`
 	// The associated avalibiltiy zone
 	// +optional
 	Zone                    string `json:"zone,omitempty"`
-	AvailableIpAddressCount int    `json:"availableIpAddressCount,omitempty"`
+	AvailableIPAddressCount int    `json:"availableIpAddressCount,omitempty"`
 }
 
 // This will contain the current state of the resolved security group values karpenter
@@ -35,7 +35,7 @@ type SubnetStatus struct {
 type SecurityGroupStatus struct {
 	// Id of a security group
 	// +optional
-	Id string `json:"id,omitempty"`
+	ID string `json:"id,omitempty"`
 }
 
 // This will contain the resolved state of the AWSNodeTemplate
@@ -47,7 +47,7 @@ type AWSNodeTemplateStatus struct {
 	// securityGroup contains the current security groups values that are available to the
 	// cluster under the SecurityGroups selectors.
 	// +optional
-	SecurityGroupIDs []SecurityGroupStatus `json:"securityGroup,omitempty"`
+	SecurityGroup []SecurityGroupStatus `json:"securityGroup,omitempty"`
 }
 
 // AWSNodeTemplateSpec is the top level specification for the AWS Karpenter Provider.

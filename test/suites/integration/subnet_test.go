@@ -152,7 +152,7 @@ var _ = Describe("Subnets", func() {
 
 		var ant v1alpha1.AWSNodeTemplate
 		Expect(env.Client.Get(env, client.ObjectKeyFromObject(provider), &ant)).To(Succeed())
-		Expect(ant.Status.SubnetIDs).To(Equal(subnets))
+		Expect(getSubnetIdsFromStatus(ant.Status.Subnet)).To(Equal(subnets))
 	})
 })
 
@@ -188,7 +188,7 @@ func getSubnetList(tags map[string]string) []string {
 	var subnets []string
 	err := env.EC2API.DescribeSubnetsPages(&ec2.DescribeSubnetsInput{Filters: filters}, func(dso *ec2.DescribeSubnetsOutput, _ bool) bool {
 		for _, subnet := range dso.Subnets {
-			subnets = append(subnets, fmt.Sprintf("%s (%s)", *subnet.SubnetId, *subnet.AvailabilityZone))
+			subnets = append(subnets, *subnet.SubnetId)
 		}
 		return true
 	})
@@ -266,4 +266,13 @@ func getSubnetNameAndIds(tags map[string]string) []SubnetInfo {
 
 	Expect(err).To(BeNil())
 	return subnetInfo
+}
+
+func getSubnetIdsFromStatus(subnetstats []v1alpha1.SubnetStatus) []string {
+	var result []string
+	for _, subnet := range subnetstats {
+		result = append(result, subnet.ID)
+	}
+
+	return result
 }

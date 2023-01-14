@@ -16,8 +16,11 @@ package nodetemplate
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
 
+	"k8s.io/apimachinery/pkg/types"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	k8sClient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -25,6 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
+
 	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
@@ -52,15 +56,19 @@ func (c *Controller) Reconcile(ctx context.Context, ant *v1alpha1.AWSNodeTemplat
 	if err != nil {
 		return reconcile.Result{}, err
 	}
-
-	ant.Status.Subnet = createSubnetStatusList(subnetList)
+	err = c.patchSubnetStatus(ctx, ant, subnetList)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
 
 	securityGroupIds, err := c.securityGroupProvider.List(ctx, ant)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
-
-	ant.Status.SecurityGroupIDs = createSubnetSecurityGroupList(securityGroupIds)
+	err = c.patchSecurityGroupStatus(ctx, ant, securityGroupIds)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
 
 	return reconcile.Result{RequeueAfter: time.Minute}, nil
 }
@@ -76,30 +84,29 @@ func (c *Controller) Builder(ctx context.Context, m manager.Manager) corecontrol
 			WithOptions(controller.Options{MaxConcurrentReconciles: 10}))
 }
 
-func createSubnetStatusList(subnets []*ec2.Subnet) []v1alpha1.SubnetStatus {
-	var result []v1alpha1.SubnetStatus
-
+func (c *Controller) patchSubnetStatus(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, subnets []*ec2.Subnet) error {
+	var patchstrings []string
 	for _, ec2subnet := range subnets {
-		stausSubnet := v1alpha1.SubnetStatus{
-			Id:                      *ec2subnet.SubnetId,
-			Zone:                    *ec2subnet.AvailabilityZone,
-			AvailableIpAddressCount: int(*ec2subnet.AvailableIpAddressCount),
-		}
-		result = append(result, stausSubnet)
+		patchstrings = append(patchstrings, fmt.Sprintf(`{"id": "%s", "zone": "%s", "availableIpAddressCount": %d}`, *ec2subnet.SubnetId, *ec2subnet.AvailabilityZone, int(*ec2subnet.AvailableIpAddressCount)))
 	}
-
-	return result
+	patchstring := fmt.Sprintf(`{"status":{"subnet":[%s]}}`, strings.Join(patchstrings, ", "))
+	patch := []byte(patchstring)
+	err := c.kubeClient.Status().Patch(ctx, nodeTemplate, k8sClient.RawPatch(types.MergePatchType, patch))
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
-func createSubnetSecurityGroupList(securityGroups []string) []v1alpha1.SecurityGroupStatus {
-	var result []v1alpha1.SecurityGroupStatus
-
+func (c *Controller) patchSecurityGroupStatus(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, securityGroups []string) error {
+	var patchstrings []string
 	for _, securitygroupsids := range securityGroups {
-		securityGroupSubnet := v1alpha1.SecurityGroupStatus{
-			Id: securitygroupsids,
-		}
-		result = append(result, securityGroupSubnet)
+		patchstrings = append(patchstrings, fmt.Sprintf(`{"id": "%s"}`, securitygroupsids))
 	}
-
-	return result
+	patch := []byte(fmt.Sprintf(`{"status":{"securityGroup":[%s]}}`, strings.Join(patchstrings, ", ")))
+	err := c.kubeClient.Status().Patch(ctx, nodeTemplate, k8sClient.RawPatch(types.MergePatchType, patch))
+	if err != nil {
+		return err
+	}
+	return nil
 }
