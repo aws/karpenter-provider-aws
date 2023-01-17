@@ -118,6 +118,6 @@ spec:
           serviceAccountName: karpenter-tests-trigger
       ttlSecondsAfterFinished: 300
   # every 4 hours starting at the 7th minute
-  schedule: '7 */4 * * *'
+  schedule: '7 */8 * * *'
   successfulJobsHistoryLimit: 3
   suspend: false
