@@ -60,7 +60,7 @@ export KARPENTER_VERSION=v0.22.0
 
 Also set the following environment variables to store commonly used values.
 
-{{% script file="./content/en/{VERSION}/getting-started/scripts/step01-config.sh" language="bash"%}}
+{{% script file="./scripts/step01-config.sh" language="bash"%}}
 
 {{% alert title="Warning" color="warning" %}}
 If you open a new shell to run steps in this procedure, you need to set some or all of the environment variables again.
@@ -79,11 +79,11 @@ The first uses [AWS EKS managed node groups](https://docs.aws.amazon.com/eks/lat
 
 **Example 1: Create basic cluster**
 
-{{% script file="./content/en/{VERSION}/getting-started/scripts/step02-create-cluster.sh" language="bash"%}}
+{{% script file="./scripts/step02-create-cluster.sh" language="bash"%}}
 
 **Example 2: Create basic cluster with Karpenter on Fargate**
 
-{{% script file="./content/en/{VERSION}/getting-started/scripts/step02-create-cluster-fargate.sh" language="bash"%}}
+{{% script file="./scripts/step02-create-cluster-fargate.sh" language="bash"%}}
 
 Karpenter itself can run anywhere, including on [self-managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/worker.html), [managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-groups.html) (Example 1), or [AWS Fargate](https://aws.amazon.com/fargate/)(Example 2).
 
@@ -105,23 +105,23 @@ CLUSTER_NAME=<your cluster name>
 
 Set other variables from your cluster configuration.
 
-{{% script file="./content/en/{VERSION}/getting-started/scripts/step04-env.sh" language="bash" %}}
+{{% script file="./scripts/step04-env.sh" language="bash" %}}
 
 Use that information to create our IAM role, inline policy, and trust relationship.
 
-{{% script file="./content/en/{VERSION}/getting-started/scripts/step05-controller-iam.sh" language="bash" %}}
+{{% script file="./scripts/step05-controller-iam.sh" language="bash" %}}
 
 ### Add tags to subnets and security groups
 
 Next add tags to your nodegroup subnets so Karpenter will know which subnets to use.
 
-{{% script file="./content/en/{VERSION}/getting-started/scripts/step06-tag-subnets.sh" language="bash" %}}
+{{% script file="./scripts/step06-tag-subnets.sh" language="bash" %}}
 
 Add tags to the security groups.
 This command only tags the security groups for the first nodegroup in the cluster.
 If you have multiple nodegroups or multiple security groups you will need to decide which one Karpenter should use.
 
-{{% script file="./content/en/{VERSION}/getting-started/scripts/step07-tag-security-groups.sh" language="bash" %}}
+{{% script file="./scripts/step07-tag-security-groups.sh" language="bash" %}}
 
 ### Deploy Karpenter
 
@@ -133,7 +133,7 @@ export IAM_INSTANCE_PROFILE_NAME=<your instance profile name>
 
 We can now generate a full Karpenter deployment yaml from the helm chart.
 
-{{% script file="./content/en/{VERSION}/getting-started/scripts/step09-generate-chart.sh" language="bash" %}}
+{{% script file="./scripts/step09-generate-chart.sh" language="bash" %}}
 
 Modify the following lines in the karpenter.yaml file.
 
@@ -162,14 +162,14 @@ Modify the value to match your `$NODEGROUP`.
 
 Now that our deployment is ready we can create the karpenter namespace, create the provisioner CRD, and then deploy the rest of the karpenter resources.
 
-{{% script file="./content/en/{VERSION}/getting-started/scripts/step10-deploy.sh" language="bash" %}}
+{{% script file="./scripts/step10-deploy.sh" language="bash" %}}
 
 ## Create default provisioner
 
 We need to create a default provisioner so Karpenter knows what types of nodes we want for unscheduled workloads.
 You can refer to some of the [example provisioners](https://github.com/aws/karpenter/tree{{< githubRelRef >}}examples/provisioner) for specific needs.
 
-{{% script file="./content/en/{VERSION}/getting-started/scripts/step11-create-provisioner.sh" language="bash" %}}
+{{% script file="./scripts/step11-create-provisioner.sh" language="bash" %}}
 
 ## Set nodeAffinity for critical workloads (optional)
 
@@ -200,7 +200,7 @@ Modify the value to match your `$NODEGROUP`.
 Now that Karpenter is running, if your cluster is running cluster autoscaler you have the option of removing it.
 To do that, scale the number of replicas to zero.
 
-{{% script file="./content/en/{VERSION}/getting-started/scripts/step12-scale-cas.sh" language="bash" %}}
+{{% script file="./scripts/step12-scale-cas.sh" language="bash" %}}
 
 To get rid of the instances that were added from the node group we can scale our nodegroup down to a minimum size to support Karpenter and other critical services.
 We suggest a minimum of 2 nodes for the node group.
@@ -208,7 +208,7 @@ We suggest a minimum of 2 nodes for the node group.
 > Note: If your workloads do not have [pod disruption budgets](https://kubernetes.io/docs/tasks/run-application/configure-pdb/) set,
 > the following command **will cause workloads to be unavailable.**
 
-{{% script file="./content/en/{VERSION}/getting-started/scripts/step13-scale-ng.sh" language="bash" %}}
+{{% script file="./scripts/step13-scale-ng.sh" language="bash" %}}
 
 If you have a lot of nodes or workloads you may want to slowly scale down your node groups by a few instances at a time.
 It is recommended to watch the transition carefully for workloads that may not have enough replicas running or disruption budgets configured.
@@ -235,14 +235,14 @@ Create some pods using a deployment, and watch Karpenter provision nodes in resp
 
 This deployment uses the [pause image](https://www.ianlewis.org/en/almighty-pause-container) and starts with zero replicas.
 
-{{% script file="./content/en/{VERSION}/getting-started/scripts/step13-automatic-node-provisioning.sh" language="bash"%}}
+{{% script file="./scripts/step13-automatic-node-provisioning.sh" language="bash"%}}
 
 ### Automatic Node Termination
 
 Now, delete the deployment. After 30 seconds (`ttlSecondsAfterEmpty`),
 Karpenter should terminate the now empty nodes.
 
-{{% script file="./content/en/{VERSION}/getting-started/scripts/step14-deprovisioning.sh" language="bash"%}}
+{{% script file="./scripts/step14-deprovisioning.sh" language="bash"%}}
 
 ### Manual Node Termination
 
@@ -252,7 +252,7 @@ finalizer to the node object, which blocks deletion until all pods are
 drained and the instance is terminated. Keep in mind, this only works for
 nodes provisioned by Karpenter.
 
-{{% script file="./content/en/{VERSION}/getting-started/scripts/step15-delete-node.sh" language="bash"%}}
+{{% script file="./scripts/step15-delete-node.sh" language="bash"%}}
 
 ## Cleanup
 
@@ -260,5 +260,5 @@ If you are done with the cluster, the way you remove it depends on how you creat
 For example, to remove a cluster created with `eksctl`, you could run:
 
 ```bash
-{{% script file="./content/en/{VERSION}/getting-started/scripts/step16-cleanup.sh" language="bash"%}}
+{{% script file="./scripts/step16-cleanup.sh" language="bash"%}}
 ```
