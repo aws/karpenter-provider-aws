@@ -8,42 +8,86 @@ cascade:
   type: docs
 ---
 
-Learn more about Karpenter and how to get started below.
+This guide shows how to get started with Karpenter by installing and configuring it on a Kubernetes cluster.
+To use Karpenter, you must be running a supported Kubernetes cluster on a supported cloud provider.
+Currently, only EKS on AWS is supported.
+
+Here are the different ways you can go about getting a cluster and adding Karpenter:
+
+* **Create a cluster that includes Karpenter**: Follow end-to-end procedures from other projects that describe how to create a cluster and add Karpenter.
+* **Get an existing cluster and add Karpenter**: If you have a cluster, instructions here describe how to add Karpenter. If that cluster is currently using Cluster Autoscaler, this guide also gives you the option of migrating away from Cluster Autoscaler.
+
+To learn more about Karpenter, see the following:
 
 * [Karpenter EKS Best Practices](https://aws.github.io/aws-eks-best-practices/karpenter/) guide
 * [EC2 Spot Workshop for Karpenter](https://ec2spotworkshops.com/karpenter.html)
 * [EKS Karpenter Workshop](https://www.eksworkshop.com/beginner/085_scaling_karpenter/set_up_the_provisioner/)
 
-This guide shows how to get started with Karpenter by installing and configuring it on a Kubernetes cluster.
-If that cluster is currently using Cluster Autoscaler, the guide also gives you the option of migrating away from Cluster Autoscaler.
+## Create a cluster that includes Karpenter
+Follow these instrucitons to use Terraform to create a cluster and add Karpenter:
 
-This guide assumes that you are starting with an existing Kubernetes cluster and that the following are true:
-
-* You will use existing VPC and subnets
-* You will use existing security groups
-* Your workloads have pod disruption budgets that adhere to [EKS best practices](https://aws.github.io/aws-eks-best-practices/karpenter/)
-* Your cluster has an [OIDC provider](https://docs.aws.amazon.com/eks/latest/userguide/enable-iam-roles-for-service-accounts.html) for service accounts
-* Your nodes may be part of one or more node groups
-
-This guide will also assume you have the `aws` and `kubectl` CLI tools installed.
-You can also perform many of these steps in the console, but we will use the command line for simplicity.
-
-## Get a cluster
-To use Karpenter, you must be running a supported Kubernetes cluster on a supported cloud provider.
-Currently, only EKS on AWS is supported.
-Recommended ways of deploying EKS on AWS to use with Karpenter include:
-
-* [Creating an Amazon EKS cluster](https://docs.aws.amazon.com/eks/latest/userguide/create-cluster.html): Use `eksctl` or `aws` CLI tools or the AWS Management console to deploy an EKS cluster.
 * [Amazon EKS Blueprints for Terraform](https://aws-ia.github.io/terraform-aws-eks-blueprints): Follow a basic [Getting Started](https://aws-ia.github.io/terraform-aws-eks-blueprints/v4.18.0/getting-started/) guide and also add modules and add-ons. This includes a [Karpenter](https://aws-ia.github.io/terraform-aws-eks-blueprints/v4.18.0/add-ons/karpenter/) add-on that lets you bypass the instructions in this guide for setting up Karpenter.
 
 Although not supported, Karpenter could work on other Kubernetes distributions running on AWS. For example:
+
 * [kOps](https://kops.sigs.k8s.io/operations/karpenter/): These instructions describe how to create a kOps Kubernetes cluster in AWS that includes Karpenter.
 
-If you have not already configured Karpenter when you set up your Kubernetes cluster in AWS, follow the instructions below to add Karpenter to your existing cluster.
+* [Creating an Amazon EKS cluster](https://docs.aws.amazon.com/eks/latest/userguide/create-cluster.html): Use `eksctl` or `aws` CLI tools or the AWS Management console to deploy an EKS cluster.
 
 ## Add Karpenter to an existing cluster
 
-To add Karpenter to your cluster, you need to create IAM roles, add tags to subnets and security groups, and update the aws-auth ConfigMap.
+To add Karpenter to your EKS cluster, you need to create IAM roles, add tags to subnets and security groups, and update the aws-auth ConfigMap.
+
+### Get a cluster
+
+We assume that the cluster you bring to add Karpenter:
+
+* Uses existing VPC and subnets
+* Uses existing security groups
+* Has workloads with pod disruption budgets that adhere to [EKS best practices](https://aws.github.io/aws-eks-best-practices/karpenter/)
+* Has an [OIDC provider](https://docs.aws.amazon.com/eks/latest/userguide/enable-iam-roles-for-service-accounts.html) for service accounts
+* Has nodes that may be part of one or more node groups
+
+If you don't already have such a cluster, these steps let you create a simple EKS cluster with the `eksctl` CLI.
+This assumes you have the `eksctl` and `kubectl` CLI tools installed.
+
+1. Set environment variables
+Set the following environment variable to the Karpenter version you would like to install.
+
+```bash
+export KARPENTER_VERSION=v0.22.0
+```
+
+Also set the following environment variables to store commonly used values.
+
+{{% script file="./content/en/{VERSION}/getting-started/scripts/step01-config.sh" language="bash"%}}
+
+{{% alert title="Warning" color="warning" %}}
+If you open a new shell to run steps in this procedure, you need to set some or all of the environment variables again.
+To remind yourself of these values, type:
+
+```bash
+echo $KARPENTER_VERSION $CLUSTER_NAME $AWS_DEFAULT_REGION $AWS_ACCOUNT_ID
+```
+
+{{% /alert %}}
+
+
+1. Create a basic cluster with `eksctl`.
+Each of the two examples set up an IAM OIDC provider for the cluster to enable IAM roles for pods.
+The first uses [AWS EKS managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-groups.html) for the kube-system and karpenter namespaces, while the second uses Fargate for both namespaces.
+
+**Example 1: Create basic cluster**
+
+{{% script file="./content/en/{VERSION}/getting-started/scripts/step02-create-cluster.sh" language="bash"%}}
+
+**Example 2: Create basic cluster with Karpenter on Fargate**
+
+{{% script file="./content/en/{VERSION}/getting-started/scripts/step02-create-cluster-fargate.sh" language="bash"%}}
+
+Karpenter itself can run anywhere, including on [self-managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/worker.html), [managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-groups.html) (Example 1), or [AWS Fargate](https://aws.amazon.com/fargate/)(Example 2).
+
+Karpenter will provision EC2 instances in your account.
 
 ### Create IAM role
 
@@ -61,23 +105,23 @@ CLUSTER_NAME=<your cluster name>
 
 Set other variables from your cluster configuration.
 
-{{% script file="./scripts/step04-env.sh" language="bash" %}}
+{{% script file="./content/en/{VERSION}/getting-started/scripts/step04-env.sh" language="bash" %}}
 
 Use that information to create our IAM role, inline policy, and trust relationship.
 
-{{% script file="./scripts/step05-controller-iam.sh" language="bash" %}}
+{{% script file="./content/en/{VERSION}/getting-started/scripts/step05-controller-iam.sh" language="bash" %}}
 
 ### Add tags to subnets and security groups
 
 Next add tags to your nodegroup subnets so Karpenter will know which subnets to use.
 
-{{% script file="./scripts/step06-tag-subnets.sh" language="bash" %}}
+{{% script file="./content/en/{VERSION}/getting-started/scripts/step06-tag-subnets.sh" language="bash" %}}
 
 Add tags to the security groups.
 This command only tags the security groups for the first nodegroup in the cluster.
 If you have multiple nodegroups or multiple security groups you will need to decide which one Karpenter should use.
 
-{{% script file="./scripts/step07-tag-security-groups.sh" language="bash" %}}
+{{% script file="./content/en/{VERSION}/getting-started/scripts/step07-tag-security-groups.sh" language="bash" %}}
 
 ### Deploy Karpenter
 
@@ -89,7 +133,7 @@ export IAM_INSTANCE_PROFILE_NAME=<your instance profile name>
 
 We can now generate a full Karpenter deployment yaml from the helm chart.
 
-{{% script file="./scripts/step09-generate-chart.sh" language="bash" %}}
+{{% script file="./content/en/{VERSION}/getting-started/scripts/step09-generate-chart.sh" language="bash" %}}
 
 Modify the following lines in the karpenter.yaml file.
 
