@@ -53,7 +53,6 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages/scheduledchange"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages/spotinterruption"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages/statechange"
-	"github.com/aws/karpenter/pkg/errors"
 	"github.com/aws/karpenter/pkg/fake"
 	"github.com/aws/karpenter/pkg/test"
 )
@@ -271,7 +270,7 @@ var _ = Describe("AWSInterruption", func() {
 			ExpectReconcileFailed(ctx, controller, types.NamespacedName{})
 		})
 		It("should send an error on polling when AccessDenied", func() {
-			sqsapi.ReceiveMessageBehavior.Error.Set(awsErrWithCode(errors.AccessDeniedCode), fake.MaxCalls(0))
+			sqsapi.ReceiveMessageBehavior.Error.Set(awsErrWithCode("AccessDenied"), fake.MaxCalls(0))
 			ExpectReconcileFailed(ctx, controller, types.NamespacedName{})
 		})
 	})

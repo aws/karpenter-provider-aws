@@ -66,8 +66,6 @@ func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, kc *v1alph
 
 func computeRequirements(ctx context.Context, info *ec2.InstanceTypeInfo, offerings cloudprovider.Offerings, region string,
 	amiFamily amifamily.AMIFamily, kc *v1alpha5.KubeletConfiguration) scheduling.Requirements {
-
-	// TODO joinnis: Switch the AvailableOfferings call back to the cloudprovider.AvailableOfferings call
 	requirements := scheduling.NewRequirements(
 		// Well Known Upstream
 		scheduling.NewRequirement(v1.LabelInstanceTypeStable, v1.NodeSelectorOpIn, aws.StringValue(info.InstanceType)),
