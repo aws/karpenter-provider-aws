@@ -273,6 +273,10 @@ var _ = Describe("AWSInterruption", func() {
 			sqsapi.ReceiveMessageBehavior.Error.Set(awsErrWithCode("AccessDenied"), fake.MaxCalls(0))
 			ExpectReconcileFailed(ctx, controller, types.NamespacedName{})
 		})
+		It("should not return an error when deleting a node that is already deleted", func() {
+			ExpectMessagesCreated(spotInterruptionMessage(defaultInstanceID))
+			ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
+		})
 	})
 	Context("Configuration", func() {
 		It("should not poll SQS if interruption queue is disabled", func() {
