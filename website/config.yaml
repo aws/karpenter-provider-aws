@@ -70,6 +70,7 @@ params:
   versions:
     - v0.22.1
     - v0.21.1
+    - v0.20.0
     - preview
 menu:
   main:

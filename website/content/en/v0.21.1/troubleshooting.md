@@ -6,18 +6,6 @@ description: >
   Troubleshoot Karpenter problems
 ---
 
-## Installation Webhook Timeout on v0.19.0+
-
-If you're upgrading from before `v0.19.0` to `v0.19.0+`, are using ArgoCD, and are unable to call your webhook with the following error, your ArgoCD sync may be trying to check for webhooks that no longer exist, since the name has changed.
-
-`Internal error occurred: failed calling webhook "validation.webhook.provisioners.karpenter.sh":`
-
-Delete the stale webhooks. After the following, sync ArgoCD once again.
-```
-kubectl delete mutatingwebhookconfigurations defaulting.webhook.provisioners.karpenter.sh
-kubectl delete validatingwebhookconfiguration validation.webhook.provisioners.karpenter.sh
-```
-
 ## Unknown field in Provisioner spec
 
 If you are upgrading from an older version of Karpenter, there may have been changes in the CRD between versions. Attempting to utilize newer functionality which is surfaced in newer versions of the CRD may result in the following error message:
@@ -198,9 +186,21 @@ If you have an EC2 instance get launched that is stuck in pending and ultimately
 
 This means that your CNI plugin is out of date. You can find instructions on how to update your plugin [here](https://docs.aws.amazon.com/eks/latest/userguide/managing-vpc-cni.html).
 
-## Failed calling webhook "defaulting.webhook.provisioners.karpenter.sh"
+### Failed calling webhook "validation.webhook.provisioners.karpenter.sh"
 
-If you are not able to create a provisioner due to `Error from server (InternalError): error when creating "provisioner.yaml": Internal error occurred: failed calling webhook "defaulting.webhook.provisioners.karpenter.sh": Post "https://karpenter-webhook.karpenter.svc:443/default-resource?timeout=10s": context deadline exceeded`
+If you are not able to create a provisioner due to `Internal error occurred: failed calling webhook "validation.webhook.provisioners.karpenter.sh":`
+
+Webhooks were renamed in v0.19.0. There's a bug in ArgoCD's upgrade workflow where webhooks are leaked. This results in Provisioner's failing to be validated, since the validation server no longer corresponds to the webhook definition.
+
+Delete the stale webhooks.
+```
+kubectl delete mutatingwebhookconfigurations defaulting.webhook.provisioners.karpenter.sh
+kubectl delete validatingwebhookconfiguration validation.webhook.provisioners.karpenter.sh
+```
+
+### Failed calling webhook "defaulting.webhook.karpenter.sh"
+
+If you are not able to create a provisioner due to `Error from server (InternalError): error when creating "provisioner.yaml": Internal error occurred: failed calling webhook "defaulting.webhook.karpenter.sh": Post "https://karpenter-webhook.karpenter.svc:443/default-resource?timeout=10s": context deadline exceeded`
 
 Verify that the karpenter pod is running (should see 2/2 containers with a "Ready" status)
 ```text
