@@ -128,9 +128,8 @@ func checkEC2Connectivity(ctx context.Context, api *ec2.EC2) error {
 	return err
 }
 
-// Create a node given the constraints.
-// TODO @joinnis: Migrate this Create call to return a *v1alpha5.Machine instead of a *v1.Node when machine migration is completed
-func (c *CloudProvider) Create(ctx context.Context, machine *v1alpha5.Machine) (*v1.Node, error) {
+// Create a machine given the constraints.
+func (c *CloudProvider) Create(ctx context.Context, machine *v1alpha5.Machine) (*v1alpha5.Machine, error) {
 	nodeTemplate, err := c.resolveNodeTemplate(ctx, []byte(machine.
 		Annotations[v1alpha5.ProviderCompatabilityAnnotationKey]), machine.
 		Spec.MachineTemplateRef)
@@ -149,11 +148,11 @@ func (c *CloudProvider) Create(ctx context.Context, machine *v1alpha5.Machine) (
 		return nil, fmt.Errorf("creating instance, %w", err)
 	}
 	// Resolves instance details into a machine
-	_, err = c.instanceToMachine(instance, instanceTypes)
+	created, err := c.instanceToMachine(ctx, instance, instanceTypes)
 	if err != nil {
 		return nil, fmt.Errorf("resolving instance details into machine, %w", err)
 	}
-	return c.instanceToNode(ctx, instance, instanceTypes), nil
+	return created, nil
 }
 
 // TODO @joinnis: Remove provisionerName from this call signature once we decouple provisioner from GetInstanceTypes
@@ -174,7 +173,7 @@ func (c *CloudProvider) Get(ctx context.Context, machineName, provisionerName st
 		return nil, fmt.Errorf("getting instance, %w", err)
 	}
 	// Resolves instance details into a machine
-	machine, err := c.instanceToMachine(instance, instanceTypes)
+	machine, err := c.instanceToMachine(ctx, instance, instanceTypes)
 	if err != nil {
 		return nil, fmt.Errorf("resolving instance details into machine, %w", err)
 	}
@@ -310,7 +309,8 @@ func (c *CloudProvider) resolveInstanceTypes(ctx context.Context, machine *v1alp
 	}), nil
 }
 
-func (c *CloudProvider) instanceToMachine(instance *ec2.Instance, instanceTypes []*cloudprovider.InstanceType) (*v1alpha5.Machine, error) {
+// TODO @joinnis: Remove name resolution when Machine migration is completed
+func (c *CloudProvider) instanceToMachine(ctx context.Context, instance *ec2.Instance, instanceTypes []*cloudprovider.InstanceType) (*v1alpha5.Machine, error) {
 	machine := &v1alpha5.Machine{}
 	instanceType, found := lo.Find(instanceTypes, func(i *cloudprovider.InstanceType) bool {
 		return aws.StringValue(instance.InstanceType) == i.Name
@@ -330,6 +330,11 @@ func (c *CloudProvider) instanceToMachine(instance *ec2.Instance, instanceTypes 
 	labels[v1alpha5.LabelCapacityType] = getCapacityType(instance)
 	labels[v1alpha5.MachineNameLabelKey] = machine.Name
 
+	machine.Name = lo.Ternary(
+		awssettings.FromContext(ctx).NodeNameConvention == awssettings.ResourceName,
+		aws.StringValue(instance.InstanceId),
+		strings.ToLower(aws.StringValue(instance.PrivateDnsName)),
+	)
 	machine.Labels = labels
 	machine.Status.ProviderID = fmt.Sprintf("aws:///%s/%s", aws.StringValue(instance.Placement.AvailabilityZone), aws.StringValue(instance.InstanceId))
 
@@ -346,37 +351,6 @@ func (c *CloudProvider) instanceToMachine(instance *ec2.Instance, instanceTypes 
 		}
 	}
 	return machine, nil
-}
-
-func (c *CloudProvider) instanceToNode(ctx context.Context, instance *ec2.Instance, instanceTypes []*cloudprovider.InstanceType) *v1.Node {
-	for _, instanceType := range instanceTypes {
-		if instanceType.Name == aws.StringValue(instance.InstanceType) {
-			nodeName := strings.ToLower(aws.StringValue(instance.PrivateDnsName))
-			if awssettings.FromContext(ctx).NodeNameConvention == awssettings.ResourceName {
-				nodeName = aws.StringValue(instance.InstanceId)
-			}
-			labels := map[string]string{}
-			for key, req := range instanceType.Requirements {
-				if req.Len() == 1 {
-					labels[key] = req.Values()[0]
-				}
-			}
-			labels[v1alpha1.LabelInstanceAMIID] = aws.StringValue(instance.ImageId)
-			labels[v1.LabelTopologyZone] = aws.StringValue(instance.Placement.AvailabilityZone)
-			labels[v1alpha5.LabelCapacityType] = getCapacityType(instance)
-
-			return &v1.Node{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:   nodeName,
-					Labels: labels,
-				},
-				Spec: v1.NodeSpec{
-					ProviderID: fmt.Sprintf("aws:///%s/%s", aws.StringValue(instance.Placement.AvailabilityZone), aws.StringValue(instance.InstanceId)),
-				},
-			}
-		}
-	}
-	panic(fmt.Sprintf("unrecognized instance type %s", aws.StringValue(instance.InstanceType)))
 }
 
 func getCABundle(restConfig *rest.Config) (*string, error) {

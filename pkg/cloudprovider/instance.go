@@ -33,12 +33,13 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 
-	"github.com/aws/karpenter-core/pkg/utils/resources"
 	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cache"
 	awserrors "github.com/aws/karpenter/pkg/errors"
 	"github.com/aws/karpenter/pkg/providers/subnet"
+
+	"github.com/aws/karpenter-core/pkg/utils/resources"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
@@ -146,16 +147,12 @@ func (p *InstanceProvider) List(ctx context.Context, machineName string) ([]*ec2
 	out, err := p.ec2api.DescribeInstancesWithContext(ctx, &ec2.DescribeInstancesInput{
 		Filters: []*ec2.Filter{
 			{
-				Name:   aws.String(v1alpha5.MachineNameLabelKey),
+				Name:   aws.String(fmt.Sprintf("tag:%s", v1alpha5.MachineNameLabelKey)),
 				Values: aws.StringSlice([]string{machineName}),
 			},
 			{
-				Name:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", awssettings.FromContext(ctx).ClusterName)),
+				Name:   aws.String(fmt.Sprintf("tag:kubernetes.io/cluster/%s", awssettings.FromContext(ctx).ClusterName)),
 				Values: aws.StringSlice([]string{"*"}),
-			},
-			{
-				Name:   aws.String("instance-state-name"),
-				Values: aws.StringSlice([]string{ec2.InstanceStateNamePending, ec2.InstanceStateNameRunning, ec2.InstanceStateNameStopping, ec2.InstanceStateNameStopped}),
 			},
 		},
 	})
@@ -447,7 +444,8 @@ func instancesFromOutput(out *ec2.DescribeInstancesOutput) ([]*ec2.Instance, err
 		return nil
 	}))
 	instances = lo.Reject(instances, func(i *ec2.Instance, _ int) bool {
-		return aws.StringValue(i.State.Name) == ec2.InstanceStateNameTerminated
+		return aws.StringValue(i.State.Name) == ec2.InstanceStateNameTerminated ||
+			aws.StringValue(i.State.Name) == ec2.InstanceStateNameShuttingDown
 	})
 	if len(instances) == 0 {
 		return nil, cloudprovider.NewMachineNotFoundError(fmt.Errorf("instance not found"))
