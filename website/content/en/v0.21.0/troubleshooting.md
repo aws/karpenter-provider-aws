@@ -6,6 +6,18 @@ description: >
   Troubleshoot Karpenter problems
 ---
 
+## Installation Webhook Timeout on v0.19.0+
+
+If you're upgrading from before `v0.19.0` to `v0.19.0+`, are using ArgoCD, and are unable to call your webhook with the following error, your ArgoCD sync may be trying to check for webhooks that no longer exist, since the name has changed.
+
+`Internal error occurred: failed calling webhook "validation.webhook.provisioners.karpenter.sh":`
+
+Delete the stale webhooks. After the following, sync ArgoCD once again.
+```
+kubectl delete mutatingwebhookconfigurations defaulting.webhook.provisioners.karpenter.sh
+kubectl delete validatingwebhookconfiguration validation.webhook.provisioners.karpenter.sh
+```
+
 ## Unknown field in Provisioner spec
 
 If you are upgrading from an older version of Karpenter, there may have been changes in the CRD between versions. Attempting to utilize newer functionality which is surfaced in newer versions of the CRD may result in the following error message:
