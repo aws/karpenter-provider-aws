@@ -48,6 +48,11 @@ import (
 
 var (
 	instanceTypeFlexibilityThreshold = 5 // falling back to on-demand without flexibility risks insufficient capacity errors
+
+	instanceStateFilter = &ec2.Filter{
+		Name:   aws.String("instance-state-name"),
+		Values: aws.StringSlice([]string{ec2.InstanceStateNamePending, ec2.InstanceStateNameRunning, ec2.InstanceStateNameStopping, ec2.InstanceStateNameStopped}),
+	}
 )
 
 type InstanceProvider struct {
@@ -114,7 +119,10 @@ func (p *InstanceProvider) Create(ctx context.Context, nodeTemplate *v1alpha1.AW
 
 // TODO @joinnis: Remove the GetByID call when machine migration has completed
 func (p *InstanceProvider) GetByID(ctx context.Context, id string) (*ec2.Instance, error) {
-	out, err := p.ec2api.DescribeInstancesWithContext(ctx, &ec2.DescribeInstancesInput{InstanceIds: aws.StringSlice([]string{id})})
+	out, err := p.ec2api.DescribeInstancesWithContext(ctx, &ec2.DescribeInstancesInput{
+		InstanceIds: aws.StringSlice([]string{id}),
+		Filters:     []*ec2.Filter{instanceStateFilter},
+	})
 	if awserrors.IsNotFound(err) {
 		return nil, cloudprovider.NewMachineNotFoundError(err)
 	}
@@ -154,6 +162,7 @@ func (p *InstanceProvider) List(ctx context.Context, machineName string) ([]*ec2
 				Name:   aws.String(fmt.Sprintf("tag:kubernetes.io/cluster/%s", awssettings.FromContext(ctx).ClusterName)),
 				Values: aws.StringSlice([]string{"*"}),
 			},
+			instanceStateFilter,
 		},
 	})
 	if err != nil {
@@ -438,15 +447,8 @@ func instancesFromOutput(out *ec2.DescribeInstancesOutput) ([]*ec2.Instance, err
 		return nil, cloudprovider.NewMachineNotFoundError(fmt.Errorf("instance not found"))
 	}
 	instances := lo.Flatten(lo.Map(out.Reservations, func(r *ec2.Reservation, _ int) []*ec2.Instance {
-		if len(r.Instances) > 0 {
-			return r.Instances
-		}
-		return nil
+		return r.Instances
 	}))
-	instances = lo.Reject(instances, func(i *ec2.Instance, _ int) bool {
-		return aws.StringValue(i.State.Name) == ec2.InstanceStateNameTerminated ||
-			aws.StringValue(i.State.Name) == ec2.InstanceStateNameShuttingDown
-	})
 	if len(instances) == 0 {
 		return nil, cloudprovider.NewMachineNotFoundError(fmt.Errorf("instance not found"))
 	}
