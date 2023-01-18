@@ -92,7 +92,7 @@ If you have another option for using IAM credentials with workloads (e.g. [kube2
 Set a variable for your cluster name.
 
 ```bash
-CLUSTER_NAME=<your cluster name>
+export CLUSTER_NAME=<your cluster name>
 ```
 
 Set other variables from your cluster configuration.
