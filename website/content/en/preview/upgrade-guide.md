@@ -58,7 +58,7 @@ When there is a breaking change we will:
 
 Besides the peer review process for all changes to the code base we also do the followings in order to find
 incompatibilities:
-* (To be implemented) To check the compatibility of the application, we will automate tests for installing, uninstalling, upgrading from an older version, and downgrading to an older version
+* To check the compatibility of the application, we will automate tests for installing, uninstalling, upgrading from an older version, and downgrading to an older version
 * (To be implemented) To check the compatibility of the documentation with the application, we will turn the commands in our documentation into scripts that we can automatically run
 
 ## Security Patches
