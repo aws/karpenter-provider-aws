@@ -1,4 +1,4 @@
-helm template karpenter oci://public.ecr.aws/karpenter/karpenter --version ${KARPENTER_VERSION} --namespace karpenter \
+helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter --version ${KARPENTER_VERSION} --namespace karpenter --create-namespace \
     --set settings.aws.defaultInstanceProfile="${IAM_INSTANCE_PROFILE_NAME}" \
     --set settings.aws.clusterEndpoint="${CLUSTER_ENDPOINT}" \
     --set settings.aws.clusterName=${CLUSTER_NAME} \

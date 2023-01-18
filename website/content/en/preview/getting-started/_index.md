@@ -24,7 +24,7 @@ To learn more about Karpenter, see the following:
 * [EKS Karpenter Workshop](https://www.eksworkshop.com/beginner/085_scaling_karpenter/set_up_the_provisioner/)
 
 ## Create a cluster that includes Karpenter
-Follow these instrucitons to use Terraform to create a cluster and add Karpenter:
+Follow these instructions to use Terraform to create a cluster and add Karpenter:
 
 * [Amazon EKS Blueprints for Terraform](https://aws-ia.github.io/terraform-aws-eks-blueprints): Follow a basic [Getting Started](https://aws-ia.github.io/terraform-aws-eks-blueprints/v4.18.0/getting-started/) guide and also add modules and add-ons. This includes a [Karpenter](https://aws-ia.github.io/terraform-aws-eks-blueprints/v4.18.0/add-ons/karpenter/) add-on that lets you bypass the instructions in this guide for setting up Karpenter.
 
@@ -32,11 +32,11 @@ Although not supported, Karpenter could work on other Kubernetes distributions r
 
 * [kOps](https://kops.sigs.k8s.io/operations/karpenter/): These instructions describe how to create a kOps Kubernetes cluster in AWS that includes Karpenter.
 
-* [Creating an Amazon EKS cluster](https://docs.aws.amazon.com/eks/latest/userguide/create-cluster.html): Use `eksctl` or `aws` CLI tools or the AWS Management console to deploy an EKS cluster.
+Instead of using the links above, you can add Karpenter to an existing cluster as described below.
 
 ## Add Karpenter to an existing cluster
 
-To add Karpenter to your EKS cluster, you need to create IAM roles, add tags to subnets and security groups, and update the aws-auth ConfigMap.
+To add Karpenter to an existing EKS cluster, you need to create IAM roles, add tags to subnets and security groups, and update the aws-auth ConfigMap.
 
 ### Get a cluster
 
@@ -52,41 +52,33 @@ If you don't already have such a cluster, these steps let you create a simple EK
 This assumes you have the `eksctl` and `kubectl` CLI tools installed.
 
 1. Set environment variables
-Set the following environment variable to the Karpenter version you would like to install.
-
-```bash
-export KARPENTER_VERSION=v0.22.0
-```
-
-Also set the following environment variables to store commonly used values.
-
-{{% script file="./scripts/step01-config.sh" language="bash"%}}
-
-{{% alert title="Warning" color="warning" %}}
-If you open a new shell to run steps in this procedure, you need to set some or all of the environment variables again.
-To remind yourself of these values, type:
-
-```bash
-echo $KARPENTER_VERSION $CLUSTER_NAME $AWS_DEFAULT_REGION $AWS_ACCOUNT_ID
-```
-
-{{% /alert %}}
+Set the following environment variables:
 
 
-1. Create a basic cluster with `eksctl`.
-Each of the two examples set up an IAM OIDC provider for the cluster to enable IAM roles for pods.
-The first uses [AWS EKS managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-groups.html) for the kube-system and karpenter namespaces, while the second uses Fargate for both namespaces.
+   {{% script file="./scripts/step01-config.sh" language="bash"%}}
 
-**Example 1: Create basic cluster**
+   {{% alert title="Warning" color="warning" %}}
+   If you open a new shell to run steps in this procedure, you need to set some or all of the environment variables again.
+   To remind yourself of these values, type:
+   
+      ```bash
+      echo $KARPENTER_VERSION $CLUSTER_NAME $AWS_DEFAULT_REGION $AWS_ACCOUNT_ID
+      ```
+   
+   {{% /alert %}}
 
-{{% script file="./scripts/step02-create-cluster.sh" language="bash"%}}
 
-**Example 2: Create basic cluster with Karpenter on Fargate**
+2. Create a basic cluster with `eksctl`.  Each of the two examples set up an IAM OIDC provider for the cluster to enable IAM roles for pods. The first uses [AWS EKS managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-groups.html) for the kube-system and karpenter namespaces, while the second uses Fargate for both namespaces.
 
-{{% script file="./scripts/step02-create-cluster-fargate.sh" language="bash"%}}
+   **Example 1: Create basic cluster**
+   
+   {{% script file="./scripts/step02-create-cluster.sh" language="bash"%}}
+   
+   **Example 2: Create basic cluster with Karpenter on Fargate**
+   
+   {{% script file="./scripts/step02-create-cluster-fargate.sh" language="bash"%}}
 
 Karpenter itself can run anywhere, including on [self-managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/worker.html), [managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-groups.html) (Example 1), or [AWS Fargate](https://aws.amazon.com/fargate/)(Example 2).
-
 Karpenter will provision EC2 instances in your account.
 
 ### Create IAM role
@@ -257,7 +249,7 @@ nodes provisioned by Karpenter.
 ## Cleanup
 
 If you are done with the cluster, the way you remove it depends on how you created it originally.
-For example, to remove a cluster created with `eksctl`, you could run:
+To remove the components described in this guide, you could run:
 
 ```bash
 {{% script file="./scripts/step16-cleanup.sh" language="bash"%}}

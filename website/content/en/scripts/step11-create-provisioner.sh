@@ -5,12 +5,14 @@ metadata:
   name: default
 spec:
   requirements:
+  # If requirements are left empty, karpenter will default to the following. They may also be set explicitly.
     - key: karpenter.k8s.aws/instance-category
       operator: In
       values: [c, m, r]
     - key: karpenter.k8s.aws/instance-generation
       operator: Gt
       values: ["2"]
+  ttlSecondsAfterEmpty: 30
   providerRef:
     name: default
 ---
@@ -23,4 +25,5 @@ spec:
     karpenter.sh/discovery: "${CLUSTER_NAME}"
   securityGroupSelector:
     karpenter.sh/discovery: "${CLUSTER_NAME}"
+  instanceProfile: MyInstanceProfile # optional, if already set in controller args
 EOF
