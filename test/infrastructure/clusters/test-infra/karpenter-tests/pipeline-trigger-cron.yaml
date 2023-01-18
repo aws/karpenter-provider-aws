@@ -38,6 +38,7 @@ data:
     #!/usr/bin/env bash
     set -euo pipefail
 
+    AWS_REGION=us-east-1
     MESSAGE="{\"releaseType\":\"periodic\",\"releaseIdentifier\":\"HEAD\",\"prNumber\":\"none\"}"
     QUEUE_URL=https://sqs.us-east-1.amazonaws.com/958073914028/ReleaseQueue
     aws sqs send-message --queue-url $QUEUE_URL --message-body $MESSAGE
