@@ -94,7 +94,8 @@ notifyRelease() {
     RELEASE_VERSION=$1
     PR_NUMBER=$2
     RELEASE_TYPE=$(releaseType $RELEASE_VERSION)
-    MESSAGE="{\"releaseType\":\"${RELEASE_TYPE}\",\"releaseIdentifier\":\"${RELEASE_VERSION}\",\"prNumber\":\"${PR_NUMBER}\"}"
+    LAST_STABLE_RELEASE_TAG=$(git describe --tags --abbrev=0)
+    MESSAGE="{\"releaseType\":\"${RELEASE_TYPE}\",\"releaseIdentifier\":\"${RELEASE_VERSION}\",\"prNumber\":\"${PR_NUMBER}\",\"githubAccount\":\"${GITHUB_ACCOUNT}\",\"lastStableReleaseTag\":\"${LAST_STABLE_RELEASE_TAG}\"}"
     aws sns publish \
         --topic-arn ${SNS_TOPIC_ARN} \
         --message ${MESSAGE} \
