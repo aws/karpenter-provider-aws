@@ -24,7 +24,6 @@ Release Version: ${RELEASE_VERSION}
 Commit: $(git rev-parse HEAD)
 Helm Chart Version $(helmChartVersion $RELEASE_VERSION)"
 
-
   PR_NUMBER=${GH_PR_NUMBER:-}
   if [ "${GH_PR_NUMBER+defined}" != defined ]; then
    PR_NUMBER="none"

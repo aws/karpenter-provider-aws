@@ -71,3 +71,5 @@ spec:
               value: "us-east-2"
             - name: CLUSTER_NAME
               value: "KITInfrastructure"
+            - name: GITHUB_ACCOUNT
+              value: "aws"
