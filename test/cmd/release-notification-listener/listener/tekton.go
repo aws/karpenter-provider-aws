@@ -111,7 +111,7 @@ func tknArgs(message *notificationMessage, pipelineName, testFilter string) []st
 		pipelineParams = append(pipelineParams, "ip-family=IPv6")
 		pipelineParams = append(pipelineParams, "git-ref="+gitRef)
 	case pipelineUpgrade:
-		pipelineParams = append(pipelineParams, "from-git-ref="+message.LastStableReleaseTag)
+		pipelineParams = append(pipelineParams, "from-git-ref="+message.lastStableReleaseTagOrDefault())
 		pipelineParams = append(pipelineParams, "to-git-ref="+message.ReleaseIdentifier)
 	}
 

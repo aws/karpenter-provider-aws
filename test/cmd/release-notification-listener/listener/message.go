@@ -31,7 +31,8 @@ const (
 	maxNumberOfMessages               = 1
 	delayBetweenMessageReads          = time.Minute * 3
 	maxNotificationMessageParamLength = 40 // Length of a git SHA
-	visibilityTimeOutS                = 60
+	visibilityTimeOutS            = 60
+	defaultKnownLastStableRelease = "v0.22.1"
 
 	releaseTypeStable   = "stable"
 	releaseTypeSnapshot = "snapshot"
@@ -54,6 +55,7 @@ var (
 		releaseTypeSnapshot: {},
 		releaseTypePeriodic: {},
 	}
+	lastKnownLastStableRelease
 )
 
 func processMessage(queueMessage *sqs.Message, config *config) {
@@ -104,6 +106,17 @@ func newNotificationMessage(msg *sqs.Message) (*notificationMessage, error) {
 		queueMessage.PrNumber = noPrNumber
 	}
 	return queueMessage, nil
+}
+
+func (n *notificationMessage) lastStableReleaseTagOrDefault() string {
+	if n.LastStableReleaseTag != "" {
+		lastKnownLastStableRelease = n.LastStableReleaseTag
+		return n.LastStableReleaseTag
+	}
+	if lastKnownLastStableRelease != "" {
+		return lastKnownLastStableRelease
+	}
+	return defaultKnownLastStableRelease
 }
 
 func (n *notificationMessage) validate() error {
