@@ -65,7 +65,7 @@ spec:
             - /bin/sh
             - -c
             - /bin/pipelines-trigger.sh
-            image: public.ecr.aws/bitnami/kubectl:1.22
+            image: public.ecr.aws/karpenter/tools:latest
             imagePullPolicy: IfNotPresent
             volumeMounts:
             - name: pipelines-trigger
