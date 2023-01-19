@@ -8,18 +8,6 @@ description: >
 
 ## Installation
 
-### Installation Webhook Timeout on v0.19.0+
-
-If you're upgrading from before `v0.19.0` to `v0.19.0+`, are using ArgoCD, and are unable to call your webhook with the following error, your ArgoCD sync may be trying to check for webhooks that no longer exist, since the name has changed.
-
-`Internal error occurred: failed calling webhook "validation.webhook.provisioners.karpenter.sh":`
-
-Delete the stale webhooks. After the following, sync ArgoCD once again.
-```
-kubectl delete mutatingwebhookconfigurations defaulting.webhook.provisioners.karpenter.sh
-kubectl delete validatingwebhookconfiguration validation.webhook.provisioners.karpenter.sh
-```
-
 ### Missing Service Linked Role
 Unless your AWS account has already onboarded to EC2 Spot, you will need to create the service linked role to avoid `ServiceLinkedRoleCreationNotPermitted`.
 ```
