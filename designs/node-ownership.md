@@ -10,11 +10,10 @@ The recommendation is that this in-flight capacity should be modeled as an inter
 
 1. Karpenter stops creating the Node object, avoiding race conditions and conflicts with the kube-apiserver and the kubelet that are causing orphaned nodes and instances
 2. Karpenter does not need to know the node name at the end of its provisioning loop, shortening the provisioning loop for clouds that do not know the node name at instance launch time
-3. Karpenter stops mutating the Node object by adding labels, ownerReferences and finalizers, avoiding conflicts with other Kubernetes tooling which relies on a well-known state for the Node.
-4. Karpenter stops finalizing nodes such that nodes hang on deletion when Karpenter is uninstalled.
+3. Karpenter ensures that provisioners own Machines and that this ownership can be reflected at creation time. This ensures that Machines and Nodes aren't unintentionally orphaned when provisioners are deleted.
 5. Karpenter makes its in-flight capacity observable to users through well-known Kubernetes APIs
 
-_Note: This internal Machine CR will come in as an alpha API and should __not__ be relied upon for any dependent tooling until the API is stable._
+_Note: This internal Machine CR will come in as an alpha API and an internal design detail and should __not__ be relied upon for any dependent tooling until the API is stable._
 
 ## Background
 
@@ -136,8 +135,8 @@ Ultimately, the issues listed above involving node creation aren’t exclusive t
 
 As a result, all solutions that solve the node creation problem should:
 
-1. Capture in-flight capacity in a way so that we can quickly complete Karpenter’s provisioning loops and continue to start the next round of provisioning while having a consistent view of cluster state
-2. Completely remove (or, at a minimum, limit) the mutation of the Node so that we don’'t alter the Node in ways that the user doesn't expect
+1. Do not create the Node object in the cluster, allow the kubelet to register the Node, and store scheduling decision state in some other persistent store
+2. Capture in-flight capacity in a way so that we can quickly complete Karpenter’s provisioning loops and continue to start the next round of provisioning while having a consistent view of cluster state
 3. Have little to no impact on cluster performance, including memory usage in etcd and query performance on the kube-apiserver.
 
 Fundamentally, if we do not capture in-flight capacity in the Node object, we need some other place to capture capacity so that we can fulfill #1 listed above. This necessitates some kind of “store” to keep in-flight node data, whether this is an in-memory store or the Kubernetes api-server (etcd) store. The two options presented below highlight both options, including their tradeoffs related to the fundamentals mentioned above.
@@ -146,15 +145,18 @@ Fundamentally, if we do not capture in-flight capacity in the Node object, we ne
 
 Karpenter will no longer create node objects or launch instances as part of the provisioning loop, but, instead, will create Machine CRs at the completion of the provisioning loop. This machine CR will then be picked up by a separate controller that will launch capacity based on the requirements passed from the provisioning loop and will resolve the static values from the **CreateFleet** response into its status. After the instance is launched, the kubelet starts, and the node joins the cluster, machines will be mapped to nodes using the `spec.providerID` of the Node and the `status.providerID` of the Machine.
 
+#### Ownership Model
+
+![Node Ownership Model](./images/node_ownership_ownership_model.png)
+
 #### Impact
 
 1. Introduction of the Machine CR as a representation of a “scheduling decision” to launch by the CloudProvider
-2. Migration of Deprovisioning mechanisms from watching and monitoring the Node object to watching and monitoring the Machine CR
-3. Migration of the Node termination finalizer to Machine to orchestrate the cordoning, draining, and deletion
-4. Required Garbage Collection of any Machines that don’t have instances mapped to them
-5. Liveness checks for Nodes that don’t register or become ready after a certain TTL to delete the backing Machine
-6. In-flight representations of Nodes for scheduling become the Machine `.status.allocatable` until the Node registers and initializes its `.status.allocatable`
-7. Mirroring Machine labels and annotations onto Nodes through a reconciliation mechanism after Node join
+2. Migration of the Node termination finalizer to Machine to orchestrate the cordoning, draining, and deletion
+   1. Note: Node termination finalizer (`karpenter.sh/termination`) would still exist on the Node for compatability support. This finalizer would check for the presence of a Machine and then perform Machine deletion if the Machine existed (triggering cordon, drain, termination flow as before).
+3. Liveness checks for Nodes that don’t register or become ready after a certain TTL to delete the backing Machine
+4. In-flight representations of Nodes for scheduling become the Machine `.metadata.labels` and `.status.allocatable` until the Node registers and initializes its `.status.allocatable`
+5. Mirroring Machine labels, taints, and annotations onto Nodes through a reconciliation mechanism after Node join
 
 ### In-Memory Node Store
 
@@ -165,20 +167,38 @@ An alternative to storing persistent data on the Kubernetes API server is to uti
 1. In-memory cluster state will now track the node exclusively in in-memory cluster state and model this node as an in-flight node until the real representation of the node is registered on the api-server by the instance
 2. Adding ListMachines() to the CloudProvider interface to re-populate the Karpenter-owned instances onto the API-server when starting up Karpenter, similar to the List/Watch mechanism used by Kubernetes APIs
 3. Karpenter continues to operate on the Node object, including applying labels/annotations, status conditions, and finalizers to the Node
-4. Required Garbage Collection of any in-flight nodes that no longer have any
+4. Required Garbage Collection of any in-flight nodes that no longer have any backing instance
 5. Liveness checks for Nodes that don’t register or become ready after a certain time to delete the backing instance
+6. Scheduling decisions (including labels, annotations, and taints) would either have to be kept exclusively in userData (userData has no support for annotations at this point so this doesn't work for this case) or all labels, taints, and annotations that need to be applied to the node would need to be stored in cloud provider tags
+   1. Note: Many cloud providers have limits on the number of tags or extra data that you can apply to an instance so this quickly becomes infeasible in many situations
 
 ## Considerations
 
-### **Node Mutation**
+### **Persistent Scheduling Decision State**
+
+In both the Machine CRD and the In-Memory case, we will continue to use the Node as our primary data model for scheduling simulation and deprovisioning. In the case of deprovisioning mechanisms (drift, expiration, emptiness), annotations or status conditions will be used on the Node to represent that the Node is a candidate for deprovisioning.
 
 #### Machine CRD
 
-The Machine CRD will not touch the Node object aside from reconciling metadata (specifically, annotations) onto the Node. No mutations will be made to the Node object that affect its status, its schedulability (taints/labels) or its termination (cordon, drain, delete). All of these actions will be driven by the Machine CR to reduce the possibility of conflicts with user’s existing logic driven by the Node state.
+The Machine CRD will store its scheduling decisions (including labels, annotations, and taints/startupTaints) that need to appear on the Node until the Node registers. When the Node registers, the Machine will reconcile this state onto the Node on registration but make no further modifications to the Node. Since all of Karpenter's scheduling state is now represented outside the cloudprovider instance startup scripts (i.e. userData), the user is free to edit these scripts how they choose and Karpenter is guaranteed to reconcile the appropriate scheduling state (taints, label, annotations) onto the node when it registers.
 
 #### In-Memory
 
-Despite no longer creating the Node object but allowing the kubelet to register it, we will still need to mutate the node object to register events such as expiration, emptiness, and [drift](https://github.com/aws/karpenter/blob/main/designs/node-upgrades.md). Other CloudProviders would also have to operate on the Node object for any CloudProvider-specific disruption/interruption (AWS interruption handling) to expose this disruption to Karpenter core controllers.
+Keeping details of in-flight nodes in-memory implies that we need some other persistent store to handle scheduling decisions that have been made so that when a node comes up, it has the correct labels, annotations, and taints. There are two options that we can use to represent this scheduling decision state:
+
+#### *CloudProvider Startup Scripts passed directly to the kubelet arguments*
+
+One option for representing scheduling decision state is to pass scheduling decision data to a cloudprovider startup script (userData in AWS). Data from a scheduling decision (labels, annotations, and taints) would be passed through the startup script into kubelet arguments (`--node-labels`, `--register-with-taints`).
+
+The downside of this solution is that there is no support for annotations in this model, so we would still need some reconciliation mechanism to support annotations or we would have to remove support for them outright. Additionally, a user specifying custom startup script data now becomes difficult to reason about since we will have to own at least a portion of the startup script data and perform some merge mechanism on it to ensure that the correct kubelet arguments are stored in the data.
+
+#### *CloudProvider Instance Tagging*
+
+Alternatively, we can store all scheduling decision state inside some cloudprovider store associated with the instance (such as tagging on the instance in EC2). In the case of tagging in AWS, we could store scheduling data with labels being denoted with the key `karpenter.sh/label/<label-name>`, annotations denoted with the key `karpenter.sh/annotation/<annotation-name>` and taints denoted with the key `karpenter.sh/taint/<taint-key>`.
+
+If Karpenter ever crashed after launching an instance and making a scheduling decision, on restart, it would go to grab the instance from the cloudprovider, get the tagging details from the instance and hydrate those tagging details into the inflight instance that could be reconciled onto the Node when it registers.
+
+The downside of this solution is that cloudproviders often impose limits on custom user tagging so this tagging mechanism is quite brittle. i.e. In the case of EC2, [tagging limits are set at 50 tags](https://docs.aws.amazon.com/general/latest/gr/aws_tagging.html), which would limit scheduling decisions to at most 50 (not including user-defined tags that aren't managed by Karpenter but a user wants on their instances for details on cost center, billing, etc.) In reality, these limits make this type of solution infeasible for Karpenter to base its inflight node scheduling decisions on.
 
 ### Observability
 
@@ -186,13 +206,9 @@ Despite no longer creating the Node object but allowing the kubelet to register 
 
 The Machine CRD is a CR that represents a scheduling decision from the provisioner. As such, as soon as the scheduling loop is done and decisions are made, Machines are provisioned on the cluster. This means that users have visibility into in-flight nodes and scheduling decisions made by the scheduler at all times by looking at the Machines on the cluster.
 
-For expiration, emptiness, or other forms of deprovisioning, observability moves to the Machine. Deprovisioning decisions will appear as status conditions on the Node that can then be acted on by Karpenter controllers rather than labels/annotations on the Machines. This is an equivalent amount of observability to the in-memory solution; however, status conditions are noticeably more featureful than labels since all status conditions have “Type”, “Status”, “Reason”, “Message”, “LastTransitionTime”. This large set of fields allows us to more powerfully describe machine health events and transitions to users as opposed to only being able to operate within a key-value pair framework with labels.
-
 #### In-Memory
 
 There is no visibility into in-flight nodes. Users would not be aware of nodes that Karpenter chose to launch beyond the scheduling decisions that are marked on the pods through events and through Karpenter logs. this lack of visibility would extend until the Node was registered by the kubelet on the instance with the api-server. For AWS, this period is somewhere around 30-40s at present.
-
-For expiration, emptiness, or other forms of deprovisioning, observability would remain on the Node with labels/annotations that are added by Karpenter controller when deprovisioning events are triggered. Inititialization labels would also remain on the Node for debugging nodes/instances.
 
 ### Performance
 
@@ -210,7 +226,7 @@ Thus, the impact on the kube-apiserver QPS writes should be equivalent or less t
 
 ***Etcd Storage***
 
-Conservatively, we assume that the new Machine CR will take up approximately 3KB of storage per Machine CR. For a cluster that is running 10,000 nodes, this puts the memory usage for the Machine CRs at around 30MB. Comparatively, an estimate for a node’s storage usage is at around 15KB, putting its total memory usage on the cluster at around 150MB. Reasonably, for an [8GB etcd](https://aws.github.io/aws-eks-best-practices/reliability/docs/controlplane/), this 30MB of storage usage is not going to be significant and should be considered a negligble impact for consideration.
+Conservatively, we assume that the new Machine CR will take up approximately 3KB of storage per Machine CR (this is due to the label requirements that will be added to the Machine as well as any other details that represent the "scheduling decision"). For a cluster that is running 10,000 nodes, this puts the memory usage for the Machine CRs at around 30MB. Comparatively, an estimate for a node’s storage usage is at around 15KB, putting its total memory usage on the cluster at around 150MB. Reasonably, for an [8GB etcd](https://aws.github.io/aws-eks-best-practices/reliability/docs/controlplane/), this 30MB of storage usage is not going to be significant and should be considered a negligble impact for consideration.
 
 #### In-Memory
 
@@ -218,7 +234,7 @@ The changes to the in-memory node tracking should have a negligible impact on th
 
 ### 🔑  Recommendation
 
-The recommendation for the project is that we migrate all Karpenter logic that is currently operating on the node object (including node creation, node termination finalizing, de-provisioning, etc.) to the Machine CR, primarily because it allows us to cease mutating the Node object (or minimize it an minimum) while also giving a major point of observability for all users.
+The recommendation is migrating all scheduling decision state and the inflight node representation to the Machine CR. Node creation and Node termination will be driven through the Machine CR with a Node termination finalizer remaining on the Node for compatability.
 
 ## Related Projects/Documentation
 
