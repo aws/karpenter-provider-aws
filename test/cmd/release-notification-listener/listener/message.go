@@ -39,9 +39,11 @@ const (
 )
 
 type notificationMessage struct {
-	ReleaseType       string `json:"releaseType"`
-	ReleaseIdentifier string `json:"releaseIdentifier"`
-	PrNumber          string `json:"prNumber"`
+	ReleaseType          string `json:"releaseType"`
+	ReleaseIdentifier    string `json:"releaseIdentifier"`
+	PrNumber             string `json:"prNumber"`
+	GithubAccount        string `json:"githubAccount"`
+	LastStableReleaseTag string `json:"lastStableReleaseTag"`
 }
 
 var (
@@ -58,6 +60,10 @@ func processMessage(queueMessage *sqs.Message, config *config) {
 	notificationMessage, err := newNotificationMessage(queueMessage)
 	if err != nil {
 		log.Fatalf("failed parsing message. %#v, %s", notificationMessage, err)
+	}
+	if notificationMessage.GithubAccount != config.githubAccount { // Ignore fork messages
+		log.Printf("github account %s does not match expected %s", notificationMessage.GithubAccount, config.githubAccount)
+		return
 	}
 	log.Printf("running tests for notification message %#v", notificationMessage)
 
