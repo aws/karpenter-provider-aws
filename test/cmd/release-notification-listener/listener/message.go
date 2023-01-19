@@ -31,8 +31,8 @@ const (
 	maxNumberOfMessages               = 1
 	delayBetweenMessageReads          = time.Minute * 3
 	maxNotificationMessageParamLength = 40 // Length of a git SHA
-	visibilityTimeOutS            = 60
-	defaultKnownLastStableRelease = "v0.22.1"
+	visibilityTimeOutS                = 60
+	defaultKnownLastStableRelease     = "v0.22.1"
 
 	releaseTypeStable   = "stable"
 	releaseTypeSnapshot = "snapshot"
@@ -55,7 +55,7 @@ var (
 		releaseTypeSnapshot: {},
 		releaseTypePeriodic: {},
 	}
-	lastKnownLastStableRelease
+	lastKnownLastStableRelease string
 )
 
 func processMessage(queueMessage *sqs.Message, config *config) {
