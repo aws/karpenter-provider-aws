@@ -7,6 +7,7 @@ config(){
   ECR_GALLERY_NAME="karpenter"
   RELEASE_REPO=${RELEASE_REPO:-public.ecr.aws/${ECR_GALLERY_NAME}/}
   RELEASE_REPO_GH=${RELEASE_REPO_GH:-ghcr.io/${GITHUB_ACCOUNT}/karpenter}
+  LAST_STABLE_RELEASE_TAG=$(git describe --tags --abbrev=0)
 
   PRIVATE_PULL_THROUGH_HOST="${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com"
   SNS_TOPIC_ARN="arn:aws:sns:us-east-1:${AWS_ACCOUNT_ID}:KarpenterReleases"
@@ -94,7 +95,7 @@ notifyRelease() {
     RELEASE_VERSION=$1
     PR_NUMBER=$2
     RELEASE_TYPE=$(releaseType $RELEASE_VERSION)
-    MESSAGE="{\"releaseType\":\"${RELEASE_TYPE}\",\"releaseIdentifier\":\"${RELEASE_VERSION}\",\"prNumber\":\"${PR_NUMBER}\"}"
+    MESSAGE="{\"releaseType\":\"${RELEASE_TYPE}\",\"releaseIdentifier\":\"${RELEASE_VERSION}\",\"prNumber\":\"${PR_NUMBER}\",\"githubAccount\":\"${GITHUB_ACCOUNT}\",\"lastStableReleaseTag\":\"${LAST_STABLE_RELEASE_TAG}\"}"
     aws sns publish \
         --topic-arn ${SNS_TOPIC_ARN} \
         --message ${MESSAGE} \
