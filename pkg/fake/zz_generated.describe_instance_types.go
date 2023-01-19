@@ -45,8 +45,9 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 				SizeInMiB: aws.Int64(4096),
 			},
 			NetworkInfo: &ec2.NetworkInfo{
-				MaximumNetworkInterfaces:  aws.Int64(3),
-				Ipv4AddressesPerInterface: aws.Int64(10),
+				MaximumNetworkInterfaces:     aws.Int64(3),
+				Ipv4AddressesPerInterface:    aws.Int64(10),
+				EncryptionInTransitSupported: aws.Bool(false),
 			},
 		},
 		{
@@ -82,8 +83,9 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 				TotalSizeInGB: aws.Int64(4000),
 			},
 			NetworkInfo: &ec2.NetworkInfo{
-				MaximumNetworkInterfaces:  aws.Int64(60),
-				Ipv4AddressesPerInterface: aws.Int64(50),
+				MaximumNetworkInterfaces:     aws.Int64(60),
+				Ipv4AddressesPerInterface:    aws.Int64(50),
+				EncryptionInTransitSupported: aws.Bool(true),
 			},
 		},
 		{
@@ -119,8 +121,9 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 				TotalSizeInGB: aws.Int64(900),
 			},
 			NetworkInfo: &ec2.NetworkInfo{
-				MaximumNetworkInterfaces:  aws.Int64(4),
-				Ipv4AddressesPerInterface: aws.Int64(15),
+				MaximumNetworkInterfaces:     aws.Int64(4),
+				Ipv4AddressesPerInterface:    aws.Int64(15),
+				EncryptionInTransitSupported: aws.Bool(true),
 			},
 		},
 		{
@@ -149,8 +152,9 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 				},
 			},
 			NetworkInfo: &ec2.NetworkInfo{
-				MaximumNetworkInterfaces:  aws.Int64(4),
-				Ipv4AddressesPerInterface: aws.Int64(10),
+				MaximumNetworkInterfaces:     aws.Int64(4),
+				Ipv4AddressesPerInterface:    aws.Int64(10),
+				EncryptionInTransitSupported: aws.Bool(true),
 			},
 		},
 		{
@@ -179,8 +183,9 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 				},
 			},
 			NetworkInfo: &ec2.NetworkInfo{
-				MaximumNetworkInterfaces:  aws.Int64(8),
-				Ipv4AddressesPerInterface: aws.Int64(30),
+				MaximumNetworkInterfaces:     aws.Int64(8),
+				Ipv4AddressesPerInterface:    aws.Int64(30),
+				EncryptionInTransitSupported: aws.Bool(true),
 			},
 		},
 		{
@@ -201,8 +206,9 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 				SizeInMiB: aws.Int64(8192),
 			},
 			NetworkInfo: &ec2.NetworkInfo{
-				MaximumNetworkInterfaces:  aws.Int64(3),
-				Ipv4AddressesPerInterface: aws.Int64(10),
+				MaximumNetworkInterfaces:     aws.Int64(3),
+				Ipv4AddressesPerInterface:    aws.Int64(10),
+				EncryptionInTransitSupported: aws.Bool(false),
 			},
 		},
 		{
@@ -223,8 +229,9 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 				SizeInMiB: aws.Int64(393216),
 			},
 			NetworkInfo: &ec2.NetworkInfo{
-				MaximumNetworkInterfaces:  aws.Int64(15),
-				Ipv4AddressesPerInterface: aws.Int64(50),
+				MaximumNetworkInterfaces:     aws.Int64(15),
+				Ipv4AddressesPerInterface:    aws.Int64(50),
+				EncryptionInTransitSupported: aws.Bool(false),
 			},
 		},
 		{
@@ -245,8 +252,9 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 				SizeInMiB: aws.Int64(16384),
 			},
 			NetworkInfo: &ec2.NetworkInfo{
-				MaximumNetworkInterfaces:  aws.Int64(4),
-				Ipv4AddressesPerInterface: aws.Int64(15),
+				MaximumNetworkInterfaces:     aws.Int64(4),
+				Ipv4AddressesPerInterface:    aws.Int64(15),
+				EncryptionInTransitSupported: aws.Bool(false),
 			},
 		},
 		{
@@ -279,8 +287,9 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 				},
 			},
 			NetworkInfo: &ec2.NetworkInfo{
-				MaximumNetworkInterfaces:  aws.Int64(8),
-				Ipv4AddressesPerInterface: aws.Int64(30),
+				MaximumNetworkInterfaces:     aws.Int64(8),
+				Ipv4AddressesPerInterface:    aws.Int64(30),
+				EncryptionInTransitSupported: aws.Bool(false),
 			},
 		},
 		{
@@ -301,8 +310,9 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 				SizeInMiB: aws.Int64(8192),
 			},
 			NetworkInfo: &ec2.NetworkInfo{
-				MaximumNetworkInterfaces:  aws.Int64(3),
-				Ipv4AddressesPerInterface: aws.Int64(12),
+				MaximumNetworkInterfaces:     aws.Int64(3),
+				Ipv4AddressesPerInterface:    aws.Int64(12),
+				EncryptionInTransitSupported: aws.Bool(false),
 			},
 		},
 	},

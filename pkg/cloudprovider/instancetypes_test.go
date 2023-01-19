@@ -50,19 +50,20 @@ var _ = Describe("Instance Types", func() {
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 		var pods []*v1.Pod
 		for key, value := range map[string]string{
-			v1alpha1.LabelInstanceHypervisor:      "nitro",
-			v1alpha1.LabelInstanceCategory:        "g",
-			v1alpha1.LabelInstanceFamily:          "g4dn",
-			v1alpha1.LabelInstanceGeneration:      "4",
-			v1alpha1.LabelInstanceSize:            "8xlarge",
-			v1alpha1.LabelInstanceCPU:             "32",
-			v1alpha1.LabelInstanceMemory:          "131072",
-			v1alpha1.LabelInstancePods:            "58",
-			v1alpha1.LabelInstanceGPUName:         "t4",
-			v1alpha1.LabelInstanceGPUManufacturer: "nvidia",
-			v1alpha1.LabelInstanceGPUCount:        "1",
-			v1alpha1.LabelInstanceGPUMemory:       "16384",
-			v1alpha1.LabelInstanceLocalNVME:       "900",
+			v1alpha1.LabelInstanceHypervisor:                   "nitro",
+			v1alpha1.LabelInstanceEncryptionInTransitSupported: "true",
+			v1alpha1.LabelInstanceCategory:                     "g",
+			v1alpha1.LabelInstanceFamily:                       "g4dn",
+			v1alpha1.LabelInstanceGeneration:                   "4",
+			v1alpha1.LabelInstanceSize:                         "8xlarge",
+			v1alpha1.LabelInstanceCPU:                          "32",
+			v1alpha1.LabelInstanceMemory:                       "131072",
+			v1alpha1.LabelInstancePods:                         "58",
+			v1alpha1.LabelInstanceGPUName:                      "t4",
+			v1alpha1.LabelInstanceGPUManufacturer:              "nvidia",
+			v1alpha1.LabelInstanceGPUCount:                     "1",
+			v1alpha1.LabelInstanceGPUMemory:                    "16384",
+			v1alpha1.LabelInstanceLocalNVME:                    "900",
 		} {
 			pods = append(pods, coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{key: value}}))
 		}
