@@ -30,6 +30,9 @@ type AWSNodeTemplateSpec struct {
 	// AMISelector discovers AMIs to be used by Amazon EC2 tags.
 	// +optional
 	AMISelector map[string]string `json:"amiSelector,omitempty"`
+	// DetailedMonitoring controls if detailed monitoring is enabled for instances that are launched
+	// +optional
+	DetailedMonitoring *bool `json:"detailedMonitoring,omitempty"`
 }
 
 // AWSNodeTemplate is the Schema for the AWSNodeTemplate API
