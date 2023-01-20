@@ -45,7 +45,7 @@ func NewProvider(ec2api ec2iface.EC2API) *Provider {
 	return &Provider{
 		ec2api: ec2api,
 		cm:     pretty.NewChangeMonitor(),
-		cache:  cache.New(awscache.TTL, awscache.CleanupInterval),
+		cache:  cache.New(5*awscache.TTL, awscache.CleanupInterval),
 	}
 }
 

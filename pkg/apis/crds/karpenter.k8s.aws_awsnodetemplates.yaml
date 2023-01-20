@@ -239,8 +239,6 @@ spec:
                   description: This will contain the current state of the resolved
                     subnet values karpenter will be able to use for node launch
                   properties:
-                    availableIpAddressCount:
-                      type: integer
                     id:
                       description: Id of a subnet
                       type: string

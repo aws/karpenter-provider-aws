@@ -16,6 +16,7 @@ package nodetemplate
 
 import (
 	"context"
+	"sort"
 	"time"
 
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -66,7 +67,7 @@ func (c *Controller) Reconcile(ctx context.Context, ant *v1alpha1.AWSNodeTemplat
 		return reconcile.Result{}, err
 	}
 
-	return reconcile.Result{RequeueAfter: time.Minute}, nil
+	return reconcile.Result{RequeueAfter: 5 * time.Minute}, nil
 }
 
 func (c *Controller) Name() string {
@@ -84,15 +85,17 @@ func (c *Controller) Builder(ctx context.Context, m manager.Manager) corecontrol
 func createSubnetStatusList(subnets []*ec2.Subnet) []v1alpha1.SubnetStatus {
 	var result []v1alpha1.SubnetStatus
 
+	sort.Slice(subnets, func(i, j int) bool {
+		return int(*subnets[i].AvailableIpAddressCount) > int(*subnets[j].AvailableIpAddressCount)
+	})
+
 	for _, ec2subnet := range subnets {
 		stausSubnet := v1alpha1.SubnetStatus{
-			ID:                      *ec2subnet.SubnetId,
-			Zone:                    *ec2subnet.AvailabilityZone,
-			AvailableIPAddressCount: int(*ec2subnet.AvailableIpAddressCount),
+			ID:   *ec2subnet.SubnetId,
+			Zone: *ec2subnet.AvailabilityZone,
 		}
 		result = append(result, stausSubnet)
 	}
-
 	return result
 }
 

@@ -26,8 +26,7 @@ type SubnetStatus struct {
 	ID string `json:"id,omitempty"`
 	// The associated avalibiltiy zone
 	// +optional
-	Zone                    string `json:"zone,omitempty"`
-	AvailableIPAddressCount int    `json:"availableIpAddressCount,omitempty"`
+	Zone string `json:"zone,omitempty"`
 }
 
 // This will contain the current state of the resolved security group values karpenter
