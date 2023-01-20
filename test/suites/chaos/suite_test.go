@@ -69,8 +69,8 @@ var _ = Describe("Chaos", func() {
 			defer cancel()
 
 			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-				SecurityGroupSelector: map[string]string{v1alpha5.DiscoveryTagKey: settings.FromContext(env.Context).ClusterName},
-				SubnetSelector:        map[string]string{v1alpha5.DiscoveryTagKey: settings.FromContext(env.Context).ClusterName},
+				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			}})
 			provisioner := test.Provisioner(test.ProvisionerOptions{
 				Requirements: []v1.NodeSelectorRequirement{
@@ -114,8 +114,8 @@ var _ = Describe("Chaos", func() {
 			defer cancel()
 
 			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-				SecurityGroupSelector: map[string]string{v1alpha5.DiscoveryTagKey: settings.FromContext(env.Context).ClusterName},
-				SubnetSelector:        map[string]string{v1alpha5.DiscoveryTagKey: settings.FromContext(env.Context).ClusterName},
+				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			}})
 			provisioner := test.Provisioner(test.ProvisionerOptions{
 				Requirements: []v1.NodeSelectorRequirement{

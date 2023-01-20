@@ -201,6 +201,9 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, optio
 			IamInstanceProfile: &ec2.LaunchTemplateIamInstanceProfileSpecificationRequest{
 				Name: aws.String(options.InstanceProfile),
 			},
+			Monitoring: &ec2.LaunchTemplatesMonitoringRequest{
+				Enabled: aws.Bool(options.DetailedMonitoring),
+			},
 			SecurityGroupIds: aws.StringSlice(options.SecurityGroupsIDs),
 			UserData:         aws.String(userData),
 			ImageId:          aws.String(options.AMIID),

@@ -24,6 +24,7 @@ const (
 	envVarQueueAWSRegion    = "QUEUE_AWS_REGION"
 	envVarAWSRegion         = "AWS_REGION"
 	envVarTektonClusterName = "CLUSTER_NAME"
+	envGithubAccount        = "GITHUB_ACCOUNT"
 )
 
 type config struct {
@@ -31,6 +32,7 @@ type config struct {
 	queueRegion       string
 	region            string
 	tektonClusterName string
+	githubAccount     string
 }
 
 // Start configures clients and starts listening for messages containing release notifications
@@ -48,5 +50,6 @@ func getConfig() *config {
 		queueRegion:       os.Getenv(envVarQueueAWSRegion),
 		region:            os.Getenv(envVarAWSRegion),
 		tektonClusterName: os.Getenv(envVarTektonClusterName),
+		githubAccount:     os.Getenv(envGithubAccount),
 	}
 }

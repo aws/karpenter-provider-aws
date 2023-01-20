@@ -38,7 +38,6 @@ import (
 	"github.com/aws/karpenter/pkg/cache"
 	awserrors "github.com/aws/karpenter/pkg/errors"
 	"github.com/aws/karpenter/pkg/providers/subnet"
-	"github.com/aws/karpenter/pkg/utils"
 
 	"github.com/aws/karpenter-core/pkg/utils/resources"
 
@@ -49,6 +48,11 @@ import (
 
 var (
 	instanceTypeFlexibilityThreshold = 5 // falling back to on-demand without flexibility risks insufficient capacity errors
+
+	instanceStateFilter = &ec2.Filter{
+		Name:   aws.String("instance-state-name"),
+		Values: aws.StringSlice([]string{ec2.InstanceStateNamePending, ec2.InstanceStateNameRunning, ec2.InstanceStateNameStopping, ec2.InstanceStateNameStopped}),
+	}
 )
 
 type InstanceProvider struct {
@@ -96,7 +100,7 @@ func (p *InstanceProvider) Create(ctx context.Context, nodeTemplate *v1alpha1.AW
 	// Get Instance with backoff retry since EC2 is eventually consistent
 	instance := &ec2.Instance{}
 	if err := retry.Do(
-		func() (err error) { instance, err = p.Get(ctx, aws.StringValue(id)); return err },
+		func() (err error) { instance, err = p.GetByID(ctx, aws.StringValue(id)); return err },
 		retry.Delay(1*time.Second),
 		retry.Attempts(6),
 		retry.LastErrorOnly(true),
@@ -104,56 +108,104 @@ func (p *InstanceProvider) Create(ctx context.Context, nodeTemplate *v1alpha1.AW
 		return nil, fmt.Errorf("retrieving node name for instance %s, %w", aws.StringValue(instance.InstanceId), err)
 	}
 	logging.FromContext(ctx).With(
-		"launched-instance", aws.StringValue(instance.InstanceId),
+		"id", aws.StringValue(instance.InstanceId),
 		"hostname", aws.StringValue(instance.PrivateDnsName),
-		"type", aws.StringValue(instance.InstanceType),
+		"instance-type", aws.StringValue(instance.InstanceType),
 		"zone", aws.StringValue(instance.Placement.AvailabilityZone),
 		"capacity-type", getCapacityType(instance)).Infof("launched new instance")
 
 	return instance, nil
 }
 
-func (p *InstanceProvider) Get(ctx context.Context, id string) (*ec2.Instance, error) {
-	describeInstancesOutput, err := p.ec2api.DescribeInstancesWithContext(ctx, &ec2.DescribeInstancesInput{InstanceIds: aws.StringSlice([]string{id})})
+// TODO @joinnis: Remove the GetByID call when machine migration has completed
+func (p *InstanceProvider) GetByID(ctx context.Context, id string) (*ec2.Instance, error) {
+	out, err := p.ec2api.DescribeInstancesWithContext(ctx, &ec2.DescribeInstancesInput{
+		InstanceIds: aws.StringSlice([]string{id}),
+		Filters:     []*ec2.Filter{instanceStateFilter},
+	})
 	if awserrors.IsNotFound(err) {
-		return nil, err
+		return nil, cloudprovider.NewMachineNotFoundError(err)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to describe ec2 instances, %w", err)
 	}
-	if len(describeInstancesOutput.Reservations) != 1 || len(describeInstancesOutput.Reservations[0].Instances) != 1 {
-		return nil, awserrors.InstanceTerminatedError{Err: fmt.Errorf("expected instance but got 0")}
+	instances, err := instancesFromOutput(out)
+	if err != nil {
+		return nil, fmt.Errorf("getting instances from output, %w", err)
 	}
-	instance := describeInstancesOutput.Reservations[0].Instances[0]
-	if *instance.State.Name == ec2.InstanceStateNameTerminated {
-		return nil, awserrors.InstanceTerminatedError{Err: fmt.Errorf("instance is in terminated state")}
+	if len(instances) != 1 {
+		return nil, fmt.Errorf("expected a single instance, %w", err)
 	}
-	if len(aws.StringValue(instance.PrivateDnsName)) == 0 {
-		return nil, multierr.Append(err, fmt.Errorf("got instance %s but PrivateDnsName was not set", aws.StringValue(instance.InstanceId)))
+	if len(aws.StringValue(instances[0].PrivateDnsName)) == 0 {
+		return nil, fmt.Errorf("got instance %s but PrivateDnsName was not set", aws.StringValue(instances[0].InstanceId))
 	}
-	return instance, nil
+	return instances[0], nil
 }
 
-func (p *InstanceProvider) Delete(ctx context.Context, machine *v1alpha5.Machine) error {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("machine", machine.Name))
-	id, err := utils.ParseInstanceID(machine.Status.ProviderID)
+func (p *InstanceProvider) Get(ctx context.Context, machineName string) (*ec2.Instance, error) {
+	instances, err := p.List(ctx, machineName)
 	if err != nil {
-		return fmt.Errorf("getting instance ID, %w", err)
+		return nil, err
 	}
-	if _, err = p.ec2api.TerminateInstancesWithContext(ctx, &ec2.TerminateInstancesInput{
+	return instances[0], nil
+}
+
+func (p *InstanceProvider) List(ctx context.Context, machineName string) ([]*ec2.Instance, error) {
+	// Use the machine name data to determine which instances match this machine
+	out, err := p.ec2api.DescribeInstancesWithContext(ctx, &ec2.DescribeInstancesInput{
+		Filters: []*ec2.Filter{
+			{
+				Name:   aws.String(fmt.Sprintf("tag:%s", v1alpha5.MachineNameLabelKey)),
+				Values: aws.StringSlice([]string{machineName}),
+			},
+			{
+				Name:   aws.String(fmt.Sprintf("tag:kubernetes.io/cluster/%s", awssettings.FromContext(ctx).ClusterName)),
+				Values: aws.StringSlice([]string{"*"}),
+			},
+			instanceStateFilter,
+		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("describing ec2 instances, %w", err)
+	}
+	instances, err := instancesFromOutput(out)
+	if err != nil {
+		return nil, fmt.Errorf("getting instances from output, %w", err)
+	}
+	return instances, nil
+}
+
+// Delete deletes the machine based on machine name tag. It continues to do a Get followed by a Delete
+// for machines until it receives an error (either a true error or a NotFound error). We do this because there is a tiny
+// race that makes it possible for us to launch more than one instance for a Machine if EC2 is not read-after-write consistent
+// and we perform another reconcile loop after doing a Create where the Get is not able to find the previous instance that
+// we created.
+func (p *InstanceProvider) Delete(ctx context.Context, machine *v1alpha5.Machine) error {
+	instances, err := p.List(ctx, machine.Name)
+	if err != nil {
+		return fmt.Errorf("getting machine instances, %w", err)
+	}
+	for _, instance := range instances {
+		if e := p.DeleteByID(ctx, aws.StringValue(instance.InstanceId)); cloudprovider.IgnoreMachineNotFoundError(e) != nil {
+			err = multierr.Append(err, e)
+		}
+	}
+	return err
+}
+
+func (p *InstanceProvider) DeleteByID(ctx context.Context, id string) error {
+	if _, err := p.ec2api.TerminateInstancesWithContext(ctx, &ec2.TerminateInstancesInput{
 		InstanceIds: []*string{aws.String(id)},
 	}); err != nil {
 		if awserrors.IsNotFound(err) {
-			return nil
+			return cloudprovider.NewMachineNotFoundError(fmt.Errorf("instance already terminated"))
 		}
-		if _, errMsg := p.Get(ctx, id); err != nil {
-			if awserrors.IsInstanceTerminated(errMsg) || awserrors.IsNotFound(errMsg) {
-				logging.FromContext(ctx).Debugf("instance already terminated")
-				return nil
+		if _, e := p.GetByID(ctx, id); err != nil {
+			if cloudprovider.IsMachineNotFoundError(e) {
+				return e
 			}
-			err = multierr.Append(err, errMsg)
+			err = multierr.Append(err, e)
 		}
-
 		return fmt.Errorf("terminating instance, %w", err)
 	}
 	return nil
@@ -170,7 +222,9 @@ func (p *InstanceProvider) launchInstance(ctx context.Context, nodeTemplate *v1a
 		logging.FromContext(ctx).Warn(err.Error())
 	}
 	// Create fleet
-	tags := v1alpha1.MergeTags(ctx, awssettings.FromContext(ctx).Tags, nodeTemplate.Spec.Tags, map[string]string{fmt.Sprintf("kubernetes.io/cluster/%s", awssettings.FromContext(ctx).ClusterName): "owned"})
+	tags := v1alpha1.MergeTags(ctx, awssettings.FromContext(ctx).Tags, nodeTemplate.Spec.Tags, map[string]string{
+		fmt.Sprintf("kubernetes.io/cluster/%s", awssettings.FromContext(ctx).ClusterName): "owned",
+	})
 	createFleetInput := &ec2.CreateFleetInput{
 		Type:                  aws.String(ec2.FleetTypeInstant),
 		Context:               nodeTemplate.Spec.Context,
@@ -386,6 +440,23 @@ func filterInstanceTypes(instanceTypes []*cloudprovider.InstanceType) []*cloudpr
 		return genericInstanceTypes
 	}
 	return instanceTypes
+}
+
+func instancesFromOutput(out *ec2.DescribeInstancesOutput) ([]*ec2.Instance, error) {
+	if len(out.Reservations) == 0 {
+		return nil, cloudprovider.NewMachineNotFoundError(fmt.Errorf("instance not found"))
+	}
+	instances := lo.Flatten(lo.Map(out.Reservations, func(r *ec2.Reservation, _ int) []*ec2.Instance {
+		return r.Instances
+	}))
+	if len(instances) == 0 {
+		return nil, cloudprovider.NewMachineNotFoundError(fmt.Errorf("instance not found"))
+	}
+	// Get a consistent ordering for instances
+	sort.Slice(instances, func(i, j int) bool {
+		return aws.StringValue(instances[i].InstanceId) < aws.StringValue(instances[j].InstanceId)
+	})
+	return instances, nil
 }
 
 func combineFleetErrors(errors []*ec2.CreateFleetError) (errs error) {

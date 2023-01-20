@@ -38,7 +38,6 @@ import (
 	interruptionevents "github.com/aws/karpenter/pkg/controllers/interruption/events"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages/statechange"
-	"github.com/aws/karpenter/pkg/errors"
 	"github.com/aws/karpenter/pkg/utils"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
@@ -203,10 +202,7 @@ func (c *Controller) handleNode(ctx context.Context, msg messages.Message, node 
 // deleteNode removes the node from the api-server
 func (c *Controller) deleteNode(ctx context.Context, node *v1.Node) error {
 	if err := c.kubeClient.Delete(ctx, node); err != nil {
-		if errors.IsNotFound(err) {
-			return nil
-		}
-		return fmt.Errorf("deleting the node on interruption message, %w", err)
+		return client.IgnoreNotFound(fmt.Errorf("deleting the node on interruption message, %w", err))
 	}
 	logging.FromContext(ctx).Infof("deleted node from interruption message")
 	c.recorder.Publish(interruptionevents.NodeTerminatingOnInterruption(node))

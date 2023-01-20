@@ -1379,6 +1379,27 @@ var _ = Describe("LaunchTemplates", func() {
 			})
 		})
 	})
+	Context("Detailed Monitoring", func() {
+		It("should default detailed monitoring to off", func() {
+			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyAL2
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			pod := ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+			Expect(aws.BoolValue(input.LaunchTemplateData.Monitoring.Enabled)).To(BeFalse())
+		})
+		It("should pass detailed monitoring setting to the launch template at creation", func() {
+			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyAL2
+			nodeTemplate.Spec.DetailedMonitoring = aws.Bool(true)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			pod := ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+			Expect(aws.BoolValue(input.LaunchTemplateData.Monitoring.Enabled)).To(BeTrue())
+		})
+	})
 })
 
 // ExpectTags verifies that the expected tags are a subset of the tags found
