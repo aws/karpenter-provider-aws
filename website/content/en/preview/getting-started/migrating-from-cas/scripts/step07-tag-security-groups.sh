@@ -8,7 +8,7 @@ LAUNCH_TEMPLATE=$(aws eks describe-nodegroup --cluster-name ${CLUSTER_NAME} \
 # If your EKS setup is configured to use only Cluster security group, then please execute -
 
 SECURITY_GROUPS=$(aws eks describe-cluster \
-    --name ${CLUSTER_NAME} --query "cluster.resourcesVpcConfig.clusterSecurityGroupId")
+    --name ${CLUSTER_NAME} --query "cluster.resourcesVpcConfig.clusterSecurityGroupId" --output text)
 
 # If your setup uses the security groups in the Launch template of a managed node group, then :
 
