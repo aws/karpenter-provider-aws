@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package cloudprovider
+package batcher_test
 
 import (
 	"sync"
@@ -22,16 +22,18 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 
+	"github.com/aws/karpenter/pkg/batcher"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("CreateFleet Batching", func() {
-	var cfb *CreateFleetBatcher
+	var cfb *batcher.CreateFleetBatcher
 
 	BeforeEach(func() {
 		fakeEC2API.Reset()
-		cfb = NewCreateFleetBatcher(ctx, fakeEC2API)
+		cfb = batcher.NewCreateFleetBatcher(ctx, fakeEC2API)
 	})
 
 	It("should batch the same inputs into a single call", func() {
