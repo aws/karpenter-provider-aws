@@ -26,8 +26,6 @@ import (
 
 const (
 	launchTemplateNotFoundCode = "InvalidLaunchTemplateName.NotFoundException"
-	AccessDeniedCode           = "AccessDenied"
-	AccessDeniedExceptionCode  = "AccessDeniedException"
 )
 
 var (
@@ -46,30 +44,7 @@ var (
 		"UnfulfillableCapacity",
 		"Unsupported",
 	)
-	accessDeniedErrorCodes = sets.NewString(
-		AccessDeniedCode,
-		AccessDeniedExceptionCode,
-	)
-	recentlyDeletedErrorCodes = sets.NewString(
-		sqs.ErrCodeQueueDeletedRecently,
-	)
 )
-
-type InstanceTerminatedError struct {
-	Err error
-}
-
-func (e InstanceTerminatedError) Error() string {
-	return e.Err.Error()
-}
-
-func IsInstanceTerminated(err error) bool {
-	if err == nil {
-		return false
-	}
-	var itErr InstanceTerminatedError
-	return errors.As(err, &itErr)
-}
 
 // IsNotFound returns true if the err is an AWS error (even if it's
 // wrapped) and is a known to mean "not found" (as opposed to a more
@@ -81,33 +56,6 @@ func IsNotFound(err error) bool {
 	var awsError awserr.Error
 	if errors.As(err, &awsError) {
 		return notFoundErrorCodes.Has(awsError.Code())
-	}
-	return false
-}
-
-// IsAccessDenied returns true if the error is an AWS error (even if it's
-// wrapped) and is known to mean "access denied" (as opposed to a more
-// serious or unexpected error)
-func IsAccessDenied(err error) bool {
-	if err == nil {
-		return false
-	}
-	var awsError awserr.Error
-	if errors.As(err, &awsError) {
-		return accessDeniedErrorCodes.Has(awsError.Code())
-	}
-	return false
-}
-
-// IsRecentlyDeleted returns true if the error is an AWS error (even if it's
-// wrapped) and is known to mean "recently deleted"
-func IsRecentlyDeleted(err error) bool {
-	if err == nil {
-		return false
-	}
-	var awsError awserr.Error
-	if errors.As(err, &awsError) {
-		return recentlyDeletedErrorCodes.Has(awsError.Code())
 	}
 	return false
 }

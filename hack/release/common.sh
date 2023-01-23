@@ -24,11 +24,16 @@ Release Version: ${RELEASE_VERSION}
 Commit: $(git rev-parse HEAD)
 Helm Chart Version $(helmChartVersion $RELEASE_VERSION)"
 
+  PR_NUMBER=${GH_PR_NUMBER:-}
+  if [ "${GH_PR_NUMBER+defined}" != defined ]; then
+   PR_NUMBER="none"
+  fi
+
   authenticate
   buildImages
   cosignImages
   publishHelmChart
-  notifyRelease $RELEASE_VERSION
+  notifyRelease $RELEASE_VERSION $PR_NUMBER
   pullPrivateReplica $RELEASE_VERSION
 }
 
@@ -86,8 +91,10 @@ cosignImages() {
 
 notifyRelease() {
     RELEASE_VERSION=$1
+    PR_NUMBER=$2
     RELEASE_TYPE=$(releaseType $RELEASE_VERSION)
-    MESSAGE="{\"releaseType\":\"${RELEASE_TYPE}\",\"releaseIdentifier\":\"${RELEASE_VERSION}\"}"
+    LAST_STABLE_RELEASE_TAG=$(git describe --tags --abbrev=0)
+    MESSAGE="{\"releaseType\":\"${RELEASE_TYPE}\",\"releaseIdentifier\":\"${RELEASE_VERSION}\",\"prNumber\":\"${PR_NUMBER}\",\"githubAccount\":\"${GITHUB_ACCOUNT}\",\"lastStableReleaseTag\":\"${LAST_STABLE_RELEASE_TAG}\"}"
     aws sns publish \
         --topic-arn ${SNS_TOPIC_ARN} \
         --message ${MESSAGE} \

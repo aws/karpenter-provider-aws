@@ -1,0 +1,75 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: release-notification-listener
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: release-notification-listener
+  namespace: release-notification-listener
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: release-notification-listener
+rules:
+  - apiGroups:
+      - tekton.dev
+    resources:
+      - pipelines
+      - pipelineruns
+    verbs:
+      - get
+      - list
+      - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: release-notification-listener
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: release-notification-listener
+subjects:
+  - kind: ServiceAccount
+    name: release-notification-listener
+    namespace: release-notification-listener
+  - kind: Group
+    apiGroup: rbac.authorization.k8s.io
+    name: system:nodes
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: release-notification-listener
+  namespace: release-notification-listener
+  labels:
+    app: release-notification-listener
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: release-notification-listener
+  template:
+    metadata:
+      labels:
+        app: release-notification-listener
+    spec:
+      serviceAccountName: release-notification-listener
+      automountServiceAccountToken: true
+      containers:
+        - name: release-notification-listener
+          image: public.ecr.aws/karpenter/release-notification-listener:latest
+          env:
+            - name: QUEUE_URL
+              value: "https://sqs.us-east-1.amazonaws.com/958073914028/ReleaseQueue"
+            - name: QUEUE_AWS_REGION
+              value: "us-east-1"
+            - name: AWS_REGION
+              value: "us-east-2"
+            - name: CLUSTER_NAME
+              value: "KITInfrastructure"
+            - name: GITHUB_ACCOUNT
+              value: "aws"

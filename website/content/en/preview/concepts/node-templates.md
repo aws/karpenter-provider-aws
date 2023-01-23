@@ -33,7 +33,7 @@ spec:
   tags: { ... }                  # optional, propagates tags to underlying EC2 resources
   metadataOptions: { ... }       # optional, configures IMDS for the instance
   blockDeviceMappings: [ ... ]   # optional, configures storage devices for the instance
-
+  detailedMonitoring: "..."      # optional, configures detailed monitoring for the instance
 ```
 Refer to the [Provisioner docs]({{<ref "./provisioners" >}}) for settings applicable to all providers.
 See below for other AWS provider-specific parameters.
@@ -145,10 +145,10 @@ spec:
 ## spec.instanceProfile
 
 An `InstanceProfile` is a way to pass a single IAM role to EC2 instance launched the provisioner.
-A default profile is configured in global settings, but may be overriden here.
+A default profile is configured in global settings, but may be overridden here.
 The `AWSNodeTemplate` will not create an `InstanceProfile` automatically.
 The `InstanceProfile` must refer to a `Role` that has permission to connect to the cluster.
-```
+```yaml
 spec:
   instanceProfile: MyInstanceProfile
 ```
@@ -159,7 +159,7 @@ The AMI used when provisioning nodes can be controlled by the `amiFamily` field.
 
 Currently, Karpenter supports `amiFamily` values `AL2`, `Bottlerocket`, `Ubuntu` and `Custom`. GPUs are only supported with `AL2` and `Bottlerocket`.
 
-```
+```yaml
 spec:
   amiFamily: Bottlerocket
 ```
@@ -202,22 +202,22 @@ All labels defined [in the scheduling documentation](./scheduling#supported-labe
 ]
 ```
 
-#### Examples 
+#### Examples
 
 Select all AMIs with a specified tag:
-```
+```yaml
   amiSelector:
     karpenter.sh/discovery/MyClusterName: '*'
 ```
 
 Select AMIs by name:
-```
+```yaml
   amiSelector:
     Name: my-ami
 ```
 
 Select AMIs by an arbitrary AWS tag key/value pair:
-```
+```yaml
   amiSelector:
     MyAMITag: value
 ```
@@ -239,7 +239,7 @@ kubernetes.io/cluster/<cluster-name>: owned
 ```
 
 Additional tags can be added in the AWSNodeTemplate tags section which are merged with and can override the default tag values.
-```
+```yaml
 spec:
   tags:
     InternalAccountingTag: 1234
@@ -255,7 +255,7 @@ Refer to [recommended, security best practices](https://aws.github.io/aws-eks-be
 
 If metadataOptions are omitted from this provisioner, the following default settings will be used.
 
-```
+```yaml
 spec:
   metadataOptions:
     httpEndpoint: enabled
@@ -270,7 +270,7 @@ The `blockDeviceMappings` field in an AWSNodeTemplate can be used to control the
 
 Learn more about [block device mappings](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/block-device-mapping-concepts.html).
 
-```
+```yaml
 apiVersion: karpenter.k8s.aws/v1alpha1
 kind: AWSNodeTemplate
 spec:
@@ -349,6 +349,15 @@ spec:
 ```
 
 For more examples on configuring these fields for different AMI families, see the [examples here](https://github.com/aws/karpenter/blob/main/examples/provisioner/launchtemplates).
+
+## spec.detailedMonitoring
+
+Enabling detailed monitoring on the node template controls the [EC2 detailed monitoring](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-cloudwatch-new.html) feature. If you enable this option, the Amazon EC2 console displays monitoring graphs with a 1-minute period for the instances that Karpenter launches.
+```yaml
+spec:
+  detailedMonitoring: true
+```
+
 
 ### Merge Semantics
 

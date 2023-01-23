@@ -35,6 +35,10 @@ metadata:
   name: validation.webhook.karpenter.sh
   labels:
     {{- include "karpenter.labels" . | nindent 4 }}
+  {{- with .Values.additionalAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 webhooks:
   - name: validation.webhook.karpenter.sh
     admissionReviewVersions: ["v1"]
@@ -63,6 +67,10 @@ metadata:
   name: validation.webhook.config.karpenter.sh
   labels:
     {{- include "karpenter.labels" . | nindent 4 }}
+  {{- with .Values.additionalAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 webhooks:
   - name: validation.webhook.config.karpenter.sh
     admissionReviewVersions: ["v1"]

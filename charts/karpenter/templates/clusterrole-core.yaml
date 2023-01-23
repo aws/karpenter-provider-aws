@@ -30,7 +30,7 @@ metadata:
 rules:
   # Read
   - apiGroups: ["karpenter.sh"]
-    resources: ["provisioners", "provisioners/status"]
+    resources: ["provisioners", "provisioners/status", "machines", "machines/status"]
     verbs: ["get", "list", "watch"]
   - apiGroups: [""]
     resources: ["pods", "nodes", "persistentvolumes", "persistentvolumeclaims", "replicationcontrollers", "namespaces"]
@@ -49,7 +49,7 @@ rules:
     verbs: [ "get", "list", "watch" ]
   # Write
   - apiGroups: ["karpenter.sh"]
-    resources: ["provisioners/status"]
+    resources: ["provisioners/status", "machines", "machines/status"]
     verbs: ["create", "delete", "patch"]
   - apiGroups: [""]
     resources: ["events"]

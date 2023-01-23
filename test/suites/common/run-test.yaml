@@ -35,7 +35,7 @@ spec:
 
       echo "Git Commit: $(git rev-parse HEAD), Git Tag: $(git describe --exact-match --tags || echo "none")."
   - name: go-test
-    image: public.ecr.aws/karpenter-testing/tools:latest
+    image: public.ecr.aws/karpenter/tools:latest
     workingDir: $(workspaces.ws.path)
     script: |
       aws eks update-kubeconfig --name $(params.cluster-name)

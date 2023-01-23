@@ -156,6 +156,7 @@ func getInstanceTypeInfo(info *ec2.InstanceTypeInfo) string {
 	fmt.Fprintf(src, "NetworkInfo: &ec2.NetworkInfo{\n")
 	fmt.Fprintf(src, "MaximumNetworkInterfaces: aws.Int64(%d),\n", lo.FromPtr(info.NetworkInfo.MaximumNetworkInterfaces))
 	fmt.Fprintf(src, "Ipv4AddressesPerInterface: aws.Int64(%d),\n", lo.FromPtr(info.NetworkInfo.Ipv4AddressesPerInterface))
+	fmt.Fprintf(src, "EncryptionInTransitSupported: aws.Bool(%t),\n", lo.FromPtr(info.NetworkInfo.EncryptionInTransitSupported))
 	fmt.Fprintf(src, "},\n")
 	return src.String()
 }

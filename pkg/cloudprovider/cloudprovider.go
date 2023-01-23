@@ -24,8 +24,13 @@ import (
 	"strings"
 
 	"github.com/aws/karpenter/pkg/apis"
+	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/providers/securitygroup"
+	"github.com/aws/karpenter/pkg/providers/subnet"
 	"github.com/aws/karpenter/pkg/utils"
+
+	"github.com/aws/karpenter-core/pkg/utils/resources"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -43,9 +48,10 @@ import (
 	"knative.dev/pkg/ptr"
 	k8sClient "sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/aws/karpenter-core/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
 	awscontext "github.com/aws/karpenter/pkg/context"
+
+	"github.com/aws/karpenter-core/pkg/scheduling"
 
 	coreapis "github.com/aws/karpenter-core/pkg/apis"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
@@ -82,7 +88,7 @@ func New(ctx awscontext.Context) *CloudProvider {
 	if err := checkEC2Connectivity(ctx, ec2api); err != nil {
 		logging.FromContext(ctx).Fatalf("Checking EC2 API connectivity, %s", err)
 	}
-	subnetProvider := NewSubnetProvider(ec2api)
+	subnetProvider := subnet.NewProvider(ec2api)
 	instanceTypeProvider := NewInstanceTypeProvider(ctx, ctx.Session, ec2api, subnetProvider, ctx.UnavailableOfferingsCache, ctx.StartAsync)
 	amiProvider := amifamily.NewAMIProvider(ctx.KubeClient, ctx.KubernetesInterface, ssm.New(ctx.Session), ec2api,
 		cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval), cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval), cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval))
@@ -102,7 +108,7 @@ func New(ctx awscontext.Context) *CloudProvider {
 				ctx,
 				ec2api,
 				amiResolver,
-				NewSecurityGroupProvider(ec2api),
+				securitygroup.NewProvider(ec2api),
 				lo.Must(getCABundle(ctx.RESTConfig)),
 				ctx.StartAsync,
 				kubeDNSIP,
@@ -122,8 +128,8 @@ func checkEC2Connectivity(ctx context.Context, api *ec2.EC2) error {
 	return err
 }
 
-// Create a node given the constraints.
-func (c *CloudProvider) Create(ctx context.Context, machine *v1alpha5.Machine) (*v1.Node, error) {
+// Create a machine given the constraints.
+func (c *CloudProvider) Create(ctx context.Context, machine *v1alpha5.Machine) (*v1alpha5.Machine, error) {
 	nodeTemplate, err := c.resolveNodeTemplate(ctx, []byte(machine.
 		Annotations[v1alpha5.ProviderCompatabilityAnnotationKey]), machine.
 		Spec.MachineTemplateRef)
@@ -141,7 +147,37 @@ func (c *CloudProvider) Create(ctx context.Context, machine *v1alpha5.Machine) (
 	if err != nil {
 		return nil, fmt.Errorf("creating instance, %w", err)
 	}
-	return c.instanceToNode(instance, instanceTypes), nil
+	// Resolves instance details into a machine
+	created, err := c.instanceToMachine(ctx, instance, instanceTypes)
+	if err != nil {
+		return nil, fmt.Errorf("resolving instance details into machine, %w", err)
+	}
+	return created, nil
+}
+
+// TODO @joinnis: Remove provisionerName from this call signature once we decouple provisioner from GetInstanceTypes
+func (c *CloudProvider) Get(ctx context.Context, machineName, provisionerName string) (*v1alpha5.Machine, error) {
+	provisioner := &v1alpha5.Provisioner{}
+	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: provisionerName}, provisioner); err != nil {
+		return nil, fmt.Errorf("getting machine provisioner, %w", err)
+	}
+	instanceTypes, err := c.GetInstanceTypes(ctx, provisioner)
+	if err != nil {
+		return nil, fmt.Errorf("resolving instance types, %w", err)
+	}
+	if len(instanceTypes) == 0 {
+		return nil, fmt.Errorf("all requested instance types were unavailable during launch")
+	}
+	instance, err := c.instanceProvider.Get(ctx, machineName)
+	if err != nil {
+		return nil, fmt.Errorf("getting instance, %w", err)
+	}
+	// Resolves instance details into a machine
+	machine, err := c.instanceToMachine(ctx, instance, instanceTypes)
+	if err != nil {
+		return nil, fmt.Errorf("resolving instance details into machine, %w", err)
+	}
+	return machine, nil
 }
 
 func (c *CloudProvider) LivenessProbe(req *http.Request) error {
@@ -169,8 +205,15 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, provisioner *v1alp
 	return instanceTypes, nil
 }
 
+// TODO @joinnis: Migrate this delete call to use tag-based deleting when machine migration is done
 func (c *CloudProvider) Delete(ctx context.Context, machine *v1alpha5.Machine) error {
-	return c.instanceProvider.Delete(ctx, machine)
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("machine", machine.Name))
+	id, err := utils.ParseInstanceID(machine.Status.ProviderID)
+	if err != nil {
+		return fmt.Errorf("getting instance ID, %w", err)
+	}
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("id", id))
+	return c.instanceProvider.DeleteByID(ctx, id)
 }
 
 func (c *CloudProvider) IsMachineDrifted(ctx context.Context, machine *v1alpha5.Machine) (bool, error) {
@@ -198,37 +241,6 @@ func (c *CloudProvider) Name() string {
 	return "aws"
 }
 
-func getCABundle(restConfig *rest.Config) (*string, error) {
-	// Discover CA Bundle from the REST client. We could alternatively
-	// have used the simpler client-go InClusterConfig() method.
-	// However, that only works when Karpenter is running as a Pod
-	// within the same cluster it's managing.
-	transportConfig, err := restConfig.TransportConfig()
-	if err != nil {
-		return nil, fmt.Errorf("discovering caBundle, loading transport config, %w", err)
-	}
-	_, err = transport.TLSConfigFor(transportConfig) // fills in CAData!
-	if err != nil {
-		return nil, fmt.Errorf("discovering caBundle, loading TLS config, %w", err)
-	}
-	return ptr.String(base64.StdEncoding.EncodeToString(transportConfig.TLS.CAData)), nil
-}
-
-func kubeDNSIP(ctx context.Context, kubernetesInterface kubernetes.Interface) (net.IP, error) {
-	if kubernetesInterface == nil {
-		return nil, fmt.Errorf("no K8s client provided")
-	}
-	dnsService, err := kubernetesInterface.CoreV1().Services("kube-system").Get(ctx, "kube-dns", metav1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
-	kubeDNSIP := net.ParseIP(dnsService.Spec.ClusterIP)
-	if kubeDNSIP == nil {
-		return nil, fmt.Errorf("parsing cluster IP")
-	}
-	return kubeDNSIP, nil
-}
-
 func (c *CloudProvider) isAMIDrifted(ctx context.Context, machine *v1alpha5.Machine, provisioner *v1alpha5.Provisioner, nodeTemplate *v1alpha1.AWSNodeTemplate) (bool, error) {
 	instanceTypes, err := c.GetInstanceTypes(ctx, provisioner)
 	if err != nil {
@@ -253,7 +265,7 @@ func (c *CloudProvider) isAMIDrifted(ctx context.Context, machine *v1alpha5.Mach
 	if err != nil {
 		return false, err
 	}
-	instance, err := c.instanceProvider.Get(ctx, instanceID)
+	instance, err := c.instanceProvider.GetByID(ctx, instanceID)
 	if err != nil {
 		return false, fmt.Errorf("getting instance, %w", err)
 	}
@@ -291,34 +303,83 @@ func (c *CloudProvider) resolveInstanceTypes(ctx context.Context, machine *v1alp
 	}
 	reqs := scheduling.NewNodeSelectorRequirements(machine.Spec.Requirements...)
 	return lo.Filter(instanceTypes, func(i *cloudprovider.InstanceType, _ int) bool {
-		return reqs.Get(v1.LabelInstanceTypeStable).Has(i.Name) && len(i.Offerings.Requirements(reqs).Available()) > 0
+		return reqs.Compatible(i.Requirements) == nil &&
+			len(i.Offerings.Requirements(reqs).Available()) > 0 &&
+			resources.Fits(resources.Merge(machine.Spec.Resources.Requests, i.Overhead.Total()), i.Capacity)
 	}), nil
 }
 
-func (c *CloudProvider) instanceToNode(instance *ec2.Instance, instanceTypes []*cloudprovider.InstanceType) *v1.Node {
-	for _, instanceType := range instanceTypes {
-		if instanceType.Name == aws.StringValue(instance.InstanceType) {
-			nodeName := strings.ToLower(aws.StringValue(instance.PrivateDnsName))
-			labels := map[string]string{}
-			for key, req := range instanceType.Requirements {
-				if req.Len() == 1 {
-					labels[key] = req.Values()[0]
-				}
-			}
-			labels[v1alpha1.LabelInstanceAMIID] = aws.StringValue(instance.ImageId)
-			labels[v1.LabelTopologyZone] = aws.StringValue(instance.Placement.AvailabilityZone)
-			labels[v1alpha5.LabelCapacityType] = getCapacityType(instance)
-
-			return &v1.Node{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:   nodeName,
-					Labels: labels,
-				},
-				Spec: v1.NodeSpec{
-					ProviderID: fmt.Sprintf("aws:///%s/%s", aws.StringValue(instance.Placement.AvailabilityZone), aws.StringValue(instance.InstanceId)),
-				},
-			}
+// TODO @joinnis: Remove name resolution when Machine migration is completed
+func (c *CloudProvider) instanceToMachine(ctx context.Context, instance *ec2.Instance, instanceTypes []*cloudprovider.InstanceType) (*v1alpha5.Machine, error) {
+	machine := &v1alpha5.Machine{}
+	instanceType, found := lo.Find(instanceTypes, func(i *cloudprovider.InstanceType) bool {
+		return aws.StringValue(instance.InstanceType) == i.Name
+	})
+	if !found {
+		// This should never happen since the launched instance should always come from supported instance types
+		return nil, fmt.Errorf("launched instance type not included in instance types set")
+	}
+	labels := map[string]string{}
+	for key, req := range instanceType.Requirements {
+		if req.Len() == 1 {
+			labels[key] = req.Values()[0]
 		}
 	}
-	panic(fmt.Sprintf("unrecognized instance type %s", aws.StringValue(instance.InstanceType)))
+	labels[v1alpha1.LabelInstanceAMIID] = aws.StringValue(instance.ImageId)
+	labels[v1.LabelTopologyZone] = aws.StringValue(instance.Placement.AvailabilityZone)
+	labels[v1alpha5.LabelCapacityType] = getCapacityType(instance)
+	labels[v1alpha5.MachineNameLabelKey] = machine.Name
+
+	machine.Name = lo.Ternary(
+		awssettings.FromContext(ctx).NodeNameConvention == awssettings.ResourceName,
+		aws.StringValue(instance.InstanceId),
+		strings.ToLower(aws.StringValue(instance.PrivateDnsName)),
+	)
+	machine.Labels = labels
+	machine.Status.ProviderID = fmt.Sprintf("aws:///%s/%s", aws.StringValue(instance.Placement.AvailabilityZone), aws.StringValue(instance.InstanceId))
+
+	machine.Status.Capacity = v1.ResourceList{}
+	for k, v := range instanceType.Capacity {
+		if !resources.IsZero(v) {
+			machine.Status.Capacity[k] = v
+		}
+	}
+	machine.Status.Allocatable = v1.ResourceList{}
+	for k, v := range instanceType.Allocatable() {
+		if !resources.IsZero(v) {
+			machine.Status.Allocatable[k] = v
+		}
+	}
+	return machine, nil
+}
+
+func getCABundle(restConfig *rest.Config) (*string, error) {
+	// Discover CA Bundle from the REST client. We could alternatively
+	// have used the simpler client-go InClusterConfig() method.
+	// However, that only works when Karpenter is running as a Pod
+	// within the same cluster it's managing.
+	transportConfig, err := restConfig.TransportConfig()
+	if err != nil {
+		return nil, fmt.Errorf("discovering caBundle, loading transport config, %w", err)
+	}
+	_, err = transport.TLSConfigFor(transportConfig) // fills in CAData!
+	if err != nil {
+		return nil, fmt.Errorf("discovering caBundle, loading TLS config, %w", err)
+	}
+	return ptr.String(base64.StdEncoding.EncodeToString(transportConfig.TLS.CAData)), nil
+}
+
+func kubeDNSIP(ctx context.Context, kubernetesInterface kubernetes.Interface) (net.IP, error) {
+	if kubernetesInterface == nil {
+		return nil, fmt.Errorf("no K8s client provided")
+	}
+	dnsService, err := kubernetesInterface.CoreV1().Services("kube-system").Get(ctx, "kube-dns", metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	kubeDNSIP := net.ParseIP(dnsService.Spec.ClusterIP)
+	if kubeDNSIP == nil {
+		return nil, fmt.Errorf("parsing cluster IP")
+	}
+	return kubeDNSIP, nil
 }

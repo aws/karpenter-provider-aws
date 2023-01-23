@@ -134,11 +134,28 @@ Today, Karpenter will warn you if the number of instances in your Provisioner is
 Technically, Karpenter has a concept of an “offering” for each instance type, which is a combination of zone and capacity type (equivalent in the AWS cloud provider to an EC2 purchase option – Spot or On-Demand).
 Whenever the Fleet API returns an insufficient capacity error for Spot instances, those particular offerings are temporarily removed from consideration (across the entire provisioner) so that Karpenter can make forward progress with different options.
 
+### Does Karpenter support IPv6?
+
+Yes! Karpenter dynamically discovers if you are running in an IPv6 cluster by checking the kube-dns service's cluster-ip. When using an AMI Family such as `AL2`, Karpenter will automatically configure the EKS Bootstrap script for IPv6. Some EC2 instance types do not support IPv6 and the Amazon VPC CNI only supports instance types that run on the Nitro hypervisor. It's best to add a requirement to your Provisioner to only allow Nitro instance types:
+
+```
+kind: Provisioner
+...
+spec:
+  requirements:
+    - key: karpenter.k8s.aws/instance-hypervisor
+      operator: In
+      values:
+        - nitro
+```
+
+For more documentation on enabling IPv6 with the Amazon VPC CNI, see the [docs](https://docs.aws.amazon.com/eks/latest/userguide/cni-ipv6.html).
+
 ## Scheduling
 
-### When using preferred scheduling constraints, Karpenter launches the correct number of nodes at first.  Why do they then sometimes get consolidated immediately? 
+### When using preferred scheduling constraints, Karpenter launches the correct number of nodes at first.  Why do they then sometimes get consolidated immediately?
 
-`kube-scheduler` is responsible for the scheduling of pods, while Karpenter launches the capacity. When using any sort of preferred scheduling constraint, `kube-scheduler` will schedule pods to nodes anytime it is possible.  
+`kube-scheduler` is responsible for the scheduling of pods, while Karpenter launches the capacity. When using any sort of preferred scheduling constraint, `kube-scheduler` will schedule pods to nodes anytime it is possible.
 
 As an example, suppose you scale up a deployment with a preferred zonal topology spread and none of the newly created pods can run on your existing cluster.  Karpenter will then launch multiple nodes to satisfy that preference.  If a) one of the nodes becomes ready slightly faster than other nodes and b) has enough capacity for multiple pods, `kube-scheduler` will schedule as many pods as possible to the single ready node so they won't remain unschedulable. It doesn't consider the in-flight capacity that will be ready in a few seconds.  If all of the pods fit on the single node, the remaining nodes that Karpenter has launched aren't needed when they become ready and consolidation will delete them.
 
@@ -187,7 +204,7 @@ No. We recommend against using Node Termination Handler alongside Karpenter due 
 ### Why should I migrate from Node Termination Handler?
 Karpenter's native interruption handling offers two main benefits over the standalone Node Termination Handler component:
 1. You don't have to manage and maintain a separate component to exclusively handle interruption events.
-2. Karpenter's native interruption handling coordinates with other deprovisoining so that consolidation, expiration, etc. can be aware of interruption events and vice-versa.
+2. Karpenter's native interruption handling coordinates with other deprovisioning so that consolidation, expiration, etc. can be aware of interruption events and vice-versa.
 
 ### Why am I receiving QueueNotFound errors when I set `aws.interruptionQueueName`?
 Karpenter requires a queue to exist that receives event messages from EC2 and health services in order to handle interruption messages properly for nodes.

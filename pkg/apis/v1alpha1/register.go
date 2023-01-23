@@ -59,20 +59,21 @@ var (
 	ResourceHabanaGaudi v1.ResourceName = "habana.ai/gaudi"
 	ResourceAWSPodENI   v1.ResourceName = "vpc.amazonaws.com/pod-eni"
 
-	LabelInstanceHypervisor      = LabelDomain + "/instance-hypervisor"
-	LabelInstanceCategory        = LabelDomain + "/instance-category"
-	LabelInstanceFamily          = LabelDomain + "/instance-family"
-	LabelInstanceGeneration      = LabelDomain + "/instance-generation"
-	LabelInstanceLocalNVME       = LabelDomain + "/instance-local-nvme"
-	LabelInstanceSize            = LabelDomain + "/instance-size"
-	LabelInstanceCPU             = LabelDomain + "/instance-cpu"
-	LabelInstanceMemory          = LabelDomain + "/instance-memory"
-	LabelInstancePods            = LabelDomain + "/instance-pods"
-	LabelInstanceGPUName         = LabelDomain + "/instance-gpu-name"
-	LabelInstanceGPUManufacturer = LabelDomain + "/instance-gpu-manufacturer"
-	LabelInstanceGPUCount        = LabelDomain + "/instance-gpu-count"
-	LabelInstanceGPUMemory       = LabelDomain + "/instance-gpu-memory"
-	LabelInstanceAMIID           = LabelDomain + "/instance-ami-id"
+	LabelInstanceHypervisor                   = LabelDomain + "/instance-hypervisor"
+	LabelInstanceEncryptionInTransitSupported = LabelDomain + "/instance-encryption-in-transit-supported"
+	LabelInstanceCategory                     = LabelDomain + "/instance-category"
+	LabelInstanceFamily                       = LabelDomain + "/instance-family"
+	LabelInstanceGeneration                   = LabelDomain + "/instance-generation"
+	LabelInstanceLocalNVME                    = LabelDomain + "/instance-local-nvme"
+	LabelInstanceSize                         = LabelDomain + "/instance-size"
+	LabelInstanceCPU                          = LabelDomain + "/instance-cpu"
+	LabelInstanceMemory                       = LabelDomain + "/instance-memory"
+	LabelInstancePods                         = LabelDomain + "/instance-pods"
+	LabelInstanceGPUName                      = LabelDomain + "/instance-gpu-name"
+	LabelInstanceGPUManufacturer              = LabelDomain + "/instance-gpu-manufacturer"
+	LabelInstanceGPUCount                     = LabelDomain + "/instance-gpu-count"
+	LabelInstanceGPUMemory                    = LabelDomain + "/instance-gpu-memory"
+	LabelInstanceAMIID                        = LabelDomain + "/instance-ami-id"
 
 	InterruptionInfrastructureFinalizer = Group + "/interruption-infrastructure"
 )
@@ -97,6 +98,7 @@ func init() {
 	v1alpha5.RestrictedLabelDomains = v1alpha5.RestrictedLabelDomains.Insert(RestrictedLabelDomains...)
 	v1alpha5.WellKnownLabels = v1alpha5.WellKnownLabels.Insert(
 		LabelInstanceHypervisor,
+		LabelInstanceEncryptionInTransitSupported,
 		LabelInstanceCategory,
 		LabelInstanceFamily,
 		LabelInstanceGeneration,

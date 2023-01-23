@@ -37,7 +37,6 @@ import (
 	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
 
-	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/apis"
 	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
@@ -46,10 +45,14 @@ import (
 	awscontext "github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/test"
 
+	"github.com/aws/karpenter-core/pkg/cloudprovider"
+
 	"github.com/aws/karpenter-core/pkg/operator/controller"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ssm"
+
+	"github.com/aws/karpenter/pkg/fake"
 
 	"github.com/aws/karpenter-core/pkg/apis/config/settings"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
@@ -62,7 +65,9 @@ import (
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
 	machineutil "github.com/aws/karpenter-core/pkg/utils/machine"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
-	"github.com/aws/karpenter/pkg/fake"
+
+	"github.com/aws/karpenter/pkg/providers/securitygroup"
+	"github.com/aws/karpenter/pkg/providers/subnet"
 )
 
 var ctx context.Context
@@ -80,7 +85,6 @@ var unavailableOfferingsCache *awscache.UnavailableOfferings
 var instanceTypeCache *cache.Cache
 var instanceTypeProvider *InstanceTypeProvider
 var launchTemplateProvider *LaunchTemplateProvider
-var subnetProvider *SubnetProvider
 var amiProvider *amifamily.AMIProvider
 var fakeEC2API *fake.EC2API
 var fakeSSMAPI *fake.SSMAPI
@@ -95,6 +99,8 @@ var provisioner *v1alpha5.Provisioner
 var nodeTemplate *v1alpha1.AWSNodeTemplate
 var pricingProvider *PricingProvider
 var settingsStore coretest.SettingsStore
+var subnetProvider *subnet.Provider
+var securityGroupProvider *securitygroup.Provider
 
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -107,7 +113,7 @@ const (
 )
 
 var _ = BeforeSuite(func() {
-	env = coretest.NewEnvironment(scheme.Scheme, apis.CRDs...)
+	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
 	settingsStore = coretest.SettingsStore{
 		settings.ContextKey:    coretest.Settings(),
 		awssettings.ContextKey: test.Settings(),
@@ -129,11 +135,7 @@ var _ = BeforeSuite(func() {
 	fakePricingAPI = &fake.PricingAPI{}
 	pricingProvider = NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
 	amiProvider = amifamily.NewAMIProvider(env.Client, env.KubernetesInterface, fakeSSMAPI, fakeEC2API, ssmCache, ec2Cache, kubernetesVersionCache)
-	subnetProvider = &SubnetProvider{
-		ec2api: fakeEC2API,
-		cache:  subnetCache,
-		cm:     pretty.NewChangeMonitor(),
-	}
+	subnetProvider = subnet.NewProvider(fakeEC2API)
 	instanceTypeProvider = &InstanceTypeProvider{
 		ec2api:               fakeEC2API,
 		subnetProvider:       subnetProvider,
@@ -142,11 +144,7 @@ var _ = BeforeSuite(func() {
 		unavailableOfferings: unavailableOfferingsCache,
 		cm:                   pretty.NewChangeMonitor(),
 	}
-	securityGroupProvider := &SecurityGroupProvider{
-		ec2api: fakeEC2API,
-		cache:  securityGroupCache,
-		cm:     pretty.NewChangeMonitor(),
-	}
+	securityGroupProvider = securitygroup.NewProvider(fakeEC2API)
 	launchTemplateProvider = &LaunchTemplateProvider{
 		ec2api:                fakeEC2API,
 		amiFamily:             amifamily.New(env.Client, amiProvider),
@@ -162,7 +160,7 @@ var _ = BeforeSuite(func() {
 		kubeClient:           env.Client,
 	}
 	fakeClock = clock.NewFakeClock(time.Now())
-	cluster = state.NewCluster(ctx, fakeClock, env.Client, cloudProvider)
+	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
 	recorder = coretest.NewEventRecorder()
 	prov = provisioning.NewProvisioner(ctx, env.Client, env.KubernetesInterface.CoreV1(), recorder, cloudProvider, cluster)
 	provisioningController = provisioning.NewController(env.Client, prov, recorder)
@@ -209,18 +207,19 @@ var _ = BeforeEach(func() {
 		},
 	})
 
+	cluster.Reset()
 	recorder.Reset()
 	fakeEC2API.Reset()
 	fakeSSMAPI.Reset()
 	fakePricingAPI.Reset()
 	launchTemplateCache.Flush()
-	securityGroupCache.Flush()
-	subnetCache.Flush()
 	internalUnavailableOfferingsCache.Flush()
 	ssmCache.Flush()
 	ec2Cache.Flush()
 	kubernetesVersionCache.Flush()
 	instanceTypeCache.Flush()
+	subnetProvider.Reset()
+	securityGroupProvider.Reset()
 	launchTemplateProvider.kubeDNSIP = net.ParseIP("10.0.100.10")
 
 	// Reset the pricing provider, so we don't cross-pollinate pricing data
@@ -421,7 +420,7 @@ var _ = Describe("Allocation", func() {
 	})
 	Context("Provider Backwards Compatibility", func() {
 		It("should launch a node using provider defaults", func() {
-			provisioner := test.Provisioner(coretest.ProvisionerOptions{
+			provisioner = test.Provisioner(coretest.ProvisionerOptions{
 				Provider: v1alpha1.AWS{
 					AMIFamily:             aws.String(v1alpha1.AMIFamilyAL2),
 					SubnetSelector:        map[string]string{"*": "*"},
@@ -450,7 +449,7 @@ var _ = Describe("Allocation", func() {
 			Expect(*launchTemplate.Version).To(Equal("$Latest"))
 		})
 		It("should discover security groups by ID", func() {
-			provisioner := test.Provisioner(coretest.ProvisionerOptions{
+			provisioner = test.Provisioner(coretest.ProvisionerOptions{
 				Provider: v1alpha1.AWS{
 					AMIFamily:             aws.String(v1alpha1.AMIFamilyAL2),
 					SubnetSelector:        map[string]string{"*": "*"},
@@ -471,7 +470,7 @@ var _ = Describe("Allocation", func() {
 			))
 		})
 		It("should discover subnets by ID", func() {
-			provisioner := test.Provisioner(coretest.ProvisionerOptions{
+			provisioner = test.Provisioner(coretest.ProvisionerOptions{
 				Provider: v1alpha1.AWS{
 					AMIFamily:             aws.String(v1alpha1.AMIFamilyAL2),
 					SubnetSelector:        map[string]string{"aws-ids": "subnet-test1"},
@@ -489,7 +488,7 @@ var _ = Describe("Allocation", func() {
 			Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("subnet-test1"))
 		})
 		It("should use the instance profile on the Provisioner when specified", func() {
-			provisioner := test.Provisioner(coretest.ProvisionerOptions{
+			provisioner = test.Provisioner(coretest.ProvisionerOptions{
 				Provider: v1alpha1.AWS{
 					AMIFamily:             aws.String(v1alpha1.AMIFamilyAL2),
 					SubnetSelector:        map[string]string{"*": "*"},
@@ -507,6 +506,71 @@ var _ = Describe("Allocation", func() {
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			Expect(*input.LaunchTemplateData.IamInstanceProfile.Name).To(Equal("overridden-profile"))
+		})
+	})
+	Context("Subnet Compatibility", func() {
+		// Note when debugging these tests -
+		// hard coded fixture data (ex. what the aws api will return) is maintained in fake/ec2api.go
+		It("should default to the cluster's subnets", func() {
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			pod := ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, coretest.UnschedulablePod(
+				coretest.PodOptions{NodeSelector: map[string]string{v1.LabelArchStable: v1alpha5.ArchitectureAmd64}}))[0]
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(fakeEC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
+			input := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
+			Expect(input.LaunchTemplateConfigs).To(HaveLen(1))
+
+			foundNonGPULT := false
+			for _, v := range input.LaunchTemplateConfigs {
+				for _, ov := range v.Overrides {
+					if *ov.InstanceType == "m5.large" {
+						foundNonGPULT = true
+						Expect(v.Overrides).To(ContainElements(
+							&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("subnet-test1"), InstanceType: aws.String("m5.large"), AvailabilityZone: aws.String("test-zone-1a")},
+							&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("subnet-test2"), InstanceType: aws.String("m5.large"), AvailabilityZone: aws.String("test-zone-1b")},
+							&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("subnet-test3"), InstanceType: aws.String("m5.large"), AvailabilityZone: aws.String("test-zone-1c")},
+						))
+					}
+				}
+			}
+			Expect(foundNonGPULT).To(BeTrue())
+		})
+		It("should launch instances into subnet with the most available IP addresses", func() {
+			fakeEC2API.DescribeSubnetsOutput.Set(&ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{
+				{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a"), AvailableIpAddressCount: aws.Int64(10),
+					Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1")}}},
+				{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1a"), AvailableIpAddressCount: aws.Int64(100),
+					Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
+			}})
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			pod := ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}}))[0]
+			ExpectScheduled(ctx, env.Client, pod)
+			createFleetInput := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
+			Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-2"))
+		})
+		It("should launch instances into subnets that are excluded by another provisioner", func() {
+			fakeEC2API.DescribeSubnetsOutput.Set(&ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{
+				{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a"), AvailableIpAddressCount: aws.Int64(10),
+					Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1")}}},
+				{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1b"), AvailableIpAddressCount: aws.Int64(100),
+					Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
+			}})
+			nodeTemplate.Spec.SubnetSelector = map[string]string{"Name": "test-subnet-1"}
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			podSubnet1 := ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
+			ExpectScheduled(ctx, env.Client, podSubnet1)
+			createFleetInput := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
+			Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-1"))
+
+			provisioner = test.Provisioner(coretest.ProvisionerOptions{Provider: &v1alpha1.AWS{
+				SubnetSelector:        map[string]string{"Name": "test-subnet-2"},
+				SecurityGroupSelector: map[string]string{"*": "*"},
+			}})
+			ExpectApplied(ctx, env.Client, provisioner)
+			podSubnet2 := ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name}}))[0]
+			ExpectScheduled(ctx, env.Client, podSubnet2)
+			createFleetInput = fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
+			Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-2"))
 		})
 	})
 })

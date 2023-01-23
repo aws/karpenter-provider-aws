@@ -18,11 +18,12 @@ import (
 	"github.com/samber/lo"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/controllers"
 	"github.com/aws/karpenter/pkg/webhooks"
+
+	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 
 	corecloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/cloudprovider/metrics"
@@ -62,7 +63,7 @@ func main() {
 			operator.Clock,
 			operator.GetClient(),
 			operator.KubernetesInterface,
-			state.NewCluster(ctx, operator.Clock, operator.GetClient(), cloudProvider),
+			state.NewCluster(operator.Clock, operator.GetClient(), cloudProvider),
 			operator.EventRecorder,
 			operator.SettingsStore,
 			cloudProvider,

@@ -37,47 +37,11 @@ data:
   pipelines-trigger.sh: |+
     #!/usr/bin/env bash
     set -euo pipefail
-    for suite in "Integration" "Consolidation" "Utilization" "Interruption" "Chaos" "Drift"; do
-       cat <<EOF | kubectl create -f -
-     apiVersion: tekton.dev/v1beta1
-     kind: PipelineRun
-     metadata:
-       generateName: "$(echo ${suite} | tr '[:upper:]' '[:lower:]')-"
-       namespace: karpenter-tests
-     spec:
-       params:
-       - name: test-filter
-         value: "${suite}"
-       pipelineRef:
-         name: suite
-       serviceAccountName: karpenter-tests
-    EOF
-    echo "CREATED PIPELINE RUN for ${suite}"
-    done
-    cat <<EOF | kubectl create -f -
-     apiVersion: tekton.dev/v1beta1
-     kind: PipelineRun
-     metadata:
-       generateName: "upgrade-suite"
-       namespace: karpenter-tests
-     spec:
-       pipelineRef:
-         name: upgrade
-       serviceAccountName: karpenter-tests
-    EOF
-    echo "CREATED PIPELINE RUN for upgrade-suite"
-    cat <<EOF | kubectl create -f -
-     apiVersion: tekton.dev/v1beta1
-     kind: PipelineRun
-     metadata:
-       generateName: "ipv6-suite"
-       namespace: karpenter-tests
-     spec:
-       pipelineRef:
-         name: ipv6
-       serviceAccountName: karpenter-tests
-    EOF
-    echo "CREATED PIPELINE RUN for ipv6-suite"
+
+    export AWS_REGION=us-east-1
+    MESSAGE="{\"releaseType\":\"periodic\",\"releaseIdentifier\":\"HEAD\",\"prNumber\":\"none\",\"githubAccount\":\"aws\"}"
+    QUEUE_URL=https://sqs.us-east-1.amazonaws.com/958073914028/ReleaseQueue
+    aws sqs send-message --queue-url $QUEUE_URL --message-body $MESSAGE
 ---
 apiVersion: batch/v1
 kind: CronJob
@@ -101,7 +65,7 @@ spec:
             - /bin/sh
             - -c
             - /bin/pipelines-trigger.sh
-            image: public.ecr.aws/bitnami/kubectl:1.22
+            image: public.ecr.aws/karpenter/tools:latest
             imagePullPolicy: IfNotPresent
             volumeMounts:
             - name: pipelines-trigger
@@ -117,7 +81,7 @@ spec:
           restartPolicy: OnFailure
           serviceAccountName: karpenter-tests-trigger
       ttlSecondsAfterFinished: 300
-  # every 4 hours starting at the 7th minute
-  schedule: '7 */4 * * *'
+  # every 8 hours starting at the 7th minute
+  schedule: '7 */8 * * *'
   successfulJobsHistoryLimit: 3
   suspend: false
