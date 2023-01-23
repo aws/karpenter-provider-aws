@@ -145,7 +145,7 @@ module "eks" {
   # recommended rules which is required by Karpenter
   node_security_group_enable_recommended_rules = true
 
-  tags = {
+  node_security_group_tags = {
     # NOTE - if creating multiple security groups with this module, only tag the
     # security group that Karpenter should utilize with the following tag
     # (i.e. - at most, only one security group should have this tag in your account)
