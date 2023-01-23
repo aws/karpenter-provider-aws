@@ -114,11 +114,17 @@ spec:
             {{- toYaml . | nindent 12 }}
           {{- end }}
         {{- with .Values.controller.sidecarContainer }}
-          {{- with .Values.controller.extraVolumeMounts }}
-          volumeMounts:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
+        {{- toYaml . | nindent 8 }}
         {{- end }}
+        {{- if and (.Values.controller.sidecarContainer) (or .Values.controller.extraVolumeMounts .Values.controller.sidecarVolumeMounts) }}
+          volumeMounts:
+          {{- with .Values.controller.extraVolumeMounts }}
+          {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.controller.sidecarVolumeMounts }}
+          {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
