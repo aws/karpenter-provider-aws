@@ -17,10 +17,11 @@ CLUSTER_ENDPOINT ?= $(shell kubectl config view --minify -o jsonpath='{.clusters
 AWS_ACCOUNT_ID ?= $(shell aws sts get-caller-identity --query Account --output text)
 KARPENTER_IAM_ROLE_ARN ?= arn:aws:iam::${AWS_ACCOUNT_ID}:role/${CLUSTER_NAME}-karpenter
 HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${KARPENTER_IAM_ROLE_ARN} \
-      		--set settings.aws.clusterName=${CLUSTER_NAME} \
-			--set settings.aws.clusterEndpoint=${CLUSTER_ENDPOINT} \
-			--set settings.aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
-			--set settings.aws.interruptionQueueName=${CLUSTER_NAME} \
+			--set karpenter-core.serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${KARPENTER_IAM_ROLE_ARN} \
+			--set karpenter-core.settings.aws.clusterName=${CLUSTER_NAME} \
+			--set karpenter-core.settings.aws.clusterEndpoint=${CLUSTER_ENDPOINT} \
+			--set karpenter-core.settings.aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
+			--set karpenter-core.settings.aws.interruptionQueueName=${CLUSTER_NAME} \
 			--create-namespace
 
 # CR for local builds of Karpenter
@@ -101,7 +102,6 @@ coverage:
 verify: tidy download ## Verify code. Includes dependencies, linting, formatting, etc
 	go generate ./...
 	hack/boilerplate.sh
-	curl https://raw.githubusercontent.com/aws/karpenter-core/main/pkg/apis/crds/karpenter.sh_provisioners.yaml > pkg/apis/crds/karpenter.sh_provisioners.yaml
 	$(foreach dir,$(MOD_DIRS),cd $(dir) && golangci-lint run $(newline))
 	@git diff --quiet ||\
 		{ echo "New file modification detected in the Git working tree. Please check in before commit."; git --no-pager diff --name-only | uniq | awk '{print "  - " $$0}'; \

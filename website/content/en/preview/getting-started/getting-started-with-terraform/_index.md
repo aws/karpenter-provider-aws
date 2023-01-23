@@ -266,27 +266,32 @@ resource "helm_release" "karpenter" {
   version             = "{{< param "latest_release_version" >}}"
 
   set {
-    name  = "settings.aws.clusterName"
+    name  = "karpenter-core.settings.aws.clusterName"
     value = module.eks.cluster_name
   }
 
   set {
-    name  = "settings.aws.clusterEndpoint"
+    name  = "karpenter-core.settings.aws.clusterEndpoint"
     value = module.eks.cluster_endpoint
   }
 
+  set {
+    name  = "karpenter-core.serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
+    value = module.karpenter.irsa_arn
+  }
+  
   set {
     name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
     value = module.karpenter.irsa_arn
   }
 
   set {
-    name  = "settings.aws.defaultInstanceProfile"
+    name  = "karpenter-core.settings.aws.defaultInstanceProfile"
     value = module.karpenter.instance_profile_name
   }
 
   set {
-    name  = "settings.aws.interruptionQueueName"
+    name  = "karpenter-core.settings.aws.interruptionQueueName"
     value = module.karpenter.queue_name
   }
 }

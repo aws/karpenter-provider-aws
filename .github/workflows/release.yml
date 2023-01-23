@@ -9,7 +9,7 @@ permissions:
   contents: write
 jobs:
   release:
-    if: github.event.workflow_run.conclusion == 'success' && github.repository == 'aws/karpenter' && contains(fromJson('["push"]'), github.event.workflow_run.event)
+    if: github.event.workflow_run.conclusion == 'success' && github.repository == 'spring1843/karpenter' && contains(fromJson('["push"]'), github.event.workflow_run.event)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -34,16 +34,17 @@ jobs:
           secret: ${{ secrets.GITHUB_TOKEN }}
       - run: make release
       - run: make docgen
+        if: env.TAG != 'none'
       - name: Autogenerate and commit files for PR for major and minor releases only
         if: endsWith(env.TAG ,'.0')
         run: make prepare-website
       - run: make stable-release-pr
-        if: env.TAG != 'no tag'
+        if: env.TAG != 'none'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPO: ${{ github.repository }}
       - name: Create PR
-        if: env.TAG != 'no tag'
+        if: env.TAG != 'none'
         uses: actions/github-script@v6
         with:
           script: |
