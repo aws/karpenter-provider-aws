@@ -105,7 +105,7 @@ func (p *InstanceProvider) Create(ctx context.Context, nodeTemplate *v1alpha1.AW
 		retry.Attempts(6),
 		retry.LastErrorOnly(true),
 	); err != nil {
-		return nil, fmt.Errorf("retrieving node name for instance %s, %w", aws.StringValue(instance.InstanceId), err)
+		return nil, fmt.Errorf("retrieving node name for instance %s, %w", aws.StringValue(id), err)
 	}
 	logging.FromContext(ctx).With(
 		"id", aws.StringValue(instance.InstanceId),
