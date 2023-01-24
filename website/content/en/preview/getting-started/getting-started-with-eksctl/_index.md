@@ -42,27 +42,23 @@ authenticate properly by running `aws sts get-caller-identity`.
 
 ### Environment Variables
 
-After setting up the tools, set the following environment variable to the Karpenter version you
-would like to install.
-
+Set the following environment variables to complete this guide.
 ```bash
 export KARPENTER_VERSION={{< param "latest_release_version" >}}
 ```
-
-Also set the following environment variables to store commonly used values.
-
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step01-config.sh" language="bash"%}}
 
-{{% alert title="Warning" color="warning" %}}
-If you open a new shell to run steps in this procedure, you need to set some or all of the environment variables again.
-To remind yourself of these values, type:
+Provision IAM roles and other required infrastructure using AWS CloudFormation.
+{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step03-iam-cloud-formation.sh" language="bash"%}}
 
-```bash
-echo $KARPENTER_VERSION $CLUSTER_NAME $AWS_DEFAULT_REGION $AWS_ACCOUNT_ID
-```
+Create a cluster using eksctl
+{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step02-create-cluster.sh" language="bash"%}}
 
-{{% /alert %}}
+Enable Spot, see: https://docs.aws.amazon.com/batch/latest/userguide/spot_fleet_IAM_role.html
+{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step06-add-spot-role.sh" language="bash"%}}
 
+Install Karpenter using helm
+{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step08-apply-helm-chart.sh" language="bash"%}}
 
 ### Create a Cluster
 
@@ -70,23 +66,10 @@ Create a basic cluster with `eksctl`.
 Each of the two examples set up an IAM OIDC provider for the cluster to enable IAM roles for pods.
 The first uses [AWS EKS managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-groups.html) for the kube-system and karpenter namespaces, while the second uses Fargate for both namespaces.
 
-**Example 1: Create basic cluster**
-
-{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step02-create-cluster.sh" language="bash"%}}
-
-**Example 2: Create basic cluster with Karpenter on Fargate**
-
-{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step02-create-cluster-fargate.sh" language="bash"%}}
 
 Karpenter itself can run anywhere, including on [self-managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/worker.html), [managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-groups.html) (Example 1), or [AWS Fargate](https://aws.amazon.com/fargate/)(Example 2).
 
 Karpenter will provision EC2 instances in your account.
-
-### Create the Karpenter Infrastructure and IAM Roles
-
-Karpenter requires IAM permissions to launch and connect instances and requires infrastructure to monitor [interruption events]({{<ref "../../concepts/deprovisioning/#interruption" >}}). This command provisions the relevant infrastructure and IAM roles using Cloudformation.
-
-{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step03-iam-cloud-formation.sh" language="bash"%}}
 
 ### Grant Access to Nodes to Join the Cluster
 
@@ -101,20 +84,6 @@ Now, Karpenter can launch new EC2 instances and those instances can connect to y
 Karpenter requires permissions like launching instances. This will create an AWS IAM Role, Kubernetes service account, and associate them using [IRSA](https://docs.aws.amazon.com/emr/latest/EMR-on-EKS-DevelopmentGuide/setting-up-enable-IAM.html).
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step05-controller-iam.sh" language="bash"%}}
-
-### Create the EC2 Spot Service Linked Role
-
-This step is only necessary if this is the first time you're using EC2 Spot in this account. More details are available [here](https://docs.aws.amazon.com/batch/latest/userguide/spot_fleet_IAM_role.html).
-
-{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step06-add-spot-role.sh" language="bash"%}}
-
-### Install Karpenter Helm Chart
-
-Use Helm to deploy Karpenter to the cluster.
-
-Install the chart passing in the cluster details and the Karpenter role ARN.
-
-{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step08-apply-helm-chart.sh" language="bash"%}}
 
 ### Optional Configuration
 
