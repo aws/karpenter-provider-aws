@@ -15,7 +15,7 @@ jobs:
       - name: Save tag and SHA as an artifact for other workflows that run on workflow_run to download them
         run: |
           mkdir -p /tmp/artifacts
-          TAG=$(git describe --tags --exact-match || echo "no tag")
+          TAG=$(git describe --tags --exact-match || echo "none")
           echo "${TAG}" > /tmp/artifacts/metadata.txt
           git rev-parse HEAD >> /tmp/artifacts/metadata.txt
           echo "metadata.txt contents:"
@@ -23,7 +23,7 @@ jobs:
           echo "TAG=$TAG" >> $GITHUB_ENV
       - uses: ./.github/actions/upload-artifact
       - name: Create Github Release
-        if: env.TAG != 'no tag'
+        if: env.TAG != 'none'
         uses: "marvinpinto/action-automatic-releases@latest"
         with:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"

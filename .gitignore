@@ -1,3 +1,5 @@
+charts/karpenter/charts
+
 # Go toolchain
 coverage.out
 coverage.html

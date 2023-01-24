@@ -5,7 +5,7 @@ config(){
   GITHUB_ACCOUNT="aws"
   AWS_ACCOUNT_ID="071440425669"
   ECR_GALLERY_NAME="karpenter"
-  RELEASE_REPO=${RELEASE_REPO:-public.ecr.aws/${ECR_GALLERY_NAME}/}
+  RELEASE_REPO_ECR=${RELEASE_REPO_ECR:-public.ecr.aws/${ECR_GALLERY_NAME}/}
   RELEASE_REPO_GH=${RELEASE_REPO_GH:-ghcr.io/${GITHUB_ACCOUNT}/karpenter}
 
   PRIVATE_PULL_THROUGH_HOST="${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com"
@@ -32,13 +32,13 @@ Helm Chart Version $(helmChartVersion $RELEASE_VERSION)"
   authenticate
   buildImages
   cosignImages
-  publishHelmChart
+  publishHelmChart "karpenter" "${RELEASE_VERSION}" "${RELEASE_REPO_ECR}"
   notifyRelease $RELEASE_VERSION $PR_NUMBER
   pullPrivateReplica $RELEASE_VERSION
 }
 
 authenticate() {
-  aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${RELEASE_REPO}
+  aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${RELEASE_REPO_ECR}
 }
 
 authenticatePrivateRepo() {
@@ -46,7 +46,7 @@ authenticatePrivateRepo() {
 }
 
 buildImages() {
-    CONTROLLER_DIGEST=$(GOFLAGS=${GOFLAGS} KO_DOCKER_REPO=${RELEASE_REPO} ko publish -B -t ${RELEASE_VERSION} ${RELEASE_PLATFORM} ./cmd/controller)
+    CONTROLLER_DIGEST=$(GOFLAGS=${GOFLAGS} KO_DOCKER_REPO=${RELEASE_REPO_ECR} ko publish -B -t ${RELEASE_VERSION} ${RELEASE_PLATFORM} ./cmd/controller)
     HELM_CHART_VERSION=$(helmChartVersion $RELEASE_VERSION)
     yq e -i ".controller.image = \"${CONTROLLER_DIGEST}\"" charts/karpenter/values.yaml
     yq e -i ".appVersion = \"${RELEASE_VERSION#v}\"" charts/karpenter/Chart.yaml
@@ -109,21 +109,9 @@ pullPrivateReplica(){
 }
 
 publishHelmChart() {
-    HELM_CHART_VERSION=$(helmChartVersion $RELEASE_VERSION)
-    HELM_CHART_FILE_NAME="karpenter-${HELM_CHART_VERSION}.tgz"
-
-    cd charts
-    helm dependency update "karpenter"
-    helm lint karpenter
-    helm package karpenter --version $HELM_CHART_VERSION
-    helm push "${HELM_CHART_FILE_NAME}" "oci://${RELEASE_REPO}"
-    rm "${HELM_CHART_FILE_NAME}"
-    cd ..
-}
-
-publishHelmChartToGHCR() {
     CHART_NAME=$1
     RELEASE_VERSION=$2
+    RELEASE_REPO=$3
     HELM_CHART_VERSION=$(helmChartVersion $RELEASE_VERSION)
     HELM_CHART_FILE_NAME="${CHART_NAME}-${HELM_CHART_VERSION}.tgz"
 
@@ -131,7 +119,7 @@ publishHelmChartToGHCR() {
     helm dependency update "${CHART_NAME}"
     helm lint "${CHART_NAME}"
     helm package "${CHART_NAME}" --version $HELM_CHART_VERSION
-    helm push "${HELM_CHART_FILE_NAME}" "oci://${RELEASE_REPO_GH}"
+    helm push "${HELM_CHART_FILE_NAME}" "oci://${RELEASE_REPO}"
     rm "${HELM_CHART_FILE_NAME}"
     cd ..
 }
