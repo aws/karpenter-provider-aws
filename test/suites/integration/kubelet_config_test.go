@@ -85,7 +85,9 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 					"imagefs.inodesFree": {Duration: time.Minute * 2},
 					"pid.available":      {Duration: time.Minute * 2},
 				},
-				EvictionMaxPodGracePeriod: ptr.Int32(120),
+				EvictionMaxPodGracePeriod:   ptr.Int32(120),
+				ImageGCHighThresholdPercent: ptr.Int32(50),
+				ImageGCLowThresholdPercent:  ptr.Int32(10),
 			},
 		})
 
@@ -230,6 +232,15 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 1)
 		env.ExpectUniqueNodeNames(selector, 1)
+	})
+
+	It("should fail if ImageGCLowThresholdPercent is greather than ImageGCHighThresholdPercent", func() {
+		Expect(env.Client.Create(env, test.Provisioner(test.ProvisionerOptions{
+			Kubelet: &v1alpha5.KubeletConfiguration{
+				ImageGCLowThresholdPercent:  ptr.Int32(60),
+				ImageGCHighThresholdPercent: ptr.Int32(10),
+			},
+		}))).ToNot(Succeed())
 	})
 })
 
