@@ -53,7 +53,7 @@ func (p *Provider) List(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTempl
 	p.Lock()
 	defer p.Unlock()
 	filters := getFilters(nodeTemplate)
-	hash, err := hashstructure.Hash(filters, hashstructure.FormatV2, nil)
+	hash, err := hashstructure.Hash(filters, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	if err != nil {
 		return nil, err
 	}

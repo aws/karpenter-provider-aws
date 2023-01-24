@@ -18,7 +18,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -53,7 +53,6 @@ const (
 )
 
 type InstanceTypeProvider struct {
-	sync.Mutex
 	region          string
 	ec2api          ec2iface.EC2API
 	subnetProvider  *subnet.Provider
@@ -61,9 +60,13 @@ type InstanceTypeProvider struct {
 	// Has one cache entry for all the instance types (key: InstanceTypesCacheKey)
 	// Has one cache entry for all the zones for each subnet selector (key: InstanceTypesZonesCacheKeyPrefix:<hash_of_selector>)
 	// Values cached *before* considering insufficient capacity errors from the unavailableOfferings cache.
+	// Fully initialized Instance Types are also cached based on the set of all instance types, zones, unavailableOfferings cache,
+	// node template, and kubelet configuration from the provisioner
 	cache                *cache.Cache
 	unavailableOfferings *awscache.UnavailableOfferings
 	cm                   *pretty.ChangeMonitor
+	// instanceTypesSeqNum is a monotonically increasing change counter used to avoid the expensive hashing operation on instance types
+	instanceTypesSeqNum uint64
 }
 
 func NewInstanceTypeProvider(ctx context.Context, sess *session.Session, ec2api ec2iface.EC2API, subnetProvider *subnet.Provider,
@@ -83,12 +86,11 @@ func NewInstanceTypeProvider(ctx context.Context, sess *session.Session, ec2api 
 		cache:                cache.New(InstanceTypesAndZonesCacheTTL, awscontext.CacheCleanupInterval),
 		unavailableOfferings: unavailableOfferingsCache,
 		cm:                   pretty.NewChangeMonitor(),
+		instanceTypesSeqNum:  0,
 	}
 }
 
 func (p *InstanceTypeProvider) List(ctx context.Context, kc *v1alpha5.KubeletConfiguration, nodeTemplate *v1alpha1.AWSNodeTemplate) ([]*cloudprovider.InstanceType, error) {
-	p.Lock()
-	defer p.Unlock()
 	// Get InstanceTypes from EC2
 	instanceTypes, err := p.getInstanceTypes(ctx)
 	if err != nil {
@@ -99,20 +101,27 @@ func (p *InstanceTypeProvider) List(ctx context.Context, kc *v1alpha5.KubeletCon
 	if err != nil {
 		return nil, err
 	}
-	var result []*cloudprovider.InstanceType
 
+	// Compute fully initialized instance types hash key
+	instanceTypeZonesHash, _ := hashstructure.Hash(instanceTypeZones, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	kcHash, _ := hashstructure.Hash(kc, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	key := fmt.Sprintf("%d-%d-%s-%016x-%016x", p.instanceTypesSeqNum, p.unavailableOfferings.SeqNum, nodeTemplate.UID, instanceTypeZonesHash, kcHash)
+
+	if item, ok := p.cache.Get(key); ok {
+		return item.([]*cloudprovider.InstanceType), nil
+	}
+
+	var result []*cloudprovider.InstanceType
 	for _, i := range instanceTypes {
 		instanceTypeName := aws.StringValue(i.InstanceType)
 		instanceType := NewInstanceType(ctx, i, kc, p.region, nodeTemplate, p.createOfferings(ctx, i, instanceTypeZones[instanceTypeName]))
 		result = append(result, instanceType)
 	}
+	p.cache.SetDefault(key, result)
 	return result, nil
 }
 
 func (p *InstanceTypeProvider) LivenessProbe(req *http.Request) error {
-	p.Lock()
-	//nolint: staticcheck
-	p.Unlock()
 	if err := p.subnetProvider.LivenessProbe(req); err != nil {
 		return err
 	}
@@ -123,7 +132,7 @@ func (p *InstanceTypeProvider) LivenessProbe(req *http.Request) error {
 }
 
 func (p *InstanceTypeProvider) createOfferings(ctx context.Context, instanceType *ec2.InstanceTypeInfo, zones sets.String) []cloudprovider.Offering {
-	offerings := []cloudprovider.Offering{}
+	var offerings []cloudprovider.Offering
 	for zone := range zones {
 		// while usage classes should be a distinct set, there's no guarantee of that
 		for capacityType := range sets.NewString(aws.StringValueSlice(instanceType.SupportedUsageClasses)...) {
@@ -225,6 +234,7 @@ func (p *InstanceTypeProvider) getInstanceTypes(ctx context.Context) (map[string
 		logging.FromContext(ctx).With(
 			"instance-type-count", len(instanceTypes)).Debugf("discovered EC2 instance types")
 	}
+	atomic.AddUint64(&p.instanceTypesSeqNum, 1)
 	p.cache.SetDefault(InstanceTypesCacheKey, instanceTypes)
 	return instanceTypes, nil
 }
