@@ -67,8 +67,8 @@ type BottlerocketKubernetes struct {
 	CPUManagerPolicy            *string                          `toml:"cpu-manager-policy,omitempty"`
 	CPUManagerReconcilePeriod   *string                          `toml:"cpu-manager-reconcile-period,omitempty"`
 	TopologyManagerScope        *string                          `toml:"topology-manager-scope,omitempty"`
-	ImageGCLowThresholdPercent  *int                             `toml:"image-gc-high-threshold-percent,omitempty"`
-	ImageGCHighThresholdPercent *int                             `toml:"image-gc-low-threshold-percent,omitempty"`
+	ImageGCLowThresholdPercent  *int32                           `toml:"image-gc-high-threshold-percent,omitempty"`
+	ImageGCHighThresholdPercent *int32                           `toml:"image-gc-low-threshold-percent,omitempty"`
 }
 
 type BottlerocketStaticPod struct {
