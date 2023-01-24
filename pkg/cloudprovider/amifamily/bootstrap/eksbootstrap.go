@@ -88,6 +88,14 @@ func (e EKS) Script() (string, error) {
 		if e.KubeletConfig.EvictionMaxPodGracePeriod != nil {
 			kubeletExtraArgs.WriteString(fmt.Sprintf(" --eviction-max-pod-grace-period=%d", ptr.Int32Value(e.KubeletConfig.EvictionMaxPodGracePeriod)))
 		}
+
+		if e.KubeletConfig.ImageGCHighThresholdPercent != nil {
+			kubeletExtraArgs.WriteString(fmt.Sprintf(" --image-gc-high-threshold=%d", ptr.Int32Value(e.KubeletConfig.ImageGCHighThresholdPercent)))
+		}
+
+		if e.KubeletConfig.ImageGCLowThresholdPercent != nil {
+			kubeletExtraArgs.WriteString(fmt.Sprintf(" --image-gc-low-threshold=%d", ptr.Int32Value(e.KubeletConfig.ImageGCLowThresholdPercent)))
+		}
 	}
 	if e.ContainerRuntime != "" {
 		userData.WriteString(fmt.Sprintf(" \\\n--container-runtime %s", e.ContainerRuntime))

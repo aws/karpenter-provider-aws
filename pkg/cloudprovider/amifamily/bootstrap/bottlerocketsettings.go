@@ -43,31 +43,32 @@ type BottlerocketSettings struct {
 
 // BottlerocketKubernetes is k8s specific configuration for bottlerocket api
 type BottlerocketKubernetes struct {
-	APIServer                 *string                          `toml:"api-server"`
-	ClusterCertificate        *string                          `toml:"cluster-certificate"`
-	ClusterName               *string                          `toml:"cluster-name"`
-	ClusterDNSIP              *string                          `toml:"cluster-dns-ip,omitempty"`
-	NodeLabels                map[string]string                `toml:"node-labels,omitempty"`
-	NodeTaints                map[string][]string              `toml:"node-taints,omitempty"`
-	MaxPods                   *int                             `toml:"max-pods,omitempty"`
-	StaticPods                map[string]BottlerocketStaticPod `toml:"static-pods,omitempty"`
-	EvictionHard              map[string]string                `toml:"eviction-hard,omitempty"`
-	KubeReserved              map[string]string                `toml:"kube-reserved,omitempty"`
-	SystemReserved            map[string]string                `toml:"system-reserved,omitempty"`
-	AllowedUnsafeSysctls      []string                         `toml:"allowed-unsafe-sysctls,omitempty"`
-	ServerTLSBootstrap        *bool                            `toml:"server-tls-bootstrap,omitempty"`
-	RegistryQPS               *int                             `toml:"registry-qps,omitempty"`
-	RegistryBurst             *int                             `toml:"registry-burst,omitempty"`
-	EventQPS                  *int                             `toml:"event-qps,omitempty"`
-	EventBurst                *int                             `toml:"event-burst,omitempty"`
-	KubeAPIQPS                *int                             `toml:"kube-api-qps,omitempty"`
-	KubeAPIBurst              *int                             `toml:"kube-api-burst,omitempty"`
-	ContainerLogMaxSize       *string                          `toml:"container-log-max-size,omitempty"`
-	ContainerLogMaxFiles      *int                             `toml:"container-log-max-files,omitempty"`
-	CPUManagerPolicy          *string                          `toml:"cpu-manager-policy,omitempty"`
-	CPUManagerReconcilePeriod *string                          `toml:"cpu-manager-reconcile-period,omitempty"`
-	TopologyManagerScope      *string                          `toml:"topology-manager-scope,omitempty"`
-	TopologyManagerPolicy     *string                          `toml:"topology-manager-policy,omitempty"`
+	APIServer                   *string                          `toml:"api-server"`
+	ClusterCertificate          *string                          `toml:"cluster-certificate"`
+	ClusterName                 *string                          `toml:"cluster-name"`
+	ClusterDNSIP                *string                          `toml:"cluster-dns-ip,omitempty"`
+	NodeLabels                  map[string]string                `toml:"node-labels,omitempty"`
+	NodeTaints                  map[string][]string              `toml:"node-taints,omitempty"`
+	MaxPods                     *int                             `toml:"max-pods,omitempty"`
+	StaticPods                  map[string]BottlerocketStaticPod `toml:"static-pods,omitempty"`
+	EvictionHard                map[string]string                `toml:"eviction-hard,omitempty"`
+	KubeReserved                map[string]string                `toml:"kube-reserved,omitempty"`
+	SystemReserved              map[string]string                `toml:"system-reserved,omitempty"`
+	AllowedUnsafeSysctls        []string                         `toml:"allowed-unsafe-sysctls,omitempty"`
+	ServerTLSBootstrap          *bool                            `toml:"server-tls-bootstrap,omitempty"`
+	RegistryQPS                 *int                             `toml:"registry-qps,omitempty"`
+	RegistryBurst               *int                             `toml:"registry-burst,omitempty"`
+	EventQPS                    *int                             `toml:"event-qps,omitempty"`
+	EventBurst                  *int                             `toml:"event-burst,omitempty"`
+	KubeAPIQPS                  *int                             `toml:"kube-api-qps,omitempty"`
+	KubeAPIBurst                *int                             `toml:"kube-api-burst,omitempty"`
+	ContainerLogMaxSize         *string                          `toml:"container-log-max-size,omitempty"`
+	ContainerLogMaxFiles        *int                             `toml:"container-log-max-files,omitempty"`
+	CPUManagerPolicy            *string                          `toml:"cpu-manager-policy,omitempty"`
+	CPUManagerReconcilePeriod   *string                          `toml:"cpu-manager-reconcile-period,omitempty"`
+	TopologyManagerScope        *string                          `toml:"topology-manager-scope,omitempty"`
+	ImageGCLowThresholdPercent  *int                             `toml:"image-gc-high-threshold-percent,omitempty"`
+	ImageGCHighThresholdPercent *int                             `toml:"image-gc-low-threshold-percent,omitempty"`
 }
 
 type BottlerocketStaticPod struct {
