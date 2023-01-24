@@ -4,18 +4,6 @@ updates:
   - package-ecosystem: "gomod"
     directory: "/"
     schedule:
-      interval: "daily"
-    allow:
-      - dependency-name: "github.com/aws/karpenter-core"
-  - package-ecosystem: "gomod"
-    directory: "/test"
-    schedule:
-      interval: "daily"
-    allow:
-      - dependency-name: "github.com/aws/karpenter-core"
-  - package-ecosystem: "gomod"
-    directory: "/"
-    schedule:
       interval: "monthly"
     # Interdependent
     ignore:
