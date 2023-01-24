@@ -123,39 +123,10 @@ controller:
   # - name: aws-iam-token
   #   mountPath: /var/run/secrets/eks.amazonaws.com/serviceaccount
   #   readOnly: true
-  # -- Additional sideCarContainer config
+  # -- Additional sidecarContainer config
   sidecarContainer: []
-  # - name: fluent-bit
-  #   image: "cr.fluentbit.io/fluent/fluent-bit:2.0.8"
-  #   imagePullPolicy: Always
-  #   ports:
-  #     - name: http
-  #       containerPort: 2020
-  #       protocol: TCP
-  #   livenessProbe:
-  #     httpGet:
-  #       path: /
-  #       port: http
-  #   readinessProbe:
-  #     httpGet:
-  #       path: /api/v1/health
-  #       port: http
-  # -- Additional volumeMounts for the sidecars - this will be added to the volume mounts on top of extraVolumeMounts
+  # -- Additional volumeMounts for the sidecar - this will be added to the volume mounts on top of extraVolumeMounts
   sidecarVolumeMounts: []
-  # - mountPath: /fluent-bit/etc/fluent-bit.conf
-  #   name: config
-  #   subPath: fluent-bit.conf
-  # - mountPath: /fluent-bit/etc/custom_parsers.conf
-  #   name: config
-  #   subPath: custom_parsers.conf
-  # - mountPath: /var/log
-  #   name: varlog
-  # - mountPath: /var/lib/docker/containers
-  #   name: varlibdockercontainers
-  #   readOnly: true
-  # - mountPath: /etc/machine-id
-  #   name: etcmachineid
-  #   readOnly: true
 webhook:
   logLevel: error
   # -- The container port to use for the webhook.
