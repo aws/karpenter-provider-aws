@@ -40,7 +40,7 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | controller.outputPaths | list | `["stdout"]` | Controller outputPaths - default to stdout only |
 | controller.resources | object | `{"limits":{"cpu":1,"memory":"1Gi"},"requests":{"cpu":1,"memory":"1Gi"}}` | Resources for the controller pod. |
 | controller.securityContext | object | `{}` | SecurityContext for the controller container. |
-| controller.sidecarContainer | list | `[]` | Additional sideCarContainer config |
+| controller.sidecarContainer | list | `[]` | Additional sidecarContainer config |
 | controller.sidecarVolumeMounts | list | `[]` | Additional volumeMounts for the sidecars - this will be added to the volume mounts on top of extraVolumeMounts |
 | dnsConfig | object | `{}` | Configure DNS Config for the pod |
 | dnsPolicy | string | `"Default"` | Configure the DNS Policy for the pod |
