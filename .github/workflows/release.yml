@@ -38,12 +38,12 @@ jobs:
         if: endsWith(env.TAG ,'.0')
         run: make prepare-website
       - run: make stable-release-pr
-        if: env.TAG != 'none'
+        if: env.TAG != 'no tag'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPO: ${{ github.repository }}
       - name: Create PR
-        if: env.TAG != 'none'
+        if: env.TAG != 'no tag'
         uses: actions/github-script@v6
         with:
           script: |

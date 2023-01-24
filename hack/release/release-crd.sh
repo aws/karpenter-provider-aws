@@ -2,7 +2,7 @@
 set -euo pipefail
 
 HEAD_HASH=$(git rev-parse HEAD)
-GIT_TAG=$(git describe --exact-match --tags || echo "none")
+GIT_TAG=$(git describe --exact-match --tags || echo "no tag")
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 source "${SCRIPT_DIR}/common.sh"
