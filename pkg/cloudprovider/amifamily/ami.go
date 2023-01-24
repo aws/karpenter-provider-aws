@@ -197,30 +197,34 @@ func getFiltersAndOwners(amiSelector map[string]string) ([]*ec2.Filter, []*strin
 	filters := []*ec2.Filter{}
 	owners := []*string{}
 	for key, value := range amiSelector {
-		if key == "aws-ids" {
+		switch key {
+		case "aws-ids":
 			filterValues := functional.SplitCommaSeparatedString(value)
 			filters = append(filters, &ec2.Filter{
 				Name:   aws.String("image-id"),
 				Values: aws.StringSlice(filterValues),
 			})
-		} else {
-			if key == "owners" {
-				ownerValues := functional.SplitCommaSeparatedString(value)
-				for _, owner := range ownerValues {
-					owners = append(owners, &owner)
-				}
-			} else {
-				filters = append(filters, &ec2.Filter{
-					Name:   aws.String(fmt.Sprintf("tag:%s", key)),
-					Values: []*string{aws.String(value)},
-				})
+		case "aws:owners":
+			ownerValues := functional.SplitCommaSeparatedString(value)
+			for _, owner := range ownerValues {
+				owners = append(owners, &owner)
 			}
+		case "aws:name":
+			filters = append(filters, &ec2.Filter{
+				Name:   aws.String("name"),
+				Values: []*string{aws.String(value)},
+			})
+		default:
+			filters = append(filters, &ec2.Filter{
+				Name:   aws.String(fmt.Sprintf("tag:%s", key)),
+				Values: []*string{aws.String(value)},
+			})
 		}
 	}
 	if owners == nil {
-		self := "self"
-		amazon := "amazon"
-		owners = []*string{&self, &amazon}
+		self := aws.String("self")
+		amazon := aws.String("amazon")
+		owners = []*string{self, amazon}
 	}
 
 	return filters, owners
