@@ -221,11 +221,11 @@ spec:
             description: This will contain the resolved state of the AWSNodeTemplate
             properties:
               securityGroup:
-                description: securityGroup contains the current security groups values
+                description: securityGroups contains the current security groups values
                   that are available to the cluster under the SecurityGroups selectors.
                 items:
-                  description: This will contain the current state of the resolved
-                    security group values karpenter will be able to use for node launch
+                  description: SecurityGroupStatus contains resolved security group
+                    selector values utilized for node launch
                   properties:
                     id:
                       description: Id of a security group
@@ -233,14 +233,14 @@ spec:
                   type: object
                 type: array
               subnet:
-                description: Subnet contains the current subnet values that are available
+                description: Subnets contains the current subnet values that are available
                   to the cluster under the subnet selectors.
                 items:
-                  description: This will contain the current state of the resolved
-                    subnet values karpenter will be able to use for node launch
+                  description: SubnetStatus contains resolved subnet selector values
+                    utilized for node launch
                   properties:
                     id:
-                      description: Id of a subnet
+                      description: Id of the subnet
                       type: string
                     zone:
                       description: The associated avalibiltiy zone
