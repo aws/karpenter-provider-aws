@@ -2,13 +2,13 @@
 version: 2
 updates:
   - package-ecosystem: "gomod"
-    directory: "/"
+    directory: "./"
     schedule:
       interval: "daily"
     allow:
       - dependency-name: "github.com/aws/karpenter-core"
   - package-ecosystem: "gomod"
-    directory: "/test"
+    directory: "./test"
     schedule:
       interval: "daily"
     allow:
