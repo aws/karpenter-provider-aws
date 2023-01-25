@@ -152,7 +152,7 @@ var _ = Describe("Subnets", func() {
 
 		var ant v1alpha1.AWSNodeTemplate
 		Expect(env.Client.Get(env, client.ObjectKeyFromObject(provider), &ant)).To(Succeed())
-		Expect(getSubnetIdsFromStatus(ant.Status.Subnet)).To(Equal(subnets))
+		Expect(getSubnetIdsFromStatus(ant.Status.Subnets)).To(Equal(subnets))
 	})
 })
 

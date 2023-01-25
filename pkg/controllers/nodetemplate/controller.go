@@ -20,7 +20,7 @@ import (
 	"time"
 
 	controllerruntime "sigs.k8s.io/controller-runtime"
-	k8sClient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -37,33 +37,33 @@ import (
 var _ corecontroller.TypedController[*v1alpha1.AWSNodeTemplate] = (*Controller)(nil)
 
 type Controller struct {
-	kubeClient            k8sClient.Client
+	client                client.Client
 	subnetProvider        *subnet.Provider
 	securityGroupProvider *securitygroup.Provider
 }
 
-func NewController(client k8sClient.Client, subnetProvider *subnet.Provider, securityGroups *securitygroup.Provider) corecontroller.Controller {
+func NewController(client client.Client, subnetProvider *subnet.Provider, securityGroups *securitygroup.Provider) corecontroller.Controller {
 	return corecontroller.Typed[*v1alpha1.AWSNodeTemplate](client, &Controller{
-		kubeClient:            client,
+		client:                client,
 		subnetProvider:        subnetProvider,
 		securityGroupProvider: securityGroups,
 	})
 }
 
-func (c *Controller) Reconcile(ctx context.Context, ant *v1alpha1.AWSNodeTemplate) (reconcile.Result, error) {
-	subnetList, err := c.subnetProvider.List(ctx, ant)
+func (c *Controller) Reconcile(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) (reconcile.Result, error) {
+	subnetList, err := c.subnetProvider.List(ctx, nodeTemplate)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
-	ant.Status.Subnet = createSubnetStatusList(subnetList)
+	nodeTemplate.Status.Subnets = createSubnetStatusList(subnetList)
 
-	securityGroupIds, err := c.securityGroupProvider.List(ctx, ant)
+	securityGroupIds, err := c.securityGroupProvider.List(ctx, nodeTemplate)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
-	ant.Status.SecurityGroup = createSubnetSecurityGroupList(securityGroupIds)
+	nodeTemplate.Status.SecurityGroups = createSubnetSecurityGroupList(securityGroupIds)
 
-	if c.kubeClient.Status().Update(ctx, ant) != nil {
+	if c.client.Status().Update(ctx, nodeTemplate) != nil {
 		return reconcile.Result{}, err
 	}
 

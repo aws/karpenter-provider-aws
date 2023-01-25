@@ -17,13 +17,13 @@ package cache
 import "time"
 
 const (
-	// CacheTTL restricts QPS to AWS APIs to this interval for verifying setup
+	// TTL restricts QPS to AWS APIs to this interval for verifying setup
 	// resources. This value represents the maximum eventual consistency between
 	// AWS actual state and the controller's ability to provision those
 	// resources. Cache hits enable faster provisioning and reduced API load on
 	// AWS APIs, which can have a serious impact on performance and scalability.
 	// DO NOT CHANGE THIS VALUE WITHOUT DUE CONSIDERATION
 	TTL = 60 * time.Second
-	// CacheCleanupInterval triggers cache cleanup (lazy eviction) at this interval.
+	// CleanupInterval triggers cache cleanup (lazy eviction) at this interval.
 	CleanupInterval = 10 * time.Minute
 )

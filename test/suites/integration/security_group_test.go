@@ -101,7 +101,7 @@ var _ = Describe("SecurityGroups", func() {
 
 		var ant v1alpha1.AWSNodeTemplate
 		Expect(env.Client.Get(env, client.ObjectKeyFromObject(provider), &ant)).To(Succeed())
-		Expect(getSecurityGroupIdsFromStatus(ant.Status.SecurityGroup)).To(Equal(securityGroupID))
+		Expect(getSecurityGroupIdsFromStatus(ant.Status.SecurityGroups)).To(Equal(securityGroupID))
 	})
 })
 
