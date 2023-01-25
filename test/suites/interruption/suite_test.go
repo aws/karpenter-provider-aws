@@ -17,7 +17,6 @@ package interruption
 import (
 	"context"
 	"fmt"
-	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -37,6 +36,7 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages/scheduledchange"
 	awstest "github.com/aws/karpenter/pkg/test"
+	"github.com/aws/karpenter/pkg/utils"
 	"github.com/aws/karpenter/test/pkg/environment/aws"
 )
 
@@ -100,7 +100,8 @@ var _ = Describe("Interruption", Label("AWS"), func() {
 		defer cancel() // In case the test fails, we need this so that the goroutine monitoring the events is closed
 
 		node := env.Monitor.CreatedNodes()[0]
-		instanceID := parseProviderID(node.Spec.ProviderID)
+		instanceID, err := utils.ParseInstanceID(node.Spec.ProviderID)
+		Expect(err).ToNot(HaveOccurred())
 
 		By("Interrupting the spot instance")
 		_, events, err := env.InterruptionAPI.Interrupt(env.Context, []string{instanceID}, 0, true)
@@ -244,7 +245,8 @@ var _ = Describe("Interruption", Label("AWS"), func() {
 		env.ExpectCreatedNodeCount("==", 1)
 
 		node := env.Monitor.CreatedNodes()[0]
-		instanceID := parseProviderID(node.Spec.ProviderID)
+		instanceID, err := utils.ParseInstanceID(node.Spec.ProviderID)
+		Expect(err).ToNot(HaveOccurred())
 
 		By("Creating a scheduled change health event in the SQS message queue")
 		env.ExpectMessagesCreated(scheduledChangeMessage(env.Region, "000000000000", instanceID))
@@ -277,18 +279,4 @@ func scheduledChangeMessage(region, accountID, involvedInstanceID string) schedu
 			},
 		},
 	}
-}
-
-func parseProviderID(pid string) string {
-	r := regexp.MustCompile(`aws:///(?P<AZ>.*)/(?P<InstanceID>.*)`)
-	matches := r.FindStringSubmatch(pid)
-	if matches == nil {
-		return ""
-	}
-	for i, name := range r.SubexpNames() {
-		if name == "InstanceID" {
-			return matches[i]
-		}
-	}
-	return ""
 }

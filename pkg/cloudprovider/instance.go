@@ -77,10 +77,6 @@ func NewInstanceProvider(ctx context.Context, region string, ec2api ec2iface.EC2
 	}
 }
 
-// Create an instance given the constraints.
-// instanceTypes should be sorted by priority for spot capacity type.
-// If spot is not used, the instanceTypes are not required to be sorted
-// because we are using ec2 fleet's lowest-price OD allocation strategy
 func (p *InstanceProvider) Create(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, machine *v1alpha5.Machine, instanceTypes []*cloudprovider.InstanceType) (*ec2.Instance, error) {
 	instanceTypes = filterInstanceTypes(instanceTypes)
 	instanceTypes = orderInstanceTypesByPrice(instanceTypes, scheduling.NewNodeSelectorRequirements(machine.Spec.Requirements...))
