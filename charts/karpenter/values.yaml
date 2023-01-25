@@ -115,13 +115,12 @@ controller:
   #   value: eu-west-1
 
   # -- Resources for the controller pod.
-  resources:
-    requests:
-      cpu: 1
-      memory: 1Gi
-    limits:
-      cpu: 1
-      memory: 1Gi
+  #resources:
+  #  requests:
+  #    cpu: 1
+  #    memory: 1Gi
+  #  limits:
+  #    memory: 1Gi
   # -- Controller outputPaths - default to stdout only
   outputPaths:
     - stdout

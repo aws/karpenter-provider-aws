@@ -102,6 +102,7 @@ By adopting this practice we allow our users who are early adopters to test out 
 
 ## Upgrading to v0.25.0+
 * Cluster Endpoint can now be automatically discovered. If you are using Amazon Elastic Kubernetes Service (EKS), you can now omit the `clusterEndpoint` field in your configuration. In order to allow the resolving, you have to add the permission `eks:DescribeCluster` to the Karpenter Controller IAM role.
+* Default resources parameters are removed from Karpenter's Helm chart. Make sure to update your configuration to include them depending your needs.
 
 ## Upgrading to v0.24.0+
 * Settings are no longer updated dynamically while Karpenter is running. If you manually make a change to the `karpenter-global-settings` ConfigMap, you will need to reload the containers by restarting the deployment with `kubectl rollout restart -n karpenter deploy/karpenter`
