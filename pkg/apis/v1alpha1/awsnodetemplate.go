@@ -35,7 +35,7 @@ type SecurityGroupStatus struct {
 	ID string `json:"id,omitempty"`
 }
 
-// This will contain the resolved state of the AWSNodeTemplate
+// AWSNodeTemplateStatus contains the resolved state of the AWSNodeTemplate
 type AWSNodeTemplateStatus struct {
 	// Subnets contains the current subnet values that are available to the
 	// cluster under the subnet selectors.

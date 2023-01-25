@@ -218,7 +218,8 @@ spec:
                 type: string
             type: object
           status:
-            description: This will contain the resolved state of the AWSNodeTemplate
+            description: AWSNodeTemplateStatus contains the resolved state of the
+              AWSNodeTemplate
             properties:
               securityGroup:
                 description: securityGroups contains the current security groups values

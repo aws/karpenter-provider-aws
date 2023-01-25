@@ -46,7 +46,9 @@ func NewProvider(ec2api ec2iface.EC2API) *Provider {
 	return &Provider{
 		ec2api: ec2api,
 		cm:     pretty.NewChangeMonitor(),
-		cache:  cache.New(5*awscache.TTL, awscache.CleanupInterval),
+		// TODO: Remove cahce for v1bata1, utlize resolved subnet from the AWSNodeTemplate.status
+		// Subnets are sorted on AvailableIpAddressCount, descending order
+		cache: cache.New(awscache.ExtendedTTL, awscache.CleanupInterval),
 	}
 }
 
@@ -83,12 +85,6 @@ func (p *Provider) LivenessProbe(req *http.Request) error {
 	return nil
 }
 
-func (p *Provider) ResetCache() {
-	p.Lock()
-	defer p.Unlock()
-	p.cache.Flush()
-}
-
 func getFilters(nodeTemplate *v1alpha1.AWSNodeTemplate) []*ec2.Filter {
 	filters := []*ec2.Filter{}
 	// Filter by subnet
@@ -122,7 +118,5 @@ func Pretty(subnets []*ec2.Subnet) []string {
 }
 
 func (p *Provider) Reset() {
-	p.Lock()
-	defer p.Unlock()
 	p.cache.Flush()
 }

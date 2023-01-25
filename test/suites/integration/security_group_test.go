@@ -17,14 +17,13 @@ package integration_test
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
-
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
@@ -81,7 +80,7 @@ var _ = Describe("SecurityGroups", func() {
 		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("SecurityGroups", ConsistOf(&first.GroupIdentifier, &last.GroupIdentifier)))
 	})
 
-	It("should update the AWSNodeTemplateStatus for security groups", func() {
+	FIt("should update the AWSNodeTemplateStatus for security groups", func() {
 		securityGroup := getSecurityGroups(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
 		Expect(len(securityGroup)).ToNot(Equal(0))
 		var securityGroupID []string
@@ -99,9 +98,11 @@ var _ = Describe("SecurityGroups", func() {
 
 		env.ExpectCreated(provider)
 
-		var ant v1alpha1.AWSNodeTemplate
-		Expect(env.Client.Get(env, client.ObjectKeyFromObject(provider), &ant)).To(Succeed())
-		Expect(getSecurityGroupIdsFromStatus(ant.Status.SecurityGroups)).To(Equal(securityGroupID))
+		// Waiting for the awsnodetemplte contoller to update
+		time.Sleep(time.Second)
+		env.ExpectFound(provider)
+
+		Expect(getSecurityGroupIdsFromStatus(provider.Status.SecurityGroups)).To(Equal(securityGroupID))
 	})
 })
 

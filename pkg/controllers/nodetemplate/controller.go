@@ -16,6 +16,7 @@ package nodetemplate
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"time"
 
@@ -25,8 +26,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
-	"github.com/aws/aws-sdk-go/service/ec2"
 
 	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
@@ -51,19 +50,14 @@ func NewController(client client.Client, subnetProvider *subnet.Provider, securi
 }
 
 func (c *Controller) Reconcile(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) (reconcile.Result, error) {
-	subnetList, err := c.subnetProvider.List(ctx, nodeTemplate)
-	if err != nil {
+	fmt.Println(nodeTemplate.Name)
+	if err := c.resolveSubnets(ctx, nodeTemplate); err != nil {
+		fmt.Print("Hereererere", err)
 		return reconcile.Result{}, err
 	}
-	nodeTemplate.Status.Subnets = createSubnetStatusList(subnetList)
 
-	securityGroupIds, err := c.securityGroupProvider.List(ctx, nodeTemplate)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
-	nodeTemplate.Status.SecurityGroups = createSubnetSecurityGroupList(securityGroupIds)
-
-	if c.client.Status().Update(ctx, nodeTemplate) != nil {
+	if err := c.resolveSecurityGroup(ctx, nodeTemplate); err != nil {
+		fmt.Print("Hereererere", err)
 		return reconcile.Result{}, err
 	}
 
@@ -82,32 +76,47 @@ func (c *Controller) Builder(ctx context.Context, m manager.Manager) corecontrol
 		WithOptions(controller.Options{MaxConcurrentReconciles: 10}))
 }
 
-func createSubnetStatusList(subnets []*ec2.Subnet) []v1alpha1.SubnetStatus {
-	var result []v1alpha1.SubnetStatus
+func (c *Controller) resolveSubnets(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) error {
+	subnetList, err := c.subnetProvider.List(ctx, nodeTemplate)
+	if err != nil {
+		return err
+	}
 
-	sort.Slice(subnets, func(i, j int) bool {
-		return int(*subnets[i].AvailableIpAddressCount) > int(*subnets[j].AvailableIpAddressCount)
+	sort.Slice(subnetList, func(i, j int) bool {
+		return int(*subnetList[i].AvailableIpAddressCount) > int(*subnetList[j].AvailableIpAddressCount)
 	})
 
-	for _, ec2subnet := range subnets {
-		stausSubnet := v1alpha1.SubnetStatus{
+	for _, ec2subnet := range subnetList {
+		status := v1alpha1.SubnetStatus{
 			ID:   *ec2subnet.SubnetId,
 			Zone: *ec2subnet.AvailabilityZone,
 		}
-		result = append(result, stausSubnet)
+		nodeTemplate.Status.Subnets = append(nodeTemplate.Status.Subnets, status)
 	}
-	return result
+
+	if c.client.Status().Update(ctx, nodeTemplate) != nil {
+		return err
+	}
+
+	return nil
 }
 
-func createSubnetSecurityGroupList(securityGroups []string) []v1alpha1.SecurityGroupStatus {
-	var result []v1alpha1.SecurityGroupStatus
+func (c *Controller) resolveSecurityGroup(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) error {
+	securityGroupIds, err := c.securityGroupProvider.List(ctx, nodeTemplate)
+	if err != nil {
+		return err
+	}
 
-	for _, securitygroupsids := range securityGroups {
+	for _, securitygroupsids := range securityGroupIds {
 		securityGroupSubnet := v1alpha1.SecurityGroupStatus{
 			ID: securitygroupsids,
 		}
-		result = append(result, securityGroupSubnet)
+		nodeTemplate.Status.SecurityGroups = append(nodeTemplate.Status.SecurityGroups, securityGroupSubnet)
 	}
 
-	return result
+	if c.client.Status().Update(ctx, nodeTemplate) != nil {
+		return err
+	}
+
+	return nil
 }

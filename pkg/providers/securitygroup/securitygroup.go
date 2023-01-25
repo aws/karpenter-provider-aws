@@ -45,7 +45,8 @@ func NewProvider(ec2api ec2iface.EC2API) *Provider {
 	return &Provider{
 		ec2api: ec2api,
 		cm:     pretty.NewChangeMonitor(),
-		cache:  cache.New(5*awscache.TTL, awscache.CleanupInterval),
+		// TODO: Remove cahce for v1bata1, utlize resolved security groups from the AWSNodeTemplate.status
+		cache: cache.New(awscache.ExtendedTTL, awscache.CleanupInterval),
 	}
 }
 
@@ -115,7 +116,5 @@ func (p *Provider) securityGroupIds(securityGroups []*ec2.SecurityGroup) []strin
 }
 
 func (p *Provider) Reset() {
-	p.Lock()
-	defer p.Unlock()
 	p.cache.Flush()
 }

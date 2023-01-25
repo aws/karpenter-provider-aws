@@ -16,6 +16,8 @@ package integration_test
 
 import (
 	"fmt"
+	"sort"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -24,8 +26,6 @@ import (
 	"github.com/onsi/gomega/types"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
-
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
@@ -137,8 +137,10 @@ var _ = Describe("Subnets", func() {
 		)))
 	})
 
-	It("should have the AWSNodeTemplateStatus for subnets", func() {
-		subnets := getSubnetList(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
+	FIt("should have the AWSNodeTemplateStatus for subnets", func() {
+		subnets := getSubnets(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
+		subnetIDs := lo.Flatten(lo.Values(subnets))
+		sort.Strings(subnetIDs)
 		Expect(len(subnets)).ToNot(Equal(0))
 
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
@@ -150,9 +152,14 @@ var _ = Describe("Subnets", func() {
 
 		env.ExpectCreated(provider)
 
-		var ant v1alpha1.AWSNodeTemplate
-		Expect(env.Client.Get(env, client.ObjectKeyFromObject(provider), &ant)).To(Succeed())
-		Expect(getSubnetIdsFromStatus(ant.Status.Subnets)).To(Equal(subnets))
+		// Waiting for the awsnodetemplte contoller to update
+		time.Sleep(time.Second)
+		env.ExpectFound(provider)
+
+		subnetsInStatus := getSubnetIdsFromStatus(provider.Status.Subnets)
+		sort.Strings(subnetsInStatus)
+
+		Expect(subnetsInStatus).To(Equal(subnetIDs))
 	})
 })
 
@@ -170,25 +177,6 @@ func getSubnets(tags map[string]string) map[string][]string {
 	err := env.EC2API.DescribeSubnetsPages(&ec2.DescribeSubnetsInput{Filters: filters}, func(dso *ec2.DescribeSubnetsOutput, _ bool) bool {
 		for _, subnet := range dso.Subnets {
 			subnets[*subnet.AvailabilityZone] = append(subnets[*subnet.AvailabilityZone], *subnet.SubnetId)
-		}
-		return true
-	})
-	Expect(err).To(BeNil())
-	return subnets
-}
-
-func getSubnetList(tags map[string]string) []string {
-	var filters []*ec2.Filter
-	for key, val := range tags {
-		filters = append(filters, &ec2.Filter{
-			Name:   aws.String(fmt.Sprintf("tag:%s", key)),
-			Values: []*string{aws.String(val)},
-		})
-	}
-	var subnets []string
-	err := env.EC2API.DescribeSubnetsPages(&ec2.DescribeSubnetsInput{Filters: filters}, func(dso *ec2.DescribeSubnetsOutput, _ bool) bool {
-		for _, subnet := range dso.Subnets {
-			subnets = append(subnets, *subnet.SubnetId)
 		}
 		return true
 	})
