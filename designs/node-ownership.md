@@ -70,9 +70,9 @@ This section describes the primary issues that have arisen from users and from m
 
 ### Synchronization
 
-Node objects currently capture the in-flight details for Karpenter’s scheduler to use (allocatable and capacity details for nodes). As a result, the node object *must* be created by the end of the provisioning loop before provisioning can continue. For AWS, this is not an issue since node names can be resolved based on the EC2 **CreateFleet** response; however, for cloud providers such as Azure, this becomes more of an issue, as node name cannot be resolved from the VM create response but can only be resolved when the kubelet creates the node.
+Node objects currently capture the in-flight details for Karpenter’s scheduler to use (node name, allocatable resources and capacity resources for nodes). As a result, the node object *must* be created by the end of the provisioning loop before provisioning can continue. This means that there has to be some wait mechanism implemented at the end of the provisioning loop to continue to poll until these inflight details can be resolved. As a result, Karpenter is either dependent on the speed and consistency of the backing cloudprovider API or has to wait for the kubelet to register the node itself. Either result in slower provisioning times.
 
-While node launch times might be reduced with time, this means that for some cloudproviders (such as Azure), creating the node ties our inflight logic directly to how long the node takes to launch and register with the api-server. This is a non-starter for our scheduling logic since part of Karpenter’s value proposition is its ability to quickly provision capacity for pending pods.
+On top of the performance concerns of this, there is no guarantee that attempting to resolve these details after instance launch will succeed (crash, API failure, etc.), meaning that this capacity would be unknown to Karpenter for a short time, resulting in over-provisioning nodes for the required capacity.
 
 ### Race Conditions
 
