@@ -24,6 +24,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
@@ -81,14 +82,6 @@ var _ = Describe("SecurityGroups", func() {
 	})
 
 	FIt("should update the AWSNodeTemplateStatus for security groups", func() {
-		securityGroup := getSecurityGroups(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
-		Expect(len(securityGroup)).ToNot(Equal(0))
-		var securityGroupID []string
-
-		for _, secGroup := range securityGroup {
-			securityGroupID = append(securityGroupID, *secGroup.GroupId)
-		}
-
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 			AWS: v1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
@@ -97,12 +90,7 @@ var _ = Describe("SecurityGroups", func() {
 		})
 
 		env.ExpectCreated(provider)
-
-		// Waiting for the awsnodetemplte contoller to update
-		time.Sleep(time.Second)
-		env.ExpectFound(provider)
-
-		Expect(getSecurityGroupIdsFromStatus(provider.Status.SecurityGroups)).To(Equal(securityGroupID))
+		EventuallyExpectSecurityGroups(provider)
 	})
 })
 
@@ -140,4 +128,22 @@ func getSecurityGroupIdsFromStatus(securitygroupstatus []v1alpha1.SecurityGroupS
 		result = append(result, securitygroups.ID)
 	}
 	return result
+}
+
+func EventuallyExpectSecurityGroups(provider *v1alpha1.AWSNodeTemplate) {
+	securityGroup := getSecurityGroups(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
+	Expect(len(securityGroup)).ToNot(Equal(0))
+	var securityGroupID []string
+
+	for _, secGroup := range securityGroup {
+		securityGroupID = append(securityGroupID, *secGroup.GroupId)
+	}
+
+	Eventually(func() []string {
+		var ant v1alpha1.AWSNodeTemplate
+		if err := env.Client.Get(env, client.ObjectKeyFromObject(provider), &ant); err != nil {
+			return []string{}
+		}
+		return getSecurityGroupIdsFromStatus(ant.Status.SecurityGroups)
+	}).WithTimeout(10 * time.Second).Should(Equal(securityGroupID))
 }

@@ -40,11 +40,11 @@ type AWSNodeTemplateStatus struct {
 	// Subnets contains the current subnet values that are available to the
 	// cluster under the subnet selectors.
 	// +optional
-	Subnets []SubnetStatus `json:"subnet,omitempty"`
+	Subnets []SubnetStatus `json:"subnets,omitempty"`
 	// securityGroups contains the current security groups values that are available to the
 	// cluster under the SecurityGroups selectors.
 	// +optional
-	SecurityGroups []SecurityGroupStatus `json:"securityGroup,omitempty"`
+	SecurityGroups []SecurityGroupStatus `json:"securityGroups,omitempty"`
 }
 
 // AWSNodeTemplateSpec is the top level specification for the AWS Karpenter Provider.

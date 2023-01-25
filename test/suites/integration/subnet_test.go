@@ -26,6 +26,7 @@ import (
 	"github.com/onsi/gomega/types"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
@@ -138,11 +139,6 @@ var _ = Describe("Subnets", func() {
 	})
 
 	FIt("should have the AWSNodeTemplateStatus for subnets", func() {
-		subnets := getSubnets(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
-		subnetIDs := lo.Flatten(lo.Values(subnets))
-		sort.Strings(subnetIDs)
-		Expect(len(subnets)).ToNot(Equal(0))
-
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 			AWS: v1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
@@ -151,15 +147,7 @@ var _ = Describe("Subnets", func() {
 		})
 
 		env.ExpectCreated(provider)
-
-		// Waiting for the awsnodetemplte contoller to update
-		time.Sleep(time.Second)
-		env.ExpectFound(provider)
-
-		subnetsInStatus := getSubnetIdsFromStatus(provider.Status.Subnets)
-		sort.Strings(subnetsInStatus)
-
-		Expect(subnetsInStatus).To(Equal(subnetIDs))
+		EventuallyExpectSubnets(provider)
 	})
 })
 
@@ -263,4 +251,21 @@ func getSubnetIdsFromStatus(subnetstats []v1alpha1.SubnetStatus) []string {
 	}
 
 	return result
+}
+
+func EventuallyExpectSubnets(provider *v1alpha1.AWSNodeTemplate) {
+	subnets := getSubnets(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
+	Expect(len(subnets)).ToNot(Equal(0))
+	subnetIDs := lo.Flatten(lo.Values(subnets))
+	sort.Strings(subnetIDs)
+
+	Eventually(func() []string {
+		var ant v1alpha1.AWSNodeTemplate
+		if err := env.Client.Get(env, client.ObjectKeyFromObject(provider), &ant); err != nil {
+			return []string{}
+		}
+		subnetsInStatus := getSubnetIdsFromStatus(ant.Status.Subnets)
+		sort.Strings(subnetsInStatus)
+		return subnetsInStatus
+	}).WithTimeout(10 * time.Second).Should(Equal(subnetIDs))
 }

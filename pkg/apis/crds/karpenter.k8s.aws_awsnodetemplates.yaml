@@ -221,7 +221,7 @@ spec:
             description: AWSNodeTemplateStatus contains the resolved state of the
               AWSNodeTemplate
             properties:
-              securityGroup:
+              securityGroups:
                 description: securityGroups contains the current security groups values
                   that are available to the cluster under the SecurityGroups selectors.
                 items:
@@ -233,7 +233,7 @@ spec:
                       type: string
                   type: object
                 type: array
-              subnet:
+              subnets:
                 description: Subnets contains the current subnet values that are available
                   to the cluster under the subnet selectors.
                 items:

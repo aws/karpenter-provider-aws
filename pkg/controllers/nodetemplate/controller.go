@@ -77,6 +77,7 @@ func (c *Controller) Builder(ctx context.Context, m manager.Manager) corecontrol
 }
 
 func (c *Controller) resolveSubnets(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) error {
+	stored := nodeTemplate.DeepCopy()
 	subnetList, err := c.subnetProvider.List(ctx, nodeTemplate)
 	if err != nil {
 		return err
@@ -94,7 +95,7 @@ func (c *Controller) resolveSubnets(ctx context.Context, nodeTemplate *v1alpha1.
 		nodeTemplate.Status.Subnets = append(nodeTemplate.Status.Subnets, status)
 	}
 
-	if c.client.Status().Update(ctx, nodeTemplate) != nil {
+	if c.client.Status().Patch(ctx, nodeTemplate, client.MergeFrom(stored)) != nil {
 		return err
 	}
 
@@ -102,6 +103,7 @@ func (c *Controller) resolveSubnets(ctx context.Context, nodeTemplate *v1alpha1.
 }
 
 func (c *Controller) resolveSecurityGroup(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) error {
+	stored := nodeTemplate.DeepCopy()
 	securityGroupIds, err := c.securityGroupProvider.List(ctx, nodeTemplate)
 	if err != nil {
 		return err
@@ -114,7 +116,7 @@ func (c *Controller) resolveSecurityGroup(ctx context.Context, nodeTemplate *v1a
 		nodeTemplate.Status.SecurityGroups = append(nodeTemplate.Status.SecurityGroups, securityGroupSubnet)
 	}
 
-	if c.client.Status().Update(ctx, nodeTemplate) != nil {
+	if c.client.Status().Patch(ctx, nodeTemplate, client.MergeFrom(stored)) != nil {
 		return err
 	}
 
