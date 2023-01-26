@@ -18,6 +18,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"knative.dev/pkg/logging"
 
+	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 
 	awscontext "github.com/aws/karpenter/pkg/context"
@@ -28,10 +29,12 @@ import (
 	"github.com/aws/karpenter-core/pkg/operator/controller"
 )
 
-func NewControllers(ctx awscontext.Context, cloudProvider *cloudprovider.CloudProvider) []controller.Controller {
+func NewControllers(ctx awscontext.Context, cloudProvider *cloudprovider.CloudProvider) (controllers []controller.Controller) {
 	logging.FromContext(ctx).With("version", project.Version).Debugf("discovered version")
-	return []controller.Controller{
-		interruption.NewController(ctx.KubeClient, ctx.Clock, ctx.EventRecorder, interruption.NewSQSProvider(sqs.New(ctx.Session)), ctx.UnavailableOfferingsCache),
-		nodetemplate.NewController(ctx.KubeClient, ctx.SubnetProvider, ctx.SecurityGroupProvider),
+
+	if settings.FromContext(ctx).InterruptionQueueName != "" {
+		controllers = append(controllers, interruption.NewController(ctx.KubeClient, ctx.Clock, ctx.EventRecorder, interruption.NewSQSProvider(sqs.New(ctx.Session)), ctx.UnavailableOfferingsCache))
+		controllers = append(controllers, nodetemplate.NewController(ctx.KubeClient, ctx.SubnetProvider, ctx.SecurityGroupProvider))
 	}
+	return controllers
 }
