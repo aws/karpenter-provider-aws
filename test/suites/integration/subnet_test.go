@@ -250,16 +250,16 @@ func EventuallyExpectSubnets(provider *v1alpha1.AWSNodeTemplate) {
 	subnetIDs := lo.Flatten(lo.Values(subnets))
 	sort.Strings(subnetIDs)
 
-	Eventually(func() []string {
+	Eventually(func(g Gomega) {
 		var ant v1alpha1.AWSNodeTemplate
 		if err := env.Client.Get(env, client.ObjectKeyFromObject(provider), &ant); err != nil {
-			return []string{}
+			return
 		}
 		subnetsInStatus := lo.Map(ant.Status.Subnets, func(subnet v1alpha1.SubnetStatus, _ int) string {
 			return subnet.ID
 		})
 
 		sort.Strings(subnetsInStatus)
-		return subnetsInStatus
-	}).WithTimeout(10 * time.Second).Should(Equal(subnetIDs))
+		g.Expect(subnetsInStatus).To(Equal(subnetIDs))
+	}).WithTimeout(10 * time.Second).Should(Succeed())
 }

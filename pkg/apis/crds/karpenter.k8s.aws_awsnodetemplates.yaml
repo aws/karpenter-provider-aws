@@ -222,10 +222,10 @@ spec:
               AWSNodeTemplate
             properties:
               securityGroups:
-                description: securityGroups contains the current security groups values
+                description: SecurityGroups contains the current Security Groups values
                   that are available to the cluster under the SecurityGroups selectors.
                 items:
-                  description: SecurityGroupStatus contains resolved security group
+                  description: SecurityGroupStatus contains resolved SecurityGroup
                     selector values utilized for node launch
                   properties:
                     id:
@@ -234,10 +234,10 @@ spec:
                   type: object
                 type: array
               subnets:
-                description: Subnets contains the current subnet values that are available
+                description: Subnets contains the current Subnet values that are available
                   to the cluster under the subnet selectors.
                 items:
-                  description: SubnetStatus contains resolved subnet selector values
+                  description: SubnetStatus contains resolved Subnet selector values
                     utilized for node launch
                   properties:
                     id:

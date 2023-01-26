@@ -18,7 +18,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// SubnetStatus contains resolved subnet selector values utilized for node launch
+// SubnetStatus contains resolved Subnet selector values utilized for node launch
 type SubnetStatus struct {
 	// Id of the subnet
 	// +optional
@@ -28,7 +28,7 @@ type SubnetStatus struct {
 	Zone string `json:"zone,omitempty"`
 }
 
-// SecurityGroupStatus contains resolved security group selector values utilized for node launch
+// SecurityGroupStatus contains resolved SecurityGroup selector values utilized for node launch
 type SecurityGroupStatus struct {
 	// Id of the security group
 	// +optional
@@ -37,11 +37,11 @@ type SecurityGroupStatus struct {
 
 // AWSNodeTemplateStatus contains the resolved state of the AWSNodeTemplate
 type AWSNodeTemplateStatus struct {
-	// Subnets contains the current subnet values that are available to the
+	// Subnets contains the current Subnet values that are available to the
 	// cluster under the subnet selectors.
 	// +optional
 	Subnets []SubnetStatus `json:"subnets,omitempty"`
-	// securityGroups contains the current security groups values that are available to the
+	// SecurityGroups contains the current Security Groups values that are available to the
 	// cluster under the SecurityGroups selectors.
 	// +optional
 	SecurityGroups []SecurityGroupStatus `json:"securityGroups,omitempty"`

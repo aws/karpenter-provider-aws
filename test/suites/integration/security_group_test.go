@@ -131,13 +131,16 @@ func EventuallyExpectSecurityGroups(provider *v1alpha1.AWSNodeTemplate) {
 		securityGroupID = append(securityGroupID, *secGroup.GroupId)
 	}
 
-	Eventually(func() []string {
+	Eventually(func(g Gomega) {
 		var ant v1alpha1.AWSNodeTemplate
 		if err := env.Client.Get(env, client.ObjectKeyFromObject(provider), &ant); err != nil {
-			return []string{}
+			return
 		}
-		return lo.Map(ant.Status.SecurityGroups, func(securitygroup v1alpha1.SecurityGroupStatus, _ int) string {
+
+		securityGroupsInStatus := lo.Map(ant.Status.SecurityGroups, func(securitygroup v1alpha1.SecurityGroupStatus, _ int) string {
 			return securitygroup.ID
 		})
-	}).WithTimeout(10 * time.Second).Should(Equal(securityGroupID))
+
+		g.Expect(securityGroupsInStatus).To(Equal(securityGroupID))
+	}).WithTimeout(10 * time.Second).Should(Succeed())
 }

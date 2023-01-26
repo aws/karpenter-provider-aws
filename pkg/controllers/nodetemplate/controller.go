@@ -55,12 +55,10 @@ func NewController(client client.Client, subnetProvider *subnet.Provider, securi
 func (c *Controller) Reconcile(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) (reconcile.Result, error) {
 	stored := nodeTemplate.DeepCopy()
 
-	var err error
-	err = multierr.Append(err, c.resolveSubnets(ctx, nodeTemplate))
-	err = multierr.Append(err, c.resolveSecurityGroup(ctx, nodeTemplate))
+	err := multierr.Combine(c.resolveSubnets(ctx, nodeTemplate), c.resolveSecurityGroup(ctx, nodeTemplate))
 
 	if patchErr := c.kubeClient.Status().Patch(ctx, nodeTemplate, client.MergeFrom(stored)); patchErr != nil {
-		return reconcile.Result{}, client.IgnoreNotFound(patchErr)
+		err = multierr.Append(err, client.IgnoreNotFound(patchErr))
 	}
 
 	return reconcile.Result{RequeueAfter: 5 * time.Minute}, err
