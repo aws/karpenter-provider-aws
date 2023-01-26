@@ -20,7 +20,7 @@ import (
 	"github.com/imdario/mergo"
 	"github.com/samber/lo"
 
-	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
+	awssettings "github.com/aws/karpenter/pkg/apis/settings"
 )
 
 type SettingOptions struct {
@@ -36,14 +36,14 @@ type SettingOptions struct {
 	Tags                       map[string]string
 }
 
-func Settings(overrides ...SettingOptions) awssettings.Settings {
+func Settings(overrides ...SettingOptions) *awssettings.Settings {
 	options := SettingOptions{}
 	for _, override := range overrides {
 		if err := mergo.Merge(&options, override, mergo.WithOverride); err != nil {
 			panic(fmt.Sprintf("Failed to merge settings: %s", err))
 		}
 	}
-	return awssettings.Settings{
+	return &awssettings.Settings{
 		ClusterName:                lo.FromPtrOr(options.ClusterName, "test-cluster"),
 		ClusterEndpoint:            lo.FromPtrOr(options.ClusterEndpoint, "https://test-cluster"),
 		DefaultInstanceProfile:     lo.FromPtrOr(options.DefaultInstanceProfile, "test-instance-profile"),

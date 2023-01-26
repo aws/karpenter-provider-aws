@@ -99,7 +99,7 @@ spec:
                       the value must be greater than ImageGCLowThresholdPercent.
                     format: int32
                     maximum: 100
-                    minimum: 1
+                    minimum: 0
                     type: integer
                   imageGCLowThresholdPercent:
                     description: ImageGCLowThresholdPercent is the percent of disk
@@ -110,7 +110,7 @@ spec:
                       be less than imageGCHighThresholdPercent
                     format: int32
                     maximum: 100
-                    minimum: 1
+                    minimum: 0
                     type: integer
                   kubeReserved:
                     additionalProperties:
