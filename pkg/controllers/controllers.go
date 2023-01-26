@@ -34,7 +34,7 @@ func NewControllers(ctx awscontext.Context, cloudProvider *cloudprovider.CloudPr
 
 	if settings.FromContext(ctx).InterruptionQueueName != "" {
 		controllers = append(controllers, interruption.NewController(ctx.KubeClient, ctx.Clock, ctx.EventRecorder, interruption.NewSQSProvider(sqs.New(ctx.Session)), ctx.UnavailableOfferingsCache))
-		controllers = append(controllers, nodetemplate.NewController(ctx.KubeClient, ctx.SubnetProvider, ctx.SecurityGroupProvider))
 	}
+	controllers = append(controllers, nodetemplate.NewController(ctx.KubeClient, ctx.SubnetProvider, ctx.SecurityGroupProvider))
 	return controllers
 }

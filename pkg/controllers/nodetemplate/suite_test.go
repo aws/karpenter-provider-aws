@@ -33,7 +33,6 @@ import (
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 
 	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
 	coretest "github.com/aws/karpenter-core/pkg/test"
@@ -100,8 +99,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 	It("Should update AWSNodeTemplate status for Subnets", func() {
 		ExpectApplied(ctx, env.Client, nodeTemplate)
 		ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
-		ExpectExists(ctx, env.Client, nodeTemplate)
-		_ = env.Client.Get(ctx, types.NamespacedName{Name: nodeTemplate.Name}, nodeTemplate)
+		nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 		subnet, _ := subnetProvider.List(ctx, nodeTemplate)
 		subnetIDs := lo.Map(subnet, func(ec2subnet *ec2.Subnet, _ int) string {
 			return *ec2subnet.SubnetId
@@ -116,8 +114,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 	It("Should update AWSNodeTemplate status for Security Groups", func() {
 		ExpectApplied(ctx, env.Client, nodeTemplate)
 		ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
-		ExpectExists(ctx, env.Client, nodeTemplate)
-		_ = env.Client.Get(ctx, types.NamespacedName{Name: nodeTemplate.Name}, nodeTemplate)
+		nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 		securityGroupsIDs, _ := securityGroupProvider.List(ctx, nodeTemplate)
 		securityGroupsIDInStatus := lo.Map(nodeTemplate.Status.SecurityGroups, func(securitygroup v1alpha1.SecurityGroupStatus, _ int) string {
 			return securitygroup.ID
