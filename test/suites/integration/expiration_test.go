@@ -25,7 +25,7 @@ import (
 	"knative.dev/pkg/ptr"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
-	"github.com/aws/karpenter/pkg/apis/config/settings"
+	"github.com/aws/karpenter/pkg/apis/settings"
 	awstest "github.com/aws/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-core/pkg/test"

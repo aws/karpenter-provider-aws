@@ -34,9 +34,10 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
+	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	coretest "github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter/pkg/apis/config/settings"
+	"github.com/aws/karpenter/pkg/apis/settings"
 	awscloudprovider "github.com/aws/karpenter/pkg/cloudprovider"
 	awscontext "github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/test"
@@ -55,14 +56,12 @@ func main() {
 	os.Setenv("AWS_SDK_LOAD_CONFIG", "true")
 	os.Setenv("AWS_REGION", "us-east-1")
 
-	settingsStore := coretest.SettingsStore{
-		settings.ContextKey: test.Settings(test.SettingOptions{
-			ClusterName:     lo.ToPtr("docs-gen"),
-			ClusterEndpoint: lo.ToPtr("https://docs-gen.aws"),
-			IsolatedVPC:     lo.ToPtr(true), // disable pricing lookup
-		}),
-	}
-	ctx := settingsStore.InjectSettings(context.Background())
+	ctx := coresettings.ToContext(context.Background(), coretest.Settings())
+	ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
+		ClusterName:     lo.ToPtr("docs-gen"),
+		ClusterEndpoint: lo.ToPtr("https://docs-gen.aws"),
+		IsolatedVPC:     lo.ToPtr(true), // disable pricing lookup
+	}))
 
 	cp := NewAWSCloudProviderForCodeGen(ctx)
 	provider := v1alpha1.AWS{SubnetSelector: map[string]string{

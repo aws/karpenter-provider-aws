@@ -23,7 +23,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws/session"
 
-	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
+	awssettings "github.com/aws/karpenter/pkg/apis/settings"
 	awscache "github.com/aws/karpenter/pkg/cache"
 	awscontext "github.com/aws/karpenter/pkg/context"
 

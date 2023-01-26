@@ -32,7 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
-	"github.com/aws/karpenter/pkg/apis/config/settings"
+	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cache"
 	interruptionevents "github.com/aws/karpenter/pkg/controllers/interruption/events"
@@ -81,9 +81,6 @@ func NewController(kubeClient client.Client, clk clock.Clock, recorder events.Re
 }
 
 func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconcile.Result, error) {
-	if settings.FromContext(ctx).InterruptionQueueName == "" {
-		return reconcile.Result{RequeueAfter: time.Second * 10}, nil
-	}
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("queue", settings.FromContext(ctx).InterruptionQueueName))
 	if c.cm.HasChanged(settings.FromContext(ctx).InterruptionQueueName, nil) {
 		logging.FromContext(ctx).Debugf("watching interruption queue")
