@@ -16,7 +16,6 @@ package nodetemplate
 
 import (
 	"context"
-	"fmt"
 	"sort"
 	"time"
 
@@ -50,14 +49,11 @@ func NewController(client client.Client, subnetProvider *subnet.Provider, securi
 }
 
 func (c *Controller) Reconcile(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) (reconcile.Result, error) {
-	fmt.Println(nodeTemplate.Name)
 	if err := c.resolveSubnets(ctx, nodeTemplate); err != nil {
-		fmt.Print("Hereererere", err)
 		return reconcile.Result{}, err
 	}
 
 	if err := c.resolveSecurityGroup(ctx, nodeTemplate); err != nil {
-		fmt.Print("Hereererere", err)
 		return reconcile.Result{}, err
 	}
 

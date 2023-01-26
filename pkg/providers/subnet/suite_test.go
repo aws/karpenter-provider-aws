@@ -73,7 +73,7 @@ var _ = BeforeSuite(func() {
 	ctx, stop = context.WithCancel(ctx)
 
 	fakeEC2API = &fake.EC2API{}
-	subnetCache = cache.New(awscache.TTL, awscache.CleanupInterval)
+	subnetCache = cache.New(awscache.ExtendedTTL, awscache.CleanupInterval)
 	subnetProvider = &Provider{
 		ec2api: fakeEC2API,
 		cache:  subnetCache,

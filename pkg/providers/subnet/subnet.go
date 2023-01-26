@@ -72,7 +72,7 @@ func (p *Provider) List(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTempl
 	}
 	p.cache.SetDefault(fmt.Sprint(hash), output.Subnets)
 	subnetLog := Pretty(output.Subnets)
-	if p.cm.HasChanged(fmt.Sprintf("subnets-ids (%d)", hash), subnetLog) {
+	if p.cm.HasChanged(fmt.Sprintf("subnets (%d)", hash), subnetLog) {
 		logging.FromContext(ctx).With("subnets", subnetLog).Debugf("discovered subnets")
 	}
 	return output.Subnets, nil

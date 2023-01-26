@@ -138,7 +138,7 @@ var _ = Describe("Subnets", func() {
 		)))
 	})
 
-	FIt("should have the AWSNodeTemplateStatus for subnets", func() {
+	It("should have the AWSNodeTemplateStatus for subnets", func() {
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 			AWS: v1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},

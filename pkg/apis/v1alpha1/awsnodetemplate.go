@@ -30,7 +30,7 @@ type SubnetStatus struct {
 
 // SecurityGroupStatus contains resolved security group selector values utilized for node launch
 type SecurityGroupStatus struct {
-	// Id of a security group
+	// Id of the security group
 	// +optional
 	ID string `json:"id,omitempty"`
 }

@@ -74,7 +74,7 @@ var _ = BeforeSuite(func() {
 	ctx, stop = context.WithCancel(ctx)
 
 	fakeEC2API = &fake.EC2API{}
-	securityGroupCache = cache.New(awscache.TTL, awscache.CleanupInterval)
+	securityGroupCache = cache.New(awscache.ExtendedTTL, awscache.CleanupInterval)
 	securityGroupProvider = &Provider{
 		ec2api: fakeEC2API,
 		cache:  securityGroupCache,
