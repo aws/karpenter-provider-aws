@@ -81,7 +81,7 @@ var _ = Describe("SecurityGroups", func() {
 		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("SecurityGroups", ConsistOf(&first.GroupIdentifier, &last.GroupIdentifier)))
 	})
 
-	FIt("should update the AWSNodeTemplateStatus for security groups", func() {
+	It("should update the AWSNodeTemplateStatus for security groups", func() {
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 			AWS: v1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},

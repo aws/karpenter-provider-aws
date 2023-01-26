@@ -95,8 +95,8 @@ func (c *Controller) resolveSubnets(ctx context.Context, nodeTemplate *v1alpha1.
 		nodeTemplate.Status.Subnets = append(nodeTemplate.Status.Subnets, status)
 	}
 
-	if c.client.Status().Patch(ctx, nodeTemplate, client.MergeFrom(stored)) != nil {
-		return err
+	if err := c.client.Status().Patch(ctx, nodeTemplate, client.MergeFrom(stored)); err != nil {
+		return client.IgnoreNotFound(err)
 	}
 
 	return nil
@@ -116,8 +116,8 @@ func (c *Controller) resolveSecurityGroup(ctx context.Context, nodeTemplate *v1a
 		nodeTemplate.Status.SecurityGroups = append(nodeTemplate.Status.SecurityGroups, securityGroupSubnet)
 	}
 
-	if c.client.Status().Patch(ctx, nodeTemplate, client.MergeFrom(stored)) != nil {
-		return err
+	if err := c.client.Status().Patch(ctx, nodeTemplate, client.MergeFrom(stored)); err != nil {
+		return client.IgnoreNotFound(err)
 	}
 
 	return nil
