@@ -372,6 +372,8 @@ func (p *InstanceProvider) getOverrides(instanceTypes []*cloudprovider.InstanceT
 	return overrides
 }
 
+// Update receives a machine and updates the EC2 instance with tags linking it to the machine
+// Deprecated: This function can be removed when v1alpha6/v1beta1 migration has completed.
 func (p *InstanceProvider) Update(ctx context.Context, machine *v1alpha5.Machine) (*ec2.Instance, error) {
 	_, err := p.ec2api.CreateTagsWithContext(ctx, &ec2.CreateTagsInput{
 		Resources: aws.StringSlice([]string{lo.Must(utils.ParseInstanceID(machine.Status.ProviderID))}),
@@ -403,7 +405,7 @@ func (p *InstanceProvider) Update(ctx context.Context, machine *v1alpha5.Machine
 			}); !ok {
 				return fmt.Errorf("instance update hasn't completed")
 			}
-			return err
+			return nil
 		},
 		retry.Delay(1*time.Second),
 		retry.Attempts(6),

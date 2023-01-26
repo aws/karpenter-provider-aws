@@ -197,34 +197,8 @@ type SubnetInfo struct {
 	ID   string
 }
 
-// getSubnetNameAndIds returns all subnets matching the label selector
-func getSubnetNameAndIds(tags map[string]string) []SubnetInfo {
-	var filters []*ec2.Filter
-	for key, val := range tags {
-		filters = append(filters, &ec2.Filter{
-			Name:   aws.String(fmt.Sprintf("tag:%s", key)),
-			Values: []*string{aws.String(val)},
-		})
-	}
-	var subnetInfo []SubnetInfo
-	err := env.EC2API.DescribeSubnetsPages(&ec2.DescribeSubnetsInput{Filters: filters}, func(dso *ec2.DescribeSubnetsOutput, _ bool) bool {
-		for _, subnet := range dso.Subnets {
-			for k := range subnet.Tags {
-				if aws.StringValue(subnet.Tags[k].Key) == "Name" {
-					subnetInfo = append(subnetInfo, SubnetInfo{ID: aws.StringValue(subnet.SubnetId), Name: aws.StringValue(subnet.Tags[k].Value)})
-					break
-				}
-			}
-		}
-		return true
-	})
-
-	Expect(err).To(BeNil())
-	return subnetInfo
-}
-
 func EventuallyExpectSubnets(provider *v1alpha1.AWSNodeTemplate) {
-	subnets := getSubnets(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
+	subnets := env.GetSubnets(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
 	Expect(len(subnets)).ToNot(Equal(0))
 	subnetIDs := lo.Flatten(lo.Values(subnets))
 	sort.Strings(subnetIDs)

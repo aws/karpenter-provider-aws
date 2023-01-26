@@ -83,6 +83,8 @@ var _ = BeforeSuite(func() {
 	recorder = coretest.NewEventRecorder()
 	unavailableOfferingsCache = awscache.NewUnavailableOfferings()
 	sqsapi = &fake.SQSAPI{}
+	sqsProvider = interruption.NewSQSProvider(sqsapi)
+	controller = interruption.NewController(env.Client, fakeClock, recorder, sqsProvider, unavailableOfferingsCache)
 })
 
 var _ = AfterSuite(func() {
@@ -98,6 +100,7 @@ var _ = BeforeEach(func() {
 	}))
 	unavailableOfferingsCache.Flush()
 	sqsapi.Reset()
+	sqsProvider.Reset()
 })
 
 var _ = AfterEach(func() {

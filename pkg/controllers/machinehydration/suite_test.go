@@ -28,28 +28,31 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/workqueue"
 	clock "k8s.io/utils/clock/testing"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	. "knative.dev/pkg/logging/testing"
 
-	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
-	corecloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
-	. "github.com/aws/karpenter-core/pkg/test/expectations"
 	"github.com/aws/karpenter/pkg/apis/settings"
-	"github.com/aws/karpenter/pkg/test"
-
-	"github.com/aws/karpenter-core/pkg/apis"
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
-	"github.com/aws/karpenter-core/pkg/operator/controller"
-	"github.com/aws/karpenter-core/pkg/operator/scheme"
-	coretest "github.com/aws/karpenter-core/pkg/test"
+	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	awscache "github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	awscontext "github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/controllers/machinehydration"
 	"github.com/aws/karpenter/pkg/fake"
+	"github.com/aws/karpenter/pkg/test"
+	"github.com/aws/karpenter/pkg/utils"
+
+	"github.com/aws/karpenter-core/pkg/apis"
+	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
+	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
+	corecloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
+	"github.com/aws/karpenter-core/pkg/operator/controller"
+	"github.com/aws/karpenter-core/pkg/operator/scheme"
+	coretest "github.com/aws/karpenter-core/pkg/test"
+	. "github.com/aws/karpenter-core/pkg/test/expectations"
 )
 
 var ctx context.Context
@@ -90,7 +93,7 @@ var _ = BeforeSuite(func() {
 		UnavailableOfferingsCache: unavailableOfferingsCache,
 		EC2API:                    ec2API,
 	})
-	hydrationController = machinehydration.NewController(env.IndexedClient, cloudProvider)
+	hydrationController = machinehydration.NewController(env.Client, cloudProvider)
 })
 
 var _ = AfterSuite(func() {
@@ -98,16 +101,31 @@ var _ = AfterSuite(func() {
 })
 
 var _ = Describe("MachineHydration", func() {
+	var instanceID string
+	var providerID string
 	BeforeEach(func() {
 		ec2API.Reset()
+		instanceID = fake.InstanceID()
+		providerID = fake.ProviderID(instanceID)
 
+		// Store the instance as existing at DescribeInstances
+		ec2API.Instances.Store(
+			instanceID,
+			&ec2.Instance{
+				State: &ec2.InstanceState{
+					Name: aws.String(ec2.InstanceStateNameRunning),
+				},
+				PrivateDnsName: aws.String(fake.PrivateDNSName()),
+				InstanceId:     aws.String(instanceID),
+			},
+		)
 	})
 	AfterEach(func() {
-		EventuallyExpectIndexedClientCleanedUp(ctx, env.Client, env.IndexedClient)
+		ExpectCleanedUp(ctx, env.Client)
 	})
 
-	Context("Success", func() {
-		It("should hydrate a machine from a node", func() {
+	Context("Successful", func() {
+		It("should hydrate from node with basic spec set", func() {
 			provisioner := coretest.Provisioner(coretest.ProvisionerOptions{
 				ProviderRef: &v1alpha5.ProviderRef{
 					APIVersion: v1alpha5.TestingGroup + "v1alpha1",
@@ -129,7 +147,6 @@ var _ = Describe("MachineHydration", func() {
 						v1alpha5.LabelNodeInitialized:    "true",
 					},
 				},
-				ProviderID: fake.RandomProviderID(),
 				Taints: []v1.Taint{
 					{
 						Key:    "testkey",
@@ -137,6 +154,7 @@ var _ = Describe("MachineHydration", func() {
 						Effect: v1.TaintEffectNoSchedule,
 					},
 				},
+				ProviderID: providerID,
 				Allocatable: v1.ResourceList{
 					v1.ResourceCPU:              resource.MustParse("1"),
 					v1.ResourceMemory:           resource.MustParse("1Mi"),
@@ -148,7 +166,7 @@ var _ = Describe("MachineHydration", func() {
 					v1.ResourceEphemeralStorage: resource.MustParse("2Gi"),
 				},
 			})
-			ExpectApplied(ctx, env.IndexedClient, provisioner, node)
+			ExpectApplied(ctx, env.Client, provisioner, node)
 			ExpectReconcileSucceeded(ctx, hydrationController, client.ObjectKeyFromObject(node))
 
 			machineList := &v1alpha5.MachineList{}
@@ -161,13 +179,36 @@ var _ = Describe("MachineHydration", func() {
 			Expect(machine.Spec.MachineTemplateRef.APIVersion).To(Equal(provisioner.Spec.ProviderRef.APIVersion))
 			Expect(machine.Spec.MachineTemplateRef.Kind).To(Equal(provisioner.Spec.ProviderRef.Kind))
 			Expect(machine.Spec.MachineTemplateRef.Name).To(Equal(provisioner.Spec.ProviderRef.Name))
+
+			// Expect that the instance is tagged with the machine-name and cluster-name tags
+			instance := ExpectInstanceExists(ec2API, instanceID)
+			tag := ExpectMachineTagExists(instance)
+			Expect(aws.StringValue(tag.Value)).To(Equal(machine.Name))
+			ExpectClusterTagExists(ctx, instance)
 		})
-		It("should hydrate a machine with expected requirements from node labels", func() {
+		It("should hydrate from node with expected requirements from node labels", func() {
 			provisioner := coretest.Provisioner(coretest.ProvisionerOptions{
 				ProviderRef: &v1alpha5.ProviderRef{
 					APIVersion: v1alpha5.TestingGroup + "v1alpha1",
 					Kind:       "NodeTemplate",
 					Name:       "default",
+				},
+				Requirements: []v1.NodeSelectorRequirement{
+					{
+						Key:      v1.LabelTopologyZone,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{"test-zone-1a", "test-zone-1b", "test-zone-1c"},
+					},
+					{
+						Key:      v1.LabelOSStable,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{string(v1.Linux), string(v1.Windows)},
+					},
+					{
+						Key:      v1.LabelArchStable,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{v1alpha5.ArchitectureAmd64},
+					},
 				},
 			})
 			node := coretest.Node(coretest.NodeOptions{
@@ -182,9 +223,9 @@ var _ = Describe("MachineHydration", func() {
 						v1.LabelArchStable:               "amd64",
 					},
 				},
-				ProviderID: fake.RandomProviderID(),
+				ProviderID: providerID,
 			})
-			ExpectApplied(ctx, env.IndexedClient, provisioner, node)
+			ExpectApplied(ctx, env.Client, provisioner, node)
 			ExpectReconcileSucceeded(ctx, hydrationController, client.ObjectKeyFromObject(node))
 
 			machineList := &v1alpha5.MachineList{}
@@ -192,32 +233,17 @@ var _ = Describe("MachineHydration", func() {
 			Expect(machineList.Items).To(HaveLen(1))
 			machine := machineList.Items[0]
 
-			Expect(machine.Spec.Requirements).To(HaveLen(6))
+			Expect(machine.Spec.Requirements).To(HaveLen(3))
 			Expect(machine.Spec.Requirements).To(ContainElements(
-				v1.NodeSelectorRequirement{
-					Key:      v1alpha5.ProvisionerNameLabelKey,
-					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{provisioner.Name},
-				},
-				v1.NodeSelectorRequirement{
-					Key:      v1.LabelInstanceTypeStable,
-					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{"default-instance-type"},
-				},
-				v1.NodeSelectorRequirement{
-					Key:      v1.LabelTopologyRegion,
-					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{"coretest-zone-1"},
-				},
 				v1.NodeSelectorRequirement{
 					Key:      v1.LabelTopologyZone,
 					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{"coretest-zone-1a"},
+					Values:   []string{"test-zone-1a", "test-zone-1b", "test-zone-1c"},
 				},
 				v1.NodeSelectorRequirement{
 					Key:      v1.LabelOSStable,
 					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{string(v1.Linux)},
+					Values:   []string{string(v1.Linux), string(v1.Windows)},
 				},
 				v1.NodeSelectorRequirement{
 					Key:      v1.LabelArchStable,
@@ -225,8 +251,14 @@ var _ = Describe("MachineHydration", func() {
 					Values:   []string{v1alpha5.ArchitectureAmd64},
 				},
 			))
+
+			// Expect that the instance is tagged with the machine-name and cluster-name tags
+			instance := ExpectInstanceExists(ec2API, instanceID)
+			tag := ExpectMachineTagExists(instance)
+			Expect(aws.StringValue(tag.Value)).To(Equal(machine.Name))
+			ExpectClusterTagExists(ctx, instance)
 		})
-		It("should hydrate a machine with expected kubelet from provisioner kubelet configuration", func() {
+		It("should hydrate from node with expected kubelet from provisioner kubelet configuration", func() {
 			provisioner := coretest.Provisioner(coretest.ProvisionerOptions{
 				ProviderRef: &v1alpha5.ProviderRef{
 					APIVersion: v1alpha5.TestingGroup + "v1alpha1",
@@ -246,7 +278,7 @@ var _ = Describe("MachineHydration", func() {
 						v1alpha5.LabelNodeInitialized:    "true",
 					},
 				},
-				ProviderID: fake.RandomProviderID(),
+				ProviderID: providerID,
 				Taints: []v1.Taint{
 					{
 						Key:    "testkey",
@@ -265,7 +297,7 @@ var _ = Describe("MachineHydration", func() {
 					v1.ResourceEphemeralStorage: resource.MustParse("2Gi"),
 				},
 			})
-			ExpectApplied(ctx, env.IndexedClient, provisioner, node)
+			ExpectApplied(ctx, env.Client, provisioner, node)
 			ExpectReconcileSucceeded(ctx, hydrationController, client.ObjectKeyFromObject(node))
 
 			machineList := &v1alpha5.MachineList{}
@@ -277,6 +309,12 @@ var _ = Describe("MachineHydration", func() {
 			Expect(machine.Spec.Kubelet.ClusterDNS[0]).To(Equal("10.0.0.1"))
 			Expect(lo.FromPtr(machine.Spec.Kubelet.ContainerRuntime)).To(Equal("containerd"))
 			Expect(lo.FromPtr(machine.Spec.Kubelet.MaxPods)).To(BeNumerically("==", 10))
+
+			// Expect that the instance is tagged with the machine-name and cluster-name tags
+			instance := ExpectInstanceExists(ec2API, instanceID)
+			tag := ExpectMachineTagExists(instance)
+			Expect(aws.StringValue(tag.Value)).To(Equal(machine.Name))
+			ExpectClusterTagExists(ctx, instance)
 		})
 		It("should not hydrate startupTaints into the machine (to ensure they don't get re-applied)", func() {
 			provisioner := coretest.Provisioner(coretest.ProvisionerOptions{
@@ -305,7 +343,7 @@ var _ = Describe("MachineHydration", func() {
 						v1alpha5.LabelNodeInitialized:    "true",
 					},
 				},
-				ProviderID: fake.RandomProviderID(),
+				ProviderID: providerID,
 				Allocatable: v1.ResourceList{
 					v1.ResourceCPU:              resource.MustParse("1"),
 					v1.ResourceMemory:           resource.MustParse("1Mi"),
@@ -345,8 +383,20 @@ var _ = Describe("MachineHydration", func() {
 			})
 			ExpectApplied(ctx, env.Client, provisioner)
 
+			// Generate 1000 nodes that have different instanceIDs
 			var nodes []*v1.Node
 			for i := 0; i < 1000; i++ {
+				instanceID = fake.InstanceID()
+				ec2API.EC2Behavior.Instances.Store(
+					instanceID,
+					&ec2.Instance{
+						State: &ec2.InstanceState{
+							Name: aws.String(ec2.InstanceStateNameRunning),
+						},
+						PrivateDnsName: aws.String(fake.PrivateDNSName()),
+						InstanceId:     aws.String(instanceID),
+					},
+				)
 				node := coretest.Node(coretest.NodeOptions{
 					ObjectMeta: metav1.ObjectMeta{
 						Labels: map[string]string{
@@ -354,7 +404,7 @@ var _ = Describe("MachineHydration", func() {
 							v1alpha5.LabelNodeInitialized:    "true",
 						},
 					},
-					ProviderID: fake.RandomProviderID(),
+					ProviderID: fake.ProviderID(instanceID),
 					Allocatable: v1.ResourceList{
 						v1.ResourceCPU: resource.MustParse("1"),
 					},
@@ -362,24 +412,25 @@ var _ = Describe("MachineHydration", func() {
 						v1.ResourceCPU: resource.MustParse("2"),
 					},
 				})
-				ExpectApplied(ctx, env.IndexedClient, node)
-				ExpectReconcileSucceeded(ctx, hydrationController, client.ObjectKeyFromObject(node))
 				nodes = append(nodes, node)
 			}
 
+			// Generate a reconcile loop for all the nodes simultaneously
+			workqueue.ParallelizeUntil(ctx, 50, len(nodes), func(i int) {
+				ExpectApplied(ctx, env.Client, nodes[i])
+				ExpectReconcileSucceeded(ctx, hydrationController, client.ObjectKeyFromObject(nodes[i]))
+			})
 			machineList := &v1alpha5.MachineList{}
 			Expect(env.Client.List(ctx, machineList)).To(Succeed())
 			Expect(machineList.Items).To(HaveLen(1000))
 
-			providerIDMap := lo.SliceToMap(machineList.Items, func(m v1alpha5.Machine) (string, *v1alpha5.Machine) {
-				return m.Status.ProviderID, &m
-			})
 			for _, node := range nodes {
-				_, ok := providerIDMap[node.Spec.ProviderID]
-				Expect(ok).To(BeTrue())
+				instance := ExpectInstanceExists(ec2API, lo.Must(utils.ParseInstanceID(node.Spec.ProviderID)))
+				ExpectMachineTagExists(instance)
+				ExpectClusterTagExists(ctx, instance)
 			}
 		})
-		It("should not hydrate a machine for a node that is already hydrated", func() {
+		It("should hydrate from node by pulling the hydrated machine's name from the HydrateMachine cloudProvider call", func() {
 			provisioner := coretest.Provisioner(coretest.ProvisionerOptions{
 				ProviderRef: &v1alpha5.ProviderRef{
 					APIVersion: v1alpha5.TestingGroup + "v1alpha1",
@@ -394,42 +445,9 @@ var _ = Describe("MachineHydration", func() {
 						v1alpha5.LabelNodeInitialized:    "true",
 					},
 				},
-				ProviderID: fake.RandomProviderID(),
+				ProviderID: providerID,
 			})
-			m := coretest.Machine(v1alpha5.Machine{
-				Status: v1alpha5.MachineStatus{
-					ProviderID: node.Spec.ProviderID, // Same providerID as the node
-				},
-			})
-			ExpectApplied(ctx, env.IndexedClient, provisioner, node, m)
-
-			machineList := &v1alpha5.MachineList{}
-			Expect(env.Client.List(ctx, machineList)).To(Succeed())
-			Expect(machineList.Items).To(HaveLen(1))
-
-			// Expect that we go to hydrate machines, and we don't add extra machines for the existing one
-			ExpectReconcileSucceeded(ctx, hydrationController, client.ObjectKeyFromObject(node))
-			Expect(env.Client.List(ctx, machineList)).To(Succeed())
-			Expect(machineList.Items).To(HaveLen(1))
-		})
-		It("should pull the hydrated machine's name from the HydrateMachine cloudProvider call", func() {
-			provisioner := coretest.Provisioner(coretest.ProvisionerOptions{
-				ProviderRef: &v1alpha5.ProviderRef{
-					APIVersion: v1alpha5.TestingGroup + "v1alpha1",
-					Kind:       "NodeTemplate",
-					Name:       "default",
-				},
-			})
-			node := coretest.Node(coretest.NodeOptions{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
-						v1alpha5.LabelNodeInitialized:    "true",
-					},
-				},
-				ProviderID: fake.RandomProviderID(),
-			})
-			ExpectApplied(ctx, env.IndexedClient, provisioner, node)
+			ExpectApplied(ctx, env.Client, provisioner, node)
 
 			expectedName := "my-custom-machine"
 
@@ -445,6 +463,11 @@ var _ = Describe("MachineHydration", func() {
 										Value: aws.String(expectedName),
 									},
 								},
+								State: &ec2.InstanceState{
+									Name: aws.String(ec2.InstanceStateNameRunning),
+								},
+								InstanceId:     aws.String(instanceID),
+								PrivateDnsName: aws.String(fake.PrivateDNSName()),
 							},
 						},
 					},
@@ -459,12 +482,64 @@ var _ = Describe("MachineHydration", func() {
 			machine := machineList.Items[0]
 
 			// Expect that we hydrated the machine based on the cloudProvider response
-			Expect(machine.Status.ProviderID).To(Equal(node.Spec.ProviderID))
 			Expect(machine.Name).To(Equal(expectedName))
+
+			// Expect that we added the cluster tag to the instance
+			instance := ExpectInstanceExists(ec2API, instanceID)
+			ExpectClusterTagExists(ctx, instance)
+		})
+		It("should hydrate from node using provider and no providerRef", func() {
+			provisioner := coretest.Provisioner(coretest.ProvisionerOptions{
+				Provider: v1alpha1.AWS{
+					AMIFamily:             aws.String(v1alpha1.AMIFamilyAL2),
+					SubnetSelector:        map[string]string{"*": "*"},
+					SecurityGroupSelector: map[string]string{"*": "*"},
+				},
+			})
+			node := coretest.Node(coretest.NodeOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+						v1alpha5.LabelNodeInitialized:    "true",
+					},
+				},
+				ProviderID: providerID,
+				Taints: []v1.Taint{
+					{
+						Key:    "testkey",
+						Value:  "testvalue",
+						Effect: v1.TaintEffectNoSchedule,
+					},
+				},
+				Allocatable: v1.ResourceList{
+					v1.ResourceCPU:              resource.MustParse("1"),
+					v1.ResourceMemory:           resource.MustParse("1Mi"),
+					v1.ResourceEphemeralStorage: resource.MustParse("1Gi"),
+				},
+				Capacity: v1.ResourceList{
+					v1.ResourceCPU:              resource.MustParse("2"),
+					v1.ResourceMemory:           resource.MustParse("2Mi"),
+					v1.ResourceEphemeralStorage: resource.MustParse("2Gi"),
+				},
+			})
+			ExpectApplied(ctx, env.Client, provisioner, node)
+			ExpectReconcileSucceeded(ctx, hydrationController, client.ObjectKeyFromObject(node))
+
+			machineList := &v1alpha5.MachineList{}
+			Expect(env.Client.List(ctx, machineList)).To(Succeed())
+			Expect(machineList.Items).To(HaveLen(1))
+			machine := machineList.Items[0]
+			Expect(machine.Annotations).To(HaveKey(v1alpha5.ProviderCompatabilityAnnotationKey))
+
+			// Expect that the instance is tagged with the machine-name and cluster-name tags
+			instance := ExpectInstanceExists(ec2API, instanceID)
+			tag := ExpectMachineTagExists(instance)
+			Expect(aws.StringValue(tag.Value)).To(Equal(machine.Name))
+			ExpectClusterTagExists(ctx, instance)
 		})
 	})
-	Context("Failure", func() {
-		It("should not hydrate a node without a provisioner label", func() {
+	Context("Failed", func() {
+		It("should not hydrate from node without a provisioner label", func() {
 			provisioner := coretest.Provisioner(coretest.ProvisionerOptions{
 				ProviderRef: &v1alpha5.ProviderRef{
 					APIVersion: v1alpha5.TestingGroup + "v1alpha1",
@@ -478,16 +553,16 @@ var _ = Describe("MachineHydration", func() {
 						v1alpha5.LabelNodeInitialized: "true",
 					},
 				},
-				ProviderID: fake.RandomProviderID(),
+				ProviderID: providerID,
 			})
-			ExpectApplied(ctx, env.IndexedClient, provisioner, node)
+			ExpectApplied(ctx, env.Client, provisioner, node)
 			ExpectReconcileSucceeded(ctx, hydrationController, client.ObjectKeyFromObject(node))
 
 			machineList := &v1alpha5.MachineList{}
 			Expect(env.Client.List(ctx, machineList)).To(Succeed())
 			Expect(machineList.Items).To(HaveLen(0))
 		})
-		It("should not hydrate a node without a provisioner that exists", func() {
+		It("should not hydrate from node without a provisioner that exists", func() {
 			node := coretest.Node(coretest.NodeOptions{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
@@ -495,11 +570,73 @@ var _ = Describe("MachineHydration", func() {
 						v1alpha5.LabelNodeInitialized:    "true",
 					},
 				},
-				ProviderID: fake.RandomProviderID(),
+				ProviderID: providerID,
 			})
-			ExpectApplied(ctx, env.IndexedClient, node)
+			ExpectApplied(ctx, env.Client, node)
 			ExpectReconcileSucceeded(ctx, hydrationController, client.ObjectKeyFromObject(node))
 
+			machineList := &v1alpha5.MachineList{}
+			Expect(env.Client.List(ctx, machineList)).To(Succeed())
+			Expect(machineList.Items).To(HaveLen(0))
+		})
+		It("should not hydrate from node for a node that is already hydrated", func() {
+			provisioner := coretest.Provisioner(coretest.ProvisionerOptions{
+				ProviderRef: &v1alpha5.ProviderRef{
+					APIVersion: v1alpha5.TestingGroup + "v1alpha1",
+					Kind:       "NodeTemplate",
+					Name:       "default",
+				},
+			})
+			node := coretest.Node(coretest.NodeOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+						v1alpha5.LabelNodeInitialized:    "true",
+					},
+				},
+				ProviderID: providerID,
+			})
+			m := coretest.Machine(v1alpha5.Machine{
+				Status: v1alpha5.MachineStatus{
+					ProviderID: node.Spec.ProviderID, // Same providerID as the node
+				},
+			})
+			ExpectApplied(ctx, env.Client, provisioner, node, m)
+
+			machineList := &v1alpha5.MachineList{}
+			Expect(env.Client.List(ctx, machineList)).To(Succeed())
+			Expect(machineList.Items).To(HaveLen(1))
+
+			// Expect that we go to hydrate machines, and we don't add extra machines for the existing one
+			ExpectReconcileSucceeded(ctx, hydrationController, client.ObjectKeyFromObject(node))
+			Expect(env.Client.List(ctx, machineList)).To(Succeed())
+			Expect(machineList.Items).To(HaveLen(1))
+		})
+		It("should not hydrate from node for an instance that is terminated", func() {
+			provisioner := coretest.Provisioner(coretest.ProvisionerOptions{
+				ProviderRef: &v1alpha5.ProviderRef{
+					APIVersion: v1alpha5.TestingGroup + "v1alpha1",
+					Kind:       "NodeTemplate",
+					Name:       "default",
+				},
+			})
+			node := coretest.Node(coretest.NodeOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+						v1alpha5.LabelNodeInitialized:    "true",
+					},
+				},
+				ProviderID: providerID,
+			})
+			ExpectApplied(ctx, env.Client, provisioner, node)
+
+			// Update the state of the existing instance
+			instance := ExpectInstanceExists(ec2API, instanceID)
+			instance.State.Name = aws.String(ec2.InstanceStateNameTerminated)
+			ec2API.Instances.Store(instanceID, instance)
+
+			ExpectReconcileSucceeded(ctx, hydrationController, client.ObjectKeyFromObject(node))
 			machineList := &v1alpha5.MachineList{}
 			Expect(env.Client.List(ctx, machineList)).To(Succeed())
 			Expect(machineList.Items).To(HaveLen(0))
