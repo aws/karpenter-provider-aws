@@ -8,8 +8,8 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.18.7
 	github.com/aws/karpenter v0.22.0
 	github.com/aws/karpenter-core v0.23.1-0.20230126185440-bd476c480a1f
-	github.com/onsi/ginkgo/v2 v2.6.1
-	github.com/onsi/gomega v1.24.2
+	github.com/onsi/ginkgo/v2 v2.7.0
+	github.com/onsi/gomega v1.26.0
 	github.com/samber/lo v1.37.0
 	go.uber.org/multierr v1.9.0
 	k8s.io/api v0.25.4
@@ -82,11 +82,11 @@ require (
 	go.uber.org/zap v1.24.0 // indirect
 	golang.org/x/crypto v0.0.0-20220315160706-3147a52a75dd // indirect
 	golang.org/x/exp v0.0.0-20220303212507-bbda1eaf7a17 // indirect
-	golang.org/x/net v0.4.0 // indirect
+	golang.org/x/net v0.5.0 // indirect
 	golang.org/x/oauth2 v0.0.0-20220223155221-ee480838109b // indirect
-	golang.org/x/sys v0.3.0 // indirect
-	golang.org/x/term v0.3.0 // indirect
-	golang.org/x/text v0.5.0 // indirect
+	golang.org/x/sys v0.4.0 // indirect
+	golang.org/x/term v0.4.0 // indirect
+	golang.org/x/text v0.6.0 // indirect
 	golang.org/x/time v0.0.0-20220609170525-579cf78fd858 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
