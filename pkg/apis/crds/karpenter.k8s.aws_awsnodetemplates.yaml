@@ -229,7 +229,7 @@ spec:
                     selector values utilized for node launch
                   properties:
                     id:
-                      description: Id of a security group
+                      description: Id of the security group
                       type: string
                   type: object
                 type: array
