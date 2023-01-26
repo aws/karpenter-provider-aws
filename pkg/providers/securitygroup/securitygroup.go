@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -41,12 +42,14 @@ type Provider struct {
 	cm     *pretty.ChangeMonitor
 }
 
+const TTL = 5 * time.Minute
+
 func NewProvider(ec2api ec2iface.EC2API) *Provider {
 	return &Provider{
 		ec2api: ec2api,
 		cm:     pretty.NewChangeMonitor(),
 		// TODO: Remove cahce for v1bata1, utlize resolved security groups from the AWSNodeTemplate.status
-		cache: cache.New(awscache.ExtendedTTL, awscache.CleanupInterval),
+		cache: cache.New(TTL, awscache.CleanupInterval),
 	}
 }
 
@@ -101,7 +104,7 @@ func (p *Provider) getSecurityGroups(ctx context.Context, filters []*ec2.Filter)
 		return nil, fmt.Errorf("describing security groups %+v, %w", filters, err)
 	}
 	p.cache.SetDefault(fmt.Sprint(hash), output.SecurityGroups)
-	if p.cm.HasChanged(fmt.Sprintf("security-groups (%d)", hash), output.SecurityGroups) {
+	if p.cm.HasChanged("security-groups", output.SecurityGroups) {
 		logging.FromContext(ctx).With("security-groups", p.securityGroupIds(output.SecurityGroups)).Debugf("discovered security groups")
 	}
 	return output.SecurityGroups, nil

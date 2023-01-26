@@ -29,7 +29,6 @@ import (
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/aws/karpenter-core/pkg/apis/config/settings"
@@ -73,6 +72,7 @@ var _ = BeforeSuite(func() {
 	fakeEC2API = &fake.EC2API{}
 	subnetProvider = subnet.NewProvider(fakeEC2API)
 	securityGroupProvider = securitygroup.NewProvider(fakeEC2API)
+	controller = nodetemplate.NewController(env.Client, subnetProvider, securityGroupProvider)
 })
 
 var _ = AfterSuite(func() {
@@ -98,12 +98,6 @@ var _ = BeforeEach(func() {
 			},
 		},
 	}
-	nodeTemplate.SetGroupVersionKind(schema.GroupVersionKind{
-		Group:   v1alpha1.SchemeGroupVersion.Group,
-		Version: v1alpha1.SchemeGroupVersion.Version,
-		Kind:    "AWSNodeTemplate",
-	})
-	controller = nodetemplate.NewController(env.Client, subnetProvider, securityGroupProvider)
 
 	fakeEC2API.Reset()
 })

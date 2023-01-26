@@ -122,14 +122,6 @@ func getSecurityGroups(tags map[string]string) []SecurityGroup {
 	return securityGroups
 }
 
-func getSecurityGroupIdsFromStatus(securitygroupstatus []v1alpha1.SecurityGroupStatus) []string {
-	var result []string
-	for _, securitygroups := range securitygroupstatus {
-		result = append(result, securitygroups.ID)
-	}
-	return result
-}
-
 func EventuallyExpectSecurityGroups(provider *v1alpha1.AWSNodeTemplate) {
 	securityGroup := getSecurityGroups(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
 	Expect(len(securityGroup)).ToNot(Equal(0))
@@ -144,6 +136,8 @@ func EventuallyExpectSecurityGroups(provider *v1alpha1.AWSNodeTemplate) {
 		if err := env.Client.Get(env, client.ObjectKeyFromObject(provider), &ant); err != nil {
 			return []string{}
 		}
-		return getSecurityGroupIdsFromStatus(ant.Status.SecurityGroups)
+		return lo.Map(ant.Status.SecurityGroups, func(securitygroup v1alpha1.SecurityGroupStatus, _ int) string {
+			return securitygroup.ID
+		})
 	}).WithTimeout(10 * time.Second).Should(Equal(securityGroupID))
 }

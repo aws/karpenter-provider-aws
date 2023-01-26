@@ -17,6 +17,7 @@ package securitygroup
 import (
 	"context"
 	"testing"
+	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -72,9 +73,9 @@ var _ = BeforeSuite(func() {
 	}
 	ctx = settingsStore.InjectSettings(ctx)
 	ctx, stop = context.WithCancel(ctx)
-
+	TTL := 5 * time.Minute
 	fakeEC2API = &fake.EC2API{}
-	securityGroupCache = cache.New(awscache.ExtendedTTL, awscache.CleanupInterval)
+	securityGroupCache = cache.New(TTL, awscache.CleanupInterval)
 	securityGroupProvider = &Provider{
 		ec2api: fakeEC2API,
 		cache:  securityGroupCache,

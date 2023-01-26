@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -42,13 +43,15 @@ type Provider struct {
 	cm     *pretty.ChangeMonitor
 }
 
+const TTL = 5 * time.Minute
+
 func NewProvider(ec2api ec2iface.EC2API) *Provider {
 	return &Provider{
 		ec2api: ec2api,
 		cm:     pretty.NewChangeMonitor(),
 		// TODO: Remove cahce for v1bata1, utlize resolved subnet from the AWSNodeTemplate.status
 		// Subnets are sorted on AvailableIpAddressCount, descending order
-		cache: cache.New(awscache.ExtendedTTL, awscache.CleanupInterval),
+		cache: cache.New(TTL, awscache.CleanupInterval),
 	}
 }
 
@@ -72,7 +75,7 @@ func (p *Provider) List(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTempl
 	}
 	p.cache.SetDefault(fmt.Sprint(hash), output.Subnets)
 	subnetLog := Pretty(output.Subnets)
-	if p.cm.HasChanged(fmt.Sprintf("subnets (%d)", hash), subnetLog) {
+	if p.cm.HasChanged("subnets", subnetLog) {
 		logging.FromContext(ctx).With("subnets", subnetLog).Debugf("discovered subnets")
 	}
 	return output.Subnets, nil

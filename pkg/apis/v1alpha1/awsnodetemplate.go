@@ -23,7 +23,7 @@ type SubnetStatus struct {
 	// Id of the subnet
 	// +optional
 	ID string `json:"id,omitempty"`
-	// The associated avalibiltiy zone
+	// The associated availability zone
 	// +optional
 	Zone string `json:"zone,omitempty"`
 }

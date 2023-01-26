@@ -244,15 +244,6 @@ func getSubnetNameAndIds(tags map[string]string) []SubnetInfo {
 	return subnetInfo
 }
 
-func getSubnetIdsFromStatus(subnetstats []v1alpha1.SubnetStatus) []string {
-	var result []string
-	for _, subnet := range subnetstats {
-		result = append(result, subnet.ID)
-	}
-
-	return result
-}
-
 func EventuallyExpectSubnets(provider *v1alpha1.AWSNodeTemplate) {
 	subnets := getSubnets(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
 	Expect(len(subnets)).ToNot(Equal(0))
@@ -264,7 +255,10 @@ func EventuallyExpectSubnets(provider *v1alpha1.AWSNodeTemplate) {
 		if err := env.Client.Get(env, client.ObjectKeyFromObject(provider), &ant); err != nil {
 			return []string{}
 		}
-		subnetsInStatus := getSubnetIdsFromStatus(ant.Status.Subnets)
+		subnetsInStatus := lo.Map(ant.Status.Subnets, func(subnet v1alpha1.SubnetStatus, _ int) string {
+			return subnet.ID
+		})
+
 		sort.Strings(subnetsInStatus)
 		return subnetsInStatus
 	}).WithTimeout(10 * time.Second).Should(Equal(subnetIDs))

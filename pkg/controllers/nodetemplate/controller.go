@@ -19,12 +19,16 @@ import (
 	"sort"
 	"time"
 
+	"go.uber.org/multierr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/samber/lo"
 
 	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
@@ -35,29 +39,31 @@ import (
 var _ corecontroller.TypedController[*v1alpha1.AWSNodeTemplate] = (*Controller)(nil)
 
 type Controller struct {
-	client                client.Client
+	kubeClient            client.Client
 	subnetProvider        *subnet.Provider
 	securityGroupProvider *securitygroup.Provider
 }
 
 func NewController(client client.Client, subnetProvider *subnet.Provider, securityGroups *securitygroup.Provider) corecontroller.Controller {
 	return corecontroller.Typed[*v1alpha1.AWSNodeTemplate](client, &Controller{
-		client:                client,
+		kubeClient:            client,
 		subnetProvider:        subnetProvider,
 		securityGroupProvider: securityGroups,
 	})
 }
 
 func (c *Controller) Reconcile(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) (reconcile.Result, error) {
-	if err := c.resolveSubnets(ctx, nodeTemplate); err != nil {
-		return reconcile.Result{}, err
+	stored := nodeTemplate.DeepCopy()
+
+	var err error
+	err = multierr.Append(err, c.resolveSubnets(ctx, nodeTemplate))
+	err = multierr.Append(err, c.resolveSecurityGroup(ctx, nodeTemplate))
+
+	if patchErr := c.kubeClient.Status().Patch(ctx, nodeTemplate, client.MergeFrom(stored)); patchErr != nil {
+		return reconcile.Result{}, client.IgnoreNotFound(patchErr)
 	}
 
-	if err := c.resolveSecurityGroup(ctx, nodeTemplate); err != nil {
-		return reconcile.Result{}, err
-	}
-
-	return reconcile.Result{RequeueAfter: 5 * time.Minute}, nil
+	return reconcile.Result{RequeueAfter: 5 * time.Minute}, err
 }
 
 func (c *Controller) Name() string {
@@ -73,7 +79,6 @@ func (c *Controller) Builder(ctx context.Context, m manager.Manager) corecontrol
 }
 
 func (c *Controller) resolveSubnets(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) error {
-	stored := nodeTemplate.DeepCopy()
 	subnetList, err := c.subnetProvider.List(ctx, nodeTemplate)
 	if err != nil {
 		return err
@@ -83,38 +88,27 @@ func (c *Controller) resolveSubnets(ctx context.Context, nodeTemplate *v1alpha1.
 		return int(*subnetList[i].AvailableIpAddressCount) > int(*subnetList[j].AvailableIpAddressCount)
 	})
 
-	for _, ec2subnet := range subnetList {
-		status := v1alpha1.SubnetStatus{
+	nodeTemplate.Status.Subnets = lo.Map(subnetList, func(ec2subnet *ec2.Subnet, _ int) v1alpha1.SubnetStatus {
+		return v1alpha1.SubnetStatus{
 			ID:   *ec2subnet.SubnetId,
 			Zone: *ec2subnet.AvailabilityZone,
 		}
-		nodeTemplate.Status.Subnets = append(nodeTemplate.Status.Subnets, status)
-	}
-
-	if err := c.client.Status().Patch(ctx, nodeTemplate, client.MergeFrom(stored)); err != nil {
-		return client.IgnoreNotFound(err)
-	}
+	})
 
 	return nil
 }
 
 func (c *Controller) resolveSecurityGroup(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) error {
-	stored := nodeTemplate.DeepCopy()
 	securityGroupIds, err := c.securityGroupProvider.List(ctx, nodeTemplate)
 	if err != nil {
 		return err
 	}
 
-	for _, securitygroupsids := range securityGroupIds {
-		securityGroupSubnet := v1alpha1.SecurityGroupStatus{
-			ID: securitygroupsids,
+	nodeTemplate.Status.SecurityGroups = lo.Map(securityGroupIds, func(id string, _ int) v1alpha1.SecurityGroupStatus {
+		return v1alpha1.SecurityGroupStatus{
+			ID: id,
 		}
-		nodeTemplate.Status.SecurityGroups = append(nodeTemplate.Status.SecurityGroups, securityGroupSubnet)
-	}
-
-	if err := c.client.Status().Patch(ctx, nodeTemplate, client.MergeFrom(stored)); err != nil {
-		return client.IgnoreNotFound(err)
-	}
+	})
 
 	return nil
 }
