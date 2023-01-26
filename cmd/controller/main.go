@@ -65,7 +65,6 @@ func main() {
 			operator.KubernetesInterface,
 			state.NewCluster(operator.Clock, operator.GetClient(), cloudProvider),
 			operator.EventRecorder,
-			operator.SettingsStore,
 			cloudProvider,
 		)...).
 		WithWebhooks(corewebhooks.NewWebhooks()...).
