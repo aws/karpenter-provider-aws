@@ -123,8 +123,10 @@ controller:
   # - name: aws-iam-token
   #   mountPath: /var/run/secrets/eks.amazonaws.com/serviceaccount
   #   readOnly: true
-  # -- Additional sideCarContainer config - this will also inherit volume mounts from deployment
-  sidecarContainer: {}
+  # -- Additional sidecarContainer config
+  sidecarContainer: []
+  # -- Additional volumeMounts for the sidecar - this will be added to the volume mounts on top of extraVolumeMounts
+  sidecarVolumeMounts: []
 webhook:
   logLevel: error
   # -- The container port to use for the webhook.
