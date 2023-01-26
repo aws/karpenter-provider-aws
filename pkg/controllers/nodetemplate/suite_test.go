@@ -16,13 +16,17 @@ package nodetemplate_test
 
 import (
 	"context"
+	"sort"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/samber/lo"
 	. "knative.dev/pkg/logging/testing"
 	_ "knative.dev/pkg/system/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/aws/aws-sdk-go/service/ec2"
 
 	"github.com/aws/karpenter-core/pkg/operator/injection"
 	"github.com/aws/karpenter-core/pkg/operator/options"
@@ -110,15 +114,28 @@ var _ = Describe("AWSNodeTemplateController", func() {
 	It("Should update AWSNodeTemplate status for Subnets", func() {
 		ExpectApplied(ctx, env.Client, nodeTemplate)
 		ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
-		err := env.Client.Get(ctx, types.NamespacedName{Name: nodeTemplate.Name}, nodeTemplate)
-		Expect(err).To(BeNil())
-		Expect(len(nodeTemplate.Status.Subnets)).To(Equal(3))
+		ExpectExists(ctx, env.Client, nodeTemplate)
+		_ = env.Client.Get(ctx, types.NamespacedName{Name: nodeTemplate.Name}, nodeTemplate)
+		subnet, _ := subnetProvider.List(ctx, nodeTemplate)
+		subnetIDs := lo.Map(subnet, func(ec2subnet *ec2.Subnet, _ int) string {
+			return *ec2subnet.SubnetId
+		})
+		sort.Strings(subnetIDs)
+		subnetIDsInStatus := lo.Map(nodeTemplate.Status.Subnets, func(subnet v1alpha1.SubnetStatus, _ int) string {
+			return subnet.ID
+		})
+		sort.Strings(subnetIDsInStatus)
+		Expect(subnetIDsInStatus).To(Equal(subnetIDs))
 	})
 	It("Should update AWSNodeTemplate status for Security Groups", func() {
 		ExpectApplied(ctx, env.Client, nodeTemplate)
 		ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
-		err := env.Client.Get(ctx, types.NamespacedName{Name: nodeTemplate.Name}, nodeTemplate)
-		Expect(err).To(BeNil())
-		Expect(len(nodeTemplate.Status.SecurityGroups)).To(Equal(3))
+		ExpectExists(ctx, env.Client, nodeTemplate)
+		_ = env.Client.Get(ctx, types.NamespacedName{Name: nodeTemplate.Name}, nodeTemplate)
+		securityGroupsIDs, _ := securityGroupProvider.List(ctx, nodeTemplate)
+		securityGroupsIDInStatus := lo.Map(nodeTemplate.Status.SecurityGroups, func(securitygroup v1alpha1.SecurityGroupStatus, _ int) string {
+			return securitygroup.ID
+		})
+		Expect(securityGroupsIDInStatus).To(Equal(securityGroupsIDs))
 	})
 })

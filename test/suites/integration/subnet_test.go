@@ -255,11 +255,11 @@ func EventuallyExpectSubnets(provider *v1alpha1.AWSNodeTemplate) {
 		if err := env.Client.Get(env, client.ObjectKeyFromObject(provider), &ant); err != nil {
 			return
 		}
-		subnetsInStatus := lo.Map(ant.Status.Subnets, func(subnet v1alpha1.SubnetStatus, _ int) string {
+		subnetIDsInStatus := lo.Map(ant.Status.Subnets, func(subnet v1alpha1.SubnetStatus, _ int) string {
 			return subnet.ID
 		})
 
-		sort.Strings(subnetsInStatus)
-		g.Expect(subnetsInStatus).To(Equal(subnetIDs))
+		sort.Strings(subnetIDsInStatus)
+		g.Expect(subnetIDsInStatus).To(Equal(subnetIDs))
 	}).WithTimeout(10 * time.Second).Should(Succeed())
 }

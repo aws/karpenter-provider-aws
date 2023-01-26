@@ -17,7 +17,6 @@ package subnet
 import (
 	"context"
 	"testing"
-	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -74,7 +73,6 @@ var _ = BeforeSuite(func() {
 	ctx, stop = context.WithCancel(ctx)
 
 	fakeEC2API = &fake.EC2API{}
-	TTL := 5 * time.Minute
 	subnetCache = cache.New(TTL, awscache.CleanupInterval)
 	subnetProvider = &Provider{
 		ec2api: fakeEC2API,

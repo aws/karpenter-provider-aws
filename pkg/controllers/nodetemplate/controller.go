@@ -44,9 +44,9 @@ type Controller struct {
 	securityGroupProvider *securitygroup.Provider
 }
 
-func NewController(client client.Client, subnetProvider *subnet.Provider, securityGroups *securitygroup.Provider) corecontroller.Controller {
-	return corecontroller.Typed[*v1alpha1.AWSNodeTemplate](client, &Controller{
-		kubeClient:            client,
+func NewController(kubeClient client.Client, subnetProvider *subnet.Provider, securityGroups *securitygroup.Provider) corecontroller.Controller {
+	return corecontroller.Typed[*v1alpha1.AWSNodeTemplate](kubeClient, &Controller{
+		kubeClient:            kubeClient,
 		subnetProvider:        subnetProvider,
 		securityGroupProvider: securityGroups,
 	})
