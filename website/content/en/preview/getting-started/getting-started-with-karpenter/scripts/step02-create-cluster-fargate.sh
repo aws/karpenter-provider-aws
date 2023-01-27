@@ -5,16 +5,13 @@ kind: ClusterConfig
 metadata:
   name: ${CLUSTER_NAME}
   region: ${AWS_DEFAULT_REGION}
-  version: "1.23"
+  version: "1.24"
   tags:
     karpenter.sh/discovery: ${CLUSTER_NAME}
-managedNodeGroups:
-  - instanceType: m5.large
-    amiFamily: AmazonLinux2
-    name: ${CLUSTER_NAME}-ng
-    desiredCapacity: 2
-    minSize: 1
-    maxSize: 10
+fargateProfiles:
+  - name: karpenter
+    selectors:
+    - namespace: karpenter
 iam:
   withOIDC: true
 EOF
