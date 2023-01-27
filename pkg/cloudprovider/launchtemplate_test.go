@@ -940,6 +940,30 @@ var _ = Describe("LaunchTemplates", func() {
 			Expect(string(userData)).To(ContainSubstring("--ip-family ipv6"))
 			Expect(*input.LaunchTemplateData.MetadataOptions.HttpProtocolIpv6).To(Equal(ec2.LaunchTemplateInstanceMetadataProtocolIpv6Enabled))
 		})
+		It("should pass ImageGCHighThresholdPercent when specified", func() {
+			provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
+				ImageGCHighThresholdPercent: aws.Int32(50),
+			}
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			pod := ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+			userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+			Expect(string(userData)).To(ContainSubstring("--image-gc-high-threshold=50"))
+		})
+		It("should pass ImageGCLowThresholdPercent when specified", func() {
+			provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
+				ImageGCLowThresholdPercent: aws.Int32(50),
+			}
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			pod := ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+			userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+			Expect(string(userData)).To(ContainSubstring("--image-gc-low-threshold=50"))
+		})
 		Context("Bottlerocket", func() {
 			It("should merge in custom user data", func() {
 				ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
