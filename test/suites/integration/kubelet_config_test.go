@@ -233,14 +233,40 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		env.ExpectCreatedNodeCount("==", 1)
 		env.ExpectUniqueNodeNames(selector, 1)
 	})
-
 	It("should fail if ImageGCLowThresholdPercent is greather than ImageGCHighThresholdPercent", func() {
-		Expect(env.Client.Create(env, test.Provisioner(test.ProvisionerOptions{
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+		}})
+
+		provisioner := test.Provisioner(test.ProvisionerOptions{
+			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
 			Kubelet: &v1alpha5.KubeletConfiguration{
 				ImageGCLowThresholdPercent:  ptr.Int32(60),
 				ImageGCHighThresholdPercent: ptr.Int32(10),
 			},
-		}))).ToNot(Succeed())
+		})
+
+		Expect(provisioner).ToNot(Succeed())
+	})
+	It("should create provisioner if ImageGCHighThresholdPercent is greather than ImageGCLowThresholdPercent", func() {
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+		}})
+
+		provisioner := test.Provisioner(test.ProvisionerOptions{
+			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
+			Kubelet: &v1alpha5.KubeletConfiguration{
+				ImageGCLowThresholdPercent:  ptr.Int32(10),
+				ImageGCHighThresholdPercent: ptr.Int32(20),
+			},
+		})
+
+		pod := test.Pod()
+		env.ExpectCreated(provisioner, provider, pod)
+		env.EventuallyExpectHealthy(pod)
+		env.ExpectCreatedNodeCount("==", 1)
 	})
 })
 
