@@ -27,13 +27,13 @@ import (
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-	"knative.dev/pkg/configmap/informer"
 	loggingtesting "knative.dev/pkg/logging/testing"
 	"knative.dev/pkg/system"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	coreapis "github.com/aws/karpenter-core/pkg/apis"
+	"github.com/aws/karpenter-core/pkg/operator/injection"
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/utils/project"
 )
@@ -58,8 +58,7 @@ func NewEnvironment(t *testing.T) *Environment {
 
 	os.Setenv(system.NamespaceEnvKey, "karpenter")
 	kubernetesInterface := kubernetes.NewForConfigOrDie(config)
-	cmw := informer.NewInformedWatcher(kubernetesInterface, system.Namespace())
-	lo.Must0(cmw.Start(ctx.Done()))
+	ctx = injection.WithSettingsOrDie(ctx, kubernetesInterface, apis.Settings...)
 
 	gomega.SetDefaultEventuallyTimeout(5 * time.Minute)
 	gomega.SetDefaultEventuallyPollingInterval(1 * time.Second)
