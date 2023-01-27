@@ -38,13 +38,13 @@ import (
 	_ "knative.dev/pkg/system/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	coresettings "github.com/aws/karpenter-core/pkg/apis/config/settings"
+	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
 	"github.com/aws/karpenter/pkg/apis"
-	"github.com/aws/karpenter/pkg/apis/config/settings"
+	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	awscache "github.com/aws/karpenter/pkg/cache"
 	awscontext "github.com/aws/karpenter/pkg/context"
@@ -95,13 +95,10 @@ var _ = AfterSuite(func() {
 var _ = BeforeEach(func() {
 	sqsProvider = interruption.NewSQSProvider(sqsapi)
 	controller = interruption.NewController(env.Client, fakeClock, recorder, sqsProvider, unavailableOfferingsCache)
-	settingsStore := coretest.SettingsStore{
-		coresettings.ContextKey: coretest.Settings(),
-		settings.ContextKey: test.Settings(test.SettingOptions{
-			InterruptionQueueName: lo.ToPtr("test-cluster"),
-		}),
-	}
-	ctx = settingsStore.InjectSettings(ctx)
+	ctx = coresettings.ToContext(ctx, coretest.Settings())
+	ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
+		InterruptionQueueName: lo.ToPtr("test-cluster"),
+	}))
 })
 
 var _ = AfterEach(func() {
@@ -276,40 +273,6 @@ var _ = Describe("AWSInterruption", func() {
 		It("should not return an error when deleting a node that is already deleted", func() {
 			ExpectMessagesCreated(spotInterruptionMessage(defaultInstanceID))
 			ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
-		})
-	})
-	Context("Configuration", func() {
-		It("should not poll SQS if interruption queue is disabled", func() {
-			settingsStore := coretest.SettingsStore{
-				coresettings.ContextKey: coretest.Settings(),
-				settings.ContextKey: test.Settings(test.SettingOptions{
-					InterruptionQueueName: lo.ToPtr(""),
-				}),
-			}
-			ctx = settingsStore.InjectSettings(ctx)
-			ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
-			Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(Equal(0))
-		})
-		It("should only call the get queue url once if the queue name doesn't change", func() {
-			for i := 0; i < 100; i++ {
-				ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
-			}
-			Expect(sqsapi.GetQueueURLBehavior.SuccessfulCalls()).To(Equal(1))
-		})
-		It("should re-request the queue url from SQS if queue name changes", func() {
-			for i := 0; i < 10; i++ {
-				ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
-			}
-			Expect(sqsapi.GetQueueURLBehavior.SuccessfulCalls()).To(Equal(1))
-			settingsStore := coretest.SettingsStore{
-				coresettings.ContextKey: coretest.Settings(),
-				settings.ContextKey: test.Settings(test.SettingOptions{
-					InterruptionQueueName: lo.ToPtr("other-queue-name"),
-				}),
-			}
-			ctx = settingsStore.InjectSettings(ctx)
-			ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
-			Expect(sqsapi.GetQueueURLBehavior.SuccessfulCalls()).To(Equal(2))
 		})
 	})
 })

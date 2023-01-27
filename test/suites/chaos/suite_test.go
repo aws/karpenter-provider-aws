@@ -38,7 +38,7 @@ import (
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
 	nodeutils "github.com/aws/karpenter-core/pkg/utils/node"
-	"github.com/aws/karpenter/pkg/apis/config/settings"
+	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	awstest "github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/test/pkg/environment/common"

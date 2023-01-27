@@ -26,7 +26,7 @@ import (
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter-core/pkg/utils/atomic"
-	"github.com/aws/karpenter/pkg/apis/config/settings"
+	"github.com/aws/karpenter/pkg/apis/settings"
 	awserrors "github.com/aws/karpenter/pkg/errors"
 )
 

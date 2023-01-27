@@ -29,7 +29,7 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/scheduling"
-	"github.com/aws/karpenter/pkg/apis/config/settings"
+	"github.com/aws/karpenter/pkg/apis/settings"
 	awstest "github.com/aws/karpenter/pkg/test"
 
 	pscheduling "github.com/aws/karpenter-core/pkg/controllers/provisioning/scheduling"
@@ -85,7 +85,9 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 					"imagefs.inodesFree": {Duration: time.Minute * 2},
 					"pid.available":      {Duration: time.Minute * 2},
 				},
-				EvictionMaxPodGracePeriod: ptr.Int32(120),
+				EvictionMaxPodGracePeriod:   ptr.Int32(120),
+				ImageGCHighThresholdPercent: ptr.Int32(50),
+				ImageGCLowThresholdPercent:  ptr.Int32(10),
 			},
 		})
 
@@ -230,6 +232,41 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 1)
 		env.ExpectUniqueNodeNames(selector, 1)
+	})
+	It("should fail if ImageGCLowThresholdPercent is greather than ImageGCHighThresholdPercent", func() {
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+		}})
+
+		provisioner := test.Provisioner(test.ProvisionerOptions{
+			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
+			Kubelet: &v1alpha5.KubeletConfiguration{
+				ImageGCLowThresholdPercent:  ptr.Int32(60),
+				ImageGCHighThresholdPercent: ptr.Int32(10),
+			},
+		})
+
+		Expect(provisioner).ToNot(Succeed())
+	})
+	It("should create provisioner if ImageGCHighThresholdPercent is greather than ImageGCLowThresholdPercent", func() {
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+		}})
+
+		provisioner := test.Provisioner(test.ProvisionerOptions{
+			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
+			Kubelet: &v1alpha5.KubeletConfiguration{
+				ImageGCLowThresholdPercent:  ptr.Int32(10),
+				ImageGCHighThresholdPercent: ptr.Int32(20),
+			},
+		})
+
+		pod := test.Pod()
+		env.ExpectCreated(provisioner, provider, pod)
+		env.EventuallyExpectHealthy(pod)
+		env.ExpectCreatedNodeCount("==", 1)
 	})
 })
 

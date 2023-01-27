@@ -16,6 +16,7 @@ package cloudprovider
 
 import (
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 	"time"
@@ -30,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/ptr"
 
+	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
@@ -40,7 +42,6 @@ import (
 
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
 
-	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/fake"
 )
@@ -130,6 +131,72 @@ var _ = Describe("Instance Types", func() {
 			Expect(expected.Has(aws.StringValue(override.InstanceType))).To(BeTrue(), fmt.Sprintf("expected %s to exist in set", aws.StringValue(override.InstanceType)))
 		}
 	})
+	It("should order the instance types by price and only consider the spot types that are cheaper than the cheapest on-demand", func() {
+		instances := makeFakeInstances()
+		fakeEC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
+			InstanceTypes: makeFakeInstances(),
+		})
+		fakeEC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{
+			InstanceTypeOfferings: makeFakeInstanceOfferings(instances),
+		})
+
+		provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
+			{
+				Key:      v1alpha5.LabelCapacityType,
+				Operator: v1.NodeSelectorOpIn,
+				Values: []string{
+					v1alpha5.CapacityTypeSpot,
+					v1alpha5.CapacityTypeOnDemand,
+				},
+			},
+		}
+		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+		fakeEC2API.DescribeSpotPriceHistoryOutput.Set(generateSpotPricing(cloudProvider, provisioner))
+		Expect(pricingProvider.updateSpotPricing(ctx)).To(Succeed())
+
+		for _, pod := range ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov,
+			coretest.UnschedulablePod(coretest.PodOptions{
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
+					Limits:   v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
+				},
+			})) {
+			ExpectScheduled(ctx, env.Client, pod)
+		}
+		its, err := cloudProvider.GetInstanceTypes(ctx, provisioner)
+		Expect(err).To(BeNil())
+		// Order all the instances by their price
+		// We need some way to deterministically order them if their prices match
+		reqs := scheduling.NewNodeSelectorRequirements(provisioner.Spec.Requirements...)
+		sort.Slice(its, func(i, j int) bool {
+			iPrice := its[i].Offerings.Requirements(reqs).Cheapest().Price
+			jPrice := its[j].Offerings.Requirements(reqs).Cheapest().Price
+			if iPrice == jPrice {
+				return its[i].Name < its[j].Name
+			}
+			return iPrice < jPrice
+		})
+
+		Expect(fakeEC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
+		call := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
+		Expect(call.LaunchTemplateConfigs).To(HaveLen(1))
+
+		// find the cheapest OD price that works
+		cheapestODPrice := math.MaxFloat64
+		for _, override := range call.LaunchTemplateConfigs[0].Overrides {
+			odPrice, ok := pricingProvider.OnDemandPrice(*override.InstanceType)
+			Expect(ok).To(BeTrue())
+			if odPrice < cheapestODPrice {
+				cheapestODPrice = odPrice
+			}
+		}
+		// and our spot prices should be cheaper than the OD price
+		for _, override := range call.LaunchTemplateConfigs[0].Overrides {
+			spotPrice, ok := pricingProvider.SpotPrice(*override.InstanceType, *override.AvailabilityZone)
+			Expect(ok).To(BeTrue())
+			Expect(spotPrice).To(BeNumerically("<", cheapestODPrice))
+		}
+	})
 	It("should de-prioritize metal", func() {
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 		for _, pod := range ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov,
@@ -189,8 +256,9 @@ var _ = Describe("Instance Types", func() {
 		}
 	})
 	It("should fail to launch AWS Pod ENI if the command line option enabling it isn't set", func() {
-		settingsStore[awssettings.ContextKey] = test.Settings(test.SettingOptions{EnablePodENI: lo.ToPtr(false)})
-		ctx = settingsStore.InjectSettings(ctx)
+		ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
+			EnablePodENI: lo.ToPtr(false),
+		}))
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 		for _, pod := range ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov,
 			coretest.UnschedulablePod(coretest.PodOptions{
@@ -310,10 +378,9 @@ var _ = Describe("Instance Types", func() {
 		Expect(nodeNames.Len()).To(Equal(2))
 	})
 	It("should set pods to 110 if not using ENI-based pod density", func() {
-		settingsStore[awssettings.ContextKey] = test.Settings(test.SettingOptions{
+		ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
 			EnableENILimitedPodDensity: lo.ToPtr(false),
-		})
-		ctx = settingsStore.InjectSettings(ctx)
+		}))
 		instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 		Expect(err).To(BeNil())
 		for _, info := range instanceInfo {
@@ -332,10 +399,9 @@ var _ = Describe("Instance Types", func() {
 
 	Context("KubeletConfiguration Overrides", func() {
 		BeforeEach(func() {
-			settingsStore[awssettings.ContextKey] = test.Settings(test.SettingOptions{
+			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
 				VMMemoryOverheadPercent: lo.ToPtr[float64](0),
-			})
-			ctx = settingsStore.InjectSettings(ctx)
+			}))
 		})
 		Context("Reserved Resources", func() {
 			It("should override system reserved cpus when specified", func() {
@@ -389,10 +455,9 @@ var _ = Describe("Instance Types", func() {
 		})
 		Context("Eviction Thresholds", func() {
 			BeforeEach(func() {
-				settingsStore[awssettings.ContextKey] = test.Settings(test.SettingOptions{
+				ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
 					VMMemoryOverheadPercent: lo.ToPtr[float64](0),
-				})
-				ctx = settingsStore.InjectSettings(ctx)
+				}))
 			})
 			It("should override eviction threshold (hard) when specified as a quantity", func() {
 				instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
@@ -630,10 +695,9 @@ var _ = Describe("Instance Types", func() {
 			}
 		})
 		It("should override max-pods value when AWSENILimitedPodDensity is unset", func() {
-			settingsStore[awssettings.ContextKey] = test.Settings(test.SettingOptions{
+			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
 				EnablePodENI: lo.ToPtr(false),
-			})
-			ctx = settingsStore.InjectSettings(ctx)
+			}))
 
 			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 			Expect(err).To(BeNil())
@@ -672,10 +736,9 @@ var _ = Describe("Instance Types", func() {
 			}
 		})
 		It("should take 110 to be the default pods number when pods-per-core is 0 and AWSENILimitedPodDensity is unset", func() {
-			settingsStore[awssettings.ContextKey] = test.Settings(test.SettingOptions{
+			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
 				EnableENILimitedPodDensity: lo.ToPtr(false),
-			})
-			ctx = settingsStore.InjectSettings(ctx)
+			}))
 
 			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 			Expect(err).To(BeNil())
@@ -993,6 +1056,39 @@ var _ = Describe("Instance Types", func() {
 		})
 	})
 })
+
+// generateSpotPricing creates a spot price history output for use in a mock that has all spot offerings discounted by 50%
+// vs the on-demand offering.
+func generateSpotPricing(cp *CloudProvider, prov *v1alpha5.Provisioner) *ec2.DescribeSpotPriceHistoryOutput {
+	rsp := &ec2.DescribeSpotPriceHistoryOutput{}
+	instanceTypes, err := cp.GetInstanceTypes(ctx, prov)
+	instanceTypeCache.Flush()
+	Expect(err).To(Succeed())
+	t := fakeClock.Now()
+
+	for _, it := range instanceTypes {
+		onDemandPrice := 1.00
+		for _, o := range it.Offerings {
+			if o.CapacityType == v1alpha5.CapacityTypeOnDemand {
+				onDemandPrice = o.Price
+			}
+		}
+		for _, o := range it.Offerings {
+			o := o
+			if o.CapacityType != v1alpha5.CapacityTypeSpot {
+				continue
+			}
+			spotPrice := fmt.Sprintf("%0.3f", onDemandPrice*0.5)
+			rsp.SpotPriceHistory = append(rsp.SpotPriceHistory, &ec2.SpotPrice{
+				AvailabilityZone: &o.Zone,
+				InstanceType:     &it.Name,
+				SpotPrice:        &spotPrice,
+				Timestamp:        &t,
+			})
+		}
+	}
+	return rsp
+}
 
 func makeFakeInstances() []*ec2.InstanceTypeInfo {
 	var instanceTypes []*ec2.InstanceTypeInfo
