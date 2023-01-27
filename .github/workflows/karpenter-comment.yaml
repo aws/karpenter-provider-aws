@@ -5,7 +5,7 @@ on:
 
 jobs:
   approval-comment:
-    if: github.repository == 'spring1843/karpenter' && contains(github.event.comment.html_url, '/pull/') && contains(github.event.comment.body, '/karpenter snapshot')
+    if: github.repository == 'aws/karpenter' && contains(github.event.comment.html_url, '/pull/') && contains(github.event.comment.body, '/karpenter snapshot')
     permissions: write-all
     runs-on: ubuntu-latest
     steps:
