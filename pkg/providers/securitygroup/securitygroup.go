@@ -61,10 +61,6 @@ func (p *Provider) List(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTempl
 	if err != nil {
 		return nil, err
 	}
-	// Fail if no security groups found
-	if len(securityGroups) == 0 {
-		return nil, fmt.Errorf("no security groups exist given constraints")
-	}
 	// Convert to IDs
 	securityGroupIds := []string{}
 	for _, securityGroup := range securityGroups {

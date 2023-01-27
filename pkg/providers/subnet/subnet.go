@@ -70,9 +70,6 @@ func (p *Provider) List(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTempl
 	if err != nil {
 		return nil, fmt.Errorf("describing subnets %s, %w", pretty.Concise(filters), err)
 	}
-	if len(output.Subnets) == 0 {
-		return nil, fmt.Errorf("no subnets matched selector %v", nodeTemplate.Spec.SubnetSelector)
-	}
 	p.cache.SetDefault(fmt.Sprint(hash), output.Subnets)
 	subnetLog := Pretty(output.Subnets)
 	if p.cm.HasChanged("subnets", subnetLog) {
