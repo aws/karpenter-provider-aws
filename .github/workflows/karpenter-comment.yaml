@@ -1,7 +1,7 @@
-name: Karpentercomment
+name: KarpenterPRComment
 on:
   issue_comment:
-    types: [created, edited, deleted]
+    types: [created, edited]
 
 jobs:
   approval-comment:
@@ -16,7 +16,7 @@ jobs:
             const commentUser = '${{ github.event.comment.user.login }}'
             const result = await github.rest.teams.getMembershipForUserInOrg({
               org: context.repo.owner,
-              team_slug: 'aws/karpenter',
+              team_slug: 'karpenter',
               username: commentUser
             })
             console.log(creator, result)
