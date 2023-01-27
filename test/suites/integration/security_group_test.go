@@ -17,12 +17,14 @@ package integration_test
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
@@ -78,6 +80,18 @@ var _ = Describe("SecurityGroups", func() {
 
 		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("SecurityGroups", ConsistOf(&first.GroupIdentifier, &last.GroupIdentifier)))
 	})
+
+	It("should update the AWSNodeTemplateStatus for security groups", func() {
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+			AWS: v1alpha1.AWS{
+				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			},
+		})
+
+		env.ExpectCreated(provider)
+		EventuallyExpectSecurityGroups(provider)
+	})
 })
 
 type SecurityGroup struct {
@@ -106,4 +120,27 @@ func getSecurityGroups(tags map[string]string) []SecurityGroup {
 	})
 	Expect(err).To(BeNil())
 	return securityGroups
+}
+
+func EventuallyExpectSecurityGroups(provider *v1alpha1.AWSNodeTemplate) {
+	securityGroup := getSecurityGroups(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
+	Expect(len(securityGroup)).ToNot(Equal(0))
+	var securityGroupID []string
+
+	for _, secGroup := range securityGroup {
+		securityGroupID = append(securityGroupID, *secGroup.GroupId)
+	}
+
+	Eventually(func(g Gomega) {
+		var ant v1alpha1.AWSNodeTemplate
+		if err := env.Client.Get(env, client.ObjectKeyFromObject(provider), &ant); err != nil {
+			return
+		}
+
+		securityGroupsInStatus := lo.Map(ant.Status.SecurityGroups, func(securitygroup v1alpha1.SecurityGroupStatus, _ int) string {
+			return securitygroup.ID
+		})
+
+		g.Expect(securityGroupsInStatus).To(Equal(securityGroupID))
+	}).WithTimeout(10 * time.Second).Should(Succeed())
 }

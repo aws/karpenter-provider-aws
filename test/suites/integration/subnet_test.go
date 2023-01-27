@@ -16,6 +16,8 @@ package integration_test
 
 import (
 	"fmt"
+	"sort"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -24,6 +26,7 @@ import (
 	"github.com/onsi/gomega/types"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
@@ -134,6 +137,18 @@ var _ = Describe("Subnets", func() {
 			lo.Map(subnets[shuffledAZs[0]], func(subnetID string, _ int) types.GomegaMatcher { return HaveValue(Equal(subnetID)) })...,
 		)))
 	})
+
+	It("should have the AWSNodeTemplateStatus for subnets", func() {
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+			AWS: v1alpha1.AWS{
+				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			},
+		})
+
+		env.ExpectCreated(provider)
+		EventuallyExpectSubnets(provider)
+	})
 })
 
 // getSubnets returns all subnets matching the label selector
@@ -227,4 +242,24 @@ func getSubnetNameAndIds(tags map[string]string) []SubnetInfo {
 
 	Expect(err).To(BeNil())
 	return subnetInfo
+}
+
+func EventuallyExpectSubnets(provider *v1alpha1.AWSNodeTemplate) {
+	subnets := getSubnets(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
+	Expect(len(subnets)).ToNot(Equal(0))
+	subnetIDs := lo.Flatten(lo.Values(subnets))
+	sort.Strings(subnetIDs)
+
+	Eventually(func(g Gomega) {
+		var ant v1alpha1.AWSNodeTemplate
+		if err := env.Client.Get(env, client.ObjectKeyFromObject(provider), &ant); err != nil {
+			return
+		}
+		subnetIDsInStatus := lo.Map(ant.Status.Subnets, func(subnet v1alpha1.SubnetStatus, _ int) string {
+			return subnet.ID
+		})
+
+		sort.Strings(subnetIDsInStatus)
+		g.Expect(subnetIDsInStatus).To(Equal(subnetIDs))
+	}).WithTimeout(10 * time.Second).Should(Succeed())
 }

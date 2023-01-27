@@ -292,6 +292,9 @@ func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, nodeTem
 	if err != nil {
 		return nil, fmt.Errorf("getting subnets, %w", err)
 	}
+	if len(subnets) == 0 {
+		return nil, fmt.Errorf("no subnets matched selector %v", nodeTemplate.Spec.SubnetSelector)
+	}
 	var launchTemplateConfigs []*ec2.FleetLaunchTemplateConfigRequest
 	launchTemplates, err := p.launchTemplateProvider.EnsureAll(ctx, nodeTemplate, machine, instanceTypes, map[string]string{v1alpha5.LabelCapacityType: capacityType})
 	if err != nil {

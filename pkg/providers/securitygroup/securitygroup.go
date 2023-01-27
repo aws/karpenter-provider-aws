@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -26,8 +27,9 @@ import (
 	"github.com/patrickmn/go-cache"
 	"knative.dev/pkg/logging"
 
+	awscache "github.com/aws/karpenter/pkg/cache"
+
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	awscontext "github.com/aws/karpenter/pkg/context"
 
 	"github.com/aws/karpenter-core/pkg/utils/functional"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
@@ -40,11 +42,14 @@ type Provider struct {
 	cm     *pretty.ChangeMonitor
 }
 
+const TTL = 5 * time.Minute
+
 func NewProvider(ec2api ec2iface.EC2API) *Provider {
 	return &Provider{
 		ec2api: ec2api,
 		cm:     pretty.NewChangeMonitor(),
-		cache:  cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval),
+		// TODO: Remove cahce for v1bata1, utlize resolved security groups from the AWSNodeTemplate.status
+		cache: cache.New(TTL, awscache.CleanupInterval),
 	}
 }
 
@@ -55,10 +60,6 @@ func (p *Provider) List(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTempl
 	securityGroups, err := p.getSecurityGroups(ctx, p.getFilters(nodeTemplate))
 	if err != nil {
 		return nil, err
-	}
-	// Fail if no security groups found
-	if len(securityGroups) == 0 {
-		return nil, fmt.Errorf("no security groups exist given constraints")
 	}
 	// Convert to IDs
 	securityGroupIds := []string{}
@@ -114,7 +115,5 @@ func (p *Provider) securityGroupIds(securityGroups []*ec2.SecurityGroup) []strin
 }
 
 func (p *Provider) Reset() {
-	p.Lock()
-	defer p.Unlock()
 	p.cache.Flush()
 }

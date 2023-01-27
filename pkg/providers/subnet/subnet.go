@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -27,8 +28,9 @@ import (
 	"github.com/patrickmn/go-cache"
 	"knative.dev/pkg/logging"
 
+	awscache "github.com/aws/karpenter/pkg/cache"
+
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	awscontext "github.com/aws/karpenter/pkg/context"
 
 	"github.com/aws/karpenter-core/pkg/utils/functional"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
@@ -41,11 +43,15 @@ type Provider struct {
 	cm     *pretty.ChangeMonitor
 }
 
+const TTL = 5 * time.Minute
+
 func NewProvider(ec2api ec2iface.EC2API) *Provider {
 	return &Provider{
 		ec2api: ec2api,
 		cm:     pretty.NewChangeMonitor(),
-		cache:  cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval),
+		// TODO: Remove cache for v1beta1, utilize resolved subnet from the AWSNodeTemplate.status
+		// Subnets are sorted on AvailableIpAddressCount, descending order
+		cache: cache.New(TTL, awscache.CleanupInterval),
 	}
 }
 
@@ -68,7 +74,7 @@ func (p *Provider) List(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTempl
 		return nil, fmt.Errorf("no subnets matched selector %v", nodeTemplate.Spec.SubnetSelector)
 	}
 	p.cache.SetDefault(fmt.Sprint(hash), output.Subnets)
-	subnetLog := prettySubnets(output.Subnets)
+	subnetLog := Pretty(output.Subnets)
 	if p.cm.HasChanged("subnets", subnetLog) {
 		logging.FromContext(ctx).With("subnets", subnetLog).Debugf("discovered subnets")
 	}
@@ -106,7 +112,7 @@ func getFilters(nodeTemplate *v1alpha1.AWSNodeTemplate) []*ec2.Filter {
 	return filters
 }
 
-func prettySubnets(subnets []*ec2.Subnet) []string {
+func Pretty(subnets []*ec2.Subnet) []string {
 	names := []string{}
 	for _, subnet := range subnets {
 		names = append(names, fmt.Sprintf("%s (%s)", aws.StringValue(subnet.SubnetId), aws.StringValue(subnet.AvailabilityZone)))
@@ -115,7 +121,5 @@ func prettySubnets(subnets []*ec2.Subnet) []string {
 }
 
 func (p *Provider) Reset() {
-	p.Lock()
-	defer p.Unlock()
 	p.cache.Flush()
 }
