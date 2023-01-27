@@ -165,6 +165,10 @@ func (env *Environment) EventuallyExpectKarpenterPodsHealthyWithOffset(offset in
 			)))
 		}
 	}).Should(Succeed())
+
+	// We add this delay in here since we currently don't have the liveness/readiness probe working on the webhook
+	// which means there's a bit of time after the pods go ready that the webhook isn't actually ready to receive traffic yet
+	time.Sleep(time.Second * 5)
 }
 
 func (env *Environment) EventuallyExpectHealthyPodCount(selector labels.Selector, numPods int) {
