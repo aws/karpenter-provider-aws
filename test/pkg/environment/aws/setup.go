@@ -45,7 +45,7 @@ func (env *Environment) Cleanup(opts ...common.Option) {
 		fmt.Println("------- START AWS CLEANUP -------")
 		defer fmt.Println("------- END AWS CLEANUP -------")
 	}
-	env.ExpectCreatedOrUpdated(persistedSettings)
+	env.ExpectSettingsOverridden(persistedSettings.Data)
 	env.Environment.CleanupObjects(CleanableObjects)
 	env.Environment.Cleanup(opts...)
 }
