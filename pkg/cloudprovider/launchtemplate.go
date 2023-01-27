@@ -143,6 +143,9 @@ func (p *LaunchTemplateProvider) createAmiOptions(ctx context.Context, nodeTempl
 	if err != nil {
 		return nil, err
 	}
+	if len(securityGroupsIDs) == 0 {
+		return nil, fmt.Errorf("no security groups exist given constraints")
+	}
 	return &amifamily.Options{
 		ClusterName:             awssettings.FromContext(ctx).ClusterName,
 		ClusterEndpoint:         awssettings.FromContext(ctx).ClusterEndpoint,
