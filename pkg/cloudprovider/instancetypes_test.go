@@ -16,6 +16,7 @@ package cloudprovider
 
 import (
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 	"time"
@@ -128,6 +129,72 @@ var _ = Describe("Instance Types", func() {
 		Expect(call.LaunchTemplateConfigs[0].Overrides).To(HaveLen(MaxInstanceTypes))
 		for _, override := range call.LaunchTemplateConfigs[0].Overrides {
 			Expect(expected.Has(aws.StringValue(override.InstanceType))).To(BeTrue(), fmt.Sprintf("expected %s to exist in set", aws.StringValue(override.InstanceType)))
+		}
+	})
+	It("should order the instance types by price and only consider the spot types that are cheaper than the cheapest on-demand", func() {
+		instances := makeFakeInstances()
+		fakeEC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
+			InstanceTypes: makeFakeInstances(),
+		})
+		fakeEC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{
+			InstanceTypeOfferings: makeFakeInstanceOfferings(instances),
+		})
+
+		provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
+			{
+				Key:      v1alpha5.LabelCapacityType,
+				Operator: v1.NodeSelectorOpIn,
+				Values: []string{
+					v1alpha5.CapacityTypeSpot,
+					v1alpha5.CapacityTypeOnDemand,
+				},
+			},
+		}
+		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+		fakeEC2API.DescribeSpotPriceHistoryOutput.Set(generateSpotPricing(cloudProvider, provisioner))
+		Expect(pricingProvider.updateSpotPricing(ctx)).To(Succeed())
+
+		for _, pod := range ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov,
+			coretest.UnschedulablePod(coretest.PodOptions{
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
+					Limits:   v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
+				},
+			})) {
+			ExpectScheduled(ctx, env.Client, pod)
+		}
+		its, err := cloudProvider.GetInstanceTypes(ctx, provisioner)
+		Expect(err).To(BeNil())
+		// Order all the instances by their price
+		// We need some way to deterministically order them if their prices match
+		reqs := scheduling.NewNodeSelectorRequirements(provisioner.Spec.Requirements...)
+		sort.Slice(its, func(i, j int) bool {
+			iPrice := its[i].Offerings.Requirements(reqs).Cheapest().Price
+			jPrice := its[j].Offerings.Requirements(reqs).Cheapest().Price
+			if iPrice == jPrice {
+				return its[i].Name < its[j].Name
+			}
+			return iPrice < jPrice
+		})
+
+		Expect(fakeEC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
+		call := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
+		Expect(call.LaunchTemplateConfigs).To(HaveLen(1))
+
+		// find the cheapest OD price that works
+		cheapestODPrice := math.MaxFloat64
+		for _, override := range call.LaunchTemplateConfigs[0].Overrides {
+			odPrice, ok := pricingProvider.OnDemandPrice(*override.InstanceType)
+			Expect(ok).To(BeTrue())
+			if odPrice < cheapestODPrice {
+				cheapestODPrice = odPrice
+			}
+		}
+		// and our spot prices should be cheaper than the OD price
+		for _, override := range call.LaunchTemplateConfigs[0].Overrides {
+			spotPrice, ok := pricingProvider.SpotPrice(*override.InstanceType, *override.AvailabilityZone)
+			Expect(ok).To(BeTrue())
+			Expect(spotPrice).To(BeNumerically("<", cheapestODPrice))
 		}
 	})
 	It("should de-prioritize metal", func() {
@@ -989,6 +1056,39 @@ var _ = Describe("Instance Types", func() {
 		})
 	})
 })
+
+// generateSpotPricing creates a spot price history output for use in a mock that has all spot offerings discounted by 50%
+// vs the on-demand offering.
+func generateSpotPricing(cp *CloudProvider, prov *v1alpha5.Provisioner) *ec2.DescribeSpotPriceHistoryOutput {
+	rsp := &ec2.DescribeSpotPriceHistoryOutput{}
+	instanceTypes, err := cp.GetInstanceTypes(ctx, prov)
+	instanceTypeCache.Flush()
+	Expect(err).To(Succeed())
+	t := fakeClock.Now()
+
+	for _, it := range instanceTypes {
+		onDemandPrice := 1.00
+		for _, o := range it.Offerings {
+			if o.CapacityType == v1alpha5.CapacityTypeOnDemand {
+				onDemandPrice = o.Price
+			}
+		}
+		for _, o := range it.Offerings {
+			o := o
+			if o.CapacityType != v1alpha5.CapacityTypeSpot {
+				continue
+			}
+			spotPrice := fmt.Sprintf("%0.3f", onDemandPrice*0.5)
+			rsp.SpotPriceHistory = append(rsp.SpotPriceHistory, &ec2.SpotPrice{
+				AvailabilityZone: &o.Zone,
+				InstanceType:     &it.Name,
+				SpotPrice:        &spotPrice,
+				Timestamp:        &t,
+			})
+		}
+	}
+	return rsp
+}
 
 func makeFakeInstances() []*ec2.InstanceTypeInfo {
 	var instanceTypes []*ec2.InstanceTypeInfo

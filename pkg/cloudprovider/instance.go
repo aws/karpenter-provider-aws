@@ -78,7 +78,7 @@ func NewInstanceProvider(ctx context.Context, region string, ec2api ec2iface.EC2
 }
 
 func (p *InstanceProvider) Create(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, machine *v1alpha5.Machine, instanceTypes []*cloudprovider.InstanceType) (*ec2.Instance, error) {
-	instanceTypes = filterInstanceTypes(instanceTypes)
+	instanceTypes = p.filterInstanceTypes(machine, instanceTypes)
 	instanceTypes = orderInstanceTypesByPrice(instanceTypes, scheduling.NewNodeSelectorRequirements(machine.Spec.Requirements...))
 	if len(instanceTypes) > MaxInstanceTypes {
 		instanceTypes = instanceTypes[0:MaxInstanceTypes]
@@ -412,10 +412,75 @@ func orderInstanceTypesByPrice(instanceTypes []*cloudprovider.InstanceType, requ
 	return instanceTypes
 }
 
-// filterInstanceTypes is used to eliminate less desirable instance types (like GPUs) from the list of possible instance types when
+// filterInstanceTypes is used to provide filtering on the list of potential instance types to further limit it to those
+// that make the most sense given our specific AWS cloudprovider.
+func (p *InstanceProvider) filterInstanceTypes(machine *v1alpha5.Machine, instanceTypes []*cloudprovider.InstanceType) []*cloudprovider.InstanceType {
+	instanceTypes = filterExoticInstanceTypes(instanceTypes)
+	// If we could potentially launch either a spot or on-demand node, we want to filter out the spot instance types that
+	// are more expensive than the cheapest on-demand type.
+	if p.isMixedCapacityLaunch(machine, instanceTypes) {
+		instanceTypes = filterUnwantedSpot(instanceTypes)
+	}
+	return instanceTypes
+}
+
+// isMixedCapacityLaunch returns true if provisioners and available offerings could potentially allow either a spot or
+// and on-demand node to launch
+func (p *InstanceProvider) isMixedCapacityLaunch(machine *v1alpha5.Machine, instanceTypes []*cloudprovider.InstanceType) bool {
+	requirements := scheduling.NewNodeSelectorRequirements(machine.Spec.Requirements...)
+	// requirements must allow both
+	if !requirements.Get(v1alpha5.LabelCapacityType).Has(v1alpha5.CapacityTypeSpot) ||
+		!requirements.Get(v1alpha5.LabelCapacityType).Has(v1alpha5.CapacityTypeOnDemand) {
+		return false
+	}
+	hasSpotOfferings := false
+	hasODOffering := false
+	if requirements.Get(v1alpha5.LabelCapacityType).Has(v1alpha5.CapacityTypeSpot) {
+		for _, instanceType := range instanceTypes {
+			for _, offering := range instanceType.Offerings.Available() {
+				if requirements.Get(v1.LabelTopologyZone).Has(offering.Zone) {
+					if offering.CapacityType == v1alpha5.CapacityTypeSpot {
+						hasSpotOfferings = true
+					} else {
+						hasODOffering = true
+					}
+				}
+			}
+		}
+	}
+	return hasSpotOfferings && hasODOffering
+}
+
+// filterUnwantedSpot is used to filter out spot types that are more expensive than the cheapest on-demand type that we
+// could launch during mixed capacity-type launches
+func filterUnwantedSpot(instanceTypes []*cloudprovider.InstanceType) []*cloudprovider.InstanceType {
+	cheapestOnDemand := math.MaxFloat64
+	// first, find the price of our cheapest available on-demand instance type that could support this node
+	for _, it := range instanceTypes {
+		for _, o := range it.Offerings.Available() {
+			if o.CapacityType == v1alpha5.CapacityTypeOnDemand && o.Price < cheapestOnDemand {
+				cheapestOnDemand = o.Price
+			}
+		}
+	}
+
+	// Filter out any types where the cheapest offering, which should be spot, is more expensive than the cheapest
+	// on-demand instance type that would have worked. This prevents us from getting a larger more-expensive spot
+	// instance type compared to the cheapest sufficiently large on-demand instance type
+	instanceTypes = lo.Filter(instanceTypes, func(item *cloudprovider.InstanceType, index int) bool {
+		available := item.Offerings.Available()
+		if len(available) == 0 {
+			return false
+		}
+		return available.Cheapest().Price <= cheapestOnDemand
+	})
+	return instanceTypes
+}
+
+// filterExoticInstanceTypes is used to eliminate less desirable instance types (like GPUs) from the list of possible instance types when
 // a set of more appropriate instance types would work. If a set of more desirable instance types is not found, then the original slice
 // of instance types are returned.
-func filterInstanceTypes(instanceTypes []*cloudprovider.InstanceType) []*cloudprovider.InstanceType {
+func filterExoticInstanceTypes(instanceTypes []*cloudprovider.InstanceType) []*cloudprovider.InstanceType {
 	var genericInstanceTypes []*cloudprovider.InstanceType
 	for _, it := range instanceTypes {
 		// deprioritize metal even if our opinionated filter isn't applied due to something like an instance family
