@@ -37,11 +37,12 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/aws/karpenter/pkg/apis/settings"
+	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily/bootstrap"
 	"github.com/aws/karpenter/pkg/test"
 
+	"github.com/aws/karpenter-core/pkg/apis/config/settings"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/controllers/provisioning"
 	coretest "github.com/aws/karpenter-core/pkg/test"
@@ -305,9 +306,12 @@ var _ = Describe("LaunchTemplates", func() {
 				"customTag1": "value1",
 				"customTag2": "value2",
 			}
-			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
+
+			// Inject custom settings into the current context
+			settingsStore[awssettings.ContextKey] = test.Settings(test.SettingOptions{
 				Tags: settingsTags,
-			}))
+			})
+			ctx = settingsStore.InjectSettings(ctx)
 
 			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
@@ -335,9 +339,12 @@ var _ = Describe("LaunchTemplates", func() {
 				"tag1": "custom1",
 				"tag2": "custom2",
 			}
-			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
+
+			// Inject custom settings into the current context
+			settingsStore[awssettings.ContextKey] = test.Settings(test.SettingOptions{
 				Tags: settingsTags,
-			}))
+			})
+			ctx = settingsStore.InjectSettings(ctx)
 
 			provisioningController = provisioning.NewController(env.Client, prov, recorder)
 
@@ -621,10 +628,14 @@ var _ = Describe("LaunchTemplates", func() {
 	})
 	Context("AL2", func() {
 		It("should calculate memory overhead based on eni limited pods when ENI limited", func() {
-			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
-				EnableENILimitedPodDensity: lo.ToPtr(false),
-				VMMemoryOverheadPercent:    lo.ToPtr[float64](0),
-			}))
+			settingsStore = coretest.SettingsStore{
+				settings.ContextKey: test.Settings(),
+				awssettings.ContextKey: test.Settings(test.SettingOptions{
+					EnableENILimitedPodDensity: lo.ToPtr(false),
+					VMMemoryOverheadPercent:    lo.ToPtr[float64](0),
+				}),
+			}
+			ctx = settingsStore.InjectSettings(ctx)
 
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyAL2
 			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
@@ -634,10 +645,14 @@ var _ = Describe("LaunchTemplates", func() {
 			Expect(overhead.Memory().String()).To(Equal("1093Mi"))
 		})
 		It("should calculate memory overhead based on eni limited pods when not ENI limited", func() {
-			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
-				EnableENILimitedPodDensity: lo.ToPtr(false),
-				VMMemoryOverheadPercent:    lo.ToPtr[float64](0),
-			}))
+			settingsStore = coretest.SettingsStore{
+				settings.ContextKey: test.Settings(),
+				awssettings.ContextKey: test.Settings(test.SettingOptions{
+					EnableENILimitedPodDensity: lo.ToPtr(false),
+					VMMemoryOverheadPercent:    lo.ToPtr[float64](0),
+				}),
+			}
+			ctx = settingsStore.InjectSettings(ctx)
 
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyAL2
 			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
@@ -649,10 +664,14 @@ var _ = Describe("LaunchTemplates", func() {
 	})
 	Context("Bottlerocket", func() {
 		It("should calculate memory overhead based on eni limited pods when ENI limited", func() {
-			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
-				EnableENILimitedPodDensity: lo.ToPtr(true),
-				VMMemoryOverheadPercent:    lo.ToPtr[float64](0),
-			}))
+			settingsStore = coretest.SettingsStore{
+				settings.ContextKey: test.Settings(),
+				awssettings.ContextKey: test.Settings(test.SettingOptions{
+					EnableENILimitedPodDensity: lo.ToPtr(true),
+					VMMemoryOverheadPercent:    lo.ToPtr[float64](0),
+				}),
+			}
+			ctx = settingsStore.InjectSettings(ctx)
 
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
 			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
@@ -662,10 +681,14 @@ var _ = Describe("LaunchTemplates", func() {
 			Expect(overhead.Memory().String()).To(Equal("1093Mi"))
 		})
 		It("should calculate memory overhead based on max pods when not ENI limited", func() {
-			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
-				EnableENILimitedPodDensity: lo.ToPtr(false),
-				VMMemoryOverheadPercent:    lo.ToPtr[float64](0),
-			}))
+			settingsStore = coretest.SettingsStore{
+				settings.ContextKey: test.Settings(),
+				awssettings.ContextKey: test.Settings(test.SettingOptions{
+					EnableENILimitedPodDensity: lo.ToPtr(false),
+					VMMemoryOverheadPercent:    lo.ToPtr[float64](0),
+				}),
+			}
+			ctx = settingsStore.InjectSettings(ctx)
 
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
 			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
@@ -686,9 +709,8 @@ var _ = Describe("LaunchTemplates", func() {
 			Expect(string(userData)).NotTo(ContainSubstring("--use-max-pods false"))
 		})
 		It("should specify --use-max-pods=false when not using ENI-based pod density", func() {
-			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
-				EnableENILimitedPodDensity: lo.ToPtr(false),
-			}))
+			settingsStore[awssettings.ContextKey] = test.Settings(test.SettingOptions{EnableENILimitedPodDensity: lo.ToPtr(false)})
+			ctx = settingsStore.InjectSettings(ctx)
 
 			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
@@ -966,9 +988,8 @@ var _ = Describe("LaunchTemplates", func() {
 		})
 		Context("Bottlerocket", func() {
 			It("should merge in custom user data", func() {
-				ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
-					EnableENILimitedPodDensity: lo.ToPtr(false),
-				}))
+				settingsStore[awssettings.ContextKey] = test.Settings(test.SettingOptions{EnableENILimitedPodDensity: lo.ToPtr(false)})
+				ctx = settingsStore.InjectSettings(ctx)
 
 				content, _ := os.ReadFile("testdata/br_userdata_input.golden")
 				nodeTemplate.Spec.UserData = aws.String(string(content))
@@ -991,9 +1012,8 @@ var _ = Describe("LaunchTemplates", func() {
 				Expect(expectedUserData).To(Equal(actualUserData))
 			})
 			It("should bootstrap when custom user data is empty", func() {
-				ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
-					EnableENILimitedPodDensity: lo.ToPtr(false),
-				}))
+				settingsStore[awssettings.ContextKey] = test.Settings(test.SettingOptions{EnableENILimitedPodDensity: lo.ToPtr(false)})
+				ctx = settingsStore.InjectSettings(ctx)
 				nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
 				provisioner.Spec.Taints = []v1.Taint{{Key: "foo", Value: "bar", Effect: v1.TaintEffectNoExecute}}
 				provisioner.Spec.StartupTaints = []v1.Taint{{Key: "baz", Value: "bin", Effect: v1.TaintEffectNoExecute}}
@@ -1012,9 +1032,8 @@ var _ = Describe("LaunchTemplates", func() {
 				Expect(expectedUserData).To(Equal(actualUserData))
 			})
 			It("should not bootstrap when provider ref points to a non-existent resource", func() {
-				ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
-					EnableENILimitedPodDensity: lo.ToPtr(false),
-				}))
+				settingsStore[awssettings.ContextKey] = test.Settings(test.SettingOptions{EnableENILimitedPodDensity: lo.ToPtr(false)})
+				ctx = settingsStore.InjectSettings(ctx)
 
 				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: "doesnotexist"}})
 				ExpectApplied(ctx, env.Client, newProvisioner)
@@ -1140,9 +1159,8 @@ var _ = Describe("LaunchTemplates", func() {
 		})
 		Context("AL2 Custom UserData", func() {
 			It("should merge in custom user data", func() {
-				ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
-					EnableENILimitedPodDensity: lo.ToPtr(false),
-				}))
+				settingsStore[awssettings.ContextKey] = test.Settings(test.SettingOptions{EnableENILimitedPodDensity: lo.ToPtr(false)})
+				ctx = settingsStore.InjectSettings(ctx)
 
 				content, _ := os.ReadFile("testdata/al2_userdata_input.golden")
 				nodeTemplate.Spec.UserData = aws.String(string(content))
@@ -1159,9 +1177,8 @@ var _ = Describe("LaunchTemplates", func() {
 				Expect(expectedUserData).To(Equal(string(userData)))
 			})
 			It("should handle empty custom user data", func() {
-				ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
-					EnableENILimitedPodDensity: lo.ToPtr(false),
-				}))
+				settingsStore[awssettings.ContextKey] = test.Settings(test.SettingOptions{EnableENILimitedPodDensity: lo.ToPtr(false)})
+				ctx = settingsStore.InjectSettings(ctx)
 				nodeTemplate.Spec.UserData = nil
 				ExpectApplied(ctx, env.Client, nodeTemplate)
 				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})

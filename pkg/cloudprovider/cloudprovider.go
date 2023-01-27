@@ -24,7 +24,7 @@ import (
 	"strings"
 
 	"github.com/aws/karpenter/pkg/apis"
-	awssettings "github.com/aws/karpenter/pkg/apis/settings"
+	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
 	"github.com/aws/karpenter/pkg/providers/subnet"
@@ -65,7 +65,7 @@ const (
 
 func init() {
 	v1alpha5.NormalizedLabels = lo.Assign(v1alpha5.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": v1.LabelTopologyZone})
-	coreapis.Settings = append(coreapis.Settings, apis.Settings...)
+	coreapis.Settings = coreapis.Settings.Union(apis.Settings)
 }
 
 var _ cloudprovider.CloudProvider = (*CloudProvider)(nil)

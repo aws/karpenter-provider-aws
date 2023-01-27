@@ -23,7 +23,9 @@ import (
 	v1 "k8s.io/api/core/v1"
 	. "knative.dev/pkg/logging/testing"
 
-	"github.com/aws/karpenter/pkg/apis/settings"
+	. "github.com/aws/karpenter-core/pkg/test/expectations"
+
+	"github.com/aws/karpenter/pkg/apis/config/settings"
 )
 
 var ctx context.Context
@@ -42,9 +44,7 @@ var _ = Describe("Validation", func() {
 				"aws.clusterName":     "my-cluster",
 			},
 		}
-		ctx, err := (&settings.Settings{}).Inject(ctx, cm)
-		Expect(err).ToNot(HaveOccurred())
-		s := settings.FromContext(ctx)
+		s, _ := settings.NewSettingsFromConfigMap(cm)
 		Expect(s.DefaultInstanceProfile).To(Equal(""))
 		Expect(s.EnablePodENI).To(BeFalse())
 		Expect(s.EnableENILimitedPodDensity).To(BeTrue())
@@ -68,9 +68,7 @@ var _ = Describe("Validation", func() {
 				"aws.tags.tag2":                  "value2",
 			},
 		}
-		ctx, err := (&settings.Settings{}).Inject(ctx, cm)
-		Expect(err).ToNot(HaveOccurred())
-		s := settings.FromContext(ctx)
+		s, _ := settings.NewSettingsFromConfigMap(cm)
 		Expect(s.DefaultInstanceProfile).To(Equal("karpenter"))
 		Expect(s.EnablePodENI).To(BeTrue())
 		Expect(s.EnableENILimitedPodDensity).To(BeFalse())
@@ -82,34 +80,35 @@ var _ = Describe("Validation", func() {
 		Expect(s.Tags).To(HaveKeyWithValue("tag2", "value2"))
 	})
 	It("should fail validation with panic when clusterName not included", func() {
+		defer ExpectPanic()
 		cm := &v1.ConfigMap{
 			Data: map[string]string{
 				"aws.clusterEndpoint": "https://00000000000000000000000.gr7.us-west-2.eks.amazonaws.com",
 			},
 		}
-		_, err := (&settings.Settings{}).Inject(ctx, cm)
-		Expect(err).To(HaveOccurred())
+		_, _ = settings.NewSettingsFromConfigMap(cm)
 	})
-	It("should fail validation when clusterEndpoint not included", func() {
+	It("should fail validation with panic when clusterEndpoint not included", func() {
+		defer ExpectPanic()
 		cm := &v1.ConfigMap{
 			Data: map[string]string{
 				"aws.clusterName": "my-name",
 			},
 		}
-		_, err := (&settings.Settings{}).Inject(ctx, cm)
-		Expect(err).To(HaveOccurred())
+		_, _ = settings.NewSettingsFromConfigMap(cm)
 	})
-	It("should fail validation when clusterEndpoint is invalid (not absolute)", func() {
+	It("should fail validation with panic when clusterEndpoint is invalid (not absolute)", func() {
+		defer ExpectPanic()
 		cm := &v1.ConfigMap{
 			Data: map[string]string{
 				"aws.clusterName":     "my-name",
 				"aws.clusterEndpoint": "00000000000000000000000.gr7.us-west-2.eks.amazonaws.com",
 			},
 		}
-		_, err := (&settings.Settings{}).Inject(ctx, cm)
-		Expect(err).To(HaveOccurred())
+		_, _ = settings.NewSettingsFromConfigMap(cm)
 	})
 	It("should fail validation with panic when vmMemoryOverheadPercent is negative", func() {
+		defer ExpectPanic()
 		cm := &v1.ConfigMap{
 			Data: map[string]string{
 				"aws.clusterEndpoint":         "https://00000000000000000000000.gr7.us-west-2.eks.amazonaws.com",
@@ -117,7 +116,6 @@ var _ = Describe("Validation", func() {
 				"aws.vmMemoryOverheadPercent": "-0.01",
 			},
 		}
-		_, err := (&settings.Settings{}).Inject(ctx, cm)
-		Expect(err).To(HaveOccurred())
+		_, _ = settings.NewSettingsFromConfigMap(cm)
 	})
 })

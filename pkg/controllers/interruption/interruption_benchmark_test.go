@@ -44,14 +44,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
-	"github.com/aws/karpenter/pkg/apis/settings"
+	"github.com/aws/karpenter/pkg/apis/config/settings"
 	awscache "github.com/aws/karpenter/pkg/cache"
 	awscontext "github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/controllers/interruption"
 	"github.com/aws/karpenter/pkg/controllers/interruption/events"
 	"github.com/aws/karpenter/pkg/test"
 
-	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
+	coresettings "github.com/aws/karpenter-core/pkg/apis/config/settings"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 )
@@ -78,12 +78,15 @@ func BenchmarkNotification100(b *testing.B) {
 func benchmarkNotificationController(b *testing.B, messageCount int) {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("message-count", messageCount))
 	fakeClock = &clock.FakeClock{}
-	ctx = coresettings.ToContext(ctx, coretest.Settings())
-	ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
-		ClusterName:           lo.ToPtr("karpenter-notification-benchmarking"),
-		IsolatedVPC:           lo.ToPtr(true),
-		InterruptionQueueName: lo.ToPtr("test-cluster"),
-	}))
+	settingsStore := coretest.SettingsStore{
+		coresettings.ContextKey: coretest.Settings(),
+		settings.ContextKey: test.Settings(test.SettingOptions{
+			ClusterName:           lo.ToPtr("karpenter-notification-benchmarking"),
+			IsolatedVPC:           lo.ToPtr(true),
+			InterruptionQueueName: lo.ToPtr("test-cluster"),
+		}),
+	}
+	ctx = settingsStore.InjectSettings(context.Background())
 	env = coretest.NewEnvironment(scheme.Scheme)
 	// Stop the coretest environment after the coretest completes
 	defer func() {

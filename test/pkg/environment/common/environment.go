@@ -34,7 +34,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	coreapis "github.com/aws/karpenter-core/pkg/apis"
+	coresettings "github.com/aws/karpenter-core/pkg/apis/config/settings"
+	"github.com/aws/karpenter-core/pkg/operator/settingsstore"
 	"github.com/aws/karpenter/pkg/apis"
+	"github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/utils/project"
 )
 
@@ -45,6 +48,7 @@ type Environment struct {
 	Config            *rest.Config
 	KubeClient        kubernetes.Interface
 	Monitor           *Monitor
+	SettingsStore     settingsstore.Store
 	StartingNodeCount int
 
 	cancel context.CancelFunc
@@ -59,16 +63,18 @@ func NewEnvironment(t *testing.T) *Environment {
 	os.Setenv(system.NamespaceEnvKey, "karpenter")
 	kubernetesInterface := kubernetes.NewForConfigOrDie(config)
 	cmw := informer.NewInformedWatcher(kubernetesInterface, system.Namespace())
+	settingsStore := settingsstore.NewWatcherOrDie(ctx, kubernetesInterface, cmw, coresettings.Registration, settings.Registration)
 	lo.Must0(cmw.Start(ctx.Done()))
 
 	gomega.SetDefaultEventuallyTimeout(5 * time.Minute)
 	gomega.SetDefaultEventuallyPollingInterval(1 * time.Second)
 	return &Environment{
-		Context:    ctx,
-		Config:     config,
-		Client:     client,
-		KubeClient: kubernetes.NewForConfigOrDie(config),
-		Monitor:    NewMonitor(ctx, client),
+		Context:       ctx,
+		Config:        config,
+		Client:        client,
+		KubeClient:    kubernetes.NewForConfigOrDie(config),
+		SettingsStore: settingsStore,
+		Monitor:       NewMonitor(ctx, client),
 
 		cancel: cancel,
 	}

@@ -91,9 +91,6 @@ By adopting this practice we allow our users who are early adopters to test out 
 
 # Released Upgrade Notes
 
-## Upgrading to v0.24.0+
-* Settings are no longer updated dynamically while Karpenter is running. If you manually make a change to the `karpenter-global-settings` ConfigMap, you will need to reload the containers by restarting the deployment with `kubectl rollout restart -n karpenter deploy/karpenter`
-
 ## Upgrading to v0.22.0+
 * Do not upgrade to this version unless you are on Kubernetes >= v1.21. Karpenter no longer supports Kubernetes v1.20, but now supports Kubernetes v1.25. This change is due to the v1 PDB API, which was introduced in K8s v1.20 and subsequent removal of the v1beta1 API in K8s v1.25.
 

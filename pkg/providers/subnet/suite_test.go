@@ -30,12 +30,12 @@ import (
 	. "knative.dev/pkg/logging/testing"
 
 	"github.com/aws/karpenter/pkg/apis"
-	awssettings "github.com/aws/karpenter/pkg/apis/settings"
+	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	awscontext "github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/test"
 
-	"github.com/aws/karpenter-core/pkg/apis/settings"
+	"github.com/aws/karpenter-core/pkg/apis/config/settings"
 	corev1alpha5 "github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/operator/injection"
 	"github.com/aws/karpenter-core/pkg/operator/options"
@@ -50,6 +50,7 @@ var ctx context.Context
 var stop context.CancelFunc
 var opts options.Options
 var env *coretest.Environment
+var settingsStore coretest.SettingsStore
 var fakeEC2API *fake.EC2API
 var provisioner *corev1alpha5.Provisioner
 var nodeTemplate *v1alpha1.AWSNodeTemplate
@@ -64,6 +65,11 @@ func TestAWS(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
+	settingsStore = coretest.SettingsStore{
+		settings.ContextKey:    coretest.Settings(),
+		awssettings.ContextKey: test.Settings(),
+	}
+	ctx = settingsStore.InjectSettings(ctx)
 	ctx, stop = context.WithCancel(ctx)
 
 	fakeEC2API = &fake.EC2API{}
@@ -82,8 +88,11 @@ var _ = AfterSuite(func() {
 
 var _ = BeforeEach(func() {
 	ctx = injection.WithOptions(ctx, opts)
-	ctx = settings.ToContext(ctx, coretest.Settings())
-	ctx = awssettings.ToContext(ctx, test.Settings())
+	settingsStore = coretest.SettingsStore{
+		settings.ContextKey:    coretest.Settings(),
+		awssettings.ContextKey: test.Settings(),
+	}
+	ctx = settingsStore.InjectSettings(ctx)
 	nodeTemplate = &v1alpha1.AWSNodeTemplate{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: coretest.RandomName(),

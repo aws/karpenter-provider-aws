@@ -31,7 +31,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/ptr"
 
-	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
@@ -42,6 +41,7 @@ import (
 
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
 
+	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/fake"
 )
@@ -256,9 +256,8 @@ var _ = Describe("Instance Types", func() {
 		}
 	})
 	It("should fail to launch AWS Pod ENI if the command line option enabling it isn't set", func() {
-		ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
-			EnablePodENI: lo.ToPtr(false),
-		}))
+		settingsStore[awssettings.ContextKey] = test.Settings(test.SettingOptions{EnablePodENI: lo.ToPtr(false)})
+		ctx = settingsStore.InjectSettings(ctx)
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 		for _, pod := range ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov,
 			coretest.UnschedulablePod(coretest.PodOptions{
@@ -378,9 +377,10 @@ var _ = Describe("Instance Types", func() {
 		Expect(nodeNames.Len()).To(Equal(2))
 	})
 	It("should set pods to 110 if not using ENI-based pod density", func() {
-		ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
+		settingsStore[awssettings.ContextKey] = test.Settings(test.SettingOptions{
 			EnableENILimitedPodDensity: lo.ToPtr(false),
-		}))
+		})
+		ctx = settingsStore.InjectSettings(ctx)
 		instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 		Expect(err).To(BeNil())
 		for _, info := range instanceInfo {
@@ -399,9 +399,10 @@ var _ = Describe("Instance Types", func() {
 
 	Context("KubeletConfiguration Overrides", func() {
 		BeforeEach(func() {
-			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
+			settingsStore[awssettings.ContextKey] = test.Settings(test.SettingOptions{
 				VMMemoryOverheadPercent: lo.ToPtr[float64](0),
-			}))
+			})
+			ctx = settingsStore.InjectSettings(ctx)
 		})
 		Context("Reserved Resources", func() {
 			It("should override system reserved cpus when specified", func() {
@@ -455,9 +456,10 @@ var _ = Describe("Instance Types", func() {
 		})
 		Context("Eviction Thresholds", func() {
 			BeforeEach(func() {
-				ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
+				settingsStore[awssettings.ContextKey] = test.Settings(test.SettingOptions{
 					VMMemoryOverheadPercent: lo.ToPtr[float64](0),
-				}))
+				})
+				ctx = settingsStore.InjectSettings(ctx)
 			})
 			It("should override eviction threshold (hard) when specified as a quantity", func() {
 				instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
@@ -695,9 +697,10 @@ var _ = Describe("Instance Types", func() {
 			}
 		})
 		It("should override max-pods value when AWSENILimitedPodDensity is unset", func() {
-			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
+			settingsStore[awssettings.ContextKey] = test.Settings(test.SettingOptions{
 				EnablePodENI: lo.ToPtr(false),
-			}))
+			})
+			ctx = settingsStore.InjectSettings(ctx)
 
 			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 			Expect(err).To(BeNil())
@@ -736,9 +739,10 @@ var _ = Describe("Instance Types", func() {
 			}
 		})
 		It("should take 110 to be the default pods number when pods-per-core is 0 and AWSENILimitedPodDensity is unset", func() {
-			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
+			settingsStore[awssettings.ContextKey] = test.Settings(test.SettingOptions{
 				EnableENILimitedPodDensity: lo.ToPtr(false),
-			}))
+			})
+			ctx = settingsStore.InjectSettings(ctx)
 
 			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 			Expect(err).To(BeNil())

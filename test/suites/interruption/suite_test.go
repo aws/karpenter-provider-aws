@@ -31,7 +31,7 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter/pkg/apis/settings"
+	"github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages/scheduledchange"

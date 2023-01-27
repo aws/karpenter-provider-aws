@@ -38,7 +38,7 @@ import (
 	. "knative.dev/pkg/logging/testing"
 
 	"github.com/aws/karpenter/pkg/apis"
-	"github.com/aws/karpenter/pkg/apis/settings"
+	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	awscache "github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
@@ -54,7 +54,7 @@ import (
 
 	"github.com/aws/karpenter/pkg/fake"
 
-	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
+	"github.com/aws/karpenter-core/pkg/apis/config/settings"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/controllers/provisioning"
 	"github.com/aws/karpenter-core/pkg/controllers/state"
@@ -98,6 +98,7 @@ var fakeClock *clock.FakeClock
 var provisioner *v1alpha5.Provisioner
 var nodeTemplate *v1alpha1.AWSNodeTemplate
 var pricingProvider *PricingProvider
+var settingsStore coretest.SettingsStore
 var subnetProvider *subnet.Provider
 var securityGroupProvider *securitygroup.Provider
 
@@ -113,8 +114,11 @@ const (
 
 var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
-	ctx = coresettings.ToContext(ctx, coretest.Settings())
-	ctx = settings.ToContext(ctx, test.Settings())
+	settingsStore = coretest.SettingsStore{
+		settings.ContextKey:    coretest.Settings(),
+		awssettings.ContextKey: test.Settings(),
+	}
+	ctx = settingsStore.InjectSettings(ctx)
 	ctx, stop = context.WithCancel(ctx)
 
 	launchTemplateCache = cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)
@@ -169,8 +173,11 @@ var _ = AfterSuite(func() {
 
 var _ = BeforeEach(func() {
 	ctx = injection.WithOptions(ctx, opts)
-	ctx = coresettings.ToContext(ctx, coretest.Settings())
-	ctx = settings.ToContext(ctx, test.Settings())
+	settingsStore = coretest.SettingsStore{
+		settings.ContextKey:    coretest.Settings(),
+		awssettings.ContextKey: test.Settings(),
+	}
+	ctx = settingsStore.InjectSettings(ctx)
 	nodeTemplate = &v1alpha1.AWSNodeTemplate{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: coretest.RandomName(),

@@ -36,9 +36,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/aws/karpenter-core/pkg/apis"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
-	"github.com/aws/karpenter-core/pkg/operator/injection"
 	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter-core/pkg/utils/functional"
 	nodeutils "github.com/aws/karpenter-core/pkg/utils/node"
@@ -76,7 +74,7 @@ func (env *Environment) BeforeEach(opts ...Option) {
 		fmt.Println("------- START BEFORE -------")
 		defer fmt.Println("------- END BEFORE -------")
 	}
-	env.Context = injection.WithSettingsOrDie(env.Context, env.KubeClient, apis.Settings...)
+	env.Context = env.SettingsStore.InjectSettings(env.Context)
 
 	stop = make(chan struct{})
 	testStartTime = time.Now()

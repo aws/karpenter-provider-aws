@@ -29,7 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"knative.dev/pkg/ptr"
 
-	awssettings "github.com/aws/karpenter/pkg/apis/settings"
+	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
 
