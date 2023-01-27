@@ -49,7 +49,7 @@ func NewProvider(ec2api ec2iface.EC2API) *Provider {
 	return &Provider{
 		ec2api: ec2api,
 		cm:     pretty.NewChangeMonitor(),
-		// TODO: Remove cahce for v1bata1, utlize resolved subnet from the AWSNodeTemplate.status
+		// TODO: Remove cache for v1beta1, utilize resolved subnet from the AWSNodeTemplate.status
 		// Subnets are sorted on AvailableIpAddressCount, descending order
 		cache: cache.New(TTL, awscache.CleanupInterval),
 	}
