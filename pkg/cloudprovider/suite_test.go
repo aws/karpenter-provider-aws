@@ -300,7 +300,7 @@ var _ = Describe("Allocation", func() {
 				},
 				InstanceId: aws.String(makeInstanceID()),
 			}
-			fakeEC2API.DescribeInstancesOutput.Set(&ec2.DescribeInstancesOutput{
+			fakeEC2API.DescribeInstancesBehavior.Output.Set(&ec2.DescribeInstancesOutput{
 				Reservations: []*ec2.Reservation{{Instances: []*ec2.Instance{instance}}},
 			})
 		})
