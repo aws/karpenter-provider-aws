@@ -35,8 +35,8 @@ import (
 
 	awssettings "github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	awscache "github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
-	awscontext "github.com/aws/karpenter/pkg/context"
 	awserrors "github.com/aws/karpenter/pkg/errors"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
 
@@ -67,7 +67,7 @@ func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, amiF
 		ec2api:                ec2api,
 		amiFamily:             amiFamily,
 		securityGroupProvider: securityGroupProvider,
-		cache:                 cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval),
+		cache:                 cache.New(awscache.TTL, awscache.CleanupInterval),
 		caBundle:              caBundle,
 		cm:                    pretty.NewChangeMonitor(),
 		kubeDNSIP:             kubeDNSIP,
@@ -142,6 +142,9 @@ func (p *LaunchTemplateProvider) createAmiOptions(ctx context.Context, nodeTempl
 	securityGroupsIDs, err := p.securityGroupProvider.List(ctx, nodeTemplate)
 	if err != nil {
 		return nil, err
+	}
+	if len(securityGroupsIDs) == 0 {
+		return nil, fmt.Errorf("no security groups exist given constraints")
 	}
 	return &amifamily.Options{
 		ClusterName:             awssettings.FromContext(ctx).ClusterName,

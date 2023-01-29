@@ -27,6 +27,7 @@ import (
 	"github.com/samber/lo"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -107,14 +108,19 @@ func (env *Environment) ExpectSettings() *v1.ConfigMap {
 
 func (env *Environment) ExpectSettingsOverridden(data ...map[string]string) {
 	cm := env.ExpectSettings()
+	stored := cm.DeepCopy()
 	cm.Data = lo.Assign(append([]map[string]string{cm.Data}, data...)...)
+
+	// If the data hasn't changed, we can just return and not update anything
+	if equality.Semantic.DeepEqual(stored, cm) {
+		return
+	}
+	// Update the configMap to update the settings
 	env.ExpectCreatedOrUpdated(cm)
-	// Wait for updated settings to be injected into context since the batching logic
-	// may be using stale settings.
-	// While this doesn't ensure the issue doesn't happen, the default BatchIdleTime is
-	// 1 second. Since we control the provisioning logic in tests, 5 seconds is sufficient
-	// to significantly reduce the chance that any races will occur with stale settings.
-	time.Sleep(5 * time.Second)
+
+	// Get the karpenter pods and delete them to restart the containers
+	env.ExpectKarpenterPodsDeletedWithOffset(1)
+	env.EventuallyExpectKarpenterPodsHealthyWithOffset(1)
 }
 
 func (env *Environment) ExpectFound(obj client.Object) {
@@ -133,25 +139,36 @@ func (env *Environment) EventuallyExpectHealthy(pods ...*v1.Pod) {
 	}
 }
 
-func (env *Environment) EventuallyExpectKarpenterWithEnvVar(envVar v1.EnvVar) {
-	EventuallyWithOffset(1, func(g Gomega) {
-		labelMap := map[string]string{"app.kubernetes.io/instance": "karpenter"}
-		listOptions := metav1.ListOptions{LabelSelector: labels.SelectorFromSet(labelMap).String()}
-		podList, err := env.KubeClient.CoreV1().Pods("karpenter").List(env.Context, listOptions)
-		g.Expect(err).ToNot(HaveOccurred())
-		// we need all of the karpenter pods to have the new environment variable so that we don't return early
-		// while some pods are still terminating
-		for i := range podList.Items {
-			g.Expect(podList.Items[i].Spec.Containers[0].Env).To(ContainElement(And(
-				HaveField("Name", Equal(envVar.Name)),
-				HaveField("Value", Equal(envVar.Value)),
-			)))
-			g.Expect(podList.Items[i].Status.Conditions).To(ContainElement(And(
+func (env *Environment) ExpectKarpenterPodsDeletedWithOffset(offset int) {
+	podList := &v1.PodList{}
+	ExpectWithOffset(offset+1, env.Client.List(env.Context, podList, client.MatchingLabels{
+		"app.kubernetes.io/instance": "karpenter",
+	})).To(Succeed())
+	env.ExpectDeletedWithOffset(offset+1, lo.Map(podList.Items, func(p v1.Pod, _ int) client.Object {
+		return &p
+	})...)
+	env.EventuallyExpectNotFoundWithOffset(1, lo.Map(podList.Items, func(p v1.Pod, _ int) client.Object {
+		return &p
+	})...)
+}
+
+func (env *Environment) EventuallyExpectKarpenterPodsHealthyWithOffset(offset int) {
+	EventuallyWithOffset(offset+1, func(g Gomega) {
+		podList := &v1.PodList{}
+		g.Expect(env.Client.List(env.Context, podList, client.MatchingLabels{
+			"app.kubernetes.io/instance": "karpenter",
+		})).To(Succeed())
+		for _, pod := range podList.Items {
+			g.Expect(pod.Status.Conditions).To(ContainElement(And(
 				HaveField("Type", Equal(v1.PodReady)),
 				HaveField("Status", Equal(v1.ConditionTrue)),
 			)))
 		}
 	}).Should(Succeed())
+
+	// We add this delay in here since we currently don't have the liveness/readiness probe working on the webhook
+	// which means there's a bit of time after the pods go ready that the webhook isn't actually ready to receive traffic yet
+	time.Sleep(time.Second * 5)
 }
 
 func (env *Environment) EventuallyExpectHealthyPodCount(selector labels.Selector, numPods int) {
@@ -189,7 +206,11 @@ func (env *Environment) eventuallyExpectScaleDown() {
 }
 
 func (env *Environment) EventuallyExpectNotFound(objects ...client.Object) {
-	env.EventuallyExpectNotFoundAssertionWithOffset(1, objects...).Should(Succeed())
+	env.EventuallyExpectNotFoundWithOffset(1, objects...)
+}
+
+func (env *Environment) EventuallyExpectNotFoundWithOffset(offset int, objects ...client.Object) {
+	env.EventuallyExpectNotFoundAssertionWithOffset(offset+1, objects...).Should(Succeed())
 }
 
 func (env *Environment) EventuallyExpectNotFoundAssertion(objects ...client.Object) AsyncAssertion {

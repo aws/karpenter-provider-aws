@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package securitygroup
+package securitygroup_test
 
 import (
 	"context"
@@ -22,7 +22,6 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/patrickmn/go-cache"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -33,7 +32,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	awscontext "github.com/aws/karpenter/pkg/context"
+	"github.com/aws/karpenter/pkg/providers/securitygroup"
 	"github.com/aws/karpenter/pkg/test"
 
 	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
@@ -43,7 +42,6 @@ import (
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
-	"github.com/aws/karpenter-core/pkg/utils/pretty"
 	"github.com/aws/karpenter/pkg/fake"
 )
 
@@ -54,8 +52,7 @@ var env *coretest.Environment
 var fakeEC2API *fake.EC2API
 var provisioner *corev1alpha5.Provisioner
 var nodeTemplate *v1alpha1.AWSNodeTemplate
-var securityGroupCache *cache.Cache
-var securityGroupProvider *Provider
+var securityGroupProvider *securitygroup.Provider
 
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -68,14 +65,8 @@ var _ = BeforeSuite(func() {
 	ctx = coresettings.ToContext(ctx, coretest.Settings())
 	ctx = settings.ToContext(ctx, test.Settings())
 	ctx, stop = context.WithCancel(ctx)
-
 	fakeEC2API = &fake.EC2API{}
-	securityGroupCache = cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)
-	securityGroupProvider = &Provider{
-		ec2api: fakeEC2API,
-		cache:  securityGroupCache,
-		cm:     pretty.NewChangeMonitor(),
-	}
+	securityGroupProvider = securitygroup.NewProvider(fakeEC2API)
 })
 
 var _ = AfterSuite(func() {

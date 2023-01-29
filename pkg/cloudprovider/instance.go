@@ -35,6 +35,7 @@ import (
 
 	awssettings "github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/batcher"
 	"github.com/aws/karpenter/pkg/cache"
 	awserrors "github.com/aws/karpenter/pkg/errors"
 	"github.com/aws/karpenter/pkg/providers/subnet"
@@ -62,7 +63,7 @@ type InstanceProvider struct {
 	instanceTypeProvider   *InstanceTypeProvider
 	subnetProvider         *subnet.Provider
 	launchTemplateProvider *LaunchTemplateProvider
-	createFleetBatcher     *CreateFleetBatcher
+	ec2Batcher             *batcher.EC2API
 }
 
 func NewInstanceProvider(ctx context.Context, region string, ec2api ec2iface.EC2API, unavailableOfferings *cache.UnavailableOfferings, instanceTypeProvider *InstanceTypeProvider, subnetProvider *subnet.Provider, launchTemplateProvider *LaunchTemplateProvider) *InstanceProvider {
@@ -73,7 +74,7 @@ func NewInstanceProvider(ctx context.Context, region string, ec2api ec2iface.EC2
 		instanceTypeProvider:   instanceTypeProvider,
 		subnetProvider:         subnetProvider,
 		launchTemplateProvider: launchTemplateProvider,
-		createFleetBatcher:     NewCreateFleetBatcher(ctx, ec2api),
+		ec2Batcher:             batcher.EC2(ctx, ec2api),
 	}
 }
 
@@ -115,7 +116,7 @@ func (p *InstanceProvider) Create(ctx context.Context, nodeTemplate *v1alpha1.AW
 
 // TODO @joinnis: Remove the GetByID call when machine migration has completed
 func (p *InstanceProvider) GetByID(ctx context.Context, id string) (*ec2.Instance, error) {
-	out, err := p.ec2api.DescribeInstancesWithContext(ctx, &ec2.DescribeInstancesInput{
+	out, err := p.ec2Batcher.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
 		InstanceIds: aws.StringSlice([]string{id}),
 		Filters:     []*ec2.Filter{instanceStateFilter},
 	})
@@ -190,7 +191,7 @@ func (p *InstanceProvider) Delete(ctx context.Context, machine *v1alpha5.Machine
 }
 
 func (p *InstanceProvider) DeleteByID(ctx context.Context, id string) error {
-	if _, err := p.ec2api.TerminateInstancesWithContext(ctx, &ec2.TerminateInstancesInput{
+	if _, err := p.ec2Batcher.TerminateInstances(ctx, &ec2.TerminateInstancesInput{
 		InstanceIds: []*string{aws.String(id)},
 	}); err != nil {
 		if awserrors.IsNotFound(err) {
@@ -241,7 +242,7 @@ func (p *InstanceProvider) launchInstance(ctx context.Context, nodeTemplate *v1a
 		createFleetInput.OnDemandOptions = &ec2.OnDemandOptionsRequest{AllocationStrategy: aws.String(ec2.FleetOnDemandAllocationStrategyLowestPrice)}
 	}
 
-	createFleetOutput, err := p.createFleetBatcher.CreateFleet(ctx, createFleetInput)
+	createFleetOutput, err := p.ec2Batcher.CreateFleet(ctx, createFleetInput)
 	if err != nil {
 		if awserrors.IsLaunchTemplateNotFound(err) {
 			for _, lt := range launchTemplateConfigs {
@@ -291,6 +292,9 @@ func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, nodeTem
 	subnets, err := p.subnetProvider.List(ctx, nodeTemplate)
 	if err != nil {
 		return nil, fmt.Errorf("getting subnets, %w", err)
+	}
+	if len(subnets) == 0 {
+		return nil, fmt.Errorf("no subnets matched selector %v", nodeTemplate.Spec.SubnetSelector)
 	}
 	var launchTemplateConfigs []*ec2.FleetLaunchTemplateConfigRequest
 	launchTemplates, err := p.launchTemplateProvider.EnsureAll(ctx, nodeTemplate, machine, instanceTypes, map[string]string{v1alpha5.LabelCapacityType: capacityType})
