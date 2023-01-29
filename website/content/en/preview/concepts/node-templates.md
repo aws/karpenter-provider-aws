@@ -34,6 +34,7 @@ spec:
   metadataOptions: { ... }       # optional, configures IMDS for the instance
   blockDeviceMappings: [ ... ]   # optional, configures storage devices for the instance
   detailedMonitoring: "..."      # optional, configures detailed monitoring for the instance
+  associatePublicIpAddress: "..."      # optional, configures public address association for the instance
 ```
 Refer to the [Provisioner docs]({{<ref "./provisioners" >}}) for settings applicable to all providers.
 See below for other AWS provider-specific parameters.
@@ -358,6 +359,13 @@ spec:
   detailedMonitoring: true
 ```
 
+## spec.associatePublicIpAddress
+
+Enabling associate public ipAddress on the node template controls the [EC2 associate public ipaddress](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-ec2-launchtemplate-networkinterface.html) feature. If you enable this option, EC2 instance associates a public IPv4 address with eth0 for a new network interface.
+```yaml
+spec:
+  associatePublicIpAddress: true
+```
 
 ### Merge Semantics
 

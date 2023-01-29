@@ -204,6 +204,11 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, optio
 			Monitoring: &ec2.LaunchTemplatesMonitoringRequest{
 				Enabled: aws.Bool(options.DetailedMonitoring),
 			},
+			NetworkInterfaces: []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
+				{
+					AssociatePublicIpAddress: aws.Bool(options.AssociatePublicIpAddress),
+				},
+			},
 			SecurityGroupIds: aws.StringSlice(options.SecurityGroupsIDs),
 			UserData:         aws.String(userData),
 			ImageId:          aws.String(options.AMIID),

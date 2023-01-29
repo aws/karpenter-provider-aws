@@ -1407,6 +1407,27 @@ var _ = Describe("LaunchTemplates", func() {
 			Expect(aws.BoolValue(input.LaunchTemplateData.Monitoring.Enabled)).To(BeTrue())
 		})
 	})
+	Context("Associate Public IpAddress", func() {
+		It("should default associate public ipAddress to off", func() {
+			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyAL2
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			pod := ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+			Expect(aws.BoolValue(input.LaunchTemplateData.NetworkInterfaces[0].AssociatePublicIpAddress)).To(BeFalse())
+		})
+		It("should pass associate public ipAddress to the launch template at creation", func() {
+			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyAL2
+			nodeTemplate.Spec.AssociatePublicIpAddress = aws.Bool(true)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			pod := ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+			Expect(aws.BoolValue(input.LaunchTemplateData.NetworkInterfaces[0].AssociatePublicIpAddress)).To(BeTrue())
+		})
+	})
 })
 
 // ExpectTags verifies that the expected tags are a subset of the tags found

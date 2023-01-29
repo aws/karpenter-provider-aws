@@ -130,6 +130,10 @@ spec:
                 description: DetailedMonitoring controls if detailed monitoring is
                   enabled for instances that are launched
                 type: boolean
+              associatePublicIpAddress:
+                description: AssociatePublicIpAddress controls if a public ipAddress 
+                  can be associated to the instances
+                type: boolean
               instanceProfile:
                 description: InstanceProfile is the AWS identity that instances use.
                 type: string

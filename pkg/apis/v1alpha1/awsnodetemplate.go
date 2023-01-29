@@ -33,6 +33,9 @@ type AWSNodeTemplateSpec struct {
 	// DetailedMonitoring controls if detailed monitoring is enabled for instances that are launched
 	// +optional
 	DetailedMonitoring *bool `json:"detailedMonitoring,omitempty"`
+	//AssociatePublicIpAddress controls if a public ipAddress can be associated to the instances
+	// +optional
+	AssociatePublicIpAddress *bool `json:"associatePublicIpAddress,omitempty"`
 }
 
 // AWSNodeTemplate is the Schema for the AWSNodeTemplate API
