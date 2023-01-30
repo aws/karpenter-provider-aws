@@ -80,6 +80,10 @@ var _ = Describe("DescribeInstances Batcher", func() {
 				},
 			},
 		})
+		runningFilter := &ec2.Filter{
+			Name:   aws.String("instance-state-name"),
+			Values: []*string{aws.String(ec2.InstanceStateNameRunning)},
+		}
 		var wg sync.WaitGroup
 		var receivedInstance int64
 		var numUnfulfilled int64
@@ -90,6 +94,7 @@ var _ = Describe("DescribeInstances Batcher", func() {
 				defer wg.Done()
 				rsp, err := cfb.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
 					InstanceIds: []*string{aws.String(instanceID)},
+					Filters:     []*ec2.Filter{runningFilter},
 				})
 				Expect(err).To(BeNil())
 				if len(rsp.Reservations) > 0 {
@@ -106,12 +111,22 @@ var _ = Describe("DescribeInstances Batcher", func() {
 
 		// should execute the batched call and then one for each that failed in the batched request
 		Expect(fakeEC2API.DescribeInstancesBehavior.CalledWithInput.Len()).To(BeNumerically("==", 3))
+
 		lastCall := fakeEC2API.DescribeInstancesBehavior.CalledWithInput.Pop()
 		Expect(len(lastCall.InstanceIds)).To(BeNumerically("==", 1))
+		Expect(len(lastCall.Filters)).To(BeNumerically("==", 1))
+		Expect(*lastCall.Filters[0].Name).To(Equal("instance-state-name"))
+
 		nextToLastCall := fakeEC2API.DescribeInstancesBehavior.CalledWithInput.Pop()
 		Expect(len(nextToLastCall.InstanceIds)).To(BeNumerically("==", 1))
+		Expect(len(nextToLastCall.Filters)).To(BeNumerically("==", 1))
+		Expect(*lastCall.Filters[0].Name).To(Equal("instance-state-name"))
+
 		firstCall := fakeEC2API.DescribeInstancesBehavior.CalledWithInput.Pop()
 		Expect(len(firstCall.InstanceIds)).To(BeNumerically("==", 3))
+		Expect(len(firstCall.Filters)).To(BeNumerically("==", 1))
+		Expect(*lastCall.Filters[0].Name).To(Equal("instance-state-name"))
+
 		Expect(receivedInstance).To(BeNumerically("==", 3))
 		Expect(numUnfulfilled).To(BeNumerically("==", 0))
 	})
