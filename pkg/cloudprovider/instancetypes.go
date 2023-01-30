@@ -41,7 +41,6 @@ import (
 	"github.com/aws/karpenter/pkg/providers/subnet"
 
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
-	"github.com/aws/karpenter-core/pkg/utils/functional"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
 )
 
@@ -224,9 +223,7 @@ func (p *InstanceTypeProvider) getInstanceTypes(ctx context.Context) (map[string
 		},
 	}, func(page *ec2.DescribeInstanceTypesOutput, lastPage bool) bool {
 		for _, instanceType := range page.InstanceTypes {
-			if p.filter(instanceType) {
-				instanceTypes[aws.StringValue(instanceType.InstanceType)] = instanceType
-			}
+			instanceTypes[aws.StringValue(instanceType.InstanceType)] = instanceType
 		}
 		return true
 	}); err != nil {
@@ -239,19 +236,4 @@ func (p *InstanceTypeProvider) getInstanceTypes(ctx context.Context) (map[string
 	atomic.AddUint64(&p.instanceTypesSeqNum, 1)
 	p.cache.SetDefault(InstanceTypesCacheKey, instanceTypes)
 	return instanceTypes, nil
-}
-
-// filter the instance types to include useful ones for Kubernetes
-func (p *InstanceTypeProvider) filter(instanceType *ec2.InstanceTypeInfo) bool {
-	if instanceType.FpgaInfo != nil {
-		return false
-	}
-	if functional.HasAnyPrefix(aws.StringValue(instanceType.InstanceType),
-		// G2 instances have an older GPU not supported by the nvidia plugin. This causes the allocatable # of gpus
-		// to be set to zero on startup as the plugin considers the GPU unhealthy.
-		"g2",
-	) {
-		return false
-	}
-	return true
 }
