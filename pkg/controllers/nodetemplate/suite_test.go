@@ -308,7 +308,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			})
 			Expect(nodeTemplate.Status.SecurityGroups).To(Equal(correctSecurityGroupsIDs))
 		})
-		It("Should update Subnet status when the subnet selector gets updated by tags", func() {
+		It("Should update Security Groups status when the Security Groups selector gets updated by tags", func() {
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
