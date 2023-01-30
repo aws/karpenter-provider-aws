@@ -103,7 +103,9 @@ func execDescribeInstancesBatch(ec2api ec2iface.EC2API) BatchExecutor[ec2.Descri
 			go func(instanceID string) {
 				defer wg.Done()
 				// try to execute separately
-				out, err := ec2api.DescribeInstancesWithContext(ctx, &ec2.DescribeInstancesInput{InstanceIds: []*string{aws.String(instanceID)}})
+				out, err := ec2api.DescribeInstancesWithContext(ctx, &ec2.DescribeInstancesInput{
+					Filters:     firstInput.Filters,
+					InstanceIds: []*string{aws.String(instanceID)}})
 				// Order by inputs' index so that instance IDs from input and output are in the same order
 				_, reqID, ok := lo.FindIndexOf(inputs, func(input *ec2.DescribeInstancesInput) bool {
 					return *input.InstanceIds[0] == instanceID
