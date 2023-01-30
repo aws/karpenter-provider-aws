@@ -159,7 +159,88 @@ var _ = Describe("AWSNodeTemplateController", func() {
 		// Only one subnet will be resolved
 		Expect(nodeTemplate.Status.Subnets).To(Equal(correctSubnetIDs))
 	})
+	It("Should update Subnet status when the Subnet selector gets updated by tags", func() {
+		ExpectApplied(ctx, env.Client, nodeTemplate)
+		ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+		nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
+		subnet, _ := subnetProvider.List(ctx, nodeTemplate)
+		subnetIDs := lo.Map(subnet, func(ec2subnet *ec2.Subnet, _ int) string {
+			return *ec2subnet.SubnetId
+		})
+		sort.Strings(subnetIDs)
+		subnetIDsInStatus := lo.Map(nodeTemplate.Status.Subnets, func(subnet v1alpha1.SubnetStatus, _ int) string {
+			return subnet.ID
+		})
+		sort.Strings(subnetIDsInStatus)
+		Expect(subnetIDsInStatus).To(Equal(subnetIDs))
+
+		nodeTemplate.Spec.SubnetSelector = map[string]string{`Name`: `test-subnet-1,test-subnet-2`}
+		ExpectApplied(ctx, env.Client, nodeTemplate)
+		ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+		nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
+		subnet, _ = subnetProvider.List(ctx, nodeTemplate)
+		sort.Slice(subnet, func(i, j int) bool {
+			return int(*subnet[i].AvailableIpAddressCount) > int(*subnet[j].AvailableIpAddressCount)
+		})
+		correctSubnets := lo.Map(subnet, func(ec2subnet *ec2.Subnet, _ int) v1alpha1.SubnetStatus {
+			return v1alpha1.SubnetStatus{
+				ID:   *ec2subnet.SubnetId,
+				Zone: *ec2subnet.AvailabilityZone,
+			}
+		})
+		Expect(nodeTemplate.Status.Subnets).To(Equal(correctSubnets))
+	})
+	It("Should update Subnet status when the Subnet selector gets updated by ids", func() {
+		ExpectApplied(ctx, env.Client, nodeTemplate)
+		ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+		nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
+		subnet, _ := subnetProvider.List(ctx, nodeTemplate)
+		subnetIDs := lo.Map(subnet, func(ec2subnet *ec2.Subnet, _ int) string {
+			return *ec2subnet.SubnetId
+		})
+		sort.Strings(subnetIDs)
+		subnetIDsInStatus := lo.Map(nodeTemplate.Status.Subnets, func(subnet v1alpha1.SubnetStatus, _ int) string {
+			return subnet.ID
+		})
+		sort.Strings(subnetIDsInStatus)
+		Expect(subnetIDsInStatus).To(Equal(subnetIDs))
+
+		nodeTemplate.Spec.SubnetSelector = map[string]string{`aws-ids`: `subnet-test1`}
+		ExpectApplied(ctx, env.Client, nodeTemplate)
+		ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+		nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
+		subnet, _ = subnetProvider.List(ctx, nodeTemplate)
+		correctSubnetIDs := lo.Map(subnet, func(ec2subnet *ec2.Subnet, _ int) v1alpha1.SubnetStatus {
+			return v1alpha1.SubnetStatus{
+				ID:   *ec2subnet.SubnetId,
+				Zone: *ec2subnet.AvailabilityZone,
+			}
+		})
+		// Only one subnet will be resolved
+		Expect(nodeTemplate.Status.Subnets).To(Equal(correctSubnetIDs))
+	})
 	It("Should not resolve a invalid selectors for Subnet", func() {
+		nodeTemplate.Spec.SubnetSelector = map[string]string{`foo`: `invalid`}
+		ExpectApplied(ctx, env.Client, nodeTemplate)
+		ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+		nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
+		Expect(nodeTemplate.Status.Subnets).To(BeNil())
+	})
+	It("Should not resolve a invalid selectors for an updated Subnet selectors", func() {
+		ExpectApplied(ctx, env.Client, nodeTemplate)
+		ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+		nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
+		subnet, _ := subnetProvider.List(ctx, nodeTemplate)
+		subnetIDs := lo.Map(subnet, func(ec2subnet *ec2.Subnet, _ int) string {
+			return *ec2subnet.SubnetId
+		})
+		sort.Strings(subnetIDs)
+		subnetIDsInStatus := lo.Map(nodeTemplate.Status.Subnets, func(subnet v1alpha1.SubnetStatus, _ int) string {
+			return subnet.ID
+		})
+		sort.Strings(subnetIDsInStatus)
+		Expect(subnetIDsInStatus).To(Equal(subnetIDs))
+
 		nodeTemplate.Spec.SubnetSelector = map[string]string{`foo`: `invalid`}
 		ExpectApplied(ctx, env.Client, nodeTemplate)
 		ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
@@ -202,7 +283,67 @@ var _ = Describe("AWSNodeTemplateController", func() {
 		})
 		Expect(nodeTemplate.Status.SecurityGroups).To(Equal(correctSecurityGroupsIDs))
 	})
+	It("Should update Subnet status when the subnet selector gets updated by tags", func() {
+		ExpectApplied(ctx, env.Client, nodeTemplate)
+		ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+		nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
+		securityGroupsIDs, _ := securityGroupProvider.List(ctx, nodeTemplate)
+		securityGroupsIDInStatus := lo.Map(nodeTemplate.Status.SecurityGroups, func(securitygroup v1alpha1.SecurityGroupStatus, _ int) string {
+			return securitygroup.ID
+		})
+		Expect(securityGroupsIDInStatus).To(Equal(securityGroupsIDs))
+
+		nodeTemplate.Spec.SecurityGroupSelector = map[string]string{`Name`: `test-security-group-1,test-security-group-2`}
+		ExpectApplied(ctx, env.Client, nodeTemplate)
+		ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+		nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
+		securityGroupsIDs, _ = securityGroupProvider.List(ctx, nodeTemplate)
+		correctSecurityGroupsIDs := lo.Map(securityGroupsIDs, func(securitygroup string, _ int) v1alpha1.SecurityGroupStatus {
+			return v1alpha1.SecurityGroupStatus{
+				ID: securitygroup,
+			}
+		})
+		Expect(nodeTemplate.Status.SecurityGroups).To(Equal(correctSecurityGroupsIDs))
+	})
+	It("Should update Subnet status when the subnet selector gets updated by tags", func() {
+		ExpectApplied(ctx, env.Client, nodeTemplate)
+		ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+		nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
+		securityGroupsIDs, _ := securityGroupProvider.List(ctx, nodeTemplate)
+		securityGroupsIDInStatus := lo.Map(nodeTemplate.Status.SecurityGroups, func(securitygroup v1alpha1.SecurityGroupStatus, _ int) string {
+			return securitygroup.ID
+		})
+		Expect(securityGroupsIDInStatus).To(Equal(securityGroupsIDs))
+
+		nodeTemplate.Spec.SecurityGroupSelector = map[string]string{`aws-ids`: `sg-test1`}
+		ExpectApplied(ctx, env.Client, nodeTemplate)
+		ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+		nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
+		securityGroupsIDs, _ = securityGroupProvider.List(ctx, nodeTemplate)
+		correctSecurityGroupsIDs := lo.Map(securityGroupsIDs, func(securitygroup string, _ int) v1alpha1.SecurityGroupStatus {
+			return v1alpha1.SecurityGroupStatus{
+				ID: securitygroup,
+			}
+		})
+		Expect(nodeTemplate.Status.SecurityGroups).To(Equal(correctSecurityGroupsIDs))
+	})
 	It("Should not resolve a invalid selectors for Security Groups", func() {
+		nodeTemplate.Spec.SecurityGroupSelector = map[string]string{`foo`: `invalid`}
+		ExpectApplied(ctx, env.Client, nodeTemplate)
+		ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+		nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
+		Expect(nodeTemplate.Status.SecurityGroups).To(BeNil())
+	})
+	It("Should not resolve a invalid selectors for an updated Security Groups selector", func() {
+		ExpectApplied(ctx, env.Client, nodeTemplate)
+		ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+		nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
+		securityGroupsIDs, _ := securityGroupProvider.List(ctx, nodeTemplate)
+		securityGroupsIDInStatus := lo.Map(nodeTemplate.Status.SecurityGroups, func(securitygroup v1alpha1.SecurityGroupStatus, _ int) string {
+			return securitygroup.ID
+		})
+		Expect(securityGroupsIDInStatus).To(Equal(securityGroupsIDs))
+
 		nodeTemplate.Spec.SecurityGroupSelector = map[string]string{`foo`: `invalid`}
 		ExpectApplied(ctx, env.Client, nodeTemplate)
 		ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
