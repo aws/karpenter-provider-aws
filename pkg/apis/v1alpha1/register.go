@@ -48,10 +48,10 @@ var (
 		AMIFamilyUbuntu,
 		AMIFamilyCustom,
 	}
-	SupportedContainerRuntimesByAMIFamily = map[string]sets.String{
-		AMIFamilyBottlerocket: sets.NewString("containerd"),
-		AMIFamilyAL2:          sets.NewString("dockerd", "containerd"),
-		AMIFamilyUbuntu:       sets.NewString("dockerd", "containerd"),
+	SupportedContainerRuntimesByAMIFamily = map[string]sets.Set[string]{
+		AMIFamilyBottlerocket: sets.New("containerd"),
+		AMIFamilyAL2:          sets.New("dockerd", "containerd"),
+		AMIFamilyUbuntu:       sets.New("dockerd", "containerd"),
 	}
 	ResourceNVIDIAGPU   v1.ResourceName = "nvidia.com/gpu"
 	ResourceAMDGPU      v1.ResourceName = "amd.com/gpu"
