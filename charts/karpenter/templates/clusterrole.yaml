@@ -31,7 +31,7 @@ rules:
   # Read
   - apiGroups: ["karpenter.k8s.aws"]
     resources: ["awsnodetemplates"]
-    verbs: ["get", "list", "watch", "patch"]
+    verbs: ["get", "list", "watch"]
   - apiGroups: ["admissionregistration.k8s.io"]
     resources: ["validatingwebhookconfigurations"]
     verbs: ["update"]
@@ -40,3 +40,7 @@ rules:
     resources: ["mutatingwebhookconfigurations"]
     verbs: ["update"]
     resourceNames: ["defaulting.webhook.karpenter.k8s.aws"]
+  # Write
+  - apiGroups: ["karpenter.k8s.aws"]
+    resources: ["awsnodetemplates/status"]
+    verbs: ["patch", "update"]

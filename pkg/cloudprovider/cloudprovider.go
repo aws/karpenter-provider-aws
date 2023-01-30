@@ -17,7 +17,6 @@ package cloudprovider
 import (
 	"context"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -26,14 +25,11 @@ import (
 	"github.com/aws/karpenter/pkg/apis"
 	awssettings "github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/providers/securitygroup"
-	"github.com/aws/karpenter/pkg/providers/subnet"
 	"github.com/aws/karpenter/pkg/utils"
 
 	"github.com/aws/karpenter-core/pkg/utils/resources"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/patrickmn/go-cache"
@@ -48,6 +44,7 @@ import (
 	"knative.dev/pkg/ptr"
 	k8sClient "sigs.k8s.io/controller-runtime/pkg/client"
 
+	awscache "github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
 	awscontext "github.com/aws/karpenter/pkg/context"
 
@@ -84,14 +81,9 @@ func New(ctx awscontext.Context) *CloudProvider {
 	} else {
 		logging.FromContext(ctx).With("kube-dns-ip", kubeDNSIP).Debugf("discovered kube dns")
 	}
-	ec2api := ec2.New(ctx.Session)
-	if err := checkEC2Connectivity(ctx, ec2api); err != nil {
-		logging.FromContext(ctx).Fatalf("Checking EC2 API connectivity, %s", err)
-	}
-	subnetProvider := subnet.NewProvider(ec2api)
-	instanceTypeProvider := NewInstanceTypeProvider(ctx, ctx.Session, ec2api, subnetProvider, ctx.UnavailableOfferingsCache, ctx.StartAsync)
-	amiProvider := amifamily.NewAMIProvider(ctx.KubeClient, ctx.KubernetesInterface, ssm.New(ctx.Session), ec2api,
-		cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval), cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval), cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval))
+	instanceTypeProvider := NewInstanceTypeProvider(ctx, ctx.Session, ctx.EC2API, ctx.SubnetProvider, ctx.UnavailableOfferingsCache, ctx.StartAsync)
+	amiProvider := amifamily.NewAMIProvider(ctx.KubeClient, ctx.KubernetesInterface, ssm.New(ctx.Session), ctx.EC2API,
+		cache.New(awscache.TTL, awscache.CleanupInterval), cache.New(awscache.TTL, awscache.CleanupInterval), cache.New(awscache.TTL, awscache.CleanupInterval))
 	amiResolver := amifamily.New(ctx.KubeClient, amiProvider)
 	return &CloudProvider{
 		kubeClient:           ctx.KubeClient,
@@ -100,32 +92,21 @@ func New(ctx awscontext.Context) *CloudProvider {
 		instanceProvider: NewInstanceProvider(
 			ctx,
 			aws.StringValue(ctx.Session.Config.Region),
-			ec2api,
+			ctx.EC2API,
 			ctx.UnavailableOfferingsCache,
 			instanceTypeProvider,
-			subnetProvider,
+			ctx.SubnetProvider,
 			NewLaunchTemplateProvider(
 				ctx,
-				ec2api,
+				ctx.EC2API,
 				amiResolver,
-				securitygroup.NewProvider(ec2api),
+				ctx.SecurityGroupProvider,
 				lo.Must(getCABundle(ctx.RESTConfig)),
 				ctx.StartAsync,
 				kubeDNSIP,
 			),
 		),
 	}
-}
-
-// checkEC2Connectivity makes a dry-run call to DescribeInstanceTypes.  If it fails, we provide an early indicator that we
-// are having issues connecting to the EC2 API.
-func checkEC2Connectivity(ctx context.Context, api *ec2.EC2) error {
-	_, err := api.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{DryRun: aws.Bool(true)})
-	var aerr awserr.Error
-	if errors.As(err, &aerr) && aerr.Code() == "DryRunOperation" {
-		return nil
-	}
-	return err
 }
 
 // Create a machine given the constraints.

@@ -25,7 +25,6 @@ import (
 
 	awssettings "github.com/aws/karpenter/pkg/apis/settings"
 	awscache "github.com/aws/karpenter/pkg/cache"
-	awscontext "github.com/aws/karpenter/pkg/context"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 
@@ -83,7 +82,7 @@ func NewInstanceTypeProvider(ctx context.Context, sess *session.Session, ec2api 
 			awssettings.FromContext(ctx).IsolatedVPC,
 			startAsync,
 		),
-		cache:                cache.New(InstanceTypesAndZonesCacheTTL, awscontext.CacheCleanupInterval),
+		cache:                cache.New(InstanceTypesAndZonesCacheTTL, awscache.CleanupInterval),
 		unavailableOfferings: unavailableOfferingsCache,
 		cm:                   pretty.NewChangeMonitor(),
 		instanceTypesSeqNum:  0,
@@ -175,6 +174,9 @@ func (p *InstanceTypeProvider) getInstanceTypeZones(ctx context.Context, nodeTem
 	subnets, err := p.subnetProvider.List(ctx, nodeTemplate)
 	if err != nil {
 		return nil, err
+	}
+	if len(subnets) == 0 {
+		return nil, fmt.Errorf("no subnets matched selector %v", nodeTemplate.Spec.SubnetSelector)
 	}
 	zones := sets.NewString(lo.Map(subnets, func(subnet *ec2.Subnet, _ int) string {
 		return aws.StringValue(subnet.AvailabilityZone)

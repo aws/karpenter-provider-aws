@@ -42,7 +42,6 @@ import (
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	awscache "github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
-	awscontext "github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
@@ -75,8 +74,6 @@ var stop context.CancelFunc
 var opts options.Options
 var env *coretest.Environment
 var launchTemplateCache *cache.Cache
-var securityGroupCache *cache.Cache
-var subnetCache *cache.Cache
 var ssmCache *cache.Cache
 var ec2Cache *cache.Cache
 var kubernetesVersionCache *cache.Cache
@@ -117,15 +114,13 @@ var _ = BeforeSuite(func() {
 	ctx = settings.ToContext(ctx, test.Settings())
 	ctx, stop = context.WithCancel(ctx)
 
-	launchTemplateCache = cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)
-	internalUnavailableOfferingsCache = cache.New(awscache.UnavailableOfferingsTTL, awscontext.CacheCleanupInterval)
+	launchTemplateCache = cache.New(awscache.TTL, awscache.CleanupInterval)
+	internalUnavailableOfferingsCache = cache.New(awscache.UnavailableOfferingsTTL, awscache.CleanupInterval)
 	unavailableOfferingsCache = awscache.NewUnavailableOfferings(internalUnavailableOfferingsCache)
-	securityGroupCache = cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)
-	subnetCache = cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)
-	ssmCache = cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)
-	ec2Cache = cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)
-	kubernetesVersionCache = cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)
-	instanceTypeCache = cache.New(InstanceTypesAndZonesCacheTTL, awscontext.CacheCleanupInterval)
+	ssmCache = cache.New(awscache.TTL, awscache.CleanupInterval)
+	ec2Cache = cache.New(awscache.TTL, awscache.CleanupInterval)
+	kubernetesVersionCache = cache.New(awscache.TTL, awscache.CleanupInterval)
+	instanceTypeCache = cache.New(InstanceTypesAndZonesCacheTTL, awscache.CleanupInterval)
 	fakeEC2API = &fake.EC2API{}
 	fakeSSMAPI = &fake.SSMAPI{}
 	fakePricingAPI = &fake.PricingAPI{}
@@ -305,7 +300,7 @@ var _ = Describe("Allocation", func() {
 				},
 				InstanceId: aws.String(makeInstanceID()),
 			}
-			fakeEC2API.DescribeInstancesOutput.Set(&ec2.DescribeInstancesOutput{
+			fakeEC2API.DescribeInstancesBehavior.Output.Set(&ec2.DescribeInstancesOutput{
 				Reservations: []*ec2.Reservation{{Instances: []*ec2.Instance{instance}}},
 			})
 		})
