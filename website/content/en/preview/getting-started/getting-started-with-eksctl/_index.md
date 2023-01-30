@@ -13,14 +13,6 @@ This guide shows how to get started with Karpenter by creating a Kubernetes clus
 To use Karpenter, you must be running a supported Kubernetes cluster on a supported cloud provider.
 Currently, only EKS on AWS is supported.
 
-If you prefer, the following instructions use Terraform to create a cluster and add Karpenter:
-
-* [Amazon EKS Blueprints for Terraform](https://aws-ia.github.io/terraform-aws-eks-blueprints): Follow a basic [Getting Started](https://aws-ia.github.io/terraform-aws-eks-blueprints/v4.18.0/getting-started/) guide and also add modules and add-ons. This includes a [Karpenter](https://aws-ia.github.io/terraform-aws-eks-blueprints/v4.18.0/add-ons/karpenter/) add-on that lets you bypass the instructions in this guide for setting up Karpenter.
-
-Although not supported, you could also try Karpenter on other Kubernetes distributions running on AWS. For example:
-
-* [kOps](https://kops.sigs.k8s.io/operations/karpenter/): These instructions describe how to create a kOps Kubernetes cluster in AWS that includes Karpenter.
-
 ## Create a cluster and add Karpenter
 
 This guide uses `eksctl` to create the cluster.
