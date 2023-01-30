@@ -21,13 +21,13 @@ Although not supported, you could also try Karpenter on other Kubernetes distrib
 
 * [kOps](https://kops.sigs.k8s.io/operations/karpenter/): These instructions describe how to create a kOps Kubernetes cluster in AWS that includes Karpenter.
 
-# Create a cluster and add Karpenter
+## Create a cluster and add Karpenter
 
 This guide uses `eksctl` to create the cluster.
 It should take less than 1 hour to complete, and cost less than $0.25.
 Follow the clean-up instructions to reduce any charges.
 
-## 1. Install utilities
+### 1. Install utilities
 
 Karpenter is installed in clusters with a Helm chart.
 
@@ -47,7 +47,7 @@ Install these tools before proceeding:
 with a user that has sufficient privileges to create an EKS cluster. Verify that the CLI can
 authenticate properly by running `aws sts get-caller-identity`.
 
-## 2. Set environment variables
+### 2. Set environment variables
 
 After setting up the tools, set the following environment variable:
 
@@ -64,13 +64,13 @@ echo $KARPENTER_VERSION $CLUSTER_NAME $AWS_DEFAULT_REGION $AWS_ACCOUNT_ID
 {{% /alert %}}
 
 
-## 3. Create a Cluster
+### 3. Create a Cluster
 
 Create a basic cluster with `eksctl`.
 The following cluster configuration will:
 
 * Use CloudFormation to set up the infrastructure needed by the EKS cluster.
-* Create an Kubernetes service account and AWS IAM Role, and associate them using IRSA to let Karpenter launch instances.
+* Create a Kubernetes service account and AWS IAM Role, and associate them using IRSA to let Karpenter launch instances.
 * Add the Karpenter node role to the aws-auth configmap to allow nodes to connect.
 * Use [AWS EKS managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-groups.html) for the kube-system and karpenter namespaces. Uncomment fargateProfiles settings (and comment out managedNodeGroups settings) to use Fargate for both namespaces instead.
 * Set CLUSTER_ENDPOINT and KARPENTER_IAM_ROLE_ARN variables.
@@ -79,7 +79,7 @@ The following cluster configuration will:
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step02-create-cluster.sh" language="bash"%}}
 
-## 4. Configure Optional Features
+### 4. Configure Optional Features
 
 This section describes optional ways to configure Karpenter to enhance its capabilities.
 In particular, the following commands deploy a Prometheus and Grafana stack that is suitable for this guide but does not include persistent storage or other configurations that would be necessary for monitoring a production deployment of Karpenter.
@@ -95,7 +95,7 @@ The new stack has only one user, `admin`, and the password is stored in a secret
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step11-grafana-get-password.sh" language="bash"%}}
 
-## 5. Apply Provisioner
+### 5. Apply Provisioner
 
 A single Karpenter provisioner is capable of handling many different pod
 shapes. Karpenter makes scheduling and provisioning decisions based on pod
@@ -117,25 +117,25 @@ Note: This provisioner will create capacity as long as the sum of all created ca
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step12-add-provisioner.sh" language="bash"%}}
 
-# First Use
+## First Use
 
 Karpenter is now active and ready to begin provisioning nodes.
 Create some pods using a deployment, and watch Karpenter provision nodes in response.
 
-## Automatic Node Provisioning
+### Automatic Node Provisioning
 
 This deployment uses the [pause image](https://www.ianlewis.org/en/almighty-pause-container) and starts with zero replicas.
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step13-automatic-node-provisioning.sh" language="bash"%}}
 
-## Automatic Node Termination
+### Automatic Node Termination
 
 Now, delete the deployment. After 30 seconds (`ttlSecondsAfterEmpty`),
 Karpenter should terminate the now empty nodes.
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step14-deprovisioning.sh" language="bash"%}}
 
-## Manual Node Termination
+### Manual Node Termination
 
 If you delete a node with kubectl, Karpenter will gracefully cordon, drain,
 and shutdown the corresponding instance. Under the hood, Karpenter adds a
@@ -145,7 +145,7 @@ nodes provisioned by Karpenter.
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step15-delete-node.sh" language="bash"%}}
 
-# Cleanup
+## Cleanup
 
 To avoid additional charges, remove the demo infrastructure from your AWS account.
 
