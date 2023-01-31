@@ -41,7 +41,13 @@ authenticate properly by running `aws sts get-caller-identity`.
 
 ### 2. Set environment variables
 
-After setting up the tools, set the following environment variable:
+After setting up the tools, set the Karpenter version number:
+
+```bash
+export KARPENTER_VERSION={{< param "latest_release_version" >}}
+```
+
+Then set the following environment variable:
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step01-config.sh" language="bash"%}}
 
