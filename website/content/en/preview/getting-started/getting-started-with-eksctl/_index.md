@@ -50,7 +50,7 @@ If you open a new shell to run steps in this procedure, you need to set some or 
 To remind yourself of these values, type:
 
 ```bash
-echo $KARPENTER_VERSION $CLUSTER_NAME $AWS_DEFAULT_REGION $AWS_ACCOUNT_ID
+echo $KARPENTER_VERSION $CLUSTER_NAME $AWS_DEFAULT_REGION $AWS_ACCOUNT_ID $TEMPOUT
 ```
 
 {{% /alert %}}
@@ -71,23 +71,8 @@ The following cluster configuration will:
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step02-create-cluster.sh" language="bash"%}}
 
-### 4. Configure Optional Features
 
-This section describes optional ways to configure Karpenter to enhance its capabilities.
-In particular, the following commands deploy a Prometheus and Grafana stack that is suitable for this guide but does not include persistent storage or other configurations that would be necessary for monitoring a production deployment of Karpenter.
-This deployment includes two Karpenter dashboards that are automatically onboarded to Grafana.They provide a variety of visualization examples on Karpenter metrics.
-
-{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step09-add-prometheus-grafana.sh" language="bash"%}}
-
-The Grafana instance may be accessed using port forwarding.
-
-{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step10-add-grafana-port-forward.sh" language="bash"%}}
-
-The new stack has only one user, `admin`, and the password is stored in a secret. The following command will retrieve the password.
-
-{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step11-grafana-get-password.sh" language="bash"%}}
-
-### 5. Apply Provisioner
+### 4. Create Provisioner
 
 A single Karpenter provisioner is capable of handling many different pod
 shapes. Karpenter makes scheduling and provisioning decisions based on pod
@@ -109,25 +94,44 @@ Note: This provisioner will create capacity as long as the sum of all created ca
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step12-add-provisioner.sh" language="bash"%}}
 
+Karpenter is now active and ready to begin provisioning nodes.
+
 ## First Use
 
-Karpenter is now active and ready to begin provisioning nodes.
-Create some pods using a deployment, and watch Karpenter provision nodes in response.
+Create some pods using a deployment and watch Karpenter provision nodes in response.
 
-### Automatic Node Provisioning
+### Scale up deployment
 
 This deployment uses the [pause image](https://www.ianlewis.org/en/almighty-pause-container) and starts with zero replicas.
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step13-automatic-node-provisioning.sh" language="bash"%}}
 
-### Automatic Node Termination
+### Scale down deployment
 
 Now, delete the deployment. After 30 seconds (`ttlSecondsAfterEmpty`),
 Karpenter should terminate the now empty nodes.
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step14-deprovisioning.sh" language="bash"%}}
 
-### Manual Node Termination
+## Add optional monitoring with Grafana
+
+This section describes optional ways to configure Karpenter to enhance its capabilities.
+In particular, the following commands deploy a Prometheus and Grafana stack that is suitable for this guide but does not include persistent storage or other configurations that would be necessary for monitoring a production deployment of Karpenter.
+This deployment includes two Karpenter dashboards that are automatically onboarded to Grafana.They provide a variety of visualization examples on Karpenter metrics.
+
+{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step09-add-prometheus-grafana.sh" language="bash"%}}
+
+The Grafana instance may be accessed using port forwarding.
+
+{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step10-add-grafana-port-forward.sh" language="bash"%}}
+
+The new stack has only one user, `admin`, and the password is stored in a secret. The following command will retrieve the password.
+
+{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step11-grafana-get-password.sh" language="bash"%}}
+
+## Cleanup
+
+### Delete Karpenter nodes manually
 
 If you delete a node with kubectl, Karpenter will gracefully cordon, drain,
 and shutdown the corresponding instance. Under the hood, Karpenter adds a
@@ -137,8 +141,7 @@ nodes provisioned by Karpenter.
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step15-delete-node.sh" language="bash"%}}
 
-## Cleanup
-
+### Delete the cluster
 To avoid additional charges, remove the demo infrastructure from your AWS account.
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step16-cleanup.sh" language="bash"%}}
