@@ -67,6 +67,10 @@ spec:
                     description: ContainerRuntime is the container runtime to be used
                       with your worker nodes.
                     type: string
+                  cpuCFSQuota:
+                    description: CPUCFSQuota enables CPU CFS quota enforcement for
+                      containers that specify CPU limits.
+                    type: boolean
                   evictionHard:
                     additionalProperties:
                       type: string
