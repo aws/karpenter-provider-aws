@@ -90,27 +90,6 @@ See [Node NotReady]({{< ref "./troubleshooting/#node-notready" >}}) troubleshoot
 
 Though not recommended, if you need to access Karpenter-managed nodes without AWS credentials, you can add SSH keys using AWSNodeTemplate.
 See [Custom User Data]({{< ref "./concepts/operating-systems/" >}}) for details.
-Though not recommended, if you need to access Karpenter-managed nodes without AWS credentials, you can add SSH keys to Launch Templates through [Custom User Data](https://karpenter.sh/preview/aws/user-data/).
-Here is an example of userData to add SSH keys to a Launch Template (replace *my-authorized_keys* with your key file):
-
-```bash
-userData: |
-MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="BOUNDARY"
-
---BOUNDARY
-Content-Type: text/x-shellscript; charset="us-ascii"
-
-#!/bin/bash
-mkdir -p ~ec2-user/.ssh/
-touch ~ec2-user/.ssh/authorized_keys
-cat >> ~ec2-user/.ssh/authorized_keys <<EOF
-{{ insertFile "../my-authorized_keys" | indent 4  }}
-EOF
-chmod -R go-w ~ec2-user/.ssh/authorized_keys
-chown -R ec2-user ~ec2-user/.ssh
---BOUNDARY--
-```
 
 ### Can I set total limits of CPU and memory for a provisioner?
 Yes, the setting is provider-specific.
