@@ -1,4 +1,4 @@
-export KARPENTER_VERSION=v0.23.0
+export KARPENTER_VERSION={{< param "latest_release_version" >}}
 export CLUSTER_NAME="${USER}-karpenter-demo"
 export AWS_DEFAULT_REGION="us-west-2"
 export AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
