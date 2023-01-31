@@ -122,6 +122,7 @@ spec:
         --set settings.aws.clusterEndpoint=$(cat /root/.kube/config | grep server | awk '{print $2}') \
         --set settings.aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-$(params.cluster-name) \
         --set settings.aws.interruptionQueueName=$(params.cluster-name) \
+        --set crd-helm-chart-inclusion.enabled=true \
         --wait
 
   - name: diff-karpenter
