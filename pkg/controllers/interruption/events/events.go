@@ -19,65 +19,66 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 
+	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/events"
 )
 
-func InstanceSpotInterrupted(node *v1.Node) events.Event {
+func MachineSpotInterrupted(machine *v1alpha5.Machine) events.Event {
 	return events.Event{
-		InvolvedObject: node,
+		InvolvedObject: machine,
 		Type:           v1.EventTypeWarning,
-		Reason:         "InstanceSpotInterrupted",
-		Message:        fmt.Sprintf("Node %s event: A spot interruption warning was triggered for the node", node.Name),
-		DedupeValues:   []string{node.Name},
+		Reason:         "MachineSpotInterrupted",
+		Message:        fmt.Sprintf("Machine %s event: A spot interruption warning was triggered for the machine", machine.Name),
+		DedupeValues:   []string{machine.Name},
 	}
 }
 
-func InstanceRebalanceRecommendation(node *v1.Node) events.Event {
+func MachineRebalanceRecommendation(machine *v1alpha5.Machine) events.Event {
 	return events.Event{
-		InvolvedObject: node,
+		InvolvedObject: machine,
 		Type:           v1.EventTypeNormal,
-		Reason:         "InstanceSpotRebalanceRecommendation",
-		Message:        fmt.Sprintf("Node %s event: A spot rebalance recommendation was triggered for the node", node.Name),
-		DedupeValues:   []string{node.Name},
+		Reason:         "MachineSpotRebalanceRecommendation",
+		Message:        fmt.Sprintf("Machine %s event: A spot rebalance recommendation was triggered for the machine", machine.Name),
+		DedupeValues:   []string{machine.Name},
 	}
 }
 
-func InstanceStopping(node *v1.Node) events.Event {
+func MachineStopping(machine *v1alpha5.Machine) events.Event {
 	return events.Event{
-		InvolvedObject: node,
+		InvolvedObject: machine,
 		Type:           v1.EventTypeWarning,
 		Reason:         "InstanceStopping",
-		Message:        fmt.Sprintf("Node %s event: Instance is stopping", node.Name),
-		DedupeValues:   []string{node.Name},
+		Message:        fmt.Sprintf("Machine %s event: Machine is stopping", machine.Name),
+		DedupeValues:   []string{machine.Name},
 	}
 }
 
-func InstanceTerminating(node *v1.Node) events.Event {
+func MachineTerminating(machine *v1alpha5.Machine) events.Event {
 	return events.Event{
-		InvolvedObject: node,
+		InvolvedObject: machine,
 		Type:           v1.EventTypeWarning,
-		Reason:         "InstanceTerminating",
-		Message:        fmt.Sprintf("Node %s event: Instance is terminating", node.Name),
-		DedupeValues:   []string{node.Name},
+		Reason:         "MachineTerminating",
+		Message:        fmt.Sprintf("Machine %s event: Machine is terminating", machine.Name),
+		DedupeValues:   []string{machine.Name},
 	}
 }
 
-func InstanceUnhealthy(node *v1.Node) events.Event {
+func MachineUnhealthy(machine *v1alpha5.Machine) events.Event {
 	return events.Event{
-		InvolvedObject: node,
+		InvolvedObject: machine,
 		Type:           v1.EventTypeWarning,
-		Reason:         "InstanceUnhealthy",
-		Message:        fmt.Sprintf("Node %s event: An unhealthy warning was triggered for the node", node.Name),
-		DedupeValues:   []string{node.Name},
+		Reason:         "MachineUnhealthy",
+		Message:        fmt.Sprintf("Machine %s event: An unhealthy warning was triggered for the machine", machine.Name),
+		DedupeValues:   []string{machine.Name},
 	}
 }
 
-func NodeTerminatingOnInterruption(node *v1.Node) events.Event {
+func MachineTerminatingOnInterruption(machine *v1alpha5.Machine) events.Event {
 	return events.Event{
-		InvolvedObject: node,
+		InvolvedObject: machine,
 		Type:           v1.EventTypeWarning,
-		Reason:         "NodeTerminatingOnInterruption",
-		Message:        fmt.Sprintf("Node %s event: Interruption triggered termination for the node", node.Name),
-		DedupeValues:   []string{node.Name},
+		Reason:         "MachineTerminatingOnInterruption",
+		Message:        fmt.Sprintf("Machine %s event: Interruption triggered termination for the machine", machine.Name),
+		DedupeValues:   []string{machine.Name},
 	}
 }
