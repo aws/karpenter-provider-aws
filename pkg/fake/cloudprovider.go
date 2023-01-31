@@ -16,7 +16,6 @@ package fake
 
 import (
 	"context"
-	"fmt"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -44,7 +43,7 @@ func (c *CloudProvider) Create(_ context.Context, _ *v1alpha5.Machine) (*v1alpha
 			Name: name,
 		},
 		Status: v1alpha5.MachineStatus{
-			ProviderID: makeProviderID(test.RandomName()),
+			ProviderID: RandomProviderID(),
 		},
 	}, nil
 }
@@ -79,8 +78,4 @@ func (c *CloudProvider) Delete(context.Context, *v1alpha5.Machine) error {
 // Name returns the CloudProvider implementation name.
 func (c *CloudProvider) Name() string {
 	return "fake"
-}
-
-func makeProviderID(instanceID string) string {
-	return fmt.Sprintf("aws:///%s/%s", defaultRegion, instanceID)
 }

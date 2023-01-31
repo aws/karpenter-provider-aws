@@ -226,16 +226,32 @@ func (env *Environment) EventuallyExpectNotFoundAssertionWithOffset(offset int, 
 	})
 }
 
-func (env *Environment) ExpectCreatedNodeCount(comparator string, nodeCount int) {
-	ExpectWithOffset(1, env.Monitor.CreatedNodeCount()).To(BeNumerically(comparator, nodeCount),
-		fmt.Sprintf("expected %d created nodes, had %d", nodeCount, env.Monitor.CreatedNodeCount()))
+func (env *Environment) ExpectCreatedNodeCount(comparator string, count int) []*v1.Node {
+	createdNodes := env.Monitor.CreatedNodes()
+	ExpectWithOffset(1, len(createdNodes)).To(BeNumerically(comparator, count),
+		fmt.Sprintf("expected %d created nodes, had %d", count, len(createdNodes)))
+	return createdNodes
 }
 
-func (env *Environment) EventuallyExpectCreatedNodeCount(comparator string, nodeCount int) {
+func (env *Environment) EventuallyExpectCreatedNodeCount(comparator string, count int) []*v1.Node {
+	var createdNodes []*v1.Node
 	EventuallyWithOffset(1, func(g Gomega) {
-		g.Expect(env.Monitor.CreatedNodeCount()).To(BeNumerically(comparator, nodeCount),
-			fmt.Sprintf("expected %d created nodes, had %d", nodeCount, env.Monitor.CreatedNodeCount()))
+		createdNodes = env.Monitor.CreatedNodes()
+		g.Expect(len(createdNodes)).To(BeNumerically(comparator, count),
+			fmt.Sprintf("expected %d created nodes, had %d", count, len(createdNodes)))
 	}).Should(Succeed())
+	return createdNodes
+}
+
+func (env *Environment) EventuallyExpectCreatedMachineCount(comparator string, count int) []*v1alpha5.Machine {
+	machineList := &v1alpha5.MachineList{}
+	EventuallyWithOffset(1, func(g Gomega) {
+		g.Expect(env.Client.List(env.Context, machineList)).To(Succeed())
+		g.Expect(len(machineList.Items)).To(BeNumerically(comparator, count))
+	}).Should(Succeed())
+	return lo.Map(machineList.Items, func(m v1alpha5.Machine, _ int) *v1alpha5.Machine {
+		return &m
+	})
 }
 
 func (env *Environment) GetNode(nodeName string) v1.Node {

@@ -17,13 +17,21 @@ package cache
 import "time"
 
 const (
-	// TTL restricts QPS to AWS APIs to this interval for verifying setup
+	// DefaultTTL restricts QPS to AWS APIs to this interval for verifying setup
 	// resources. This value represents the maximum eventual consistency between
 	// AWS actual state and the controller's ability to provision those
 	// resources. Cache hits enable faster provisioning and reduced API load on
 	// AWS APIs, which can have a serious impact on performance and scalability.
 	// DO NOT CHANGE THIS VALUE WITHOUT DUE CONSIDERATION
-	TTL = 60 * time.Second
-	// CleanupInterval triggers cache cleanup (lazy eviction) at this interval.
-	CleanupInterval = 10 * time.Minute
+	DefaultTTL = time.Minute
+	// UnavailableOfferingsTTL is the time before offerings that were marked as unavailable
+	// are removed from the cache and are available for launch again
+	UnavailableOfferingsTTL = 3 * time.Minute
+	// InstanceTypesAndZonesTTL is the time before we refresh instance types and zones at EC2
+	InstanceTypesAndZonesTTL = 5 * time.Minute
+)
+
+const (
+	// DefaultCleanupInterval triggers cache cleanup (lazy eviction) at this interval.
+	DefaultCleanupInterval = 10 * time.Minute
 )

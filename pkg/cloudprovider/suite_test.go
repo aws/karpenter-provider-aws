@@ -16,18 +16,19 @@ package cloudprovider
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"testing"
 	"time"
 
 	"github.com/Pallinder/go-randomdata"
+	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
+
+	. "github.com/aws/karpenter-core/pkg/test/expectations"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/patrickmn/go-cache"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	clock "k8s.io/utils/clock/testing"
@@ -45,6 +46,7 @@ import (
 	"github.com/aws/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
+	machineutil "github.com/aws/karpenter-core/pkg/utils/machine"
 
 	"github.com/aws/karpenter-core/pkg/operator/controller"
 
@@ -61,8 +63,6 @@ import (
 	"github.com/aws/karpenter-core/pkg/operator/options"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	coretest "github.com/aws/karpenter-core/pkg/test"
-	. "github.com/aws/karpenter-core/pkg/test/expectations"
-	machineutil "github.com/aws/karpenter-core/pkg/utils/machine"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
 
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
@@ -77,7 +77,6 @@ var launchTemplateCache *cache.Cache
 var ssmCache *cache.Cache
 var ec2Cache *cache.Cache
 var kubernetesVersionCache *cache.Cache
-var internalUnavailableOfferingsCache *cache.Cache
 var unavailableOfferingsCache *awscache.UnavailableOfferings
 var instanceTypeCache *cache.Cache
 var instanceTypeProvider *InstanceTypeProvider
@@ -104,23 +103,18 @@ func TestAWS(t *testing.T) {
 	RunSpecs(t, "CloudProvider/AWS")
 }
 
-const (
-	defaultRegion = "us-west-2"
-)
-
 var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
 	ctx = coresettings.ToContext(ctx, coretest.Settings())
 	ctx = settings.ToContext(ctx, test.Settings())
 	ctx, stop = context.WithCancel(ctx)
 
-	launchTemplateCache = cache.New(awscache.TTL, awscache.CleanupInterval)
-	internalUnavailableOfferingsCache = cache.New(awscache.UnavailableOfferingsTTL, awscache.CleanupInterval)
-	unavailableOfferingsCache = awscache.NewUnavailableOfferings(internalUnavailableOfferingsCache)
-	ssmCache = cache.New(awscache.TTL, awscache.CleanupInterval)
-	ec2Cache = cache.New(awscache.TTL, awscache.CleanupInterval)
-	kubernetesVersionCache = cache.New(awscache.TTL, awscache.CleanupInterval)
-	instanceTypeCache = cache.New(InstanceTypesAndZonesCacheTTL, awscache.CleanupInterval)
+	launchTemplateCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	unavailableOfferingsCache = awscache.NewUnavailableOfferings()
+	ssmCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	ec2Cache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	kubernetesVersionCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	instanceTypeCache = cache.New(awscache.InstanceTypesAndZonesTTL, awscache.DefaultCleanupInterval)
 	fakeEC2API = &fake.EC2API{}
 	fakeSSMAPI = &fake.SSMAPI{}
 	fakePricingAPI = &fake.PricingAPI{}
@@ -201,7 +195,7 @@ var _ = BeforeEach(func() {
 	fakeSSMAPI.Reset()
 	fakePricingAPI.Reset()
 	launchTemplateCache.Flush()
-	internalUnavailableOfferingsCache.Flush()
+	unavailableOfferingsCache.Flush()
 	ssmCache.Flush()
 	ec2Cache.Flush()
 	kubernetesVersionCache.Flush()
@@ -277,7 +271,7 @@ var _ = Describe("Allocation", func() {
 		var selectedInstanceType *cloudprovider.InstanceType
 		var instance *ec2.Instance
 		BeforeEach(func() {
-			validAMI = makeImageID()
+			validAMI = fake.ImageID()
 			fakeSSMAPI.GetParameterOutput = &ssm.GetParameterOutput{
 				Parameter: &ssm.Parameter{Value: aws.String(validAMI)},
 			}
@@ -298,7 +292,7 @@ var _ = Describe("Allocation", func() {
 				State: &ec2.InstanceState{
 					Name: aws.String(ec2.InstanceStateNameRunning),
 				},
-				InstanceId: aws.String(makeInstanceID()),
+				InstanceId: aws.String(fake.InstanceID()),
 			}
 			fakeEC2API.DescribeInstancesBehavior.Output.Set(&ec2.DescribeInstancesOutput{
 				Reservations: []*ec2.Reservation{{Instances: []*ec2.Instance{instance}}},
@@ -307,7 +301,7 @@ var _ = Describe("Allocation", func() {
 		It("should not fail if node template does not exist", func() {
 			ExpectDeleted(ctx, env.Client, nodeTemplate)
 			node := coretest.Node(coretest.NodeOptions{
-				ProviderID: makeProviderID(lo.FromPtr(instance.InstanceId)),
+				ProviderID: fake.ProviderID(lo.FromPtr(instance.InstanceId)),
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
@@ -323,7 +317,7 @@ var _ = Describe("Allocation", func() {
 			provisioner.Spec.ProviderRef = nil
 			ExpectApplied(ctx, env.Client, provisioner)
 			node := coretest.Node(coretest.NodeOptions{
-				ProviderID: makeProviderID(lo.FromPtr(instance.InstanceId)),
+				ProviderID: fake.ProviderID(lo.FromPtr(instance.InstanceId)),
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
@@ -338,7 +332,7 @@ var _ = Describe("Allocation", func() {
 		It("should not fail if provisioner does not exist", func() {
 			ExpectDeleted(ctx, env.Client, provisioner)
 			node := coretest.Node(coretest.NodeOptions{
-				ProviderID: makeProviderID(lo.FromPtr(instance.InstanceId)),
+				ProviderID: fake.ProviderID(lo.FromPtr(instance.InstanceId)),
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
@@ -352,7 +346,7 @@ var _ = Describe("Allocation", func() {
 		})
 		It("should return drifted if the AMI is not valid", func() {
 			node := coretest.Node(coretest.NodeOptions{
-				ProviderID: makeProviderID(lo.FromPtr(instance.InstanceId)),
+				ProviderID: fake.ProviderID(lo.FromPtr(instance.InstanceId)),
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
@@ -361,14 +355,14 @@ var _ = Describe("Allocation", func() {
 				},
 			})
 			// Instance is a reference to what we return in the GetInstances call
-			instance.ImageId = aws.String(makeImageID())
+			instance.ImageId = aws.String(fake.ImageID())
 			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machineutil.NewFromNode(node))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(isDrifted).To(BeTrue())
 		})
 		It("should not return drifted if the AMI is valid", func() {
 			node := coretest.Node(coretest.NodeOptions{
-				ProviderID: makeProviderID(lo.FromPtr(instance.InstanceId)),
+				ProviderID: fake.ProviderID(lo.FromPtr(instance.InstanceId)),
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
@@ -382,7 +376,7 @@ var _ = Describe("Allocation", func() {
 		})
 		It("should error if the node doesn't have the instance-type label", func() {
 			node := coretest.Node(coretest.NodeOptions{
-				ProviderID: makeProviderID(lo.FromPtr(instance.InstanceId)),
+				ProviderID: fake.ProviderID(lo.FromPtr(instance.InstanceId)),
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
@@ -562,15 +556,3 @@ var _ = Describe("Allocation", func() {
 		})
 	})
 })
-
-func makeProviderID(instanceID string) string {
-	return fmt.Sprintf("aws:///%s/%s", defaultRegion, instanceID)
-}
-
-func makeInstanceID() string {
-	return fmt.Sprintf("i-%s", randomdata.Alphanumeric(17))
-}
-
-func makeImageID() string {
-	return fmt.Sprintf("ami-%s", randomdata.Alphanumeric(17))
-}
