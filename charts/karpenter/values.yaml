@@ -169,3 +169,8 @@ settings:
     interruptionQueueName: ""
     # -- The global tags to use on all AWS infrastructure resources (launch templates, instances, SQS queue, etc.)
     tags:
+
+# -- Include CRDs as part of the Helm chart which will automatically install and upgrade them
+crd-helm-chart-inclusion:
+  # -- If set to true, helm will manage the CRD installation and upgrade
+  enabled: false
