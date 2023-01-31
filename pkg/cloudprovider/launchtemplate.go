@@ -239,7 +239,7 @@ func (p *LaunchTemplateProvider) blockDeviceMappings(blockDeviceMappings []*v1al
 		// The EC2 API fails with empty slices and expects nil.
 		return nil
 	}
-	blockDeviceMappingsRequest := []*ec2.LaunchTemplateBlockDeviceMappingRequest{}
+	var blockDeviceMappingsRequest []*ec2.LaunchTemplateBlockDeviceMappingRequest
 	for _, blockDeviceMapping := range blockDeviceMappings {
 		blockDeviceMappingsRequest = append(blockDeviceMappingsRequest, &ec2.LaunchTemplateBlockDeviceMappingRequest{
 			DeviceName: blockDeviceMapping.DeviceName,
@@ -263,7 +263,8 @@ func (p *LaunchTemplateProvider) volumeSize(quantity *resource.Quantity) *int64 
 	if quantity == nil {
 		return nil
 	}
-	return aws.Int64(int64(quantity.AsApproximateFloat64() / math.Pow(2, 30)))
+	// Converts the value to Gi and rounds up the value to the nearest Gi
+	return aws.Int64(int64(math.Ceil(quantity.AsApproximateFloat64() / math.Pow(2, 30))))
 }
 
 // hydrateCache queries for existing Launch Templates created by Karpenter for the current cluster and adds to the LT cache.
