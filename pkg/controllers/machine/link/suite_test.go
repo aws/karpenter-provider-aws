@@ -153,8 +153,8 @@ var _ = Describe("MachineLink", func() {
 			// Expect machine to have populated fields from the node
 			Expect(machine.Spec.Taints).To(Equal(provisioner.Spec.Taints))
 			Expect(machine.Spec.StartupTaints).To(Equal(provisioner.Spec.StartupTaints))
-			Expect(machine.Spec.ProviderRef.Kind).To(Equal(provisioner.Spec.ProviderRef.Kind))
-			Expect(machine.Spec.ProviderRef.Name).To(Equal(provisioner.Spec.ProviderRef.Name))
+			Expect(machine.Spec.MachineTemplateRef.Kind).To(Equal(provisioner.Spec.ProviderRef.Kind))
+			Expect(machine.Spec.MachineTemplateRef.Name).To(Equal(provisioner.Spec.ProviderRef.Name))
 
 			// Expect machine has linking annotation to get machine details
 			Expect(machine.Annotations).To(HaveKeyWithValue(v1alpha5.MachineLinkedAnnotationKey, providerID))
