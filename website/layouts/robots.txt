@@ -2,7 +2,9 @@ User-agent: *
 
 Disallow: /v0.4.3-docs/
 
-Allow: /docs/
 Allow: /index.html
+Allow: /preview
+Disallow: /v0.*
+Disallow: /v1.*
 
 SITEMAP: https://karpenter.sh/sitemap.xml
