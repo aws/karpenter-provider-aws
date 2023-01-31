@@ -407,7 +407,7 @@ var _ = Describe("LaunchTemplates", func() {
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			Expect(input.LaunchTemplateData.BlockDeviceMappings[0].Ebs).To(Equal(&ec2.LaunchTemplateEbsBlockDeviceRequest{
-				VolumeSize:          aws.Int64(186),
+				VolumeSize:          aws.Int64(187),
 				VolumeType:          aws.String("io2"),
 				Iops:                aws.Int64(10_000),
 				DeleteOnTermination: aws.Bool(true),
@@ -422,6 +422,42 @@ var _ = Describe("LaunchTemplates", func() {
 				Encrypted:           aws.Bool(true),
 				KmsKeyId:            aws.String("arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab"),
 			}))
+		})
+		It("should round up for custom block device mappings when specified in gigabytes", func() {
+			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyAL2
+			nodeTemplate.Spec.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{
+				{
+					DeviceName: aws.String("/dev/xvda"),
+					EBS: &v1alpha1.BlockDevice{
+						DeleteOnTermination: aws.Bool(true),
+						Encrypted:           aws.Bool(true),
+						VolumeType:          aws.String("io2"),
+						VolumeSize:          lo.ToPtr(resource.MustParse("4G")),
+						IOPS:                aws.Int64(10_000),
+						KMSKeyID:            aws.String("arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab"),
+					},
+				},
+				{
+					DeviceName: aws.String("/dev/xvdb"),
+					EBS: &v1alpha1.BlockDevice{
+						DeleteOnTermination: aws.Bool(true),
+						Encrypted:           aws.Bool(true),
+						VolumeType:          aws.String("io2"),
+						VolumeSize:          lo.ToPtr(resource.MustParse("2G")),
+						IOPS:                aws.Int64(10_000),
+						KMSKeyID:            aws.String("arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab"),
+					},
+				},
+			}
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			pod := ExpectProvisioned(ctx, env.Client, cluster, recorder, provisioningController, prov, coretest.UnschedulablePod())[0]
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+
+			// Both of these values are rounded up when converting to Gibibytes
+			Expect(aws.Int64Value(input.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeSize)).To(BeNumerically("==", 4))
+			Expect(aws.Int64Value(input.LaunchTemplateData.BlockDeviceMappings[1].Ebs.VolumeSize)).To(BeNumerically("==", 2))
 		})
 		It("should default bottlerocket second volume with root volume size", func() {
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
