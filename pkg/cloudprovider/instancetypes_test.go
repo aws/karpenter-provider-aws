@@ -1094,7 +1094,7 @@ func makeFakeInstances() []*ec2.InstanceTypeInfo {
 	var instanceTypes []*ec2.InstanceTypeInfo
 	// Use keys from the static pricing data so that we guarantee pricing for the data
 	// Create uniform instance data so all of them schedule for a given pod
-	for k := range initialOnDemandPrices {
+	for k := range initialOnDemandPrices["us-east-1"] {
 		instanceTypes = append(instanceTypes, &ec2.InstanceTypeInfo{
 			InstanceType: aws.String(k),
 			ProcessorInfo: &ec2.ProcessorInfo{
