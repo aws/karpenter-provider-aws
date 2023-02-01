@@ -16,9 +16,9 @@ package settings
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/url"
-	"strings"
 
 	"github.com/go-playground/validator/v10"
 	"go.uber.org/multierr"
@@ -82,7 +82,7 @@ func (*Settings) Inject(ctx context.Context, cm *v1.ConfigMap) (context.Context,
 		AsTypedString("aws.nodeNameConvention", &s.NodeNameConvention),
 		configmap.AsFloat64("aws.vmMemoryOverheadPercent", &s.VMMemoryOverheadPercent),
 		configmap.AsString("aws.interruptionQueueName", &s.InterruptionQueueName),
-		AsMap("aws.tags", &s.Tags),
+		AsStringMap("aws.tags", &s.Tags),
 	); err != nil {
 		return ctx, fmt.Errorf("parsing settings, %w", err)
 	}
@@ -138,19 +138,16 @@ func AsTypedString[T ~string](key string, target *T) configmap.ParseFunc {
 	}
 }
 
-// AsMap parses any value with the prefix key into a map with suffixes as keys and values as values in the target map.
-// e.g. {"aws.tags.tag1":"value1"} gets parsed into the map Tags as {"tag1": "value1"}
-func AsMap(key string, target *map[string]string) configmap.ParseFunc {
+// AsStringMap parses a value as a JSON map of map[string]string.
+func AsStringMap(key string, target *map[string]string) configmap.ParseFunc {
 	return func(data map[string]string) error {
-		m := map[string]string{}
-
-		// Unwind the values into structured keys
-		for k, v := range data {
-			if strings.HasPrefix(k, key+".") {
-				m[k[len(key+"."):]] = v
+		if raw, ok := data[key]; ok {
+			m := map[string]string{}
+			if err := json.Unmarshal([]byte(raw), &m); err != nil {
+				return err
 			}
+			*target = m
 		}
-		*target = m
 		return nil
 	}
 }

@@ -64,8 +64,7 @@ var _ = Describe("Validation", func() {
 				"aws.isolatedVPC":                "true",
 				"aws.nodeNameConvention":         "resource-name",
 				"aws.vmMemoryOverheadPercent":    "0.1",
-				"aws.tags.tag1":                  "value1",
-				"aws.tags.tag2":                  "value2",
+				"aws.tags":                       `{"tag1": "value1", "tag2": "value2", "example.com/tag": "my-value"}`,
 			},
 		}
 		ctx, err := (&settings.Settings{}).Inject(ctx, cm)
@@ -77,9 +76,10 @@ var _ = Describe("Validation", func() {
 		Expect(s.IsolatedVPC).To(BeTrue())
 		Expect(s.NodeNameConvention).To(Equal(settings.ResourceName))
 		Expect(s.VMMemoryOverheadPercent).To(Equal(0.1))
-		Expect(len(s.Tags)).To(Equal(2))
+		Expect(len(s.Tags)).To(Equal(3))
 		Expect(s.Tags).To(HaveKeyWithValue("tag1", "value1"))
 		Expect(s.Tags).To(HaveKeyWithValue("tag2", "value2"))
+		Expect(s.Tags).To(HaveKeyWithValue("example.com/tag", "my-value"))
 	})
 	It("should fail validation with panic when clusterName not included", func() {
 		cm := &v1.ConfigMap{

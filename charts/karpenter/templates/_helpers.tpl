@@ -74,9 +74,9 @@ Create the name of the service account to use
 {{- end -}}
 
 {{/*
-Flatten Values Map using "." syntax
+Flatten Settings Map using "." syntax
 */}}
-{{- define "flattenMap" -}}
+{{- define "flattenSettings" -}}
 {{- $map := first . -}}
 {{- $label := last . -}}
 {{- range $key, $val := $map -}}
@@ -84,8 +84,11 @@ Flatten Values Map using "." syntax
   {{- if $label -}}
   {{- $sublabel = list $label $key | join "." -}}
   {{- end -}}
-  {{- if kindOf $val | eq "map" -}}
-    {{- list $val $sublabel | include "flattenMap" -}}
+  {{/* Special-case "tags" since we want this to be a JSON object */}}
+  {{ if eq $key "tags" }}
+{{ $sublabel | quote }}: {{ $val | toJson | quote }}
+  {{- else if kindOf $val | eq "map" -}}
+    {{- list $val $sublabel | include "flattenSettings" -}}
   {{- else -}}
   {{ if not (kindIs "invalid" $val) }}
 {{ $sublabel | quote }}: {{ $val | quote }}
