@@ -18,20 +18,6 @@ This can be resolved by creating the [Service Linked Role](https://docs.aws.amaz
 aws iam create-service-linked-role --aws-service-name spot.amazonaws.com
 ```
 
-### Terraform fails to create instance profile when name is too long
-
-In the Getting Started with Terraform instructions to [Configure the KarpenterNode IAM Role]({{<ref "./getting-started/getting-started-with-terraform/#configure-the-karpenternode-iam-role" >}}), the name assigned to the aws_iam_instance_profile cannot exceed 38 characters. If it does, it will fail with a message similar to:
-
-```text
-Error: expected length of name_prefix to be in the range (1 - 38), got with module.eks.aws_iam_role.cluster[0],
-on .terraform/modules/eks/main.tf line 131, in resource "aws_iam_role" "cluster":
-131: name_prefix = var.cluster_iam_role_name != "" ? null : var.cluster_name
-```
-
-Note that it can be easy to run over the 38-character limit considering that the example includes KarpenterNodeInstanceProfile- (29 characters) and -karpenter-demo (15 characters).
-That leaves only four characters for your user name.
-You can reduce the number of characters consumed by changing `KarpenterNodeInstanceProfile-` to something like `KarpenterNode-`.
-
 ### Karpenter Role names exceeding 64-character limit
 
 If you use a tool such as AWS CDK to generate your Kubernetes cluster name, when you add Karpenter to your cluster you could end up with a cluster name that is too long to incorporate into your KarpenterNodeRole name (which is limited to 64 characters).
