@@ -31,6 +31,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/uuid"
+	"k8s.io/client-go/tools/record"
 	clock "k8s.io/utils/clock/testing"
 	. "knative.dev/pkg/logging/testing"
 	_ "knative.dev/pkg/system/testing"
@@ -38,6 +39,7 @@ import (
 
 	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/events"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
@@ -67,7 +69,6 @@ var env *coretest.Environment
 var sqsapi *fake.SQSAPI
 var sqsProvider *interruption.SQSProvider
 var unavailableOfferingsCache *awscache.UnavailableOfferings
-var recorder *coretest.EventRecorder
 var fakeClock *clock.FakeClock
 var controller *interruption.Controller
 
@@ -80,11 +81,10 @@ func TestAPIs(t *testing.T) {
 var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
 	fakeClock = &clock.FakeClock{}
-	recorder = coretest.NewEventRecorder()
 	unavailableOfferingsCache = awscache.NewUnavailableOfferings()
 	sqsapi = &fake.SQSAPI{}
 	sqsProvider = interruption.NewSQSProvider(sqsapi)
-	controller = interruption.NewController(env.Client, fakeClock, recorder, sqsProvider, unavailableOfferingsCache)
+	controller = interruption.NewController(env.Client, fakeClock, events.NewRecorder(&record.FakeRecorder{}), sqsProvider, unavailableOfferingsCache)
 })
 
 var _ = AfterSuite(func() {
@@ -93,7 +93,7 @@ var _ = AfterSuite(func() {
 
 var _ = BeforeEach(func() {
 	sqsProvider = interruption.NewSQSProvider(sqsapi)
-	controller = interruption.NewController(env.Client, fakeClock, recorder, sqsProvider, unavailableOfferingsCache)
+	controller = interruption.NewController(env.Client, fakeClock, events.NewRecorder(&record.FakeRecorder{}), sqsProvider, unavailableOfferingsCache)
 	ctx = coresettings.ToContext(ctx, coretest.Settings())
 	ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
 		InterruptionQueueName: lo.ToPtr("test-cluster"),

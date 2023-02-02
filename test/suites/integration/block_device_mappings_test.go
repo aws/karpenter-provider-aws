@@ -63,7 +63,7 @@ var _ = Describe("BlockDeviceMappings", func() {
 		Expect(instance.BlockDeviceMappings[0].Ebs).To(HaveField("DeleteOnTermination", HaveValue(BeTrue())))
 		volume := env.GetVolume(instance.BlockDeviceMappings[0].Ebs.VolumeId)
 		Expect(volume).To(HaveField("Encrypted", HaveValue(BeTrue())))
-		Expect(volume).To(HaveField("Size", HaveValue(Equal(int64(9))))) // Convert G -> Gib
+		Expect(volume).To(HaveField("Size", HaveValue(Equal(int64(10))))) // Convert G -> Gib (rounded up)
 		Expect(volume).To(HaveField("Iops", HaveValue(Equal(int64(1000)))))
 		Expect(volume).To(HaveField("VolumeType", HaveValue(Equal("io2"))))
 	})
