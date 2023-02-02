@@ -198,7 +198,7 @@ func getFiltersAndOwners(amiSelector map[string]string) ([]*ec2.Filter, []*strin
 	owners := []*string{}
 	for key, value := range amiSelector {
 		switch key {
-		case "aws-ids":
+		case "aws-ids", "aws::ids":
 			filterValues := functional.SplitCommaSeparatedString(value)
 			filters = append(filters, &ec2.Filter{
 				Name:   aws.String("image-id"),
