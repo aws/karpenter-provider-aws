@@ -209,7 +209,7 @@ func getFiltersAndOwners(amiSelector map[string]string) ([]*ec2.Filter, []*strin
 			for _, owner := range ownerValues {
 				owners = append(owners, &owner)
 			}
-		case "aws:name":
+		case "aws::name":
 			filters = append(filters, &ec2.Filter{
 				Name:   aws.String("name"),
 				Values: []*string{aws.String(value)},
