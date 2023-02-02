@@ -21,7 +21,7 @@ HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${K
 			--set settings.aws.clusterEndpoint=${CLUSTER_ENDPOINT} \
 			--set settings.aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
 			--set settings.aws.interruptionQueueName=${CLUSTER_NAME} \
-			--set crd-helm-chart-inclusion.enabled=true \
+			--set include-crds.enabled=true \
 			--create-namespace
 
 # CR for local builds of Karpenter

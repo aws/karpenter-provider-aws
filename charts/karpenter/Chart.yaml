@@ -18,8 +18,8 @@ dependencies:
   - name: karpenter-crd
     version: "v0.23.0"
     repository: "oci://ghcr.io/aws/karpenter"
-    condition: crd-helm-chart-inclusion.enabled
+    condition: include-crds.enabled
   - name: karpenter-core-crd
     version: "v0.23.0"
     repository: "oci://ghcr.io/aws/karpenter-core"
-    condition: crd-helm-chart-inclusion.enabled
+    condition: include-crds.enabled
