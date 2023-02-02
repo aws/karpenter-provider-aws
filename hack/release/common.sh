@@ -51,8 +51,6 @@ buildImages() {
     yq e -i ".controller.image = \"${CONTROLLER_DIGEST}\"" charts/karpenter/values.yaml
     yq e -i ".appVersion = \"${RELEASE_VERSION#v}\"" charts/karpenter/Chart.yaml
     yq e -i ".version = \"${HELM_CHART_VERSION#v}\"" charts/karpenter/Chart.yaml
-    yq e -i  ".dependencies[] |= select(.name == \"karpenter-crd\").version=\"${HELM_CHART_VERSION}\"" charts/karpenter/Chart.yaml
-    yq e -i  ".dependencies[] |= select(.name == \"karpenter-core-crd\").version=\"${HELM_CHART_VERSION}\"" charts/karpenter/Chart.yaml
 }
 
 releaseType(){
