@@ -15,10 +15,11 @@ you use)
 
 # Solutions
 
-1. Restore the `name` special case and add a new `owners` special case that is passed
-as the `Owners` argument to `DescribeImages` (this arguments supports both aliases
+1. Restore the previous `name` special case as `aws::name` and add a new `aws::owners`
+special case that is passed as the `Owners` argument to `DescribeImages` (this arguments supports both aliases
 such as `self` and `amazon` as well as AWS account IDs). Make `self,amazon` the default
-for this solution.
+for this solution. `aws-ids` also becomes available as `aws::ids` - the `aws::` prefixes
+ensure that there won't be clashes with existing AMI tags.
 
 2. Create a v1alpha2 AMISelector with a much more flexible type than go's `map[string]string` and
 deprecate v1alpha1. The new AMISelector could have an interface much closer to `DescribeImages`.
@@ -60,3 +61,7 @@ Solution 2 is the most work, but removes any of the special cases, and provides 
 approach to AMI filtering in general - by allowing filters other than `tag:`, users will gain
 more power.
 
+# Decision from Working Group meeting
+
+Implement Option 1 as a short-term fix to the immediate problem, and implement Option 2 as part
+of a bigger API change that addresses similar improvements to security group and subnet selectors.
