@@ -222,9 +222,7 @@ func getFiltersAndOwners(amiSelector map[string]string) ([]*ec2.Filter, []*strin
 		}
 	}
 	if owners == nil {
-		self := aws.String("self")
-		amazon := aws.String("amazon")
-		owners = []*string{self, amazon}
+		owners = []*string{aws.String("self"), aws.String("amazon")}
 	}
 
 	return filters, owners
