@@ -36,7 +36,7 @@ import (
 
 var _ = Describe("SecurityGroups", func() {
 	It("should use the security-group-id selector", func() {
-		securityGroups := getSecurityGroups(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
+		securityGroups := env.GetSecurityGroups(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
 		Expect(len(securityGroups)).To(BeNumerically(">", 1))
 
 		ids := strings.Join([]string{*securityGroups[0].GroupId, *securityGroups[1].GroupId}, ",")
@@ -57,7 +57,7 @@ var _ = Describe("SecurityGroups", func() {
 	})
 
 	It("should use the security group selector with multiple tag values", func() {
-		securityGroups := getSecurityGroups(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
+		securityGroups := env.GetSecurityGroups(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
 		Expect(len(securityGroups)).To(BeNumerically(">", 1))
 		first := securityGroups[0]
 		last := securityGroups[len(securityGroups)-1]

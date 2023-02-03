@@ -4,10 +4,10 @@ go 1.19
 
 require (
 	github.com/aws/amazon-ec2-spot-interrupter v0.0.9
-	github.com/aws/aws-sdk-go v1.44.189
+	github.com/aws/aws-sdk-go v1.44.191
 	github.com/aws/aws-sdk-go-v2/config v1.18.10
 	github.com/aws/karpenter v0.22.0
-	github.com/aws/karpenter-core v0.23.1-0.20230126185440-bd476c480a1f
+	github.com/aws/karpenter-core v0.23.1-0.20230203193516-586061d3d4fa
 	github.com/onsi/ginkgo/v2 v2.8.0
 	github.com/onsi/gomega v1.26.0
 	github.com/samber/lo v1.37.0

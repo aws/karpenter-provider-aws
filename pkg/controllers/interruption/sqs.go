@@ -141,3 +141,8 @@ func (s *SQSProvider) DeleteSQSMessage(ctx context.Context, msg *sqs.Message) er
 	}
 	return nil
 }
+
+func (s *SQSProvider) Reset() {
+	s.queueURL.Set("")
+	s.queueName.Store(nil)
+}

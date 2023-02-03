@@ -28,16 +28,15 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	"knative.dev/pkg/logging"
 
-	awscache "github.com/aws/karpenter/pkg/cache"
+	"github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
 	"github.com/aws/karpenter/pkg/providers/subnet"
 	"github.com/aws/karpenter/pkg/utils/project"
 
-	cloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
+	"github.com/aws/karpenter-core/pkg/cloudprovider"
 )
 
 // Context is injected into the AWS CloudProvider's factories
@@ -45,7 +44,7 @@ type Context struct {
 	cloudprovider.Context
 
 	Session                   *session.Session
-	UnavailableOfferingsCache *awscache.UnavailableOfferings
+	UnavailableOfferingsCache *cache.UnavailableOfferings
 	EC2API                    ec2iface.EC2API
 	SubnetProvider            *subnet.Provider
 	SecurityGroupProvider     *securitygroup.Provider
@@ -64,18 +63,17 @@ func NewOrDie(ctx cloudprovider.Context) Context {
 		region, err := ec2metadata.New(sess).Region()
 		*sess.Config.Region = lo.Must(region, err, "failed to get region from metadata server")
 	}
-	logging.FromContext(ctx).With("region", *sess.Config.Region).Debugf("discovered region")
-
 	ec2api := ec2.New(sess)
 	if err := checkEC2Connectivity(ctx, ec2api); err != nil {
-		logging.FromContext(ctx).Fatalf("checking EC2 API connectivity, %s", err)
+		logging.FromContext(ctx).Fatalf("Checking EC2 API connectivity, %s", err)
 	}
+	logging.FromContext(ctx).With("region", *sess.Config.Region).Debugf("discovered region")
 	subnetProvider := subnet.NewProvider(ec2api)
 	securityGroupProvider := securitygroup.NewProvider(ec2api)
 	return Context{
 		Context:                   ctx,
 		Session:                   sess,
-		UnavailableOfferingsCache: awscache.NewUnavailableOfferings(cache.New(awscache.UnavailableOfferingsTTL, awscache.CleanupInterval)),
+		UnavailableOfferingsCache: cache.NewUnavailableOfferings(),
 		EC2API:                    ec2api,
 		SubnetProvider:            subnetProvider,
 		SecurityGroupProvider:     securityGroupProvider,

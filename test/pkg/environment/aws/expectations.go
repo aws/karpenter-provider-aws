@@ -15,12 +15,15 @@ limitations under the License.
 package aws
 
 import (
+	"fmt"
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/ssm"
 	. "github.com/onsi/ginkgo/v2" //nolint:revive,stylecheck
 	. "github.com/onsi/gomega"    //nolint:revive,stylecheck
 	"go.uber.org/multierr"
@@ -82,6 +85,87 @@ func (env *Environment) GetVolume(volumeID *string) ec2.Volume {
 	return *dvo.Volumes[0]
 }
 
+// GetSubnets returns all subnets matching the label selector
+// mapped from AZ -> {subnet-ids...}
+func (env *Environment) GetSubnets(tags map[string]string) map[string][]string {
+	var filters []*ec2.Filter
+	for key, val := range tags {
+		filters = append(filters, &ec2.Filter{
+			Name:   aws.String(fmt.Sprintf("tag:%s", key)),
+			Values: []*string{aws.String(val)},
+		})
+	}
+	subnets := map[string][]string{}
+	err := env.EC2API.DescribeSubnetsPages(&ec2.DescribeSubnetsInput{Filters: filters}, func(dso *ec2.DescribeSubnetsOutput, _ bool) bool {
+		for _, subnet := range dso.Subnets {
+			subnets[*subnet.AvailabilityZone] = append(subnets[*subnet.AvailabilityZone], *subnet.SubnetId)
+		}
+		return true
+	})
+	Expect(err).To(BeNil())
+	return subnets
+}
+
+// SubnetInfo is a simple struct for testing
+type SubnetInfo struct {
+	Name string
+	ID   string
+}
+
+// GetSubnetNameAndIds returns all subnets matching the label selector
+func (env *Environment) GetSubnetNameAndIds(tags map[string]string) []SubnetInfo {
+	var filters []*ec2.Filter
+	for key, val := range tags {
+		filters = append(filters, &ec2.Filter{
+			Name:   aws.String(fmt.Sprintf("tag:%s", key)),
+			Values: []*string{aws.String(val)},
+		})
+	}
+	var subnetInfo []SubnetInfo
+	err := env.EC2API.DescribeSubnetsPages(&ec2.DescribeSubnetsInput{Filters: filters}, func(dso *ec2.DescribeSubnetsOutput, _ bool) bool {
+		for _, subnet := range dso.Subnets {
+			for k := range subnet.Tags {
+				if aws.StringValue(subnet.Tags[k].Key) == "Name" {
+					subnetInfo = append(subnetInfo, SubnetInfo{ID: aws.StringValue(subnet.SubnetId), Name: aws.StringValue(subnet.Tags[k].Value)})
+					break
+				}
+			}
+		}
+		return true
+	})
+
+	Expect(err).To(BeNil())
+	return subnetInfo
+}
+
+type SecurityGroup struct {
+	ec2.GroupIdentifier
+	Tags []*ec2.Tag
+}
+
+// GetSecurityGroups returns all getSecurityGroups matching the label selector
+func (env *Environment) GetSecurityGroups(tags map[string]string) []SecurityGroup {
+	var filters []*ec2.Filter
+	for key, val := range tags {
+		filters = append(filters, &ec2.Filter{
+			Name:   aws.String(fmt.Sprintf("tag:%s", key)),
+			Values: []*string{aws.String(val)},
+		})
+	}
+	var securityGroups []SecurityGroup
+	err := env.EC2API.DescribeSecurityGroupsPages(&ec2.DescribeSecurityGroupsInput{Filters: filters}, func(dso *ec2.DescribeSecurityGroupsOutput, _ bool) bool {
+		for _, sg := range dso.SecurityGroups {
+			securityGroups = append(securityGroups, SecurityGroup{
+				Tags:            sg.Tags,
+				GroupIdentifier: ec2.GroupIdentifier{GroupId: sg.GroupId, GroupName: sg.GroupName},
+			})
+		}
+		return true
+	})
+	Expect(err).To(BeNil())
+	return securityGroups
+}
+
 func (env *Environment) ExpectQueueExists() {
 	exists, err := env.SQSProvider.QueueExists(env.Context)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
@@ -114,4 +198,20 @@ func (env *Environment) ExpectParsedProviderID(providerID string) string {
 	providerIDSplit := strings.Split(providerID, "/")
 	ExpectWithOffset(1, len(providerIDSplit)).ToNot(Equal(0))
 	return providerIDSplit[len(providerIDSplit)-1]
+}
+
+func (env *Environment) GetCustomAMI(amiPath string, versionOffset int) string {
+	serverVersion, err := env.KubeClient.Discovery().ServerVersion()
+	Expect(err).To(BeNil())
+	minorVersion, err := strconv.Atoi(strings.TrimSuffix(serverVersion.Minor, "+"))
+	Expect(err).To(BeNil())
+	// Choose a minor version one lesser than the server's minor version. This ensures that we choose an AMI for
+	// this test that wouldn't be selected as Karpenter's SSM default (therefore avoiding false positives), and also
+	// ensures that we aren't violating version skew.
+	version := fmt.Sprintf("%s.%d", serverVersion.Major, minorVersion-versionOffset)
+	parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
+		Name: aws.String(fmt.Sprintf(amiPath, version)),
+	})
+	Expect(err).To(BeNil())
+	return *parameter.Parameter.Value
 }

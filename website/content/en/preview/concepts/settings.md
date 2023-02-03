@@ -66,10 +66,8 @@ data:
   # Interruption Handling is currently in ALPHA and is disabled by default. Enabling interruption handling may
   # require additional permissions on the controller service account. Additional permissions are outlined in the docs
   aws.interruptionQueueName: karpenter-cluster
-  # Any global tag value can be specified by including the "aws.tags.<tag-key>" prefix
-  # associated with the value in the key-value tag pair
-  aws.tags.custom-tag: custom-tag-value
-  aws.tags.custom-tag2: custom-tag-value
+  # Global tags are specified by including a JSON object of string to string from tag key to tag value
+  aws.tags: '{"custom-tag1": "custom-tag-value", "custom-tag2": "custom-tag-value"}'
 ```
 
 ### Feature Gates

@@ -28,12 +28,11 @@ import (
 	"github.com/patrickmn/go-cache"
 	"knative.dev/pkg/logging"
 
-	awscache "github.com/aws/karpenter/pkg/cache"
-
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 
 	"github.com/aws/karpenter-core/pkg/utils/functional"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
+	awscache "github.com/aws/karpenter/pkg/cache"
 )
 
 type Provider struct {
@@ -51,7 +50,7 @@ func NewProvider(ec2api ec2iface.EC2API) *Provider {
 		cm:     pretty.NewChangeMonitor(),
 		// TODO: Remove cache for v1beta1, utilize resolved subnet from the AWSNodeTemplate.status
 		// Subnets are sorted on AvailableIpAddressCount, descending order
-		cache: cache.New(TTL, awscache.CleanupInterval),
+		cache: cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
 	}
 }
 

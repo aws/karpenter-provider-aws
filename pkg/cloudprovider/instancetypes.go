@@ -19,14 +19,11 @@ import (
 	"fmt"
 	"net/http"
 	"sync/atomic"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws/session"
 
 	awssettings "github.com/aws/karpenter/pkg/apis/settings"
 	awscache "github.com/aws/karpenter/pkg/cache"
-
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -40,6 +37,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/providers/subnet"
 
+	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
 )
@@ -47,7 +45,6 @@ import (
 const (
 	InstanceTypesCacheKey           = "types"
 	InstanceTypeZonesCacheKeyPrefix = "zones:"
-	InstanceTypesAndZonesCacheTTL   = 5 * time.Minute
 )
 
 type InstanceTypeProvider struct {
@@ -81,7 +78,7 @@ func NewInstanceTypeProvider(ctx context.Context, sess *session.Session, ec2api 
 			awssettings.FromContext(ctx).IsolatedVPC,
 			startAsync,
 		),
-		cache:                cache.New(InstanceTypesAndZonesCacheTTL, awscache.CleanupInterval),
+		cache:                cache.New(awscache.InstanceTypesAndZonesTTL, awscache.DefaultCleanupInterval),
 		unavailableOfferings: unavailableOfferingsCache,
 		cm:                   pretty.NewChangeMonitor(),
 		instanceTypesSeqNum:  0,

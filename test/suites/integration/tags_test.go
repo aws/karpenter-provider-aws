@@ -59,7 +59,7 @@ var _ = Describe("Tags", func() {
 		})
 
 		env.ExpectSettingsOverridden(map[string]string{
-			"aws.tags.TestTag": "TestVal",
+			"aws.tags": `{"TestTag": "TestVal", "example.com/tag": "custom-value"}`,
 		})
 		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
 		pod := test.Pod()
@@ -73,6 +73,8 @@ var _ = Describe("Tags", func() {
 
 		Expect(instanceTags).To(HaveKeyWithValue("TestTag", "TestVal"))
 		Expect(volumeTags).To(HaveKeyWithValue("TestTag", "TestVal"))
+		Expect(instanceTags).To(HaveKeyWithValue("example.com/tag", "custom-value"))
+		Expect(volumeTags).To(HaveKeyWithValue("example.com/tag", "custom-value"))
 	})
 })
 

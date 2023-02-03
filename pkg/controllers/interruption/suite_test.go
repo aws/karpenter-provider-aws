@@ -21,18 +21,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/uuid"
+	"k8s.io/client-go/tools/record"
 	clock "k8s.io/utils/clock/testing"
 	. "knative.dev/pkg/logging/testing"
 	_ "knative.dev/pkg/system/testing"
@@ -40,6 +39,7 @@ import (
 
 	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/events"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
@@ -69,7 +69,6 @@ var env *coretest.Environment
 var sqsapi *fake.SQSAPI
 var sqsProvider *interruption.SQSProvider
 var unavailableOfferingsCache *awscache.UnavailableOfferings
-var recorder *coretest.EventRecorder
 var fakeClock *clock.FakeClock
 var controller *interruption.Controller
 
@@ -82,9 +81,10 @@ func TestAPIs(t *testing.T) {
 var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
 	fakeClock = &clock.FakeClock{}
-	recorder = coretest.NewEventRecorder()
-	unavailableOfferingsCache = awscache.NewUnavailableOfferings(cache.New(awscache.UnavailableOfferingsTTL, awscache.CleanupInterval))
+	unavailableOfferingsCache = awscache.NewUnavailableOfferings()
 	sqsapi = &fake.SQSAPI{}
+	sqsProvider = interruption.NewSQSProvider(sqsapi)
+	controller = interruption.NewController(env.Client, fakeClock, events.NewRecorder(&record.FakeRecorder{}), sqsProvider, unavailableOfferingsCache)
 })
 
 var _ = AfterSuite(func() {
@@ -93,15 +93,17 @@ var _ = AfterSuite(func() {
 
 var _ = BeforeEach(func() {
 	sqsProvider = interruption.NewSQSProvider(sqsapi)
-	controller = interruption.NewController(env.Client, fakeClock, recorder, sqsProvider, unavailableOfferingsCache)
+	controller = interruption.NewController(env.Client, fakeClock, events.NewRecorder(&record.FakeRecorder{}), sqsProvider, unavailableOfferingsCache)
 	ctx = coresettings.ToContext(ctx, coretest.Settings())
 	ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
 		InterruptionQueueName: lo.ToPtr("test-cluster"),
 	}))
+	unavailableOfferingsCache.Flush()
+	sqsapi.Reset()
+	sqsProvider.Reset()
 })
 
 var _ = AfterEach(func() {
-	sqsapi.Reset()
 	ExpectCleanedUp(ctx, env.Client)
 })
 
@@ -114,7 +116,7 @@ var _ = Describe("AWSInterruption", func() {
 						v1alpha5.ProvisionerNameLabelKey: "default",
 					},
 				},
-				ProviderID: makeProviderID(defaultInstanceID),
+				ProviderID: fake.ProviderID(defaultInstanceID),
 			})
 			ExpectMessagesCreated(spotInterruptionMessage(defaultInstanceID))
 			ExpectApplied(ctx, env.Client, node)
@@ -131,7 +133,7 @@ var _ = Describe("AWSInterruption", func() {
 						v1alpha5.ProvisionerNameLabelKey: "default",
 					},
 				},
-				ProviderID: makeProviderID(defaultInstanceID),
+				ProviderID: fake.ProviderID(defaultInstanceID),
 			})
 			ExpectMessagesCreated(scheduledChangeMessage(defaultInstanceID))
 			ExpectApplied(ctx, env.Client, node)
@@ -145,14 +147,14 @@ var _ = Describe("AWSInterruption", func() {
 			var nodes []*v1.Node
 			var messages []interface{}
 			for _, state := range []string{"terminated", "stopped", "stopping", "shutting-down"} {
-				instanceID := makeInstanceID()
+				instanceID := fake.InstanceID()
 				nodes = append(nodes, coretest.Node(coretest.NodeOptions{
 					ObjectMeta: metav1.ObjectMeta{
 						Labels: map[string]string{
 							v1alpha5.ProvisionerNameLabelKey: "default",
 						},
 					},
-					ProviderID: makeProviderID(instanceID),
+					ProviderID: fake.ProviderID(instanceID),
 				}))
 				messages = append(messages, stateChangeMessage(instanceID, state))
 			}
@@ -168,14 +170,14 @@ var _ = Describe("AWSInterruption", func() {
 			var nodes []*v1.Node
 			var instanceIDs []string
 			for i := 0; i < 100; i++ {
-				instanceIDs = append(instanceIDs, makeInstanceID())
+				instanceIDs = append(instanceIDs, fake.InstanceID())
 				nodes = append(nodes, coretest.Node(coretest.NodeOptions{
 					ObjectMeta: metav1.ObjectMeta{
 						Labels: map[string]string{
 							v1alpha5.ProvisionerNameLabelKey: "default",
 						},
 					},
-					ProviderID: makeProviderID(instanceIDs[len(instanceIDs)-1]),
+					ProviderID: fake.ProviderID(instanceIDs[len(instanceIDs)-1]),
 				}))
 
 			}
@@ -194,7 +196,7 @@ var _ = Describe("AWSInterruption", func() {
 		})
 		It("should not delete a node when not owned by provisioner", func() {
 			node := coretest.Node(coretest.NodeOptions{
-				ProviderID: makeProviderID(string(uuid.NewUUID())),
+				ProviderID: fake.ProviderID(string(uuid.NewUUID())),
 			})
 			ExpectMessagesCreated(spotInterruptionMessage(node.Spec.ProviderID))
 			ExpectApplied(ctx, env.Client, node)
@@ -226,7 +228,7 @@ var _ = Describe("AWSInterruption", func() {
 						v1alpha5.ProvisionerNameLabelKey: "default",
 					},
 				},
-				ProviderID: makeProviderID(defaultInstanceID),
+				ProviderID: fake.ProviderID(defaultInstanceID),
 			})
 			ExpectMessagesCreated(stateChangeMessage(defaultInstanceID, "creating"))
 			ExpectApplied(ctx, env.Client, node)
@@ -246,7 +248,7 @@ var _ = Describe("AWSInterruption", func() {
 						v1alpha5.LabelCapacityType:       v1alpha1.CapacityTypeSpot,
 					},
 				},
-				ProviderID: makeProviderID(defaultInstanceID),
+				ProviderID: fake.ProviderID(defaultInstanceID),
 			})
 			ExpectMessagesCreated(spotInterruptionMessage(defaultInstanceID))
 			ExpectApplied(ctx, env.Client, node)
@@ -360,12 +362,4 @@ func scheduledChangeMessage(involvedInstanceID string) scheduledchange.Message {
 			},
 		},
 	}
-}
-
-func makeProviderID(instanceID string) string {
-	return fmt.Sprintf("aws:///%s/%s", defaultRegion, instanceID)
-}
-
-func makeInstanceID() string {
-	return fmt.Sprintf("i-%s", randomdata.Alphanumeric(17))
 }

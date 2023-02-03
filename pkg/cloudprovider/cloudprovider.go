@@ -23,10 +23,11 @@ import (
 	"strings"
 
 	"github.com/aws/karpenter/pkg/apis"
-	awssettings "github.com/aws/karpenter/pkg/apis/settings"
+	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/utils"
 
+	"github.com/aws/karpenter-core/pkg/scheduling"
 	"github.com/aws/karpenter-core/pkg/utils/resources"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -47,8 +48,6 @@ import (
 	awscache "github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
 	awscontext "github.com/aws/karpenter/pkg/context"
-
-	"github.com/aws/karpenter-core/pkg/scheduling"
 
 	coreapis "github.com/aws/karpenter-core/pkg/apis"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
@@ -83,7 +82,7 @@ func New(ctx awscontext.Context) *CloudProvider {
 	}
 	instanceTypeProvider := NewInstanceTypeProvider(ctx, ctx.Session, ctx.EC2API, ctx.SubnetProvider, ctx.UnavailableOfferingsCache, ctx.StartAsync)
 	amiProvider := amifamily.NewAMIProvider(ctx.KubeClient, ctx.KubernetesInterface, ssm.New(ctx.Session), ctx.EC2API,
-		cache.New(awscache.TTL, awscache.CleanupInterval), cache.New(awscache.TTL, awscache.CleanupInterval), cache.New(awscache.TTL, awscache.CleanupInterval))
+		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
 	amiResolver := amifamily.New(ctx.KubeClient, amiProvider)
 	return &CloudProvider{
 		kubeClient:           ctx.KubeClient,
@@ -217,6 +216,37 @@ func (c *CloudProvider) IsMachineDrifted(ctx context.Context, machine *v1alpha5.
 	return amiDrifted, nil
 }
 
+// Hydrate updates an existing instance by making sure that the machine associated with the instance
+// has the corresponding tag value for that machine
+func (c *CloudProvider) Hydrate(ctx context.Context, machine *v1alpha5.Machine) error {
+	instanceID, err := utils.ParseInstanceID(machine.Status.ProviderID)
+	if err != nil {
+		return fmt.Errorf("parsing instance id, %w", err)
+	}
+	instance, err := c.instanceProvider.GetByID(ctx, instanceID)
+	if err != nil {
+		return fmt.Errorf("getting instance for instanceID '%s', %w", instanceID, err)
+	}
+	// Update the machine with the name stored in the tag value of the instance if it exists
+	// We do this so that when we create the Machine after hydration, the machine-controller is aware
+	// that the instance already exists, so it doesn't create another one
+	if tag, ok := lo.Find(instance.Tags, func(tag *ec2.Tag) bool {
+		return aws.StringValue(tag.Key) == v1alpha5.MachineNameLabelKey
+	}); ok {
+		machine.Name = aws.StringValue(tag.Value)
+		// If the instance has both machine-name and cluster-name, no need to update
+		if _, ok = lo.Find(instance.Tags, func(tag *ec2.Tag) bool {
+			return aws.StringValue(tag.Key) == fmt.Sprintf("kubernetes.io/cluster/%s", settings.FromContext(ctx).ClusterName)
+		}); ok {
+			return nil
+		}
+	}
+	if _, err = c.instanceProvider.Update(ctx, machine); err != nil {
+		return fmt.Errorf("updating instance, %w", err)
+	}
+	return nil
+}
+
 // Name returns the CloudProvider implementation name.
 func (c *CloudProvider) Name() string {
 	return "aws"
@@ -312,7 +342,7 @@ func (c *CloudProvider) instanceToMachine(ctx context.Context, instance *ec2.Ins
 	labels[v1alpha5.MachineNameLabelKey] = machine.Name
 
 	machine.Name = lo.Ternary(
-		awssettings.FromContext(ctx).NodeNameConvention == awssettings.ResourceName,
+		settings.FromContext(ctx).NodeNameConvention == settings.ResourceName,
 		aws.StringValue(instance.InstanceId),
 		strings.ToLower(aws.StringValue(instance.PrivateDnsName)),
 	)
