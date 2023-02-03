@@ -10,4 +10,4 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 data:
-  {{- list .Values.settings "" | include "flattenMap" | indent 2 }}
+  {{- list .Values.settings "" | include "flattenSettings" | indent 2 }}

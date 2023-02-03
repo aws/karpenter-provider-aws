@@ -22,13 +22,13 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
+	"github.com/aws/karpenter/pkg/apis/settings"
 
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter-core/pkg/apis"
+	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
 	"github.com/aws/karpenter-core/pkg/utils/functional"
-	"github.com/aws/karpenter-core/pkg/utils/sets"
-	"github.com/aws/karpenter/pkg/apis/config/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 )
 
@@ -39,10 +39,10 @@ var (
 	)
 	// AddToScheme may be used to add all resources defined in the project to a Scheme
 	AddToScheme = Builder.AddToScheme
-	Settings    = sets.New(settings.Registration)
+	Settings    = []coresettings.Injectable{&settings.Settings{}}
 )
 
-//go:generate controller-gen crd paths="./..." output:crd:artifacts:config=crds
+//go:generate controller-gen crd object:headerFile="../../hack/boilerplate.go.txt" paths="./..." output:crd:artifacts:config=crds
 var (
 	//go:embed crds/karpenter.k8s.aws_awsnodetemplates.yaml
 	AWSNodeTemplateCRD []byte

@@ -5,13 +5,16 @@ on:
 
 jobs:
   approval-comment:
-    if: github.repository == 'aws/karpenter' && github.event.review.state == 'approved' && startsWith(github.event.review.body ,'/karpenter snapshot')
+    if: github.repository == 'aws/karpenter' && startsWith(github.event.review.body ,'/karpenter snapshot')
     permissions: write-all
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
+      - uses: ./.github/actions/maintainer-check
+        with:
+          username: ${{ github.event.review.user.login }}
       - name: Save info about the review comment as an artifact for other workflows that run on workflow_run to download them
         run: |
           mkdir -p /tmp/artifacts

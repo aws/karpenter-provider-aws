@@ -92,7 +92,7 @@ extraVolumes: []
 
 controller:
   # -- Controller image.
-  image: "public.ecr.aws/karpenter/controller:v0.22.1@sha256:8aa720d4fc95d4187e1030f4a11996a27181dada9e6054a77b8ae7b4313d3e6b"
+  image: "public.ecr.aws/karpenter/controller:v0.23.0@sha256:40aea3b25a33ff2cb44bdecf0417a2642e2a785b4fd30067634ef8f1bd48383c"
   # -- SecurityContext for the controller container.
   securityContext: {}
   # -- Additional environment variables for the controller pod.
@@ -123,8 +123,10 @@ controller:
   # - name: aws-iam-token
   #   mountPath: /var/run/secrets/eks.amazonaws.com/serviceaccount
   #   readOnly: true
-  # -- Additional sideCarContainer config - this will also inherit volume mounts from deployment
-  sidecarContainer: {}
+  # -- Additional sidecarContainer config
+  sidecarContainer: []
+  # -- Additional volumeMounts for the sidecar - this will be added to the volume mounts on top of extraVolumeMounts
+  sidecarVolumeMounts: []
 webhook:
   logLevel: error
   # -- The container port to use for the webhook.
@@ -165,5 +167,5 @@ settings:
     # -- interruptionQueueName is currently in ALPHA and is disabled by default. Enabling interruption handling may
     # require additional permissions on the controller service account. Additional permissions are outlined in the docs.
     interruptionQueueName: ""
-    # -- The global tags to use on all AWS infrastructure resources (launch templates, instances, SQS queue, etc.)
+    # -- The global tags to use on all AWS infrastructure resources (launch templates, instances, etc.) across node templates
     tags:

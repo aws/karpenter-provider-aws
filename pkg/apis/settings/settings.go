@@ -19,14 +19,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
-	"strings"
 
 	"github.com/go-playground/validator/v10"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/configmap"
-
-	"github.com/aws/karpenter-core/pkg/apis/config"
 )
 
 type NodeNameConvention string
@@ -36,14 +33,11 @@ const (
 	ResourceName NodeNameConvention = "resource-name"
 )
 
-var ContextKey = Registration
+type settingsKeyType struct{}
 
-var Registration = &config.Registration{
-	ConfigMapName: "karpenter-global-settings",
-	Constructor:   NewSettingsFromConfigMap,
-}
+var ContextKey = settingsKeyType{}
 
-var defaultSettings = Settings{
+var defaultSettings = &Settings{
 	ClusterName:                "",
 	ClusterEndpoint:            "",
 	DefaultInstanceProfile:     "",
@@ -56,22 +50,27 @@ var defaultSettings = Settings{
 	Tags:                       map[string]string{},
 }
 
+// +k8s:deepcopy-gen=true
 type Settings struct {
-	ClusterName                string             `json:"aws.clusterName" validate:"required"`
-	ClusterEndpoint            string             `json:"aws.clusterEndpoint" validate:"required"`
-	DefaultInstanceProfile     string             `json:"aws.defaultInstanceProfile"`
-	EnablePodENI               bool               `json:"aws.enablePodENI,string"`
-	EnableENILimitedPodDensity bool               `json:"aws.enableENILimitedPodDensity,string"`
-	IsolatedVPC                bool               `json:"aws.isolatedVPC,string"`
-	NodeNameConvention         NodeNameConvention `json:"aws.nodeNameConvention" validate:"required"`
-	VMMemoryOverheadPercent    float64            `json:"aws.vmMemoryOverheadPercent,string" validate:"min=0"`
-	InterruptionQueueName      string             `json:"aws.interruptionQueueName,string"`
-	Tags                       map[string]string  `json:"aws.tags,omitempty"`
+	ClusterName                string `validate:"required"`
+	ClusterEndpoint            string `validate:"required"`
+	DefaultInstanceProfile     string
+	EnablePodENI               bool
+	EnableENILimitedPodDensity bool
+	IsolatedVPC                bool
+	NodeNameConvention         NodeNameConvention `validate:"required"`
+	VMMemoryOverheadPercent    float64            `validate:"min=0"`
+	InterruptionQueueName      string
+	Tags                       map[string]string
 }
 
-// NewSettingsFromConfigMap creates a Settings from the supplied ConfigMap
-func NewSettingsFromConfigMap(cm *v1.ConfigMap) (Settings, error) {
-	s := defaultSettings
+func (*Settings) ConfigMap() string {
+	return "karpenter-global-settings"
+}
+
+// Inject creates a Settings from the supplied ConfigMap
+func (*Settings) Inject(ctx context.Context, cm *v1.ConfigMap) (context.Context, error) {
+	s := defaultSettings.DeepCopy()
 
 	if err := configmap.Parse(cm.Data,
 		configmap.AsString("aws.clusterName", &s.ClusterName),
@@ -83,29 +82,14 @@ func NewSettingsFromConfigMap(cm *v1.ConfigMap) (Settings, error) {
 		AsTypedString("aws.nodeNameConvention", &s.NodeNameConvention),
 		configmap.AsFloat64("aws.vmMemoryOverheadPercent", &s.VMMemoryOverheadPercent),
 		configmap.AsString("aws.interruptionQueueName", &s.InterruptionQueueName),
-		AsMap("aws.tags", &s.Tags),
+		AsStringMap("aws.tags", &s.Tags),
 	); err != nil {
-		// Failing to parse means that there is some error in the Settings, so we should crash
-		panic(fmt.Sprintf("parsing settings, %v", err))
+		return ctx, fmt.Errorf("parsing settings, %w", err)
 	}
 	if err := s.Validate(); err != nil {
-		// Failing to validate means that there is some error in the Settings, so we should crash
-		panic(fmt.Sprintf("validating settings, %v", err))
+		return ctx, fmt.Errorf("validating settings, %w", err)
 	}
-	return s, nil
-}
-
-func (s Settings) Data() (map[string]string, error) {
-	d := map[string]string{}
-
-	raw, err := json.Marshal(s)
-	if err != nil {
-		return nil, fmt.Errorf("marshaling settings, %w", err)
-	}
-	if err = json.Unmarshal(raw, &d); err != nil {
-		return d, fmt.Errorf("unmarshalling settings, %w", err)
-	}
-	return d, nil
+	return ToContext(ctx, s), nil
 }
 
 // Validate leverages struct tags with go-playground/validator so you can define a struct with custom
@@ -115,10 +99,9 @@ func (s Settings) Data() (map[string]string, error) {
 //	    Example  metav1.Duration `json:"example" validate:"required,min=10m"`
 //	}
 func (s Settings) Validate() error {
-	validate := validator.New()
 	return multierr.Combine(
 		s.validateEndpoint(),
-		validate.Struct(s),
+		validator.New().Struct(s),
 	)
 }
 
@@ -132,17 +115,17 @@ func (s Settings) validateEndpoint() error {
 	return nil
 }
 
-func ToContext(ctx context.Context, s Settings) context.Context {
+func ToContext(ctx context.Context, s *Settings) context.Context {
 	return context.WithValue(ctx, ContextKey, s)
 }
 
-func FromContext(ctx context.Context) Settings {
+func FromContext(ctx context.Context) *Settings {
 	data := ctx.Value(ContextKey)
 	if data == nil {
 		// This is developer error if this happens, so we should panic
 		panic("settings doesn't exist in context")
 	}
-	return data.(Settings)
+	return data.(*Settings)
 }
 
 // AsTypedString passes the value at key through into the target, if it exists.
@@ -155,31 +138,15 @@ func AsTypedString[T ~string](key string, target *T) configmap.ParseFunc {
 	}
 }
 
-// AsMap parses any value with the prefix key into a map with suffixes as keys and values as values in the target map.
-// e.g. {"aws.tags.tag1":"value1"} gets parsed into the map Tags as {"tag1": "value1"}
-func AsMap(key string, target *map[string]string) configmap.ParseFunc {
+// AsStringMap parses a value as a JSON map of map[string]string.
+func AsStringMap(key string, target *map[string]string) configmap.ParseFunc {
 	return func(data map[string]string) error {
-		m := map[string]string{}
-
-		// Unwind the values into structured keys
-		for k, v := range data {
-			if strings.HasPrefix(k, key+".") {
-				m[k[len(key+"."):]] = v
+		if raw, ok := data[key]; ok {
+			m := map[string]string{}
+			if err := json.Unmarshal([]byte(raw), &m); err != nil {
+				return err
 			}
-		}
-		*target = m
-		return nil
-	}
-}
-
-// FromMap takes values from a map and rewinds the values into map[string]string values where the key
-// contains the prefix key and the value is the map value.
-// e.g. {"tag1": "value1"} becomes {"aws.tags.tag1": "value1"} when passed the key "aws.tags"
-func FromMap(data map[string]string) func(key string, target *map[string]string) error {
-	return func(key string, target *map[string]string) error {
-		// Rewind the values into implicit JSON "." syntax
-		for k, v := range data {
-			(*target)[fmt.Sprintf("%s.%s", key, k)] = v
+			*target = m
 		}
 		return nil
 	}

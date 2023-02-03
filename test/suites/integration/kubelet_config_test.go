@@ -29,7 +29,7 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/scheduling"
-	"github.com/aws/karpenter/pkg/apis/config/settings"
+	"github.com/aws/karpenter/pkg/apis/settings"
 	awstest "github.com/aws/karpenter/pkg/test"
 
 	pscheduling "github.com/aws/karpenter-core/pkg/controllers/provisioning/scheduling"
@@ -85,7 +85,9 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 					"imagefs.inodesFree": {Duration: time.Minute * 2},
 					"pid.available":      {Duration: time.Minute * 2},
 				},
-				EvictionMaxPodGracePeriod: ptr.Int32(120),
+				EvictionMaxPodGracePeriod:   ptr.Int32(120),
+				ImageGCHighThresholdPercent: ptr.Int32(50),
+				ImageGCLowThresholdPercent:  ptr.Int32(10),
 			},
 		})
 

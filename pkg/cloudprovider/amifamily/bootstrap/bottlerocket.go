@@ -55,6 +55,8 @@ func (b Bottlerocket) Script() (string, error) {
 		s.Settings.Kubernetes.SystemReserved = resources.StringMap(b.KubeletConfig.SystemReserved)
 		s.Settings.Kubernetes.KubeReserved = resources.StringMap(b.KubeletConfig.KubeReserved)
 		s.Settings.Kubernetes.EvictionHard = b.KubeletConfig.EvictionHard
+		s.Settings.Kubernetes.ImageGCLowThresholdPercent = b.KubeletConfig.ImageGCLowThresholdPercent
+		s.Settings.Kubernetes.ImageGCHighThresholdPercent = b.KubeletConfig.ImageGCHighThresholdPercent
 	}
 
 	s.Settings.Kubernetes.NodeTaints = map[string][]string{}

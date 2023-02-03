@@ -23,9 +23,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	. "knative.dev/pkg/logging/testing"
 
-	. "github.com/aws/karpenter-core/pkg/test/expectations"
-
-	"github.com/aws/karpenter/pkg/apis/config/settings"
+	"github.com/aws/karpenter/pkg/apis/settings"
 )
 
 var ctx context.Context
@@ -44,7 +42,9 @@ var _ = Describe("Validation", func() {
 				"aws.clusterName":     "my-cluster",
 			},
 		}
-		s, _ := settings.NewSettingsFromConfigMap(cm)
+		ctx, err := (&settings.Settings{}).Inject(ctx, cm)
+		Expect(err).ToNot(HaveOccurred())
+		s := settings.FromContext(ctx)
 		Expect(s.DefaultInstanceProfile).To(Equal(""))
 		Expect(s.EnablePodENI).To(BeFalse())
 		Expect(s.EnableENILimitedPodDensity).To(BeTrue())
@@ -64,51 +64,52 @@ var _ = Describe("Validation", func() {
 				"aws.isolatedVPC":                "true",
 				"aws.nodeNameConvention":         "resource-name",
 				"aws.vmMemoryOverheadPercent":    "0.1",
-				"aws.tags.tag1":                  "value1",
-				"aws.tags.tag2":                  "value2",
+				"aws.tags":                       `{"tag1": "value1", "tag2": "value2", "example.com/tag": "my-value"}`,
 			},
 		}
-		s, _ := settings.NewSettingsFromConfigMap(cm)
+		ctx, err := (&settings.Settings{}).Inject(ctx, cm)
+		Expect(err).ToNot(HaveOccurred())
+		s := settings.FromContext(ctx)
 		Expect(s.DefaultInstanceProfile).To(Equal("karpenter"))
 		Expect(s.EnablePodENI).To(BeTrue())
 		Expect(s.EnableENILimitedPodDensity).To(BeFalse())
 		Expect(s.IsolatedVPC).To(BeTrue())
 		Expect(s.NodeNameConvention).To(Equal(settings.ResourceName))
 		Expect(s.VMMemoryOverheadPercent).To(Equal(0.1))
-		Expect(len(s.Tags)).To(Equal(2))
+		Expect(len(s.Tags)).To(Equal(3))
 		Expect(s.Tags).To(HaveKeyWithValue("tag1", "value1"))
 		Expect(s.Tags).To(HaveKeyWithValue("tag2", "value2"))
+		Expect(s.Tags).To(HaveKeyWithValue("example.com/tag", "my-value"))
 	})
 	It("should fail validation with panic when clusterName not included", func() {
-		defer ExpectPanic()
 		cm := &v1.ConfigMap{
 			Data: map[string]string{
 				"aws.clusterEndpoint": "https://00000000000000000000000.gr7.us-west-2.eks.amazonaws.com",
 			},
 		}
-		_, _ = settings.NewSettingsFromConfigMap(cm)
+		_, err := (&settings.Settings{}).Inject(ctx, cm)
+		Expect(err).To(HaveOccurred())
 	})
-	It("should fail validation with panic when clusterEndpoint not included", func() {
-		defer ExpectPanic()
+	It("should fail validation when clusterEndpoint not included", func() {
 		cm := &v1.ConfigMap{
 			Data: map[string]string{
 				"aws.clusterName": "my-name",
 			},
 		}
-		_, _ = settings.NewSettingsFromConfigMap(cm)
+		_, err := (&settings.Settings{}).Inject(ctx, cm)
+		Expect(err).To(HaveOccurred())
 	})
-	It("should fail validation with panic when clusterEndpoint is invalid (not absolute)", func() {
-		defer ExpectPanic()
+	It("should fail validation when clusterEndpoint is invalid (not absolute)", func() {
 		cm := &v1.ConfigMap{
 			Data: map[string]string{
 				"aws.clusterName":     "my-name",
 				"aws.clusterEndpoint": "00000000000000000000000.gr7.us-west-2.eks.amazonaws.com",
 			},
 		}
-		_, _ = settings.NewSettingsFromConfigMap(cm)
+		_, err := (&settings.Settings{}).Inject(ctx, cm)
+		Expect(err).To(HaveOccurred())
 	})
 	It("should fail validation with panic when vmMemoryOverheadPercent is negative", func() {
-		defer ExpectPanic()
 		cm := &v1.ConfigMap{
 			Data: map[string]string{
 				"aws.clusterEndpoint":         "https://00000000000000000000000.gr7.us-west-2.eks.amazonaws.com",
@@ -116,6 +117,7 @@ var _ = Describe("Validation", func() {
 				"aws.vmMemoryOverheadPercent": "-0.01",
 			},
 		}
-		_, _ = settings.NewSettingsFromConfigMap(cm)
+		_, err := (&settings.Settings{}).Inject(ctx, cm)
+		Expect(err).To(HaveOccurred())
 	})
 })

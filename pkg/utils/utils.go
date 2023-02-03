@@ -19,15 +19,18 @@ import (
 	"regexp"
 )
 
+var (
+	instanceIDRegex = regexp.MustCompile(`aws:///(?P<AZ>.*)/(?P<InstanceID>.*)`)
+)
+
 // ParseInstanceID parses the provider ID stored on the node to get the instance ID
 // associated with a node
 func ParseInstanceID(providerID string) (string, error) {
-	r := regexp.MustCompile(`aws:///(?P<AZ>.*)/(?P<InstanceID>.*)`)
-	matches := r.FindStringSubmatch(providerID)
+	matches := instanceIDRegex.FindStringSubmatch(providerID)
 	if matches == nil {
 		return "", fmt.Errorf("parsing instance id %s", providerID)
 	}
-	for i, name := range r.SubexpNames() {
+	for i, name := range instanceIDRegex.SubexpNames() {
 		if name == "InstanceID" {
 			return matches[i], nil
 		}

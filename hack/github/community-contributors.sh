@@ -2,10 +2,9 @@
 set -euo pipefail
 
 USAGE='Usage: '.$0.' [<previous release> <latest release>]'
-TOKEN=${GITHUB_TOKEN:-$(cat $HOME/.git/token)}
+TOKEN=$(gh auth token)
 
-if [ ! $# -gt 0 ];
-then
+if [ ! $# -gt 0 ]; then
     RELEASES=$(
         curl -s \
             -H "Accept: application/vnd.github+json" \
@@ -14,8 +13,7 @@ then
     )
     LATEST=$(echo $RELEASES | jq -r ".[0].tag_name")
     PREVIOUS=$(echo $RELEASES | jq -r ".[1].tag_name")
-elif [ $# -eq 2 ];
-then
+elif [ $# -eq 2 ]; then
     PREVIOUS=$1
     LATEST=$2
 else
@@ -23,15 +21,28 @@ else
     exit
 fi
 
-COMMITS=$(curl -s \
-    -H "Accept: application/vnd.github+json" \
-    -H "Authorization: token $TOKEN" \
-    https://api.github.com/repos/aws/karpenter/compare/$PREVIOUS...$LATEST)
+COMMITS_PER_PAGE=500
+RESPONSE=$(
+    gh api \
+        -H "Accept: application/vnd.github+json" \
+        /repos/aws/karpenter/compare/$PREVIOUS...$LATEST?per_page=$COMMITS_PER_PAGE
+)
+TOTAL_COMMITS=$(echo $RESPONSE | jq -r ".total_commits")
+PAGES=$(echo $((($TOTAL_COMMITS + $COMMITS_PER_PAGE - 1) / $COMMITS_PER_PAGE)))
+
+COMMITS=""
+for i in $(seq 1 $PAGES); do
+    NEXT=$(
+        gh api \
+            -H "Accept: application/vnd.github+json" \
+            /repos/aws/karpenter/compare/$PREVIOUS...$LATEST?per_page=$COMMITS_PER_PAGE\&page=$i | jq -r ".commits"
+    )
+    COMMITS=$(jq -s 'add' <(echo "$COMMITS") <(echo "$NEXT"))
+done
 
 CONTRIBUTIONS=$(
     echo $COMMITS | jq -r '
-    .commits
-    | sort_by(.commit.author.date)
+    sort_by(.commit.author.date)
     | .[].commit
     | {author: .author.name, message: (.message | split("\n")[0])}
 ' | jq -s
@@ -76,5 +87,5 @@ COMMUNITY_CONTRIBUTIONS=$(
 NUM_COMMUNITY_CONTRIBUTIONS=$(echo $COMMUNITY_CONTRIBUTIONS | jq length)
 
 echo "Comparing $PREVIOUS and $LATEST"
-echo "Community members contributed $NUM_COMMUNITY_CONTRIBUTIONS/$NUM_CONTRIBUTIONS ($(awk "BEGIN {print (100*$NUM_COMMUNITY_CONTRIBUTIONS/$NUM_CONTRIBUTIONS)}")%) commits"
 echo $COMMUNITY_CONTRIBUTIONS | jq
+echo "Community members contributed $NUM_COMMUNITY_CONTRIBUTIONS/$NUM_CONTRIBUTIONS ($(awk "BEGIN {print (100*$NUM_COMMUNITY_CONTRIBUTIONS/$NUM_CONTRIBUTIONS)}")%) commits"

@@ -18,6 +18,35 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// SubnetStatus contains resolved Subnet selector values utilized for node launch
+type SubnetStatus struct {
+	// Id of the subnet
+	// +optional
+	ID string `json:"id,omitempty"`
+	// The associated availability zone
+	// +optional
+	Zone string `json:"zone,omitempty"`
+}
+
+// SecurityGroupStatus contains resolved SecurityGroup selector values utilized for node launch
+type SecurityGroupStatus struct {
+	// Id of the security group
+	// +optional
+	ID string `json:"id,omitempty"`
+}
+
+// AWSNodeTemplateStatus contains the resolved state of the AWSNodeTemplate
+type AWSNodeTemplateStatus struct {
+	// Subnets contains the current Subnet values that are available to the
+	// cluster under the subnet selectors.
+	// +optional
+	Subnets []SubnetStatus `json:"subnets,omitempty"`
+	// SecurityGroups contains the current Security Groups values that are available to the
+	// cluster under the SecurityGroups selectors.
+	// +optional
+	SecurityGroups []SecurityGroupStatus `json:"securityGroups,omitempty"`
+}
+
 // AWSNodeTemplateSpec is the top level specification for the AWS Karpenter Provider.
 // This will contain configuration necessary to launch instances in AWS.
 type AWSNodeTemplateSpec struct {
@@ -43,7 +72,8 @@ type AWSNodeTemplate struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec AWSNodeTemplateSpec `json:"spec,omitempty"`
+	Spec   AWSNodeTemplateSpec   `json:"spec,omitempty"`
+	Status AWSNodeTemplateStatus `json:"status,omitempty"`
 }
 
 // AWSNodeTemplateList contains a list of AWSNodeTemplate

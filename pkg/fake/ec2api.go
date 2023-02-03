@@ -29,6 +29,7 @@ import (
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/utils/sets"
 
 	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter-core/pkg/utils/atomic"
@@ -43,7 +44,6 @@ type CapacityPool struct {
 // EC2Behavior must be reset between tests otherwise tests will
 // pollute each other.
 type EC2Behavior struct {
-	DescribeInstancesOutput             AtomicPtr[ec2.DescribeInstancesOutput]
 	DescribeImagesOutput                AtomicPtr[ec2.DescribeImagesOutput]
 	DescribeLaunchTemplatesOutput       AtomicPtr[ec2.DescribeLaunchTemplatesOutput]
 	DescribeSubnetsOutput               AtomicPtr[ec2.DescribeSubnetsOutput]
@@ -54,9 +54,11 @@ type EC2Behavior struct {
 	DescribeSpotPriceHistoryInput       AtomicPtr[ec2.DescribeSpotPriceHistoryInput]
 	DescribeSpotPriceHistoryOutput      AtomicPtr[ec2.DescribeSpotPriceHistoryOutput]
 	CreateFleetBehavior                 MockedFunction[ec2.CreateFleetInput, ec2.CreateFleetOutput]
+	TerminateInstancesBehavior          MockedFunction[ec2.TerminateInstancesInput, ec2.TerminateInstancesOutput]
+	DescribeInstancesBehavior           MockedFunction[ec2.DescribeInstancesInput, ec2.DescribeInstancesOutput]
+	CreateTagsBehavior                  MockedFunction[ec2.CreateTagsInput, ec2.CreateTagsOutput]
 	CalledWithCreateLaunchTemplateInput AtomicPtrSlice[ec2.CreateLaunchTemplateInput]
 	CalledWithDescribeImagesInput       AtomicPtrSlice[ec2.DescribeImagesInput]
-	CalledWithDescribeInstancesInput    AtomicPtrSlice[ec2.DescribeInstancesInput]
 	Instances                           sync.Map
 	LaunchTemplates                     sync.Map
 	InsufficientCapacityPools           atomic.Slice[CapacityPool]
@@ -74,7 +76,6 @@ var DefaultSupportedUsageClasses = aws.StringSlice([]string{"on-demand", "spot"}
 // Reset must be called between tests otherwise tests will pollute
 // each other.
 func (e *EC2API) Reset() {
-	e.DescribeInstancesOutput.Reset()
 	e.DescribeImagesOutput.Reset()
 	e.DescribeLaunchTemplatesOutput.Reset()
 	e.DescribeSubnetsOutput.Reset()
@@ -83,9 +84,10 @@ func (e *EC2API) Reset() {
 	e.DescribeInstanceTypeOfferingsOutput.Reset()
 	e.DescribeAvailabilityZonesOutput.Reset()
 	e.CreateFleetBehavior.Reset()
+	e.TerminateInstancesBehavior.Reset()
+	e.DescribeInstancesBehavior.Reset()
 	e.CalledWithCreateLaunchTemplateInput.Reset()
 	e.CalledWithDescribeImagesInput.Reset()
-	e.CalledWithDescribeInstancesInput.Reset()
 	e.DescribeSpotPriceHistoryInput.Reset()
 	e.DescribeSpotPriceHistoryOutput.Reset()
 	e.Instances.Range(func(k, v any) bool {
@@ -102,6 +104,9 @@ func (e *EC2API) Reset() {
 
 // nolint: gocyclo
 func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFleetInput, _ ...request.Option) (*ec2.CreateFleetOutput, error) {
+	if !e.CreateFleetBehavior.Error.IsNil() || !e.CreateFleetBehavior.Output.IsNil() {
+		return e.CreateFleetBehavior.Invoke(input)
+	}
 	if input.LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName == nil {
 		return nil, fmt.Errorf("missing launch template name")
 	}
@@ -173,6 +178,25 @@ func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFlee
 	return e.CreateFleetBehavior.WithDefault(result).Invoke(input)
 }
 
+func (e *EC2API) TerminateInstancesWithContext(_ context.Context, input *ec2.TerminateInstancesInput, _ ...request.Option) (*ec2.TerminateInstancesOutput, error) {
+	if !e.TerminateInstancesBehavior.Error.IsNil() || !e.TerminateInstancesBehavior.Output.IsNil() {
+		return e.TerminateInstancesBehavior.Invoke(input)
+	}
+	var instanceStateChanges []*ec2.InstanceStateChange
+	for _, id := range input.InstanceIds {
+		instanceID := *id
+		if _, ok := e.Instances.LoadAndDelete(instanceID); ok {
+			instanceStateChanges = append(instanceStateChanges, &ec2.InstanceStateChange{
+				PreviousState: &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning), Code: aws.Int64(16)},
+				CurrentState:  &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameShuttingDown), Code: aws.Int64(32)},
+				InstanceId:    aws.String(instanceID),
+			})
+		}
+	}
+	result := &ec2.TerminateInstancesOutput{TerminatingInstances: instanceStateChanges}
+	return e.TerminateInstancesBehavior.WithDefault(result).Invoke(input)
+}
+
 func (e *EC2API) CreateLaunchTemplateWithContext(_ context.Context, input *ec2.CreateLaunchTemplateInput, _ ...request.Option) (*ec2.CreateLaunchTemplateOutput, error) {
 	if !e.NextError.IsNil() {
 		defer e.NextError.Reset()
@@ -184,24 +208,68 @@ func (e *EC2API) CreateLaunchTemplateWithContext(_ context.Context, input *ec2.C
 	return &ec2.CreateLaunchTemplateOutput{LaunchTemplate: launchTemplate}, nil
 }
 
+func (e *EC2API) CreateTagsWithContext(_ context.Context, input *ec2.CreateTagsInput, _ ...request.Option) (*ec2.CreateTagsOutput, error) {
+	// Update passed in instances with the passed tags
+	for _, id := range input.Resources {
+		raw, ok := e.Instances.Load(aws.StringValue(id))
+		if !ok {
+			return nil, fmt.Errorf("instance with id '%s' does not exist", aws.StringValue(id))
+		}
+		instance := raw.(*ec2.Instance)
+
+		// Upsert any tags that have the same key
+		newTagKeys := sets.New[string](lo.Map(input.Tags, func(t *ec2.Tag, _ int) string { return aws.StringValue(t.Key) })...)
+		instance.Tags = lo.Filter(input.Tags, func(t *ec2.Tag, _ int) bool { return newTagKeys.Has(aws.StringValue(t.Key)) })
+		instance.Tags = append(instance.Tags, input.Tags...)
+	}
+	return e.CreateTagsBehavior.Invoke(input)
+}
+
 func (e *EC2API) DescribeInstancesWithContext(_ context.Context, input *ec2.DescribeInstancesInput, _ ...request.Option) (*ec2.DescribeInstancesOutput, error) {
-	if !e.NextError.IsNil() {
-		defer e.NextError.Reset()
-		return nil, e.NextError.Get()
+	if !e.DescribeInstancesBehavior.Error.IsNil() || !e.DescribeInstancesBehavior.Output.IsNil() {
+		return e.DescribeInstancesBehavior.Invoke(input)
 	}
-	if !e.DescribeInstancesOutput.IsNil() {
-		return e.DescribeInstancesOutput.Clone(), nil
-	}
-	e.CalledWithDescribeInstancesInput.Add(input)
-	instances := []*ec2.Instance{}
+	var instances []*ec2.Instance
 	for _, instanceID := range input.InstanceIds {
 		instance, _ := e.Instances.Load(*instanceID)
+		if instance == nil {
+			continue
+		}
 		instances = append(instances, instance.(*ec2.Instance))
 	}
+	result := &ec2.DescribeInstancesOutput{
+		Reservations: []*ec2.Reservation{{Instances: filterInstances(instances, input.Filters)}},
+	}
+	return e.DescribeInstancesBehavior.WithDefault(result).Invoke(input)
+}
 
-	return &ec2.DescribeInstancesOutput{
-		Reservations: []*ec2.Reservation{{Instances: instances}},
-	}, nil
+func (e *EC2API) DescribeInstancesPagesWithContext(ctx context.Context, input *ec2.DescribeInstancesInput, fn func(*ec2.DescribeInstancesOutput, bool) bool, opts ...request.Option) error {
+	output, err := e.DescribeInstancesWithContext(ctx, input, opts...)
+	if err != nil {
+		return err
+	}
+	fn(output, false)
+	return nil
+}
+
+func filterInstances(instances []*ec2.Instance, filters []*ec2.Filter) []*ec2.Instance {
+	var ret []*ec2.Instance
+	for _, instance := range instances {
+		passesFilter := true
+		for _, filter := range filters {
+			switch aws.StringValue(filter.Name) {
+			case "instance-state-name":
+				if !sets.New(aws.StringValueSlice(filter.Values)...).Has(aws.StringValue(instance.State.Name)) {
+					passesFilter = false
+					break
+				}
+			}
+		}
+		if passesFilter {
+			ret = append(ret, instance)
+		}
+	}
+	return ret
 }
 
 func (e *EC2API) DescribeImagesWithContext(_ context.Context, input *ec2.DescribeImagesInput, _ ...request.Option) (*ec2.DescribeImagesOutput, error) {

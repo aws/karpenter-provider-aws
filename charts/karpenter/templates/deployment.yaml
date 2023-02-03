@@ -26,10 +26,11 @@ spec:
       {{- with .Values.podLabels }}
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.podAnnotations }}
       annotations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- with .Values.podAnnotations }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+        checksum/settings: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
@@ -114,11 +115,17 @@ spec:
             {{- toYaml . | nindent 12 }}
           {{- end }}
         {{- with .Values.controller.sidecarContainer }}
-          {{- with .Values.controller.extraVolumeMounts }}
-          volumeMounts:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
+        {{- toYaml . | nindent 8 }}
         {{- end }}
+        {{- if and (.Values.controller.sidecarContainer) (or .Values.controller.extraVolumeMounts .Values.controller.sidecarVolumeMounts) }}
+          volumeMounts:
+          {{- with .Values.controller.extraVolumeMounts }}
+          {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.controller.sidecarVolumeMounts }}
+          {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

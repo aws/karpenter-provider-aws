@@ -67,6 +67,10 @@ spec:
                     description: ContainerRuntime is the container runtime to be used
                       with your worker nodes.
                     type: string
+                  cpuCFSQuota:
+                    description: CPUCFSQuota enables CPU CFS quota enforcement for
+                      containers that specify CPU limits.
+                    type: boolean
                   evictionHard:
                     additionalProperties:
                       type: string
@@ -91,6 +95,27 @@ spec:
                     description: EvictionSoftGracePeriod is the map of signal names
                       to quantities that define grace periods for each eviction signal
                     type: object
+                  imageGCHighThresholdPercent:
+                    description: ImageGCHighThresholdPercent is the percent of disk
+                      usage after which image garbage collection is always run. The
+                      percent is calculated by dividing this field value by 100, so
+                      this field must be between 0 and 100, inclusive. When specified,
+                      the value must be greater than ImageGCLowThresholdPercent.
+                    format: int32
+                    maximum: 100
+                    minimum: 0
+                    type: integer
+                  imageGCLowThresholdPercent:
+                    description: ImageGCLowThresholdPercent is the percent of disk
+                      usage before which image garbage collection is never run. Lowest
+                      disk usage to garbage collect to. The percent is calculated
+                      by dividing this field value by 100, so the field value must
+                      be between 0 and 100, inclusive. When specified, the value must
+                      be less than imageGCHighThresholdPercent
+                    format: int32
+                    maximum: 100
+                    minimum: 0
+                    type: integer
                   kubeReserved:
                     additionalProperties:
                       anyOf:

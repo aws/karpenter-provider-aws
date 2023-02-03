@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package subnet
+package subnet_test
 
 import (
 	"context"
@@ -21,7 +21,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/patrickmn/go-cache"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -30,19 +29,18 @@ import (
 	. "knative.dev/pkg/logging/testing"
 
 	"github.com/aws/karpenter/pkg/apis"
-	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
+	awssettings "github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	awscontext "github.com/aws/karpenter/pkg/context"
+	"github.com/aws/karpenter/pkg/providers/subnet"
 	"github.com/aws/karpenter/pkg/test"
 
-	"github.com/aws/karpenter-core/pkg/apis/config/settings"
+	"github.com/aws/karpenter-core/pkg/apis/settings"
 	corev1alpha5 "github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/operator/injection"
 	"github.com/aws/karpenter-core/pkg/operator/options"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
-	"github.com/aws/karpenter-core/pkg/utils/pretty"
 	"github.com/aws/karpenter/pkg/fake"
 )
 
@@ -50,12 +48,10 @@ var ctx context.Context
 var stop context.CancelFunc
 var opts options.Options
 var env *coretest.Environment
-var settingsStore coretest.SettingsStore
 var fakeEC2API *fake.EC2API
 var provisioner *corev1alpha5.Provisioner
 var nodeTemplate *v1alpha1.AWSNodeTemplate
-var subnetCache *cache.Cache
-var subnetProvider *Provider
+var subnetProvider *subnet.Provider
 
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -65,20 +61,10 @@ func TestAWS(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
-	settingsStore = coretest.SettingsStore{
-		settings.ContextKey:    coretest.Settings(),
-		awssettings.ContextKey: test.Settings(),
-	}
-	ctx = settingsStore.InjectSettings(ctx)
 	ctx, stop = context.WithCancel(ctx)
 
 	fakeEC2API = &fake.EC2API{}
-	subnetCache = cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval)
-	subnetProvider = &Provider{
-		ec2api: fakeEC2API,
-		cache:  subnetCache,
-		cm:     pretty.NewChangeMonitor(),
-	}
+	subnetProvider = subnet.NewProvider(fakeEC2API)
 })
 
 var _ = AfterSuite(func() {
@@ -88,11 +74,8 @@ var _ = AfterSuite(func() {
 
 var _ = BeforeEach(func() {
 	ctx = injection.WithOptions(ctx, opts)
-	settingsStore = coretest.SettingsStore{
-		settings.ContextKey:    coretest.Settings(),
-		awssettings.ContextKey: test.Settings(),
-	}
-	ctx = settingsStore.InjectSettings(ctx)
+	ctx = settings.ToContext(ctx, coretest.Settings())
+	ctx = awssettings.ToContext(ctx, test.Settings())
 	nodeTemplate = &v1alpha1.AWSNodeTemplate{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: coretest.RandomName(),
@@ -135,7 +118,7 @@ var _ = Describe("Security Group Provider", func() {
 		nodeTemplate.Spec.SubnetSelector = map[string]string{"aws-ids": "subnet-test1"}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 		resolvedSubnetProvider, err := subnetProvider.List(ctx, nodeTemplate)
-		resolvedSubnet := prettySubnets(resolvedSubnetProvider)
+		resolvedSubnet := subnet.Pretty(resolvedSubnetProvider)
 		Expect(err).To(BeNil())
 		Expect(len(resolvedSubnet)).To(Equal(1))
 		Expect(resolvedSubnet).To(ConsistOf(
@@ -146,7 +129,7 @@ var _ = Describe("Security Group Provider", func() {
 		nodeTemplate.Spec.SubnetSelector = map[string]string{"aws-ids": "subnet-test1,subnet-test2"}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 		resolvedSubnetProvider, err := subnetProvider.List(ctx, nodeTemplate)
-		resolvedSubnet := prettySubnets(resolvedSubnetProvider)
+		resolvedSubnet := subnet.Pretty(resolvedSubnetProvider)
 		Expect(err).To(BeNil())
 		Expect(len(resolvedSubnet)).To(Equal(2))
 		Expect(resolvedSubnet).To(ConsistOf(
@@ -158,7 +141,7 @@ var _ = Describe("Security Group Provider", func() {
 		nodeTemplate.Spec.SubnetSelector = map[string]string{"aws-ids": "subnet-test1,subnet-test2", "foo": "bar"}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 		resolvedSubnetProvider, err := subnetProvider.List(ctx, nodeTemplate)
-		resolvedSubnet := prettySubnets(resolvedSubnetProvider)
+		resolvedSubnet := subnet.Pretty(resolvedSubnetProvider)
 		Expect(err).To(BeNil())
 		Expect(len(resolvedSubnet)).To(Equal(2))
 		Expect(resolvedSubnet).To(ConsistOf(
@@ -170,7 +153,7 @@ var _ = Describe("Security Group Provider", func() {
 		nodeTemplate.Spec.SubnetSelector = map[string]string{"Name": "test-subnet-1"}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 		resolvedSubnetProvider, err := subnetProvider.List(ctx, nodeTemplate)
-		resolvedSubnet := prettySubnets(resolvedSubnetProvider)
+		resolvedSubnet := subnet.Pretty(resolvedSubnetProvider)
 		Expect(err).To(BeNil())
 		Expect(len(resolvedSubnet)).To(Equal(1))
 		Expect(resolvedSubnet).To(ConsistOf(
@@ -181,7 +164,7 @@ var _ = Describe("Security Group Provider", func() {
 		nodeTemplate.Spec.SubnetSelector = map[string]string{"Name": "test-subnet-1,test-subnet-2"}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 		resolvedSubnetProvider, err := subnetProvider.List(ctx, nodeTemplate)
-		resolvedSubnet := prettySubnets(resolvedSubnetProvider)
+		resolvedSubnet := subnet.Pretty(resolvedSubnetProvider)
 		Expect(err).To(BeNil())
 		Expect(len(resolvedSubnet)).To(Equal(2))
 		Expect(resolvedSubnet).To(ConsistOf(
@@ -193,7 +176,7 @@ var _ = Describe("Security Group Provider", func() {
 		nodeTemplate.Spec.SubnetSelector = map[string]string{"aws-ids": "subnet-test2", "foo": "bar"}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 		resolvedSubnetProvider, err := subnetProvider.List(ctx, nodeTemplate)
-		resolvedSubnet := prettySubnets(resolvedSubnetProvider)
+		resolvedSubnet := subnet.Pretty(resolvedSubnetProvider)
 		Expect(err).To(BeNil())
 		Expect(len(resolvedSubnet)).To(Equal(1))
 		Expect(resolvedSubnet).To(ConsistOf(
