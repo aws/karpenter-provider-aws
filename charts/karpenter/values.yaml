@@ -21,7 +21,7 @@ serviceAccount:
   # -- Additional annotations for the ServiceAccount.
   annotations: {}
 # -- Specifies additional rules for the core ClusterRole.
-additionalRulesForClusterRole: []
+additionalClusterRoleRules: []
 serviceMonitor:
   # -- Specifies whether a ServiceMonitor should be created.
   enabled: false

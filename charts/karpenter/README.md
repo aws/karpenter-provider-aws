@@ -30,7 +30,7 @@ helm upgrade --install --namespace karpenter --create-namespace \
 |-----|------|---------|-------------|
 | additionalAnnotations | object | `{}` | Additional annotations to add into metadata. |
 | additionalLabels | object | `{}` | Additional labels to add into metadata. |
-| additionalRulesForClusterRole | object | `[]` | Specifies additional rules for the core ClusterRole. |
+| additionalClusterRoleRules | object | `[]` | Specifies additional rules for the core ClusterRole. |
 | affinity | object | `{"nodeAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":{"nodeSelectorTerms":[{"matchExpressions":[{"key":"karpenter.sh/provisioner-name","operator":"DoesNotExist"}]}]}}}` | Affinity rules for scheduling the pod. |
 | controller.env | list | `[]` | Additional environment variables for the controller pod. |
 | controller.errorOutputPaths | list | `["stderr"]` | Controller errorOutputPaths - default to stderr only |
