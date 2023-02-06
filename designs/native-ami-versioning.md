@@ -27,7 +27,7 @@ While this isn’t a difficult process, it isn't viable to require users to jump
 
 ### 🔑 Introduce a minimumAgeDays field in the amiSelector.
 
-While this hasn’t been asked for explicitly, bake time is a common concept in phasing in new changes. Whether a user has a mandated bake time for production or developers have an estimated time to validate workloads in before rolling out to prod, bake time provides a sliding window of leeway. Users can be cautious and set a high value, or leave out the setting for no bake time requirements.
+While this hasn’t been asked for explicitly, bake time is a common concept in phasing in new changes. Whether a user has a mandated bake time for production or developers have an estimated time to validate workloads before rolling out to prod, bake time provides a sliding window of leeway. Users can be cautious and set a high value, or leave out the setting for no bake time requirements.
 
 ```
 apiVersion: karpenter.k8s.aws/v1alpha1
