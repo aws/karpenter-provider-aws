@@ -2,7 +2,7 @@
 
 Karpenter uses the latest EKS Optimized AMI releases for Bottlerocket, Amazon Linux 2, and Ubuntu as the defaults for AMI Requirements. With [Drift](https://karpenter.sh/preview/concepts/deprovisioning/#drift) implemented, when a new EKS Optimized AMI is released, users who have enabled drift could see the newly released AMIs rolled out to their fleet without warning.
 
-[EKS Optimized AMI Releases](#eks-optimized-ami-releases) are irregular and versioned differently. Without validation, irregular release cadences could introduce unwanted AMIs in production. This doc proposes two functional improvements to AMI selection logic to ease customer pain.
+[EKS Optimized AMI Releases](#eks-optimized-ami-releases) are irregular and versioned differently. Without validation, [irregular release cadences](#release-cadences) could introduce unwanted AMIs in production. This doc proposes two functional improvements to AMI selection logic to ease customer pain.
 
 ## What could happen when a new EKS Optimized AMI is released?
 
@@ -25,7 +25,7 @@ While this isn’t a difficult process, it isn't viable to require users to jump
 
 ## Bake Time
 
-### 🔑 Introduce a minimumAgeDays field in the amiSelector.
+### 🔑 Introduce a minimumAgeDuration field in the amiSelector.
 
 While this hasn’t been asked for explicitly, bake time is a common concept in phasing in new changes. Whether a user has a mandated bake time for production or developers have an estimated time to validate workloads before rolling out to prod, bake time provides a sliding window of leeway. Users can be cautious and set a high value, or leave out the setting for no bake time requirements.
 
@@ -36,15 +36,15 @@ metadata:
   name: default
 spec:
   amiSelector:
-    minimumAgeDuration: 10
+    minimumAgeDuration: 10d  // metav1.Duration
 ```
 
 ### How `minimumAgeDuration` interacts with the other methods of AMI selection
 
 #### *EKS Optimized AMI (no other AMI Selector field)*
 
-1. The newest EKS Optimized AMI that fits the `minimumAgeDuration` selector will be chosen.
-2. An AMI will be considered eligible at the time and day that it was created as shown in aws ec2 describe-images.
+1. Karpenter will compare `minimumAgeDuration` to when the SSM Parameter was last modified instead of using the Image Creation Date that's returned in `aws ec2 describe-images`. This is because the SSM Parameter is updated independently of image creation.
+2. The newest EKS Optimized AMI that fits the `minimumAgeDuration` selector will be chosen.
 
 #### *Arbitrary tags*
 
@@ -61,7 +61,7 @@ Karpenter could include a drift TTL in the Provisioner. Nodes would have to be d
 
 ### 🔑 Suggestion
 
-Implement Bake Time with `minimumAgeDuration`. Users can take advantage of it with EKS Optimized AMIs generally to follow requirements on AMI bake time. This applies only to AMIs, rather than a Drift TTL which would apply broadly to every provisioning requirement. Users can rely on `minimumAgeDruation` to use it as a safeguard against unexpected AMI upgrades, creating more confidence in relying on Karpenter to make the right decisions.
+Implement Bake Time with `minimumAgeDuration`. Users can take advantage of it with EKS Optimized AMIs generally to follow requirements on AMI bake time. This applies only to AMIs, rather than a Drift TTL which would apply broadly to every provisioning requirement. Users can rely on `minimumAgeDuration` to use it as a safeguard against unexpected AMI upgrades, creating more confidence in relying on Karpenter to make the right decisions.
 
 ## Release Pinning
 
@@ -104,7 +104,7 @@ spec:
 
 ### 🔑 Suggestion
 
-Implement only Option 1. This keeps configuration within the amiFamily field, does not add new fields to be managed, and works well for users who are aware of EKS Optimized semantics, which is the audience for this feature.
+Implement only Option 1. This keeps configuration within the amiFamily field, does not add new fields to be managed, and works well for users who are aware of EKS Optimized semantics, which is the audience for this feature. Additionally, since this doesn't add another API field, this can be easily moved to Option 2 or another option if that's a better place in the future.
 
 ## Appendix
 
