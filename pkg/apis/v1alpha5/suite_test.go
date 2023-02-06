@@ -129,6 +129,10 @@ var _ = Describe("Provisioner", func() {
 		})
 		It("should succeed if provider undefined", func() {
 			provisioner.Spec.Provider = nil
+			provisioner.Spec.ProviderRef = &v1alpha5.ProviderRef{
+				Kind: "AWSNodeTemplate",
+				Name: "default",
+			}
 			Expect(provisioner.Validate(ctx)).To(Succeed())
 		})
 

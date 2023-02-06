@@ -28,6 +28,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 	clock "k8s.io/utils/clock/testing"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -35,6 +36,7 @@ import (
 
 	. "knative.dev/pkg/logging/testing"
 
+	"github.com/aws/karpenter-core/pkg/events"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	awscache "github.com/aws/karpenter/pkg/cache"
@@ -85,7 +87,7 @@ var _ = BeforeSuite(func() {
 			RESTConfig:          env.Config,
 			KubernetesInterface: env.KubernetesInterface,
 			KubeClient:          env.Client,
-			EventRecorder:       coretest.NewEventRecorder(),
+			EventRecorder:       events.NewRecorder(&record.FakeRecorder{}),
 			Clock:               &clock.FakeClock{},
 			StartAsync:          nil,
 		},

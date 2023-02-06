@@ -48,8 +48,8 @@ github.com/avast/retry-go v3.0.0+incompatible h1:4SOWQ7Qs+oroOTQOYnAHqelpCO0biHS
 github.com/avast/retry-go v3.0.0+incompatible/go.mod h1:XtSnn+n/sHqQIpZ10K1qAevBhOOCWBLXXy3hyiqqBrY=
 github.com/aws/amazon-ec2-spot-interrupter v0.0.9 h1:2yRK7f29tPhrkFBn1lg6QZNjY3iE1ovsjom99OnBCDw=
 github.com/aws/amazon-ec2-spot-interrupter v0.0.9/go.mod h1:TwqwmD9RUPwjjcyklxGlzxIxbA6oRfDn6lQf0Muu8/A=
-github.com/aws/aws-sdk-go v1.44.189 h1:9PBrjndH1uL5AN8818qI3duhQ4hgkMuLvqkJlg9MRyk=
-github.com/aws/aws-sdk-go v1.44.189/go.mod h1:aVsgQcEevwlmQ7qHE9I3h+dtQgpqhFB+i8Phjh7fkwI=
+github.com/aws/aws-sdk-go v1.44.191 h1:GnbkalCx/AgobaorDMFCa248acmk+91+aHBQOk7ljzU=
+github.com/aws/aws-sdk-go v1.44.191/go.mod h1:aVsgQcEevwlmQ7qHE9I3h+dtQgpqhFB+i8Phjh7fkwI=
 github.com/aws/aws-sdk-go-v2 v1.16.2/go.mod h1:ytwTPBG6fXTZLxxeeCCWj2/EMYp/xDUgX+OET6TLNNU=
 github.com/aws/aws-sdk-go-v2 v1.16.3/go.mod h1:ytwTPBG6fXTZLxxeeCCWj2/EMYp/xDUgX+OET6TLNNU=
 github.com/aws/aws-sdk-go-v2 v1.17.3 h1:shN7NlnVzvDUgPQ+1rLMSxY8OWRNDRYtiqe0p/PgrhY=
@@ -85,8 +85,8 @@ github.com/aws/aws-sdk-go-v2/service/ssooidc v1.14.0 h1:Jfly6mRxk2ZOSlbCvZfKNS7T
 github.com/aws/aws-sdk-go-v2/service/ssooidc v1.14.0/go.mod h1:TZSH7xLO7+phDtViY/KUp9WGCJMQkLJ/VpgkTFd5gh8=
 github.com/aws/aws-sdk-go-v2/service/sts v1.18.2 h1:J/4wIaGInCEYCGhTSruxCxeoA5cy91a+JT7cHFKFSHQ=
 github.com/aws/aws-sdk-go-v2/service/sts v1.18.2/go.mod h1:+lGbb3+1ugwKrNTWcf2RT05Xmp543B06zDFTwiTLp7I=
-github.com/aws/karpenter-core v0.23.1-0.20230131200554-558e8c538723 h1:Za+AfCA1ioffVGubRscWCVhyof1VdQjF5/i9MZguKbs=
-github.com/aws/karpenter-core v0.23.1-0.20230131200554-558e8c538723/go.mod h1:WJQJrJR0uxiCxZPD8ooSA8AvY/39pDotFaVFod0dV0g=
+github.com/aws/karpenter-core v0.23.1-0.20230203193516-586061d3d4fa h1:1tZ0lr7v9YVjC86W6OuZaL+oL439JA9DuAamy8NRDWM=
+github.com/aws/karpenter-core v0.23.1-0.20230203193516-586061d3d4fa/go.mod h1:VZZ9DELlyxUB32nYtilftxadoGv5D1/0LxoZjtBecYI=
 github.com/aws/smithy-go v1.11.2/go.mod h1:3xHYmszWVx2c0kIwQeEVf9uSm4fYZt67FBJnwub1bgM=
 github.com/aws/smithy-go v1.13.5 h1:hgz0X/DX0dGqTYpGALqXJoRKRj5oQ7150i5FdTePzO8=
 github.com/aws/smithy-go v1.13.5/go.mod h1:Tg+OJXh4MB2R/uN61Ko2f6hTZwB/ZYGOtib8J3gBHzA=
