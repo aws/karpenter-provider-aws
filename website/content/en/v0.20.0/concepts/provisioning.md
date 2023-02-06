@@ -51,6 +51,10 @@ spec:
   labels:
     billing-team: my-team
 
+  # Annotations are arbitrary key-values that are applied to all nodes
+  annotations:
+    example.com/owner: "my-team"
+
   # Requirements that constrain the parameters of provisioned nodes.
   # These requirements are combined with pod.spec.affinity.nodeAffinity rules.
   # Operators { In, NotIn } are supported to enable including or excluding values
