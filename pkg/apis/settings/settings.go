@@ -53,7 +53,7 @@ var defaultSettings = &Settings{
 // +k8s:deepcopy-gen=true
 type Settings struct {
 	ClusterName                string `validate:"required"`
-	ClusterEndpoint            string `validate:"required"`
+	ClusterEndpoint            string
 	DefaultInstanceProfile     string
 	EnablePodENI               bool
 	EnableENILimitedPodDensity bool
@@ -106,11 +106,13 @@ func (s Settings) Validate() error {
 }
 
 func (s Settings) validateEndpoint() error {
-	endpoint, err := url.Parse(s.ClusterEndpoint)
-	// url.Parse() will accept a lot of input without error; make
-	// sure it's a real URL
-	if err != nil || !endpoint.IsAbs() || endpoint.Hostname() == "" {
-		return fmt.Errorf("\"%s\" not a valid clusterEndpoint URL", s.ClusterEndpoint)
+	if(s.ClusterEndpoint != "") {
+		endpoint, err := url.Parse(s.ClusterEndpoint)
+		// url.Parse() will accept a lot of input without error; make
+		// sure it's a real URL
+		if err != nil || !endpoint.IsAbs() || endpoint.Hostname() == "" {
+			return fmt.Errorf("\"%s\" not a valid clusterEndpoint URL", s.ClusterEndpoint)
+		}
 	}
 	return nil
 }

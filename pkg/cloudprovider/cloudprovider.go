@@ -98,6 +98,7 @@ func New(ctx awscontext.Context) *CloudProvider {
 			NewLaunchTemplateProvider(
 				ctx,
 				ctx.EC2API,
+				ctx.EKSAPI,
 				amiResolver,
 				ctx.SecurityGroupProvider,
 				lo.Must(getCABundle(ctx.RESTConfig)),

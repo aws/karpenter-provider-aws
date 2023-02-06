@@ -28,6 +28,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go/service/eks"
+	"github.com/aws/aws-sdk-go/service/eks/eksiface"
 	"github.com/samber/lo"
 	"knative.dev/pkg/logging"
 
@@ -46,6 +48,7 @@ type Context struct {
 	Session                   *session.Session
 	UnavailableOfferingsCache *cache.UnavailableOfferings
 	EC2API                    ec2iface.EC2API
+	EKSAPI                    eksiface.EKSAPI
 	SubnetProvider            *subnet.Provider
 	SecurityGroupProvider     *securitygroup.Provider
 }
@@ -64,6 +67,7 @@ func NewOrDie(ctx cloudprovider.Context) Context {
 		*sess.Config.Region = lo.Must(region, err, "failed to get region from metadata server")
 	}
 	ec2api := ec2.New(sess)
+	eksapi := eks.New(sess)
 	if err := checkEC2Connectivity(ctx, ec2api); err != nil {
 		logging.FromContext(ctx).Fatalf("Checking EC2 API connectivity, %s", err)
 	}
@@ -75,6 +79,7 @@ func NewOrDie(ctx cloudprovider.Context) Context {
 		Session:                   sess,
 		UnavailableOfferingsCache: cache.NewUnavailableOfferings(),
 		EC2API:                    ec2api,
+		EKSAPI:                    eksapi,
 		SubnetProvider:            subnetProvider,
 		SecurityGroupProvider:     securityGroupProvider,
 	}
