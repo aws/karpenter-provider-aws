@@ -1,6 +1,6 @@
 # Native AMI Versioning
 
-Karpenter uses the latest EKS Optimized AMI releases as defaults in their AMI Requirements. With [Drift](https://karpenter.sh/preview/concepts/deprovisioning/#drift) implemented, when a new EKS Optimized AMI is released users who have enabled drift could see their fleet rolled out to the newly released AMI without warning.
+Karpenter uses the latest EKS Optimized AMI releases for Bottlerocket, Amazon Linux 2, and Ubuntu as the defaults for AMI Requirements. With [Drift](https://karpenter.sh/preview/concepts/deprovisioning/#drift) implemented, when a new EKS Optimized AMI is released, users who have enabled drift could see the newly released AMIs rolled out to their fleet without warning.
 
 [EKS Optimized AMI Releases](#eks-optimized-ami-releases) are irregular and versioned differently. Without validation, irregular release cadences could introduce unwanted AMIs in production. This doc proposes two functional improvements to AMI selection logic to ease customer pain.
 
