@@ -160,6 +160,7 @@ func (p *LaunchTemplateProvider) createAmiOptions(ctx context.Context, nodeTempl
 			return nil, err
 		}
 		clusterEndpoint = *clusters.Cluster.Endpoint
+		logging.FromContext(ctx).Debugf("discovered cluster endpoint %s", clusterEndpoint)
 	}
 
 	return &amifamily.Options{
