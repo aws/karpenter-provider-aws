@@ -106,7 +106,7 @@ func (s Settings) Validate() error {
 }
 
 func (s Settings) validateEndpoint() error {
-	if(s.ClusterEndpoint != "") {
+	if s.ClusterEndpoint != "" {
 		endpoint, err := url.Parse(s.ClusterEndpoint)
 		// url.Parse() will accept a lot of input without error; make
 		// sure it's a real URL

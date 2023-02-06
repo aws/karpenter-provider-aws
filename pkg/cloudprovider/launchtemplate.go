@@ -55,8 +55,8 @@ const (
 
 type LaunchTemplateProvider struct {
 	sync.Mutex
-	ec2api                ec2iface.EC2API
-	eksApi				  eksiface.EKSAPI
+	ec2API                ec2iface.EC2API
+	eksAPI                eksiface.EKSAPI
 	amiFamily             *amifamily.Resolver
 	securityGroupProvider *securitygroup.Provider
 	cache                 *cache.Cache
@@ -67,8 +67,8 @@ type LaunchTemplateProvider struct {
 
 func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, eksapi eksiface.EKSAPI, amiFamily *amifamily.Resolver, securityGroupProvider *securitygroup.Provider, caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP) *LaunchTemplateProvider {
 	l := &LaunchTemplateProvider{
-		ec2api:                ec2api,
-		eksApi:                eksapi,
+		ec2API:                ec2api,
+		eksAPI:                eksapi,
 		amiFamily:             amiFamily,
 		securityGroupProvider: securityGroupProvider,
 		cache:                 cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
@@ -153,7 +153,7 @@ func (p *LaunchTemplateProvider) createAmiOptions(ctx context.Context, nodeTempl
 
 	clusterEndpoint := awssettings.FromContext(ctx).ClusterEndpoint
 	if clusterEndpoint == "" {
-		clusters, err := p.eksApi.DescribeCluster(&eks.DescribeClusterInput{
+		clusters, err := p.eksAPI.DescribeCluster(&eks.DescribeClusterInput{
 			Name: aws.String(awssettings.FromContext(ctx).ClusterName),
 		})
 		if err != nil {
@@ -185,7 +185,7 @@ func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, optio
 		return launchTemplate.(*ec2.LaunchTemplate), nil
 	}
 	// Attempt to find an existing LT.
-	output, err := p.ec2api.DescribeLaunchTemplatesWithContext(ctx, &ec2.DescribeLaunchTemplatesInput{
+	output, err := p.ec2API.DescribeLaunchTemplatesWithContext(ctx, &ec2.DescribeLaunchTemplatesInput{
 		LaunchTemplateNames: []*string{aws.String(name)},
 	})
 	// Create LT if one doesn't exist
@@ -213,7 +213,7 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, optio
 	if err != nil {
 		return nil, err
 	}
-	output, err := p.ec2api.CreateLaunchTemplateWithContext(ctx, &ec2.CreateLaunchTemplateInput{
+	output, err := p.ec2API.CreateLaunchTemplateWithContext(ctx, &ec2.CreateLaunchTemplateInput{
 		LaunchTemplateName: aws.String(launchTemplateName(options)),
 		LaunchTemplateData: &ec2.RequestLaunchTemplateData{
 			BlockDeviceMappings: p.blockDeviceMappings(options.BlockDeviceMappings),
@@ -289,7 +289,7 @@ func (p *LaunchTemplateProvider) hydrateCache(ctx context.Context) {
 	clusterName := awssettings.FromContext(ctx).ClusterName
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("tag-key", karpenterManagedTagKey, "tag-value", clusterName))
 	logging.FromContext(ctx).Debugf("hydrating the launch template cache")
-	if err := p.ec2api.DescribeLaunchTemplatesPagesWithContext(ctx, &ec2.DescribeLaunchTemplatesInput{
+	if err := p.ec2API.DescribeLaunchTemplatesPagesWithContext(ctx, &ec2.DescribeLaunchTemplatesInput{
 		Filters: []*ec2.Filter{{Name: aws.String(fmt.Sprintf("tag:%s", karpenterManagedTagKey)), Values: []*string{aws.String(clusterName)}}},
 	}, func(output *ec2.DescribeLaunchTemplatesOutput, _ bool) bool {
 		for _, lt := range output.LaunchTemplates {
@@ -310,7 +310,7 @@ func (p *LaunchTemplateProvider) cachedEvictedFunc(ctx context.Context) func(str
 			return
 		}
 		launchTemplate := lt.(*ec2.LaunchTemplate)
-		if _, err := p.ec2api.DeleteLaunchTemplate(&ec2.DeleteLaunchTemplateInput{LaunchTemplateId: launchTemplate.LaunchTemplateId}); err != nil {
+		if _, err := p.ec2API.DeleteLaunchTemplate(&ec2.DeleteLaunchTemplateInput{LaunchTemplateId: launchTemplate.LaunchTemplateId}); err != nil {
 			logging.FromContext(ctx).Errorf("Unable to delete launch template, %v", err)
 			return
 		}

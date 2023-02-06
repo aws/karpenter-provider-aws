@@ -132,7 +132,7 @@ var _ = BeforeSuite(func() {
 	}
 	securityGroupProvider = securitygroup.NewProvider(fakeEC2API)
 	launchTemplateProvider = &LaunchTemplateProvider{
-		ec2api:                fakeEC2API,
+		ec2API:                fakeEC2API,
 		amiFamily:             amifamily.New(env.Client, amiProvider),
 		securityGroupProvider: securityGroupProvider,
 		cache:                 launchTemplateCache,
