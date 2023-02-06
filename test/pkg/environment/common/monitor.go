@@ -88,15 +88,6 @@ func (m *Monitor) RestartCount() map[string]int {
 	return restarts
 }
 
-// GetNodes returns the most recent recording of nodes
-func (m *Monitor) GetNodes() []v1.Node {
-	var nodes []v1.Node
-	for _, n := range m.poll().nodes {
-		nodes = append(nodes, *n)
-	}
-	return nodes
-}
-
 // NodeCount returns the current number of nodes
 func (m *Monitor) NodeCount() int {
 	return len(m.poll().nodes)

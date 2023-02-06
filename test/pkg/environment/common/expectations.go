@@ -19,7 +19,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
-	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2" //nolint:revive,stylecheck
@@ -139,26 +138,28 @@ func (env *Environment) EventuallyExpectHealthy(pods ...*v1.Pod) {
 	}
 }
 
-func (env *Environment) ExpectKarpenterPodsDeletedWithOffset(offset int) {
+func (env *Environment) ExpectKarpenterPodsWithOffset(offset int) []*v1.Pod {
 	podList := &v1.PodList{}
 	ExpectWithOffset(offset+1, env.Client.List(env.Context, podList, client.MatchingLabels{
 		"app.kubernetes.io/instance": "karpenter",
 	})).To(Succeed())
-	env.ExpectDeletedWithOffset(offset+1, lo.Map(podList.Items, func(p v1.Pod, _ int) client.Object {
-		return &p
+	return lo.Map(podList.Items, func(p v1.Pod, _ int) *v1.Pod { return &p })
+}
+
+func (env *Environment) ExpectKarpenterPodsDeletedWithOffset(offset int) {
+	pods := env.ExpectKarpenterPodsWithOffset(offset + 1)
+	env.ExpectDeletedWithOffset(offset+1, lo.Map(pods, func(p *v1.Pod, _ int) client.Object {
+		return p
 	})...)
-	env.EventuallyExpectNotFoundWithOffset(1, lo.Map(podList.Items, func(p v1.Pod, _ int) client.Object {
-		return &p
+	env.EventuallyExpectNotFoundWithOffset(1, lo.Map(pods, func(p *v1.Pod, _ int) client.Object {
+		return p
 	})...)
 }
 
 func (env *Environment) EventuallyExpectKarpenterPodsHealthyWithOffset(offset int) {
 	EventuallyWithOffset(offset+1, func(g Gomega) {
-		podList := &v1.PodList{}
-		g.Expect(env.Client.List(env.Context, podList, client.MatchingLabels{
-			"app.kubernetes.io/instance": "karpenter",
-		})).To(Succeed())
-		for _, pod := range podList.Items {
+		pods := env.ExpectKarpenterPodsWithOffset(offset + 1)
+		for _, pod := range pods {
 			g.Expect(pod.Status.Conditions).To(ContainElement(And(
 				HaveField("Type", Equal(v1.PodReady)),
 				HaveField("Status", Equal(v1.ConditionTrue)),
@@ -260,33 +261,11 @@ func (env *Environment) GetNode(nodeName string) v1.Node {
 	return node
 }
 
-func (env *Environment) expectNoCrashes() {
-	crashed := false
-	var crashInfo strings.Builder
-	for name, restartCount := range env.Monitor.RestartCount() {
-		if restartCount > 0 {
-			crashed = true
-			env.printControllerLogs(&v1.PodLogOptions{Container: strings.Split(name, "/")[1], Previous: true})
-			if crashInfo.Len() > 0 {
-				fmt.Fprintf(&crashInfo, ", ")
-			}
-			fmt.Fprintf(&crashInfo, "%s restart count = %d", name, restartCount)
-		}
-	}
-
-	// print any events in the karpenter namespace which may indicate liveness probes failing, etc.
-	var events v1.EventList
-	ExpectWithOffset(1, env.Client.List(env.Context, &events)).To(Succeed())
-	for _, ev := range events.Items {
-		if ev.InvolvedObject.Namespace == "karpenter" {
-			if crashInfo.Len() > 0 {
-				fmt.Fprintf(&crashInfo, ", ")
-			}
-			fmt.Fprintf(&crashInfo, "<%s/%s %s %s>", ev.InvolvedObject.Namespace, ev.InvolvedObject.Name, ev.Reason, ev.Message)
-		}
-	}
-
-	ExpectWithOffset(1, crashed).To(BeFalse(), fmt.Sprintf("expected karpenter containers to not crash: %s", crashInfo.String()))
+func (env *Environment) ExpectNoCrashes() {
+	_, crashed := lo.Find(lo.Values(env.Monitor.RestartCount()), func(restartCount int) bool {
+		return restartCount > 0
+	})
+	ExpectWithOffset(1, crashed).To(BeFalse(), "expected karpenter containers to not crash")
 }
 
 var (
@@ -299,20 +278,25 @@ func (env *Environment) printControllerLogs(options *v1.PodLogOptions) {
 		options.SinceTime = lastLogged.DeepCopy()
 		lastLogged = metav1.Now()
 	}
-	lease, err := env.KubeClient.CoordinationV1().Leases("karpenter").Get(env.Context, "karpenter-leader-election", metav1.GetOptions{})
-	Expect(err).ToNot(HaveOccurred())
-	Expect(lease.Spec.HolderIdentity).ToNot(BeNil(), "lease has no holder")
-	nameid := strings.Split(*lease.Spec.HolderIdentity, "_")
-	Expect(nameid).To(HaveLen(2), fmt.Sprintf("invalid lease HolderIdentity, %s", *lease.Spec.HolderIdentity))
-	stream, err := env.KubeClient.CoreV1().Pods("karpenter").GetLogs(nameid[0], options).Stream(env.Context)
-	if err != nil {
-		logging.FromContext(env.Context).Errorf("fetching controller logs: %s", err)
-		return
+	pods := env.ExpectKarpenterPodsWithOffset(1)
+	for _, pod := range pods {
+		temp := options.DeepCopy() // local version of the log options
+
+		fmt.Printf("------- pod/%s -------\n", pod.Name)
+		if pod.Status.ContainerStatuses[0].RestartCount > 0 {
+			fmt.Printf("[PREVIOUS CONTAINER LOGS]\n")
+			temp.Previous = true
+		}
+		stream, err := env.KubeClient.CoreV1().Pods("karpenter").GetLogs(pod.Name, temp).Stream(env.Context)
+		if err != nil {
+			logging.FromContext(env.Context).Errorf("fetching controller logs: %s", err)
+			return
+		}
+		log := &bytes.Buffer{}
+		_, err = io.Copy(log, stream)
+		Expect(err).ToNot(HaveOccurred())
+		logging.FromContext(env.Context).Info(log)
 	}
-	log := &bytes.Buffer{}
-	_, err = io.Copy(log, stream)
-	Expect(err).ToNot(HaveOccurred())
-	logging.FromContext(env.Context).Info(log)
 }
 
 func (env *Environment) EventuallyExpectMinUtilization(resource v1.ResourceName, comparator string, value float64) {
