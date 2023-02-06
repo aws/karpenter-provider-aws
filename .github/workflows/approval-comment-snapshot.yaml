@@ -9,7 +9,7 @@ permissions:
   contents: write
 jobs:
   approval-comment-snapshot:
-    if: github.event.workflow_run.conclusion == 'success' && github.repository == 'aws/karpenter'
+    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3

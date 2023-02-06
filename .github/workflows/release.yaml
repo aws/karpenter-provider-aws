@@ -9,7 +9,7 @@ permissions:
   contents: write
 jobs:
   release:
-    if: github.event.workflow_run.conclusion == 'success' && github.repository == 'aws/karpenter' && contains(fromJson('["push"]'), github.event.workflow_run.event)
+    if: github.event.workflow_run.conclusion == 'success' && contains(fromJson('["push"]'), github.event.workflow_run.event)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3

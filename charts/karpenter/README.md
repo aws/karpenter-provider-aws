@@ -30,18 +30,21 @@ helm upgrade --install --namespace karpenter --create-namespace \
 |-----|------|---------|-------------|
 | additionalAnnotations | object | `{}` | Additional annotations to add into metadata. |
 | additionalLabels | object | `{}` | Additional labels to add into metadata. |
+| additionalClusterRoleRules | object | `[]` | Specifies additional rules for the core ClusterRole. |
 | affinity | object | `{"nodeAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":{"nodeSelectorTerms":[{"matchExpressions":[{"key":"karpenter.sh/provisioner-name","operator":"DoesNotExist"}]}]}}}` | Affinity rules for scheduling the pod. |
 | controller.env | list | `[]` | Additional environment variables for the controller pod. |
 | controller.errorOutputPaths | list | `["stderr"]` | Controller errorOutputPaths - default to stderr only |
 | controller.extraVolumeMounts | list | `[]` | Additional volumeMounts for the controller pod. |
+| controller.healthProbe.port | int | `8081` | The container port to use for http health probe. |
 | controller.image | string | `"public.ecr.aws/karpenter/controller:v0.23.0@sha256:40aea3b25a33ff2cb44bdecf0417a2642e2a785b4fd30067634ef8f1bd48383c"` | Controller image. |
 | controller.logEncoding | string | `""` | Controller log encoding, defaults to the global log encoding |
 | controller.logLevel | string | `""` | Controller log level, defaults to the global log level |
+| controller.metrics.port | int | `8080` | The container port to use for metrics. |
 | controller.outputPaths | list | `["stdout"]` | Controller outputPaths - default to stdout only |
 | controller.resources | object | `{"limits":{"cpu":1,"memory":"1Gi"},"requests":{"cpu":1,"memory":"1Gi"}}` | Resources for the controller pod. |
 | controller.securityContext | object | `{}` | SecurityContext for the controller container. |
 | controller.sidecarContainer | list | `[]` | Additional sidecarContainer config |
-| controller.sidecarVolumeMounts | list | `[]` | Additional volumeMounts for the sidecars - this will be added to the volume mounts on top of extraVolumeMounts |
+| controller.sidecarVolumeMounts | list | `[]` | Additional volumeMounts for the sidecar - this will be added to the volume mounts on top of extraVolumeMounts |
 | dnsConfig | object | `{}` | Configure DNS Config for the pod |
 | dnsPolicy | string | `"Default"` | Configure the DNS Policy for the pod |
 | extraVolumes | list | `[]` | Additional volumes for the pod. |
@@ -77,7 +80,7 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | settings.aws.interruptionQueueName | string | `""` | interruptionQueueName is currently in ALPHA and is disabled by default. Enabling interruption handling may require additional permissions on the controller service account. Additional permissions are outlined in the docs. |
 | settings.aws.isolatedVPC | bool | `false` | If true then assume we can't reach AWS services which don't have a VPC endpoint This also has the effect of disabling look-ups to the AWS pricing endpoint |
 | settings.aws.nodeNameConvention | string | `"ip-name"` | The node naming convention (either "ip-name" or "resource-name") |
-| settings.aws.tags | string | `nil` | The global tags to use on all AWS infrastructure resources (launch templates, instances, SQS queue, etc.) |
+| settings.aws.tags | string | `nil` | The global tags to use on all AWS infrastructure resources (launch templates, instances, etc.) across node templates |
 | settings.aws.vmMemoryOverheadPercent | float | `0.075` | The VM memory overhead as a percent that will be subtracted from the total memory for all instance types |
 | settings.batchIdleDuration | string | `"1s"` | The maximum amount of time with no new ending pods that if exceeded ends the current batching window. If pods arrive faster than this time, the batching window will be extended up to the maxDuration. If they arrive slower, the pods will be batched separately. |
 | settings.batchMaxDuration | string | `"10s"` | The maximum length of a batch window. The longer this is, the more pods we can consider for provisioning at one time which usually results in fewer but larger nodes. |

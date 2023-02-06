@@ -402,12 +402,12 @@ To correct the problem if it occurs, you can use the approach that AWS EBS uses,
         "Action": [
             "kms:Encrypt",
             "kms:Decrypt",
-            "kms:ReEncrypt",
+            "kms:ReEncrypt*",
             "kms:GenerateDataKey*",
             "kms:CreateGrant",
             "kms:DescribeKey"
         ],
-        "Resource": "",
+        "Resource": "*",
         "Condition": {
             "StringEquals": {
             "kms:ViaService": "ec2.${AWS_REGION}.amazonaws.com",
