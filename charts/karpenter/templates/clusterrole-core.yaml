@@ -68,3 +68,6 @@ rules:
     resources: ["mutatingwebhookconfigurations"]
     verbs: ["update"]
     resourceNames: ["defaulting.webhook.karpenter.sh"]
+  {{- with .Values.additionalRulesForClusterRole -}}
+  {{ toYaml . | nindent 2 }}
+  {{- end -}}
