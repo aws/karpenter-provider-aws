@@ -5,7 +5,7 @@ on:
 
 jobs:
   approval-comment:
-    if: github.repository == 'aws/karpenter' && startsWith(github.event.review.body ,'/karpenter snapshot')
+    if: startsWith(github.event.review.body ,'/karpenter snapshot')
     permissions: write-all
     runs-on: ubuntu-latest
     steps:
