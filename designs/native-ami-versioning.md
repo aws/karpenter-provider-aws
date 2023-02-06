@@ -57,7 +57,7 @@ spec:
 
 ### DriftTTL in the ProvisionerSpec
 
-Karpenter could include a drift TTL in the Provisioner. Nodes would have to be drifted for the TTL's duration to be deprovisioned. This can implement bake time, but will also apply for all future methods of Drift, such as zonal and instance permission requirements. Since other Drift methods may need more immediate actions when it occurs, setting a Drift TTL may not be granular as needed. This
+Karpenter could include a drift TTL in the Provisioner. Nodes would have to be drifted for the TTL's duration to be deprovisioned. This can implement bake time, but will also apply for all future methods of Drift, such as zonal and instance permission requirements. Since other Drift methods may need more immediate actions when it occurs, setting a Drift TTL may not be granular as needed.
 
 ### 🔑 Suggestion
 
