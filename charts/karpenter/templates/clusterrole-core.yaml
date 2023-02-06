@@ -33,7 +33,7 @@ rules:
     resources: ["provisioners", "provisioners/status", "machines", "machines/status"]
     verbs: ["get", "list", "watch"]
   - apiGroups: [""]
-    resources: ["pods", "nodes", "persistentvolumes", "persistentvolumeclaims", "replicationcontrollers", "namespaces", "limitranges"]
+    resources: ["pods", "nodes", "persistentvolumes", "persistentvolumeclaims", "replicationcontrollers", "namespaces"]
     verbs: ["get", "list", "watch"]
   - apiGroups: ["storage.k8s.io"]
     resources: ["storageclasses", "csinodes"]
