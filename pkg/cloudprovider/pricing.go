@@ -89,20 +89,27 @@ func NewPricingAPI(sess *session.Session, region string) pricingiface.PricingAPI
 	}
 	// pricing API doesn't have an endpoint in all regions
 	pricingAPIRegion := "us-east-1"
-	if strings.HasPrefix(region, "ap-") {
+	if strings.HasPrefix(region, "ap-") || strings.HasPrefix(region, "cn-") {
 		pricingAPIRegion = "ap-south-1"
 	}
 	return pricing.New(sess, &aws.Config{Region: aws.String(pricingAPIRegion)})
 }
 
 func NewPricingProvider(ctx context.Context, pricing pricingiface.PricingAPI, ec2Api ec2iface.EC2API, region string, isolatedVPC bool, startAsync <-chan struct{}) *PricingProvider {
+	// see if we've got region specific pricing data
+	staticPricing, ok := initialOnDemandPrices[region]
+	if !ok {
+		// and if not, fall back to the always available us-east-1
+		staticPricing = initialOnDemandPrices["us-east-1"]
+	}
+
 	p := &PricingProvider{
 		region:             region,
 		onDemandUpdateTime: initialPriceUpdate,
-		onDemandPrices:     initialOnDemandPrices,
+		onDemandPrices:     staticPricing,
 		spotUpdateTime:     initialPriceUpdate,
 		// default our spot pricing to the same as the on-demand pricing until a price update
-		spotPrices: populateInitialSpotPricing(initialOnDemandPrices),
+		spotPrices: populateInitialSpotPricing(staticPricing),
 		ec2:        ec2Api,
 		pricing:    pricing,
 		cm:         pretty.NewChangeMonitor(),
@@ -329,15 +336,17 @@ func (p *PricingProvider) onDemandPage(prices map[string]float64) func(output *p
 		Terms struct {
 			OnDemand map[string]struct {
 				PriceDimensions map[string]struct {
-					PricePerUnit struct {
-						USD string
-					}
+					PricePerUnit map[string]string
 				}
 			}
 		}
 	}
 
 	return func(output *pricing.GetProductsOutput, b bool) bool {
+		currency := "USD"
+		if p.region == "cn-north-1" {
+			currency = "CNY"
+		}
 		for _, outer := range output.PriceList {
 			var buf bytes.Buffer
 			enc := json.NewEncoder(&buf)
@@ -354,7 +363,7 @@ func (p *PricingProvider) onDemandPage(prices map[string]float64) func(output *p
 			}
 			for _, term := range pItem.Terms.OnDemand {
 				for _, v := range term.PriceDimensions {
-					price, err := strconv.ParseFloat(v.PricePerUnit.USD, 64)
+					price, err := strconv.ParseFloat(v.PricePerUnit[currency], 64)
 					if err != nil || price == 0 {
 						continue
 					}
