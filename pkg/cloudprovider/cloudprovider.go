@@ -32,6 +32,8 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/eks"
+	"github.com/aws/aws-sdk-go/service/eks/eksiface"
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
@@ -84,6 +86,9 @@ func New(ctx awscontext.Context) *CloudProvider {
 	amiProvider := amifamily.NewAMIProvider(ctx.KubeClient, ctx.KubernetesInterface, ssm.New(ctx.Session), ctx.EC2API,
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
 	amiResolver := amifamily.New(ctx.KubeClient, amiProvider)
+	
+	resolveClusterEndpoint(ctx, ctx.EKSAPI);
+
 	return &CloudProvider{
 		kubeClient:           ctx.KubeClient,
 		instanceTypeProvider: instanceTypeProvider,
@@ -98,7 +103,6 @@ func New(ctx awscontext.Context) *CloudProvider {
 			NewLaunchTemplateProvider(
 				ctx,
 				ctx.EC2API,
-				ctx.EKSAPI,
 				amiResolver,
 				ctx.SecurityGroupProvider,
 				lo.Must(getCABundle(ctx.RESTConfig)),
@@ -107,6 +111,24 @@ func New(ctx awscontext.Context) *CloudProvider {
 			),
 		),
 	}
+}
+
+func resolveClusterEndpoint(ctx context.Context, eksApi eksiface.EKSAPI) {
+	clusterEndpoint := settings.FromContext(ctx).ClusterEndpoint
+	if clusterEndpoint != "" {
+		return
+	}
+
+	clusters, err := eksApi.DescribeCluster(&eks.DescribeClusterInput{
+		Name: aws.String(settings.FromContext(ctx).ClusterName),
+	})
+	if err != nil {
+		logging.FromContext(ctx).Fatalf("Failed to resolve cluster endpoint, %s", err)
+		return
+	}
+	clusterEndpoint = *clusters.Cluster.Endpoint
+	logging.FromContext(ctx).Debugf("discovered cluster endpoint %s", clusterEndpoint)
+	settings.FromContext(ctx).ClusterEndpoint = clusterEndpoint
 }
 
 // Create a machine given the constraints.

@@ -26,8 +26,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/aws/aws-sdk-go/service/eks"
-	"github.com/aws/aws-sdk-go/service/eks/eksiface"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
@@ -56,7 +54,6 @@ const (
 type LaunchTemplateProvider struct {
 	sync.Mutex
 	ec2API                ec2iface.EC2API
-	eksAPI                eksiface.EKSAPI
 	amiFamily             *amifamily.Resolver
 	securityGroupProvider *securitygroup.Provider
 	cache                 *cache.Cache
@@ -65,10 +62,9 @@ type LaunchTemplateProvider struct {
 	kubeDNSIP             net.IP
 }
 
-func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, eksapi eksiface.EKSAPI, amiFamily *amifamily.Resolver, securityGroupProvider *securitygroup.Provider, caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP) *LaunchTemplateProvider {
+func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, amiFamily *amifamily.Resolver, securityGroupProvider *securitygroup.Provider, caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP) *LaunchTemplateProvider {
 	l := &LaunchTemplateProvider{
 		ec2API:                ec2api,
-		eksAPI:                eksapi,
 		amiFamily:             amiFamily,
 		securityGroupProvider: securityGroupProvider,
 		cache:                 cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
@@ -151,21 +147,9 @@ func (p *LaunchTemplateProvider) createAmiOptions(ctx context.Context, nodeTempl
 		return nil, fmt.Errorf("no security groups exist given constraints")
 	}
 
-	clusterEndpoint := awssettings.FromContext(ctx).ClusterEndpoint
-	if clusterEndpoint == "" {
-		clusters, err := p.eksAPI.DescribeCluster(&eks.DescribeClusterInput{
-			Name: aws.String(awssettings.FromContext(ctx).ClusterName),
-		})
-		if err != nil {
-			return nil, err
-		}
-		clusterEndpoint = *clusters.Cluster.Endpoint
-		logging.FromContext(ctx).Debugf("discovered cluster endpoint %s", clusterEndpoint)
-	}
-
 	return &amifamily.Options{
 		ClusterName:             awssettings.FromContext(ctx).ClusterName,
-		ClusterEndpoint:         clusterEndpoint,
+		ClusterEndpoint:         awssettings.FromContext(ctx).ClusterEndpoint,
 		AWSENILimitedPodDensity: awssettings.FromContext(ctx).EnableENILimitedPodDensity,
 		InstanceProfile:         instanceProfile,
 		SecurityGroupsIDs:       securityGroupsIDs,
