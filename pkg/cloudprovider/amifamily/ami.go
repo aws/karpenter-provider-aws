@@ -195,7 +195,7 @@ func (p *AMIProvider) fetchAMIsFromEC2(ctx context.Context, amiSelector map[stri
 
 func getFiltersAndOwners(amiSelector map[string]string) ([]*ec2.Filter, []*string) {
 	filters := []*ec2.Filter{}
-	owners := []*string{}
+	var owners []*string
 	for key, value := range amiSelector {
 		switch key {
 		case "aws-ids", "aws::ids":
