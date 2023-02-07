@@ -479,8 +479,8 @@ spec:
 
     --BOUNDARY--
 ```
-## status.subnet
-The status will contain the resolved subnets. The `id` and `zone` are the Subnet ID and Availability Zone respectively. The list is sorted by the on Available IP Address Count in decreasing order.  The `status.subnet` contains resolved Subnet selector values utilized for node launch.
+## status.subnets
+`status.subnets` contains the `id` and `zone` of the subnets utilized during node launch. The subnets are sorted by the available IP address count in decreasing order.
 
 **Examples**
 
@@ -502,7 +502,7 @@ status:
 ```
 
 ## status.securityGroups
-The status will contain the resolved Security Groups. The `id` are the Security Groups ID. The `status.securityGroups` contains resolved Security Group selector values utilized for node launch.
+status.securityGroups contains the id of the security groups utilized during node launch.
 
 **Examples**
 
