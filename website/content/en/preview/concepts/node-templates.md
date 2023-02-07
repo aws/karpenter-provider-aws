@@ -35,8 +35,8 @@ spec:
   blockDeviceMappings: [ ... ]   # optional, configures storage devices for the instance
   detailedMonitoring: "..."      # optional, configures detailed monitoring for the instance
 status:
-  subnets: { ... }               # optional, resolved subnet
-  securityGroups: { ... }        # optional, resolved security groups
+  subnets: { ... }               # resolved subnets
+  securityGroups: { ... }        # resolved security groups
 ```
 Refer to the [Provisioner docs]({{<ref "./provisioners" >}}) for settings applicable to all providers.
 See below for other AWS provider-specific parameters.
@@ -502,7 +502,7 @@ status:
 ```
 
 ## status.securityGroups
-status.securityGroups contains the id of the security groups utilized during node launch.
+`status.securityGroups` contains the `id` of the security groups utilized during node launch.
 
 **Examples**
 
