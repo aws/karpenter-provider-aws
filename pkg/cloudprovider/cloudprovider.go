@@ -86,8 +86,8 @@ func New(ctx awscontext.Context) *CloudProvider {
 	amiProvider := amifamily.NewAMIProvider(ctx.KubeClient, ctx.KubernetesInterface, ssm.New(ctx.Session), ctx.EC2API,
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
 	amiResolver := amifamily.New(ctx.KubeClient, amiProvider)
-	
-	resolveClusterEndpoint(ctx, ctx.EKSAPI);
+
+	resolveClusterEndpoint(ctx, ctx.EKSAPI)
 
 	return &CloudProvider{
 		kubeClient:           ctx.KubeClient,
@@ -113,13 +113,13 @@ func New(ctx awscontext.Context) *CloudProvider {
 	}
 }
 
-func resolveClusterEndpoint(ctx context.Context, eksApi eksiface.EKSAPI) {
+func resolveClusterEndpoint(ctx context.Context, eksAPI eksiface.EKSAPI) {
 	clusterEndpoint := settings.FromContext(ctx).ClusterEndpoint
 	if clusterEndpoint != "" {
 		return
 	}
 
-	clusters, err := eksApi.DescribeCluster(&eks.DescribeClusterInput{
+	clusters, err := eksAPI.DescribeCluster(&eks.DescribeClusterInput{
 		Name: aws.String(settings.FromContext(ctx).ClusterName),
 	})
 	if err != nil {
