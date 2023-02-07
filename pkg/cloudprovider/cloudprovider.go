@@ -82,12 +82,13 @@ func New(ctx awscontext.Context) *CloudProvider {
 	} else {
 		logging.FromContext(ctx).With("kube-dns-ip", kubeDNSIP).Debugf("discovered kube dns")
 	}
+
+	settings.FromContext(ctx).ClusterEndpoint = resolveClusterEndpoint(ctx, eks.New(ctx.Session))
+
 	instanceTypeProvider := NewInstanceTypeProvider(ctx, ctx.Session, ctx.EC2API, ctx.SubnetProvider, ctx.UnavailableOfferingsCache, ctx.StartAsync)
 	amiProvider := amifamily.NewAMIProvider(ctx.KubeClient, ctx.KubernetesInterface, ssm.New(ctx.Session), ctx.EC2API,
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
 	amiResolver := amifamily.New(ctx.KubeClient, amiProvider)
-
-	resolveClusterEndpoint(ctx, eks.New(ctx.Session))
 
 	return &CloudProvider{
 		kubeClient:           ctx.KubeClient,
@@ -113,20 +114,22 @@ func New(ctx awscontext.Context) *CloudProvider {
 	}
 }
 
-func resolveClusterEndpoint(ctx context.Context, eksAPI eksiface.EKSAPI) {
-	if settings.FromContext(ctx).ClusterEndpoint != "" {
-		return // cluster endpoint is explicitly set
+func resolveClusterEndpoint(ctx context.Context, eksAPI eksiface.EKSAPI) string {
+	resolveClusterEndpointFromSettings := settings.FromContext(ctx).ClusterEndpoint
+	if resolveClusterEndpointFromSettings != "" {
+		return resolveClusterEndpointFromSettings // cluster endpoint is explicitly set
 	}
+	
 	clusters, err := eksAPI.DescribeCluster(&eks.DescribeClusterInput{
 		Name: aws.String(settings.FromContext(ctx).ClusterName),
 	})
 	if err != nil {
 		logging.FromContext(ctx).Fatalf("Failed to resolve cluster endpoint, %s", err)
-		return
+		return ""
 	}
 	detectedClusterEndpoint := *clusters.Cluster.Endpoint
 	logging.FromContext(ctx).With("cluster-endpoint", detectedClusterEndpoint).Debugf("discovered cluster endpoint")
-	settings.FromContext(ctx).ClusterEndpoint = detectedClusterEndpoint
+	return detectedClusterEndpoint
 }
 
 // Create a machine given the constraints.
