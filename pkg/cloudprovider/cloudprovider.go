@@ -76,6 +76,7 @@ type CloudProvider struct {
 }
 
 func New(ctx awscontext.Context) *CloudProvider {
+	settings.FromContext(ctx).ClusterEndpoint = resolveClusterEndpoint(ctx, eks.New(ctx.Session))
 	kubeDNSIP, err := kubeDNSIP(ctx, ctx.KubernetesInterface)
 	if err != nil {
 		logging.FromContext(ctx).Debugf("unable to detect the IP of the kube-dns service, %s", err)
@@ -83,13 +84,10 @@ func New(ctx awscontext.Context) *CloudProvider {
 		logging.FromContext(ctx).With("kube-dns-ip", kubeDNSIP).Debugf("discovered kube dns")
 	}
 
-	settings.FromContext(ctx).ClusterEndpoint = resolveClusterEndpoint(ctx, eks.New(ctx.Session))
-
 	instanceTypeProvider := NewInstanceTypeProvider(ctx, ctx.Session, ctx.EC2API, ctx.SubnetProvider, ctx.UnavailableOfferingsCache, ctx.StartAsync)
 	amiProvider := amifamily.NewAMIProvider(ctx.KubeClient, ctx.KubernetesInterface, ssm.New(ctx.Session), ctx.EC2API,
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
 	amiResolver := amifamily.New(ctx.KubeClient, amiProvider)
-
 	return &CloudProvider{
 		kubeClient:           ctx.KubeClient,
 		instanceTypeProvider: instanceTypeProvider,
