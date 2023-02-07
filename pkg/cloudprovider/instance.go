@@ -86,11 +86,20 @@ func (p *InstanceProvider) Create(ctx context.Context, nodeTemplate *v1alpha1.AW
 		instanceTypes = instanceTypes[0:MaxInstanceTypes]
 	}
 
-	id, err := p.launchInstance(ctx, nodeTemplate, machine, instanceTypes)
+	// Get subnets given the constraints
+	subnets, err := p.subnetProvider.List(ctx, nodeTemplate)
+	if err != nil {
+		return nil, fmt.Errorf("getting subnets, %w", err)
+	}
+	if len(subnets) == 0 {
+		return nil, fmt.Errorf("no subnets matched selector %v", nodeTemplate.Spec.SubnetSelector)
+	}
+
+	id, err := p.launchInstance(ctx, nodeTemplate, machine, subnets, instanceTypes)
 	if awserrors.IsLaunchTemplateNotFound(err) {
 		// retry once if launch template is not found. This allows karpenter to generate a new LT if the
 		// cache was out-of-sync on the first try
-		id, err = p.launchInstance(ctx, nodeTemplate, machine, instanceTypes)
+		id, err = p.launchInstance(ctx, nodeTemplate, machine, subnets, instanceTypes)
 	}
 	if err != nil {
 		return nil, err
@@ -198,10 +207,12 @@ func (p *InstanceProvider) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-func (p *InstanceProvider) launchInstance(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, machine *v1alpha5.Machine, instanceTypes []*cloudprovider.InstanceType) (*string, error) {
+func (p *InstanceProvider) launchInstance(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, machine *v1alpha5.Machine, subnets []*ec2.Subnet, instanceTypes []*cloudprovider.InstanceType) (*string, error) {
 	capacityType := p.getCapacityType(machine, instanceTypes)
+	zonalSubnets := p.subnetProvider.ZonalSubnetsForLaunch(instanceTypes, subnets, capacityType)
+
 	// Get Launch Template Configs, which may differ due to GPU or Architecture requirements
-	launchTemplateConfigs, err := p.getLaunchTemplateConfigs(ctx, nodeTemplate, machine, instanceTypes, capacityType)
+	launchTemplateConfigs, err := p.getLaunchTemplateConfigs(ctx, nodeTemplate, machine, instanceTypes, zonalSubnets, capacityType)
 	if err != nil {
 		return nil, fmt.Errorf("getting launch template configs, %w", err)
 	}
@@ -233,6 +244,7 @@ func (p *InstanceProvider) launchInstance(ctx context.Context, nodeTemplate *v1a
 	}
 
 	createFleetOutput, err := p.ec2Batcher.CreateFleet(ctx, createFleetInput)
+	p.subnetProvider.UpdateInflightIPs(createFleetInput, createFleetOutput, instanceTypes, subnets, capacityType)
 	if err != nil {
 		if awserrors.IsLaunchTemplateNotFound(err) {
 			for _, lt := range launchTemplateConfigs {
@@ -276,16 +288,7 @@ func (p *InstanceProvider) checkODFallback(machine *v1alpha5.Machine, instanceTy
 }
 
 func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, machine *v1alpha5.Machine,
-	instanceTypes []*cloudprovider.InstanceType, capacityType string) ([]*ec2.FleetLaunchTemplateConfigRequest, error) {
-
-	// Get subnets given the constraints
-	subnets, err := p.subnetProvider.List(ctx, nodeTemplate)
-	if err != nil {
-		return nil, fmt.Errorf("getting subnets, %w", err)
-	}
-	if len(subnets) == 0 {
-		return nil, fmt.Errorf("no subnets matched selector %v", nodeTemplate.Spec.SubnetSelector)
-	}
+	instanceTypes []*cloudprovider.InstanceType, zonalSubnets map[string]*ec2.Subnet, capacityType string) ([]*ec2.FleetLaunchTemplateConfigRequest, error) {
 	var launchTemplateConfigs []*ec2.FleetLaunchTemplateConfigRequest
 	launchTemplates, err := p.launchTemplateProvider.EnsureAll(ctx, nodeTemplate, machine, instanceTypes, map[string]string{v1alpha5.LabelCapacityType: capacityType})
 	if err != nil {
@@ -293,7 +296,7 @@ func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, nodeTem
 	}
 	for launchTemplateName, instanceTypes := range launchTemplates {
 		launchTemplateConfig := &ec2.FleetLaunchTemplateConfigRequest{
-			Overrides: p.getOverrides(instanceTypes, subnets, scheduling.NewNodeSelectorRequirements(machine.Spec.Requirements...).Get(v1.LabelTopologyZone), capacityType),
+			Overrides: p.getOverrides(instanceTypes, zonalSubnets, scheduling.NewNodeSelectorRequirements(machine.Spec.Requirements...).Get(v1.LabelTopologyZone), capacityType),
 			LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{
 				LaunchTemplateName: aws.String(launchTemplateName),
 				Version:            aws.String("$Latest"),
@@ -311,16 +314,7 @@ func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, nodeTem
 
 // getOverrides creates and returns launch template overrides for the cross product of InstanceTypes and subnets (with subnets being constrained by
 // zones and the offerings in InstanceTypes)
-func (p *InstanceProvider) getOverrides(instanceTypes []*cloudprovider.InstanceType, subnets []*ec2.Subnet, zones *scheduling.Requirement, capacityType string) []*ec2.FleetLaunchTemplateOverridesRequest {
-	// sort subnets in ascending order of available IP addresses and populate map with most available subnet per AZ
-	zonalSubnets := map[string]*ec2.Subnet{}
-	sort.Slice(subnets, func(i, j int) bool {
-		return aws.Int64Value(subnets[i].AvailableIpAddressCount) < aws.Int64Value(subnets[j].AvailableIpAddressCount)
-	})
-	for _, subnet := range subnets {
-		zonalSubnets[*subnet.AvailabilityZone] = subnet
-	}
-
+func (p *InstanceProvider) getOverrides(instanceTypes []*cloudprovider.InstanceType, zonalSubnets map[string]*ec2.Subnet, zones *scheduling.Requirement, capacityType string) []*ec2.FleetLaunchTemplateOverridesRequest {
 	// Unwrap all the offerings to a flat slice that includes a pointer
 	// to the parent instance type name
 	type offeringWithParentName struct {
