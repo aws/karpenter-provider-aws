@@ -34,6 +34,9 @@ spec:
   metadataOptions: { ... }       # optional, configures IMDS for the instance
   blockDeviceMappings: [ ... ]   # optional, configures storage devices for the instance
   detailedMonitoring: "..."      # optional, configures detailed monitoring for the instance
+status:
+  subnets: { ... }               # optional, resolved subnet
+  securityGroups: { ... }        # optional, resolved security groups
 ```
 Refer to the [Provisioner docs]({{<ref "./provisioners" >}}) for settings applicable to all providers.
 See below for other AWS provider-specific parameters.
@@ -475,4 +478,37 @@ spec:
     echo "$(jq '.kubeAPIQPS=50' /etc/kubernetes/kubelet/kubelet-config.json)" > /etc/kubernetes/kubelet/kubelet-config.json
 
     --BOUNDARY--
+```
+## status.subnet
+The status will contain the resolved subnets. The `id` and `zone` are the Subnet ID and Availability Zone respectively. The list is sorted by the on Available IP Address Count in decreasing order.  The `status.subnet` contains resolved Subnet selector values utilized for node launch.
+
+**Examples**
+
+```yaml
+status:
+  subnets:
+  - id: subnet-0a462d98193ff9fac
+    zone: us-east-2b
+  - id: subnet-0322dfafd76a609b6
+    zone: us-east-2c
+  - id: subnet-0727ef01daf4ac9fe
+    zone: us-east-2b
+  - id: subnet-00c99aeafe2a70304
+    zone: us-east-2a
+  - id: subnet-023b232fd5eb0028e
+    zone: us-east-2c
+  - id: subnet-03941e7ad6afeaa72
+    zone: us-east-2a
+```
+
+## status.securityGroups
+The status will contain the resolved Security Groups. The `id` are the Security Groups ID. The `status.securityGroups` contains resolved Security Group selector values utilized for node launch.
+
+**Examples**
+
+```yaml
+  status:
+    securityGroups:
+    - id: sg-041513b454818610b
+    - id: sg-0286715698b894bca
 ```
