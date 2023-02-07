@@ -87,7 +87,7 @@ func New(ctx awscontext.Context) *CloudProvider {
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
 	amiResolver := amifamily.New(ctx.KubeClient, amiProvider)
 
-	resolveClusterEndpoint(ctx, ctx.EKSAPI)
+	resolveClusterEndpoint(ctx, eks.New(ctx.Session))
 
 	return &CloudProvider{
 		kubeClient:           ctx.KubeClient,
@@ -114,11 +114,9 @@ func New(ctx awscontext.Context) *CloudProvider {
 }
 
 func resolveClusterEndpoint(ctx context.Context, eksAPI eksiface.EKSAPI) {
-	clusterEndpoint := settings.FromContext(ctx).ClusterEndpoint
-	if clusterEndpoint != "" {
-		return
+	if settings.FromContext(ctx).ClusterEndpoint != "" {
+		return // cluster endpoint is explicitly set
 	}
-
 	clusters, err := eksAPI.DescribeCluster(&eks.DescribeClusterInput{
 		Name: aws.String(settings.FromContext(ctx).ClusterName),
 	})
@@ -126,9 +124,9 @@ func resolveClusterEndpoint(ctx context.Context, eksAPI eksiface.EKSAPI) {
 		logging.FromContext(ctx).Fatalf("Failed to resolve cluster endpoint, %s", err)
 		return
 	}
-	clusterEndpoint = *clusters.Cluster.Endpoint
-	logging.FromContext(ctx).Debugf("discovered cluster endpoint %s", clusterEndpoint)
-	settings.FromContext(ctx).ClusterEndpoint = clusterEndpoint
+	detectedClusterEndpoint := *clusters.Cluster.Endpoint
+	logging.FromContext(ctx).With("cluster-endpoint", detectedClusterEndpoint).Debugf("discovered cluster endpoint")
+	settings.FromContext(ctx).ClusterEndpoint = detectedClusterEndpoint
 }
 
 // Create a machine given the constraints.
