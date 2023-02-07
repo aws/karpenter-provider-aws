@@ -76,7 +76,13 @@ type CloudProvider struct {
 }
 
 func New(ctx awscontext.Context) *CloudProvider {
-	settings.FromContext(ctx).ClusterEndpoint = resolveClusterEndpoint(ctx, eks.New(ctx.Session))
+	clusterEndpoint, err := resolveClusterEndpoint(ctx, eks.New(ctx.Session))
+	if err != nil {
+		logging.FromContext(ctx).Debugf("unable to detect the cluster endpoint, %s", err)
+	} else {
+		logging.FromContext(ctx).With("cluster-endpoint", clusterEndpoint).Debugf("discovered cluster endpoint")
+		settings.FromContext(ctx).ClusterEndpoint = clusterEndpoint
+	}
 	kubeDNSIP, err := kubeDNSIP(ctx, ctx.KubernetesInterface)
 	if err != nil {
 		logging.FromContext(ctx).Debugf("unable to detect the IP of the kube-dns service, %s", err)
@@ -112,22 +118,19 @@ func New(ctx awscontext.Context) *CloudProvider {
 	}
 }
 
-func resolveClusterEndpoint(ctx context.Context, eksAPI eksiface.EKSAPI) string {
+func resolveClusterEndpoint(ctx context.Context, eksAPI eksiface.EKSAPI) (string, error) {
 	resolveClusterEndpointFromSettings := settings.FromContext(ctx).ClusterEndpoint
 	if resolveClusterEndpointFromSettings != "" {
-		return resolveClusterEndpointFromSettings // cluster endpoint is explicitly set
+		return resolveClusterEndpointFromSettings, nil // cluster endpoint is explicitly set
 	}
-	
 	clusters, err := eksAPI.DescribeCluster(&eks.DescribeClusterInput{
 		Name: aws.String(settings.FromContext(ctx).ClusterName),
 	})
 	if err != nil {
-		logging.FromContext(ctx).Fatalf("Failed to resolve cluster endpoint, %s", err)
-		return ""
+		return "", fmt.Errorf("failed to resolve cluster endpoint, %w", err)
 	}
 	detectedClusterEndpoint := *clusters.Cluster.Endpoint
-	logging.FromContext(ctx).With("cluster-endpoint", detectedClusterEndpoint).Debugf("discovered cluster endpoint")
-	return detectedClusterEndpoint
+	return detectedClusterEndpoint, nil
 }
 
 // Create a machine given the constraints.
