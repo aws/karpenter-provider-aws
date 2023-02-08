@@ -152,6 +152,9 @@ func (c *CloudProvider) LivenessProbe(req *http.Request) error {
 
 // GetInstanceTypes returns all available InstanceTypes
 func (c *CloudProvider) GetInstanceTypes(ctx context.Context, provisioner *v1alpha5.Provisioner) ([]*cloudprovider.InstanceType, error) {
+	if provisioner == nil {
+		return c.instanceTypeProvider.List(ctx, &v1alpha5.KubeletConfiguration{}, &v1alpha1.AWSNodeTemplate{})
+	}
 	var rawProvider []byte
 	if provisioner.Spec.Provider != nil {
 		rawProvider = provisioner.Spec.Provider.Raw
