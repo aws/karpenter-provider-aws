@@ -78,10 +78,9 @@ type CloudProvider struct {
 func New(ctx awscontext.Context) *CloudProvider {
 	clusterEndpoint, err := resolveClusterEndpoint(ctx, eks.New(ctx.Session))
 	if err != nil {
-		logging.FromContext(ctx).Debugf("unable to detect the cluster endpoint, %s", err)
+		logging.FromContext(ctx).Fatalf("unable to detect the cluster endpoint, %s", err)
 	} else {
 		logging.FromContext(ctx).With("cluster-endpoint", clusterEndpoint).Debugf("discovered cluster endpoint")
-		settings.FromContext(ctx).ClusterEndpoint = clusterEndpoint
 	}
 	kubeDNSIP, err := kubeDNSIP(ctx, ctx.KubernetesInterface)
 	if err != nil {
@@ -113,6 +112,7 @@ func New(ctx awscontext.Context) *CloudProvider {
 				lo.Must(getCABundle(ctx.RESTConfig)),
 				ctx.StartAsync,
 				kubeDNSIP,
+				clusterEndpoint,
 			),
 		),
 	}
@@ -129,8 +129,7 @@ func resolveClusterEndpoint(ctx context.Context, eksAPI eksiface.EKSAPI) (string
 	if err != nil {
 		return "", fmt.Errorf("failed to resolve cluster endpoint, %w", err)
 	}
-	detectedClusterEndpoint := *clusters.Cluster.Endpoint
-	return detectedClusterEndpoint, nil
+	return *out.Cluster.Endpoint, nil
 }
 
 // Create a machine given the constraints.
