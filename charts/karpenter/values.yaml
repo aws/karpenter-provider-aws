@@ -106,7 +106,10 @@ extraObjects: []
 
 controller:
   # -- Controller image.
-  image: "public.ecr.aws/karpenter/controller:v0.25.0@sha256:fefae2739efa1c4d9561069d1683a0ed201e41771351da1ef504c805941f0bf2"
+  image: 
+    repository: public.ecr.aws/karpenter/controller
+    tag: v0.25.0
+    digest: sha256:fefae2739efa1c4d9561069d1683a0ed201e41771351da1ef504c805941f0bf2
   # -- SecurityContext for the controller container.
   securityContext: {}
   # -- Additional environment variables for the controller pod.
