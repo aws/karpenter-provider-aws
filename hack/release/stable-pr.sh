@@ -12,6 +12,8 @@ if [[ $(releaseType $GIT_TAG) != $RELEASE_TYPE_STABLE ]]; then
   exit 1
 fi
 
+updateKarpenterCoreGoMod $GIT_TAG
+
 git config user.name "StableRelease"
 git config user.email "StableRelease@users.noreply.github.com"
 git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPO}
