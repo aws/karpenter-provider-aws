@@ -47,7 +47,7 @@ func TestLegacyIdsPrefixedName(t *testing.T) {
 		"aws-ids":   "ami-abcd1234,ami-cafeaced",
 	}
 	filters, owners := getFiltersAndOwners(amiSelector)
-	assert.ElementsMatch(t, owners, defaultOwners)
+	assert.ElementsMatch(t, owners, nil)
 	assert.ElementsMatch(t, filters, []*ec2.Filter{
 		{
 			Name:   aws.String("name"),
@@ -67,6 +67,29 @@ func TestIdsPrefixedName(t *testing.T) {
 	amiSelector := map[string]string{
 		"aws::name": "my-ami",
 		"aws::ids":  "ami-abcd1234,ami-cafeaced",
+	}
+	filters, owners := getFiltersAndOwners(amiSelector)
+	assert.ElementsMatch(t, owners, nil)
+	assert.ElementsMatch(t, filters, []*ec2.Filter{
+		{
+			Name:   aws.String("name"),
+			Values: aws.StringSlice([]string{"my-ami"}),
+		},
+		{
+			Name: aws.String("image-id"),
+			Values: aws.StringSlice([]string{
+				"ami-abcd1234",
+				"ami-cafeaced",
+			}),
+		},
+	})
+}
+
+func TestIdsPrefixedNameWithOwners(t *testing.T) {
+	amiSelector := map[string]string{
+		"aws::name":   "my-ami",
+		"aws::ids":    "ami-abcd1234,ami-cafeaced",
+		"aws::owners": "self,amazon",
 	}
 	filters, owners := getFiltersAndOwners(amiSelector)
 	assert.ElementsMatch(t, owners, defaultOwners)

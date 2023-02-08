@@ -179,8 +179,12 @@ func (p *AMIProvider) fetchAMIsFromEC2(ctx context.Context, amiSelector map[stri
 	if amis, ok := p.ec2Cache.Get(fmt.Sprint(hash)); ok {
 		return amis.([]*ec2.Image), nil
 	}
+	describeImagesInput := &ec2.DescribeImagesInput{Filters: filters}
+	if owners != nil {
+		describeImagesInput.Owners = owners
+	}
 	// This API is not paginated, so a single call suffices.
-	output, err := p.ec2api.DescribeImagesWithContext(ctx, &ec2.DescribeImagesInput{Filters: filters, Owners: owners})
+	output, err := p.ec2api.DescribeImagesWithContext(ctx, describeImagesInput)
 	if err != nil {
 		return nil, fmt.Errorf("describing images %+v, %w", filters, err)
 	}
@@ -196,6 +200,7 @@ func (p *AMIProvider) fetchAMIsFromEC2(ctx context.Context, amiSelector map[stri
 func getFiltersAndOwners(amiSelector map[string]string) ([]*ec2.Filter, []*string) {
 	filters := []*ec2.Filter{}
 	var owners []*string
+	imagesSet := false
 	for key, value := range amiSelector {
 		switch key {
 		case "aws-ids", "aws::ids":
@@ -204,6 +209,7 @@ func getFiltersAndOwners(amiSelector map[string]string) ([]*ec2.Filter, []*strin
 				Name:   aws.String("image-id"),
 				Values: aws.StringSlice(filterValues),
 			})
+			imagesSet = true
 		case "aws::owners":
 			ownerValues := functional.SplitCommaSeparatedString(value)
 			owners = aws.StringSlice(ownerValues)
@@ -219,7 +225,7 @@ func getFiltersAndOwners(amiSelector map[string]string) ([]*ec2.Filter, []*strin
 			})
 		}
 	}
-	if owners == nil {
+	if owners == nil && !imagesSet {
 		owners = []*string{aws.String("self"), aws.String("amazon")}
 	}
 
