@@ -123,7 +123,7 @@ func resolveClusterEndpoint(ctx context.Context, eksAPI eksiface.EKSAPI) (string
 	if resolveClusterEndpointFromSettings != "" {
 		return resolveClusterEndpointFromSettings, nil // cluster endpoint is explicitly set
 	}
-	clusters, err := eksAPI.DescribeCluster(&eks.DescribeClusterInput{
+	out, err := eksAPI.DescribeCluster(&eks.DescribeClusterInput{
 		Name: aws.String(settings.FromContext(ctx).ClusterName),
 	})
 	if err != nil {
