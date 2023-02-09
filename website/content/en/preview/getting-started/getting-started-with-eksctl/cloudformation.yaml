@@ -22,8 +22,7 @@ Resources:
         Statement:
           - Effect: Allow
             Principal:
-              Service:
-                !Sub "ec2.${AWS::URLSuffix}"
+              Service: !Sub "ec2.${AWS::URLSuffix}"
             Action:
               - "sts:AssumeRole"
       ManagedPolicyArns:
@@ -73,6 +72,10 @@ Resources:
             Action:
               - iam:PassRole
             Resource: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/KarpenterNodeRole-${ClusterName}"
+          - Effect: Allow
+            Action:
+              - eks:DescribeCluster
+            Resource: !Sub "arn:${AWS::Partition}:eks:*:${AWS::AccountId}:cluster/${ClusterName}"
   KarpenterInterruptionQueue:
     Type: AWS::SQS::Queue
     Properties:
@@ -94,7 +97,7 @@ Resources:
             Action: sqs:SendMessage
             Resource: !GetAtt KarpenterInterruptionQueue.Arn
   ScheduledChangeRule:
-    Type: 'AWS::Events::Rule'
+    Type: "AWS::Events::Rule"
     Properties:
       EventPattern:
         source:
@@ -105,7 +108,7 @@ Resources:
         - Id: KarpenterInterruptionQueueTarget
           Arn: !GetAtt KarpenterInterruptionQueue.Arn
   SpotInterruptionRule:
-    Type: 'AWS::Events::Rule'
+    Type: "AWS::Events::Rule"
     Properties:
       EventPattern:
         source:
@@ -116,7 +119,7 @@ Resources:
         - Id: KarpenterInterruptionQueueTarget
           Arn: !GetAtt KarpenterInterruptionQueue.Arn
   RebalanceRule:
-    Type: 'AWS::Events::Rule'
+    Type: "AWS::Events::Rule"
     Properties:
       EventPattern:
         source:
@@ -127,7 +130,7 @@ Resources:
         - Id: KarpenterInterruptionQueueTarget
           Arn: !GetAtt KarpenterInterruptionQueue.Arn
   InstanceStateChangeRule:
-    Type: 'AWS::Events::Rule'
+    Type: "AWS::Events::Rule"
     Properties:
       EventPattern:
         source:

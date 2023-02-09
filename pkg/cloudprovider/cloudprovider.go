@@ -119,9 +119,9 @@ func New(ctx awscontext.Context) *CloudProvider {
 }
 
 func resolveClusterEndpoint(ctx context.Context, eksAPI eksiface.EKSAPI) (string, error) {
-	resolveClusterEndpointFromSettings := settings.FromContext(ctx).ClusterEndpoint
-	if resolveClusterEndpointFromSettings != "" {
-		return resolveClusterEndpointFromSettings, nil // cluster endpoint is explicitly set
+	clusterEndpointFromSettings := settings.FromContext(ctx).ClusterEndpoint
+	if clusterEndpointFromSettings != "" {
+		return clusterEndpointFromSettings, nil // cluster endpoint is explicitly set
 	}
 	out, err := eksAPI.DescribeCluster(&eks.DescribeClusterInput{
 		Name: aws.String(settings.FromContext(ctx).ClusterName),
