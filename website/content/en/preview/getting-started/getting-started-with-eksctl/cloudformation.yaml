@@ -22,7 +22,8 @@ Resources:
         Statement:
           - Effect: Allow
             Principal:
-              Service: !Sub "ec2.${AWS::URLSuffix}"
+              Service:
+                !Sub "ec2.${AWS::URLSuffix}"
             Action:
               - "sts:AssumeRole"
       ManagedPolicyArns:
@@ -97,7 +98,7 @@ Resources:
             Action: sqs:SendMessage
             Resource: !GetAtt KarpenterInterruptionQueue.Arn
   ScheduledChangeRule:
-    Type: "AWS::Events::Rule"
+    Type: 'AWS::Events::Rule'
     Properties:
       EventPattern:
         source:
@@ -108,7 +109,7 @@ Resources:
         - Id: KarpenterInterruptionQueueTarget
           Arn: !GetAtt KarpenterInterruptionQueue.Arn
   SpotInterruptionRule:
-    Type: "AWS::Events::Rule"
+    Type: 'AWS::Events::Rule'
     Properties:
       EventPattern:
         source:
@@ -119,7 +120,7 @@ Resources:
         - Id: KarpenterInterruptionQueueTarget
           Arn: !GetAtt KarpenterInterruptionQueue.Arn
   RebalanceRule:
-    Type: "AWS::Events::Rule"
+    Type: 'AWS::Events::Rule'
     Properties:
       EventPattern:
         source:
@@ -130,7 +131,7 @@ Resources:
         - Id: KarpenterInterruptionQueueTarget
           Arn: !GetAtt KarpenterInterruptionQueue.Arn
   InstanceStateChangeRule:
-    Type: "AWS::Events::Rule"
+    Type: 'AWS::Events::Rule'
     Properties:
       EventPattern:
         source:
