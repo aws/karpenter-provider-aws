@@ -20,9 +20,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
-	"time"
 
-	"github.com/avast/retry-go"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -362,54 +360,6 @@ func (p *Provider) getOverrides(instanceTypes []*cloudprovider.InstanceType, zon
 		})
 	}
 	return overrides
-}
-
-// Update receives a machine and updates the EC2 instance with tags linking it to the machine
-// Deprecated: This function can be removed when v1alpha6/v1beta1 migration has completed.
-func (p *Provider) Update(ctx context.Context, machine *v1alpha5.Machine) (*ec2.Instance, error) {
-	_, err := p.ec2api.CreateTagsWithContext(ctx, &ec2.CreateTagsInput{
-		Resources: aws.StringSlice([]string{lo.Must(utils.ParseInstanceID(machine.Status.ProviderID))}),
-		Tags: []*ec2.Tag{
-			{
-				Key:   aws.String(v1alpha5.MachineNameLabelKey),
-				Value: aws.String(machine.Name),
-			},
-			{
-				Key:   aws.String(v1alpha5.ManagedByLabelKey),
-				Value: aws.String(settings.FromContext(ctx).ClusterName),
-			},
-			{
-				Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", settings.FromContext(ctx).ClusterName)),
-				Value: aws.String("owned"),
-			},
-		},
-	})
-	if err != nil {
-		return nil, fmt.Errorf("updating tags for instance, %w", err)
-	}
-	// Get Instance with backoff retry since EC2 is eventually consistent
-	var instance *ec2.Instance
-	if err = retry.Do(
-		func() error {
-			instance, err = p.Get(ctx, lo.Must(utils.ParseInstanceID(machine.Status.ProviderID)))
-			if err != nil {
-				return fmt.Errorf("getting instance, %w", err)
-			}
-			if _, ok := lo.Find(instance.Tags, func(tag *ec2.Tag) bool {
-				return aws.StringValue(tag.Key) == v1alpha5.MachineNameLabelKey &&
-					aws.StringValue(tag.Value) == machine.Name
-			}); !ok {
-				return fmt.Errorf("instance update hasn't completed")
-			}
-			return nil
-		},
-		retry.Delay(1*time.Second),
-		retry.Attempts(6),
-		retry.LastErrorOnly(true),
-	); err != nil {
-		return nil, fmt.Errorf("updating instance %s, %w", lo.Must(utils.ParseInstanceID(machine.Status.ProviderID)), err)
-	}
-	return instance, nil
 }
 
 func (p *Provider) updateUnavailableOfferingsCache(ctx context.Context, errors []*ec2.CreateFleetError, capacityType string) {

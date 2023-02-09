@@ -158,19 +158,24 @@ func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFlee
 				}
 			}
 		}
-
-		result := &ec2.CreateFleetOutput{Instances: []*ec2.CreateFleetInstance{{
-			InstanceIds:                instanceIds,
-			LaunchTemplateAndOverrides: &ec2.LaunchTemplateAndOverridesResponse{Overrides: &ec2.FleetLaunchTemplateOverrides{SubnetId: input.LaunchTemplateConfigs[0].Overrides[0].SubnetId}},
-		}}}
+		result := &ec2.CreateFleetOutput{Instances: []*ec2.CreateFleetInstance{
+			{
+				InstanceIds:  instanceIds,
+				InstanceType: input.LaunchTemplateConfigs[0].Overrides[0].InstanceType,
+				Lifecycle:    input.TargetCapacitySpecification.DefaultTargetCapacityType,
+				LaunchTemplateAndOverrides: &ec2.LaunchTemplateAndOverridesResponse{
+					Overrides: &ec2.FleetLaunchTemplateOverrides{
+						SubnetId:         input.LaunchTemplateConfigs[0].Overrides[0].SubnetId,
+						InstanceType:     input.LaunchTemplateConfigs[0].Overrides[0].InstanceType,
+						AvailabilityZone: input.LaunchTemplateConfigs[0].Overrides[0].AvailabilityZone,
+					},
+				},
+			},
+		}}
 		for _, pool := range skippedPools {
 			result.Errors = append(result.Errors, &ec2.CreateFleetError{
 				ErrorCode: aws.String("InsufficientInstanceCapacity"),
 				LaunchTemplateAndOverrides: &ec2.LaunchTemplateAndOverridesResponse{
-					LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecification{
-						LaunchTemplateId:   input.LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateId,
-						LaunchTemplateName: input.LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName,
-					},
 					Overrides: &ec2.FleetLaunchTemplateOverrides{
 						InstanceType:     aws.String(pool.InstanceType),
 						AvailabilityZone: aws.String(pool.Zone),

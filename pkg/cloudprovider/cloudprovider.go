@@ -321,7 +321,6 @@ func (c *CloudProvider) instanceToMachine(ctx context.Context, ec2instance *ec2.
 		machine.Status.Capacity = functional.FilterMap(instanceType.Capacity, func(_ v1.ResourceName, v resource.Quantity) bool { return !resources.IsZero(v) })
 		machine.Status.Allocatable = functional.FilterMap(instanceType.Allocatable(), func(_ v1.ResourceName, v resource.Quantity) bool { return !resources.IsZero(v) })
 	}
-	labels[v1alpha1.LabelInstanceAMIID] = aws.StringValue(ec2instance.ImageId)
 	labels[v1.LabelTopologyZone] = aws.StringValue(ec2instance.Placement.AvailabilityZone)
 	labels[v1alpha5.LabelCapacityType] = instance.GetCapacityType(ec2instance)
 	if tag, ok := lo.Find(ec2instance.Tags, func(t *ec2.Tag) bool { return aws.StringValue(t.Key) == v1alpha5.ProvisionerNameLabelKey }); ok {
