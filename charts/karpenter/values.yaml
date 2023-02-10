@@ -157,7 +157,7 @@ settings:
     # -- Cluster name.
     clusterName: ""
     # -- Cluster endpoint.
-    clusterEndpoint: ""
+    clusterEndpoint: "" # f not set, will be discovered during startup (EKS only)
     # -- The default instance profile to use when launching nodes
     defaultInstanceProfile: ""
     # -- If true then instances that support pod ENI will report a vpc.amazonaws.com/pod-eni resource
