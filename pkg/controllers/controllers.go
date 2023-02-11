@@ -22,18 +22,22 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	awscontext "github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/controllers/interruption"
+	machinelink "github.com/aws/karpenter/pkg/controllers/machine/link"
 	"github.com/aws/karpenter/pkg/controllers/nodetemplate"
 	"github.com/aws/karpenter/pkg/utils/project"
 
 	"github.com/aws/karpenter-core/pkg/operator/controller"
 )
 
-func NewControllers(ctx awscontext.Context, cloudProvider *cloudprovider.CloudProvider) (controllers []controller.Controller) {
+func NewControllers(ctx awscontext.Context, cloudProvider *cloudprovider.CloudProvider) []controller.Controller {
 	logging.FromContext(ctx).With("version", project.Version).Debugf("discovered version")
 
+	controllers := []controller.Controller{
+		nodetemplate.NewController(ctx.KubeClient, ctx.SubnetProvider, ctx.SecurityGroupProvider),
+		machinelink.NewController(ctx.KubeClient, cloudProvider),
+	}
 	if settings.FromContext(ctx).InterruptionQueueName != "" {
 		controllers = append(controllers, interruption.NewController(ctx.KubeClient, ctx.Clock, ctx.EventRecorder, interruption.NewSQSProvider(sqs.New(ctx.Session)), ctx.UnavailableOfferingsCache))
 	}
-	controllers = append(controllers, nodetemplate.NewController(ctx.KubeClient, ctx.SubnetProvider, ctx.SecurityGroupProvider))
 	return controllers
 }

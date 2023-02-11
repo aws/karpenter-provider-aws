@@ -98,7 +98,7 @@ func (p *InstanceProvider) Create(ctx context.Context, nodeTemplate *v1alpha1.AW
 	// Get Instance with backoff retry since EC2 is eventually consistent
 	instance := &ec2.Instance{}
 	if err := retry.Do(
-		func() (err error) { instance, err = p.GetByID(ctx, aws.StringValue(id)); return err },
+		func() (err error) { instance, err = p.Get(ctx, aws.StringValue(id)); return err },
 		retry.Delay(1*time.Second),
 		retry.Attempts(6),
 		retry.LastErrorOnly(true),
@@ -115,8 +115,7 @@ func (p *InstanceProvider) Create(ctx context.Context, nodeTemplate *v1alpha1.AW
 	return instance, nil
 }
 
-// TODO @joinnis: Remove the GetByID call when machine migration has completed
-func (p *InstanceProvider) GetByID(ctx context.Context, id string) (*ec2.Instance, error) {
+func (p *InstanceProvider) Get(ctx context.Context, id string) (*ec2.Instance, error) {
 	out, err := p.ec2Batcher.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
 		InstanceIds: aws.StringSlice([]string{id}),
 		Filters:     []*ec2.Filter{instanceStateFilter},
@@ -140,21 +139,13 @@ func (p *InstanceProvider) GetByID(ctx context.Context, id string) (*ec2.Instanc
 	return instances[0], nil
 }
 
-func (p *InstanceProvider) Get(ctx context.Context, machineName string) (*ec2.Instance, error) {
-	instances, err := p.List(ctx, machineName)
-	if err != nil {
-		return nil, err
-	}
-	return instances[0], nil
-}
-
-func (p *InstanceProvider) List(ctx context.Context, machineName string) ([]*ec2.Instance, error) {
+func (p *InstanceProvider) List(ctx context.Context) ([]*ec2.Instance, error) {
 	// Use the machine name data to determine which instances match this machine
 	out, err := p.ec2api.DescribeInstancesWithContext(ctx, &ec2.DescribeInstancesInput{
 		Filters: []*ec2.Filter{
 			{
-				Name:   aws.String(fmt.Sprintf("tag:%s", v1alpha5.MachineNameLabelKey)),
-				Values: aws.StringSlice([]string{machineName}),
+				Name:   aws.String(fmt.Sprintf("tag:%s", v1alpha5.ProvisionerNameLabelKey)),
+				Values: aws.StringSlice([]string{"*"}),
 			},
 			{
 				Name:   aws.String(fmt.Sprintf("tag:kubernetes.io/cluster/%s", settings.FromContext(ctx).ClusterName)),
@@ -167,38 +158,17 @@ func (p *InstanceProvider) List(ctx context.Context, machineName string) ([]*ec2
 		return nil, fmt.Errorf("describing ec2 instances, %w", err)
 	}
 	instances, err := instancesFromOutput(out)
-	if err != nil {
-		return nil, fmt.Errorf("getting instances from output, %w", err)
-	}
-	return instances, nil
+	return instances, cloudprovider.IgnoreMachineNotFoundError(err)
 }
 
-// Delete deletes the machine based on machine name tag. It continues to do a Get followed by a Delete
-// for machines until it receives an error (either a true error or a NotFound error). We do this because there is a tiny
-// race that makes it possible for us to launch more than one instance for a Machine if EC2 is not read-after-write consistent
-// and we perform another reconcile loop after doing a Create where the Get is not able to find the previous instance that
-// we created.
-func (p *InstanceProvider) Delete(ctx context.Context, machine *v1alpha5.Machine) error {
-	instances, err := p.List(ctx, machine.Name)
-	if err != nil {
-		return fmt.Errorf("getting machine instances, %w", err)
-	}
-	for _, instance := range instances {
-		if e := p.DeleteByID(ctx, aws.StringValue(instance.InstanceId)); cloudprovider.IgnoreMachineNotFoundError(e) != nil {
-			err = multierr.Append(err, e)
-		}
-	}
-	return err
-}
-
-func (p *InstanceProvider) DeleteByID(ctx context.Context, id string) error {
+func (p *InstanceProvider) Delete(ctx context.Context, id string) error {
 	if _, err := p.ec2Batcher.TerminateInstances(ctx, &ec2.TerminateInstancesInput{
 		InstanceIds: []*string{aws.String(id)},
 	}); err != nil {
 		if awserrors.IsNotFound(err) {
 			return cloudprovider.NewMachineNotFoundError(fmt.Errorf("instance already terminated"))
 		}
-		if _, e := p.GetByID(ctx, id); err != nil {
+		if _, e := p.Get(ctx, id); err != nil {
 			if cloudprovider.IsMachineNotFoundError(e) {
 				return e
 			}
@@ -395,7 +365,7 @@ func (p *InstanceProvider) Update(ctx context.Context, machine *v1alpha5.Machine
 	var instance *ec2.Instance
 	if err = retry.Do(
 		func() error {
-			instance, err = p.GetByID(ctx, lo.Must(utils.ParseInstanceID(machine.Status.ProviderID)))
+			instance, err = p.Get(ctx, lo.Must(utils.ParseInstanceID(machine.Status.ProviderID)))
 			if err != nil {
 				return fmt.Errorf("getting instance, %w", err)
 			}
