@@ -101,6 +101,10 @@ controller:
   env: []
   # - name: AWS_REGION
   #   value: eu-west-1
+  envFrom: []
+  # - configMapRef:
+  #     name: proxy-environment-variables
+  #     optional: true
 
   # -- Resources for the controller pod.
   resources:
