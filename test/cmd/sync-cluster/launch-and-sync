@@ -67,6 +67,15 @@ cat << EOF > "${POLICY_FILE}"
             "Resource": [
                 "*"
             ]
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "ec2:TerminateInstances"
+            ],
+            "Resource": [
+                "*"
+            ]
         }
     ]
 }

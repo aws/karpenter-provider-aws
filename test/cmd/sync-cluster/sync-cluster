@@ -12,11 +12,8 @@ nvm install 16
 npm install -g npm@9.4.2
 npm install -g aws-cdk
 
-# git clone https://github.com/awslabs/kubernetes-iteration-toolkit.git
-git clone https://github.com/bwagner5/kubernetes-iteration-toolkit.git
+git clone https://github.com/awslabs/kubernetes-iteration-toolkit.git
 cd kubernetes-iteration-toolkit/infrastructure
-git fetch --all
-git checkout testing
 
 npm install
 
@@ -29,3 +26,6 @@ cdk deploy KITInfrastructure --no-rollback \
   -c TestFluxRepoPath="./test/infrastructure/clusters/test-infra" \
   -c TestNamespace="karpenter-tests" \
   -c TestServiceAccount="karpenter-tests"
+
+aws ec2 terminate-instances --instance-ids "$(cat /var/run/cloud-init/.instance-id)" \
+  --region "$(cat /var/run/cloud-init/instance-data.json | grep -m1 region | grep -o '[a-z]\+\-[a-z]\+\-[0-9]\+')"
