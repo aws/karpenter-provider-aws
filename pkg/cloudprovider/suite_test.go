@@ -205,6 +205,7 @@ var _ = BeforeEach(func() {
 	subnetProvider.Reset()
 	securityGroupProvider.Reset()
 	launchTemplateProvider.kubeDNSIP = net.ParseIP("10.0.100.10")
+	launchTemplateProvider.clusterEndpoint = "https://test-cluster"
 
 	// Reset the pricing provider, so we don't cross-pollinate pricing data
 	instanceTypeProvider = &InstanceTypeProvider{
