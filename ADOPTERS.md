@@ -23,6 +23,7 @@ If you are open to others contacting you about your use of Karpenter on Slack, a
 | Cordial   | Using Karpenter to scale multiple EKS clusters quickly | `@dschaaff` | [Cordial](https://cordial.com) |
 | H2O.ai | Dynamically scaling CPU and GPU nodes for AI workloads  | `@Ophir Zahavi`, `@Asaf Oren` | [H2O.ai](https://h2o.ai/) |
 | idealo | Scaling multi-arch IPv6 clusters hosting web and event-driven applications | `@Heiko Rothe` | [Homepage](https://www.idealo.de) |
+| Nexxiot | Easier, Safer, Cleaner Global Transportation - Using Karpenter to manage EKS nodes | `@Alex Berger` | [Homepage](https://nexxiot.com/) |
 | Nirvana Money | Building healthy, happy financial lives - Using Karpenter to manage all-Spot clusters | `@DWSR` | [Homepage](https://www.nirvana.money/) |
 | Omaze | Intelligently using Karpenter's autoscaling to power our platforms | `@devopsidiot` | [Homepage](https://www.omaze.com/) |
 | PlanetScale | Leveraging Karpenter to dynamically deploy serverless MySQL workloads. | `@jtcunning` | [Homepage](https://www.planetscale.com/) |

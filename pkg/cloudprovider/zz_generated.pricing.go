@@ -18,9 +18,9 @@ package cloudprovider
 
 import "time"
 
-// generated at 2023-02-01T14:14:10Z for us-east-1
+// generated at 2023-02-13T13:10:27Z for us-east-1
 
-var initialPriceUpdate, _ = time.Parse(time.RFC3339, "2023-02-01T14:14:10Z")
+var initialPriceUpdate, _ = time.Parse(time.RFC3339, "2023-02-13T13:10:27Z")
 var initialOnDemandPrices = map[string]map[string]float64{}
 
 func init() {
@@ -83,7 +83,8 @@ func init() {
 		"c6in.metal": 7.257600, "c6in.xlarge": 0.226800,
 		// c7g family
 		"c7g.12xlarge": 1.740000, "c7g.16xlarge": 2.320000, "c7g.2xlarge": 0.290000, "c7g.4xlarge": 0.580000,
-		"c7g.8xlarge": 1.160000, "c7g.large": 0.072500, "c7g.medium": 0.036300, "c7g.xlarge": 0.145000,
+		"c7g.8xlarge": 1.160000, "c7g.large": 0.072500, "c7g.medium": 0.036300, "c7g.metal": 2.320000,
+		"c7g.xlarge": 0.145000,
 		// cc2 family
 		"cc2.8xlarge": 2.000000,
 		// cr1 family
@@ -750,6 +751,12 @@ func init() {
 		// t4g family
 		"t4g.2xlarge": 1.621100, "t4g.large": 0.405300, "t4g.medium": 0.202600, "t4g.micro": 0.050700,
 		"t4g.nano": 0.025300, "t4g.small": 0.101300, "t4g.xlarge": 0.810600,
+		// u-12tb1 family
+		"u-12tb1.112xlarge": 1074.685080,
+		// u-6tb1 family
+		"u-6tb1.112xlarge": 537.342540, "u-6tb1.56xlarge": 456.681190,
+		// u-9tb1 family
+		"u-9tb1.112xlarge": 805.979580,
 		// x1 family
 		"x1.16xlarge": 68.876000, "x1.32xlarge": 137.752000,
 		// x2idn family
