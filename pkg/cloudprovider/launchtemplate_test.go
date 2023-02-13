@@ -671,6 +671,17 @@ var _ = Describe("LaunchTemplates", func() {
 		})
 	})
 	Context("AL2", func() {
+		var info *ec2.InstanceTypeInfo
+		BeforeEach(func() {
+			var ok bool
+			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
+			Expect(err).To(BeNil())
+			info, ok = lo.Find(instanceInfo, func(i *ec2.InstanceTypeInfo) bool {
+				return aws.StringValue(i.InstanceType) == "m5.xlarge"
+			})
+			Expect(ok).To(BeTrue())
+		})
+
 		It("should calculate memory overhead based on eni limited pods when ENI limited", func() {
 			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
 				EnableENILimitedPodDensity: lo.ToPtr(false),
@@ -678,9 +689,7 @@ var _ = Describe("LaunchTemplates", func() {
 			}))
 
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyAL2
-			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
-			Expect(err).To(BeNil())
-			it := NewInstanceType(ctx, instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+			it := NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 			overhead := it.Overhead.Total()
 			Expect(overhead.Memory().String()).To(Equal("1093Mi"))
 		})
@@ -691,14 +700,23 @@ var _ = Describe("LaunchTemplates", func() {
 			}))
 
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyAL2
-			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
-			Expect(err).To(BeNil())
-			it := NewInstanceType(ctx, instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+			it := NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 			overhead := it.Overhead.Total()
 			Expect(overhead.Memory().String()).To(Equal("1093Mi"))
 		})
 	})
 	Context("Bottlerocket", func() {
+		var info *ec2.InstanceTypeInfo
+		BeforeEach(func() {
+			var ok bool
+			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
+			Expect(err).To(BeNil())
+			info, ok = lo.Find(instanceInfo, func(i *ec2.InstanceTypeInfo) bool {
+				return aws.StringValue(i.InstanceType) == "m5.xlarge"
+			})
+			Expect(ok).To(BeTrue())
+		})
+
 		It("should calculate memory overhead based on eni limited pods when ENI limited", func() {
 			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
 				EnableENILimitedPodDensity: lo.ToPtr(true),
@@ -706,9 +724,7 @@ var _ = Describe("LaunchTemplates", func() {
 			}))
 
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
-			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
-			Expect(err).To(BeNil())
-			it := NewInstanceType(ctx, instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+			it := NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 			overhead := it.Overhead.Total()
 			Expect(overhead.Memory().String()).To(Equal("1093Mi"))
 		})
@@ -719,9 +735,7 @@ var _ = Describe("LaunchTemplates", func() {
 			}))
 
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
-			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
-			Expect(err).To(BeNil())
-			it := NewInstanceType(ctx, instanceInfo["m5.xlarge"], provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+			it := NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 			overhead := it.Overhead.Total()
 			Expect(overhead.Memory().String()).To(Equal("1665Mi"))
 		})

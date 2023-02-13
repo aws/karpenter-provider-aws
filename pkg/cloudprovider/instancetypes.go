@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sync"
 	"sync/atomic"
 
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -57,7 +58,10 @@ type InstanceTypeProvider struct {
 	// Values cached *before* considering insufficient capacity errors from the unavailableOfferings cache.
 	// Fully initialized Instance Types are also cached based on the set of all instance types, zones, unavailableOfferings cache,
 	// node template, and kubelet configuration from the provisioner
-	cache                *cache.Cache
+
+	mu    sync.Mutex
+	cache *cache.Cache
+
 	unavailableOfferings *awscache.UnavailableOfferings
 	cm                   *pretty.ChangeMonitor
 	// instanceTypesSeqNum is a monotonically increasing change counter used to avoid the expensive hashing operation on instance types
@@ -202,11 +206,19 @@ func (p *InstanceTypeProvider) getInstanceTypeZones(ctx context.Context, nodeTem
 }
 
 // getInstanceTypes retrieves all instance types from the ec2 DescribeInstanceTypes API using some opinionated filters
-func (p *InstanceTypeProvider) getInstanceTypes(ctx context.Context) (map[string]*ec2.InstanceTypeInfo, error) {
+func (p *InstanceTypeProvider) getInstanceTypes(ctx context.Context) ([]*ec2.InstanceTypeInfo, error) {
+	// DO NOT REMOVE THIS LOCK ----------------------------------------------------------------------------
+	// We lock here so that multiple callers to GetInstanceTypes do not result in cache misses and multiple
+	// calls to EC2 when we could have just made one call. This lock is here because multiple callers to EC2 result
+	// in A LOT of extra memory generated from the response for simultaneous callers.
+	// TODO @joinnis: This can be made more efficient by holding a Read lock and only obtaining the Write if not in cache
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	if cached, ok := p.cache.Get(InstanceTypesCacheKey); ok {
-		return cached.(map[string]*ec2.InstanceTypeInfo), nil
+		return cached.([]*ec2.InstanceTypeInfo), nil
 	}
-	instanceTypes := map[string]*ec2.InstanceTypeInfo{}
+	var instanceTypes []*ec2.InstanceTypeInfo
 	if err := p.ec2api.DescribeInstanceTypesPagesWithContext(ctx, &ec2.DescribeInstanceTypesInput{
 		Filters: []*ec2.Filter{
 			{
@@ -219,9 +231,7 @@ func (p *InstanceTypeProvider) getInstanceTypes(ctx context.Context) (map[string
 			},
 		},
 	}, func(page *ec2.DescribeInstanceTypesOutput, lastPage bool) bool {
-		for _, instanceType := range page.InstanceTypes {
-			instanceTypes[aws.StringValue(instanceType.InstanceType)] = instanceType
-		}
+		instanceTypes = append(instanceTypes, page.InstanceTypes...)
 		return true
 	}); err != nil {
 		return nil, fmt.Errorf("fetching instance types using ec2.DescribeInstanceTypes, %w", err)
