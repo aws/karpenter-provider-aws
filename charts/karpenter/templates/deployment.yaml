@@ -89,8 +89,8 @@ spec:
           {{- with .Values.controller.env }}
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          envFrom:
           {{- with .Values.controller.envFrom }}
+          envFrom:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           ports:
