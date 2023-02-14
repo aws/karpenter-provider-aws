@@ -40,7 +40,7 @@ spec:
         MESSAGE=$(echo "${MESSAGE}" | sed -e 's/\"/\\\\"/g')
         BOTNAME=$(echo "${BOTNAME}" | sed -e 's/\"/\\\\"/g')
         JSON="{\"text\": \"${MESSAGE}\", \"username\": \"${BOTNAME}\", \"icon_emoji\": \"${EMOJI}\"}"
-        curl -X POST -H 'Content-Type: application/json' --data "${JSON}" "${URL}"
+        curl -X POST -H 'Content-Type: application/json' --data "${JSON}" "$(printf "${URL}" | tr -d "\n")"
       env:
         - name: URL
           valueFrom:
