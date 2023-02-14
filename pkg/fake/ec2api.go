@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/Pallinder/go-randomdata"
@@ -230,6 +231,14 @@ func (e *EC2API) DescribeInstancesWithContext(_ context.Context, input *ec2.Desc
 		return e.DescribeInstancesBehavior.Invoke(input)
 	}
 	var instances []*ec2.Instance
+
+	// If it's a list call and no instance ids are specified
+	if len(aws.StringValueSlice(input.InstanceIds)) == 0 {
+		e.Instances.Range(func(k interface{}, v interface{}) bool {
+			instances = append(instances, v.(*ec2.Instance))
+			return true
+		})
+	}
 	for _, instanceID := range input.InstanceIds {
 		instance, _ := e.Instances.Load(*instanceID)
 		if instance == nil {
@@ -252,16 +261,42 @@ func (e *EC2API) DescribeInstancesPagesWithContext(ctx context.Context, input *e
 	return nil
 }
 
+//nolint:gocyclo
 func filterInstances(instances []*ec2.Instance, filters []*ec2.Filter) []*ec2.Instance {
 	var ret []*ec2.Instance
 	for _, instance := range instances {
 		passesFilter := true
+	OUTER:
 		for _, filter := range filters {
-			switch aws.StringValue(filter.Name) {
-			case "instance-state-name":
+			switch {
+			case aws.StringValue(filter.Name) == "instance-state-name":
 				if !sets.New(aws.StringValueSlice(filter.Values)...).Has(aws.StringValue(instance.State.Name)) {
 					passesFilter = false
-					break
+					break OUTER
+				}
+			case aws.StringValue(filter.Name) == "tag-key":
+				values := sets.New(aws.StringValueSlice(filter.Values)...)
+				if _, ok := lo.Find(instance.Tags, func(t *ec2.Tag) bool {
+					return values.Has(aws.StringValue(t.Key))
+				}); !ok {
+					passesFilter = false
+					break OUTER
+				}
+			case strings.HasPrefix(aws.StringValue(filter.Name), "tag:"):
+				k := strings.TrimPrefix(aws.StringValue(filter.Name), "tag:")
+				tag, ok := lo.Find(instance.Tags, func(t *ec2.Tag) bool {
+					return aws.StringValue(t.Key) == k
+				})
+				if !ok {
+					passesFilter = false
+					break OUTER
+				}
+				switch {
+				case lo.Contains(aws.StringValueSlice(filter.Values), "*"):
+				case lo.Contains(aws.StringValueSlice(filter.Values), aws.StringValue(tag.Value)):
+				default:
+					passesFilter = false
+					break OUTER
 				}
 			}
 		}

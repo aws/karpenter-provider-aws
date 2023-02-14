@@ -109,13 +109,9 @@ func (p *InstanceTypeProvider) List(ctx context.Context, kc *v1alpha5.KubeletCon
 	if item, ok := p.cache.Get(key); ok {
 		return item.([]*cloudprovider.InstanceType), nil
 	}
-
-	var result []*cloudprovider.InstanceType
-	for _, i := range instanceTypes {
-		instanceTypeName := aws.StringValue(i.InstanceType)
-		instanceType := NewInstanceType(ctx, i, kc, p.region, nodeTemplate, p.createOfferings(ctx, i, instanceTypeZones[instanceTypeName]))
-		result = append(result, instanceType)
-	}
+	result := lo.Map(instanceTypes, func(i *ec2.InstanceTypeInfo, _ int) *cloudprovider.InstanceType {
+		return NewInstanceType(ctx, i, kc, p.region, nodeTemplate, p.createOfferings(ctx, i, instanceTypeZones[aws.StringValue(i.InstanceType)]))
+	})
 	p.cache.SetDefault(key, result)
 	return result, nil
 }
