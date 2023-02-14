@@ -92,6 +92,18 @@ extraVolumes: []
 #         expirationSeconds: 86400
 #         path: token
 
+# -- Array of extra K8s manifests to deploy 
+extraObjects: []
+  #- apiVersion: karpenter.k8s.aws/v1alpha1
+  #  kind: AWSNodeTemplate
+  #  metadata:
+  #    name: default
+  #  spec:
+  #    subnetSelector:
+  #      karpenter.sh/discovery: {CLUSTER_NAME}
+  #    securityGroupSelector:
+  #      karpenter.sh/discovery: {CLUSTER_NAME}
+
 controller:
   # -- Controller image.
   image: "public.ecr.aws/karpenter/controller:v0.24.0@sha256:83e7a21200efd4e17314c931aa715c9c73b27fcbf08673d263c007029ad754da"
