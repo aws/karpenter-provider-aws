@@ -144,12 +144,12 @@ func (p *InstanceProvider) List(ctx context.Context) ([]*ec2.Instance, error) {
 	out, err := p.ec2api.DescribeInstancesWithContext(ctx, &ec2.DescribeInstancesInput{
 		Filters: []*ec2.Filter{
 			{
-				Name:   aws.String(fmt.Sprintf("tag:%s", v1alpha5.ProvisionerNameLabelKey)),
-				Values: aws.StringSlice([]string{"*"}),
+				Name:   aws.String("tag-key"),
+				Values: aws.StringSlice([]string{v1alpha5.ProvisionerNameLabelKey}),
 			},
 			{
-				Name:   aws.String(fmt.Sprintf("tag:kubernetes.io/cluster/%s", settings.FromContext(ctx).ClusterName)),
-				Values: aws.StringSlice([]string{"*"}),
+				Name:   aws.String("tag-key"),
+				Values: aws.StringSlice([]string{fmt.Sprintf("kubernetes.io/cluster/%s", settings.FromContext(ctx).ClusterName)}),
 			},
 			instanceStateFilter,
 		},

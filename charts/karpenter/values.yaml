@@ -106,10 +106,10 @@ controller:
   resources:
     requests:
       cpu: 1
-      memory: 3Gi
+      memory: 1Gi
     limits:
       cpu: 1
-      memory: 3Gi
+      memory: 1Gi
   # -- Controller outputPaths - default to stdout only
   outputPaths:
     - stdout

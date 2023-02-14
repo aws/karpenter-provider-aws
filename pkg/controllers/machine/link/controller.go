@@ -18,10 +18,13 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"time"
 
+	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -29,7 +32,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/aws/karpenter/pkg/cloudprovider"
-	"github.com/aws/karpenter/pkg/errors"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	corecloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
@@ -40,12 +42,14 @@ import (
 type Controller struct {
 	kubeClient    client.Client
 	cloudProvider *cloudprovider.CloudProvider
+	cache         *cache.Cache // exists due to eventual consistency on the controller-runtime cache
 }
 
 func NewController(kubeClient client.Client, cloudProvider *cloudprovider.CloudProvider) controller.Controller {
 	return &Controller{
 		kubeClient:    kubeClient,
 		cloudProvider: cloudProvider,
+		cache:         cache.New(time.Minute, time.Second*10),
 	}
 }
 
@@ -75,8 +79,12 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 }
 
 func (c *Controller) link(ctx context.Context, retrieved *v1alpha5.Machine) error {
+	provisionerName, ok := retrieved.Labels[v1alpha5.ProvisionerNameLabelKey]
+	if !ok {
+		return corecloudprovider.IgnoreMachineNotFoundError(c.cloudProvider.Delete(ctx, retrieved))
+	}
 	provisioner := &v1alpha5.Provisioner{}
-	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: retrieved.Labels[v1alpha5.ProvisionerNameLabelKey]}, provisioner); err != nil {
+	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: provisionerName}, provisioner); err != nil {
 		if errors.IsNotFound(err) {
 			return corecloudprovider.IgnoreMachineNotFoundError(c.cloudProvider.Delete(ctx, retrieved))
 		}
@@ -89,17 +97,25 @@ func (c *Controller) link(ctx context.Context, retrieved *v1alpha5.Machine) erro
 	machine.Annotations = lo.Assign(machine.Annotations, map[string]string{
 		v1alpha5.MachineLinkedAnnotationKey: retrieved.Status.ProviderID,
 	})
-	return c.kubeClient.Create(ctx, machine)
+	if err := c.kubeClient.Create(ctx, machine); err != nil {
+		return err
+	}
+	c.cache.SetDefault(retrieved.Status.ProviderID, nil)
+	return nil
 }
 
 // shouldLink checks if the cloudprovider machine is owned by a provisioner but if it wasn't created
 // by a machine. If both of these are true, then we should generate a Machine
-func (c *Controller) shouldLink(retrieved *v1alpha5.Machine, existing []v1alpha5.Machine) bool {
-	if _, ok := retrieved.Labels[v1alpha5.ManagedLabelKey]; ok {
+func (c *Controller) shouldLink(retrieved *v1alpha5.Machine, existingMachines []v1alpha5.Machine) bool {
+	if _, ok := retrieved.Labels[v1alpha5.ManagedByLabelKey]; ok {
+		return false
+	}
+	// Machine was already linked but controller-runtime cache didn't update
+	if _, ok := c.cache.Get(retrieved.Status.ProviderID); ok {
 		return false
 	}
 	// We have a machine registered for this, so no need to hydrate it
-	if _, ok := lo.Find(existing, func(m v1alpha5.Machine) bool {
+	if _, ok := lo.Find(existingMachines, func(m v1alpha5.Machine) bool {
 		return m.Annotations[v1alpha5.MachineLinkedAnnotationKey] == retrieved.Status.ProviderID ||
 			m.Status.ProviderID == retrieved.Status.ProviderID
 	}); ok {
