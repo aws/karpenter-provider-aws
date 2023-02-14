@@ -86,6 +86,7 @@ var launchTemplateProvider *LaunchTemplateProvider
 var amiProvider *amifamily.AMIProvider
 var fakeEC2API *fake.EC2API
 var fakeSSMAPI *fake.SSMAPI
+var fakeEKSAPI *fake.EKSAPI
 var fakePricingAPI *fake.PricingAPI
 var prov *provisioning.Provisioner
 var provisioningController controller.Controller
@@ -118,6 +119,7 @@ var _ = BeforeSuite(func() {
 	instanceTypeCache = cache.New(awscache.InstanceTypesAndZonesTTL, awscache.DefaultCleanupInterval)
 	fakeEC2API = &fake.EC2API{}
 	fakeSSMAPI = &fake.SSMAPI{}
+	fakeEKSAPI = &fake.EKSAPI{}
 	fakePricingAPI = &fake.PricingAPI{}
 	pricingProvider = NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
 	amiProvider = amifamily.NewAMIProvider(env.Client, env.KubernetesInterface, fakeSSMAPI, fakeEC2API, ssmCache, ec2Cache, kubernetesVersionCache)
@@ -192,6 +194,7 @@ var _ = BeforeEach(func() {
 	cluster.Reset()
 	fakeEC2API.Reset()
 	fakeSSMAPI.Reset()
+	fakeEKSAPI.Reset()
 	fakePricingAPI.Reset()
 	launchTemplateCache.Flush()
 	unavailableOfferingsCache.Flush()
@@ -202,6 +205,7 @@ var _ = BeforeEach(func() {
 	subnetProvider.Reset()
 	securityGroupProvider.Reset()
 	launchTemplateProvider.kubeDNSIP = net.ParseIP("10.0.100.10")
+	launchTemplateProvider.clusterEndpoint = "https://test-cluster"
 
 	// Reset the pricing provider, so we don't cross-pollinate pricing data
 	instanceTypeProvider = &InstanceTypeProvider{

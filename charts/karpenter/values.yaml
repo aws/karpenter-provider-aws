@@ -156,7 +156,7 @@ settings:
   aws:
     # -- Cluster name.
     clusterName: ""
-    # -- Cluster endpoint.
+    # -- Cluster endpoint. If not set, will be discovered during startup (EKS only)
     clusterEndpoint: ""
     # -- The default instance profile to use when launching nodes
     defaultInstanceProfile: ""

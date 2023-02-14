@@ -72,7 +72,7 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | serviceMonitor.endpointConfig | object | `{}` | Endpoint configuration for the ServiceMonitor. |
 | settings | object | `{"aws":{"clusterEndpoint":"","clusterName":"","defaultInstanceProfile":"","enableENILimitedPodDensity":true,"enablePodENI":false,"interruptionQueueName":"","isolatedVPC":false,"nodeNameConvention":"ip-name","tags":null,"vmMemoryOverheadPercent":0.075},"batchIdleDuration":"1s","batchMaxDuration":"10s"}` | Global Settings to configure Karpenter |
 | settings.aws | object | `{"clusterEndpoint":"","clusterName":"","defaultInstanceProfile":"","enableENILimitedPodDensity":true,"enablePodENI":false,"interruptionQueueName":"","isolatedVPC":false,"nodeNameConvention":"ip-name","tags":null,"vmMemoryOverheadPercent":0.075}` | AWS-specific configuration values |
-| settings.aws.clusterEndpoint | string | `""` | Cluster endpoint. |
+| settings.aws.clusterEndpoint | string | `""` | Cluster endpoint. If not set, will be discovered during startup (EKS only) |
 | settings.aws.clusterName | string | `""` | Cluster name. |
 | settings.aws.defaultInstanceProfile | string | `""` | The default instance profile to use when launching nodes |
 | settings.aws.enableENILimitedPodDensity | bool | `true` | Indicates whether new nodes should use ENI-based pod density DEPRECATED: Use `.spec.kubeletConfiguration.maxPods` to set pod density on a per-provisioner basis |

@@ -32,6 +32,8 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/eks"
+	"github.com/aws/aws-sdk-go/service/eks/eksiface"
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
@@ -74,12 +76,19 @@ type CloudProvider struct {
 }
 
 func New(ctx awscontext.Context) *CloudProvider {
+	clusterEndpoint, err := resolveClusterEndpoint(ctx, eks.New(ctx.Session))
+	if err != nil {
+		logging.FromContext(ctx).Fatalf("unable to detect the cluster endpoint, %s", err)
+	} else {
+		logging.FromContext(ctx).With("cluster-endpoint", clusterEndpoint).Debugf("discovered cluster endpoint")
+	}
 	kubeDNSIP, err := kubeDNSIP(ctx, ctx.KubernetesInterface)
 	if err != nil {
 		logging.FromContext(ctx).Debugf("unable to detect the IP of the kube-dns service, %s", err)
 	} else {
 		logging.FromContext(ctx).With("kube-dns-ip", kubeDNSIP).Debugf("discovered kube dns")
 	}
+
 	instanceTypeProvider := NewInstanceTypeProvider(ctx, ctx.Session, ctx.EC2API, ctx.SubnetProvider, ctx.UnavailableOfferingsCache, ctx.StartAsync)
 	amiProvider := amifamily.NewAMIProvider(ctx.KubeClient, ctx.KubernetesInterface, ssm.New(ctx.Session), ctx.EC2API,
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
@@ -103,9 +112,24 @@ func New(ctx awscontext.Context) *CloudProvider {
 				lo.Must(getCABundle(ctx.RESTConfig)),
 				ctx.StartAsync,
 				kubeDNSIP,
+				clusterEndpoint,
 			),
 		),
 	}
+}
+
+func resolveClusterEndpoint(ctx context.Context, eksAPI eksiface.EKSAPI) (string, error) {
+	clusterEndpointFromSettings := settings.FromContext(ctx).ClusterEndpoint
+	if clusterEndpointFromSettings != "" {
+		return clusterEndpointFromSettings, nil // cluster endpoint is explicitly set
+	}
+	out, err := eksAPI.DescribeCluster(&eks.DescribeClusterInput{
+		Name: aws.String(settings.FromContext(ctx).ClusterName),
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve cluster endpoint, %w", err)
+	}
+	return *out.Cluster.Endpoint, nil
 }
 
 // Create a machine given the constraints.
