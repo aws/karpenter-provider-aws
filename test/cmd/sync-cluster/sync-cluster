@@ -18,7 +18,7 @@ cd kubernetes-iteration-toolkit/infrastructure
 npm install
 
 cdk bootstrap
-cdk deploy KITInfrastructure --no-rollback \
+cdk deploy KITInfrastructure \
   --require-approval never \
   -c TestFluxRepoName="karpenter" \
   -c TestFluxRepoURL="https://github.com/aws/karpenter" \

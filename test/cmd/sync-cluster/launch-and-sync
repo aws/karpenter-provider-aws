@@ -105,4 +105,5 @@ aws ec2 run-instances \
   --subnet-id "${SUBNET_ID}" \
   --user-data "file://${SCRIPTPATH}/sync-cluster" \
   --iam-instance-profile "{\"Name\": \"${ROLE_NAME}\"}" \
-  --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=${ROLE_NAME}}]"
+  --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=${ROLE_NAME}}]" \
+  --metadata-options "HttpTokens=required,HttpEndpoint=enabled"
