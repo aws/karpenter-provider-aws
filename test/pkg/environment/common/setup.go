@@ -53,6 +53,7 @@ var (
 	}
 	ForceCleanableObjects = []functional.Pair[client.Object, client.ObjectList]{
 		{First: &v1.Node{}, Second: &v1.NodeList{}},
+		{First: &v1alpha5.Machine{}, Second: &v1alpha5.MachineList{}},
 	}
 )
 

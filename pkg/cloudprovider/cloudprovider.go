@@ -82,7 +82,7 @@ func (c *CloudProvider) Create(ctx context.Context, machine *v1alpha5.Machine) (
 	if err != nil {
 		return nil, fmt.Errorf("resolving node template, %w", err)
 	}
-	instanceTypes, err := c.resolveInstanceTypes(ctx, machine)
+	instanceTypes, err := c.resolveInstanceTypes(ctx, machine, nodeTemplate)
 	if err != nil {
 		return nil, fmt.Errorf("resolving instance types, %w", err)
 	}
@@ -256,16 +256,8 @@ func (c *CloudProvider) resolveNodeTemplate(ctx context.Context, raw []byte, obj
 	return nodeTemplate, nil
 }
 
-func (c *CloudProvider) resolveInstanceTypes(ctx context.Context, machine *v1alpha5.Machine) ([]*cloudprovider.InstanceType, error) {
-	provisionerName, ok := machine.Labels[v1alpha5.ProvisionerNameLabelKey]
-	if !ok {
-		return nil, fmt.Errorf("finding provisioner owner")
-	}
-	provisioner := &v1alpha5.Provisioner{}
-	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: provisionerName}, provisioner); err != nil {
-		return nil, fmt.Errorf("getting provisioner owner, %w", err)
-	}
-	instanceTypes, err := c.GetInstanceTypes(ctx, provisioner)
+func (c *CloudProvider) resolveInstanceTypes(ctx context.Context, machine *v1alpha5.Machine, nodeTemplate *v1alpha1.AWSNodeTemplate) ([]*cloudprovider.InstanceType, error) {
+	instanceTypes, err := c.instanceTypeProvider.List(ctx, machine.Spec.Kubelet, nodeTemplate)
 	if err != nil {
 		return nil, fmt.Errorf("getting instance types, %w", err)
 	}

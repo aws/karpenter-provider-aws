@@ -179,6 +179,14 @@ var _ = Describe("Instance Types", func() {
 			v1.LabelInstanceType:            "g4dn.8xlarge",
 			"topology.ebs.csi.aws.com/zone": "test-zone-1a",
 		}
+		var pods []*v1.Pod
+		for key, value := range nodeSelector {
+			pods = append(pods, coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{key: value}}))
+		}
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pods...)
+		for _, pod := range pods {
+			ExpectScheduled(ctx, env.Client, pod)
+		}
 
 		// Ensure that we're exercising all well known labels
 		Expect(lo.Keys(nodeSelector)).To(ContainElements(append(v1alpha5.WellKnownLabels.UnsortedList(), lo.Keys(v1alpha5.NormalizedLabels)...)))

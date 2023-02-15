@@ -41,9 +41,12 @@ import (
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/cloudprovider"
-	"github.com/aws/karpenter/pkg/fake"
 	"github.com/aws/karpenter/pkg/test"
+
+	machineutil "github.com/aws/karpenter-core/pkg/utils/machine"
+	"github.com/aws/karpenter/pkg/cloudprovider"
+
+	"github.com/aws/karpenter/pkg/fake"
 
 	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
@@ -51,13 +54,11 @@ import (
 	"github.com/aws/karpenter-core/pkg/controllers/provisioning"
 	"github.com/aws/karpenter-core/pkg/controllers/state"
 	"github.com/aws/karpenter-core/pkg/events"
-	"github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter-core/pkg/operator/injection"
 	"github.com/aws/karpenter-core/pkg/operator/options"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
-	machineutil "github.com/aws/karpenter-core/pkg/utils/machine"
 )
 
 var ctx context.Context
@@ -66,13 +67,12 @@ var opts options.Options
 var env *coretest.Environment
 var awsEnv *test.Environment
 var prov *provisioning.Provisioner
-var provisioningController controller.Controller
+var cloudProvider *cloudprovider.CloudProvider
 var cluster *state.Cluster
 var fakeClock *clock.FakeClock
 var provisioner *v1alpha5.Provisioner
 var nodeTemplate *v1alpha1.AWSNodeTemplate
 var machine *v1alpha5.Machine
-var cloudProvider *cloudprovider.CloudProvider
 
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -91,7 +91,6 @@ var _ = BeforeSuite(func() {
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, env.Client, awsEnv.AMIProvider)
 	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
 	prov = provisioning.NewProvisioner(env.Client, env.KubernetesInterface.CoreV1(), events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster)
-	provisioningController = provisioning.NewController(env.Client, prov, events.NewRecorder(&record.FakeRecorder{}))
 })
 
 var _ = AfterSuite(func() {

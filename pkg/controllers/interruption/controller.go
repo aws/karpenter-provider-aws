@@ -194,10 +194,13 @@ func (c *Controller) handleMachine(ctx context.Context, msg messages.Message, ma
 
 // deleteMachine removes the node from the api-server
 func (c *Controller) deleteMachine(ctx context.Context, machine *v1alpha5.Machine) error {
+	if !machine.DeletionTimestamp.IsZero() {
+		return nil
+	}
 	if err := c.kubeClient.Delete(ctx, machine); err != nil {
 		return client.IgnoreNotFound(fmt.Errorf("deleting the node on interruption message, %w", err))
 	}
-	logging.FromContext(ctx).Infof("deleted node from interruption message")
+	logging.FromContext(ctx).Infof("deleted machine from interruption message")
 	c.recorder.Publish(interruptionevents.MachineTerminatingOnInterruption(machine))
 	metrics.MachinesTerminatedCounter.With(prometheus.Labels{
 		metrics.ReasonLabel:      terminationReasonLabel,
@@ -208,7 +211,6 @@ func (c *Controller) deleteMachine(ctx context.Context, machine *v1alpha5.Machin
 
 // notifyForMessage publishes the relevant alert based on the message kind
 func (c *Controller) notifyForMessage(msg messages.Message, m *v1alpha5.Machine) {
-	// TODO @joinnis: Also send a notification out for the node that is linked to this machine if it exists
 	switch msg.Kind() {
 	case messages.RebalanceRecommendationKind:
 		c.recorder.Publish(interruptionevents.MachineRebalanceRecommendation(m))

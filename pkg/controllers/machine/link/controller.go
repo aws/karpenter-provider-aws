@@ -50,7 +50,7 @@ type Controller struct {
 	Cache         *cache.Cache // exists due to eventual consistency on the controller-runtime cache
 }
 
-func NewController(kubeClient client.Client, cloudProvider *cloudprovider.CloudProvider) controller.Controller {
+func NewController(kubeClient client.Client, cloudProvider *cloudprovider.CloudProvider) *Controller {
 	return &Controller{
 		kubeClient:    kubeClient,
 		cloudProvider: cloudProvider,

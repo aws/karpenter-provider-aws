@@ -147,7 +147,6 @@ var _ = Describe("LaunchTemplates", func() {
 	It("should default to a generated launch template", func() {
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 		pod := coretest.UnschedulablePod()
-		fmt.Println(cluster.Nodes())
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 		ExpectScheduled(ctx, env.Client, pod)
 
@@ -325,8 +324,7 @@ var _ = Describe("LaunchTemplates", func() {
 			Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(newProvisioner), newProvisioner)).To(Succeed())
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
-			node := ExpectScheduled(ctx, env.Client, pod)
-			Expect(node.Labels).To(HaveKeyWithValue(v1alpha1.LabelInstanceAMIID, "ami-123"))
+			ExpectScheduled(ctx, env.Client, pod)
 		})
 	})
 	Context("Tags", func() {

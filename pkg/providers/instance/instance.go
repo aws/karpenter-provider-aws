@@ -109,7 +109,6 @@ func (p *Provider) Create(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTem
 	}
 	logging.FromContext(ctx).With(
 		"id", aws.StringValue(instance.InstanceId),
-		"hostname", aws.StringValue(instance.PrivateDnsName),
 		"instance-type", aws.StringValue(instance.InstanceType),
 		"zone", aws.StringValue(instance.Placement.AvailabilityZone),
 		"capacity-type", GetCapacityType(instance),
@@ -519,7 +518,6 @@ func fleetInstanceToInstance(out *ec2.CreateFleetInstance) *ec2.Instance {
 	return &ec2.Instance{
 		InstanceId:   out.InstanceIds[0],
 		InstanceType: out.InstanceType,
-		ImageId:      out.LaunchTemplateAndOverrides.Overrides.ImageId,
 		Platform:     out.Platform,
 		Placement: &ec2.Placement{
 			AvailabilityZone: out.LaunchTemplateAndOverrides.Overrides.AvailabilityZone,
