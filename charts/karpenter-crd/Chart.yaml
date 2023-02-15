@@ -1,6 +1,6 @@
 apiVersion: v2
 name: karpenter-crd
-description: A Helm chart for Karpenter CRDs and other manifests
+description: A Helm chart for Karpenter Custom Resource Definitions (CRDs)
 type: application
 version: 0.20.0
 appVersion: 0.20.0

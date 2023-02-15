@@ -26,6 +26,7 @@ git add go.sum
 git add test/go.mod
 git add test/go.sum
 git add website
+git add charts/karpenter-crd/Chart.yaml
 git add charts/karpenter/Chart.yaml
 git add charts/karpenter/Chart.lock
 git add charts/karpenter/values.yaml
