@@ -20,7 +20,7 @@ spec:
   - name: v1alpha5
     schema:
       openAPIV3Schema:
-        description: Provisioner is the Schema for the Provisioners APIIPA
+        description: Provisioner is the Schema for the Provisioners API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
