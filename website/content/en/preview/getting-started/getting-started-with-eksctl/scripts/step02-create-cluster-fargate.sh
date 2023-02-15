@@ -15,5 +15,3 @@ fargateProfiles:
 iam:
   withOIDC: true
 EOF
-
-export CLUSTER_ENDPOINT="$(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.endpoint" --output text)"
