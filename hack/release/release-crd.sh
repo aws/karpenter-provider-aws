@@ -8,8 +8,8 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 source "${SCRIPT_DIR}/common.sh"
 
 config
-publishHelmChartToGHCR "karpenter-crd" "${HEAD_HASH}"
+publishHelmChart "karpenter-crd" "${HEAD_HASH}" "${RELEASE_REPO_GH}"
 
 if [[ $(releaseType $GIT_TAG) == $RELEASE_TYPE_STABLE ]]; then
-  publishHelmChartToGHCR "karpenter-crd" "${GIT_TAG}"
+  publishHelmChart "karpenter-crd" "${GIT_TAG}" "${RELEASE_REPO_GH}"
 fi

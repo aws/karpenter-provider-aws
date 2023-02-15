@@ -20,7 +20,7 @@ spec:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: AWSNodeTemplate is the Schema for the AWSNodeTemplate API
+        description: AWSNodeTemplate is the Schema for the AWSNodeTemplate APIIPA
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
