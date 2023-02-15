@@ -36,7 +36,7 @@ Users should therefore check to see if there is a breaking change every time the
 ## Custom Resource Definition (CRD) Upgrades
 
 Karpenter ships with a few Custom Resource Definitions (CRDs). These CRDs are published:
-* As an independent helm chart [karpenter-crd](https://gallery.ecr.aws/karpenter/karpenter-crd) - [source](https://github.com/aws/karpenter/blob/main/charts/karpenter-crd). Helm then will manage the lifecycle of these CRDs as a package.
+* As an independent helm chart [karpenter-crd](https://gallery.ecr.aws/karpenter/karpenter-crd) - [source](https://github.com/aws/karpenter/blob/main/charts/karpenter-crd) that can be used by Helm to manage the lifecycle of these CRDs.
   * To upgrade or install `karpenter-crd` run:
     ```
     helm upgrade --install karpenter-crd oci://public.ecr.aws/karpenter/karpenter-crd --version vx.y.z --namespace karpenter --create-namespace
