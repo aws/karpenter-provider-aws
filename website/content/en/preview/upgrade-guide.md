@@ -35,7 +35,13 @@ Users should therefore check to see if there is a breaking change every time the
 
 ## Custom Resource Definition (CRD) Upgrades
 
-Karpenter ships with a few Custom Resource Definitions (CRDs). These CRDs are part of the helm chart [here](https://github.com/aws/karpenter/blob/main/charts/karpenter/crds). Helm [does not manage the lifecycle of CRDs](https://helm.sh/docs/chart_best_practices/custom_resource_definitions/), the tool will only install the CRD during the first installation of the helm chart. Subsequent chart upgrades will not add or remove CRDs, even if the CRDs have changed. When CRDs are changed, we will make a note in the version's upgrade guide.
+Karpenter ships with a few Custom Resource Definitions (CRDs). These CRDs are published:
+* As an independent helm chart [karpenter-crd](https://gallery.ecr.aws/karpenter/karpenter-crd) - [source](https://github.com/aws/karpenter/blob/main/charts/karpenter-crd) that can be used by Helm to manage the lifecycle of these CRDs.
+  * To upgrade or install `karpenter-crd` run:
+    ```
+    helm upgrade --install karpenter-crd oci://public.ecr.aws/karpenter/karpenter-crd --version vx.y.z --namespace karpenter --create-namespace
+    ```
+* As pa part of the helm chart [karpenter](https://gallery.ecr.aws/karpenter/karpenter) - [source](https://github.com/aws/karpenter/blob/main/charts/karpenter/crds). Helm [does not manage the lifecycle of CRDs using this method](https://helm.sh/docs/chart_best_practices/custom_resource_definitions/), the tool will only install the CRD during the first installation of the helm chart. Subsequent chart upgrades will not add or remove CRDs, even if the CRDs have changed. When CRDs are changed, we will make a note in the version's upgrade guide.
 
 In general, you can reapply the CRDs in the `crds` directory of the Karpenter helm chart:
 
