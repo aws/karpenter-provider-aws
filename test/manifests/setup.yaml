@@ -78,6 +78,7 @@ spec:
           amiFamily: AmazonLinux2
           name: $(params.cluster-name)-system-pool
           desiredCapacity: 2
+          disableIMDSv1: true
           minSize: 2
           maxSize: 2
           taints:
