@@ -90,15 +90,6 @@ var _ = Describe("Validation", func() {
 		_, err := (&settings.Settings{}).Inject(ctx, cm)
 		Expect(err).To(HaveOccurred())
 	})
-	It("should fail validation when clusterEndpoint not included", func() {
-		cm := &v1.ConfigMap{
-			Data: map[string]string{
-				"aws.clusterName": "my-name",
-			},
-		}
-		_, err := (&settings.Settings{}).Inject(ctx, cm)
-		Expect(err).To(HaveOccurred())
-	})
 	It("should fail validation when clusterEndpoint is invalid (not absolute)", func() {
 		cm := &v1.ConfigMap{
 			Data: map[string]string{

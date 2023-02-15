@@ -8,6 +8,7 @@ config(){
   RELEASE_REPO=${RELEASE_REPO:-public.ecr.aws/${ECR_GALLERY_NAME}/}
   RELEASE_REPO_GH=${RELEASE_REPO_GH:-ghcr.io/${GITHUB_ACCOUNT}/karpenter}
 
+  MAIN_GITHUB_ACCOUNT="aws"
   PRIVATE_PULL_THROUGH_HOST="${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com"
   SNS_TOPIC_ARN="arn:aws:sns:us-east-1:${AWS_ACCOUNT_ID}:KarpenterReleases"
   CURRENT_MAJOR_VERSION="0"
@@ -134,6 +135,19 @@ publishHelmChartToGHCR() {
     helm push "${HELM_CHART_FILE_NAME}" "oci://${RELEASE_REPO_GH}"
     rm "${HELM_CHART_FILE_NAME}"
     cd ..
+}
+
+updateKarpenterCoreGoMod(){
+  RELEASE_VERSION=$1
+  if [[ $GITHUB_ACCOUNT != $MAIN_GITHUB_ACCOUNT ]]; then
+    echo "not updating go mod for a repo other than the main repo"
+    return
+  fi
+  go get -u "github.com/aws/karpenter-core@${RELEASE_VERSION}"
+  cd test
+  go get -u "github.com/aws/karpenter-core@${RELEASE_VERSION}"
+  cd ..
+  make tidy
 }
 
 createNewWebsiteDirectory() {
