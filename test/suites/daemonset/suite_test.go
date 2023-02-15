@@ -17,7 +17,6 @@ package daemonset
 import (
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws"
 	v1 "k8s.io/api/core/v1"
 	schedulingv1 "k8s.io/api/scheduling/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -50,7 +49,7 @@ func TestDaemonsets(t *testing.T) {
 	AfterSuite(func() {
 		env.Stop()
 	})
-	RunSpecs(t, "DaemonSet Controller")
+	RunSpecs(t, "DaemonSet")
 }
 
 var _ = BeforeEach(func() { env.BeforeEach() })
@@ -58,56 +57,25 @@ var _ = AfterEach(func() { env.Cleanup() })
 var _ = AfterEach(func() { env.ForceCleanup() })
 var _ = AfterEach(func() { env.AfterEach() })
 
-var _ = Describe("DaemonSet Controller", func() {
-	BeforeEach(func() {
-		namespace = &v1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   "limitrange-test",
-				Labels: map[string]string{DiscoveryLabel: "unspecified"},
-			},
-		}
+var _ = Describe("DaemonSet", func() {
+	It("should account for LimitRange Containers Default For Resources", func() {
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+		}})
+		provisioner := test.Provisioner(test.ProvisionerOptions{
+			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
+		})
 		preemptNever := v1.PreemptNever
 		priorityclass = &schedulingv1.PriorityClass{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "high-priority-daemonsets",
-				Namespace: "default",
+				Name: "high-priority-daemonsets",
 			},
 			PreemptionPolicy: &preemptNever,
 			Value:            int32(10000000),
 			GlobalDefault:    false,
 			Description:      "This priority class should be used for daemonsets.",
 		}
-	})
-	It("should account for LimitRange Containers Default For Some Resources", func() {
-		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-		}})
-		provisioner := test.Provisioner(test.ProvisionerOptions{
-			Requirements: []v1.NodeSelectorRequirement{
-				{
-					Key:      v1alpha5.LabelCapacityType,
-					Operator: v1.NodeSelectorOpIn,
-					// we don't replace spot nodes, so this forces us to only delete nodes
-					Values: []string{"spot"},
-				},
-				{
-					Key:      v1alpha1.LabelInstanceSize,
-					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{"medium", "large", "xlarge"},
-				},
-				{
-					Key:      v1alpha1.LabelInstanceFamily,
-					Operator: v1.NodeSelectorOpNotIn,
-					// remove some cheap burstable and the odd c1 instance types so we have
-					// more control over what gets provisioned
-					Values: []string{"t2", "t3", "c1", "t3a", "t4g"},
-				},
-			},
-			// prevent emptiness from deleting the nodes
-			TTLSecondsAfterEmpty: aws.Int64(99999),
-			ProviderRef:          &v1alpha5.ProviderRef{Name: provider.Name},
-		})
 		limitrange = &v1.LimitRange{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "limitrange",
@@ -128,7 +96,6 @@ var _ = Describe("DaemonSet Controller", func() {
 				PriorityClassName:    "high-priority-daemonsets",
 			},
 		})
-		daemonset.Namespace = "limitrange-test"
 		numPods := 1
 		dep := test.Deployment(test.DeploymentOptions{
 			Replicas: int32(numPods),
@@ -145,45 +112,29 @@ var _ = Describe("DaemonSet Controller", func() {
 		podSelector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 		daemonsetSector := labels.SelectorFromSet(daemonset.Spec.Selector.MatchLabels)
 		env.ExpectCreatedNodeCount("==", 0)
-		env.ExpectCreated(provisioner, provider, limitrange, namespace, priorityclass, daemonset, dep)
+		env.ExpectCreated(provisioner, provider, limitrange, priorityclass, daemonset, dep)
 		env.EventuallyExpectHealthyPodCount(podSelector, 1)
-		env.EventuallyExpectHealthyPodCount(daemonsetSector, 1)
-		env.ExpectCreatedNodeCount("==", 1)
-
-		Expect(env.Client.Delete(env, namespace)).To(Succeed())
-		Expect(env.Client.Delete(env, limitrange)).To(Succeed())
-		Expect(env.Client.Delete(env, priorityclass)).To(Succeed())
+		env.EventuallyExpectHealthyPodCount(daemonsetSector, 2)
+		env.ExpectCreatedNodeCount("==", 2)
 	})
-	It("should account for LimitRange Containers Default Requests For Some Resources", func() {
+	It("should account for LimitRange Containers Default Requests For Resources", func() {
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{
-			Requirements: []v1.NodeSelectorRequirement{
-				{
-					Key:      v1alpha5.LabelCapacityType,
-					Operator: v1.NodeSelectorOpIn,
-					// we don't replace spot nodes, so this forces us to only delete nodes
-					Values: []string{"spot"},
-				},
-				{
-					Key:      v1alpha1.LabelInstanceSize,
-					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{"medium", "large", "xlarge"},
-				},
-				{
-					Key:      v1alpha1.LabelInstanceFamily,
-					Operator: v1.NodeSelectorOpNotIn,
-					// remove some cheap burstable and the odd c1 instance types so we have
-					// more control over what gets provisioned
-					Values: []string{"t2", "t3", "c1", "t3a", "t4g"},
-				},
-			},
-			// prevent emptiness from deleting the nodes
-			TTLSecondsAfterEmpty: aws.Int64(99999),
-			ProviderRef:          &v1alpha5.ProviderRef{Name: provider.Name},
+			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
 		})
+		preemptNever := v1.PreemptNever
+		priorityclass = &schedulingv1.PriorityClass{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "high-priority-daemonsets",
+			},
+			PreemptionPolicy: &preemptNever,
+			Value:            int32(10000000),
+			GlobalDefault:    false,
+			Description:      "This priority class should be used for daemonsets.",
+		}
 		limitrange = &v1.LimitRange{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "limitrange",
@@ -204,7 +155,6 @@ var _ = Describe("DaemonSet Controller", func() {
 				PriorityClassName:    "high-priority-daemonsets",
 			},
 		})
-		daemonset.Namespace = "limitrange-test"
 		numPods := 1
 		dep := test.Deployment(test.DeploymentOptions{
 			Replicas: int32(numPods),
@@ -221,13 +171,9 @@ var _ = Describe("DaemonSet Controller", func() {
 		podSelector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 		daemonsetSector := labels.SelectorFromSet(daemonset.Spec.Selector.MatchLabels)
 		env.ExpectCreatedNodeCount("==", 0)
-		env.ExpectCreated(provisioner, provider, limitrange, namespace, priorityclass, daemonset, dep)
+		env.ExpectCreated(provisioner, provider, limitrange, priorityclass, daemonset, dep)
 		env.EventuallyExpectHealthyPodCount(podSelector, 1)
-		env.EventuallyExpectHealthyPodCount(daemonsetSector, 1)
-		env.ExpectCreatedNodeCount("==", 1)
-
-		Expect(env.Client.Delete(env, namespace)).To(Succeed())
-		Expect(env.Client.Delete(env, limitrange)).To(Succeed())
-		Expect(env.Client.Delete(env, priorityclass)).To(Succeed())
+		env.EventuallyExpectHealthyPodCount(daemonsetSector, 2)
+		env.ExpectCreatedNodeCount("==", 2)
 	})
 })
