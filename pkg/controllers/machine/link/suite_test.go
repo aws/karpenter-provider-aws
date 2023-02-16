@@ -180,6 +180,8 @@ var _ = Describe("MachineLink", func() {
 
 			// Expect machine has linking annotation to get machine details
 			Expect(machine.Annotations).To(HaveKeyWithValue(v1alpha5.MachineLinkedAnnotationKey, providerID))
+			instance := ExpectInstanceExists(ec2API, instanceID)
+			ExpectManagedByTagExists(instance)
 		})
 		It("should link and instance with expected requirements and labels", func() {
 			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
@@ -229,6 +231,8 @@ var _ = Describe("MachineLink", func() {
 
 			// Expect machine has linking annotation to get machine details
 			Expect(machine.Annotations).To(HaveKeyWithValue(v1alpha5.MachineLinkedAnnotationKey, providerID))
+			instance := ExpectInstanceExists(ec2API, instanceID)
+			ExpectManagedByTagExists(instance)
 		})
 		It("should link an instance with expected kubelet from provisioner kubelet configuration", func() {
 			provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
@@ -251,6 +255,8 @@ var _ = Describe("MachineLink", func() {
 
 			// Expect machine has linking annotation to get machine details
 			Expect(machine.Annotations).To(HaveKeyWithValue(v1alpha5.MachineLinkedAnnotationKey, providerID))
+			instance := ExpectInstanceExists(ec2API, instanceID)
+			ExpectManagedByTagExists(instance)
 		})
 		It("should link many instances to many machines", func() {
 			ec2API.Reset() // Reset so we don't store the extra instance
@@ -301,6 +307,8 @@ var _ = Describe("MachineLink", func() {
 			Expect(machineInstanceIDs).To(HaveLen(len(ids)))
 			for _, id := range ids {
 				Expect(machineInstanceIDs.Has(id)).To(BeTrue())
+				instance := ExpectInstanceExists(ec2API, id)
+				ExpectManagedByTagExists(instance)
 			}
 		})
 		It("should link an instance using provider and no providerRef", func() {
@@ -324,6 +332,8 @@ var _ = Describe("MachineLink", func() {
 
 			// Expect machine has linking annotation to get machine details
 			Expect(machine.Annotations).To(HaveKeyWithValue(v1alpha5.MachineLinkedAnnotationKey, providerID))
+			instance := ExpectInstanceExists(ec2API, instanceID)
+			ExpectManagedByTagExists(instance)
 		})
 		It("should link an instance without node template existence", func() {
 			// No node template has been applied here
@@ -339,6 +349,8 @@ var _ = Describe("MachineLink", func() {
 
 			// Expect machine has linking annotation to get machine details
 			Expect(machine.Annotations).To(HaveKeyWithValue(v1alpha5.MachineLinkedAnnotationKey, providerID))
+			instance := ExpectInstanceExists(ec2API, instanceID)
+			ExpectManagedByTagExists(instance)
 		})
 	})
 	Context("Failed", func() {
@@ -400,4 +412,12 @@ func ExpectInstanceExists(api *fake.EC2API, instanceID string) *ec2.Instance {
 	raw, ok := api.Instances.Load(instanceID)
 	Expect(ok).To(BeTrue())
 	return raw.(*ec2.Instance)
+}
+
+func ExpectManagedByTagExists(instance *ec2.Instance) *ec2.Tag {
+	tag, ok := lo.Find(instance.Tags, func(t *ec2.Tag) bool {
+		return aws.StringValue(t.Key) == v1alpha5.ManagedByLabelKey
+	})
+	Expect(ok).To(BeTrue())
+	return tag
 }
