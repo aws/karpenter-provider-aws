@@ -27,18 +27,20 @@ import (
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	awstest "github.com/aws/karpenter/pkg/test"
+	"github.com/samber/lo"
 
 	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 )
 
-var provider *v1alpha1.AWSNodeTemplate
-var provisioner *v1alpha5.Provisioner
-var limitrange *v1.LimitRange
-var priorityclass *schedulingv1.PriorityClass
-var daemonset *appsv1.DaemonSet
-var dep *appsv1.Deployment
-
 var _ = Describe("DaemonSet", func() {
+	var provider *v1alpha1.AWSNodeTemplate
+	var provisioner *v1alpha5.Provisioner
+	var limitrange *v1.LimitRange
+	var priorityclass *schedulingv1.PriorityClass
+	var daemonset *appsv1.DaemonSet
+	var dep *appsv1.Deployment
+
 	BeforeEach(func() {
 		provider = awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
@@ -46,13 +48,15 @@ var _ = Describe("DaemonSet", func() {
 		}})
 		provisioner = test.Provisioner(test.ProvisionerOptions{
 			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
+			Consolidation: &v1alpha5.Consolidation{
+				Enabled: lo.ToPtr(true),
+			},
 		})
-		preemptNever := v1.PreemptNever
 		priorityclass = &schedulingv1.PriorityClass{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "high-priority-daemonsets",
 			},
-			PreemptionPolicy: &preemptNever,
+			PreemptionPolicy: lo.ToPtr(v1.PreemptNever),
 			Value:            int32(10000000),
 			GlobalDefault:    false,
 			Description:      "This priority class should be used for daemonsets.",
@@ -63,12 +67,7 @@ var _ = Describe("DaemonSet", func() {
 				Namespace: "default",
 			},
 			Spec: v1.LimitRangeSpec{
-				Limits: []v1.LimitRangeItem{{
-					Type: v1.LimitTypeContainer,
-					Default: v1.ResourceList{
-						v1.ResourceCPU:    resource.MustParse("2"),
-						v1.ResourceMemory: resource.MustParse("1Gi"),
-					}}},
+				Limits: []v1.LimitRangeItem{},
 			},
 		}
 		daemonset = test.DaemonSet(test.DaemonSetOptions{
@@ -90,22 +89,61 @@ var _ = Describe("DaemonSet", func() {
 			},
 		})
 	})
-	It("should account for LimitRange Containers Default For Resources", func() {
+	It("should account for LimitRange Defaults on daemonSet pods For Resources", func() {
+		defaultLimit := v1.LimitRangeItem{
+			Type: v1.LimitTypeContainer,
+			Default: v1.ResourceList{
+				v1.ResourceCPU:    resource.MustParse("2"),
+				v1.ResourceMemory: resource.MustParse("1Gi"),
+			},
+		}
+		limitrange.Spec.Limits = append(limitrange.Spec.Limits, defaultLimit)
+
 		podSelector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
-		daemonsetSector := labels.SelectorFromSet(daemonset.Spec.Selector.MatchLabels)
-		env.ExpectCreatedNodeCount("==", 0)
+		daemonSetSelector := labels.SelectorFromSet(daemonset.Spec.Selector.MatchLabels)
 		env.ExpectCreated(provisioner, provider, limitrange, priorityclass, daemonset, dep)
 		env.EventuallyExpectHealthyPodCount(podSelector, 1)
-		env.EventuallyExpectHealthyPodCount(daemonsetSector, 2)
-		env.ExpectCreatedNodeCount("==", 2)
+		env.EventuallyExpectHealthyPodCount(daemonSetSelector, 1)
+		EventuallyExpectOneNodeWithAllPods(podSelector, daemonSetSelector)
 	})
-	It("should account for LimitRange Containers Default Requests For Resources", func() {
+	It("should account for LimitRange Default Requests on daemonSet pods For Resources", func() {
+		defaultRequestLimit := v1.LimitRangeItem{
+			Type: v1.LimitTypeContainer,
+			DefaultRequest: v1.ResourceList{
+				v1.ResourceCPU:    resource.MustParse("2"),
+				v1.ResourceMemory: resource.MustParse("1Gi"),
+			},
+		}
+		limitrange.Spec.Limits = append(limitrange.Spec.Limits, defaultRequestLimit)
+
 		podSelector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
-		daemonsetSector := labels.SelectorFromSet(daemonset.Spec.Selector.MatchLabels)
-		env.ExpectCreatedNodeCount("==", 0)
+		daemonSetSelector := labels.SelectorFromSet(daemonset.Spec.Selector.MatchLabels)
 		env.ExpectCreated(provisioner, provider, limitrange, priorityclass, daemonset, dep)
 		env.EventuallyExpectHealthyPodCount(podSelector, 1)
-		env.EventuallyExpectHealthyPodCount(daemonsetSector, 2)
-		env.ExpectCreatedNodeCount("==", 2)
+		env.EventuallyExpectHealthyPodCount(daemonSetSelector, 1)
+		EventuallyExpectOneNodeWithAllPods(podSelector, daemonSetSelector)
 	})
 })
+
+func EventuallyExpectOneNodeWithAllPods(podSelector labels.Selector, daemonSetSelector labels.Selector) {
+	env.EventuallyExpectCreatedNodeCount("==", 1)
+	createdNode := &v1.Node{}
+
+	for _, node := range env.Monitor.Nodes() {
+		if lo.Contains(lo.Keys(node.Labels), "testing.karpenter.sh/test-id") {
+			createdNode = node
+			break
+		}
+	}
+
+	pod := env.Monitor.RunningPods(podSelector)
+	daemonSetPod := env.Monitor.RunningPods(daemonSetSelector)
+
+	EventuallyWithOffset(1, func(g Gomega) {
+		Expect(pod[0].Spec.NodeName).To(Equal(createdNode.Name))
+	}).Should(Succeed())
+
+	EventuallyWithOffset(1, func(g Gomega) {
+		Expect(daemonSetPod[0].Spec.NodeName).To(Equal(createdNode.Name))
+	}).Should(Succeed())
+}
