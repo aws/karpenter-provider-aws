@@ -15,8 +15,6 @@ limitations under the License.
 package integration_test
 
 import (
-	"testing"
-
 	v1 "k8s.io/api/core/v1"
 	schedulingv1 "k8s.io/api/scheduling/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -28,32 +26,12 @@ import (
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	awstest "github.com/aws/karpenter/pkg/test"
-	environmentaws "github.com/aws/karpenter/test/pkg/environment/aws"
 
 	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 )
 
 var limitrange *v1.LimitRange
 var priorityclass *schedulingv1.PriorityClass
-
-const DiscoveryLabel = v1alpha5.TestingGroup + "/test-id"
-
-func TestDaemonsets(t *testing.T) {
-	RegisterFailHandler(Fail)
-	BeforeSuite(func() {
-		env = environmentaws.NewEnvironment(t)
-	})
-	AfterSuite(func() {
-		env.Stop()
-	})
-	RunSpecs(t, "DaemonSet")
-}
-
-var _ = BeforeEach(func() { env.BeforeEach() })
-var _ = AfterEach(func() { env.Cleanup() })
-var _ = AfterEach(func() { env.ForceCleanup() })
-var _ = AfterEach(func() { env.AfterEach() })
 
 var _ = Describe("DaemonSet", func() {
 	It("should account for LimitRange Containers Default For Resources", func() {
