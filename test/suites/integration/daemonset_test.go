@@ -22,12 +22,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 
+	"github.com/samber/lo"
+
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	awstest "github.com/aws/karpenter/pkg/test"
-	"github.com/samber/lo"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
