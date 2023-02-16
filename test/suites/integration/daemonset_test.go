@@ -127,24 +127,20 @@ var _ = Describe("DaemonSet", func() {
 })
 
 func EventuallyExpectOneNodeWithAllPods(podSelector labels.Selector, daemonSetSelector labels.Selector) {
-	env.EventuallyExpectCreatedNodeCount("==", 1)
-	createdNode := &v1.Node{}
+	Eventually(func(g Gomega) {
+		env.EventuallyExpectCreatedNodeCount("==", 1)
+		createdNode := &v1.Node{}
 
-	for _, node := range env.Monitor.Nodes() {
-		if lo.Contains(lo.Keys(node.Labels), "testing.karpenter.sh/test-id") {
-			createdNode = node
-			break
+		for _, node := range env.Monitor.Nodes() {
+			if lo.Contains(lo.Keys(node.Labels), "testing.karpenter.sh/test-id") {
+				createdNode = node
+				break
+			}
 		}
-	}
+		pod := env.Monitor.RunningPods(podSelector)
+		daemonSetPod := env.Monitor.RunningPods(daemonSetSelector)
 
-	pod := env.Monitor.RunningPods(podSelector)
-	daemonSetPod := env.Monitor.RunningPods(daemonSetSelector)
-
-	EventuallyWithOffset(1, func(g Gomega) {
 		Expect(pod[0].Spec.NodeName).To(Equal(createdNode.Name))
-	}).Should(Succeed())
-
-	EventuallyWithOffset(1, func(g Gomega) {
 		Expect(daemonSetPod[0].Spec.NodeName).To(Equal(createdNode.Name))
 	}).Should(Succeed())
 }
