@@ -17,10 +17,10 @@ package v1alpha5
 import (
 	"context"
 
+	"github.com/aws/aws-sdk-go/service/ec2"
+	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/apis"
-
-	"github.com/aws/aws-sdk-go/service/ec2"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/scheduling"
@@ -30,6 +30,13 @@ import (
 // Provisioner is an alias type for additional validation
 // +kubebuilder:object:root=true
 type Provisioner v1alpha5.Provisioner
+
+func (p *Provisioner) SupportedVerbs() []admissionregistrationv1.OperationType {
+	return []admissionregistrationv1.OperationType{
+		admissionregistrationv1.Create,
+		admissionregistrationv1.Update,
+	}
+}
 
 func (p *Provisioner) Validate(ctx context.Context) (errs *apis.FieldError) {
 	if p.Spec.Provider == nil {
