@@ -101,7 +101,7 @@ func (p *Provider) List(ctx context.Context, kc *v1alpha5.KubeletConfiguration, 
 		return item.([]*cloudprovider.InstanceType), nil
 	}
 	result := lo.Map(instanceTypes, func(i *ec2.InstanceTypeInfo, _ int) *cloudprovider.InstanceType {
-		return NewInstanceType(ctx, i, kc, p.region, nodeTemplate, p.createOfferings(ctx, i, instanceTypeZones[aws.StringValue(i.InstanceType)]))
+		return NewInstanceType(ctx, i, kc, p.region, nodeTemplate, p.createOfferings(ctx, nodeTemplate, i, instanceTypeZones[aws.StringValue(i.InstanceType)]))
 	})
 	p.cache.SetDefault(key, result)
 	return result, nil
@@ -117,13 +117,16 @@ func (p *Provider) LivenessProbe(req *http.Request) error {
 	return nil
 }
 
-func (p *Provider) createOfferings(ctx context.Context, instanceType *ec2.InstanceTypeInfo, zones sets.String) []cloudprovider.Offering {
+func (p *Provider) createOfferings(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, instanceType *ec2.InstanceTypeInfo, zones sets.String) []cloudprovider.Offering {
 	var offerings []cloudprovider.Offering
 	for zone := range zones {
 		// while usage classes should be a distinct set, there's no guarantee of that
 		for capacityType := range sets.NewString(aws.StringValueSlice(instanceType.SupportedUsageClasses)...) {
 			// exclude any offerings that have recently seen an insufficient capacity error from EC2
 			isUnavailable := p.unavailableOfferings.IsUnavailable(*instanceType.InstanceType, zone, capacityType)
+			if nodeTemplate.Spec.Context != nil {
+				isUnavailable = false
+			}
 			var price float64
 			var ok bool
 			switch capacityType {
