@@ -19,7 +19,7 @@ tools() {
     go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.11.3
     go install github.com/sigstore/cosign/cmd/cosign@v1.13.1
     go install -tags extended github.com/gohugoio/hugo@v0.110.0
-    go install golang.org/x/vuln/cmd/govulncheck@v0.0.0-20230209185747-5884084d81cd
+    go install golang.org/x/vuln/cmd/govulncheck@v0.0.0-20230217165152-67742527d09b
     go install github.com/onsi/ginkgo/v2/ginkgo@latest
 
     if ! echo "$PATH" | grep -q "${GOPATH:-undefined}/bin\|$HOME/go/bin"; then
