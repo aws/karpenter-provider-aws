@@ -32,6 +32,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var _ = Describe("DaemonSet", func() {
@@ -67,9 +68,6 @@ var _ = Describe("DaemonSet", func() {
 				Name:      "limitrange",
 				Namespace: "default",
 			},
-			Spec: v1.LimitRangeSpec{
-				Limits: []v1.LimitRangeItem{},
-			},
 		}
 		daemonset = test.DaemonSet(test.DaemonSetOptions{
 			PodOptions: test.PodOptions{
@@ -90,57 +88,66 @@ var _ = Describe("DaemonSet", func() {
 			},
 		})
 	})
-	It("should account for LimitRange Defaults on daemonSet pods For Resources", func() {
-		defaultLimit := v1.LimitRangeItem{
-			Type: v1.LimitTypeContainer,
-			Default: v1.ResourceList{
-				v1.ResourceCPU:    resource.MustParse("2"),
-				v1.ResourceMemory: resource.MustParse("1Gi"),
+	It("should account for LimitRange Default on daemonSet pods for resources", func() {
+		limitrange.Spec.Limits = []v1.LimitRangeItem{
+			{
+				Type: v1.LimitTypeContainer,
+				Default: v1.ResourceList{
+					v1.ResourceCPU:    resource.MustParse("2"),
+					v1.ResourceMemory: resource.MustParse("1Gi"),
+				},
 			},
 		}
-		limitrange.Spec.Limits = append(limitrange.Spec.Limits, defaultLimit)
 
 		podSelector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 		daemonSetSelector := labels.SelectorFromSet(daemonset.Spec.Selector.MatchLabels)
 		env.ExpectCreated(provisioner, provider, limitrange, priorityclass, daemonset, dep)
-		env.EventuallyExpectHealthyPodCount(podSelector, 1)
-		env.EventuallyExpectHealthyPodCount(daemonSetSelector, 1)
-		EventuallyExpectOneNodeWithAllPods(podSelector, daemonSetSelector)
+
+		// Eventually expect a single node to exist and both the deployment pod and the daemonset pod to schedule to it
+		Eventually(func(g Gomega) {
+			nodeList := &v1.NodeList{}
+			g.Expect(env.Client.List(env, nodeList, client.HasLabels{"testing.karpenter.sh/test-id"})).To(Succeed())
+			g.Expect(nodeList.Items).To(HaveLen(1))
+
+			deploymentPods := env.Monitor.RunningPods(podSelector)
+			g.Expect(deploymentPods).To(HaveLen(1))
+
+			daemonSetPods := env.Monitor.RunningPods(daemonSetSelector)
+			g.Expect(deploymentPods).To(HaveLen(1))
+
+			g.Expect(deploymentPods[0].Spec.NodeName).To(Equal(nodeList.Items[0].Name))
+			g.Expect(daemonSetPods[0].Spec.NodeName).To(Equal(nodeList.Items[0].Name))
+		}).Should(Succeed())
 	})
-	It("should account for LimitRange Default Requests on daemonSet pods For Resources", func() {
-		defaultRequestLimit := v1.LimitRangeItem{
-			Type: v1.LimitTypeContainer,
-			DefaultRequest: v1.ResourceList{
-				v1.ResourceCPU:    resource.MustParse("2"),
-				v1.ResourceMemory: resource.MustParse("1Gi"),
+	It("should account for LimitRange DefaultRequest on daemonSet pods for resources", func() {
+		limitrange.Spec.Limits = []v1.LimitRangeItem{
+			{
+				Type: v1.LimitTypeContainer,
+				DefaultRequest: v1.ResourceList{
+					v1.ResourceCPU:    resource.MustParse("2"),
+					v1.ResourceMemory: resource.MustParse("1Gi"),
+				},
 			},
 		}
-		limitrange.Spec.Limits = append(limitrange.Spec.Limits, defaultRequestLimit)
 
 		podSelector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 		daemonSetSelector := labels.SelectorFromSet(daemonset.Spec.Selector.MatchLabels)
 		env.ExpectCreated(provisioner, provider, limitrange, priorityclass, daemonset, dep)
-		env.EventuallyExpectHealthyPodCount(podSelector, 1)
-		env.EventuallyExpectHealthyPodCount(daemonSetSelector, 1)
-		EventuallyExpectOneNodeWithAllPods(podSelector, daemonSetSelector)
+
+		// Eventually expect a single node to exist and both the deployment pod and the daemonset pod to schedule to it
+		Eventually(func(g Gomega) {
+			nodeList := &v1.NodeList{}
+			g.Expect(env.Client.List(env, nodeList, client.HasLabels{"testing.karpenter.sh/test-id"})).To(Succeed())
+			g.Expect(nodeList.Items).To(HaveLen(1))
+
+			deploymentPods := env.Monitor.RunningPods(podSelector)
+			g.Expect(deploymentPods).To(HaveLen(1))
+
+			daemonSetPods := env.Monitor.RunningPods(daemonSetSelector)
+			g.Expect(deploymentPods).To(HaveLen(1))
+
+			g.Expect(deploymentPods[0].Spec.NodeName).To(Equal(nodeList.Items[0].Name))
+			g.Expect(daemonSetPods[0].Spec.NodeName).To(Equal(nodeList.Items[0].Name))
+		}).Should(Succeed())
 	})
 })
-
-func EventuallyExpectOneNodeWithAllPods(podSelector labels.Selector, daemonSetSelector labels.Selector) {
-	Eventually(func(g Gomega) {
-		env.EventuallyExpectCreatedNodeCount("==", 1)
-		createdNode := &v1.Node{}
-
-		for _, node := range env.Monitor.Nodes() {
-			if lo.Contains(lo.Keys(node.Labels), "testing.karpenter.sh/test-id") {
-				createdNode = node
-				break
-			}
-		}
-		pod := env.Monitor.RunningPods(podSelector)
-		daemonSetPod := env.Monitor.RunningPods(daemonSetSelector)
-
-		Expect(pod[0].Spec.NodeName).To(Equal(createdNode.Name))
-		Expect(daemonSetPod[0].Spec.NodeName).To(Equal(createdNode.Name))
-	}).Should(Succeed())
-}
