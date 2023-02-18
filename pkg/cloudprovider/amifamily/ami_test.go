@@ -110,7 +110,7 @@ var _ = Describe("AMI Selectors", func() {
 			},
 		}))
 	})
-	It("should have work with prefixed name and owners", func() {
+	It("should allow prefixed name and prefixed owners", func() {
 		amiSelector := map[string]string{
 			"aws::name":   "my-ami",
 			"aws::owners": "0123456789,self",
