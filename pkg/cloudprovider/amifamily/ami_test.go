@@ -88,7 +88,7 @@ var _ = Describe("AMI Selectors", func() {
 			},
 		}))
 	})
-	It("should have work with prefixed id and prefixed name and owners", func() {
+	It("should allow prefixed id, prefixed name, and prefixed owners", func() {
 		amiSelector := map[string]string{
 			"aws::name":   "my-ami",
 			"aws::ids":    "ami-abcd1234,ami-cafeaced",
