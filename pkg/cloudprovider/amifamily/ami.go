@@ -179,10 +179,7 @@ func (p *AMIProvider) fetchAMIsFromEC2(ctx context.Context, amiSelector map[stri
 	if amis, ok := p.ec2Cache.Get(fmt.Sprint(hash)); ok {
 		return amis.([]*ec2.Image), nil
 	}
-	describeImagesInput := &ec2.DescribeImagesInput{Filters: filters}
-	if owners != nil {
-		describeImagesInput.Owners = owners
-	}
+	describeImagesInput := &ec2.DescribeImagesInput{Filters: filters, Owners: owners}
 	// This API is not paginated, so a single call suffices.
 	output, err := p.ec2api.DescribeImagesWithContext(ctx, describeImagesInput)
 	if err != nil {
