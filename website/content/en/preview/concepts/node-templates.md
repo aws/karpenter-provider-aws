@@ -416,7 +416,7 @@ Your UserData -
 echo "Running custom user data script"
 ```
 
-or equialently in MIME format:
+or equivalently in MIME format:
 
 ```
 MIME-Version: 1.0
