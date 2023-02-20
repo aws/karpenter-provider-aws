@@ -26,6 +26,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1beta1"
+	schedulingv1 "k8s.io/api/scheduling/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -54,6 +55,8 @@ var (
 		{First: &v1.PersistentVolume{}, Second: &v1.PersistentVolumeList{}},
 		{First: &storagev1.StorageClass{}, Second: &storagev1.StorageClassList{}},
 		{First: &v1alpha5.Provisioner{}, Second: &v1alpha5.ProvisionerList{}},
+		{First: &v1.LimitRange{}, Second: &v1.LimitRangeList{}},
+		{First: &schedulingv1.PriorityClass{}, Second: &schedulingv1.PriorityClassList{}},
 	}
 	ForceCleanableObjects = []functional.Pair[client.Object, client.ObjectList]{
 		{First: &v1.Node{}, Second: &v1.NodeList{}},
