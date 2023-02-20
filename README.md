@@ -29,5 +29,3 @@ Check out the [Docs](https://karpenter.sh/) to learn more.
 - 11/19/2021 [Karpenter @ Container Day](https://youtu.be/qxWJRUF6JJc)
 - 05/14/2021 [Groupless Autoscaling with Karpenter @ Kubecon](https://www.youtube.com/watch?v=43g8uPohTgc)
 - 05/04/2021 [Karpenter @ Container Day](https://youtu.be/MZ-4HzOC_ac?t=7137)
-
-nudge
