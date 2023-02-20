@@ -27,10 +27,12 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
+	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/aws/karpenter-core/pkg/metrics"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
@@ -38,6 +40,8 @@ import (
 	"github.com/aws/karpenter-core/pkg/operator/controller"
 	machineutil "github.com/aws/karpenter-core/pkg/utils/machine"
 )
+
+const creationReasonLabel = "linking"
 
 type Controller struct {
 	kubeClient    client.Client
@@ -83,6 +87,7 @@ func (c *Controller) link(ctx context.Context, retrieved *v1alpha5.Machine) erro
 	if !ok {
 		return corecloudprovider.IgnoreMachineNotFoundError(c.cloudProvider.Delete(ctx, retrieved))
 	}
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("provider-id", retrieved.Status.ProviderID, "provisioner", provisionerName))
 	provisioner := &v1alpha5.Provisioner{}
 	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: provisionerName}, provisioner); err != nil {
 		if errors.IsNotFound(err) {
@@ -100,6 +105,8 @@ func (c *Controller) link(ctx context.Context, retrieved *v1alpha5.Machine) erro
 	if err := c.kubeClient.Create(ctx, machine); err != nil {
 		return err
 	}
+	logging.FromContext(ctx).With("machine", machine.Name).Debugf("generated cluster machine from cloudprovider")
+	metrics.MachinesCreatedCounter.WithLabelValues(creationReasonLabel).Inc()
 	c.cache.SetDefault(retrieved.Status.ProviderID, nil)
 	return nil
 }
