@@ -144,7 +144,7 @@ var _ = Describe("BackwardsCompatability", func() {
 				settings.FromContext(env.Context).ClusterEndpoint, env.ExpectCABundle(), provisioner.Name))))
 
 			// Create an instance manually to mock Karpenter launching an instance
-			_, err = env.EC2API.RunInstances(instanceInput)
+			out, err := env.EC2API.RunInstances(instanceInput)
 			Expect(err).ToNot(HaveOccurred())
 
 			// Wait for the node to register with the cluster
@@ -155,6 +155,13 @@ var _ = Describe("BackwardsCompatability", func() {
 			// Expect the machine's fields are properly populated
 			Expect(machine.Spec.Requirements).To(Equal(provisioner.Spec.Requirements))
 			Expect(machine.Spec.MachineTemplateRef.Name).To(Equal(provider.Name))
+
+			// Expect the instance to have the karpenter.sh/managed-by tag
+			instance := env.GetInstanceByID(aws.StringValue(out.Instances[0].InstanceId))
+			_, ok := lo.Find(instance.Tags, func(t *ec2.Tag) bool {
+				return aws.StringValue(t.Key) == v1alpha5.ManagedByLabelKey
+			})
+			Expect(ok).To(BeTrue())
 		})
 		It("should succeed to link a Machine for an existing instance launched by Karpenter with provider", func() {
 			Skip("machine linking is not yet enabled")
@@ -182,7 +189,7 @@ var _ = Describe("BackwardsCompatability", func() {
 				settings.FromContext(env.Context).ClusterEndpoint, env.ExpectCABundle(), provisioner.Name))))
 
 			// Create an instance manually to mock Karpenter launching an instance
-			_, err = env.EC2API.RunInstances(instanceInput)
+			out, err := env.EC2API.RunInstances(instanceInput)
 			Expect(err).ToNot(HaveOccurred())
 
 			// Wait for the node to register with the cluster
@@ -193,6 +200,13 @@ var _ = Describe("BackwardsCompatability", func() {
 			// Expect the machine's fields are properly populated
 			Expect(machine.Spec.Requirements).To(Equal(provisioner.Spec.Requirements))
 			Expect(machine.Annotations).To(HaveKeyWithValue(v1alpha5.ProviderCompatabilityAnnotationKey, v1alpha5.ProviderAnnotation(provisioner.Spec.Provider)[v1alpha5.ProviderCompatabilityAnnotationKey]))
+
+			// Expect the instance to have the karpenter.sh/managed-by tag
+			instance := env.GetInstanceByID(aws.StringValue(out.Instances[0].InstanceId))
+			_, ok := lo.Find(instance.Tags, func(t *ec2.Tag) bool {
+				return aws.StringValue(t.Key) == v1alpha5.ManagedByLabelKey
+			})
+			Expect(ok).To(BeTrue())
 		})
 	})
 	Context("MachineGarbageCollect", func() {

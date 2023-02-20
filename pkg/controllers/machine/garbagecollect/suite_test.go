@@ -26,7 +26,9 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
 	clock "k8s.io/utils/clock/testing"
 	. "knative.dev/pkg/logging/testing"
@@ -47,6 +49,7 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	awscontext "github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/controllers/machine/garbagecollect"
+	"github.com/aws/karpenter/pkg/controllers/machine/link"
 	"github.com/aws/karpenter/pkg/fake"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
 	"github.com/aws/karpenter/pkg/providers/subnet"
@@ -59,6 +62,7 @@ var unavailableOfferingsCache *awscache.UnavailableOfferings
 var ec2API *fake.EC2API
 var cloudProvider *cloudprovider.CloudProvider
 var garbageCollectController controller.Controller
+var linkedMachineCache *cache.Cache
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -88,7 +92,11 @@ var _ = BeforeSuite(func() {
 		UnavailableOfferingsCache: unavailableOfferingsCache,
 		EC2API:                    ec2API,
 	})
-	garbageCollectController = garbagecollect.NewController(env.Client, cloudProvider)
+	linkedMachineCache = cache.New(time.Minute*10, time.Second*10)
+	linkController := &link.Controller{
+		Cache: linkedMachineCache,
+	}
+	garbageCollectController = garbagecollect.NewController(env.Client, cloudProvider, linkController)
 })
 
 var _ = AfterSuite(func() {
@@ -139,6 +147,7 @@ var _ = Describe("MachineGarbageCollect", func() {
 	})
 	AfterEach(func() {
 		ExpectCleanedUp(ctx, env.Client)
+		linkedMachineCache.Flush()
 	})
 
 	It("should delete an instance if there is no machine owner", func() {
@@ -327,5 +336,36 @@ var _ = Describe("MachineGarbageCollect", func() {
 		_, err := cloudProvider.Get(ctx, providerID)
 		Expect(err).ToNot(HaveOccurred())
 		ExpectExists(ctx, env.Client, node)
+	})
+	It("should not delete an instance if it is linked", func() {
+		// Launch time was 10m ago
+		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute * 10))
+		ec2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
+
+		// Create a machine that is actively linking
+		machine := coretest.Machine(v1alpha5.Machine{
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{
+					v1alpha5.MachineLinkedAnnotationKey: providerID,
+				},
+			},
+		})
+		ExpectApplied(ctx, env.Client, machine)
+
+		ExpectReconcileSucceeded(ctx, garbageCollectController, client.ObjectKey{})
+		_, err := cloudProvider.Get(ctx, providerID)
+		Expect(err).NotTo(HaveOccurred())
+	})
+	It("should not delete an instance if it is recently linked but the machine doesn't exist", func() {
+		// Launch time was 10m ago
+		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute * 10))
+		ec2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
+
+		// Add a provider id to the recently linked cache
+		linkedMachineCache.SetDefault(providerID, nil)
+
+		ExpectReconcileSucceeded(ctx, garbageCollectController, client.ObjectKey{})
+		_, err := cloudProvider.Get(ctx, providerID)
+		Expect(err).NotTo(HaveOccurred())
 	})
 })

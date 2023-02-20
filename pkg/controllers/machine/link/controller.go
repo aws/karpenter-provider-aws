@@ -46,14 +46,14 @@ const creationReasonLabel = "linking"
 type Controller struct {
 	kubeClient    client.Client
 	cloudProvider *cloudprovider.CloudProvider
-	cache         *cache.Cache // exists due to eventual consistency on the controller-runtime cache
+	Cache         *cache.Cache // exists due to eventual consistency on the controller-runtime cache
 }
 
 func NewController(kubeClient client.Client, cloudProvider *cloudprovider.CloudProvider) controller.Controller {
 	return &Controller{
 		kubeClient:    kubeClient,
 		cloudProvider: cloudProvider,
-		cache:         cache.New(time.Minute, time.Second*10),
+		Cache:         cache.New(time.Minute, time.Second*10),
 	}
 }
 
@@ -109,14 +109,14 @@ func (c *Controller) link(ctx context.Context, retrieved *v1alpha5.Machine, exis
 		}
 		logging.FromContext(ctx).With("machine", machine.Name).Debugf("generated cluster machine from cloudprovider")
 		metrics.MachinesCreatedCounter.WithLabelValues(creationReasonLabel).Inc()
-		c.cache.SetDefault(retrieved.Status.ProviderID, nil)
+		c.Cache.SetDefault(retrieved.Status.ProviderID, nil)
 	}
 	return corecloudprovider.IgnoreMachineNotFoundError(c.cloudProvider.Link(ctx, retrieved))
 }
 
 func (c *Controller) shouldCreateLinkedMachine(retrieved *v1alpha5.Machine, existingMachines []v1alpha5.Machine) bool {
 	// Machine was already created but controller-runtime cache didn't update
-	if _, ok := c.cache.Get(retrieved.Status.ProviderID); ok {
+	if _, ok := c.Cache.Get(retrieved.Status.ProviderID); ok {
 		return false
 	}
 	// We have a machine registered for this, so no need to hydrate it
