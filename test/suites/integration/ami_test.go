@@ -177,6 +177,35 @@ var _ = Describe("AMI", func() {
 			// Just verify if the UserData contains our custom content too, rather than doing a byte-wise comparison.
 			Expect(string(actualUserData)).To(ContainSubstring("Running custom user data script"))
 		})
+		It("should merge non-MIME UserData contents for AL2 AMIFamily", func() {
+			content, err := os.ReadFile("testdata/al2_no_mime_userdata_input.sh")
+			Expect(err).ToNot(HaveOccurred())
+			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
+				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+				AMIFamily:             &v1alpha1.AMIFamilyAL2,
+			},
+				UserData: aws.String(string(content)),
+			})
+			provisioner := test.Provisioner(test.ProvisionerOptions{
+				ProviderRef:   &v1alpha5.ProviderRef{Name: provider.Name},
+				Taints:        []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoExecute"}},
+				StartupTaints: []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoSchedule"}},
+			})
+			pod := test.Pod(test.PodOptions{Tolerations: []v1.Toleration{{Key: "example.com", Operator: v1.TolerationOpExists}}})
+
+			env.ExpectCreated(pod, provider, provisioner)
+			env.EventuallyExpectHealthy(pod)
+			Expect(env.GetNode(pod.Spec.NodeName).Spec.Taints).To(ContainElements(
+				v1.Taint{Key: "example.com", Value: "value", Effect: "NoExecute"},
+				v1.Taint{Key: "example.com", Value: "value", Effect: "NoSchedule"},
+			))
+			actualUserData, err := base64.StdEncoding.DecodeString(*getInstanceAttribute(pod.Spec.NodeName, "userData").UserData.Value)
+			Expect(err).ToNot(HaveOccurred())
+			// Since the node has joined the cluster, we know our bootstrapping was correct.
+			// Just verify if the UserData contains our custom content too, rather than doing a byte-wise comparison.
+			Expect(string(actualUserData)).To(ContainSubstring("Running custom user data script"))
+		})
 		It("should merge UserData contents for Bottlerocket AMIFamily", func() {
 			content, err := os.ReadFile("testdata/br_userdata_input.sh")
 			Expect(err).ToNot(HaveOccurred())

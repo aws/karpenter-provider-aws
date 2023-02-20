@@ -195,6 +195,19 @@ func copyCustomUserDataParts(writer *multipart.Writer, customUserData *string) e
 		// No custom user data specified, so nothing to copy over.
 		return nil
 	}
+	if !strings.HasPrefix(*customUserData, "MIME-Version:") {
+		partWriter, err := writer.CreatePart(textproto.MIMEHeader{
+			"Content-Type": []string{`text/x-shellscript; charset="us-ascii"`},
+		})
+		if err != nil {
+			return fmt.Errorf("creating multi-part section from custom user-data: %w", err)
+		}
+		_, err = partWriter.Write([]byte(*customUserData))
+		if err != nil {
+			return fmt.Errorf("writing custom user-data input: %w", err)
+		}
+		return nil
+	}
 	reader, err := getMultiPartReader(*customUserData)
 	if err != nil {
 		return fmt.Errorf("parsing custom user data input %w", err)

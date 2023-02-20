@@ -1250,6 +1250,26 @@ var _ = Describe("LaunchTemplates", func() {
 				expectedUserData := fmt.Sprintf(string(content), newProvisioner.Name)
 				Expect(expectedUserData).To(Equal(string(userData)))
 			})
+			It("should merge in custom user data not in multi-part mime format", func() {
+				ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
+					EnableENILimitedPodDensity: lo.ToPtr(false),
+				}))
+
+				content, _ := os.ReadFile("testdata/al2_no_mime_userdata_input.golden")
+				nodeTemplate.Spec.UserData = aws.String(string(content))
+				ExpectApplied(ctx, env.Client, nodeTemplate)
+				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
+				ExpectApplied(ctx, env.Client, newProvisioner)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+				userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+				content, _ = os.ReadFile("testdata/al2_userdata_merged.golden")
+				expectedUserData := fmt.Sprintf(string(content), newProvisioner.Name)
+				Expect(expectedUserData).To(Equal(string(userData)))
+			})
 			It("should handle empty custom user data", func() {
 				ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
 					EnableENILimitedPodDensity: lo.ToPtr(false),
@@ -1267,16 +1287,6 @@ var _ = Describe("LaunchTemplates", func() {
 				content, _ := os.ReadFile("testdata/al2_userdata_unmerged.golden")
 				expectedUserData := fmt.Sprintf(string(content), newProvisioner.Name)
 				Expect(expectedUserData).To(Equal(string(userData)))
-			})
-			It("should not bootstrap invalid MIME UserData", func() {
-				nodeTemplate.Spec.UserData = aws.String("#/bin/bash\n ./not-mime.sh")
-				ExpectApplied(ctx, env.Client, nodeTemplate)
-				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
-				ExpectApplied(ctx, env.Client, newProvisioner)
-				pod := coretest.UnschedulablePod()
-				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-				// This will not be scheduled since userData cannot be generated for the prospective node.
-				ExpectNotScheduled(ctx, env.Client, pod)
 			})
 		})
 		Context("Custom AMI Selector", func() {
