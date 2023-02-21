@@ -85,7 +85,14 @@ func (p *Provider) List(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTempl
 }
 
 // ZonalSubnetsForLaunch returns a mapping of zone to the subnet with the most available IP addresses and deducts the passed ips from the available count
-func (p *Provider) ZonalSubnetsForLaunch(instanceTypes []*cloudprovider.InstanceType, subnets []*ec2.Subnet, capacityType string) map[string]*ec2.Subnet {
+func (p *Provider) ZonalSubnetsForLaunch(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, instanceTypes []*cloudprovider.InstanceType, capacityType string) (map[string]*ec2.Subnet, error) {
+	subnets, err := p.List(ctx, nodeTemplate)
+	if err != nil {
+		return nil, err
+	}
+	if len(subnets) == 0 {
+		return nil, fmt.Errorf("no subnets matched selector %v", nodeTemplate.Spec.SubnetSelector)
+	}
 	p.Lock()
 	defer p.Unlock()
 	// sort subnets in ascending order of available IP addresses and populate map with most available subnet per AZ
@@ -113,7 +120,7 @@ func (p *Provider) ZonalSubnetsForLaunch(instanceTypes []*cloudprovider.Instance
 		}
 		p.inflightIPs[*subnet.SubnetId] = prevIPs - predictedIPsUsed
 	}
-	return zonalSubnets
+	return zonalSubnets, nil
 }
 
 // UpdateInflightIPs is used to refresh the in-memory IP usage by adding back unused IPs after a CreateFleet response is returned

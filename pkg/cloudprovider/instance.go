@@ -200,16 +200,10 @@ func (p *InstanceProvider) Delete(ctx context.Context, id string) error {
 
 func (p *InstanceProvider) launchInstance(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, machine *v1alpha5.Machine, instanceTypes []*cloudprovider.InstanceType) (*string, error) {
 	capacityType := p.getCapacityType(machine, instanceTypes)
-	// Get subnets given the constraints
-	subnets, err := p.subnetProvider.List(ctx, nodeTemplate)
+	zonalSubnets, err := p.subnetProvider.ZonalSubnetsForLaunch(ctx, nodeTemplate, instanceTypes, capacityType)
 	if err != nil {
 		return nil, fmt.Errorf("getting subnets, %w", err)
 	}
-	if len(subnets) == 0 {
-		return nil, fmt.Errorf("no subnets matched selector %v", nodeTemplate.Spec.SubnetSelector)
-	}
-	zonalSubnets := p.subnetProvider.ZonalSubnetsForLaunch(instanceTypes, subnets, capacityType)
-
 	// Get Launch Template Configs, which may differ due to GPU or Architecture requirements
 	launchTemplateConfigs, err := p.getLaunchTemplateConfigs(ctx, nodeTemplate, machine, instanceTypes, zonalSubnets, capacityType)
 	if err != nil {
@@ -243,7 +237,7 @@ func (p *InstanceProvider) launchInstance(ctx context.Context, nodeTemplate *v1a
 	}
 
 	createFleetOutput, err := p.ec2Batcher.CreateFleet(ctx, createFleetInput)
-	p.subnetProvider.UpdateInflightIPs(createFleetInput, createFleetOutput, instanceTypes, subnets, capacityType)
+	p.subnetProvider.UpdateInflightIPs(createFleetInput, createFleetOutput, instanceTypes, lo.Values(zonalSubnets), capacityType)
 	if err != nil {
 		if awserrors.IsLaunchTemplateNotFound(err) {
 			for _, lt := range launchTemplateConfigs {
