@@ -86,20 +86,11 @@ func (p *InstanceProvider) Create(ctx context.Context, nodeTemplate *v1alpha1.AW
 		instanceTypes = instanceTypes[0:MaxInstanceTypes]
 	}
 
-	// Get subnets given the constraints
-	subnets, err := p.subnetProvider.List(ctx, nodeTemplate)
-	if err != nil {
-		return nil, fmt.Errorf("getting subnets, %w", err)
-	}
-	if len(subnets) == 0 {
-		return nil, fmt.Errorf("no subnets matched selector %v", nodeTemplate.Spec.SubnetSelector)
-	}
-
-	id, err := p.launchInstance(ctx, nodeTemplate, machine, subnets, instanceTypes)
+	id, err := p.launchInstance(ctx, nodeTemplate, machine, instanceTypes)
 	if awserrors.IsLaunchTemplateNotFound(err) {
 		// retry once if launch template is not found. This allows karpenter to generate a new LT if the
 		// cache was out-of-sync on the first try
-		id, err = p.launchInstance(ctx, nodeTemplate, machine, subnets, instanceTypes)
+		id, err = p.launchInstance(ctx, nodeTemplate, machine, instanceTypes)
 	}
 	if err != nil {
 		return nil, err
@@ -207,8 +198,16 @@ func (p *InstanceProvider) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-func (p *InstanceProvider) launchInstance(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, machine *v1alpha5.Machine, subnets []*ec2.Subnet, instanceTypes []*cloudprovider.InstanceType) (*string, error) {
+func (p *InstanceProvider) launchInstance(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, machine *v1alpha5.Machine, instanceTypes []*cloudprovider.InstanceType) (*string, error) {
 	capacityType := p.getCapacityType(machine, instanceTypes)
+	// Get subnets given the constraints
+	subnets, err := p.subnetProvider.List(ctx, nodeTemplate)
+	if err != nil {
+		return nil, fmt.Errorf("getting subnets, %w", err)
+	}
+	if len(subnets) == 0 {
+		return nil, fmt.Errorf("no subnets matched selector %v", nodeTemplate.Spec.SubnetSelector)
+	}
 	zonalSubnets := p.subnetProvider.ZonalSubnetsForLaunch(instanceTypes, subnets, capacityType)
 
 	// Get Launch Template Configs, which may differ due to GPU or Architecture requirements
