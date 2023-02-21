@@ -18,9 +18,9 @@ package cloudprovider
 
 import "time"
 
-// generated at 2023-02-13T13:10:27Z for us-east-1
+// generated at 2023-02-20T13:11:59Z for us-east-1
 
-var initialPriceUpdate, _ = time.Parse(time.RFC3339, "2023-02-13T13:10:27Z")
+var initialPriceUpdate, _ = time.Parse(time.RFC3339, "2023-02-20T13:11:59Z")
 var initialOnDemandPrices = map[string]map[string]float64{}
 
 func init() {
@@ -203,6 +203,10 @@ func init() {
 		"m6in.12xlarge": 3.341520, "m6in.16xlarge": 4.455360, "m6in.24xlarge": 6.683040, "m6in.2xlarge": 0.556920,
 		"m6in.32xlarge": 8.910720, "m6in.4xlarge": 1.113840, "m6in.8xlarge": 2.227680, "m6in.large": 0.139230,
 		"m6in.metal": 8.910720, "m6in.xlarge": 0.278460,
+		// m7g family
+		"m7g.12xlarge": 1.958400, "m7g.16xlarge": 2.611200, "m7g.2xlarge": 0.326400, "m7g.4xlarge": 0.652800,
+		"m7g.8xlarge": 1.305600, "m7g.large": 0.081600, "m7g.medium": 0.040800, "m7g.metal": 2.611200,
+		"m7g.xlarge": 0.163200,
 		// p2 family
 		"p2.16xlarge": 14.400000, "p2.8xlarge": 7.200000, "p2.xlarge": 0.900000,
 		// p3 family
@@ -273,6 +277,10 @@ func init() {
 		"r6in.12xlarge": 4.183920, "r6in.16xlarge": 5.578560, "r6in.24xlarge": 8.367840, "r6in.2xlarge": 0.697320,
 		"r6in.32xlarge": 11.157120, "r6in.4xlarge": 1.394640, "r6in.8xlarge": 2.789280, "r6in.large": 0.174330,
 		"r6in.metal": 11.157120, "r6in.xlarge": 0.348660,
+		// r7g family
+		"r7g.12xlarge": 2.570400, "r7g.16xlarge": 3.427200, "r7g.2xlarge": 0.428400, "r7g.4xlarge": 0.856800,
+		"r7g.8xlarge": 1.713600, "r7g.large": 0.107100, "r7g.medium": 0.053600, "r7g.metal": 3.427200,
+		"r7g.xlarge": 0.214200,
 		// t1 family
 		"t1.micro": 0.020000,
 		// t2 family
