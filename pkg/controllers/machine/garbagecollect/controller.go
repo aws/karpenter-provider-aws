@@ -33,17 +33,20 @@ import (
 	"github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter-core/pkg/utils/sets"
 	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/controllers/machine/link"
 )
 
 type Controller struct {
-	kubeClient    client.Client
-	cloudProvider *cloudprovider.CloudProvider
+	kubeClient     client.Client
+	cloudProvider  *cloudprovider.CloudProvider
+	linkController *link.Controller // get machines recently linked by this controller
 }
 
-func NewController(kubeClient client.Client, cloudProvider *cloudprovider.CloudProvider) *Controller {
+func NewController(kubeClient client.Client, cloudProvider *cloudprovider.CloudProvider, linkController *link.Controller) *Controller {
 	return &Controller{
-		kubeClient:    kubeClient,
-		cloudProvider: cloudProvider,
+		kubeClient:     kubeClient,
+		cloudProvider:  cloudProvider,
+		linkController: linkController,
 	}
 }
 
@@ -61,10 +64,13 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 		return reconcile.Result{}, err
 	}
 	resolvedMachines := lo.Filter(machineList.Items, func(m v1alpha5.Machine, _ int) bool {
-		return m.Status.ProviderID != ""
+		return m.Status.ProviderID != "" || m.Annotations[v1alpha5.MachineLinkedAnnotationKey] != ""
 	})
 	resolvedProviderIDs := sets.New[string](lo.Map(resolvedMachines, func(m v1alpha5.Machine, _ int) string {
-		return m.Status.ProviderID
+		if m.Status.ProviderID != "" {
+			return m.Status.ProviderID
+		}
+		return m.Annotations[v1alpha5.MachineLinkedAnnotationKey]
 	})...)
 	retrieved, err := c.cloudProvider.List(ctx)
 	if err != nil {
@@ -75,7 +81,11 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 	})
 	errs := make([]error, len(retrieved))
 	workqueue.ParallelizeUntil(ctx, 20, len(managedRetrieved), func(i int) {
-		if !resolvedProviderIDs.Has(managedRetrieved[i].Status.ProviderID) && managedRetrieved[i].CreationTimestamp.Add(time.Minute).Before(time.Now()) {
+		_, recentlyLinked := c.linkController.Cache.Get(managedRetrieved[i].Status.ProviderID)
+
+		if !recentlyLinked &&
+			!resolvedProviderIDs.Has(managedRetrieved[i].Status.ProviderID) &&
+			managedRetrieved[i].CreationTimestamp.Add(time.Minute).Before(time.Now()) {
 			errs[i] = c.garbageCollect(ctx, managedRetrieved[i], nodeList)
 		}
 	})

@@ -115,6 +115,25 @@ func (p *InstanceProvider) Create(ctx context.Context, nodeTemplate *v1alpha1.AW
 	return instance, nil
 }
 
+func (p *InstanceProvider) Link(ctx context.Context, id string) error {
+	_, err := p.ec2api.CreateTagsWithContext(ctx, &ec2.CreateTagsInput{
+		Resources: aws.StringSlice([]string{id}),
+		Tags: []*ec2.Tag{
+			{
+				Key:   aws.String(v1alpha5.ManagedByLabelKey),
+				Value: aws.String(settings.FromContext(ctx).ClusterName),
+			},
+		},
+	})
+	if err != nil {
+		if awserrors.IsNotFound(err) {
+			return cloudprovider.NewMachineNotFoundError(fmt.Errorf("linking tags, %w", err))
+		}
+		return fmt.Errorf("linking tags, %w", err)
+	}
+	return nil
+}
+
 func (p *InstanceProvider) Get(ctx context.Context, id string) (*ec2.Instance, error) {
 	out, err := p.ec2Batcher.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
 		InstanceIds: aws.StringSlice([]string{id}),
