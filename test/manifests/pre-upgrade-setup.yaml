@@ -81,6 +81,7 @@ spec:
           - instanceType: m5.large
             amiFamily: AmazonLinux2
             name: $(params.cluster-name)-system-pool
+            disableIMDSv1: true
             desiredCapacity: 2
             minSize: 2
             maxSize: 2
