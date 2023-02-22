@@ -61,6 +61,9 @@ func (p *Provider) List(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTempl
 	p.Lock()
 	defer p.Unlock()
 	filters := getFilters(nodeTemplate)
+	if len(filters) == 0 {
+		return []*ec2.Subnet{}, nil
+	}
 	hash, err := hashstructure.Hash(filters, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	if err != nil {
 		return nil, err
