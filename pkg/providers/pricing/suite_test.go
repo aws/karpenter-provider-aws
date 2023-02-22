@@ -23,11 +23,12 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	awspricing "github.com/aws/aws-sdk-go/service/pricing"
-	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 	. "knative.dev/pkg/logging/testing"
+
+	"github.com/aws/karpenter-core/pkg/operator/scheme"
 
 	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
 	coretest "github.com/aws/karpenter-core/pkg/test"
