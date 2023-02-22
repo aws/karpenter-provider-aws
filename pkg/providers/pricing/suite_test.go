@@ -28,9 +28,12 @@ import (
 	"github.com/samber/lo"
 	. "knative.dev/pkg/logging/testing"
 
-	"github.com/aws/karpenter-core/pkg/operator/scheme"
-
 	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
+	"github.com/aws/karpenter-core/pkg/operator/injection"
+	"github.com/aws/karpenter-core/pkg/operator/options"
+	"github.com/aws/karpenter-core/pkg/operator/scheme"
+	. "github.com/aws/karpenter-core/pkg/test/expectations"
+
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/settings"
@@ -41,6 +44,7 @@ import (
 
 var ctx context.Context
 var stop context.CancelFunc
+var opts options.Options
 var env *coretest.Environment
 var fakePricingAPI *fake.PricingAPI
 var fakeEC2API *fake.EC2API
@@ -61,6 +65,24 @@ var _ = BeforeSuite(func() {
 	fakeEC2API = &fake.EC2API{}
 	fakePricingAPI = &fake.PricingAPI{}
 	pricingProvider = pricing.NewProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
+})
+
+var _ = AfterSuite(func() {
+	stop()
+	Expect(env.Stop()).To(Succeed(), "Failed to stop environment")
+})
+
+var _ = BeforeEach(func() {
+	ctx = injection.WithOptions(ctx, opts)
+	ctx = coresettings.ToContext(ctx, coretest.Settings())
+	ctx = settings.ToContext(ctx, test.Settings())
+
+	fakeEC2API.Reset()
+	fakePricingAPI.Reset()
+})
+
+var _ = AfterEach(func() {
+	ExpectCleanedUp(ctx, env.Client)
 })
 
 var _ = Describe("Pricing", func() {
