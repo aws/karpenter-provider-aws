@@ -23,7 +23,6 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws/session"
 
-	awssettings "github.com/aws/karpenter/pkg/apis/settings"
 	awscache "github.com/aws/karpenter/pkg/cache"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -70,19 +69,12 @@ type InstanceTypeProvider struct {
 }
 
 func NewInstanceTypeProvider(ctx context.Context, sess *session.Session, ec2api ec2iface.EC2API, subnetProvider *subnet.Provider,
-	unavailableOfferingsCache *awscache.UnavailableOfferings, startAsync <-chan struct{}) *InstanceTypeProvider {
+	unavailableOfferingsCache *awscache.UnavailableOfferings, pricingProvider *pricing.Provider, startAsync <-chan struct{}) *InstanceTypeProvider {
 	return &InstanceTypeProvider{
-		ec2api:         ec2api,
-		region:         *sess.Config.Region,
-		subnetProvider: subnetProvider,
-		pricingProvider: pricing.NewProvider(
-			ctx,
-			pricing.NewAPI(sess, *sess.Config.Region),
-			ec2api,
-			*sess.Config.Region,
-			awssettings.FromContext(ctx).IsolatedVPC,
-			startAsync,
-		),
+		ec2api:               ec2api,
+		region:               *sess.Config.Region,
+		subnetProvider:       subnetProvider,
+		pricingProvider:      pricingProvider,
 		cache:                cache.New(awscache.InstanceTypesAndZonesTTL, awscache.DefaultCleanupInterval),
 		unavailableOfferings: unavailableOfferingsCache,
 		cm:                   pretty.NewChangeMonitor(),

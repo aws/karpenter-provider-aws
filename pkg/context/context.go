@@ -31,7 +31,9 @@ import (
 	"github.com/samber/lo"
 	"knative.dev/pkg/logging"
 
+	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/cache"
+	"github.com/aws/karpenter/pkg/providers/pricing"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
 	"github.com/aws/karpenter/pkg/providers/subnet"
 	"github.com/aws/karpenter/pkg/utils/project"
@@ -48,6 +50,7 @@ type Context struct {
 	EC2API                    ec2iface.EC2API
 	SubnetProvider            *subnet.Provider
 	SecurityGroupProvider     *securitygroup.Provider
+	PricingProvider           *pricing.Provider
 }
 
 func NewOrDie(ctx cloudprovider.Context) Context {
@@ -68,8 +71,18 @@ func NewOrDie(ctx cloudprovider.Context) Context {
 		logging.FromContext(ctx).Fatalf("Checking EC2 API connectivity, %s", err)
 	}
 	logging.FromContext(ctx).With("region", *sess.Config.Region).Debugf("discovered region")
+
 	subnetProvider := subnet.NewProvider(ec2api)
 	securityGroupProvider := securitygroup.NewProvider(ec2api)
+	pricingProvider := pricing.NewProvider(
+		ctx,
+		pricing.NewAPI(sess, *sess.Config.Region),
+		ec2api,
+		*sess.Config.Region,
+		settings.FromContext(ctx).IsolatedVPC,
+		ctx.StartAsync,
+	)
+
 	return Context{
 		Context:                   ctx,
 		Session:                   sess,
@@ -77,6 +90,7 @@ func NewOrDie(ctx cloudprovider.Context) Context {
 		EC2API:                    ec2api,
 		SubnetProvider:            subnetProvider,
 		SecurityGroupProvider:     securityGroupProvider,
+		PricingProvider:           pricingProvider,
 	}
 }
 
