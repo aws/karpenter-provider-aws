@@ -78,6 +78,11 @@ description: >
 	fmt.Fprintf(f, "Karpenter makes several metrics available in Prometheus format to allow monitoring cluster provisioning status. "+
 		"These metrics are available by default at `karpenter.karpenter.svc.cluster.local:8080/metrics` configurable via the `METRICS_PORT` environment variable documented [here](../settings)\n")
 	previousSubsystem := ""
+
+	// TODO @joinnis: Remove this line when exposing machine metrics
+	allMetrics = lo.Reject(allMetrics, func(m metricInfo, _ int) bool {
+		return m.subsystem == "machines"
+	})
 	for _, metric := range allMetrics {
 		if metric.subsystem != previousSubsystem {
 			subsystemTitle := strings.Join(lo.Map(strings.Split(metric.subsystem, "_"), func(s string, _ int) string {
@@ -257,6 +262,7 @@ func getIdentMapping(identName string) (string, error) {
 		"Namespace":         metrics.Namespace,
 
 		"nodeSubsystem":           "nodes",
+		"machineSubsystem":        "machines",
 		"interruptionSubsystem":   "interruption",
 		"nodeTemplateSubsystem":   "nodetemplate",
 		"deprovisioningSubsystem": "deprovisioning",

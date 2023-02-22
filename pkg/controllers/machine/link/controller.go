@@ -27,10 +27,12 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
+	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/aws/karpenter-core/pkg/metrics"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
@@ -39,17 +41,19 @@ import (
 	machineutil "github.com/aws/karpenter-core/pkg/utils/machine"
 )
 
+const creationReasonLabel = "linking"
+
 type Controller struct {
 	kubeClient    client.Client
 	cloudProvider *cloudprovider.CloudProvider
-	cache         *cache.Cache // exists due to eventual consistency on the controller-runtime cache
+	Cache         *cache.Cache // exists due to eventual consistency on the controller-runtime cache
 }
 
 func NewController(kubeClient client.Client, cloudProvider *cloudprovider.CloudProvider) controller.Controller {
 	return &Controller{
 		kubeClient:    kubeClient,
 		cloudProvider: cloudProvider,
-		cache:         cache.New(time.Minute, time.Second*10),
+		Cache:         cache.New(time.Minute, time.Second*10),
 	}
 }
 
@@ -68,21 +72,23 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 	}
 	// Filter out any machines that shouldn't be linked
 	retrieved = lo.Filter(retrieved, func(m *v1alpha5.Machine, _ int) bool {
-		return c.shouldLink(m, machineList.Items)
+		_, ok := m.Labels[v1alpha5.ManagedByLabelKey]
+		return !ok
 	})
 	errs := make([]error, len(retrieved))
 	workqueue.ParallelizeUntil(ctx, 20, len(retrieved), func(i int) {
-		errs[i] = c.link(ctx, retrieved[i])
+		errs[i] = c.link(ctx, retrieved[i], machineList.Items)
 	})
 	// Effectively, don't requeue this again once it succeeds
 	return reconcile.Result{RequeueAfter: math.MaxInt64}, multierr.Combine(errs...)
 }
 
-func (c *Controller) link(ctx context.Context, retrieved *v1alpha5.Machine) error {
+func (c *Controller) link(ctx context.Context, retrieved *v1alpha5.Machine, existingMachines []v1alpha5.Machine) error {
 	provisionerName, ok := retrieved.Labels[v1alpha5.ProvisionerNameLabelKey]
 	if !ok {
 		return corecloudprovider.IgnoreMachineNotFoundError(c.cloudProvider.Delete(ctx, retrieved))
 	}
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("provider-id", retrieved.Status.ProviderID, "provisioner", provisionerName))
 	provisioner := &v1alpha5.Provisioner{}
 	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: provisionerName}, provisioner); err != nil {
 		if errors.IsNotFound(err) {
@@ -90,28 +96,27 @@ func (c *Controller) link(ctx context.Context, retrieved *v1alpha5.Machine) erro
 		}
 		return err
 	}
-	machine := machineutil.New(&v1.Node{}, provisioner)
-	machine.GenerateName = fmt.Sprintf("%s-", provisioner.Name)
-	// This annotation communicates to the machine controller that this is a machine linking scenario, not
-	// a case where we want to provision a new machine
-	machine.Annotations = lo.Assign(machine.Annotations, map[string]string{
-		v1alpha5.MachineLinkedAnnotationKey: retrieved.Status.ProviderID,
-	})
-	if err := c.kubeClient.Create(ctx, machine); err != nil {
-		return err
+	if c.shouldCreateLinkedMachine(retrieved, existingMachines) {
+		machine := machineutil.New(&v1.Node{}, provisioner)
+		machine.GenerateName = fmt.Sprintf("%s-", provisioner.Name)
+		// This annotation communicates to the machine controller that this is a machine linking scenario, not
+		// a case where we want to provision a new machine
+		machine.Annotations = lo.Assign(machine.Annotations, map[string]string{
+			v1alpha5.MachineLinkedAnnotationKey: retrieved.Status.ProviderID,
+		})
+		if err := c.kubeClient.Create(ctx, machine); err != nil {
+			return err
+		}
+		logging.FromContext(ctx).With("machine", machine.Name).Debugf("generated cluster machine from cloudprovider")
+		metrics.MachinesCreatedCounter.WithLabelValues(creationReasonLabel).Inc()
+		c.Cache.SetDefault(retrieved.Status.ProviderID, nil)
 	}
-	c.cache.SetDefault(retrieved.Status.ProviderID, nil)
-	return nil
+	return corecloudprovider.IgnoreMachineNotFoundError(c.cloudProvider.Link(ctx, retrieved))
 }
 
-// shouldLink checks if the cloudprovider machine is owned by a provisioner but if it wasn't created
-// by a machine. If both of these are true, then we should generate a Machine
-func (c *Controller) shouldLink(retrieved *v1alpha5.Machine, existingMachines []v1alpha5.Machine) bool {
-	if _, ok := retrieved.Labels[v1alpha5.ManagedByLabelKey]; ok {
-		return false
-	}
-	// Machine was already linked but controller-runtime cache didn't update
-	if _, ok := c.cache.Get(retrieved.Status.ProviderID); ok {
+func (c *Controller) shouldCreateLinkedMachine(retrieved *v1alpha5.Machine, existingMachines []v1alpha5.Machine) bool {
+	// Machine was already created but controller-runtime cache didn't update
+	if _, ok := c.Cache.Get(retrieved.Status.ProviderID); ok {
 		return false
 	}
 	// We have a machine registered for this, so no need to hydrate it

@@ -151,6 +151,17 @@ func (c *CloudProvider) Create(ctx context.Context, machine *v1alpha5.Machine) (
 	return c.instanceToMachine(ctx, instance, instanceType), nil
 }
 
+// Link adds a tag to the cloudprovider machine to tell the cloudprovider that it's now owned by a Machine
+func (c *CloudProvider) Link(ctx context.Context, machine *v1alpha5.Machine) error {
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("machine", machine.Name))
+	id, err := utils.ParseInstanceID(machine.Status.ProviderID)
+	if err != nil {
+		return fmt.Errorf("getting instance ID, %w", err)
+	}
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("id", id))
+	return c.instanceProvider.Link(ctx, id)
+}
+
 func (c *CloudProvider) List(ctx context.Context) ([]*v1alpha5.Machine, error) {
 	instances, err := c.instanceProvider.List(ctx)
 	if err != nil {
@@ -168,7 +179,12 @@ func (c *CloudProvider) List(ctx context.Context) ([]*v1alpha5.Machine, error) {
 }
 
 func (c *CloudProvider) Get(ctx context.Context, providerID string) (*v1alpha5.Machine, error) {
-	instance, err := c.instanceProvider.Get(ctx, lo.Must(utils.ParseInstanceID(providerID)))
+	id, err := utils.ParseInstanceID(providerID)
+	if err != nil {
+		return nil, fmt.Errorf("getting instance ID, %w", err)
+	}
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("id", id))
+	instance, err := c.instanceProvider.Get(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("getting instance, %w", err)
 	}

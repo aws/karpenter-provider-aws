@@ -160,7 +160,10 @@ func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFlee
 		}
 	}
 
-	result := &ec2.CreateFleetOutput{Instances: []*ec2.CreateFleetInstance{{InstanceIds: instanceIds}}}
+	result := &ec2.CreateFleetOutput{Instances: []*ec2.CreateFleetInstance{{
+		InstanceIds:                instanceIds,
+		LaunchTemplateAndOverrides: &ec2.LaunchTemplateAndOverridesResponse{Overrides: &ec2.FleetLaunchTemplateOverrides{SubnetId: input.LaunchTemplateConfigs[0].Overrides[0].SubnetId}},
+	}}}
 	for _, pool := range skippedPools {
 		result.Errors = append(result.Errors, &ec2.CreateFleetError{
 			ErrorCode: aws.String("InsufficientInstanceCapacity"),
@@ -388,7 +391,9 @@ func (e *EC2API) DescribeSubnetsWithContext(ctx context.Context, input *ec2.Desc
 			},
 		},
 	}
-
+	if len(input.Filters) == 0 {
+		return nil, fmt.Errorf("InvalidParameterValue: The filter 'null' is invalid")
+	}
 	return &ec2.DescribeSubnetsOutput{Subnets: FilterDescribeSubnets(subnets, input.Filters)}, nil
 }
 
@@ -425,6 +430,9 @@ func (e *EC2API) DescribeSecurityGroupsWithContext(ctx context.Context, input *e
 				{Key: aws.String("foo"), Value: aws.String("bar")},
 			},
 		},
+	}
+	if len(input.Filters) == 0 {
+		return nil, fmt.Errorf("InvalidParameterValue: The filter 'null' is invalid")
 	}
 	return &ec2.DescribeSecurityGroupsOutput{SecurityGroups: FilterDescribeSecurtyGroups(sgs, input.Filters)}, nil
 }

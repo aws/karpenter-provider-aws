@@ -250,6 +250,8 @@ var _ = Describe("Allocation", func() {
 			provider, err := v1alpha1.DeserializeProvider(provisioner.Spec.Provider.Raw)
 			Expect(err).ToNot(HaveOccurred())
 			provider.Context = aws.String("context-1234")
+			provider.SubnetSelector = map[string]string{"*": "*"}
+			provider.SecurityGroupSelector = map[string]string{"*": "*"}
 			provisioner = coretest.Provisioner(coretest.ProvisionerOptions{Provider: provider})
 			provisioner.SetDefaults(ctx)
 			ExpectApplied(ctx, env.Client, provisioner)
@@ -540,6 +542,29 @@ var _ = Describe("Allocation", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 			createFleetInput := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
 			Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-2"))
+		})
+		It("should launch instances into subnet with the most available IP addresses in-between cache refreshes", func() {
+			fakeEC2API.DescribeSubnetsOutput.Set(&ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{
+				{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a"), AvailableIpAddressCount: aws.Int64(10),
+					Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1")}}},
+				{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1a"), AvailableIpAddressCount: aws.Int64(11),
+					Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
+			}})
+			provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{MaxPods: aws.Int32(1)}
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			pod1 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}})
+			pod2 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}})
+			ExpectProvisioned(ctx, env.Client, cluster, prov, pod1, pod2)
+			ExpectScheduled(ctx, env.Client, pod1)
+			ExpectScheduled(ctx, env.Client, pod2)
+			createFleetInput := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
+			Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-2"))
+			// Provision for another pod that should now use the other subnet since we've consumed some from the first launch.
+			pod3 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}})
+			ExpectProvisioned(ctx, env.Client, cluster, prov, pod3)
+			ExpectScheduled(ctx, env.Client, pod3)
+			createFleetInput = fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
+			Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-1"))
 		})
 		It("should launch instances into subnets that are excluded by another provisioner", func() {
 			fakeEC2API.DescribeSubnetsOutput.Set(&ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{

@@ -27,13 +27,9 @@ There are both automated and manual ways of deprovisioning nodes provisioned by 
 * **Drift**: Karpenter will deprovision nodes that have drifted from their desired specification. Once the node is annotated as drifted, Karpenter will deprovision the nodes and provision replacement nodes with the correct provisioning requirements when needed. Currently, Karpenter will only automatically mark nodes as drifted in the case of a drifted AMI.
 
 {{% alert title="Note" color="primary" %}}
-- Automated deprovisioning is configured through the ProvisionerSpec `.ttlSecondsAfterEmpty`
-, `.ttlSecondsUntilExpired` and `.consolidation.enabled` fields. If these are not configured, Karpenter will not
-default values for them and will not terminate nodes for that purpose.
+- Automated deprovisioning is configured through the ProvisionerSpec `.ttlSecondsAfterEmpty`, `.ttlSecondsUntilExpired` and `.consolidation.enabled` fields. If these are not configured, Karpenter will not default values for them and will not terminate nodes for that purpose.
 
-- Keep in mind that a small NodeExpiry results in a higher churn in cluster activity. So, for
-example, if a cluster brings up all nodes at once, all the pods on those nodes would fall into
-the same batching window on expiration.
+- Keep in mind that a small NodeExpiry results in a higher churn in cluster activity. So, for example, if a cluster brings up all nodes at once, all the pods on those nodes would fall into the same batching window on expiration.
 
 - Pods without an ownerRef (also called "controllerless" or "naked" pods) will be evicted during voluntary node disruption, such as expiration or consolidation. A pod with the annotation `karpenter.sh/do-not-evict: "true"` will cause its node to be opted out from voluntary node disruption workflows.
 
@@ -170,10 +166,12 @@ Examples of voluntary node removal that will be prevented by this annotation inc
 - Expiration
 
 {{% alert title="Note" color="primary" %}}
-Voluntary node removal does not include [Interruption]({{<ref "#interruption" >}}), which is considered an involuntary event, since node removal cannot be delayed.
+Voluntary node removal does not include [Interruption]({{<ref "#interruption" >}}) or manual deletion initiated through `kubectl delete node`, both considered involuntary events, since node removal cannot be delayed.
 {{% /alert %}}
 
+{{% alert title="Note" color="primary" %}}
 This annotation will have no effect for static pods, pods that tolerate `NoSchedule`, or pods terminating past their graceful termination period.
+{{% /alert %}}
 
 ### Node Consolidation
 

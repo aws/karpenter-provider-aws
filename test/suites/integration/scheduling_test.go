@@ -80,6 +80,7 @@ var _ = Describe("Scheduling", func() {
 			v1alpha1.LabelInstanceSize:                         "8xlarge",
 			v1alpha1.LabelInstanceCPU:                          "32",
 			v1alpha1.LabelInstanceMemory:                       "131072",
+			v1alpha1.LabelInstanceNetworkBandwidth:             "50000",
 			v1alpha1.LabelInstancePods:                         "58", // May vary w/ environment
 			v1alpha1.LabelInstanceGPUName:                      "t4",
 			v1alpha1.LabelInstanceGPUManufacturer:              "nvidia",
@@ -87,8 +88,8 @@ var _ = Describe("Scheduling", func() {
 			v1alpha1.LabelInstanceGPUMemory:                    "16384",
 			v1alpha1.LabelInstanceLocalNVME:                    "900",
 			// Deprecated Labels
-			v1.LabelFailureDomainBetaZone:   fmt.Sprintf("%sa", env.Region),
 			v1.LabelFailureDomainBetaRegion: env.Region,
+			v1.LabelFailureDomainBetaZone:   fmt.Sprintf("%sa", env.Region),
 			"beta.kubernetes.io/arch":       "amd64",
 			"beta.kubernetes.io/os":         "linux",
 			v1.LabelInstanceType:            "g4dn.8xlarge",

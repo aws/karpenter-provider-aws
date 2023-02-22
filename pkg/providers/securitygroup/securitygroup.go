@@ -46,7 +46,7 @@ func NewProvider(ec2api ec2iface.EC2API) *Provider {
 	return &Provider{
 		ec2api: ec2api,
 		cm:     pretty.NewChangeMonitor(),
-		// TODO: Remove cahce for v1bata1, utlize resolved security groups from the AWSNodeTemplate.status
+		// TODO: Remove cache for v1beta1, utilize resolved security groups from the AWSNodeTemplate.status
 		cache: cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
 	}
 }
@@ -55,7 +55,13 @@ func (p *Provider) List(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTempl
 	p.Lock()
 	defer p.Unlock()
 	// Get SecurityGroups
-	securityGroups, err := p.getSecurityGroups(ctx, p.getFilters(nodeTemplate))
+	// TODO: When removing custom launchTemplates for v1beta1, security groups will be required.
+	// The check will not be necessary
+	filters := p.getFilters(nodeTemplate)
+	if len(filters) == 0 {
+		return []string{}, nil
+	}
+	securityGroups, err := p.getSecurityGroups(ctx, filters)
 	if err != nil {
 		return nil, err
 	}
