@@ -21,6 +21,7 @@ import (
 	"time"
 
 	sqsapi "github.com/aws/aws-sdk-go/service/sqs"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
@@ -203,7 +204,10 @@ func (c *Controller) deleteNode(ctx context.Context, node *v1.Node) error {
 	}
 	logging.FromContext(ctx).Infof("deleted node from interruption message")
 	c.recorder.Publish(interruptionevents.NodeTerminatingOnInterruption(node))
-	metrics.NodesTerminatedCounter.WithLabelValues(terminationReasonLabel).Inc()
+	metrics.NodesTerminatedCounter.With(prometheus.Labels{
+		metrics.ReasonLabel:      terminationReasonLabel,
+		metrics.ProvisionerLabel: node.Labels[v1alpha5.ProvisionerNameLabelKey],
+	}).Inc()
 	return nil
 }
 
