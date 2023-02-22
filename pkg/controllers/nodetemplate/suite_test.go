@@ -250,6 +250,18 @@ var _ = Describe("AWSNodeTemplateController", func() {
 		})
 	})
 	Context("Security Groups Status", func() {
+		It("Should expect no error when security groups are not in the node in the AWSNodeTemplate", func() {
+			// TODO: Remove test for v1beta1, as security groups will be required
+			nodeTemplate.Spec.SecurityGroupSelector = nil
+			ExpectApplied(ctx, env.Client, nodeTemplate)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
+			securityGroupsIDs, _ := securityGroupProvider.List(ctx, nodeTemplate)
+			securityGroupsIDInStatus := lo.Map(nodeTemplate.Status.SecurityGroups, func(securitygroup v1alpha1.SecurityGroupStatus, _ int) string {
+				return securitygroup.ID
+			})
+			Expect(securityGroupsIDInStatus).To(Equal(securityGroupsIDs))
+		})
 		It("Should update AWSNodeTemplate status for Security Groups", func() {
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))

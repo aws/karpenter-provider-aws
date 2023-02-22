@@ -108,12 +108,7 @@ var _ = Describe("MachineLink", func() {
 		ec2API.Reset()
 		instanceID = fake.InstanceID()
 		providerID = fmt.Sprintf("aws:///test-zone-1a/%s", instanceID)
-		nodeTemplate = test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
-			AWS: v1alpha1.AWS{
-				SubnetSelector:        map[string]string{"*": "*"},
-				SecurityGroupSelector: map[string]string{"*": "*"},
-			},
-		})
+		nodeTemplate = test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{})
 		provisioner = test.Provisioner(coretest.ProvisionerOptions{
 			ProviderRef: &v1alpha5.ProviderRef{
 				APIVersion: v1alpha5.TestingGroup + "v1alpha1",
