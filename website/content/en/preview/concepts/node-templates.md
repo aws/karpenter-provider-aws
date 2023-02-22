@@ -335,12 +335,6 @@ spec:
   securityGroupSelector:
     karpenter.sh/discovery: my-cluster
   userData: |
-    MIME-Version: 1.0
-    Content-Type: multipart/mixed; boundary="BOUNDARY"
-
-    --BOUNDARY
-    Content-Type: text/x-shellscript; charset="us-ascii"
-
     #!/bin/bash
     mkdir -p ~ec2-user/.ssh/
     touch ~ec2-user/.ssh/authorized_keys
@@ -349,7 +343,6 @@ spec:
     EOF
     chmod -R go-w ~ec2-user/.ssh/authorized_keys
     chown -R ec2-user ~ec2-user/.ssh
-    --BOUNDARY--
 ```
 
 For more examples on configuring these fields for different AMI families, see the [examples here](https://github.com/aws/karpenter/blob/main/examples/provisioner/launchtemplates).
@@ -410,13 +403,20 @@ cluster-name = 'cluster'
 
 #### AL2 and Ubuntu
 
-* Your UserData must be in the [MIME multi part archive](https://cloudinit.readthedocs.io/en/latest/topics/format.html#mime-multi-part-archive) format.
-* Karpenter will merge a final MIME part to the end of your UserData parts which will bootstrap the worker node. Karpenter will have full control over all the parameters being passed to the bootstrap script.
+* Your UserData can be in the [MIME multi part archive](https://cloudinit.readthedocs.io/en/latest/topics/format.html#mime-multi-part-archive) format.
+* Karpenter will transform your custom user-data as a MIME part, if necessary, and then merge a final MIME part to the end of your UserData parts which will bootstrap the worker node. Karpenter will have full control over all the parameters being passed to the bootstrap script.
   * Karpenter will continue to set MaxPods, ClusterDNS and all other parameters defined in `spec.kubeletConfiguration` as before.
 
 Consider the following example to understand how your custom UserData will be merged -
 
 Your UserData -
+
+```
+#!/bin/bash
+echo "Running custom user data script"
+```
+
+or equivalently in MIME format:
 
 ```
 MIME-Version: 1.0
@@ -468,16 +468,8 @@ spec:
   securityGroupSelector:
     karpenter.sh/discovery: my-cluster
   userData: |
-    MIME-Version: 1.0
-    Content-Type: multipart/mixed; boundary="BOUNDARY"
-
-    --BOUNDARY
-    Content-Type: text/x-shellscript; charset="us-ascii"
-
     #!/bin/bash
     echo "$(jq '.kubeAPIQPS=50' /etc/kubernetes/kubelet/kubelet-config.json)" > /etc/kubernetes/kubelet/kubelet-config.json
-
-    --BOUNDARY--
 ```
 ## status.subnets
 `status.subnets` contains the `id` and `zone` of the subnets utilized during node launch. The subnets are sorted by the available IP address count in decreasing order.

@@ -25,6 +25,7 @@ If you are open to others contacting you about your use of Karpenter on Slack, a
 | idealo | Scaling multi-arch IPv6 clusters hosting web and event-driven applications | `@Heiko Rothe` | [Homepage](https://www.idealo.de) |
 | Nexxiot | Easier, Safer, Cleaner Global Transportation - Using Karpenter to manage EKS nodes | `@Alex Berger` | [Homepage](https://nexxiot.com/) |
 | Nirvana Money | Building healthy, happy financial lives - Using Karpenter to manage all-Spot clusters | `@DWSR` | [Homepage](https://www.nirvana.money/) |
+| OccMundial | Using karpenter to manage our production workloads, using the dynamic scaling according to workload that needs to scale.  | `@parraletz` | [Homepage](https://www.occ.com.mx) |
 | Omaze | Intelligently using Karpenter's autoscaling to power our platforms | `@devopsidiot` | [Homepage](https://www.omaze.com/) |
 | PlanetScale | Leveraging Karpenter to dynamically deploy serverless MySQL workloads. | `@jtcunning` | [Homepage](https://www.planetscale.com/) |
 | QuestDB | Using Karpenter for the service nodes of the QuestBD Cloud (time-series database). | [questdb slack group](https://slack.questdb.io/) | [QuestDB](https://questdb.io/) |
