@@ -748,7 +748,8 @@ var _ = Describe("LaunchTemplates", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
-			userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+			Expect(err).To(BeNil())
 			Expect(string(userData)).NotTo(ContainSubstring("--use-max-pods false"))
 		})
 		It("should specify --use-max-pods=false when not using ENI-based pod density", func() {
@@ -762,7 +763,8 @@ var _ = Describe("LaunchTemplates", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
-			userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+			Expect(err).To(BeNil())
 			Expect(string(userData)).To(ContainSubstring("--use-max-pods false"))
 			Expect(string(userData)).To(ContainSubstring("--max-pods=110"))
 		})
@@ -774,7 +776,8 @@ var _ = Describe("LaunchTemplates", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
-			userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+			Expect(err).To(BeNil())
 			Expect(string(userData)).To(ContainSubstring("--use-max-pods false"))
 			Expect(string(userData)).To(ContainSubstring("--max-pods=10"))
 		})
@@ -792,7 +795,8 @@ var _ = Describe("LaunchTemplates", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
-			userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+			Expect(err).To(BeNil())
 
 			// Check whether the arguments are there for --system-reserved
 			arg := "--system-reserved="
@@ -817,7 +821,8 @@ var _ = Describe("LaunchTemplates", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
-			userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+			Expect(err).To(BeNil())
 
 			// Check whether the arguments are there for --kube-reserved
 			arg := "--kube-reserved="
@@ -842,7 +847,8 @@ var _ = Describe("LaunchTemplates", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
-			userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+			Expect(err).To(BeNil())
 
 			// Check whether the arguments are there for --kube-reserved
 			arg := "--eviction-hard="
@@ -867,7 +873,8 @@ var _ = Describe("LaunchTemplates", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
-			userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+			Expect(err).To(BeNil())
 
 			// Check whether the arguments are there for --kube-reserved
 			arg := "--eviction-soft="
@@ -892,7 +899,8 @@ var _ = Describe("LaunchTemplates", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
-			userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+			Expect(err).To(BeNil())
 
 			// Check whether the arguments are there for --kube-reserved
 			arg := "--eviction-soft-grace-period="
@@ -913,7 +921,8 @@ var _ = Describe("LaunchTemplates", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
-			userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+			Expect(err).To(BeNil())
 
 			Expect(string(userData)).To(ContainSubstring(fmt.Sprintf("--eviction-max-pod-grace-period=%d", 300)))
 		})
@@ -927,7 +936,8 @@ var _ = Describe("LaunchTemplates", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
-			userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+			Expect(err).To(BeNil())
 			Expect(string(userData)).To(ContainSubstring(fmt.Sprintf("--pods-per-core=%d", 2)))
 		})
 		It("should specify --pods-per-core with --max-pods enabled", func() {
@@ -941,7 +951,8 @@ var _ = Describe("LaunchTemplates", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
-			userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+			Expect(err).To(BeNil())
 			Expect(string(userData)).To(ContainSubstring(fmt.Sprintf("--pods-per-core=%d", 2)))
 			Expect(string(userData)).To(ContainSubstring(fmt.Sprintf("--max-pods=%d", 100)))
 		})
@@ -952,7 +963,8 @@ var _ = Describe("LaunchTemplates", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
-			userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+			Expect(err).To(BeNil())
 			Expect(string(userData)).To(ContainSubstring("--container-runtime containerd"))
 		})
 		It("should specify dockerd if specified in the provisionerSpec", func() {
@@ -963,7 +975,8 @@ var _ = Describe("LaunchTemplates", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
-			userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+			Expect(err).To(BeNil())
 			Expect(string(userData)).To(ContainSubstring("--container-runtime dockerd"))
 		})
 		It("should specify --container-runtime containerd when using Neuron GPUs", func() {
@@ -984,7 +997,8 @@ var _ = Describe("LaunchTemplates", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
-			userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+			Expect(err).To(BeNil())
 			Expect(string(userData)).To(ContainSubstring("--container-runtime containerd"))
 		})
 		It("should specify --container-runtime containerd when using Nvidia GPUs", func() {
@@ -1005,7 +1019,8 @@ var _ = Describe("LaunchTemplates", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
-			userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+			Expect(err).To(BeNil())
 			Expect(string(userData)).To(ContainSubstring("--container-runtime containerd"))
 		})
 		It("should specify --dns-cluster-ip and --ip-family when running in an ipv6 cluster", func() {
@@ -1016,7 +1031,8 @@ var _ = Describe("LaunchTemplates", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
-			userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+			Expect(err).To(BeNil())
 			Expect(string(userData)).To(ContainSubstring("--dns-cluster-ip 'fd4b:121b:812b::a'"))
 			Expect(string(userData)).To(ContainSubstring("--ip-family ipv6"))
 			Expect(*input.LaunchTemplateData.MetadataOptions.HttpProtocolIpv6).To(Equal(ec2.LaunchTemplateInstanceMetadataProtocolIpv6Enabled))
@@ -1031,7 +1047,8 @@ var _ = Describe("LaunchTemplates", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
-			userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+			Expect(err).To(BeNil())
 			Expect(string(userData)).To(ContainSubstring("--image-gc-high-threshold=50"))
 		})
 		It("should pass ImageGCLowThresholdPercent when specified", func() {
@@ -1044,7 +1061,8 @@ var _ = Describe("LaunchTemplates", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
-			userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+			Expect(err).To(BeNil())
 			Expect(string(userData)).To(ContainSubstring("--image-gc-low-threshold=50"))
 		})
 		Context("Bottlerocket", func() {
@@ -1053,7 +1071,8 @@ var _ = Describe("LaunchTemplates", func() {
 					EnableENILimitedPodDensity: lo.ToPtr(false),
 				}))
 
-				content, _ := os.ReadFile("testdata/br_userdata_input.golden")
+				content, err := os.ReadFile("testdata/br_userdata_input.golden")
+				Expect(err).To(BeNil())
 				nodeTemplate.Spec.UserData = aws.String(string(content))
 				nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
 				provisioner.Spec.Taints = []v1.Taint{{Key: "foo", Value: "bar", Effect: v1.TaintEffectNoExecute}}
@@ -1067,8 +1086,10 @@ var _ = Describe("LaunchTemplates", func() {
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
-				userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
-				content, _ = os.ReadFile("testdata/br_userdata_merged.golden")
+				userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+				Expect(err).To(BeNil())
+				content, err = os.ReadFile("testdata/br_userdata_merged.golden")
+				Expect(err).To(BeNil())
 				// Newlines are always added for missing TOML fields, so strip them out before comparisons.
 				actualUserData := strings.Replace(string(userData), "\n", "", -1)
 				expectedUserData := strings.Replace(fmt.Sprintf(string(content), provisioner.Name), "\n", "", -1)
@@ -1090,8 +1111,10 @@ var _ = Describe("LaunchTemplates", func() {
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
-				userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
-				content, _ := os.ReadFile("testdata/br_userdata_unmerged.golden")
+				userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+				Expect(err).To(BeNil())
+				content, err := os.ReadFile("testdata/br_userdata_unmerged.golden")
+				Expect(err).To(BeNil())
 				actualUserData := strings.Replace(string(userData), "\n", "", -1)
 				expectedUserData := strings.Replace(fmt.Sprintf(string(content), provisioner.Name), "\n", "", -1)
 				Expect(expectedUserData).To(Equal(actualUserData))
@@ -1140,7 +1163,8 @@ var _ = Describe("LaunchTemplates", func() {
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
-				userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+				userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+				Expect(err).To(BeNil())
 				config := &bootstrap.BottlerocketConfig{}
 				Expect(config.UnmarshalTOML(userData)).To(Succeed())
 				Expect(len(config.Settings.Kubernetes.SystemReserved)).To(Equal(3))
@@ -1169,7 +1193,8 @@ var _ = Describe("LaunchTemplates", func() {
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
-				userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+				userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+				Expect(err).To(BeNil())
 				config := &bootstrap.BottlerocketConfig{}
 				Expect(config.UnmarshalTOML(userData)).To(Succeed())
 				Expect(len(config.Settings.Kubernetes.KubeReserved)).To(Equal(3))
@@ -1198,7 +1223,8 @@ var _ = Describe("LaunchTemplates", func() {
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
-				userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+				userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+				Expect(err).To(BeNil())
 				config := &bootstrap.BottlerocketConfig{}
 				Expect(config.UnmarshalTOML(userData)).To(Succeed())
 				Expect(len(config.Settings.Kubernetes.EvictionHard)).To(Equal(3))
@@ -1222,7 +1248,8 @@ var _ = Describe("LaunchTemplates", func() {
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
-				userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+				userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+				Expect(err).To(BeNil())
 				config := &bootstrap.BottlerocketConfig{}
 				Expect(config.UnmarshalTOML(userData)).To(Succeed())
 				Expect(config.Settings.Kubernetes.MaxPods).ToNot(BeNil())
@@ -1235,7 +1262,8 @@ var _ = Describe("LaunchTemplates", func() {
 					EnableENILimitedPodDensity: lo.ToPtr(false),
 				}))
 
-				content, _ := os.ReadFile("testdata/al2_userdata_input.golden")
+				content, err := os.ReadFile("testdata/al2_userdata_input.golden")
+				Expect(err).To(BeNil())
 				nodeTemplate.Spec.UserData = aws.String(string(content))
 				ExpectApplied(ctx, env.Client, nodeTemplate)
 				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
@@ -1245,8 +1273,33 @@ var _ = Describe("LaunchTemplates", func() {
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
-				userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
-				content, _ = os.ReadFile("testdata/al2_userdata_merged.golden")
+				userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+				Expect(err).To(BeNil())
+				content, err = os.ReadFile("testdata/al2_userdata_merged.golden")
+				Expect(err).To(BeNil())
+				expectedUserData := fmt.Sprintf(string(content), newProvisioner.Name)
+				Expect(expectedUserData).To(Equal(string(userData)))
+			})
+			It("should merge in custom user data not in multi-part mime format", func() {
+				ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
+					EnableENILimitedPodDensity: lo.ToPtr(false),
+				}))
+
+				content, err := os.ReadFile("testdata/al2_no_mime_userdata_input.golden")
+				Expect(err).To(BeNil())
+				nodeTemplate.Spec.UserData = aws.String(string(content))
+				ExpectApplied(ctx, env.Client, nodeTemplate)
+				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
+				ExpectApplied(ctx, env.Client, newProvisioner)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+				userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+				Expect(err).To(BeNil())
+				content, err = os.ReadFile("testdata/al2_userdata_merged.golden")
+				Expect(err).To(BeNil())
 				expectedUserData := fmt.Sprintf(string(content), newProvisioner.Name)
 				Expect(expectedUserData).To(Equal(string(userData)))
 			})
@@ -1263,20 +1316,12 @@ var _ = Describe("LaunchTemplates", func() {
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
-				userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
-				content, _ := os.ReadFile("testdata/al2_userdata_unmerged.golden")
+				userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+				Expect(err).To(BeNil())
+				content, err := os.ReadFile("testdata/al2_userdata_unmerged.golden")
+				Expect(err).To(BeNil())
 				expectedUserData := fmt.Sprintf(string(content), newProvisioner.Name)
 				Expect(expectedUserData).To(Equal(string(userData)))
-			})
-			It("should not bootstrap invalid MIME UserData", func() {
-				nodeTemplate.Spec.UserData = aws.String("#/bin/bash\n ./not-mime.sh")
-				ExpectApplied(ctx, env.Client, nodeTemplate)
-				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
-				ExpectApplied(ctx, env.Client, newProvisioner)
-				pod := coretest.UnschedulablePod()
-				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-				// This will not be scheduled since userData cannot be generated for the prospective node.
-				ExpectNotScheduled(ctx, env.Client, pod)
 			})
 		})
 		Context("Custom AMI Selector", func() {
@@ -1316,7 +1361,8 @@ var _ = Describe("LaunchTemplates", func() {
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
-				userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+				userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+				Expect(err).To(BeNil())
 				Expect("special user data").To(Equal(string(userData)))
 			})
 			It("should correctly use ami selector with specific IDs in AWSNodeTemplate", func() {
@@ -1465,7 +1511,8 @@ var _ = Describe("LaunchTemplates", func() {
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
-				userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+				userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+				Expect(err).To(BeNil())
 				Expect(string(userData)).To(ContainSubstring("--dns-cluster-ip '10.0.10.100'"))
 			})
 		})
