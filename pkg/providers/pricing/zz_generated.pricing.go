@@ -14,18 +14,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package cloudprovider
+package pricing
 
 import "time"
 
 // generated at 2023-02-20T13:11:59Z for us-east-1
 
 var initialPriceUpdate, _ = time.Parse(time.RFC3339, "2023-02-20T13:11:59Z")
-var initialOnDemandPrices = map[string]map[string]float64{}
+var InitialOnDemandPrices = map[string]map[string]float64{}
 
 func init() {
 	// us-east-1
-	initialOnDemandPrices["us-east-1"] = map[string]float64{
+	InitialOnDemandPrices["us-east-1"] = map[string]float64{
 		// a1 family
 		"a1.2xlarge": 0.204000, "a1.4xlarge": 0.408000, "a1.large": 0.051000, "a1.medium": 0.025500,
 		"a1.metal": 0.408000, "a1.xlarge": 0.102000,
@@ -336,7 +336,7 @@ func init() {
 	}
 
 	// us-gov-west-1
-	initialOnDemandPrices["us-gov-west-1"] = map[string]float64{
+	InitialOnDemandPrices["us-gov-west-1"] = map[string]float64{
 		// c1 family
 		"c1.medium": 0.157000, "c1.xlarge": 0.628000,
 		// c3 family
@@ -520,7 +520,7 @@ func init() {
 	}
 
 	// us-gov-east-1
-	initialOnDemandPrices["us-gov-east-1"] = map[string]float64{
+	InitialOnDemandPrices["us-gov-east-1"] = map[string]float64{
 		// c5 family
 		"c5.12xlarge": 2.448000, "c5.18xlarge": 3.672000, "c5.24xlarge": 4.896000, "c5.2xlarge": 0.408000,
 		"c5.4xlarge": 0.816000, "c5.9xlarge": 1.836000, "c5.large": 0.102000, "c5.metal": 4.896000,
@@ -643,7 +643,7 @@ func init() {
 	}
 
 	// cn-north-1
-	initialOnDemandPrices["cn-north-1"] = map[string]float64{
+	InitialOnDemandPrices["cn-north-1"] = map[string]float64{
 		// c3 family
 		"c3.2xlarge": 4.217000, "c3.4xlarge": 8.434000, "c3.8xlarge": 16.869000, "c3.large": 1.054000,
 		"c3.xlarge": 2.109000,

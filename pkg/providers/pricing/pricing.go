@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package cloudprovider
+package pricing
 
 import (
 	"bytes"
@@ -38,13 +38,13 @@ import (
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
 )
 
-// PricingProvider provides actual pricing data to the AWS cloud provider to allow it to make more informed decisions
+// Provider provides actual pricing data to the AWS cloud provider to allow it to make more informed decisions
 // regarding which instances to launch.  This is initialized at startup with a periodically updated static price list to
 // support running in locations where pricing data is unavailable.  In those cases the static pricing data provides a
 // relative ordering that is still more accurate than our previous pricing model.  In the event that a pricing update
 // fails, the previous pricing information is retained and used which may be the static initial pricing data if pricing
 // updates never succeed.
-type PricingProvider struct {
+type Provider struct {
 	ec2     ec2iface.EC2API
 	pricing pricingiface.PricingAPI
 	region  string
@@ -83,7 +83,7 @@ func newZonalPricing(defaultPrice float64) zonalPricing {
 const pricingUpdatePeriod = 12 * time.Hour
 
 // NewPricingAPI returns a pricing API configured based on a particular region
-func NewPricingAPI(sess *session.Session, region string) pricingiface.PricingAPI {
+func NewAPI(sess *session.Session, region string) pricingiface.PricingAPI {
 	if sess == nil {
 		return nil
 	}
@@ -95,15 +95,15 @@ func NewPricingAPI(sess *session.Session, region string) pricingiface.PricingAPI
 	return pricing.New(sess, &aws.Config{Region: aws.String(pricingAPIRegion)})
 }
 
-func NewPricingProvider(ctx context.Context, pricing pricingiface.PricingAPI, ec2Api ec2iface.EC2API, region string, isolatedVPC bool, startAsync <-chan struct{}) *PricingProvider {
+func NewProvider(ctx context.Context, pricing pricingiface.PricingAPI, ec2Api ec2iface.EC2API, region string, isolatedVPC bool, startAsync <-chan struct{}) *Provider {
 	// see if we've got region specific pricing data
-	staticPricing, ok := initialOnDemandPrices[region]
+	staticPricing, ok := InitialOnDemandPrices[region]
 	if !ok {
 		// and if not, fall back to the always available us-east-1
-		staticPricing = initialOnDemandPrices["us-east-1"]
+		staticPricing = InitialOnDemandPrices["us-east-1"]
 	}
 
-	p := &PricingProvider{
+	p := &Provider{
 		region:             region,
 		onDemandUpdateTime: initialPriceUpdate,
 		onDemandPrices:     staticPricing,
@@ -150,21 +150,21 @@ func NewPricingProvider(ctx context.Context, pricing pricingiface.PricingAPI, ec
 }
 
 // InstanceTypes returns the list of all instance types for which either a spot or on-demand price is known.
-func (p *PricingProvider) InstanceTypes() []string {
+func (p *Provider) InstanceTypes() []string {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	return lo.Union(lo.Keys(p.onDemandPrices), lo.Keys(p.spotPrices))
 }
 
 // OnDemandLastUpdated returns the time that the on-demand pricing was last updated
-func (p *PricingProvider) OnDemandLastUpdated() time.Time {
+func (p *Provider) OnDemandLastUpdated() time.Time {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	return p.onDemandUpdateTime
 }
 
 // SpotLastUpdated returns the time that the spot pricing was last updated
-func (p *PricingProvider) SpotLastUpdated() time.Time {
+func (p *Provider) SpotLastUpdated() time.Time {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	return p.spotUpdateTime
@@ -172,7 +172,7 @@ func (p *PricingProvider) SpotLastUpdated() time.Time {
 
 // OnDemandPrice returns the last known on-demand price for a given instance type, returning an error if there is no
 // known on-demand pricing for the instance type.
-func (p *PricingProvider) OnDemandPrice(instanceType string) (float64, bool) {
+func (p *Provider) OnDemandPrice(instanceType string) (float64, bool) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	price, ok := p.onDemandPrices[instanceType]
@@ -184,7 +184,7 @@ func (p *PricingProvider) OnDemandPrice(instanceType string) (float64, bool) {
 
 // SpotPrice returns the last known spot price for a given instance type and zone, returning an error
 // if there is no known spot pricing for that instance type or zone
-func (p *PricingProvider) SpotPrice(instanceType string, zone string) (float64, bool) {
+func (p *Provider) SpotPrice(instanceType string, zone string) (float64, bool) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	if val, ok := p.spotPrices[instanceType]; ok {
@@ -199,12 +199,12 @@ func (p *PricingProvider) SpotPrice(instanceType string, zone string) (float64, 
 	return 0.0, false
 }
 
-func (p *PricingProvider) updatePricing(ctx context.Context) {
+func (p *Provider) updatePricing(ctx context.Context) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		if err := p.updateOnDemandPricing(ctx); err != nil {
+		if err := p.UpdateOnDemandPricing(ctx); err != nil {
 			logging.FromContext(ctx).Errorf("updating on-demand pricing, %s, using existing pricing data from %s", err, err.lastUpdateTime.Format(time.RFC3339))
 		}
 	}()
@@ -212,7 +212,7 @@ func (p *PricingProvider) updatePricing(ctx context.Context) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		if err := p.updateSpotPricing(ctx); err != nil {
+		if err := p.UpdateSpotPricing(ctx); err != nil {
 			logging.FromContext(ctx).Errorf("updating spot pricing, %s, using existing pricing data from %s", err, err.lastUpdateTime.Format(time.RFC3339))
 		}
 	}()
@@ -220,7 +220,7 @@ func (p *PricingProvider) updatePricing(ctx context.Context) {
 	wg.Wait()
 }
 
-func (p *PricingProvider) updateOnDemandPricing(ctx context.Context) *pricingErr {
+func (p *Provider) UpdateOnDemandPricing(ctx context.Context) *pricingErr {
 	// standard on-demand instances
 	var wg sync.WaitGroup
 	var onDemandPrices, onDemandMetalPrices map[string]float64
@@ -280,7 +280,7 @@ func (p *PricingProvider) updateOnDemandPricing(ctx context.Context) *pricingErr
 	return nil
 }
 
-func (p *PricingProvider) fetchOnDemandPricing(ctx context.Context, additionalFilters ...*pricing.Filter) (map[string]float64, error) {
+func (p *Provider) fetchOnDemandPricing(ctx context.Context, additionalFilters ...*pricing.Filter) (map[string]float64, error) {
 	prices := map[string]float64{}
 	filters := append([]*pricing.Filter{
 		{
@@ -325,7 +325,7 @@ func (p *PricingProvider) fetchOnDemandPricing(ctx context.Context, additionalFi
 // turning off cyclo here, it measures as a 12 due to all of the type checks of the pricing data which returns a deeply
 // nested map[string]interface{}
 // nolint: gocyclo
-func (p *PricingProvider) onDemandPage(prices map[string]float64) func(output *pricing.GetProductsOutput, b bool) bool {
+func (p *Provider) onDemandPage(prices map[string]float64) func(output *pricing.GetProductsOutput, b bool) bool {
 	// this isn't the full pricing struct, just the portions we care about
 	type priceItem struct {
 		Product struct {
@@ -376,7 +376,7 @@ func (p *PricingProvider) onDemandPage(prices map[string]float64) func(output *p
 }
 
 // nolint: gocyclo
-func (p *PricingProvider) updateSpotPricing(ctx context.Context) *pricingErr {
+func (p *Provider) UpdateSpotPricing(ctx context.Context) *pricingErr {
 	totalOfferings := 0
 
 	prices := map[string]map[string]float64{}
@@ -434,7 +434,7 @@ func (p *PricingProvider) updateSpotPricing(ctx context.Context) *pricingErr {
 	return nil
 }
 
-func (p *PricingProvider) LivenessProbe(req *http.Request) error {
+func (p *Provider) LivenessProbe(req *http.Request) error {
 	// ensure we don't deadlock and nolint for the empty critical section
 	p.mu.Lock()
 	//nolint: staticcheck

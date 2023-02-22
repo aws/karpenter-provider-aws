@@ -36,6 +36,7 @@ import (
 	"knative.dev/pkg/logging"
 
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/providers/pricing"
 	"github.com/aws/karpenter/pkg/providers/subnet"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
@@ -52,7 +53,7 @@ type InstanceTypeProvider struct {
 	region          string
 	ec2api          ec2iface.EC2API
 	subnetProvider  *subnet.Provider
-	pricingProvider *PricingProvider
+	pricingProvider *pricing.Provider
 	// Has one cache entry for all the instance types (key: InstanceTypesCacheKey)
 	// Has one cache entry for all the zones for each subnet selector (key: InstanceTypesZonesCacheKeyPrefix:<hash_of_selector>)
 	// Values cached *before* considering insufficient capacity errors from the unavailableOfferings cache.
@@ -74,9 +75,9 @@ func NewInstanceTypeProvider(ctx context.Context, sess *session.Session, ec2api 
 		ec2api:         ec2api,
 		region:         *sess.Config.Region,
 		subnetProvider: subnetProvider,
-		pricingProvider: NewPricingProvider(
+		pricingProvider: pricing.NewProvider(
 			ctx,
-			NewPricingAPI(sess, *sess.Config.Region),
+			pricing.NewAPI(sess, *sess.Config.Region),
 			ec2api,
 			*sess.Config.Region,
 			awssettings.FromContext(ctx).IsolatedVPC,
