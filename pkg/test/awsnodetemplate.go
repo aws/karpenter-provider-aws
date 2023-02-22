@@ -22,6 +22,11 @@ import (
 func AWSNodeTemplate(overrides ...v1alpha1.AWSNodeTemplateSpec) *v1alpha1.AWSNodeTemplate {
 	return &v1alpha1.AWSNodeTemplate{
 		ObjectMeta: test.ObjectMeta(),
-		Spec:       test.MustMerge(v1alpha1.AWSNodeTemplateSpec{}, overrides...),
+		Spec: test.MustMerge(v1alpha1.AWSNodeTemplateSpec{
+			AWS: v1alpha1.AWS{
+				SubnetSelector:        map[string]string{"*": "*"},
+				SecurityGroupSelector: map[string]string{"*": "*"},
+			},
+		}, overrides...),
 	}
 }
