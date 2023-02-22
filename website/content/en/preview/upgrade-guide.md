@@ -97,12 +97,15 @@ By adopting this practice we allow our users who are early adopters to test out 
 
 # Released Upgrade Notes
 
+## Upgrading to v0.26.0+
+* The `karpenter.sh/do-not-evict` annotation no longer blocks node termination when running `kubectl delete node`. This annotation on pods will only block automatic deprovisioning that is considered "voluntary," that is, disruptions that can be avoided. Disruptions that Karpenter deems as "involuntary" and will ignore the `karpenter.sh/do-not-evict` annotation include spot interruption and manual deletion of the node. See [Disabling Deprovisioning]({{<ref "./concepts/deprovisioning#disabling-deprovisioning" >}}) for more details.
+
 ## Upgrading to v0.25.0+
 * Cluster Endpoint can now be automatically discovered. If you are using Amazon Elastic Kubernetes Service (EKS), you can now omit the `clusterEndpoint` field in your configuration. In order to allow the resolving, you have to add the permission `eks:DescribeCluster` to the Karpenter Controller IAM role.
 
 ## Upgrading to v0.24.0+
 * Settings are no longer updated dynamically while Karpenter is running. If you manually make a change to the `karpenter-global-settings` ConfigMap, you will need to reload the containers by restarting the deployment with `kubectl rollout restart -n karpenter deploy/karpenter`
-* Karpenter no longer filters out instance types internally. Previously, `g2` (not supported by the NVIDIA device plugin) and FPGA instance types were filtered. The only way to filter instance types now is to set requirements on your provisioner or pods using well-known node labels described [here]({{<ref "./concepts/scheduling#selecting-nodes" >}}). If you are currently using overly broad requirements that allows all of the `g` instance-category, you will want to tighten the requirement, or add an instance-generation requirement. 
+* Karpenter no longer filters out instance types internally. Previously, `g2` (not supported by the NVIDIA device plugin) and FPGA instance types were filtered. The only way to filter instance types now is to set requirements on your provisioner or pods using well-known node labels described [here]({{<ref "./concepts/scheduling#selecting-nodes" >}}). If you are currently using overly broad requirements that allows all of the `g` instance-category, you will want to tighten the requirement, or add an instance-generation requirement.
 * `aws.tags` in `karpenter-global-settings` ConfigMap is now a top-level field and expects the value associated with this key to be a JSON object of string to string. This is change from previous versions where keys were given implicitly by providing the key-value pair `aws.tags.<key>: value` in the ConfigMap.
 
 ## Upgrading to v0.22.0+
@@ -119,14 +122,14 @@ By adopting this practice we allow our users who are early adopters to test out 
 * Pods without an ownerRef (also called "controllerless" or "naked" pods) will now be evicted by default during node termination and consolidation.  Users can prevent controllerless pods from being voluntarily disrupted by applying the `karpenter.sh/do-not-evict: "true"` annotation to the pods in question.
 * The following CLI options/environment variables are now removed and replaced in favor of pulling settings dynamically from the `karpenter-global-settings` ConfigMap. See the [Settings docs]({{<ref "./concepts/settings/#environment-variables--cli-flags" >}}) for more details on configuring the new values in the ConfigMap.
 
-   * `CLUSTER_NAME` -> `aws.clusterName`
-   * `CLUSTER_ENDPOINT` -> `aws.clusterEndpoint`
-   * `AWS_DEFAULT_INSTANCE_PROFILE` -> `aws.defaultInstanceProfile`
-   * `AWS_ENABLE_POD_ENI` -> `aws.enablePodENI`
-   * `AWS_ENI_LIMITED_POD_DENSITY` -> `aws.enableENILimitedPodDensity`
-   * `AWS_ISOLATED_VPC` -> `aws.isolatedVPC`
-   * `AWS_NODE_NAME_CONVENTION` -> `aws.nodeNameConvention`
-   * `VM_MEMORY_OVERHEAD` -> `aws.vmMemoryOverheadPercent`
+  * `CLUSTER_NAME` -> `aws.clusterName`
+  * `CLUSTER_ENDPOINT` -> `aws.clusterEndpoint`
+  * `AWS_DEFAULT_INSTANCE_PROFILE` -> `aws.defaultInstanceProfile`
+  * `AWS_ENABLE_POD_ENI` -> `aws.enablePodENI`
+  * `AWS_ENI_LIMITED_POD_DENSITY` -> `aws.enableENILimitedPodDensity`
+  * `AWS_ISOLATED_VPC` -> `aws.isolatedVPC`
+  * `AWS_NODE_NAME_CONVENTION` -> `aws.nodeNameConvention`
+  * `VM_MEMORY_OVERHEAD` -> `aws.vmMemoryOverheadPercent`
 
 ## Upgrading to v0.18.0+
 * v0.18.0 removes the `karpenter_consolidation_nodes_created` and `karpenter_consolidation_nodes_terminated` prometheus metrics in favor of the more generic `karpenter_nodes_created` and `karpenter_nodes_terminated` metrics. You can still see nodes created and terminated by consolidation by checking the `reason` label on the metrics. Check out all the metrics published by Karpenter [here]({{<ref "./concepts/metrics" >}}).
