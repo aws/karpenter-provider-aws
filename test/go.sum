@@ -85,8 +85,6 @@ github.com/aws/aws-sdk-go-v2/service/ssooidc v1.14.1 h1:0bLhH6DRAqox+g0LatcjGKjj
 github.com/aws/aws-sdk-go-v2/service/ssooidc v1.14.1/go.mod h1:O1YSOg3aekZibh2SngvCRRG+cRHKKlYgxf/JBF/Kr/k=
 github.com/aws/aws-sdk-go-v2/service/sts v1.18.3 h1:s49mSnsBZEXjfGBkRfmK+nPqzT7Lt3+t2SmAKNyHblw=
 github.com/aws/aws-sdk-go-v2/service/sts v1.18.3/go.mod h1:b+psTJn33Q4qGoDaM7ZiOVVG8uVjGI6HaZ8WBHdgDgU=
-github.com/aws/karpenter-core v0.25.0 h1:4WZJZCQXASao7pahrlULqilW+JnXNTsCPKr96rCwv28=
-github.com/aws/karpenter-core v0.25.0/go.mod h1:szIXYuMzg8kAwAbMIoB1VJBjAM+AdX+cIwsINkmWnpI=
 github.com/aws/karpenter-core v0.25.1-0.20230222181259-c4269ec5fb7e h1:Nqa5sRHXVpTOSNya69SwCbZJjsWugKbUwyoTAS8zAys=
 github.com/aws/karpenter-core v0.25.1-0.20230222181259-c4269ec5fb7e/go.mod h1:szIXYuMzg8kAwAbMIoB1VJBjAM+AdX+cIwsINkmWnpI=
 github.com/aws/smithy-go v1.11.2/go.mod h1:3xHYmszWVx2c0kIwQeEVf9uSm4fYZt67FBJnwub1bgM=
