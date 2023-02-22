@@ -23,6 +23,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/eks"
 
 	"github.com/aws/karpenter/pkg/apis/settings"
+	"github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/test"
 
 	. "github.com/onsi/gomega"
@@ -37,7 +38,7 @@ var _ = Describe("Cloud Provider", func() {
 		ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
 			ClusterEndpoint: lo.ToPtr("https://api.test-cluster.k8s.local"),
 		}))
-		endpoint, err := resolveClusterEndpoint(ctx, fakeEKSAPI)
+		endpoint, err := context.ResolveClusterEndpoint(ctx, fakeEKSAPI)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(endpoint).To(Equal("https://api.test-cluster.k8s.local"))
 	})
@@ -54,7 +55,7 @@ var _ = Describe("Cloud Provider", func() {
 			},
 		)
 
-		endpoint, err := resolveClusterEndpoint(ctx, fakeEKSAPI)
+		endpoint, err := context.ResolveClusterEndpoint(ctx, fakeEKSAPI)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(endpoint).To(Equal("https://cluster-endpoint.test-cluster.k8s.local"))
 	})
@@ -65,7 +66,7 @@ var _ = Describe("Cloud Provider", func() {
 		}))
 		fakeEKSAPI.DescribeClusterBehaviour.Error.Set(errors.New("test error"))
 
-		_, err := resolveClusterEndpoint(ctx, fakeEKSAPI)
+		_, err := context.ResolveClusterEndpoint(ctx, fakeEKSAPI)
 		Expect(err).To(HaveOccurred())
 	})
 })

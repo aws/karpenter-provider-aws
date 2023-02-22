@@ -16,8 +16,10 @@ package context
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
+	"net"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -28,10 +30,22 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go/service/eks"
+	"github.com/aws/aws-sdk-go/service/eks/eksiface"
+	"github.com/aws/aws-sdk-go/service/ssm"
+	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/transport"
 	"knative.dev/pkg/logging"
+	"knative.dev/pkg/ptr"
 
-	"github.com/aws/karpenter/pkg/cache"
+	"github.com/aws/karpenter/pkg/apis/settings"
+	awscache "github.com/aws/karpenter/pkg/cache"
+	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
+	"github.com/aws/karpenter/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
 	"github.com/aws/karpenter/pkg/providers/subnet"
 	"github.com/aws/karpenter/pkg/utils/project"
@@ -44,10 +58,13 @@ type Context struct {
 	cloudprovider.Context
 
 	Session                   *session.Session
-	UnavailableOfferingsCache *cache.UnavailableOfferings
+	UnavailableOfferingsCache *awscache.UnavailableOfferings
 	EC2API                    ec2iface.EC2API
 	SubnetProvider            *subnet.Provider
 	SecurityGroupProvider     *securitygroup.Provider
+	AMIProvider               *amifamily.AMIProvider
+	AMIResolver               *amifamily.Resolver
+	LaunchTemplateProvider    *launchtemplate.Provider
 }
 
 func NewOrDie(ctx cloudprovider.Context) Context {
@@ -68,15 +85,48 @@ func NewOrDie(ctx cloudprovider.Context) Context {
 		logging.FromContext(ctx).Fatalf("Checking EC2 API connectivity, %s", err)
 	}
 	logging.FromContext(ctx).With("region", *sess.Config.Region).Debugf("discovered region")
+	clusterEndpoint, err := ResolveClusterEndpoint(ctx, eks.New(sess))
+	if err != nil {
+		logging.FromContext(ctx).Fatalf("unable to detect the cluster endpoint, %s", err)
+	} else {
+		logging.FromContext(ctx).With("cluster-endpoint", clusterEndpoint).Debugf("discovered cluster endpoint")
+	}
+	// We perform best-effort on resolving the kube-dns IP
+	kubeDNSIP, err := kubeDNSIP(ctx, ctx.KubernetesInterface)
+	if err != nil {
+		// If we fail to get the kube-dns IP, we don't want to crash because this causes issues with custom DNS setups
+		// https://github.com/aws/karpenter/issues/2787
+		logging.FromContext(ctx).Debugf("unable to detect the IP of the kube-dns service, %s", err)
+	} else {
+		logging.FromContext(ctx).With("kube-dns-ip", kubeDNSIP).Debugf("discovered kube dns")
+	}
+
 	subnetProvider := subnet.NewProvider(ec2api)
 	securityGroupProvider := securitygroup.NewProvider(ec2api)
+	amiProvider := amifamily.NewAMIProvider(ctx.KubeClient, ctx.KubernetesInterface, ssm.New(sess), ec2api,
+		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
+	amiResolver := amifamily.New(ctx.KubeClient, amiProvider)
+	launchTemplateProvider := launchtemplate.NewProvider(
+		ctx,
+		ec2api,
+		amiResolver,
+		securityGroupProvider,
+		lo.Must(getCABundle(ctx.RESTConfig)),
+		ctx.StartAsync,
+		kubeDNSIP,
+		clusterEndpoint,
+	)
+
 	return Context{
 		Context:                   ctx,
 		Session:                   sess,
-		UnavailableOfferingsCache: cache.NewUnavailableOfferings(),
+		UnavailableOfferingsCache: awscache.NewUnavailableOfferings(),
 		EC2API:                    ec2api,
 		SubnetProvider:            subnetProvider,
 		SecurityGroupProvider:     securityGroupProvider,
+		AMIProvider:               amiProvider,
+		AMIResolver:               amiResolver,
+		LaunchTemplateProvider:    launchTemplateProvider,
 	}
 }
 
@@ -96,4 +146,49 @@ func checkEC2Connectivity(ctx context.Context, api *ec2.EC2) error {
 		return nil
 	}
 	return err
+}
+
+func ResolveClusterEndpoint(ctx context.Context, eksAPI eksiface.EKSAPI) (string, error) {
+	clusterEndpointFromSettings := settings.FromContext(ctx).ClusterEndpoint
+	if clusterEndpointFromSettings != "" {
+		return clusterEndpointFromSettings, nil // cluster endpoint is explicitly set
+	}
+	out, err := eksAPI.DescribeCluster(&eks.DescribeClusterInput{
+		Name: aws.String(settings.FromContext(ctx).ClusterName),
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve cluster endpoint, %w", err)
+	}
+	return *out.Cluster.Endpoint, nil
+}
+
+func getCABundle(restConfig *rest.Config) (*string, error) {
+	// Discover CA Bundle from the REST client. We could alternatively
+	// have used the simpler client-go InClusterConfig() method.
+	// However, that only works when Karpenter is running as a Pod
+	// within the same cluster it's managing.
+	transportConfig, err := restConfig.TransportConfig()
+	if err != nil {
+		return nil, fmt.Errorf("discovering caBundle, loading transport config, %w", err)
+	}
+	_, err = transport.TLSConfigFor(transportConfig) // fills in CAData!
+	if err != nil {
+		return nil, fmt.Errorf("discovering caBundle, loading TLS config, %w", err)
+	}
+	return ptr.String(base64.StdEncoding.EncodeToString(transportConfig.TLS.CAData)), nil
+}
+
+func kubeDNSIP(ctx context.Context, kubernetesInterface kubernetes.Interface) (net.IP, error) {
+	if kubernetesInterface == nil {
+		return nil, fmt.Errorf("no K8s client provided")
+	}
+	dnsService, err := kubernetesInterface.CoreV1().Services("kube-system").Get(ctx, "kube-dns", metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	kubeDNSIP := net.ParseIP(dnsService.Spec.ClusterIP)
+	if kubeDNSIP == nil {
+		return nil, fmt.Errorf("parsing cluster IP")
+	}
+	return kubeDNSIP, nil
 }
