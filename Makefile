@@ -21,6 +21,7 @@ HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${K
 			--set settings.aws.clusterEndpoint=${CLUSTER_ENDPOINT} \
 			--set settings.aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
 			--set settings.aws.interruptionQueueName=${CLUSTER_NAME} \
+			--set settings.featureGates.driftEnabled=true \
 			--create-namespace
 
 # CR for local builds of Karpenter
@@ -48,6 +49,7 @@ run: ## Run Karpenter controller binary against your local cluster
 		--from-literal=aws.clusterEndpoint=${CLUSTER_ENDPOINT} \
 		--from-literal=aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
 		--from-literal=aws.interruptionQueueName=${CLUSTER_NAME} \
+		--from-literal=featureGates.driftEnabled=true \
 		--dry-run=client -o yaml | kubectl apply -f -
 
 

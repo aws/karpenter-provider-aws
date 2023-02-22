@@ -86,6 +86,7 @@ var launchTemplateProvider *LaunchTemplateProvider
 var amiProvider *amifamily.AMIProvider
 var fakeEC2API *fake.EC2API
 var fakeSSMAPI *fake.SSMAPI
+var fakeEKSAPI *fake.EKSAPI
 var fakePricingAPI *fake.PricingAPI
 var prov *provisioning.Provisioner
 var provisioningController controller.Controller
@@ -118,6 +119,7 @@ var _ = BeforeSuite(func() {
 	instanceTypeCache = cache.New(awscache.InstanceTypesAndZonesTTL, awscache.DefaultCleanupInterval)
 	fakeEC2API = &fake.EC2API{}
 	fakeSSMAPI = &fake.SSMAPI{}
+	fakeEKSAPI = &fake.EKSAPI{}
 	fakePricingAPI = &fake.PricingAPI{}
 	pricingProvider = NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
 	amiProvider = amifamily.NewAMIProvider(env.Client, env.KubernetesInterface, fakeSSMAPI, fakeEC2API, ssmCache, ec2Cache, kubernetesVersionCache)
@@ -192,6 +194,7 @@ var _ = BeforeEach(func() {
 	cluster.Reset()
 	fakeEC2API.Reset()
 	fakeSSMAPI.Reset()
+	fakeEKSAPI.Reset()
 	fakePricingAPI.Reset()
 	launchTemplateCache.Flush()
 	unavailableOfferingsCache.Flush()
@@ -202,6 +205,7 @@ var _ = BeforeEach(func() {
 	subnetProvider.Reset()
 	securityGroupProvider.Reset()
 	launchTemplateProvider.kubeDNSIP = net.ParseIP("10.0.100.10")
+	launchTemplateProvider.clusterEndpoint = "https://test-cluster"
 
 	// Reset the pricing provider, so we don't cross-pollinate pricing data
 	instanceTypeProvider = &InstanceTypeProvider{
@@ -536,6 +540,29 @@ var _ = Describe("Allocation", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 			createFleetInput := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
 			Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-2"))
+		})
+		It("should launch instances into subnet with the most available IP addresses in-between cache refreshes", func() {
+			fakeEC2API.DescribeSubnetsOutput.Set(&ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{
+				{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a"), AvailableIpAddressCount: aws.Int64(10),
+					Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1")}}},
+				{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1a"), AvailableIpAddressCount: aws.Int64(11),
+					Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
+			}})
+			provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{MaxPods: aws.Int32(1)}
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			pod1 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}})
+			pod2 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}})
+			ExpectProvisioned(ctx, env.Client, cluster, prov, pod1, pod2)
+			ExpectScheduled(ctx, env.Client, pod1)
+			ExpectScheduled(ctx, env.Client, pod2)
+			createFleetInput := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
+			Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-2"))
+			// Provision for another pod that should now use the other subnet since we've consumed some from the first launch.
+			pod3 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}})
+			ExpectProvisioned(ctx, env.Client, cluster, prov, pod3)
+			ExpectScheduled(ctx, env.Client, pod3)
+			createFleetInput = fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
+			Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-1"))
 		})
 		It("should launch instances into subnets that are excluded by another provisioner", func() {
 			fakeEC2API.DescribeSubnetsOutput.Set(&ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{

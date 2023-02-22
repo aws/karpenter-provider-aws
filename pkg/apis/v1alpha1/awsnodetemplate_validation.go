@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"regexp"
 
+	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	"knative.dev/pkg/apis"
 
 	"github.com/aws/karpenter-core/pkg/utils/functional"
@@ -32,6 +33,13 @@ const (
 var (
 	amiRegex = regexp.MustCompile("ami-[0-9a-z]+")
 )
+
+func (a *AWSNodeTemplate) SupportedVerbs() []admissionregistrationv1.OperationType {
+	return []admissionregistrationv1.OperationType{
+		admissionregistrationv1.Create,
+		admissionregistrationv1.Update,
+	}
+}
 
 func (a *AWSNodeTemplate) Validate(ctx context.Context) (errs *apis.FieldError) {
 	return errs.Also(

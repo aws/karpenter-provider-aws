@@ -98,7 +98,7 @@ func (p *InstanceProvider) Create(ctx context.Context, nodeTemplate *v1alpha1.AW
 	// Get Instance with backoff retry since EC2 is eventually consistent
 	instance := &ec2.Instance{}
 	if err := retry.Do(
-		func() (err error) { instance, err = p.GetByID(ctx, aws.StringValue(id)); return err },
+		func() (err error) { instance, err = p.Get(ctx, aws.StringValue(id)); return err },
 		retry.Delay(1*time.Second),
 		retry.Attempts(6),
 		retry.LastErrorOnly(true),
@@ -115,8 +115,26 @@ func (p *InstanceProvider) Create(ctx context.Context, nodeTemplate *v1alpha1.AW
 	return instance, nil
 }
 
-// TODO @joinnis: Remove the GetByID call when machine migration has completed
-func (p *InstanceProvider) GetByID(ctx context.Context, id string) (*ec2.Instance, error) {
+func (p *InstanceProvider) Link(ctx context.Context, id string) error {
+	_, err := p.ec2api.CreateTagsWithContext(ctx, &ec2.CreateTagsInput{
+		Resources: aws.StringSlice([]string{id}),
+		Tags: []*ec2.Tag{
+			{
+				Key:   aws.String(v1alpha5.ManagedByLabelKey),
+				Value: aws.String(settings.FromContext(ctx).ClusterName),
+			},
+		},
+	})
+	if err != nil {
+		if awserrors.IsNotFound(err) {
+			return cloudprovider.NewMachineNotFoundError(fmt.Errorf("linking tags, %w", err))
+		}
+		return fmt.Errorf("linking tags, %w", err)
+	}
+	return nil
+}
+
+func (p *InstanceProvider) Get(ctx context.Context, id string) (*ec2.Instance, error) {
 	out, err := p.ec2Batcher.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
 		InstanceIds: aws.StringSlice([]string{id}),
 		Filters:     []*ec2.Filter{instanceStateFilter},
@@ -140,25 +158,17 @@ func (p *InstanceProvider) GetByID(ctx context.Context, id string) (*ec2.Instanc
 	return instances[0], nil
 }
 
-func (p *InstanceProvider) Get(ctx context.Context, machineName string) (*ec2.Instance, error) {
-	instances, err := p.List(ctx, machineName)
-	if err != nil {
-		return nil, err
-	}
-	return instances[0], nil
-}
-
-func (p *InstanceProvider) List(ctx context.Context, machineName string) ([]*ec2.Instance, error) {
+func (p *InstanceProvider) List(ctx context.Context) ([]*ec2.Instance, error) {
 	// Use the machine name data to determine which instances match this machine
 	out, err := p.ec2api.DescribeInstancesWithContext(ctx, &ec2.DescribeInstancesInput{
 		Filters: []*ec2.Filter{
 			{
-				Name:   aws.String(fmt.Sprintf("tag:%s", v1alpha5.MachineNameLabelKey)),
-				Values: aws.StringSlice([]string{machineName}),
+				Name:   aws.String("tag-key"),
+				Values: aws.StringSlice([]string{v1alpha5.ProvisionerNameLabelKey}),
 			},
 			{
-				Name:   aws.String(fmt.Sprintf("tag:kubernetes.io/cluster/%s", settings.FromContext(ctx).ClusterName)),
-				Values: aws.StringSlice([]string{"*"}),
+				Name:   aws.String("tag-key"),
+				Values: aws.StringSlice([]string{fmt.Sprintf("kubernetes.io/cluster/%s", settings.FromContext(ctx).ClusterName)}),
 			},
 			instanceStateFilter,
 		},
@@ -167,38 +177,17 @@ func (p *InstanceProvider) List(ctx context.Context, machineName string) ([]*ec2
 		return nil, fmt.Errorf("describing ec2 instances, %w", err)
 	}
 	instances, err := instancesFromOutput(out)
-	if err != nil {
-		return nil, fmt.Errorf("getting instances from output, %w", err)
-	}
-	return instances, nil
+	return instances, cloudprovider.IgnoreMachineNotFoundError(err)
 }
 
-// Delete deletes the machine based on machine name tag. It continues to do a Get followed by a Delete
-// for machines until it receives an error (either a true error or a NotFound error). We do this because there is a tiny
-// race that makes it possible for us to launch more than one instance for a Machine if EC2 is not read-after-write consistent
-// and we perform another reconcile loop after doing a Create where the Get is not able to find the previous instance that
-// we created.
-func (p *InstanceProvider) Delete(ctx context.Context, machine *v1alpha5.Machine) error {
-	instances, err := p.List(ctx, machine.Name)
-	if err != nil {
-		return fmt.Errorf("getting machine instances, %w", err)
-	}
-	for _, instance := range instances {
-		if e := p.DeleteByID(ctx, aws.StringValue(instance.InstanceId)); cloudprovider.IgnoreMachineNotFoundError(e) != nil {
-			err = multierr.Append(err, e)
-		}
-	}
-	return err
-}
-
-func (p *InstanceProvider) DeleteByID(ctx context.Context, id string) error {
+func (p *InstanceProvider) Delete(ctx context.Context, id string) error {
 	if _, err := p.ec2Batcher.TerminateInstances(ctx, &ec2.TerminateInstancesInput{
 		InstanceIds: []*string{aws.String(id)},
 	}); err != nil {
 		if awserrors.IsNotFound(err) {
 			return cloudprovider.NewMachineNotFoundError(fmt.Errorf("instance already terminated"))
 		}
-		if _, e := p.GetByID(ctx, id); err != nil {
+		if _, e := p.Get(ctx, id); err != nil {
 			if cloudprovider.IsMachineNotFoundError(e) {
 				return e
 			}
@@ -211,8 +200,12 @@ func (p *InstanceProvider) DeleteByID(ctx context.Context, id string) error {
 
 func (p *InstanceProvider) launchInstance(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, machine *v1alpha5.Machine, instanceTypes []*cloudprovider.InstanceType) (*string, error) {
 	capacityType := p.getCapacityType(machine, instanceTypes)
+	zonalSubnets, err := p.subnetProvider.ZonalSubnetsForLaunch(ctx, nodeTemplate, instanceTypes, capacityType)
+	if err != nil {
+		return nil, fmt.Errorf("getting subnets, %w", err)
+	}
 	// Get Launch Template Configs, which may differ due to GPU or Architecture requirements
-	launchTemplateConfigs, err := p.getLaunchTemplateConfigs(ctx, nodeTemplate, machine, instanceTypes, capacityType)
+	launchTemplateConfigs, err := p.getLaunchTemplateConfigs(ctx, nodeTemplate, machine, instanceTypes, zonalSubnets, capacityType)
 	if err != nil {
 		return nil, fmt.Errorf("getting launch template configs, %w", err)
 	}
@@ -244,6 +237,7 @@ func (p *InstanceProvider) launchInstance(ctx context.Context, nodeTemplate *v1a
 	}
 
 	createFleetOutput, err := p.ec2Batcher.CreateFleet(ctx, createFleetInput)
+	p.subnetProvider.UpdateInflightIPs(createFleetInput, createFleetOutput, instanceTypes, lo.Values(zonalSubnets), capacityType)
 	if err != nil {
 		if awserrors.IsLaunchTemplateNotFound(err) {
 			for _, lt := range launchTemplateConfigs {
@@ -287,16 +281,7 @@ func (p *InstanceProvider) checkODFallback(machine *v1alpha5.Machine, instanceTy
 }
 
 func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, machine *v1alpha5.Machine,
-	instanceTypes []*cloudprovider.InstanceType, capacityType string) ([]*ec2.FleetLaunchTemplateConfigRequest, error) {
-
-	// Get subnets given the constraints
-	subnets, err := p.subnetProvider.List(ctx, nodeTemplate)
-	if err != nil {
-		return nil, fmt.Errorf("getting subnets, %w", err)
-	}
-	if len(subnets) == 0 {
-		return nil, fmt.Errorf("no subnets matched selector %v", nodeTemplate.Spec.SubnetSelector)
-	}
+	instanceTypes []*cloudprovider.InstanceType, zonalSubnets map[string]*ec2.Subnet, capacityType string) ([]*ec2.FleetLaunchTemplateConfigRequest, error) {
 	var launchTemplateConfigs []*ec2.FleetLaunchTemplateConfigRequest
 	launchTemplates, err := p.launchTemplateProvider.EnsureAll(ctx, nodeTemplate, machine, instanceTypes, map[string]string{v1alpha5.LabelCapacityType: capacityType})
 	if err != nil {
@@ -304,7 +289,7 @@ func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, nodeTem
 	}
 	for launchTemplateName, instanceTypes := range launchTemplates {
 		launchTemplateConfig := &ec2.FleetLaunchTemplateConfigRequest{
-			Overrides: p.getOverrides(instanceTypes, subnets, scheduling.NewNodeSelectorRequirements(machine.Spec.Requirements...).Get(v1.LabelTopologyZone), capacityType),
+			Overrides: p.getOverrides(instanceTypes, zonalSubnets, scheduling.NewNodeSelectorRequirements(machine.Spec.Requirements...).Get(v1.LabelTopologyZone), capacityType),
 			LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{
 				LaunchTemplateName: aws.String(launchTemplateName),
 				Version:            aws.String("$Latest"),
@@ -322,16 +307,7 @@ func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, nodeTem
 
 // getOverrides creates and returns launch template overrides for the cross product of InstanceTypes and subnets (with subnets being constrained by
 // zones and the offerings in InstanceTypes)
-func (p *InstanceProvider) getOverrides(instanceTypes []*cloudprovider.InstanceType, subnets []*ec2.Subnet, zones *scheduling.Requirement, capacityType string) []*ec2.FleetLaunchTemplateOverridesRequest {
-	// sort subnets in ascending order of available IP addresses and populate map with most available subnet per AZ
-	zonalSubnets := map[string]*ec2.Subnet{}
-	sort.Slice(subnets, func(i, j int) bool {
-		return aws.Int64Value(subnets[i].AvailableIpAddressCount) < aws.Int64Value(subnets[j].AvailableIpAddressCount)
-	})
-	for _, subnet := range subnets {
-		zonalSubnets[*subnet.AvailabilityZone] = subnet
-	}
-
+func (p *InstanceProvider) getOverrides(instanceTypes []*cloudprovider.InstanceType, zonalSubnets map[string]*ec2.Subnet, zones *scheduling.Requirement, capacityType string) []*ec2.FleetLaunchTemplateOverridesRequest {
 	// Unwrap all the offerings to a flat slice that includes a pointer
 	// to the parent instance type name
 	type offeringWithParentName struct {
@@ -395,7 +371,7 @@ func (p *InstanceProvider) Update(ctx context.Context, machine *v1alpha5.Machine
 	var instance *ec2.Instance
 	if err = retry.Do(
 		func() error {
-			instance, err = p.GetByID(ctx, lo.Must(utils.ParseInstanceID(machine.Status.ProviderID)))
+			instance, err = p.Get(ctx, lo.Must(utils.ParseInstanceID(machine.Status.ProviderID)))
 			if err != nil {
 				return fmt.Errorf("getting instance, %w", err)
 			}

@@ -2,20 +2,20 @@
 
 A Helm chart for Karpenter, an open-source node provisioning project built for Kubernetes.
 
-![Version: 0.24.0](https://img.shields.io/badge/Version-0.24.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.24.0](https://img.shields.io/badge/AppVersion-0.24.0-informational?style=flat-square)
+![Version: 0.25.0](https://img.shields.io/badge/Version-0.25.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.25.0](https://img.shields.io/badge/AppVersion-0.25.0-informational?style=flat-square)
 
 ## Documentation
 
-For full Karpenter documentation please checkout [https://karpenter.sh](https://karpenter.sh/v0.24.0/).
+For full Karpenter documentation please checkout [https://karpenter.sh](https://karpenter.sh/v0.25.0/).
 
 ## Installing the Chart
 
-You can follow the detailed installation instruction in the [documentation](https://karpenter.sh/v0.24.0/getting-started/getting-started-with-eksctl/#install) which covers the Karpenter prerequisites and installation options. The outcome of these instructions should result in something like the following command.
+You can follow the detailed installation instruction in the [documentation](https://karpenter.sh/v0.25.0/getting-started/getting-started-with-eksctl/#install) which covers the Karpenter prerequisites and installation options. The outcome of these instructions should result in something like the following command.
 
 ```bash
 helm upgrade --install --namespace karpenter --create-namespace \
   karpenter oci://public.ecr.aws/karpenter/karpenter \
-  --version v0.24.0 \
+  --version v0.25.0 \
   --set serviceAccount.annotations.eks\.amazonaws\.com/role-arn=${KARPENTER_IAM_ROLE_ARN} \
   --set settings.aws.clusterName=${CLUSTER_NAME} \
   --set settings.aws.clusterEndpoint=${CLUSTER_ENDPOINT} \
@@ -36,7 +36,7 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | controller.errorOutputPaths | list | `["stderr"]` | Controller errorOutputPaths - default to stderr only |
 | controller.extraVolumeMounts | list | `[]` | Additional volumeMounts for the controller pod. |
 | controller.healthProbe.port | int | `8081` | The container port to use for http health probe. |
-| controller.image | string | `"public.ecr.aws/karpenter/controller:v0.24.0@sha256:83e7a21200efd4e17314c931aa715c9c73b27fcbf08673d263c007029ad754da"` | Controller image. |
+| controller.image | string | `"public.ecr.aws/karpenter/controller:v0.25.0@sha256:fefae2739efa1c4d9561069d1683a0ed201e41771351da1ef504c805941f0bf2"` | Controller image. |
 | controller.logEncoding | string | `""` | Controller log encoding, defaults to the global log encoding |
 | controller.logLevel | string | `""` | Controller log level, defaults to the global log level |
 | controller.metrics.port | int | `8080` | The container port to use for metrics. |
@@ -47,6 +47,7 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | controller.sidecarVolumeMounts | list | `[]` | Additional volumeMounts for the sidecar - this will be added to the volume mounts on top of extraVolumeMounts |
 | dnsConfig | object | `{}` | Configure DNS Config for the pod |
 | dnsPolicy | string | `"Default"` | Configure the DNS Policy for the pod |
+| extraObjects | list | `[]` | Array of extra K8s manifests to deploy  |
 | extraVolumes | list | `[]` | Additional volumes for the pod. |
 | fullnameOverride | string | `""` | Overrides the chart's computed fullname. |
 | hostNetwork | bool | `false` | Bind the pod to the host network. This is required when using a custom CNI. |
@@ -72,7 +73,7 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | serviceMonitor.endpointConfig | object | `{}` | Endpoint configuration for the ServiceMonitor. |
 | settings | object | `{"aws":{"clusterEndpoint":"","clusterName":"","defaultInstanceProfile":"","enableENILimitedPodDensity":true,"enablePodENI":false,"interruptionQueueName":"","isolatedVPC":false,"nodeNameConvention":"ip-name","tags":null,"vmMemoryOverheadPercent":0.075},"batchIdleDuration":"1s","batchMaxDuration":"10s"}` | Global Settings to configure Karpenter |
 | settings.aws | object | `{"clusterEndpoint":"","clusterName":"","defaultInstanceProfile":"","enableENILimitedPodDensity":true,"enablePodENI":false,"interruptionQueueName":"","isolatedVPC":false,"nodeNameConvention":"ip-name","tags":null,"vmMemoryOverheadPercent":0.075}` | AWS-specific configuration values |
-| settings.aws.clusterEndpoint | string | `""` | Cluster endpoint. |
+| settings.aws.clusterEndpoint | string | `""` | Cluster endpoint. If not set, will be discovered during startup (EKS only) |
 | settings.aws.clusterName | string | `""` | Cluster name. |
 | settings.aws.defaultInstanceProfile | string | `""` | The default instance profile to use when launching nodes |
 | settings.aws.enableENILimitedPodDensity | bool | `true` | Indicates whether new nodes should use ENI-based pod density DEPRECATED: Use `.spec.kubeletConfiguration.maxPods` to set pod density on a per-provisioner basis |
