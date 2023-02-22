@@ -160,7 +160,10 @@ func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFlee
 		}
 	}
 
-	result := &ec2.CreateFleetOutput{Instances: []*ec2.CreateFleetInstance{{InstanceIds: instanceIds}}}
+	result := &ec2.CreateFleetOutput{Instances: []*ec2.CreateFleetInstance{{
+		InstanceIds:                instanceIds,
+		LaunchTemplateAndOverrides: &ec2.LaunchTemplateAndOverridesResponse{Overrides: &ec2.FleetLaunchTemplateOverrides{SubnetId: input.LaunchTemplateConfigs[0].Overrides[0].SubnetId}},
+	}}}
 	for _, pool := range skippedPools {
 		result.Errors = append(result.Errors, &ec2.CreateFleetError{
 			ErrorCode: aws.String("InsufficientInstanceCapacity"),
