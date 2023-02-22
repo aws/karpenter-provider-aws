@@ -78,6 +78,7 @@ func computeRequirements(ctx context.Context, info *ec2.InstanceTypeInfo, offeri
 		// Well Known to AWS
 		scheduling.NewRequirement(v1alpha1.LabelInstanceCPU, v1.NodeSelectorOpIn, fmt.Sprint(aws.Int64Value(info.VCpuInfo.DefaultVCpus))),
 		scheduling.NewRequirement(v1alpha1.LabelInstanceMemory, v1.NodeSelectorOpIn, fmt.Sprint(aws.Int64Value(info.MemoryInfo.SizeInMiB))),
+		scheduling.NewRequirement(v1alpha1.LabelInstanceNetworkBandwidth, v1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1alpha1.LabelInstancePods, v1.NodeSelectorOpIn, fmt.Sprint(pods(ctx, info, amiFamily, kc))),
 		scheduling.NewRequirement(v1alpha1.LabelInstanceCategory, v1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1alpha1.LabelInstanceFamily, v1.NodeSelectorOpDoesNotExist),
@@ -104,6 +105,10 @@ func computeRequirements(ctx context.Context, info *ec2.InstanceTypeInfo, offeri
 	}
 	if info.InstanceStorageInfo != nil && aws.StringValue(info.InstanceStorageInfo.NvmeSupport) != ec2.EphemeralNvmeSupportUnsupported {
 		requirements[v1alpha1.LabelInstanceLocalNVME].Insert(fmt.Sprint(aws.Int64Value(info.InstanceStorageInfo.TotalSizeInGB)))
+	}
+	// Network bandwidth
+	if bandwidth, ok := InstanceTypeBandwidthMegabits[aws.StringValue(info.InstanceType)]; ok {
+		requirements[v1alpha1.LabelInstanceNetworkBandwidth].Insert(fmt.Sprint(bandwidth))
 	}
 	// GPU Labels
 	if info.GpuInfo != nil && len(info.GpuInfo.Gpus) == 1 {
