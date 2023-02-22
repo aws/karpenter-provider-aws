@@ -66,7 +66,7 @@ type zonalPricing struct {
 	prices       map[string]float64
 }
 
-type pricingErr struct {
+type PricingErr struct {
 	error
 	lastUpdateTime time.Time
 }
@@ -220,7 +220,7 @@ func (p *Provider) updatePricing(ctx context.Context) {
 	wg.Wait()
 }
 
-func (p *Provider) UpdateOnDemandPricing(ctx context.Context) *pricingErr {
+func (p *Provider) UpdateOnDemandPricing(ctx context.Context) *PricingErr {
 	// standard on-demand instances
 	var wg sync.WaitGroup
 	var onDemandPrices, onDemandMetalPrices map[string]float64
@@ -265,11 +265,11 @@ func (p *Provider) UpdateOnDemandPricing(ctx context.Context) *pricingErr {
 	defer p.mu.Unlock()
 	err := multierr.Append(onDemandErr, onDemandMetalErr)
 	if err != nil {
-		return &pricingErr{error: err, lastUpdateTime: p.onDemandUpdateTime}
+		return &PricingErr{error: err, lastUpdateTime: p.onDemandUpdateTime}
 	}
 
 	if len(onDemandPrices) == 0 || len(onDemandMetalPrices) == 0 {
-		return &pricingErr{error: errors.New("no on-demand pricing found"), lastUpdateTime: p.onDemandUpdateTime}
+		return &PricingErr{error: errors.New("no on-demand pricing found"), lastUpdateTime: p.onDemandUpdateTime}
 	}
 
 	p.onDemandPrices = lo.Assign(onDemandPrices, onDemandMetalPrices)
@@ -376,7 +376,7 @@ func (p *Provider) onDemandPage(prices map[string]float64) func(output *pricing.
 }
 
 // nolint: gocyclo
-func (p *Provider) UpdateSpotPricing(ctx context.Context) *pricingErr {
+func (p *Provider) UpdateSpotPricing(ctx context.Context) *PricingErr {
 	totalOfferings := 0
 
 	prices := map[string]map[string]float64{}
@@ -410,10 +410,10 @@ func (p *Provider) UpdateSpotPricing(ctx context.Context) *pricingErr {
 	defer p.mu.Unlock()
 
 	if err != nil {
-		return &pricingErr{error: err, lastUpdateTime: p.spotUpdateTime}
+		return &PricingErr{error: err, lastUpdateTime: p.spotUpdateTime}
 	}
 	if len(prices) == 0 {
-		return &pricingErr{error: errors.New("no spot pricing found"), lastUpdateTime: p.spotUpdateTime}
+		return &PricingErr{error: errors.New("no spot pricing found"), lastUpdateTime: p.spotUpdateTime}
 	}
 	for it, zoneData := range prices {
 		if _, ok := p.spotPrices[it]; !ok {

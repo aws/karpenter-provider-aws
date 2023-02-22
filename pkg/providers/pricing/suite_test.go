@@ -23,7 +23,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	awspricing "github.com/aws/aws-sdk-go/service/pricing"
-	"github.com/aws/karpenter-core/pkg/operator/options"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -41,7 +40,6 @@ import (
 
 var ctx context.Context
 var stop context.CancelFunc
-var opts options.Options
 var env *coretest.Environment
 var fakePricingAPI *fake.PricingAPI
 var fakeEC2API *fake.EC2API
