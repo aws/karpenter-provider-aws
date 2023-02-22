@@ -55,7 +55,11 @@ func (p *Provider) List(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTempl
 	p.Lock()
 	defer p.Unlock()
 	// Get SecurityGroups
-	securityGroups, err := p.getSecurityGroups(ctx, p.getFilters(nodeTemplate))
+	filters := p.getFilters(nodeTemplate)
+	if len(filters) == 0 {
+		return []string{}, nil
+	}
+	securityGroups, err := p.getSecurityGroups(ctx, filters)
 	if err != nil {
 		return nil, err
 	}
