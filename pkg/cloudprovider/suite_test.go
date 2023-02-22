@@ -250,6 +250,8 @@ var _ = Describe("Allocation", func() {
 			provider, err := v1alpha1.DeserializeProvider(provisioner.Spec.Provider.Raw)
 			Expect(err).ToNot(HaveOccurred())
 			provider.Context = aws.String("context-1234")
+			provider.SubnetSelector = map[string]string{"*": "*"}
+			provider.SecurityGroupSelector = map[string]string{"*": "*"}
 			provisioner = coretest.Provisioner(coretest.ProvisionerOptions{Provider: provider})
 			provisioner.SetDefaults(ctx)
 			ExpectApplied(ctx, env.Client, provisioner)

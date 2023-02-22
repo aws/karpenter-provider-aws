@@ -391,7 +391,9 @@ func (e *EC2API) DescribeSubnetsWithContext(ctx context.Context, input *ec2.Desc
 			},
 		},
 	}
-
+	if len(input.Filters) == 0 {
+		return nil, fmt.Errorf("InvalidParameterValue: The filter 'null' is invalid")
+	}
 	return &ec2.DescribeSubnetsOutput{Subnets: FilterDescribeSubnets(subnets, input.Filters)}, nil
 }
 
@@ -428,6 +430,9 @@ func (e *EC2API) DescribeSecurityGroupsWithContext(ctx context.Context, input *e
 				{Key: aws.String("foo"), Value: aws.String("bar")},
 			},
 		},
+	}
+	if len(input.Filters) == 0 {
+		return nil, fmt.Errorf("InvalidParameterValue: The filter 'null' is invalid")
 	}
 	return &ec2.DescribeSecurityGroupsOutput{SecurityGroups: FilterDescribeSecurtyGroups(sgs, input.Filters)}, nil
 }
