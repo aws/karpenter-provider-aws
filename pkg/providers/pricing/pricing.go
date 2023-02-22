@@ -54,25 +54,25 @@ type Provider struct {
 	onDemandUpdateTime time.Time
 	onDemandPrices     map[string]float64
 	spotUpdateTime     time.Time
-	spotPrices         map[string]zonalPricing
+	spotPrices         map[string]zonal
 }
 
 // zonalPricing is used to capture the per-zone price
 // for spot data as well as the default price
 // based on on-demand price when the provisioningController first
 // comes up
-type zonalPricing struct {
+type zonal struct {
 	defaultPrice float64 // Used until we get the spot pricing data
 	prices       map[string]float64
 }
 
-type PricingErr struct {
+type Err struct {
 	error
 	lastUpdateTime time.Time
 }
 
-func newZonalPricing(defaultPrice float64) zonalPricing {
-	z := zonalPricing{
+func newZonalPricing(defaultPrice float64) zonal {
+	z := zonal{
 		prices: map[string]float64{},
 	}
 	z.defaultPrice = defaultPrice
@@ -220,7 +220,7 @@ func (p *Provider) updatePricing(ctx context.Context) {
 	wg.Wait()
 }
 
-func (p *Provider) UpdateOnDemandPricing(ctx context.Context) *PricingErr {
+func (p *Provider) UpdateOnDemandPricing(ctx context.Context) *Err {
 	// standard on-demand instances
 	var wg sync.WaitGroup
 	var onDemandPrices, onDemandMetalPrices map[string]float64
@@ -265,11 +265,11 @@ func (p *Provider) UpdateOnDemandPricing(ctx context.Context) *PricingErr {
 	defer p.mu.Unlock()
 	err := multierr.Append(onDemandErr, onDemandMetalErr)
 	if err != nil {
-		return &PricingErr{error: err, lastUpdateTime: p.onDemandUpdateTime}
+		return &Err{error: err, lastUpdateTime: p.onDemandUpdateTime}
 	}
 
 	if len(onDemandPrices) == 0 || len(onDemandMetalPrices) == 0 {
-		return &PricingErr{error: errors.New("no on-demand pricing found"), lastUpdateTime: p.onDemandUpdateTime}
+		return &Err{error: errors.New("no on-demand pricing found"), lastUpdateTime: p.onDemandUpdateTime}
 	}
 
 	p.onDemandPrices = lo.Assign(onDemandPrices, onDemandMetalPrices)
@@ -376,7 +376,7 @@ func (p *Provider) onDemandPage(prices map[string]float64) func(output *pricing.
 }
 
 // nolint: gocyclo
-func (p *Provider) UpdateSpotPricing(ctx context.Context) *PricingErr {
+func (p *Provider) UpdateSpotPricing(ctx context.Context) *Err {
 	totalOfferings := 0
 
 	prices := map[string]map[string]float64{}
@@ -410,10 +410,10 @@ func (p *Provider) UpdateSpotPricing(ctx context.Context) *PricingErr {
 	defer p.mu.Unlock()
 
 	if err != nil {
-		return &PricingErr{error: err, lastUpdateTime: p.spotUpdateTime}
+		return &Err{error: err, lastUpdateTime: p.spotUpdateTime}
 	}
 	if len(prices) == 0 {
-		return &PricingErr{error: errors.New("no spot pricing found"), lastUpdateTime: p.spotUpdateTime}
+		return &Err{error: errors.New("no spot pricing found"), lastUpdateTime: p.spotUpdateTime}
 	}
 	for it, zoneData := range prices {
 		if _, ok := p.spotPrices[it]; !ok {
@@ -442,8 +442,8 @@ func (p *Provider) LivenessProbe(req *http.Request) error {
 	return nil
 }
 
-func populateInitialSpotPricing(pricing map[string]float64) map[string]zonalPricing {
-	m := map[string]zonalPricing{}
+func populateInitialSpotPricing(pricing map[string]float64) map[string]zonal {
+	m := map[string]zonal{}
 	for it, price := range pricing {
 		m[it] = newZonalPricing(price)
 	}
