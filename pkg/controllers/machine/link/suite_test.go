@@ -50,6 +50,7 @@ import (
 	awscontext "github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/controllers/machine/link"
 	"github.com/aws/karpenter/pkg/fake"
+	"github.com/aws/karpenter/pkg/providers/pricing"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
 	"github.com/aws/karpenter/pkg/providers/subnet"
 	"github.com/aws/karpenter/pkg/test"
@@ -90,6 +91,7 @@ var _ = BeforeSuite(func() {
 		Session:                   mock.Session,
 		UnavailableOfferingsCache: unavailableOfferingsCache,
 		EC2API:                    ec2API,
+		PricingProvider:           pricing.NewProvider(ctx, &fake.PricingAPI{}, ec2API, "", false, make(chan struct{})),
 	})
 	linkController = link.NewController(env.Client, cloudProvider)
 })
