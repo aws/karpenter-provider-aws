@@ -19,8 +19,8 @@ bandwidth() {
 }
 
 pricing() {
-  GENERATED_FILE="pkg/cloudprovider/zz_generated.pricing.go"
-  NO_UPDATE=$' pkg/cloudprovider/zz_generated.pricing.go | 4 ++--\n 1 file changed, 2 insertions(+), 2 deletions(-)'
+  GENERATED_FILE="pkg/providers/pricing/zz_generated.pricing.go"
+  NO_UPDATE=$' pkg/providers/pricing/zz_generated.pricing.go | 4 ++--\n 1 file changed, 2 insertions(+), 2 deletions(-)'
   SUBJECT="Pricing"
 
   go run hack/code/prices_gen.go -- "${GENERATED_FILE}"

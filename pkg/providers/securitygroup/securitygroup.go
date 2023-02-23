@@ -81,6 +81,11 @@ func (p *Provider) getFilters(nodeTemplate *v1alpha1.AWSNodeTemplate) []*ec2.Fil
 				Name:   aws.String("group-id"),
 				Values: aws.StringSlice(functional.SplitCommaSeparatedString(value)),
 			})
+		} else if value == "*" {
+			filters = append(filters, &ec2.Filter{
+				Name:   aws.String("tag-key"),
+				Values: []*string{aws.String(key)},
+			})
 		} else {
 			filters = append(filters, &ec2.Filter{
 				Name:   aws.String(fmt.Sprintf("tag:%s", key)),

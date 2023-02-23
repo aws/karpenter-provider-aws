@@ -67,6 +67,7 @@ import (
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
 
+	"github.com/aws/karpenter/pkg/providers/pricing"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
 	"github.com/aws/karpenter/pkg/providers/subnet"
 )
@@ -95,7 +96,7 @@ var cluster *state.Cluster
 var fakeClock *clock.FakeClock
 var provisioner *v1alpha5.Provisioner
 var nodeTemplate *v1alpha1.AWSNodeTemplate
-var pricingProvider *PricingProvider
+var pricingProvider *pricing.Provider
 var subnetProvider *subnet.Provider
 var securityGroupProvider *securitygroup.Provider
 
@@ -121,7 +122,7 @@ var _ = BeforeSuite(func() {
 	fakeSSMAPI = &fake.SSMAPI{}
 	fakeEKSAPI = &fake.EKSAPI{}
 	fakePricingAPI = &fake.PricingAPI{}
-	pricingProvider = NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
+	pricingProvider = pricing.NewProvider(ctx, fakePricingAPI, fakeEC2API, "", make(chan struct{}))
 	amiProvider = amifamily.NewAMIProvider(env.Client, env.KubernetesInterface, fakeSSMAPI, fakeEC2API, ssmCache, ec2Cache, kubernetesVersionCache)
 	subnetProvider = subnet.NewProvider(fakeEC2API)
 	instanceTypeProvider = &InstanceTypeProvider{
@@ -212,7 +213,7 @@ var _ = BeforeEach(func() {
 		ec2api:               fakeEC2API,
 		subnetProvider:       subnetProvider,
 		cache:                instanceTypeCache,
-		pricingProvider:      NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{})),
+		pricingProvider:      pricing.NewProvider(ctx, fakePricingAPI, fakeEC2API, "", make(chan struct{})),
 		unavailableOfferings: unavailableOfferingsCache,
 		cm:                   pretty.NewChangeMonitor(),
 	}
