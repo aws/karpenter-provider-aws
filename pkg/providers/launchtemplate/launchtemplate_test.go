@@ -54,6 +54,7 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily/bootstrap"
 	"github.com/aws/karpenter/pkg/fake"
 	"github.com/aws/karpenter/pkg/providers/launchtemplate"
+	"github.com/aws/karpenter/pkg/providers/pricing"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
 	"github.com/aws/karpenter/pkg/providers/subnet"
 	"github.com/aws/karpenter/pkg/test"
@@ -83,7 +84,9 @@ var kubernetesVersionCache *cache.Cache
 var fakeEC2API *fake.EC2API
 var fakeSSMAPI *fake.SSMAPI
 var fakeClock *clock.FakeClock
+var fakePricingAPI *fake.PricingAPI
 var amiProvider *amifamily.AMIProvider
+var amiResolver *amifamily.Resolver
 var cloudProvider *cloudprovider.CloudProvider
 var unavailableOfferingsCache *awscache.UnavailableOfferings
 var prov *provisioning.Provisioner
@@ -91,6 +94,7 @@ var provisioner *v1alpha5.Provisioner
 var launchTemplateProvider *launchtemplate.Provider
 var nodeTemplate *v1alpha1.AWSNodeTemplate
 var cluster *state.Cluster
+var pricingProvider *pricing.Provider
 var securityGroupProvider *securitygroup.Provider
 
 func TestAWS(t *testing.T) {
@@ -112,12 +116,15 @@ var _ = BeforeSuite(func() {
 	kubernetesVersionCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	fakeClock = clock.NewFakeClock(time.Now())
 	unavailableOfferingsCache = awscache.NewUnavailableOfferings()
+	fakePricingAPI = &fake.PricingAPI{}
+	pricingProvider = pricing.NewProvider(ctx, fakePricingAPI, fakeEC2API, "", make(chan struct{}))
 	securityGroupProvider = securitygroup.NewProvider(fakeEC2API)
 	amiProvider = amifamily.NewAMIProvider(env.Client, env.KubernetesInterface, fakeSSMAPI, fakeEC2API, ssmCache, ec2Cache, kubernetesVersionCache)
+	amiResolver = amifamily.New(env.Client, amiProvider)
 	launchTemplateProvider = launchtemplate.NewProvider(
 		ctx,
 		fakeEC2API,
-		amifamily.New(env.Client, amiProvider),
+		amiResolver,
 		securityGroupProvider,
 		ptr.String("ca-bundle"),
 		make(chan struct{}),
@@ -140,6 +147,10 @@ var _ = BeforeSuite(func() {
 		Session:                   mock.Session,
 		UnavailableOfferingsCache: unavailableOfferingsCache,
 		EC2API:                    fakeEC2API,
+		PricingProvider:           pricingProvider,
+		AMIProvider:               amiProvider,
+		AMIResolver:               amiResolver,
+		LaunchTemplateProvider:    launchTemplateProvider,
 	})
 	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
 })
