@@ -32,7 +32,7 @@ import (
 	ec22 "github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/samber/lo"
 
-	awscloudprovider "github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/providers/pricing"
 )
 
 func main() {
@@ -68,7 +68,7 @@ func main() {
 	// record prices for each region we are interested in
 	for _, region := range []string{"us-east-1", "us-gov-west-1", "us-gov-east-1", "cn-north-1"} {
 		log.Println("fetching for", region)
-		pricingProvider := awscloudprovider.NewPricingProvider(ctx, awscloudprovider.NewPricingAPI(sess, region), ec2, region, false, make(chan struct{}))
+		pricingProvider := pricing.NewProvider(ctx, pricing.NewAPI(sess, region), ec2, region, make(chan struct{}))
 		for {
 			if pricingProvider.OnDemandLastUpdated().After(updateStarted) && pricingProvider.SpotLastUpdated().After(updateStarted) {
 				break
