@@ -103,7 +103,7 @@ spec:
       memory.available: 1m
       nodefs.available: 1m30s
       nodefs.inodesFree: 2m
-    evictionMaxPodGracePeriod: 3m
+    evictionMaxPodGracePeriod: 60
     podsPerCore: 2
     maxPods: 20
 
@@ -277,7 +277,7 @@ spec:
       memory.available: 1m
       nodefs.available: 1m30s
       nodefs.inodesFree: 2m
-    evictionMaxPodGracePeriod: 3m
+    evictionMaxPodGracePeriod: 60
     podsPerCore: 2
     maxPods: 20
 ```
@@ -352,7 +352,7 @@ spec:
       imagefs.available: 1m30s
       imagefs.inodesFree: 2m
       pid.available: 2m
-    evictionMaxPodGracePeriod: 3m
+    evictionMaxPodGracePeriod: 60
 ```
 
 ### Pod Density
