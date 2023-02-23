@@ -36,7 +36,9 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | controller.errorOutputPaths | list | `["stderr"]` | Controller errorOutputPaths - default to stderr only |
 | controller.extraVolumeMounts | list | `[]` | Additional volumeMounts for the controller pod. |
 | controller.healthProbe.port | int | `8081` | The container port to use for http health probe. |
-| controller.image | string | `"public.ecr.aws/karpenter/controller:v0.25.0@sha256:fefae2739efa1c4d9561069d1683a0ed201e41771351da1ef504c805941f0bf2"` | Controller image. |
+| controller.image.repository | string | `"public.ecr.aws/karpenter/controller"` | Controller repository. |
+| controller.image.tag | string | `"v0.25.0"` | Controller tag. |
+| controller.image.digest | string | `"sha256:fefae2739efa1c4d9561069d1683a0ed201e41771351da1ef504c805941f0bf2"` | Controller digest. |
 | controller.logEncoding | string | `""` | Controller log encoding, defaults to the global log encoding |
 | controller.logLevel | string | `""` | Controller log level, defaults to the global log level |
 | controller.metrics.port | int | `8080` | The container port to use for metrics. |

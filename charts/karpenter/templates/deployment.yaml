@@ -63,7 +63,7 @@ spec:
           securityContext:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          image: {{ .Values.controller.image }}
+          image: {{ include "karpenter.controller.image" . }}
           imagePullPolicy: {{ .Values.imagePullPolicy }}
           env:
             - name: KUBERNETES_MIN_VERSION
