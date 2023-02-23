@@ -91,7 +91,7 @@ var _ = BeforeSuite(func() {
 		Session:                   mock.Session,
 		UnavailableOfferingsCache: unavailableOfferingsCache,
 		EC2API:                    ec2API,
-		PricingProvider:           pricing.NewProvider(ctx, &fake.PricingAPI{}, ec2API, "", false, make(chan struct{})),
+		PricingProvider:           pricing.NewProvider(ctx, &fake.PricingAPI{}, ec2API, "", make(chan struct{})),
 	})
 	linkController = link.NewController(env.Client, cloudProvider)
 })

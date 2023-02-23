@@ -35,6 +35,8 @@ import (
 	"go.uber.org/multierr"
 	"knative.dev/pkg/logging"
 
+	"github.com/aws/karpenter/pkg/apis/settings"
+
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
 )
 
@@ -95,7 +97,7 @@ func NewAPI(sess *session.Session, region string) pricingiface.PricingAPI {
 	return pricing.New(sess, &aws.Config{Region: aws.String(pricingAPIRegion)})
 }
 
-func NewProvider(ctx context.Context, pricing pricingiface.PricingAPI, ec2Api ec2iface.EC2API, region string, isolatedVPC bool, startAsync <-chan struct{}) *Provider {
+func NewProvider(ctx context.Context, pricing pricingiface.PricingAPI, ec2Api ec2iface.EC2API, region string, startAsync <-chan struct{}) *Provider {
 	// see if we've got region specific pricing data
 	staticPricing, ok := InitialOnDemandPrices[region]
 	if !ok {
@@ -116,7 +118,7 @@ func NewProvider(ctx context.Context, pricing pricingiface.PricingAPI, ec2Api ec
 	}
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("pricing"))
 
-	if isolatedVPC {
+	if settings.FromContext(ctx).IsolatedVPC {
 		logging.FromContext(ctx).Infof("assuming isolated VPC, pricing information will not be updated")
 	} else {
 		go func() {

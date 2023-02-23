@@ -31,7 +31,6 @@ import (
 	"github.com/samber/lo"
 	"knative.dev/pkg/logging"
 
-	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/providers/pricing"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
@@ -79,7 +78,6 @@ func NewOrDie(ctx cloudprovider.Context) Context {
 		pricing.NewAPI(sess, *sess.Config.Region),
 		ec2api,
 		*sess.Config.Region,
-		settings.FromContext(ctx).IsolatedVPC,
 		ctx.StartAsync,
 	)
 

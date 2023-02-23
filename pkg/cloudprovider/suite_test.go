@@ -122,7 +122,7 @@ var _ = BeforeSuite(func() {
 	fakeSSMAPI = &fake.SSMAPI{}
 	fakeEKSAPI = &fake.EKSAPI{}
 	fakePricingAPI = &fake.PricingAPI{}
-	pricingProvider = pricing.NewProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
+	pricingProvider = pricing.NewProvider(ctx, fakePricingAPI, fakeEC2API, "", make(chan struct{}))
 	amiProvider = amifamily.NewAMIProvider(env.Client, env.KubernetesInterface, fakeSSMAPI, fakeEC2API, ssmCache, ec2Cache, kubernetesVersionCache)
 	subnetProvider = subnet.NewProvider(fakeEC2API)
 	instanceTypeProvider = &InstanceTypeProvider{
@@ -213,7 +213,7 @@ var _ = BeforeEach(func() {
 		ec2api:               fakeEC2API,
 		subnetProvider:       subnetProvider,
 		cache:                instanceTypeCache,
-		pricingProvider:      pricing.NewProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{})),
+		pricingProvider:      pricing.NewProvider(ctx, fakePricingAPI, fakeEC2API, "", make(chan struct{})),
 		unavailableOfferings: unavailableOfferingsCache,
 		cm:                   pretty.NewChangeMonitor(),
 	}

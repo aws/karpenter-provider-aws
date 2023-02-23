@@ -68,8 +68,8 @@ type InstanceTypeProvider struct {
 	instanceTypesSeqNum uint64
 }
 
-func NewInstanceTypeProvider(ctx context.Context, sess *session.Session, ec2api ec2iface.EC2API, subnetProvider *subnet.Provider,
-	unavailableOfferingsCache *awscache.UnavailableOfferings, pricingProvider *pricing.Provider, startAsync <-chan struct{}) *InstanceTypeProvider {
+func NewInstanceTypeProvider(sess *session.Session, ec2api ec2iface.EC2API, subnetProvider *subnet.Provider,
+	unavailableOfferingsCache *awscache.UnavailableOfferings, pricingProvider *pricing.Provider) *InstanceTypeProvider {
 	return &InstanceTypeProvider{
 		ec2api:               ec2api,
 		region:               *sess.Config.Region,
