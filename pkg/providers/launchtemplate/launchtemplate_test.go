@@ -15,6 +15,7 @@ limitations under the License.
 package launchtemplate_test
 
 import (
+	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -23,29 +24,179 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/awstesting/mock"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/client-go/tools/record"
+	clock "k8s.io/utils/clock/testing"
+	. "knative.dev/pkg/logging/testing"
+	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily/bootstrap"
+	"github.com/aws/karpenter/pkg/fake"
+	"github.com/aws/karpenter/pkg/providers/launchtemplate"
+	"github.com/aws/karpenter/pkg/providers/securitygroup"
+	"github.com/aws/karpenter/pkg/providers/subnet"
 	"github.com/aws/karpenter/pkg/test"
 
+	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
+	corecloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
+	"github.com/aws/karpenter-core/pkg/controllers/provisioning"
+	"github.com/aws/karpenter-core/pkg/controllers/state"
+	"github.com/aws/karpenter-core/pkg/events"
+	"github.com/aws/karpenter-core/pkg/operator/injection"
+	"github.com/aws/karpenter-core/pkg/operator/options"
+	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
+	awscache "github.com/aws/karpenter/pkg/cache"
+	awscontext "github.com/aws/karpenter/pkg/context"
 )
+
+var ctx context.Context
+var stop context.CancelFunc
+var opts options.Options
+var env *coretest.Environment
+var ssmCache *cache.Cache
+var ec2Cache *cache.Cache
+var kubernetesVersionCache *cache.Cache
+var fakeEC2API *fake.EC2API
+var fakeSSMAPI *fake.SSMAPI
+var fakeClock *clock.FakeClock
+var amiProvider *amifamily.AMIProvider
+var cloudProvider *cloudprovider.CloudProvider
+var unavailableOfferingsCache *awscache.UnavailableOfferings
+var prov *provisioning.Provisioner
+var provisioner *v1alpha5.Provisioner
+var launchTemplateProvider *launchtemplate.Provider
+var nodeTemplate *v1alpha1.AWSNodeTemplate
+var cluster *state.Cluster
+var securityGroupProvider *securitygroup.Provider
+
+func TestAWS(t *testing.T) {
+	ctx = TestContextWithLogger(t)
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "CloudProvider/AWS")
+}
+
+var _ = BeforeSuite(func() {
+	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
+	ctx = coresettings.ToContext(ctx, coretest.Settings())
+	ctx = settings.ToContext(ctx, test.Settings())
+	ctx, stop = context.WithCancel(ctx)
+
+	fakeEC2API = &fake.EC2API{}
+	fakeSSMAPI = &fake.SSMAPI{}
+	ssmCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	ec2Cache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	kubernetesVersionCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	fakeClock = clock.NewFakeClock(time.Now())
+	unavailableOfferingsCache = awscache.NewUnavailableOfferings()
+	securityGroupProvider = securitygroup.NewProvider(fakeEC2API)
+	amiProvider = amifamily.NewAMIProvider(env.Client, env.KubernetesInterface, fakeSSMAPI, fakeEC2API, ssmCache, ec2Cache, kubernetesVersionCache)
+	launchTemplateProvider = launchtemplate.NewProvider(
+		ctx,
+		fakeEC2API,
+		amifamily.New(env.Client, amiProvider),
+		securityGroupProvider,
+		ptr.String("ca-bundle"),
+		make(chan struct{}),
+		net.ParseIP("10.0.100.10"),
+		"https://test-cluster",
+	)
+
+	cloudProvider = cloudprovider.New(awscontext.Context{
+		Context: corecloudprovider.Context{
+			Context:             ctx,
+			RESTConfig:          env.Config,
+			KubernetesInterface: env.KubernetesInterface,
+			KubeClient:          env.Client,
+			EventRecorder:       events.NewRecorder(&record.FakeRecorder{}),
+			Clock:               &clock.FakeClock{},
+			StartAsync:          nil,
+		},
+		SubnetProvider:            subnet.NewProvider(fakeEC2API),
+		SecurityGroupProvider:     securityGroupProvider,
+		Session:                   mock.Session,
+		UnavailableOfferingsCache: unavailableOfferingsCache,
+		EC2API:                    fakeEC2API,
+	})
+	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
+})
+
+var _ = AfterSuite(func() {
+	stop()
+	Expect(env.Stop()).To(Succeed(), "Failed to stop environment")
+})
+
+var _ = BeforeEach(func() {
+	ctx = injection.WithOptions(ctx, opts)
+	ctx = coresettings.ToContext(ctx, coretest.Settings())
+	ctx = settings.ToContext(ctx, test.Settings())
+	nodeTemplate = &v1alpha1.AWSNodeTemplate{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: coretest.RandomName(),
+		},
+		Spec: v1alpha1.AWSNodeTemplateSpec{
+			AWS: v1alpha1.AWS{
+				AMIFamily:             aws.String(v1alpha1.AMIFamilyAL2),
+				SubnetSelector:        map[string]string{"*": "*"},
+				SecurityGroupSelector: map[string]string{"*": "*"},
+			},
+		},
+	}
+	nodeTemplate.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   v1alpha1.SchemeGroupVersion.Group,
+		Version: v1alpha1.SchemeGroupVersion.Version,
+		Kind:    "AWSNodeTemplate",
+	})
+	provisioner = test.Provisioner(coretest.ProvisionerOptions{
+		Requirements: []v1.NodeSelectorRequirement{{
+			Key:      v1alpha1.LabelInstanceCategory,
+			Operator: v1.NodeSelectorOpExists,
+		}},
+		ProviderRef: &v1alpha5.ProviderRef{
+			APIVersion: nodeTemplate.APIVersion,
+			Kind:       nodeTemplate.Kind,
+			Name:       nodeTemplate.Name,
+		},
+	})
+
+	cluster.Reset()
+	fakeEC2API.Reset()
+	fakeSSMAPI.Reset()
+	unavailableOfferingsCache.Flush()
+	ssmCache.Flush()
+	ec2Cache.Flush()
+	kubernetesVersionCache.Flush()
+	securityGroupProvider.Reset()
+	launchTemplateProvider.UpdateKubeDNSIP(net.ParseIP("10.0.100.10"))
+	launchTemplateProvider.UpdateClusterEndpoint("https://test-cluster")
+})
+
+var _ = AfterEach(func() {
+	ExpectCleanedUp(ctx, env.Client)
+})
 
 var _ = Describe("LaunchTemplates", func() {
 	It("should default to a generated launch template", func() {
@@ -689,7 +840,7 @@ var _ = Describe("LaunchTemplates", func() {
 			}))
 
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyAL2
-			it := NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+			it := cloudprovider.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 			overhead := it.Overhead.Total()
 			Expect(overhead.Memory().String()).To(Equal("1093Mi"))
 		})
@@ -700,7 +851,7 @@ var _ = Describe("LaunchTemplates", func() {
 			}))
 
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyAL2
-			it := NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+			it := cloudprovider.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 			overhead := it.Overhead.Total()
 			Expect(overhead.Memory().String()).To(Equal("1093Mi"))
 		})
@@ -724,7 +875,7 @@ var _ = Describe("LaunchTemplates", func() {
 			}))
 
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
-			it := NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+			it := cloudprovider.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 			overhead := it.Overhead.Total()
 			Expect(overhead.Memory().String()).To(Equal("1093Mi"))
 		})
@@ -735,7 +886,7 @@ var _ = Describe("LaunchTemplates", func() {
 			}))
 
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
-			it := NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+			it := cloudprovider.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 			overhead := it.Overhead.Total()
 			Expect(overhead.Memory().String()).To(Equal("1665Mi"))
 		})
@@ -1024,7 +1175,7 @@ var _ = Describe("LaunchTemplates", func() {
 			Expect(string(userData)).To(ContainSubstring("--container-runtime containerd"))
 		})
 		It("should specify --dns-cluster-ip and --ip-family when running in an ipv6 cluster", func() {
-			launchTemplateProvider.kubeDNSIP = net.ParseIP("fd4b:121b:812b::a")
+			launchTemplateProvider.UpdateKubeDNSIP(net.ParseIP("fd4b:121b:812b::a"))
 			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)

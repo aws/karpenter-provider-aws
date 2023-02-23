@@ -67,6 +67,7 @@ import (
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
 
+	"github.com/aws/karpenter/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
 	"github.com/aws/karpenter/pkg/providers/subnet"
 )
@@ -82,7 +83,7 @@ var kubernetesVersionCache *cache.Cache
 var unavailableOfferingsCache *awscache.UnavailableOfferings
 var instanceTypeCache *cache.Cache
 var instanceTypeProvider *InstanceTypeProvider
-var launchTemplateProvider *LaunchTemplateProvider
+var launchTemplateProvider *launchtemplate.Provider
 var amiProvider *amifamily.AMIProvider
 var fakeEC2API *fake.EC2API
 var fakeSSMAPI *fake.SSMAPI
@@ -133,14 +134,16 @@ var _ = BeforeSuite(func() {
 		cm:                   pretty.NewChangeMonitor(),
 	}
 	securityGroupProvider = securitygroup.NewProvider(fakeEC2API)
-	launchTemplateProvider = &LaunchTemplateProvider{
-		ec2api:                fakeEC2API,
-		amiFamily:             amifamily.New(env.Client, amiProvider),
-		securityGroupProvider: securityGroupProvider,
-		cache:                 launchTemplateCache,
-		caBundle:              ptr.String("ca-bundle"),
-		cm:                    pretty.NewChangeMonitor(),
-	}
+	launchTemplateProvider = launchtemplate.NewProvider(
+		ctx,
+		fakeEC2API,
+		amifamily.New(env.Client, amiProvider),
+		securityGroupProvider,
+		ptr.String("ca-bundle"),
+		make(chan struct{}),
+		net.ParseIP("10.0.100.10"),
+		"https://test-cluster",
+	)
 	cloudProvider = &CloudProvider{
 		instanceTypeProvider: instanceTypeProvider,
 		amiProvider:          amiProvider,
@@ -204,8 +207,8 @@ var _ = BeforeEach(func() {
 	instanceTypeCache.Flush()
 	subnetProvider.Reset()
 	securityGroupProvider.Reset()
-	launchTemplateProvider.kubeDNSIP = net.ParseIP("10.0.100.10")
-	launchTemplateProvider.clusterEndpoint = "https://test-cluster"
+	launchTemplateProvider.UpdateKubeDNSIP(net.ParseIP("10.0.100.10"))
+	launchTemplateProvider.UpdateClusterEndpoint("https://test-cluster")
 
 	// Reset the pricing provider, so we don't cross-pollinate pricing data
 	instanceTypeProvider = &InstanceTypeProvider{

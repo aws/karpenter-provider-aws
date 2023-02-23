@@ -314,3 +314,11 @@ func (p *Provider) getInstanceProfile(ctx context.Context, nodeTemplate *v1alpha
 	}
 	return defaultProfile, nil
 }
+
+func (p *Provider) UpdateKubeDNSIP(kDNSIP net.IP) {
+	p.kubeDNSIP = kDNSIP
+}
+
+func (p *Provider) UpdateClusterEndpoint(endpoint string) {
+	p.clusterEndpoint = endpoint
+}
