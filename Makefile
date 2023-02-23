@@ -22,6 +22,10 @@ HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${K
 			--set settings.aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
 			--set settings.aws.interruptionQueueName=${CLUSTER_NAME} \
 			--set settings.featureGates.driftEnabled=true \
+			--set controller.resources.requests.cpu=1 \
+			--set controller.resources.requests.memory=1Gi \
+			--set controller.resources.limits.cpu=1 \
+			--set controller.resources.limits.memory=1Gi \
 			--create-namespace
 
 # CR for local builds of Karpenter
