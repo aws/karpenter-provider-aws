@@ -12,21 +12,78 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package cloudprovider
+package pricing_test
 
 import (
+	"context"
 	"fmt"
+	"testing"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/pricing"
+	awspricing "github.com/aws/aws-sdk-go/service/pricing"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
+	. "knative.dev/pkg/logging/testing"
 
+	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
+	"github.com/aws/karpenter-core/pkg/operator/injection"
+	"github.com/aws/karpenter-core/pkg/operator/options"
+	"github.com/aws/karpenter-core/pkg/operator/scheme"
+	. "github.com/aws/karpenter-core/pkg/test/expectations"
+
+	coretest "github.com/aws/karpenter-core/pkg/test"
+	"github.com/aws/karpenter/pkg/apis"
+	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/fake"
+	"github.com/aws/karpenter/pkg/providers/pricing"
+	"github.com/aws/karpenter/pkg/test"
 )
+
+var ctx context.Context
+var stop context.CancelFunc
+var opts options.Options
+var env *coretest.Environment
+var fakePricingAPI *fake.PricingAPI
+var fakeEC2API *fake.EC2API
+var pricingProvider *pricing.Provider
+
+func TestAWS(t *testing.T) {
+	ctx = TestContextWithLogger(t)
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "CloudProvider/AWS")
+}
+
+var _ = BeforeSuite(func() {
+	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
+	ctx = coresettings.ToContext(ctx, coretest.Settings())
+	ctx = settings.ToContext(ctx, test.Settings())
+	ctx, stop = context.WithCancel(ctx)
+
+	fakeEC2API = &fake.EC2API{}
+	fakePricingAPI = &fake.PricingAPI{}
+	pricingProvider = pricing.NewProvider(ctx, fakePricingAPI, fakeEC2API, "", make(chan struct{}))
+})
+
+var _ = AfterSuite(func() {
+	stop()
+	Expect(env.Stop()).To(Succeed(), "Failed to stop environment")
+})
+
+var _ = BeforeEach(func() {
+	ctx = injection.WithOptions(ctx, opts)
+	ctx = coresettings.ToContext(ctx, coretest.Settings())
+	ctx = settings.ToContext(ctx, test.Settings())
+
+	fakeEC2API.Reset()
+	fakePricingAPI.Reset()
+})
+
+var _ = AfterEach(func() {
+	ExpectCleanedUp(ctx, env.Client)
+})
 
 var _ = Describe("Pricing", func() {
 	BeforeEach(func() {
@@ -35,14 +92,14 @@ var _ = Describe("Pricing", func() {
 	})
 	It("should return static on-demand data if pricing API fails", func() {
 		fakePricingAPI.NextError.Set(fmt.Errorf("failed"))
-		p := NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
+		p := pricing.NewProvider(ctx, fakePricingAPI, fakeEC2API, "", make(chan struct{}))
 		price, ok := p.OnDemandPrice("c5.large")
 		Expect(ok).To(BeTrue())
 		Expect(price).To(BeNumerically(">", 0))
 	})
 	It("should return static spot data if EC2 describeSpotPriceHistory API fails", func() {
 		fakePricingAPI.NextError.Set(fmt.Errorf("failed"))
-		p := NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
+		p := pricing.NewProvider(ctx, fakePricingAPI, fakeEC2API, "", make(chan struct{}))
 		price, ok := p.SpotPrice("c5.large", "test-zone-1a")
 		Expect(ok).To(BeTrue())
 		Expect(price).To(BeNumerically(">", 0))
@@ -50,14 +107,14 @@ var _ = Describe("Pricing", func() {
 	It("should update on-demand pricing with response from the pricing API", func() {
 		// modify our API before creating the pricing provider as it performs an initial update on creation. The pricing
 		// API provides on-demand prices, the ec2 API provides spot prices
-		fakePricingAPI.GetProductsOutput.Set(&pricing.GetProductsOutput{
+		fakePricingAPI.GetProductsOutput.Set(&awspricing.GetProductsOutput{
 			PriceList: []aws.JSONValue{
 				fake.NewOnDemandPrice("c98.large", 1.20),
 				fake.NewOnDemandPrice("c99.large", 1.23),
 			},
 		})
 		updateStart := time.Now()
-		p := NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
+		p := pricing.NewProvider(ctx, fakePricingAPI, fakeEC2API, "", make(chan struct{}))
 		Eventually(func() bool { return p.OnDemandLastUpdated().After(updateStart) }).Should(BeTrue())
 
 		price, ok := p.OnDemandPrice("c98.large")
@@ -98,14 +155,14 @@ var _ = Describe("Pricing", func() {
 				},
 			},
 		})
-		fakePricingAPI.GetProductsOutput.Set(&pricing.GetProductsOutput{
+		fakePricingAPI.GetProductsOutput.Set(&awspricing.GetProductsOutput{
 			PriceList: []aws.JSONValue{
 				fake.NewOnDemandPrice("c98.large", 1.20),
 				fake.NewOnDemandPrice("c99.large", 1.23),
 			},
 		})
 		updateStart := time.Now()
-		p := NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
+		p := pricing.NewProvider(ctx, fakePricingAPI, fakeEC2API, "", make(chan struct{}))
 		Eventually(func() bool { return p.SpotLastUpdated().After(updateStart) }).Should(BeTrue())
 
 		price, ok := p.SpotPrice("c98.large", "test-zone-1b")
@@ -134,14 +191,14 @@ var _ = Describe("Pricing", func() {
 				},
 			},
 		})
-		fakePricingAPI.GetProductsOutput.Set(&pricing.GetProductsOutput{
+		fakePricingAPI.GetProductsOutput.Set(&awspricing.GetProductsOutput{
 			PriceList: []aws.JSONValue{
 				fake.NewOnDemandPrice("c98.large", 1.20),
 				fake.NewOnDemandPrice("c99.large", 1.23),
 			},
 		})
 		updateStart := time.Now()
-		p := NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
+		p := pricing.NewProvider(ctx, fakePricingAPI, fakeEC2API, "", make(chan struct{}))
 		Eventually(func() bool { return p.SpotLastUpdated().After(updateStart) }).Should(BeTrue())
 
 		price, ok := p.SpotPrice("c98.large", "test-zone-1a")
@@ -163,14 +220,14 @@ var _ = Describe("Pricing", func() {
 				},
 			},
 		})
-		fakePricingAPI.GetProductsOutput.Set(&pricing.GetProductsOutput{
+		fakePricingAPI.GetProductsOutput.Set(&awspricing.GetProductsOutput{
 			PriceList: []aws.JSONValue{
 				fake.NewOnDemandPrice("c98.large", 1.20),
 				fake.NewOnDemandPrice("c99.large", 1.23),
 			},
 		})
 		updateStart := time.Now()
-		p := NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
+		p := pricing.NewProvider(ctx, fakePricingAPI, fakeEC2API, "", make(chan struct{}))
 		Eventually(func() bool { return p.SpotLastUpdated().After(updateStart) }).Should(BeTrue())
 
 		_, ok := p.SpotPrice("c99.large", "test-zone-1b")
@@ -192,13 +249,13 @@ var _ = Describe("Pricing", func() {
 				},
 			},
 		})
-		fakePricingAPI.GetProductsOutput.Set(&pricing.GetProductsOutput{
+		fakePricingAPI.GetProductsOutput.Set(&awspricing.GetProductsOutput{
 			PriceList: []aws.JSONValue{
 				fake.NewOnDemandPrice("c98.large", 1.20),
 				fake.NewOnDemandPrice("c99.large", 1.23),
 			},
 		})
-		p := NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
+		p := pricing.NewProvider(ctx, fakePricingAPI, fakeEC2API, "", make(chan struct{}))
 		Eventually(func() bool { return p.SpotLastUpdated().After(updateStart) }, 5*time.Second).Should(BeTrue())
 		inp := fakeEC2API.DescribeSpotPriceHistoryInput.Clone()
 		Expect(lo.Map(inp.ProductDescriptions, func(x *string, _ int) string { return *x })).

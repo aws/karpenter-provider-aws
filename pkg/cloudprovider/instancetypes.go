@@ -23,7 +23,6 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws/session"
 
-	awssettings "github.com/aws/karpenter/pkg/apis/settings"
 	awscache "github.com/aws/karpenter/pkg/cache"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -36,6 +35,7 @@ import (
 	"knative.dev/pkg/logging"
 
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/providers/pricing"
 	"github.com/aws/karpenter/pkg/providers/subnet"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
@@ -52,7 +52,7 @@ type InstanceTypeProvider struct {
 	region          string
 	ec2api          ec2iface.EC2API
 	subnetProvider  *subnet.Provider
-	pricingProvider *PricingProvider
+	pricingProvider *pricing.Provider
 	// Has one cache entry for all the instance types (key: InstanceTypesCacheKey)
 	// Has one cache entry for all the zones for each subnet selector (key: InstanceTypesZonesCacheKeyPrefix:<hash_of_selector>)
 	// Values cached *before* considering insufficient capacity errors from the unavailableOfferings cache.
@@ -68,20 +68,13 @@ type InstanceTypeProvider struct {
 	instanceTypesSeqNum uint64
 }
 
-func NewInstanceTypeProvider(ctx context.Context, sess *session.Session, ec2api ec2iface.EC2API, subnetProvider *subnet.Provider,
-	unavailableOfferingsCache *awscache.UnavailableOfferings, startAsync <-chan struct{}) *InstanceTypeProvider {
+func NewInstanceTypeProvider(sess *session.Session, ec2api ec2iface.EC2API, subnetProvider *subnet.Provider,
+	unavailableOfferingsCache *awscache.UnavailableOfferings, pricingProvider *pricing.Provider) *InstanceTypeProvider {
 	return &InstanceTypeProvider{
-		ec2api:         ec2api,
-		region:         *sess.Config.Region,
-		subnetProvider: subnetProvider,
-		pricingProvider: NewPricingProvider(
-			ctx,
-			NewPricingAPI(sess, *sess.Config.Region),
-			ec2api,
-			*sess.Config.Region,
-			awssettings.FromContext(ctx).IsolatedVPC,
-			startAsync,
-		),
+		ec2api:               ec2api,
+		region:               *sess.Config.Region,
+		subnetProvider:       subnetProvider,
+		pricingProvider:      pricingProvider,
 		cache:                cache.New(awscache.InstanceTypesAndZonesTTL, awscache.DefaultCleanupInterval),
 		unavailableOfferings: unavailableOfferingsCache,
 		cm:                   pretty.NewChangeMonitor(),
