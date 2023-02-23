@@ -15,18 +15,32 @@ limitations under the License.
 package test
 
 import (
+	"fmt"
+
+	"github.com/imdario/mergo"
+
 	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 )
 
 func AWSNodeTemplate(overrides ...v1alpha1.AWSNodeTemplateSpec) *v1alpha1.AWSNodeTemplate {
+	options := v1alpha1.AWSNodeTemplateSpec{}
+	for _, override := range overrides {
+		if err := mergo.Merge(&options, override, mergo.WithOverride); err != nil {
+			panic(fmt.Sprintf("Failed to merge settings: %s", err))
+		}
+	}
+
+	if options.AWS.SecurityGroupSelector == nil {
+		options.AWS.SecurityGroupSelector = map[string]string{"*": "*"}
+	}
+
+	if options.AWS.SubnetSelector == nil {
+		options.AWS.SubnetSelector = map[string]string{"*": "*"}
+	}
+
 	return &v1alpha1.AWSNodeTemplate{
 		ObjectMeta: test.ObjectMeta(),
-		Spec: test.MustMerge(v1alpha1.AWSNodeTemplateSpec{
-			AWS: v1alpha1.AWS{
-				SubnetSelector:        map[string]string{"*": "*"},
-				SecurityGroupSelector: map[string]string{"*": "*"},
-			},
-		}, overrides...),
+		Spec:       options,
 	}
 }
