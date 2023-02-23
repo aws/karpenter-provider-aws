@@ -17,9 +17,10 @@ package test
 import (
 	"fmt"
 
+	"github.com/imdario/mergo"
+
 	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	"github.com/imdario/mergo"
 )
 
 func AWSNodeTemplate(overrides ...v1alpha1.AWSNodeTemplateSpec) *v1alpha1.AWSNodeTemplate {
