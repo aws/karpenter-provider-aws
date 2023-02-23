@@ -33,6 +33,7 @@ import (
 
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
 	"github.com/aws/karpenter/pkg/apis/settings"
+	"github.com/aws/karpenter/pkg/providers/pricing"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
@@ -165,7 +166,7 @@ var _ = Describe("Instance Types", func() {
 		}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 		fakeEC2API.DescribeSpotPriceHistoryOutput.Set(generateSpotPricing(cloudProvider, provisioner))
-		Expect(pricingProvider.updateSpotPricing(ctx)).To(Succeed())
+		Expect(pricingProvider.UpdateSpotPricing(ctx)).To(Succeed())
 
 		pod := coretest.UnschedulablePod(coretest.PodOptions{
 			ResourceRequirements: v1.ResourceRequirements{
@@ -987,7 +988,7 @@ var _ = Describe("Instance Types", func() {
 					},
 				},
 			})
-			Expect(pricingProvider.updateSpotPricing(ctx)).To(Succeed())
+			Expect(pricingProvider.UpdateSpotPricing(ctx)).To(Succeed())
 			Eventually(func() bool { return pricingProvider.SpotLastUpdated().After(now) }).Should(BeTrue())
 
 			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
@@ -1014,7 +1015,7 @@ var _ = Describe("Instance Types", func() {
 					},
 				},
 			})
-			Expect(pricingProvider.updateSpotPricing(ctx)).To(Succeed())
+			Expect(pricingProvider.UpdateSpotPricing(ctx)).To(Succeed())
 			Eventually(func() bool { return pricingProvider.SpotLastUpdated().After(now) }).Should(BeTrue())
 
 			// not restricting to the zone so we can get any zone
@@ -1101,7 +1102,7 @@ func makeFakeInstances() []*ec2.InstanceTypeInfo {
 	var instanceTypes []*ec2.InstanceTypeInfo
 	// Use keys from the static pricing data so that we guarantee pricing for the data
 	// Create uniform instance data so all of them schedule for a given pod
-	for k := range initialOnDemandPrices["us-east-1"] {
+	for k := range pricing.InitialOnDemandPrices["us-east-1"] {
 		instanceTypes = append(instanceTypes, &ec2.InstanceTypeInfo{
 			InstanceType: aws.String(k),
 			ProcessorInfo: &ec2.ProcessorInfo{

@@ -100,7 +100,7 @@ func matchTags(tags []*ec2.Tag, filter *ec2.Filter) bool {
 		tagKey := strings.Split(*filter.Name, ":")[1]
 		for _, val := range filter.Values {
 			for _, tag := range tags {
-				if (tagKey == "*" || tagKey == *tag.Key) && (*val == "*" || *val == *tag.Value) {
+				if tagKey == *tag.Key && (*val == "*" || *val == *tag.Value) {
 					return true
 				}
 			}
