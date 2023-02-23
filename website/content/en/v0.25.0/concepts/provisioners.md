@@ -103,7 +103,7 @@ spec:
       memory.available: 1m
       nodefs.available: 1m30s
       nodefs.inodesFree: 2m
-    evictionMaxPodGracePeriod: 3m
+    evictionMaxPodGracePeriod: 3
     podsPerCore: 2
     maxPods: 20
 
