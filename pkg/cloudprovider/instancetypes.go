@@ -84,7 +84,7 @@ func NewInstanceTypeProvider(sess *session.Session, ec2api ec2iface.EC2API, subn
 
 func (p *InstanceTypeProvider) List(ctx context.Context, kc *v1alpha5.KubeletConfiguration, nodeTemplate *v1alpha1.AWSNodeTemplate) ([]*cloudprovider.InstanceType, error) {
 	// Get InstanceTypes from EC2
-	instanceTypes, err := p.getInstanceTypes(ctx)
+	instanceTypes, err := p.GetInstanceTypes(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -195,7 +195,7 @@ func (p *InstanceTypeProvider) getInstanceTypeZones(ctx context.Context, nodeTem
 }
 
 // getInstanceTypes retrieves all instance types from the ec2 DescribeInstanceTypes API using some opinionated filters
-func (p *InstanceTypeProvider) getInstanceTypes(ctx context.Context) ([]*ec2.InstanceTypeInfo, error) {
+func (p *InstanceTypeProvider) GetInstanceTypes(ctx context.Context) ([]*ec2.InstanceTypeInfo, error) {
 	// DO NOT REMOVE THIS LOCK ----------------------------------------------------------------------------
 	// We lock here so that multiple callers to GetInstanceTypes do not result in cache misses and multiple
 	// calls to EC2 when we could have just made one call. This lock is here because multiple callers to EC2 result

@@ -315,10 +315,18 @@ func (p *Provider) getInstanceProfile(ctx context.Context, nodeTemplate *v1alpha
 	return defaultProfile, nil
 }
 
-func (p *Provider) UpdateKubeDNSIP(kDNSIP net.IP) {
-	p.kubeDNSIP = kDNSIP
+func (p *Provider) UpdateKubeDNSIP(kubeDNSIP net.IP) {
+	p.kubeDNSIP = kubeDNSIP
 }
 
 func (p *Provider) UpdateClusterEndpoint(endpoint string) {
 	p.clusterEndpoint = endpoint
+}
+
+func (p *Provider) GetCache(ltName string) (result interface{}, ok bool) {
+	return p.cache.Get(ltName)
+}
+
+func (p *Provider) SetCache(ltName string, lt interface{}) {
+	p.cache.Set(ltName, lt, -1)
 }

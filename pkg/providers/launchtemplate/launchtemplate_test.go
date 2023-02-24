@@ -95,6 +95,8 @@ var launchTemplateProvider *launchtemplate.Provider
 var nodeTemplate *v1alpha1.AWSNodeTemplate
 var cluster *state.Cluster
 var pricingProvider *pricing.Provider
+var subnetProvider *subnet.Provider
+var instanceTypeProvider *cloudprovider.InstanceTypeProvider
 var securityGroupProvider *securitygroup.Provider
 
 func TestAWS(t *testing.T) {
@@ -118,9 +120,12 @@ var _ = BeforeSuite(func() {
 	unavailableOfferingsCache = awscache.NewUnavailableOfferings()
 	fakePricingAPI = &fake.PricingAPI{}
 	pricingProvider = pricing.NewProvider(ctx, fakePricingAPI, fakeEC2API, "", make(chan struct{}))
+	subnetProvider = subnet.NewProvider(fakeEC2API)
 	securityGroupProvider = securitygroup.NewProvider(fakeEC2API)
 	amiProvider = amifamily.NewAMIProvider(env.Client, env.KubernetesInterface, fakeSSMAPI, fakeEC2API, ssmCache, ec2Cache, kubernetesVersionCache)
 	amiResolver = amifamily.New(env.Client, amiProvider)
+	instanceTypeProvider = cloudprovider.NewInstanceTypeProvider(mock.Session, fakeEC2API, subnetProvider, unavailableOfferingsCache, pricingProvider)
+
 	launchTemplateProvider = launchtemplate.NewProvider(
 		ctx,
 		fakeEC2API,
@@ -153,6 +158,8 @@ var _ = BeforeSuite(func() {
 		LaunchTemplateProvider:    launchTemplateProvider,
 	})
 	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
+	prov = provisioning.NewProvisioner(ctx, env.Client, env.KubernetesInterface.CoreV1(), events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster)
+
 })
 
 var _ = AfterSuite(func() {
@@ -213,6 +220,7 @@ var _ = Describe("LaunchTemplates", func() {
 	It("should default to a generated launch template", func() {
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 		pod := coretest.UnschedulablePod()
+		fmt.Println(cluster.Nodes())
 		ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 		ExpectScheduled(ctx, env.Client, pod)
 
@@ -344,10 +352,10 @@ var _ = Describe("LaunchTemplates", func() {
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			firstLt := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			ltName := aws.StringValue(firstLt.LaunchTemplateName)
-			lt, ok := launchTemplateCache.Get(ltName)
+			lt, ok := launchTemplateProvider.GetCache(ltName)
 			Expect(ok).To(Equal(true))
 			// Remove expiration from cached LT
-			launchTemplateCache.Set(ltName, lt, -1)
+			launchTemplateProvider.SetCache(ltName, lt)
 
 			fakeEC2API.CreateFleetBehavior.Error.Set(awserr.New("InvalidLaunchTemplateName.NotFoundException", "", errors.New("")))
 			pod = coretest.UnschedulablePod()
@@ -836,7 +844,7 @@ var _ = Describe("LaunchTemplates", func() {
 		var info *ec2.InstanceTypeInfo
 		BeforeEach(func() {
 			var ok bool
-			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
+			instanceInfo, err := instanceTypeProvider.GetInstanceTypes(ctx)
 			Expect(err).To(BeNil())
 			info, ok = lo.Find(instanceInfo, func(i *ec2.InstanceTypeInfo) bool {
 				return aws.StringValue(i.InstanceType) == "m5.xlarge"
@@ -871,7 +879,7 @@ var _ = Describe("LaunchTemplates", func() {
 		var info *ec2.InstanceTypeInfo
 		BeforeEach(func() {
 			var ok bool
-			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
+			instanceInfo, err := instanceTypeProvider.GetInstanceTypes(ctx)
 			Expect(err).To(BeNil())
 			info, ok = lo.Find(instanceInfo, func(i *ec2.InstanceTypeInfo) bool {
 				return aws.StringValue(i.InstanceType) == "m5.xlarge"
