@@ -35,12 +35,12 @@ Helm Chart Version $(helmChartVersion $RELEASE_VERSION)"
   cosignImages
   publishHelmChart "karpenter" "${RELEASE_VERSION}" "${RELEASE_REPO_ECR}"
   publishHelmChart "karpenter-crd" "${RELEASE_VERSION}" "${RELEASE_REPO_ECR}"
-  notifyRelease $RELEASE_VERSION $PR_NUMBER
-  pullPrivateReplica $RELEASE_VERSION
+  notifyRelease "$RELEASE_VERSION" $PR_NUMBER
+  pullPrivateReplica "$RELEASE_VERSION"
 }
 
 authenticate() {
-  aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${RELEASE_REPO_ECR}
+  aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin "${RELEASE_REPO_ECR}"
 }
 
 authenticatePrivateRepo() {
@@ -48,9 +48,14 @@ authenticatePrivateRepo() {
 }
 
 buildImages() {
-    CONTROLLER_DIGEST=$(GOFLAGS=${GOFLAGS} KO_DOCKER_REPO=${RELEASE_REPO_ECR} ko publish -B -t ${RELEASE_VERSION} ${RELEASE_PLATFORM} ./cmd/controller)
-    HELM_CHART_VERSION=$(helmChartVersion $RELEASE_VERSION)
-    yq e -i ".controller.image = \"${CONTROLLER_DIGEST}\"" charts/karpenter/values.yaml
+    CONTROLLER_IMG=$(GOFLAGS=${GOFLAGS} KO_DOCKER_REPO=${RELEASE_REPO_ECR} ko publish -B -t "${RELEASE_VERSION}" "${RELEASE_PLATFORM}" ./cmd/controller)
+    HELM_CHART_VERSION=$(helmChartVersion "$RELEASE_VERSION")
+    IMG_REPOSITORY=$(echo "$CONTROLLER_IMG" | cut -d "@" -f 1 | cut -d ":" -f 1)
+    IMG_TAG=$(echo "$CONTROLLER_IMG" | cut -d "@" -f 1 | cut -d ":" -f 2 -s)
+    IMG_DIGEST=$(echo "$CONTROLLER_IMG" | cut -d "@" -f 2)
+    yq e -i ".controller.image.repository = \"${IMG_REPOSITORY}\"" charts/karpenter/values.yaml
+    yq e -i ".controller.image.tag = \"${IMG_TAG}\"" charts/karpenter/values.yaml
+    yq e -i ".controller.image.digest = \"${IMG_DIGEST}\"" charts/karpenter/values.yaml
     yq e -i ".appVersion = \"${RELEASE_VERSION#v}\"" charts/karpenter/Chart.yaml
     yq e -i ".version = \"${HELM_CHART_VERSION#v}\"" charts/karpenter/Chart.yaml
     yq e -i ".appVersion = \"${RELEASE_VERSION#v}\"" charts/karpenter-crd/Chart.yaml
@@ -89,8 +94,11 @@ buildDate(){
 }
 
 cosignImages() {
-    COSIGN_FLAGS="-a GIT_HASH=$(git rev-parse HEAD) -a GIT_VERSION=${RELEASE_VERSION} -a BUILD_DATE=$(buildDate)}"
-    COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_FLAGS} ${CONTROLLER_DIGEST}
+    COSIGN_EXPERIMENTAL=1 cosign sign \
+        -a GIT_HASH="$(git rev-parse HEAD)" \
+        -a GIT_VERSION="${RELEASE_VERSION}" \
+        -a BUILD_DATE="$(buildDate)" \
+        "${CONTROLLER_IMG}"
 }
 
 notifyRelease() {

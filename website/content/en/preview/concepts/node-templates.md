@@ -169,11 +169,13 @@ spec:
 
 ## spec.amiSelector
 
-AMISelector is used to configure custom AMIs for Karpenter to use, where the AMIs are discovered through [AWS tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html), similar to `subnetSelector`. This field is optional, and Karpenter will use the latest EKS-optimized AMIs if an amiSelector is not specified.
+AMISelector is used to configure custom AMIs for Karpenter to use, where the AMIs are discovered through `aws::` prefixed filters (`aws::ids`, `aws::owners` and `aws::name`) and [AWS tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html). This field is optional, and Karpenter will use the latest EKS-optimized AMIs if an amiSelector is not specified.
 
-EC2 AMIs may be specified by any AWS tag, including `Name`. Selecting tag values using wildcards (`*`) is supported.
+To select an AMI by name, use `aws::name`. EC2 AMIs may be specified by any AWS tag, including `Name`. Selecting tag values using wildcards (`*`) is supported.
 
-EC2 AMI IDs may be specified by using the key `aws-ids` and then passing the IDs as a comma-separated string value.
+EC2 AMI IDs may be specified by using the key `aws::ids` (`aws-ids` is also supported) and then passing the IDs as a comma-separated string value.
+
+To ensure that AMIs are owned by the expected owner, use `aws::owners` which expects a comma-separated list of AWS account owners - you can use a combination of account aliases (e.g. `self` `amazon`, `your-aws-account-name`) and account IDs. If this is not set, *and* `aws::ids`/`aws-ids` are not set, it defaults to `self,amazon`.
 
 ### AMI Selection
 

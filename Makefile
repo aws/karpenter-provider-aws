@@ -22,6 +22,10 @@ HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${K
 			--set settings.aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
 			--set settings.aws.interruptionQueueName=${CLUSTER_NAME} \
 			--set settings.featureGates.driftEnabled=true \
+			--set controller.resources.requests.cpu=1 \
+			--set controller.resources.requests.memory=1Gi \
+			--set controller.resources.limits.cpu=1 \
+			--set controller.resources.limits.memory=1Gi \
 			--create-namespace
 
 # CR for local builds of Karpenter
@@ -124,11 +128,16 @@ setup: ## Sets up the IAM roles needed prior to deploying the karpenter-controll
 
 build: ## Build the Karpenter controller images using ko build
 	$(eval CONTROLLER_IMG=$(shell $(WITH_GOFLAGS) KO_DOCKER_REPO="$(KO_DOCKER_REPO)" ko build -B github.com/aws/karpenter/cmd/controller))
+	$(eval IMG_REPOSITORY=$(shell echo $(CONTROLLER_IMG) | cut -d "@" -f 1 | cut -d ":" -f 1))
+	$(eval IMG_TAG=$(shell echo $(CONTROLLER_IMG) | cut -d "@" -f 1 | cut -d ":" -f 2 -s))
+	$(eval IMG_DIGEST=$(shell echo $(CONTROLLER_IMG) | cut -d "@" -f 2))
 
 apply: build ## Deploy the controller from the current state of your git repository into your ~/.kube/config cluster
 	helm upgrade --install karpenter charts/karpenter --namespace ${SYSTEM_NAMESPACE} \
 		$(HELM_OPTS) \
-		--set controller.image=$(CONTROLLER_IMG)
+		--set controller.image.repository=$(IMG_REPOSITORY) \
+		--set controller.image.tag=$(IMG_TAG) \
+		--set controller.image.digest=$(IMG_DIGEST)
 
 install:  ## Deploy the latest released version into your ~/.kube/config cluster
 	@echo Upgrading to ${KARPENTER_VERSION}
