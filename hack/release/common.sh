@@ -51,10 +51,10 @@ buildImages() {
     CONTROLLER_IMG=$(GOFLAGS=${GOFLAGS} KO_DOCKER_REPO=${RELEASE_REPO_ECR} ko publish -B -t "${RELEASE_VERSION}" "${RELEASE_PLATFORM}" ./cmd/controller)
     HELM_CHART_VERSION=$(helmChartVersion "$RELEASE_VERSION")
     IMG_REPOSITORY=$(echo "$CONTROLLER_IMG" | cut -d "@" -f 1 | cut -d ":" -f 1)
-    IMG_VERSION=$(echo "$CONTROLLER_IMG" | cut -d "@" -f 1 | cut -d ":" -f 2 -s)
+    IMG_TAG=$(echo "$CONTROLLER_IMG" | cut -d "@" -f 1 | cut -d ":" -f 2 -s)
     IMG_DIGEST=$(echo "$CONTROLLER_IMG" | cut -d "@" -f 2)
     yq e -i ".controller.image.repository = \"${IMG_REPOSITORY}\"" charts/karpenter/values.yaml
-    yq e -i ".controller.image.version = \"${IMG_VERSION}\"" charts/karpenter/values.yaml
+    yq e -i ".controller.image.tag = \"${IMG_TAG}\"" charts/karpenter/values.yaml
     yq e -i ".controller.image.digest = \"${IMG_DIGEST}\"" charts/karpenter/values.yaml
     yq e -i ".appVersion = \"${RELEASE_VERSION#v}\"" charts/karpenter/Chart.yaml
     yq e -i ".version = \"${HELM_CHART_VERSION#v}\"" charts/karpenter/Chart.yaml
