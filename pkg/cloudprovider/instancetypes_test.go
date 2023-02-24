@@ -400,7 +400,7 @@ var _ = Describe("Instance Types", func() {
 		ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
 			EnableENILimitedPodDensity: lo.ToPtr(false),
 		}))
-		instanceInfo, err := instanceTypeProvider.GetInstanceTypes(ctx)
+		instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 		Expect(err).To(BeNil())
 		for _, info := range instanceInfo {
 			it := NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
@@ -408,7 +408,7 @@ var _ = Describe("Instance Types", func() {
 		}
 	})
 	It("should not set pods to 110 if using ENI-based pod density", func() {
-		instanceInfo, err := instanceTypeProvider.GetInstanceTypes(ctx)
+		instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 		Expect(err).To(BeNil())
 		for _, info := range instanceInfo {
 			it := NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
@@ -424,7 +424,7 @@ var _ = Describe("Instance Types", func() {
 			}))
 
 			var ok bool
-			instanceInfo, err := instanceTypeProvider.GetInstanceTypes(ctx)
+			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 			Expect(err).To(BeNil())
 			info, ok = lo.Find(instanceInfo, func(i *ec2.InstanceTypeInfo) bool {
 				return aws.StringValue(i.InstanceType) == "m5.xlarge"
@@ -686,7 +686,7 @@ var _ = Describe("Instance Types", func() {
 			})
 		})
 		It("should set max-pods to user-defined value if specified", func() {
-			instanceInfo, err := instanceTypeProvider.GetInstanceTypes(ctx)
+			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 			Expect(err).To(BeNil())
 			provisioner = test.Provisioner(coretest.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{MaxPods: ptr.Int32(10)}})
 			for _, info := range instanceInfo {
@@ -699,7 +699,7 @@ var _ = Describe("Instance Types", func() {
 				EnablePodENI: lo.ToPtr(false),
 			}))
 
-			instanceInfo, err := instanceTypeProvider.GetInstanceTypes(ctx)
+			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 			Expect(err).To(BeNil())
 			provisioner = test.Provisioner(coretest.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{MaxPods: ptr.Int32(10)}})
 			for _, info := range instanceInfo {
@@ -708,7 +708,7 @@ var _ = Describe("Instance Types", func() {
 			}
 		})
 		It("should override pods-per-core value", func() {
-			instanceInfo, err := instanceTypeProvider.GetInstanceTypes(ctx)
+			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 			Expect(err).To(BeNil())
 			provisioner = test.Provisioner(coretest.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{PodsPerCore: ptr.Int32(1)}})
 			for _, info := range instanceInfo {
@@ -717,7 +717,7 @@ var _ = Describe("Instance Types", func() {
 			}
 		})
 		It("should take the minimum of pods-per-core and max-pods", func() {
-			instanceInfo, err := instanceTypeProvider.GetInstanceTypes(ctx)
+			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 			Expect(err).To(BeNil())
 			provisioner = test.Provisioner(coretest.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{PodsPerCore: ptr.Int32(4), MaxPods: ptr.Int32(20)}})
 			for _, info := range instanceInfo {
@@ -726,7 +726,7 @@ var _ = Describe("Instance Types", func() {
 			}
 		})
 		It("should ignore pods-per-core when using Bottlerocket AMI", func() {
-			instanceInfo, err := instanceTypeProvider.GetInstanceTypes(ctx)
+			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 			Expect(err).To(BeNil())
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
 			provisioner = test.Provisioner(coretest.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{PodsPerCore: ptr.Int32(1)}})
@@ -740,7 +740,7 @@ var _ = Describe("Instance Types", func() {
 				EnableENILimitedPodDensity: lo.ToPtr(false),
 			}))
 
-			instanceInfo, err := instanceTypeProvider.GetInstanceTypes(ctx)
+			instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx)
 			Expect(err).To(BeNil())
 			provisioner = test.Provisioner(coretest.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{PodsPerCore: ptr.Int32(0)}})
 			for _, info := range instanceInfo {

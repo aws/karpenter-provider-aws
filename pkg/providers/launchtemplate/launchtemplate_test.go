@@ -80,6 +80,7 @@ var opts options.Options
 var env *coretest.Environment
 var ssmCache *cache.Cache
 var ec2Cache *cache.Cache
+var launchTemplateCache *cache.Cache
 var kubernetesVersionCache *cache.Cache
 var fakeEC2API *fake.EC2API
 var fakeSSMAPI *fake.SSMAPI
@@ -115,6 +116,7 @@ var _ = BeforeSuite(func() {
 	fakeSSMAPI = &fake.SSMAPI{}
 	ssmCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	ec2Cache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	launchTemplateCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	kubernetesVersionCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	fakeClock = clock.NewFakeClock(time.Now())
 	unavailableOfferingsCache = awscache.NewUnavailableOfferings()
@@ -128,6 +130,7 @@ var _ = BeforeSuite(func() {
 
 	launchTemplateProvider = launchtemplate.NewProvider(
 		ctx,
+		launchTemplateCache,
 		fakeEC2API,
 		amiResolver,
 		securityGroupProvider,
@@ -203,13 +206,14 @@ var _ = BeforeEach(func() {
 	cluster.Reset()
 	fakeEC2API.Reset()
 	fakeSSMAPI.Reset()
+	launchTemplateCache.Flush()
 	unavailableOfferingsCache.Flush()
 	ssmCache.Flush()
 	ec2Cache.Flush()
 	kubernetesVersionCache.Flush()
 	securityGroupProvider.Reset()
-	launchTemplateProvider.UpdateKubeDNSIP(net.ParseIP("10.0.100.10"))
-	launchTemplateProvider.UpdateClusterEndpoint("https://test-cluster")
+	launchTemplateProvider.KubeDNSIP = net.ParseIP("10.0.100.10")
+	launchTemplateProvider.ClusterEndpoint = "https://test-cluster"
 })
 
 var _ = AfterEach(func() {
@@ -352,10 +356,10 @@ var _ = Describe("LaunchTemplates", func() {
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			firstLt := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			ltName := aws.StringValue(firstLt.LaunchTemplateName)
-			lt, ok := launchTemplateProvider.GetCache(ltName)
+			lt, ok := launchTemplateCache.Get(ltName)
 			Expect(ok).To(Equal(true))
 			// Remove expiration from cached LT
-			launchTemplateProvider.SetCache(ltName, lt)
+			launchTemplateCache.Set(ltName, lt, -1)
 
 			fakeEC2API.CreateFleetBehavior.Error.Set(awserr.New("InvalidLaunchTemplateName.NotFoundException", "", errors.New("")))
 			pod = coretest.UnschedulablePod()
@@ -844,7 +848,22 @@ var _ = Describe("LaunchTemplates", func() {
 		var info *ec2.InstanceTypeInfo
 		BeforeEach(func() {
 			var ok bool
-			instanceInfo, err := instanceTypeProvider.GetInstanceTypes(ctx)
+			var instanceInfo []*ec2.InstanceTypeInfo
+			err := fakeEC2API.DescribeInstanceTypesPagesWithContext(ctx, &ec2.DescribeInstanceTypesInput{
+				Filters: []*ec2.Filter{
+					{
+						Name:   aws.String("supported-virtualization-type"),
+						Values: []*string{aws.String("hvm")},
+					},
+					{
+						Name:   aws.String("processor-info.supported-architecture"),
+						Values: aws.StringSlice([]string{"x86_64", "arm64"}),
+					},
+				},
+			}, func(page *ec2.DescribeInstanceTypesOutput, lastPage bool) bool {
+				instanceInfo = append(instanceInfo, page.InstanceTypes...)
+				return true
+			})
 			Expect(err).To(BeNil())
 			info, ok = lo.Find(instanceInfo, func(i *ec2.InstanceTypeInfo) bool {
 				return aws.StringValue(i.InstanceType) == "m5.xlarge"
@@ -879,7 +898,22 @@ var _ = Describe("LaunchTemplates", func() {
 		var info *ec2.InstanceTypeInfo
 		BeforeEach(func() {
 			var ok bool
-			instanceInfo, err := instanceTypeProvider.GetInstanceTypes(ctx)
+			var instanceInfo []*ec2.InstanceTypeInfo
+			err := fakeEC2API.DescribeInstanceTypesPagesWithContext(ctx, &ec2.DescribeInstanceTypesInput{
+				Filters: []*ec2.Filter{
+					{
+						Name:   aws.String("supported-virtualization-type"),
+						Values: []*string{aws.String("hvm")},
+					},
+					{
+						Name:   aws.String("processor-info.supported-architecture"),
+						Values: aws.StringSlice([]string{"x86_64", "arm64"}),
+					},
+				},
+			}, func(page *ec2.DescribeInstanceTypesOutput, lastPage bool) bool {
+				instanceInfo = append(instanceInfo, page.InstanceTypes...)
+				return true
+			})
 			Expect(err).To(BeNil())
 			info, ok = lo.Find(instanceInfo, func(i *ec2.InstanceTypeInfo) bool {
 				return aws.StringValue(i.InstanceType) == "m5.xlarge"
@@ -1194,7 +1228,7 @@ var _ = Describe("LaunchTemplates", func() {
 			Expect(string(userData)).To(ContainSubstring("--container-runtime containerd"))
 		})
 		It("should specify --dns-cluster-ip and --ip-family when running in an ipv6 cluster", func() {
-			launchTemplateProvider.UpdateKubeDNSIP(net.ParseIP("fd4b:121b:812b::a"))
+			launchTemplateProvider.KubeDNSIP = net.ParseIP("fd4b:121b:812b::a")
 			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)

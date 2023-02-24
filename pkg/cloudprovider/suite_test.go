@@ -137,6 +137,7 @@ var _ = BeforeSuite(func() {
 	securityGroupProvider = securitygroup.NewProvider(fakeEC2API)
 	launchTemplateProvider = launchtemplate.NewProvider(
 		ctx,
+		launchTemplateCache,
 		fakeEC2API,
 		amifamily.New(env.Client, amiProvider),
 		securityGroupProvider,
@@ -208,8 +209,8 @@ var _ = BeforeEach(func() {
 	instanceTypeCache.Flush()
 	subnetProvider.Reset()
 	securityGroupProvider.Reset()
-	launchTemplateProvider.UpdateKubeDNSIP(net.ParseIP("10.0.100.10"))
-	launchTemplateProvider.UpdateClusterEndpoint("https://test-cluster")
+	launchTemplateProvider.KubeDNSIP = net.ParseIP("10.0.100.10")
+	launchTemplateProvider.ClusterEndpoint = "https://test-cluster"
 
 	// Reset the pricing provider, so we don't cross-pollinate pricing data
 	instanceTypeProvider = &InstanceTypeProvider{

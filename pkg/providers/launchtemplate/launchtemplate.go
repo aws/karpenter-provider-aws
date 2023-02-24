@@ -35,7 +35,6 @@ import (
 
 	awssettings "github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	awscache "github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
 	awserrors "github.com/aws/karpenter/pkg/errors"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
@@ -56,27 +55,27 @@ type Provider struct {
 	ec2api                ec2iface.EC2API
 	amiFamily             *amifamily.Resolver
 	securityGroupProvider *securitygroup.Provider
-	cache                 *cache.Cache
+	Cache                 *cache.Cache
 	caBundle              *string
 	cm                    *pretty.ChangeMonitor
-	kubeDNSIP             net.IP
-	clusterEndpoint       string
+	KubeDNSIP             net.IP
+	ClusterEndpoint       string
 }
 
-func NewProvider(ctx context.Context, ec2api ec2iface.EC2API, amiFamily *amifamily.Resolver, securityGroupProvider *securitygroup.Provider, caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP, clusterEndpoint string) *Provider {
+func NewProvider(ctx context.Context, Cache *cache.Cache, ec2api ec2iface.EC2API, amiFamily *amifamily.Resolver, securityGroupProvider *securitygroup.Provider, caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP, clusterEndpoint string) *Provider {
 	l := &Provider{
 		ec2api:                ec2api,
 		amiFamily:             amiFamily,
 		securityGroupProvider: securityGroupProvider,
-		cache:                 cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
+		Cache:                 Cache,
 		caBundle:              caBundle,
 		cm:                    pretty.NewChangeMonitor(),
-		kubeDNSIP:             kubeDNSIP,
-		clusterEndpoint:       clusterEndpoint,
+		KubeDNSIP:             kubeDNSIP,
+		ClusterEndpoint:       clusterEndpoint,
 	}
-	l.cache.OnEvicted(l.cachedEvictedFunc(ctx))
+	l.Cache.OnEvicted(l.cachedEvictedFunc(ctx))
 	go func() {
-		// only hydrate cache once elected leader
+		// only hydrate Cache once elected leader
 		select {
 		case <-startAsync:
 		case <-ctx.Done():
@@ -116,15 +115,15 @@ func (p *Provider) EnsureAll(ctx context.Context, nodeTemplate *v1alpha1.AWSNode
 	return launchTemplates, nil
 }
 
-// Invalidate deletes a launch template from cache if it exists
+// Invalidate deletes a launch template from Cache if it exists
 func (p *Provider) Invalidate(ctx context.Context, ltName string, ltID string) {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("launch-template-name", ltName, "launch-template-id", ltID))
 	p.Lock()
 	defer p.Unlock()
-	defer p.cache.OnEvicted(p.cachedEvictedFunc(ctx))
-	p.cache.OnEvicted(nil)
-	logging.FromContext(ctx).Debugf("invalidating launch template in the cache because it no longer exists")
-	p.cache.Delete(ltName)
+	defer p.Cache.OnEvicted(p.cachedEvictedFunc(ctx))
+	p.Cache.OnEvicted(nil)
+	logging.FromContext(ctx).Debugf("invalidating launch template in the Cache because it no longer exists")
+	p.Cache.Delete(ltName)
 }
 
 func launchTemplateName(options *amifamily.LaunchTemplate) string {
@@ -150,14 +149,14 @@ func (p *Provider) createAmiOptions(ctx context.Context, nodeTemplate *v1alpha1.
 	}
 	return &amifamily.Options{
 		ClusterName:             awssettings.FromContext(ctx).ClusterName,
-		ClusterEndpoint:         p.clusterEndpoint,
+		ClusterEndpoint:         p.ClusterEndpoint,
 		AWSENILimitedPodDensity: awssettings.FromContext(ctx).EnableENILimitedPodDensity,
 		InstanceProfile:         instanceProfile,
 		SecurityGroupsIDs:       securityGroupsIDs,
 		Tags:                    lo.Assign(awssettings.FromContext(ctx).Tags, nodeTemplate.Spec.Tags),
 		Labels:                  labels,
 		CABundle:                p.caBundle,
-		KubeDNSIP:               p.kubeDNSIP,
+		KubeDNSIP:               p.KubeDNSIP,
 	}, nil
 }
 
@@ -165,9 +164,9 @@ func (p *Provider) ensureLaunchTemplate(ctx context.Context, options *amifamily.
 	var launchTemplate *ec2.LaunchTemplate
 	name := launchTemplateName(options)
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("launch-template-name", name))
-	// Read from cache
-	if launchTemplate, ok := p.cache.Get(name); ok {
-		p.cache.SetDefault(name, launchTemplate)
+	// Read from Cache
+	if launchTemplate, ok := p.Cache.Get(name); ok {
+		p.Cache.SetDefault(name, launchTemplate)
 		return launchTemplate.(*ec2.LaunchTemplate), nil
 	}
 	// Attempt to find an existing LT.
@@ -190,7 +189,7 @@ func (p *Provider) ensureLaunchTemplate(ctx context.Context, options *amifamily.
 		}
 		launchTemplate = output.LaunchTemplates[0]
 	}
-	p.cache.SetDefault(name, launchTemplate)
+	p.Cache.SetDefault(name, launchTemplate)
 	return launchTemplate, nil
 }
 
@@ -269,30 +268,30 @@ func (p *Provider) volumeSize(quantity *resource.Quantity) *int64 {
 	return aws.Int64(int64(math.Ceil(quantity.AsApproximateFloat64() / math.Pow(2, 30))))
 }
 
-// hydrateCache queries for existing Launch Templates created by Karpenter for the current cluster and adds to the LT cache.
+// hydrateCache queries for existing Launch Templates created by Karpenter for the current cluster and adds to the LT Cache.
 // Any error during hydration will result in a panic
 func (p *Provider) hydrateCache(ctx context.Context) {
 	clusterName := awssettings.FromContext(ctx).ClusterName
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("tag-key", karpenterManagedTagKey, "tag-value", clusterName))
-	logging.FromContext(ctx).Debugf("hydrating the launch template cache")
+	logging.FromContext(ctx).Debugf("hydrating the launch template Cache")
 	if err := p.ec2api.DescribeLaunchTemplatesPagesWithContext(ctx, &ec2.DescribeLaunchTemplatesInput{
 		Filters: []*ec2.Filter{{Name: aws.String(fmt.Sprintf("tag:%s", karpenterManagedTagKey)), Values: []*string{aws.String(clusterName)}}},
 	}, func(output *ec2.DescribeLaunchTemplatesOutput, _ bool) bool {
 		for _, lt := range output.LaunchTemplates {
-			p.cache.SetDefault(*lt.LaunchTemplateName, lt)
+			p.Cache.SetDefault(*lt.LaunchTemplateName, lt)
 		}
 		return true
 	}); err != nil {
-		logging.FromContext(ctx).Errorf(fmt.Sprintf("Unable to hydrate the AWS launch template cache, %s", err))
+		logging.FromContext(ctx).Errorf(fmt.Sprintf("Unable to hydrate the AWS launch template Cache, %s", err))
 	}
-	logging.FromContext(ctx).With("item-count", p.cache.ItemCount()).Debugf("finished hydrating the launch template cache")
+	logging.FromContext(ctx).With("item-count", p.Cache.ItemCount()).Debugf("finished hydrating the launch template Cache")
 }
 
 func (p *Provider) cachedEvictedFunc(ctx context.Context) func(string, interface{}) {
 	return func(key string, lt interface{}) {
 		p.Lock()
 		defer p.Unlock()
-		if _, expiration, _ := p.cache.GetWithExpiration(key); expiration.After(time.Now()) {
+		if _, expiration, _ := p.Cache.GetWithExpiration(key); expiration.After(time.Now()) {
 			return
 		}
 		launchTemplate := lt.(*ec2.LaunchTemplate)
@@ -315,18 +314,10 @@ func (p *Provider) getInstanceProfile(ctx context.Context, nodeTemplate *v1alpha
 	return defaultProfile, nil
 }
 
-func (p *Provider) UpdateKubeDNSIP(kubeDNSIP net.IP) {
-	p.kubeDNSIP = kubeDNSIP
-}
+// func (p *Provider) GetCache(ltName string) (result interface{}, ok bool) {
+// 	return p.Cache.Get(ltName)
+// }
 
-func (p *Provider) UpdateClusterEndpoint(endpoint string) {
-	p.clusterEndpoint = endpoint
-}
-
-func (p *Provider) GetCache(ltName string) (result interface{}, ok bool) {
-	return p.cache.Get(ltName)
-}
-
-func (p *Provider) SetCache(ltName string, lt interface{}) {
-	p.cache.Set(ltName, lt, -1)
-}
+// func (p *Provider) SetCache(ltName string, lt interface{}) {
+// 	p.Cache.Set(ltName, lt, -1)
+// }

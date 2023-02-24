@@ -117,6 +117,7 @@ func NewOrDie(ctx cloudprovider.Context) Context {
 	amiResolver := amifamily.New(ctx.KubeClient, amiProvider)
 	launchTemplateProvider := launchtemplate.NewProvider(
 		ctx,
+		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
 		ec2api,
 		amiResolver,
 		securityGroupProvider,
