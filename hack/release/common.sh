@@ -95,7 +95,7 @@ buildDate(){
 
 cosignImages() {
     COSIGN_FLAGS="-a GIT_HASH=$(git rev-parse HEAD) -a GIT_VERSION=${RELEASE_VERSION} -a BUILD_DATE=$(buildDate)}"
-    COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_FLAGS} ${CONTROLLER_DIGEST}
+    COSIGN_EXPERIMENTAL=1 cosign sign "${COSIGN_FLAGS}" "${CONTROLLER_IMG}"
 }
 
 notifyRelease() {
