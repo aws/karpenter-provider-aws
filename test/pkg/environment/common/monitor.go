@@ -22,7 +22,6 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -40,8 +39,7 @@ type Monitor struct {
 
 	mu sync.RWMutex
 
-	nodesSeen    map[types.NamespacedName]*v1.Node
-	nodesAtReset map[types.NamespacedName]*v1.Node
+	nodesAtReset map[string]*v1.Node
 }
 
 type state struct {
@@ -55,8 +53,7 @@ func NewMonitor(ctx context.Context, kubeClient client.Client) *Monitor {
 	m := &Monitor{
 		ctx:          ctx,
 		kubeClient:   kubeClient,
-		nodesSeen:    map[types.NamespacedName]*v1.Node{},
-		nodesAtReset: map[types.NamespacedName]*v1.Node{},
+		nodesAtReset: map[string]*v1.Node{},
 	}
 	m.Reset()
 	return m
@@ -65,10 +62,10 @@ func NewMonitor(ctx context.Context, kubeClient client.Client) *Monitor {
 // Reset resets the cluster monitor prior to running a test.
 func (m *Monitor) Reset() {
 	m.mu.Lock()
-	m.nodesSeen = map[types.NamespacedName]*v1.Node{}
-	m.mu.Unlock()
-	m.poll()
-	m.nodesAtReset = deepCopyMap(m.nodesSeen)
+	defer m.mu.Unlock()
+
+	st := m.poll()
+	m.nodesAtReset = deepCopyMap(st.nodes)
 }
 
 // RestartCount returns the containers and number of restarts for that container for all containers in the pods in the
@@ -91,15 +88,6 @@ func (m *Monitor) RestartCount() map[string]int {
 	return restarts
 }
 
-// GetNodes returns the most recent recording of nodes
-func (m *Monitor) GetNodes() []v1.Node {
-	var nodes []v1.Node
-	for _, n := range m.poll().nodes {
-		nodes = append(nodes, *n)
-	}
-	return nodes
-}
-
 // NodeCount returns the current number of nodes
 func (m *Monitor) NodeCount() int {
 	return len(m.poll().nodes)
@@ -111,14 +99,9 @@ func (m *Monitor) NodeCountAtReset() int {
 	return len(m.NodesAtReset())
 }
 
-// NodesSeenCount returns the total number of unique nodes ever seen since the last reset.
-func (m *Monitor) NodesSeenCount() int {
-	return len(m.NodesSeen())
-}
-
 // CreatedNodeCount returns the number of nodes created since the last reset
 func (m *Monitor) CreatedNodeCount() int {
-	return m.NodesSeenCount() - m.NodeCountAtReset()
+	return m.NodeCount() - m.NodeCountAtReset()
 }
 
 // NodesAtReset returns a slice of nodes that the monitor saw at the last reset
@@ -128,18 +111,16 @@ func (m *Monitor) NodesAtReset() []*v1.Node {
 	return deepCopySlice(lo.Values(m.nodesAtReset))
 }
 
-// NodesSeen returns all the seen nodes since the last reset
-func (m *Monitor) NodesSeen() []*v1.Node {
-	m.poll()
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	return deepCopySlice(lo.Values(m.nodesSeen))
+// Nodes returns all the nodes on the cluster
+func (m *Monitor) Nodes() []*v1.Node {
+	st := m.poll()
+	return lo.Values(st.nodes)
 }
 
-// CreatedNodes returns the nodes that have been created since the last reset (essentially NodesSeen - NodesAtReset)
+// CreatedNodes returns the nodes that have been created since the last reset (essentially Nodes - NodesAtReset)
 func (m *Monitor) CreatedNodes() []*v1.Node {
 	resetNodeNames := sets.NewString(lo.Map(m.NodesAtReset(), func(n *v1.Node, _ int) string { return n.Name })...)
-	return lo.Filter(m.NodesSeen(), func(n *v1.Node, _ int) bool { return !resetNodeNames.Has(n.Name) })
+	return lo.Filter(m.Nodes(), func(n *v1.Node, _ int) bool { return !resetNodeNames.Has(n.Name) })
 }
 
 // RunningPods returns the number of running pods matching the given selector
@@ -170,14 +151,6 @@ func (m *Monitor) poll() state {
 	if err := m.kubeClient.List(m.ctx, &pods); err != nil {
 		logging.FromContext(m.ctx).Errorf("listing pods, %s", err)
 	}
-
-	m.mu.Lock()
-	for i := range nodes.Items {
-		node := nodes.Items[i]
-		m.nodesSeen[client.ObjectKeyFromObject(&node)] = &node
-	}
-	m.mu.Unlock()
-
 	st := state{
 		nodes:        map[string]*v1.Node{},
 		pods:         pods,
@@ -187,7 +160,6 @@ func (m *Monitor) poll() state {
 	for i := range nodes.Items {
 		st.nodes[nodes.Items[i].Name] = &nodes.Items[i]
 	}
-
 	// collect pods per node
 	for i := range pods.Items {
 		pod := &pods.Items[i]

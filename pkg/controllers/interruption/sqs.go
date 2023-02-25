@@ -26,7 +26,7 @@ import (
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter-core/pkg/utils/atomic"
-	"github.com/aws/karpenter/pkg/apis/config/settings"
+	"github.com/aws/karpenter/pkg/apis/settings"
 	awserrors "github.com/aws/karpenter/pkg/errors"
 )
 
@@ -140,4 +140,9 @@ func (s *SQSProvider) DeleteSQSMessage(ctx context.Context, msg *sqs.Message) er
 		return fmt.Errorf("deleting messages from sqs queue, %w", err)
 	}
 	return nil
+}
+
+func (s *SQSProvider) Reset() {
+	s.queueURL.Set("")
+	s.queueName.Store(nil)
 }

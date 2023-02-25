@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -26,11 +27,10 @@ import (
 	"github.com/patrickmn/go-cache"
 	"knative.dev/pkg/logging"
 
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	awscontext "github.com/aws/karpenter/pkg/context"
-
 	"github.com/aws/karpenter-core/pkg/utils/functional"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
+	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	awscache "github.com/aws/karpenter/pkg/cache"
 )
 
 type Provider struct {
@@ -40,11 +40,14 @@ type Provider struct {
 	cm     *pretty.ChangeMonitor
 }
 
+const TTL = 5 * time.Minute
+
 func NewProvider(ec2api ec2iface.EC2API) *Provider {
 	return &Provider{
 		ec2api: ec2api,
 		cm:     pretty.NewChangeMonitor(),
-		cache:  cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval),
+		// TODO: Remove cache for v1beta1, utilize resolved security groups from the AWSNodeTemplate.status
+		cache: cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
 	}
 }
 
@@ -52,13 +55,15 @@ func (p *Provider) List(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTempl
 	p.Lock()
 	defer p.Unlock()
 	// Get SecurityGroups
-	securityGroups, err := p.getSecurityGroups(ctx, p.getFilters(nodeTemplate))
+	// TODO: When removing custom launchTemplates for v1beta1, security groups will be required.
+	// The check will not be necessary
+	filters := p.getFilters(nodeTemplate)
+	if len(filters) == 0 {
+		return []string{}, nil
+	}
+	securityGroups, err := p.getSecurityGroups(ctx, filters)
 	if err != nil {
 		return nil, err
-	}
-	// Fail if no security groups found
-	if len(securityGroups) == 0 {
-		return nil, fmt.Errorf("no security groups exist given constraints")
 	}
 	// Convert to IDs
 	securityGroupIds := []string{}
@@ -75,6 +80,11 @@ func (p *Provider) getFilters(nodeTemplate *v1alpha1.AWSNodeTemplate) []*ec2.Fil
 			filters = append(filters, &ec2.Filter{
 				Name:   aws.String("group-id"),
 				Values: aws.StringSlice(functional.SplitCommaSeparatedString(value)),
+			})
+		} else if value == "*" {
+			filters = append(filters, &ec2.Filter{
+				Name:   aws.String("tag-key"),
+				Values: []*string{aws.String(key)},
 			})
 		} else {
 			filters = append(filters, &ec2.Filter{
@@ -114,7 +124,5 @@ func (p *Provider) securityGroupIds(securityGroups []*ec2.SecurityGroup) []strin
 }
 
 func (p *Provider) Reset() {
-	p.Lock()
-	defer p.Unlock()
 	p.cache.Flush()
 }

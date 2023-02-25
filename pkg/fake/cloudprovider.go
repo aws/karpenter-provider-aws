@@ -16,11 +16,8 @@ package fake
 
 import (
 	"context"
-	"fmt"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	v1 "k8s.io/api/core/v1"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	corecloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
@@ -39,23 +36,16 @@ type CloudProvider struct {
 	ValidAMIs     []string
 }
 
-func NewCloudProvider(validAMIs ...string) *CloudProvider {
-	return &CloudProvider{
-		ValidAMIs: validAMIs,
-	}
-}
-
-func (c *CloudProvider) Create(_ context.Context, _ *v1alpha5.Machine) (*v1.Node, error) {
+func (c *CloudProvider) Create(_ context.Context, _ *v1alpha5.Machine) (*v1alpha5.Machine, error) {
 	name := test.RandomName()
-	n := &v1.Node{
+	return &v1alpha5.Machine{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 		},
-		Spec: v1.NodeSpec{
-			ProviderID: makeProviderID(test.RandomName()),
+		Status: v1alpha5.MachineStatus{
+			ProviderID: RandomProviderID(),
 		},
-	}
-	return n, nil
+	}, nil
 }
 
 func (c *CloudProvider) GetInstanceTypes(_ context.Context, _ *v1alpha5.Provisioner) ([]*corecloudprovider.InstanceType, error) {
@@ -77,6 +67,10 @@ func (c *CloudProvider) IsMachineDrifted(_ context.Context, machine *v1alpha5.Ma
 	return true, nil
 }
 
+func (c *CloudProvider) Get(context.Context, string) (*v1alpha5.Machine, error) {
+	return nil, nil
+}
+
 func (c *CloudProvider) Delete(context.Context, *v1alpha5.Machine) error {
 	return nil
 }
@@ -84,8 +78,4 @@ func (c *CloudProvider) Delete(context.Context, *v1alpha5.Machine) error {
 // Name returns the CloudProvider implementation name.
 func (c *CloudProvider) Name() string {
 	return "fake"
-}
-
-func makeProviderID(instanceID string) string {
-	return fmt.Sprintf("aws:///%s/%s", defaultRegion, instanceID)
 }

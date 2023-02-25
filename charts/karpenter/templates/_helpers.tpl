@@ -64,6 +64,18 @@ Create the name of the service account to use
 {{- end }}
 {{- end }}
 
+{{/*
+Karpenter image to use
+*/}}
+{{- define "karpenter.controller.image" -}}
+{{- if .Values.controller.image.digest }}
+{{- printf "%s:%s@%s" .Values.controller.image.repository  (default (printf "v%s" .Chart.AppVersion) .Values.controller.image.tag) .Values.controller.image.digest }}
+{{- else }}
+{{- printf "%s:%s" .Values.controller.image.repository  (default (printf "v%s" .Chart.AppVersion) .Values.controller.image.tag) }}
+{{- end }}
+{{- end }}
+
+
 {{/* Get PodDisruptionBudget API Version */}}
 {{- define "karpenter.pdb.apiVersion" -}}
 {{- if and (.Capabilities.APIVersions.Has "policy/v1") (semverCompare ">= 1.21-0" .Capabilities.KubeVersion.Version) -}}
@@ -74,21 +86,27 @@ Create the name of the service account to use
 {{- end -}}
 
 {{/*
-Flatten Values Map using "." syntax
+Flatten Settings Map using "." syntax
 */}}
-{{- define "flattenMap" -}}
+{{- define "flattenSettings" -}}
 {{- $map := first . -}}
 {{- $label := last . -}}
-{{- range $key, $val := $map -}}
+{{- range $key := (keys $map | uniq | sortAlpha) }}
   {{- $sublabel := $key -}}
+  {{- $val := (get $map $key) -}}
   {{- if $label -}}
-  {{- $sublabel = list $label $key | join "." -}}
+    {{- $sublabel = list $label $key | join "." -}}
   {{- end -}}
-  {{- if kindOf $val | eq "map" -}}
-    {{- list $val $sublabel | include "flattenMap" -}}
+  {{/* Special-case "tags" since we want this to be a JSON object */}}
+  {{- if eq $key "tags" -}}
+    {{- if not (kindIs "invalid" $val) -}}
+      {{- $sublabel | quote | nindent 2 }}: {{ $val | toJson | quote }}
+    {{- end -}}
+  {{- else if kindOf $val | eq "map" -}}
+    {{- list $val $sublabel | include "flattenSettings" -}}
   {{- else -}}
-  {{ if not (kindIs "invalid" $val) }}
-{{ $sublabel | quote }}: {{ $val | quote }}
+  {{- if not (kindIs "invalid" $val) -}}
+    {{- $sublabel | quote | nindent 2 -}}: {{ $val | quote }}
   {{- end -}}
 {{- end -}}
 {{- end -}}

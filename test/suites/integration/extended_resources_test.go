@@ -31,7 +31,7 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter/pkg/apis/config/settings"
+	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 
 	awstest "github.com/aws/karpenter/pkg/test"
@@ -163,7 +163,7 @@ var _ = Describe("Extended Resources", func() {
 	It("should provision nodes for a deployment that requests amd.com/gpu", func() {
 		ExpectAMDDevicePluginCreated()
 
-		customAMI = selectCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", 0)
+		customAMI := env.GetCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", 0)
 
 		// We create custom userData that installs the AMD Radeon driver and then performs the EKS bootstrap script
 		// We use a Custom AMI so that we can reboot after we start the kubelet service

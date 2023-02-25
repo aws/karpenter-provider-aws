@@ -1,15 +1,26 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [ -z ${ENABLE_GIT_PUSH+x} ];then
+if [ -z ${ENABLE_GIT_PUSH+x} ]; then
   ENABLE_GIT_PUSH=false
 fi
 
 echo "api-code-gen running ENABLE_GIT_PUSH: ${ENABLE_GIT_PUSH}"
 
+bandwidth() {
+  GENERATED_FILE="pkg/cloudprovider/zz_generated.bandwidth.go"
+  NO_UPDATE=''
+  SUBJECT="Bandwidth"
+
+  go run hack/code/bandwidth_gen.go -- "${GENERATED_FILE}"
+
+  GIT_DIFF=$(git diff --stat "${GENERATED_FILE}")
+  checkForUpdates "${GIT_DIFF}" "${NO_UPDATE}" "${SUBJECT}" "${GENERATED_FILE}"
+}
+
 pricing() {
-  GENERATED_FILE="pkg/cloudprovider/zz_generated.pricing.go"
-  NO_UPDATE=$' pkg/cloudprovider/zz_generated.pricing.go | 4 ++--\n 1 file changed, 2 insertions(+), 2 deletions(-)'
+  GENERATED_FILE="pkg/providers/pricing/zz_generated.pricing.go"
+  NO_UPDATE=$' pkg/providers/pricing/zz_generated.pricing.go | 4 ++--\n 1 file changed, 2 insertions(+), 2 deletions(-)'
   SUBJECT="Pricing"
 
   go run hack/code/prices_gen.go -- "${GENERATED_FILE}"
@@ -82,6 +93,7 @@ if [[ $ENABLE_GIT_PUSH == true ]]; then
   gitOpenAndPullBranch
 fi
 
+bandwidth
 pricing
 vpcLimits
 instanceTypeTestData

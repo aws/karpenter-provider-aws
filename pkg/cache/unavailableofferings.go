@@ -17,7 +17,7 @@ package cache
 import (
 	"context"
 	"fmt"
-	"time"
+	"sync/atomic"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -25,21 +25,19 @@ import (
 	"knative.dev/pkg/logging"
 )
 
-const (
-	UnavailableOfferingsTTL = 3 * time.Minute
-)
-
 // UnavailableOfferings stores any offerings that return ICE (insufficient capacity errors) when
 // attempting to launch the capacity. These offerings are ignored as long as they are in the cache on
 // GetInstanceTypes responses
 type UnavailableOfferings struct {
 	// key: <capacityType>:<instanceType>:<zone>, value: struct{}{}
-	cache *cache.Cache
+	cache  *cache.Cache
+	SeqNum uint64
 }
 
-func NewUnavailableOfferings(c *cache.Cache) *UnavailableOfferings {
+func NewUnavailableOfferings() *UnavailableOfferings {
 	return &UnavailableOfferings{
-		cache: c,
+		cache:  cache.New(UnavailableOfferingsTTL, DefaultCleanupInterval),
+		SeqNum: 0,
 	}
 }
 
@@ -53,18 +51,27 @@ func (u *UnavailableOfferings) IsUnavailable(instanceType, zone, capacityType st
 func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, unavailableReason, instanceType, zone, capacityType string) {
 	// even if the key is already in the cache, we still need to call Set to extend the cached entry's TTL
 	logging.FromContext(ctx).With(
-		"unavailable-reason", unavailableReason,
+		"reason", unavailableReason,
 		"instance-type", instanceType,
 		"zone", zone,
 		"capacity-type", capacityType,
-		"unavailable-offerings-ttl", UnavailableOfferingsTTL).Debugf("removing offering from offerings")
+		"ttl", UnavailableOfferingsTTL).Debugf("removing offering from offerings")
 	u.cache.SetDefault(u.key(instanceType, zone, capacityType), struct{}{})
+	atomic.AddUint64(&u.SeqNum, 1)
 }
 
 func (u *UnavailableOfferings) MarkUnavailableForFleetErr(ctx context.Context, fleetErr *ec2.CreateFleetError, capacityType string) {
 	instanceType := aws.StringValue(fleetErr.LaunchTemplateAndOverrides.Overrides.InstanceType)
 	zone := aws.StringValue(fleetErr.LaunchTemplateAndOverrides.Overrides.AvailabilityZone)
 	u.MarkUnavailable(ctx, aws.StringValue(fleetErr.ErrorCode), instanceType, zone, capacityType)
+}
+
+func (u *UnavailableOfferings) Delete(instanceType string, zone string, capacityType string) {
+	u.cache.Delete(u.key(instanceType, zone, capacityType))
+}
+
+func (u *UnavailableOfferings) Flush() {
+	u.cache.Flush()
 }
 
 // key returns the cache key for all offerings in the cache

@@ -22,7 +22,7 @@ metadata:
   namespace: karpenter-tests
 spec:
   interval: 2m0s
-  path: ./test/suites
+  path: ./test/manifests
   prune: true
   sourceRef:
     kind: GitRepository

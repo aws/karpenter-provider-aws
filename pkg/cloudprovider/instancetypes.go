@@ -19,15 +19,11 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
-	"time"
+	"sync/atomic"
 
 	"github.com/aws/aws-sdk-go/aws/session"
 
-	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
 	awscache "github.com/aws/karpenter/pkg/cache"
-	awscontext "github.com/aws/karpenter/pkg/context"
-
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -39,56 +35,54 @@ import (
 	"knative.dev/pkg/logging"
 
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/providers/pricing"
 	"github.com/aws/karpenter/pkg/providers/subnet"
 
+	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
-	"github.com/aws/karpenter-core/pkg/utils/functional"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
 )
 
 const (
 	InstanceTypesCacheKey           = "types"
 	InstanceTypeZonesCacheKeyPrefix = "zones:"
-	InstanceTypesAndZonesCacheTTL   = 5 * time.Minute
 )
 
 type InstanceTypeProvider struct {
-	sync.Mutex
 	region          string
 	ec2api          ec2iface.EC2API
 	subnetProvider  *subnet.Provider
-	pricingProvider *PricingProvider
+	pricingProvider *pricing.Provider
 	// Has one cache entry for all the instance types (key: InstanceTypesCacheKey)
 	// Has one cache entry for all the zones for each subnet selector (key: InstanceTypesZonesCacheKeyPrefix:<hash_of_selector>)
 	// Values cached *before* considering insufficient capacity errors from the unavailableOfferings cache.
-	cache                *cache.Cache
+	// Fully initialized Instance Types are also cached based on the set of all instance types, zones, unavailableOfferings cache,
+	// node template, and kubelet configuration from the provisioner
+
+	mu    sync.Mutex
+	cache *cache.Cache
+
 	unavailableOfferings *awscache.UnavailableOfferings
 	cm                   *pretty.ChangeMonitor
+	// instanceTypesSeqNum is a monotonically increasing change counter used to avoid the expensive hashing operation on instance types
+	instanceTypesSeqNum uint64
 }
 
-func NewInstanceTypeProvider(ctx context.Context, sess *session.Session, ec2api ec2iface.EC2API, subnetProvider *subnet.Provider,
-	unavailableOfferingsCache *awscache.UnavailableOfferings, startAsync <-chan struct{}) *InstanceTypeProvider {
+func NewInstanceTypeProvider(sess *session.Session, ec2api ec2iface.EC2API, subnetProvider *subnet.Provider,
+	unavailableOfferingsCache *awscache.UnavailableOfferings, pricingProvider *pricing.Provider) *InstanceTypeProvider {
 	return &InstanceTypeProvider{
-		ec2api:         ec2api,
-		region:         *sess.Config.Region,
-		subnetProvider: subnetProvider,
-		pricingProvider: NewPricingProvider(
-			ctx,
-			NewPricingAPI(sess, *sess.Config.Region),
-			ec2api,
-			*sess.Config.Region,
-			awssettings.FromContext(ctx).IsolatedVPC,
-			startAsync,
-		),
-		cache:                cache.New(InstanceTypesAndZonesCacheTTL, awscontext.CacheCleanupInterval),
+		ec2api:               ec2api,
+		region:               *sess.Config.Region,
+		subnetProvider:       subnetProvider,
+		pricingProvider:      pricingProvider,
+		cache:                cache.New(awscache.InstanceTypesAndZonesTTL, awscache.DefaultCleanupInterval),
 		unavailableOfferings: unavailableOfferingsCache,
 		cm:                   pretty.NewChangeMonitor(),
+		instanceTypesSeqNum:  0,
 	}
 }
 
 func (p *InstanceTypeProvider) List(ctx context.Context, kc *v1alpha5.KubeletConfiguration, nodeTemplate *v1alpha1.AWSNodeTemplate) ([]*cloudprovider.InstanceType, error) {
-	p.Lock()
-	defer p.Unlock()
 	// Get InstanceTypes from EC2
 	instanceTypes, err := p.getInstanceTypes(ctx)
 	if err != nil {
@@ -99,20 +93,23 @@ func (p *InstanceTypeProvider) List(ctx context.Context, kc *v1alpha5.KubeletCon
 	if err != nil {
 		return nil, err
 	}
-	var result []*cloudprovider.InstanceType
 
-	for _, i := range instanceTypes {
-		instanceTypeName := aws.StringValue(i.InstanceType)
-		instanceType := NewInstanceType(ctx, i, kc, p.region, nodeTemplate, p.createOfferings(ctx, i, instanceTypeZones[instanceTypeName]))
-		result = append(result, instanceType)
+	// Compute fully initialized instance types hash key
+	instanceTypeZonesHash, _ := hashstructure.Hash(instanceTypeZones, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	kcHash, _ := hashstructure.Hash(kc, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	key := fmt.Sprintf("%d-%d-%s-%016x-%016x", p.instanceTypesSeqNum, p.unavailableOfferings.SeqNum, nodeTemplate.UID, instanceTypeZonesHash, kcHash)
+
+	if item, ok := p.cache.Get(key); ok {
+		return item.([]*cloudprovider.InstanceType), nil
 	}
+	result := lo.Map(instanceTypes, func(i *ec2.InstanceTypeInfo, _ int) *cloudprovider.InstanceType {
+		return NewInstanceType(ctx, i, kc, p.region, nodeTemplate, p.createOfferings(ctx, i, instanceTypeZones[aws.StringValue(i.InstanceType)]))
+	})
+	p.cache.SetDefault(key, result)
 	return result, nil
 }
 
 func (p *InstanceTypeProvider) LivenessProbe(req *http.Request) error {
-	p.Lock()
-	//nolint: staticcheck
-	p.Unlock()
 	if err := p.subnetProvider.LivenessProbe(req); err != nil {
 		return err
 	}
@@ -123,7 +120,7 @@ func (p *InstanceTypeProvider) LivenessProbe(req *http.Request) error {
 }
 
 func (p *InstanceTypeProvider) createOfferings(ctx context.Context, instanceType *ec2.InstanceTypeInfo, zones sets.String) []cloudprovider.Offering {
-	offerings := []cloudprovider.Offering{}
+	var offerings []cloudprovider.Offering
 	for zone := range zones {
 		// while usage classes should be a distinct set, there's no guarantee of that
 		for capacityType := range sets.NewString(aws.StringValueSlice(instanceType.SupportedUsageClasses)...) {
@@ -167,6 +164,9 @@ func (p *InstanceTypeProvider) getInstanceTypeZones(ctx context.Context, nodeTem
 	if err != nil {
 		return nil, err
 	}
+	if len(subnets) == 0 {
+		return nil, fmt.Errorf("no subnets matched selector %v", nodeTemplate.Spec.SubnetSelector)
+	}
 	zones := sets.NewString(lo.Map(subnets, func(subnet *ec2.Subnet, _ int) string {
 		return aws.StringValue(subnet.AvailabilityZone)
 	})...)
@@ -195,11 +195,19 @@ func (p *InstanceTypeProvider) getInstanceTypeZones(ctx context.Context, nodeTem
 }
 
 // getInstanceTypes retrieves all instance types from the ec2 DescribeInstanceTypes API using some opinionated filters
-func (p *InstanceTypeProvider) getInstanceTypes(ctx context.Context) (map[string]*ec2.InstanceTypeInfo, error) {
+func (p *InstanceTypeProvider) getInstanceTypes(ctx context.Context) ([]*ec2.InstanceTypeInfo, error) {
+	// DO NOT REMOVE THIS LOCK ----------------------------------------------------------------------------
+	// We lock here so that multiple callers to GetInstanceTypes do not result in cache misses and multiple
+	// calls to EC2 when we could have just made one call. This lock is here because multiple callers to EC2 result
+	// in A LOT of extra memory generated from the response for simultaneous callers.
+	// TODO @joinnis: This can be made more efficient by holding a Read lock and only obtaining the Write if not in cache
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	if cached, ok := p.cache.Get(InstanceTypesCacheKey); ok {
-		return cached.(map[string]*ec2.InstanceTypeInfo), nil
+		return cached.([]*ec2.InstanceTypeInfo), nil
 	}
-	instanceTypes := map[string]*ec2.InstanceTypeInfo{}
+	var instanceTypes []*ec2.InstanceTypeInfo
 	if err := p.ec2api.DescribeInstanceTypesPagesWithContext(ctx, &ec2.DescribeInstanceTypesInput{
 		Filters: []*ec2.Filter{
 			{
@@ -212,11 +220,7 @@ func (p *InstanceTypeProvider) getInstanceTypes(ctx context.Context) (map[string
 			},
 		},
 	}, func(page *ec2.DescribeInstanceTypesOutput, lastPage bool) bool {
-		for _, instanceType := range page.InstanceTypes {
-			if p.filter(instanceType) {
-				instanceTypes[aws.StringValue(instanceType.InstanceType)] = instanceType
-			}
-		}
+		instanceTypes = append(instanceTypes, page.InstanceTypes...)
 		return true
 	}); err != nil {
 		return nil, fmt.Errorf("fetching instance types using ec2.DescribeInstanceTypes, %w", err)
@@ -225,21 +229,7 @@ func (p *InstanceTypeProvider) getInstanceTypes(ctx context.Context) (map[string
 		logging.FromContext(ctx).With(
 			"instance-type-count", len(instanceTypes)).Debugf("discovered EC2 instance types")
 	}
+	atomic.AddUint64(&p.instanceTypesSeqNum, 1)
 	p.cache.SetDefault(InstanceTypesCacheKey, instanceTypes)
 	return instanceTypes, nil
-}
-
-// filter the instance types to include useful ones for Kubernetes
-func (p *InstanceTypeProvider) filter(instanceType *ec2.InstanceTypeInfo) bool {
-	if instanceType.FpgaInfo != nil {
-		return false
-	}
-	if functional.HasAnyPrefix(aws.StringValue(instanceType.InstanceType),
-		// G2 instances have an older GPU not supported by the nvidia plugin. This causes the allocatable # of gpus
-		// to be set to zero on startup as the plugin considers the GPU unhealthy.
-		"g2",
-	) {
-		return false
-	}
-	return true
 }

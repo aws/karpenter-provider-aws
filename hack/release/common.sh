@@ -5,9 +5,10 @@ config(){
   GITHUB_ACCOUNT="aws"
   AWS_ACCOUNT_ID="071440425669"
   ECR_GALLERY_NAME="karpenter"
-  RELEASE_REPO=${RELEASE_REPO:-public.ecr.aws/${ECR_GALLERY_NAME}/}
+  RELEASE_REPO_ECR=${RELEASE_REPO_ECR:-public.ecr.aws/${ECR_GALLERY_NAME}/}
   RELEASE_REPO_GH=${RELEASE_REPO_GH:-ghcr.io/${GITHUB_ACCOUNT}/karpenter}
 
+  MAIN_GITHUB_ACCOUNT="aws"
   PRIVATE_PULL_THROUGH_HOST="${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com"
   SNS_TOPIC_ARN="arn:aws:sns:us-east-1:${AWS_ACCOUNT_ID}:KarpenterReleases"
   CURRENT_MAJOR_VERSION="0"
@@ -24,7 +25,6 @@ Release Version: ${RELEASE_VERSION}
 Commit: $(git rev-parse HEAD)
 Helm Chart Version $(helmChartVersion $RELEASE_VERSION)"
 
-
   PR_NUMBER=${GH_PR_NUMBER:-}
   if [ "${GH_PR_NUMBER+defined}" != defined ]; then
    PR_NUMBER="none"
@@ -33,13 +33,14 @@ Helm Chart Version $(helmChartVersion $RELEASE_VERSION)"
   authenticate
   buildImages
   cosignImages
-  publishHelmChart
-  notifyRelease $RELEASE_VERSION $PR_NUMBER
-  pullPrivateReplica $RELEASE_VERSION
+  publishHelmChart "karpenter" "${RELEASE_VERSION}" "${RELEASE_REPO_ECR}"
+  publishHelmChart "karpenter-crd" "${RELEASE_VERSION}" "${RELEASE_REPO_ECR}"
+  notifyRelease "$RELEASE_VERSION" $PR_NUMBER
+  pullPrivateReplica "$RELEASE_VERSION"
 }
 
 authenticate() {
-  aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${RELEASE_REPO}
+  aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin "${RELEASE_REPO_ECR}"
 }
 
 authenticatePrivateRepo() {
@@ -47,11 +48,18 @@ authenticatePrivateRepo() {
 }
 
 buildImages() {
-    CONTROLLER_DIGEST=$(GOFLAGS=${GOFLAGS} KO_DOCKER_REPO=${RELEASE_REPO} ko publish -B -t ${RELEASE_VERSION} ${RELEASE_PLATFORM} ./cmd/controller)
-    HELM_CHART_VERSION=$(helmChartVersion $RELEASE_VERSION)
-    yq e -i ".controller.image = \"${CONTROLLER_DIGEST}\"" charts/karpenter/values.yaml
+    CONTROLLER_IMG=$(GOFLAGS=${GOFLAGS} KO_DOCKER_REPO=${RELEASE_REPO_ECR} ko publish -B -t "${RELEASE_VERSION}" "${RELEASE_PLATFORM}" ./cmd/controller)
+    HELM_CHART_VERSION=$(helmChartVersion "$RELEASE_VERSION")
+    IMG_REPOSITORY=$(echo "$CONTROLLER_IMG" | cut -d "@" -f 1 | cut -d ":" -f 1)
+    IMG_TAG=$(echo "$CONTROLLER_IMG" | cut -d "@" -f 1 | cut -d ":" -f 2 -s)
+    IMG_DIGEST=$(echo "$CONTROLLER_IMG" | cut -d "@" -f 2)
+    yq e -i ".controller.image.repository = \"${IMG_REPOSITORY}\"" charts/karpenter/values.yaml
+    yq e -i ".controller.image.tag = \"${IMG_TAG}\"" charts/karpenter/values.yaml
+    yq e -i ".controller.image.digest = \"${IMG_DIGEST}\"" charts/karpenter/values.yaml
     yq e -i ".appVersion = \"${RELEASE_VERSION#v}\"" charts/karpenter/Chart.yaml
     yq e -i ".version = \"${HELM_CHART_VERSION#v}\"" charts/karpenter/Chart.yaml
+    yq e -i ".appVersion = \"${RELEASE_VERSION#v}\"" charts/karpenter-crd/Chart.yaml
+    yq e -i ".version = \"${HELM_CHART_VERSION#v}\"" charts/karpenter-crd/Chart.yaml
 }
 
 releaseType(){
@@ -86,15 +94,19 @@ buildDate(){
 }
 
 cosignImages() {
-    COSIGN_FLAGS="-a GIT_HASH=$(git rev-parse HEAD) -a GIT_VERSION=${RELEASE_VERSION} -a BUILD_DATE=$(buildDate)}"
-    COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_FLAGS} ${CONTROLLER_DIGEST}
+    COSIGN_EXPERIMENTAL=1 cosign sign \
+        -a GIT_HASH="$(git rev-parse HEAD)" \
+        -a GIT_VERSION="${RELEASE_VERSION}" \
+        -a BUILD_DATE="$(buildDate)" \
+        "${CONTROLLER_IMG}"
 }
 
 notifyRelease() {
     RELEASE_VERSION=$1
     PR_NUMBER=$2
     RELEASE_TYPE=$(releaseType $RELEASE_VERSION)
-    MESSAGE="{\"releaseType\":\"${RELEASE_TYPE}\",\"releaseIdentifier\":\"${RELEASE_VERSION}\",\"prNumber\":\"${PR_NUMBER}\"}"
+    LAST_STABLE_RELEASE_TAG=$(git describe --tags --abbrev=0)
+    MESSAGE="{\"releaseType\":\"${RELEASE_TYPE}\",\"releaseIdentifier\":\"${RELEASE_VERSION}\",\"prNumber\":\"${PR_NUMBER}\",\"githubAccount\":\"${GITHUB_ACCOUNT}\",\"lastStableReleaseTag\":\"${LAST_STABLE_RELEASE_TAG}\"}"
     aws sns publish \
         --topic-arn ${SNS_TOPIC_ARN} \
         --message ${MESSAGE} \
@@ -109,21 +121,9 @@ pullPrivateReplica(){
 }
 
 publishHelmChart() {
-    HELM_CHART_VERSION=$(helmChartVersion $RELEASE_VERSION)
-    HELM_CHART_FILE_NAME="karpenter-${HELM_CHART_VERSION}.tgz"
-
-    cd charts
-    helm dependency update "karpenter"
-    helm lint karpenter
-    helm package karpenter --version $HELM_CHART_VERSION
-    helm push "${HELM_CHART_FILE_NAME}" "oci://${RELEASE_REPO}"
-    rm "${HELM_CHART_FILE_NAME}"
-    cd ..
-}
-
-publishHelmChartToGHCR() {
     CHART_NAME=$1
     RELEASE_VERSION=$2
+    RELEASE_REPO=$3
     HELM_CHART_VERSION=$(helmChartVersion $RELEASE_VERSION)
     HELM_CHART_FILE_NAME="${CHART_NAME}-${HELM_CHART_VERSION}.tgz"
 
@@ -131,9 +131,22 @@ publishHelmChartToGHCR() {
     helm dependency update "${CHART_NAME}"
     helm lint "${CHART_NAME}"
     helm package "${CHART_NAME}" --version $HELM_CHART_VERSION
-    helm push "${HELM_CHART_FILE_NAME}" "oci://${RELEASE_REPO_GH}"
+    helm push "${HELM_CHART_FILE_NAME}" "oci://${RELEASE_REPO}"
     rm "${HELM_CHART_FILE_NAME}"
     cd ..
+}
+
+updateKarpenterCoreGoMod(){
+  RELEASE_VERSION=$1
+  if [[ $GITHUB_ACCOUNT != $MAIN_GITHUB_ACCOUNT ]]; then
+    echo "not updating go mod for a repo other than the main repo"
+    return
+  fi
+  go get -u "github.com/aws/karpenter-core@${RELEASE_VERSION}"
+  cd test
+  go get -u "github.com/aws/karpenter-core@${RELEASE_VERSION}"
+  cd ..
+  make tidy
 }
 
 createNewWebsiteDirectory() {

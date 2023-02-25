@@ -26,17 +26,19 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1beta1"
+	schedulingv1 "k8s.io/api/scheduling/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/aws/karpenter-core/pkg/apis"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/operator/injection"
 	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter-core/pkg/utils/functional"
 	nodeutils "github.com/aws/karpenter-core/pkg/utils/node"
@@ -53,6 +55,8 @@ var (
 		{First: &v1.PersistentVolume{}, Second: &v1.PersistentVolumeList{}},
 		{First: &storagev1.StorageClass{}, Second: &storagev1.StorageClassList{}},
 		{First: &v1alpha5.Provisioner{}, Second: &v1alpha5.ProvisionerList{}},
+		{First: &v1.LimitRange{}, Second: &v1.LimitRangeList{}},
+		{First: &schedulingv1.PriorityClass{}, Second: &schedulingv1.PriorityClassList{}},
 	}
 	ForceCleanableObjects = []functional.Pair[client.Object, client.ObjectList]{
 		{First: &v1.Node{}, Second: &v1.NodeList{}},
@@ -74,7 +78,7 @@ func (env *Environment) BeforeEach(opts ...Option) {
 		fmt.Println("------- START BEFORE -------")
 		defer fmt.Println("------- END BEFORE -------")
 	}
-	env.Context = env.SettingsStore.InjectSettings(env.Context)
+	env.Context = injection.WithSettingsOrDie(env.Context, env.KubeClient, apis.Settings...)
 
 	stop = make(chan struct{})
 	testStartTime = time.Now()
@@ -137,10 +141,10 @@ func getPodInformation(p *v1.Pod) string {
 
 // Partially copied from
 // https://github.com/kubernetes/kubernetes/blob/04ee339c7a4d36b4037ce3635993e2a9e395ebf3/staging/src/k8s.io/kubectl/pkg/describe/describe.go#L4232
-func getEventInformation(kind string, k types.NamespacedName, el *v1.EventList) string {
+func getEventInformation(o v1.ObjectReference, el *v1.EventList) string {
 	sb := strings.Builder{}
 	sb.WriteString(fmt.Sprintf("------- %s/%s%s EVENTS -------\n",
-		kind, lo.Ternary(k.Namespace != "", k.Namespace+"/", ""), k.Name))
+		strings.ToLower(o.Kind), lo.Ternary(o.Namespace != "", o.Namespace+"/", ""), o.Name))
 	if len(el.Items) == 0 {
 		return sb.String()
 	}
@@ -220,7 +224,7 @@ func (env *Environment) Cleanup(opts ...Option) {
 	}
 	env.CleanupObjects(CleanableObjects)
 	env.eventuallyExpectScaleDown()
-	env.expectNoCrashes()
+	env.ExpectNoCrashes()
 }
 
 func (env *Environment) ForceCleanup(opts ...Option) {
@@ -242,6 +246,7 @@ func (env *Environment) AfterEach(opts ...Option) {
 	}
 	close(stop) // close the pod/node monitor watch channel
 	if !options.DisableDebug && !lo.Contains(CurrentSpecReport().Labels(), NoEvents) {
+		env.dumpKarpenterEvents(testStartTime)
 		env.dumpPodEvents(testStartTime)
 		env.dumpNodeEvents(testStartTime)
 	}
@@ -278,72 +283,65 @@ func (env *Environment) CleanupObjects(cleanableObjects []functional.Pair[client
 	wg.Wait()
 }
 
+func (env *Environment) dumpKarpenterEvents(testStartTime time.Time) {
+	el := &v1.EventList{}
+	ExpectWithOffset(1, env.Client.List(env, el, client.InNamespace("karpenter"))).To(Succeed())
+
+	for k, v := range coallateEvents(filterTestEvents(el.Items, testStartTime)) {
+		fmt.Print(getEventInformation(k, v))
+	}
+}
+
 func (env *Environment) dumpPodEvents(testStartTime time.Time) {
 	el := &v1.EventList{}
 	ExpectWithOffset(1, env.Client.List(env, el, &client.ListOptions{
 		FieldSelector: fields.SelectorFromSet(map[string]string{"involvedObject.kind": "Pod"}),
 	})).To(Succeed())
-
-	eventMap := map[types.NamespacedName]*v1.EventList{}
-
-	filteredEvents := lo.Filter(el.Items, func(e v1.Event, _ int) bool {
-		if !e.EventTime.IsZero() {
-			if e.EventTime.BeforeTime(&metav1.Time{Time: testStartTime}) {
-				return false
-			}
-		} else if e.FirstTimestamp.Before(&metav1.Time{Time: testStartTime}) {
-			return false
-		}
-		if e.InvolvedObject.Namespace == "kube-system" || e.InvolvedObject.Namespace == "karpenter" {
-			return false
-		}
-		return true
+	events := lo.Filter(filterTestEvents(el.Items, testStartTime), func(e v1.Event, _ int) bool {
+		return e.InvolvedObject.Namespace != "kube-system"
 	})
-	for i := range filteredEvents {
-		elem := filteredEvents[i]
-		objectKey := types.NamespacedName{Namespace: elem.InvolvedObject.Namespace, Name: elem.InvolvedObject.Name}
-		if _, ok := eventMap[objectKey]; !ok {
-			eventMap[objectKey] = &v1.EventList{}
-		}
-		eventMap[objectKey].Items = append(eventMap[objectKey].Items, elem)
-	}
-	for k, v := range eventMap {
-		fmt.Print(getEventInformation("pod", k, v))
+	for k, v := range coallateEvents(events) {
+		fmt.Print(getEventInformation(k, v))
 	}
 }
 
 func (env *Environment) dumpNodeEvents(testStartTime time.Time) {
 	nodeNames := sets.NewString(lo.Map(env.Monitor.CreatedNodes(), func(n *v1.Node, _ int) string { return n.Name })...)
-
 	el := &v1.EventList{}
 	ExpectWithOffset(1, env.Client.List(env, el, &client.ListOptions{
 		FieldSelector: fields.SelectorFromSet(map[string]string{"involvedObject.kind": "Node"}),
 	})).To(Succeed())
 
-	eventMap := map[types.NamespacedName]*v1.EventList{}
+	events := lo.Filter(filterTestEvents(el.Items, testStartTime), func(e v1.Event, _ int) bool {
+		return nodeNames.Has(e.InvolvedObject.Name)
+	})
+	for k, v := range coallateEvents(events) {
+		fmt.Print(getEventInformation(k, v))
+	}
+}
 
-	filteredEvents := lo.Filter(el.Items, func(e v1.Event, _ int) bool {
+func filterTestEvents(events []v1.Event, startTime time.Time) []v1.Event {
+	return lo.Filter(events, func(e v1.Event, _ int) bool {
 		if !e.EventTime.IsZero() {
-			if e.EventTime.BeforeTime(&metav1.Time{Time: testStartTime}) {
+			if e.EventTime.BeforeTime(&metav1.Time{Time: startTime}) {
 				return false
 			}
-		} else if e.FirstTimestamp.Before(&metav1.Time{Time: testStartTime}) {
-			return false
-		}
-		if !nodeNames.Has(e.InvolvedObject.Name) {
+		} else if e.FirstTimestamp.Before(&metav1.Time{Time: startTime}) {
 			return false
 		}
 		return true
 	})
-	for i := range filteredEvents {
-		elem := filteredEvents[i]
-		objectKey := types.NamespacedName{Namespace: elem.InvolvedObject.Namespace, Name: elem.InvolvedObject.Name}
+}
+
+func coallateEvents(events []v1.Event) map[v1.ObjectReference]*v1.EventList {
+	eventMap := map[v1.ObjectReference]*v1.EventList{}
+	for i := range events {
+		elem := events[i]
+		objectKey := v1.ObjectReference{Kind: elem.InvolvedObject.Kind, Namespace: elem.InvolvedObject.Namespace, Name: elem.InvolvedObject.Name}
 		if _, ok := eventMap[objectKey]; !ok {
 			eventMap[objectKey] = &v1.EventList{}
 		}
 		eventMap[objectKey].Items = append(eventMap[objectKey].Items, elem)
 	}
-	for k, v := range eventMap {
-		fmt.Print(getEventInformation("node", k, v))
-	}
+	return eventMap
 }

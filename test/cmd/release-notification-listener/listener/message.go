@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"log"
 	"os/exec"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -28,8 +29,10 @@ import (
 
 const (
 	maxNumberOfMessages               = 1
+	delayBetweenMessageReads          = time.Minute * 3
 	maxNotificationMessageParamLength = 40 // Length of a git SHA
 	visibilityTimeOutS                = 60
+	defaultKnownLastStableRelease     = "v0.22.1"
 
 	releaseTypeStable   = "stable"
 	releaseTypeSnapshot = "snapshot"
@@ -37,9 +40,11 @@ const (
 )
 
 type notificationMessage struct {
-	ReleaseType       string `json:"releaseType"`
-	ReleaseIdentifier string `json:"releaseIdentifier"`
-	PrNumber          string `json:"prNumber"`
+	ReleaseType          string `json:"releaseType"`
+	ReleaseIdentifier    string `json:"releaseIdentifier"`
+	PrNumber             string `json:"prNumber"`
+	GithubAccount        string `json:"githubAccount"`
+	LastStableReleaseTag string `json:"lastStableReleaseTag"`
 }
 
 var (
@@ -50,12 +55,17 @@ var (
 		releaseTypeSnapshot: {},
 		releaseTypePeriodic: {},
 	}
+	lastKnownLastStableRelease string
 )
 
 func processMessage(queueMessage *sqs.Message, config *config) {
 	notificationMessage, err := newNotificationMessage(queueMessage)
 	if err != nil {
 		log.Fatalf("failed parsing message. %#v, %s", notificationMessage, err)
+	}
+	if notificationMessage.GithubAccount != config.githubAccount { // Ignore fork messages
+		log.Printf("github account %s does not match expected %s", notificationMessage.GithubAccount, config.githubAccount)
+		return
 	}
 	log.Printf("running tests for notification message %#v", notificationMessage)
 
@@ -96,6 +106,17 @@ func newNotificationMessage(msg *sqs.Message) (*notificationMessage, error) {
 		queueMessage.PrNumber = noPrNumber
 	}
 	return queueMessage, nil
+}
+
+func (n *notificationMessage) lastStableReleaseTagOrDefault() string {
+	if n.LastStableReleaseTag != "" {
+		lastKnownLastStableRelease = n.LastStableReleaseTag
+		return n.LastStableReleaseTag
+	}
+	if lastKnownLastStableRelease != "" {
+		return lastKnownLastStableRelease
+	}
+	return defaultKnownLastStableRelease
 }
 
 func (n *notificationMessage) validate() error {
@@ -143,6 +164,7 @@ func pollMessages(config *config) {
 
 		for _, queueMessage := range output.Messages {
 			processMessage(queueMessage, config)
+			time.Sleep(delayBetweenMessageReads)
 		}
 	}
 }

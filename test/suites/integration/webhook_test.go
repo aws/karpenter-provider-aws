@@ -23,7 +23,7 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter/pkg/apis/config/settings"
+	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	awstest "github.com/aws/karpenter/pkg/test"
 )
@@ -127,7 +127,7 @@ var _ = Describe("Webhooks", func() {
 				}))
 			})
 		})
-		Context("Validatation", func() {
+		Context("Validation", func() {
 			It("should error when provider and providerRef are combined", func() {
 				Expect(env.Client.Create(env, test.Provisioner(test.ProvisionerOptions{
 					Provider: v1alpha1.AWS{
@@ -224,6 +224,29 @@ var _ = Describe("Webhooks", func() {
 					ProviderRef:          &v1alpha5.ProviderRef{Name: "test"},
 					Consolidation:        &v1alpha5.Consolidation{Enabled: ptr.Bool(true)},
 					TTLSecondsAfterEmpty: ptr.Int64(60),
+				}))).ToNot(Succeed())
+			})
+			It("should error if imageGCHighThresholdPercent is less than imageGCLowThresholdPercent", func() {
+				Expect(env.Client.Create(env, test.Provisioner(test.ProvisionerOptions{
+					ProviderRef: &v1alpha5.ProviderRef{Name: "test"},
+					Kubelet: &v1alpha5.KubeletConfiguration{
+						ImageGCHighThresholdPercent: ptr.Int32(10),
+						ImageGCLowThresholdPercent:  ptr.Int32(60),
+					},
+				}))).ToNot(Succeed())
+			})
+			It("should error if imageGCHighThresholdPercent or imageGCLowThresholdPercent is negative", func() {
+				Expect(env.Client.Create(env, test.Provisioner(test.ProvisionerOptions{
+					ProviderRef: &v1alpha5.ProviderRef{Name: "test"},
+					Kubelet: &v1alpha5.KubeletConfiguration{
+						ImageGCHighThresholdPercent: ptr.Int32(-10),
+					},
+				}))).ToNot(Succeed())
+				Expect(env.Client.Create(env, test.Provisioner(test.ProvisionerOptions{
+					ProviderRef: &v1alpha5.ProviderRef{Name: "test"},
+					Kubelet: &v1alpha5.KubeletConfiguration{
+						ImageGCLowThresholdPercent: ptr.Int32(-10),
+					},
 				}))).ToNot(Succeed())
 			})
 		})

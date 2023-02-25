@@ -28,7 +28,7 @@ func TestTknArgs(t *testing.T) {
 		t.Fatal("expected validation error")
 	}
 
-	basicJSON = `{"releaseType":"snapshot","releaseIdentifier":"abcd"}`
+	basicJSON = `{"releaseType":"snapshot","releaseIdentifier":"038d21922af129c7a50350969e2a4488287585b7"}`
 	msg, err := newNotificationMessage(&sqs.Message{Body: &basicJSON})
 	if err != nil {
 		t.Fatalf("unexpected error. %s", err)
@@ -37,7 +37,6 @@ func TestTknArgs(t *testing.T) {
 	if msg.PrNumber != noPrNumber {
 		t.Fatalf("want %s got %s", noPrNumber, msg.PrNumber)
 	}
-	msg.ReleaseIdentifier = "abcd"
 
 	msg2, err := newNotificationMessage(&sqs.Message{Body: &basicJSON})
 	if err != nil {
@@ -45,16 +44,25 @@ func TestTknArgs(t *testing.T) {
 	}
 	msg2.PrNumber = "123"
 
+	basicJSON = `{"releaseType":"periodic","releaseIdentifier":"HEAD"}`
+	msg3, err := newNotificationMessage(&sqs.Message{Body: &basicJSON})
+	if err != nil {
+		t.Fatalf("unexpected error. %s", err)
+	}
+
 	var tests = []struct {
 		msg               *notificationMessage
 		pipelineName      string
 		testFilter        string
 		wantArgsToContain []string
 	}{
-		{msg, "foo", "bar", []string{"test-filter=bar", "--prefix-name=bar-abcd"}},
-		{msg, "foo", "", []string{"test-filter=", "--prefix-name=foo-abcd"}},
+		{msg, "foo", "bar", []string{"test-filter=bar", "--prefix-name=bar-038d219"}},
+		{msg, "foo", "", []string{"--prefix-name=foo-038d219"}},
 		{msg2, "foo", "bar", []string{"test-filter=bar", "--prefix-name=bar-pr-123"}},
-		{msg2, "foo", "", []string{"test-filter=", "--prefix-name=foo-pr-123"}},
+		{msg2, "foo", "", []string{"--prefix-name=foo-pr-123"}},
+		{msg, pipelineIPv6, "", []string{"ip-family=IPv6"}},
+		{msg, pipelineUpgrade, "", []string{"to-git-ref=", "from-git-ref"}},
+		{msg3, pipelineSuite, "", []string{"git-ref=HEAD"}},
 	}
 
 	for i, test := range tests {

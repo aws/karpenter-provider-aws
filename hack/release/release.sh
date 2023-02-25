@@ -9,6 +9,9 @@ source "${SCRIPT_DIR}/common.sh"
 
 config
 release $HEAD_HASH #release a snapshot version
+## Reset changes if it's a snapshot since we don't need to track these changes
+## and results in a -dirty commit hash for a stable release
+git reset --hard
 
 if [[ $(releaseType $GIT_TAG) == $RELEASE_TYPE_STABLE ]]; then
   release $GIT_TAG

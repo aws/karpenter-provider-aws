@@ -2,20 +2,20 @@
 
 A Helm chart for Karpenter, an open-source node provisioning project built for Kubernetes.
 
-![Version: 0.22.0](https://img.shields.io/badge/Version-0.22.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.22.0](https://img.shields.io/badge/AppVersion-0.22.0-informational?style=flat-square)
+![Version: 0.25.0](https://img.shields.io/badge/Version-0.25.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.25.0](https://img.shields.io/badge/AppVersion-0.25.0-informational?style=flat-square)
 
 ## Documentation
 
-For full Karpenter documentation please checkout [https://karpenter.sh](https://karpenter.sh/v0.22.0/).
+For full Karpenter documentation please checkout [https://karpenter.sh](https://karpenter.sh/v0.25.0/).
 
 ## Installing the Chart
 
-You can follow the detailed installation instruction in the [documentation](https://karpenter.sh/v0.22.0/getting-started/getting-started-with-eksctl/#install) which covers the Karpenter prerequisites and installation options. The outcome of these instructions should result in something like the following command.
+You can follow the detailed installation instruction in the [documentation](https://karpenter.sh/v0.25.0/getting-started/getting-started-with-eksctl/#install) which covers the Karpenter prerequisites and installation options. The outcome of these instructions should result in something like the following command.
 
 ```bash
 helm upgrade --install --namespace karpenter --create-namespace \
   karpenter oci://public.ecr.aws/karpenter/karpenter \
-  --version v0.22.0 \
+  --version v0.25.0 \
   --set serviceAccount.annotations.eks\.amazonaws\.com/role-arn=${KARPENTER_IAM_ROLE_ARN} \
   --set settings.aws.clusterName=${CLUSTER_NAME} \
   --set settings.aws.clusterEndpoint=${CLUSTER_ENDPOINT} \
@@ -29,20 +29,27 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | additionalAnnotations | object | `{}` | Additional annotations to add into metadata. |
+| additionalClusterRoleRules | list | `[]` | Specifies additional rules for the core ClusterRole. |
 | additionalLabels | object | `{}` | Additional labels to add into metadata. |
 | affinity | object | `{"nodeAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":{"nodeSelectorTerms":[{"matchExpressions":[{"key":"karpenter.sh/provisioner-name","operator":"DoesNotExist"}]}]}}}` | Affinity rules for scheduling the pod. |
 | controller.env | list | `[]` | Additional environment variables for the controller pod. |
 | controller.errorOutputPaths | list | `["stderr"]` | Controller errorOutputPaths - default to stderr only |
 | controller.extraVolumeMounts | list | `[]` | Additional volumeMounts for the controller pod. |
-| controller.image | string | `"public.ecr.aws/karpenter/controller:v0.22.0@sha256:33580038c91ba11a88083ccf8f2848bee3f916e70d8bfd25f83f79b2a7a739f7"` | Controller image. |
+| controller.healthProbe.port | int | `8081` | The container port to use for http health probe. |
+| controller.image.repository | string | `"public.ecr.aws/karpenter/controller"` | Controller repository. |
+| controller.image.tag | string | `"v0.25.0"` | Controller tag. |
+| controller.image.digest | string | `"sha256:fefae2739efa1c4d9561069d1683a0ed201e41771351da1ef504c805941f0bf2"` | Controller digest. |
 | controller.logEncoding | string | `""` | Controller log encoding, defaults to the global log encoding |
 | controller.logLevel | string | `""` | Controller log level, defaults to the global log level |
+| controller.metrics.port | int | `8080` | The container port to use for metrics. |
 | controller.outputPaths | list | `["stdout"]` | Controller outputPaths - default to stdout only |
 | controller.resources | object | `{"limits":{"cpu":1,"memory":"1Gi"},"requests":{"cpu":1,"memory":"1Gi"}}` | Resources for the controller pod. |
 | controller.securityContext | object | `{}` | SecurityContext for the controller container. |
-| controller.sidecarContainer | object | `{}` | Additional sideCarContainer config - this will also inherit volume mounts from deployment |
+| controller.sidecarContainer | list | `[]` | Additional sidecarContainer config |
+| controller.sidecarVolumeMounts | list | `[]` | Additional volumeMounts for the sidecar - this will be added to the volume mounts on top of extraVolumeMounts |
 | dnsConfig | object | `{}` | Configure DNS Config for the pod |
 | dnsPolicy | string | `"Default"` | Configure the DNS Policy for the pod |
+| extraObjects | list | `[]` | Array of extra K8s manifests to deploy  |
 | extraVolumes | list | `[]` | Additional volumes for the pod. |
 | fullnameOverride | string | `""` | Overrides the chart's computed fullname. |
 | hostNetwork | bool | `false` | Bind the pod to the host network. This is required when using a custom CNI. |
@@ -68,7 +75,7 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | serviceMonitor.endpointConfig | object | `{}` | Endpoint configuration for the ServiceMonitor. |
 | settings | object | `{"aws":{"clusterEndpoint":"","clusterName":"","defaultInstanceProfile":"","enableENILimitedPodDensity":true,"enablePodENI":false,"interruptionQueueName":"","isolatedVPC":false,"nodeNameConvention":"ip-name","tags":null,"vmMemoryOverheadPercent":0.075},"batchIdleDuration":"1s","batchMaxDuration":"10s"}` | Global Settings to configure Karpenter |
 | settings.aws | object | `{"clusterEndpoint":"","clusterName":"","defaultInstanceProfile":"","enableENILimitedPodDensity":true,"enablePodENI":false,"interruptionQueueName":"","isolatedVPC":false,"nodeNameConvention":"ip-name","tags":null,"vmMemoryOverheadPercent":0.075}` | AWS-specific configuration values |
-| settings.aws.clusterEndpoint | string | `""` | Cluster endpoint. |
+| settings.aws.clusterEndpoint | string | `""` | Cluster endpoint. If not set, will be discovered during startup (EKS only) |
 | settings.aws.clusterName | string | `""` | Cluster name. |
 | settings.aws.defaultInstanceProfile | string | `""` | The default instance profile to use when launching nodes |
 | settings.aws.enableENILimitedPodDensity | bool | `true` | Indicates whether new nodes should use ENI-based pod density DEPRECATED: Use `.spec.kubeletConfiguration.maxPods` to set pod density on a per-provisioner basis |
@@ -76,7 +83,7 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | settings.aws.interruptionQueueName | string | `""` | interruptionQueueName is currently in ALPHA and is disabled by default. Enabling interruption handling may require additional permissions on the controller service account. Additional permissions are outlined in the docs. |
 | settings.aws.isolatedVPC | bool | `false` | If true then assume we can't reach AWS services which don't have a VPC endpoint This also has the effect of disabling look-ups to the AWS pricing endpoint |
 | settings.aws.nodeNameConvention | string | `"ip-name"` | The node naming convention (either "ip-name" or "resource-name") |
-| settings.aws.tags | string | `nil` | The global tags to use on all AWS infrastructure resources (launch templates, instances, SQS queue, etc.) |
+| settings.aws.tags | string | `nil` | The global tags to use on all AWS infrastructure resources (launch templates, instances, etc.) across node templates |
 | settings.aws.vmMemoryOverheadPercent | float | `0.075` | The VM memory overhead as a percent that will be subtracted from the total memory for all instance types |
 | settings.batchIdleDuration | string | `"1s"` | The maximum amount of time with no new ending pods that if exceeded ends the current batching window. If pods arrive faster than this time, the batching window will be extended up to the maxDuration. If they arrive slower, the pods will be batched separately. |
 | settings.batchMaxDuration | string | `"10s"` | The maximum length of a batch window. The longer this is, the more pods we can consider for provisioning at one time which usually results in fewer but larger nodes. |

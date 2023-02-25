@@ -27,7 +27,7 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter/pkg/apis/config/settings"
+	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 
 	awstest "github.com/aws/karpenter/pkg/test"
@@ -72,22 +72,24 @@ var _ = Describe("Scheduling", func() {
 			v1.LabelArchStable:               "amd64",
 			v1alpha5.LabelCapacityType:       "on-demand",
 			// Well Known to AWS
-			v1alpha1.LabelInstanceHypervisor:      "nitro",
-			v1alpha1.LabelInstanceCategory:        "g",
-			v1alpha1.LabelInstanceGeneration:      "4",
-			v1alpha1.LabelInstanceFamily:          "g4dn",
-			v1alpha1.LabelInstanceSize:            "8xlarge",
-			v1alpha1.LabelInstanceCPU:             "32",
-			v1alpha1.LabelInstanceMemory:          "131072",
-			v1alpha1.LabelInstancePods:            "58", // May vary w/ environment
-			v1alpha1.LabelInstanceGPUName:         "t4",
-			v1alpha1.LabelInstanceGPUManufacturer: "nvidia",
-			v1alpha1.LabelInstanceGPUCount:        "1",
-			v1alpha1.LabelInstanceGPUMemory:       "16384",
-			v1alpha1.LabelInstanceLocalNVME:       "900",
+			v1alpha1.LabelInstanceHypervisor:                   "nitro",
+			v1alpha1.LabelInstanceEncryptionInTransitSupported: "true",
+			v1alpha1.LabelInstanceCategory:                     "g",
+			v1alpha1.LabelInstanceGeneration:                   "4",
+			v1alpha1.LabelInstanceFamily:                       "g4dn",
+			v1alpha1.LabelInstanceSize:                         "8xlarge",
+			v1alpha1.LabelInstanceCPU:                          "32",
+			v1alpha1.LabelInstanceMemory:                       "131072",
+			v1alpha1.LabelInstanceNetworkBandwidth:             "50000",
+			v1alpha1.LabelInstancePods:                         "58", // May vary w/ environment
+			v1alpha1.LabelInstanceGPUName:                      "t4",
+			v1alpha1.LabelInstanceGPUManufacturer:              "nvidia",
+			v1alpha1.LabelInstanceGPUCount:                     "1",
+			v1alpha1.LabelInstanceGPUMemory:                    "16384",
+			v1alpha1.LabelInstanceLocalNVME:                    "900",
 			// Deprecated Labels
-			v1.LabelFailureDomainBetaZone:   fmt.Sprintf("%sa", env.Region),
 			v1.LabelFailureDomainBetaRegion: env.Region,
+			v1.LabelFailureDomainBetaZone:   fmt.Sprintf("%sa", env.Region),
 			"beta.kubernetes.io/arch":       "amd64",
 			"beta.kubernetes.io/os":         "linux",
 			v1.LabelInstanceType:            "g4dn.8xlarge",

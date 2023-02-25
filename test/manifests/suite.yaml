@@ -1,0 +1,100 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: suite
+  namespace: karpenter-tests
+spec:
+  params:
+    - name: cluster-name
+      default: $(context.pipelineRun.namespace)-$(context.pipelineRun.name)
+      description: Uniquely identifies a cluster name for the suite.
+    - name: kubernetes-version
+      description: Kubernetes version to deploy
+      default: "1.23"
+    - name: git-repo-url
+      description: the git repo url can be used to run tests on a fork
+      default: "https://github.com/aws/karpenter"
+    - name: git-ref
+      default: HEAD
+      description: Git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release.
+    - name: test-filter
+      description: Test filter passed to `go test -run`
+    - name: cleanup
+      default: "true"
+      description: If true, clean up resources
+  tasks:
+
+  - name: setup
+    taskRef:
+      name: setup
+    params:
+    - name: cluster-name
+      value: $(params.cluster-name)
+    - name: kubernetes-version
+      value: $(params.kubernetes-version)
+    - name: git-repo-url
+      value: $(params.git-repo-url)
+    - name: git-ref
+      value: $(params.git-ref)
+
+  - name: run-test
+    taskRef:
+      name: run-test
+    params:
+    - name: cluster-name
+      value: $(params.cluster-name)
+    - name: git-repo-url
+      value: $(params.git-repo-url)
+    - name: git-ref
+      value: $(params.git-ref)
+    - name: test-filter
+      value: $(params.test-filter)
+    runAfter:
+    - setup
+
+  finally:
+  - name: dump-logs-on-failure
+    taskRef:
+      name: dump-logs
+    params:
+      - name: cluster-name
+        value: $(params.cluster-name)
+    when:
+      - input: $(tasks.status)
+        operator: in
+        values: [ "Failed" ]
+  - name: notify-test-failure
+    when:
+      - input: $(tasks.status)
+        operator: in
+        values: ["Failed"]
+    taskRef:
+      name: notify-slack
+    params:
+    - name: webhook-secret
+      value: slack-webhook-secret
+    - name: message
+      value: ":x: $(context.pipelineRun.name) tests failed"
+  - name: notify-test-success
+    when:
+      - input: $(tasks.status)
+        operator: in
+        values: ["Succeeded", "Completed"]
+    taskRef:
+      name: notify-slack
+    params:
+      - name: webhook-secret
+        value: slack-webhook-secret
+      - name: message
+        value: ":white_check_mark: $(context.pipelineRun.name) tests passed"
+  - name: cleanup
+    taskRef:
+      name: cleanup
+    params:
+      - name: cluster-name
+        value: $(params.cluster-name)
+    when:
+      - input: $(params.cleanup)
+        operator: in
+        values:
+          - "true"

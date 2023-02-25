@@ -133,26 +133,28 @@ Take care to ensure the label domains are correct. A well known label like `karp
 
 #### Well-Known Labels
 
-| Label                                       | Example     | Description                                                                                                                                 |
-| ------------------------------------------- | ----------  | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| topology.kubernetes.io/zone                 | us-east-2a  | Zones are defined by your cloud provider ([aws](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-regions-availability-zones.html)) |
-| node.kubernetes.io/instance-type            | g4dn.8xlarge| Instance types are defined by your cloud provider ([aws](https://aws.amazon.com/ec2/instance-types/))                                       |
-| kubernetes.io/os                            | linux       | Operating systems are defined by [GOOS values](https://github.com/golang/go/blob/master/src/go/build/syslist.go#L10) on the instance        |
-| kubernetes.io/arch                          | amd64       | Architectures are defined by [GOARCH values](https://github.com/golang/go/blob/master/src/go/build/syslist.go#L50) on the instance          |
-| karpenter.sh/capacity-type                  | spot        | Capacity types include `spot`, `on-demand`                                                                                                  |
-| karpenter.k8s.aws/instance-hypervisor       | nitro       | [AWS Specific] Instance types that use a specific hypervisor                                                                                |
-| karpenter.k8s.aws/instance-category         | g           | [AWS Specific] Instance types of the same category, usually the string before the generation number                                         |
-| karpenter.k8s.aws/instance-generation       | 4           | [AWS Specific] Instance type generation number within an instance category                                                                  |
-| karpenter.k8s.aws/instance-family           | g4dn        | [AWS Specific] Instance types of similar properties but different resource quantities                                                       |
-| karpenter.k8s.aws/instance-size             | 8xlarge     | [AWS Specific] Instance types of similar resource quantities but different properties                                                       |
-| karpenter.k8s.aws/instance-cpu              | 32          | [AWS Specific] Number of CPUs on the instance                                                                                               |
-| karpenter.k8s.aws/instance-memory           | 131072      | [AWS Specific] Number of mebibytes of memory on the instance                                                                                |
-| karpenter.k8s.aws/instance-pods             | 110         | [AWS Specific] Number of pods the instance supports                                                                                         |
-| karpenter.k8s.aws/instance-gpu-name         | t4          | [AWS Specific] Name of the GPU on the instance, if available                                                                                |
-| karpenter.k8s.aws/instance-gpu-manufacturer | nvidia      | [AWS Specific] Name of the GPU manufacturer                                                                                                 |
-| karpenter.k8s.aws/instance-gpu-count        | 1           | [AWS Specific] Number of GPUs on the instance                                                                                               |
-| karpenter.k8s.aws/instance-gpu-memory       | 16384       | [AWS Specific] Number of mebibytes of memory on the GPU                                                                                     |
-| karpenter.k8s.aws/instance-local-nvme       | 900         | [AWS Specific] Number of gibibytes of local nvme storage on the instance                                                                    |
+| Label                                                 | Example     | Description                                                                                                                                 |
+| ----------------------------------------------------- | ----------  | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| topology.kubernetes.io/zone                           | us-east-2a  | Zones are defined by your cloud provider ([aws](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-regions-availability-zones.html)) |
+| node.kubernetes.io/instance-type                      | g4dn.8xlarge| Instance types are defined by your cloud provider ([aws](https://aws.amazon.com/ec2/instance-types/))                                       |
+| kubernetes.io/os                                      | linux       | Operating systems are defined by [GOOS values](https://github.com/golang/go/blob/master/src/go/build/syslist.go#L10) on the instance        |
+| kubernetes.io/arch                                    | amd64       | Architectures are defined by [GOARCH values](https://github.com/golang/go/blob/master/src/go/build/syslist.go#L50) on the instance          |
+| karpenter.sh/capacity-type                            | spot        | Capacity types include `spot`, `on-demand`                                                                                                  |
+| karpenter.k8s.aws/instance-hypervisor                 | nitro       | [AWS Specific] Instance types that use a specific hypervisor                                                                                |
+| karpenter.k8s.aws/encryption-in-transit-supported     | true        | [AWS Specific] Instance types that support (or not) in-transit encryption                                                                            |
+| karpenter.k8s.aws/instance-category                   | g           | [AWS Specific] Instance types of the same category, usually the string before the generation number                                         |
+| karpenter.k8s.aws/instance-generation                 | 4           | [AWS Specific] Instance type generation number within an instance category                                                                  |
+| karpenter.k8s.aws/instance-family                     | g4dn        | [AWS Specific] Instance types of similar properties but different resource quantities                                                       |
+| karpenter.k8s.aws/instance-size                       | 8xlarge     | [AWS Specific] Instance types of similar resource quantities but different properties                                                       |
+| karpenter.k8s.aws/instance-cpu                        | 32          | [AWS Specific] Number of CPUs on the instance                                                                                               |
+| karpenter.k8s.aws/instance-memory                     | 131072      | [AWS Specific] Number of mebibytes of memory on the instance                                                                                |
+| karpenter.k8s.aws/instance-network-bandwidth                     | 131072      | [AWS Specific] Number of [baseline megabits](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html) available on the instance                                                                                |
+| karpenter.k8s.aws/instance-pods                       | 110         | [AWS Specific] Number of pods the instance supports                                                                                         |
+| karpenter.k8s.aws/instance-gpu-name                   | t4          | [AWS Specific] Name of the GPU on the instance, if available                                                                                |
+| karpenter.k8s.aws/instance-gpu-manufacturer           | nvidia      | [AWS Specific] Name of the GPU manufacturer                                                                                                 |
+| karpenter.k8s.aws/instance-gpu-count                  | 1           | [AWS Specific] Number of GPUs on the instance                                                                                               |
+| karpenter.k8s.aws/instance-gpu-memory                 | 16384       | [AWS Specific] Number of mebibytes of memory on the GPU                                                                                     |
+| karpenter.k8s.aws/instance-local-nvme                 | 900         | [AWS Specific] Number of gibibytes of local nvme storage on the instance                                                                    |
 
 #### User-Defined Labels
 

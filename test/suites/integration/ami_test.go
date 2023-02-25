@@ -18,7 +18,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -31,17 +30,16 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter/pkg/apis/config/settings"
+	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 
 	awstest "github.com/aws/karpenter/pkg/test"
 )
 
-var customAMI string
-
 var _ = Describe("AMI", func() {
+	var customAMI string
 	BeforeEach(func() {
-		customAMI = selectCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", 1)
+		customAMI = env.GetCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", 1)
 	})
 
 	It("should use the AMI defined by the AMI Selector", func() {
@@ -179,6 +177,35 @@ var _ = Describe("AMI", func() {
 			// Just verify if the UserData contains our custom content too, rather than doing a byte-wise comparison.
 			Expect(string(actualUserData)).To(ContainSubstring("Running custom user data script"))
 		})
+		It("should merge non-MIME UserData contents for AL2 AMIFamily", func() {
+			content, err := os.ReadFile("testdata/al2_no_mime_userdata_input.sh")
+			Expect(err).ToNot(HaveOccurred())
+			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
+				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+				AMIFamily:             &v1alpha1.AMIFamilyAL2,
+			},
+				UserData: aws.String(string(content)),
+			})
+			provisioner := test.Provisioner(test.ProvisionerOptions{
+				ProviderRef:   &v1alpha5.ProviderRef{Name: provider.Name},
+				Taints:        []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoExecute"}},
+				StartupTaints: []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoSchedule"}},
+			})
+			pod := test.Pod(test.PodOptions{Tolerations: []v1.Toleration{{Key: "example.com", Operator: v1.TolerationOpExists}}})
+
+			env.ExpectCreated(pod, provider, provisioner)
+			env.EventuallyExpectHealthy(pod)
+			Expect(env.GetNode(pod.Spec.NodeName).Spec.Taints).To(ContainElements(
+				v1.Taint{Key: "example.com", Value: "value", Effect: "NoExecute"},
+				v1.Taint{Key: "example.com", Value: "value", Effect: "NoSchedule"},
+			))
+			actualUserData, err := base64.StdEncoding.DecodeString(*getInstanceAttribute(pod.Spec.NodeName, "userData").UserData.Value)
+			Expect(err).ToNot(HaveOccurred())
+			// Since the node has joined the cluster, we know our bootstrapping was correct.
+			// Just verify if the UserData contains our custom content too, rather than doing a byte-wise comparison.
+			Expect(string(actualUserData)).To(ContainSubstring("Running custom user data script"))
+		})
 		It("should merge UserData contents for Bottlerocket AMIFamily", func() {
 			content, err := os.ReadFile("testdata/br_userdata_input.sh")
 			Expect(err).ToNot(HaveOccurred())
@@ -220,20 +247,4 @@ func getInstanceAttribute(nodeName string, attribute string) *ec2.DescribeInstan
 	})
 	Expect(err).ToNot(HaveOccurred())
 	return instanceAttribute
-}
-
-func selectCustomAMI(amiPath string, versionOffset int) string {
-	serverVersion, err := env.KubeClient.Discovery().ServerVersion()
-	Expect(err).To(BeNil())
-	minorVersion, err := strconv.Atoi(strings.TrimSuffix(serverVersion.Minor, "+"))
-	Expect(err).To(BeNil())
-	// Choose a minor version one lesser than the server's minor version. This ensures that we choose an AMI for
-	// this test that wouldn't be selected as Karpenter's SSM default (therefore avoiding false positives), and also
-	// ensures that we aren't violating version skew.
-	version := fmt.Sprintf("%s.%d", serverVersion.Major, minorVersion-versionOffset)
-	parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
-		Name: aws.String(fmt.Sprintf(amiPath, version)),
-	})
-	Expect(err).To(BeNil())
-	return *parameter.Parameter.Value
 }

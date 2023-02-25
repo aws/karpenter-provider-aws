@@ -50,13 +50,13 @@ The Provisioner Usage Percentage is the percentage of each resource used based o
 Node allocatable are the resources allocatable by nodes.
 
 ### `karpenter_nodes_created`
-Number of nodes created in total by Karpenter. Labeled by reason the node was created.
+Number of nodes created in total by Karpenter. Labeled by reason the node was created and the owning provisioner.
 
 ### `karpenter_nodes_system_overhead`
 Node system daemon overhead are the resources reserved for system overhead, the difference between the node's capacity and allocatable values are reported by the status.
 
 ### `karpenter_nodes_terminated`
-Number of nodes terminated in total by Karpenter. Labeled by reason the node was terminated.
+Number of nodes terminated in total by Karpenter. Labeled by reason the node was terminated and the owning provisioner.
 
 ### `karpenter_nodes_termination_time_seconds`
 The time taken between a node's deletion request and the removal of its finalizer

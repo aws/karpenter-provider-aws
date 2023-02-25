@@ -38,7 +38,7 @@ import (
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
 	nodeutils "github.com/aws/karpenter-core/pkg/utils/node"
-	"github.com/aws/karpenter/pkg/apis/config/settings"
+	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	awstest "github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/test/pkg/environment/common"
@@ -69,8 +69,8 @@ var _ = Describe("Chaos", func() {
 			defer cancel()
 
 			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-				SecurityGroupSelector: map[string]string{v1alpha5.DiscoveryTagKey: settings.FromContext(env.Context).ClusterName},
-				SubnetSelector:        map[string]string{v1alpha5.DiscoveryTagKey: settings.FromContext(env.Context).ClusterName},
+				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			}})
 			provisioner := test.Provisioner(test.ProvisionerOptions{
 				Requirements: []v1.NodeSelectorRequirement{
@@ -114,8 +114,8 @@ var _ = Describe("Chaos", func() {
 			defer cancel()
 
 			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-				SecurityGroupSelector: map[string]string{v1alpha5.DiscoveryTagKey: settings.FromContext(env.Context).ClusterName},
-				SubnetSelector:        map[string]string{v1alpha5.DiscoveryTagKey: settings.FromContext(env.Context).ClusterName},
+				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			}})
 			provisioner := test.Provisioner(test.ProvisionerOptions{
 				Requirements: []v1.NodeSelectorRequirement{

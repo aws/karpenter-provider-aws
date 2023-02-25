@@ -33,7 +33,10 @@ spec:
   tags: { ... }                  # optional, propagates tags to underlying EC2 resources
   metadataOptions: { ... }       # optional, configures IMDS for the instance
   blockDeviceMappings: [ ... ]   # optional, configures storage devices for the instance
-
+  detailedMonitoring: "..."      # optional, configures detailed monitoring for the instance
+status:
+  subnets: { ... }               # resolved subnets
+  securityGroups: { ... }        # resolved security groups
 ```
 Refer to the [Provisioner docs]({{<ref "./provisioners" >}}) for settings applicable to all providers.
 See below for other AWS provider-specific parameters.
@@ -148,7 +151,7 @@ An `InstanceProfile` is a way to pass a single IAM role to EC2 instance launched
 A default profile is configured in global settings, but may be overridden here.
 The `AWSNodeTemplate` will not create an `InstanceProfile` automatically.
 The `InstanceProfile` must refer to a `Role` that has permission to connect to the cluster.
-```
+```yaml
 spec:
   instanceProfile: MyInstanceProfile
 ```
@@ -159,18 +162,20 @@ The AMI used when provisioning nodes can be controlled by the `amiFamily` field.
 
 Currently, Karpenter supports `amiFamily` values `AL2`, `Bottlerocket`, `Ubuntu` and `Custom`. GPUs are only supported with `AL2` and `Bottlerocket`.
 
-```
+```yaml
 spec:
   amiFamily: Bottlerocket
 ```
 
 ## spec.amiSelector
 
-AMISelector is used to configure custom AMIs for Karpenter to use, where the AMIs are discovered through [AWS tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html), similar to `subnetSelector`. This field is optional, and Karpenter will use the latest EKS-optimized AMIs if an amiSelector is not specified.
+AMISelector is used to configure custom AMIs for Karpenter to use, where the AMIs are discovered through `aws::` prefixed filters (`aws::ids`, `aws::owners` and `aws::name`) and [AWS tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html). This field is optional, and Karpenter will use the latest EKS-optimized AMIs if an amiSelector is not specified.
 
-EC2 AMIs may be specified by any AWS tag, including `Name`. Selecting tag values using wildcards (`*`) is supported.
+To select an AMI by name, use `aws::name`. EC2 AMIs may be specified by any AWS tag, including `Name`. Selecting tag values using wildcards (`*`) is supported.
 
-EC2 AMI IDs may be specified by using the key `aws-ids` and then passing the IDs as a comma-separated string value.
+EC2 AMI IDs may be specified by using the key `aws::ids` (`aws-ids` is also supported) and then passing the IDs as a comma-separated string value.
+
+To ensure that AMIs are owned by the expected owner, use `aws::owners` which expects a comma-separated list of AWS account owners - you can use a combination of account aliases (e.g. `self` `amazon`, `your-aws-account-name`) and account IDs. If this is not set, *and* `aws::ids`/`aws-ids` are not set, it defaults to `self,amazon`.
 
 ### AMI Selection
 
@@ -205,19 +210,19 @@ All labels defined [in the scheduling documentation](./scheduling#supported-labe
 #### Examples
 
 Select all AMIs with a specified tag:
-```
+```yaml
   amiSelector:
     karpenter.sh/discovery/MyClusterName: '*'
 ```
 
 Select AMIs by name:
-```
+```yaml
   amiSelector:
     Name: my-ami
 ```
 
 Select AMIs by an arbitrary AWS tag key/value pair:
-```
+```yaml
   amiSelector:
     MyAMITag: value
 ```
@@ -239,7 +244,7 @@ kubernetes.io/cluster/<cluster-name>: owned
 ```
 
 Additional tags can be added in the AWSNodeTemplate tags section which are merged with and can override the default tag values.
-```
+```yaml
 spec:
   tags:
     InternalAccountingTag: 1234
@@ -255,7 +260,7 @@ Refer to [recommended, security best practices](https://aws.github.io/aws-eks-be
 
 If metadataOptions are omitted from this provisioner, the following default settings will be used.
 
-```
+```yaml
 spec:
   metadataOptions:
     httpEndpoint: enabled
@@ -270,7 +275,7 @@ The `blockDeviceMappings` field in an AWSNodeTemplate can be used to control the
 
 Learn more about [block device mappings](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/block-device-mapping-concepts.html).
 
-```
+```yaml
 apiVersion: karpenter.k8s.aws/v1alpha1
 kind: AWSNodeTemplate
 spec:
@@ -332,11 +337,6 @@ spec:
   securityGroupSelector:
     karpenter.sh/discovery: my-cluster
   userData: |
-    MIME-Version: 1.0
-    Content-Type: multipart/mixed; boundary="BOUNDARY"
-    --BOUNDARY
-    Content-Type: text/x-shellscript; charset="us-ascii"
-
     #!/bin/bash
     mkdir -p ~ec2-user/.ssh/
     touch ~ec2-user/.ssh/authorized_keys
@@ -345,10 +345,18 @@ spec:
     EOF
     chmod -R go-w ~ec2-user/.ssh/authorized_keys
     chown -R ec2-user ~ec2-user/.ssh
-    --BOUNDARY--
 ```
 
 For more examples on configuring these fields for different AMI families, see the [examples here](https://github.com/aws/karpenter/blob/main/examples/provisioner/launchtemplates).
+
+## spec.detailedMonitoring
+
+Enabling detailed monitoring on the node template controls the [EC2 detailed monitoring](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-cloudwatch-new.html) feature. If you enable this option, the Amazon EC2 console displays monitoring graphs with a 1-minute period for the instances that Karpenter launches.
+```yaml
+spec:
+  detailedMonitoring: true
+```
+
 
 ### Merge Semantics
 
@@ -397,13 +405,20 @@ cluster-name = 'cluster'
 
 #### AL2 and Ubuntu
 
-* Your UserData must be in the [MIME multi part archive](https://cloudinit.readthedocs.io/en/latest/topics/format.html#mime-multi-part-archive) format.
-* Karpenter will merge a final MIME part to the end of your UserData parts which will bootstrap the worker node. Karpenter will have full control over all the parameters being passed to the bootstrap script.
+* Your UserData can be in the [MIME multi part archive](https://cloudinit.readthedocs.io/en/latest/topics/format.html#mime-multi-part-archive) format.
+* Karpenter will transform your custom user-data as a MIME part, if necessary, and then merge a final MIME part to the end of your UserData parts which will bootstrap the worker node. Karpenter will have full control over all the parameters being passed to the bootstrap script.
   * Karpenter will continue to set MaxPods, ClusterDNS and all other parameters defined in `spec.kubeletConfiguration` as before.
 
 Consider the following example to understand how your custom UserData will be merged -
 
 Your UserData -
+
+```
+#!/bin/bash
+echo "Running custom user data script"
+```
+
+or equivalently in MIME format:
 
 ```
 MIME-Version: 1.0
@@ -455,14 +470,39 @@ spec:
   securityGroupSelector:
     karpenter.sh/discovery: my-cluster
   userData: |
-    MIME-Version: 1.0
-    Content-Type: multipart/mixed; boundary="BOUNDARY"
-
-    --BOUNDARY
-    Content-Type: text/x-shellscript; charset="us-ascii"
-
     #!/bin/bash
     echo "$(jq '.kubeAPIQPS=50' /etc/kubernetes/kubelet/kubelet-config.json)" > /etc/kubernetes/kubelet/kubelet-config.json
+```
+## status.subnets
+`status.subnets` contains the `id` and `zone` of the subnets utilized during node launch. The subnets are sorted by the available IP address count in decreasing order.
 
-    --BOUNDARY--
+**Examples**
+
+```yaml
+status:
+  subnets:
+  - id: subnet-0a462d98193ff9fac
+    zone: us-east-2b
+  - id: subnet-0322dfafd76a609b6
+    zone: us-east-2c
+  - id: subnet-0727ef01daf4ac9fe
+    zone: us-east-2b
+  - id: subnet-00c99aeafe2a70304
+    zone: us-east-2a
+  - id: subnet-023b232fd5eb0028e
+    zone: us-east-2c
+  - id: subnet-03941e7ad6afeaa72
+    zone: us-east-2a
+```
+
+## status.securityGroups
+`status.securityGroups` contains the `id` of the security groups utilized during node launch.
+
+**Examples**
+
+```yaml
+  status:
+    securityGroups:
+    - id: sg-041513b454818610b
+    - id: sg-0286715698b894bca
 ```

@@ -33,10 +33,10 @@ import (
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 
-	awssettings "github.com/aws/karpenter/pkg/apis/config/settings"
+	awssettings "github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	awscache "github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
-	awscontext "github.com/aws/karpenter/pkg/context"
 	awserrors "github.com/aws/karpenter/pkg/errors"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
 
@@ -60,17 +60,19 @@ type LaunchTemplateProvider struct {
 	caBundle              *string
 	cm                    *pretty.ChangeMonitor
 	kubeDNSIP             net.IP
+	clusterEndpoint       string
 }
 
-func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, amiFamily *amifamily.Resolver, securityGroupProvider *securitygroup.Provider, caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP) *LaunchTemplateProvider {
+func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, amiFamily *amifamily.Resolver, securityGroupProvider *securitygroup.Provider, caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP, clusterEndpoint string) *LaunchTemplateProvider {
 	l := &LaunchTemplateProvider{
 		ec2api:                ec2api,
 		amiFamily:             amiFamily,
 		securityGroupProvider: securityGroupProvider,
-		cache:                 cache.New(awscontext.CacheTTL, awscontext.CacheCleanupInterval),
+		cache:                 cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
 		caBundle:              caBundle,
 		cm:                    pretty.NewChangeMonitor(),
 		kubeDNSIP:             kubeDNSIP,
+		clusterEndpoint:       clusterEndpoint,
 	}
 	l.cache.OnEvicted(l.cachedEvictedFunc(ctx))
 	go func() {
@@ -143,9 +145,12 @@ func (p *LaunchTemplateProvider) createAmiOptions(ctx context.Context, nodeTempl
 	if err != nil {
 		return nil, err
 	}
+	if len(securityGroupsIDs) == 0 {
+		return nil, fmt.Errorf("no security groups exist given constraints")
+	}
 	return &amifamily.Options{
 		ClusterName:             awssettings.FromContext(ctx).ClusterName,
-		ClusterEndpoint:         awssettings.FromContext(ctx).ClusterEndpoint,
+		ClusterEndpoint:         p.clusterEndpoint,
 		AWSENILimitedPodDensity: awssettings.FromContext(ctx).EnableENILimitedPodDensity,
 		InstanceProfile:         instanceProfile,
 		SecurityGroupsIDs:       securityGroupsIDs,
@@ -201,6 +206,9 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, optio
 			IamInstanceProfile: &ec2.LaunchTemplateIamInstanceProfileSpecificationRequest{
 				Name: aws.String(options.InstanceProfile),
 			},
+			Monitoring: &ec2.LaunchTemplatesMonitoringRequest{
+				Enabled: aws.Bool(options.DetailedMonitoring),
+			},
 			SecurityGroupIds: aws.StringSlice(options.SecurityGroupsIDs),
 			UserData:         aws.String(userData),
 			ImageId:          aws.String(options.AMIID),
@@ -233,7 +241,7 @@ func (p *LaunchTemplateProvider) blockDeviceMappings(blockDeviceMappings []*v1al
 		// The EC2 API fails with empty slices and expects nil.
 		return nil
 	}
-	blockDeviceMappingsRequest := []*ec2.LaunchTemplateBlockDeviceMappingRequest{}
+	var blockDeviceMappingsRequest []*ec2.LaunchTemplateBlockDeviceMappingRequest
 	for _, blockDeviceMapping := range blockDeviceMappings {
 		blockDeviceMappingsRequest = append(blockDeviceMappingsRequest, &ec2.LaunchTemplateBlockDeviceMappingRequest{
 			DeviceName: blockDeviceMapping.DeviceName,
@@ -257,7 +265,8 @@ func (p *LaunchTemplateProvider) volumeSize(quantity *resource.Quantity) *int64 
 	if quantity == nil {
 		return nil
 	}
-	return aws.Int64(int64(quantity.AsApproximateFloat64() / math.Pow(2, 30)))
+	// Converts the value to Gi and rounds up the value to the nearest Gi
+	return aws.Int64(int64(math.Ceil(quantity.AsApproximateFloat64() / math.Pow(2, 30))))
 }
 
 // hydrateCache queries for existing Launch Templates created by Karpenter for the current cluster and adds to the LT cache.

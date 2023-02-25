@@ -177,7 +177,7 @@ type BlockDevice struct {
 	//    * st1 and sc1: 125-16,384
 	//
 	//    * standard: 1-1,024
-	VolumeSize *resource.Quantity `json:"volumeSize,omitempty"`
+	VolumeSize *resource.Quantity `json:"volumeSize,omitempty" hash:"string"`
 
 	// VolumeType of the block device.
 	// For more information, see Amazon EBS volume types (https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSVolumeTypes.html)

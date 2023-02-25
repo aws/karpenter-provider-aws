@@ -22,7 +22,7 @@ import (
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter-core/pkg/utils/resources"
-	"github.com/aws/karpenter/pkg/apis/config/settings"
+	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 
 	awstest "github.com/aws/karpenter/pkg/test"
@@ -63,7 +63,7 @@ var _ = Describe("BlockDeviceMappings", func() {
 		Expect(instance.BlockDeviceMappings[0].Ebs).To(HaveField("DeleteOnTermination", HaveValue(BeTrue())))
 		volume := env.GetVolume(instance.BlockDeviceMappings[0].Ebs.VolumeId)
 		Expect(volume).To(HaveField("Encrypted", HaveValue(BeTrue())))
-		Expect(volume).To(HaveField("Size", HaveValue(Equal(int64(9))))) // Convert G -> Gib
+		Expect(volume).To(HaveField("Size", HaveValue(Equal(int64(10))))) // Convert G -> Gib (rounded up)
 		Expect(volume).To(HaveField("Iops", HaveValue(Equal(int64(1000)))))
 		Expect(volume).To(HaveField("VolumeType", HaveValue(Equal("io2"))))
 	})

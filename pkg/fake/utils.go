@@ -15,12 +15,34 @@ limitations under the License.
 package fake
 
 import (
+	"fmt"
 	"strings"
 
+	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/samber/lo"
 )
+
+func InstanceID() string {
+	return fmt.Sprintf("i-%s", randomdata.Alphanumeric(17))
+}
+
+func RandomProviderID() string {
+	return ProviderID(InstanceID())
+}
+
+func ProviderID(id string) string {
+	return fmt.Sprintf("aws:///%s/%s", defaultRegion, id)
+}
+
+func ImageID() string {
+	return fmt.Sprintf("ami-%s", randomdata.Alphanumeric(17))
+}
+
+func PrivateDNSName() string {
+	return fmt.Sprintf("ip-192-168-%d-%d.%s.compute.internal", randomdata.Number(0, 256), randomdata.Number(0, 256), defaultRegion)
+}
 
 // SubnetsFromFleetRequest returns a unique slice of subnetIDs passed as overrides from a CreateFleetInput
 func SubnetsFromFleetRequest(createFleetInput *ec2.CreateFleetInput) []string {
@@ -78,7 +100,7 @@ func matchTags(tags []*ec2.Tag, filter *ec2.Filter) bool {
 		tagKey := strings.Split(*filter.Name, ":")[1]
 		for _, val := range filter.Values {
 			for _, tag := range tags {
-				if (tagKey == "*" || tagKey == *tag.Key) && (*val == "*" || *val == *tag.Value) {
+				if tagKey == *tag.Key && (*val == "*" || *val == *tag.Value) {
 					return true
 				}
 			}

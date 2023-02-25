@@ -19,7 +19,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
-	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2" //nolint:revive,stylecheck
@@ -27,6 +26,7 @@ import (
 	"github.com/samber/lo"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -107,14 +107,19 @@ func (env *Environment) ExpectSettings() *v1.ConfigMap {
 
 func (env *Environment) ExpectSettingsOverridden(data ...map[string]string) {
 	cm := env.ExpectSettings()
+	stored := cm.DeepCopy()
 	cm.Data = lo.Assign(append([]map[string]string{cm.Data}, data...)...)
+
+	// If the data hasn't changed, we can just return and not update anything
+	if equality.Semantic.DeepEqual(stored, cm) {
+		return
+	}
+	// Update the configMap to update the settings
 	env.ExpectCreatedOrUpdated(cm)
-	// Wait for updated settings to be injected into context since the batching logic
-	// may be using stale settings.
-	// While this doesn't ensure the issue doesn't happen, the default BatchIdleTime is
-	// 1 second. Since we control the provisioning logic in tests, 5 seconds is sufficient
-	// to significantly reduce the chance that any races will occur with stale settings.
-	time.Sleep(5 * time.Second)
+
+	// Get the karpenter pods and delete them to restart the containers
+	env.ExpectKarpenterPodsDeletedWithOffset(1)
+	env.EventuallyExpectKarpenterPodsHealthyWithOffset(1)
 }
 
 func (env *Environment) ExpectFound(obj client.Object) {
@@ -133,25 +138,38 @@ func (env *Environment) EventuallyExpectHealthy(pods ...*v1.Pod) {
 	}
 }
 
-func (env *Environment) EventuallyExpectKarpenterWithEnvVar(envVar v1.EnvVar) {
-	EventuallyWithOffset(1, func(g Gomega) {
-		labelMap := map[string]string{"app.kubernetes.io/instance": "karpenter"}
-		listOptions := metav1.ListOptions{LabelSelector: labels.SelectorFromSet(labelMap).String()}
-		podList, err := env.KubeClient.CoreV1().Pods("karpenter").List(env.Context, listOptions)
-		g.Expect(err).ToNot(HaveOccurred())
-		// we need all of the karpenter pods to have the new environment variable so that we don't return early
-		// while some pods are still terminating
-		for i := range podList.Items {
-			g.Expect(podList.Items[i].Spec.Containers[0].Env).To(ContainElement(And(
-				HaveField("Name", Equal(envVar.Name)),
-				HaveField("Value", Equal(envVar.Value)),
-			)))
-			g.Expect(podList.Items[i].Status.Conditions).To(ContainElement(And(
+func (env *Environment) ExpectKarpenterPodsWithOffset(offset int) []*v1.Pod {
+	podList := &v1.PodList{}
+	ExpectWithOffset(offset+1, env.Client.List(env.Context, podList, client.MatchingLabels{
+		"app.kubernetes.io/instance": "karpenter",
+	})).To(Succeed())
+	return lo.Map(podList.Items, func(p v1.Pod, _ int) *v1.Pod { return &p })
+}
+
+func (env *Environment) ExpectKarpenterPodsDeletedWithOffset(offset int) {
+	pods := env.ExpectKarpenterPodsWithOffset(offset + 1)
+	env.ExpectDeletedWithOffset(offset+1, lo.Map(pods, func(p *v1.Pod, _ int) client.Object {
+		return p
+	})...)
+	env.EventuallyExpectNotFoundWithOffset(1, lo.Map(pods, func(p *v1.Pod, _ int) client.Object {
+		return p
+	})...)
+}
+
+func (env *Environment) EventuallyExpectKarpenterPodsHealthyWithOffset(offset int) {
+	EventuallyWithOffset(offset+1, func(g Gomega) {
+		pods := env.ExpectKarpenterPodsWithOffset(offset + 1)
+		for _, pod := range pods {
+			g.Expect(pod.Status.Conditions).To(ContainElement(And(
 				HaveField("Type", Equal(v1.PodReady)),
 				HaveField("Status", Equal(v1.ConditionTrue)),
 			)))
 		}
 	}).Should(Succeed())
+
+	// We add this delay in here since we currently don't have the liveness/readiness probe working on the webhook
+	// which means there's a bit of time after the pods go ready that the webhook isn't actually ready to receive traffic yet
+	time.Sleep(time.Second * 5)
 }
 
 func (env *Environment) EventuallyExpectHealthyPodCount(selector labels.Selector, numPods int) {
@@ -189,7 +207,11 @@ func (env *Environment) eventuallyExpectScaleDown() {
 }
 
 func (env *Environment) EventuallyExpectNotFound(objects ...client.Object) {
-	env.EventuallyExpectNotFoundAssertionWithOffset(1, objects...).Should(Succeed())
+	env.EventuallyExpectNotFoundWithOffset(1, objects...)
+}
+
+func (env *Environment) EventuallyExpectNotFoundWithOffset(offset int, objects ...client.Object) {
+	env.EventuallyExpectNotFoundAssertionWithOffset(offset+1, objects...).Should(Succeed())
 }
 
 func (env *Environment) EventuallyExpectNotFoundAssertion(objects ...client.Object) AsyncAssertion {
@@ -205,16 +227,32 @@ func (env *Environment) EventuallyExpectNotFoundAssertionWithOffset(offset int, 
 	})
 }
 
-func (env *Environment) ExpectCreatedNodeCount(comparator string, nodeCount int) {
-	ExpectWithOffset(1, env.Monitor.CreatedNodeCount()).To(BeNumerically(comparator, nodeCount),
-		fmt.Sprintf("expected %d created nodes, had %d", nodeCount, env.Monitor.CreatedNodeCount()))
+func (env *Environment) ExpectCreatedNodeCount(comparator string, count int) []*v1.Node {
+	createdNodes := env.Monitor.CreatedNodes()
+	ExpectWithOffset(1, len(createdNodes)).To(BeNumerically(comparator, count),
+		fmt.Sprintf("expected %d created nodes, had %d", count, len(createdNodes)))
+	return createdNodes
 }
 
-func (env *Environment) EventuallyExpectCreatedNodeCount(comparator string, nodeCount int) {
+func (env *Environment) EventuallyExpectCreatedNodeCount(comparator string, count int) []*v1.Node {
+	var createdNodes []*v1.Node
 	EventuallyWithOffset(1, func(g Gomega) {
-		g.Expect(env.Monitor.CreatedNodeCount()).To(BeNumerically(comparator, nodeCount),
-			fmt.Sprintf("expected %d created nodes, had %d", nodeCount, env.Monitor.CreatedNodeCount()))
+		createdNodes = env.Monitor.CreatedNodes()
+		g.Expect(len(createdNodes)).To(BeNumerically(comparator, count),
+			fmt.Sprintf("expected %d created nodes, had %d", count, len(createdNodes)))
 	}).Should(Succeed())
+	return createdNodes
+}
+
+func (env *Environment) EventuallyExpectCreatedMachineCount(comparator string, count int) []*v1alpha5.Machine {
+	machineList := &v1alpha5.MachineList{}
+	EventuallyWithOffset(1, func(g Gomega) {
+		g.Expect(env.Client.List(env.Context, machineList)).To(Succeed())
+		g.Expect(len(machineList.Items)).To(BeNumerically(comparator, count))
+	}).Should(Succeed())
+	return lo.Map(machineList.Items, func(m v1alpha5.Machine, _ int) *v1alpha5.Machine {
+		return &m
+	})
 }
 
 func (env *Environment) GetNode(nodeName string) v1.Node {
@@ -223,33 +261,11 @@ func (env *Environment) GetNode(nodeName string) v1.Node {
 	return node
 }
 
-func (env *Environment) expectNoCrashes() {
-	crashed := false
-	var crashInfo strings.Builder
-	for name, restartCount := range env.Monitor.RestartCount() {
-		if restartCount > 0 {
-			crashed = true
-			env.printControllerLogs(&v1.PodLogOptions{Container: strings.Split(name, "/")[1], Previous: true})
-			if crashInfo.Len() > 0 {
-				fmt.Fprintf(&crashInfo, ", ")
-			}
-			fmt.Fprintf(&crashInfo, "%s restart count = %d", name, restartCount)
-		}
-	}
-
-	// print any events in the karpenter namespace which may indicate liveness probes failing, etc.
-	var events v1.EventList
-	ExpectWithOffset(1, env.Client.List(env.Context, &events)).To(Succeed())
-	for _, ev := range events.Items {
-		if ev.InvolvedObject.Namespace == "karpenter" {
-			if crashInfo.Len() > 0 {
-				fmt.Fprintf(&crashInfo, ", ")
-			}
-			fmt.Fprintf(&crashInfo, "<%s/%s %s %s>", ev.InvolvedObject.Namespace, ev.InvolvedObject.Name, ev.Reason, ev.Message)
-		}
-	}
-
-	ExpectWithOffset(1, crashed).To(BeFalse(), fmt.Sprintf("expected karpenter containers to not crash: %s", crashInfo.String()))
+func (env *Environment) ExpectNoCrashes() {
+	_, crashed := lo.Find(lo.Values(env.Monitor.RestartCount()), func(restartCount int) bool {
+		return restartCount > 0
+	})
+	ExpectWithOffset(1, crashed).To(BeFalse(), "expected karpenter containers to not crash")
 }
 
 var (
@@ -262,20 +278,25 @@ func (env *Environment) printControllerLogs(options *v1.PodLogOptions) {
 		options.SinceTime = lastLogged.DeepCopy()
 		lastLogged = metav1.Now()
 	}
-	lease, err := env.KubeClient.CoordinationV1().Leases("karpenter").Get(env.Context, "karpenter-leader-election", metav1.GetOptions{})
-	Expect(err).ToNot(HaveOccurred())
-	Expect(lease.Spec.HolderIdentity).ToNot(BeNil(), "lease has no holder")
-	nameid := strings.Split(*lease.Spec.HolderIdentity, "_")
-	Expect(nameid).To(HaveLen(2), fmt.Sprintf("invalid lease HolderIdentity, %s", *lease.Spec.HolderIdentity))
-	stream, err := env.KubeClient.CoreV1().Pods("karpenter").GetLogs(nameid[0], options).Stream(env.Context)
-	if err != nil {
-		logging.FromContext(env.Context).Errorf("fetching controller logs: %s", err)
-		return
+	pods := env.ExpectKarpenterPodsWithOffset(1)
+	for _, pod := range pods {
+		temp := options.DeepCopy() // local version of the log options
+
+		fmt.Printf("------- pod/%s -------\n", pod.Name)
+		if pod.Status.ContainerStatuses[0].RestartCount > 0 {
+			fmt.Printf("[PREVIOUS CONTAINER LOGS]\n")
+			temp.Previous = true
+		}
+		stream, err := env.KubeClient.CoreV1().Pods("karpenter").GetLogs(pod.Name, temp).Stream(env.Context)
+		if err != nil {
+			logging.FromContext(env.Context).Errorf("fetching controller logs: %s", err)
+			return
+		}
+		log := &bytes.Buffer{}
+		_, err = io.Copy(log, stream)
+		Expect(err).ToNot(HaveOccurred())
+		logging.FromContext(env.Context).Info(log)
 	}
-	log := &bytes.Buffer{}
-	_, err = io.Copy(log, stream)
-	Expect(err).ToNot(HaveOccurred())
-	logging.FromContext(env.Context).Info(log)
 }
 
 func (env *Environment) EventuallyExpectMinUtilization(resource v1.ResourceName, comparator string, value float64) {

@@ -45,7 +45,6 @@ func (env *Environment) Cleanup(opts ...common.Option) {
 		fmt.Println("------- START AWS CLEANUP -------")
 		defer fmt.Println("------- END AWS CLEANUP -------")
 	}
-	env.ExpectCreatedOrUpdated(persistedSettings)
 	env.Environment.CleanupObjects(CleanableObjects)
 	env.Environment.Cleanup(opts...)
 }
@@ -56,4 +55,6 @@ func (env *Environment) ForceCleanup(opts ...common.Option) {
 
 func (env *Environment) AfterEach(opts ...common.Option) {
 	env.Environment.AfterEach(opts...)
+	// Ensure we reset settings after collecting the controller logs
+	env.ExpectSettingsOverridden(persistedSettings.Data)
 }

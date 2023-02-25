@@ -48,8 +48,20 @@ const (
 	MIMEContentTypeHeaderTemplate = "Content-Type: multipart/mixed; boundary=\"%s\""
 )
 
-//nolint:gocyclo
 func (e EKS) Script() (string, error) {
+	bootstrapScript := e.eksBootstrapScript()
+	customUserData := lo.FromPtr(e.CustomUserData)
+	userData, err := e.mergeCustomUserData(customUserData, bootstrapScript)
+	if err != nil {
+		return "", err
+	}
+	// The mime/multipart package adds carriage returns, while the rest of our logic does not. Remove all
+	// carriage returns for consistency.
+	return base64.StdEncoding.EncodeToString([]byte(strings.ReplaceAll(userData, "\r", ""))), nil
+}
+
+//nolint:gocyclo
+func (e EKS) eksBootstrapScript() string {
 	var caBundleArg string
 	if e.CABundle != nil {
 		caBundleArg = fmt.Sprintf("--b64-cluster-ca '%s'", *e.CABundle)
@@ -88,6 +100,14 @@ func (e EKS) Script() (string, error) {
 		if e.KubeletConfig.EvictionMaxPodGracePeriod != nil {
 			kubeletExtraArgs.WriteString(fmt.Sprintf(" --eviction-max-pod-grace-period=%d", ptr.Int32Value(e.KubeletConfig.EvictionMaxPodGracePeriod)))
 		}
+
+		if e.KubeletConfig.ImageGCHighThresholdPercent != nil {
+			kubeletExtraArgs.WriteString(fmt.Sprintf(" --image-gc-high-threshold=%d", ptr.Int32Value(e.KubeletConfig.ImageGCHighThresholdPercent)))
+		}
+
+		if e.KubeletConfig.ImageGCLowThresholdPercent != nil {
+			kubeletExtraArgs.WriteString(fmt.Sprintf(" --image-gc-low-threshold=%d", ptr.Int32Value(e.KubeletConfig.ImageGCLowThresholdPercent)))
+		}
 	}
 	if e.ContainerRuntime != "" {
 		userData.WriteString(fmt.Sprintf(" \\\n--container-runtime %s", e.ContainerRuntime))
@@ -98,14 +118,7 @@ func (e EKS) Script() (string, error) {
 	if e.KubeletConfig != nil && len(e.KubeletConfig.ClusterDNS) > 0 {
 		userData.WriteString(fmt.Sprintf(" \\\n--dns-cluster-ip '%s'", e.KubeletConfig.ClusterDNS[0]))
 	}
-	userDataMerged, err := e.mergeCustomUserData(&userData)
-	if err != nil {
-		return "", err
-	}
-	// The mime/multipart package adds carriage returns, while the rest of our logic does not. Remove all
-	// carriage returns for consistency.
-	userDataBytes := bytes.Replace(userDataMerged.Bytes(), []byte{13}, []byte{}, -1)
-	return base64.StdEncoding.EncodeToString(userDataBytes), nil
+	return userData.String()
 }
 
 func (e EKS) nodeTaintArg() string {
@@ -149,30 +162,36 @@ func joinParameterArgs[K comparable, V any](name string, m map[K]V, separator st
 	return ""
 }
 
-func (e EKS) mergeCustomUserData(userData *bytes.Buffer) (*bytes.Buffer, error) {
+func (e EKS) mergeCustomUserData(customUserData string, bootstrap string) (string, error) {
 	var outputBuffer bytes.Buffer
 	writer := multipart.NewWriter(&outputBuffer)
 	if err := writer.SetBoundary(Boundary); err != nil {
-		return nil, fmt.Errorf("defining boundary for merged user data %w", err)
+		return "", fmt.Errorf("defining boundary for merged user data %w", err)
 	}
 	outputBuffer.WriteString(MIMEVersionHeader + "\n")
 	outputBuffer.WriteString(fmt.Sprintf(MIMEContentTypeHeaderTemplate, Boundary) + "\n\n")
-	// Step 1 - Copy over customer bootstrapping
-	if err := copyCustomUserDataParts(writer, e.Options.CustomUserData); err != nil {
-		return nil, err
+	// add customUserdata to the multi-part mime, if necessary
+	if customUserData != "" {
+		mimedCustomUserData, err := e.mimeify(customUserData)
+		if err != nil {
+			return "", err
+		}
+		if err := copyCustomUserDataParts(writer, mimedCustomUserData); err != nil {
+			return "", err
+		}
 	}
-	// Step 2 - Add Karpenter's bootstrapping logic
-	shellScriptContentHeader := textproto.MIMEHeader{"Content-Type": []string{"text/x-shellscript; charset=\"us-ascii\""}}
-	partWriter, err := writer.CreatePart(shellScriptContentHeader)
+	// Add Karpenter's bootstrapping logic to the final user-data part
+	partWriter, err := writer.CreatePart(textproto.MIMEHeader{
+		"Content-Type": []string{"text/x-shellscript; charset=\"us-ascii\""}})
 	if err != nil {
-		return nil, fmt.Errorf("unable to add Karpenter managed user data %w", err)
+		return "", fmt.Errorf("unable to add Karpenter managed user data %w", err)
 	}
-	_, err = partWriter.Write(userData.Bytes())
+	_, err = partWriter.Write([]byte(bootstrap))
 	if err != nil {
-		return nil, fmt.Errorf("unable to create merged user data content %w", err)
+		return "", fmt.Errorf("unable to create merged user data content %w", err)
 	}
 	writer.Close()
-	return &outputBuffer, nil
+	return outputBuffer.String(), nil
 }
 
 func (e EKS) isIPv6() bool {
@@ -182,12 +201,38 @@ func (e EKS) isIPv6() bool {
 	return net.ParseIP(e.KubeletConfig.ClusterDNS[0]).To4() == nil
 }
 
-func copyCustomUserDataParts(writer *multipart.Writer, customUserData *string) error {
-	if customUserData == nil || *customUserData == "" {
+// mimeify returns userData in a mime format
+// if the userData passed in is already in a mime format, then the input is returned without modification
+func (e EKS) mimeify(customUserData string) (string, error) {
+	if strings.HasPrefix(strings.TrimSpace(customUserData), "MIME-Version:") {
+		return customUserData, nil
+	}
+	var outputBuffer bytes.Buffer
+	writer := multipart.NewWriter(&outputBuffer)
+	outputBuffer.WriteString(MIMEVersionHeader + "\n")
+	outputBuffer.WriteString(fmt.Sprintf(MIMEContentTypeHeaderTemplate, writer.Boundary()) + "\n\n")
+	partWriter, err := writer.CreatePart(textproto.MIMEHeader{
+		"Content-Type": []string{`text/x-shellscript; charset="us-ascii"`},
+	})
+	if err != nil {
+		return "", fmt.Errorf("creating multi-part section from custom user-data: %w", err)
+	}
+	_, err = partWriter.Write([]byte(customUserData))
+	if err != nil {
+		return "", fmt.Errorf("writing custom user-data input: %w", err)
+	}
+	writer.Close()
+	return outputBuffer.String(), nil
+}
+
+// copyCustomUserDataParts reads the mime parts in the userData passed in and writes
+// to a new mime part in the passed in writer.
+func copyCustomUserDataParts(writer *multipart.Writer, customUserData string) error {
+	if customUserData == "" {
 		// No custom user data specified, so nothing to copy over.
 		return nil
 	}
-	reader, err := getMultiPartReader(*customUserData)
+	reader, err := getMultiPartReader(customUserData)
 	if err != nil {
 		return fmt.Errorf("parsing custom user data input %w", err)
 	}

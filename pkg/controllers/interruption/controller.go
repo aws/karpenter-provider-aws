@@ -21,6 +21,7 @@ import (
 	"time"
 
 	sqsapi "github.com/aws/aws-sdk-go/service/sqs"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
@@ -32,13 +33,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
-	"github.com/aws/karpenter/pkg/apis/config/settings"
+	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cache"
 	interruptionevents "github.com/aws/karpenter/pkg/controllers/interruption/events"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages/statechange"
-	"github.com/aws/karpenter/pkg/errors"
 	"github.com/aws/karpenter/pkg/utils"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
@@ -82,9 +82,6 @@ func NewController(kubeClient client.Client, clk clock.Clock, recorder events.Re
 }
 
 func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconcile.Result, error) {
-	if settings.FromContext(ctx).InterruptionQueueName == "" {
-		return reconcile.Result{RequeueAfter: time.Second * 10}, nil
-	}
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("queue", settings.FromContext(ctx).InterruptionQueueName))
 	if c.cm.HasChanged(settings.FromContext(ctx).InterruptionQueueName, nil) {
 		logging.FromContext(ctx).Debugf("watching interruption queue")
@@ -203,14 +200,14 @@ func (c *Controller) handleNode(ctx context.Context, msg messages.Message, node 
 // deleteNode removes the node from the api-server
 func (c *Controller) deleteNode(ctx context.Context, node *v1.Node) error {
 	if err := c.kubeClient.Delete(ctx, node); err != nil {
-		if errors.IsNotFound(err) {
-			return nil
-		}
-		return fmt.Errorf("deleting the node on interruption message, %w", err)
+		return client.IgnoreNotFound(fmt.Errorf("deleting the node on interruption message, %w", err))
 	}
 	logging.FromContext(ctx).Infof("deleted node from interruption message")
 	c.recorder.Publish(interruptionevents.NodeTerminatingOnInterruption(node))
-	metrics.NodesTerminatedCounter.WithLabelValues(terminationReasonLabel).Inc()
+	metrics.NodesTerminatedCounter.With(prometheus.Labels{
+		metrics.ReasonLabel:      terminationReasonLabel,
+		metrics.ProvisionerLabel: node.Labels[v1alpha5.ProvisionerNameLabelKey],
+	}).Inc()
 	return nil
 }
 

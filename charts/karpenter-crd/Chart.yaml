@@ -1,9 +1,9 @@
 apiVersion: v2
 name: karpenter-crd
-description: A Helm chart for Karpenter CRDs and other manifests
+description: A Helm chart for Karpenter Custom Resource Definitions (CRDs)
 type: application
-version: 0.20.0
-appVersion: 0.20.0
+version: 0.25.0
+appVersion: 0.25.0
 keywords:
   - cluster
   - node
@@ -14,4 +14,3 @@ home: https://karpenter.sh/
 icon: https://repository-images.githubusercontent.com/278480393/dab059c8-caa1-4b55-aaa7-3d30e47a5616
 sources:
   - https://github.com/aws/karpenter/
-

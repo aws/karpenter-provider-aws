@@ -25,8 +25,9 @@ const (
 	gitSHAMaxLength = 7
 	noPrNumber      = "none"
 
-	pipelineSuite = "suite"
-	pipelineIPv6  = "ipv6"
+	pipelineSuite   = "suite"
+	pipelineIPv6    = "ipv6"
+	pipelineUpgrade = "upgrade"
 )
 
 var (
@@ -43,6 +44,7 @@ var (
 		pipelineIPv6: {
 			"IPv6",
 		},
+		pipelineUpgrade: {},
 	}
 )
 
@@ -76,6 +78,10 @@ func tknArgs(message *notificationMessage, pipelineName, testFilter string) []st
 		prefixSecondPart = fmt.Sprintf("pr-%s", message.PrNumber)
 		gitRef = fmt.Sprintf("pull/%s/head:tempbranch", message.PrNumber)
 	}
+
+	if message.ReleaseType == releaseTypePeriodic {
+		prefixSecondPart = releaseTypePeriodic
+	}
 	prefixName := fmt.Sprintf("%s-%s", prefixFirstPart, prefixSecondPart)
 
 	args := []string{
@@ -88,20 +94,28 @@ func tknArgs(message *notificationMessage, pipelineName, testFilter string) []st
 		"--prefix-name=" + prefixName,
 	}
 
-	testRunParams := []string{
+	pipelineParams := []string{
 		"kubernetes-version=" + "1.23",
 		"git-repo-url=" + "https://github.com/aws/karpenter",
-		"git-ref=" + gitRef,
-		"test-filter=" + testFilter,
 		"cleanup=true",
 	}
 
-	switch pipelineName {
-	case "ipv6":
-		testRunParams = append(testRunParams, "ip-family=IPv6")
+	if testFilter != "" {
+		pipelineParams = append(pipelineParams, "test-filter="+testFilter)
 	}
 
-	for _, param := range testRunParams {
+	switch pipelineName {
+	case pipelineSuite:
+		pipelineParams = append(pipelineParams, "git-ref="+gitRef)
+	case pipelineIPv6:
+		pipelineParams = append(pipelineParams, "ip-family=IPv6")
+		pipelineParams = append(pipelineParams, "git-ref="+gitRef)
+	case pipelineUpgrade:
+		pipelineParams = append(pipelineParams, "from-git-ref="+message.lastStableReleaseTagOrDefault())
+		pipelineParams = append(pipelineParams, "to-git-ref="+message.ReleaseIdentifier)
+	}
+
+	for _, param := range pipelineParams {
 		args = append(args, "--param")
 		args = append(args, param)
 	}

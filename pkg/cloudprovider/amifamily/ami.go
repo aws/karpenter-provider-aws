@@ -171,7 +171,7 @@ func (p *AMIProvider) selectAMIs(ctx context.Context, amiSelector map[string]str
 }
 
 func (p *AMIProvider) fetchAMIsFromEC2(ctx context.Context, amiSelector map[string]string) ([]*ec2.Image, error) {
-	filters := getFilters(amiSelector)
+	filters, owners := getFiltersAndOwners(amiSelector)
 	hash, err := hashstructure.Hash(filters, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	if err != nil {
 		return nil, err
@@ -179,8 +179,9 @@ func (p *AMIProvider) fetchAMIsFromEC2(ctx context.Context, amiSelector map[stri
 	if amis, ok := p.ec2Cache.Get(fmt.Sprint(hash)); ok {
 		return amis.([]*ec2.Image), nil
 	}
+	describeImagesInput := &ec2.DescribeImagesInput{Filters: filters, Owners: owners}
 	// This API is not paginated, so a single call suffices.
-	output, err := p.ec2api.DescribeImagesWithContext(ctx, &ec2.DescribeImagesInput{Filters: filters})
+	output, err := p.ec2api.DescribeImagesWithContext(ctx, describeImagesInput)
 	if err != nil {
 		return nil, fmt.Errorf("describing images %+v, %w", filters, err)
 	}
@@ -193,23 +194,39 @@ func (p *AMIProvider) fetchAMIsFromEC2(ctx context.Context, amiSelector map[stri
 	return output.Images, nil
 }
 
-func getFilters(amiSelector map[string]string) []*ec2.Filter {
+func getFiltersAndOwners(amiSelector map[string]string) ([]*ec2.Filter, []*string) {
 	filters := []*ec2.Filter{}
+	var owners []*string
+	imagesSet := false
 	for key, value := range amiSelector {
-		if key == "aws-ids" {
+		switch key {
+		case "aws-ids", "aws::ids":
 			filterValues := functional.SplitCommaSeparatedString(value)
 			filters = append(filters, &ec2.Filter{
 				Name:   aws.String("image-id"),
 				Values: aws.StringSlice(filterValues),
 			})
-		} else {
+			imagesSet = true
+		case "aws::owners":
+			ownerValues := functional.SplitCommaSeparatedString(value)
+			owners = aws.StringSlice(ownerValues)
+		case "aws::name":
+			filters = append(filters, &ec2.Filter{
+				Name:   aws.String("name"),
+				Values: []*string{aws.String(value)},
+			})
+		default:
 			filters = append(filters, &ec2.Filter{
 				Name:   aws.String(fmt.Sprintf("tag:%s", key)),
 				Values: []*string{aws.String(value)},
 			})
 		}
 	}
-	return filters
+	if owners == nil && !imagesSet {
+		owners = []*string{aws.String("self"), aws.String("amazon")}
+	}
+
+	return filters, owners
 }
 
 func sortAMIsByCreationDate(amiRequirements map[AMI]scheduling.Requirements) []AMI {

@@ -15,22 +15,32 @@ limitations under the License.
 package listener
 
 import (
+	"fmt"
 	"log"
 	"os"
+
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/sts"
 )
 
 const (
-	envVarQueueURL          = "QUEUE_URL"
+	envVarAWSAccountID      = "AWS_ACCOUNT_ID"
+	envVarQueueName         = "QUEUE_NAME"
 	envVarQueueAWSRegion    = "QUEUE_AWS_REGION"
 	envVarAWSRegion         = "AWS_REGION"
 	envVarTektonClusterName = "CLUSTER_NAME"
+	envGithubAccount        = "GITHUB_ACCOUNT"
 )
 
 type config struct {
+	accountID         string
 	queueURL          string
+	queueName         string
 	queueRegion       string
 	region            string
 	tektonClusterName string
+	githubAccount     string
 }
 
 // Start configures clients and starts listening for messages containing release notifications
@@ -43,10 +53,24 @@ func Start() {
 }
 
 func getConfig() *config {
-	return &config{
-		queueURL:          os.Getenv(envVarQueueURL),
+	cfg := &config{
+		accountID:         os.Getenv(envVarAWSAccountID),
+		queueName:         os.Getenv(envVarQueueName),
 		queueRegion:       os.Getenv(envVarQueueAWSRegion),
 		region:            os.Getenv(envVarAWSRegion),
 		tektonClusterName: os.Getenv(envVarTektonClusterName),
+		githubAccount:     os.Getenv(envGithubAccount),
 	}
+	if cfg.accountID == "" {
+		stsSvc := sts.New(session.Must(session.NewSessionWithOptions(
+			session.Options{Config: aws.Config{Region: aws.String(cfg.region)}},
+		)))
+		callerID, err := stsSvc.GetCallerIdentity(&sts.GetCallerIdentityInput{})
+		if err != nil {
+			log.Fatalf("unable to lookup AWS Account ID: %v", err)
+		}
+		cfg.accountID = *callerID.Account
+	}
+	cfg.queueURL = fmt.Sprintf("https://sqs.%s.amazonaws.com/%s/ReleaseQueue", cfg.queueRegion, cfg.accountID)
+	return cfg
 }

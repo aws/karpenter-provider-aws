@@ -43,6 +43,7 @@ var _ = Describe("Validation", func() {
 		ant = &AWSNodeTemplate{
 			ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName())},
 			Spec:       AWSNodeTemplateSpec{},
+			Status:     AWSNodeTemplateStatus{},
 		}
 	})
 

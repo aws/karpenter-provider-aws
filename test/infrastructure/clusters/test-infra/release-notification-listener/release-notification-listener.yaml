@@ -63,11 +63,13 @@ spec:
         - name: release-notification-listener
           image: public.ecr.aws/karpenter/release-notification-listener:latest
           env:
-            - name: QUEUE_URL
-              value: "https://sqs.us-east-1.amazonaws.com/958073914028/ReleaseQueue"
+            - name: QUEUE_NAME
+              value: "ReleaseQueue"
             - name: QUEUE_AWS_REGION
               value: "us-east-1"
             - name: AWS_REGION
               value: "us-east-2"
             - name: CLUSTER_NAME
               value: "KITInfrastructure"
+            - name: GITHUB_ACCOUNT
+              value: "aws"
