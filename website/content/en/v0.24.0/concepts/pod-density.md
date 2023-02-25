@@ -30,13 +30,13 @@ When using small instance types, it may be necessary to enable [prefix assignmen
 
 Static pod density can be configured at the provisioner level by specifying `maxPods` within the `.spec.kubeletConfiguration`. All nodes spawned by this provisioner will set this `maxPods` value on their kubelet and will account for this value during scheduling.
 
-See [Provisioner API Kubelet Configuration](./provisioners/#max-pods) for more details.
+See [Provisioner API Kubelet Configuration](../provisioners/#max-pods) for more details.
 
 #### Dynamic Pod Density
 
 Dynamic pod density (density that scales with the instance size) can be configured at the provisioner level by specifying `podsPerCore` within the `.spec.kubeletConfiguration`. Karpenter will calculate the expected pod density for each instance based on the instance's number of logical cores (vCPUs) and will account for this during scheduling.
 
-See [Provisioner API Kubelet Configuration](../../provisioner/#pods-per-core) for more details.
+See [Provisioner API Kubelet Configuration](../provisioners/#pod-density) for more details.
 
 ### Controller-Wide Pod Density
 
