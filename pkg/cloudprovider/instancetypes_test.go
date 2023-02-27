@@ -15,6 +15,7 @@ limitations under the License.
 package cloudprovider
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"sort"
@@ -1100,11 +1101,12 @@ func generateSpotPricing(cp *CloudProvider, prov *v1alpha5.Provisioner) *ec2.Des
 
 func makeFakeInstances() []*ec2.InstanceTypeInfo {
 	var instanceTypes []*ec2.InstanceTypeInfo
+	ctx := settings.ToContext(context.Background(), &settings.Settings{IsolatedVPC: true})
 	// Use keys from the static pricing data so that we guarantee pricing for the data
 	// Create uniform instance data so all of them schedule for a given pod
-	for k := range pricing.InitialOnDemandPrices["us-east-1"] {
+	for _, it := range pricing.NewProvider(ctx, nil, nil, "us-east-1", nil).InstanceTypes() {
 		instanceTypes = append(instanceTypes, &ec2.InstanceTypeInfo{
-			InstanceType: aws.String(k),
+			InstanceType: aws.String(it),
 			ProcessorInfo: &ec2.ProcessorInfo{
 				SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
 			},
