@@ -87,7 +87,7 @@ func NewOrDie(ctx cloudprovider.Context) Context {
 		logging.FromContext(ctx).Fatalf("Checking EC2 API connectivity, %s", err)
 	}
 	logging.FromContext(ctx).With("region", *sess.Config.Region).Debugf("discovered region")
-	clusterEndpoint, err := resolveClusterEndpoint(ctx, eks.New(sess))
+	clusterEndpoint, err := ResolveClusterEndpoint(ctx, eks.New(sess))
 	if err != nil {
 		logging.FromContext(ctx).Fatalf("unable to detect the cluster endpoint, %s", err)
 	} else {
@@ -159,7 +159,7 @@ func checkEC2Connectivity(ctx context.Context, api *ec2.EC2) error {
 	return err
 }
 
-func resolveClusterEndpoint(ctx context.Context, eksAPI eksiface.EKSAPI) (string, error) {
+func ResolveClusterEndpoint(ctx context.Context, eksAPI eksiface.EKSAPI) (string, error) {
 	clusterEndpointFromSettings := settings.FromContext(ctx).ClusterEndpoint
 	if clusterEndpointFromSettings != "" {
 		return clusterEndpointFromSettings, nil // cluster endpoint is explicitly set
