@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"strings"
 
+	awscache "github.com/aws/karpenter/pkg/cache"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -28,7 +29,9 @@ import (
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/providers/instancetypes"
 	"github.com/aws/karpenter/pkg/utils"
+	"github.com/patrickmn/go-cache"
 
 	"github.com/aws/karpenter-core/pkg/scheduling"
 	"github.com/aws/karpenter-core/pkg/utils/resources"
@@ -63,14 +66,20 @@ func init() {
 var _ cloudprovider.CloudProvider = (*CloudProvider)(nil)
 
 type CloudProvider struct {
-	instanceTypeProvider *InstanceTypeProvider
+	instanceTypeProvider *instancetypes.Provider
 	instanceProvider     *InstanceProvider
 	kubeClient           client.Client
 	amiProvider          *amifamily.AMIProvider
 }
 
 func New(ctx awscontext.Context) *CloudProvider {
-	instanceTypeProvider := NewInstanceTypeProvider(ctx.Session, ctx.EC2API, ctx.SubnetProvider, ctx.UnavailableOfferingsCache, ctx.PricingProvider)
+	instanceTypeProvider := instancetypes.NewProvider(
+		ctx.Session,
+		cache.New(awscache.InstanceTypesAndZonesTTL, awscache.DefaultCleanupInterval),
+		ctx.EC2API,
+		ctx.SubnetProvider,
+		ctx.UnavailableOfferingsCache,
+		ctx.PricingProvider)
 	return &CloudProvider{
 		kubeClient:           ctx.KubeClient,
 		instanceTypeProvider: instanceTypeProvider,

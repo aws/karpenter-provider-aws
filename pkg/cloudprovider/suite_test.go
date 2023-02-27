@@ -31,6 +31,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/awstesting/mock"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	clock "k8s.io/utils/clock/testing"
@@ -65,8 +66,8 @@ import (
 	"github.com/aws/karpenter-core/pkg/operator/options"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	coretest "github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter-core/pkg/utils/pretty"
 
+	"github.com/aws/karpenter/pkg/providers/instancetypes"
 	"github.com/aws/karpenter/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter/pkg/providers/pricing"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
@@ -83,7 +84,7 @@ var ec2Cache *cache.Cache
 var kubernetesVersionCache *cache.Cache
 var unavailableOfferingsCache *awscache.UnavailableOfferings
 var instanceTypeCache *cache.Cache
-var instanceTypeProvider *InstanceTypeProvider
+var instanceTypeProvider *instancetypes.Provider
 var launchTemplateProvider *launchtemplate.Provider
 var amiProvider *amifamily.AMIProvider
 var fakeEC2API *fake.EC2API
@@ -126,14 +127,14 @@ var _ = BeforeSuite(func() {
 	pricingProvider = pricing.NewProvider(ctx, fakePricingAPI, fakeEC2API, "", make(chan struct{}))
 	amiProvider = amifamily.NewAMIProvider(env.Client, env.KubernetesInterface, fakeSSMAPI, fakeEC2API, ssmCache, ec2Cache, kubernetesVersionCache)
 	subnetProvider = subnet.NewProvider(fakeEC2API)
-	instanceTypeProvider = &InstanceTypeProvider{
-		ec2api:               fakeEC2API,
-		subnetProvider:       subnetProvider,
-		cache:                instanceTypeCache,
-		pricingProvider:      pricingProvider,
-		unavailableOfferings: unavailableOfferingsCache,
-		cm:                   pretty.NewChangeMonitor(),
-	}
+	instanceTypeProvider = instancetypes.NewProvider(
+		mock.Session,
+		instanceTypeCache,
+		fakeEC2API,
+		subnetProvider,
+		unavailableOfferingsCache,
+		pricingProvider,
+	)
 	securityGroupProvider = securitygroup.NewProvider(fakeEC2API)
 	launchTemplateProvider = launchtemplate.NewProvider(
 		ctx,
@@ -213,14 +214,14 @@ var _ = BeforeEach(func() {
 	launchTemplateProvider.ClusterEndpoint = "https://test-cluster"
 
 	// Reset the pricing provider, so we don't cross-pollinate pricing data
-	instanceTypeProvider = &InstanceTypeProvider{
-		ec2api:               fakeEC2API,
-		subnetProvider:       subnetProvider,
-		cache:                instanceTypeCache,
-		pricingProvider:      pricing.NewProvider(ctx, fakePricingAPI, fakeEC2API, "", make(chan struct{})),
-		unavailableOfferings: unavailableOfferingsCache,
-		cm:                   pretty.NewChangeMonitor(),
-	}
+	instanceTypeProvider = instancetypes.NewProvider(
+		mock.Session,
+		instanceTypeCache,
+		fakeEC2API,
+		subnetProvider,
+		unavailableOfferingsCache,
+		pricing.NewProvider(ctx, fakePricingAPI, fakeEC2API, "", make(chan struct{})),
+	)
 })
 
 var _ = AfterEach(func() {

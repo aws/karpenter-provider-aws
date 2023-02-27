@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package cloudprovider
+package instancetypes
 
 import (
 	"context"
@@ -48,7 +48,7 @@ const (
 	InstanceTypeZonesCacheKeyPrefix = "zones:"
 )
 
-type InstanceTypeProvider struct {
+type Provider struct {
 	region          string
 	ec2api          ec2iface.EC2API
 	subnetProvider  *subnet.Provider
@@ -68,21 +68,21 @@ type InstanceTypeProvider struct {
 	instanceTypesSeqNum uint64
 }
 
-func NewInstanceTypeProvider(sess *session.Session, ec2api ec2iface.EC2API, subnetProvider *subnet.Provider,
-	unavailableOfferingsCache *awscache.UnavailableOfferings, pricingProvider *pricing.Provider) *InstanceTypeProvider {
-	return &InstanceTypeProvider{
+func NewProvider(sess *session.Session, cache *cache.Cache, ec2api ec2iface.EC2API, subnetProvider *subnet.Provider,
+	unavailableOfferingsCache *awscache.UnavailableOfferings, pricingProvider *pricing.Provider) *Provider {
+	return &Provider{
 		ec2api:               ec2api,
 		region:               *sess.Config.Region,
 		subnetProvider:       subnetProvider,
 		pricingProvider:      pricingProvider,
-		cache:                cache.New(awscache.InstanceTypesAndZonesTTL, awscache.DefaultCleanupInterval),
+		cache:                cache,
 		unavailableOfferings: unavailableOfferingsCache,
 		cm:                   pretty.NewChangeMonitor(),
 		instanceTypesSeqNum:  0,
 	}
 }
 
-func (p *InstanceTypeProvider) List(ctx context.Context, kc *v1alpha5.KubeletConfiguration, nodeTemplate *v1alpha1.AWSNodeTemplate) ([]*cloudprovider.InstanceType, error) {
+func (p *Provider) List(ctx context.Context, kc *v1alpha5.KubeletConfiguration, nodeTemplate *v1alpha1.AWSNodeTemplate) ([]*cloudprovider.InstanceType, error) {
 	// Get InstanceTypes from EC2
 	instanceTypes, err := p.getInstanceTypes(ctx)
 	if err != nil {
@@ -109,7 +109,7 @@ func (p *InstanceTypeProvider) List(ctx context.Context, kc *v1alpha5.KubeletCon
 	return result, nil
 }
 
-func (p *InstanceTypeProvider) LivenessProbe(req *http.Request) error {
+func (p *Provider) LivenessProbe(req *http.Request) error {
 	if err := p.subnetProvider.LivenessProbe(req); err != nil {
 		return err
 	}
@@ -119,7 +119,7 @@ func (p *InstanceTypeProvider) LivenessProbe(req *http.Request) error {
 	return nil
 }
 
-func (p *InstanceTypeProvider) createOfferings(ctx context.Context, instanceType *ec2.InstanceTypeInfo, zones sets.String) []cloudprovider.Offering {
+func (p *Provider) createOfferings(ctx context.Context, instanceType *ec2.InstanceTypeInfo, zones sets.String) []cloudprovider.Offering {
 	var offerings []cloudprovider.Offering
 	for zone := range zones {
 		// while usage classes should be a distinct set, there's no guarantee of that
@@ -149,7 +149,7 @@ func (p *InstanceTypeProvider) createOfferings(ctx context.Context, instanceType
 	return offerings
 }
 
-func (p *InstanceTypeProvider) getInstanceTypeZones(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) (map[string]sets.String, error) {
+func (p *Provider) getInstanceTypeZones(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) (map[string]sets.String, error) {
 	subnetSelectorHash, err := hashstructure.Hash(nodeTemplate.Spec.SubnetSelector, hashstructure.FormatV2, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to hash the subnet selector: %w", err)
@@ -195,7 +195,7 @@ func (p *InstanceTypeProvider) getInstanceTypeZones(ctx context.Context, nodeTem
 }
 
 // getInstanceTypes retrieves all instance types from the ec2 DescribeInstanceTypes API using some opinionated filters
-func (p *InstanceTypeProvider) getInstanceTypes(ctx context.Context) ([]*ec2.InstanceTypeInfo, error) {
+func (p *Provider) getInstanceTypes(ctx context.Context) ([]*ec2.InstanceTypeInfo, error) {
 	// DO NOT REMOVE THIS LOCK ----------------------------------------------------------------------------
 	// We lock here so that multiple callers to GetInstanceTypes do not result in cache misses and multiple
 	// calls to EC2 when we could have just made one call. This lock is here because multiple callers to EC2 result

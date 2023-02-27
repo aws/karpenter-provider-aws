@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package cloudprovider
+package instancetypes
 
 // GENERATED FILE. DO NOT EDIT DIRECTLY.
 // Update hack/code/bandwidth_gen.go and re-generate to edit
