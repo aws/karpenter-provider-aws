@@ -38,6 +38,7 @@ import (
 	"github.com/aws/karpenter/pkg/batcher"
 	"github.com/aws/karpenter/pkg/cache"
 	awserrors "github.com/aws/karpenter/pkg/errors"
+	"github.com/aws/karpenter/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter/pkg/providers/subnet"
 	"github.com/aws/karpenter/pkg/utils"
 
@@ -63,11 +64,11 @@ type InstanceProvider struct {
 	unavailableOfferings   *cache.UnavailableOfferings
 	instanceTypeProvider   *InstanceTypeProvider
 	subnetProvider         *subnet.Provider
-	launchTemplateProvider *LaunchTemplateProvider
+	launchTemplateProvider *launchtemplate.Provider
 	ec2Batcher             *batcher.EC2API
 }
 
-func NewInstanceProvider(ctx context.Context, region string, ec2api ec2iface.EC2API, unavailableOfferings *cache.UnavailableOfferings, instanceTypeProvider *InstanceTypeProvider, subnetProvider *subnet.Provider, launchTemplateProvider *LaunchTemplateProvider) *InstanceProvider {
+func NewInstanceProvider(ctx context.Context, region string, ec2api ec2iface.EC2API, unavailableOfferings *cache.UnavailableOfferings, instanceTypeProvider *InstanceTypeProvider, subnetProvider *subnet.Provider, launchTemplateProvider *launchtemplate.Provider) *InstanceProvider {
 	return &InstanceProvider{
 		region:                 region,
 		ec2api:                 ec2api,
