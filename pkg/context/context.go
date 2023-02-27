@@ -45,6 +45,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/settings"
 	awscache "github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
+	"github.com/aws/karpenter/pkg/providers/instancetypes"
 	"github.com/aws/karpenter/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter/pkg/providers/pricing"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
@@ -67,6 +68,7 @@ type Context struct {
 	AMIResolver               *amifamily.Resolver
 	LaunchTemplateProvider    *launchtemplate.Provider
 	PricingProvider           *pricing.Provider
+	InstanceTypeProvider      *instancetypes.Provider
 }
 
 func NewOrDie(ctx cloudprovider.Context) Context {
@@ -103,6 +105,7 @@ func NewOrDie(ctx cloudprovider.Context) Context {
 		logging.FromContext(ctx).With("kube-dns-ip", kubeDNSIP).Debugf("discovered kube dns")
 	}
 
+	unavailableOfferingsCache := awscache.NewUnavailableOfferings()
 	subnetProvider := subnet.NewProvider(ec2api)
 	securityGroupProvider := securitygroup.NewProvider(ec2api)
 	pricingProvider := pricing.NewProvider(
@@ -112,6 +115,7 @@ func NewOrDie(ctx cloudprovider.Context) Context {
 		*sess.Config.Region,
 		ctx.StartAsync,
 	)
+
 	amiProvider := amifamily.NewAMIProvider(ctx.KubeClient, ctx.KubernetesInterface, ssm.New(sess), ec2api,
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
 	amiResolver := amifamily.New(ctx.KubeClient, amiProvider)
@@ -126,11 +130,19 @@ func NewOrDie(ctx cloudprovider.Context) Context {
 		kubeDNSIP,
 		clusterEndpoint,
 	)
+	instanceTypeProvider := instancetypes.NewProvider(
+		sess,
+		cache.New(awscache.InstanceTypesAndZonesTTL, awscache.DefaultCleanupInterval),
+		ec2api,
+		subnetProvider,
+		unavailableOfferingsCache,
+		pricingProvider,
+	)
 
 	return Context{
 		Context:                   ctx,
 		Session:                   sess,
-		UnavailableOfferingsCache: awscache.NewUnavailableOfferings(),
+		UnavailableOfferingsCache: unavailableOfferingsCache,
 		EC2API:                    ec2api,
 		SubnetProvider:            subnetProvider,
 		SecurityGroupProvider:     securityGroupProvider,
@@ -138,6 +150,7 @@ func NewOrDie(ctx cloudprovider.Context) Context {
 		AMIResolver:               amiResolver,
 		LaunchTemplateProvider:    launchTemplateProvider,
 		PricingProvider:           pricingProvider,
+		InstanceTypeProvider:      instanceTypeProvider,
 	}
 }
 

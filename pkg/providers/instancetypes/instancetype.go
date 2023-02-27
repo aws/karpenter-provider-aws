@@ -40,7 +40,7 @@ import (
 )
 
 const (
-	memoryAvailable = "memory.available"
+	MemoryAvailable = "memory.available"
 )
 
 var (
@@ -57,7 +57,7 @@ func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, kc *v1alph
 		Offerings:    offerings,
 		Capacity:     computeCapacity(ctx, info, amiFamily, nodeTemplate.Spec.BlockDeviceMappings, kc),
 		Overhead: &cloudprovider.InstanceTypeOverhead{
-			KubeReserved:      kubeReservedResources(cpu(info), pods(ctx, info, amiFamily, kc), eniLimitedPods(info), amiFamily, kc),
+			KubeReserved:      kubeReservedResources(cpu(info), pods(ctx, info, amiFamily, kc), EniLimitedPods(info), amiFamily, kc),
 			SystemReserved:    systemReservedResources(kc),
 			EvictionThreshold: evictionThreshold(memory(ctx, info), amiFamily, kc),
 		},
@@ -234,7 +234,7 @@ func habanaGaudis(info *ec2.InstanceTypeInfo) *resource.Quantity {
 // The number of pods per node is calculated using the formula:
 // max number of ENIs * (IPv4 Addresses per ENI -1) + 2
 // https://github.com/awslabs/amazon-eks-ami/blob/master/files/eni-max-pods.txt#L20
-func eniLimitedPods(info *ec2.InstanceTypeInfo) *resource.Quantity {
+func EniLimitedPods(info *ec2.InstanceTypeInfo) *resource.Quantity {
 	return resources.Quantity(fmt.Sprint(*info.NetworkInfo.MaximumNetworkInterfaces*(*info.NetworkInfo.Ipv4AddressesPerInterface-1) + 2))
 }
 
@@ -306,7 +306,7 @@ func evictionThreshold(memory *resource.Quantity, amiFamily amifamily.AMIFamily,
 
 	for _, m := range evictionSignals {
 		temp := v1.ResourceList{}
-		if v, ok := m[memoryAvailable]; ok {
+		if v, ok := m[MemoryAvailable]; ok {
 			if strings.HasSuffix(v, "%") {
 				p := mustParsePercentage(v)
 
@@ -331,7 +331,7 @@ func pods(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily amifamily.A
 	case !awssettings.FromContext(ctx).EnableENILimitedPodDensity:
 		count = 110
 	default:
-		count = eniLimitedPods(info).Value()
+		count = EniLimitedPods(info).Value()
 	}
 	if kc != nil && ptr.Int32Value(kc.PodsPerCore) > 0 && amiFamily.FeatureFlags().PodsPerCoreEnabled {
 		count = lo.Min([]int64{int64(ptr.Int32Value(kc.PodsPerCore)) * ptr.Int64Value(info.VCpuInfo.DefaultVCpus), count})
