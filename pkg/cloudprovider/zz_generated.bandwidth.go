@@ -15,7 +15,7 @@ limitations under the License.
 package cloudprovider
 
 // GENERATED FILE. DO NOT EDIT DIRECTLY.
-// Update hack/code/instancetype_testdata_gen.go and re-generate to edit
+// Update hack/code/bandwidth_gen.go and re-generate to edit
 // You can add instance types by adding to the --instance-types CLI flag
 
 var (

@@ -99,10 +99,10 @@ func NewAPI(sess *session.Session, region string) pricingiface.PricingAPI {
 
 func NewProvider(ctx context.Context, pricing pricingiface.PricingAPI, ec2Api ec2iface.EC2API, region string, startAsync <-chan struct{}) *Provider {
 	// see if we've got region specific pricing data
-	staticPricing, ok := InitialOnDemandPrices[region]
+	staticPricing, ok := initialOnDemandPrices[region]
 	if !ok {
 		// and if not, fall back to the always available us-east-1
-		staticPricing = InitialOnDemandPrices["us-east-1"]
+		staticPricing = initialOnDemandPrices["us-east-1"]
 	}
 
 	p := &Provider{
