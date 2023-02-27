@@ -90,7 +90,7 @@ One for your Karpenter node role and one for your existing node group.
 
 First set the Karpenter release you want to deploy.
 ```bash
-export KARPENTER_VERSION={{< param "latest_release_version" >}}
+export KARPENTER_VERSION=v0.25.0
 ```
 
 We can now generate a full Karpenter deployment yaml from the helm chart.
