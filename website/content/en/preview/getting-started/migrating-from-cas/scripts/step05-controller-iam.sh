@@ -60,11 +60,13 @@ cat << EOF > controller-policy.json
             "Sid": "ConditionalEC2Termination"
         },
         {
+            "Effect": "Allow",
             "Action": "iam:PassRole",
             "Resource": "arn:${AWS_PARTITION}:iam::${AWS_ACCOUNT_ID}:role/KarpenterNodeRole-${CLUSTER_NAME}",
             "Sid": "PassNodeIAMRole"
         },
         {
+            "Effect": "Allow",
             "Action": "eks:DescribeCluster",
             "Resource": "arn:${AWS_PARTITION}:eks:${AWS_REGION}:${AWS_ACCOUNT_ID}:cluster/${CLUSTER_NAME}",
             "Sid": "EKSClusterEndpointLookup"
