@@ -44,7 +44,7 @@ import (
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
 )
 
-type AMIProvider struct {
+type Provider struct {
 	ssmCache               *cache.Cache
 	ec2Cache               *cache.Cache
 	kubernetesVersionCache *cache.Cache
@@ -64,9 +64,9 @@ const (
 	kubernetesVersionCacheKey = "kubernetesVersion"
 )
 
-func NewAMIProvider(kubeClient client.Client, kubernetesInterface kubernetes.Interface, ssm ssmiface.SSMAPI, ec2api ec2iface.EC2API,
-	ssmCache, ec2Cache, kubernetesVersionCache *cache.Cache) *AMIProvider {
-	return &AMIProvider{
+func NewProvider(kubeClient client.Client, kubernetesInterface kubernetes.Interface, ssm ssmiface.SSMAPI, ec2api ec2iface.EC2API,
+	ssmCache, ec2Cache, kubernetesVersionCache *cache.Cache) *Provider {
+	return &Provider{
 		ssmCache:               ssmCache,
 		ec2Cache:               ec2Cache,
 		kubernetesVersionCache: kubernetesVersionCache,
@@ -78,7 +78,7 @@ func NewAMIProvider(kubeClient client.Client, kubernetesInterface kubernetes.Int
 	}
 }
 
-func (p *AMIProvider) KubeServerVersion(ctx context.Context) (string, error) {
+func (p *Provider) KubeServerVersion(ctx context.Context) (string, error) {
 	if version, ok := p.kubernetesVersionCache.Get(kubernetesVersionCacheKey); ok {
 		return version.(string), nil
 	}
@@ -96,7 +96,7 @@ func (p *AMIProvider) KubeServerVersion(ctx context.Context) (string, error) {
 
 // Get returns a set of AMIIDs and corresponding instance types. AMI may vary due to architecture, accelerator, etc
 // If AMI overrides are specified in the AWSNodeTemplate, then only those AMIs will be chosen.
-func (p *AMIProvider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, instanceTypes []*cloudprovider.InstanceType, amiFamily AMIFamily) (map[string][]*cloudprovider.InstanceType, error) {
+func (p *Provider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, instanceTypes []*cloudprovider.InstanceType, amiFamily AMIFamily) (map[string][]*cloudprovider.InstanceType, error) {
 	kubernetesVersion, err := p.KubeServerVersion(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("getting kubernetes version %w", err)
@@ -132,7 +132,7 @@ func (p *AMIProvider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTem
 	return amiIDs, nil
 }
 
-func (p *AMIProvider) getDefaultAMIFromSSM(ctx context.Context, ssmQuery string) (string, error) {
+func (p *Provider) getDefaultAMIFromSSM(ctx context.Context, ssmQuery string) (string, error) {
 	if id, ok := p.ssmCache.Get(ssmQuery); ok {
 		return id.(string), nil
 	}
@@ -148,14 +148,14 @@ func (p *AMIProvider) getDefaultAMIFromSSM(ctx context.Context, ssmQuery string)
 	return ami, nil
 }
 
-func (p *AMIProvider) getAMIRequirements(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) (map[AMI]scheduling.Requirements, error) {
+func (p *Provider) getAMIRequirements(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) (map[AMI]scheduling.Requirements, error) {
 	if len(nodeTemplate.Spec.AMISelector) == 0 {
 		return map[AMI]scheduling.Requirements{}, nil
 	}
 	return p.selectAMIs(ctx, nodeTemplate.Spec.AMISelector)
 }
 
-func (p *AMIProvider) selectAMIs(ctx context.Context, amiSelector map[string]string) (map[AMI]scheduling.Requirements, error) {
+func (p *Provider) selectAMIs(ctx context.Context, amiSelector map[string]string) (map[AMI]scheduling.Requirements, error) {
 	ec2AMIs, err := p.fetchAMIsFromEC2(ctx, amiSelector)
 	if err != nil {
 		return nil, err
@@ -170,7 +170,7 @@ func (p *AMIProvider) selectAMIs(ctx context.Context, amiSelector map[string]str
 	return amiIDs, nil
 }
 
-func (p *AMIProvider) fetchAMIsFromEC2(ctx context.Context, amiSelector map[string]string) ([]*ec2.Image, error) {
+func (p *Provider) fetchAMIsFromEC2(ctx context.Context, amiSelector map[string]string) ([]*ec2.Image, error) {
 	filters, owners := getFiltersAndOwners(amiSelector)
 	hash, err := hashstructure.Hash(filters, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	if err != nil {
@@ -240,7 +240,7 @@ func sortAMIsByCreationDate(amiRequirements map[AMI]scheduling.Requirements) []A
 	return amis
 }
 
-func (p *AMIProvider) getRequirementsFromImage(ec2Image *ec2.Image) scheduling.Requirements {
+func (p *Provider) getRequirementsFromImage(ec2Image *ec2.Image) scheduling.Requirements {
 	requirements := scheduling.NewRequirements()
 	for _, tag := range ec2Image.Tags {
 		if v1alpha5.WellKnownLabels.Has(*tag.Key) {

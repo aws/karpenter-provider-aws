@@ -25,7 +25,7 @@ import (
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/utils/resources"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/cloudprovider/amifamily/bootstrap"
+	"github.com/aws/karpenter/pkg/providers/amifamily/bootstrap"
 )
 
 type AL2 struct {

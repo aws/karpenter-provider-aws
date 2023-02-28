@@ -42,8 +42,8 @@ import (
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
 	awscontext "github.com/aws/karpenter/pkg/context"
+	"github.com/aws/karpenter/pkg/providers/amifamily"
 
 	coreapis "github.com/aws/karpenter-core/pkg/apis"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
@@ -66,7 +66,7 @@ type CloudProvider struct {
 	instanceTypeProvider *InstanceTypeProvider
 	instanceProvider     *InstanceProvider
 	kubeClient           client.Client
-	amiProvider          *amifamily.AMIProvider
+	amiProvider          *amifamily.Provider
 }
 
 func New(ctx awscontext.Context) *CloudProvider {
