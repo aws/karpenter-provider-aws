@@ -162,6 +162,7 @@ var _ = BeforeSuite(func() {
 		AMIProvider:               amiProvider,
 		AMIResolver:               amiResolver,
 		LaunchTemplateProvider:    launchTemplateProvider,
+		InstanceTypeProvider:      instanceTypeProvider,
 	})
 	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
 	prov = provisioning.NewProvisioner(ctx, env.Client, env.KubernetesInterface.CoreV1(), events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster)

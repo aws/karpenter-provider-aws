@@ -25,6 +25,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -50,6 +51,7 @@ import (
 	awscontext "github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/controllers/machine/link"
 	"github.com/aws/karpenter/pkg/fake"
+	"github.com/aws/karpenter/pkg/providers/instancetypes"
 	"github.com/aws/karpenter/pkg/providers/pricing"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
 	"github.com/aws/karpenter/pkg/providers/subnet"
@@ -62,7 +64,11 @@ var env *coretest.Environment
 var unavailableOfferingsCache *awscache.UnavailableOfferings
 var ec2API *fake.EC2API
 var cloudProvider *cloudprovider.CloudProvider
+var subnetProvider *subnet.Provider
+var instanceTypeCache *cache.Cache
 var linkController controller.Controller
+var pricingProvider *pricing.Provider
+var instanceTypeProvider *instancetypes.Provider
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -76,6 +82,10 @@ var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
 	unavailableOfferingsCache = awscache.NewUnavailableOfferings()
 	ec2API = &fake.EC2API{}
+	instanceTypeCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	subnetProvider = subnet.NewProvider(ec2API)
+	pricingProvider = pricing.NewProvider(ctx, &fake.PricingAPI{}, ec2API, "", make(chan struct{}))
+	instanceTypeProvider = instancetypes.NewProvider(mock.Session, instanceTypeCache, ec2API, subnetProvider, unavailableOfferingsCache, pricingProvider)
 	cloudProvider = cloudprovider.New(awscontext.Context{
 		Context: corecloudprovider.Context{
 			Context:             ctx,
@@ -91,7 +101,8 @@ var _ = BeforeSuite(func() {
 		Session:                   mock.Session,
 		UnavailableOfferingsCache: unavailableOfferingsCache,
 		EC2API:                    ec2API,
-		PricingProvider:           pricing.NewProvider(ctx, &fake.PricingAPI{}, ec2API, "", make(chan struct{})),
+		PricingProvider:           pricingProvider,
+		InstanceTypeProvider:      instanceTypeProvider,
 	})
 	linkController = link.NewController(env.Client, cloudProvider)
 })
@@ -108,6 +119,7 @@ var _ = Describe("MachineLink", func() {
 
 	BeforeEach(func() {
 		ec2API.Reset()
+		instanceTypeCache.Flush()
 		instanceID = fake.InstanceID()
 		providerID = fmt.Sprintf("aws:///test-zone-1a/%s", instanceID)
 		nodeTemplate = test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{})

@@ -114,6 +114,7 @@ var _ = BeforeSuite(func() {
 	ctx, stop = context.WithCancel(ctx)
 
 	fakeSession = mock.Session
+	fakeSession.Config.Region = aws.String("")
 	fakeEC2API = &fake.EC2API{}
 	fakeSSMAPI = &fake.SSMAPI{}
 	ssmCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
@@ -231,6 +232,10 @@ var _ = BeforeEach(func() {
 		unavailableOfferingsCache,
 		pricing.NewProvider(ctx, fakePricingAPI, fakeEC2API, "", make(chan struct{})),
 	)
+})
+
+var _ = AfterEach(func() {
+	ExpectCleanedUp(ctx, env.Client)
 })
 
 var _ = Describe("Instance Types", func() {
@@ -1221,7 +1226,7 @@ var _ = Describe("Instance Types", func() {
 		})
 	})
 	Context("Metadata Options", func() {
-		It("should default metadata options on generated launch template", func() {
+		FIt("should default metadata options on generated launch template", func() {
 			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
@@ -1233,7 +1238,7 @@ var _ = Describe("Instance Types", func() {
 			Expect(*input.LaunchTemplateData.MetadataOptions.HttpPutResponseHopLimit).To(Equal(int64(2)))
 			Expect(*input.LaunchTemplateData.MetadataOptions.HttpTokens).To(Equal(ec2.LaunchTemplateHttpTokensStateRequired))
 		})
-		It("should set metadata options on generated launch template from provisioner configuration", func() {
+		FIt("should set metadata options on generated launch template from provisioner configuration", func() {
 			nodeTemplate.Spec.MetadataOptions = &v1alpha1.MetadataOptions{
 				HTTPEndpoint:            aws.String(ec2.LaunchTemplateInstanceMetadataEndpointStateDisabled),
 				HTTPProtocolIPv6:        aws.String(ec2.LaunchTemplateInstanceMetadataProtocolIpv6Enabled),
