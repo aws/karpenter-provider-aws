@@ -19,27 +19,6 @@ We will make the following assumptions in this guide
 This guide will also assume you have the `aws` CLI installed.
 You can also perform many of these steps in the console, but we will use the command line for simplicity.
 
-## Create IAM roles
-
-To get started with our migration we first need to create two new IAM roles for nodes provisioned with Karpenter and the Karpenter controller.
-
-To create the Karpenter node role we will use the following policy and commands.
-
-{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step01-node-iam.sh" language="bash" %}}
-
-Now attach the required policies to the role
-
-{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step02-node-policies.sh" language="bash" %}}
-
-Attach the IAM role to an EC2 instance profile.
-
-{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step03-instance-profile.sh" language="bash" %}}
-
-Now we need to create an IAM role that the Karpenter controller will use to provision new instances.
-The controller will be using [IAM Roles for Service Accounts (IRSA)](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html) which requires an OIDC endpoint.
-
-If you have another option for using IAM credentials with workloads (e.g. [kube2iam](https://github.com/jtblin/kube2iam)) your steps will be different.
-
 Set a variable for your cluster name.
 
 ```bash
@@ -48,9 +27,30 @@ CLUSTER_NAME=<your cluster name>
 
 Set other variables from your cluster configuration.
 
-{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step04-env.sh" language="bash" %}}
+{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step01-env.sh" language="bash" %}}
 
-Use that information to create our IAM role, inline policy, and trust relationship.
+Use that information to create our IAM roles, inline policy, and trust relationship.
+
+## Create IAM roles
+
+To get started with our migration we first need to create two new IAM roles for nodes provisioned with Karpenter and the Karpenter controller.
+
+To create the Karpenter node role we will use the following policy and commands.
+
+{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step02-node-iam.sh" language="bash" %}}
+
+Now attach the required policies to the role
+
+{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step03-node-policies.sh" language="bash" %}}
+
+Attach the IAM role to an EC2 instance profile.
+
+{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step04-instance-profile.sh" language="bash" %}}
+
+Now we need to create an IAM role that the Karpenter controller will use to provision new instances.
+The controller will be using [IAM Roles for Service Accounts (IRSA)](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html) which requires an OIDC endpoint.
+
+If you have another option for using IAM credentials with workloads (e.g. [kube2iam](https://github.com/jtblin/kube2iam)) your steps will be different.
 
 {{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step05-controller-iam.sh" language="bash" %}}
 

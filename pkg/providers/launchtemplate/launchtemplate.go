@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package cloudprovider
+package launchtemplate
 
 import (
 	"context"
@@ -35,7 +35,6 @@ import (
 
 	awssettings "github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	awscache "github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
 	awserrors "github.com/aws/karpenter/pkg/errors"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
@@ -51,7 +50,7 @@ const (
 	karpenterManagedTagKey   = "karpenter.k8s.aws/cluster"
 )
 
-type LaunchTemplateProvider struct {
+type Provider struct {
 	sync.Mutex
 	ec2api                ec2iface.EC2API
 	amiFamily             *amifamily.Resolver
@@ -59,20 +58,20 @@ type LaunchTemplateProvider struct {
 	cache                 *cache.Cache
 	caBundle              *string
 	cm                    *pretty.ChangeMonitor
-	kubeDNSIP             net.IP
-	clusterEndpoint       string
+	KubeDNSIP             net.IP
+	ClusterEndpoint       string
 }
 
-func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, amiFamily *amifamily.Resolver, securityGroupProvider *securitygroup.Provider, caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP, clusterEndpoint string) *LaunchTemplateProvider {
-	l := &LaunchTemplateProvider{
+func NewProvider(ctx context.Context, cache *cache.Cache, ec2api ec2iface.EC2API, amiFamily *amifamily.Resolver, securityGroupProvider *securitygroup.Provider, caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP, clusterEndpoint string) *Provider {
+	l := &Provider{
 		ec2api:                ec2api,
 		amiFamily:             amiFamily,
 		securityGroupProvider: securityGroupProvider,
-		cache:                 cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
+		cache:                 cache,
 		caBundle:              caBundle,
 		cm:                    pretty.NewChangeMonitor(),
-		kubeDNSIP:             kubeDNSIP,
-		clusterEndpoint:       clusterEndpoint,
+		KubeDNSIP:             kubeDNSIP,
+		ClusterEndpoint:       clusterEndpoint,
 	}
 	l.cache.OnEvicted(l.cachedEvictedFunc(ctx))
 	go func() {
@@ -87,7 +86,7 @@ func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, amiF
 	return l
 }
 
-func (p *LaunchTemplateProvider) EnsureAll(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, machine *v1alpha5.Machine,
+func (p *Provider) EnsureAll(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, machine *v1alpha5.Machine,
 	instanceTypes []*cloudprovider.InstanceType, additionalLabels map[string]string) (map[string][]*cloudprovider.InstanceType, error) {
 
 	p.Lock()
@@ -117,7 +116,7 @@ func (p *LaunchTemplateProvider) EnsureAll(ctx context.Context, nodeTemplate *v1
 }
 
 // Invalidate deletes a launch template from cache if it exists
-func (p *LaunchTemplateProvider) Invalidate(ctx context.Context, ltName string, ltID string) {
+func (p *Provider) Invalidate(ctx context.Context, ltName string, ltID string) {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("launch-template-name", ltName, "launch-template-id", ltID))
 	p.Lock()
 	defer p.Unlock()
@@ -135,7 +134,7 @@ func launchTemplateName(options *amifamily.LaunchTemplate) string {
 	return fmt.Sprintf(launchTemplateNameFormat, options.ClusterName, fmt.Sprint(hash))
 }
 
-func (p *LaunchTemplateProvider) createAmiOptions(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, labels map[string]string) (*amifamily.Options, error) {
+func (p *Provider) createAmiOptions(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, labels map[string]string) (*amifamily.Options, error) {
 	instanceProfile, err := p.getInstanceProfile(ctx, nodeTemplate)
 	if err != nil {
 		return nil, err
@@ -150,18 +149,18 @@ func (p *LaunchTemplateProvider) createAmiOptions(ctx context.Context, nodeTempl
 	}
 	return &amifamily.Options{
 		ClusterName:             awssettings.FromContext(ctx).ClusterName,
-		ClusterEndpoint:         p.clusterEndpoint,
+		ClusterEndpoint:         p.ClusterEndpoint,
 		AWSENILimitedPodDensity: awssettings.FromContext(ctx).EnableENILimitedPodDensity,
 		InstanceProfile:         instanceProfile,
 		SecurityGroupsIDs:       securityGroupsIDs,
 		Tags:                    lo.Assign(awssettings.FromContext(ctx).Tags, nodeTemplate.Spec.Tags),
 		Labels:                  labels,
 		CABundle:                p.caBundle,
-		KubeDNSIP:               p.kubeDNSIP,
+		KubeDNSIP:               p.KubeDNSIP,
 	}, nil
 }
 
-func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, options *amifamily.LaunchTemplate) (*ec2.LaunchTemplate, error) {
+func (p *Provider) ensureLaunchTemplate(ctx context.Context, options *amifamily.LaunchTemplate) (*ec2.LaunchTemplate, error) {
 	var launchTemplate *ec2.LaunchTemplate
 	name := launchTemplateName(options)
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("launch-template-name", name))
@@ -194,7 +193,7 @@ func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, optio
 	return launchTemplate, nil
 }
 
-func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, options *amifamily.LaunchTemplate) (*ec2.LaunchTemplate, error) {
+func (p *Provider) createLaunchTemplate(ctx context.Context, options *amifamily.LaunchTemplate) (*ec2.LaunchTemplate, error) {
 	userData, err := options.UserData.Script()
 	if err != nil {
 		return nil, err
@@ -236,7 +235,7 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, optio
 	return output.LaunchTemplate, nil
 }
 
-func (p *LaunchTemplateProvider) blockDeviceMappings(blockDeviceMappings []*v1alpha1.BlockDeviceMapping) []*ec2.LaunchTemplateBlockDeviceMappingRequest {
+func (p *Provider) blockDeviceMappings(blockDeviceMappings []*v1alpha1.BlockDeviceMapping) []*ec2.LaunchTemplateBlockDeviceMappingRequest {
 	if len(blockDeviceMappings) == 0 {
 		// The EC2 API fails with empty slices and expects nil.
 		return nil
@@ -261,7 +260,7 @@ func (p *LaunchTemplateProvider) blockDeviceMappings(blockDeviceMappings []*v1al
 }
 
 // volumeSize returns a GiB scaled value from a resource quantity or nil if the resource quantity passed in is nil
-func (p *LaunchTemplateProvider) volumeSize(quantity *resource.Quantity) *int64 {
+func (p *Provider) volumeSize(quantity *resource.Quantity) *int64 {
 	if quantity == nil {
 		return nil
 	}
@@ -271,7 +270,7 @@ func (p *LaunchTemplateProvider) volumeSize(quantity *resource.Quantity) *int64 
 
 // hydrateCache queries for existing Launch Templates created by Karpenter for the current cluster and adds to the LT cache.
 // Any error during hydration will result in a panic
-func (p *LaunchTemplateProvider) hydrateCache(ctx context.Context) {
+func (p *Provider) hydrateCache(ctx context.Context) {
 	clusterName := awssettings.FromContext(ctx).ClusterName
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("tag-key", karpenterManagedTagKey, "tag-value", clusterName))
 	logging.FromContext(ctx).Debugf("hydrating the launch template cache")
@@ -288,7 +287,7 @@ func (p *LaunchTemplateProvider) hydrateCache(ctx context.Context) {
 	logging.FromContext(ctx).With("item-count", p.cache.ItemCount()).Debugf("finished hydrating the launch template cache")
 }
 
-func (p *LaunchTemplateProvider) cachedEvictedFunc(ctx context.Context) func(string, interface{}) {
+func (p *Provider) cachedEvictedFunc(ctx context.Context) func(string, interface{}) {
 	return func(key string, lt interface{}) {
 		p.Lock()
 		defer p.Unlock()
@@ -304,7 +303,7 @@ func (p *LaunchTemplateProvider) cachedEvictedFunc(ctx context.Context) func(str
 	}
 }
 
-func (p *LaunchTemplateProvider) getInstanceProfile(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) (string, error) {
+func (p *Provider) getInstanceProfile(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) (string, error) {
 	if nodeTemplate.Spec.InstanceProfile != nil {
 		return aws.StringValue(nodeTemplate.Spec.InstanceProfile), nil
 	}

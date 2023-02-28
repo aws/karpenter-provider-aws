@@ -161,6 +161,7 @@ var _ = Describe("Extended Resources", func() {
 		env.EventuallyExpectCreatedNodesInitialized()
 	})
 	It("should provision nodes for a deployment that requests amd.com/gpu", func() {
+		Skip("skipping test on AMD instance types")
 		ExpectAMDDevicePluginCreated()
 
 		customAMI := env.GetCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", 0)

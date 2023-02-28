@@ -39,6 +39,7 @@ var uriSelectors = map[string]string{
 }
 
 const fileFormat = `
+%s
 package cloudprovider
 
 // GENERATED FILE. DO NOT EDIT DIRECTLY.
@@ -51,6 +52,7 @@ var (
 	}
 )
 `
+
 func main() {
 	flag.Parse()
 	if flag.NArg() != 1 {
@@ -70,7 +72,12 @@ func main() {
 			bandwidth[instanceTypeData] = int64(lo.Must(strconv.ParseFloat(bandwidthData, 64)) * 1000)
 		}
 	}
-
+	if err := os.Setenv("AWS_SDK_LOAD_CONFIG", "true"); err != nil {
+		log.Fatalf("setting AWS_SDK_LOAD_CONFIG, %s", err)
+	}
+	if err := os.Setenv("AWS_REGION", "us-east-1"); err != nil {
+		log.Fatalf("setting AWS_REGION, %s", err)
+	}
 	sess := session.Must(session.NewSession())
 	ec2api := ec2.New(sess)
 	instanceTypesOutput := lo.Must(ec2api.DescribeInstanceTypes(&ec2.DescribeInstanceTypesInput{}))
@@ -92,8 +99,10 @@ func main() {
 		body += fmt.Sprintf("\t\"%s\": %d,\n", instanceType, bandwidth[instanceType])
 	}
 
+	license := lo.Must(os.ReadFile("hack/boilerplate.go.txt"))
+
 	// Format and print to the file
-	formatted := lo.Must(format.Source([]byte(fmt.Sprintf(fileFormat, body))))
+	formatted := lo.Must(format.Source([]byte(fmt.Sprintf(fileFormat, license, body))))
 	file := lo.Must(os.Create(flag.Args()[0]))
 	lo.Must(file.Write(formatted))
 	file.Close()

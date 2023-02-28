@@ -12,32 +12,71 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package cloudprovider
+package context_test
 
 import (
+	"context"
 	"errors"
-
-	. "github.com/onsi/ginkgo/v2"
-	"github.com/samber/lo"
+	"testing"
 
 	"github.com/aws/aws-sdk-go/service/eks"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+	"github.com/samber/lo"
+	. "knative.dev/pkg/logging/testing"
 
+	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/settings"
+	awscontext "github.com/aws/karpenter/pkg/context"
+	"github.com/aws/karpenter/pkg/fake"
 	"github.com/aws/karpenter/pkg/test"
 
-	. "github.com/onsi/gomega"
+	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
+	"github.com/aws/karpenter-core/pkg/operator/scheme"
+	coretest "github.com/aws/karpenter-core/pkg/test"
+	. "github.com/aws/karpenter-core/pkg/test/expectations"
 )
 
-var _ = Describe("Cloud Provider", func() {
-	BeforeEach(func() {
-		fakeEKSAPI.Reset()
-	})
+var ctx context.Context
+var stop context.CancelFunc
+var env *coretest.Environment
+var fakeEKSAPI *fake.EKSAPI
+
+func TestAWS(t *testing.T) {
+	ctx = TestContextWithLogger(t)
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "CloudProvider/AWS")
+}
+
+var _ = BeforeSuite(func() {
+	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
+	ctx = coresettings.ToContext(ctx, coretest.Settings())
+	ctx = settings.ToContext(ctx, test.Settings())
+	ctx, stop = context.WithCancel(ctx)
+
+	fakeEKSAPI = &fake.EKSAPI{}
+})
+
+var _ = AfterSuite(func() {
+	stop()
+	Expect(env.Stop()).To(Succeed(), "Failed to stop environment")
+})
+
+var _ = BeforeEach(func() {
+	fakeEKSAPI.Reset()
+})
+
+var _ = AfterEach(func() {
+	ExpectCleanedUp(ctx, env.Client)
+})
+
+var _ = Describe("Context", func() {
 
 	It("should resolve endpoint if set via configuration", func() {
 		ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
 			ClusterEndpoint: lo.ToPtr("https://api.test-cluster.k8s.local"),
 		}))
-		endpoint, err := resolveClusterEndpoint(ctx, fakeEKSAPI)
+		endpoint, err := awscontext.ResolveClusterEndpoint(ctx, fakeEKSAPI)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(endpoint).To(Equal("https://api.test-cluster.k8s.local"))
 	})
@@ -54,7 +93,7 @@ var _ = Describe("Cloud Provider", func() {
 			},
 		)
 
-		endpoint, err := resolveClusterEndpoint(ctx, fakeEKSAPI)
+		endpoint, err := awscontext.ResolveClusterEndpoint(ctx, fakeEKSAPI)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(endpoint).To(Equal("https://cluster-endpoint.test-cluster.k8s.local"))
 	})
@@ -65,7 +104,7 @@ var _ = Describe("Cloud Provider", func() {
 		}))
 		fakeEKSAPI.DescribeClusterBehaviour.Error.Set(errors.New("test error"))
 
-		_, err := resolveClusterEndpoint(ctx, fakeEKSAPI)
+		_, err := awscontext.ResolveClusterEndpoint(ctx, fakeEKSAPI)
 		Expect(err).To(HaveOccurred())
 	})
 })

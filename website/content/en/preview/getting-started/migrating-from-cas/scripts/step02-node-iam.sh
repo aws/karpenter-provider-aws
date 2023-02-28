@@ -11,5 +11,5 @@ echo '{
     ]
 }' > node-trust-policy.json
 
-aws iam create-role --role-name KarpenterInstanceNodeRole \
+aws iam create-role --role-name "KarpenterNodeRole-${CLUSTER_NAME}" \
     --assume-role-policy-document file://node-trust-policy.json
