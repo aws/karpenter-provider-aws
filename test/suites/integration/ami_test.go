@@ -84,6 +84,72 @@ var _ = Describe("AMI", func() {
 
 		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("ImageId", HaveValue(Equal(customAMI))))
 	})
+	It("should support ami selector aws::name but fail with incorrect owners", func() {
+		output, err := env.EC2API.DescribeImages(&ec2.DescribeImagesInput{
+			ImageIds:[]*string{aws.String(customAMI)},
+		})
+		Expect(err).To(BeNil())
+		Expect(output.Images).To(HaveLen(1))
+
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			AMIFamily:             &v1alpha1.AMIFamilyCustom,
+		},
+			AMISelector: map[string]string{"aws::name": *output.Images[0].Name, "aws::owners": "fakeOwnerValue"},
+			UserData:    aws.String(fmt.Sprintf("#!/bin/bash\n/etc/eks/bootstrap.sh '%s'", settings.FromContext(env.Context).ClusterName)),
+		})
+
+		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
+		pod := test.Pod()
+
+		env.ExpectCreated(pod, provider, provisioner)
+		env.ExpectCreatedNodeCount("==", 0)
+		Expect(pod.Spec.NodeName).To(Equal(""))
+	})
+	It("should support ami selector aws::name with default owners", func() {
+		output, err := env.EC2API.DescribeImages(&ec2.DescribeImagesInput{
+			ImageIds:[]*string{aws.String(customAMI)},
+		})
+		Expect(err).To(BeNil())
+		Expect(output.Images).To(HaveLen(1))
+
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			AMIFamily:             &v1alpha1.AMIFamilyCustom,
+		},
+			AMISelector: map[string]string{"aws::name": *output.Images[0].Name},
+			UserData:    aws.String(fmt.Sprintf("#!/bin/bash\n/etc/eks/bootstrap.sh '%s'", settings.FromContext(env.Context).ClusterName)),
+		})
+
+		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
+		pod := test.Pod()
+
+		env.ExpectCreated(pod, provider, provisioner)
+		env.EventuallyExpectHealthy(pod)
+		env.ExpectCreatedNodeCount("==", 1)
+
+		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("ImageId", HaveValue(Equal(customAMI))))
+	})
+	It("should support ami selector aws::ids", func() {
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			AMIFamily:             &v1alpha1.AMIFamilyCustom,
+		},
+			AMISelector: map[string]string{"aws::ids": customAMI},
+			UserData:    aws.String(fmt.Sprintf("#!/bin/bash\n/etc/eks/bootstrap.sh '%s'", settings.FromContext(env.Context).ClusterName)),
+		})
+		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
+		pod := test.Pod()
+
+		env.ExpectCreated(pod, provider, provisioner)
+		env.EventuallyExpectHealthy(pod)
+		env.ExpectCreatedNodeCount("==", 1)
+
+		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("ImageId", HaveValue(Equal(customAMI))))
+	})
 
 	Context("AMIFamily", func() {
 		It("should provision a node using the AL2 family", func() {
