@@ -86,7 +86,7 @@ var _ = Describe("AMI", func() {
 	})
 	It("should support ami selector aws::name but fail with incorrect owners", func() {
 		output, err := env.EC2API.DescribeImages(&ec2.DescribeImagesInput{
-			ImageIds:[]*string{aws.String(customAMI)},
+			ImageIds: []*string{aws.String(customAMI)},
 		})
 		Expect(err).To(BeNil())
 		Expect(output.Images).To(HaveLen(1))
@@ -109,7 +109,7 @@ var _ = Describe("AMI", func() {
 	})
 	It("should support ami selector aws::name with default owners", func() {
 		output, err := env.EC2API.DescribeImages(&ec2.DescribeImagesInput{
-			ImageIds:[]*string{aws.String(customAMI)},
+			ImageIds: []*string{aws.String(customAMI)},
 		})
 		Expect(err).To(BeNil())
 		Expect(output.Images).To(HaveLen(1))
