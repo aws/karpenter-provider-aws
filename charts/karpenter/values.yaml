@@ -72,13 +72,19 @@ affinity:
         - matchExpressions:
             - key: karpenter.sh/provisioner-name
               operator: DoesNotExist
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+            - key: app.kubernetes.io/name
+              operator: In
+              values:
+              - karpenter
+        topologyKey: "kubernetes.io/hostname"
 # -- topologySpreadConstraints to increase the controller resilience
 topologySpreadConstraints:
   - maxSkew: 1
     topologyKey: topology.kubernetes.io/zone
-    whenUnsatisfiable: ScheduleAnyway
-  - maxSkew: 1
-    topologyKey: kubernetes.io/hostname
     whenUnsatisfiable: ScheduleAnyway
 # -- Tolerations to allow the pod to be scheduled to nodes with taints.
 tolerations:
