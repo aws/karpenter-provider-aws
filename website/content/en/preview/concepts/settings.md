@@ -63,7 +63,7 @@ data:
   # The VM memory overhead as a percent that will be subtracted
   # from the total memory for all instance types
   aws.vmMemoryOverheadPercent: "0.075"
-  # Interruption Handling is currently in ALPHA and is disabled by default. Enabling interruption handling may
+  # aws.interruptionQueueName is disabled if not specified. Enabling interruption handling may
   # require additional permissions on the controller service account. Additional permissions are outlined in the docs
   aws.interruptionQueueName: karpenter-cluster
   # Global tags are specified by including a JSON object of string to string from tag key to tag value

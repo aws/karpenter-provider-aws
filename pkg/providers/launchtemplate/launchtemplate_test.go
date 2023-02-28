@@ -51,10 +51,10 @@ import (
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	awscache "github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/cloudprovider"
-	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
-	"github.com/aws/karpenter/pkg/cloudprovider/amifamily/bootstrap"
 	awscontext "github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/fake"
+	"github.com/aws/karpenter/pkg/providers/amifamily"
+	"github.com/aws/karpenter/pkg/providers/amifamily/bootstrap"
 	"github.com/aws/karpenter/pkg/providers/instancetypes"
 	"github.com/aws/karpenter/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter/pkg/providers/pricing"
@@ -88,7 +88,7 @@ var fakeEC2API *fake.EC2API
 var fakeSSMAPI *fake.SSMAPI
 var fakeClock *clock.FakeClock
 var fakePricingAPI *fake.PricingAPI
-var amiProvider *amifamily.AMIProvider
+var amiProvider *amifamily.Provider
 var amiResolver *amifamily.Resolver
 var cloudProvider *cloudprovider.CloudProvider
 var unavailableOfferingsCache *awscache.UnavailableOfferings
@@ -127,7 +127,7 @@ var _ = BeforeSuite(func() {
 	pricingProvider = pricing.NewProvider(ctx, fakePricingAPI, fakeEC2API, "", make(chan struct{}))
 	subnetProvider = subnet.NewProvider(fakeEC2API)
 	securityGroupProvider = securitygroup.NewProvider(fakeEC2API)
-	amiProvider = amifamily.NewAMIProvider(env.Client, env.KubernetesInterface, fakeSSMAPI, fakeEC2API, ssmCache, ec2Cache, kubernetesVersionCache)
+	amiProvider = amifamily.NewProvider(env.Client, env.KubernetesInterface, fakeSSMAPI, fakeEC2API, ssmCache, ec2Cache, kubernetesVersionCache)
 	amiResolver = amifamily.New(env.Client, amiProvider)
 	instanceTypeProvider = instancetypes.NewProvider(mock.Session, instanceTypeCache, fakeEC2API, subnetProvider, unavailableOfferingsCache, pricingProvider)
 

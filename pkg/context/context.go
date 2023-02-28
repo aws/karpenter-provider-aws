@@ -44,7 +44,7 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/settings"
 	awscache "github.com/aws/karpenter/pkg/cache"
-	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
+	"github.com/aws/karpenter/pkg/providers/amifamily"
 	"github.com/aws/karpenter/pkg/providers/instancetypes"
 	"github.com/aws/karpenter/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter/pkg/providers/pricing"
@@ -64,7 +64,7 @@ type Context struct {
 	EC2API                    ec2iface.EC2API
 	SubnetProvider            *subnet.Provider
 	SecurityGroupProvider     *securitygroup.Provider
-	AMIProvider               *amifamily.AMIProvider
+	AMIProvider               *amifamily.Provider
 	AMIResolver               *amifamily.Resolver
 	LaunchTemplateProvider    *launchtemplate.Provider
 	PricingProvider           *pricing.Provider
@@ -115,7 +115,7 @@ func NewOrDie(ctx cloudprovider.Context) Context {
 		*sess.Config.Region,
 		ctx.StartAsync,
 	)
-	amiProvider := amifamily.NewAMIProvider(ctx.KubeClient, ctx.KubernetesInterface, ssm.New(sess), ec2api,
+	amiProvider := amifamily.NewProvider(ctx.KubeClient, ctx.KubernetesInterface, ssm.New(sess), ec2api,
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
 	amiResolver := amifamily.New(ctx.KubeClient, amiProvider)
 	launchTemplateProvider := launchtemplate.NewProvider(
