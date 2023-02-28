@@ -19,7 +19,7 @@ import (
 
 	"github.com/samber/lo"
 
-	"github.com/aws/karpenter/pkg/cloudprovider/amifamily/bootstrap"
+	"github.com/aws/karpenter/pkg/providers/amifamily/bootstrap"
 
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/utils/resources"
