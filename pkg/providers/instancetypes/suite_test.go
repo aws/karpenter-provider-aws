@@ -1226,7 +1226,7 @@ var _ = Describe("Instance Types", func() {
 		})
 	})
 	Context("Metadata Options", func() {
-		FIt("should default metadata options on generated launch template", func() {
+		It("should default metadata options on generated launch template", func() {
 			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
@@ -1238,7 +1238,7 @@ var _ = Describe("Instance Types", func() {
 			Expect(*input.LaunchTemplateData.MetadataOptions.HttpPutResponseHopLimit).To(Equal(int64(2)))
 			Expect(*input.LaunchTemplateData.MetadataOptions.HttpTokens).To(Equal(ec2.LaunchTemplateHttpTokensStateRequired))
 		})
-		FIt("should set metadata options on generated launch template from provisioner configuration", func() {
+		It("should set metadata options on generated launch template from provisioner configuration", func() {
 			nodeTemplate.Spec.MetadataOptions = &v1alpha1.MetadataOptions{
 				HTTPEndpoint:            aws.String(ec2.LaunchTemplateInstanceMetadataEndpointStateDisabled),
 				HTTPProtocolIPv6:        aws.String(ec2.LaunchTemplateInstanceMetadataProtocolIpv6Enabled),
