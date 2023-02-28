@@ -33,17 +33,18 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | additionalLabels | object | `{}` | Additional labels to add into metadata. |
 | affinity | object | `{"nodeAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":{"nodeSelectorTerms":[{"matchExpressions":[{"key":"karpenter.sh/provisioner-name","operator":"DoesNotExist"}]}]}}}` | Affinity rules for scheduling the pod. |
 | controller.env | list | `[]` | Additional environment variables for the controller pod. |
+| controller.envFrom | list | `[]` |  |
 | controller.errorOutputPaths | list | `["stderr"]` | Controller errorOutputPaths - default to stderr only |
 | controller.extraVolumeMounts | list | `[]` | Additional volumeMounts for the controller pod. |
 | controller.healthProbe.port | int | `8081` | The container port to use for http health probe. |
-| controller.image.repository | string | `"public.ecr.aws/karpenter/controller"` | Controller repository. |
-| controller.image.tag | string | `"v0.25.0"` | Controller tag. |
-| controller.image.digest | string | `"sha256:fefae2739efa1c4d9561069d1683a0ed201e41771351da1ef504c805941f0bf2"` | Controller digest. |
+| controller.image.digest | string | `"sha256:fefae2739efa1c4d9561069d1683a0ed201e41771351da1ef504c805941f0bf2"` | SHA256 digest of the controller image. |
+| controller.image.repository | string | `"public.ecr.aws/karpenter/controller"` | Repository path to the controller image. |
+| controller.image.tag | string | `"v0.25.0"` | Tag of the controller image. |
 | controller.logEncoding | string | `""` | Controller log encoding, defaults to the global log encoding |
 | controller.logLevel | string | `""` | Controller log level, defaults to the global log level |
 | controller.metrics.port | int | `8080` | The container port to use for metrics. |
 | controller.outputPaths | list | `["stdout"]` | Controller outputPaths - default to stdout only |
-| controller.resources | object | `{"limits":{"cpu":1,"memory":"1Gi"},"requests":{"cpu":1,"memory":"1Gi"}}` | Resources for the controller pod. |
+| controller.resources | object | `{}` | Resources for the controller pod. |
 | controller.securityContext | object | `{}` | SecurityContext for the controller container. |
 | controller.sidecarContainer | list | `[]` | Additional sidecarContainer config |
 | controller.sidecarVolumeMounts | list | `[]` | Additional volumeMounts for the sidecar - this will be added to the volume mounts on top of extraVolumeMounts |
@@ -80,7 +81,7 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | settings.aws.defaultInstanceProfile | string | `""` | The default instance profile to use when launching nodes |
 | settings.aws.enableENILimitedPodDensity | bool | `true` | Indicates whether new nodes should use ENI-based pod density DEPRECATED: Use `.spec.kubeletConfiguration.maxPods` to set pod density on a per-provisioner basis |
 | settings.aws.enablePodENI | bool | `false` | If true then instances that support pod ENI will report a vpc.amazonaws.com/pod-eni resource |
-| settings.aws.interruptionQueueName | string | `""` | interruptionQueueName is currently in ALPHA and is disabled by default. Enabling interruption handling may require additional permissions on the controller service account. Additional permissions are outlined in the docs. |
+| settings.aws.interruptionQueueName | string | `""` | interruptionQueueName is disabled if not specified. Enabling interruption handling may require additional permissions on the controller service account. Additional permissions are outlined in the docs. |
 | settings.aws.isolatedVPC | bool | `false` | If true then assume we can't reach AWS services which don't have a VPC endpoint This also has the effect of disabling look-ups to the AWS pricing endpoint |
 | settings.aws.nodeNameConvention | string | `"ip-name"` | The node naming convention (either "ip-name" or "resource-name") |
 | settings.aws.tags | string | `nil` | The global tags to use on all AWS infrastructure resources (launch templates, instances, etc.) across node templates |
