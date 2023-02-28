@@ -49,11 +49,11 @@ import (
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	awscache "github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/cloudprovider"
-	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
 	awscontext "github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/controllers/machine/garbagecollect"
 	"github.com/aws/karpenter/pkg/controllers/machine/link"
 	"github.com/aws/karpenter/pkg/fake"
+	"github.com/aws/karpenter/pkg/providers/amifamily"
 	"github.com/aws/karpenter/pkg/providers/instance"
 	"github.com/aws/karpenter/pkg/providers/instancetypes"
 	"github.com/aws/karpenter/pkg/providers/launchtemplate"
@@ -75,7 +75,7 @@ var ec2API *fake.EC2API
 var cloudProvider *cloudprovider.CloudProvider
 var garbageCollectController controller.Controller
 var linkedMachineCache *cache.Cache
-var amiProvider *amifamily.AMIProvider
+var amiProvider *amifamily.Provider
 var amiResolver *amifamily.Resolver
 var securityGroupProvider *securitygroup.Provider
 var pricingProvider *pricing.Provider
@@ -101,7 +101,7 @@ var _ = BeforeSuite(func() {
 	kubernetesVersionCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	ec2API = &fake.EC2API{}
 	securityGroupProvider = securitygroup.NewProvider(ec2API)
-	amiProvider = amifamily.NewAMIProvider(env.Client, env.KubernetesInterface, &fake.SSMAPI{}, ec2API, ssmCache, ec2Cache, kubernetesVersionCache)
+	amiProvider = amifamily.NewProvider(env.Client, env.KubernetesInterface, &fake.SSMAPI{}, ec2API, ssmCache, ec2Cache, kubernetesVersionCache)
 	amiResolver = amifamily.New(env.Client, amiProvider)
 	pricingProvider = pricing.NewProvider(ctx, &fake.PricingAPI{}, ec2API, "", make(chan struct{}))
 	instanceTypeCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
