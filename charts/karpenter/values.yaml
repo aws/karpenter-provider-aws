@@ -78,10 +78,10 @@ affinity:
       podAffinityTerm:
         labelSelector:
           matchExpressions:
-          - key: app.kubernetes.io/name
+          - key: app.kubernetes.io/instance
             operator: In
             values:
-            - karpenter
+            - "{{ .Release.Name }}"
         topologyKey: "kubernetes.io/hostname"
 # -- topologySpreadConstraints to increase the controller resilience
 topologySpreadConstraints:
