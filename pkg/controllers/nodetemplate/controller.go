@@ -16,6 +16,7 @@ package nodetemplate
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"time"
 
@@ -30,8 +31,11 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/samber/lo"
 
+	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
+	"github.com/aws/karpenter/pkg/providers/instancetypes"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
 	"github.com/aws/karpenter/pkg/providers/subnet"
 )
@@ -42,20 +46,29 @@ type Controller struct {
 	kubeClient            client.Client
 	subnetProvider        *subnet.Provider
 	securityGroupProvider *securitygroup.Provider
+	instanceTypesProvider *instancetypes.Provider
+	amiProvider           *amifamily.AMIProvider
 }
 
-func NewController(kubeClient client.Client, subnetProvider *subnet.Provider, securityGroups *securitygroup.Provider) corecontroller.Controller {
+func NewController(kubeClient client.Client, subnetProvider *subnet.Provider, securityGroups *securitygroup.Provider,
+	amiprovider *amifamily.AMIProvider, instancetypesprovider *instancetypes.Provider) corecontroller.Controller {
 	return corecontroller.Typed[*v1alpha1.AWSNodeTemplate](kubeClient, &Controller{
 		kubeClient:            kubeClient,
 		subnetProvider:        subnetProvider,
 		securityGroupProvider: securityGroups,
+		instanceTypesProvider: instancetypesprovider,
+		amiProvider:           amiprovider,
 	})
 }
 
 func (c *Controller) Reconcile(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) (reconcile.Result, error) {
 	stored := nodeTemplate.DeepCopy()
 
-	err := multierr.Combine(c.resolveSubnets(ctx, nodeTemplate), c.resolveSecurityGroup(ctx, nodeTemplate))
+	err := multierr.Combine(
+		c.resolveSubnets(ctx, nodeTemplate),
+		c.resolveSecurityGroup(ctx, nodeTemplate),
+		c.resolveAMI(ctx, nodeTemplate),
+	)
 
 	if patchErr := c.kubeClient.Status().Patch(ctx, nodeTemplate, client.MergeFrom(stored)); patchErr != nil {
 		err = multierr.Append(err, client.IgnoreNotFound(patchErr))
@@ -107,6 +120,20 @@ func (c *Controller) resolveSecurityGroup(ctx context.Context, nodeTemplate *v1a
 			ID: id,
 		}
 	})
+
+	return nil
+}
+
+func (c *Controller) resolveAMI(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) error {
+	instancetypes, _ := c.instanceTypesProvider.List(ctx, &v1alpha5.KubeletConfiguration{}, nodeTemplate)
+	amiFamily := amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, options)
+
+	for _, instance := range instancetypes {
+		fmt.Println(instance.Name)
+	}
+	fmt.Println(len(instancetypes))
+
+	c.amiProvider.Get(ctx, nodeTemplate, instancetypes)
 
 	return nil
 }
