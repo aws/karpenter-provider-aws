@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -32,6 +33,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	clock "k8s.io/utils/clock/testing"
 	. "knative.dev/pkg/logging/testing"
+	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
@@ -48,10 +50,13 @@ import (
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	awscache "github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
 	awscontext "github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/controllers/machine/link"
 	"github.com/aws/karpenter/pkg/fake"
+	"github.com/aws/karpenter/pkg/providers/instance"
 	"github.com/aws/karpenter/pkg/providers/instancetypes"
+	"github.com/aws/karpenter/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter/pkg/providers/pricing"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
 	"github.com/aws/karpenter/pkg/providers/subnet"
@@ -61,14 +66,24 @@ import (
 
 var ctx context.Context
 var env *coretest.Environment
+var launchTemplateCache *cache.Cache
 var unavailableOfferingsCache *awscache.UnavailableOfferings
+var ssmCache *cache.Cache
+var ec2Cache *cache.Cache
+var kubernetesVersionCache *cache.Cache
 var ec2API *fake.EC2API
+var ssmAPI *fake.SSMAPI
 var cloudProvider *cloudprovider.CloudProvider
 var subnetProvider *subnet.Provider
+var securityGroupProvider *securitygroup.Provider
 var instanceTypeCache *cache.Cache
 var linkController controller.Controller
 var pricingProvider *pricing.Provider
+var amiProvider *amifamily.AMIProvider
+var amiResolver *amifamily.Resolver
 var instanceTypeProvider *instancetypes.Provider
+var launchTemplateProvider *launchtemplate.Provider
+var instanceProvider *instance.Provider
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -81,11 +96,31 @@ var _ = BeforeSuite(func() {
 	ctx = settings.ToContext(ctx, test.Settings())
 	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
 	unavailableOfferingsCache = awscache.NewUnavailableOfferings()
-	ec2API = &fake.EC2API{}
+	launchTemplateCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	ssmCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	ec2Cache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	kubernetesVersionCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	instanceTypeCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	ec2API = &fake.EC2API{}
+	ssmAPI = &fake.SSMAPI{}
 	subnetProvider = subnet.NewProvider(ec2API)
+	securityGroupProvider = securitygroup.NewProvider(ec2API)
 	pricingProvider = pricing.NewProvider(ctx, &fake.PricingAPI{}, ec2API, "", make(chan struct{}))
+	amiProvider = amifamily.NewAMIProvider(env.Client, env.KubernetesInterface, ssmAPI, ec2API, ssmCache, ec2Cache, kubernetesVersionCache)
+	amiResolver = amifamily.New(env.Client, amiProvider)
 	instanceTypeProvider = instancetypes.NewProvider(mock.Session, instanceTypeCache, ec2API, subnetProvider, unavailableOfferingsCache, pricingProvider)
+	launchTemplateProvider = launchtemplate.NewProvider(
+		ctx,
+		launchTemplateCache,
+		ec2API,
+		amiResolver,
+		securityGroupProvider,
+		ptr.String("ca-bundle"),
+		make(chan struct{}),
+		net.ParseIP("10.0.100.10"),
+		"https://test-cluster",
+	)
+	instanceProvider = instance.NewProvider(ctx, "", ec2API, unavailableOfferingsCache, instanceTypeProvider, subnetProvider, launchTemplateProvider)
 	cloudProvider = cloudprovider.New(awscontext.Context{
 		Context: corecloudprovider.Context{
 			Context:             ctx,
@@ -103,6 +138,9 @@ var _ = BeforeSuite(func() {
 		EC2API:                    ec2API,
 		PricingProvider:           pricingProvider,
 		InstanceTypeProvider:      instanceTypeProvider,
+		InstanceProvider:          instanceProvider,
+		AMIProvider:               amiProvider,
+		AMIResolver:               amiResolver,
 	})
 	linkController = link.NewController(env.Client, cloudProvider)
 })

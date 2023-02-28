@@ -45,6 +45,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/settings"
 	awscache "github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
+	"github.com/aws/karpenter/pkg/providers/instance"
 	"github.com/aws/karpenter/pkg/providers/instancetypes"
 	"github.com/aws/karpenter/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter/pkg/providers/pricing"
@@ -69,6 +70,7 @@ type Context struct {
 	LaunchTemplateProvider    *launchtemplate.Provider
 	PricingProvider           *pricing.Provider
 	InstanceTypeProvider      *instancetypes.Provider
+	InstanceProvider          *instance.Provider
 }
 
 func NewOrDie(ctx cloudprovider.Context) Context {
@@ -137,6 +139,15 @@ func NewOrDie(ctx cloudprovider.Context) Context {
 		unavailableOfferingsCache,
 		pricingProvider,
 	)
+	instanceProvider := instance.NewProvider(
+		ctx,
+		aws.StringValue(sess.Config.Region),
+		ec2api,
+		unavailableOfferingsCache,
+		instanceTypeProvider,
+		subnetProvider,
+		launchTemplateProvider,
+	)
 
 	return Context{
 		Context:                   ctx,
@@ -150,6 +161,7 @@ func NewOrDie(ctx cloudprovider.Context) Context {
 		LaunchTemplateProvider:    launchTemplateProvider,
 		PricingProvider:           pricingProvider,
 		InstanceTypeProvider:      instanceTypeProvider,
+		InstanceProvider:          instanceProvider,
 	}
 }
 

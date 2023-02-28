@@ -55,6 +55,7 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily/bootstrap"
 	awscontext "github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/fake"
+	"github.com/aws/karpenter/pkg/providers/instance"
 	"github.com/aws/karpenter/pkg/providers/instancetypes"
 	"github.com/aws/karpenter/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter/pkg/providers/pricing"
@@ -101,6 +102,7 @@ var pricingProvider *pricing.Provider
 var subnetProvider *subnet.Provider
 var instanceTypeProvider *instancetypes.Provider
 var securityGroupProvider *securitygroup.Provider
+var instanceProvider *instance.Provider
 
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -130,7 +132,6 @@ var _ = BeforeSuite(func() {
 	amiProvider = amifamily.NewAMIProvider(env.Client, env.KubernetesInterface, fakeSSMAPI, fakeEC2API, ssmCache, ec2Cache, kubernetesVersionCache)
 	amiResolver = amifamily.New(env.Client, amiProvider)
 	instanceTypeProvider = instancetypes.NewProvider(mock.Session, instanceTypeCache, fakeEC2API, subnetProvider, unavailableOfferingsCache, pricingProvider)
-
 	launchTemplateProvider = launchtemplate.NewProvider(
 		ctx,
 		launchTemplateCache,
@@ -142,7 +143,7 @@ var _ = BeforeSuite(func() {
 		net.ParseIP("10.0.100.10"),
 		"https://test-cluster",
 	)
-
+	instanceProvider = instance.NewProvider(ctx, "", fakeEC2API, unavailableOfferingsCache, instanceTypeProvider, subnetProvider, launchTemplateProvider)
 	cloudProvider = cloudprovider.New(awscontext.Context{
 		Context: corecloudprovider.Context{
 			Context:             ctx,
@@ -163,6 +164,7 @@ var _ = BeforeSuite(func() {
 		AMIResolver:               amiResolver,
 		LaunchTemplateProvider:    launchTemplateProvider,
 		InstanceTypeProvider:      instanceTypeProvider,
+		InstanceProvider:          instanceProvider,
 	})
 	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
 	prov = provisioning.NewProvisioner(ctx, env.Client, env.KubernetesInterface.CoreV1(), events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster)

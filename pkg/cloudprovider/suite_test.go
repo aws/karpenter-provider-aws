@@ -67,6 +67,7 @@ import (
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 
+	"github.com/aws/karpenter/pkg/providers/instance"
 	"github.com/aws/karpenter/pkg/providers/instancetypes"
 	"github.com/aws/karpenter/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter/pkg/providers/pricing"
@@ -101,6 +102,7 @@ var nodeTemplate *v1alpha1.AWSNodeTemplate
 var pricingProvider *pricing.Provider
 var subnetProvider *subnet.Provider
 var securityGroupProvider *securitygroup.Provider
+var instanceProvider *instance.Provider
 
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -147,10 +149,11 @@ var _ = BeforeSuite(func() {
 		net.ParseIP("10.0.100.10"),
 		"https://test-cluster",
 	)
+	instanceProvider = instance.NewProvider(ctx, "", fakeEC2API, unavailableOfferingsCache, instanceTypeProvider, subnetProvider, launchTemplateProvider)
 	cloudProvider = &CloudProvider{
 		instanceTypeProvider: instanceTypeProvider,
 		amiProvider:          amiProvider,
-		instanceProvider:     NewInstanceProvider(ctx, "", fakeEC2API, unavailableOfferingsCache, instanceTypeProvider, subnetProvider, launchTemplateProvider),
+		instanceProvider:     instanceProvider,
 		kubeClient:           env.Client,
 	}
 	fakeClock = clock.NewFakeClock(time.Now())

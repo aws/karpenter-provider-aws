@@ -45,15 +45,11 @@ import (
 
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
 	awscontext "github.com/aws/karpenter/pkg/context"
+	"github.com/aws/karpenter/pkg/providers/instance"
 
 	coreapis "github.com/aws/karpenter-core/pkg/apis"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
-)
-
-const (
-	// MaxInstanceTypes defines the number of instance type options to pass to CreateFleet
-	MaxInstanceTypes = 60
 )
 
 func init() {
@@ -65,7 +61,7 @@ var _ cloudprovider.CloudProvider = (*CloudProvider)(nil)
 
 type CloudProvider struct {
 	instanceTypeProvider *instancetypes.Provider
-	instanceProvider     *InstanceProvider
+	instanceProvider     *instance.Provider
 	kubeClient           client.Client
 	amiProvider          *amifamily.AMIProvider
 }
@@ -75,15 +71,7 @@ func New(ctx awscontext.Context) *CloudProvider {
 		kubeClient:           ctx.KubeClient,
 		instanceTypeProvider: ctx.InstanceTypeProvider,
 		amiProvider:          ctx.AMIProvider,
-		instanceProvider: NewInstanceProvider(
-			ctx,
-			aws.StringValue(ctx.Session.Config.Region),
-			ctx.EC2API,
-			ctx.UnavailableOfferingsCache,
-			ctx.InstanceTypeProvider,
-			ctx.SubnetProvider,
-			ctx.LaunchTemplateProvider,
-		),
+		instanceProvider:     ctx.InstanceProvider,
 	}
 }
 
@@ -315,7 +303,7 @@ func (c *CloudProvider) resolveProvisionerFromInstance(ctx context.Context, inst
 	return provisioner, nil
 }
 
-func (c *CloudProvider) instanceToMachine(ctx context.Context, instance *ec2.Instance, instanceType *cloudprovider.InstanceType) *v1alpha5.Machine {
+func (c *CloudProvider) instanceToMachine(ctx context.Context, ec2instance *ec2.Instance, instanceType *cloudprovider.InstanceType) *v1alpha5.Machine {
 	machine := &v1alpha5.Machine{}
 	labels := map[string]string{}
 
@@ -328,22 +316,22 @@ func (c *CloudProvider) instanceToMachine(ctx context.Context, instance *ec2.Ins
 		machine.Status.Capacity = functional.FilterMap(instanceType.Capacity, func(_ v1.ResourceName, v resource.Quantity) bool { return !resources.IsZero(v) })
 		machine.Status.Allocatable = functional.FilterMap(instanceType.Allocatable(), func(_ v1.ResourceName, v resource.Quantity) bool { return !resources.IsZero(v) })
 	}
-	labels[v1alpha1.LabelInstanceAMIID] = aws.StringValue(instance.ImageId)
-	labels[v1.LabelTopologyZone] = aws.StringValue(instance.Placement.AvailabilityZone)
-	labels[v1alpha5.LabelCapacityType] = getCapacityType(instance)
-	if tag, ok := lo.Find(instance.Tags, func(t *ec2.Tag) bool { return aws.StringValue(t.Key) == v1alpha5.ProvisionerNameLabelKey }); ok {
+	labels[v1alpha1.LabelInstanceAMIID] = aws.StringValue(ec2instance.ImageId)
+	labels[v1.LabelTopologyZone] = aws.StringValue(ec2instance.Placement.AvailabilityZone)
+	labels[v1alpha5.LabelCapacityType] = instance.GetCapacityType(ec2instance)
+	if tag, ok := lo.Find(ec2instance.Tags, func(t *ec2.Tag) bool { return aws.StringValue(t.Key) == v1alpha5.ProvisionerNameLabelKey }); ok {
 		labels[v1alpha5.ProvisionerNameLabelKey] = aws.StringValue(tag.Value)
 	}
-	if tag, ok := lo.Find(instance.Tags, func(t *ec2.Tag) bool { return aws.StringValue(t.Key) == v1alpha5.ManagedByLabelKey }); ok {
+	if tag, ok := lo.Find(ec2instance.Tags, func(t *ec2.Tag) bool { return aws.StringValue(t.Key) == v1alpha5.ManagedByLabelKey }); ok {
 		labels[v1alpha5.ManagedByLabelKey] = aws.StringValue(tag.Value)
 	}
 	machine.Name = lo.Ternary(
 		settings.FromContext(ctx).NodeNameConvention == settings.ResourceName,
-		aws.StringValue(instance.InstanceId),
-		strings.ToLower(aws.StringValue(instance.PrivateDnsName)),
+		aws.StringValue(ec2instance.InstanceId),
+		strings.ToLower(aws.StringValue(ec2instance.PrivateDnsName)),
 	)
 	machine.Labels = labels
-	machine.CreationTimestamp = metav1.Time{Time: aws.TimeValue(instance.LaunchTime)}
-	machine.Status.ProviderID = fmt.Sprintf("aws:///%s/%s", aws.StringValue(instance.Placement.AvailabilityZone), aws.StringValue(instance.InstanceId))
+	machine.CreationTimestamp = metav1.Time{Time: aws.TimeValue(ec2instance.LaunchTime)}
+	machine.Status.ProviderID = fmt.Sprintf("aws:///%s/%s", aws.StringValue(ec2instance.Placement.AvailabilityZone), aws.StringValue(ec2instance.InstanceId))
 	return machine
 }

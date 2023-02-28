@@ -64,6 +64,7 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider/amifamily"
 	awscontext "github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/fake"
+	"github.com/aws/karpenter/pkg/providers/instance"
 	"github.com/aws/karpenter/pkg/providers/instancetypes"
 	"github.com/aws/karpenter/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter/pkg/providers/pricing"
@@ -99,6 +100,7 @@ var pricingProvider *pricing.Provider
 var subnetProvider *subnet.Provider
 var instanceTypeProvider *instancetypes.Provider
 var securityGroupProvider *securitygroup.Provider
+var instanceProvider *instance.Provider
 var provisioningController controller.Controller
 
 func TestAWS(t *testing.T) {
@@ -131,7 +133,6 @@ var _ = BeforeSuite(func() {
 	amiProvider = amifamily.NewAMIProvider(env.Client, env.KubernetesInterface, fakeSSMAPI, fakeEC2API, ssmCache, ec2Cache, kubernetesVersionCache)
 	amiResolver = amifamily.New(env.Client, amiProvider)
 	instanceTypeProvider = instancetypes.NewProvider(fakeSession, instanceTypeCache, fakeEC2API, subnetProvider, unavailableOfferingsCache, pricingProvider)
-
 	launchTemplateProvider = launchtemplate.NewProvider(
 		ctx,
 		launchTemplateCache,
@@ -143,7 +144,7 @@ var _ = BeforeSuite(func() {
 		net.ParseIP("10.0.100.10"),
 		"https://test-cluster",
 	)
-
+	instanceProvider = instance.NewProvider(ctx, "", fakeEC2API, unavailableOfferingsCache, instanceTypeProvider, subnetProvider, launchTemplateProvider)
 	cloudProvider = cloudprovider.New(awscontext.Context{
 		Context: corecloudprovider.Context{
 			Context:             ctx,
@@ -164,6 +165,7 @@ var _ = BeforeSuite(func() {
 		AMIResolver:               amiResolver,
 		LaunchTemplateProvider:    launchTemplateProvider,
 		InstanceTypeProvider:      instanceTypeProvider,
+		InstanceProvider:          instanceProvider,
 	})
 	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
 	prov = provisioning.NewProvisioner(ctx, env.Client, env.KubernetesInterface.CoreV1(), events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster)
@@ -327,14 +329,14 @@ var _ = Describe("Instance Types", func() {
 			return iPrice < jPrice
 		})
 		// Expect that the launch template overrides gives the 60 cheapest instance types
-		expected := sets.NewString(lo.Map(its[:cloudprovider.MaxInstanceTypes], func(i *corecloudprovider.InstanceType, _ int) string {
+		expected := sets.NewString(lo.Map(its[:instance.MaxInstanceTypes], func(i *corecloudprovider.InstanceType, _ int) string {
 			return i.Name
 		})...)
 		Expect(fakeEC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
 		call := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
 		Expect(call.LaunchTemplateConfigs).To(HaveLen(1))
 
-		Expect(call.LaunchTemplateConfigs[0].Overrides).To(HaveLen(cloudprovider.MaxInstanceTypes))
+		Expect(call.LaunchTemplateConfigs[0].Overrides).To(HaveLen(instance.MaxInstanceTypes))
 		for _, override := range call.LaunchTemplateConfigs[0].Overrides {
 			Expect(expected.Has(aws.StringValue(override.InstanceType))).To(BeTrue(), fmt.Sprintf("expected %s to exist in set", aws.StringValue(override.InstanceType)))
 		}
