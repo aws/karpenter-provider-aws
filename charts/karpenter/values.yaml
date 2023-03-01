@@ -109,9 +109,9 @@ controller:
     # -- Repository path to the controller image.
     repository: public.ecr.aws/karpenter/controller
     # -- Tag of the controller image.
-    tag: v0.25.0
+    tag: v0.26.0
     # -- SHA256 digest of the controller image.
-    digest: sha256:fefae2739efa1c4d9561069d1683a0ed201e41771351da1ef504c805941f0bf2
+    digest: sha256:a415076a1761add96d23cae71d48d2426518dc3c0c7537648da754fa81d230dd
   # -- SecurityContext for the controller container.
   securityContext: {}
   # -- Additional environment variables for the controller pod.
@@ -119,7 +119,6 @@ controller:
   # - name: AWS_REGION
   #   value: eu-west-1
   envFrom: []
-
   # -- Resources for the controller pod.
   resources: {}
   # We usually recommend not to specify default resources and to leave this as a conscious
