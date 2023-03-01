@@ -31,7 +31,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/awstesting/mock"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	clock "k8s.io/utils/clock/testing"
@@ -84,7 +83,7 @@ var ec2Cache *cache.Cache
 var kubernetesVersionCache *cache.Cache
 var unavailableOfferingsCache *awscache.UnavailableOfferings
 var instanceTypeCache *cache.Cache
-var instanceTypeProvider *instancetypes.Provider
+var instanceTypesProvider *instancetypes.Provider
 var launchTemplateProvider *launchtemplate.Provider
 var amiProvider *amifamily.Provider
 var fakeEC2API *fake.EC2API
@@ -127,8 +126,8 @@ var _ = BeforeSuite(func() {
 	pricingProvider = pricing.NewProvider(ctx, fakePricingAPI, fakeEC2API, "", make(chan struct{}))
 	amiProvider = amifamily.NewProvider(env.Client, env.KubernetesInterface, fakeSSMAPI, fakeEC2API, ssmCache, ec2Cache, kubernetesVersionCache)
 	subnetProvider = subnet.NewProvider(fakeEC2API)
-	instanceTypeProvider = instancetypes.NewProvider(
-		mock.Session,
+	instanceTypesProvider = instancetypes.NewProvider(
+		"",
 		instanceTypeCache,
 		fakeEC2API,
 		subnetProvider,
@@ -148,9 +147,9 @@ var _ = BeforeSuite(func() {
 		"https://test-cluster",
 	)
 	cloudProvider = &CloudProvider{
-		instanceTypeProvider: instanceTypeProvider,
+		instanceTypeProvider: instanceTypesProvider,
 		amiProvider:          amiProvider,
-		instanceProvider:     NewInstanceProvider(ctx, "", fakeEC2API, unavailableOfferingsCache, instanceTypeProvider, subnetProvider, launchTemplateProvider),
+		instanceProvider:     NewInstanceProvider(ctx, "", fakeEC2API, unavailableOfferingsCache, instanceTypesProvider, subnetProvider, launchTemplateProvider),
 		kubeClient:           env.Client,
 	}
 	fakeClock = clock.NewFakeClock(time.Now())
@@ -214,8 +213,8 @@ var _ = BeforeEach(func() {
 	launchTemplateProvider.ClusterEndpoint = "https://test-cluster"
 
 	// Reset the pricing provider, so we don't cross-pollinate pricing data
-	instanceTypeProvider = instancetypes.NewProvider(
-		mock.Session,
+	instanceTypesProvider = instancetypes.NewProvider(
+		"",
 		instanceTypeCache,
 		fakeEC2API,
 		subnetProvider,

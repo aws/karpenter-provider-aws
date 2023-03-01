@@ -68,7 +68,7 @@ type Context struct {
 	AMIResolver               *amifamily.Resolver
 	LaunchTemplateProvider    *launchtemplate.Provider
 	PricingProvider           *pricing.Provider
-	InstanceTypeProvider      *instancetypes.Provider
+	InstanceTypesProvider     *instancetypes.Provider
 }
 
 func NewOrDie(ctx cloudprovider.Context) Context {
@@ -130,7 +130,7 @@ func NewOrDie(ctx cloudprovider.Context) Context {
 		clusterEndpoint,
 	)
 	instanceTypeProvider := instancetypes.NewProvider(
-		sess,
+		*sess.Config.Region,
 		cache.New(awscache.InstanceTypesAndZonesTTL, awscache.DefaultCleanupInterval),
 		ec2api,
 		subnetProvider,
@@ -149,7 +149,7 @@ func NewOrDie(ctx cloudprovider.Context) Context {
 		AMIResolver:               amiResolver,
 		LaunchTemplateProvider:    launchTemplateProvider,
 		PricingProvider:           pricingProvider,
-		InstanceTypeProvider:      instanceTypeProvider,
+		InstanceTypesProvider:     instanceTypeProvider,
 	}
 }
 

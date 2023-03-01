@@ -73,14 +73,14 @@ type CloudProvider struct {
 func New(ctx awscontext.Context) *CloudProvider {
 	return &CloudProvider{
 		kubeClient:           ctx.KubeClient,
-		instanceTypeProvider: ctx.InstanceTypeProvider,
+		instanceTypeProvider: ctx.InstanceTypesProvider,
 		amiProvider:          ctx.AMIProvider,
 		instanceProvider: NewInstanceProvider(
 			ctx,
 			aws.StringValue(ctx.Session.Config.Region),
 			ctx.EC2API,
 			ctx.UnavailableOfferingsCache,
-			ctx.InstanceTypeProvider,
+			ctx.InstanceTypesProvider,
 			ctx.SubnetProvider,
 			ctx.LaunchTemplateProvider,
 		),

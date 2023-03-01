@@ -65,10 +65,9 @@ var unavailableOfferingsCache *awscache.UnavailableOfferings
 var ec2API *fake.EC2API
 var cloudProvider *cloudprovider.CloudProvider
 var subnetProvider *subnet.Provider
-var instanceTypeCache *cache.Cache
 var linkController controller.Controller
 var pricingProvider *pricing.Provider
-var instanceTypeProvider *instancetypes.Provider
+var instanceTypesProvider *instancetypes.Provider
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -82,10 +81,9 @@ var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
 	unavailableOfferingsCache = awscache.NewUnavailableOfferings()
 	ec2API = &fake.EC2API{}
-	instanceTypeCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	subnetProvider = subnet.NewProvider(ec2API)
 	pricingProvider = pricing.NewProvider(ctx, &fake.PricingAPI{}, ec2API, "", make(chan struct{}))
-	instanceTypeProvider = instancetypes.NewProvider(mock.Session, instanceTypeCache, ec2API, subnetProvider, unavailableOfferingsCache, pricingProvider)
+	instanceTypesProvider = instancetypes.NewProvider("", cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), ec2API, subnetProvider, unavailableOfferingsCache, pricingProvider)
 	cloudProvider = cloudprovider.New(awscontext.Context{
 		Context: corecloudprovider.Context{
 			Context:             ctx,
@@ -102,7 +100,7 @@ var _ = BeforeSuite(func() {
 		UnavailableOfferingsCache: unavailableOfferingsCache,
 		EC2API:                    ec2API,
 		PricingProvider:           pricingProvider,
-		InstanceTypeProvider:      instanceTypeProvider,
+		InstanceTypesProvider:     instanceTypesProvider,
 	})
 	linkController = link.NewController(env.Client, cloudProvider)
 })
@@ -119,7 +117,6 @@ var _ = Describe("MachineLink", func() {
 
 	BeforeEach(func() {
 		ec2API.Reset()
-		instanceTypeCache.Flush()
 		instanceID = fake.InstanceID()
 		providerID = fmt.Sprintf("aws:///test-zone-1a/%s", instanceID)
 		nodeTemplate = test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{})
