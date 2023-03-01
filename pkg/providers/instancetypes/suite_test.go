@@ -594,7 +594,7 @@ var _ = Describe("Instance Types", func() {
 		instanceInfo, err := instanceTypeProvider.GetInstanceTypes(ctx)
 		Expect(err).To(BeNil())
 		for _, info := range instanceInfo {
-			it := instancetypes.New(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+			it := instancetypes.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 			Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 110))
 		}
 	})
@@ -602,7 +602,7 @@ var _ = Describe("Instance Types", func() {
 		instanceInfo, err := instanceTypeProvider.GetInstanceTypes(ctx)
 		Expect(err).To(BeNil())
 		for _, info := range instanceInfo {
-			it := instancetypes.New(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+			it := instancetypes.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 			Expect(it.Capacity.Pods().Value()).ToNot(BeNumerically("==", 110))
 		}
 	})
@@ -631,7 +631,7 @@ var _ = Describe("Instance Types", func() {
 						},
 					},
 				})
-				it := instancetypes.New(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+				it := instancetypes.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 				Expect(it.Overhead.SystemReserved.Cpu().String()).To(Equal("2"))
 			})
 			It("should override system reserved memory when specified", func() {
@@ -642,7 +642,7 @@ var _ = Describe("Instance Types", func() {
 						},
 					},
 				})
-				it := instancetypes.New(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+				it := instancetypes.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 				Expect(it.Overhead.SystemReserved.Memory().String()).To(Equal("20Gi"))
 			})
 			It("should override kube reserved when specified", func() {
@@ -660,7 +660,7 @@ var _ = Describe("Instance Types", func() {
 						},
 					},
 				})
-				it := instancetypes.New(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+				it := instancetypes.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 				Expect(it.Overhead.KubeReserved.Cpu().String()).To(Equal("2"))
 				Expect(it.Overhead.KubeReserved.Memory().String()).To(Equal("10Gi"))
 				Expect(it.Overhead.KubeReserved.StorageEphemeral().String()).To(Equal("2Gi"))
@@ -686,7 +686,7 @@ var _ = Describe("Instance Types", func() {
 						},
 					},
 				})
-				it := instancetypes.New(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+				it := instancetypes.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 				Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("500Mi"))
 			})
 			It("should override eviction threshold (hard) when specified as a percentage value", func() {
@@ -703,7 +703,7 @@ var _ = Describe("Instance Types", func() {
 						},
 					},
 				})
-				it := instancetypes.New(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+				it := instancetypes.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 				Expect(it.Overhead.EvictionThreshold.Memory().Value()).To(BeNumerically("~", float64(it.Capacity.Memory().Value())*0.1, 10))
 			})
 			It("should consider the eviction threshold (hard) disabled when specified as 100%", func() {
@@ -720,7 +720,7 @@ var _ = Describe("Instance Types", func() {
 						},
 					},
 				})
-				it := instancetypes.New(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+				it := instancetypes.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 				Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("0"))
 			})
 			It("should used default eviction threshold (hard) for memory when evictionHard not specified", func() {
@@ -737,7 +737,7 @@ var _ = Describe("Instance Types", func() {
 						},
 					},
 				})
-				it := instancetypes.New(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+				it := instancetypes.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 				Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("50Mi"))
 			})
 			It("should override eviction threshold (soft) when specified as a quantity", func() {
@@ -754,7 +754,7 @@ var _ = Describe("Instance Types", func() {
 						},
 					},
 				})
-				it := instancetypes.New(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+				it := instancetypes.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 				Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("500Mi"))
 			})
 			It("should override eviction threshold (soft) when specified as a percentage value", func() {
@@ -774,7 +774,7 @@ var _ = Describe("Instance Types", func() {
 						},
 					},
 				})
-				it := instancetypes.New(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+				it := instancetypes.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 				Expect(it.Overhead.EvictionThreshold.Memory().Value()).To(BeNumerically("~", float64(it.Capacity.Memory().Value())*0.1, 10))
 			})
 			It("should consider the eviction threshold (soft) disabled when specified as 100%", func() {
@@ -791,7 +791,7 @@ var _ = Describe("Instance Types", func() {
 						},
 					},
 				})
-				it := instancetypes.New(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+				it := instancetypes.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 				Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("0"))
 			})
 			It("should ignore eviction threshold (soft) when using Bottlerocket AMI", func() {
@@ -812,7 +812,7 @@ var _ = Describe("Instance Types", func() {
 						},
 					},
 				})
-				it := instancetypes.New(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+				it := instancetypes.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 				Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("1Gi"))
 			})
 			It("should take the greater of evictionHard and evictionSoft for overhead as a value", func() {
@@ -832,7 +832,7 @@ var _ = Describe("Instance Types", func() {
 						},
 					},
 				})
-				it := instancetypes.New(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+				it := instancetypes.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 				Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("3Gi"))
 			})
 			It("should take the greater of evictionHard and evictionSoft for overhead as a value", func() {
@@ -852,7 +852,7 @@ var _ = Describe("Instance Types", func() {
 						},
 					},
 				})
-				it := instancetypes.New(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+				it := instancetypes.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 				Expect(it.Overhead.EvictionThreshold.Memory().Value()).To(BeNumerically("~", float64(it.Capacity.Memory().Value())*0.05, 10))
 			})
 			It("should take the greater of evictionHard and evictionSoft for overhead with mixed percentage/value", func() {
@@ -872,7 +872,7 @@ var _ = Describe("Instance Types", func() {
 						},
 					},
 				})
-				it := instancetypes.New(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+				it := instancetypes.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 				Expect(it.Overhead.EvictionThreshold.Memory().Value()).To(BeNumerically("~", float64(it.Capacity.Memory().Value())*0.1, 10))
 			})
 		})
@@ -881,7 +881,7 @@ var _ = Describe("Instance Types", func() {
 			Expect(err).To(BeNil())
 			provisioner = test.Provisioner(coretest.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{MaxPods: ptr.Int32(10)}})
 			for _, info := range instanceInfo {
-				it := instancetypes.New(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+				it := instancetypes.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 10))
 			}
 		})
@@ -894,7 +894,7 @@ var _ = Describe("Instance Types", func() {
 			Expect(err).To(BeNil())
 			provisioner = test.Provisioner(coretest.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{MaxPods: ptr.Int32(10)}})
 			for _, info := range instanceInfo {
-				it := instancetypes.New(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+				it := instancetypes.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 10))
 			}
 		})
@@ -903,7 +903,7 @@ var _ = Describe("Instance Types", func() {
 			Expect(err).To(BeNil())
 			provisioner = test.Provisioner(coretest.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{PodsPerCore: ptr.Int32(1)}})
 			for _, info := range instanceInfo {
-				it := instancetypes.New(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+				it := instancetypes.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", ptr.Int64Value(info.VCpuInfo.DefaultVCpus)))
 			}
 		})
@@ -912,7 +912,7 @@ var _ = Describe("Instance Types", func() {
 			Expect(err).To(BeNil())
 			provisioner = test.Provisioner(coretest.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{PodsPerCore: ptr.Int32(4), MaxPods: ptr.Int32(20)}})
 			for _, info := range instanceInfo {
-				it := instancetypes.New(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+				it := instancetypes.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", lo.Min([]int64{20, ptr.Int64Value(info.VCpuInfo.DefaultVCpus) * 4})))
 			}
 		})
@@ -922,7 +922,7 @@ var _ = Describe("Instance Types", func() {
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
 			provisioner = test.Provisioner(coretest.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{PodsPerCore: ptr.Int32(1)}})
 			for _, info := range instanceInfo {
-				it := instancetypes.New(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+				it := instancetypes.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 				limitedPods := resources.Quantity(fmt.Sprint(*info.NetworkInfo.MaximumNetworkInterfaces*(*info.NetworkInfo.Ipv4AddressesPerInterface-1) + 2))
 				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", limitedPods.Value()))
 			}
@@ -936,7 +936,7 @@ var _ = Describe("Instance Types", func() {
 			Expect(err).To(BeNil())
 			provisioner = test.Provisioner(coretest.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{PodsPerCore: ptr.Int32(0)}})
 			for _, info := range instanceInfo {
-				it := instancetypes.New(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+				it := instancetypes.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 110))
 			}
 		})

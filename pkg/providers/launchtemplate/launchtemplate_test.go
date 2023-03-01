@@ -893,7 +893,7 @@ var _ = Describe("LaunchTemplates", func() {
 			}))
 
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyAL2
-			it := instancetypes.New(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+			it := instancetypes.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 			overhead := it.Overhead.Total()
 			Expect(overhead.Memory().String()).To(Equal("1093Mi"))
 		})
@@ -904,7 +904,7 @@ var _ = Describe("LaunchTemplates", func() {
 			}))
 
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyAL2
-			it := instancetypes.New(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+			it := instancetypes.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 			overhead := it.Overhead.Total()
 			Expect(overhead.Memory().String()).To(Equal("1093Mi"))
 		})
@@ -943,7 +943,7 @@ var _ = Describe("LaunchTemplates", func() {
 			}))
 
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
-			it := instancetypes.New(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+			it := instancetypes.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 			overhead := it.Overhead.Total()
 			Expect(overhead.Memory().String()).To(Equal("1093Mi"))
 		})
@@ -954,7 +954,7 @@ var _ = Describe("LaunchTemplates", func() {
 			}))
 
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
-			it := instancetypes.New(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+			it := instancetypes.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 			overhead := it.Overhead.Total()
 			Expect(overhead.Memory().String()).To(Equal("1665Mi"))
 		})
