@@ -132,6 +132,38 @@ func (p *Provider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTempla
 	return amiIDs, nil
 }
 
+func (p *Provider) GetAMIWithRequirements(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, instanceTypes []*cloudprovider.InstanceType, amiFamily AMIFamily) (map[AMI]scheduling.Requirements, error) {
+	kubernetesVersion, err := p.KubeServerVersion(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("getting kubernetes version %w", err)
+	}
+	amiIDs := map[string][]*cloudprovider.InstanceType{}
+	amiRequirements, err := p.getAMIRequirements(ctx, nodeTemplate)
+	if err != nil {
+		return nil, err
+	}
+	if len(amiRequirements) == 0 {
+		for _, instanceType := range instanceTypes {
+			amiID, err := p.getDefaultAMIFromSSM(ctx, amiFamily.SSMAlias(kubernetesVersion, instanceType))
+			if err != nil {
+				return nil, err
+			}
+			amiIDs[amiID] = append(amiIDs[amiID], instanceType)
+		}
+		amifilter := map[string]string{"aws-ids": strings.Join(lo.Keys(amiIDs), ",")}
+		amiRequirements, err = p.selectAMIs(ctx, amifilter)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Iterate through AMIs in order of creation date to use latest AMI
+	amis := sortAMIsByCreationDate(amiRequirements)
+	return lo.Associate(amis, func(ami AMI) (AMI, scheduling.Requirements) {
+		return ami, amiRequirements[ami]
+	}), nil
+}
+
 func (p *Provider) getDefaultAMIFromSSM(ctx context.Context, ssmQuery string) (string, error) {
 	if id, ok := p.ssmCache.Get(ssmQuery); ok {
 		return id.(string), nil

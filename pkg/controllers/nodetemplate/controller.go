@@ -125,15 +125,11 @@ func (c *Controller) resolveSecurityGroup(ctx context.Context, nodeTemplate *v1a
 }
 
 func (c *Controller) resolveAMI(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) error {
+	amiFamily := amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, &amifamily.Options{})
 	instancetypes, _ := c.instanceTypesProvider.List(ctx, &v1alpha5.KubeletConfiguration{}, nodeTemplate)
-	amiFamily := amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, options)
 
-	for _, instance := range instancetypes {
-		fmt.Println(instance.Name)
-	}
-	fmt.Println(len(instancetypes))
-
-	c.amiProvider.Get(ctx, nodeTemplate, instancetypes)
+	amis, _ := c.amiProvider.GetAMIWithRequirements(ctx, nodeTemplate, instancetypes, amiFamily)
+	fmt.Println(amis)
 
 	return nil
 }
