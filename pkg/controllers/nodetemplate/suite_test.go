@@ -19,38 +19,53 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/awstesting/mock"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	. "knative.dev/pkg/logging/testing"
 	_ "knative.dev/pkg/system/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/aws/aws-sdk-go/service/ec2"
-
+	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter-core/pkg/operator/injection"
 	"github.com/aws/karpenter-core/pkg/operator/options"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
+
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	awscache "github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/controllers/nodetemplate"
 	"github.com/aws/karpenter/pkg/fake"
+	"github.com/aws/karpenter/pkg/providers/amifamily"
+	"github.com/aws/karpenter/pkg/providers/instancetypes"
+	"github.com/aws/karpenter/pkg/providers/pricing"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
 	"github.com/aws/karpenter/pkg/providers/subnet"
 )
 
 var ctx context.Context
 var env *coretest.Environment
+var fakeSession *session.Session
+var ssmCache *cache.Cache
+var kubernetesVersionCache *cache.Cache
+var ec2Cache *cache.Cache
+var unavailableOfferingsCache *awscache.UnavailableOfferings
+var instanceTypeCache *cache.Cache
 var fakeEC2API *fake.EC2API
 var opts options.Options
 var subnetProvider *subnet.Provider
 var securityGroupProvider *securitygroup.Provider
+var amiProvider *amifamily.Provider
+var instanceTypeProvider *instancetypes.Provider
+var pricingProvider *pricing.Provider
 var nodeTemplate *v1alpha1.AWSNodeTemplate
 var controller corecontroller.Controller
 
@@ -64,9 +79,20 @@ var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
 
 	fakeEC2API = &fake.EC2API{}
+	fakeSession = mock.Session
+	fakeSession.Config.Region = aws.String("")
+
+	ssmCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	ec2Cache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	unavailableOfferingsCache = awscache.NewUnavailableOfferings()
+	kubernetesVersionCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	instanceTypeCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	subnetProvider = subnet.NewProvider(fakeEC2API)
 	securityGroupProvider = securitygroup.NewProvider(fakeEC2API)
-	controller = nodetemplate.NewController(env.Client, subnetProvider, securityGroupProvider)
+	pricingProvider = pricing.NewProvider(ctx, &fake.PricingAPI{}, fakeEC2API, "", make(chan struct{}))
+	amiProvider = amifamily.NewProvider(env.Client, env.KubernetesInterface, fake.SSMAPI{}, fakeEC2API, ssmCache, ec2Cache, kubernetesVersionCache)
+	instanceTypeProvider = instancetypes.NewProvider(fakeSession, instanceTypeCache, fakeEC2API, subnetProvider, unavailableOfferingsCache, pricingProvider)
+	controller = nodetemplate.NewController(env.Client, subnetProvider, securityGroupProvider, amiProvider, instanceTypeProvider)
 })
 
 var _ = AfterSuite(func() {
