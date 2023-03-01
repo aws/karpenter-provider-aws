@@ -7,7 +7,7 @@ require (
 	github.com/aws/aws-sdk-go v1.44.195
 	github.com/aws/aws-sdk-go-v2/config v1.18.13
 	github.com/aws/karpenter v0.22.0
-	github.com/aws/karpenter-core v0.25.1-0.20230224225813-3e5ec9b8eb1a
+	github.com/aws/karpenter-core v0.100.101-test
 	github.com/onsi/ginkgo/v2 v2.8.1
 	github.com/onsi/gomega v1.27.1
 	github.com/samber/lo v1.37.0
@@ -23,7 +23,6 @@ require (
 	github.com/Pallinder/go-randomdata v1.2.0 // indirect
 	github.com/PuerkitoBio/purell v1.1.1 // indirect
 	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
-	github.com/avast/retry-go v3.0.0+incompatible // indirect
 	github.com/aws/aws-sdk-go-v2 v1.17.5 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.13.13 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.12.22 // indirect

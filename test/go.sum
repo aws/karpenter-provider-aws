@@ -45,7 +45,6 @@ github.com/alecthomas/units v0.0.0-20151022065526-2efee857e7cf/go.mod h1:ybxpYRF
 github.com/alecthomas/units v0.0.0-20190717042225-c3de453c63f4/go.mod h1:ybxpYRFXyAe+OPACYpWeL0wqObRcbAqCMya13uyzqw0=
 github.com/alecthomas/units v0.0.0-20190924025748-f65c72e2690d/go.mod h1:rBZYJk541a8SKzHPHnH3zbiI+7dagKZ0cgpgrD7Fyho=
 github.com/avast/retry-go v3.0.0+incompatible h1:4SOWQ7Qs+oroOTQOYnAHqelpCO0biHSxpiH9JdtuBj0=
-github.com/avast/retry-go v3.0.0+incompatible/go.mod h1:XtSnn+n/sHqQIpZ10K1qAevBhOOCWBLXXy3hyiqqBrY=
 github.com/aws/amazon-ec2-spot-interrupter v0.0.10 h1:ROxI1bLXpV/YoV4yoXsxQx9QyzPY7N8KqRqUq3nEJtw=
 github.com/aws/amazon-ec2-spot-interrupter v0.0.10/go.mod h1:Av6iKWBQSDB02SPiVQZPcFD04V3uWZBxn0eUxs3jRFM=
 github.com/aws/aws-sdk-go v1.44.195 h1:d5xFL0N83Fpsq2LFiHgtBUHknCRUPGHdOlCWt/jtOJs=
@@ -83,8 +82,8 @@ github.com/aws/aws-sdk-go-v2/service/ssooidc v1.14.2/go.mod h1:O1YSOg3aekZibh2Sn
 github.com/aws/aws-sdk-go-v2/service/sts v1.18.3/go.mod h1:b+psTJn33Q4qGoDaM7ZiOVVG8uVjGI6HaZ8WBHdgDgU=
 github.com/aws/aws-sdk-go-v2/service/sts v1.18.5 h1:L1600eLr0YvTT7gNh3Ni24yGI7NSHkq9Gp62vijPRCs=
 github.com/aws/aws-sdk-go-v2/service/sts v1.18.5/go.mod h1:1mKZHLLpDMHTNSYPJ7qrcnCQdHCWsNQaT0xRvq2u80s=
-github.com/aws/karpenter-core v0.25.1-0.20230224225813-3e5ec9b8eb1a h1:+SrX+qETmZxfGFx0gWiHzUWsZytRbXuq3GGcH2z3AQk=
-github.com/aws/karpenter-core v0.25.1-0.20230224225813-3e5ec9b8eb1a/go.mod h1:szIXYuMzg8kAwAbMIoB1VJBjAM+AdX+cIwsINkmWnpI=
+github.com/aws/karpenter-core v0.100.101-test h1:K36UU7KM482LfxFlFh8MmQ3/CljJ99YO+TIy1k1bAH0=
+github.com/aws/karpenter-core v0.100.101-test/go.mod h1:qWQu8B7Tc2sPDNdIG9JZRl642ofccXtgj89is04Z5U8=
 github.com/aws/smithy-go v1.13.5 h1:hgz0X/DX0dGqTYpGALqXJoRKRj5oQ7150i5FdTePzO8=
 github.com/aws/smithy-go v1.13.5/go.mod h1:Tg+OJXh4MB2R/uN61Ko2f6hTZwB/ZYGOtib8J3gBHzA=
 github.com/benbjohnson/clock v1.1.0 h1:Q92kusRqC1XV2MjkWETPvjJVqKetz1OzxZB7mHJLju8=
