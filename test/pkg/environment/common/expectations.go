@@ -230,8 +230,14 @@ func (env *Environment) EventuallyExpectNotFoundAssertionWithOffset(offset int, 
 func (env *Environment) ExpectCreatedNodeCount(comparator string, count int) []*v1.Node {
 	createdNodes := env.Monitor.CreatedNodes()
 	ExpectWithOffset(1, len(createdNodes)).To(BeNumerically(comparator, count),
-		fmt.Sprintf("expected %d created nodes, had %d", count, len(createdNodes)))
+		fmt.Sprintf("expected %d created nodes, had %d (%v)", count, len(createdNodes), nodeNames(createdNodes)))
 	return createdNodes
+}
+
+func nodeNames(nodes []*v1.Node) []string {
+	return lo.Map(nodes, func(n *v1.Node, index int) string {
+		return n.Name
+	})
 }
 
 func (env *Environment) EventuallyExpectCreatedNodeCount(comparator string, count int) []*v1.Node {
@@ -239,7 +245,7 @@ func (env *Environment) EventuallyExpectCreatedNodeCount(comparator string, coun
 	EventuallyWithOffset(1, func(g Gomega) {
 		createdNodes = env.Monitor.CreatedNodes()
 		g.Expect(len(createdNodes)).To(BeNumerically(comparator, count),
-			fmt.Sprintf("expected %d created nodes, had %d", count, len(createdNodes)))
+			fmt.Sprintf("expected %d created nodes, had %d (%v)", count, len(createdNodes), nodeNames(createdNodes)))
 	}).Should(Succeed())
 	return createdNodes
 }
