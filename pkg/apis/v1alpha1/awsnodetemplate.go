@@ -15,6 +15,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -35,6 +36,16 @@ type SecurityGroupStatus struct {
 	ID string `json:"id,omitempty"`
 }
 
+// AMI contains resolved AMI selector values utilized for node launch
+type AMIStatus struct {
+	// Id of the AMI
+	// +optional
+	ID string `json:"id,omitempty"`
+	// Requirements of the AMI to be utilized on an instance type
+	// +optional
+	Requirements []v1.NodeSelectorRequirement `json:"requirements,omitempty"`
+}
+
 // AWSNodeTemplateStatus contains the resolved state of the AWSNodeTemplate
 type AWSNodeTemplateStatus struct {
 	// Subnets contains the current Subnet values that are available to the
@@ -45,6 +56,10 @@ type AWSNodeTemplateStatus struct {
 	// cluster under the SecurityGroups selectors.
 	// +optional
 	SecurityGroups []SecurityGroupStatus `json:"securityGroups,omitempty"`
+	// AMI contains the current AMI values that are available to the
+	// cluster under the AMI selectors.
+	// +optional
+	AMIs []AMIStatus `json:"ami,omitempty"`
 }
 
 // AWSNodeTemplateSpec is the top level specification for the AWS Karpenter Provider.
