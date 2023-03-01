@@ -113,7 +113,7 @@ var _ = Describe("DaemonSet", func() {
 			g.Expect(deploymentPods).To(HaveLen(1))
 
 			daemonSetPods := env.Monitor.RunningPods(daemonSetSelector)
-			g.Expect(deploymentPods).To(HaveLen(1))
+			g.Expect(daemonSetPods).To(HaveLen(1))
 
 			g.Expect(deploymentPods[0].Spec.NodeName).To(Equal(nodeList.Items[0].Name))
 			g.Expect(daemonSetPods[0].Spec.NodeName).To(Equal(nodeList.Items[0].Name))
