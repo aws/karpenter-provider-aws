@@ -16,6 +16,7 @@ package cloudprovider
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"testing"
 	"time"
@@ -569,6 +570,17 @@ var _ = Describe("Allocation", func() {
 			ExpectScheduled(ctx, env.Client, pod3)
 			createFleetInput = fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
 			Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-1"))
+		})
+		It("should update in-flight IPs when a CreateFleet error occurs", func() {
+			fakeEC2API.DescribeSubnetsOutput.Set(&ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{
+				{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a"), AvailableIpAddressCount: aws.Int64(10),
+					Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1")}}},
+			}})
+			pod1 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}})
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate, pod1)
+			fakeEC2API.CreateFleetBehavior.Error.Set(fmt.Errorf("CreateFleet synthetic error"))
+			bindings := ExpectProvisioned(ctx, env.Client, cluster, prov, pod1)
+			Expect(len(bindings)).To(Equal(0))
 		})
 		It("should launch instances into subnets that are excluded by another provisioner", func() {
 			fakeEC2API.DescribeSubnetsOutput.Set(&ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{
