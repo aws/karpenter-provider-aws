@@ -103,7 +103,7 @@ extraVolumes: []
 #         expirationSeconds: 86400
 #         path: token
 
-# -- Array of extra K8s manifests to deploy 
+# -- Array of extra K8s manifests to deploy
 extraObjects: []
 #- apiVersion: karpenter.k8s.aws/v1alpha1
 #  kind: AWSNodeTemplate
@@ -185,6 +185,10 @@ settings:
   # faster than this time, the batching window will be extended up to the maxDuration. If they arrive slower, the pods
   # will be batched separately.
   batchIdleDuration: 1s
+  # -- driftEnabled is in ALPHA and is disabled by default.
+  # Setting driftEnabled to true enables the drift deprovisioner to watch for drift between currently deployed nodes
+  # and the desired state of nodes set in provisioners and node templates
+  featureGates.driftEnabled: false
   # -- AWS-specific configuration values
   aws:
     # -- Cluster name.
