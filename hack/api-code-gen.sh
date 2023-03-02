@@ -8,7 +8,7 @@ fi
 echo "api-code-gen running ENABLE_GIT_PUSH: ${ENABLE_GIT_PUSH}"
 
 bandwidth() {
-  GENERATED_FILE="pkg/providers/instancetypes/zz_generated.bandwidth.go"
+  GENERATED_FILE="pkg/providers/instancetype/zz_generated.bandwidth.go"
   NO_UPDATE=''
   SUBJECT="Bandwidth"
 
@@ -30,7 +30,7 @@ pricing() {
 }
 
 vpcLimits() {
-  GENERATED_FILE="pkg/providers/instancetypes/zz_generated.vpclimits.go"
+  GENERATED_FILE="pkg/providers/instancetype/zz_generated.vpclimits.go"
   NO_UPDATE=''
   SUBJECT="VPC Limits"
 

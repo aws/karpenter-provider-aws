@@ -56,7 +56,7 @@ var (
 func main() {
 	flag.Parse()
 	if flag.NArg() != 1 {
-		log.Fatalf("Usage: `bandwidth_gen.go pkg/providers/instancetypes/zz_generated.pricing.go`")
+		log.Fatalf("Usage: `bandwidth_gen.go pkg/providers/instancetype/zz_generated.pricing.go`")
 	}
 
 	bandwidth := map[string]int64{}
