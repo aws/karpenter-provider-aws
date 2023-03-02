@@ -135,8 +135,8 @@ func getPodInformation(p *v1.Pod) string {
 		}
 		fmt.Fprintf(&containerInfo, "%s restarts=%d", c.Name, c.RestartCount)
 	}
-	return fmt.Sprintf("pods %s/%s provisionable=%v phase=%s nodename=%s [%s]", p.Namespace, p.Name,
-		pod.IsProvisionable(p), p.Status.Phase, p.Spec.NodeName, containerInfo.String())
+	return fmt.Sprintf("pods %s/%s provisionable=%v phase=%s nodename=%s owner=%#v [%s]", p.Namespace, p.Name,
+		pod.IsProvisionable(p), p.Status.Phase, p.Spec.NodeName, p.OwnerReferences, containerInfo.String())
 }
 
 // Partially copied from
