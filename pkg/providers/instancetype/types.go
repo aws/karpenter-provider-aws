@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package cloudprovider
+package instancetype
 
 import (
 	"context"
@@ -40,7 +40,7 @@ import (
 )
 
 const (
-	memoryAvailable = "memory.available"
+	MemoryAvailable = "memory.available"
 )
 
 var (
@@ -306,7 +306,7 @@ func evictionThreshold(memory *resource.Quantity, amiFamily amifamily.AMIFamily,
 
 	for _, m := range evictionSignals {
 		temp := v1.ResourceList{}
-		if v, ok := m[memoryAvailable]; ok {
+		if v, ok := m[MemoryAvailable]; ok {
 			if strings.HasSuffix(v, "%") {
 				p := mustParsePercentage(v)
 

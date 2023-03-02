@@ -44,6 +44,7 @@ import (
 
 	awscontext "github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/providers/amifamily"
+	"github.com/aws/karpenter/pkg/providers/instancetype"
 
 	coreapis "github.com/aws/karpenter-core/pkg/apis"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
@@ -63,24 +64,23 @@ func init() {
 var _ cloudprovider.CloudProvider = (*CloudProvider)(nil)
 
 type CloudProvider struct {
-	instanceTypeProvider *InstanceTypeProvider
+	instanceTypeProvider *instancetype.Provider
 	instanceProvider     *InstanceProvider
 	kubeClient           client.Client
 	amiProvider          *amifamily.Provider
 }
 
 func New(ctx awscontext.Context) *CloudProvider {
-	instanceTypeProvider := NewInstanceTypeProvider(ctx.Session, ctx.EC2API, ctx.SubnetProvider, ctx.UnavailableOfferingsCache, ctx.PricingProvider)
 	return &CloudProvider{
 		kubeClient:           ctx.KubeClient,
-		instanceTypeProvider: instanceTypeProvider,
+		instanceTypeProvider: ctx.InstanceTypesProvider,
 		amiProvider:          ctx.AMIProvider,
 		instanceProvider: NewInstanceProvider(
 			ctx,
 			aws.StringValue(ctx.Session.Config.Region),
 			ctx.EC2API,
 			ctx.UnavailableOfferingsCache,
-			instanceTypeProvider,
+			ctx.InstanceTypesProvider,
 			ctx.SubnetProvider,
 			ctx.LaunchTemplateProvider,
 		),

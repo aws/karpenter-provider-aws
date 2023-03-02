@@ -56,7 +56,7 @@ var subnetProvider *subnet.Provider
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "CloudProvider/AWS")
+	RunSpecs(t, "Provider/AWS")
 }
 
 var _ = BeforeSuite(func() {
@@ -113,7 +113,7 @@ var _ = AfterEach(func() {
 	ExpectCleanedUp(ctx, env.Client)
 })
 
-var _ = Describe("Security Group Provider", func() {
+var _ = Describe("Subnet Provider", func() {
 	It("should discover subnet by ID", func() {
 		nodeTemplate.Spec.SubnetSelector = map[string]string{"aws-ids": "subnet-test1"}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)

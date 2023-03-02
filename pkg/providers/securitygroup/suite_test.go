@@ -57,7 +57,7 @@ var securityGroupProvider *securitygroup.Provider
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "CloudProvider/AWS")
+	RunSpecs(t, "Provider/AWS")
 }
 
 var _ = BeforeSuite(func() {
