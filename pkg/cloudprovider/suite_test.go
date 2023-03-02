@@ -45,6 +45,11 @@ import (
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	awscache "github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/providers/amifamily"
+	"github.com/aws/karpenter/pkg/providers/instancetype"
+	"github.com/aws/karpenter/pkg/providers/launchtemplate"
+	"github.com/aws/karpenter/pkg/providers/pricing"
+	"github.com/aws/karpenter/pkg/providers/securitygroup"
+	"github.com/aws/karpenter/pkg/providers/subnet"
 	"github.com/aws/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
@@ -65,12 +70,6 @@ import (
 	"github.com/aws/karpenter-core/pkg/operator/options"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	coretest "github.com/aws/karpenter-core/pkg/test"
-
-	"github.com/aws/karpenter/pkg/providers/instancetypes"
-	"github.com/aws/karpenter/pkg/providers/launchtemplate"
-	"github.com/aws/karpenter/pkg/providers/pricing"
-	"github.com/aws/karpenter/pkg/providers/securitygroup"
-	"github.com/aws/karpenter/pkg/providers/subnet"
 )
 
 var ctx context.Context
@@ -83,7 +82,7 @@ var ec2Cache *cache.Cache
 var kubernetesVersionCache *cache.Cache
 var unavailableOfferingsCache *awscache.UnavailableOfferings
 var instanceTypeCache *cache.Cache
-var instanceTypesProvider *instancetypes.Provider
+var instanceTypesProvider *instancetype.Provider
 var launchTemplateProvider *launchtemplate.Provider
 var amiProvider *amifamily.Provider
 var fakeEC2API *fake.EC2API
@@ -126,7 +125,7 @@ var _ = BeforeSuite(func() {
 	pricingProvider = pricing.NewProvider(ctx, fakePricingAPI, fakeEC2API, "", make(chan struct{}))
 	amiProvider = amifamily.NewProvider(env.Client, env.KubernetesInterface, fakeSSMAPI, fakeEC2API, ssmCache, ec2Cache, kubernetesVersionCache)
 	subnetProvider = subnet.NewProvider(fakeEC2API)
-	instanceTypesProvider = instancetypes.NewProvider(
+	instanceTypesProvider = instancetype.NewProvider(
 		"",
 		instanceTypeCache,
 		fakeEC2API,
@@ -213,7 +212,7 @@ var _ = BeforeEach(func() {
 	launchTemplateProvider.ClusterEndpoint = "https://test-cluster"
 
 	// Reset the pricing provider, so we don't cross-pollinate pricing data
-	instanceTypesProvider = instancetypes.NewProvider(
+	instanceTypesProvider = instancetype.NewProvider(
 		"",
 		instanceTypeCache,
 		fakeEC2API,

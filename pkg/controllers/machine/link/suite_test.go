@@ -51,7 +51,7 @@ import (
 	awscontext "github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/controllers/machine/link"
 	"github.com/aws/karpenter/pkg/fake"
-	"github.com/aws/karpenter/pkg/providers/instancetypes"
+	"github.com/aws/karpenter/pkg/providers/instancetype"
 	"github.com/aws/karpenter/pkg/providers/pricing"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
 	"github.com/aws/karpenter/pkg/providers/subnet"
@@ -67,7 +67,7 @@ var cloudProvider *cloudprovider.CloudProvider
 var subnetProvider *subnet.Provider
 var linkController controller.Controller
 var pricingProvider *pricing.Provider
-var instanceTypesProvider *instancetypes.Provider
+var instanceTypesProvider *instancetype.Provider
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -83,7 +83,7 @@ var _ = BeforeSuite(func() {
 	ec2API = &fake.EC2API{}
 	subnetProvider = subnet.NewProvider(ec2API)
 	pricingProvider = pricing.NewProvider(ctx, &fake.PricingAPI{}, ec2API, "", make(chan struct{}))
-	instanceTypesProvider = instancetypes.NewProvider("", cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), ec2API, subnetProvider, unavailableOfferingsCache, pricingProvider)
+	instanceTypesProvider = instancetype.NewProvider("", cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), ec2API, subnetProvider, unavailableOfferingsCache, pricingProvider)
 	cloudProvider = cloudprovider.New(awscontext.Context{
 		Context: corecloudprovider.Context{
 			Context:             ctx,
