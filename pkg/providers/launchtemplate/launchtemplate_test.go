@@ -56,7 +56,7 @@ import (
 	"github.com/aws/karpenter/pkg/providers/amifamily"
 	"github.com/aws/karpenter/pkg/providers/amifamily/bootstrap"
 	"github.com/aws/karpenter/pkg/providers/instance"
-	"github.com/aws/karpenter/pkg/providers/instancetypes"
+	"github.com/aws/karpenter/pkg/providers/instancetype"
 	"github.com/aws/karpenter/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter/pkg/providers/pricing"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
@@ -100,7 +100,7 @@ var nodeTemplate *v1alpha1.AWSNodeTemplate
 var cluster *state.Cluster
 var pricingProvider *pricing.Provider
 var subnetProvider *subnet.Provider
-var instanceTypesProvider *instancetypes.Provider
+var instanceTypesProvider *instancetype.Provider
 var securityGroupProvider *securitygroup.Provider
 var instanceProvider *instance.Provider
 
@@ -131,7 +131,7 @@ var _ = BeforeSuite(func() {
 	securityGroupProvider = securitygroup.NewProvider(fakeEC2API)
 	amiProvider = amifamily.NewProvider(env.Client, env.KubernetesInterface, fakeSSMAPI, fakeEC2API, ssmCache, ec2Cache, kubernetesVersionCache)
 	amiResolver = amifamily.New(env.Client, amiProvider)
-	instanceTypesProvider = instancetypes.NewProvider("", instanceTypeCache, fakeEC2API, subnetProvider, unavailableOfferingsCache, pricingProvider)
+	instanceTypesProvider = instancetype.NewProvider("", instanceTypeCache, fakeEC2API, subnetProvider, unavailableOfferingsCache, pricingProvider)
 
 	launchTemplateProvider = launchtemplate.NewProvider(
 		ctx,
@@ -224,7 +224,7 @@ var _ = BeforeEach(func() {
 	launchTemplateProvider.ClusterEndpoint = "https://test-cluster"
 
 	// Reset the pricing provider, so we don't cross-pollinate pricing data
-	instanceTypesProvider = instancetypes.NewProvider(
+	instanceTypesProvider = instancetype.NewProvider(
 		"",
 		instanceTypeCache,
 		fakeEC2API,
@@ -896,7 +896,7 @@ var _ = Describe("LaunchTemplates", func() {
 			}))
 
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyAL2
-			it := instancetypes.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+			it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 			overhead := it.Overhead.Total()
 			Expect(overhead.Memory().String()).To(Equal("1093Mi"))
 		})
@@ -907,7 +907,7 @@ var _ = Describe("LaunchTemplates", func() {
 			}))
 
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyAL2
-			it := instancetypes.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+			it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 			overhead := it.Overhead.Total()
 			Expect(overhead.Memory().String()).To(Equal("1093Mi"))
 		})
@@ -946,7 +946,7 @@ var _ = Describe("LaunchTemplates", func() {
 			}))
 
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
-			it := instancetypes.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+			it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 			overhead := it.Overhead.Total()
 			Expect(overhead.Memory().String()).To(Equal("1093Mi"))
 		})
@@ -957,7 +957,7 @@ var _ = Describe("LaunchTemplates", func() {
 			}))
 
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
-			it := instancetypes.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+			it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 			overhead := it.Overhead.Total()
 			Expect(overhead.Memory().String()).To(Equal("1665Mi"))
 		})

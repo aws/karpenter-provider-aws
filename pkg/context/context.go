@@ -46,7 +46,7 @@ import (
 	awscache "github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/providers/amifamily"
 	"github.com/aws/karpenter/pkg/providers/instance"
-	"github.com/aws/karpenter/pkg/providers/instancetypes"
+	"github.com/aws/karpenter/pkg/providers/instancetype"
 	"github.com/aws/karpenter/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter/pkg/providers/pricing"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
@@ -69,7 +69,7 @@ type Context struct {
 	AMIResolver               *amifamily.Resolver
 	LaunchTemplateProvider    *launchtemplate.Provider
 	PricingProvider           *pricing.Provider
-	InstanceTypesProvider     *instancetypes.Provider
+	InstanceTypesProvider     *instancetype.Provider
 	InstanceProvider          *instance.Provider
 }
 
@@ -131,7 +131,7 @@ func NewOrDie(ctx cloudprovider.Context) Context {
 		kubeDNSIP,
 		clusterEndpoint,
 	)
-	instanceTypeProvider := instancetypes.NewProvider(
+	instanceTypeProvider := instancetype.NewProvider(
 		*sess.Config.Region,
 		cache.New(awscache.InstanceTypesAndZonesTTL, awscache.DefaultCleanupInterval),
 		ec2api,

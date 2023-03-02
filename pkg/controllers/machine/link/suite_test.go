@@ -55,7 +55,7 @@ import (
 	"github.com/aws/karpenter/pkg/fake"
 	"github.com/aws/karpenter/pkg/providers/amifamily"
 	"github.com/aws/karpenter/pkg/providers/instance"
-	"github.com/aws/karpenter/pkg/providers/instancetypes"
+	"github.com/aws/karpenter/pkg/providers/instancetype"
 	"github.com/aws/karpenter/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter/pkg/providers/pricing"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
@@ -81,10 +81,10 @@ var linkController controller.Controller
 var pricingProvider *pricing.Provider
 var amiProvider *amifamily.Provider
 var amiResolver *amifamily.Resolver
-var instanceTypeProvider *instancetypes.Provider
+var instanceTypeProvider *instancetype.Provider
 var launchTemplateProvider *launchtemplate.Provider
 var instanceProvider *instance.Provider
-var instanceTypesProvider *instancetypes.Provider
+var instanceTypesProvider *instancetype.Provider
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -121,7 +121,7 @@ var _ = BeforeSuite(func() {
 		"https://test-cluster",
 	)
 	instanceProvider = instance.NewProvider(ctx, "", ec2API, unavailableOfferingsCache, instanceTypeProvider, subnetProvider, launchTemplateProvider)
-	instanceTypesProvider = instancetypes.NewProvider("", cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), ec2API, subnetProvider, unavailableOfferingsCache, pricingProvider)
+	instanceTypesProvider = instancetype.NewProvider("", cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), ec2API, subnetProvider, unavailableOfferingsCache, pricingProvider)
 	cloudProvider = cloudprovider.New(awscontext.Context{
 		Context: corecloudprovider.Context{
 			Context:             ctx,
