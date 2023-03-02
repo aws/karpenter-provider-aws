@@ -239,7 +239,6 @@ func (p *InstanceProvider) launchInstance(ctx context.Context, nodeTemplate *v1a
 	}
 
 	createFleetOutput, err := p.ec2Batcher.CreateFleet(ctx, createFleetInput)
-	p.subnetProvider.UpdateInflightIPs(createFleetInput, createFleetOutput, instanceTypes, lo.Values(zonalSubnets), capacityType)
 	if err != nil {
 		if awserrors.IsLaunchTemplateNotFound(err) {
 			for _, lt := range launchTemplateConfigs {
@@ -253,6 +252,7 @@ func (p *InstanceProvider) launchInstance(ctx context.Context, nodeTemplate *v1a
 		}
 		return nil, fmt.Errorf("creating fleet %w", err)
 	}
+	p.subnetProvider.UpdateInflightIPs(createFleetInput, createFleetOutput, instanceTypes, lo.Values(zonalSubnets), capacityType)
 	p.updateUnavailableOfferingsCache(ctx, createFleetOutput.Errors, capacityType)
 	if len(createFleetOutput.Instances) == 0 || len(createFleetOutput.Instances[0].InstanceIds) == 0 {
 		return nil, combineFleetErrors(createFleetOutput.Errors)
