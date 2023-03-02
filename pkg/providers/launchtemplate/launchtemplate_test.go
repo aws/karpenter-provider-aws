@@ -100,7 +100,7 @@ var nodeTemplate *v1alpha1.AWSNodeTemplate
 var cluster *state.Cluster
 var pricingProvider *pricing.Provider
 var subnetProvider *subnet.Provider
-var instanceTypeProvider *instancetypes.Provider
+var instanceTypesProvider *instancetypes.Provider
 var securityGroupProvider *securitygroup.Provider
 var instanceProvider *instance.Provider
 
@@ -131,7 +131,8 @@ var _ = BeforeSuite(func() {
 	securityGroupProvider = securitygroup.NewProvider(fakeEC2API)
 	amiProvider = amifamily.NewProvider(env.Client, env.KubernetesInterface, fakeSSMAPI, fakeEC2API, ssmCache, ec2Cache, kubernetesVersionCache)
 	amiResolver = amifamily.New(env.Client, amiProvider)
-	instanceTypeProvider = instancetypes.NewProvider(mock.Session, instanceTypeCache, fakeEC2API, subnetProvider, unavailableOfferingsCache, pricingProvider)
+	instanceTypesProvider = instancetypes.NewProvider("", instanceTypeCache, fakeEC2API, subnetProvider, unavailableOfferingsCache, pricingProvider)
+
 	launchTemplateProvider = launchtemplate.NewProvider(
 		ctx,
 		launchTemplateCache,
@@ -143,7 +144,7 @@ var _ = BeforeSuite(func() {
 		net.ParseIP("10.0.100.10"),
 		"https://test-cluster",
 	)
-	instanceProvider = instance.NewProvider(ctx, "", fakeEC2API, unavailableOfferingsCache, instanceTypeProvider, subnetProvider, launchTemplateProvider)
+	instanceProvider = instance.NewProvider(ctx, "", fakeEC2API, unavailableOfferingsCache, instanceTypesProvider, subnetProvider, launchTemplateProvider)
 	cloudProvider = cloudprovider.New(awscontext.Context{
 		Context: corecloudprovider.Context{
 			Context:             ctx,
@@ -163,8 +164,8 @@ var _ = BeforeSuite(func() {
 		AMIProvider:               amiProvider,
 		AMIResolver:               amiResolver,
 		LaunchTemplateProvider:    launchTemplateProvider,
-		InstanceTypeProvider:      instanceTypeProvider,
 		InstanceProvider:          instanceProvider,
+		InstanceTypesProvider:     instanceTypesProvider,
 	})
 	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
 	prov = provisioning.NewProvisioner(ctx, env.Client, env.KubernetesInterface.CoreV1(), events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster)
@@ -223,8 +224,8 @@ var _ = BeforeEach(func() {
 	launchTemplateProvider.ClusterEndpoint = "https://test-cluster"
 
 	// Reset the pricing provider, so we don't cross-pollinate pricing data
-	instanceTypeProvider = instancetypes.NewProvider(
-		mock.Session,
+	instanceTypesProvider = instancetypes.NewProvider(
+		"",
 		instanceTypeCache,
 		fakeEC2API,
 		subnetProvider,

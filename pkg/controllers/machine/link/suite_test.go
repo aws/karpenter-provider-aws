@@ -84,6 +84,7 @@ var amiResolver *amifamily.Resolver
 var instanceTypeProvider *instancetypes.Provider
 var launchTemplateProvider *launchtemplate.Provider
 var instanceProvider *instance.Provider
+var instanceTypesProvider *instancetypes.Provider
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -108,7 +109,6 @@ var _ = BeforeSuite(func() {
 	pricingProvider = pricing.NewProvider(ctx, &fake.PricingAPI{}, ec2API, "", make(chan struct{}))
 	amiProvider = amifamily.NewProvider(env.Client, env.KubernetesInterface, ssmAPI, ec2API, ssmCache, ec2Cache, kubernetesVersionCache)
 	amiResolver = amifamily.New(env.Client, amiProvider)
-	instanceTypeProvider = instancetypes.NewProvider(mock.Session, instanceTypeCache, ec2API, subnetProvider, unavailableOfferingsCache, pricingProvider)
 	launchTemplateProvider = launchtemplate.NewProvider(
 		ctx,
 		launchTemplateCache,
@@ -121,6 +121,7 @@ var _ = BeforeSuite(func() {
 		"https://test-cluster",
 	)
 	instanceProvider = instance.NewProvider(ctx, "", ec2API, unavailableOfferingsCache, instanceTypeProvider, subnetProvider, launchTemplateProvider)
+	instanceTypesProvider = instancetypes.NewProvider("", cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), ec2API, subnetProvider, unavailableOfferingsCache, pricingProvider)
 	cloudProvider = cloudprovider.New(awscontext.Context{
 		Context: corecloudprovider.Context{
 			Context:             ctx,
@@ -137,10 +138,10 @@ var _ = BeforeSuite(func() {
 		UnavailableOfferingsCache: unavailableOfferingsCache,
 		EC2API:                    ec2API,
 		PricingProvider:           pricingProvider,
-		InstanceTypeProvider:      instanceTypeProvider,
 		InstanceProvider:          instanceProvider,
 		AMIProvider:               amiProvider,
 		AMIResolver:               amiResolver,
+		InstanceTypesProvider:     instanceTypesProvider,
 	})
 	linkController = link.NewController(env.Client, cloudProvider)
 })
@@ -157,7 +158,6 @@ var _ = Describe("MachineLink", func() {
 
 	BeforeEach(func() {
 		ec2API.Reset()
-		instanceTypeCache.Flush()
 		instanceID = fake.InstanceID()
 		providerID = fmt.Sprintf("aws:///test-zone-1a/%s", instanceID)
 		nodeTemplate = test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{})

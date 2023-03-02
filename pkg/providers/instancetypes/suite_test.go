@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/awstesting/mock"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	. "github.com/onsi/ginkgo/v2"
@@ -53,6 +52,7 @@ import (
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	"github.com/aws/karpenter-core/pkg/scheduling"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
+	"github.com/aws/karpenter-core/pkg/utils/resources"
 
 	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
 	coretest "github.com/aws/karpenter-core/pkg/test"
@@ -77,7 +77,6 @@ var ctx context.Context
 var stop context.CancelFunc
 var opts options.Options
 var env *coretest.Environment
-var fakeSession *session.Session
 var ssmCache *cache.Cache
 var ec2Cache *cache.Cache
 var launchTemplateCache *cache.Cache
@@ -115,8 +114,6 @@ var _ = BeforeSuite(func() {
 	ctx = settings.ToContext(ctx, test.Settings())
 	ctx, stop = context.WithCancel(ctx)
 
-	fakeSession = mock.Session
-	fakeSession.Config.Region = aws.String("")
 	fakeEC2API = &fake.EC2API{}
 	fakeSSMAPI = &fake.SSMAPI{}
 	ssmCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
@@ -132,7 +129,8 @@ var _ = BeforeSuite(func() {
 	securityGroupProvider = securitygroup.NewProvider(fakeEC2API)
 	amiProvider = amifamily.NewProvider(env.Client, env.KubernetesInterface, fakeSSMAPI, fakeEC2API, ssmCache, ec2Cache, kubernetesVersionCache)
 	amiResolver = amifamily.New(env.Client, amiProvider)
-	instanceTypeProvider = instancetypes.NewProvider(fakeSession, instanceTypeCache, fakeEC2API, subnetProvider, unavailableOfferingsCache, pricingProvider)
+	instanceTypeProvider = instancetypes.NewProvider("", instanceTypeCache, fakeEC2API, subnetProvider, unavailableOfferingsCache, pricingProvider)
+
 	launchTemplateProvider = launchtemplate.NewProvider(
 		ctx,
 		launchTemplateCache,
@@ -157,15 +155,15 @@ var _ = BeforeSuite(func() {
 		},
 		SubnetProvider:            subnet.NewProvider(fakeEC2API),
 		SecurityGroupProvider:     securityGroupProvider,
-		Session:                   fakeSession,
+		Session:                   mock.Session,
 		UnavailableOfferingsCache: unavailableOfferingsCache,
 		EC2API:                    fakeEC2API,
 		PricingProvider:           pricingProvider,
 		AMIProvider:               amiProvider,
 		AMIResolver:               amiResolver,
 		LaunchTemplateProvider:    launchTemplateProvider,
-		InstanceTypeProvider:      instanceTypeProvider,
 		InstanceProvider:          instanceProvider,
+		InstanceTypesProvider:     instanceTypeProvider,
 	})
 	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
 	prov = provisioning.NewProvisioner(ctx, env.Client, env.KubernetesInterface.CoreV1(), events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster)
@@ -227,7 +225,7 @@ var _ = BeforeEach(func() {
 
 	// Reset the pricing provider, so we don't cross-pollinate pricing data
 	instanceTypeProvider = instancetypes.NewProvider(
-		fakeSession,
+		"",
 		instanceTypeCache,
 		fakeEC2API,
 		subnetProvider,
@@ -928,7 +926,8 @@ var _ = Describe("Instance Types", func() {
 			provisioner = test.Provisioner(coretest.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{PodsPerCore: ptr.Int32(1)}})
 			for _, info := range instanceInfo {
 				it := instancetypes.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
-				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", instancetypes.EniLimitedPods(info).Value()))
+				limitedPods := resources.Quantity(fmt.Sprint(*info.NetworkInfo.MaximumNetworkInterfaces*(*info.NetworkInfo.Ipv4AddressesPerInterface-1) + 2))
+				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", limitedPods.Value()))
 			}
 		})
 		It("should take 110 to be the default pods number when pods-per-core is 0 and AWSENILimitedPodDensity is unset", func() {
