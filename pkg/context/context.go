@@ -45,6 +45,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/settings"
 	awscache "github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/providers/amifamily"
+	"github.com/aws/karpenter/pkg/providers/instancetype"
 	"github.com/aws/karpenter/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter/pkg/providers/pricing"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
@@ -67,6 +68,7 @@ type Context struct {
 	AMIResolver               *amifamily.Resolver
 	LaunchTemplateProvider    *launchtemplate.Provider
 	PricingProvider           *pricing.Provider
+	InstanceTypesProvider     *instancetype.Provider
 }
 
 func NewOrDie(ctx cloudprovider.Context) Context {
@@ -103,6 +105,7 @@ func NewOrDie(ctx cloudprovider.Context) Context {
 		logging.FromContext(ctx).With("kube-dns-ip", kubeDNSIP).Debugf("discovered kube dns")
 	}
 
+	unavailableOfferingsCache := awscache.NewUnavailableOfferings()
 	subnetProvider := subnet.NewProvider(ec2api)
 	securityGroupProvider := securitygroup.NewProvider(ec2api)
 	pricingProvider := pricing.NewProvider(
@@ -126,11 +129,19 @@ func NewOrDie(ctx cloudprovider.Context) Context {
 		kubeDNSIP,
 		clusterEndpoint,
 	)
+	instanceTypeProvider := instancetype.NewProvider(
+		*sess.Config.Region,
+		cache.New(awscache.InstanceTypesAndZonesTTL, awscache.DefaultCleanupInterval),
+		ec2api,
+		subnetProvider,
+		unavailableOfferingsCache,
+		pricingProvider,
+	)
 
 	return Context{
 		Context:                   ctx,
 		Session:                   sess,
-		UnavailableOfferingsCache: awscache.NewUnavailableOfferings(),
+		UnavailableOfferingsCache: unavailableOfferingsCache,
 		EC2API:                    ec2api,
 		SubnetProvider:            subnetProvider,
 		SecurityGroupProvider:     securityGroupProvider,
@@ -138,6 +149,7 @@ func NewOrDie(ctx cloudprovider.Context) Context {
 		AMIResolver:               amiResolver,
 		LaunchTemplateProvider:    launchTemplateProvider,
 		PricingProvider:           pricingProvider,
+		InstanceTypesProvider:     instanceTypeProvider,
 	}
 }
 
