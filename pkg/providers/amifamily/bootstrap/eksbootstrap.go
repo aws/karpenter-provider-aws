@@ -49,9 +49,7 @@ const (
 )
 
 func (e EKS) Script() (string, error) {
-	bootstrapScript := e.eksBootstrapScript()
-	customUserData := lo.FromPtr(e.CustomUserData)
-	userData, err := e.mergeCustomUserData(customUserData, bootstrapScript)
+	userData, err := e.mergeCustomUserData(lo.Compact([]string{lo.FromPtr(e.CustomUserData), e.eksBootstrapScript()})...)
 	if err != nil {
 		return "", err
 	}
@@ -163,7 +161,7 @@ func joinParameterArgs[K comparable, V any](name string, m map[K]V, separator st
 	return ""
 }
 
-func (e EKS) mergeCustomUserData(customUserData string, bootstrap string) (string, error) {
+func (e EKS) mergeCustomUserData(userDatas ...string) (string, error) {
 	var outputBuffer bytes.Buffer
 	writer := multipart.NewWriter(&outputBuffer)
 	if err := writer.SetBoundary(Boundary); err != nil {
@@ -171,25 +169,14 @@ func (e EKS) mergeCustomUserData(customUserData string, bootstrap string) (strin
 	}
 	outputBuffer.WriteString(MIMEVersionHeader + "\n")
 	outputBuffer.WriteString(fmt.Sprintf(MIMEContentTypeHeaderTemplate, Boundary) + "\n\n")
-	// add customUserdata to the multi-part mime, if necessary
-	if customUserData != "" {
-		mimedCustomUserData, err := e.mimeify(customUserData)
+	for _, userData := range userDatas {
+		mimedUserData, err := e.mimeify(userData)
 		if err != nil {
 			return "", err
 		}
-		if err := copyCustomUserDataParts(writer, mimedCustomUserData); err != nil {
+		if err := copyCustomUserDataParts(writer, mimedUserData); err != nil {
 			return "", err
 		}
-	}
-	// Add Karpenter's bootstrapping logic to the final user-data part
-	partWriter, err := writer.CreatePart(textproto.MIMEHeader{
-		"Content-Type": []string{"text/x-shellscript; charset=\"us-ascii\""}})
-	if err != nil {
-		return "", fmt.Errorf("unable to add Karpenter managed user data %w", err)
-	}
-	_, err = partWriter.Write([]byte(bootstrap))
-	if err != nil {
-		return "", fmt.Errorf("unable to create merged user data content %w", err)
 	}
 	writer.Close()
 	return outputBuffer.String(), nil

@@ -68,6 +68,9 @@ data:
   aws.interruptionQueueName: karpenter-cluster
   # Global tags are specified by including a JSON object of string to string from tag key to tag value
   aws.tags: '{"custom-tag1-key": "custom-tag-value", "custom-tag2-key": "custom-tag-value"}'
+  # Reserved ENIs are not included in the calculations for max-pods or kube-reserved
+  # This is most often used in the VPC CNI custom networking setup https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html
+  aws.reservedENIs: "1"
 ```
 
 ### Feature Gates

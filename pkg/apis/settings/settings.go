@@ -51,6 +51,7 @@ var defaultSettings = &Settings{
 	VMMemoryOverheadPercent:    0.075,
 	InterruptionQueueName:      "",
 	Tags:                       map[string]string{},
+	ReservedENIs:               0,
 }
 
 // +k8s:deepcopy-gen=true
@@ -65,6 +66,7 @@ type Settings struct {
 	VMMemoryOverheadPercent    float64            `validate:"min=0"`
 	InterruptionQueueName      string
 	Tags                       map[string]string
+	ReservedENIs               int `validate:"min=0"`
 }
 
 func (*Settings) ConfigMap() string {
@@ -86,6 +88,7 @@ func (*Settings) Inject(ctx context.Context, cm *v1.ConfigMap) (context.Context,
 		configmap.AsFloat64("aws.vmMemoryOverheadPercent", &s.VMMemoryOverheadPercent),
 		configmap.AsString("aws.interruptionQueueName", &s.InterruptionQueueName),
 		AsStringMap("aws.tags", &s.Tags),
+		configmap.AsInt("aws.reservedENIs", &s.ReservedENIs),
 	); err != nil {
 		return ctx, fmt.Errorf("parsing settings, %w", err)
 	}

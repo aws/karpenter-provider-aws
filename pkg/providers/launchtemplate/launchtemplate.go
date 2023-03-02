@@ -128,7 +128,7 @@ func (p *Provider) Invalidate(ctx context.Context, ltName string, ltID string) {
 }
 
 func launchTemplateName(options *amifamily.LaunchTemplate) string {
-	hash, err := hashstructure.Hash(options, hashstructure.FormatV2, nil)
+	hash, err := hashstructure.Hash(options, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	if err != nil {
 		panic(fmt.Sprintf("hashing launch template, %s", err))
 	}
@@ -300,7 +300,8 @@ func (p *Provider) cachedEvictedFunc(ctx context.Context) func(string, interface
 			logging.FromContext(ctx).With("launch-template", launchTemplate.LaunchTemplateName).Errorf("failed to delete launch template, %v", err)
 			return
 		}
-		logging.FromContext(ctx).With("launch-template", launchTemplate.LaunchTemplateName).Debugf("deleted launch template")
+		logging.FromContext(ctx).With("launch-template", launchTemplate.LaunchTemplateName,
+			"id", aws.StringValue(launchTemplate.LaunchTemplateId)).Debugf("deleted launch template")
 	}
 }
 

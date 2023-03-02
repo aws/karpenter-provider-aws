@@ -118,6 +118,7 @@ func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFlee
 			spotInstanceRequestID = aws.String(test.RandomName())
 		}
 
+		fulfilled := 0
 		for _, ltc := range input.LaunchTemplateConfigs {
 			for _, override := range ltc.Overrides {
 				skipInstance := false
@@ -141,7 +142,7 @@ func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFlee
 					e.CalledWithCreateLaunchTemplateInput.Add(lt)
 				}
 				instanceState := ec2.InstanceStateNameRunning
-				for i := 0; i < int(*input.TargetCapacitySpecification.TotalTargetCapacity); i++ {
+				for ; fulfilled < int(*input.TargetCapacitySpecification.TotalTargetCapacity); fulfilled++ {
 					instance := &ec2.Instance{
 						ImageId:               aws.String(*amiID),
 						InstanceId:            aws.String(test.RandomName()),
@@ -156,6 +157,9 @@ func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFlee
 					e.Instances.Store(*instance.InstanceId, instance)
 					instanceIds = append(instanceIds, instance.InstanceId)
 				}
+			}
+			if fulfilled == int(*input.TargetCapacitySpecification.TotalTargetCapacity) {
+				break
 			}
 		}
 		result := &ec2.CreateFleetOutput{Instances: []*ec2.CreateFleetInstance{
@@ -226,7 +230,7 @@ func (e *EC2API) CreateTagsWithContext(_ context.Context, input *ec2.CreateTagsI
 			instance := raw.(*ec2.Instance)
 
 			// Upsert any tags that have the same key
-			newTagKeys := sets.New[string](lo.Map(input.Tags, func(t *ec2.Tag, _ int) string { return aws.StringValue(t.Key) })...)
+			newTagKeys := sets.New(lo.Map(input.Tags, func(t *ec2.Tag, _ int) string { return aws.StringValue(t.Key) })...)
 			instance.Tags = lo.Filter(input.Tags, func(t *ec2.Tag, _ int) bool { return newTagKeys.Has(aws.StringValue(t.Key)) })
 			instance.Tags = append(instance.Tags, input.Tags...)
 		}
