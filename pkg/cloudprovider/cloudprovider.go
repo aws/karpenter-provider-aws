@@ -68,10 +68,10 @@ type CloudProvider struct {
 
 func New(ctx awscontext.Context) *CloudProvider {
 	return &CloudProvider{
-		kubeClient:           ctx.KubeClient,
 		instanceTypeProvider: ctx.InstanceTypesProvider,
-		amiProvider:          ctx.AMIProvider,
 		instanceProvider:     ctx.InstanceProvider,
+		kubeClient:           ctx.KubeClient,
+		amiProvider:          ctx.AMIProvider,
 	}
 }
 

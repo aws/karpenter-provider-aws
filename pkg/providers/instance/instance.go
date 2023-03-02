@@ -46,7 +46,7 @@ import (
 	"github.com/aws/karpenter-core/pkg/utils/resources"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
-	corecloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
+	cloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/scheduling"
 )
 
@@ -71,7 +71,8 @@ type Provider struct {
 	ec2Batcher             *batcher.EC2API
 }
 
-func NewProvider(ctx context.Context, region string, ec2api ec2iface.EC2API, unavailableOfferings *cache.UnavailableOfferings, instanceTypeProvider *instancetype.Provider, subnetProvider *subnet.Provider, launchTemplateProvider *launchtemplate.Provider) *Provider {
+func NewProvider(ctx context.Context, region string, ec2api ec2iface.EC2API, unavailableOfferings *cache.UnavailableOfferings,
+	instanceTypeProvider *instancetype.Provider, subnetProvider *subnet.Provider, launchTemplateProvider *launchtemplate.Provider) *Provider {
 	return &Provider{
 		region:                 region,
 		ec2api:                 ec2api,
@@ -83,7 +84,7 @@ func NewProvider(ctx context.Context, region string, ec2api ec2iface.EC2API, una
 	}
 }
 
-func (p *Provider) Create(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, machine *v1alpha5.Machine, instanceTypes []*corecloudprovider.InstanceType) (*ec2.Instance, error) {
+func (p *Provider) Create(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, machine *v1alpha5.Machine, instanceTypes []*cloudprovider.InstanceType) (*ec2.Instance, error) {
 	instanceTypes = p.filterInstanceTypes(machine, instanceTypes)
 	instanceTypes = orderInstanceTypesByPrice(instanceTypes, scheduling.NewNodeSelectorRequirements(machine.Spec.Requirements...))
 	if len(instanceTypes) > MaxInstanceTypes {
@@ -131,7 +132,7 @@ func (p *Provider) Link(ctx context.Context, id string) error {
 	})
 	if err != nil {
 		if awserrors.IsNotFound(err) {
-			return corecloudprovider.NewMachineNotFoundError(fmt.Errorf("linking tags, %w", err))
+			return cloudprovider.NewMachineNotFoundError(fmt.Errorf("linking tags, %w", err))
 		}
 		return fmt.Errorf("linking tags, %w", err)
 	}
@@ -144,7 +145,7 @@ func (p *Provider) Get(ctx context.Context, id string) (*ec2.Instance, error) {
 		Filters:     []*ec2.Filter{instanceStateFilter},
 	})
 	if awserrors.IsNotFound(err) {
-		return nil, corecloudprovider.NewMachineNotFoundError(err)
+		return nil, cloudprovider.NewMachineNotFoundError(err)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to describe ec2 instances, %w", err)
@@ -181,7 +182,7 @@ func (p *Provider) List(ctx context.Context) ([]*ec2.Instance, error) {
 		return nil, fmt.Errorf("describing ec2 instances, %w", err)
 	}
 	instances, err := instancesFromOutput(out)
-	return instances, corecloudprovider.IgnoreMachineNotFoundError(err)
+	return instances, cloudprovider.IgnoreMachineNotFoundError(err)
 }
 
 func (p *Provider) Delete(ctx context.Context, id string) error {
@@ -189,10 +190,10 @@ func (p *Provider) Delete(ctx context.Context, id string) error {
 		InstanceIds: []*string{aws.String(id)},
 	}); err != nil {
 		if awserrors.IsNotFound(err) {
-			return corecloudprovider.NewMachineNotFoundError(fmt.Errorf("instance already terminated"))
+			return cloudprovider.NewMachineNotFoundError(fmt.Errorf("instance already terminated"))
 		}
 		if _, e := p.Get(ctx, id); err != nil {
-			if corecloudprovider.IsMachineNotFoundError(e) {
+			if cloudprovider.IsMachineNotFoundError(e) {
 				return e
 			}
 			err = multierr.Append(err, e)
@@ -202,7 +203,7 @@ func (p *Provider) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-func (p *Provider) launchInstance(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, machine *v1alpha5.Machine, instanceTypes []*corecloudprovider.InstanceType) (*string, error) {
+func (p *Provider) launchInstance(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, machine *v1alpha5.Machine, instanceTypes []*cloudprovider.InstanceType) (*string, error) {
 	capacityType := p.getCapacityType(machine, instanceTypes)
 	zonalSubnets, err := p.subnetProvider.ZonalSubnetsForLaunch(ctx, nodeTemplate, instanceTypes, capacityType)
 	if err != nil {
@@ -262,7 +263,7 @@ func (p *Provider) launchInstance(ctx context.Context, nodeTemplate *v1alpha1.AW
 	return createFleetOutput.Instances[0].InstanceIds[0], nil
 }
 
-func (p *Provider) checkODFallback(machine *v1alpha5.Machine, instanceTypes []*corecloudprovider.InstanceType, launchTemplateConfigs []*ec2.FleetLaunchTemplateConfigRequest) error {
+func (p *Provider) checkODFallback(machine *v1alpha5.Machine, instanceTypes []*cloudprovider.InstanceType, launchTemplateConfigs []*ec2.FleetLaunchTemplateConfigRequest) error {
 	// only evaluate for on-demand fallback if the capacity type for the request is OD and both OD and spot are allowed in requirements
 	if p.getCapacityType(machine, instanceTypes) != v1alpha5.CapacityTypeOnDemand || !scheduling.NewNodeSelectorRequirements(machine.Spec.Requirements...).Get(v1alpha5.LabelCapacityType).Has(v1alpha5.CapacityTypeSpot) {
 		return nil
@@ -285,7 +286,7 @@ func (p *Provider) checkODFallback(machine *v1alpha5.Machine, instanceTypes []*c
 }
 
 func (p *Provider) getLaunchTemplateConfigs(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, machine *v1alpha5.Machine,
-	instanceTypes []*corecloudprovider.InstanceType, zonalSubnets map[string]*ec2.Subnet, capacityType string) ([]*ec2.FleetLaunchTemplateConfigRequest, error) {
+	instanceTypes []*cloudprovider.InstanceType, zonalSubnets map[string]*ec2.Subnet, capacityType string) ([]*ec2.FleetLaunchTemplateConfigRequest, error) {
 	var launchTemplateConfigs []*ec2.FleetLaunchTemplateConfigRequest
 	launchTemplates, err := p.launchTemplateProvider.EnsureAll(ctx, nodeTemplate, machine, instanceTypes, map[string]string{v1alpha5.LabelCapacityType: capacityType})
 	if err != nil {
@@ -311,16 +312,16 @@ func (p *Provider) getLaunchTemplateConfigs(ctx context.Context, nodeTemplate *v
 
 // getOverrides creates and returns launch template overrides for the cross product of InstanceTypes and subnets (with subnets being constrained by
 // zones and the offerings in InstanceTypes)
-func (p *Provider) getOverrides(instanceTypes []*corecloudprovider.InstanceType, zonalSubnets map[string]*ec2.Subnet, zones *scheduling.Requirement, capacityType string) []*ec2.FleetLaunchTemplateOverridesRequest {
+func (p *Provider) getOverrides(instanceTypes []*cloudprovider.InstanceType, zonalSubnets map[string]*ec2.Subnet, zones *scheduling.Requirement, capacityType string) []*ec2.FleetLaunchTemplateOverridesRequest {
 	// Unwrap all the offerings to a flat slice that includes a pointer
 	// to the parent instance type name
 	type offeringWithParentName struct {
-		corecloudprovider.Offering
+		cloudprovider.Offering
 		parentInstanceTypeName string
 	}
 	var unwrappedOfferings []offeringWithParentName
 	for _, it := range instanceTypes {
-		ofs := lo.Map(it.Offerings.Available(), func(of corecloudprovider.Offering, _ int) offeringWithParentName {
+		ofs := lo.Map(it.Offerings.Available(), func(of cloudprovider.Offering, _ int) offeringWithParentName {
 			return offeringWithParentName{
 				Offering:               of,
 				parentInstanceTypeName: it.Name,
@@ -407,7 +408,7 @@ func (p *Provider) updateUnavailableOfferingsCache(ctx context.Context, errors [
 // getCapacityType selects spot if both constraints are flexible and there is an
 // available offering. The AWS Cloud Provider defaults to [ on-demand ], so spot
 // must be explicitly included in capacity type requirements.
-func (p *Provider) getCapacityType(machine *v1alpha5.Machine, instanceTypes []*corecloudprovider.InstanceType) string {
+func (p *Provider) getCapacityType(machine *v1alpha5.Machine, instanceTypes []*cloudprovider.InstanceType) string {
 	requirements := scheduling.NewNodeSelectorRequirements(machine.
 		Spec.Requirements...)
 	if requirements.Get(v1alpha5.LabelCapacityType).Has(v1alpha5.CapacityTypeSpot) {
@@ -422,7 +423,7 @@ func (p *Provider) getCapacityType(machine *v1alpha5.Machine, instanceTypes []*c
 	return v1alpha5.CapacityTypeOnDemand
 }
 
-func orderInstanceTypesByPrice(instanceTypes []*corecloudprovider.InstanceType, requirements scheduling.Requirements) []*corecloudprovider.InstanceType {
+func orderInstanceTypesByPrice(instanceTypes []*cloudprovider.InstanceType, requirements scheduling.Requirements) []*cloudprovider.InstanceType {
 	// Order instance types so that we get the cheapest instance types of the available offerings
 	sort.Slice(instanceTypes, func(i, j int) bool {
 		iPrice := math.MaxFloat64
@@ -442,8 +443,8 @@ func orderInstanceTypesByPrice(instanceTypes []*corecloudprovider.InstanceType, 
 }
 
 // filterInstanceTypes is used to provide filtering on the list of potential instance types to further limit it to those
-// that make the most sense given our specific AWS corecloudprovider.
-func (p *Provider) filterInstanceTypes(machine *v1alpha5.Machine, instanceTypes []*corecloudprovider.InstanceType) []*corecloudprovider.InstanceType {
+// that make the most sense given our specific AWS cloudprovider.
+func (p *Provider) filterInstanceTypes(machine *v1alpha5.Machine, instanceTypes []*cloudprovider.InstanceType) []*cloudprovider.InstanceType {
 	instanceTypes = filterExoticInstanceTypes(instanceTypes)
 	// If we could potentially launch either a spot or on-demand node, we want to filter out the spot instance types that
 	// are more expensive than the cheapest on-demand type.
@@ -455,7 +456,7 @@ func (p *Provider) filterInstanceTypes(machine *v1alpha5.Machine, instanceTypes 
 
 // isMixedCapacityLaunch returns true if provisioners and available offerings could potentially allow either a spot or
 // and on-demand node to launch
-func (p *Provider) isMixedCapacityLaunch(machine *v1alpha5.Machine, instanceTypes []*corecloudprovider.InstanceType) bool {
+func (p *Provider) isMixedCapacityLaunch(machine *v1alpha5.Machine, instanceTypes []*cloudprovider.InstanceType) bool {
 	requirements := scheduling.NewNodeSelectorRequirements(machine.Spec.Requirements...)
 	// requirements must allow both
 	if !requirements.Get(v1alpha5.LabelCapacityType).Has(v1alpha5.CapacityTypeSpot) ||
@@ -482,7 +483,7 @@ func (p *Provider) isMixedCapacityLaunch(machine *v1alpha5.Machine, instanceType
 
 // filterUnwantedSpot is used to filter out spot types that are more expensive than the cheapest on-demand type that we
 // could launch during mixed capacity-type launches
-func filterUnwantedSpot(instanceTypes []*corecloudprovider.InstanceType) []*corecloudprovider.InstanceType {
+func filterUnwantedSpot(instanceTypes []*cloudprovider.InstanceType) []*cloudprovider.InstanceType {
 	cheapestOnDemand := math.MaxFloat64
 	// first, find the price of our cheapest available on-demand instance type that could support this node
 	for _, it := range instanceTypes {
@@ -496,7 +497,7 @@ func filterUnwantedSpot(instanceTypes []*corecloudprovider.InstanceType) []*core
 	// Filter out any types where the cheapest offering, which should be spot, is more expensive than the cheapest
 	// on-demand instance type that would have worked. This prevents us from getting a larger more-expensive spot
 	// instance type compared to the cheapest sufficiently large on-demand instance type
-	instanceTypes = lo.Filter(instanceTypes, func(item *corecloudprovider.InstanceType, index int) bool {
+	instanceTypes = lo.Filter(instanceTypes, func(item *cloudprovider.InstanceType, index int) bool {
 		available := item.Offerings.Available()
 		if len(available) == 0 {
 			return false
@@ -509,8 +510,8 @@ func filterUnwantedSpot(instanceTypes []*corecloudprovider.InstanceType) []*core
 // filterExoticInstanceTypes is used to eliminate less desirable instance types (like GPUs) from the list of possible instance types when
 // a set of more appropriate instance types would work. If a set of more desirable instance types is not found, then the original slice
 // of instance types are returned.
-func filterExoticInstanceTypes(instanceTypes []*corecloudprovider.InstanceType) []*corecloudprovider.InstanceType {
-	var genericInstanceTypes []*corecloudprovider.InstanceType
+func filterExoticInstanceTypes(instanceTypes []*cloudprovider.InstanceType) []*cloudprovider.InstanceType {
+	var genericInstanceTypes []*cloudprovider.InstanceType
 	for _, it := range instanceTypes {
 		// deprioritize metal even if our opinionated filter isn't applied due to something like an instance family
 		// requirement
@@ -534,13 +535,13 @@ func filterExoticInstanceTypes(instanceTypes []*corecloudprovider.InstanceType) 
 
 func instancesFromOutput(out *ec2.DescribeInstancesOutput) ([]*ec2.Instance, error) {
 	if len(out.Reservations) == 0 {
-		return nil, corecloudprovider.NewMachineNotFoundError(fmt.Errorf("instance not found"))
+		return nil, cloudprovider.NewMachineNotFoundError(fmt.Errorf("instance not found"))
 	}
 	instances := lo.Flatten(lo.Map(out.Reservations, func(r *ec2.Reservation, _ int) []*ec2.Instance {
 		return r.Instances
 	}))
 	if len(instances) == 0 {
-		return nil, corecloudprovider.NewMachineNotFoundError(fmt.Errorf("instance not found"))
+		return nil, cloudprovider.NewMachineNotFoundError(fmt.Errorf("instance not found"))
 	}
 	// Get a consistent ordering for instances
 	sort.Slice(instances, func(i, j int) bool {
