@@ -40,7 +40,7 @@ var uriSelectors = map[string]string{
 
 const fileFormat = `
 %s
-package instancetypes
+package instancetype
 
 // GENERATED FILE. DO NOT EDIT DIRECTLY.
 // Update hack/code/bandwidth_gen.go and re-generate to edit

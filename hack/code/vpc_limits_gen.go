@@ -58,7 +58,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	newRespData := strings.Replace(string(respData), "package vpc", "package instancetypes", 1)
+	newRespData := strings.Replace(string(respData), "package vpc", "package instancetype", 1)
 	out.WriteString(newRespData)
 	defer out.Close()
 
