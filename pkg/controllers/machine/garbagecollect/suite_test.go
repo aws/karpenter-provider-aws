@@ -55,7 +55,7 @@ import (
 	"github.com/aws/karpenter/pkg/fake"
 	"github.com/aws/karpenter/pkg/providers/amifamily"
 	"github.com/aws/karpenter/pkg/providers/instance"
-	"github.com/aws/karpenter/pkg/providers/instancetypes"
+	"github.com/aws/karpenter/pkg/providers/instancetype"
 	"github.com/aws/karpenter/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter/pkg/providers/pricing"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
@@ -81,7 +81,7 @@ var securityGroupProvider *securitygroup.Provider
 var pricingProvider *pricing.Provider
 var subnetProvider *subnet.Provider
 var launchTemplateProvider *launchtemplate.Provider
-var instanceTypeProvider *instancetypes.Provider
+var instanceTypeProvider *instancetype.Provider
 var instanceProvider *instance.Provider
 
 func TestAPIs(t *testing.T) {
@@ -105,7 +105,7 @@ var _ = BeforeSuite(func() {
 	amiResolver = amifamily.New(env.Client, amiProvider)
 	pricingProvider = pricing.NewProvider(ctx, &fake.PricingAPI{}, ec2API, "", make(chan struct{}))
 	instanceTypeCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
-	instanceTypeProvider = instancetypes.NewProvider("", instanceTypeCache, ec2API, subnetProvider, unavailableOfferingsCache, pricingProvider)
+	instanceTypeProvider = instancetype.NewProvider("", instanceTypeCache, ec2API, subnetProvider, unavailableOfferingsCache, pricingProvider)
 	launchTemplateProvider = launchtemplate.NewProvider(
 		ctx,
 		launchTemplateCache,
