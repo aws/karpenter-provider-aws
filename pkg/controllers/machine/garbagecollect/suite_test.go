@@ -105,7 +105,7 @@ var _ = BeforeSuite(func() {
 	amiResolver = amifamily.New(env.Client, amiProvider)
 	pricingProvider = pricing.NewProvider(ctx, &fake.PricingAPI{}, ec2API, "", make(chan struct{}))
 	instanceTypeCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
-	instanceTypeProvider = instancetypes.NewProvider(mock.Session, instanceTypeCache, ec2API, subnetProvider, unavailableOfferingsCache, pricingProvider)
+	instanceTypeProvider = instancetypes.NewProvider("", instanceTypeCache, ec2API, subnetProvider, unavailableOfferingsCache, pricingProvider)
 	launchTemplateProvider = launchtemplate.NewProvider(
 		ctx,
 		launchTemplateCache,
