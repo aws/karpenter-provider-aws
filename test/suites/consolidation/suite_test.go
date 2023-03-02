@@ -15,6 +15,7 @@ limitations under the License.
 package consolidation
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -318,23 +319,24 @@ var _ = Describe("Consolidation", func() {
 		Eventually(func(g Gomega) {
 			var nodes v1.NodeList
 			Expect(env.Client.List(env.Context, &nodes)).To(Succeed())
-			numSpotNodes := 0
-			numOtherNodes := 0
-			for _, n := range nodes.Items {
+			var spotNodes []*v1.Node
+			var otherNodes []*v1.Node
+			for i, n := range nodes.Items {
 				// only count the nodes created by the provisioner
 				if n.Labels[v1alpha5.ProvisionerNameLabelKey] != provisioner.Name {
 					continue
 				}
 				if n.Labels[v1alpha5.LabelCapacityType] == v1alpha5.CapacityTypeSpot {
-					numSpotNodes++
+					spotNodes = append(spotNodes, &nodes.Items[i])
 				} else {
-					numOtherNodes++
+					otherNodes = append(otherNodes, &nodes.Items[i])
 				}
 			}
 			// all the on-demand nodes should have been replaced with spot nodes
-			g.Expect(numSpotNodes).To(BeNumerically("==", numPods))
+			msg := fmt.Sprintf("node names, spot= %v, other = %v", common.NodeNames(spotNodes), common.NodeNames(otherNodes))
+			g.Expect(len(spotNodes)).To(BeNumerically("==", numPods), msg)
 			// and we should have no other nodes
-			g.Expect(numOtherNodes).To(BeNumerically("==", 0))
+			g.Expect(len(otherNodes)).To(BeNumerically("==", 0), msg)
 		}, time.Minute*10).Should(Succeed())
 
 		env.ExpectDeleted(smallDep)
