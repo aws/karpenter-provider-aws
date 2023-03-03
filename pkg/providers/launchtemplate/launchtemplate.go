@@ -313,7 +313,3 @@ func (p *Provider) getInstanceProfile(ctx context.Context, nodeTemplate *v1alpha
 	}
 	return defaultProfile, nil
 }
-
-func (p *Provider) Reset() {
-	p.cache.Flush()
-}

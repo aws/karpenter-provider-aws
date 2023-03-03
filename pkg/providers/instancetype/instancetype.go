@@ -231,7 +231,3 @@ func (p *Provider) GetInstanceTypes(ctx context.Context) ([]*ec2.InstanceTypeInf
 	p.cache.SetDefault(InstanceTypesCacheKey, instanceTypes)
 	return instanceTypes, nil
 }
-
-func (p *Provider) Reset() {
-	p.cache.Flush()
-}

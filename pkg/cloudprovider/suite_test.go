@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/Pallinder/go-randomdata"
+	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	"k8s.io/client-go/tools/record"
 
@@ -42,6 +43,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	awscache "github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	awscontext "github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/fake"
@@ -69,6 +71,7 @@ var env *coretest.Environment
 var awsCtx awscontext.Context
 var fakeEC2API *fake.EC2API
 var fakeSSMAPI *fake.SSMAPI
+var fakePricingAPI *fake.PricingAPI
 var prov *provisioning.Provisioner
 var provisioningController controller.Controller
 var cloudProvider *cloudprovider.CloudProvider
@@ -76,6 +79,16 @@ var cluster *state.Cluster
 var fakeClock *clock.FakeClock
 var provisioner *v1alpha5.Provisioner
 var nodeTemplate *v1alpha1.AWSNodeTemplate
+
+// Cache
+var ec2Cache *cache.Cache
+var ssmCache *cache.Cache
+var kubernetesVersionCache *cache.Cache
+var instanceTypeCache *cache.Cache
+var unavailableOfferingsCache *awscache.UnavailableOfferings
+var launchTemplateCache *cache.Cache
+var subnetCache *cache.Cache
+var securityGroupCache *cache.Cache
 
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -92,7 +105,28 @@ var _ = BeforeSuite(func() {
 	fakeEC2API = &fake.EC2API{}
 	fakeSSMAPI = &fake.SSMAPI{}
 	fakeClock = clock.NewFakeClock(time.Now())
-	awsCtx = test.Context(ctx, fakeEC2API, fakeSSMAPI, env, fakeClock, test.ContextOptions{})
+	fakePricingAPI = &fake.PricingAPI{}
+
+	ssmCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	ec2Cache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	kubernetesVersionCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	instanceTypeCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	unavailableOfferingsCache = awscache.NewUnavailableOfferings()
+	launchTemplateCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	subnetCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	securityGroupCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+
+	awsCtx = test.Context(ctx, fakeEC2API, fakeSSMAPI, env, fakeClock, test.ContextOptions{
+		SSMCache:                  ssmCache,
+		EC2Cache:                  ec2Cache,
+		KubernetesVersionCache:    kubernetesVersionCache,
+		UnavailableOfferingsCache: unavailableOfferingsCache,
+		LaunchTemplateCache:       launchTemplateCache,
+		InstanceTypeCache:         instanceTypeCache,
+		SubnetCache:               subnetCache,
+		SecurityGroupCache:        securityGroupCache,
+		PricingAPI:                fakePricingAPI,
+	})
 
 	cloudProvider = cloudprovider.New(awsCtx, awsCtx.InstanceTypesProvider, awsCtx.InstanceProvider, awsCtx.KubeClient, awsCtx.AMIProvider)
 	cluster = state.NewCluster(fakeClock, awsCtx.KubeClient, cloudProvider)
@@ -141,7 +175,15 @@ var _ = BeforeEach(func() {
 	cluster.Reset()
 	fakeEC2API.Reset()
 	fakeSSMAPI.Reset()
-	awsCtx.RestProviderCache()
+	ec2Cache.Flush()
+	ssmCache.Flush()
+	kubernetesVersionCache.Flush()
+	instanceTypeCache.Flush()
+	unavailableOfferingsCache.Flush()
+	launchTemplateCache.Flush()
+	subnetCache.Flush()
+	securityGroupCache.Flush()
+
 	awsCtx.LaunchTemplateProvider.KubeDNSIP = net.ParseIP("10.0.100.10")
 	awsCtx.LaunchTemplateProvider.ClusterEndpoint = "https://test-cluster"
 })

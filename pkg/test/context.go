@@ -53,6 +53,8 @@ type ContextOptions struct {
 	InstanceTypeCache         *cache.Cache
 	UnavailableOfferingsCache *awscache.UnavailableOfferings
 	LaunchTemplateCache       *cache.Cache
+	SubnetCache               *cache.Cache
+	SecurityGroupCache        *cache.Cache
 	PricingAPI                *fake.PricingAPI
 }
 
@@ -65,26 +67,17 @@ func Context(ctx context.Context, ec2api ec2iface.EC2API, ssmapi ssmiface.SSMAPI
 		}
 	}
 
-	// cache
-	ssmCache := OptionOR(options.SSMCache, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
-	ec2Cache := OptionOR(options.EC2Cache, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
-	kubernetesVersionCache := OptionOR(options.KubernetesVersionCache, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
-	instanceTypeCache := OptionOR(options.InstanceTypeCache, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
-	unavailableOfferingsCache := OptionOR(options.UnavailableOfferingsCache, awscache.NewUnavailableOfferings())
-	launchTemplateCache := OptionOR(options.LaunchTemplateCache, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
-	pricingAPI := OptionOR(options.PricingAPI, &fake.PricingAPI{})
-
 	// Providers
-	pricingProvider := pricing.NewProvider(ctx, pricingAPI, ec2api, "", make(chan struct{}))
-	subnetProvider := subnet.NewProvider(ec2api)
-	securityGroupProvider := securitygroup.NewProvider(ec2api)
-	amiProvider := amifamily.NewProvider(env.Client, env.KubernetesInterface, ssmapi, ec2api, ssmCache, ec2Cache, kubernetesVersionCache)
+	pricingProvider := pricing.NewProvider(ctx, options.PricingAPI, ec2api, "", make(chan struct{}))
+	subnetProvider := subnet.NewProvider(ec2api, options.SubnetCache)
+	securityGroupProvider := securitygroup.NewProvider(ec2api, options.SecurityGroupCache)
+	amiProvider := amifamily.NewProvider(env.Client, env.KubernetesInterface, ssmapi, ec2api, options.SSMCache, options.EC2Cache, options.KubernetesVersionCache)
 	amiResolver := amifamily.New(env.Client, amiProvider)
-	instanceTypesProvider := instancetype.NewProvider("", instanceTypeCache, ec2api, subnetProvider, unavailableOfferingsCache, pricingProvider)
+	instanceTypesProvider := instancetype.NewProvider("", options.InstanceTypeCache, ec2api, subnetProvider, options.UnavailableOfferingsCache, pricingProvider)
 	launchTemplateProvider :=
 		launchtemplate.NewProvider(
 			ctx,
-			launchTemplateCache,
+			options.LaunchTemplateCache,
 			ec2api,
 			amiResolver,
 			securityGroupProvider,
@@ -97,7 +90,7 @@ func Context(ctx context.Context, ec2api ec2iface.EC2API, ssmapi ssmiface.SSMAPI
 		instance.NewProvider(ctx,
 			"",
 			ec2api,
-			unavailableOfferingsCache,
+			options.UnavailableOfferingsCache,
 			instanceTypesProvider,
 			subnetProvider,
 			launchTemplateProvider,
@@ -115,7 +108,7 @@ func Context(ctx context.Context, ec2api ec2iface.EC2API, ssmapi ssmiface.SSMAPI
 		},
 		Session:                   mock.Session,
 		EC2API:                    ec2api,
-		UnavailableOfferingsCache: unavailableOfferingsCache,
+		UnavailableOfferingsCache: options.UnavailableOfferingsCache,
 		InstanceTypesProvider:     instanceTypesProvider,
 		InstanceProvider:          instanceProvider,
 		SubnetProvider:            subnetProvider,

@@ -34,7 +34,6 @@ import (
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/utils/functional"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
-	awscache "github.com/aws/karpenter/pkg/cache"
 )
 
 type Provider struct {
@@ -45,13 +44,13 @@ type Provider struct {
 	inflightIPs map[string]int64
 }
 
-func NewProvider(ec2api ec2iface.EC2API) *Provider {
+func NewProvider(ec2api ec2iface.EC2API, cache *cache.Cache) *Provider {
 	return &Provider{
 		ec2api: ec2api,
 		cm:     pretty.NewChangeMonitor(),
 		// TODO: Remove cache for v1beta1, utilize resolved subnet from the AWSNodeTemplate.status
 		// Subnets are sorted on AvailableIpAddressCount, descending order
-		cache: cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
+		cache: cache,
 		// inflightIPs is used to track IPs from known launched instances
 		inflightIPs: map[string]int64{},
 	}
@@ -241,9 +240,4 @@ func Pretty(subnets []*ec2.Subnet) []string {
 		names = append(names, fmt.Sprintf("%s (%s)", aws.StringValue(subnet.SubnetId), aws.StringValue(subnet.AvailabilityZone)))
 	}
 	return names
-}
-
-func (p *Provider) Reset() {
-	p.cache.Flush()
-	p.inflightIPs = map[string]int64{}
 }

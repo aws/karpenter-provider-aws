@@ -21,6 +21,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	. "knative.dev/pkg/logging/testing"
 	_ "knative.dev/pkg/system/testing"
@@ -39,6 +40,7 @@ import (
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	awscache "github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/controllers/nodetemplate"
 	"github.com/aws/karpenter/pkg/fake"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
@@ -53,6 +55,8 @@ var subnetProvider *subnet.Provider
 var securityGroupProvider *securitygroup.Provider
 var nodeTemplate *v1alpha1.AWSNodeTemplate
 var controller corecontroller.Controller
+var subnetCache *cache.Cache
+var securityGroupCache *cache.Cache
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -64,8 +68,10 @@ var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
 
 	fakeEC2API = &fake.EC2API{}
-	subnetProvider = subnet.NewProvider(fakeEC2API)
-	securityGroupProvider = securitygroup.NewProvider(fakeEC2API)
+	subnetCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	securityGroupCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	subnetProvider = subnet.NewProvider(fakeEC2API, subnetCache)
+	securityGroupProvider = securitygroup.NewProvider(fakeEC2API, securityGroupCache)
 	controller = nodetemplate.NewController(env.Client, subnetProvider, securityGroupProvider)
 })
 
@@ -89,6 +95,8 @@ var _ = BeforeEach(func() {
 	}
 
 	fakeEC2API.Reset()
+	subnetCache.Flush()
+	securityGroupCache.Flush()
 })
 
 var _ = AfterEach(func() {

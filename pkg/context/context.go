@@ -108,8 +108,8 @@ func NewOrDie(ctx cloudprovider.Context) Context {
 	}
 
 	unavailableOfferingsCache := awscache.NewUnavailableOfferings()
-	subnetProvider := subnet.NewProvider(ec2api)
-	securityGroupProvider := securitygroup.NewProvider(ec2api)
+	subnetProvider := subnet.NewProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
+	securityGroupProvider := securitygroup.NewProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
 	pricingProvider := pricing.NewProvider(
 		ctx,
 		pricing.NewAPI(sess, *sess.Config.Region),
@@ -226,13 +226,4 @@ func kubeDNSIP(ctx context.Context, kubernetesInterface kubernetes.Interface) (n
 		return nil, fmt.Errorf("parsing cluster IP")
 	}
 	return kubeDNSIP, nil
-}
-
-func (c *Context) RestProviderCache() {
-	c.SecurityGroupProvider.Reset()
-	c.SubnetProvider.Reset()
-	c.InstanceTypesProvider.Reset()
-	c.LaunchTemplateProvider.Reset()
-	c.AMIProvider.Reset()
-	c.UnavailableOfferingsCache.Flush()
 }
