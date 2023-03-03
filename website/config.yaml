@@ -69,7 +69,6 @@ params:
   latest_release_version: v0.26.1
   versions:
     - v0.26.1
-    - v0.26.0
     - v0.25.0
     - v0.24.0
     - preview
