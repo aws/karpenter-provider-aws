@@ -7,7 +7,7 @@ require (
 	github.com/aws/aws-sdk-go v1.44.212
 	github.com/aws/aws-sdk-go-v2/config v1.18.13
 	github.com/aws/karpenter v0.22.0
-	github.com/aws/karpenter-core v0.26.0
+	github.com/aws/karpenter-core v0.26.1
 	github.com/onsi/ginkgo/v2 v2.8.1
 	github.com/onsi/gomega v1.27.1
 	github.com/samber/lo v1.37.0
