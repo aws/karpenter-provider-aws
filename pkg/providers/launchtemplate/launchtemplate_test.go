@@ -29,7 +29,6 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/awstesting/mock"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -53,19 +52,14 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	awscontext "github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/fake"
-	"github.com/aws/karpenter/pkg/providers/amifamily"
 	"github.com/aws/karpenter/pkg/providers/amifamily/bootstrap"
-	"github.com/aws/karpenter/pkg/providers/instance"
 	"github.com/aws/karpenter/pkg/providers/instancetype"
 	"github.com/aws/karpenter/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter/pkg/providers/pricing"
-	"github.com/aws/karpenter/pkg/providers/securitygroup"
-	"github.com/aws/karpenter/pkg/providers/subnet"
 	"github.com/aws/karpenter/pkg/test"
 
 	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
-	corecloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/controllers/provisioning"
 	"github.com/aws/karpenter-core/pkg/controllers/state"
 	"github.com/aws/karpenter-core/pkg/events"
@@ -77,32 +71,25 @@ import (
 )
 
 var ctx context.Context
+var awsCtx *awscontext.Context
 var stop context.CancelFunc
 var opts options.Options
 var env *coretest.Environment
-var ssmCache *cache.Cache
-var ec2Cache *cache.Cache
-var launchTemplateCache *cache.Cache
-var instanceTypeCache *cache.Cache
-var kubernetesVersionCache *cache.Cache
 var fakeEC2API *fake.EC2API
 var fakeSSMAPI *fake.SSMAPI
 var fakeClock *clock.FakeClock
-var fakePricingAPI *fake.PricingAPI
-var amiProvider *amifamily.Provider
-var amiResolver *amifamily.Resolver
-var cloudProvider *cloudprovider.CloudProvider
-var unavailableOfferingsCache *awscache.UnavailableOfferings
 var prov *provisioning.Provisioner
 var provisioner *v1alpha5.Provisioner
-var launchTemplateProvider *launchtemplate.Provider
 var nodeTemplate *v1alpha1.AWSNodeTemplate
 var cluster *state.Cluster
+
+// cache
+var launchTemplateCache *cache.Cache
+
+// providers
 var pricingProvider *pricing.Provider
-var subnetProvider *subnet.Provider
-var instanceTypesProvider *instancetype.Provider
-var securityGroupProvider *securitygroup.Provider
-var instanceProvider *instance.Provider
+var launchTemplateProvider *launchtemplate.Provider
+var cloudProvider *cloudprovider.CloudProvider
 
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -118,57 +105,31 @@ var _ = BeforeSuite(func() {
 
 	fakeEC2API = &fake.EC2API{}
 	fakeSSMAPI = &fake.SSMAPI{}
-	ssmCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
-	ec2Cache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	fakeClock = &clock.FakeClock{}
+	awsCtx = test.Context(ctx, fakeEC2API, fakeSSMAPI, env, fakeClock)
+	pricingProvider = pricing.NewProvider(ctx, &fake.PricingAPI{}, fakeEC2API, "", make(chan struct{}))
 	launchTemplateCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
-	instanceTypeCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
-	kubernetesVersionCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
-	fakeClock = clock.NewFakeClock(time.Now())
-	unavailableOfferingsCache = awscache.NewUnavailableOfferings()
-	fakePricingAPI = &fake.PricingAPI{}
-	pricingProvider = pricing.NewProvider(ctx, fakePricingAPI, fakeEC2API, "", make(chan struct{}))
-	subnetProvider = subnet.NewProvider(fakeEC2API)
-	securityGroupProvider = securitygroup.NewProvider(fakeEC2API)
-	amiProvider = amifamily.NewProvider(env.Client, env.KubernetesInterface, fakeSSMAPI, fakeEC2API, ssmCache, ec2Cache, kubernetesVersionCache)
-	amiResolver = amifamily.New(env.Client, amiProvider)
-	instanceTypesProvider = instancetype.NewProvider("", instanceTypeCache, fakeEC2API, subnetProvider, unavailableOfferingsCache, pricingProvider)
-
 	launchTemplateProvider = launchtemplate.NewProvider(
 		ctx,
 		launchTemplateCache,
 		fakeEC2API,
-		amiResolver,
-		securityGroupProvider,
+		awsCtx.AMIResolver,
+		awsCtx.SecurityGroupProvider,
 		ptr.String("ca-bundle"),
 		make(chan struct{}),
 		net.ParseIP("10.0.100.10"),
 		"https://test-cluster",
 	)
-	instanceProvider = instance.NewProvider(ctx, "", fakeEC2API, unavailableOfferingsCache, instanceTypesProvider, subnetProvider, launchTemplateProvider)
-	cloudProvider = cloudprovider.New(awscontext.Context{
-		Context: corecloudprovider.Context{
-			Context:             ctx,
-			RESTConfig:          env.Config,
-			KubernetesInterface: env.KubernetesInterface,
-			KubeClient:          env.Client,
-			EventRecorder:       events.NewRecorder(&record.FakeRecorder{}),
-			Clock:               &clock.FakeClock{},
-			StartAsync:          nil,
-		},
-		SubnetProvider:            subnet.NewProvider(fakeEC2API),
-		SecurityGroupProvider:     securityGroupProvider,
-		Session:                   mock.Session,
-		UnavailableOfferingsCache: unavailableOfferingsCache,
-		EC2API:                    fakeEC2API,
-		PricingProvider:           pricingProvider,
-		AMIProvider:               amiProvider,
-		AMIResolver:               amiResolver,
-		LaunchTemplateProvider:    launchTemplateProvider,
-		InstanceProvider:          instanceProvider,
-		InstanceTypesProvider:     instanceTypesProvider,
+
+	test.UpdateContext(awsCtx, test.ContextOptions{
+		LaunchTemplateProvider: launchTemplateProvider,
+		PricingProvider:        pricingProvider,
 	})
-	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
-	prov = provisioning.NewProvisioner(ctx, env.Client, env.KubernetesInterface.CoreV1(), events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster)
+
+	fmt.Println(launchTemplateCache == awsCtx.LaunchTemplateProvider.Cache)
+	cloudProvider = cloudprovider.New(*awsCtx)
+	cluster = state.NewCluster(fakeClock, awsCtx.KubeClient, cloudProvider)
+	prov = provisioning.NewProvisioner(ctx, awsCtx.KubeClient, awsCtx.KubernetesInterface.CoreV1(), events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster)
 
 })
 
@@ -209,42 +170,36 @@ var _ = BeforeEach(func() {
 			Name:       nodeTemplate.Name,
 		},
 	})
-
+	fmt.Println(launchTemplateCache == awsCtx.LaunchTemplateProvider.Cache)
 	cluster.Reset()
 	fakeEC2API.Reset()
 	fakeSSMAPI.Reset()
-	launchTemplateCache.Flush()
-	unavailableOfferingsCache.Flush()
-	ssmCache.Flush()
-	ec2Cache.Flush()
-	instanceTypeCache.Flush()
-	kubernetesVersionCache.Flush()
-	securityGroupProvider.Reset()
-	launchTemplateProvider.KubeDNSIP = net.ParseIP("10.0.100.10")
-	launchTemplateProvider.ClusterEndpoint = "https://test-cluster"
+	awsCtx.RestProviderCache()
+	awsCtx.LaunchTemplateProvider.KubeDNSIP = net.ParseIP("10.0.100.10")
+	awsCtx.LaunchTemplateProvider.ClusterEndpoint = "https://test-cluster"
 
 	// Reset the pricing provider, so we don't cross-pollinate pricing data
-	instanceTypesProvider = instancetype.NewProvider(
+	awsCtx.InstanceTypesProvider = instancetype.NewProvider(
 		"",
-		instanceTypeCache,
+		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
 		fakeEC2API,
-		subnetProvider,
-		unavailableOfferingsCache,
-		pricing.NewProvider(ctx, fakePricingAPI, fakeEC2API, "", make(chan struct{})),
+		awsCtx.SubnetProvider,
+		awsCtx.UnavailableOfferingsCache,
+		pricing.NewProvider(ctx, &fake.PricingAPI{}, fakeEC2API, "", make(chan struct{})),
 	)
 })
 
 var _ = AfterEach(func() {
-	ExpectCleanedUp(ctx, env.Client)
+	ExpectCleanedUp(ctx, awsCtx.KubeClient)
 })
 
 var _ = Describe("LaunchTemplates", func() {
 	It("should default to a generated launch template", func() {
-		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+		ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 		pod := coretest.UnschedulablePod()
 		fmt.Println(cluster.Nodes())
-		ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-		ExpectScheduled(ctx, env.Client, pod)
+		ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+		ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 
 		Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 
@@ -276,10 +231,10 @@ var _ = Describe("LaunchTemplates", func() {
 				Name:       nodeTemplate.Name,
 			},
 		})
-		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+		ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 		pod := coretest.UnschedulablePod()
-		ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-		ExpectScheduled(ctx, env.Client, pod)
+		ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+		ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 
 		Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 		Expect(fakeEC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
@@ -302,10 +257,10 @@ var _ = Describe("LaunchTemplates", func() {
 		It("should allow a launch template to be specified", func() {
 			nodeTemplate.Spec.LaunchTemplateName = aws.String("test-launch-template")
 			nodeTemplate.Spec.SecurityGroupSelector = nil
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
+			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+			ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 			Expect(fakeEC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
 			input := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
 			Expect(input.LaunchTemplateConfigs).To(HaveLen(1))
@@ -344,13 +299,13 @@ var _ = Describe("LaunchTemplates", func() {
 				Limits: v1.ResourceList{v1alpha1.ResourceNVIDIAGPU: resource.MustParse("1")},
 			}
 
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 			pod1 := coretest.UnschedulablePod(coretest.PodOptions{
 				Tolerations:          []v1.Toleration{t1, t2, t3},
 				ResourceRequirements: rr,
 			})
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod1)
-			ExpectScheduled(ctx, env.Client, pod1)
+			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod1)
+			ExpectScheduled(ctx, awsCtx.KubeClient, pod1)
 			Expect(fakeEC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
 			name1 := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop().LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName
 
@@ -358,18 +313,18 @@ var _ = Describe("LaunchTemplates", func() {
 				Tolerations:          []v1.Toleration{t2, t3, t1},
 				ResourceRequirements: rr,
 			})
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod2)
+			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod2)
 
-			ExpectScheduled(ctx, env.Client, pod2)
+			ExpectScheduled(ctx, awsCtx.KubeClient, pod2)
 			Expect(fakeEC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
 			name2 := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop().LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName
 			Expect(name1).To(Equal(name2))
 		})
-		It("should recover from an out-of-sync launch template cache", func() {
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+		FIt("should recover from an out-of-sync launch template cache", func() {
+			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
+			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+			ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			firstLt := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
@@ -381,19 +336,19 @@ var _ = Describe("LaunchTemplates", func() {
 
 			fakeEC2API.CreateFleetBehavior.Error.Set(awserr.New("InvalidLaunchTemplateName.NotFoundException", "", errors.New("")))
 			pod = coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
+			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
 			// should call fleet twice. Once will fail on invalid LT and the next will succeed
 			fleetInput := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
 			Expect(aws.StringValue(fleetInput.LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName)).To(Equal(ltName))
-			ExpectScheduled(ctx, env.Client, pod)
+			ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 		})
 	})
 	Context("Labels", func() {
 		It("should apply labels to the node", func() {
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-			node := ExpectScheduled(ctx, env.Client, pod)
+			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+			node := ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 			Expect(node.Labels).To(HaveKey(v1.LabelOSStable))
 			Expect(node.Labels).To(HaveKey(v1.LabelArchStable))
 			Expect(node.Labels).To(HaveKey(v1.LabelInstanceTypeStable))
@@ -412,13 +367,13 @@ var _ = Describe("LaunchTemplates", func() {
 				},
 			}})
 			nodeTemplate.Spec.AMISelector = map[string]string{"karpenter.sh/discovery": "my-cluster"}
-			ExpectApplied(ctx, env.Client, nodeTemplate)
+			ExpectApplied(ctx, awsCtx.KubeClient, nodeTemplate)
 			newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
-			ExpectApplied(ctx, env.Client, newProvisioner)
-			Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(newProvisioner), newProvisioner)).To(Succeed())
+			ExpectApplied(ctx, awsCtx.KubeClient, newProvisioner)
+			Expect(awsCtx.KubeClient.Get(ctx, client.ObjectKeyFromObject(newProvisioner), newProvisioner)).To(Succeed())
 			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-			node := ExpectScheduled(ctx, env.Client, pod)
+			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+			node := ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 			Expect(node.Labels).To(HaveKeyWithValue(v1alpha1.LabelInstanceAMIID, "ami-123"))
 		})
 	})
@@ -426,10 +381,10 @@ var _ = Describe("LaunchTemplates", func() {
 		It("should tag with provisioner name", func() {
 			provisionerName := "the-provisioner"
 			provisioner.Name = provisionerName
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
+			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+			ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 			Expect(fakeEC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
 			createFleetInput := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
 			Expect(createFleetInput.TagSpecifications).To(HaveLen(3))
@@ -453,10 +408,10 @@ var _ = Describe("LaunchTemplates", func() {
 				"tag1": "tag1value",
 				"tag2": "tag2value",
 			}
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
+			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+			ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 			Expect(fakeEC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
 			createFleetInput := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
 			Expect(createFleetInput.TagSpecifications).To(HaveLen(3))
@@ -477,10 +432,10 @@ var _ = Describe("LaunchTemplates", func() {
 				v1alpha5.ProvisionerNameLabelKey: "myprovisioner",
 				"Name":                           "myname",
 			}
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
+			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+			ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 			Expect(fakeEC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
 			createFleetInput := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
 			Expect(createFleetInput.TagSpecifications).To(HaveLen(3))
@@ -508,10 +463,10 @@ var _ = Describe("LaunchTemplates", func() {
 				Tags: settingsTags,
 			}))
 
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
+			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+			ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 			Expect(fakeEC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
 			createFleetInput := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
 			Expect(createFleetInput.TagSpecifications).To(HaveLen(3))
@@ -538,10 +493,10 @@ var _ = Describe("LaunchTemplates", func() {
 			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
 				Tags: settingsTags,
 			}))
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
+			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+			ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 			Expect(fakeEC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
 			createFleetInput := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
 			Expect(createFleetInput.TagSpecifications).To(HaveLen(3))
@@ -563,10 +518,10 @@ var _ = Describe("LaunchTemplates", func() {
 	Context("Block Device Mappings", func() {
 		It("should default AL2 block device mappings", func() {
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyAL2
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
+			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+			ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			Expect(len(input.LaunchTemplateData.BlockDeviceMappings)).To(Equal(1))
@@ -600,10 +555,10 @@ var _ = Describe("LaunchTemplates", func() {
 					},
 				},
 			}
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
+			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+			ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			Expect(input.LaunchTemplateData.BlockDeviceMappings[0].Ebs).To(Equal(&ec2.LaunchTemplateEbsBlockDeviceRequest{
@@ -649,10 +604,10 @@ var _ = Describe("LaunchTemplates", func() {
 					},
 				},
 			}
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
+			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+			ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 
@@ -662,10 +617,10 @@ var _ = Describe("LaunchTemplates", func() {
 		})
 		It("should default bottlerocket second volume with root volume size", func() {
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
+			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+			ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			Expect(len(input.LaunchTemplateData.BlockDeviceMappings)).To(Equal(2))
@@ -680,10 +635,10 @@ var _ = Describe("LaunchTemplates", func() {
 		})
 		It("should not default block device mappings for custom AMIFamilies", func() {
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyCustom
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
+			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+			ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			Expect(len(input.LaunchTemplateData.BlockDeviceMappings)).To(Equal(0))
@@ -703,10 +658,10 @@ var _ = Describe("LaunchTemplates", func() {
 					},
 				},
 			}
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
+			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+			ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			Expect(len(input.LaunchTemplateData.BlockDeviceMappings)).To(Equal(1))
@@ -720,7 +675,7 @@ var _ = Describe("LaunchTemplates", func() {
 	})
 	Context("Ephemeral Storage", func() {
 		It("should pack pods when a daemonset has an ephemeral-storage request", func() {
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate, coretest.DaemonSet(
+			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate, coretest.DaemonSet(
 				coretest.DaemonSetOptions{PodOptions: coretest.PodOptions{
 					ResourceRequirements: v1.ResourceRequirements{
 						Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"),
@@ -729,39 +684,39 @@ var _ = Describe("LaunchTemplates", func() {
 				}},
 			))
 			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
+			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+			ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 		})
 		It("should pack pods with any ephemeral-storage request", func() {
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod(coretest.PodOptions{ResourceRequirements: v1.ResourceRequirements{
 				Requests: map[v1.ResourceName]resource.Quantity{
 					v1.ResourceEphemeralStorage: resource.MustParse("1G"),
 				}}})
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
+			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+			ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 		})
 		It("should pack pods with large ephemeral-storage request", func() {
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod(coretest.PodOptions{ResourceRequirements: v1.ResourceRequirements{
 				Requests: map[v1.ResourceName]resource.Quantity{
 					v1.ResourceEphemeralStorage: resource.MustParse("10Gi"),
 				}}})
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
+			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+			ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 		})
 		It("should not pack pods if the sum of pod ephemeral-storage and overhead exceeds node capacity", func() {
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod(coretest.PodOptions{ResourceRequirements: v1.ResourceRequirements{
 				Requests: map[v1.ResourceName]resource.Quantity{
 					v1.ResourceEphemeralStorage: resource.MustParse("19Gi"),
 				}}})
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-			ExpectNotScheduled(ctx, env.Client, pod)
+			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+			ExpectNotScheduled(ctx, awsCtx.KubeClient, pod)
 		})
 		It("should launch multiple nodes if sum of pod ephemeral-storage requests exceeds a single nodes capacity", func() {
 			var nodes []*v1.Node
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 			pods := []*v1.Pod{
 				coretest.UnschedulablePod(coretest.PodOptions{ResourceRequirements: v1.ResourceRequirements{
 					Requests: map[v1.ResourceName]resource.Quantity{
@@ -776,14 +731,14 @@ var _ = Describe("LaunchTemplates", func() {
 				},
 				}),
 			}
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pods...)
+			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pods...)
 			for _, pod := range pods {
-				nodes = append(nodes, ExpectScheduled(ctx, env.Client, pod))
+				nodes = append(nodes, ExpectScheduled(ctx, awsCtx.KubeClient, pod))
 			}
 			Expect(nodes).To(HaveLen(2))
 		})
 		It("should only pack pods with ephemeral-storage requests that will fit on an available node", func() {
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 			pods := []*v1.Pod{
 				coretest.UnschedulablePod(coretest.PodOptions{ResourceRequirements: v1.ResourceRequirements{
 					Requests: map[v1.ResourceName]resource.Quantity{
@@ -798,20 +753,20 @@ var _ = Describe("LaunchTemplates", func() {
 				},
 				}),
 			}
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pods...)
-			ExpectScheduled(ctx, env.Client, pods[0])
-			ExpectNotScheduled(ctx, env.Client, pods[1])
+			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pods...)
+			ExpectScheduled(ctx, awsCtx.KubeClient, pods[0])
+			ExpectNotScheduled(ctx, awsCtx.KubeClient, pods[1])
 		})
 		It("should not pack pod if no available instance types have enough storage", func() {
-			ExpectApplied(ctx, env.Client, provisioner)
+			ExpectApplied(ctx, awsCtx.KubeClient, provisioner)
 			pod := coretest.UnschedulablePod(coretest.PodOptions{ResourceRequirements: v1.ResourceRequirements{
 				Requests: map[v1.ResourceName]resource.Quantity{
 					v1.ResourceEphemeralStorage: resource.MustParse("150Gi"),
 				},
 			},
 			})
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-			ExpectNotScheduled(ctx, env.Client, pod)
+			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+			ExpectNotScheduled(ctx, awsCtx.KubeClient, pod)
 		})
 		It("should pack pods using the blockdevicemappings from the provider spec when defined", func() {
 			nodeTemplate.Spec.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{{
@@ -820,17 +775,17 @@ var _ = Describe("LaunchTemplates", func() {
 					VolumeSize: resource.NewScaledQuantity(50, resource.Giga),
 				},
 			}}
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod(coretest.PodOptions{ResourceRequirements: v1.ResourceRequirements{
 				Requests: map[v1.ResourceName]resource.Quantity{
 					v1.ResourceEphemeralStorage: resource.MustParse("25Gi"),
 				},
 			},
 			})
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
+			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
 
 			// capacity isn't recorded on the node any longer, but we know the pod should schedule
-			ExpectScheduled(ctx, env.Client, pod)
+			ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 		})
 		It("should pack pods using blockdevicemappings for Custom AMIFamily", func() {
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyCustom
@@ -848,7 +803,7 @@ var _ = Describe("LaunchTemplates", func() {
 					},
 				},
 			}
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod(coretest.PodOptions{ResourceRequirements: v1.ResourceRequirements{
 				Requests: map[v1.ResourceName]resource.Quantity{
 					// this pod can only be satisfied if `/dev/xvdb` will house all the pods.
@@ -856,10 +811,10 @@ var _ = Describe("LaunchTemplates", func() {
 				},
 			},
 			})
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
+			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
 
 			// capacity isn't recorded on the node any longer, but we know the pod should schedule
-			ExpectScheduled(ctx, env.Client, pod)
+			ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 		})
 	})
 	Context("AL2", func() {
@@ -964,10 +919,10 @@ var _ = Describe("LaunchTemplates", func() {
 	})
 	Context("User Data", func() {
 		It("should not specify --use-max-pods=false when using ENI-based pod density", func() {
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
+			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+			ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
@@ -979,10 +934,10 @@ var _ = Describe("LaunchTemplates", func() {
 				EnableENILimitedPodDensity: lo.ToPtr(false),
 			}))
 
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
+			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+			ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
@@ -992,10 +947,10 @@ var _ = Describe("LaunchTemplates", func() {
 		})
 		It("should specify --use-max-pods=false and --max-pods user value when user specifies maxPods in Provisioner", func() {
 			provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{MaxPods: aws.Int32(10)}
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
+			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+			ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
@@ -1011,10 +966,10 @@ var _ = Describe("LaunchTemplates", func() {
 					v1.ResourceEphemeralStorage: resource.MustParse("2Gi"),
 				},
 			}
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
+			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+			ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
@@ -1037,10 +992,10 @@ var _ = Describe("LaunchTemplates", func() {
 					v1.ResourceEphemeralStorage: resource.MustParse("2Gi"),
 				},
 			}
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
+			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+			ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
@@ -1063,10 +1018,10 @@ var _ = Describe("LaunchTemplates", func() {
 					"nodefs.inodesFree": "5%",
 				},
 			}
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
+			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+			ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
@@ -1089,10 +1044,10 @@ var _ = Describe("LaunchTemplates", func() {
 					"nodefs.inodesFree": "5%",
 				},
 			}
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
+			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+			ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
@@ -1115,10 +1070,10 @@ var _ = Describe("LaunchTemplates", func() {
 					"nodefs.inodesFree": {Duration: time.Minute * 5},
 				},
 			}
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
+			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+			ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
@@ -1137,10 +1092,10 @@ var _ = Describe("LaunchTemplates", func() {
 			provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
 				EvictionMaxPodGracePeriod: aws.Int32(300),
 			}
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
+			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+			ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
@@ -1152,10 +1107,10 @@ var _ = Describe("LaunchTemplates", func() {
 			provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
 				PodsPerCore: aws.Int32(2),
 			}
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
+			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+			ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
@@ -1167,10 +1122,10 @@ var _ = Describe("LaunchTemplates", func() {
 				PodsPerCore: aws.Int32(2),
 				MaxPods:     aws.Int32(100),
 			}
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
+			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+			ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
@@ -1179,10 +1134,10 @@ var _ = Describe("LaunchTemplates", func() {
 			Expect(string(userData)).To(ContainSubstring(fmt.Sprintf("--max-pods=%d", 100)))
 		})
 		It("should specify --container-runtime containerd by default", func() {
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
+			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+			ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
@@ -1191,10 +1146,10 @@ var _ = Describe("LaunchTemplates", func() {
 		})
 		It("should specify dockerd if specified in the provisionerSpec", func() {
 			provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{ContainerRuntime: aws.String("dockerd")}
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
+			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+			ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
@@ -1203,7 +1158,7 @@ var _ = Describe("LaunchTemplates", func() {
 		})
 		It("should specify --container-runtime containerd when using Neuron GPUs", func() {
 			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{{Key: v1alpha1.LabelInstanceCategory, Operator: v1.NodeSelectorOpExists}}
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod(coretest.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{
 					Requests: map[v1.ResourceName]resource.Quantity{
@@ -1215,8 +1170,8 @@ var _ = Describe("LaunchTemplates", func() {
 					},
 				},
 			})
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
+			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+			ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
@@ -1225,7 +1180,7 @@ var _ = Describe("LaunchTemplates", func() {
 		})
 		It("should specify --container-runtime containerd when using Nvidia GPUs", func() {
 			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{{Key: v1alpha1.LabelInstanceCategory, Operator: v1.NodeSelectorOpExists}}
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod(coretest.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{
 					Requests: map[v1.ResourceName]resource.Quantity{
@@ -1237,8 +1192,8 @@ var _ = Describe("LaunchTemplates", func() {
 					},
 				},
 			})
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
+			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+			ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
@@ -1247,10 +1202,10 @@ var _ = Describe("LaunchTemplates", func() {
 		})
 		It("should specify --dns-cluster-ip and --ip-family when running in an ipv6 cluster", func() {
 			launchTemplateProvider.KubeDNSIP = net.ParseIP("fd4b:121b:812b::a")
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
+			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+			ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
@@ -1263,10 +1218,10 @@ var _ = Describe("LaunchTemplates", func() {
 			provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
 				ImageGCHighThresholdPercent: aws.Int32(50),
 			}
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
+			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+			ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
@@ -1277,10 +1232,10 @@ var _ = Describe("LaunchTemplates", func() {
 			provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
 				ImageGCLowThresholdPercent: aws.Int32(50),
 			}
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
+			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+			ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
@@ -1299,13 +1254,13 @@ var _ = Describe("LaunchTemplates", func() {
 				nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
 				provisioner.Spec.Taints = []v1.Taint{{Key: "foo", Value: "bar", Effect: v1.TaintEffectNoExecute}}
 				provisioner.Spec.StartupTaints = []v1.Taint{{Key: "baz", Value: "bin", Effect: v1.TaintEffectNoExecute}}
-				ExpectApplied(ctx, env.Client, nodeTemplate, provisioner)
-				Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(provisioner), provisioner)).To(Succeed())
+				ExpectApplied(ctx, awsCtx.KubeClient, nodeTemplate, provisioner)
+				Expect(awsCtx.KubeClient.Get(ctx, client.ObjectKeyFromObject(provisioner), provisioner)).To(Succeed())
 				pod := coretest.UnschedulablePod(coretest.PodOptions{
 					Tolerations: []v1.Toleration{{Operator: v1.TolerationOpExists}},
 				})
-				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-				ExpectScheduled(ctx, env.Client, pod)
+				ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+				ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 				userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
@@ -1324,13 +1279,13 @@ var _ = Describe("LaunchTemplates", func() {
 				nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
 				provisioner.Spec.Taints = []v1.Taint{{Key: "foo", Value: "bar", Effect: v1.TaintEffectNoExecute}}
 				provisioner.Spec.StartupTaints = []v1.Taint{{Key: "baz", Value: "bin", Effect: v1.TaintEffectNoExecute}}
-				ExpectApplied(ctx, env.Client, nodeTemplate, provisioner)
-				Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(provisioner), provisioner)).To(Succeed())
+				ExpectApplied(ctx, awsCtx.KubeClient, nodeTemplate, provisioner)
+				Expect(awsCtx.KubeClient.Get(ctx, client.ObjectKeyFromObject(provisioner), provisioner)).To(Succeed())
 				pod := coretest.UnschedulablePod(coretest.PodOptions{
 					Tolerations: []v1.Toleration{{Operator: v1.TolerationOpExists}},
 				})
-				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-				ExpectScheduled(ctx, env.Client, pod)
+				ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+				ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 				userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
@@ -1347,26 +1302,26 @@ var _ = Describe("LaunchTemplates", func() {
 				}))
 
 				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: "doesnotexist"}})
-				ExpectApplied(ctx, env.Client, newProvisioner)
+				ExpectApplied(ctx, awsCtx.KubeClient, newProvisioner)
 				pod := coretest.UnschedulablePod()
-				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
+				ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
 				// This will not be scheduled since we were pointed to a non-existent awsnodetemplate resource.
-				ExpectNotScheduled(ctx, env.Client, pod)
+				ExpectNotScheduled(ctx, awsCtx.KubeClient, pod)
 			})
 			It("should not bootstrap on invalid toml user data", func() {
 				nodeTemplate.Spec.UserData = aws.String("#/bin/bash\n ./not-toml.sh")
 				nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
-				ExpectApplied(ctx, env.Client, nodeTemplate)
+				ExpectApplied(ctx, awsCtx.KubeClient, nodeTemplate)
 				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
-				ExpectApplied(ctx, env.Client, newProvisioner)
+				ExpectApplied(ctx, awsCtx.KubeClient, newProvisioner)
 				pod := coretest.UnschedulablePod()
-				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
+				ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
 				// This will not be scheduled since userData cannot be generated for the prospective node.
-				ExpectNotScheduled(ctx, env.Client, pod)
+				ExpectNotScheduled(ctx, awsCtx.KubeClient, pod)
 			})
 			It("should override system reserved values in user data", func() {
 				nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
-				ExpectApplied(ctx, env.Client, nodeTemplate)
+				ExpectApplied(ctx, awsCtx.KubeClient, nodeTemplate)
 				provisioner = test.Provisioner(coretest.ProvisionerOptions{
 					ProviderRef: &v1alpha5.ProviderRef{
 						Name: nodeTemplate.Name,
@@ -1379,10 +1334,10 @@ var _ = Describe("LaunchTemplates", func() {
 						},
 					},
 				})
-				ExpectApplied(ctx, env.Client, provisioner)
+				ExpectApplied(ctx, awsCtx.KubeClient, provisioner)
 				pod := coretest.UnschedulablePod()
-				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-				ExpectScheduled(ctx, env.Client, pod)
+				ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+				ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 				userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
@@ -1396,7 +1351,7 @@ var _ = Describe("LaunchTemplates", func() {
 			})
 			It("should override kube reserved values in user data", func() {
 				nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
-				ExpectApplied(ctx, env.Client, nodeTemplate)
+				ExpectApplied(ctx, awsCtx.KubeClient, nodeTemplate)
 				provisioner = test.Provisioner(coretest.ProvisionerOptions{
 					ProviderRef: &v1alpha5.ProviderRef{
 						Name: nodeTemplate.Name,
@@ -1409,10 +1364,10 @@ var _ = Describe("LaunchTemplates", func() {
 						},
 					},
 				})
-				ExpectApplied(ctx, env.Client, provisioner)
+				ExpectApplied(ctx, awsCtx.KubeClient, provisioner)
 				pod := coretest.UnschedulablePod()
-				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-				ExpectScheduled(ctx, env.Client, pod)
+				ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+				ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 				userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
@@ -1426,7 +1381,7 @@ var _ = Describe("LaunchTemplates", func() {
 			})
 			It("should override kube reserved values in user data", func() {
 				nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
-				ExpectApplied(ctx, env.Client, nodeTemplate)
+				ExpectApplied(ctx, awsCtx.KubeClient, nodeTemplate)
 				provisioner = test.Provisioner(coretest.ProvisionerOptions{
 					ProviderRef: &v1alpha5.ProviderRef{
 						Name: nodeTemplate.Name,
@@ -1439,10 +1394,10 @@ var _ = Describe("LaunchTemplates", func() {
 						},
 					},
 				})
-				ExpectApplied(ctx, env.Client, provisioner)
+				ExpectApplied(ctx, awsCtx.KubeClient, provisioner)
 				pod := coretest.UnschedulablePod()
-				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-				ExpectScheduled(ctx, env.Client, pod)
+				ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+				ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 				userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
@@ -1464,10 +1419,10 @@ var _ = Describe("LaunchTemplates", func() {
 						MaxPods: aws.Int32(10),
 					},
 				})
-				ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+				ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 				pod := coretest.UnschedulablePod()
-				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-				ExpectScheduled(ctx, env.Client, pod)
+				ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+				ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 				userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
@@ -1487,12 +1442,12 @@ var _ = Describe("LaunchTemplates", func() {
 				content, err := os.ReadFile("testdata/al2_userdata_input.golden")
 				Expect(err).To(BeNil())
 				nodeTemplate.Spec.UserData = aws.String(string(content))
-				ExpectApplied(ctx, env.Client, nodeTemplate)
+				ExpectApplied(ctx, awsCtx.KubeClient, nodeTemplate)
 				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
-				ExpectApplied(ctx, env.Client, newProvisioner)
+				ExpectApplied(ctx, awsCtx.KubeClient, newProvisioner)
 				pod := coretest.UnschedulablePod()
-				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-				ExpectScheduled(ctx, env.Client, pod)
+				ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+				ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 				userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
@@ -1510,12 +1465,12 @@ var _ = Describe("LaunchTemplates", func() {
 				content, err := os.ReadFile("testdata/al2_no_mime_userdata_input.golden")
 				Expect(err).To(BeNil())
 				nodeTemplate.Spec.UserData = aws.String(string(content))
-				ExpectApplied(ctx, env.Client, nodeTemplate)
+				ExpectApplied(ctx, awsCtx.KubeClient, nodeTemplate)
 				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
-				ExpectApplied(ctx, env.Client, newProvisioner)
+				ExpectApplied(ctx, awsCtx.KubeClient, newProvisioner)
 				pod := coretest.UnschedulablePod()
-				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-				ExpectScheduled(ctx, env.Client, pod)
+				ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+				ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 				userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
@@ -1530,12 +1485,12 @@ var _ = Describe("LaunchTemplates", func() {
 					EnableENILimitedPodDensity: lo.ToPtr(false),
 				}))
 				nodeTemplate.Spec.UserData = nil
-				ExpectApplied(ctx, env.Client, nodeTemplate)
+				ExpectApplied(ctx, awsCtx.KubeClient, nodeTemplate)
 				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
-				ExpectApplied(ctx, env.Client, newProvisioner)
+				ExpectApplied(ctx, awsCtx.KubeClient, newProvisioner)
 				pod := coretest.UnschedulablePod()
-				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-				ExpectScheduled(ctx, env.Client, pod)
+				ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+				ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 				userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
@@ -1555,12 +1510,12 @@ var _ = Describe("LaunchTemplates", func() {
 						Architecture: aws.String("x86_64"),
 						CreationDate: aws.String("2022-08-15T12:00:00Z")},
 				}})
-				ExpectApplied(ctx, env.Client, nodeTemplate)
+				ExpectApplied(ctx, awsCtx.KubeClient, nodeTemplate)
 				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
-				ExpectApplied(ctx, env.Client, newProvisioner)
+				ExpectApplied(ctx, awsCtx.KubeClient, newProvisioner)
 				pod := coretest.UnschedulablePod()
-				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-				ExpectScheduled(ctx, env.Client, pod)
+				ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+				ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 				Expect("ami-123").To(Equal(*input.LaunchTemplateData.ImageId))
@@ -1575,12 +1530,12 @@ var _ = Describe("LaunchTemplates", func() {
 						Architecture: aws.String("x86_64"),
 						CreationDate: aws.String("2022-08-15T12:00:00Z")},
 				}})
-				ExpectApplied(ctx, env.Client, nodeTemplate)
+				ExpectApplied(ctx, awsCtx.KubeClient, nodeTemplate)
 				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
-				ExpectApplied(ctx, env.Client, newProvisioner)
+				ExpectApplied(ctx, awsCtx.KubeClient, newProvisioner)
 				pod := coretest.UnschedulablePod()
-				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-				ExpectScheduled(ctx, env.Client, pod)
+				ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+				ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 				userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
@@ -1603,12 +1558,12 @@ var _ = Describe("LaunchTemplates", func() {
 						CreationDate: aws.String("2022-08-15T12:00:00Z"),
 					},
 				}})
-				ExpectApplied(ctx, env.Client, nodeTemplate)
+				ExpectApplied(ctx, awsCtx.KubeClient, nodeTemplate)
 				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
-				ExpectApplied(ctx, env.Client, newProvisioner)
+				ExpectApplied(ctx, awsCtx.KubeClient, newProvisioner)
 				pod := coretest.UnschedulablePod()
-				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-				ExpectScheduled(ctx, env.Client, pod)
+				ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+				ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(2))
 				actualFilter := fakeEC2API.CalledWithDescribeImagesInput.Pop().Filters
 				expectedFilter := []*ec2.Filter{
@@ -1635,12 +1590,12 @@ var _ = Describe("LaunchTemplates", func() {
 					},
 				}})
 				nodeTemplate.Spec.AMISelector = map[string]string{"karpenter.sh/discovery": "my-cluster"}
-				ExpectApplied(ctx, env.Client, nodeTemplate)
+				ExpectApplied(ctx, awsCtx.KubeClient, nodeTemplate)
 				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
-				ExpectApplied(ctx, env.Client, newProvisioner)
+				ExpectApplied(ctx, awsCtx.KubeClient, newProvisioner)
 				pod := coretest.UnschedulablePod()
-				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-				ExpectScheduled(ctx, env.Client, pod)
+				ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+				ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(2))
 				expectedImageIds := sets.NewString("ami-123", "ami-456")
 				actualImageIds := sets.NewString(
@@ -1669,7 +1624,7 @@ var _ = Describe("LaunchTemplates", func() {
 					},
 				}})
 				nodeTemplate.Spec.AMISelector = map[string]string{"karpenter.sh/discovery": "my-cluster"}
-				ExpectApplied(ctx, env.Client, nodeTemplate)
+				ExpectApplied(ctx, awsCtx.KubeClient, nodeTemplate)
 				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{
 					ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name},
 					Requirements: []v1.NodeSelectorRequirement{
@@ -1680,10 +1635,10 @@ var _ = Describe("LaunchTemplates", func() {
 						},
 					},
 				})
-				ExpectApplied(ctx, env.Client, newProvisioner)
+				ExpectApplied(ctx, awsCtx.KubeClient, newProvisioner)
 				pod := coretest.UnschedulablePod()
-				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-				ExpectScheduled(ctx, env.Client, pod)
+				ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+				ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 				Expect("ami-456").To(Equal(*input.LaunchTemplateData.ImageId))
@@ -1692,12 +1647,12 @@ var _ = Describe("LaunchTemplates", func() {
 			It("should fail if no amis match selector.", func() {
 				fakeEC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{}})
 				nodeTemplate.Spec.AMISelector = map[string]string{"karpenter.sh/discovery": "my-cluster"}
-				ExpectApplied(ctx, env.Client, nodeTemplate)
+				ExpectApplied(ctx, awsCtx.KubeClient, nodeTemplate)
 				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
-				ExpectApplied(ctx, env.Client, newProvisioner)
+				ExpectApplied(ctx, awsCtx.KubeClient, newProvisioner)
 				pod := coretest.UnschedulablePod()
-				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-				ExpectNotScheduled(ctx, env.Client, pod)
+				ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+				ExpectNotScheduled(ctx, awsCtx.KubeClient, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(0))
 			})
 			It("should fail if no instanceType matches ami requirements.", func() {
@@ -1705,21 +1660,21 @@ var _ = Describe("LaunchTemplates", func() {
 					{ImageId: aws.String("ami-123"), Architecture: aws.String("newnew"), CreationDate: aws.String("2022-01-01T12:00:00Z")},
 				}})
 				nodeTemplate.Spec.AMISelector = map[string]string{"karpenter.sh/discovery": "my-cluster"}
-				ExpectApplied(ctx, env.Client, nodeTemplate)
+				ExpectApplied(ctx, awsCtx.KubeClient, nodeTemplate)
 				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
-				ExpectApplied(ctx, env.Client, newProvisioner)
+				ExpectApplied(ctx, awsCtx.KubeClient, newProvisioner)
 				pod := coretest.UnschedulablePod()
-				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-				ExpectNotScheduled(ctx, env.Client, pod)
+				ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+				ExpectNotScheduled(ctx, awsCtx.KubeClient, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(0))
 			})
 			It("should choose amis from SSM if no selector specified in AWSNodeTemplate", func() {
-				ExpectApplied(ctx, env.Client, nodeTemplate)
+				ExpectApplied(ctx, awsCtx.KubeClient, nodeTemplate)
 				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
-				ExpectApplied(ctx, env.Client, newProvisioner)
+				ExpectApplied(ctx, awsCtx.KubeClient, newProvisioner)
 				pod := coretest.UnschedulablePod()
-				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-				ExpectScheduled(ctx, env.Client, pod)
+				ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+				ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 				Expect(*input.LaunchTemplateData.ImageId).To(ContainSubstring("test-ami"))
 			})
@@ -1727,10 +1682,10 @@ var _ = Describe("LaunchTemplates", func() {
 		Context("Kubelet Args", func() {
 			It("should specify the --dns-cluster-ip flag when clusterDNSIP is set", func() {
 				provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{ClusterDNS: []string{"10.0.10.100"}}
-				ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+				ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 				pod := coretest.UnschedulablePod()
-				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-				ExpectScheduled(ctx, env.Client, pod)
+				ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+				ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 				userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
@@ -1740,20 +1695,20 @@ var _ = Describe("LaunchTemplates", func() {
 		})
 		Context("Instance Profile", func() {
 			It("should use the default instance profile if none specified on the Provisioner", func() {
-				ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+				ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 				pod := coretest.UnschedulablePod()
-				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-				ExpectScheduled(ctx, env.Client, pod)
+				ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+				ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 				Expect(*input.LaunchTemplateData.IamInstanceProfile.Name).To(Equal("test-instance-profile"))
 			})
 			It("should use the instance profile on the Provisioner when specified", func() {
 				nodeTemplate.Spec.InstanceProfile = aws.String("overridden-profile")
-				ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+				ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 				pod := coretest.UnschedulablePod()
-				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-				ExpectScheduled(ctx, env.Client, pod)
+				ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+				ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 				Expect(*input.LaunchTemplateData.IamInstanceProfile.Name).To(Equal("overridden-profile"))
@@ -1763,10 +1718,10 @@ var _ = Describe("LaunchTemplates", func() {
 	Context("Detailed Monitoring", func() {
 		It("should default detailed monitoring to off", func() {
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyAL2
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
+			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+			ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			Expect(aws.BoolValue(input.LaunchTemplateData.Monitoring.Enabled)).To(BeFalse())
@@ -1774,10 +1729,10 @@ var _ = Describe("LaunchTemplates", func() {
 		It("should pass detailed monitoring setting to the launch template at creation", func() {
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyAL2
 			nodeTemplate.Spec.DetailedMonitoring = aws.Bool(true)
-			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
+			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+			ExpectScheduled(ctx, awsCtx.KubeClient, pod)
 			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			Expect(aws.BoolValue(input.LaunchTemplateData.Monitoring.Enabled)).To(BeTrue())

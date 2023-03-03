@@ -16,25 +16,23 @@ package test
 
 import (
 	"context"
+	"fmt"
 	"net"
 
-	clock "k8s.io/utils/clock/testing"
+	"k8s.io/utils/clock"
 	"knative.dev/pkg/ptr"
 
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/awstesting/mock"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
-	"github.com/aws/karpenter-core/pkg/cloudprovider"
-	"github.com/aws/karpenter-core/pkg/events"
-	"github.com/aws/karpenter-core/pkg/operator/scheme"
-	coretest "github.com/aws/karpenter-core/pkg/test"
+	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
+	"github.com/imdario/mergo"
 	"github.com/patrickmn/go-cache"
-	"github.com/samber/lo"
 	"k8s.io/client-go/tools/record"
 
-	"github.com/aws/karpenter/pkg/apis"
-	"github.com/aws/karpenter/pkg/apis/settings"
+	"github.com/aws/karpenter-core/pkg/cloudprovider"
+	"github.com/aws/karpenter-core/pkg/events"
+
 	awscache "github.com/aws/karpenter/pkg/cache"
 	awscontext "github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/fake"
@@ -45,6 +43,8 @@ import (
 	"github.com/aws/karpenter/pkg/providers/pricing"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
 	"github.com/aws/karpenter/pkg/providers/subnet"
+
+	coretest "github.com/aws/karpenter-core/pkg/test"
 )
 
 type ContextOptions struct {
@@ -60,12 +60,14 @@ type ContextOptions struct {
 	InstanceProvider          *instance.Provider
 }
 
-func Context(ec2api ec2iface.EC2API, overrides ContextOptions) awscontext.Context {
-	env := coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
-	var ctx context.Context
-	ctx = coresettings.ToContext(ctx, coretest.Settings())
-	ctx = settings.ToContext(ctx, Settings())
-	// ctx, stop := context.WithCancel(ctx)
+func Context(ctx context.Context, ec2api ec2iface.EC2API, ssmapi ssmiface.SSMAPI,
+	env *coretest.Environment, clock clock.Clock, overrides ...ContextOptions) *awscontext.Context {
+	options := ContextOptions{}
+	for _, override := range overrides {
+		if err := mergo.Merge(&options, override, mergo.WithOverride); err != nil {
+			panic(fmt.Sprintf("Failed to merge settings: %s", err))
+		}
+	}
 
 	// cache
 	ssmCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
@@ -76,52 +78,96 @@ func Context(ec2api ec2iface.EC2API, overrides ContextOptions) awscontext.Contex
 	launchTemplateCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 
 	// Providers
-	pricingProvider := pricing.NewProvider(ctx, &fake.PricingAPI{}, ec2api, "", make(chan struct{}))
-	subnetProvider := subnet.NewProvider(ec2api)
-	securityGroupProvider := securitygroup.NewProvider(ec2api)
-	amiProvider := amifamily.NewProvider(env.Client, env.KubernetesInterface, &fake.SSMAPI{}, ec2api, ssmCache, ec2Cache, kubernetesVersionCache)
-	amiResolver := amifamily.New(env.Client, amiProvider)
-	instanceTypesProvider := instancetype.NewProvider("", instanceTypeCache, ec2api, subnetProvider, unavailableOfferingsCache, pricingProvider)
-	launchTemplateProvider := launchtemplate.NewProvider(
-		ctx,
-		launchTemplateCache,
-		ec2api,
-		amiResolver,
-		securityGroupProvider,
-		ptr.String("ca-bundle"),
-		make(chan struct{}),
-		net.ParseIP("10.0.100.10"),
-		"https://test-cluster",
+	sess := OptionOR(options.Session, mock.Session)
+	pricingProvider := OptionOR(
+		options.PricingProvider,
+		pricing.NewProvider(ctx, &fake.PricingAPI{}, ec2api, "", make(chan struct{})),
 	)
-	instanceProvider := instance.NewProvider(ctx,
-		"",
-		ec2api,
-		unavailableOfferingsCache,
-		instanceTypesProvider,
-		subnetProvider,
-		launchTemplateProvider,
+	subnetProvider := OptionOR(options.SubnetProvider, subnet.NewProvider(ec2api))
+	securityGroupProvider := OptionOR(options.SecurityGroupProvider, securitygroup.NewProvider(ec2api))
+	amiProvider := OptionOR(
+		options.AMIProvider,
+		amifamily.NewProvider(env.Client, env.KubernetesInterface, &fake.SSMAPI{}, ec2api, ssmCache, ec2Cache, kubernetesVersionCache),
+	)
+	amiResolver := OptionOR(options.AMIResolver, amifamily.New(env.Client, amiProvider))
+	instanceTypesProvider := OptionOR(
+		options.InstanceTypesProvider,
+		instancetype.NewProvider("", instanceTypeCache, ec2api, subnetProvider, unavailableOfferingsCache, pricingProvider),
+	)
+	launchTemplateProvider := OptionOR(
+		options.LaunchTemplateProvider,
+		launchtemplate.NewProvider(
+			ctx,
+			launchTemplateCache,
+			ec2api,
+			amiResolver,
+			securityGroupProvider,
+			ptr.String("ca-bundle"),
+			make(chan struct{}),
+			net.ParseIP("10.0.100.10"),
+			"https://test-cluster",
+		),
+	)
+	instanceProvider := OptionOR(
+		options.InstanceProvider,
+		instance.NewProvider(ctx,
+			"",
+			ec2api,
+			unavailableOfferingsCache,
+			instanceTypesProvider,
+			subnetProvider,
+			launchTemplateProvider,
+		),
 	)
 
-	return awscontext.Context{
+	return &awscontext.Context{
 		Context: cloudprovider.Context{
 			Context:             ctx,
 			RESTConfig:          env.Config,
 			KubernetesInterface: env.KubernetesInterface,
 			KubeClient:          env.Client,
 			EventRecorder:       events.NewRecorder(&record.FakeRecorder{}),
-			Clock:               &clock.FakeClock{},
+			Clock:               clock,
 			StartAsync:          nil,
 		},
-		Session:                   lo.FromPtrOr(&overrides.Session, mock.Session),
+		Session:                   sess,
 		EC2API:                    ec2api,
-		UnavailableOfferingsCache: lo.FromPtrOr(&overrides.UnavailableOfferingsCache, unavailableOfferingsCache),
-		InstanceTypesProvider:     lo.FromPtrOr(&overrides.InstanceTypesProvider, instanceTypesProvider),
-		InstanceProvider:          lo.FromPtrOr(&overrides.InstanceProvider, instanceProvider),
-		SubnetProvider:            lo.FromPtrOr(&overrides.SubnetProvider, subnetProvider),
-		SecurityGroupProvider:     lo.FromPtrOr(&overrides.SecurityGroupProvider, securityGroupProvider),
-		PricingProvider:           lo.FromPtrOr(&overrides.PricingProvider, pricingProvider),
-		AMIProvider:               lo.FromPtrOr(&overrides.AMIProvider, amiProvider),
-		AMIResolver:               lo.FromPtrOr(&overrides.AMIResolver, amiResolver),
-		LaunchTemplateProvider:    lo.FromPtrOr(&overrides.LaunchTemplateProvider, launchTemplateProvider),
+		UnavailableOfferingsCache: unavailableOfferingsCache,
+		InstanceTypesProvider:     instanceTypesProvider,
+		InstanceProvider:          instanceProvider,
+		SubnetProvider:            subnetProvider,
+		SecurityGroupProvider:     securityGroupProvider,
+		PricingProvider:           pricingProvider,
+		AMIProvider:               amiProvider,
+		AMIResolver:               amiResolver,
+		LaunchTemplateProvider:    launchTemplateProvider,
 	}
+}
+
+func UpdateContext(ctx *awscontext.Context, overrides ...ContextOptions) {
+	options := ContextOptions{}
+	for _, override := range overrides {
+		if err := mergo.Merge(&options, override, mergo.WithOverride); err != nil {
+			panic(fmt.Sprintf("Failed to merge settings: %s", err))
+		}
+	}
+
+	ctx.Session = OptionOR(options.Session, ctx.Session)
+	ctx.UnavailableOfferingsCache = OptionOR(options.UnavailableOfferingsCache, ctx.UnavailableOfferingsCache)
+	ctx.InstanceTypesProvider = OptionOR(options.InstanceTypesProvider, ctx.InstanceTypesProvider)
+	ctx.InstanceProvider = OptionOR(options.InstanceProvider, ctx.InstanceProvider)
+	ctx.SubnetProvider = OptionOR(options.SubnetProvider, ctx.SubnetProvider)
+	ctx.SecurityGroupProvider = OptionOR(options.SecurityGroupProvider, ctx.SecurityGroupProvider)
+	ctx.PricingProvider = OptionOR(options.PricingProvider, ctx.PricingProvider)
+	ctx.AMIProvider = OptionOR(options.AMIProvider, ctx.AMIProvider)
+	ctx.AMIResolver = OptionOR(options.AMIResolver, ctx.AMIResolver)
+	ctx.LaunchTemplateProvider = OptionOR(options.LaunchTemplateProvider, ctx.LaunchTemplateProvider)
+}
+
+func OptionOR[T any](x *T, fallback *T) *T {
+	if x == nil {
+		return fallback
+	}
+
+	return x
 }

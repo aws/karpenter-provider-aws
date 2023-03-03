@@ -227,3 +227,12 @@ func kubeDNSIP(ctx context.Context, kubernetesInterface kubernetes.Interface) (n
 	}
 	return kubeDNSIP, nil
 }
+
+func (c *Context) RestProviderCache() {
+	c.SecurityGroupProvider.Reset()
+	c.SubnetProvider.Reset()
+	c.InstanceTypesProvider.Reset()
+	c.LaunchTemplateProvider.Reset()
+	c.AMIProvider.Reset()
+	c.UnavailableOfferingsCache.Flush()
+}
