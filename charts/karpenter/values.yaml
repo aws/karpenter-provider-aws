@@ -103,7 +103,7 @@ extraVolumes: []
 #         expirationSeconds: 86400
 #         path: token
 
-# -- Array of extra K8s manifests to deploy 
+# -- Array of extra K8s manifests to deploy
 extraObjects: []
 #- apiVersion: karpenter.k8s.aws/v1alpha1
 #  kind: AWSNodeTemplate
@@ -210,3 +210,10 @@ settings:
     interruptionQueueName: ""
     # -- The global tags to use on all AWS infrastructure resources (launch templates, instances, etc.) across node templates
     tags:
+  # -- Feature Gate configuration values. Feature Gates will follow the same graduation process and requirements as feature gates
+  # in Kubernetes. More information here https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/#feature-gates-for-alpha-or-beta-features
+  featureGates:
+    # -- driftEnabled is in ALPHA and is disabled by default.
+    # Setting driftEnabled to true enables the drift deprovisioner to watch for drift between currently deployed nodes
+    # and the desired state of nodes set in provisioners and node templates
+    driftEnabled: false
