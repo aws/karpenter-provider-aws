@@ -69,7 +69,7 @@ var _ = BeforeSuite(func() {
 	ec2API = &fake.EC2API{}
 	awsCtx = test.Context(ctx, ec2API, &fake.SSMAPI{}, env, &clock.FakeClock{})
 
-	cloudProvider = cloudprovider.New(awsCtx)
+	cloudProvider = cloudprovider.New(awsCtx, awsCtx.InstanceTypesProvider, awsCtx.InstanceProvider, awsCtx.KubeClient, awsCtx.AMIProvider)
 
 	linkController = link.NewController(env.Client, cloudProvider)
 })

@@ -102,7 +102,7 @@ var _ = BeforeSuite(func() {
 		LaunchTemplateCache: launchTemplateCache,
 	})
 
-	cloudProvider = cloudprovider.New(awsCtx)
+	cloudProvider = cloudprovider.New(awsCtx, awsCtx.InstanceTypesProvider, awsCtx.InstanceProvider, awsCtx.KubeClient, awsCtx.AMIProvider)
 	cluster = state.NewCluster(fakeClock, awsCtx.KubeClient, cloudProvider)
 	prov = provisioning.NewProvisioner(ctx, awsCtx.KubeClient, awsCtx.KubernetesInterface.CoreV1(), events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster)
 })

@@ -94,7 +94,7 @@ var _ = BeforeSuite(func() {
 	fakeClock = clock.NewFakeClock(time.Now())
 	awsCtx = test.Context(ctx, fakeEC2API, fakeSSMAPI, env, fakeClock, test.ContextOptions{})
 
-	cloudProvider = cloudprovider.New(awsCtx)
+	cloudProvider = cloudprovider.New(awsCtx, awsCtx.InstanceTypesProvider, awsCtx.InstanceProvider, awsCtx.KubeClient, awsCtx.AMIProvider)
 	cluster = state.NewCluster(fakeClock, awsCtx.KubeClient, cloudProvider)
 	prov = provisioning.NewProvisioner(ctx, awsCtx.KubeClient, env.KubernetesInterface.CoreV1(), events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster)
 	provisioningController = provisioning.NewController(awsCtx.KubeClient, prov, events.NewRecorder(&record.FakeRecorder{}))
