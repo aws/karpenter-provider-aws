@@ -62,16 +62,11 @@ var _ = Describe("AMI Selectors", func() {
 	})
 	It("should not set owners when legacy ids are passed", func() {
 		amiSelector := map[string]string{
-			"aws::name": "my-ami",
 			"aws-ids":   "ami-abcd1234,ami-cafeaced",
 		}
 		filters, owners := getFiltersAndOwners(amiSelector)
 		Expect(owners).Should(BeNil())
 		Expect(filters).Should(ConsistOf([]*ec2.Filter{
-			{
-				Name:   aws.String("name"),
-				Values: aws.StringSlice([]string{"my-ami"}),
-			},
 			{
 				Name: aws.String("image-id"),
 				Values: aws.StringSlice([]string{
@@ -83,16 +78,11 @@ var _ = Describe("AMI Selectors", func() {
 	})
 	It("should not set owners when prefixed ids are passed", func() {
 		amiSelector := map[string]string{
-			"aws::name": "my-ami",
 			"aws::ids":  "ami-abcd1234,ami-cafeaced",
 		}
 		filters, owners := getFiltersAndOwners(amiSelector)
 		Expect(owners).Should(BeNil())
 		Expect(filters).Should(ConsistOf([]*ec2.Filter{
-			{
-				Name:   aws.String("name"),
-				Values: aws.StringSlice([]string{"my-ami"}),
-			},
 			{
 				Name: aws.String("image-id"),
 				Values: aws.StringSlice([]string{
@@ -101,6 +91,15 @@ var _ = Describe("AMI Selectors", func() {
 				}),
 			},
 		}))
+	})
+	It("should allow only specifying owners", func() {
+		amiSelector := map[string]string{
+			"aws::owners":  "abcdef,123456789012",
+		}
+		_, owners := getFiltersAndOwners(amiSelector)
+		Expect(owners).Should(ConsistOf(
+			[]*string{aws.String("abcdef"), aws.String("123456789012")},
+		))
 	})
 	It("should allow prefixed id, prefixed name, and prefixed owners", func() {
 		amiSelector := map[string]string{
