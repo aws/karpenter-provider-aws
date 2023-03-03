@@ -180,6 +180,7 @@ func (p *Provider) fetchAMIsFromEC2(ctx context.Context, amiSelector map[string]
 		return amis.([]*ec2.Image), nil
 	}
 	describeImagesInput := &ec2.DescribeImagesInput{Owners: owners}
+	// Don't include filters in the Describe Images call as EC2 API doesn't allow empty filters.
 	if len(filters) != 0 {
 		describeImagesInput.Filters = filters
 	}
