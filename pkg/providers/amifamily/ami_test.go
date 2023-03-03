@@ -62,7 +62,7 @@ var _ = Describe("AMI Selectors", func() {
 	})
 	It("should not set owners when legacy ids are passed", func() {
 		amiSelector := map[string]string{
-			"aws-ids":   "ami-abcd1234,ami-cafeaced",
+			"aws-ids": "ami-abcd1234,ami-cafeaced",
 		}
 		filters, owners := getFiltersAndOwners(amiSelector)
 		Expect(owners).Should(BeNil())
@@ -78,7 +78,7 @@ var _ = Describe("AMI Selectors", func() {
 	})
 	It("should not set owners when prefixed ids are passed", func() {
 		amiSelector := map[string]string{
-			"aws::ids":  "ami-abcd1234,ami-cafeaced",
+			"aws::ids": "ami-abcd1234,ami-cafeaced",
 		}
 		filters, owners := getFiltersAndOwners(amiSelector)
 		Expect(owners).Should(BeNil())
@@ -94,7 +94,7 @@ var _ = Describe("AMI Selectors", func() {
 	})
 	It("should allow only specifying owners", func() {
 		amiSelector := map[string]string{
-			"aws::owners":  "abcdef,123456789012",
+			"aws::owners": "abcdef,123456789012",
 		}
 		_, owners := getFiltersAndOwners(amiSelector)
 		Expect(owners).Should(ConsistOf(
