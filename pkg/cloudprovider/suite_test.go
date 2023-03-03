@@ -321,7 +321,7 @@ var _ = Describe("CloudProvider", func() {
 			_, err := cloudProvider.IsMachineDrifted(ctx, machineutil.NewFromNode(node))
 			Expect(err).To(HaveOccurred())
 		})
-		FIt("should error drift if node doesn't have provider id", func() {
+		It("should error drift if node doesn't have provider id", func() {
 			node := coretest.Node(coretest.NodeOptions{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{

@@ -78,7 +78,7 @@ func Context(ctx context.Context, ec2api ec2iface.EC2API, ssmapi ssmiface.SSMAPI
 	pricingProvider := pricing.NewProvider(ctx, pricingAPI, ec2api, "", make(chan struct{}))
 	subnetProvider := subnet.NewProvider(ec2api)
 	securityGroupProvider := securitygroup.NewProvider(ec2api)
-	amiProvider := amifamily.NewProvider(env.Client, env.KubernetesInterface, &fake.SSMAPI{}, ec2api, ssmCache, ec2Cache, kubernetesVersionCache)
+	amiProvider := amifamily.NewProvider(env.Client, env.KubernetesInterface, ssmapi, ec2api, ssmCache, ec2Cache, kubernetesVersionCache)
 	amiResolver := amifamily.New(env.Client, amiProvider)
 	instanceTypesProvider := instancetype.NewProvider("", instanceTypeCache, ec2api, subnetProvider, unavailableOfferingsCache, pricingProvider)
 	launchTemplateProvider :=
