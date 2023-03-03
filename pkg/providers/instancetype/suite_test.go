@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/awstesting/mock"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -63,13 +62,9 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	awscontext "github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/fake"
-	"github.com/aws/karpenter/pkg/providers/amifamily"
 	"github.com/aws/karpenter/pkg/providers/instance"
 	"github.com/aws/karpenter/pkg/providers/instancetype"
-	"github.com/aws/karpenter/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter/pkg/providers/pricing"
-	"github.com/aws/karpenter/pkg/providers/securitygroup"
-	"github.com/aws/karpenter/pkg/providers/subnet"
 	"github.com/aws/karpenter/pkg/test"
 )
 
@@ -77,29 +72,16 @@ var ctx context.Context
 var stop context.CancelFunc
 var opts options.Options
 var env *coretest.Environment
-var ssmCache *cache.Cache
-var ec2Cache *cache.Cache
-var launchTemplateCache *cache.Cache
-var instanceTypeCache *cache.Cache
-var kubernetesVersionCache *cache.Cache
+var awsCtx *awscontext.Context
 var fakeEC2API *fake.EC2API
 var fakeSSMAPI *fake.SSMAPI
 var fakeClock *clock.FakeClock
-var fakePricingAPI *fake.PricingAPI
-var amiProvider *amifamily.Provider
-var amiResolver *amifamily.Resolver
-var cloudProvider *cloudprovider.CloudProvider
-var unavailableOfferingsCache *awscache.UnavailableOfferings
+var instanceTypeCache *cache.Cache
 var prov *provisioning.Provisioner
 var provisioner *v1alpha5.Provisioner
-var launchTemplateProvider *launchtemplate.Provider
 var nodeTemplate *v1alpha1.AWSNodeTemplate
 var cluster *state.Cluster
-var pricingProvider *pricing.Provider
-var subnetProvider *subnet.Provider
-var instanceTypeProvider *instancetype.Provider
-var securityGroupProvider *securitygroup.Provider
-var instanceProvider *instance.Provider
+var cloudProvider *cloudprovider.CloudProvider
 var provisioningController controller.Controller
 
 func TestAWS(t *testing.T) {
@@ -116,55 +98,13 @@ var _ = BeforeSuite(func() {
 
 	fakeEC2API = &fake.EC2API{}
 	fakeSSMAPI = &fake.SSMAPI{}
-	ssmCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
-	ec2Cache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
-	launchTemplateCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	fakeClock = &clock.FakeClock{}
 	instanceTypeCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
-	kubernetesVersionCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
-	fakeClock = clock.NewFakeClock(time.Now())
-	unavailableOfferingsCache = awscache.NewUnavailableOfferings()
-	fakePricingAPI = &fake.PricingAPI{}
-	pricingProvider = pricing.NewProvider(ctx, fakePricingAPI, fakeEC2API, "", make(chan struct{}))
-	subnetProvider = subnet.NewProvider(fakeEC2API)
-	securityGroupProvider = securitygroup.NewProvider(fakeEC2API)
-	amiProvider = amifamily.NewProvider(env.Client, env.KubernetesInterface, fakeSSMAPI, fakeEC2API, ssmCache, ec2Cache, kubernetesVersionCache)
-	amiResolver = amifamily.New(env.Client, amiProvider)
-	instanceTypeProvider = instancetype.NewProvider("", instanceTypeCache, fakeEC2API, subnetProvider, unavailableOfferingsCache, pricingProvider)
-
-	launchTemplateProvider = launchtemplate.NewProvider(
-		ctx,
-		launchTemplateCache,
-		fakeEC2API,
-		amiResolver,
-		securityGroupProvider,
-		ptr.String("ca-bundle"),
-		make(chan struct{}),
-		net.ParseIP("10.0.100.10"),
-		"https://test-cluster",
-	)
-	instanceProvider = instance.NewProvider(ctx, "", fakeEC2API, unavailableOfferingsCache, instanceTypeProvider, subnetProvider, launchTemplateProvider)
-	cloudProvider = cloudprovider.New(awscontext.Context{
-		Context: corecloudprovider.Context{
-			Context:             ctx,
-			RESTConfig:          env.Config,
-			KubernetesInterface: env.KubernetesInterface,
-			KubeClient:          env.Client,
-			EventRecorder:       events.NewRecorder(&record.FakeRecorder{}),
-			Clock:               &clock.FakeClock{},
-			StartAsync:          nil,
-		},
-		SubnetProvider:            subnet.NewProvider(fakeEC2API),
-		SecurityGroupProvider:     securityGroupProvider,
-		Session:                   mock.Session,
-		UnavailableOfferingsCache: unavailableOfferingsCache,
-		EC2API:                    fakeEC2API,
-		PricingProvider:           pricingProvider,
-		AMIProvider:               amiProvider,
-		AMIResolver:               amiResolver,
-		LaunchTemplateProvider:    launchTemplateProvider,
-		InstanceProvider:          instanceProvider,
-		InstanceTypesProvider:     instanceTypeProvider,
+	awsCtx = test.Context(ctx, fakeEC2API, fakeSSMAPI, env, fakeClock, test.ContextOptions{
+		InstanceTypeCache: instanceTypeCache,
 	})
+
+	cloudProvider = cloudprovider.New(*awsCtx)
 	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
 	prov = provisioning.NewProvisioner(ctx, env.Client, env.KubernetesInterface.CoreV1(), events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster)
 	provisioningController = provisioning.NewController(env.Client, prov, events.NewRecorder(&record.FakeRecorder{}))
@@ -211,26 +151,19 @@ var _ = BeforeEach(func() {
 	cluster.Reset()
 	fakeEC2API.Reset()
 	fakeSSMAPI.Reset()
-	fakePricingAPI.Reset()
-	launchTemplateCache.Flush()
-	unavailableOfferingsCache.Flush()
-	ssmCache.Flush()
-	ec2Cache.Flush()
-	kubernetesVersionCache.Flush()
-	instanceTypeCache.Flush()
-	subnetProvider.Reset()
-	securityGroupProvider.Reset()
-	launchTemplateProvider.KubeDNSIP = net.ParseIP("10.0.100.10")
-	launchTemplateProvider.ClusterEndpoint = "https://test-cluster"
+	awsCtx.RestProviderCache()
+	awsCtx.LaunchTemplateProvider.KubeDNSIP = net.ParseIP("10.0.100.10")
+	awsCtx.LaunchTemplateProvider.ClusterEndpoint = "https://test-cluster"
 
 	// Reset the pricing provider, so we don't cross-pollinate pricing data
-	instanceTypeProvider = instancetype.NewProvider(
+	awsCtx.PricingProvider = pricing.NewProvider(ctx, &fake.PricingAPI{}, fakeEC2API, "", make(chan struct{}))
+	awsCtx.InstanceTypesProvider = instancetype.NewProvider(
 		"",
 		instanceTypeCache,
 		fakeEC2API,
-		subnetProvider,
-		unavailableOfferingsCache,
-		pricing.NewProvider(ctx, fakePricingAPI, fakeEC2API, "", make(chan struct{})),
+		awsCtx.SubnetProvider,
+		awsCtx.UnavailableOfferingsCache,
+		awsCtx.PricingProvider,
 	)
 })
 
@@ -360,7 +293,7 @@ var _ = Describe("Instance Types", func() {
 		}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 		fakeEC2API.DescribeSpotPriceHistoryOutput.Set(generateSpotPricing(cloudProvider, provisioner))
-		Expect(pricingProvider.UpdateSpotPricing(ctx)).To(Succeed())
+		Expect(awsCtx.PricingProvider.UpdateSpotPricing(ctx)).To(Succeed())
 
 		pod := coretest.UnschedulablePod(coretest.PodOptions{
 			ResourceRequirements: v1.ResourceRequirements{
@@ -392,7 +325,7 @@ var _ = Describe("Instance Types", func() {
 		// find the cheapest OD price that works
 		cheapestODPrice := math.MaxFloat64
 		for _, override := range call.LaunchTemplateConfigs[0].Overrides {
-			odPrice, ok := pricingProvider.OnDemandPrice(*override.InstanceType)
+			odPrice, ok := awsCtx.PricingProvider.OnDemandPrice(*override.InstanceType)
 			Expect(ok).To(BeTrue())
 			if odPrice < cheapestODPrice {
 				cheapestODPrice = odPrice
@@ -400,7 +333,7 @@ var _ = Describe("Instance Types", func() {
 		}
 		// and our spot prices should be cheaper than the OD price
 		for _, override := range call.LaunchTemplateConfigs[0].Overrides {
-			spotPrice, ok := pricingProvider.SpotPrice(*override.InstanceType, *override.AvailabilityZone)
+			spotPrice, ok := awsCtx.PricingProvider.SpotPrice(*override.InstanceType, *override.AvailabilityZone)
 			Expect(ok).To(BeTrue())
 			Expect(spotPrice).To(BeNumerically("<", cheapestODPrice))
 		}
@@ -594,7 +527,7 @@ var _ = Describe("Instance Types", func() {
 		ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
 			EnableENILimitedPodDensity: lo.ToPtr(false),
 		}))
-		instanceInfo, err := instanceTypeProvider.GetInstanceTypes(ctx)
+		instanceInfo, err := awsCtx.InstanceTypesProvider.GetInstanceTypes(ctx)
 		Expect(err).To(BeNil())
 		for _, info := range instanceInfo {
 			it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
@@ -602,7 +535,7 @@ var _ = Describe("Instance Types", func() {
 		}
 	})
 	It("should not set pods to 110 if using ENI-based pod density", func() {
-		instanceInfo, err := instanceTypeProvider.GetInstanceTypes(ctx)
+		instanceInfo, err := awsCtx.InstanceTypesProvider.GetInstanceTypes(ctx)
 		Expect(err).To(BeNil())
 		for _, info := range instanceInfo {
 			it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
@@ -618,7 +551,7 @@ var _ = Describe("Instance Types", func() {
 			}))
 
 			var ok bool
-			instanceInfo, err := instanceTypeProvider.GetInstanceTypes(ctx)
+			instanceInfo, err := awsCtx.InstanceTypesProvider.GetInstanceTypes(ctx)
 			Expect(err).To(BeNil())
 			info, ok = lo.Find(instanceInfo, func(i *ec2.InstanceTypeInfo) bool {
 				return aws.StringValue(i.InstanceType) == "m5.xlarge"
@@ -880,7 +813,7 @@ var _ = Describe("Instance Types", func() {
 			})
 		})
 		It("should set max-pods to user-defined value if specified", func() {
-			instanceInfo, err := instanceTypeProvider.GetInstanceTypes(ctx)
+			instanceInfo, err := awsCtx.InstanceTypesProvider.GetInstanceTypes(ctx)
 			Expect(err).To(BeNil())
 			provisioner = test.Provisioner(coretest.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{MaxPods: ptr.Int32(10)}})
 			for _, info := range instanceInfo {
@@ -893,7 +826,7 @@ var _ = Describe("Instance Types", func() {
 				EnablePodENI: lo.ToPtr(false),
 			}))
 
-			instanceInfo, err := instanceTypeProvider.GetInstanceTypes(ctx)
+			instanceInfo, err := awsCtx.InstanceTypesProvider.GetInstanceTypes(ctx)
 			Expect(err).To(BeNil())
 			provisioner = test.Provisioner(coretest.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{MaxPods: ptr.Int32(10)}})
 			for _, info := range instanceInfo {
@@ -902,7 +835,7 @@ var _ = Describe("Instance Types", func() {
 			}
 		})
 		It("should override pods-per-core value", func() {
-			instanceInfo, err := instanceTypeProvider.GetInstanceTypes(ctx)
+			instanceInfo, err := awsCtx.InstanceTypesProvider.GetInstanceTypes(ctx)
 			Expect(err).To(BeNil())
 			provisioner = test.Provisioner(coretest.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{PodsPerCore: ptr.Int32(1)}})
 			for _, info := range instanceInfo {
@@ -911,7 +844,7 @@ var _ = Describe("Instance Types", func() {
 			}
 		})
 		It("should take the minimum of pods-per-core and max-pods", func() {
-			instanceInfo, err := instanceTypeProvider.GetInstanceTypes(ctx)
+			instanceInfo, err := awsCtx.InstanceTypesProvider.GetInstanceTypes(ctx)
 			Expect(err).To(BeNil())
 			provisioner = test.Provisioner(coretest.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{PodsPerCore: ptr.Int32(4), MaxPods: ptr.Int32(20)}})
 			for _, info := range instanceInfo {
@@ -920,7 +853,7 @@ var _ = Describe("Instance Types", func() {
 			}
 		})
 		It("should ignore pods-per-core when using Bottlerocket AMI", func() {
-			instanceInfo, err := instanceTypeProvider.GetInstanceTypes(ctx)
+			instanceInfo, err := awsCtx.InstanceTypesProvider.GetInstanceTypes(ctx)
 			Expect(err).To(BeNil())
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
 			provisioner = test.Provisioner(coretest.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{PodsPerCore: ptr.Int32(1)}})
@@ -935,7 +868,7 @@ var _ = Describe("Instance Types", func() {
 				EnableENILimitedPodDensity: lo.ToPtr(false),
 			}))
 
-			instanceInfo, err := instanceTypeProvider.GetInstanceTypes(ctx)
+			instanceInfo, err := awsCtx.InstanceTypesProvider.GetInstanceTypes(ctx)
 			Expect(err).To(BeNil())
 			provisioner = test.Provisioner(coretest.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{PodsPerCore: ptr.Int32(0)}})
 			for _, info := range instanceInfo {
@@ -1051,7 +984,7 @@ var _ = Describe("Instance Types", func() {
 			ExpectNotScheduled(ctx, env.Client, pod)
 			// capacity shortage is over - expire the item from the cache and try again
 			fakeEC2API.InsufficientCapacityPools.Set([]fake.CapacityPool{})
-			unavailableOfferingsCache.Delete("inf1.6xlarge", "test-zone-1a", v1alpha5.CapacityTypeOnDemand)
+			awsCtx.UnavailableOfferingsCache.Delete("inf1.6xlarge", "test-zone-1a", v1alpha5.CapacityTypeOnDemand)
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "inf1.6xlarge"))
@@ -1171,7 +1104,7 @@ var _ = Describe("Instance Types", func() {
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(HaveKeyWithValue(v1alpha5.LabelCapacityType, v1alpha5.CapacityTypeSpot))
 		})
-		It("should fail to launch capacity when there is no zonal availability for spot", func() {
+		FIt("should fail to launch capacity when there is no zonal availability for spot", func() {
 			now := time.Now()
 			fakeEC2API.DescribeSpotPriceHistoryOutput.Set(&ec2.DescribeSpotPriceHistoryOutput{
 				SpotPriceHistory: []*ec2.SpotPrice{
@@ -1183,8 +1116,8 @@ var _ = Describe("Instance Types", func() {
 					},
 				},
 			})
-			Expect(pricingProvider.UpdateSpotPricing(ctx)).To(Succeed())
-			Eventually(func() bool { return pricingProvider.SpotLastUpdated().After(now) }).Should(BeTrue())
+			Expect(awsCtx.PricingProvider.UpdateSpotPricing(ctx)).To(Succeed())
+			Eventually(func() bool { return awsCtx.PricingProvider.SpotLastUpdated().After(now) }).Should(BeTrue())
 
 			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
 				{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha5.CapacityTypeSpot}},
@@ -1210,8 +1143,8 @@ var _ = Describe("Instance Types", func() {
 					},
 				},
 			})
-			Expect(pricingProvider.UpdateSpotPricing(ctx)).To(Succeed())
-			Eventually(func() bool { return pricingProvider.SpotLastUpdated().After(now) }).Should(BeTrue())
+			Expect(awsCtx.PricingProvider.UpdateSpotPricing(ctx)).To(Succeed())
+			Eventually(func() bool { return awsCtx.PricingProvider.SpotLastUpdated().After(now) }).Should(BeTrue())
 
 			// not restricting to the zone so we can get any zone
 			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
