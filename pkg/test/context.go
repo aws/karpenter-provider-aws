@@ -57,7 +57,7 @@ type ContextOptions struct {
 }
 
 func Context(ctx context.Context, ec2api ec2iface.EC2API, ssmapi ssmiface.SSMAPI,
-	env *coretest.Environment, clock clock.Clock, overrides ...ContextOptions) *awscontext.Context {
+	env *coretest.Environment, clock clock.Clock, overrides ...ContextOptions) awscontext.Context {
 	options := ContextOptions{}
 	for _, override := range overrides {
 		if err := mergo.Merge(&options, override, mergo.WithOverride); err != nil {
@@ -103,7 +103,7 @@ func Context(ctx context.Context, ec2api ec2iface.EC2API, ssmapi ssmiface.SSMAPI
 			launchTemplateProvider,
 		)
 
-	return &awscontext.Context{
+	return awscontext.Context{
 		Context: cloudprovider.Context{
 			Context:             ctx,
 			RESTConfig:          env.Config,

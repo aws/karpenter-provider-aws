@@ -53,7 +53,6 @@ import (
 	"github.com/aws/karpenter/pkg/fake"
 	"github.com/aws/karpenter/pkg/providers/amifamily/bootstrap"
 	"github.com/aws/karpenter/pkg/providers/instancetype"
-	"github.com/aws/karpenter/pkg/providers/pricing"
 	"github.com/aws/karpenter/pkg/test"
 
 	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
@@ -69,7 +68,7 @@ import (
 )
 
 var ctx context.Context
-var awsCtx *awscontext.Context
+var awsCtx awscontext.Context
 var stop context.CancelFunc
 var opts options.Options
 var env *coretest.Environment
@@ -103,7 +102,7 @@ var _ = BeforeSuite(func() {
 		LaunchTemplateCache: launchTemplateCache,
 	})
 
-	cloudProvider = cloudprovider.New(*awsCtx)
+	cloudProvider = cloudprovider.New(awsCtx)
 	cluster = state.NewCluster(fakeClock, awsCtx.KubeClient, cloudProvider)
 	prov = provisioning.NewProvisioner(ctx, awsCtx.KubeClient, awsCtx.KubernetesInterface.CoreV1(), events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster)
 })
@@ -151,16 +150,6 @@ var _ = BeforeEach(func() {
 	awsCtx.RestProviderCache()
 	awsCtx.LaunchTemplateProvider.KubeDNSIP = net.ParseIP("10.0.100.10")
 	awsCtx.LaunchTemplateProvider.ClusterEndpoint = "https://test-cluster"
-
-	// Reset the pricing provider, so we don't cross-pollinate pricing data
-	awsCtx.InstanceTypesProvider = instancetype.NewProvider(
-		"",
-		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
-		fakeEC2API,
-		awsCtx.SubnetProvider,
-		awsCtx.UnavailableOfferingsCache,
-		pricing.NewProvider(ctx, &fake.PricingAPI{}, fakeEC2API, "", make(chan struct{})),
-	)
 })
 
 var _ = AfterEach(func() {

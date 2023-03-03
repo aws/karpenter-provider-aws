@@ -52,7 +52,7 @@ import (
 )
 
 var ctx context.Context
-var awsCtx *awscontext.Context
+var awsCtx awscontext.Context
 var env *coretest.Environment
 var ec2API *fake.EC2API
 var cloudProvider *cloudprovider.CloudProvider
@@ -72,7 +72,7 @@ var _ = BeforeSuite(func() {
 	ec2API = &fake.EC2API{}
 	awsCtx = test.Context(ctx, ec2API, &fake.SSMAPI{}, env, &clock.FakeClock{})
 
-	cloudProvider = cloudprovider.New(*awsCtx)
+	cloudProvider = cloudprovider.New(awsCtx)
 
 	linkedMachineCache = cache.New(time.Minute*10, time.Second*10)
 	linkController := &link.Controller{

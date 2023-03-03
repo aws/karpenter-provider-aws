@@ -72,7 +72,7 @@ var ctx context.Context
 var stop context.CancelFunc
 var opts options.Options
 var env *coretest.Environment
-var awsCtx *awscontext.Context
+var awsCtx awscontext.Context
 var fakeEC2API *fake.EC2API
 var fakeSSMAPI *fake.SSMAPI
 var fakeClock *clock.FakeClock
@@ -104,7 +104,7 @@ var _ = BeforeSuite(func() {
 		InstanceTypeCache: instanceTypeCache,
 	})
 
-	cloudProvider = cloudprovider.New(*awsCtx)
+	cloudProvider = cloudprovider.New(awsCtx)
 	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
 	prov = provisioning.NewProvisioner(ctx, env.Client, env.KubernetesInterface.CoreV1(), events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster)
 	provisioningController = provisioning.NewController(env.Client, prov, events.NewRecorder(&record.FakeRecorder{}))
@@ -154,17 +154,6 @@ var _ = BeforeEach(func() {
 	awsCtx.RestProviderCache()
 	awsCtx.LaunchTemplateProvider.KubeDNSIP = net.ParseIP("10.0.100.10")
 	awsCtx.LaunchTemplateProvider.ClusterEndpoint = "https://test-cluster"
-
-	// Reset the pricing provider, so we don't cross-pollinate pricing data
-	awsCtx.PricingProvider = pricing.NewProvider(ctx, &fake.PricingAPI{}, fakeEC2API, "", make(chan struct{}))
-	awsCtx.InstanceTypesProvider = instancetype.NewProvider(
-		"",
-		instanceTypeCache,
-		fakeEC2API,
-		awsCtx.SubnetProvider,
-		awsCtx.UnavailableOfferingsCache,
-		awsCtx.PricingProvider,
-	)
 })
 
 var _ = AfterEach(func() {
@@ -1104,7 +1093,7 @@ var _ = Describe("Instance Types", func() {
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(HaveKeyWithValue(v1alpha5.LabelCapacityType, v1alpha5.CapacityTypeSpot))
 		})
-		FIt("should fail to launch capacity when there is no zonal availability for spot", func() {
+		It("should fail to launch capacity when there is no zonal availability for spot", func() {
 			now := time.Now()
 			fakeEC2API.DescribeSpotPriceHistoryOutput.Set(&ec2.DescribeSpotPriceHistoryOutput{
 				SpotPriceHistory: []*ec2.SpotPrice{
