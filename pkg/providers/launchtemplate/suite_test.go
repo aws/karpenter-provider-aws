@@ -42,7 +42,6 @@ import (
 	"k8s.io/client-go/tools/record"
 	clock "k8s.io/utils/clock/testing"
 	. "knative.dev/pkg/logging/testing"
-	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter/pkg/apis"
@@ -54,7 +53,6 @@ import (
 	"github.com/aws/karpenter/pkg/fake"
 	"github.com/aws/karpenter/pkg/providers/amifamily/bootstrap"
 	"github.com/aws/karpenter/pkg/providers/instancetype"
-	"github.com/aws/karpenter/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter/pkg/providers/pricing"
 	"github.com/aws/karpenter/pkg/test"
 
@@ -82,13 +80,7 @@ var prov *provisioning.Provisioner
 var provisioner *v1alpha5.Provisioner
 var nodeTemplate *v1alpha1.AWSNodeTemplate
 var cluster *state.Cluster
-
-// cache
 var launchTemplateCache *cache.Cache
-
-// providers
-var pricingProvider *pricing.Provider
-var launchTemplateProvider *launchtemplate.Provider
 var cloudProvider *cloudprovider.CloudProvider
 
 func TestAWS(t *testing.T) {
@@ -106,31 +98,14 @@ var _ = BeforeSuite(func() {
 	fakeEC2API = &fake.EC2API{}
 	fakeSSMAPI = &fake.SSMAPI{}
 	fakeClock = &clock.FakeClock{}
-	awsCtx = test.Context(ctx, fakeEC2API, fakeSSMAPI, env, fakeClock)
-	pricingProvider = pricing.NewProvider(ctx, &fake.PricingAPI{}, fakeEC2API, "", make(chan struct{}))
 	launchTemplateCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
-	launchTemplateProvider = launchtemplate.NewProvider(
-		ctx,
-		launchTemplateCache,
-		fakeEC2API,
-		awsCtx.AMIResolver,
-		awsCtx.SecurityGroupProvider,
-		ptr.String("ca-bundle"),
-		make(chan struct{}),
-		net.ParseIP("10.0.100.10"),
-		"https://test-cluster",
-	)
-
-	test.UpdateContext(awsCtx, test.ContextOptions{
-		LaunchTemplateProvider: launchTemplateProvider,
-		PricingProvider:        pricingProvider,
+	awsCtx = test.Context(ctx, fakeEC2API, fakeSSMAPI, env, fakeClock, test.ContextOptions{
+		LaunchTemplateCache: launchTemplateCache,
 	})
 
-	fmt.Println(launchTemplateCache == awsCtx.LaunchTemplateProvider.Cache)
 	cloudProvider = cloudprovider.New(*awsCtx)
 	cluster = state.NewCluster(fakeClock, awsCtx.KubeClient, cloudProvider)
 	prov = provisioning.NewProvisioner(ctx, awsCtx.KubeClient, awsCtx.KubernetesInterface.CoreV1(), events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster)
-
 })
 
 var _ = AfterSuite(func() {
@@ -170,7 +145,6 @@ var _ = BeforeEach(func() {
 			Name:       nodeTemplate.Name,
 		},
 	})
-	fmt.Println(launchTemplateCache == awsCtx.LaunchTemplateProvider.Cache)
 	cluster.Reset()
 	fakeEC2API.Reset()
 	fakeSSMAPI.Reset()
@@ -247,7 +221,7 @@ var _ = Describe("LaunchTemplates", func() {
 		})
 		lastPrice := -math.MaxFloat64
 		for _, override := range overrides {
-			offeringPrice, ok := pricingProvider.SpotPrice(*override.InstanceType, *override.AvailabilityZone)
+			offeringPrice, ok := awsCtx.PricingProvider.SpotPrice(*override.InstanceType, *override.AvailabilityZone)
 			Expect(ok).To(BeTrue())
 			Expect(offeringPrice).To(BeNumerically(">=", lastPrice))
 			lastPrice = offeringPrice
@@ -320,7 +294,7 @@ var _ = Describe("LaunchTemplates", func() {
 			name2 := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop().LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName
 			Expect(name1).To(Equal(name2))
 		})
-		FIt("should recover from an out-of-sync launch template cache", func() {
+		It("should recover from an out-of-sync launch template cache", func() {
 			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
@@ -1201,7 +1175,7 @@ var _ = Describe("LaunchTemplates", func() {
 			Expect(string(userData)).To(ContainSubstring("--container-runtime containerd"))
 		})
 		It("should specify --dns-cluster-ip and --ip-family when running in an ipv6 cluster", func() {
-			launchTemplateProvider.KubeDNSIP = net.ParseIP("fd4b:121b:812b::a")
+			awsCtx.LaunchTemplateProvider.KubeDNSIP = net.ParseIP("fd4b:121b:812b::a")
 			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)

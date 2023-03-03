@@ -22,7 +22,6 @@ import (
 	"k8s.io/utils/clock"
 	"knative.dev/pkg/ptr"
 
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/awstesting/mock"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
@@ -48,16 +47,13 @@ import (
 )
 
 type ContextOptions struct {
-	Session                   *session.Session
+	SSMCache                  *cache.Cache
+	EC2Cache                  *cache.Cache
+	KubernetesVersionCache    *cache.Cache
+	InstanceTypeCache         *cache.Cache
 	UnavailableOfferingsCache *awscache.UnavailableOfferings
-	SubnetProvider            *subnet.Provider
-	SecurityGroupProvider     *securitygroup.Provider
-	AMIProvider               *amifamily.Provider
-	AMIResolver               *amifamily.Resolver
-	LaunchTemplateProvider    *launchtemplate.Provider
-	PricingProvider           *pricing.Provider
-	InstanceTypesProvider     *instancetype.Provider
-	InstanceProvider          *instance.Provider
+	LaunchTemplateCache       *cache.Cache
+	PricingAPI                *fake.PricingAPI
 }
 
 func Context(ctx context.Context, ec2api ec2iface.EC2API, ssmapi ssmiface.SSMAPI,
@@ -70,32 +66,22 @@ func Context(ctx context.Context, ec2api ec2iface.EC2API, ssmapi ssmiface.SSMAPI
 	}
 
 	// cache
-	ssmCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
-	ec2Cache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
-	kubernetesVersionCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
-	instanceTypeCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
-	unavailableOfferingsCache := awscache.NewUnavailableOfferings()
-	launchTemplateCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	ssmCache := OptionOR(options.SSMCache, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
+	ec2Cache := OptionOR(options.EC2Cache, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
+	kubernetesVersionCache := OptionOR(options.KubernetesVersionCache, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
+	instanceTypeCache := OptionOR(options.InstanceTypeCache, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
+	unavailableOfferingsCache := OptionOR(options.UnavailableOfferingsCache, awscache.NewUnavailableOfferings())
+	launchTemplateCache := OptionOR(options.LaunchTemplateCache, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
+	pricingAPI := OptionOR(options.PricingAPI, &fake.PricingAPI{})
 
 	// Providers
-	sess := OptionOR(options.Session, mock.Session)
-	pricingProvider := OptionOR(
-		options.PricingProvider,
-		pricing.NewProvider(ctx, &fake.PricingAPI{}, ec2api, "", make(chan struct{})),
-	)
-	subnetProvider := OptionOR(options.SubnetProvider, subnet.NewProvider(ec2api))
-	securityGroupProvider := OptionOR(options.SecurityGroupProvider, securitygroup.NewProvider(ec2api))
-	amiProvider := OptionOR(
-		options.AMIProvider,
-		amifamily.NewProvider(env.Client, env.KubernetesInterface, &fake.SSMAPI{}, ec2api, ssmCache, ec2Cache, kubernetesVersionCache),
-	)
-	amiResolver := OptionOR(options.AMIResolver, amifamily.New(env.Client, amiProvider))
-	instanceTypesProvider := OptionOR(
-		options.InstanceTypesProvider,
-		instancetype.NewProvider("", instanceTypeCache, ec2api, subnetProvider, unavailableOfferingsCache, pricingProvider),
-	)
-	launchTemplateProvider := OptionOR(
-		options.LaunchTemplateProvider,
+	pricingProvider := pricing.NewProvider(ctx, pricingAPI, ec2api, "", make(chan struct{}))
+	subnetProvider := subnet.NewProvider(ec2api)
+	securityGroupProvider := securitygroup.NewProvider(ec2api)
+	amiProvider := amifamily.NewProvider(env.Client, env.KubernetesInterface, &fake.SSMAPI{}, ec2api, ssmCache, ec2Cache, kubernetesVersionCache)
+	amiResolver := amifamily.New(env.Client, amiProvider)
+	instanceTypesProvider := instancetype.NewProvider("", instanceTypeCache, ec2api, subnetProvider, unavailableOfferingsCache, pricingProvider)
+	launchTemplateProvider :=
 		launchtemplate.NewProvider(
 			ctx,
 			launchTemplateCache,
@@ -106,10 +92,8 @@ func Context(ctx context.Context, ec2api ec2iface.EC2API, ssmapi ssmiface.SSMAPI
 			make(chan struct{}),
 			net.ParseIP("10.0.100.10"),
 			"https://test-cluster",
-		),
-	)
-	instanceProvider := OptionOR(
-		options.InstanceProvider,
+		)
+	instanceProvider :=
 		instance.NewProvider(ctx,
 			"",
 			ec2api,
@@ -117,8 +101,7 @@ func Context(ctx context.Context, ec2api ec2iface.EC2API, ssmapi ssmiface.SSMAPI
 			instanceTypesProvider,
 			subnetProvider,
 			launchTemplateProvider,
-		),
-	)
+		)
 
 	return &awscontext.Context{
 		Context: cloudprovider.Context{
@@ -130,7 +113,7 @@ func Context(ctx context.Context, ec2api ec2iface.EC2API, ssmapi ssmiface.SSMAPI
 			Clock:               clock,
 			StartAsync:          nil,
 		},
-		Session:                   sess,
+		Session:                   mock.Session,
 		EC2API:                    ec2api,
 		UnavailableOfferingsCache: unavailableOfferingsCache,
 		InstanceTypesProvider:     instanceTypesProvider,
@@ -142,26 +125,6 @@ func Context(ctx context.Context, ec2api ec2iface.EC2API, ssmapi ssmiface.SSMAPI
 		AMIResolver:               amiResolver,
 		LaunchTemplateProvider:    launchTemplateProvider,
 	}
-}
-
-func UpdateContext(ctx *awscontext.Context, overrides ...ContextOptions) {
-	options := ContextOptions{}
-	for _, override := range overrides {
-		if err := mergo.Merge(&options, override, mergo.WithOverride); err != nil {
-			panic(fmt.Sprintf("Failed to merge settings: %s", err))
-		}
-	}
-
-	ctx.Session = OptionOR(options.Session, ctx.Session)
-	ctx.UnavailableOfferingsCache = OptionOR(options.UnavailableOfferingsCache, ctx.UnavailableOfferingsCache)
-	ctx.InstanceTypesProvider = OptionOR(options.InstanceTypesProvider, ctx.InstanceTypesProvider)
-	ctx.InstanceProvider = OptionOR(options.InstanceProvider, ctx.InstanceProvider)
-	ctx.SubnetProvider = OptionOR(options.SubnetProvider, ctx.SubnetProvider)
-	ctx.SecurityGroupProvider = OptionOR(options.SecurityGroupProvider, ctx.SecurityGroupProvider)
-	ctx.PricingProvider = OptionOR(options.PricingProvider, ctx.PricingProvider)
-	ctx.AMIProvider = OptionOR(options.AMIProvider, ctx.AMIProvider)
-	ctx.AMIResolver = OptionOR(options.AMIResolver, ctx.AMIResolver)
-	ctx.LaunchTemplateProvider = OptionOR(options.LaunchTemplateProvider, ctx.LaunchTemplateProvider)
 }
 
 func OptionOR[T any](x *T, fallback *T) *T {
