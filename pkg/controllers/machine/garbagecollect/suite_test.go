@@ -89,7 +89,6 @@ var _ = Describe("MachineGarbageCollect", func() {
 	var providerID string
 
 	BeforeEach(func() {
-		awsEnv.Reset()
 		instanceID := fake.InstanceID()
 		providerID = fmt.Sprintf("aws:///test-zone-1a/%s", instanceID)
 		nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{})
