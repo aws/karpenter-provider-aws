@@ -177,6 +177,10 @@ EC2 AMI IDs may be specified by using the key `aws::ids` (`aws-ids` is also supp
 
 To ensure that AMIs are owned by the expected owner, use `aws::owners` which expects a comma-separated list of AWS account owners - you can use a combination of account aliases (e.g. `self` `amazon`, `your-aws-account-name`) and account IDs. If this is not set, *and* `aws::ids`/`aws-ids` are not set, it defaults to `self,amazon`.
 
+{{% alert title="Note" color="primary" %}}
+If you use only `aws::owners`, Karpenter will discover all images that are owned by those specified, selecting the most recently created ones to be used. If you specify `aws::owners`, but nothing else, there is a larger chance that Karpenter could select an image that is not compatible with your instance type. To lower this chance, it is recommended to use `aws::name` or `aws::ids` if you're using `aws::owners` to select a subset of images that you have validated are compatible with your selected instance types.
+{{% /alert %}}
+
 ### AMI Selection
 
 If an `amiSelector` matches more than one AMI, Karpenter will automatically determine which AMI best fits the workloads on the launched worker node under the following constraints:
