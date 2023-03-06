@@ -86,6 +86,7 @@ var _ = Describe("MachineGarbageCollect", func() {
 	var providerID string
 
 	BeforeEach(func() {
+		awsEnv.ResetCache()
 		instanceID := fake.InstanceID()
 		providerID = fmt.Sprintf("aws:///test-zone-1a/%s", instanceID)
 		nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{})
@@ -121,7 +122,6 @@ var _ = Describe("MachineGarbageCollect", func() {
 			InstanceId:   aws.String(instanceID),
 			InstanceType: aws.String("m5.large"),
 		}
-		awsEnv.ResetCache()
 	})
 	AfterEach(func() {
 		ExpectCleanedUp(ctx, env.Client)

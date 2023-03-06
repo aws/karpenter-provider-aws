@@ -81,6 +81,7 @@ var _ = Describe("MachineLink", func() {
 	var nodeTemplate *v1alpha1.AWSNodeTemplate
 
 	BeforeEach(func() {
+		awsEnv.ResetCache()
 		instanceID = fake.InstanceID()
 		providerID = fmt.Sprintf("aws:///test-zone-1a/%s", instanceID)
 		nodeTemplate = test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{})
@@ -117,7 +118,6 @@ var _ = Describe("MachineLink", func() {
 				InstanceType: aws.String("m5.large"),
 			},
 		)
-		awsEnv.ResetCache()
 	})
 	AfterEach(func() {
 		ExpectCleanedUp(ctx, env.Client)
