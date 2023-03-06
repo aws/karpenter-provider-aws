@@ -58,10 +58,9 @@ var _ = Describe("DaemonSet", func() {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "high-priority-daemonsets",
 			},
-			PreemptionPolicy: lo.ToPtr(v1.PreemptNever),
-			Value:            int32(10000000),
-			GlobalDefault:    false,
-			Description:      "This priority class should be used for daemonsets.",
+			Value:         int32(10000000),
+			GlobalDefault: false,
+			Description:   "This priority class should be used for daemonsets.",
 		}
 		limitrange = &v1.LimitRange{
 			ObjectMeta: metav1.ObjectMeta{
