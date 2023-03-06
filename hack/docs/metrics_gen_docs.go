@@ -81,7 +81,7 @@ description: >
 
 	// TODO @joinnis: Remove this line when exposing machine metrics
 	allMetrics = lo.Reject(allMetrics, func(m metricInfo, _ int) bool {
-		return m.subsystem == "machines"
+		return m.subsystem == "machines" || strings.HasPrefix(m.name, "controller_runtime")
 	})
 	for _, metric := range allMetrics {
 		if metric.subsystem != previousSubsystem {
