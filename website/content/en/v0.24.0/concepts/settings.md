@@ -67,7 +67,7 @@ data:
   # require additional permissions on the controller service account. Additional permissions are outlined in the docs
   aws.interruptionQueueName: karpenter-cluster
   # Global tags are specified by including a JSON object of string to string from tag key to tag value
-  aws.tags: '{"custom-tag1": "custom-tag-value", "custom-tag2": "custom-tag-value"}'
+  aws.tags: '{"custom-tag1-key": "custom-tag-value", "custom-tag2-key": "custom-tag-value"}'
 ```
 
 ### Feature Gates
@@ -98,13 +98,19 @@ This value is expressed as a string value like `10s`, `1m` or `2h45m`. The valid
 
 ### AWS Parameters
 
-#### `aws.tags.<tag-key>`
+#### `aws.tags`
 
 Global tags are applied to __all__ AWS infrastructure resources deployed by Karpenter. These resources include:
 
 - Launch Templates
 - Volumes
 - Instances
+
+Tags are specified by including a JSON object of string to string from tag key to tag value.
+
+```yaml
+  aws.tags: '{"custom-tag1-key": "custom-tag-value", "custom-tag2-key": "custom-tag-value"}'
+```
 
 {{% alert title="Note" color="primary" %}}
 Since you can specify tags at the global level and in the `AWSNodeTemplate` resource, if a key is specified in both locations, the `AWSNodeTemplate` tag value will override the global tag.
