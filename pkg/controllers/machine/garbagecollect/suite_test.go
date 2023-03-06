@@ -53,7 +53,6 @@ var awsEnv *test.Environment
 var env *coretest.Environment
 var garbageCollectController controller.Controller
 var linkedMachineCache *cache.Cache
-var fakePricingAPI *fake.PricingAPI
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
