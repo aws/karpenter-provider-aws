@@ -76,6 +76,7 @@ var provisioner *v1alpha5.Provisioner
 var nodeTemplate *v1alpha1.AWSNodeTemplate
 var cluster *state.Cluster
 var provisioningController controller.Controller
+var cloudProvider *cloudprovider.CloudProvider
 
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -91,8 +92,9 @@ var _ = BeforeSuite(func() {
 	awsEnv = test.NewEnvironment(ctx, env)
 
 	fakeClock = &clock.FakeClock{}
-	cluster = state.NewCluster(fakeClock, env.Client, awsEnv.CloudProvider)
-	prov = provisioning.NewProvisioner(ctx, env.Client, env.KubernetesInterface.CoreV1(), events.NewRecorder(&record.FakeRecorder{}), awsEnv.CloudProvider, cluster)
+	cloudProvider = cloudprovider.New(ctx, awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, env.Client, awsEnv.AMIProvider)
+	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
+	prov = provisioning.NewProvisioner(ctx, env.Client, env.KubernetesInterface.CoreV1(), events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster)
 	provisioningController = provisioning.NewController(env.Client, prov, events.NewRecorder(&record.FakeRecorder{}))
 })
 
@@ -220,7 +222,7 @@ var _ = Describe("Instance Types", func() {
 		})
 		ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 		ExpectScheduled(ctx, env.Client, pod)
-		its, err := awsEnv.CloudProvider.GetInstanceTypes(ctx, provisioner)
+		its, err := cloudProvider.GetInstanceTypes(ctx, provisioner)
 		Expect(err).To(BeNil())
 		// Order all the instances by their price
 		// We need some way to deterministically order them if their prices match
@@ -266,7 +268,7 @@ var _ = Describe("Instance Types", func() {
 			},
 		}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-		awsEnv.EC2API.DescribeSpotPriceHistoryOutput.Set(generateSpotPricing(awsEnv.CloudProvider, provisioner))
+		awsEnv.EC2API.DescribeSpotPriceHistoryOutput.Set(generateSpotPricing(cloudProvider, provisioner))
 		Expect(awsEnv.PricingProvider.UpdateSpotPricing(ctx)).To(Succeed())
 
 		pod := coretest.UnschedulablePod(coretest.PodOptions{
@@ -278,7 +280,7 @@ var _ = Describe("Instance Types", func() {
 		ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 		ExpectScheduled(ctx, env.Client, pod)
 
-		its, err := awsEnv.CloudProvider.GetInstanceTypes(ctx, provisioner)
+		its, err := cloudProvider.GetInstanceTypes(ctx, provisioner)
 		Expect(err).To(BeNil())
 		// Order all the instances by their price
 		// We need some way to deterministically order them if their prices match
@@ -1048,7 +1050,7 @@ var _ = Describe("Instance Types", func() {
 			}
 
 			awsEnv.InstanceTypeCache.Flush()
-			instanceTypes, err := awsEnv.CloudProvider.GetInstanceTypes(ctx, provisioner)
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, provisioner)
 			Expect(err).To(BeNil())
 			instanceTypeNames := sets.NewString()
 			for _, it := range instanceTypes {

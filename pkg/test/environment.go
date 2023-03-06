@@ -23,7 +23,6 @@ import (
 	"github.com/patrickmn/go-cache"
 
 	awscache "github.com/aws/karpenter/pkg/cache"
-	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/fake"
 	"github.com/aws/karpenter/pkg/providers/amifamily"
 	"github.com/aws/karpenter/pkg/providers/instance"
@@ -61,7 +60,6 @@ type Environment struct {
 	AMIProvider            *amifamily.Provider
 	AMIResolver            *amifamily.Resolver
 	LaunchTemplateProvider *launchtemplate.Provider
-	CloudProvider          *cloudprovider.CloudProvider
 }
 
 func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment {
@@ -108,7 +106,6 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 			subnetProvider,
 			launchTemplateProvider,
 		)
-	cloudProvider := cloudprovider.New(ctx, instanceTypesProvider, instanceProvider, env.Client, amiProvider)
 
 	return &Environment{
 		EC2API:     ec2api,
@@ -132,7 +129,6 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		AMIProvider:            amiProvider,
 		AMIResolver:            amiResolver,
 		LaunchTemplateProvider: launchTemplateProvider,
-		CloudProvider:          cloudProvider,
 	}
 }
 

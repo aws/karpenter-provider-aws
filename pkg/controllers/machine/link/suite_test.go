@@ -41,6 +41,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/controllers/machine/link"
 	"github.com/aws/karpenter/pkg/fake"
 	"github.com/aws/karpenter/pkg/test"
@@ -51,6 +52,7 @@ var ctx context.Context
 var awsEnv *test.Environment
 var env *coretest.Environment
 var linkController controller.Controller
+var cloudProvider *cloudprovider.CloudProvider
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -64,7 +66,8 @@ var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
 	awsEnv = test.NewEnvironment(ctx, env)
 
-	linkController = link.NewController(env.Client, awsEnv.CloudProvider)
+	cloudProvider = cloudprovider.New(ctx, awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, env.Client, awsEnv.AMIProvider)
+	linkController = link.NewController(env.Client, cloudProvider)
 })
 var _ = AfterSuite(func() {
 	Expect(env.Stop()).To(Succeed(), "Failed to stop environment")

@@ -46,6 +46,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/providers/amifamily/bootstrap"
 	"github.com/aws/karpenter/pkg/providers/instancetype"
 	"github.com/aws/karpenter/pkg/test"
@@ -72,6 +73,7 @@ var prov *provisioning.Provisioner
 var provisioner *v1alpha5.Provisioner
 var nodeTemplate *v1alpha1.AWSNodeTemplate
 var cluster *state.Cluster
+var cloudProvider *cloudprovider.CloudProvider
 
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -87,8 +89,9 @@ var _ = BeforeSuite(func() {
 	awsEnv = test.NewEnvironment(ctx, env)
 
 	fakeClock = &clock.FakeClock{}
-	cluster = state.NewCluster(fakeClock, env.Client, awsEnv.CloudProvider)
-	prov = provisioning.NewProvisioner(ctx, env.Client, env.KubernetesInterface.CoreV1(), events.NewRecorder(&record.FakeRecorder{}), awsEnv.CloudProvider, cluster)
+	cloudProvider = cloudprovider.New(ctx, awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, env.Client, awsEnv.AMIProvider)
+	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
+	prov = provisioning.NewProvisioner(ctx, env.Client, env.KubernetesInterface.CoreV1(), events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster)
 })
 
 var _ = AfterSuite(func() {

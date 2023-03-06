@@ -42,6 +42,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/fake"
 	"github.com/aws/karpenter/pkg/test"
 
@@ -71,11 +72,12 @@ var cluster *state.Cluster
 var fakeClock *clock.FakeClock
 var provisioner *v1alpha5.Provisioner
 var nodeTemplate *v1alpha1.AWSNodeTemplate
+var cloudProvider *cloudprovider.CloudProvider
 
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "awsEnv.CloudProvider/AWS")
+	RunSpecs(t, "cloudProvider/AWS")
 }
 
 var _ = BeforeSuite(func() {
@@ -86,8 +88,9 @@ var _ = BeforeSuite(func() {
 	awsEnv = test.NewEnvironment(ctx, env)
 
 	fakeClock = clock.NewFakeClock(time.Now())
-	cluster = state.NewCluster(fakeClock, env.Client, awsEnv.CloudProvider)
-	prov = provisioning.NewProvisioner(ctx, env.Client, env.KubernetesInterface.CoreV1(), events.NewRecorder(&record.FakeRecorder{}), awsEnv.CloudProvider, cluster)
+	cloudProvider = cloudprovider.New(ctx, awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, env.Client, awsEnv.AMIProvider)
+	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
+	prov = provisioning.NewProvisioner(ctx, env.Client, env.KubernetesInterface.CoreV1(), events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster)
 	provisioningController = provisioning.NewController(env.Client, prov, events.NewRecorder(&record.FakeRecorder{}))
 })
 
@@ -204,7 +207,7 @@ var _ = Describe("CloudProvider", func() {
 				Images: []*ec2.Image{{ImageId: aws.String(validAMI)}},
 			})
 			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-			instanceTypes, err := awsEnv.CloudProvider.GetInstanceTypes(ctx, provisioner)
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, provisioner)
 			Expect(err).ToNot(HaveOccurred())
 			selectedInstanceType = instanceTypes[0]
 
@@ -234,7 +237,7 @@ var _ = Describe("CloudProvider", func() {
 					},
 				},
 			})
-			drifted, err := awsEnv.CloudProvider.IsMachineDrifted(ctx, machineutil.NewFromNode(node))
+			drifted, err := cloudProvider.IsMachineDrifted(ctx, machineutil.NewFromNode(node))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(drifted).To(BeFalse())
 		})
@@ -250,7 +253,7 @@ var _ = Describe("CloudProvider", func() {
 					},
 				},
 			})
-			drifted, err := awsEnv.CloudProvider.IsMachineDrifted(ctx, machineutil.NewFromNode(node))
+			drifted, err := cloudProvider.IsMachineDrifted(ctx, machineutil.NewFromNode(node))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(drifted).To(BeFalse())
 		})
@@ -265,7 +268,7 @@ var _ = Describe("CloudProvider", func() {
 					},
 				},
 			})
-			drifted, err := awsEnv.CloudProvider.IsMachineDrifted(ctx, machineutil.NewFromNode(node))
+			drifted, err := cloudProvider.IsMachineDrifted(ctx, machineutil.NewFromNode(node))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(drifted).To(BeFalse())
 		})
@@ -281,7 +284,7 @@ var _ = Describe("CloudProvider", func() {
 			})
 			// Instance is a reference to what we return in the GetInstances call
 			instance.ImageId = aws.String(fake.ImageID())
-			isDrifted, err := awsEnv.CloudProvider.IsMachineDrifted(ctx, machineutil.NewFromNode(node))
+			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machineutil.NewFromNode(node))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(isDrifted).To(BeTrue())
 		})
@@ -295,7 +298,7 @@ var _ = Describe("CloudProvider", func() {
 					},
 				},
 			})
-			isDrifted, err := awsEnv.CloudProvider.IsMachineDrifted(ctx, machineutil.NewFromNode(node))
+			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machineutil.NewFromNode(node))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(isDrifted).To(BeFalse())
 		})
@@ -308,7 +311,7 @@ var _ = Describe("CloudProvider", func() {
 					},
 				},
 			})
-			_, err := awsEnv.CloudProvider.IsMachineDrifted(ctx, machineutil.NewFromNode(node))
+			_, err := cloudProvider.IsMachineDrifted(ctx, machineutil.NewFromNode(node))
 			Expect(err).To(HaveOccurred())
 		})
 		It("should error drift if node doesn't have provider id", func() {
@@ -320,7 +323,7 @@ var _ = Describe("CloudProvider", func() {
 					},
 				},
 			})
-			isDrifted, err := awsEnv.CloudProvider.IsMachineDrifted(ctx, machineutil.NewFromNode(node))
+			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machineutil.NewFromNode(node))
 			Expect(err).To(HaveOccurred())
 			Expect(isDrifted).To(BeFalse())
 		})
