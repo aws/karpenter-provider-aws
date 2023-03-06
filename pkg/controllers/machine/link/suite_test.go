@@ -71,7 +71,7 @@ var _ = AfterSuite(func() {
 })
 
 var _ = BeforeEach(func() {
-	awsEnv.ResetCache()
+	awsEnv.Reset()
 })
 
 var _ = Describe("MachineLink", func() {
@@ -81,7 +81,7 @@ var _ = Describe("MachineLink", func() {
 	var nodeTemplate *v1alpha1.AWSNodeTemplate
 
 	BeforeEach(func() {
-		awsEnv.ResetCache()
+		awsEnv.Reset()
 		instanceID = fake.InstanceID()
 		providerID = fmt.Sprintf("aws:///test-zone-1a/%s", instanceID)
 		nodeTemplate = test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{})

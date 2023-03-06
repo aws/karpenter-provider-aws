@@ -78,7 +78,7 @@ var _ = AfterSuite(func() {
 })
 
 var _ = BeforeEach(func() {
-	awsEnv.ResetCache()
+	awsEnv.Reset()
 })
 
 var _ = Describe("MachineGarbageCollect", func() {
@@ -86,7 +86,7 @@ var _ = Describe("MachineGarbageCollect", func() {
 	var providerID string
 
 	BeforeEach(func() {
-		awsEnv.ResetCache()
+		awsEnv.Reset()
 		instanceID := fake.InstanceID()
 		providerID = fmt.Sprintf("aws:///test-zone-1a/%s", instanceID)
 		nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{})

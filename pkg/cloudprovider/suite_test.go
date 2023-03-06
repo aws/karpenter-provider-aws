@@ -130,7 +130,7 @@ var _ = BeforeEach(func() {
 	})
 
 	cluster.Reset()
-	awsEnv.ResetCache()
+	awsEnv.Reset()
 
 	awsEnv.LaunchTemplateProvider.KubeDNSIP = net.ParseIP("10.0.100.10")
 	awsEnv.LaunchTemplateProvider.ClusterEndpoint = "https://test-cluster"

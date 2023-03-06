@@ -84,7 +84,7 @@ var _ = BeforeEach(func() {
 		},
 	}
 
-	awsEnv.ResetCache()
+	awsEnv.Reset()
 })
 
 var _ = AfterEach(func() {

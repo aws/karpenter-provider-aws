@@ -259,9 +259,3 @@ func (p *Provider) getRequirementsFromImage(ec2Image *ec2.Image) scheduling.Requ
 	requirements.Add(scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, architecture))
 	return requirements
 }
-
-func (p *Provider) Reset() {
-	p.ssmCache.Flush()
-	p.ec2Cache.Flush()
-	p.kubernetesVersionCache.Flush()
-}

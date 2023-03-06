@@ -72,7 +72,7 @@ var _ = BeforeEach(func() {
 	ctx = coresettings.ToContext(ctx, coretest.Settings())
 	ctx = settings.ToContext(ctx, test.Settings())
 
-	awsEnv.ResetCache()
+	awsEnv.Reset()
 })
 
 var _ = AfterEach(func() {

@@ -65,7 +65,7 @@ type Environment struct {
 }
 
 func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment {
-	//
+	// API
 	ec2api := &fake.EC2API{}
 	ssmapi := &fake.SSMAPI{}
 
@@ -136,7 +136,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	}
 }
 
-func (env *Environment) ResetCache() {
+func (env *Environment) Reset() {
 	env.EC2API.Reset()
 	env.SSMAPI.Reset()
 	env.PricingAPI.Reset()
