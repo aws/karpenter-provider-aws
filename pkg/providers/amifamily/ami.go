@@ -211,7 +211,11 @@ func (p *Provider) fetchAMIsFromEC2(ctx context.Context, amiSelector map[string]
 	if amis, ok := p.ec2Cache.Get(fmt.Sprint(hash)); ok {
 		return amis.([]*ec2.Image), nil
 	}
-	describeImagesInput := &ec2.DescribeImagesInput{Filters: filters, Owners: owners}
+	describeImagesInput := &ec2.DescribeImagesInput{Owners: owners}
+	// Don't include filters in the Describe Images call as EC2 API doesn't allow empty filters.
+	if len(filters) != 0 {
+		describeImagesInput.Filters = filters
+	}
 	// This API is not paginated, so a single call suffices.
 	output, err := p.ec2api.DescribeImagesWithContext(ctx, describeImagesInput)
 	if err != nil {
@@ -286,4 +290,10 @@ func (p *Provider) getRequirementsFromImage(ec2Image *ec2.Image) scheduling.Requ
 	}
 	requirements.Add(scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, architecture))
 	return requirements
+}
+
+func (p *Provider) Reset() {
+	p.ssmCache.Flush()
+	p.ec2Cache.Flush()
+	p.kubernetesVersionCache.Flush()
 }

@@ -22,6 +22,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/patrickmn/go-cache"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -32,6 +33,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	awscache "github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
 	"github.com/aws/karpenter/pkg/test"
 
@@ -53,6 +55,7 @@ var fakeEC2API *fake.EC2API
 var provisioner *corev1alpha5.Provisioner
 var nodeTemplate *v1alpha1.AWSNodeTemplate
 var securityGroupProvider *securitygroup.Provider
+var securityGroupCache *cache.Cache
 
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -66,7 +69,8 @@ var _ = BeforeSuite(func() {
 	ctx = settings.ToContext(ctx, test.Settings())
 	ctx, stop = context.WithCancel(ctx)
 	fakeEC2API = &fake.EC2API{}
-	securityGroupProvider = securitygroup.NewProvider(fakeEC2API)
+	securityGroupCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	securityGroupProvider = securitygroup.NewProvider(fakeEC2API, securityGroupCache)
 })
 
 var _ = AfterSuite(func() {
@@ -108,7 +112,7 @@ var _ = BeforeEach(func() {
 	})
 
 	fakeEC2API.Reset()
-	securityGroupProvider.Reset()
+	securityGroupCache.Flush()
 })
 
 var _ = AfterEach(func() {

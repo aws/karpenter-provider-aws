@@ -21,6 +21,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/patrickmn/go-cache"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -31,6 +32,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis"
 	awssettings "github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	awscache "github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/providers/subnet"
 	"github.com/aws/karpenter/pkg/test"
 
@@ -52,6 +54,7 @@ var fakeEC2API *fake.EC2API
 var provisioner *corev1alpha5.Provisioner
 var nodeTemplate *v1alpha1.AWSNodeTemplate
 var subnetProvider *subnet.Provider
+var subnetCache *cache.Cache
 
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -64,7 +67,8 @@ var _ = BeforeSuite(func() {
 	ctx, stop = context.WithCancel(ctx)
 
 	fakeEC2API = &fake.EC2API{}
-	subnetProvider = subnet.NewProvider(fakeEC2API)
+	subnetCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	subnetProvider = subnet.NewProvider(fakeEC2API, subnetCache)
 })
 
 var _ = AfterSuite(func() {
@@ -106,7 +110,7 @@ var _ = BeforeEach(func() {
 	})
 
 	fakeEC2API.Reset()
-	subnetProvider.Reset()
+	subnetCache.Flush()
 })
 
 var _ = AfterEach(func() {

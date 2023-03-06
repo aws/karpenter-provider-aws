@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package instancetypes
+package instancetype
 
 import (
 	"context"
@@ -20,8 +20,6 @@ import (
 	"net/http"
 	"sync"
 	"sync/atomic"
-
-	"github.com/aws/aws-sdk-go/aws/session"
 
 	awscache "github.com/aws/karpenter/pkg/cache"
 
@@ -68,11 +66,11 @@ type Provider struct {
 	instanceTypesSeqNum uint64
 }
 
-func NewProvider(sess *session.Session, cache *cache.Cache, ec2api ec2iface.EC2API, subnetProvider *subnet.Provider,
+func NewProvider(region string, cache *cache.Cache, ec2api ec2iface.EC2API, subnetProvider *subnet.Provider,
 	unavailableOfferingsCache *awscache.UnavailableOfferings, pricingProvider *pricing.Provider) *Provider {
 	return &Provider{
 		ec2api:               ec2api,
-		region:               *sess.Config.Region,
+		region:               region,
 		subnetProvider:       subnetProvider,
 		pricingProvider:      pricingProvider,
 		cache:                cache,

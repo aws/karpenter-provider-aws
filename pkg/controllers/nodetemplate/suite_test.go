@@ -19,9 +19,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/awstesting/mock"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -68,6 +66,8 @@ var instanceTypeProvider *instancetypes.Provider
 var pricingProvider *pricing.Provider
 var nodeTemplate *v1alpha1.AWSNodeTemplate
 var controller corecontroller.Controller
+var subnetCache *cache.Cache
+var securityGroupCache *cache.Cache
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -79,20 +79,11 @@ var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
 
 	fakeEC2API = &fake.EC2API{}
-	fakeSession = mock.Session
-	fakeSession.Config.Region = aws.String("")
-
-	ssmCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
-	ec2Cache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
-	unavailableOfferingsCache = awscache.NewUnavailableOfferings()
-	kubernetesVersionCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
-	instanceTypeCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
-	subnetProvider = subnet.NewProvider(fakeEC2API)
-	securityGroupProvider = securitygroup.NewProvider(fakeEC2API)
-	pricingProvider = pricing.NewProvider(ctx, &fake.PricingAPI{}, fakeEC2API, "", make(chan struct{}))
-	amiProvider = amifamily.NewProvider(env.Client, env.KubernetesInterface, fake.SSMAPI{}, fakeEC2API, ssmCache, ec2Cache, kubernetesVersionCache)
-	instanceTypeProvider = instancetypes.NewProvider(fakeSession, instanceTypeCache, fakeEC2API, subnetProvider, unavailableOfferingsCache, pricingProvider)
-	controller = nodetemplate.NewController(env.Client, subnetProvider, securityGroupProvider, amiProvider, instanceTypeProvider)
+	subnetCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	securityGroupCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	subnetProvider = subnet.NewProvider(fakeEC2API, subnetCache)
+	securityGroupProvider = securitygroup.NewProvider(fakeEC2API, securityGroupCache)
+	controller = nodetemplate.NewController(env.Client, subnetProvider, securityGroupProvider)
 })
 
 var _ = AfterSuite(func() {
@@ -115,6 +106,8 @@ var _ = BeforeEach(func() {
 	}
 
 	fakeEC2API.Reset()
+	subnetCache.Flush()
+	securityGroupCache.Flush()
 })
 
 var _ = AfterEach(func() {

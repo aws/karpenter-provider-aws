@@ -3402,30 +3402,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|18Gi|
  |memory|112679Mi|
  |pods|737|
-## cc2 Family
-### `cc2.8xlarge`
-#### Labels
- | Label | Value |
- |--|--|
- |karpenter.k8s.aws/instance-category|cc|
- |karpenter.k8s.aws/instance-cpu|32|
- |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
- |karpenter.k8s.aws/instance-family|cc2|
- |karpenter.k8s.aws/instance-generation|2|
- |karpenter.k8s.aws/instance-hypervisor|xen|
- |karpenter.k8s.aws/instance-memory|61952|
- |karpenter.k8s.aws/instance-pods|234|
- |karpenter.k8s.aws/instance-size|8xlarge|
- |kubernetes.io/arch|amd64|
- |kubernetes.io/os|linux|
- |node.kubernetes.io/instance-type|cc2.8xlarge|
-#### Resources
- | Resource | Quantity |
- |--|--|
- |cpu|31750m|
- |ephemeral-storage|18Gi|
- |memory|54276Mi|
- |pods|234|
 ## d2 Family
 ### `d2.xlarge`
 #### Labels

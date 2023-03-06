@@ -41,7 +41,13 @@ func main() {
 		EventRecorder:       operator.EventRecorder,
 		StartAsync:          operator.Elected(),
 	})
-	awsCloudProvider := cloudprovider.New(awsCtx)
+	awsCloudProvider := cloudprovider.New(
+		awsCtx,
+		awsCtx.InstanceTypesProvider,
+		awsCtx.InstanceProvider,
+		awsCtx.KubeClient,
+		awsCtx.AMIProvider,
+	)
 	lo.Must0(operator.AddHealthzCheck("cloud-provider", awsCloudProvider.LivenessProbe))
 	cloudProvider := metrics.Decorate(awsCloudProvider)
 

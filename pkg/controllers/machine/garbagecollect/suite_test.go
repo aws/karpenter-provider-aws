@@ -17,33 +17,29 @@ package garbagecollect_test
 import (
 	"context"
 	"fmt"
-	"net"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/awstesting/mock"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/record"
 	clock "k8s.io/utils/clock/testing"
 	. "knative.dev/pkg/logging/testing"
-	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	corecloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
-	"github.com/aws/karpenter-core/pkg/events"
 	"github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
+
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
@@ -53,36 +49,27 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/machine/garbagecollect"
 	"github.com/aws/karpenter/pkg/controllers/machine/link"
 	"github.com/aws/karpenter/pkg/fake"
-	"github.com/aws/karpenter/pkg/providers/amifamily"
-	"github.com/aws/karpenter/pkg/providers/instance"
-	"github.com/aws/karpenter/pkg/providers/instancetypes"
-	"github.com/aws/karpenter/pkg/providers/launchtemplate"
-	"github.com/aws/karpenter/pkg/providers/pricing"
-	"github.com/aws/karpenter/pkg/providers/securitygroup"
-	"github.com/aws/karpenter/pkg/providers/subnet"
 	"github.com/aws/karpenter/pkg/test"
 )
 
 var ctx context.Context
+var awsCtx awscontext.Context
 var env *coretest.Environment
-var instanceTypeCache *cache.Cache
-var unavailableOfferingsCache *awscache.UnavailableOfferings
-var launchTemplateCache *cache.Cache
-var ssmCache *cache.Cache
-var kubernetesVersionCache *cache.Cache
-var ec2Cache *cache.Cache
 var ec2API *fake.EC2API
 var cloudProvider *cloudprovider.CloudProvider
 var garbageCollectController controller.Controller
 var linkedMachineCache *cache.Cache
-var amiProvider *amifamily.Provider
-var amiResolver *amifamily.Resolver
-var securityGroupProvider *securitygroup.Provider
-var pricingProvider *pricing.Provider
-var subnetProvider *subnet.Provider
-var launchTemplateProvider *launchtemplate.Provider
-var instanceTypeProvider *instancetypes.Provider
-var instanceProvider *instance.Provider
+var fakePricingAPI *fake.PricingAPI
+
+// Cache
+var ec2Cache *cache.Cache
+var ssmCache *cache.Cache
+var kubernetesVersionCache *cache.Cache
+var instanceTypeCache *cache.Cache
+var unavailableOfferingsCache *awscache.UnavailableOfferings
+var launchTemplateCache *cache.Cache
+var subnetCache *cache.Cache
+var securityGroupCache *cache.Cache
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -94,51 +81,33 @@ var _ = BeforeSuite(func() {
 	ctx = coresettings.ToContext(ctx, coretest.Settings())
 	ctx = settings.ToContext(ctx, test.Settings())
 	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
-	unavailableOfferingsCache = awscache.NewUnavailableOfferings()
-	launchTemplateCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	ec2API = &fake.EC2API{}
+
+	fakePricingAPI = &fake.PricingAPI{}
+
 	ssmCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	ec2Cache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	kubernetesVersionCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
-	ec2API = &fake.EC2API{}
-	securityGroupProvider = securitygroup.NewProvider(ec2API)
-	amiProvider = amifamily.NewProvider(env.Client, env.KubernetesInterface, &fake.SSMAPI{}, ec2API, ssmCache, ec2Cache, kubernetesVersionCache)
-	amiResolver = amifamily.New(env.Client, amiProvider)
-	pricingProvider = pricing.NewProvider(ctx, &fake.PricingAPI{}, ec2API, "", make(chan struct{}))
 	instanceTypeCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
-	instanceTypeProvider = instancetypes.NewProvider(mock.Session, instanceTypeCache, ec2API, subnetProvider, unavailableOfferingsCache, pricingProvider)
-	launchTemplateProvider = launchtemplate.NewProvider(
-		ctx,
-		launchTemplateCache,
-		ec2API,
-		amiResolver,
-		securityGroupProvider,
-		ptr.String("ca-bundle"),
-		make(chan struct{}),
-		net.ParseIP("10.0.100.10"),
-		"https://test-cluster",
-	)
-	instanceProvider = instance.NewProvider(ctx, "", ec2API, unavailableOfferingsCache, instanceTypeProvider, subnetProvider, launchTemplateProvider)
-	cloudProvider = cloudprovider.New(awscontext.Context{
-		Context: corecloudprovider.Context{
-			Context:             ctx,
-			RESTConfig:          env.Config,
-			KubernetesInterface: env.KubernetesInterface,
-			KubeClient:          env.Client,
-			EventRecorder:       events.NewRecorder(&record.FakeRecorder{}),
-			Clock:               &clock.FakeClock{},
-			StartAsync:          nil,
-		},
-		SubnetProvider:            subnet.NewProvider(ec2API),
-		SecurityGroupProvider:     securityGroupProvider,
-		Session:                   mock.Session,
+	unavailableOfferingsCache = awscache.NewUnavailableOfferings()
+	launchTemplateCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	subnetCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	securityGroupCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+
+	awsCtx = test.Context(ctx, ec2API, fake.SSMAPI{}, env, &clock.FakeClock{}, test.ContextOptions{
+		SSMCache:                  ssmCache,
+		EC2Cache:                  ec2Cache,
+		KubernetesVersionCache:    kubernetesVersionCache,
 		UnavailableOfferingsCache: unavailableOfferingsCache,
-		EC2API:                    ec2API,
-		InstanceProvider:          instanceProvider,
-		AMIProvider:               amiProvider,
-		AMIResolver:               amiResolver,
-		LaunchTemplateProvider:    launchTemplateProvider,
-		PricingProvider:           pricingProvider,
+		LaunchTemplateCache:       launchTemplateCache,
+		InstanceTypeCache:         instanceTypeCache,
+		SubnetCache:               subnetCache,
+		SecurityGroupCache:        securityGroupCache,
+		PricingAPI:                fakePricingAPI,
 	})
+
+	cloudProvider = cloudprovider.New(awsCtx, awsCtx.InstanceTypesProvider, awsCtx.InstanceProvider, awsCtx.KubeClient, awsCtx.AMIProvider)
+
 	linkedMachineCache = cache.New(time.Minute*10, time.Second*10)
 	linkController := &link.Controller{
 		Cache: linkedMachineCache,
@@ -148,6 +117,17 @@ var _ = BeforeSuite(func() {
 
 var _ = AfterSuite(func() {
 	Expect(env.Stop()).To(Succeed(), "Failed to stop environment")
+})
+
+var _ = BeforeEach(func() {
+	ec2Cache.Flush()
+	ssmCache.Flush()
+	kubernetesVersionCache.Flush()
+	instanceTypeCache.Flush()
+	unavailableOfferingsCache.Flush()
+	launchTemplateCache.Flush()
+	subnetCache.Flush()
+	securityGroupCache.Flush()
 })
 
 var _ = Describe("MachineGarbageCollect", func() {

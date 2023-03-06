@@ -34,7 +34,6 @@ import (
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/utils/functional"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
-	awscache "github.com/aws/karpenter/pkg/cache"
 )
 
 type Provider struct {
@@ -45,13 +44,13 @@ type Provider struct {
 	inflightIPs map[string]int64
 }
 
-func NewProvider(ec2api ec2iface.EC2API) *Provider {
+func NewProvider(ec2api ec2iface.EC2API, cache *cache.Cache) *Provider {
 	return &Provider{
 		ec2api: ec2api,
 		cm:     pretty.NewChangeMonitor(),
 		// TODO: Remove cache for v1beta1, utilize resolved subnet from the AWSNodeTemplate.status
 		// Subnets are sorted on AvailableIpAddressCount, descending order
-		cache: cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
+		cache: cache,
 		// inflightIPs is used to track IPs from known launched instances
 		inflightIPs: map[string]int64{},
 	}
@@ -143,12 +142,15 @@ func (p *Provider) UpdateInflightIPs(createFleetInput *ec2.CreateFleetInput, cre
 	})))
 
 	// Process the CreateFleetOutput to pull out all the fulfilled subnetIDs
-	fleetOutputSubnets := lo.Compact(lo.Uniq(lo.Map(createFleetOutput.Instances, func(fleetInstance *ec2.CreateFleetInstance, _ int) string {
-		if fleetInstance == nil || fleetInstance.LaunchTemplateAndOverrides == nil || fleetInstance.LaunchTemplateAndOverrides.Overrides == nil {
-			return ""
-		}
-		return lo.FromPtr(fleetInstance.LaunchTemplateAndOverrides.Overrides.SubnetId)
-	})))
+	var fleetOutputSubnets []string
+	if createFleetOutput != nil {
+		fleetOutputSubnets = lo.Compact(lo.Uniq(lo.Map(createFleetOutput.Instances, func(fleetInstance *ec2.CreateFleetInstance, _ int) string {
+			if fleetInstance == nil || fleetInstance.LaunchTemplateAndOverrides == nil || fleetInstance.LaunchTemplateAndOverrides.Overrides == nil {
+				return ""
+			}
+			return lo.FromPtr(fleetInstance.LaunchTemplateAndOverrides.Overrides.SubnetId)
+		})))
+	}
 
 	// Find the subnets that were included in the input but not chosen by Fleet, so we need to add the inflight IPs back to them
 	subnetIDsToAddBackIPs, _ := lo.Difference(fleetInputSubnets, fleetOutputSubnets)
@@ -238,9 +240,4 @@ func Pretty(subnets []*ec2.Subnet) []string {
 		names = append(names, fmt.Sprintf("%s (%s)", aws.StringValue(subnet.SubnetId), aws.StringValue(subnet.AvailabilityZone)))
 	}
 	return names
-}
-
-func (p *Provider) Reset() {
-	p.cache.Flush()
-	p.inflightIPs = map[string]int64{}
 }

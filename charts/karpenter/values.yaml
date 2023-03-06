@@ -72,6 +72,17 @@ affinity:
         - matchExpressions:
             - key: karpenter.sh/provisioner-name
               operator: DoesNotExist
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 100
+      podAffinityTerm:
+        labelSelector:
+          matchExpressions:
+          - key: app.kubernetes.io/instance
+            operator: In
+            values:
+            - "{{ .Release.Name }}"
+        topologyKey: "kubernetes.io/hostname"
 # -- topologySpreadConstraints to increase the controller resilience
 topologySpreadConstraints:
   - maxSkew: 1
@@ -92,7 +103,7 @@ extraVolumes: []
 #         expirationSeconds: 86400
 #         path: token
 
-# -- Array of extra K8s manifests to deploy 
+# -- Array of extra K8s manifests to deploy
 extraObjects: []
 #- apiVersion: karpenter.k8s.aws/v1alpha1
 #  kind: AWSNodeTemplate
@@ -109,9 +120,9 @@ controller:
     # -- Repository path to the controller image.
     repository: public.ecr.aws/karpenter/controller
     # -- Tag of the controller image.
-    tag: v0.25.0
+    tag: v0.26.1
     # -- SHA256 digest of the controller image.
-    digest: sha256:fefae2739efa1c4d9561069d1683a0ed201e41771351da1ef504c805941f0bf2
+    digest: sha256:5dfe506624961f386b68556dd1cc850bfe3a42b62d2dd5dcb8b21d1a89ec817c
   # -- SecurityContext for the controller container.
   securityContext: {}
   # -- Additional environment variables for the controller pod.
@@ -119,7 +130,6 @@ controller:
   # - name: AWS_REGION
   #   value: eu-west-1
   envFrom: []
-
   # -- Resources for the controller pod.
   resources: {}
   # We usually recommend not to specify default resources and to leave this as a conscious
@@ -200,3 +210,10 @@ settings:
     interruptionQueueName: ""
     # -- The global tags to use on all AWS infrastructure resources (launch templates, instances, etc.) across node templates
     tags:
+  # -- Feature Gate configuration values. Feature Gates will follow the same graduation process and requirements as feature gates
+  # in Kubernetes. More information here https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/#feature-gates-for-alpha-or-beta-features
+  featureGates:
+    # -- driftEnabled is in ALPHA and is disabled by default.
+    # Setting driftEnabled to true enables the drift deprovisioner to watch for drift between currently deployed nodes
+    # and the desired state of nodes set in provisioners and node templates
+    driftEnabled: false
