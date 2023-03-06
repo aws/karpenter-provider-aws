@@ -30,7 +30,6 @@ import (
 	"github.com/aws/karpenter-core/pkg/utils/functional"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	awscache "github.com/aws/karpenter/pkg/cache"
 )
 
 type Provider struct {
@@ -42,12 +41,12 @@ type Provider struct {
 
 const TTL = 5 * time.Minute
 
-func NewProvider(ec2api ec2iface.EC2API) *Provider {
+func NewProvider(ec2api ec2iface.EC2API, cache *cache.Cache) *Provider {
 	return &Provider{
 		ec2api: ec2api,
 		cm:     pretty.NewChangeMonitor(),
 		// TODO: Remove cache for v1beta1, utilize resolved security groups from the AWSNodeTemplate.status
-		cache: cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
+		cache: cache,
 	}
 }
 
@@ -121,8 +120,4 @@ func (p *Provider) securityGroupIds(securityGroups []*ec2.SecurityGroup) []strin
 		names = append(names, aws.StringValue(securityGroup.GroupId))
 	}
 	return names
-}
-
-func (p *Provider) Reset() {
-	p.cache.Flush()
 }

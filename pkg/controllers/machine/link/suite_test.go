@@ -21,53 +21,38 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/awstesting/mock"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/tools/record"
-	clock "k8s.io/utils/clock/testing"
 	. "knative.dev/pkg/logging/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
-	corecloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
-	"github.com/aws/karpenter-core/pkg/events"
 	"github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
 	"github.com/aws/karpenter-core/pkg/utils/sets"
+
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	awscache "github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/cloudprovider"
-	awscontext "github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/controllers/machine/link"
 	"github.com/aws/karpenter/pkg/fake"
-	"github.com/aws/karpenter/pkg/providers/instancetype"
-	"github.com/aws/karpenter/pkg/providers/pricing"
-	"github.com/aws/karpenter/pkg/providers/securitygroup"
-	"github.com/aws/karpenter/pkg/providers/subnet"
 	"github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/pkg/utils"
 )
 
 var ctx context.Context
+var awsEnv *test.Environment
 var env *coretest.Environment
-var unavailableOfferingsCache *awscache.UnavailableOfferings
-var ec2API *fake.EC2API
-var cloudProvider *cloudprovider.CloudProvider
-var subnetProvider *subnet.Provider
 var linkController controller.Controller
-var pricingProvider *pricing.Provider
-var instanceTypesProvider *instancetype.Provider
+var cloudProvider *cloudprovider.CloudProvider
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -79,34 +64,17 @@ var _ = BeforeSuite(func() {
 	ctx = coresettings.ToContext(ctx, coretest.Settings())
 	ctx = settings.ToContext(ctx, test.Settings())
 	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
-	unavailableOfferingsCache = awscache.NewUnavailableOfferings()
-	ec2API = &fake.EC2API{}
-	subnetProvider = subnet.NewProvider(ec2API)
-	pricingProvider = pricing.NewProvider(ctx, &fake.PricingAPI{}, ec2API, "", make(chan struct{}))
-	instanceTypesProvider = instancetype.NewProvider("", cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), ec2API, subnetProvider, unavailableOfferingsCache, pricingProvider)
-	cloudProvider = cloudprovider.New(awscontext.Context{
-		Context: corecloudprovider.Context{
-			Context:             ctx,
-			RESTConfig:          env.Config,
-			KubernetesInterface: env.KubernetesInterface,
-			KubeClient:          env.Client,
-			EventRecorder:       events.NewRecorder(&record.FakeRecorder{}),
-			Clock:               &clock.FakeClock{},
-			StartAsync:          nil,
-		},
-		SubnetProvider:            subnet.NewProvider(ec2API),
-		SecurityGroupProvider:     securitygroup.NewProvider(ec2API),
-		Session:                   mock.Session,
-		UnavailableOfferingsCache: unavailableOfferingsCache,
-		EC2API:                    ec2API,
-		PricingProvider:           pricingProvider,
-		InstanceTypesProvider:     instanceTypesProvider,
-	})
+	awsEnv = test.NewEnvironment(ctx, env)
+
+	cloudProvider = cloudprovider.New(ctx, awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, env.Client, awsEnv.AMIProvider)
 	linkController = link.NewController(env.Client, cloudProvider)
 })
-
 var _ = AfterSuite(func() {
 	Expect(env.Stop()).To(Succeed(), "Failed to stop environment")
+})
+
+var _ = BeforeEach(func() {
+	awsEnv.Reset()
 })
 
 var _ = Describe("MachineLink", func() {
@@ -116,7 +84,6 @@ var _ = Describe("MachineLink", func() {
 	var nodeTemplate *v1alpha1.AWSNodeTemplate
 
 	BeforeEach(func() {
-		ec2API.Reset()
 		instanceID = fake.InstanceID()
 		providerID = fmt.Sprintf("aws:///test-zone-1a/%s", instanceID)
 		nodeTemplate = test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{})
@@ -129,7 +96,7 @@ var _ = Describe("MachineLink", func() {
 		})
 
 		// Store the instance as existing at DescribeInstances
-		ec2API.Instances.Store(
+		awsEnv.EC2API.Instances.Store(
 			instanceID,
 			&ec2.Instance{
 				State: &ec2.InstanceState{
@@ -175,7 +142,7 @@ var _ = Describe("MachineLink", func() {
 				},
 			}
 			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-			ExpectInstanceExists(ec2API, instanceID)
+			ExpectInstanceExists(awsEnv.EC2API, instanceID)
 			ExpectReconcileSucceeded(ctx, linkController, client.ObjectKey{})
 
 			machineList := &v1alpha5.MachineList{}
@@ -191,7 +158,7 @@ var _ = Describe("MachineLink", func() {
 
 			// Expect machine has linking annotation to get machine details
 			Expect(machine.Annotations).To(HaveKeyWithValue(v1alpha5.MachineLinkedAnnotationKey, providerID))
-			instance := ExpectInstanceExists(ec2API, instanceID)
+			instance := ExpectInstanceExists(awsEnv.EC2API, instanceID)
 			ExpectManagedByTagExists(instance)
 		})
 		It("should link and instance with expected requirements and labels", func() {
@@ -213,7 +180,7 @@ var _ = Describe("MachineLink", func() {
 				},
 			}
 			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-			ExpectInstanceExists(ec2API, instanceID)
+			ExpectInstanceExists(awsEnv.EC2API, instanceID)
 			ExpectReconcileSucceeded(ctx, linkController, client.ObjectKey{})
 
 			machineList := &v1alpha5.MachineList{}
@@ -242,7 +209,7 @@ var _ = Describe("MachineLink", func() {
 
 			// Expect machine has linking annotation to get machine details
 			Expect(machine.Annotations).To(HaveKeyWithValue(v1alpha5.MachineLinkedAnnotationKey, providerID))
-			instance := ExpectInstanceExists(ec2API, instanceID)
+			instance := ExpectInstanceExists(awsEnv.EC2API, instanceID)
 			ExpectManagedByTagExists(instance)
 		})
 		It("should link an instance with expected kubelet from provisioner kubelet configuration", func() {
@@ -266,18 +233,18 @@ var _ = Describe("MachineLink", func() {
 
 			// Expect machine has linking annotation to get machine details
 			Expect(machine.Annotations).To(HaveKeyWithValue(v1alpha5.MachineLinkedAnnotationKey, providerID))
-			instance := ExpectInstanceExists(ec2API, instanceID)
+			instance := ExpectInstanceExists(awsEnv.EC2API, instanceID)
 			ExpectManagedByTagExists(instance)
 		})
 		It("should link many instances to many machines", func() {
-			ec2API.Reset() // Reset so we don't store the extra instance
+			awsEnv.EC2API.Reset() // Reset so we don't store the extra instance
 			ExpectApplied(ctx, env.Client, provisioner)
 
 			// Generate 500 instances that have different instanceIDs
 			var ids []string
 			for i := 0; i < 500; i++ {
 				instanceID = fake.InstanceID()
-				ec2API.EC2Behavior.Instances.Store(
+				awsEnv.EC2API.EC2Behavior.Instances.Store(
 					instanceID,
 					&ec2.Instance{
 						State: &ec2.InstanceState{
@@ -318,7 +285,7 @@ var _ = Describe("MachineLink", func() {
 			Expect(machineInstanceIDs).To(HaveLen(len(ids)))
 			for _, id := range ids {
 				Expect(machineInstanceIDs.Has(id)).To(BeTrue())
-				instance := ExpectInstanceExists(ec2API, id)
+				instance := ExpectInstanceExists(awsEnv.EC2API, id)
 				ExpectManagedByTagExists(instance)
 			}
 		})
@@ -343,7 +310,7 @@ var _ = Describe("MachineLink", func() {
 
 			// Expect machine has linking annotation to get machine details
 			Expect(machine.Annotations).To(HaveKeyWithValue(v1alpha5.MachineLinkedAnnotationKey, providerID))
-			instance := ExpectInstanceExists(ec2API, instanceID)
+			instance := ExpectInstanceExists(awsEnv.EC2API, instanceID)
 			ExpectManagedByTagExists(instance)
 		})
 		It("should link an instance without node template existence", func() {
@@ -360,17 +327,17 @@ var _ = Describe("MachineLink", func() {
 
 			// Expect machine has linking annotation to get machine details
 			Expect(machine.Annotations).To(HaveKeyWithValue(v1alpha5.MachineLinkedAnnotationKey, providerID))
-			instance := ExpectInstanceExists(ec2API, instanceID)
+			instance := ExpectInstanceExists(awsEnv.EC2API, instanceID)
 			ExpectManagedByTagExists(instance)
 		})
 	})
 	Context("Failed", func() {
 		It("should not link an instance without a provisioner tag", func() {
-			instance := ExpectInstanceExists(ec2API, instanceID)
+			instance := ExpectInstanceExists(awsEnv.EC2API, instanceID)
 			instance.Tags = lo.Reject(instance.Tags, func(t *ec2.Tag, _ int) bool {
 				return aws.StringValue(t.Key) == v1alpha5.ProvisionerNameLabelKey
 			})
-			ec2API.Instances.Store(instanceID, instance)
+			awsEnv.EC2API.Instances.Store(instanceID, instance)
 
 			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			ExpectReconcileSucceeded(ctx, linkController, client.ObjectKey{})
@@ -407,9 +374,9 @@ var _ = Describe("MachineLink", func() {
 		})
 		It("should not link an instance that is terminated", func() {
 			// Update the state of the existing instance
-			instance := ExpectInstanceExists(ec2API, instanceID)
+			instance := ExpectInstanceExists(awsEnv.EC2API, instanceID)
 			instance.State.Name = aws.String(ec2.InstanceStateNameTerminated)
-			ec2API.Instances.Store(instanceID, instance)
+			awsEnv.EC2API.Instances.Store(instanceID, instance)
 
 			ExpectReconcileSucceeded(ctx, linkController, client.ObjectKey{})
 			machineList := &v1alpha5.MachineList{}

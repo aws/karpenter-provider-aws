@@ -29,11 +29,9 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/awstesting/mock"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -43,28 +41,18 @@ import (
 	"k8s.io/client-go/tools/record"
 	clock "k8s.io/utils/clock/testing"
 	. "knative.dev/pkg/logging/testing"
-	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	awscache "github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/cloudprovider"
-	awscontext "github.com/aws/karpenter/pkg/context"
-	"github.com/aws/karpenter/pkg/fake"
-	"github.com/aws/karpenter/pkg/providers/amifamily"
 	"github.com/aws/karpenter/pkg/providers/amifamily/bootstrap"
 	"github.com/aws/karpenter/pkg/providers/instancetype"
-	"github.com/aws/karpenter/pkg/providers/launchtemplate"
-	"github.com/aws/karpenter/pkg/providers/pricing"
-	"github.com/aws/karpenter/pkg/providers/securitygroup"
-	"github.com/aws/karpenter/pkg/providers/subnet"
 	"github.com/aws/karpenter/pkg/test"
 
 	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
-	corecloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/controllers/provisioning"
 	"github.com/aws/karpenter-core/pkg/controllers/state"
 	"github.com/aws/karpenter-core/pkg/events"
@@ -79,28 +67,13 @@ var ctx context.Context
 var stop context.CancelFunc
 var opts options.Options
 var env *coretest.Environment
-var ssmCache *cache.Cache
-var ec2Cache *cache.Cache
-var launchTemplateCache *cache.Cache
-var instanceTypeCache *cache.Cache
-var kubernetesVersionCache *cache.Cache
-var fakeEC2API *fake.EC2API
-var fakeSSMAPI *fake.SSMAPI
+var awsEnv *test.Environment
 var fakeClock *clock.FakeClock
-var fakePricingAPI *fake.PricingAPI
-var amiProvider *amifamily.Provider
-var amiResolver *amifamily.Resolver
-var cloudProvider *cloudprovider.CloudProvider
-var unavailableOfferingsCache *awscache.UnavailableOfferings
 var prov *provisioning.Provisioner
 var provisioner *v1alpha5.Provisioner
-var launchTemplateProvider *launchtemplate.Provider
 var nodeTemplate *v1alpha1.AWSNodeTemplate
 var cluster *state.Cluster
-var pricingProvider *pricing.Provider
-var subnetProvider *subnet.Provider
-var instanceTypesProvider *instancetype.Provider
-var securityGroupProvider *securitygroup.Provider
+var cloudProvider *cloudprovider.CloudProvider
 
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -113,60 +86,12 @@ var _ = BeforeSuite(func() {
 	ctx = coresettings.ToContext(ctx, coretest.Settings())
 	ctx = settings.ToContext(ctx, test.Settings())
 	ctx, stop = context.WithCancel(ctx)
+	awsEnv = test.NewEnvironment(ctx, env)
 
-	fakeEC2API = &fake.EC2API{}
-	fakeSSMAPI = &fake.SSMAPI{}
-	ssmCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
-	ec2Cache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
-	launchTemplateCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
-	instanceTypeCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
-	kubernetesVersionCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
-	fakeClock = clock.NewFakeClock(time.Now())
-	unavailableOfferingsCache = awscache.NewUnavailableOfferings()
-	fakePricingAPI = &fake.PricingAPI{}
-	pricingProvider = pricing.NewProvider(ctx, fakePricingAPI, fakeEC2API, "", make(chan struct{}))
-	subnetProvider = subnet.NewProvider(fakeEC2API)
-	securityGroupProvider = securitygroup.NewProvider(fakeEC2API)
-	amiProvider = amifamily.NewProvider(env.Client, env.KubernetesInterface, fakeSSMAPI, fakeEC2API, ssmCache, ec2Cache, kubernetesVersionCache)
-	amiResolver = amifamily.New(env.Client, amiProvider)
-	instanceTypesProvider = instancetype.NewProvider("", instanceTypeCache, fakeEC2API, subnetProvider, unavailableOfferingsCache, pricingProvider)
-
-	launchTemplateProvider = launchtemplate.NewProvider(
-		ctx,
-		launchTemplateCache,
-		fakeEC2API,
-		amiResolver,
-		securityGroupProvider,
-		ptr.String("ca-bundle"),
-		make(chan struct{}),
-		net.ParseIP("10.0.100.10"),
-		"https://test-cluster",
-	)
-
-	cloudProvider = cloudprovider.New(awscontext.Context{
-		Context: corecloudprovider.Context{
-			Context:             ctx,
-			RESTConfig:          env.Config,
-			KubernetesInterface: env.KubernetesInterface,
-			KubeClient:          env.Client,
-			EventRecorder:       events.NewRecorder(&record.FakeRecorder{}),
-			Clock:               &clock.FakeClock{},
-			StartAsync:          nil,
-		},
-		SubnetProvider:            subnet.NewProvider(fakeEC2API),
-		SecurityGroupProvider:     securityGroupProvider,
-		Session:                   mock.Session,
-		UnavailableOfferingsCache: unavailableOfferingsCache,
-		EC2API:                    fakeEC2API,
-		PricingProvider:           pricingProvider,
-		AMIProvider:               amiProvider,
-		AMIResolver:               amiResolver,
-		LaunchTemplateProvider:    launchTemplateProvider,
-		InstanceTypesProvider:     instanceTypesProvider,
-	})
+	fakeClock = &clock.FakeClock{}
+	cloudProvider = cloudprovider.New(ctx, awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, env.Client, awsEnv.AMIProvider)
 	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
 	prov = provisioning.NewProvisioner(ctx, env.Client, env.KubernetesInterface.CoreV1(), events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster)
-
 })
 
 var _ = AfterSuite(func() {
@@ -206,29 +131,11 @@ var _ = BeforeEach(func() {
 			Name:       nodeTemplate.Name,
 		},
 	})
-
 	cluster.Reset()
-	fakeEC2API.Reset()
-	fakeSSMAPI.Reset()
-	launchTemplateCache.Flush()
-	unavailableOfferingsCache.Flush()
-	ssmCache.Flush()
-	ec2Cache.Flush()
-	instanceTypeCache.Flush()
-	kubernetesVersionCache.Flush()
-	securityGroupProvider.Reset()
-	launchTemplateProvider.KubeDNSIP = net.ParseIP("10.0.100.10")
-	launchTemplateProvider.ClusterEndpoint = "https://test-cluster"
+	awsEnv.Reset()
 
-	// Reset the pricing provider, so we don't cross-pollinate pricing data
-	instanceTypesProvider = instancetype.NewProvider(
-		"",
-		instanceTypeCache,
-		fakeEC2API,
-		subnetProvider,
-		unavailableOfferingsCache,
-		pricing.NewProvider(ctx, fakePricingAPI, fakeEC2API, "", make(chan struct{})),
-	)
+	awsEnv.LaunchTemplateProvider.KubeDNSIP = net.ParseIP("10.0.100.10")
+	awsEnv.LaunchTemplateProvider.ClusterEndpoint = "https://test-cluster"
 })
 
 var _ = AfterEach(func() {
@@ -243,13 +150,13 @@ var _ = Describe("LaunchTemplates", func() {
 		ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 		ExpectScheduled(ctx, env.Client, pod)
 
-		Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+		Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 
-		firstLt := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+		firstLt := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
 
-		Expect(fakeEC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
+		Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
 
-		createFleetInput := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
+		createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
 		launchTemplate := createFleetInput.LaunchTemplateConfigs[0].LaunchTemplateSpecification
 		Expect(createFleetInput.LaunchTemplateConfigs).To(HaveLen(1))
 
@@ -278,9 +185,9 @@ var _ = Describe("LaunchTemplates", func() {
 		ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 		ExpectScheduled(ctx, env.Client, pod)
 
-		Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-		Expect(fakeEC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
-		createFleetInput := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
+		Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+		Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
+		createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
 
 		// Expect these values to be correctly ordered by price
 		overrides := createFleetInput.LaunchTemplateConfigs[0].Overrides
@@ -289,7 +196,7 @@ var _ = Describe("LaunchTemplates", func() {
 		})
 		lastPrice := -math.MaxFloat64
 		for _, override := range overrides {
-			offeringPrice, ok := pricingProvider.SpotPrice(*override.InstanceType, *override.AvailabilityZone)
+			offeringPrice, ok := awsEnv.PricingProvider.SpotPrice(*override.InstanceType, *override.AvailabilityZone)
 			Expect(ok).To(BeTrue())
 			Expect(offeringPrice).To(BeNumerically(">=", lastPrice))
 			lastPrice = offeringPrice
@@ -303,8 +210,8 @@ var _ = Describe("LaunchTemplates", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			Expect(fakeEC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
-			input := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
+			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
+			input := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
 			Expect(input.LaunchTemplateConfigs).To(HaveLen(1))
 			launchTemplate := input.LaunchTemplateConfigs[0].LaunchTemplateSpecification
 			Expect(*launchTemplate.LaunchTemplateName).To(Equal("test-launch-template"))
@@ -348,8 +255,8 @@ var _ = Describe("LaunchTemplates", func() {
 			})
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod1)
 			ExpectScheduled(ctx, env.Client, pod1)
-			Expect(fakeEC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
-			name1 := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop().LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName
+			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
+			name1 := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop().LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName
 
 			pod2 := coretest.UnschedulablePod(coretest.PodOptions{
 				Tolerations:          []v1.Toleration{t2, t3, t1},
@@ -358,8 +265,8 @@ var _ = Describe("LaunchTemplates", func() {
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod2)
 
 			ExpectScheduled(ctx, env.Client, pod2)
-			Expect(fakeEC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
-			name2 := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop().LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName
+			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
+			name2 := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop().LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName
 			Expect(name1).To(Equal(name2))
 		})
 		It("should recover from an out-of-sync launch template cache", func() {
@@ -368,19 +275,19 @@ var _ = Describe("LaunchTemplates", func() {
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
 
-			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-			firstLt := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+			firstLt := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			ltName := aws.StringValue(firstLt.LaunchTemplateName)
-			lt, ok := launchTemplateCache.Get(ltName)
+			lt, ok := awsEnv.LaunchTemplateCache.Get(ltName)
 			Expect(ok).To(Equal(true))
 			// Remove expiration from cached LT
-			launchTemplateCache.Set(ltName, lt, -1)
+			awsEnv.LaunchTemplateCache.Set(ltName, lt, -1)
 
-			fakeEC2API.CreateFleetBehavior.Error.Set(awserr.New("InvalidLaunchTemplateName.NotFoundException", "", errors.New("")))
+			awsEnv.EC2API.CreateFleetBehavior.Error.Set(awserr.New("InvalidLaunchTemplateName.NotFoundException", "", errors.New("")))
 			pod = coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			// should call fleet twice. Once will fail on invalid LT and the next will succeed
-			fleetInput := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
+			fleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
 			Expect(aws.StringValue(fleetInput.LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName)).To(Equal(ltName))
 			ExpectScheduled(ctx, env.Client, pod)
 		})
@@ -396,7 +303,7 @@ var _ = Describe("LaunchTemplates", func() {
 			Expect(node.Labels).To(HaveKey(v1.LabelInstanceTypeStable))
 		})
 		It("should apply provider labels to the node", func() {
-			fakeEC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
+			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
 				{
 					ImageId:      aws.String("ami-123"),
 					Architecture: aws.String("x86_64"),
@@ -427,8 +334,8 @@ var _ = Describe("LaunchTemplates", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			Expect(fakeEC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
-			createFleetInput := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
+			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
+			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
 			Expect(createFleetInput.TagSpecifications).To(HaveLen(3))
 
 			tags := map[string]string{
@@ -454,8 +361,8 @@ var _ = Describe("LaunchTemplates", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			Expect(fakeEC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
-			createFleetInput := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
+			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
+			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
 			Expect(createFleetInput.TagSpecifications).To(HaveLen(3))
 
 			// tags should be included in instance, volume, and fleet tag specification
@@ -478,8 +385,8 @@ var _ = Describe("LaunchTemplates", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			Expect(fakeEC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
-			createFleetInput := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
+			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
+			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
 			Expect(createFleetInput.TagSpecifications).To(HaveLen(3))
 
 			// tags should be included in instance, volume, and fleet tag specification
@@ -509,8 +416,8 @@ var _ = Describe("LaunchTemplates", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			Expect(fakeEC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
-			createFleetInput := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
+			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
+			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
 			Expect(createFleetInput.TagSpecifications).To(HaveLen(3))
 
 			// tags should be included in instance, volume, and fleet tag specification
@@ -539,8 +446,8 @@ var _ = Describe("LaunchTemplates", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			Expect(fakeEC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
-			createFleetInput := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
+			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
+			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
 			Expect(createFleetInput.TagSpecifications).To(HaveLen(3))
 
 			// tags should be included in instance, volume, and fleet tag specification
@@ -564,8 +471,8 @@ var _ = Describe("LaunchTemplates", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+			input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			Expect(len(input.LaunchTemplateData.BlockDeviceMappings)).To(Equal(1))
 			Expect(*input.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeSize).To(Equal(int64(20)))
 			Expect(*input.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeType).To(Equal("gp3"))
@@ -601,8 +508,8 @@ var _ = Describe("LaunchTemplates", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+			input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			Expect(input.LaunchTemplateData.BlockDeviceMappings[0].Ebs).To(Equal(&ec2.LaunchTemplateEbsBlockDeviceRequest{
 				VolumeSize:          aws.Int64(187),
 				VolumeType:          aws.String("io2"),
@@ -650,8 +557,8 @@ var _ = Describe("LaunchTemplates", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+			input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
 
 			// Both of these values are rounded up when converting to Gibibytes
 			Expect(aws.Int64Value(input.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeSize)).To(BeNumerically("==", 4))
@@ -663,8 +570,8 @@ var _ = Describe("LaunchTemplates", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+			input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			Expect(len(input.LaunchTemplateData.BlockDeviceMappings)).To(Equal(2))
 			// Bottlerocket control volume
 			Expect(*input.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeSize).To(Equal(int64(4)))
@@ -681,8 +588,8 @@ var _ = Describe("LaunchTemplates", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+			input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			Expect(len(input.LaunchTemplateData.BlockDeviceMappings)).To(Equal(0))
 		})
 		It("should use custom block device mapping for custom AMIFamilies", func() {
@@ -704,8 +611,8 @@ var _ = Describe("LaunchTemplates", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+			input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			Expect(len(input.LaunchTemplateData.BlockDeviceMappings)).To(Equal(1))
 			Expect(*input.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeSize).To(Equal(int64(40)))
 			Expect(*input.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeType).To(Equal("io2"))
@@ -864,7 +771,7 @@ var _ = Describe("LaunchTemplates", func() {
 		BeforeEach(func() {
 			var ok bool
 			var instanceInfo []*ec2.InstanceTypeInfo
-			err := fakeEC2API.DescribeInstanceTypesPagesWithContext(ctx, &ec2.DescribeInstanceTypesInput{
+			err := awsEnv.EC2API.DescribeInstanceTypesPagesWithContext(ctx, &ec2.DescribeInstanceTypesInput{
 				Filters: []*ec2.Filter{
 					{
 						Name:   aws.String("supported-virtualization-type"),
@@ -914,7 +821,7 @@ var _ = Describe("LaunchTemplates", func() {
 		BeforeEach(func() {
 			var ok bool
 			var instanceInfo []*ec2.InstanceTypeInfo
-			err := fakeEC2API.DescribeInstanceTypesPagesWithContext(ctx, &ec2.DescribeInstanceTypesInput{
+			err := awsEnv.EC2API.DescribeInstanceTypesPagesWithContext(ctx, &ec2.DescribeInstanceTypesInput{
 				Filters: []*ec2.Filter{
 					{
 						Name:   aws.String("supported-virtualization-type"),
@@ -965,8 +872,8 @@ var _ = Describe("LaunchTemplates", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+			input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 			Expect(err).To(BeNil())
 			Expect(string(userData)).NotTo(ContainSubstring("--use-max-pods false"))
@@ -980,8 +887,8 @@ var _ = Describe("LaunchTemplates", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+			input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 			Expect(err).To(BeNil())
 			Expect(string(userData)).To(ContainSubstring("--use-max-pods false"))
@@ -993,8 +900,8 @@ var _ = Describe("LaunchTemplates", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+			input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 			Expect(err).To(BeNil())
 			Expect(string(userData)).To(ContainSubstring("--use-max-pods false"))
@@ -1012,8 +919,8 @@ var _ = Describe("LaunchTemplates", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+			input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 			Expect(err).To(BeNil())
 
@@ -1038,8 +945,8 @@ var _ = Describe("LaunchTemplates", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+			input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 			Expect(err).To(BeNil())
 
@@ -1064,8 +971,8 @@ var _ = Describe("LaunchTemplates", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+			input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 			Expect(err).To(BeNil())
 
@@ -1090,8 +997,8 @@ var _ = Describe("LaunchTemplates", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+			input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 			Expect(err).To(BeNil())
 
@@ -1116,8 +1023,8 @@ var _ = Describe("LaunchTemplates", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+			input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 			Expect(err).To(BeNil())
 
@@ -1138,8 +1045,8 @@ var _ = Describe("LaunchTemplates", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+			input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 			Expect(err).To(BeNil())
 
@@ -1153,8 +1060,8 @@ var _ = Describe("LaunchTemplates", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+			input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 			Expect(err).To(BeNil())
 			Expect(string(userData)).To(ContainSubstring(fmt.Sprintf("--pods-per-core=%d", 2)))
@@ -1168,8 +1075,8 @@ var _ = Describe("LaunchTemplates", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+			input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 			Expect(err).To(BeNil())
 			Expect(string(userData)).To(ContainSubstring(fmt.Sprintf("--pods-per-core=%d", 2)))
@@ -1180,8 +1087,8 @@ var _ = Describe("LaunchTemplates", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+			input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 			Expect(err).To(BeNil())
 			Expect(string(userData)).To(ContainSubstring("--container-runtime containerd"))
@@ -1192,8 +1099,8 @@ var _ = Describe("LaunchTemplates", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+			input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 			Expect(err).To(BeNil())
 			Expect(string(userData)).To(ContainSubstring("--container-runtime dockerd"))
@@ -1214,8 +1121,8 @@ var _ = Describe("LaunchTemplates", func() {
 			})
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+			input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 			Expect(err).To(BeNil())
 			Expect(string(userData)).To(ContainSubstring("--container-runtime containerd"))
@@ -1236,20 +1143,20 @@ var _ = Describe("LaunchTemplates", func() {
 			})
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+			input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 			Expect(err).To(BeNil())
 			Expect(string(userData)).To(ContainSubstring("--container-runtime containerd"))
 		})
 		It("should specify --dns-cluster-ip and --ip-family when running in an ipv6 cluster", func() {
-			launchTemplateProvider.KubeDNSIP = net.ParseIP("fd4b:121b:812b::a")
+			awsEnv.LaunchTemplateProvider.KubeDNSIP = net.ParseIP("fd4b:121b:812b::a")
 			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+			input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 			Expect(err).To(BeNil())
 			Expect(string(userData)).To(ContainSubstring("--dns-cluster-ip 'fd4b:121b:812b::a'"))
@@ -1264,8 +1171,8 @@ var _ = Describe("LaunchTemplates", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+			input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 			Expect(err).To(BeNil())
 			Expect(string(userData)).To(ContainSubstring("--image-gc-high-threshold=50"))
@@ -1278,8 +1185,8 @@ var _ = Describe("LaunchTemplates", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+			input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 			Expect(err).To(BeNil())
 			Expect(string(userData)).To(ContainSubstring("--image-gc-low-threshold=50"))
@@ -1303,8 +1210,8 @@ var _ = Describe("LaunchTemplates", func() {
 				})
 				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
-				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+				Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+				input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
 				userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 				Expect(err).To(BeNil())
 				content, err = os.ReadFile("testdata/br_userdata_merged.golden")
@@ -1328,8 +1235,8 @@ var _ = Describe("LaunchTemplates", func() {
 				})
 				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
-				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+				Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+				input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
 				userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 				Expect(err).To(BeNil())
 				content, err := os.ReadFile("testdata/br_userdata_unmerged.golden")
@@ -1380,8 +1287,8 @@ var _ = Describe("LaunchTemplates", func() {
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
-				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+				Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+				input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
 				userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 				Expect(err).To(BeNil())
 				config := &bootstrap.BottlerocketConfig{}
@@ -1410,8 +1317,8 @@ var _ = Describe("LaunchTemplates", func() {
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
-				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+				Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+				input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
 				userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 				Expect(err).To(BeNil())
 				config := &bootstrap.BottlerocketConfig{}
@@ -1440,8 +1347,8 @@ var _ = Describe("LaunchTemplates", func() {
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
-				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+				Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+				input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
 				userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 				Expect(err).To(BeNil())
 				config := &bootstrap.BottlerocketConfig{}
@@ -1465,8 +1372,8 @@ var _ = Describe("LaunchTemplates", func() {
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
-				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+				Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+				input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
 				userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 				Expect(err).To(BeNil())
 				config := &bootstrap.BottlerocketConfig{}
@@ -1490,8 +1397,8 @@ var _ = Describe("LaunchTemplates", func() {
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
-				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+				Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+				input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
 				userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 				Expect(err).To(BeNil())
 				content, err = os.ReadFile("testdata/al2_userdata_merged.golden")
@@ -1513,8 +1420,8 @@ var _ = Describe("LaunchTemplates", func() {
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
-				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+				Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+				input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
 				userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 				Expect(err).To(BeNil())
 				content, err = os.ReadFile("testdata/al2_userdata_merged.golden")
@@ -1533,8 +1440,8 @@ var _ = Describe("LaunchTemplates", func() {
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
-				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+				Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+				input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
 				userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 				Expect(err).To(BeNil())
 				content, err := os.ReadFile("testdata/al2_userdata_unmerged.golden")
@@ -1546,7 +1453,7 @@ var _ = Describe("LaunchTemplates", func() {
 		Context("Custom AMI Selector", func() {
 			It("should use ami selector specified in AWSNodeTemplate", func() {
 				nodeTemplate.Spec.AMISelector = map[string]string{"karpenter.sh/discovery": "my-cluster"}
-				fakeEC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
+				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
 					{
 						ImageId:      aws.String("ami-123"),
 						Architecture: aws.String("x86_64"),
@@ -1558,15 +1465,15 @@ var _ = Describe("LaunchTemplates", func() {
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
-				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+				Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+				input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
 				Expect("ami-123").To(Equal(*input.LaunchTemplateData.ImageId))
 			})
 			It("should copy over userData untouched when AMIFamily is Custom", func() {
 				nodeTemplate.Spec.UserData = aws.String("special user data")
 				nodeTemplate.Spec.AMISelector = map[string]string{"karpenter.sh/discovery": "my-cluster"}
 				nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyCustom
-				fakeEC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
+				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
 					{
 						ImageId:      aws.String("ami-123"),
 						Architecture: aws.String("x86_64"),
@@ -1578,15 +1485,15 @@ var _ = Describe("LaunchTemplates", func() {
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
-				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+				Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+				input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
 				userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 				Expect(err).To(BeNil())
 				Expect("special user data").To(Equal(string(userData)))
 			})
 			It("should correctly use ami selector with specific IDs in AWSNodeTemplate", func() {
 				nodeTemplate.Spec.AMISelector = map[string]string{"aws-ids": "ami-123,ami-456"}
-				fakeEC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
+				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
 					{
 						ImageId:      aws.String("ami-123"),
 						Architecture: aws.String("x86_64"),
@@ -1606,8 +1513,8 @@ var _ = Describe("LaunchTemplates", func() {
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
-				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(2))
-				actualFilter := fakeEC2API.CalledWithDescribeImagesInput.Pop().Filters
+				Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(2))
+				actualFilter := awsEnv.EC2API.CalledWithDescribeImagesInput.Pop().Filters
 				expectedFilter := []*ec2.Filter{
 					{
 						Name:   aws.String("image-id"),
@@ -1617,7 +1524,7 @@ var _ = Describe("LaunchTemplates", func() {
 				Expect(actualFilter).To(Equal(expectedFilter))
 			})
 			It("should create multiple launch templates when multiple amis are discovered with non-equivalent requirements", func() {
-				fakeEC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
+				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
 					{
 						ImageId:      aws.String("ami-123"),
 						Architecture: aws.String("x86_64"),
@@ -1638,16 +1545,16 @@ var _ = Describe("LaunchTemplates", func() {
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
-				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(2))
+				Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(2))
 				expectedImageIds := sets.NewString("ami-123", "ami-456")
 				actualImageIds := sets.NewString(
-					*fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().LaunchTemplateData.ImageId,
-					*fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().LaunchTemplateData.ImageId,
+					*awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop().LaunchTemplateData.ImageId,
+					*awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop().LaunchTemplateData.ImageId,
 				)
 				Expect(expectedImageIds.Equal(actualImageIds)).To(BeTrue())
 			})
 			It("should create a launch template with the newest compatible AMI when multiple amis are discovered", func() {
-				fakeEC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
+				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
 					{
 						ImageId:      aws.String("ami-123"),
 						Architecture: aws.String("x86_64"),
@@ -1681,13 +1588,13 @@ var _ = Describe("LaunchTemplates", func() {
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
-				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+				Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+				input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
 				Expect("ami-456").To(Equal(*input.LaunchTemplateData.ImageId))
 			})
 
 			It("should fail if no amis match selector.", func() {
-				fakeEC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{}})
+				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{}})
 				nodeTemplate.Spec.AMISelector = map[string]string{"karpenter.sh/discovery": "my-cluster"}
 				ExpectApplied(ctx, env.Client, nodeTemplate)
 				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
@@ -1695,10 +1602,10 @@ var _ = Describe("LaunchTemplates", func() {
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 				ExpectNotScheduled(ctx, env.Client, pod)
-				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(0))
+				Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(0))
 			})
 			It("should fail if no instanceType matches ami requirements.", func() {
-				fakeEC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
+				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
 					{ImageId: aws.String("ami-123"), Architecture: aws.String("newnew"), CreationDate: aws.String("2022-01-01T12:00:00Z")},
 				}})
 				nodeTemplate.Spec.AMISelector = map[string]string{"karpenter.sh/discovery": "my-cluster"}
@@ -1708,7 +1615,7 @@ var _ = Describe("LaunchTemplates", func() {
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 				ExpectNotScheduled(ctx, env.Client, pod)
-				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(0))
+				Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(0))
 			})
 			It("should choose amis from SSM if no selector specified in AWSNodeTemplate", func() {
 				ExpectApplied(ctx, env.Client, nodeTemplate)
@@ -1717,7 +1624,7 @@ var _ = Describe("LaunchTemplates", func() {
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
-				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+				input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
 				Expect(*input.LaunchTemplateData.ImageId).To(ContainSubstring("test-ami"))
 			})
 		})
@@ -1728,8 +1635,8 @@ var _ = Describe("LaunchTemplates", func() {
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
-				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+				Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+				input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
 				userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 				Expect(err).To(BeNil())
 				Expect(string(userData)).To(ContainSubstring("--dns-cluster-ip '10.0.10.100'"))
@@ -1741,8 +1648,8 @@ var _ = Describe("LaunchTemplates", func() {
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
-				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+				Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+				input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
 				Expect(*input.LaunchTemplateData.IamInstanceProfile.Name).To(Equal("test-instance-profile"))
 			})
 			It("should use the instance profile on the Provisioner when specified", func() {
@@ -1751,8 +1658,8 @@ var _ = Describe("LaunchTemplates", func() {
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
-				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+				Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+				input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
 				Expect(*input.LaunchTemplateData.IamInstanceProfile.Name).To(Equal("overridden-profile"))
 			})
 		})
@@ -1764,8 +1671,8 @@ var _ = Describe("LaunchTemplates", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+			input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			Expect(aws.BoolValue(input.LaunchTemplateData.Monitoring.Enabled)).To(BeFalse())
 		})
 		It("should pass detailed monitoring setting to the launch template at creation", func() {
@@ -1775,8 +1682,8 @@ var _ = Describe("LaunchTemplates", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-			input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+			input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			Expect(aws.BoolValue(input.LaunchTemplateData.Monitoring.Enabled)).To(BeTrue())
 		})
 	})
