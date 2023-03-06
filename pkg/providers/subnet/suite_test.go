@@ -21,7 +21,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/patrickmn/go-cache"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -30,31 +29,27 @@ import (
 	. "knative.dev/pkg/logging/testing"
 
 	"github.com/aws/karpenter/pkg/apis"
-	awssettings "github.com/aws/karpenter/pkg/apis/settings"
+	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	awscache "github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/providers/subnet"
 	"github.com/aws/karpenter/pkg/test"
 
-	"github.com/aws/karpenter-core/pkg/apis/settings"
+	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
 	corev1alpha5 "github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/operator/injection"
 	"github.com/aws/karpenter-core/pkg/operator/options"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
-	"github.com/aws/karpenter/pkg/fake"
 )
 
 var ctx context.Context
 var stop context.CancelFunc
 var opts options.Options
 var env *coretest.Environment
-var fakeEC2API *fake.EC2API
+var awsEnv *test.Environment
 var provisioner *corev1alpha5.Provisioner
 var nodeTemplate *v1alpha1.AWSNodeTemplate
-var subnetProvider *subnet.Provider
-var subnetCache *cache.Cache
 
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -64,11 +59,10 @@ func TestAWS(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
+	ctx = coresettings.ToContext(ctx, coretest.Settings())
+	ctx = settings.ToContext(ctx, test.Settings())
 	ctx, stop = context.WithCancel(ctx)
-
-	fakeEC2API = &fake.EC2API{}
-	subnetCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
-	subnetProvider = subnet.NewProvider(fakeEC2API, subnetCache)
+	awsEnv = test.NewEnvironment(ctx, env)
 })
 
 var _ = AfterSuite(func() {
@@ -78,8 +72,8 @@ var _ = AfterSuite(func() {
 
 var _ = BeforeEach(func() {
 	ctx = injection.WithOptions(ctx, opts)
-	ctx = settings.ToContext(ctx, coretest.Settings())
-	ctx = awssettings.ToContext(ctx, test.Settings())
+	ctx = coresettings.ToContext(ctx, coretest.Settings())
+	ctx = settings.ToContext(ctx, test.Settings())
 	nodeTemplate = &v1alpha1.AWSNodeTemplate{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: coretest.RandomName(),
@@ -109,8 +103,7 @@ var _ = BeforeEach(func() {
 		},
 	})
 
-	fakeEC2API.Reset()
-	subnetCache.Flush()
+	awsEnv.ResetCache()
 })
 
 var _ = AfterEach(func() {
@@ -121,7 +114,7 @@ var _ = Describe("Subnet Provider", func() {
 	It("should discover subnet by ID", func() {
 		nodeTemplate.Spec.SubnetSelector = map[string]string{"aws-ids": "subnet-test1"}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-		resolvedSubnetProvider, err := subnetProvider.List(ctx, nodeTemplate)
+		resolvedSubnetProvider, err := awsEnv.SubnetProvider.List(ctx, nodeTemplate)
 		resolvedSubnet := subnet.Pretty(resolvedSubnetProvider)
 		Expect(err).To(BeNil())
 		Expect(len(resolvedSubnet)).To(Equal(1))
@@ -132,7 +125,7 @@ var _ = Describe("Subnet Provider", func() {
 	It("should discover subnets by IDs", func() {
 		nodeTemplate.Spec.SubnetSelector = map[string]string{"aws-ids": "subnet-test1,subnet-test2"}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-		resolvedSubnetProvider, err := subnetProvider.List(ctx, nodeTemplate)
+		resolvedSubnetProvider, err := awsEnv.SubnetProvider.List(ctx, nodeTemplate)
 		resolvedSubnet := subnet.Pretty(resolvedSubnetProvider)
 		Expect(err).To(BeNil())
 		Expect(len(resolvedSubnet)).To(Equal(2))
@@ -144,7 +137,7 @@ var _ = Describe("Subnet Provider", func() {
 	It("should discover subnets by IDs and tags", func() {
 		nodeTemplate.Spec.SubnetSelector = map[string]string{"aws-ids": "subnet-test1,subnet-test2", "foo": "bar"}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-		resolvedSubnetProvider, err := subnetProvider.List(ctx, nodeTemplate)
+		resolvedSubnetProvider, err := awsEnv.SubnetProvider.List(ctx, nodeTemplate)
 		resolvedSubnet := subnet.Pretty(resolvedSubnetProvider)
 		Expect(err).To(BeNil())
 		Expect(len(resolvedSubnet)).To(Equal(2))
@@ -156,7 +149,7 @@ var _ = Describe("Subnet Provider", func() {
 	It("should discover subnets by a single tag", func() {
 		nodeTemplate.Spec.SubnetSelector = map[string]string{"Name": "test-subnet-1"}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-		resolvedSubnetProvider, err := subnetProvider.List(ctx, nodeTemplate)
+		resolvedSubnetProvider, err := awsEnv.SubnetProvider.List(ctx, nodeTemplate)
 		resolvedSubnet := subnet.Pretty(resolvedSubnetProvider)
 		Expect(err).To(BeNil())
 		Expect(len(resolvedSubnet)).To(Equal(1))
@@ -167,7 +160,7 @@ var _ = Describe("Subnet Provider", func() {
 	It("should discover subnets by multiple tag values", func() {
 		nodeTemplate.Spec.SubnetSelector = map[string]string{"Name": "test-subnet-1,test-subnet-2"}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-		resolvedSubnetProvider, err := subnetProvider.List(ctx, nodeTemplate)
+		resolvedSubnetProvider, err := awsEnv.SubnetProvider.List(ctx, nodeTemplate)
 		resolvedSubnet := subnet.Pretty(resolvedSubnetProvider)
 		Expect(err).To(BeNil())
 		Expect(len(resolvedSubnet)).To(Equal(2))
@@ -179,7 +172,7 @@ var _ = Describe("Subnet Provider", func() {
 	It("should discover subnets by IDs intersected with tags", func() {
 		nodeTemplate.Spec.SubnetSelector = map[string]string{"aws-ids": "subnet-test2", "foo": "bar"}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-		resolvedSubnetProvider, err := subnetProvider.List(ctx, nodeTemplate)
+		resolvedSubnetProvider, err := awsEnv.SubnetProvider.List(ctx, nodeTemplate)
 		resolvedSubnet := subnet.Pretty(resolvedSubnetProvider)
 		Expect(err).To(BeNil())
 		Expect(len(resolvedSubnet)).To(Equal(1))

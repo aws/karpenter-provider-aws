@@ -28,13 +28,12 @@ import (
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	clock "k8s.io/utils/clock/testing"
 	. "knative.dev/pkg/logging/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
-	corecloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
+	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	coretest "github.com/aws/karpenter-core/pkg/test"
@@ -43,9 +42,6 @@ import (
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	awscache "github.com/aws/karpenter/pkg/cache"
-	"github.com/aws/karpenter/pkg/cloudprovider"
-	awscontext "github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/controllers/machine/garbagecollect"
 	"github.com/aws/karpenter/pkg/controllers/machine/link"
 	"github.com/aws/karpenter/pkg/fake"
@@ -53,23 +49,11 @@ import (
 )
 
 var ctx context.Context
-var awsCtx awscontext.Context
+var awsEnv *test.Environment
 var env *coretest.Environment
-var ec2API *fake.EC2API
-var cloudProvider *cloudprovider.CloudProvider
 var garbageCollectController controller.Controller
 var linkedMachineCache *cache.Cache
 var fakePricingAPI *fake.PricingAPI
-
-// Cache
-var ec2Cache *cache.Cache
-var ssmCache *cache.Cache
-var kubernetesVersionCache *cache.Cache
-var instanceTypeCache *cache.Cache
-var unavailableOfferingsCache *awscache.UnavailableOfferings
-var launchTemplateCache *cache.Cache
-var subnetCache *cache.Cache
-var securityGroupCache *cache.Cache
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -81,38 +65,13 @@ var _ = BeforeSuite(func() {
 	ctx = coresettings.ToContext(ctx, coretest.Settings())
 	ctx = settings.ToContext(ctx, test.Settings())
 	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
-	ec2API = &fake.EC2API{}
-
-	fakePricingAPI = &fake.PricingAPI{}
-
-	ssmCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
-	ec2Cache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
-	kubernetesVersionCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
-	instanceTypeCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
-	unavailableOfferingsCache = awscache.NewUnavailableOfferings()
-	launchTemplateCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
-	subnetCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
-	securityGroupCache = cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
-
-	awsCtx = test.Context(ctx, ec2API, fake.SSMAPI{}, env, &clock.FakeClock{}, test.ContextOptions{
-		SSMCache:                  ssmCache,
-		EC2Cache:                  ec2Cache,
-		KubernetesVersionCache:    kubernetesVersionCache,
-		UnavailableOfferingsCache: unavailableOfferingsCache,
-		LaunchTemplateCache:       launchTemplateCache,
-		InstanceTypeCache:         instanceTypeCache,
-		SubnetCache:               subnetCache,
-		SecurityGroupCache:        securityGroupCache,
-		PricingAPI:                fakePricingAPI,
-	})
-
-	cloudProvider = cloudprovider.New(awsCtx, awsCtx.InstanceTypesProvider, awsCtx.InstanceProvider, awsCtx.KubeClient, awsCtx.AMIProvider)
+	awsEnv = test.NewEnvironment(ctx, env)
 
 	linkedMachineCache = cache.New(time.Minute*10, time.Second*10)
 	linkController := &link.Controller{
 		Cache: linkedMachineCache,
 	}
-	garbageCollectController = garbagecollect.NewController(env.Client, cloudProvider, linkController)
+	garbageCollectController = garbagecollect.NewController(env.Client, awsEnv.CloudProvider, linkController)
 })
 
 var _ = AfterSuite(func() {
@@ -120,14 +79,7 @@ var _ = AfterSuite(func() {
 })
 
 var _ = BeforeEach(func() {
-	ec2Cache.Flush()
-	ssmCache.Flush()
-	kubernetesVersionCache.Flush()
-	instanceTypeCache.Flush()
-	unavailableOfferingsCache.Flush()
-	launchTemplateCache.Flush()
-	subnetCache.Flush()
-	securityGroupCache.Flush()
+	awsEnv.ResetCache()
 })
 
 var _ = Describe("MachineGarbageCollect", func() {
@@ -135,7 +87,6 @@ var _ = Describe("MachineGarbageCollect", func() {
 	var providerID string
 
 	BeforeEach(func() {
-		ec2API.Reset()
 		instanceID := fake.InstanceID()
 		providerID = fmt.Sprintf("aws:///test-zone-1a/%s", instanceID)
 		nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{})
@@ -171,6 +122,7 @@ var _ = Describe("MachineGarbageCollect", func() {
 			InstanceId:   aws.String(instanceID),
 			InstanceType: aws.String("m5.large"),
 		}
+		awsEnv.ResetCache()
 	})
 	AfterEach(func() {
 		ExpectCleanedUp(ctx, env.Client)
@@ -180,17 +132,17 @@ var _ = Describe("MachineGarbageCollect", func() {
 	It("should delete an instance if there is no machine owner", func() {
 		// Launch time was 10m ago
 		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute * 10))
-		ec2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
+		awsEnv.EC2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
 
 		ExpectReconcileSucceeded(ctx, garbageCollectController, client.ObjectKey{})
-		_, err := cloudProvider.Get(ctx, providerID)
+		_, err := awsEnv.CloudProvider.Get(ctx, providerID)
 		Expect(err).To(HaveOccurred())
-		Expect(corecloudprovider.IsMachineNotFoundError(err)).To(BeTrue())
+		Expect(cloudprovider.IsMachineNotFoundError(err)).To(BeTrue())
 	})
 	It("should delete an instance along with the node if there is no machine owner (to quicken scheduling)", func() {
 		// Launch time was 10m ago
 		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute * 10))
-		ec2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
+		awsEnv.EC2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
 
 		node := coretest.Node(coretest.NodeOptions{
 			ProviderID: providerID,
@@ -198,9 +150,9 @@ var _ = Describe("MachineGarbageCollect", func() {
 		ExpectApplied(ctx, env.Client, node)
 
 		ExpectReconcileSucceeded(ctx, garbageCollectController, client.ObjectKey{})
-		_, err := cloudProvider.Get(ctx, providerID)
+		_, err := awsEnv.CloudProvider.Get(ctx, providerID)
 		Expect(err).To(HaveOccurred())
-		Expect(corecloudprovider.IsMachineNotFoundError(err)).To(BeTrue())
+		Expect(cloudprovider.IsMachineNotFoundError(err)).To(BeTrue())
 
 		ExpectNotFound(ctx, env.Client, node)
 	})
@@ -209,7 +161,7 @@ var _ = Describe("MachineGarbageCollect", func() {
 		var ids []string
 		for i := 0; i < 500; i++ {
 			instanceID := fake.InstanceID()
-			ec2API.Instances.Store(
+			awsEnv.EC2API.Instances.Store(
 				instanceID,
 				&ec2.Instance{
 					State: &ec2.InstanceState{
@@ -250,9 +202,9 @@ var _ = Describe("MachineGarbageCollect", func() {
 				defer GinkgoRecover()
 				defer wg.Done()
 
-				_, err := cloudProvider.Get(ctx, fmt.Sprintf("aws:///test-zone-1a/%s", id))
+				_, err := awsEnv.CloudProvider.Get(ctx, fmt.Sprintf("aws:///test-zone-1a/%s", id))
 				Expect(err).To(HaveOccurred())
-				Expect(corecloudprovider.IsMachineNotFoundError(err)).To(BeTrue())
+				Expect(cloudprovider.IsMachineNotFoundError(err)).To(BeTrue())
 			}(id)
 		}
 		wg.Wait()
@@ -263,7 +215,7 @@ var _ = Describe("MachineGarbageCollect", func() {
 		var machines []*v1alpha5.Machine
 		for i := 0; i < 500; i++ {
 			instanceID := fake.InstanceID()
-			ec2API.Instances.Store(
+			awsEnv.EC2API.Instances.Store(
 				instanceID,
 				&ec2.Instance{
 					State: &ec2.InstanceState{
@@ -311,7 +263,7 @@ var _ = Describe("MachineGarbageCollect", func() {
 				defer GinkgoRecover()
 				defer wg.Done()
 
-				_, err := cloudProvider.Get(ctx, fmt.Sprintf("aws:///test-zone-1a/%s", id))
+				_, err := awsEnv.CloudProvider.Get(ctx, fmt.Sprintf("aws:///test-zone-1a/%s", id))
 				Expect(err).ToNot(HaveOccurred())
 			}(id)
 		}
@@ -324,10 +276,10 @@ var _ = Describe("MachineGarbageCollect", func() {
 	It("should not delete an instance if it is within the machine resolution window (1m)", func() {
 		// Launch time just happened
 		instance.LaunchTime = aws.Time(time.Now())
-		ec2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
+		awsEnv.EC2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
 
 		ExpectReconcileSucceeded(ctx, garbageCollectController, client.ObjectKey{})
-		_, err := cloudProvider.Get(ctx, providerID)
+		_, err := awsEnv.CloudProvider.Get(ctx, providerID)
 		Expect(err).NotTo(HaveOccurred())
 	})
 	It("should not delete an instance if it was not launched by a machine", func() {
@@ -338,16 +290,16 @@ var _ = Describe("MachineGarbageCollect", func() {
 
 		// Launch time was 10m ago
 		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute * 10))
-		ec2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
+		awsEnv.EC2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
 
 		ExpectReconcileSucceeded(ctx, garbageCollectController, client.ObjectKey{})
-		_, err := cloudProvider.Get(ctx, providerID)
+		_, err := awsEnv.CloudProvider.Get(ctx, providerID)
 		Expect(err).NotTo(HaveOccurred())
 	})
 	It("should not delete the instance or node if it already has a machine that matches it", func() {
 		// Launch time was 10m ago
 		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute * 10))
-		ec2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
+		awsEnv.EC2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
 
 		machine := coretest.Machine(v1alpha5.Machine{
 			Status: v1alpha5.MachineStatus{
@@ -360,14 +312,14 @@ var _ = Describe("MachineGarbageCollect", func() {
 		ExpectApplied(ctx, env.Client, machine, node)
 
 		ExpectReconcileSucceeded(ctx, garbageCollectController, client.ObjectKey{})
-		_, err := cloudProvider.Get(ctx, providerID)
+		_, err := awsEnv.CloudProvider.Get(ctx, providerID)
 		Expect(err).ToNot(HaveOccurred())
 		ExpectExists(ctx, env.Client, node)
 	})
 	It("should not delete an instance if it is linked", func() {
 		// Launch time was 10m ago
 		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute * 10))
-		ec2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
+		awsEnv.EC2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
 
 		// Create a machine that is actively linking
 		machine := coretest.Machine(v1alpha5.Machine{
@@ -380,19 +332,19 @@ var _ = Describe("MachineGarbageCollect", func() {
 		ExpectApplied(ctx, env.Client, machine)
 
 		ExpectReconcileSucceeded(ctx, garbageCollectController, client.ObjectKey{})
-		_, err := cloudProvider.Get(ctx, providerID)
+		_, err := awsEnv.CloudProvider.Get(ctx, providerID)
 		Expect(err).NotTo(HaveOccurred())
 	})
 	It("should not delete an instance if it is recently linked but the machine doesn't exist", func() {
 		// Launch time was 10m ago
 		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute * 10))
-		ec2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
+		awsEnv.EC2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
 
 		// Add a provider id to the recently linked cache
 		linkedMachineCache.SetDefault(providerID, nil)
 
 		ExpectReconcileSucceeded(ctx, garbageCollectController, client.ObjectKey{})
-		_, err := cloudProvider.Get(ctx, providerID)
+		_, err := awsEnv.CloudProvider.Get(ctx, providerID)
 		Expect(err).NotTo(HaveOccurred())
 	})
 })
