@@ -28,6 +28,8 @@ import (
 	"github.com/aws/karpenter-core/pkg/operator/controller"
 )
 
+// code change to trigger snapshot
+
 func NewControllers(ctx awscontext.Context, cloudProvider *cloudprovider.CloudProvider) []controller.Controller {
 	logging.FromContext(ctx).With("version", project.Version).Debugf("discovered version")
 
