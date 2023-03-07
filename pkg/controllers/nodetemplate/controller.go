@@ -132,6 +132,7 @@ func (c *Controller) resolveAMI(ctx context.Context, nodeTemplate *v1alpha1.AWSN
 
 	amis, err := c.amiProvider.GetAMIWithRequirements(ctx, nodeTemplate, instancetypes, amiFamily)
 	if err != nil {
+		nodeTemplate.Status.AMIs = nil
 		return err
 	}
 

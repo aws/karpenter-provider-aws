@@ -222,7 +222,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 		It("Should not resolve a invalid selectors for Subnet", func() {
 			nodeTemplate.Spec.SubnetSelector = map[string]string{`foo`: `invalid`}
 			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			ExpectReconcileFailed(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 			Expect(nodeTemplate.Status.Subnets).To(BeNil())
 		})
@@ -243,7 +243,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 
 			nodeTemplate.Spec.SubnetSelector = map[string]string{`foo`: `invalid`}
 			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			ExpectReconcileFailed(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 			Expect(nodeTemplate.Status.Subnets).To(BeNil())
 		})
@@ -366,7 +366,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 		})
 	})
 	Context("AMI Status", func() {
-		FIt("Should expect no errors when AMI selector is not in the AWSNodeTemplate", func() {
+		It("Should expect no errors when AMI selector is not in the AWSNodeTemplate", func() {
 			nodeTemplate.Spec.AMISelector = nil
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
@@ -500,7 +500,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 		It("Should not resolve a invalid selector for AMIs", func() {
 			nodeTemplate.Spec.AMISelector = map[string]string{`foo`: `invalid`}
 			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			ExpectReconcileFailed(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 			Expect(nodeTemplate.Status.AMIs).To(BeNil())
 		})
@@ -522,7 +522,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 
 			nodeTemplate.Spec.AMISelector = map[string]string{`foo`: `invalid`}
 			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			ExpectReconcileFailed(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 			Expect(nodeTemplate.Status.AMIs).To(BeNil())
 		})
