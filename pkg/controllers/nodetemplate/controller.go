@@ -16,7 +16,6 @@ package nodetemplate
 
 import (
 	"context"
-	"fmt"
 	"sort"
 	"time"
 
@@ -126,10 +125,15 @@ func (c *Controller) resolveSecurityGroup(ctx context.Context, nodeTemplate *v1a
 
 func (c *Controller) resolveAMI(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) error {
 	amiFamily := amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, &amifamily.Options{})
-	instancetypes, _ := c.instanceTypesProvider.List(ctx, &v1alpha5.KubeletConfiguration{}, nodeTemplate)
+	instancetypes, err := c.instanceTypesProvider.List(ctx, &v1alpha5.KubeletConfiguration{}, nodeTemplate)
+	if err != nil {
+		return err
+	}
 
-	amis, _ := c.amiProvider.GetAMIWithRequirements(ctx, nodeTemplate, instancetypes, amiFamily)
-	fmt.Println(amis)
+	amis, err := c.amiProvider.GetAMIWithRequirements(ctx, nodeTemplate, instancetypes, amiFamily)
+	if err != nil {
+		return err
+	}
 
 	nodeTemplate.Status.AMIs = lo.Map(lo.Keys(amis), func(ami amifamily.AMI, _ int) v1alpha1.AMIStatus {
 		return v1alpha1.AMIStatus{

@@ -324,9 +324,9 @@ func (e *EC2API) DescribeImagesWithContext(_ context.Context, input *ec2.Describ
 		output := &ec2.DescribeImagesOutput{
 			Images: []*ec2.Image{},
 		}
-		for _, imageId := range input.Filters[0].Values {
+		for _, imageID := range input.Filters[0].Values {
 			output.Images = append(output.Images, &ec2.Image{
-				ImageId:      imageId,
+				ImageId:      imageID,
 				CreationDate: aws.String(time.Now().Format(time.UnixDate)),
 				Architecture: aws.String("x86_64"),
 			})
