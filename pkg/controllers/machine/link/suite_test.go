@@ -27,6 +27,7 @@ import (
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/sets"
 	. "knative.dev/pkg/logging/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -36,7 +37,6 @@ import (
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
-	"github.com/aws/karpenter-core/pkg/utils/sets"
 
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/settings"
@@ -277,7 +277,7 @@ var _ = Describe("MachineLink", func() {
 		Expect(env.Client.List(ctx, machineList)).To(Succeed())
 		Expect(machineList.Items).To(HaveLen(500))
 
-		machineInstanceIDs := sets.New[string](lo.Map(machineList.Items, func(m v1alpha5.Machine, _ int) string {
+		machineInstanceIDs := sets.NewString(lo.Map(machineList.Items, func(m v1alpha5.Machine, _ int) string {
 			return lo.Must(utils.ParseInstanceID(m.Annotations[v1alpha5.MachineLinkedAnnotationKey]))
 		})...)
 
