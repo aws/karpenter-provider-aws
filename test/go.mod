@@ -7,13 +7,13 @@ require (
 	github.com/aws/aws-sdk-go v1.44.212
 	github.com/aws/aws-sdk-go-v2/config v1.18.13
 	github.com/aws/karpenter v0.22.0
-	github.com/aws/karpenter-core v0.26.2-0.20230306163515-7d58c3cee0fa
+	github.com/aws/karpenter-core v0.27.0
 	github.com/onsi/ginkgo/v2 v2.8.1
 	github.com/onsi/gomega v1.27.1
 	github.com/samber/lo v1.37.0
 	go.uber.org/multierr v1.9.0
 	k8s.io/api v0.25.4
-	k8s.io/apimachinery v0.26.1
+	k8s.io/apimachinery v0.25.4
 	k8s.io/client-go v0.25.4
 	knative.dev/pkg v0.0.0-20221123154742-05b694ec4d3a
 	sigs.k8s.io/controller-runtime v0.13.0
