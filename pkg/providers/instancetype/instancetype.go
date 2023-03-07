@@ -192,7 +192,7 @@ func (p *Provider) getInstanceTypeZones(ctx context.Context, nodeTemplate *v1alp
 	return instanceTypeZones, nil
 }
 
-// getInstanceTypes retrieves all instance types from the ec2 DescribeInstanceTypes API using some opinionated filters
+// GetInstanceTypes retrieves all instance types from the ec2 DescribeInstanceTypes API using some opinionated filters
 func (p *Provider) GetInstanceTypes(ctx context.Context) ([]*ec2.InstanceTypeInfo, error) {
 	// DO NOT REMOVE THIS LOCK ----------------------------------------------------------------------------
 	// We lock here so that multiple callers to GetInstanceTypes do not result in cache misses and multiple
