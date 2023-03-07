@@ -97,6 +97,23 @@ By adopting this practice we allow our users who are early adopters to test out 
 
 # Released Upgrade Notes
 
+## Upgrading to v0.27.0+
+* The Karpenter controller pods now deploy with `kubernetes.io/hostname` self anti-affinity by default. If you are running Karpenter in HA (high-availability) mode and you do not have enough nodes to match the number of pod replicas you are deploying with, you will need to scale-out your nodes for Karpenter.
+* The following controller metrics changed and moved under the `controller_runtime` metrics namespace:
+  * `karpenter_metricscraper_...`
+  * `karpenter_deprovisioning_...`
+  * `karpenter_provisioner_...`
+  * `karpenter_interruption_...`
+* The following controller metric names changed, affecting the `controller` label value under `controller_runtime_...` metrics. These metrics include:
+  * `podmetrics` -> `pod_metrics`
+  * `provisionermetrics` -> `provisioner_metrics`
+  * `metricscraper` -> `metric_scraper`
+  * `provisioning` -> `provisioner_trigger`
+  * `node-state` -> `node_state`
+  * `pod-state` -> `pod_state`
+  * `provisioner-state` -> `provisioner_state`
+* The `karpenter_allocation_controller_scheduling_duration_seconds` metric name changed to `karpenter_provisioner_scheduling_duration_seconds`
+
 ## Upgrading to v0.26.0+
 * The `karpenter.sh/do-not-evict` annotation no longer blocks node termination when running `kubectl delete node`. This annotation on pods will only block automatic deprovisioning that is considered "voluntary," that is, disruptions that can be avoided. Disruptions that Karpenter deems as "involuntary" and will ignore the `karpenter.sh/do-not-evict` annotation include spot interruption and manual deletion of the node. See [Disabling Deprovisioning]({{<ref "./concepts/deprovisioning#disabling-deprovisioning" >}}) for more details.
 * Default resources `requests` and `limits` are removed from the Karpenter's controller deployment through the Helm chart. If you have not set custom resource `requests` or `limits` in your helm values and are using Karpenter's defaults, you will now need to set these values in your helm chart deployment.
