@@ -31,7 +31,7 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | additionalAnnotations | object | `{}` | Additional annotations to add into metadata. |
 | additionalClusterRoleRules | list | `[]` | Specifies additional rules for the core ClusterRole. |
 | additionalLabels | object | `{}` | Additional labels to add into metadata. |
-| affinity | object | `{"nodeAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":{"nodeSelectorTerms":[{"matchExpressions":[{"key":"karpenter.sh/provisioner-name","operator":"DoesNotExist"}]}]}},"podAntiAffinity":{"preferredDuringSchedulingIgnoredDuringExecution":[{"podAffinityTerm":{"labelSelector":{"matchExpressions":[{"key":"app.kubernetes.io/instance","operator":"In","values":["{{ .Release.Name }}"]}]},"topologyKey":"kubernetes.io/hostname"},"weight":100}]}}` | Affinity rules for scheduling the pod. |
+| affinity | object | `{"nodeAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":{"nodeSelectorTerms":[{"matchExpressions":[{"key":"karpenter.sh/provisioner-name","operator":"DoesNotExist"}]}]}},"podAntiAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":[{"labelSelector":{"matchExpressions":[{"key":"app.kubernetes.io/instance","operator":"In","values":["{{ .Release.Name }}"]}]},"topologyKey":"kubernetes.io/hostname"}]}}` | Affinity rules for scheduling the pod. |
 | controller.env | list | `[]` | Additional environment variables for the controller pod. |
 | controller.envFrom | list | `[]` |  |
 | controller.errorOutputPaths | list | `["stderr"]` | Controller errorOutputPaths - default to stderr only |

@@ -38,6 +38,9 @@ Count of messages received from the SQS queue. Broken down by message type and w
 ### `karpenter_provisioner_limit`
 The Provisioner Limits are the limits specified on the provisioner that restrict the quantity of resources provisioned. Labeled by provisioner name and resource type.
 
+### `karpenter_provisioner_scheduling_duration_seconds`
+Duration of scheduling process in seconds. Broken down by provisioner and error.
+
 ### `karpenter_provisioner_usage`
 The Provisioner Usage is the amount of resources that have been provisioned by a particular provisioner. Labeled by provisioner name and resource type.
 
@@ -85,9 +88,4 @@ Pod state is the current state of pods. This metric can be used several ways as 
 
 ### `karpenter_cloudprovider_duration_seconds`
 Duration of cloud provider method calls. Labeled by the controller, method name and provider.
-
-## Allocation Controller Metrics
-
-### `karpenter_allocation_controller_scheduling_duration_seconds`
-Duration of scheduling process in seconds. Broken down by provisioner and error.
 
