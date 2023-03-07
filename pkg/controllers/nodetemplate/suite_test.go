@@ -22,7 +22,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	. "knative.dev/pkg/logging/testing"
@@ -30,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
+	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter-core/pkg/operator/injection"
 	"github.com/aws/karpenter-core/pkg/operator/options"
@@ -41,6 +41,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/controllers/nodetemplate"
+	"github.com/aws/karpenter/pkg/providers/amifamily"
 	"github.com/aws/karpenter/pkg/test"
 )
 
@@ -50,8 +51,6 @@ var awsEnv *test.Environment
 var opts options.Options
 var nodeTemplate *v1alpha1.AWSNodeTemplate
 var controller corecontroller.Controller
-var subnetCache *cache.Cache
-var securityGroupCache *cache.Cache
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -84,6 +83,7 @@ var _ = BeforeEach(func() {
 				SubnetSelector:        map[string]string{"*": "*"},
 				SecurityGroupSelector: map[string]string{"*": "*"},
 			},
+			AMISelector: map[string]string{"*": "*"},
 		},
 	}
 
@@ -319,7 +319,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			})
 			Expect(nodeTemplate.Status.SecurityGroups).To(Equal(correctSecurityGroupsIDs))
 		})
-		It("Should update Security Groups status when the Security Groups selector gets updated by tags", func() {
+		It("Should update Security Groups status when the Security Groups selector gets updated by ids", func() {
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
@@ -363,6 +363,168 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 			Expect(nodeTemplate.Status.SecurityGroups).To(BeNil())
+		})
+	})
+	Context("AMI Status", func() {
+		FIt("Should expect no errors when AMI selector is not in the AWSNodeTemplate", func() {
+			nodeTemplate.Spec.AMISelector = nil
+			ExpectApplied(ctx, env.Client, nodeTemplate)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
+			amiFamily := amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, &amifamily.Options{})
+			instancetypes, err := awsEnv.InstanceTypesProvider.List(ctx, &v1alpha5.KubeletConfiguration{}, nodeTemplate)
+			Expect(err).To(BeNil())
+			amis, _ := awsEnv.AMIProvider.Get(ctx, nodeTemplate, instancetypes, amiFamily)
+			amiIds := lo.Keys(amis)
+			sort.Strings(amiIds)
+			amiIDsInStatus := lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMIStatus, _ int) string {
+				return ami.ID
+			})
+			sort.Strings(amiIDsInStatus)
+			Expect(amiIDsInStatus).To(Equal(amiIds))
+		})
+		It("Should update AWSNodeTemplate status for AMI", func() {
+			ExpectApplied(ctx, env.Client, nodeTemplate)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
+			amiFamily := amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, &amifamily.Options{})
+			instancetypes, err := awsEnv.InstanceTypesProvider.List(ctx, &v1alpha5.KubeletConfiguration{}, nodeTemplate)
+			Expect(err).To(BeNil())
+			amis, _ := awsEnv.AMIProvider.Get(ctx, nodeTemplate, instancetypes, amiFamily)
+			amiIds := lo.Keys(amis)
+			sort.Strings(amiIds)
+			amiIDsInStatus := lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMIStatus, _ int) string {
+				return ami.ID
+			})
+			sort.Strings(amiIDsInStatus)
+			Expect(amiIDsInStatus).To(Equal(amiIds))
+		})
+		It("Should resolve a valid selectors for AMI by tags", func() {
+			nodeTemplate.Spec.AMISelector = map[string]string{`Name`: `test-ami-1,test-ami-2`}
+			ExpectApplied(ctx, env.Client, nodeTemplate)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
+			amiFamily := amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, &amifamily.Options{})
+			instancetypes, err := awsEnv.InstanceTypesProvider.List(ctx, &v1alpha5.KubeletConfiguration{}, nodeTemplate)
+			Expect(err).To(BeNil())
+			amis, _ := awsEnv.AMIProvider.Get(ctx, nodeTemplate, instancetypes, amiFamily)
+			amiIds := lo.Keys(amis)
+			sort.Strings(amiIds)
+			amiIDsInStatus := lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMIStatus, _ int) string {
+				return ami.ID
+			})
+			sort.Strings(amiIDsInStatus)
+			Expect(amiIDsInStatus).To(Equal(amiIds))
+		})
+		It("Should resolve a valid selectors for AMI by ids", func() {
+			nodeTemplate.Spec.SecurityGroupSelector = map[string]string{`aws-ids`: `ami-test1`}
+			ExpectApplied(ctx, env.Client, nodeTemplate)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
+			amiFamily := amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, &amifamily.Options{})
+			instancetypes, err := awsEnv.InstanceTypesProvider.List(ctx, &v1alpha5.KubeletConfiguration{}, nodeTemplate)
+			Expect(err).To(BeNil())
+			amis, _ := awsEnv.AMIProvider.Get(ctx, nodeTemplate, instancetypes, amiFamily)
+			amiIds := lo.Keys(amis)
+			sort.Strings(amiIds)
+			amiIDsInStatus := lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMIStatus, _ int) string {
+				return ami.ID
+			})
+			sort.Strings(amiIDsInStatus)
+			Expect(amiIDsInStatus).To(Equal(amiIds))
+		})
+		It("Should update AMI status when the AMI selector gets updated by tags", func() {
+			ExpectApplied(ctx, env.Client, nodeTemplate)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
+			amiFamily := amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, &amifamily.Options{})
+			instancetypes, err := awsEnv.InstanceTypesProvider.List(ctx, &v1alpha5.KubeletConfiguration{}, nodeTemplate)
+			Expect(err).To(BeNil())
+			amis, _ := awsEnv.AMIProvider.Get(ctx, nodeTemplate, instancetypes, amiFamily)
+			amiIds := lo.Keys(amis)
+			sort.Strings(amiIds)
+			amiIDsInStatus := lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMIStatus, _ int) string {
+				return ami.ID
+			})
+			sort.Strings(amiIDsInStatus)
+			Expect(amiIDsInStatus).To(Equal(amiIds))
+
+			nodeTemplate.Spec.SecurityGroupSelector = map[string]string{`Name`: `test-ami-1,test-ami-2`}
+			ExpectApplied(ctx, env.Client, nodeTemplate)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
+			amiFamily = amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, &amifamily.Options{})
+			instancetypes, err = awsEnv.InstanceTypesProvider.List(ctx, &v1alpha5.KubeletConfiguration{}, nodeTemplate)
+			Expect(err).To(BeNil())
+			amis, _ = awsEnv.AMIProvider.Get(ctx, nodeTemplate, instancetypes, amiFamily)
+			amiIds = lo.Keys(amis)
+			sort.Strings(amiIds)
+			amiIDsInStatus = lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMIStatus, _ int) string {
+				return ami.ID
+			})
+			sort.Strings(amiIDsInStatus)
+			Expect(amiIDsInStatus).To(Equal(amiIds))
+		})
+		It("Should update AMI status when the AMI selector gets updated by ids", func() {
+			ExpectApplied(ctx, env.Client, nodeTemplate)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
+			amiFamily := amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, &amifamily.Options{})
+			instancetypes, err := awsEnv.InstanceTypesProvider.List(ctx, &v1alpha5.KubeletConfiguration{}, nodeTemplate)
+			Expect(err).To(BeNil())
+			amis, _ := awsEnv.AMIProvider.Get(ctx, nodeTemplate, instancetypes, amiFamily)
+			amiIds := lo.Keys(amis)
+			sort.Strings(amiIds)
+			amiIDsInStatus := lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMIStatus, _ int) string {
+				return ami.ID
+			})
+			sort.Strings(amiIDsInStatus)
+			Expect(amiIDsInStatus).To(Equal(amiIds))
+
+			nodeTemplate.Spec.SecurityGroupSelector = map[string]string{`aws-ids`: `sg-test1`}
+			ExpectApplied(ctx, env.Client, nodeTemplate)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
+			amiFamily = amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, &amifamily.Options{})
+			instancetypes, err = awsEnv.InstanceTypesProvider.List(ctx, &v1alpha5.KubeletConfiguration{}, nodeTemplate)
+			Expect(err).To(BeNil())
+			amis, _ = awsEnv.AMIProvider.Get(ctx, nodeTemplate, instancetypes, amiFamily)
+			amiIds = lo.Keys(amis)
+			sort.Strings(amiIds)
+			amiIDsInStatus = lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMIStatus, _ int) string {
+				return ami.ID
+			})
+			sort.Strings(amiIDsInStatus)
+			Expect(amiIDsInStatus).To(Equal(amiIds))
+		})
+		It("Should not resolve a invalid selector for AMIs", func() {
+			nodeTemplate.Spec.AMISelector = map[string]string{`foo`: `invalid`}
+			ExpectApplied(ctx, env.Client, nodeTemplate)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
+			Expect(nodeTemplate.Status.AMIs).To(BeNil())
+		})
+		It("Should not resolve a invalid selectors for an updated AMI selector", func() {
+			ExpectApplied(ctx, env.Client, nodeTemplate)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
+			amiFamily := amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, &amifamily.Options{})
+			instancetypes, err := awsEnv.InstanceTypesProvider.List(ctx, &v1alpha5.KubeletConfiguration{}, nodeTemplate)
+			Expect(err).To(BeNil())
+			amis, _ := awsEnv.AMIProvider.Get(ctx, nodeTemplate, instancetypes, amiFamily)
+			amiIds := lo.Keys(amis)
+			sort.Strings(amiIds)
+			amiIDsInStatus := lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMIStatus, _ int) string {
+				return ami.ID
+			})
+			sort.Strings(amiIDsInStatus)
+			Expect(amiIDsInStatus).To(Equal(amiIds))
+
+			nodeTemplate.Spec.AMISelector = map[string]string{`foo`: `invalid`}
+			ExpectApplied(ctx, env.Client, nodeTemplate)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
+			Expect(nodeTemplate.Status.AMIs).To(BeNil())
 		})
 	})
 })
