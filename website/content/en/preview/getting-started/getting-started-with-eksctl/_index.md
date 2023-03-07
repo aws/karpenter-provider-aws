@@ -4,7 +4,7 @@ title: "Getting Started with Karpenter"
 linkTitle: "Getting Started with Karpenter"
 weight: 10
 description: >
-  Set up a cluster and add Karpenter 
+  Set up a cluster and add Karpenter
 ---
 
 Karpenter automatically provisions new nodes in response to unschedulable pods. Karpenter does this by observing events within the Kubernetes cluster, and then sending commands to the underlying cloud provider.
@@ -76,6 +76,10 @@ The following cluster configuration will:
 * Run helm to install karpenter
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step02-create-cluster.sh" language="bash"%}}
+
+{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step06-add-spot-role.sh" language="bash"%}}
+
+{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step08-apply-helm-chart.sh" language="bash"%}}
 
 
 ### 4. Create Provisioner
