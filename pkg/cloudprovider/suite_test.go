@@ -140,7 +140,7 @@ var _ = BeforeEach(func() {
 })
 
 var _ = AfterEach(func() {
-	ExpectCleanedUp(ctx, awsCtx.KubeClient)
+	ExpectCleanedUp(ctx, env.Client)
 })
 
 var _ = Describe("CloudProvider", func() {
@@ -175,7 +175,7 @@ var _ = Describe("CloudProvider", func() {
 			provider.SecurityGroupSelector = map[string]string{"*": "*"}
 			provisioner = coretest.Provisioner(coretest.ProvisionerOptions{Provider: provider})
 			provisioner.SetDefaults(ctx)
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner)
+			ExpectApplied(ctx, env.Client, provisioner)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
@@ -185,7 +185,7 @@ var _ = Describe("CloudProvider", func() {
 		})
 		It("should default to no EC2 Context", func() {
 			provisioner.SetDefaults(ctx)
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
@@ -206,7 +206,7 @@ var _ = Describe("CloudProvider", func() {
 			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
 				Images: []*ec2.Image{{ImageId: aws.String(validAMI)}},
 			})
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, provisioner)
 			Expect(err).ToNot(HaveOccurred())
 			selectedInstanceType = instanceTypes[0]
@@ -227,7 +227,7 @@ var _ = Describe("CloudProvider", func() {
 			})
 		})
 		It("should not fail if node template does not exist", func() {
-			ExpectDeleted(ctx, awsCtx.KubeClient, nodeTemplate)
+			ExpectDeleted(ctx, env.Client, nodeTemplate)
 			node := coretest.Node(coretest.NodeOptions{
 				ProviderID: fake.ProviderID(lo.FromPtr(instance.InstanceId)),
 				ObjectMeta: metav1.ObjectMeta{
@@ -243,7 +243,7 @@ var _ = Describe("CloudProvider", func() {
 		})
 		It("should return false if providerRef is not defined", func() {
 			provisioner.Spec.ProviderRef = nil
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner)
+			ExpectApplied(ctx, env.Client, provisioner)
 			node := coretest.Node(coretest.NodeOptions{
 				ProviderID: fake.ProviderID(lo.FromPtr(instance.InstanceId)),
 				ObjectMeta: metav1.ObjectMeta{
@@ -258,7 +258,7 @@ var _ = Describe("CloudProvider", func() {
 			Expect(drifted).To(BeFalse())
 		})
 		It("should not fail if provisioner does not exist", func() {
-			ExpectDeleted(ctx, awsCtx.KubeClient, provisioner)
+			ExpectDeleted(ctx, env.Client, provisioner)
 			node := coretest.Node(coretest.NodeOptions{
 				ProviderID: fake.ProviderID(lo.FromPtr(instance.InstanceId)),
 				ObjectMeta: metav1.ObjectMeta{
@@ -341,10 +341,10 @@ var _ = Describe("CloudProvider", func() {
 					Operator: v1.NodeSelectorOpExists,
 				}},
 			})
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner)
+			ExpectApplied(ctx, env.Client, provisioner)
 			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
-			ExpectScheduled(ctx, awsCtx.KubeClient, pod)
+			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
 
 			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			firstLt := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
@@ -371,7 +371,7 @@ var _ = Describe("CloudProvider", func() {
 					Operator: v1.NodeSelectorOpExists,
 				}},
 			})
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner)
+			ExpectApplied(ctx, env.Client, provisioner)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
@@ -393,7 +393,7 @@ var _ = Describe("CloudProvider", func() {
 					Operator: v1.NodeSelectorOpExists,
 				}},
 			})
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner)
+			ExpectApplied(ctx, env.Client, provisioner)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
@@ -413,7 +413,7 @@ var _ = Describe("CloudProvider", func() {
 					Operator: v1.NodeSelectorOpExists,
 				}},
 			})
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner)
+			ExpectApplied(ctx, env.Client, provisioner)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
@@ -426,7 +426,7 @@ var _ = Describe("CloudProvider", func() {
 		// Note when debugging these tests -
 		// hard coded fixture data (ex. what the aws api will return) is maintained in fake/ec2api.go
 		It("should default to the cluster's subnets", func() {
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod(
 				coretest.PodOptions{NodeSelector: map[string]string{v1.LabelArchStable: v1alpha5.ArchitectureAmd64}})
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
@@ -457,7 +457,7 @@ var _ = Describe("CloudProvider", func() {
 				{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1a"), AvailableIpAddressCount: aws.Int64(100),
 					Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
 			}})
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}})
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
@@ -472,7 +472,7 @@ var _ = Describe("CloudProvider", func() {
 					Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
 			}})
 			provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{MaxPods: aws.Int32(1)}
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod1 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}})
 			pod2 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}})
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod1, pod2)
@@ -506,7 +506,7 @@ var _ = Describe("CloudProvider", func() {
 					Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
 			}})
 			nodeTemplate.Spec.SubnetSelector = map[string]string{"Name": "test-subnet-1"}
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			podSubnet1 := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, podSubnet1)
 			ExpectScheduled(ctx, env.Client, podSubnet1)
@@ -517,7 +517,7 @@ var _ = Describe("CloudProvider", func() {
 				SubnetSelector:        map[string]string{"Name": "test-subnet-2"},
 				SecurityGroupSelector: map[string]string{"*": "*"},
 			}})
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner)
+			ExpectApplied(ctx, env.Client, provisioner)
 			podSubnet2 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name}})
 			ExpectProvisioned(ctx, env.Client, cluster, prov, podSubnet2)
 			ExpectScheduled(ctx, env.Client, podSubnet2)

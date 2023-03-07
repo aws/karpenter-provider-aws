@@ -64,7 +64,6 @@ import (
 )
 
 var ctx context.Context
-var awsCtx awscontext.Context
 var stop context.CancelFunc
 var opts options.Options
 var env *coretest.Environment
@@ -140,16 +139,16 @@ var _ = BeforeEach(func() {
 })
 
 var _ = AfterEach(func() {
-	ExpectCleanedUp(ctx, awsCtx.KubeClient)
+	ExpectCleanedUp(ctx, env.Client)
 })
 
 var _ = Describe("LaunchTemplates", func() {
 	It("should default to a generated launch template", func() {
-		ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 		pod := coretest.UnschedulablePod()
 		fmt.Println(cluster.Nodes())
-		ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
-		ExpectScheduled(ctx, awsCtx.KubeClient, pod)
+		ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
+		ExpectScheduled(ctx, env.Client, pod)
 
 		Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 
@@ -181,10 +180,10 @@ var _ = Describe("LaunchTemplates", func() {
 				Name:       nodeTemplate.Name,
 			},
 		})
-		ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 		pod := coretest.UnschedulablePod()
-		ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
-		ExpectScheduled(ctx, awsCtx.KubeClient, pod)
+		ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
+		ExpectScheduled(ctx, env.Client, pod)
 
 		Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 		Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
@@ -207,7 +206,7 @@ var _ = Describe("LaunchTemplates", func() {
 		It("should allow a launch template to be specified", func() {
 			nodeTemplate.Spec.LaunchTemplateName = aws.String("test-launch-template")
 			nodeTemplate.Spec.SecurityGroupSelector = nil
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
@@ -249,7 +248,7 @@ var _ = Describe("LaunchTemplates", func() {
 				Limits: v1.ResourceList{v1alpha1.ResourceNVIDIAGPU: resource.MustParse("1")},
 			}
 
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod1 := coretest.UnschedulablePod(coretest.PodOptions{
 				Tolerations:          []v1.Toleration{t1, t2, t3},
 				ResourceRequirements: rr,
@@ -263,7 +262,7 @@ var _ = Describe("LaunchTemplates", func() {
 				Tolerations:          []v1.Toleration{t2, t3, t1},
 				ResourceRequirements: rr,
 			})
-			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod2)
+			ExpectProvisioned(ctx, env.Client, cluster, prov, pod2)
 
 			ExpectScheduled(ctx, env.Client, pod2)
 			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
@@ -271,10 +270,10 @@ var _ = Describe("LaunchTemplates", func() {
 			Expect(name1).To(Equal(name2))
 		})
 		It("should recover from an out-of-sync launch template cache", func() {
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
-			ExpectScheduled(ctx, awsCtx.KubeClient, pod)
+			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
 
 			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			firstLt := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
@@ -286,19 +285,19 @@ var _ = Describe("LaunchTemplates", func() {
 
 			awsEnv.EC2API.CreateFleetBehavior.Error.Set(awserr.New("InvalidLaunchTemplateName.NotFoundException", "", errors.New("")))
 			pod = coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			// should call fleet twice. Once will fail on invalid LT and the next will succeed
 			fleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
 			Expect(aws.StringValue(fleetInput.LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName)).To(Equal(ltName))
-			ExpectScheduled(ctx, awsCtx.KubeClient, pod)
+			ExpectScheduled(ctx, env.Client, pod)
 		})
 	})
 	Context("Labels", func() {
 		It("should apply labels to the node", func() {
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
-			node := ExpectScheduled(ctx, awsCtx.KubeClient, pod)
+			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
+			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(HaveKey(v1.LabelOSStable))
 			Expect(node.Labels).To(HaveKey(v1.LabelArchStable))
 			Expect(node.Labels).To(HaveKey(v1.LabelInstanceTypeStable))
@@ -317,13 +316,13 @@ var _ = Describe("LaunchTemplates", func() {
 				},
 			}})
 			nodeTemplate.Spec.AMISelector = map[string]string{"karpenter.sh/discovery": "my-cluster"}
-			ExpectApplied(ctx, awsCtx.KubeClient, nodeTemplate)
+			ExpectApplied(ctx, env.Client, nodeTemplate)
 			newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
-			ExpectApplied(ctx, awsCtx.KubeClient, newProvisioner)
-			Expect(awsCtx.KubeClient.Get(ctx, client.ObjectKeyFromObject(newProvisioner), newProvisioner)).To(Succeed())
+			ExpectApplied(ctx, env.Client, newProvisioner)
+			Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(newProvisioner), newProvisioner)).To(Succeed())
 			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
-			node := ExpectScheduled(ctx, awsCtx.KubeClient, pod)
+			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
+			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(HaveKeyWithValue(v1alpha1.LabelInstanceAMIID, "ami-123"))
 		})
 	})
@@ -331,7 +330,7 @@ var _ = Describe("LaunchTemplates", func() {
 		It("should tag with provisioner name", func() {
 			provisionerName := "the-provisioner"
 			provisioner.Name = provisionerName
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
@@ -358,7 +357,7 @@ var _ = Describe("LaunchTemplates", func() {
 				"tag1": "tag1value",
 				"tag2": "tag2value",
 			}
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
@@ -382,7 +381,7 @@ var _ = Describe("LaunchTemplates", func() {
 				v1alpha5.ProvisionerNameLabelKey: "myprovisioner",
 				"Name":                           "myname",
 			}
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
@@ -413,7 +412,7 @@ var _ = Describe("LaunchTemplates", func() {
 				Tags: settingsTags,
 			}))
 
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
@@ -443,7 +442,7 @@ var _ = Describe("LaunchTemplates", func() {
 			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
 				Tags: settingsTags,
 			}))
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
@@ -468,7 +467,7 @@ var _ = Describe("LaunchTemplates", func() {
 	Context("Block Device Mappings", func() {
 		It("should default AL2 block device mappings", func() {
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyAL2
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
@@ -505,7 +504,7 @@ var _ = Describe("LaunchTemplates", func() {
 					},
 				},
 			}
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
@@ -554,7 +553,7 @@ var _ = Describe("LaunchTemplates", func() {
 					},
 				},
 			}
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
@@ -567,7 +566,7 @@ var _ = Describe("LaunchTemplates", func() {
 		})
 		It("should default bottlerocket second volume with root volume size", func() {
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
@@ -585,7 +584,7 @@ var _ = Describe("LaunchTemplates", func() {
 		})
 		It("should not default block device mappings for custom AMIFamilies", func() {
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyCustom
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
@@ -608,7 +607,7 @@ var _ = Describe("LaunchTemplates", func() {
 					},
 				},
 			}
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
@@ -625,7 +624,7 @@ var _ = Describe("LaunchTemplates", func() {
 	})
 	Context("Ephemeral Storage", func() {
 		It("should pack pods when a daemonset has an ephemeral-storage request", func() {
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate, coretest.DaemonSet(
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate, coretest.DaemonSet(
 				coretest.DaemonSetOptions{PodOptions: coretest.PodOptions{
 					ResourceRequirements: v1.ResourceRequirements{
 						Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"),
@@ -634,39 +633,39 @@ var _ = Describe("LaunchTemplates", func() {
 				}},
 			))
 			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
-			ExpectScheduled(ctx, awsCtx.KubeClient, pod)
+			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
 		})
 		It("should pack pods with any ephemeral-storage request", func() {
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod(coretest.PodOptions{ResourceRequirements: v1.ResourceRequirements{
 				Requests: map[v1.ResourceName]resource.Quantity{
 					v1.ResourceEphemeralStorage: resource.MustParse("1G"),
 				}}})
-			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
-			ExpectScheduled(ctx, awsCtx.KubeClient, pod)
+			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
 		})
 		It("should pack pods with large ephemeral-storage request", func() {
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod(coretest.PodOptions{ResourceRequirements: v1.ResourceRequirements{
 				Requests: map[v1.ResourceName]resource.Quantity{
 					v1.ResourceEphemeralStorage: resource.MustParse("10Gi"),
 				}}})
-			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
-			ExpectScheduled(ctx, awsCtx.KubeClient, pod)
+			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
 		})
 		It("should not pack pods if the sum of pod ephemeral-storage and overhead exceeds node capacity", func() {
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod(coretest.PodOptions{ResourceRequirements: v1.ResourceRequirements{
 				Requests: map[v1.ResourceName]resource.Quantity{
 					v1.ResourceEphemeralStorage: resource.MustParse("19Gi"),
 				}}})
-			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
-			ExpectNotScheduled(ctx, awsCtx.KubeClient, pod)
+			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
+			ExpectNotScheduled(ctx, env.Client, pod)
 		})
 		It("should launch multiple nodes if sum of pod ephemeral-storage requests exceeds a single nodes capacity", func() {
 			var nodes []*v1.Node
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pods := []*v1.Pod{
 				coretest.UnschedulablePod(coretest.PodOptions{ResourceRequirements: v1.ResourceRequirements{
 					Requests: map[v1.ResourceName]resource.Quantity{
@@ -681,14 +680,14 @@ var _ = Describe("LaunchTemplates", func() {
 				},
 				}),
 			}
-			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pods...)
+			ExpectProvisioned(ctx, env.Client, cluster, prov, pods...)
 			for _, pod := range pods {
-				nodes = append(nodes, ExpectScheduled(ctx, awsCtx.KubeClient, pod))
+				nodes = append(nodes, ExpectScheduled(ctx, env.Client, pod))
 			}
 			Expect(nodes).To(HaveLen(2))
 		})
 		It("should only pack pods with ephemeral-storage requests that will fit on an available node", func() {
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pods := []*v1.Pod{
 				coretest.UnschedulablePod(coretest.PodOptions{ResourceRequirements: v1.ResourceRequirements{
 					Requests: map[v1.ResourceName]resource.Quantity{
@@ -703,20 +702,20 @@ var _ = Describe("LaunchTemplates", func() {
 				},
 				}),
 			}
-			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pods...)
-			ExpectScheduled(ctx, awsCtx.KubeClient, pods[0])
-			ExpectNotScheduled(ctx, awsCtx.KubeClient, pods[1])
+			ExpectProvisioned(ctx, env.Client, cluster, prov, pods...)
+			ExpectScheduled(ctx, env.Client, pods[0])
+			ExpectNotScheduled(ctx, env.Client, pods[1])
 		})
 		It("should not pack pod if no available instance types have enough storage", func() {
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner)
+			ExpectApplied(ctx, env.Client, provisioner)
 			pod := coretest.UnschedulablePod(coretest.PodOptions{ResourceRequirements: v1.ResourceRequirements{
 				Requests: map[v1.ResourceName]resource.Quantity{
 					v1.ResourceEphemeralStorage: resource.MustParse("150Gi"),
 				},
 			},
 			})
-			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
-			ExpectNotScheduled(ctx, awsCtx.KubeClient, pod)
+			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
+			ExpectNotScheduled(ctx, env.Client, pod)
 		})
 		It("should pack pods using the blockdevicemappings from the provider spec when defined", func() {
 			nodeTemplate.Spec.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{{
@@ -725,17 +724,17 @@ var _ = Describe("LaunchTemplates", func() {
 					VolumeSize: resource.NewScaledQuantity(50, resource.Giga),
 				},
 			}}
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod(coretest.PodOptions{ResourceRequirements: v1.ResourceRequirements{
 				Requests: map[v1.ResourceName]resource.Quantity{
 					v1.ResourceEphemeralStorage: resource.MustParse("25Gi"),
 				},
 			},
 			})
-			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 
 			// capacity isn't recorded on the node any longer, but we know the pod should schedule
-			ExpectScheduled(ctx, awsCtx.KubeClient, pod)
+			ExpectScheduled(ctx, env.Client, pod)
 		})
 		It("should pack pods using blockdevicemappings for Custom AMIFamily", func() {
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyCustom
@@ -753,7 +752,7 @@ var _ = Describe("LaunchTemplates", func() {
 					},
 				},
 			}
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod(coretest.PodOptions{ResourceRequirements: v1.ResourceRequirements{
 				Requests: map[v1.ResourceName]resource.Quantity{
 					// this pod can only be satisfied if `/dev/xvdb` will house all the pods.
@@ -761,10 +760,10 @@ var _ = Describe("LaunchTemplates", func() {
 				},
 			},
 			})
-			ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 
 			// capacity isn't recorded on the node any longer, but we know the pod should schedule
-			ExpectScheduled(ctx, awsCtx.KubeClient, pod)
+			ExpectScheduled(ctx, env.Client, pod)
 		})
 	})
 	Context("AL2", func() {
@@ -869,7 +868,7 @@ var _ = Describe("LaunchTemplates", func() {
 	})
 	Context("User Data", func() {
 		It("should not specify --use-max-pods=false when using ENI-based pod density", func() {
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
@@ -884,7 +883,7 @@ var _ = Describe("LaunchTemplates", func() {
 				EnableENILimitedPodDensity: lo.ToPtr(false),
 			}))
 
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
@@ -897,7 +896,7 @@ var _ = Describe("LaunchTemplates", func() {
 		})
 		It("should specify --use-max-pods=false and --max-pods user value when user specifies maxPods in Provisioner", func() {
 			provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{MaxPods: aws.Int32(10)}
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
@@ -916,7 +915,7 @@ var _ = Describe("LaunchTemplates", func() {
 					v1.ResourceEphemeralStorage: resource.MustParse("2Gi"),
 				},
 			}
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
@@ -942,7 +941,7 @@ var _ = Describe("LaunchTemplates", func() {
 					v1.ResourceEphemeralStorage: resource.MustParse("2Gi"),
 				},
 			}
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
@@ -968,7 +967,7 @@ var _ = Describe("LaunchTemplates", func() {
 					"nodefs.inodesFree": "5%",
 				},
 			}
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
@@ -994,7 +993,7 @@ var _ = Describe("LaunchTemplates", func() {
 					"nodefs.inodesFree": "5%",
 				},
 			}
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
@@ -1020,7 +1019,7 @@ var _ = Describe("LaunchTemplates", func() {
 					"nodefs.inodesFree": {Duration: time.Minute * 5},
 				},
 			}
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
@@ -1042,7 +1041,7 @@ var _ = Describe("LaunchTemplates", func() {
 			provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
 				EvictionMaxPodGracePeriod: aws.Int32(300),
 			}
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
@@ -1057,7 +1056,7 @@ var _ = Describe("LaunchTemplates", func() {
 			provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
 				PodsPerCore: aws.Int32(2),
 			}
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
@@ -1072,7 +1071,7 @@ var _ = Describe("LaunchTemplates", func() {
 				PodsPerCore: aws.Int32(2),
 				MaxPods:     aws.Int32(100),
 			}
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
@@ -1084,7 +1083,7 @@ var _ = Describe("LaunchTemplates", func() {
 			Expect(string(userData)).To(ContainSubstring(fmt.Sprintf("--max-pods=%d", 100)))
 		})
 		It("should specify --container-runtime containerd by default", func() {
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
@@ -1096,7 +1095,7 @@ var _ = Describe("LaunchTemplates", func() {
 		})
 		It("should specify dockerd if specified in the provisionerSpec", func() {
 			provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{ContainerRuntime: aws.String("dockerd")}
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
@@ -1108,7 +1107,7 @@ var _ = Describe("LaunchTemplates", func() {
 		})
 		It("should specify --container-runtime containerd when using Neuron GPUs", func() {
 			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{{Key: v1alpha1.LabelInstanceCategory, Operator: v1.NodeSelectorOpExists}}
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod(coretest.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{
 					Requests: map[v1.ResourceName]resource.Quantity{
@@ -1130,7 +1129,7 @@ var _ = Describe("LaunchTemplates", func() {
 		})
 		It("should specify --container-runtime containerd when using Nvidia GPUs", func() {
 			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{{Key: v1alpha1.LabelInstanceCategory, Operator: v1.NodeSelectorOpExists}}
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod(coretest.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{
 					Requests: map[v1.ResourceName]resource.Quantity{
@@ -1168,7 +1167,7 @@ var _ = Describe("LaunchTemplates", func() {
 			provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
 				ImageGCHighThresholdPercent: aws.Int32(50),
 			}
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
@@ -1182,7 +1181,7 @@ var _ = Describe("LaunchTemplates", func() {
 			provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
 				ImageGCLowThresholdPercent: aws.Int32(50),
 			}
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
@@ -1204,8 +1203,8 @@ var _ = Describe("LaunchTemplates", func() {
 				nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
 				provisioner.Spec.Taints = []v1.Taint{{Key: "foo", Value: "bar", Effect: v1.TaintEffectNoExecute}}
 				provisioner.Spec.StartupTaints = []v1.Taint{{Key: "baz", Value: "bin", Effect: v1.TaintEffectNoExecute}}
-				ExpectApplied(ctx, awsCtx.KubeClient, nodeTemplate, provisioner)
-				Expect(awsCtx.KubeClient.Get(ctx, client.ObjectKeyFromObject(provisioner), provisioner)).To(Succeed())
+				ExpectApplied(ctx, env.Client, nodeTemplate, provisioner)
+				Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(provisioner), provisioner)).To(Succeed())
 				pod := coretest.UnschedulablePod(coretest.PodOptions{
 					Tolerations: []v1.Toleration{{Operator: v1.TolerationOpExists}},
 				})
@@ -1229,8 +1228,8 @@ var _ = Describe("LaunchTemplates", func() {
 				nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
 				provisioner.Spec.Taints = []v1.Taint{{Key: "foo", Value: "bar", Effect: v1.TaintEffectNoExecute}}
 				provisioner.Spec.StartupTaints = []v1.Taint{{Key: "baz", Value: "bin", Effect: v1.TaintEffectNoExecute}}
-				ExpectApplied(ctx, awsCtx.KubeClient, nodeTemplate, provisioner)
-				Expect(awsCtx.KubeClient.Get(ctx, client.ObjectKeyFromObject(provisioner), provisioner)).To(Succeed())
+				ExpectApplied(ctx, env.Client, nodeTemplate, provisioner)
+				Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(provisioner), provisioner)).To(Succeed())
 				pod := coretest.UnschedulablePod(coretest.PodOptions{
 					Tolerations: []v1.Toleration{{Operator: v1.TolerationOpExists}},
 				})
@@ -1252,26 +1251,26 @@ var _ = Describe("LaunchTemplates", func() {
 				}))
 
 				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: "doesnotexist"}})
-				ExpectApplied(ctx, awsCtx.KubeClient, newProvisioner)
+				ExpectApplied(ctx, env.Client, newProvisioner)
 				pod := coretest.UnschedulablePod()
-				ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 				// This will not be scheduled since we were pointed to a non-existent awsnodetemplate resource.
-				ExpectNotScheduled(ctx, awsCtx.KubeClient, pod)
+				ExpectNotScheduled(ctx, env.Client, pod)
 			})
 			It("should not bootstrap on invalid toml user data", func() {
 				nodeTemplate.Spec.UserData = aws.String("#/bin/bash\n ./not-toml.sh")
 				nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
-				ExpectApplied(ctx, awsCtx.KubeClient, nodeTemplate)
+				ExpectApplied(ctx, env.Client, nodeTemplate)
 				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
-				ExpectApplied(ctx, awsCtx.KubeClient, newProvisioner)
+				ExpectApplied(ctx, env.Client, newProvisioner)
 				pod := coretest.UnschedulablePod()
-				ExpectProvisioned(ctx, awsCtx.KubeClient, cluster, prov, pod)
+				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 				// This will not be scheduled since userData cannot be generated for the prospective node.
-				ExpectNotScheduled(ctx, awsCtx.KubeClient, pod)
+				ExpectNotScheduled(ctx, env.Client, pod)
 			})
 			It("should override system reserved values in user data", func() {
 				nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
-				ExpectApplied(ctx, awsCtx.KubeClient, nodeTemplate)
+				ExpectApplied(ctx, env.Client, nodeTemplate)
 				provisioner = test.Provisioner(coretest.ProvisionerOptions{
 					ProviderRef: &v1alpha5.ProviderRef{
 						Name: nodeTemplate.Name,
@@ -1284,7 +1283,7 @@ var _ = Describe("LaunchTemplates", func() {
 						},
 					},
 				})
-				ExpectApplied(ctx, awsCtx.KubeClient, provisioner)
+				ExpectApplied(ctx, env.Client, provisioner)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
@@ -1301,7 +1300,7 @@ var _ = Describe("LaunchTemplates", func() {
 			})
 			It("should override kube reserved values in user data", func() {
 				nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
-				ExpectApplied(ctx, awsCtx.KubeClient, nodeTemplate)
+				ExpectApplied(ctx, env.Client, nodeTemplate)
 				provisioner = test.Provisioner(coretest.ProvisionerOptions{
 					ProviderRef: &v1alpha5.ProviderRef{
 						Name: nodeTemplate.Name,
@@ -1314,7 +1313,7 @@ var _ = Describe("LaunchTemplates", func() {
 						},
 					},
 				})
-				ExpectApplied(ctx, awsCtx.KubeClient, provisioner)
+				ExpectApplied(ctx, env.Client, provisioner)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
@@ -1331,7 +1330,7 @@ var _ = Describe("LaunchTemplates", func() {
 			})
 			It("should override kube reserved values in user data", func() {
 				nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
-				ExpectApplied(ctx, awsCtx.KubeClient, nodeTemplate)
+				ExpectApplied(ctx, env.Client, nodeTemplate)
 				provisioner = test.Provisioner(coretest.ProvisionerOptions{
 					ProviderRef: &v1alpha5.ProviderRef{
 						Name: nodeTemplate.Name,
@@ -1344,7 +1343,7 @@ var _ = Describe("LaunchTemplates", func() {
 						},
 					},
 				})
-				ExpectApplied(ctx, awsCtx.KubeClient, provisioner)
+				ExpectApplied(ctx, env.Client, provisioner)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
@@ -1369,7 +1368,7 @@ var _ = Describe("LaunchTemplates", func() {
 						MaxPods: aws.Int32(10),
 					},
 				})
-				ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+				ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
@@ -1392,9 +1391,9 @@ var _ = Describe("LaunchTemplates", func() {
 				content, err := os.ReadFile("testdata/al2_userdata_input.golden")
 				Expect(err).To(BeNil())
 				nodeTemplate.Spec.UserData = aws.String(string(content))
-				ExpectApplied(ctx, awsCtx.KubeClient, nodeTemplate)
+				ExpectApplied(ctx, env.Client, nodeTemplate)
 				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
-				ExpectApplied(ctx, awsCtx.KubeClient, newProvisioner)
+				ExpectApplied(ctx, env.Client, newProvisioner)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
@@ -1415,9 +1414,9 @@ var _ = Describe("LaunchTemplates", func() {
 				content, err := os.ReadFile("testdata/al2_no_mime_userdata_input.golden")
 				Expect(err).To(BeNil())
 				nodeTemplate.Spec.UserData = aws.String(string(content))
-				ExpectApplied(ctx, awsCtx.KubeClient, nodeTemplate)
+				ExpectApplied(ctx, env.Client, nodeTemplate)
 				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
-				ExpectApplied(ctx, awsCtx.KubeClient, newProvisioner)
+				ExpectApplied(ctx, env.Client, newProvisioner)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
@@ -1435,9 +1434,9 @@ var _ = Describe("LaunchTemplates", func() {
 					EnableENILimitedPodDensity: lo.ToPtr(false),
 				}))
 				nodeTemplate.Spec.UserData = nil
-				ExpectApplied(ctx, awsCtx.KubeClient, nodeTemplate)
+				ExpectApplied(ctx, env.Client, nodeTemplate)
 				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
-				ExpectApplied(ctx, awsCtx.KubeClient, newProvisioner)
+				ExpectApplied(ctx, env.Client, newProvisioner)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
@@ -1460,9 +1459,9 @@ var _ = Describe("LaunchTemplates", func() {
 						Architecture: aws.String("x86_64"),
 						CreationDate: aws.String("2022-08-15T12:00:00Z")},
 				}})
-				ExpectApplied(ctx, awsCtx.KubeClient, nodeTemplate)
+				ExpectApplied(ctx, env.Client, nodeTemplate)
 				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
-				ExpectApplied(ctx, awsCtx.KubeClient, newProvisioner)
+				ExpectApplied(ctx, env.Client, newProvisioner)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
@@ -1480,9 +1479,9 @@ var _ = Describe("LaunchTemplates", func() {
 						Architecture: aws.String("x86_64"),
 						CreationDate: aws.String("2022-08-15T12:00:00Z")},
 				}})
-				ExpectApplied(ctx, awsCtx.KubeClient, nodeTemplate)
+				ExpectApplied(ctx, env.Client, nodeTemplate)
 				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
-				ExpectApplied(ctx, awsCtx.KubeClient, newProvisioner)
+				ExpectApplied(ctx, env.Client, newProvisioner)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
@@ -1508,9 +1507,9 @@ var _ = Describe("LaunchTemplates", func() {
 						CreationDate: aws.String("2022-08-15T12:00:00Z"),
 					},
 				}})
-				ExpectApplied(ctx, awsCtx.KubeClient, nodeTemplate)
+				ExpectApplied(ctx, env.Client, nodeTemplate)
 				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
-				ExpectApplied(ctx, awsCtx.KubeClient, newProvisioner)
+				ExpectApplied(ctx, env.Client, newProvisioner)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
@@ -1540,9 +1539,9 @@ var _ = Describe("LaunchTemplates", func() {
 					},
 				}})
 				nodeTemplate.Spec.AMISelector = map[string]string{"karpenter.sh/discovery": "my-cluster"}
-				ExpectApplied(ctx, awsCtx.KubeClient, nodeTemplate)
+				ExpectApplied(ctx, env.Client, nodeTemplate)
 				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
-				ExpectApplied(ctx, awsCtx.KubeClient, newProvisioner)
+				ExpectApplied(ctx, env.Client, newProvisioner)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
@@ -1574,7 +1573,7 @@ var _ = Describe("LaunchTemplates", func() {
 					},
 				}})
 				nodeTemplate.Spec.AMISelector = map[string]string{"karpenter.sh/discovery": "my-cluster"}
-				ExpectApplied(ctx, awsCtx.KubeClient, nodeTemplate)
+				ExpectApplied(ctx, env.Client, nodeTemplate)
 				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{
 					ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name},
 					Requirements: []v1.NodeSelectorRequirement{
@@ -1585,7 +1584,7 @@ var _ = Describe("LaunchTemplates", func() {
 						},
 					},
 				})
-				ExpectApplied(ctx, awsCtx.KubeClient, newProvisioner)
+				ExpectApplied(ctx, env.Client, newProvisioner)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
@@ -1597,9 +1596,9 @@ var _ = Describe("LaunchTemplates", func() {
 			It("should fail if no amis match selector.", func() {
 				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{}})
 				nodeTemplate.Spec.AMISelector = map[string]string{"karpenter.sh/discovery": "my-cluster"}
-				ExpectApplied(ctx, awsCtx.KubeClient, nodeTemplate)
+				ExpectApplied(ctx, env.Client, nodeTemplate)
 				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
-				ExpectApplied(ctx, awsCtx.KubeClient, newProvisioner)
+				ExpectApplied(ctx, env.Client, newProvisioner)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 				ExpectNotScheduled(ctx, env.Client, pod)
@@ -1610,18 +1609,18 @@ var _ = Describe("LaunchTemplates", func() {
 					{ImageId: aws.String("ami-123"), Architecture: aws.String("newnew"), CreationDate: aws.String("2022-01-01T12:00:00Z")},
 				}})
 				nodeTemplate.Spec.AMISelector = map[string]string{"karpenter.sh/discovery": "my-cluster"}
-				ExpectApplied(ctx, awsCtx.KubeClient, nodeTemplate)
+				ExpectApplied(ctx, env.Client, nodeTemplate)
 				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
-				ExpectApplied(ctx, awsCtx.KubeClient, newProvisioner)
+				ExpectApplied(ctx, env.Client, newProvisioner)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 				ExpectNotScheduled(ctx, env.Client, pod)
 				Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(0))
 			})
 			It("should choose amis from SSM if no selector specified in AWSNodeTemplate", func() {
-				ExpectApplied(ctx, awsCtx.KubeClient, nodeTemplate)
+				ExpectApplied(ctx, env.Client, nodeTemplate)
 				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: nodeTemplate.Name}})
-				ExpectApplied(ctx, awsCtx.KubeClient, newProvisioner)
+				ExpectApplied(ctx, env.Client, newProvisioner)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
@@ -1632,7 +1631,7 @@ var _ = Describe("LaunchTemplates", func() {
 		Context("Kubelet Args", func() {
 			It("should specify the --dns-cluster-ip flag when clusterDNSIP is set", func() {
 				provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{ClusterDNS: []string{"10.0.10.100"}}
-				ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+				ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
@@ -1645,7 +1644,7 @@ var _ = Describe("LaunchTemplates", func() {
 		})
 		Context("Instance Profile", func() {
 			It("should use the default instance profile if none specified on the Provisioner", func() {
-				ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+				ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
@@ -1655,7 +1654,7 @@ var _ = Describe("LaunchTemplates", func() {
 			})
 			It("should use the instance profile on the Provisioner when specified", func() {
 				nodeTemplate.Spec.InstanceProfile = aws.String("overridden-profile")
-				ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+				ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
@@ -1668,7 +1667,7 @@ var _ = Describe("LaunchTemplates", func() {
 	Context("Detailed Monitoring", func() {
 		It("should default detailed monitoring to off", func() {
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyAL2
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
@@ -1679,7 +1678,7 @@ var _ = Describe("LaunchTemplates", func() {
 		It("should pass detailed monitoring setting to the launch template at creation", func() {
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyAL2
 			nodeTemplate.Spec.DetailedMonitoring = aws.Bool(true)
-			ExpectApplied(ctx, awsCtx.KubeClient, provisioner, nodeTemplate)
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)

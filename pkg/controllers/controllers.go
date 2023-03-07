@@ -32,7 +32,7 @@ func NewControllers(ctx awscontext.Context, cloudProvider *cloudprovider.CloudPr
 	logging.FromContext(ctx).With("version", project.Version).Debugf("discovered version")
 
 	controllers := []controller.Controller{
-		nodetemplate.NewController(ctx.KubeClient, ctx.SubnetProvider, ctx.SecurityGroupProvider, ctx.AMIProvider, ctx.InstanceTypeProvider),
+		nodetemplate.NewController(ctx.KubeClient, ctx.SubnetProvider, ctx.SecurityGroupProvider, ctx.AMIProvider, ctx.InstanceTypesProvider),
 	}
 	if settings.FromContext(ctx).InterruptionQueueName != "" {
 		controllers = append(controllers, interruption.NewController(ctx.KubeClient, ctx.Clock, ctx.EventRecorder, interruption.NewSQSProvider(sqs.New(ctx.Session)), ctx.UnavailableOfferingsCache))
