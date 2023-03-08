@@ -77,11 +77,11 @@ You will need to add a section to the mapRoles that looks something like this.
 Replace the `${AWS_ACCOUNT_ID}` variable with your account and `${CLUSTER_NAME}` variable with the cluster name, but do not replace the `{{EC2PrivateDNSName}}`.
 
 ```yaml
-    - groups:
-      - system:bootstrappers
-      - system:nodes
-      rolearn: arn:aws:iam::${AWS_ACCOUNT_ID}:role/KarpenterNodeRole-${CLUSTER_NAME}
-      username: system:node:{{EC2PrivateDNSName}}
+- groups:
+  - system:bootstrappers
+  - system:nodes
+  rolearn: arn:aws:iam::${AWS_ACCOUNT_ID}:role/KarpenterNodeRole-${CLUSTER_NAME}
+  username: system:node:{{EC2PrivateDNSName}}
 ```
 
 The full aws-auth configmap should have two groups.
@@ -110,18 +110,18 @@ The rules should look something like this.
 Modify the value to match your `$NODEGROUP`, one node group per line.
 
 ```yaml
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-            - matchExpressions:
-              - key: karpenter.sh/provisioner-name
-                operator: DoesNotExist
-            - matchExpressions:
-              - key: eks.amazonaws.com/nodegroup
-                operator: In
-                values:
-                - ${NODEGROUP}
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: karpenter.sh/provisioner-name
+          operator: DoesNotExist
+      - matchExpressions:
+        - key: eks.amazonaws.com/nodegroup
+          operator: In
+          values:
+          - ${NODEGROUP}
 ```
 
 Now that our deployment is ready we can create the karpenter namespace, create the provisioner CRD, and then deploy the rest of the karpenter resources.
@@ -148,15 +148,15 @@ You can edit them with `kubectl edit deploy ...` and you should add node affinit
 Modify the value to match your `$NODEGROUP`, one node group per line.
 
 ```yaml
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-            - matchExpressions:
-              - key: eks.amazonaws.com/nodegroup
-                operator: In
-                values:
-                - ${NODEGROUP}
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: eks.amazonaws.com/nodegroup
+          operator: In
+          values:
+          - ${NODEGROUP}
 ```
 
 ## Remove CAS
