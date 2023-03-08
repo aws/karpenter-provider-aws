@@ -92,7 +92,7 @@ EKS creates at least two security groups by default, [review the documentation](
 Security groups may be specified by any AWS tag, including "Name". Selecting tags using wildcards (`*`) is supported.
 
 {{% alert title="Note" color="primary" %}}
-When launching nodes, Karpenter uses all of the security groups that match the selector. If multiple security groups with the tag `karpenter.sh/discovery/MyClusterName` match the selector, this may result in failures using the AWS Load Balancer controller. The Load Balancer controller only supports a single security group having that tag key. See this [issue](https://github.com/kubernetes-sigs/aws-load-balancer-controller/issues/2367) for more details.
+When launching nodes, Karpenter uses all the security groups that match the selector. If multiple security groups have the tag `kubernetes.io/cluster/MyClusterName`, this may result in failures using the AWS Load Balancer controller. The Load Balancer controller only supports a single security group having that tag key. See [this issue](https://github.com/kubernetes-sigs/aws-load-balancer-controller/issues/2367) for more details.
 {{% /alert %}}
 
 To verify if this restriction affects you, run the following commands.

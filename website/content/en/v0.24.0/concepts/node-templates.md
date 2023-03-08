@@ -95,7 +95,7 @@ EKS creates at least two security groups by default, [review the documentation](
 Security groups may be specified by any AWS tag, including "Name". Selecting tags using wildcards (`*`) is supported.
 
 {{% alert title="Note" color="primary" %}}
-When launching nodes, Karpenter uses all of the security groups that match the selector. If multiple security groups with the tag `karpenter.sh/discovery/MyClusterName` match the selector, this may result in failures using the AWS Load Balancer controller. The Load Balancer controller only supports a single security group having that tag key. See this [issue](https://github.com/kubernetes-sigs/aws-load-balancer-controller/issues/2367) for more details.
+When launching nodes, Karpenter uses all the security groups that match the selector. If multiple security groups have the tag `kubernetes.io/cluster/MyClusterName`, this may result in failures using the AWS Load Balancer controller. The Load Balancer controller only supports a single security group having that tag key. See [this issue](https://github.com/kubernetes-sigs/aws-load-balancer-controller/issues/2367) for more details.
 {{% /alert %}}
 
 To verify if this restriction affects you, run the following commands.
@@ -354,15 +354,6 @@ spec:
 
 For more examples on configuring these fields for different AMI families, see the [examples here](https://github.com/aws/karpenter/blob/main/examples/provisioner/launchtemplates).
 
-## spec.detailedMonitoring
-
-Enabling detailed monitoring on the node template controls the [EC2 detailed monitoring](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-cloudwatch-new.html) feature. If you enable this option, the Amazon EC2 console displays monitoring graphs with a 1-minute period for the instances that Karpenter launches.
-```yaml
-spec:
-  detailedMonitoring: true
-```
-
-
 ### Merge Semantics
 
 Karpenter will evaluate and merge the UserData that you specify in the AWSNodeTemplate resources depending upon the AMIFamily that you have chosen.
@@ -479,6 +470,15 @@ spec:
 
     --BOUNDARY--
 ```
+
+## spec.detailedMonitoring
+
+Enabling detailed monitoring on the node template controls the [EC2 detailed monitoring](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-cloudwatch-new.html) feature. If you enable this option, the Amazon EC2 console displays monitoring graphs with a 1-minute period for the instances that Karpenter launches.
+```yaml
+spec:
+  detailedMonitoring: true
+```
+
 ## status.subnets
 `status.subnets` contains the `id` and `zone` of the subnets utilized during node launch. The subnets are sorted by the available IP address count in decreasing order.
 
