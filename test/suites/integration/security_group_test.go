@@ -137,7 +137,7 @@ func EventuallyExpectSecurityGroups(provider *v1alpha1.AWSNodeTemplate) {
 			return
 		}
 
-		securityGroupsInStatus := lo.Map(ant.Status.SecurityGroups, func(securitygroup v1alpha1.SecurityGroupStatus, _ int) string {
+		securityGroupsInStatus := lo.Map(ant.Status.SecurityGroups, func(securitygroup v1alpha1.SecurityGroup, _ int) string {
 			return securitygroup.ID
 		})
 

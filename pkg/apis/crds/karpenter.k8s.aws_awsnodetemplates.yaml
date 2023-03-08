@@ -221,7 +221,7 @@ spec:
             description: AWSNodeTemplateStatus contains the resolved state of the
               AWSNodeTemplate
             properties:
-              ami:
+              amis:
                 description: AMI contains the current AMI values that are available
                   to the cluster under the AMI selectors.
                 items:
@@ -263,26 +263,31 @@ spec:
                         - operator
                         type: object
                       type: array
+                  required:
+                  - id
+                  - requirements
                   type: object
                 type: array
               securityGroups:
                 description: SecurityGroups contains the current Security Groups values
                   that are available to the cluster under the SecurityGroups selectors.
                 items:
-                  description: SecurityGroupStatus contains resolved SecurityGroup
-                    selector values utilized for node launch
+                  description: SecurityGroup contains resolved SecurityGroup selector
+                    values utilized for node launch
                   properties:
                     id:
                       description: Id of the security group
                       type: string
+                  required:
+                  - id
                   type: object
                 type: array
               subnets:
                 description: Subnets contains the current Subnet values that are available
                   to the cluster under the subnet selectors.
                 items:
-                  description: SubnetStatus contains resolved Subnet selector values
-                    utilized for node launch
+                  description: Subnet contains resolved Subnet selector values utilized
+                    for node launch
                   properties:
                     id:
                       description: Id of the subnet
@@ -290,6 +295,9 @@ spec:
                     zone:
                       description: The associated availability zone
                       type: string
+                  required:
+                  - id
+                  - zone
                   type: object
                 type: array
             type: object

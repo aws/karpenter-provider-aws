@@ -98,8 +98,8 @@ func (c *Controller) resolveSubnets(ctx context.Context, nodeTemplate *v1alpha1.
 		return int(*subnetList[i].AvailableIpAddressCount) > int(*subnetList[j].AvailableIpAddressCount)
 	})
 
-	nodeTemplate.Status.Subnets = lo.Map(subnetList, func(ec2subnet *ec2.Subnet, _ int) v1alpha1.SubnetStatus {
-		return v1alpha1.SubnetStatus{
+	nodeTemplate.Status.Subnets = lo.Map(subnetList, func(ec2subnet *ec2.Subnet, _ int) v1alpha1.Subnet {
+		return v1alpha1.Subnet{
 			ID:   *ec2subnet.SubnetId,
 			Zone: *ec2subnet.AvailabilityZone,
 		}
@@ -114,8 +114,8 @@ func (c *Controller) resolveSecurityGroup(ctx context.Context, nodeTemplate *v1a
 		return err
 	}
 
-	nodeTemplate.Status.SecurityGroups = lo.Map(securityGroupIds, func(id string, _ int) v1alpha1.SecurityGroupStatus {
-		return v1alpha1.SecurityGroupStatus{
+	nodeTemplate.Status.SecurityGroups = lo.Map(securityGroupIds, func(id string, _ int) v1alpha1.SecurityGroup {
+		return v1alpha1.SecurityGroup{
 			ID: id,
 		}
 	})
@@ -130,16 +130,22 @@ func (c *Controller) resolveAMI(ctx context.Context, nodeTemplate *v1alpha1.AWSN
 		return err
 	}
 
-	amis, err := c.amiProvider.GetAMIWithRequirements(ctx, nodeTemplate, instancetypes, amiFamily)
+	amis, err := c.amiProvider.Get(ctx, nodeTemplate, instancetypes, amiFamily)
 	if err != nil {
 		nodeTemplate.Status.AMIs = nil
 		return err
 	}
 
-	nodeTemplate.Status.AMIs = lo.Map(lo.Keys(amis), func(ami amifamily.AMI, _ int) v1alpha1.AMIStatus {
-		return v1alpha1.AMIStatus{
+	amisRequirement, err := c.amiProvider.GetAMIWithRequirements(ctx, lo.Keys(amis))
+	if err != nil {
+		nodeTemplate.Status.AMIs = nil
+		return err
+	}
+
+	nodeTemplate.Status.AMIs = lo.Map(lo.Keys(amisRequirement), func(ami amifamily.AMI, _ int) v1alpha1.AMI {
+		return v1alpha1.AMI{
 			ID:           ami.AmiID,
-			Requirements: amis[ami].NodeSelectorRequirements(),
+			Requirements: amisRequirement[ami].NodeSelectorRequirements(),
 		}
 	})
 

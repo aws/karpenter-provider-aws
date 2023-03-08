@@ -105,7 +105,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 				return *ec2subnet.SubnetId
 			})
 			sort.Strings(subnetIDs)
-			subnetIDsInStatus := lo.Map(nodeTemplate.Status.Subnets, func(subnet v1alpha1.SubnetStatus, _ int) string {
+			subnetIDsInStatus := lo.Map(nodeTemplate.Status.Subnets, func(subnet v1alpha1.Subnet, _ int) string {
 				return subnet.ID
 			})
 			sort.Strings(subnetIDsInStatus)
@@ -122,7 +122,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			correctSubnetIDs := lo.Map(subnet, func(ec2subnet *ec2.Subnet, _ int) string {
 				return *ec2subnet.SubnetId
 			})
-			subnetIDsInStatus := lo.Map(nodeTemplate.Status.Subnets, func(subnet v1alpha1.SubnetStatus, _ int) string {
+			subnetIDsInStatus := lo.Map(nodeTemplate.Status.Subnets, func(subnet v1alpha1.Subnet, _ int) string {
 				return subnet.ID
 			})
 			Expect(subnetIDsInStatus).To(Equal(correctSubnetIDs))
@@ -136,8 +136,8 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			sort.Slice(subnet, func(i, j int) bool {
 				return int(*subnet[i].AvailableIpAddressCount) > int(*subnet[j].AvailableIpAddressCount)
 			})
-			correctSubnets := lo.Map(subnet, func(ec2subnet *ec2.Subnet, _ int) v1alpha1.SubnetStatus {
-				return v1alpha1.SubnetStatus{
+			correctSubnets := lo.Map(subnet, func(ec2subnet *ec2.Subnet, _ int) v1alpha1.Subnet {
+				return v1alpha1.Subnet{
 					ID:   *ec2subnet.SubnetId,
 					Zone: *ec2subnet.AvailabilityZone,
 				}
@@ -150,8 +150,8 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 			subnet, _ := awsEnv.SubnetProvider.List(ctx, nodeTemplate)
-			correctSubnetIDs := lo.Map(subnet, func(ec2subnet *ec2.Subnet, _ int) v1alpha1.SubnetStatus {
-				return v1alpha1.SubnetStatus{
+			correctSubnetIDs := lo.Map(subnet, func(ec2subnet *ec2.Subnet, _ int) v1alpha1.Subnet {
+				return v1alpha1.Subnet{
 					ID:   *ec2subnet.SubnetId,
 					Zone: *ec2subnet.AvailabilityZone,
 				}
@@ -168,7 +168,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 				return *ec2subnet.SubnetId
 			})
 			sort.Strings(subnetIDs)
-			subnetIDsInStatus := lo.Map(nodeTemplate.Status.Subnets, func(subnet v1alpha1.SubnetStatus, _ int) string {
+			subnetIDsInStatus := lo.Map(nodeTemplate.Status.Subnets, func(subnet v1alpha1.Subnet, _ int) string {
 				return subnet.ID
 			})
 			sort.Strings(subnetIDsInStatus)
@@ -182,8 +182,8 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			sort.Slice(subnet, func(i, j int) bool {
 				return int(*subnet[i].AvailableIpAddressCount) > int(*subnet[j].AvailableIpAddressCount)
 			})
-			correctSubnets := lo.Map(subnet, func(ec2subnet *ec2.Subnet, _ int) v1alpha1.SubnetStatus {
-				return v1alpha1.SubnetStatus{
+			correctSubnets := lo.Map(subnet, func(ec2subnet *ec2.Subnet, _ int) v1alpha1.Subnet {
+				return v1alpha1.Subnet{
 					ID:   *ec2subnet.SubnetId,
 					Zone: *ec2subnet.AvailabilityZone,
 				}
@@ -199,7 +199,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 				return *ec2subnet.SubnetId
 			})
 			sort.Strings(subnetIDs)
-			subnetIDsInStatus := lo.Map(nodeTemplate.Status.Subnets, func(subnet v1alpha1.SubnetStatus, _ int) string {
+			subnetIDsInStatus := lo.Map(nodeTemplate.Status.Subnets, func(subnet v1alpha1.Subnet, _ int) string {
 				return subnet.ID
 			})
 			sort.Strings(subnetIDsInStatus)
@@ -210,8 +210,8 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 			subnet, _ = awsEnv.SubnetProvider.List(ctx, nodeTemplate)
-			correctSubnetIDs := lo.Map(subnet, func(ec2subnet *ec2.Subnet, _ int) v1alpha1.SubnetStatus {
-				return v1alpha1.SubnetStatus{
+			correctSubnetIDs := lo.Map(subnet, func(ec2subnet *ec2.Subnet, _ int) v1alpha1.Subnet {
+				return v1alpha1.Subnet{
 					ID:   *ec2subnet.SubnetId,
 					Zone: *ec2subnet.AvailabilityZone,
 				}
@@ -235,7 +235,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 				return *ec2subnet.SubnetId
 			})
 			sort.Strings(subnetIDs)
-			subnetIDsInStatus := lo.Map(nodeTemplate.Status.Subnets, func(subnet v1alpha1.SubnetStatus, _ int) string {
+			subnetIDsInStatus := lo.Map(nodeTemplate.Status.Subnets, func(subnet v1alpha1.Subnet, _ int) string {
 				return subnet.ID
 			})
 			sort.Strings(subnetIDsInStatus)
@@ -256,7 +256,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 			securityGroupsIDs, _ := awsEnv.SecurityGroupProvider.List(ctx, nodeTemplate)
-			securityGroupsIDInStatus := lo.Map(nodeTemplate.Status.SecurityGroups, func(securitygroup v1alpha1.SecurityGroupStatus, _ int) string {
+			securityGroupsIDInStatus := lo.Map(nodeTemplate.Status.SecurityGroups, func(securitygroup v1alpha1.SecurityGroup, _ int) string {
 				return securitygroup.ID
 			})
 			Expect(securityGroupsIDInStatus).To(Equal(securityGroupsIDs))
@@ -266,7 +266,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 			securityGroupsIDs, _ := awsEnv.SecurityGroupProvider.List(ctx, nodeTemplate)
-			securityGroupsIDInStatus := lo.Map(nodeTemplate.Status.SecurityGroups, func(securitygroup v1alpha1.SecurityGroupStatus, _ int) string {
+			securityGroupsIDInStatus := lo.Map(nodeTemplate.Status.SecurityGroups, func(securitygroup v1alpha1.SecurityGroup, _ int) string {
 				return securitygroup.ID
 			})
 			Expect(securityGroupsIDInStatus).To(Equal(securityGroupsIDs))
@@ -277,8 +277,8 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 			securityGroupsIDs, _ := awsEnv.SecurityGroupProvider.List(ctx, nodeTemplate)
-			correctSecurityGroupsIDs := lo.Map(securityGroupsIDs, func(securitygroup string, _ int) v1alpha1.SecurityGroupStatus {
-				return v1alpha1.SecurityGroupStatus{
+			correctSecurityGroupsIDs := lo.Map(securityGroupsIDs, func(securitygroup string, _ int) v1alpha1.SecurityGroup {
+				return v1alpha1.SecurityGroup{
 					ID: securitygroup,
 				}
 			})
@@ -290,8 +290,8 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 			securityGroupsIDs, _ := awsEnv.SecurityGroupProvider.List(ctx, nodeTemplate)
-			correctSecurityGroupsIDs := lo.Map(securityGroupsIDs, func(securitygroup string, _ int) v1alpha1.SecurityGroupStatus {
-				return v1alpha1.SecurityGroupStatus{
+			correctSecurityGroupsIDs := lo.Map(securityGroupsIDs, func(securitygroup string, _ int) v1alpha1.SecurityGroup {
+				return v1alpha1.SecurityGroup{
 					ID: securitygroup,
 				}
 			})
@@ -302,7 +302,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 			securityGroupsIDs, _ := awsEnv.SecurityGroupProvider.List(ctx, nodeTemplate)
-			securityGroupsIDInStatus := lo.Map(nodeTemplate.Status.SecurityGroups, func(securitygroup v1alpha1.SecurityGroupStatus, _ int) string {
+			securityGroupsIDInStatus := lo.Map(nodeTemplate.Status.SecurityGroups, func(securitygroup v1alpha1.SecurityGroup, _ int) string {
 				return securitygroup.ID
 			})
 			Expect(securityGroupsIDInStatus).To(Equal(securityGroupsIDs))
@@ -312,8 +312,8 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 			securityGroupsIDs, _ = awsEnv.SecurityGroupProvider.List(ctx, nodeTemplate)
-			correctSecurityGroupsIDs := lo.Map(securityGroupsIDs, func(securitygroup string, _ int) v1alpha1.SecurityGroupStatus {
-				return v1alpha1.SecurityGroupStatus{
+			correctSecurityGroupsIDs := lo.Map(securityGroupsIDs, func(securitygroup string, _ int) v1alpha1.SecurityGroup {
+				return v1alpha1.SecurityGroup{
 					ID: securitygroup,
 				}
 			})
@@ -324,7 +324,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 			securityGroupsIDs, _ := awsEnv.SecurityGroupProvider.List(ctx, nodeTemplate)
-			securityGroupsIDInStatus := lo.Map(nodeTemplate.Status.SecurityGroups, func(securitygroup v1alpha1.SecurityGroupStatus, _ int) string {
+			securityGroupsIDInStatus := lo.Map(nodeTemplate.Status.SecurityGroups, func(securitygroup v1alpha1.SecurityGroup, _ int) string {
 				return securitygroup.ID
 			})
 			Expect(securityGroupsIDInStatus).To(Equal(securityGroupsIDs))
@@ -334,8 +334,8 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 			securityGroupsIDs, _ = awsEnv.SecurityGroupProvider.List(ctx, nodeTemplate)
-			correctSecurityGroupsIDs := lo.Map(securityGroupsIDs, func(securitygroup string, _ int) v1alpha1.SecurityGroupStatus {
-				return v1alpha1.SecurityGroupStatus{
+			correctSecurityGroupsIDs := lo.Map(securityGroupsIDs, func(securitygroup string, _ int) v1alpha1.SecurityGroup {
+				return v1alpha1.SecurityGroup{
 					ID: securitygroup,
 				}
 			})
@@ -353,7 +353,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 			securityGroupsIDs, _ := awsEnv.SecurityGroupProvider.List(ctx, nodeTemplate)
-			securityGroupsIDInStatus := lo.Map(nodeTemplate.Status.SecurityGroups, func(securitygroup v1alpha1.SecurityGroupStatus, _ int) string {
+			securityGroupsIDInStatus := lo.Map(nodeTemplate.Status.SecurityGroups, func(securitygroup v1alpha1.SecurityGroup, _ int) string {
 				return securitygroup.ID
 			})
 			Expect(securityGroupsIDInStatus).To(Equal(securityGroupsIDs))
@@ -377,7 +377,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			amis, _ := awsEnv.AMIProvider.Get(ctx, nodeTemplate, instancetypes, amiFamily)
 			amiIds := lo.Keys(amis)
 			sort.Strings(amiIds)
-			amiIDsInStatus := lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMIStatus, _ int) string {
+			amiIDsInStatus := lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMI, _ int) string {
 				return ami.ID
 			})
 			sort.Strings(amiIDsInStatus)
@@ -393,7 +393,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			amis, _ := awsEnv.AMIProvider.Get(ctx, nodeTemplate, instancetypes, amiFamily)
 			amiIds := lo.Keys(amis)
 			sort.Strings(amiIds)
-			amiIDsInStatus := lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMIStatus, _ int) string {
+			amiIDsInStatus := lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMI, _ int) string {
 				return ami.ID
 			})
 			sort.Strings(amiIDsInStatus)
@@ -410,7 +410,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			amis, _ := awsEnv.AMIProvider.Get(ctx, nodeTemplate, instancetypes, amiFamily)
 			amiIds := lo.Keys(amis)
 			sort.Strings(amiIds)
-			amiIDsInStatus := lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMIStatus, _ int) string {
+			amiIDsInStatus := lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMI, _ int) string {
 				return ami.ID
 			})
 			sort.Strings(amiIDsInStatus)
@@ -427,7 +427,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			amis, _ := awsEnv.AMIProvider.Get(ctx, nodeTemplate, instancetypes, amiFamily)
 			amiIds := lo.Keys(amis)
 			sort.Strings(amiIds)
-			amiIDsInStatus := lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMIStatus, _ int) string {
+			amiIDsInStatus := lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMI, _ int) string {
 				return ami.ID
 			})
 			sort.Strings(amiIDsInStatus)
@@ -443,7 +443,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			amis, _ := awsEnv.AMIProvider.Get(ctx, nodeTemplate, instancetypes, amiFamily)
 			amiIds := lo.Keys(amis)
 			sort.Strings(amiIds)
-			amiIDsInStatus := lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMIStatus, _ int) string {
+			amiIDsInStatus := lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMI, _ int) string {
 				return ami.ID
 			})
 			sort.Strings(amiIDsInStatus)
@@ -459,7 +459,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			amis, _ = awsEnv.AMIProvider.Get(ctx, nodeTemplate, instancetypes, amiFamily)
 			amiIds = lo.Keys(amis)
 			sort.Strings(amiIds)
-			amiIDsInStatus = lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMIStatus, _ int) string {
+			amiIDsInStatus = lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMI, _ int) string {
 				return ami.ID
 			})
 			sort.Strings(amiIDsInStatus)
@@ -475,7 +475,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			amis, _ := awsEnv.AMIProvider.Get(ctx, nodeTemplate, instancetypes, amiFamily)
 			amiIds := lo.Keys(amis)
 			sort.Strings(amiIds)
-			amiIDsInStatus := lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMIStatus, _ int) string {
+			amiIDsInStatus := lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMI, _ int) string {
 				return ami.ID
 			})
 			sort.Strings(amiIDsInStatus)
@@ -491,7 +491,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			amis, _ = awsEnv.AMIProvider.Get(ctx, nodeTemplate, instancetypes, amiFamily)
 			amiIds = lo.Keys(amis)
 			sort.Strings(amiIds)
-			amiIDsInStatus = lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMIStatus, _ int) string {
+			amiIDsInStatus = lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMI, _ int) string {
 				return ami.ID
 			})
 			sort.Strings(amiIDsInStatus)
@@ -514,7 +514,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			amis, _ := awsEnv.AMIProvider.Get(ctx, nodeTemplate, instancetypes, amiFamily)
 			amiIds := lo.Keys(amis)
 			sort.Strings(amiIds)
-			amiIDsInStatus := lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMIStatus, _ int) string {
+			amiIDsInStatus := lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMI, _ int) string {
 				return ami.ID
 			})
 			sort.Strings(amiIDsInStatus)
