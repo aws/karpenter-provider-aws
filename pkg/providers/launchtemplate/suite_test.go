@@ -803,7 +803,7 @@ var _ = Describe("LaunchTemplates", func() {
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyAL2
 			it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 			overhead := it.Overhead.Total()
-			Expect(overhead.Memory().String()).To(Equal("1093Mi"))
+			Expect(overhead.Memory().String()).To(Equal("993Mi"))
 		})
 		It("should calculate memory overhead based on eni limited pods when not ENI limited", func() {
 			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
@@ -814,7 +814,7 @@ var _ = Describe("LaunchTemplates", func() {
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyAL2
 			it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 			overhead := it.Overhead.Total()
-			Expect(overhead.Memory().String()).To(Equal("1093Mi"))
+			Expect(overhead.Memory().String()).To(Equal("993Mi"))
 		})
 	})
 	Context("Bottlerocket", func() {
@@ -853,7 +853,7 @@ var _ = Describe("LaunchTemplates", func() {
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
 			it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 			overhead := it.Overhead.Total()
-			Expect(overhead.Memory().String()).To(Equal("1093Mi"))
+			Expect(overhead.Memory().String()).To(Equal("993Mi"))
 		})
 		It("should calculate memory overhead based on max pods when not ENI limited", func() {
 			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
@@ -864,7 +864,7 @@ var _ = Describe("LaunchTemplates", func() {
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
 			it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 			overhead := it.Overhead.Total()
-			Expect(overhead.Memory().String()).To(Equal("1665Mi"))
+			Expect(overhead.Memory().String()).To(Equal("1565Mi"))
 		})
 	})
 	Context("User Data", func() {
