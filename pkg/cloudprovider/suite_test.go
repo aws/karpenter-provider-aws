@@ -21,7 +21,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Pallinder/go-randomdata"
 	"github.com/samber/lo"
 	"k8s.io/client-go/tools/record"
 
@@ -234,13 +233,15 @@ var _ = Describe("CloudProvider", func() {
 			// Create the instance we want returned from the EC2 API
 			instance = &ec2.Instance{
 				ImageId:               aws.String(validAMI),
-				PrivateDnsName:        aws.String(randomdata.IpV4Address()),
 				InstanceType:          aws.String(selectedInstanceType.Name),
 				SpotInstanceRequestId: aws.String(coretest.RandomName()),
 				State: &ec2.InstanceState{
 					Name: aws.String(ec2.InstanceStateNameRunning),
 				},
 				InstanceId: aws.String(fake.InstanceID()),
+				Placement: &ec2.Placement{
+					AvailabilityZone: aws.String("test-zone-1a"),
+				},
 			}
 			awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(&ec2.DescribeInstancesOutput{
 				Reservations: []*ec2.Reservation{{Instances: []*ec2.Instance{instance}}},

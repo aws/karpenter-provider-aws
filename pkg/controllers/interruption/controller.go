@@ -98,7 +98,7 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 	}
 	nodeInstanceIDMap, err := c.makeNodeInstanceIDMap(ctx)
 	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("making machine instance id map, %w", err)
+		return reconcile.Result{}, fmt.Errorf("making node instance id map, %w", err)
 	}
 	errs := make([]error, len(sqsMessages))
 	workqueue.ParallelizeUntil(ctx, 10, len(sqsMessages), func(i int) {
@@ -202,7 +202,7 @@ func (c *Controller) handleMachine(ctx context.Context, msg messages.Message, ma
 	return nil
 }
 
-// deleteMachine removes the node from the api-server
+// deleteMachine removes the machine from the api-server
 func (c *Controller) deleteMachine(ctx context.Context, machine *v1alpha5.Machine, node *v1.Node) error {
 	if !machine.DeletionTimestamp.IsZero() {
 		return nil
@@ -244,7 +244,7 @@ func (c *Controller) notifyForMessage(msg messages.Message, m *v1alpha5.Machine,
 }
 
 // makeMachineInstanceIDMap builds a map between the instance id that is stored in the
-// machine .status.providerID and the machine name
+// machine .status.providerID and the machine
 func (c *Controller) makeMachineInstanceIDMap(ctx context.Context) (map[string]*v1alpha5.Machine, error) {
 	m := map[string]*v1alpha5.Machine{}
 	machineList := &v1alpha5.MachineList{}
@@ -265,12 +265,12 @@ func (c *Controller) makeMachineInstanceIDMap(ctx context.Context) (map[string]*
 }
 
 // makeNodeInstanceIDMap builds a map between the instance id that is stored in the
-// node .spec.providerID and the machine name
+// node .spec.providerID and the node
 func (c *Controller) makeNodeInstanceIDMap(ctx context.Context) (map[string]*v1.Node, error) {
 	m := map[string]*v1.Node{}
 	nodeList := &v1.NodeList{}
 	if err := c.kubeClient.List(ctx, nodeList); err != nil {
-		return nil, fmt.Errorf("listing machines, %w", err)
+		return nil, fmt.Errorf("listing nodes, %w", err)
 	}
 	for i := range nodeList.Items {
 		if nodeList.Items[i].Spec.ProviderID == "" {
