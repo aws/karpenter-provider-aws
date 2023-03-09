@@ -41,16 +41,6 @@ Karpenter ships with a few Custom Resource Definitions (CRDs). These CRDs are pu
     ```
     helm upgrade --install karpenter-crd oci://public.ecr.aws/karpenter/karpenter-crd --version vx.y.z --namespace karpenter --create-namespace
     ```
-* Upgrading from older karpenter version that did not include `awsnodetemplates.karpenter.k8s.aws` labels and annotations requires manual CRDs annotations before issuing `helm upgrade`.
-  * In the case of `invalid ownership metadata; label validation error: missing key "app.kubernetes.io/managed-by": must be set to "Helm"` run:
-```shell
-kubectl label crd awsnodetemplates.karpenter.k8s.aws provisioners.karpenter.sh app.kubernetes.io/managed-by=Helm --overwrite
-```
-  * In the case of `annotation validation error: missing key "meta.helm.sh/release-namespace": must be set to "karpenter"` run:
-```shell
-kubectl annotate crd awsnodetemplates.karpenter.k8s.aws provisioners.karpenter.sh meta.helm.sh/release-name=karpenter-crd --overwrite
-kubectl annotate crd awsnodetemplates.karpenter.k8s.aws provisioners.karpenter.sh meta.helm.sh/release-namespace=karpenter --overwrite
-```
 * As part of the helm chart [karpenter](https://gallery.ecr.aws/karpenter/karpenter) - [source](https://github.com/aws/karpenter/blob/main/charts/karpenter/crds). Helm [does not manage the lifecycle of CRDs using this method](https://helm.sh/docs/chart_best_practices/custom_resource_definitions/), the tool will only install the CRD during the first installation of the helm chart. Subsequent chart upgrades will not add or remove CRDs, even if the CRDs have changed. When CRDs are changed, we will make a note in the version's upgrade guide.
 
 In general, you can reapply the CRDs in the `crds` directory of the Karpenter helm chart:
