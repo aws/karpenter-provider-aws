@@ -66,7 +66,7 @@ If Helm is showing an error when trying to install Karpenter helm charts:
 
 ### Helm Error when installing the `karpenter-crd` chart
 
-Upgrading from older karpenter version that did not include `awsnodetemplates.karpenter.k8s.aws` labels and annotations requires manual CRDs annotations before issuing `helm upgrade`.
+Karpenter v0.26.1+ introduced the `karpenter-crd` helm chart. When installing this chart on your cluster, if you have previously added the Karpenter CRDs to your cluster through the `karpenter` controller chart or through `kubectl replace`, Helm will reject the install of the chart due to `invalid ownership metadata`.
 - In the case of `invalid ownership metadata; label validation error: missing key "app.kubernetes.io/managed-by": must be set to "Helm"` run:
 ```shell
 kubectl label crd awsnodetemplates.karpenter.k8s.aws provisioners.karpenter.sh app.kubernetes.io/managed-by=Helm --overwrite
