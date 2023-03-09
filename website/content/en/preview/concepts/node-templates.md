@@ -279,6 +279,8 @@ The `blockDeviceMappings` field in an AWSNodeTemplate can be used to control the
 
 Learn more about [block device mappings](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/block-device-mapping-concepts.html).
 
+### Examples
+
 ```yaml
 apiVersion: karpenter.k8s.aws/v1alpha1
 kind: AWSNodeTemplate
@@ -294,6 +296,57 @@ spec:
         deleteOnTermination: true
         throughput: 125
         snapshotID: snap-0123456789
+```
+
+### Defaults
+
+#### AL2
+
+```yaml
+apiVersion: karpenter.k8s.aws/v1alpha1
+kind: AWSNodeTemplate
+spec:
+  blockDeviceMappings:
+    - deviceName: /dev/xvda
+      ebs:
+        volumeSize: 20Gi
+        volumeType: gp3
+        encrypted: true
+```
+
+#### Bottlerocket
+
+```yaml
+apiVersion: karpenter.k8s.aws/v1alpha1
+kind: AWSNodeTemplate
+spec:
+  blockDeviceMappings:
+    # Root device
+    - deviceName: /dev/xvda
+      ebs:
+        volumeSize: 4Gi
+        volumeType: gp3
+        encrypted: true
+    # Data device: Container resources such as images and logs
+    - deviceName: /dev/xvdb
+      ebs:
+        volumeSize: 20Gi
+        volumeType: gp3
+        encrypted: true
+```
+
+#### Ubuntu
+
+```yaml
+apiVersion: karpenter.k8s.aws/v1alpha1
+kind: AWSNodeTemplate
+spec:
+  blockDeviceMappings:
+    - deviceName: /dev/sda1
+      ebs:
+        volumeSize: 20Gi
+        volumeType: gp3
+        encrypted: true
 ```
 
 ## spec.userData
