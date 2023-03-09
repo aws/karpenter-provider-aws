@@ -64,7 +64,7 @@ If Helm is showing an error when trying to install Karpenter helm charts:
 - If you are receiving this error: `Error: failed to download "oci://public.ecr.aws/karpenter/karpenter" at version "0.17.0"`, then you need to prepend a `v` to the version number: `v0.17.0`. Before Karpenter moved to OCI helm charts (pre-v0.17.0), both `v0.16.0` and `0.16.0` would work, but OCI charts require an exact version match.
 
 
-### Helm Error when upgrading from older karpenter version
+### Helm Error when installing the `karpenter-crd` chart
 
 Upgrading from older karpenter version that did not include `awsnodetemplates.karpenter.k8s.aws` labels and annotations requires manual CRDs annotations before issuing `helm upgrade`.
 - In the case of `invalid ownership metadata; label validation error: missing key "app.kubernetes.io/managed-by": must be set to "Helm"` run:
