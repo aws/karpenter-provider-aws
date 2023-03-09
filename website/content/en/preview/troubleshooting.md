@@ -22,7 +22,7 @@ aws iam create-service-linked-role --aws-service-name spot.amazonaws.com
 
 If you use a tool such as AWS CDK to generate your Kubernetes cluster name, when you add Karpenter to your cluster you could end up with a cluster name that is too long to incorporate into your KarpenterNodeRole name (which is limited to 64 characters).
 
-Node role names for Karpenter are created in the form `KarpenterNodeRole-${Cluster_Name}` in the [Create the KarpenterNode IAM Role]({{<ref "./getting-started/getting-started-with-eksctl/#create-the-karpenternode-iam-role" >}}) section of the getting started guide.
+Node role names for Karpenter are created in the form `KarpenterNodeRole-${Cluster_Name}` in the [Create the KarpenterNode IAM Role]({{<ref "./getting-started/getting-started-with-karpenter/#create-the-karpenternode-iam-role" >}}) section of the getting started guide.
 If a long cluster name causes the Karpenter node role name to exceed 64 characters, creating that object will fail.
 
 Keep in mind that `KarpenterNodeRole-` is just a recommendation from the getting started guide.
@@ -140,7 +140,7 @@ See the Karpenter [Best Practices Guide](https://aws.github.io/aws-eks-best-prac
 ### Missing subnetSelector and securityGroupSelector tags causes provisioning failures
 
 Starting with Karpenter v0.5.5, if you are using Karpenter-generated launch template, provisioners require that [subnetSelector]({{<ref "./concepts/node-templates/#subnetselector" >}}) and [securityGroupSelector]({{<ref "./concepts/node-templates/#securitygroupselector" >}}) tags be set to match your cluster.
-The [Provisioner]({{<ref "./getting-started/getting-started-with-eksctl/#provisioner" >}}) section in the Karpenter Getting Started Guide uses the following example:
+The [Provisioner]({{<ref "./getting-started/getting-started-with-karpenter/#provisioner" >}}) section in the Karpenter Getting Started Guide uses the following example:
 
 ```text
 kind: AWSNodeTemplate

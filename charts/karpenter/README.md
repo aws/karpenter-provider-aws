@@ -10,7 +10,7 @@ For full Karpenter documentation please checkout [https://karpenter.sh](https://
 
 ## Installing the Chart
 
-You can follow the detailed installation instruction in the [documentation](https://karpenter.sh/v0.27.0/getting-started/getting-started-with-eksctl/#install) which covers the Karpenter prerequisites and installation options. The outcome of these instructions should result in something like the following command.
+You can follow the detailed installation instruction in the [documentation](https://karpenter.sh/v0.27.0/getting-started/getting-started-with-karpenter/#install) which covers the Karpenter prerequisites and installation options. The outcome of these instructions should result in something like the following command.
 
 ```bash
 helm upgrade --install --namespace karpenter --create-namespace \

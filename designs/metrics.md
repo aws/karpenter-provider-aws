@@ -184,7 +184,7 @@ widgets and selecting label values.
 
 Grafana dashboards are vended as JSON objects. Currently users can import dashboards from [Grafana's
 website](https://grafana.com/grafana/dashboards/16237) or through the Grafana Helm chart with a [custom values
-file](https://github.com/aws/karpenter/blob/main/website/content/en/v0.12.0/getting-started/getting-started-with-eksctl/grafana-values.yaml).
+file](https://github.com/aws/karpenter/blob/main/website/content/en/v0.12.0/getting-started/getting-started-with-karpenter/grafana-values.yaml).
 
 ### Measurement Definitions
 
