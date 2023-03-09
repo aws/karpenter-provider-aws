@@ -38,4 +38,5 @@ If you are open to others contacting you about your use of Karpenter on Slack, a
 | Stytch | Powering the scaling needs of Stytch's authentication and user-management APIs  | `@Elijah Chanakira`, `@Ovadia Harary` | [Homepage](https://www.stytch.com/) |
 | Superbexperience | Using Karpenter to scale the k8s clusters running our Guest Experience Management platform  | `@Wernich Bekker` | [Homepage](https://www.superbexperience.com/) |
 | Target Australia | Using Karpenter to manage (scale, auto update etc) the containerised (EKS) compute that powers much of the Target Online platform | `@gazal-k` | [Target Australia Online Shopping](https://www.target.com.au) |
+| The Scale Factory | Using Karpenter (controllers on EC2/Fargate) to efficiently scale K8s workloads and empowering our customer teams to do the same  | `@marko` | [Homepage](https://www.scalefactory.com) |
 | Tyk Cloud | Scaling workloads for the Cloud Free plan  | `@Artem Hluvchynskyi`, `@gowtham` | [Tyk Cloud](https://tyk.io/cloud/) |
