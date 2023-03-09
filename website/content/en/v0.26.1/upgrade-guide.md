@@ -42,12 +42,10 @@ Karpenter ships with a few Custom Resource Definitions (CRDs). These CRDs are pu
     helm upgrade --install karpenter-crd oci://public.ecr.aws/karpenter/karpenter-crd --version vx.y.z --namespace karpenter --create-namespace
     ```
 * Upgrading from older karpenter version that did not include `awsnodetemplates.karpenter.k8s.aws` labels and annotations requires manual CRDs annotations before issuing `helm upgrade`. 
-
   * In the case of `invalid ownership metadata; label validation error: missing key "app.kubernetes.io/managed-by": must be set to "Helm"` execute:
 ```shell
 kubectl label crd awsnodetemplates.karpenter.k8s.aws provisioners.karpenter.sh app.kubernetes.io/managed-by=Helm --overwrite
 ```
-
   * In the case of `annotation validation error: missing key "meta.helm.sh/release-namespace": must be set to "karpenter"` execute:
 ```shell
 kubectl annotate crd awsnodetemplates.karpenter.k8s.aws provisioners.karpenter.sh meta.helm.sh/release-name=karpenter-crd --overwrite
