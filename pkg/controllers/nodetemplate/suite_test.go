@@ -29,7 +29,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter-core/pkg/operator/injection"
 	"github.com/aws/karpenter-core/pkg/operator/options"
@@ -64,7 +63,7 @@ var _ = BeforeSuite(func() {
 	ctx = settings.ToContext(ctx, test.Settings())
 	awsEnv = test.NewEnvironment(ctx, env)
 
-	controller = nodetemplate.NewController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceTypesProvider)
+	controller = nodetemplate.NewController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider)
 })
 
 var _ = AfterSuite(func() {
@@ -222,7 +221,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 		It("Should not resolve a invalid selectors for Subnet", func() {
 			nodeTemplate.Spec.SubnetSelector = map[string]string{`foo`: `invalid`}
 			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileFailed(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 			Expect(nodeTemplate.Status.Subnets).To(BeNil())
 		})
@@ -243,7 +242,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 
 			nodeTemplate.Spec.SubnetSelector = map[string]string{`foo`: `invalid`}
 			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileFailed(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 			Expect(nodeTemplate.Status.Subnets).To(BeNil())
 		})
@@ -372,10 +371,10 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 			amiFamily := amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, &amifamily.Options{})
-			instancetypes, err := awsEnv.InstanceTypesProvider.List(ctx, &v1alpha5.KubeletConfiguration{}, nodeTemplate)
-			Expect(err).To(BeNil())
-			amis, _ := awsEnv.AMIProvider.Get(ctx, nodeTemplate, instancetypes, amiFamily)
-			amiIds := lo.Keys(amis)
+			amis, _ := awsEnv.AMIProvider.GetAMIWithRequirements(ctx, nodeTemplate, amiFamily)
+			amiIds := lo.Map(lo.Keys(amis), func(ami amifamily.AMI, _ int) string {
+				return ami.AmiID
+			})
 			sort.Strings(amiIds)
 			amiIDsInStatus := lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMI, _ int) string {
 				return ami.ID
@@ -388,10 +387,10 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 			amiFamily := amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, &amifamily.Options{})
-			instancetypes, err := awsEnv.InstanceTypesProvider.List(ctx, &v1alpha5.KubeletConfiguration{}, nodeTemplate)
-			Expect(err).To(BeNil())
-			amis, _ := awsEnv.AMIProvider.Get(ctx, nodeTemplate, instancetypes, amiFamily)
-			amiIds := lo.Keys(amis)
+			amis, _ := awsEnv.AMIProvider.GetAMIWithRequirements(ctx, nodeTemplate, amiFamily)
+			amiIds := lo.Map(lo.Keys(amis), func(ami amifamily.AMI, _ int) string {
+				return ami.AmiID
+			})
 			sort.Strings(amiIds)
 			amiIDsInStatus := lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMI, _ int) string {
 				return ami.ID
@@ -405,10 +404,10 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 			amiFamily := amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, &amifamily.Options{})
-			instancetypes, err := awsEnv.InstanceTypesProvider.List(ctx, &v1alpha5.KubeletConfiguration{}, nodeTemplate)
-			Expect(err).To(BeNil())
-			amis, _ := awsEnv.AMIProvider.Get(ctx, nodeTemplate, instancetypes, amiFamily)
-			amiIds := lo.Keys(amis)
+			amis, _ := awsEnv.AMIProvider.GetAMIWithRequirements(ctx, nodeTemplate, amiFamily)
+			amiIds := lo.Map(lo.Keys(amis), func(ami amifamily.AMI, _ int) string {
+				return ami.AmiID
+			})
 			sort.Strings(amiIds)
 			amiIDsInStatus := lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMI, _ int) string {
 				return ami.ID
@@ -422,10 +421,10 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 			amiFamily := amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, &amifamily.Options{})
-			instancetypes, err := awsEnv.InstanceTypesProvider.List(ctx, &v1alpha5.KubeletConfiguration{}, nodeTemplate)
-			Expect(err).To(BeNil())
-			amis, _ := awsEnv.AMIProvider.Get(ctx, nodeTemplate, instancetypes, amiFamily)
-			amiIds := lo.Keys(amis)
+			amis, _ := awsEnv.AMIProvider.GetAMIWithRequirements(ctx, nodeTemplate, amiFamily)
+			amiIds := lo.Map(lo.Keys(amis), func(ami amifamily.AMI, _ int) string {
+				return ami.AmiID
+			})
 			sort.Strings(amiIds)
 			amiIDsInStatus := lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMI, _ int) string {
 				return ami.ID
@@ -438,10 +437,10 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 			amiFamily := amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, &amifamily.Options{})
-			instancetypes, err := awsEnv.InstanceTypesProvider.List(ctx, &v1alpha5.KubeletConfiguration{}, nodeTemplate)
-			Expect(err).To(BeNil())
-			amis, _ := awsEnv.AMIProvider.Get(ctx, nodeTemplate, instancetypes, amiFamily)
-			amiIds := lo.Keys(amis)
+			amis, _ := awsEnv.AMIProvider.GetAMIWithRequirements(ctx, nodeTemplate, amiFamily)
+			amiIds := lo.Map(lo.Keys(amis), func(ami amifamily.AMI, _ int) string {
+				return ami.AmiID
+			})
 			sort.Strings(amiIds)
 			amiIDsInStatus := lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMI, _ int) string {
 				return ami.ID
@@ -454,10 +453,10 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 			amiFamily = amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, &amifamily.Options{})
-			instancetypes, err = awsEnv.InstanceTypesProvider.List(ctx, &v1alpha5.KubeletConfiguration{}, nodeTemplate)
-			Expect(err).To(BeNil())
-			amis, _ = awsEnv.AMIProvider.Get(ctx, nodeTemplate, instancetypes, amiFamily)
-			amiIds = lo.Keys(amis)
+			amis, _ = awsEnv.AMIProvider.GetAMIWithRequirements(ctx, nodeTemplate, amiFamily)
+			amiIds = lo.Map(lo.Keys(amis), func(ami amifamily.AMI, _ int) string {
+				return ami.AmiID
+			})
 			sort.Strings(amiIds)
 			amiIDsInStatus = lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMI, _ int) string {
 				return ami.ID
@@ -470,10 +469,10 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 			amiFamily := amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, &amifamily.Options{})
-			instancetypes, err := awsEnv.InstanceTypesProvider.List(ctx, &v1alpha5.KubeletConfiguration{}, nodeTemplate)
-			Expect(err).To(BeNil())
-			amis, _ := awsEnv.AMIProvider.Get(ctx, nodeTemplate, instancetypes, amiFamily)
-			amiIds := lo.Keys(amis)
+			amis, _ := awsEnv.AMIProvider.GetAMIWithRequirements(ctx, nodeTemplate, amiFamily)
+			amiIds := lo.Map(lo.Keys(amis), func(ami amifamily.AMI, _ int) string {
+				return ami.AmiID
+			})
 			sort.Strings(amiIds)
 			amiIDsInStatus := lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMI, _ int) string {
 				return ami.ID
@@ -486,10 +485,10 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 			amiFamily = amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, &amifamily.Options{})
-			instancetypes, err = awsEnv.InstanceTypesProvider.List(ctx, &v1alpha5.KubeletConfiguration{}, nodeTemplate)
-			Expect(err).To(BeNil())
-			amis, _ = awsEnv.AMIProvider.Get(ctx, nodeTemplate, instancetypes, amiFamily)
-			amiIds = lo.Keys(amis)
+			amis, _ = awsEnv.AMIProvider.GetAMIWithRequirements(ctx, nodeTemplate, amiFamily)
+			amiIds = lo.Map(lo.Keys(amis), func(ami amifamily.AMI, _ int) string {
+				return ami.AmiID
+			})
 			sort.Strings(amiIds)
 			amiIDsInStatus = lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMI, _ int) string {
 				return ami.ID
@@ -509,10 +508,10 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 			amiFamily := amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, &amifamily.Options{})
-			instancetypes, err := awsEnv.InstanceTypesProvider.List(ctx, &v1alpha5.KubeletConfiguration{}, nodeTemplate)
-			Expect(err).To(BeNil())
-			amis, _ := awsEnv.AMIProvider.Get(ctx, nodeTemplate, instancetypes, amiFamily)
-			amiIds := lo.Keys(amis)
+			amis, _ := awsEnv.AMIProvider.GetAMIWithRequirements(ctx, nodeTemplate, amiFamily)
+			amiIds := lo.Map(lo.Keys(amis), func(ami amifamily.AMI, _ int) string {
+				return ami.AmiID
+			})
 			sort.Strings(amiIds)
 			amiIDsInStatus := lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMI, _ int) string {
 				return ami.ID

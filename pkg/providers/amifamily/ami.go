@@ -97,47 +97,49 @@ func (p *Provider) KubeServerVersion(ctx context.Context) (string, error) {
 // Get returns a set of AMIIDs and corresponding instance types. AMI may vary due to architecture, accelerator, etc
 // If AMI overrides are specified in the AWSNodeTemplate, then only those AMIs will be chosen.
 func (p *Provider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, instanceTypes []*cloudprovider.InstanceType, amiFamily AMIFamily) (map[string][]*cloudprovider.InstanceType, error) {
+	amiIDs := map[string][]*cloudprovider.InstanceType{}
+	amiRequirements, err := p.GetAMIWithRequirements(ctx, nodeTemplate, amiFamily)
+	if err != nil {
+		return nil, err
+	}
+
+	amis := sortAMIsByCreationDate(amiRequirements)
+	for _, instanceType := range instanceTypes {
+		for _, ami := range amis {
+			if err := instanceType.Requirements.Compatible(amiRequirements[ami]); err == nil {
+				amiIDs[ami.AmiID] = append(amiIDs[ami.AmiID], instanceType)
+				break
+			}
+		}
+	}
+	if len(amiIDs) == 0 {
+		return nil, fmt.Errorf("no instance types satisfy requirements of amis %v,", lo.Keys(amiRequirements))
+	}
+
+	return amiIDs, nil
+}
+
+func (p *Provider) GetAMIWithRequirements(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, amiFamily AMIFamily) (map[AMI]scheduling.Requirements, error) {
 	kubernetesVersion, err := p.KubeServerVersion(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("getting kubernetes version %w", err)
 	}
-	amiIDs := map[string][]*cloudprovider.InstanceType{}
 	amiRequirements, err := p.getAMIRequirements(ctx, nodeTemplate)
 	if err != nil {
 		return nil, err
 	}
-	if len(amiRequirements) > 0 {
-		// Iterate through AMIs in order of creation date to use latest AMI
-		amis := sortAMIsByCreationDate(amiRequirements)
-		for _, instanceType := range instanceTypes {
-			for _, ami := range amis {
-				if err := instanceType.Requirements.Compatible(amiRequirements[ami]); err == nil {
-					amiIDs[ami.AmiID] = append(amiIDs[ami.AmiID], instanceType)
-					break
-				}
-			}
-		}
-		if len(amiIDs) == 0 {
-			return nil, fmt.Errorf("no instance types satisfy requirements of amis %v,", lo.Keys(amiRequirements))
-		}
-	} else {
-		for _, instanceType := range instanceTypes {
-			amiID, err := p.getDefaultAMIFromSSM(ctx, amiFamily.SSMAlias(kubernetesVersion, instanceType))
+
+	if len(amiRequirements) == 0 {
+		ssmRequirements := amiFamily.SSMAlias(kubernetesVersion)
+		for ssmReq, requirements := range ssmRequirements {
+			amiID, err := p.getDefaultAMIFromSSM(ctx, ssmReq)
 			if err != nil {
 				return nil, err
 			}
-			amiIDs[amiID] = append(amiIDs[amiID], instanceType)
+			amiRequirements[AMI{
+				AmiID: amiID,
+			}] = requirements
 		}
-	}
-	return amiIDs, nil
-}
-
-func (p *Provider) GetAMIWithRequirements(ctx context.Context, amiIds []string) (map[AMI]scheduling.Requirements, error) {
-	amiFilter := map[string]string{"aws-ids": strings.Join(amiIds, ",")}
-
-	amiRequirements, err := p.selectAMIs(ctx, amiFilter)
-	if err != nil {
-		return nil, err
 	}
 
 	return amiRequirements, nil

@@ -21,9 +21,9 @@ import (
 	v1 "k8s.io/api/core/v1"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/scheduling"
 
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
-	"github.com/aws/karpenter-core/pkg/utils/resources"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/providers/amifamily/bootstrap"
 )
@@ -34,14 +34,29 @@ type AL2 struct {
 }
 
 // SSMAlias returns the AMI Alias to query SSM
-func (a AL2) SSMAlias(version string, instanceType *cloudprovider.InstanceType) string {
-	amiSuffix := ""
-	if !resources.IsZero(instanceType.Capacity[v1alpha1.ResourceNVIDIAGPU]) || !resources.IsZero(instanceType.Capacity[v1alpha1.ResourceAWSNeuron]) {
-		amiSuffix = "-gpu"
-	} else if instanceType.Requirements.Get(v1.LabelArchStable).Has(v1alpha5.ArchitectureArm64) {
-		amiSuffix = fmt.Sprintf("-%s", v1alpha5.ArchitectureArm64)
-	}
-	return fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2%s/recommended/image_id", version, amiSuffix)
+func (a AL2) SSMAlias(version string) map[string]scheduling.Requirements {
+	result := map[string]scheduling.Requirements{}
+
+	// amd64
+	requirements := scheduling.NewRequirements(
+		scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureAmd64),
+	)
+	result[fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", version)] = requirements
+
+	// amd64 with gpu
+	requirements = scheduling.NewRequirements(
+		scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureAmd64),
+		scheduling.NewRequirement(v1alpha1.LabelInstanceGPUManufacturer, v1.NodeSelectorOpIn, "nvidia", "neuron"),
+	)
+	result[fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-gpu/recommended/image_id", version)] = requirements
+
+	// arm64
+	requirements = scheduling.NewRequirements(
+		scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureArm64),
+	)
+	result[fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2%s/recommended/image_id", version, fmt.Sprintf("-%s", v1alpha5.ArchitectureArm64))] = requirements
+
+	return result
 }
 
 // UserData returns the exact same string for equivalent input,

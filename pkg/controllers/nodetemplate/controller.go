@@ -30,11 +30,9 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/samber/lo"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/providers/amifamily"
-	"github.com/aws/karpenter/pkg/providers/instancetype"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
 	"github.com/aws/karpenter/pkg/providers/subnet"
 )
@@ -45,17 +43,14 @@ type Controller struct {
 	kubeClient            client.Client
 	subnetProvider        *subnet.Provider
 	securityGroupProvider *securitygroup.Provider
-	instanceTypesProvider *instancetype.Provider
 	amiProvider           *amifamily.Provider
 }
 
-func NewController(kubeClient client.Client, subnetProvider *subnet.Provider, securityGroups *securitygroup.Provider,
-	amiprovider *amifamily.Provider, instancetypesprovider *instancetype.Provider) corecontroller.Controller {
+func NewController(kubeClient client.Client, subnetProvider *subnet.Provider, securityGroups *securitygroup.Provider, amiprovider *amifamily.Provider) corecontroller.Controller {
 	return corecontroller.Typed[*v1alpha1.AWSNodeTemplate](kubeClient, &Controller{
 		kubeClient:            kubeClient,
 		subnetProvider:        subnetProvider,
 		securityGroupProvider: securityGroups,
-		instanceTypesProvider: instancetypesprovider,
 		amiProvider:           amiprovider,
 	})
 }
@@ -125,27 +120,17 @@ func (c *Controller) resolveSecurityGroup(ctx context.Context, nodeTemplate *v1a
 
 func (c *Controller) resolveAMI(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) error {
 	amiFamily := amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, &amifamily.Options{})
-	instancetypes, err := c.instanceTypesProvider.List(ctx, &v1alpha5.KubeletConfiguration{}, nodeTemplate)
-	if err != nil {
-		return err
-	}
 
-	amis, err := c.amiProvider.Get(ctx, nodeTemplate, instancetypes, amiFamily)
+	amiRequirement, err := c.amiProvider.GetAMIWithRequirements(ctx, nodeTemplate, amiFamily)
 	if err != nil {
 		nodeTemplate.Status.AMIs = nil
 		return err
 	}
 
-	amisRequirement, err := c.amiProvider.GetAMIWithRequirements(ctx, lo.Keys(amis))
-	if err != nil {
-		nodeTemplate.Status.AMIs = nil
-		return err
-	}
-
-	nodeTemplate.Status.AMIs = lo.Map(lo.Keys(amisRequirement), func(ami amifamily.AMI, _ int) v1alpha1.AMI {
+	nodeTemplate.Status.AMIs = lo.Map(lo.Keys(amiRequirement), func(ami amifamily.AMI, _ int) v1alpha1.AMI {
 		return v1alpha1.AMI{
 			ID:           ami.AmiID,
-			Requirements: amisRequirement[ami].NodeSelectorRequirements(),
+			Requirements: amiRequirement[ami].NodeSelectorRequirements(),
 		}
 	})
 

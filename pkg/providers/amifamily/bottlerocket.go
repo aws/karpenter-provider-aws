@@ -22,7 +22,7 @@ import (
 	"github.com/aws/karpenter/pkg/providers/amifamily/bootstrap"
 
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
-	"github.com/aws/karpenter-core/pkg/utils/resources"
+	"github.com/aws/karpenter-core/pkg/scheduling"
 
 	"github.com/aws/aws-sdk-go/aws"
 	v1 "k8s.io/api/core/v1"
@@ -39,16 +39,30 @@ type Bottlerocket struct {
 }
 
 // SSMAlias returns the AMI Alias to query SSM
-func (b Bottlerocket) SSMAlias(version string, instanceType *cloudprovider.InstanceType) string {
-	arch := "x86_64"
-	amiSuffix := ""
-	if !resources.IsZero(instanceType.Capacity[v1alpha1.ResourceNVIDIAGPU]) {
-		amiSuffix = "-nvidia"
+func (b Bottlerocket) SSMAlias(version string) map[string]scheduling.Requirements {
+	result := map[string]scheduling.Requirements{}
+	architectures := []string{"x86_64", v1alpha5.ArchitectureArm64}
+
+	for _, arch := range architectures {
+		requirements := scheduling.NewRequirements()
+		if arch == "x86_64" {
+			requirements.Add(scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureAmd64))
+		} else {
+			requirements.Add(scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, arch))
+		}
+		result[fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/%s/latest/image_id", version, arch)] = requirements
+
+		requirements = scheduling.NewRequirements()
+		if arch == "x86_64" {
+			requirements.Add(scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureAmd64))
+		} else {
+			requirements.Add(scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, arch))
+		}
+		requirements.Add(scheduling.NewRequirement(v1alpha1.LabelInstanceGPUManufacturer, v1.NodeSelectorOpIn, "nvidia"))
+		result[fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s%s/%s/latest/image_id", version, "-nvidia", arch)] = requirements
 	}
-	if instanceType.Requirements.Get(v1.LabelArchStable).Has(v1alpha5.ArchitectureArm64) {
-		arch = v1alpha5.ArchitectureArm64
-	}
-	return fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s%s/%s/latest/image_id", version, amiSuffix, arch)
+
+	return result
 }
 
 // UserData returns the default userdata script for the AMI Family
