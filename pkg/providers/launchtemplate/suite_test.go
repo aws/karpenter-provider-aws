@@ -23,6 +23,7 @@ import (
 	"net"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -1380,6 +1381,46 @@ var _ = Describe("LaunchTemplates", func() {
 				Expect(config.UnmarshalTOML(userData)).To(Succeed())
 				Expect(config.Settings.Kubernetes.MaxPods).ToNot(BeNil())
 				Expect(*config.Settings.Kubernetes.MaxPods).To(BeNumerically("==", 10))
+			})
+			It("should pass ImageGCHighThresholdPercent when specified", func() {
+				nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
+				provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
+					ImageGCHighThresholdPercent: aws.Int32(50),
+				}
+				ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+				input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
+				userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+				Expect(err).To(BeNil())
+				config := &bootstrap.BottlerocketConfig{}
+				Expect(config.UnmarshalTOML(userData)).To(Succeed())
+				Expect(config.Settings.Kubernetes.ImageGCHighThresholdPercent).ToNot(BeNil())
+				percent, err := strconv.Atoi(*config.Settings.Kubernetes.ImageGCHighThresholdPercent)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(percent).To(BeNumerically("==", 50))
+			})
+			It("should pass ImageGCLowThresholdPercent when specified", func() {
+				nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
+				provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
+					ImageGCLowThresholdPercent: aws.Int32(50),
+				}
+				ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+				input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
+				userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+				Expect(err).To(BeNil())
+				config := &bootstrap.BottlerocketConfig{}
+				Expect(config.UnmarshalTOML(userData)).To(Succeed())
+				Expect(config.Settings.Kubernetes.ImageGCLowThresholdPercent).ToNot(BeNil())
+				percent, err := strconv.Atoi(*config.Settings.Kubernetes.ImageGCLowThresholdPercent)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(percent).To(BeNumerically("==", 50))
 			})
 		})
 		Context("AL2 Custom UserData", func() {

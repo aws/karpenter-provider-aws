@@ -17,7 +17,9 @@ package bootstrap
 import (
 	"encoding/base64"
 	"fmt"
+	"strconv"
 
+	"github.com/samber/lo"
 	"knative.dev/pkg/ptr"
 
 	"github.com/aws/karpenter-core/pkg/utils/resources"
@@ -29,6 +31,7 @@ type Bottlerocket struct {
 	Options
 }
 
+// nolint:gocyclo
 func (b Bottlerocket) Script() (string, error) {
 	s, err := NewBottlerocketConfig(b.CustomUserData)
 	if err != nil {
@@ -55,8 +58,13 @@ func (b Bottlerocket) Script() (string, error) {
 		s.Settings.Kubernetes.SystemReserved = resources.StringMap(b.KubeletConfig.SystemReserved)
 		s.Settings.Kubernetes.KubeReserved = resources.StringMap(b.KubeletConfig.KubeReserved)
 		s.Settings.Kubernetes.EvictionHard = b.KubeletConfig.EvictionHard
-		s.Settings.Kubernetes.ImageGCLowThresholdPercent = b.KubeletConfig.ImageGCLowThresholdPercent
-		s.Settings.Kubernetes.ImageGCHighThresholdPercent = b.KubeletConfig.ImageGCHighThresholdPercent
+		if b.KubeletConfig.ImageGCHighThresholdPercent != nil {
+			s.Settings.Kubernetes.ImageGCHighThresholdPercent = lo.ToPtr(strconv.FormatInt(int64(*b.KubeletConfig.ImageGCHighThresholdPercent), 10))
+		}
+		if b.KubeletConfig.ImageGCLowThresholdPercent != nil {
+			s.Settings.Kubernetes.ImageGCLowThresholdPercent = lo.ToPtr(strconv.FormatInt(int64(*b.KubeletConfig.ImageGCLowThresholdPercent), 10))
+		}
+
 	}
 
 	s.Settings.Kubernetes.NodeTaints = map[string][]string{}
