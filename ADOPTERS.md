@@ -21,7 +21,7 @@ If you are open to others contacting you about your use of Karpenter on Slack, a
 | Astradot | Using Karpenter on all K8s clusters in production and staging | N/A | [Homepage](https://astradot.com) |
 | Beeswax | Using Karpenter to scale our high load AdTech platform efficiently | `@James Wojewoda` | [Homepage](https://www.beeswax.com)
 | Canva | Using Karpetner to scale CPU and GPU workloads on EKS | `@groodt` | [Canva](https://www.canva.com/) |
-| Codefresh | Juggling workloads for the SAAS CD/GitOps offering | `@Vadim Gusev` | [Codefresh](https://codefresh.io/) |
+| Codefresh | Juggling workloads for the SAAS CD/GitOps offering | `@Yonatan Koren`, `@Ilia Medvedev` | [Codefresh](https://codefresh.io/) |
 | Conveyor | Using karpenter to scale our customers data pipelines on EKS | `@stijndehaes` | [Conveyor](https://conveyordata.com/) |
 | Cordial   | Using Karpenter to scale multiple EKS clusters quickly | `@dschaaff` | [Cordial](https://cordial.com) |
 | Dig Security | Protecting our customers data - Using Karpenter to manage production and development workloads on EKS, We are using only Spot Instances in production. | `@Shahar Danus` | [Dig Security](https://dig.security/) |
@@ -38,4 +38,5 @@ If you are open to others contacting you about your use of Karpenter on Slack, a
 | Stytch | Powering the scaling needs of Stytch's authentication and user-management APIs  | `@Elijah Chanakira`, `@Ovadia Harary` | [Homepage](https://www.stytch.com/) |
 | Superbexperience | Using Karpenter to scale the k8s clusters running our Guest Experience Management platform  | `@Wernich Bekker` | [Homepage](https://www.superbexperience.com/) |
 | Target Australia | Using Karpenter to manage (scale, auto update etc) the containerised (EKS) compute that powers much of the Target Online platform | `@gazal-k` | [Target Australia Online Shopping](https://www.target.com.au) |
+| The Scale Factory | Using Karpenter (controllers on EC2/Fargate) to efficiently scale K8s workloads and empowering our customer teams to do the same  | `@marko` | [Homepage](https://www.scalefactory.com) |
 | Tyk Cloud | Scaling workloads for the Cloud Free plan  | `@Artem Hluvchynskyi`, `@gowtham` | [Tyk Cloud](https://tyk.io/cloud/) |

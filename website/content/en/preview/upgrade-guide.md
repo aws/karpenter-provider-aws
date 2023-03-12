@@ -159,7 +159,7 @@ By adopting this practice we allow our users who are early adopters to test out 
 
 ## Upgrading to v0.17.0+
 Karpenter's Helm chart package is now stored in [Karpenter's OCI (Open Container Initiative) registry](https://gallery.ecr.aws/karpenter/karpenter). The Helm CLI supports the new format since [v3.8.0+](https://helm.sh/docs/topics/registries/).
-With this change [charts.karpenter.sh](https://charts.karpenter.sh/) is no longer updated but preserved to allow using older Karpenter versions. For examples on working with the Karpenter helm charts look at [Install Karpenter Helm Chart]({{< ref "./getting-started/getting-started-with-eksctl/#install-karpenter-helm-chart" >}}).
+With this change [charts.karpenter.sh](https://charts.karpenter.sh/) is no longer updated but preserved to allow using older Karpenter versions. For examples on working with the Karpenter helm charts look at [Install Karpenter Helm Chart]({{< ref "./getting-started/getting-started-with-karpenter/#install-karpenter-helm-chart" >}}).
 
 Users who have scripted the installation or upgrading of Karpenter need to adjust their scripts with the following changes:
 1. There is no longer a need to add the Karpenter helm repo to helm

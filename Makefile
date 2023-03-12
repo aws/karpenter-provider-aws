@@ -32,7 +32,7 @@ HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${K
 SYSTEM_NAMESPACE ?= karpenter
 KARPENTER_VERSION ?= $(shell git tag --sort=committerdate | tail -1)
 KO_DOCKER_REPO ?= ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/karpenter
-GETTING_STARTED_SCRIPT_DIR = website/content/en/preview/getting-started/getting-started-with-eksctl/scripts
+GETTING_STARTED_SCRIPT_DIR = website/content/en/preview/getting-started/getting-started-with-karpenter/scripts
 
 # Common Directories
 MOD_DIRS = $(shell find . -name go.mod -type f | xargs dirname)
