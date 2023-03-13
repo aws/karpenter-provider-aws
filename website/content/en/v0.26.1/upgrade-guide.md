@@ -41,7 +41,10 @@ Karpenter ships with a few Custom Resource Definitions (CRDs). These CRDs are pu
     ```
     helm upgrade --install karpenter-crd oci://public.ecr.aws/karpenter/karpenter-crd --version vx.y.z --namespace karpenter --create-namespace
     ```
-* Follow [Troubleshooting](./troubleshooting.md#helm-error-when-upgrading-from-older-karpenter-version) when getting `invalid ownership metadata; label validation error:` after `helm upgrade` from older karpenter versions.
+
+{{% alert title="Note" color="warning" %}}
+Follow [Troubleshooting]({{<ref "./troubleshooting#helm-error-when-upgrading-from-older-karpenter-version" >}}) when getting `invalid ownership metadata; label validation error:` after `helm upgrade` from older karpenter versions.
+{{% /alert %}}
 
 * As part of the helm chart [karpenter](https://gallery.ecr.aws/karpenter/karpenter) - [source](https://github.com/aws/karpenter/blob/main/charts/karpenter/crds). Helm [does not manage the lifecycle of CRDs using this method](https://helm.sh/docs/chart_best_practices/custom_resource_definitions/), the tool will only install the CRD during the first installation of the helm chart. Subsequent chart upgrades will not add or remove CRDs, even if the CRDs have changed. When CRDs are changed, we will make a note in the version's upgrade guide.
 

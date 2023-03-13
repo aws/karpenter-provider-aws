@@ -41,6 +41,7 @@ Karpenter ships with a few Custom Resource Definitions (CRDs). These CRDs are pu
     ```
     helm upgrade --install karpenter-crd oci://public.ecr.aws/karpenter/karpenter-crd --version vx.y.z --namespace karpenter --create-namespace
     ```
+
 {{% alert title="Note" color="warning" %}}
 Follow [Troubleshooting]({{<ref "./troubleshooting#helm-error-when-upgrading-from-older-karpenter-version" >}}) when getting `invalid ownership metadata; label validation error:` after `helm upgrade` from older karpenter versions.
 {{% /alert %}}
