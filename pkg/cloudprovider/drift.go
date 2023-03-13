@@ -21,6 +21,7 @@ import (
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/utils/sets"
@@ -100,6 +101,26 @@ func (c *CloudProvider) areSecurityGroupsDrifted(ec2Instance *instance.Instance,
 	}
 
 	return !securityGroupIds.Equal(sets.New(ec2Instance.SecurityGroupIDs...)), nil
+}
+
+func (c *CloudProvider) isSubnetDrifted(ctx context.Context, machine *v1alpha5.Machine, nodeTemplate *v1alpha1.AWSNodeTemplate) (bool, error) {
+	subnets, err := c.subnetProvider.List(ctx, nodeTemplate)
+	if err != nil {
+		return false, fmt.Errorf("listing subnets, %w", err)
+	}
+	// Get InstanceID to fetch from EC2
+	instanceID, err := utils.ParseInstanceID(machine.Status.ProviderID)
+	if err != nil {
+		return false, err
+	}
+	instance, err := c.instanceProvider.Get(ctx, instanceID)
+	if err != nil {
+		return false, fmt.Errorf("getting instance, %w", err)
+	}
+	_, found := lo.Find(subnets, func(subnet *ec2.Subnet) bool {
+		return *subnet.SubnetId == *instance.SubnetId
+	})
+	return !found, nil
 }
 
 func (c *CloudProvider) getInstance(ctx context.Context, providerID string) (*instance.Instance, error) {

@@ -87,7 +87,7 @@ var _ = BeforeSuite(func() {
 	awsEnv = test.NewEnvironment(ctx, env)
 
 	fakeClock = clock.NewFakeClock(time.Now())
-	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider)
+	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.SubnetProvider)
 	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
 	prov = provisioning.NewProvisioner(env.Client, env.KubernetesInterface.CoreV1(), events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster)
 })
@@ -213,14 +213,16 @@ var _ = Describe("CloudProvider", func() {
 			Expect(createFleetInput.Context).To(BeNil())
 		})
 	})
-	Context("Node Drift", func() {
+	Context("Machine Drift", func() {
 		var validAMI string
 		var validSecurityGroup string
 		var selectedInstanceType *corecloudproivder.InstanceType
 		var instance *ec2.Instance
+		var validSubnet string
 		BeforeEach(func() {
 			validAMI = fake.ImageID()
 			validSecurityGroup = fake.SecurityGroupID()
+			validSubnet = fake.SubnetID()
 			awsEnv.SSMAPI.GetParameterOutput = &ssm.GetParameterOutput{
 				Parameter: &ssm.Parameter{Value: aws.String(validAMI)},
 			}
@@ -247,6 +249,7 @@ var _ = Describe("CloudProvider", func() {
 			instance = &ec2.Instance{
 				ImageId:               aws.String(validAMI),
 				InstanceType:          aws.String(selectedInstanceType.Name),
+				SubnetId:              aws.String(validSubnet),
 				SpotInstanceRequestId: aws.String(coretest.RandomName()),
 				State: &ec2.InstanceState{
 					Name: aws.String(ec2.InstanceStateNameRunning),
@@ -479,9 +482,25 @@ var _ = Describe("CloudProvider", func() {
 			Expect(err).To(HaveOccurred())
 			Expect(isDrifted).To(BeFalse())
 		})
-		It("should not error drift if the underlying machine does not exist", func() {
+		It("should return drifted if the subnet is not valid", func() {
 			node := coretest.Node(coretest.NodeOptions{
-				ProviderID: fake.ProviderID(fake.InstanceID()),
+				ProviderID: fake.ProviderID(lo.FromPtr(instance.InstanceId)),
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+						v1.LabelInstanceTypeStable:       selectedInstanceType.Name,
+					},
+				},
+			})
+			// Instance is a reference to what we return in the GetInstances call
+			instance.SubnetId = aws.String(fake.SubnetID())
+			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machineutil.NewFromNode(node))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(isDrifted).To(BeTrue())
+		})
+		It("should not return drifted if the subnet is valid", func() {
+			node := coretest.Node(coretest.NodeOptions{
+				ProviderID: fake.ProviderID(lo.FromPtr(instance.InstanceId)),
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,

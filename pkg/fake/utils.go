@@ -43,6 +43,10 @@ func SecurityGroupID() string {
 	return fmt.Sprintf("sg-%s", randomdata.Alphanumeric(17))
 }
 
+func SubnetID() string {
+	return fmt.Sprintf("subnet-%s", randomdata.Alphanumeric(17))
+}
+
 func PrivateDNSName() string {
 	return fmt.Sprintf("ip-192-168-%d-%d.%s.compute.internal", randomdata.Number(0, 256), randomdata.Number(0, 256), defaultRegion)
 }
