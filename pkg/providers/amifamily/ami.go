@@ -57,7 +57,7 @@ type Provider struct {
 
 type AMI struct {
 	AmiID        string
-	CreationDate string
+	CreationDate time.Time
 }
 
 const (
@@ -132,34 +132,35 @@ func (p *Provider) GetAMIWithRequirements(ctx context.Context, nodeTemplate *v1a
 	if len(amiRequirements) == 0 {
 		ssmRequirements := amiFamily.SSMAlias(kubernetesVersion)
 		for ssmReq, requirements := range ssmRequirements {
-			amiID, err := p.getDefaultAMIFromSSM(ctx, ssmReq)
+			ami, err := p.getDefaultAMIFromSSM(ctx, ssmReq)
 			if err != nil {
 				return nil, err
 			}
-			amiRequirements[AMI{
-				AmiID:        amiID,
-				CreationDate: time.Now().UTC().GoString(),
-			}] = requirements
+			amiRequirements[ami] = requirements
 		}
 	}
 
 	return amiRequirements, nil
 }
 
-func (p *Provider) getDefaultAMIFromSSM(ctx context.Context, ssmQuery string) (string, error) {
+func (p *Provider) getDefaultAMIFromSSM(ctx context.Context, ssmQuery string) (AMI, error) {
 	if id, ok := p.ssmCache.Get(ssmQuery); ok {
-		return id.(string), nil
+		return id.(AMI), nil
 	}
 	output, err := p.ssm.GetParameterWithContext(ctx, &ssm.GetParameterInput{Name: aws.String(ssmQuery)})
 	if err != nil {
-		return "", fmt.Errorf("getting ssm parameter %q, %w", ssmQuery, err)
+		return AMI{}, fmt.Errorf("getting ssm parameter %q, %w", ssmQuery, err)
 	}
 	ami := aws.StringValue(output.Parameter.Value)
-	p.ssmCache.SetDefault(ssmQuery, ami)
+	result := AMI{
+		AmiID:        ami,
+		CreationDate: time.Now(),
+	}
+	p.ssmCache.SetDefault(ssmQuery, result)
 	if p.cm.HasChanged("ssmquery-"+ssmQuery, ami) {
 		logging.FromContext(ctx).With("ami", ami, "query", ssmQuery).Debugf("discovered new ami")
 	}
-	return ami, nil
+	return result, nil
 }
 
 func (p *Provider) getAMIRequirements(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) (map[AMI]scheduling.Requirements, error) {
@@ -179,7 +180,8 @@ func (p *Provider) selectAMIs(ctx context.Context, amiSelector map[string]string
 	}
 	var amiIDs = map[AMI]scheduling.Requirements{}
 	for _, ec2AMI := range ec2AMIs {
-		amiIDs[AMI{*ec2AMI.ImageId, *ec2AMI.CreationDate}] = p.getRequirementsFromImage(ec2AMI)
+		creationDate, _ := time.Parse(time.RFC3339, *ec2AMI.CreationDate)
+		amiIDs[AMI{*ec2AMI.ImageId, creationDate}] = p.getRequirementsFromImage(ec2AMI)
 	}
 	return amiIDs, nil
 }
@@ -251,8 +253,8 @@ func sortAMIsByCreationDate(amiRequirements map[AMI]scheduling.Requirements) []A
 	amis := lo.Keys(amiRequirements)
 
 	sort.Slice(amis, func(i, j int) bool {
-		itime, _ := time.Parse(time.RFC3339, amis[i].CreationDate)
-		jtime, _ := time.Parse(time.RFC3339, amis[j].CreationDate)
+		itime := amis[i].CreationDate
+		jtime := amis[j].CreationDate
 		return itime.Unix() >= jtime.Unix()
 	})
 	return amis
