@@ -139,8 +139,16 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       {{- with .Values.affinity }}
+      # The template below patches the .Values.affinity to add a default label selector where not specificed
+      {{- $_ := include "karpenter.patchAffinity" $ }}
       affinity:
-        {{- tpl (toYaml .) $ | nindent 8 }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.topologySpreadConstraints }}
+      # The template below patches the .Values.topologySpreadConstraints to add a default label selector where not specificed
+      {{- $_ := include "karpenter.patchTopologySpreadConstraints" $ }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
       {{- end }}
       {{- with .Values.tolerations }}
       tolerations:
@@ -149,14 +157,4 @@ spec:
       {{- with .Values.extraVolumes }}
       volumes:
         {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- if .Values.topologySpreadConstraints }}
-      topologySpreadConstraints:
-        {{- range $constraint := .Values.topologySpreadConstraints }}
-        -
-        {{- toYaml $constraint | nindent 10 }}
-          labelSelector:
-            matchLabels:
-            {{- include "karpenter.selectorLabels" $ | nindent 14 -}}
-        {{- end }}
       {{- end }}

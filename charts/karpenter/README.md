@@ -31,7 +31,7 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | additionalAnnotations | object | `{}` | Additional annotations to add into metadata. |
 | additionalClusterRoleRules | list | `[]` | Specifies additional rules for the core ClusterRole. |
 | additionalLabels | object | `{}` | Additional labels to add into metadata. |
-| affinity | object | `{"nodeAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":{"nodeSelectorTerms":[{"matchExpressions":[{"key":"karpenter.sh/provisioner-name","operator":"DoesNotExist"}]}]}},"podAntiAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":[{"labelSelector":{"matchExpressions":[{"key":"app.kubernetes.io/instance","operator":"In","values":["{{ .Release.Name }}"]}]},"topologyKey":"kubernetes.io/hostname"}]}}` | Affinity rules for scheduling the pod. |
+| affinity | object | `{"nodeAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":{"nodeSelectorTerms":[{"matchExpressions":[{"key":"karpenter.sh/provisioner-name","operator":"DoesNotExist"}]}]}},"podAntiAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":[{"topologyKey":"kubernetes.io/hostname"}]}}` | Affinity rules for scheduling the pod. If an explicit label selector is not provided for pod affinity or pod anti-affinity one will be created from the pod selector labels. |
 | controller.env | list | `[]` | Additional environment variables for the controller pod. |
 | controller.envFrom | list | `[]` |  |
 | controller.errorOutputPaths | list | `["stderr"]` | Controller errorOutputPaths - default to stderr only |
@@ -93,7 +93,6 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | strategy | object | `{"rollingUpdate":{"maxUnavailable":1}}` | Strategy for updating the pod. |
 | terminationGracePeriodSeconds | string | `nil` | Override the default termination grace period for the pod. |
 | tolerations | list | `[{"key":"CriticalAddonsOnly","operator":"Exists"}]` | Tolerations to allow the pod to be scheduled to nodes with taints. |
-| topologySpreadConstraints | list | `[{"maxSkew":1,"topologyKey":"topology.kubernetes.io/zone","whenUnsatisfiable":"ScheduleAnyway"}]` | topologySpreadConstraints to increase the controller resilience |
+| topologySpreadConstraints | list | `[{"maxSkew":1,"topologyKey":"topology.kubernetes.io/zone","whenUnsatisfiable":"ScheduleAnyway"}]` | Topology spread constraints to increase the controller resilience by distributing pods across the cluster zones. If an explicit label selector is not provided one will be created from the pod selector labels. |
 | webhook.logLevel | string | `"error"` |  |
 | webhook.port | int | `8443` | The container port to use for the webhook. |
-
