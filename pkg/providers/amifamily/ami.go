@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -139,7 +138,7 @@ func (p *Provider) GetAMIWithRequirements(ctx context.Context, nodeTemplate *v1a
 			}
 			amiRequirements[AMI{
 				AmiID:        amiID,
-				CreationDate: time.Now().UTC().GoString() + strconv.Itoa(len(amiRequirements)),
+				CreationDate: time.Now().UTC().GoString(),
 			}] = requirements
 		}
 	}
