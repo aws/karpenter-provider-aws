@@ -74,13 +74,14 @@ To do that we have to modify the `aws-auth` ConfigMap in the cluster.
 {{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step08-edit-aws-auth.sh" language="bash" %}}
 
 You will need to add a section to the mapRoles that looks something like this.
-Replace the `${AWS_ACCOUNT_ID}` variable with your account, but do not replace the `{{EC2PrivateDNSName}}`.
-```
-    - groups:
-      - system:bootstrappers
-      - system:nodes
-      rolearn: arn:aws:iam::${AWS_ACCOUNT_ID}:role/KarpenterInstanceNodeRole
-      username: system:node:{{EC2PrivateDNSName}}
+Replace the `${AWS_ACCOUNT_ID}` variable with your account and `${CLUSTER_NAME}` variable with the cluster name, but do not replace the `{{EC2PrivateDNSName}}`.
+
+```yaml
+- groups:
+  - system:bootstrappers
+  - system:nodes
+  rolearn: arn:aws:iam::${AWS_ACCOUNT_ID}:role/KarpenterNodeRole-${CLUSTER_NAME}
+  username: system:node:{{EC2PrivateDNSName}}
 ```
 
 The full aws-auth configmap should have two groups.
@@ -89,6 +90,7 @@ One for your Karpenter node role and one for your existing node group.
 ## Deploy Karpenter
 
 First set the Karpenter release you want to deploy.
+
 ```bash
 export KARPENTER_VERSION=v0.25.0
 ```
@@ -105,21 +107,21 @@ Edit the karpenter.yaml file and find the karpenter deployment affinity rules.
 Modify the affinity so karpenter will run on one of the existing node group nodes.
 
 The rules should look something like this.
-Modify the value to match your `$NODEGROUP`.
+Modify the value to match your `$NODEGROUP`, one node group per line.
 
-```
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-            - matchExpressions:
-              - key: karpenter.sh/provisioner-name
-                operator: DoesNotExist
-            - matchExpressions:
-              - key: eks.amazonaws.com/nodegroup
-                operator: In
-                values:
-                - ${NODEGROUP}
+```yaml
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: karpenter.sh/provisioner-name
+          operator: DoesNotExist
+      - matchExpressions:
+        - key: eks.amazonaws.com/nodegroup
+          operator: In
+          values:
+          - ${NODEGROUP}
 ```
 
 Now that our deployment is ready we can create the karpenter namespace, create the provisioner CRD, and then deploy the rest of the karpenter resources.
@@ -143,18 +145,18 @@ Some examples are
 * metric-server
 
 You can edit them with `kubectl edit deploy ...` and you should add node affinity for your static node group instances.
-Modify the value to match your `$NODEGROUP`.
+Modify the value to match your `$NODEGROUP`, one node group per line.
 
-```
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-            - matchExpressions:
-              - key: eks.amazonaws.com/nodegroup
-                operator: In
-                values:
-                - ${NODEGROUP}
+```yaml
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: eks.amazonaws.com/nodegroup
+          operator: In
+          values:
+          - ${NODEGROUP}
 ```
 
 ## Remove CAS
@@ -165,15 +167,20 @@ To do that we will scale the number of replicas to zero.
 {{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step12-scale-cas.sh" language="bash" %}}
 
 To get rid of the instances that were added from the node group we can scale our nodegroup down to a minimum size to support Karpenter and other critical services.
-We suggest a minimum of 2 nodes for the node group.
 
-> Note: If your workloads do not have [pod disruption budgets](https://kubernetes.io/docs/tasks/run-application/configure-pdb/) set,
-> the following command **will cause workloads to be unavailable.**
+> Note: If your workloads do not have [pod disruption budgets](https://kubernetes.io/docs/tasks/run-application/configure-pdb/) set, the following command **will cause workloads to be unavailable.**
 
-{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step13-scale-ng.sh" language="bash" %}}
+If you have a single multi-AZ node group, we suggest a minimum of 2 instances.
 
-If you have a lot of nodes or workloads you may want to slowly scale down your node groups by a few instances at a time.
-It is recommended to watch the transition carefully for workloads that may not have enough replicas running or disruption budgets configured.
+{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step13-scale-single-ng.sh" language="bash" %}}
+
+Or, if you have multiple single-AZ node groups, we suggest a minimum of 1 instance each.
+
+{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step13-scale-multiple-ng.sh" language="bash" %}}
+
+{{% alert title="Note" color="warning" %}}
+If you have a lot of nodes or workloads you may want to slowly scale down your node groups by a few instances at a time. It is recommended to watch the transition carefully for workloads that may not have enough replicas running or disruption budgets configured.
+{{% /alert %}}
 
 ## Verify Karpenter
 
