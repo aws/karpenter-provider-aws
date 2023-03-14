@@ -117,7 +117,10 @@ pullPrivateReplica(){
   authenticatePrivateRepo
   RELEASE_IDENTIFIER=$1
   PULL_THROUGH_CACHE_PATH="${PRIVATE_PULL_THROUGH_HOST}/ecr-public/${ECR_GALLERY_NAME}/"
+  HELM_CHART_VERSION=$(helmChartVersion "$RELEASE_VERSION")
   docker pull "${PULL_THROUGH_CACHE_PATH}controller:${RELEASE_IDENTIFIER}"
+  helm pull "oci://${PULL_THROUGH_CACHE_PATH}karpenter" --version "${HELM_CHART_VERSION}"
+  helm pull "oci://${PULL_THROUGH_CACHE_PATH}karpenter-crd" --version "${HELM_CHART_VERSION}"
 }
 
 publishHelmChart() {
