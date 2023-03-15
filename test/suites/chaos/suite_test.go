@@ -83,7 +83,7 @@ var _ = Describe("Chaos", func() {
 				Consolidation: &v1alpha5.Consolidation{
 					Enabled: lo.ToPtr(true),
 				},
-				ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
+				ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 			})
 			numPods := 1
 			dep := test.Deployment(test.DeploymentOptions{
@@ -126,7 +126,7 @@ var _ = Describe("Chaos", func() {
 					},
 				},
 				TTLSecondsAfterEmpty: lo.ToPtr[int64](30),
-				ProviderRef:          &v1alpha5.ProviderRef{Name: provider.Name},
+				ProviderRef:          &v1alpha5.MachineTemplateRef{Name: provider.Name},
 			})
 			numPods := 1
 			dep := test.Deployment(test.DeploymentOptions{

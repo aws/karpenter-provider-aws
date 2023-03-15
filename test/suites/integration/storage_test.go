@@ -57,7 +57,7 @@ var _ = Describe("Dynamic PVC", func() {
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{
-			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
+			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
 
 		storageClassName := "ebs-sc-test"
 		bindMode := storagev1.VolumeBindingWaitForFirstConsumer
@@ -95,7 +95,7 @@ var _ = Describe("Static PVC", func() {
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{
-			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
+			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
 
 		storageClassName := "nfs-test"
 		bindMode := storagev1.VolumeBindingWaitForFirstConsumer

@@ -128,7 +128,7 @@ var _ = Describe("BackwardsCompatability", func() {
 					SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 				},
 			})
-			provisioner.Spec.ProviderRef = &v1alpha5.ProviderRef{Name: provider.Name}
+			provisioner.Spec.ProviderRef = &v1alpha5.MachineTemplateRef{Name: provider.Name}
 			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
 				{
 					Key:      v1alpha1.LabelInstanceCategory,

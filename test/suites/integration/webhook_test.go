@@ -33,7 +33,7 @@ var _ = Describe("Webhooks", func() {
 		Context("Defaulting", func() {
 			It("should set the default requirements when none are specified", func() {
 				provisioner := test.Provisioner(test.ProvisionerOptions{
-					ProviderRef: &v1alpha5.ProviderRef{Name: "test"},
+					ProviderRef: &v1alpha5.MachineTemplateRef{Name: "test"},
 				})
 				env.ExpectCreated(provisioner)
 				env.ExpectFound(provisioner)
@@ -67,7 +67,7 @@ var _ = Describe("Webhooks", func() {
 			})
 			It("shouldn't default if requirements are set", func() {
 				provisioner := test.Provisioner(test.ProvisionerOptions{
-					ProviderRef: &v1alpha5.ProviderRef{Name: "test"},
+					ProviderRef: &v1alpha5.MachineTemplateRef{Name: "test"},
 					Requirements: []v1.NodeSelectorRequirement{
 						{
 							Key:      v1.LabelOSStable,
@@ -134,12 +134,12 @@ var _ = Describe("Webhooks", func() {
 						SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 						SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 					},
-					ProviderRef: &v1alpha5.ProviderRef{Name: "test"},
+					ProviderRef: &v1alpha5.MachineTemplateRef{Name: "test"},
 				}))).ToNot(Succeed())
 			})
 			It("should error when a restricted label is used in labels (karpenter.sh/provisioner-name)", func() {
 				Expect(env.Client.Create(env, test.Provisioner(test.ProvisionerOptions{
-					ProviderRef: &v1alpha5.ProviderRef{Name: "test"},
+					ProviderRef: &v1alpha5.MachineTemplateRef{Name: "test"},
 					Labels: map[string]string{
 						v1alpha5.ProvisionerNameLabelKey: "my-custom-provisioner",
 					},
@@ -147,7 +147,7 @@ var _ = Describe("Webhooks", func() {
 			})
 			It("should error when a restricted label is used in labels (kubernetes.io/custom-label)", func() {
 				Expect(env.Client.Create(env, test.Provisioner(test.ProvisionerOptions{
-					ProviderRef: &v1alpha5.ProviderRef{Name: "test"},
+					ProviderRef: &v1alpha5.MachineTemplateRef{Name: "test"},
 					Labels: map[string]string{
 						"kubernetes.io/custom-label": "custom-value",
 					},
@@ -155,7 +155,7 @@ var _ = Describe("Webhooks", func() {
 			})
 			It("should error when a requirement references a restricted label (karpenter.sh/provisioner-name)", func() {
 				Expect(env.Client.Create(env, test.Provisioner(test.ProvisionerOptions{
-					ProviderRef: &v1alpha5.ProviderRef{Name: "test"},
+					ProviderRef: &v1alpha5.MachineTemplateRef{Name: "test"},
 					Requirements: []v1.NodeSelectorRequirement{
 						{
 							Key:      v1alpha5.ProvisionerNameLabelKey,
@@ -167,7 +167,7 @@ var _ = Describe("Webhooks", func() {
 			})
 			It("should error when a requirement uses In but has no values", func() {
 				Expect(env.Client.Create(env, test.Provisioner(test.ProvisionerOptions{
-					ProviderRef: &v1alpha5.ProviderRef{Name: "test"},
+					ProviderRef: &v1alpha5.MachineTemplateRef{Name: "test"},
 					Requirements: []v1.NodeSelectorRequirement{
 						{
 							Key:      v1.LabelInstanceTypeStable,
@@ -179,7 +179,7 @@ var _ = Describe("Webhooks", func() {
 			})
 			It("should error when a requirement uses an unknown operator", func() {
 				Expect(env.Client.Create(env, test.Provisioner(test.ProvisionerOptions{
-					ProviderRef: &v1alpha5.ProviderRef{Name: "test"},
+					ProviderRef: &v1alpha5.MachineTemplateRef{Name: "test"},
 					Requirements: []v1.NodeSelectorRequirement{
 						{
 							Key:      v1alpha5.LabelCapacityType,
@@ -191,7 +191,7 @@ var _ = Describe("Webhooks", func() {
 			})
 			It("should error when Gt is used with multiple integer values", func() {
 				Expect(env.Client.Create(env, test.Provisioner(test.ProvisionerOptions{
-					ProviderRef: &v1alpha5.ProviderRef{Name: "test"},
+					ProviderRef: &v1alpha5.MachineTemplateRef{Name: "test"},
 					Requirements: []v1.NodeSelectorRequirement{
 						{
 							Key:      v1alpha1.LabelInstanceMemory,
@@ -203,7 +203,7 @@ var _ = Describe("Webhooks", func() {
 			})
 			It("should error when Lt is used with multiple integer values", func() {
 				Expect(env.Client.Create(env, test.Provisioner(test.ProvisionerOptions{
-					ProviderRef: &v1alpha5.ProviderRef{Name: "test"},
+					ProviderRef: &v1alpha5.MachineTemplateRef{Name: "test"},
 					Requirements: []v1.NodeSelectorRequirement{
 						{
 							Key:      v1alpha1.LabelInstanceMemory,
@@ -215,20 +215,20 @@ var _ = Describe("Webhooks", func() {
 			})
 			It("should error when ttlSecondAfterEmpty is negative", func() {
 				Expect(env.Client.Create(env, test.Provisioner(test.ProvisionerOptions{
-					ProviderRef:          &v1alpha5.ProviderRef{Name: "test"},
+					ProviderRef:          &v1alpha5.MachineTemplateRef{Name: "test"},
 					TTLSecondsAfterEmpty: ptr.Int64(-5),
 				}))).ToNot(Succeed())
 			})
 			It("should error when consolidation and ttlSecondAfterEmpty are combined", func() {
 				Expect(env.Client.Create(env, test.Provisioner(test.ProvisionerOptions{
-					ProviderRef:          &v1alpha5.ProviderRef{Name: "test"},
+					ProviderRef:          &v1alpha5.MachineTemplateRef{Name: "test"},
 					Consolidation:        &v1alpha5.Consolidation{Enabled: ptr.Bool(true)},
 					TTLSecondsAfterEmpty: ptr.Int64(60),
 				}))).ToNot(Succeed())
 			})
 			It("should error if imageGCHighThresholdPercent is less than imageGCLowThresholdPercent", func() {
 				Expect(env.Client.Create(env, test.Provisioner(test.ProvisionerOptions{
-					ProviderRef: &v1alpha5.ProviderRef{Name: "test"},
+					ProviderRef: &v1alpha5.MachineTemplateRef{Name: "test"},
 					Kubelet: &v1alpha5.KubeletConfiguration{
 						ImageGCHighThresholdPercent: ptr.Int32(10),
 						ImageGCLowThresholdPercent:  ptr.Int32(60),
@@ -237,13 +237,13 @@ var _ = Describe("Webhooks", func() {
 			})
 			It("should error if imageGCHighThresholdPercent or imageGCLowThresholdPercent is negative", func() {
 				Expect(env.Client.Create(env, test.Provisioner(test.ProvisionerOptions{
-					ProviderRef: &v1alpha5.ProviderRef{Name: "test"},
+					ProviderRef: &v1alpha5.MachineTemplateRef{Name: "test"},
 					Kubelet: &v1alpha5.KubeletConfiguration{
 						ImageGCHighThresholdPercent: ptr.Int32(-10),
 					},
 				}))).ToNot(Succeed())
 				Expect(env.Client.Create(env, test.Provisioner(test.ProvisionerOptions{
-					ProviderRef: &v1alpha5.ProviderRef{Name: "test"},
+					ProviderRef: &v1alpha5.MachineTemplateRef{Name: "test"},
 					Kubelet: &v1alpha5.KubeletConfiguration{
 						ImageGCLowThresholdPercent: ptr.Int32(-10),
 					},

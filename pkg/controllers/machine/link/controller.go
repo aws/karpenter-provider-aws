@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/patrickmn/go-cache"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
@@ -108,7 +109,10 @@ func (c *Controller) link(ctx context.Context, retrieved *v1alpha5.Machine, exis
 			return err
 		}
 		logging.FromContext(ctx).With("machine", machine.Name).Debugf("generated cluster machine from cloudprovider")
-		metrics.MachinesCreatedCounter.WithLabelValues(creationReasonLabel).Inc()
+		metrics.MachinesCreatedCounter.With(prometheus.Labels{
+			metrics.ReasonLabel:      creationReasonLabel,
+			metrics.ProvisionerLabel: machine.Labels[v1alpha5.ProvisionerNameLabelKey],
+		}).Inc()
 		c.Cache.SetDefault(retrieved.Status.ProviderID, nil)
 	}
 	return corecloudprovider.IgnoreMachineNotFoundError(c.cloudProvider.Link(ctx, retrieved))
