@@ -105,6 +105,10 @@ func (p *Provider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTempla
 	amis := lo.Keys(amiRequirements)
 	if !strings.Contains(amis[0].CreationDate, "nil-") {
 		amis = sortAMIsByCreationDate(amis)
+	} else {
+		sort.Slice(amis, func(i, j int) bool {
+			return amis[i].AmiID >= amis[j].AmiID
+		})
 	}
 	for _, instanceType := range instanceTypes {
 		for _, ami := range amis {
@@ -133,17 +137,15 @@ func (p *Provider) GetAMIWithRequirements(ctx context.Context, nodeTemplate *v1a
 
 	if len(amiRequirements) == 0 {
 		ssmRequirements := amiFamily.SSMAlias(kubernetesVersion)
-		ssmSortedSSM := lo.Keys(ssmRequirements)
-		sort.Strings(ssmSortedSSM)
-		for _, ssmReq := range ssmSortedSSM {
-			ami, err := p.getDefaultAMIFromSSM(ctx, ssmReq)
+		for ssm, ssmReq := range ssmRequirements {
+			ami, err := p.getDefaultAMIFromSSM(ctx, ssm)
 			if err != nil {
 				return nil, err
 			}
 			amiRequirements[AMI{
 				AmiID:        ami,
 				CreationDate: "nil-" + time.Now().String(),
-			}] = ssmRequirements[ssmReq]
+			}] = ssmReq
 		}
 	}
 
