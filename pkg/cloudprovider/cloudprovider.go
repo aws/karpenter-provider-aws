@@ -45,6 +45,7 @@ import (
 	"github.com/aws/karpenter/pkg/providers/amifamily"
 	"github.com/aws/karpenter/pkg/providers/instance"
 	"github.com/aws/karpenter/pkg/providers/instancetype"
+	"github.com/aws/karpenter/pkg/providers/pricing"
 
 	coreapis "github.com/aws/karpenter-core/pkg/apis"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
@@ -97,7 +98,7 @@ func (c *CloudProvider) Create(ctx context.Context, machine *v1alpha5.Machine) (
 	instanceType, _ := lo.Find(instanceTypes, func(i *cloudprovider.InstanceType) bool {
 		return i.Name == aws.StringValue(instance.InstanceType)
 	})
-	return c.instanceToMachine(ctx, instance, instanceType), nil
+	return c.instanceToMachine(ctx, instance, instanceType, c.instanceTypeProvider.GetPricingProvider()), nil
 }
 
 // Link adds a tag to the cloudprovider machine to tell the cloudprovider that it's now owned by a Machine
@@ -122,7 +123,7 @@ func (c *CloudProvider) List(ctx context.Context) ([]*v1alpha5.Machine, error) {
 		if err != nil {
 			return nil, fmt.Errorf("resolving instance type, %w", err)
 		}
-		machines = append(machines, c.instanceToMachine(ctx, instance, instanceType))
+		machines = append(machines, c.instanceToMachine(ctx, instance, instanceType, c.instanceTypeProvider.GetPricingProvider()))
 	}
 	return machines, nil
 }
@@ -141,7 +142,7 @@ func (c *CloudProvider) Get(ctx context.Context, providerID string) (*v1alpha5.M
 	if err != nil {
 		return nil, fmt.Errorf("resolving instance type, %w", err)
 	}
-	return c.instanceToMachine(ctx, instance, instanceType), nil
+	return c.instanceToMachine(ctx, instance, instanceType, c.instanceTypeProvider.GetPricingProvider()), nil
 }
 
 func (c *CloudProvider) LivenessProbe(req *http.Request) error {
@@ -303,7 +304,7 @@ func (c *CloudProvider) resolveProvisionerFromInstance(ctx context.Context, inst
 	return provisioner, nil
 }
 
-func (c *CloudProvider) instanceToMachine(ctx context.Context, ec2instance *ec2.Instance, instanceType *cloudprovider.InstanceType) *v1alpha5.Machine {
+func (c *CloudProvider) instanceToMachine(ctx context.Context, ec2instance *ec2.Instance, instanceType *cloudprovider.InstanceType, pricingProvider *pricing.Provider) *v1alpha5.Machine {
 	machine := &v1alpha5.Machine{}
 	labels := map[string]string{}
 
@@ -319,6 +320,18 @@ func (c *CloudProvider) instanceToMachine(ctx context.Context, ec2instance *ec2.
 	labels[v1alpha1.LabelInstanceAMIID] = aws.StringValue(ec2instance.ImageId)
 	labels[v1.LabelTopologyZone] = aws.StringValue(ec2instance.Placement.AvailabilityZone)
 	labels[v1alpha5.LabelCapacityType] = instance.GetCapacityType(ec2instance)
+	if aws.StringValue(ec2instance.InstanceLifecycle) == "spot" {
+
+		price, ok := pricingProvider.SpotPrice(*ec2instance.InstanceType, *ec2instance.Placement.AvailabilityZone)
+		if ok {
+			labels[v1alpha1.LabelInstancePrice] = fmt.Sprintf("%v", price)
+		}
+	} else {
+		price, ok := pricingProvider.OnDemandPrice(*ec2instance.InstanceType)
+		if ok {
+			labels[v1alpha1.LabelInstancePrice] = fmt.Sprintf("%v", price)
+		}
+	}
 	if tag, ok := lo.Find(ec2instance.Tags, func(t *ec2.Tag) bool { return aws.StringValue(t.Key) == v1alpha5.ProvisionerNameLabelKey }); ok {
 		labels[v1alpha5.ProvisionerNameLabelKey] = aws.StringValue(tag.Value)
 	}

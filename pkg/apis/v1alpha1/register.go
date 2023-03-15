@@ -75,6 +75,7 @@ var (
 	LabelInstanceGPUCount                     = LabelDomain + "/instance-gpu-count"
 	LabelInstanceGPUMemory                    = LabelDomain + "/instance-gpu-memory"
 	LabelInstanceAMIID                        = LabelDomain + "/instance-ami-id"
+	LabelInstancePrice                        = LabelDomain + "/instance-price"
 
 	InterruptionInfrastructureFinalizer = Group + "/interruption-infrastructure"
 )
@@ -113,5 +114,6 @@ func init() {
 		LabelInstanceGPUManufacturer,
 		LabelInstanceGPUCount,
 		LabelInstanceGPUMemory,
+		LabelInstancePrice,
 	)
 }

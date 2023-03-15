@@ -80,6 +80,10 @@ func NewProvider(region string, cache *cache.Cache, ec2api ec2iface.EC2API, subn
 	}
 }
 
+func (p *Provider) GetPricingProvider() *pricing.Provider {
+	return p.pricingProvider
+}
+
 func (p *Provider) List(ctx context.Context, kc *v1alpha5.KubeletConfiguration, nodeTemplate *v1alpha1.AWSNodeTemplate) ([]*cloudprovider.InstanceType, error) {
 	// Get InstanceTypes from EC2
 	instanceTypes, err := p.GetInstanceTypes(ctx)

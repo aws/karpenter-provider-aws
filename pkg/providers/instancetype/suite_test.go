@@ -160,6 +160,7 @@ var _ = Describe("Instance Types", func() {
 			v1.LabelOSStable:                 "linux",
 			v1.LabelArchStable:               "amd64",
 			v1alpha5.LabelCapacityType:       "on-demand",
+			v1alpha1.LabelInstancePrice:      "0.42",
 			// Well Known to AWS
 			v1alpha1.LabelInstanceHypervisor:                   "nitro",
 			v1alpha1.LabelInstanceEncryptionInTransitSupported: "true",
@@ -370,6 +371,19 @@ var _ = Describe("Instance Types", func() {
 		})
 		ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
 		ExpectScheduled(ctx, env.Client, pod)
+	})
+	It("should add a price label", func() {
+		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+		pod := coretest.UnschedulablePod(coretest.PodOptions{
+			ResourceRequirements: v1.ResourceRequirements{
+				Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
+				Limits:   v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
+			},
+		})
+		ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
+		node := ExpectScheduled(ctx, env.Client, pod)
+		price, _ := awsEnv.PricingProvider.OnDemandPrice(node.Labels[v1.LabelInstanceTypeStable])
+		Expect(node.Labels).To(HaveKeyWithValue(v1alpha1.LabelInstancePrice, fmt.Sprintf("%v", price)))
 	})
 	It("should fail to launch AWS Pod ENI if the command line option enabling it isn't set", func() {
 		ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
