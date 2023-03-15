@@ -64,6 +64,7 @@ var _ = Describe("Expiration", func() {
 		// Eventually expect the node to be gone and a new one to come up
 		env.EventuallyExpectNotFound(node)
 		env.EventuallyExpectCreatedNodeCount("==", 1)
+		env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(dep.Spec.Selector.MatchLabels), 1)
 	})
 	It("should replace expired node with a single node and schedule all pods", func() {
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
