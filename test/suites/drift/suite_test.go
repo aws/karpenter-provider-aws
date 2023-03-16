@@ -227,5 +227,69 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		delete(pod.Annotations, v1alpha5.DoNotEvictPodAnnotationKey)
 		env.ExpectUpdated(pod)
 		env.EventuallyExpectNotFound(pod, node)
+	It("should deprovision nodes that have drifted due to subnets", func() {
+		env.ExpectSettingsOverridden(map[string]string{
+			"featureGates.driftEnabled": "true",
+		})
+
+		subnets := selectSubnets()
+
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			SubnetSelector:        map[string]string{"aws-ids": subnets[0]},
+			AMIFamily:             &v1alpha1.AMIFamilyCustom,
+		},
+			AMISelector: map[string]string{"aws-ids": customAMI},
+			UserData:    awssdk.String(fmt.Sprintf("#!/bin/bash\n/etc/eks/bootstrap.sh '%s'", settings.FromContext(env.Context).ClusterName)),
+		})
+		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
+
+		// Add a do-not-evict pod so that we can check node metadata before we deprovision
+		pod := test.Pod(test.PodOptions{
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{
+					v1alpha5.DoNotEvictPodAnnotationKey: "true",
+				},
+			},
+		})
+
+		env.ExpectCreated(pod, provider, provisioner)
+		env.EventuallyExpectHealthy(pod)
+		env.ExpectCreatedNodeCount("==", 1)
+
+		node := env.Monitor.CreatedNodes()[0]
+		provider.Spec.SubnetSelector = map[string]string{"aws-ids": subnets[1]}
+		env.ExpectCreatedOrUpdated(provider)
+
+		EventuallyWithOffset(1, func(g Gomega) {
+			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(node), node)).To(Succeed())
+			g.Expect(node.Annotations).To(HaveKeyWithValue(v1alpha5.VoluntaryDisruptionAnnotationKey, v1alpha5.VoluntaryDisruptionDriftedAnnotationValue))
+		}).Should(Succeed())
+
+		delete(pod.Annotations, v1alpha5.DoNotEvictPodAnnotationKey)
+		env.ExpectUpdated(pod)
+		env.EventuallyExpectNotFound(pod, node)
+	})
+})
+
+func selectSubnets() []string {
+	subnets, err := env.EC2API.DescribeSubnets(&ec2.DescribeSubnetsInput{
+		Filters: []*ec2.Filter{
+			{
+				Name:   awssdk.String("tag-key"),
+				Values: []*string{awssdk.String("karpenter.sh/discovery")},
+			},
+			{
+				Name:   awssdk.String("tag-value"),
+				Values: []*string{awssdk.String(settings.FromContext(env.Context).ClusterName)},
+			},
+		},
+	})
+	Expect(err).To(BeNil())
+	Expect(len(subnets.Subnets)).To(BeNumerically(">", 1))
+	return lo.Map(subnets.Subnets, func(s *ec2.Subnet, _ int) string {
+		return *s.SubnetId
+	})
+}
 	})
 })
