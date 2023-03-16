@@ -1,4 +1,4 @@
-module github.com/aws/karpenter/test/tools/logs
+module github.com/aws/karpenter/tools/logs
 
 go 1.20
 
