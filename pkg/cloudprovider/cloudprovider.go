@@ -304,3 +304,15 @@ func (c *CloudProvider) instanceToMachine(i *instance.Instance, instanceType *cl
 	machine.Status.ProviderID = fmt.Sprintf("aws:///%s/%s", i.Zone, i.ID)
 	return machine
 }
+
+func (c *CloudProvider) getInstanceFromMachine(ctx context.Context, machine *v1alpha5.Machine) (*ec2.Instance, error) {
+	instanceID, err := utils.ParseInstanceID(machine.Status.ProviderID)
+	if err != nil {
+		return nil, err
+	}
+	instance, err := c.instanceProvider.Get(ctx, instanceID)
+	if err != nil {
+		return nil, fmt.Errorf("getting instance, %w", err)
+	}
+	return instance, nil
+}
