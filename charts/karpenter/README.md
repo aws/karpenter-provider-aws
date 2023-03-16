@@ -96,3 +96,4 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | topologySpreadConstraints | list | `[{"maxSkew":1,"topologyKey":"topology.kubernetes.io/zone","whenUnsatisfiable":"ScheduleAnyway"}]` | Topology spread constraints to increase the controller resilience by distributing pods across the cluster zones. If an explicit label selector is not provided one will be created from the pod selector labels. |
 | webhook.logLevel | string | `"error"` |  |
 | webhook.port | int | `8443` | The container port to use for the webhook. |
+

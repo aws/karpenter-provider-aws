@@ -41,6 +41,7 @@ import (
 
 const (
 	MemoryAvailable = "memory.available"
+	NodeFSAvailable = "nodefs.available"
 )
 
 var (
@@ -59,7 +60,7 @@ func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, kc *v1alph
 		Overhead: &cloudprovider.InstanceTypeOverhead{
 			KubeReserved:      kubeReservedResources(cpu(info), pods(ctx, info, amiFamily, kc), eniLimitedPods(info), amiFamily, kc),
 			SystemReserved:    systemReservedResources(kc),
-			EvictionThreshold: evictionThreshold(memory(ctx, info), amiFamily, kc),
+			EvictionThreshold: evictionThreshold(memory(ctx, info), ephemeralStorage(amiFamily, nodeTemplate.Spec.BlockDeviceMappings), amiFamily, kc),
 		},
 	}
 }
@@ -239,16 +240,10 @@ func eniLimitedPods(info *ec2.InstanceTypeInfo) *resource.Quantity {
 }
 
 func systemReservedResources(kc *v1alpha5.KubeletConfiguration) v1.ResourceList {
-	// default system-reserved resources: https://kubernetes.io/docs/tasks/administer-cluster/reserve-compute-resources/#system-reserved
-	resources := v1.ResourceList{
-		v1.ResourceCPU:              resource.MustParse("100m"),
-		v1.ResourceMemory:           resource.MustParse("100Mi"),
-		v1.ResourceEphemeralStorage: resource.MustParse("1Gi"),
-	}
 	if kc != nil && kc.SystemReserved != nil {
-		return lo.Assign(resources, kc.SystemReserved)
+		return kc.SystemReserved
 	}
-	return resources
+	return v1.ResourceList{}
 }
 
 func kubeReservedResources(cpus, pods, eniLimitedPods *resource.Quantity, amiFamily amifamily.AMIFamily, kc *v1alpha5.KubeletConfiguration) v1.ResourceList {
@@ -287,9 +282,10 @@ func kubeReservedResources(cpus, pods, eniLimitedPods *resource.Quantity, amiFam
 	return resources
 }
 
-func evictionThreshold(memory *resource.Quantity, amiFamily amifamily.AMIFamily, kc *v1alpha5.KubeletConfiguration) v1.ResourceList {
+func evictionThreshold(memory *resource.Quantity, storage *resource.Quantity, amiFamily amifamily.AMIFamily, kc *v1alpha5.KubeletConfiguration) v1.ResourceList {
 	overhead := v1.ResourceList{
-		v1.ResourceMemory: resource.MustParse("100Mi"),
+		v1.ResourceMemory:           resource.MustParse("100Mi"),
+		v1.ResourceEphemeralStorage: resource.MustParse(fmt.Sprint(math.Ceil(float64(storage.Value()) / 100 * 10))),
 	}
 	if kc == nil {
 		return overhead
@@ -307,15 +303,10 @@ func evictionThreshold(memory *resource.Quantity, amiFamily amifamily.AMIFamily,
 	for _, m := range evictionSignals {
 		temp := v1.ResourceList{}
 		if v, ok := m[MemoryAvailable]; ok {
-			if strings.HasSuffix(v, "%") {
-				p := mustParsePercentage(v)
-
-				// Calculation is node.capacity * evictionHard[memory.available] if percentage
-				// From https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/#eviction-signals
-				temp[v1.ResourceMemory] = resource.MustParse(fmt.Sprint(math.Ceil(float64(memory.Value()) / 100 * p)))
-			} else {
-				temp[v1.ResourceMemory] = resource.MustParse(v)
-			}
+			temp[v1.ResourceMemory] = computeEvictionSignal(*memory, v)
+		}
+		if v, ok := m[NodeFSAvailable]; ok {
+			temp[v1.ResourceEphemeralStorage] = computeEvictionSignal(*storage, v)
 		}
 		override = resources.MaxResources(override, temp)
 	}
@@ -341,6 +332,19 @@ func pods(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily amifamily.A
 
 func lowerKabobCase(s string) string {
 	return strings.ToLower(strings.ReplaceAll(s, " ", "-"))
+}
+
+// computeEvictionSignal computes the resource quantity value for an eviction signal value, computed off the
+// base capacity value if the signal value is a percentage or as a resource quantity if the signal value isn't a percentage
+func computeEvictionSignal(capacity resource.Quantity, signalValue string) resource.Quantity {
+	if strings.HasSuffix(signalValue, "%") {
+		p := mustParsePercentage(signalValue)
+
+		// Calculation is node.capacity * signalValue if percentage
+		// From https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/#eviction-signals
+		return resource.MustParse(fmt.Sprint(math.Ceil(capacity.AsApproximateFloat64() / 100 * p)))
+	}
+	return resource.MustParse(signalValue)
 }
 
 func mustParsePercentage(v string) float64 {

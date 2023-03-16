@@ -519,7 +519,7 @@ var _ = Describe("Instance Types", func() {
 		}
 	})
 
-	Context("KubeletConfiguration Overrides", func() {
+	Context("Overhead", func() {
 		var info *ec2.InstanceTypeInfo
 		BeforeEach(func() {
 			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
@@ -534,45 +534,49 @@ var _ = Describe("Instance Types", func() {
 			})
 			Expect(ok).To(BeTrue())
 		})
-		Context("Reserved Resources", func() {
+		Context("System Reserved Resources", func() {
+			It("should use defaults when no kubelet is specified", func() {
+				it := instancetype.NewInstanceType(ctx, info, &v1alpha5.KubeletConfiguration{}, "", nodeTemplate, nil)
+				Expect(it.Overhead.SystemReserved.Cpu().String()).To(Equal("0"))
+				Expect(it.Overhead.SystemReserved.Memory().String()).To(Equal("0"))
+				Expect(it.Overhead.SystemReserved.StorageEphemeral().String()).To(Equal("0"))
+			})
 			It("should override system reserved cpus when specified", func() {
 				provisioner = test.Provisioner(coretest.ProvisionerOptions{
 					Kubelet: &v1alpha5.KubeletConfiguration{
 						SystemReserved: v1.ResourceList{
-							v1.ResourceCPU: resource.MustParse("2"),
+							v1.ResourceCPU:              resource.MustParse("2"),
+							v1.ResourceMemory:           resource.MustParse("20Gi"),
+							v1.ResourceEphemeralStorage: resource.MustParse("10Gi"),
 						},
 					},
 				})
 				it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 				Expect(it.Overhead.SystemReserved.Cpu().String()).To(Equal("2"))
-			})
-			It("should override system reserved memory when specified", func() {
-				provisioner = test.Provisioner(coretest.ProvisionerOptions{
-					Kubelet: &v1alpha5.KubeletConfiguration{
-						SystemReserved: v1.ResourceList{
-							v1.ResourceMemory: resource.MustParse("20Gi"),
-						},
-					},
-				})
-				it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 				Expect(it.Overhead.SystemReserved.Memory().String()).To(Equal("20Gi"))
+				Expect(it.Overhead.SystemReserved.StorageEphemeral().String()).To(Equal("10Gi"))
+			})
+		})
+		Context("Kube Reserved Resources", func() {
+			It("should use defaults when no kubelet is specified", func() {
+				it := instancetype.NewInstanceType(ctx, info, &v1alpha5.KubeletConfiguration{}, "", nodeTemplate, nil)
+				Expect(it.Overhead.KubeReserved.Cpu().String()).To(Equal("80m"))
+				Expect(it.Overhead.KubeReserved.Memory().String()).To(Equal("893Mi"))
+				Expect(it.Overhead.KubeReserved.StorageEphemeral().String()).To(Equal("1Gi"))
 			})
 			It("should override kube reserved when specified", func() {
-				provisioner = test.Provisioner(coretest.ProvisionerOptions{
-					Kubelet: &v1alpha5.KubeletConfiguration{
-						SystemReserved: v1.ResourceList{
-							v1.ResourceCPU:              resource.MustParse("1"),
-							v1.ResourceMemory:           resource.MustParse("20Gi"),
-							v1.ResourceEphemeralStorage: resource.MustParse("1Gi"),
-						},
-						KubeReserved: v1.ResourceList{
-							v1.ResourceCPU:              resource.MustParse("2"),
-							v1.ResourceMemory:           resource.MustParse("10Gi"),
-							v1.ResourceEphemeralStorage: resource.MustParse("2Gi"),
-						},
+				it := instancetype.NewInstanceType(ctx, info, &v1alpha5.KubeletConfiguration{
+					SystemReserved: v1.ResourceList{
+						v1.ResourceCPU:              resource.MustParse("1"),
+						v1.ResourceMemory:           resource.MustParse("20Gi"),
+						v1.ResourceEphemeralStorage: resource.MustParse("1Gi"),
 					},
-				})
-				it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+					KubeReserved: v1.ResourceList{
+						v1.ResourceCPU:              resource.MustParse("2"),
+						v1.ResourceMemory:           resource.MustParse("10Gi"),
+						v1.ResourceEphemeralStorage: resource.MustParse("2Gi"),
+					},
+				}, "", nodeTemplate, nil)
 				Expect(it.Overhead.KubeReserved.Cpu().String()).To(Equal("2"))
 				Expect(it.Overhead.KubeReserved.Memory().String()).To(Equal("10Gi"))
 				Expect(it.Overhead.KubeReserved.StorageEphemeral().String()).To(Equal("2Gi"))
@@ -584,148 +588,158 @@ var _ = Describe("Instance Types", func() {
 					VMMemoryOverheadPercent: lo.ToPtr[float64](0),
 				}))
 			})
-			It("should override eviction threshold (hard) when specified as a quantity", func() {
-				provisioner = test.Provisioner(coretest.ProvisionerOptions{
-					Kubelet: &v1alpha5.KubeletConfiguration{
-						SystemReserved: v1.ResourceList{
-							v1.ResourceMemory: resource.MustParse("20Gi"),
+			Context("Eviction Hard", func() {
+				It("should override eviction threshold when specified as a quantity", func() {
+					provisioner = test.Provisioner(coretest.ProvisionerOptions{
+						Kubelet: &v1alpha5.KubeletConfiguration{
+							SystemReserved: v1.ResourceList{
+								v1.ResourceMemory: resource.MustParse("20Gi"),
+							},
+							KubeReserved: v1.ResourceList{
+								v1.ResourceMemory: resource.MustParse("10Gi"),
+							},
+							EvictionHard: map[string]string{
+								instancetype.MemoryAvailable: "500Mi",
+							},
 						},
-						KubeReserved: v1.ResourceList{
-							v1.ResourceMemory: resource.MustParse("10Gi"),
-						},
-						EvictionHard: map[string]string{
-							instancetype.MemoryAvailable: "500Mi",
-						},
-					},
+					})
+					it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+					Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("500Mi"))
 				})
-				it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
-				Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("500Mi"))
+				It("should override eviction threshold when specified as a percentage value", func() {
+					provisioner = test.Provisioner(coretest.ProvisionerOptions{
+						Kubelet: &v1alpha5.KubeletConfiguration{
+							SystemReserved: v1.ResourceList{
+								v1.ResourceMemory: resource.MustParse("20Gi"),
+							},
+							KubeReserved: v1.ResourceList{
+								v1.ResourceMemory: resource.MustParse("10Gi"),
+							},
+							EvictionHard: map[string]string{
+								instancetype.MemoryAvailable: "10%",
+							},
+						},
+					})
+					it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+					Expect(it.Overhead.EvictionThreshold.Memory().Value()).To(BeNumerically("~", float64(it.Capacity.Memory().Value())*0.1, 10))
+				})
+				It("should consider the eviction threshold disabled when specified as 100%", func() {
+					provisioner = test.Provisioner(coretest.ProvisionerOptions{
+						Kubelet: &v1alpha5.KubeletConfiguration{
+							SystemReserved: v1.ResourceList{
+								v1.ResourceMemory: resource.MustParse("20Gi"),
+							},
+							KubeReserved: v1.ResourceList{
+								v1.ResourceMemory: resource.MustParse("10Gi"),
+							},
+							EvictionHard: map[string]string{
+								instancetype.MemoryAvailable: "100%",
+							},
+						},
+					})
+					it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+					Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("0"))
+				})
+				It("should used default eviction threshold for memory when evictionHard not specified", func() {
+					provisioner = test.Provisioner(coretest.ProvisionerOptions{
+						Kubelet: &v1alpha5.KubeletConfiguration{
+							SystemReserved: v1.ResourceList{
+								v1.ResourceMemory: resource.MustParse("20Gi"),
+							},
+							KubeReserved: v1.ResourceList{
+								v1.ResourceMemory: resource.MustParse("10Gi"),
+							},
+							EvictionSoft: map[string]string{
+								instancetype.MemoryAvailable: "50Mi",
+							},
+						},
+					})
+					it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+					Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("50Mi"))
+				})
 			})
-			It("should override eviction threshold (hard) when specified as a percentage value", func() {
-				provisioner = test.Provisioner(coretest.ProvisionerOptions{
-					Kubelet: &v1alpha5.KubeletConfiguration{
-						SystemReserved: v1.ResourceList{
-							v1.ResourceMemory: resource.MustParse("20Gi"),
+			Context("Eviction Soft", func() {
+				It("should override eviction threshold when specified as a quantity", func() {
+					provisioner = test.Provisioner(coretest.ProvisionerOptions{
+						Kubelet: &v1alpha5.KubeletConfiguration{
+							SystemReserved: v1.ResourceList{
+								v1.ResourceMemory: resource.MustParse("20Gi"),
+							},
+							KubeReserved: v1.ResourceList{
+								v1.ResourceMemory: resource.MustParse("10Gi"),
+							},
+							EvictionSoft: map[string]string{
+								instancetype.MemoryAvailable: "500Mi",
+							},
 						},
-						KubeReserved: v1.ResourceList{
-							v1.ResourceMemory: resource.MustParse("10Gi"),
-						},
-						EvictionHard: map[string]string{
-							instancetype.MemoryAvailable: "10%",
-						},
-					},
+					})
+					it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+					Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("500Mi"))
 				})
-				it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
-				Expect(it.Overhead.EvictionThreshold.Memory().Value()).To(BeNumerically("~", float64(it.Capacity.Memory().Value())*0.1, 10))
+				It("should override eviction threshold when specified as a percentage value", func() {
+					provisioner = test.Provisioner(coretest.ProvisionerOptions{
+						Kubelet: &v1alpha5.KubeletConfiguration{
+							SystemReserved: v1.ResourceList{
+								v1.ResourceMemory: resource.MustParse("20Gi"),
+							},
+							KubeReserved: v1.ResourceList{
+								v1.ResourceMemory: resource.MustParse("10Gi"),
+							},
+							EvictionHard: map[string]string{
+								instancetype.MemoryAvailable: "5%",
+							},
+							EvictionSoft: map[string]string{
+								instancetype.MemoryAvailable: "10%",
+							},
+						},
+					})
+					it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+					Expect(it.Overhead.EvictionThreshold.Memory().Value()).To(BeNumerically("~", float64(it.Capacity.Memory().Value())*0.1, 10))
+				})
+				It("should consider the eviction threshold disabled when specified as 100%", func() {
+					provisioner = test.Provisioner(coretest.ProvisionerOptions{
+						Kubelet: &v1alpha5.KubeletConfiguration{
+							SystemReserved: v1.ResourceList{
+								v1.ResourceMemory: resource.MustParse("20Gi"),
+							},
+							KubeReserved: v1.ResourceList{
+								v1.ResourceMemory: resource.MustParse("10Gi"),
+							},
+							EvictionSoft: map[string]string{
+								instancetype.MemoryAvailable: "100%",
+							},
+						},
+					})
+					it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+					Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("0"))
+				})
+				It("should ignore eviction threshold when using Bottlerocket AMI", func() {
+					nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
+					provisioner = test.Provisioner(coretest.ProvisionerOptions{
+						Kubelet: &v1alpha5.KubeletConfiguration{
+							SystemReserved: v1.ResourceList{
+								v1.ResourceMemory: resource.MustParse("20Gi"),
+							},
+							KubeReserved: v1.ResourceList{
+								v1.ResourceMemory: resource.MustParse("10Gi"),
+							},
+							EvictionHard: map[string]string{
+								instancetype.MemoryAvailable: "1Gi",
+							},
+							EvictionSoft: map[string]string{
+								instancetype.MemoryAvailable: "10Gi",
+							},
+						},
+					})
+					it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+					Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("1Gi"))
+				})
 			})
-			It("should consider the eviction threshold (hard) disabled when specified as 100%", func() {
-				provisioner = test.Provisioner(coretest.ProvisionerOptions{
-					Kubelet: &v1alpha5.KubeletConfiguration{
-						SystemReserved: v1.ResourceList{
-							v1.ResourceMemory: resource.MustParse("20Gi"),
-						},
-						KubeReserved: v1.ResourceList{
-							v1.ResourceMemory: resource.MustParse("10Gi"),
-						},
-						EvictionHard: map[string]string{
-							instancetype.MemoryAvailable: "100%",
-						},
-					},
-				})
-				it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
-				Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("0"))
-			})
-			It("should used default eviction threshold (hard) for memory when evictionHard not specified", func() {
-				provisioner = test.Provisioner(coretest.ProvisionerOptions{
-					Kubelet: &v1alpha5.KubeletConfiguration{
-						SystemReserved: v1.ResourceList{
-							v1.ResourceMemory: resource.MustParse("20Gi"),
-						},
-						KubeReserved: v1.ResourceList{
-							v1.ResourceMemory: resource.MustParse("10Gi"),
-						},
-						EvictionSoft: map[string]string{
-							instancetype.MemoryAvailable: "50Mi",
-						},
-					},
-				})
-				it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
-				Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("50Mi"))
-			})
-			It("should override eviction threshold (soft) when specified as a quantity", func() {
-				provisioner = test.Provisioner(coretest.ProvisionerOptions{
-					Kubelet: &v1alpha5.KubeletConfiguration{
-						SystemReserved: v1.ResourceList{
-							v1.ResourceMemory: resource.MustParse("20Gi"),
-						},
-						KubeReserved: v1.ResourceList{
-							v1.ResourceMemory: resource.MustParse("10Gi"),
-						},
-						EvictionSoft: map[string]string{
-							instancetype.MemoryAvailable: "500Mi",
-						},
-					},
-				})
-				it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
-				Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("500Mi"))
-			})
-			It("should override eviction threshold (soft) when specified as a percentage value", func() {
-				provisioner = test.Provisioner(coretest.ProvisionerOptions{
-					Kubelet: &v1alpha5.KubeletConfiguration{
-						SystemReserved: v1.ResourceList{
-							v1.ResourceMemory: resource.MustParse("20Gi"),
-						},
-						KubeReserved: v1.ResourceList{
-							v1.ResourceMemory: resource.MustParse("10Gi"),
-						},
-						EvictionHard: map[string]string{
-							instancetype.MemoryAvailable: "5%",
-						},
-						EvictionSoft: map[string]string{
-							instancetype.MemoryAvailable: "10%",
-						},
-					},
-				})
-				it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
-				Expect(it.Overhead.EvictionThreshold.Memory().Value()).To(BeNumerically("~", float64(it.Capacity.Memory().Value())*0.1, 10))
-			})
-			It("should consider the eviction threshold (soft) disabled when specified as 100%", func() {
-				provisioner = test.Provisioner(coretest.ProvisionerOptions{
-					Kubelet: &v1alpha5.KubeletConfiguration{
-						SystemReserved: v1.ResourceList{
-							v1.ResourceMemory: resource.MustParse("20Gi"),
-						},
-						KubeReserved: v1.ResourceList{
-							v1.ResourceMemory: resource.MustParse("10Gi"),
-						},
-						EvictionSoft: map[string]string{
-							instancetype.MemoryAvailable: "100%",
-						},
-					},
-				})
-				it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
-				Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("0"))
-			})
-			It("should ignore eviction threshold (soft) when using Bottlerocket AMI", func() {
-				nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
-				provisioner = test.Provisioner(coretest.ProvisionerOptions{
-					Kubelet: &v1alpha5.KubeletConfiguration{
-						SystemReserved: v1.ResourceList{
-							v1.ResourceMemory: resource.MustParse("20Gi"),
-						},
-						KubeReserved: v1.ResourceList{
-							v1.ResourceMemory: resource.MustParse("10Gi"),
-						},
-						EvictionHard: map[string]string{
-							instancetype.MemoryAvailable: "1Gi",
-						},
-						EvictionSoft: map[string]string{
-							instancetype.MemoryAvailable: "10Gi",
-						},
-					},
-				})
-				it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
-				Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("1Gi"))
+			It("should take the default eviction threshold when none is specified", func() {
+				it := instancetype.NewInstanceType(ctx, info, &v1alpha5.KubeletConfiguration{}, "", nodeTemplate, nil)
+				Expect(it.Overhead.EvictionThreshold.Cpu().String()).To(Equal("0"))
+				Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("100Mi"))
+				Expect(it.Overhead.EvictionThreshold.StorageEphemeral().AsApproximateFloat64()).To(BeNumerically("~", resources.Quantity("2Gi").AsApproximateFloat64()))
 			})
 			It("should take the greater of evictionHard and evictionSoft for overhead as a value", func() {
 				provisioner = test.Provisioner(coretest.ProvisionerOptions{
