@@ -199,6 +199,9 @@ func (c *Controller) handleNode(ctx context.Context, msg messages.Message, node 
 
 // deleteNode removes the node from the api-server
 func (c *Controller) deleteNode(ctx context.Context, node *v1.Node) error {
+	if !node.DeletionTimestamp.IsZero() {
+		return nil
+	}
 	if err := c.kubeClient.Delete(ctx, node); err != nil {
 		return client.IgnoreNotFound(fmt.Errorf("deleting the node on interruption message, %w", err))
 	}

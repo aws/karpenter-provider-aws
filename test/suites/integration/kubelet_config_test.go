@@ -46,7 +46,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 
 		// MaxPods needs to account for the daemonsets that will run on the nodes
 		provisioner := test.Provisioner(test.ProvisionerOptions{
-			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
+			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 			Kubelet: &v1alpha5.KubeletConfiguration{
 				ContainerRuntime: ptr.String("containerd"),
 				MaxPods:          ptr.Int32(110),
@@ -105,7 +105,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 
 		// MaxPods needs to account for the daemonsets that will run on the nodes
 		provisioner := test.Provisioner(test.ProvisionerOptions{
-			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
+			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 			Kubelet: &v1alpha5.KubeletConfiguration{
 				ContainerRuntime: ptr.String("containerd"),
 				MaxPods:          ptr.Int32(110),
@@ -163,7 +163,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 
 		// MaxPods needs to account for the daemonsets that will run on the nodes
 		provisioner := test.Provisioner(test.ProvisionerOptions{
-			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
+			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 			Requirements: []v1.NodeSelectorRequirement{
 				{
 					Key:      v1.LabelOSStable,
@@ -206,7 +206,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		// PodsPerCore needs to account for the daemonsets that will run on the nodes
 		// This will have 4 pods available on each node (2 taken by daemonset pods)
 		provisioner := test.Provisioner(test.ProvisionerOptions{
-			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
+			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 			Requirements: []v1.NodeSelectorRequirement{
 				{
 					Key:      v1alpha1.LabelInstanceCPU,
@@ -261,7 +261,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		// All pods should schedule to a single node since we are ignoring podsPerCore value
 		// This would normally schedule to 3 nodes if not using Bottlerocket
 		provisioner := test.Provisioner(test.ProvisionerOptions{
-			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
+			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 			Kubelet: &v1alpha5.KubeletConfiguration{
 				PodsPerCore: ptr.Int32(1),
 			},

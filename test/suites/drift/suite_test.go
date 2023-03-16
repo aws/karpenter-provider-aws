@@ -82,7 +82,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 			AMISelector: map[string]string{"aws-ids": oldCustomAMI},
 			UserData:    awssdk.String(fmt.Sprintf("#!/bin/bash\n/etc/eks/bootstrap.sh '%s'", settings.FromContext(env.Context).ClusterName)),
 		})
-		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
+		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
 
 		// Add a do-not-evict pod so that we can check node metadata before we deprovision
 		pod := test.Pod(test.PodOptions{
@@ -128,7 +128,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 			AMISelector: map[string]string{"aws-ids": oldCustomAMI},
 			UserData:    awssdk.String(fmt.Sprintf("#!/bin/bash\n/etc/eks/bootstrap.sh '%s'", settings.FromContext(env.Context).ClusterName)),
 		})
-		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
+		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
 
 		// Add a do-not-evict pod so that we can check node metadata before we deprovision
 		pod := test.Pod(test.PodOptions{

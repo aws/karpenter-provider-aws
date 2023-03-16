@@ -39,7 +39,7 @@ var _ = Describe("Expiration", func() {
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{
-			ProviderRef:            &v1alpha5.ProviderRef{Name: provider.Name},
+			ProviderRef:            &v1alpha5.MachineTemplateRef{Name: provider.Name},
 			TTLSecondsUntilExpired: ptr.Int64(30),
 		})
 		var numPods int32 = 1
@@ -72,7 +72,7 @@ var _ = Describe("Expiration", func() {
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{
-			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
+			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 		})
 		var numPods int32 = 5
 

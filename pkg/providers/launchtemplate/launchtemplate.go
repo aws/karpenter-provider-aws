@@ -33,11 +33,12 @@ import (
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 
-	awssettings "github.com/aws/karpenter/pkg/apis/settings"
+	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	awserrors "github.com/aws/karpenter/pkg/errors"
 	"github.com/aws/karpenter/pkg/providers/amifamily"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
+	"github.com/aws/karpenter/pkg/utils"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 
@@ -95,7 +96,7 @@ func (p *Provider) EnsureAll(ctx context.Context, nodeTemplate *v1alpha1.AWSNode
 	if nodeTemplate.Spec.LaunchTemplateName != nil {
 		return map[string][]*cloudprovider.InstanceType{ptr.StringValue(nodeTemplate.Spec.LaunchTemplateName): instanceTypes}, nil
 	}
-	options, err := p.createAmiOptions(ctx, nodeTemplate, lo.Assign(machine.Labels, additionalLabels))
+	options, err := p.createAMIOptions(ctx, machine, nodeTemplate, lo.Assign(machine.Labels, additionalLabels))
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +135,7 @@ func launchTemplateName(options *amifamily.LaunchTemplate) string {
 	return fmt.Sprintf(launchTemplateNameFormat, options.ClusterName, fmt.Sprint(hash))
 }
 
-func (p *Provider) createAmiOptions(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, labels map[string]string) (*amifamily.Options, error) {
+func (p *Provider) createAMIOptions(ctx context.Context, machine *v1alpha5.Machine, nodeTemplate *v1alpha1.AWSNodeTemplate, labels map[string]string) (*amifamily.Options, error) {
 	instanceProfile, err := p.getInstanceProfile(ctx, nodeTemplate)
 	if err != nil {
 		return nil, err
@@ -148,15 +149,19 @@ func (p *Provider) createAmiOptions(ctx context.Context, nodeTemplate *v1alpha1.
 		return nil, fmt.Errorf("no security groups exist given constraints")
 	}
 	return &amifamily.Options{
-		ClusterName:             awssettings.FromContext(ctx).ClusterName,
+		ClusterName:             settings.FromContext(ctx).ClusterName,
 		ClusterEndpoint:         p.ClusterEndpoint,
-		AWSENILimitedPodDensity: awssettings.FromContext(ctx).EnableENILimitedPodDensity,
+		AWSENILimitedPodDensity: settings.FromContext(ctx).EnableENILimitedPodDensity,
 		InstanceProfile:         instanceProfile,
 		SecurityGroupsIDs:       securityGroupsIDs,
-		Tags:                    lo.Assign(awssettings.FromContext(ctx).Tags, nodeTemplate.Spec.Tags),
-		Labels:                  labels,
-		CABundle:                p.caBundle,
-		KubeDNSIP:               p.KubeDNSIP,
+		Tags: lo.Assign(settings.FromContext(ctx).Tags, nodeTemplate.Spec.Tags, map[string]string{
+			"Name": fmt.Sprintf("%s/%s", v1alpha5.ProvisionerNameLabelKey, machine.Labels[v1alpha5.ProvisionerNameLabelKey]),
+			fmt.Sprintf("kubernetes.io/cluster/%s", settings.FromContext(ctx).ClusterName): "owned",
+			v1alpha5.ProvisionerNameLabelKey:                                               machine.Labels[v1alpha5.ProvisionerNameLabelKey],
+		}),
+		Labels:    labels,
+		CABundle:  p.caBundle,
+		KubeDNSIP: p.KubeDNSIP,
 	}, nil
 }
 
@@ -218,13 +223,13 @@ func (p *Provider) createLaunchTemplate(ctx context.Context, options *amifamily.
 				HttpTokens:              options.MetadataOptions.HTTPTokens,
 			},
 			TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{
-				{ResourceType: aws.String(ec2.ResourceTypeNetworkInterface), Tags: v1alpha1.MergeTags(ctx, options.Tags)},
+				{ResourceType: aws.String(ec2.ResourceTypeNetworkInterface), Tags: utils.MergeTags(options.Tags)},
 			},
 		},
 		TagSpecifications: []*ec2.TagSpecification{
 			{
 				ResourceType: aws.String(ec2.ResourceTypeLaunchTemplate),
-				Tags:         v1alpha1.MergeTags(ctx, options.Tags, map[string]string{karpenterManagedTagKey: options.ClusterName}),
+				Tags:         utils.MergeTags(options.Tags, map[string]string{karpenterManagedTagKey: options.ClusterName}),
 			},
 		},
 	})
@@ -271,7 +276,7 @@ func (p *Provider) volumeSize(quantity *resource.Quantity) *int64 {
 // hydrateCache queries for existing Launch Templates created by Karpenter for the current cluster and adds to the LT cache.
 // Any error during hydration will result in a panic
 func (p *Provider) hydrateCache(ctx context.Context) {
-	clusterName := awssettings.FromContext(ctx).ClusterName
+	clusterName := settings.FromContext(ctx).ClusterName
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("tag-key", karpenterManagedTagKey, "tag-value", clusterName))
 	logging.FromContext(ctx).Debugf("hydrating the launch template cache")
 	if err := p.ec2api.DescribeLaunchTemplatesPagesWithContext(ctx, &ec2.DescribeLaunchTemplatesInput{
@@ -307,7 +312,7 @@ func (p *Provider) getInstanceProfile(ctx context.Context, nodeTemplate *v1alpha
 	if nodeTemplate.Spec.InstanceProfile != nil {
 		return aws.StringValue(nodeTemplate.Spec.InstanceProfile), nil
 	}
-	defaultProfile := awssettings.FromContext(ctx).DefaultInstanceProfile
+	defaultProfile := settings.FromContext(ctx).DefaultInstanceProfile
 	if defaultProfile == "" {
 		return "", errors.New("neither spec.provider.instanceProfile nor --aws-default-instance-profile is specified")
 	}

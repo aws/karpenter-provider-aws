@@ -86,7 +86,7 @@ var _ = Describe("Consolidation", func() {
 			},
 			// prevent emptiness from deleting the nodes
 			TTLSecondsAfterEmpty: aws.Int64(99999),
-			ProviderRef:          &v1alpha5.ProviderRef{Name: provider.Name},
+			ProviderRef:          &v1alpha5.MachineTemplateRef{Name: provider.Name},
 		})
 
 		var numPods int32 = 100
@@ -142,7 +142,7 @@ var _ = Describe("Consolidation", func() {
 					Values:   []string{"large", "2xlarge"},
 				},
 			},
-			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
+			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 		})
 
 		var numPods int32 = 3
@@ -258,7 +258,7 @@ var _ = Describe("Consolidation", func() {
 					Values:   []string{"large"},
 				},
 			},
-			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
+			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 		})
 
 		var numPods int32 = 2

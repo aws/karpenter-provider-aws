@@ -90,7 +90,7 @@ var _ = BeforeSuite(func() {
 	fakeClock = clock.NewFakeClock(time.Now())
 	cloudProvider = cloudprovider.New(ctx, awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, env.Client, awsEnv.AMIProvider)
 	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
-	prov = provisioning.NewProvisioner(ctx, env.Client, env.KubernetesInterface.CoreV1(), events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster)
+	prov = provisioning.NewProvisioner(env.Client, env.KubernetesInterface.CoreV1(), events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster)
 	provisioningController = provisioning.NewController(env.Client, prov, events.NewRecorder(&record.FakeRecorder{}))
 })
 
@@ -125,7 +125,7 @@ var _ = BeforeEach(func() {
 			Key:      v1alpha1.LabelInstanceCategory,
 			Operator: v1.NodeSelectorOpExists,
 		}},
-		ProviderRef: &v1alpha5.ProviderRef{
+		ProviderRef: &v1alpha5.MachineTemplateRef{
 			APIVersion: nodeTemplate.APIVersion,
 			Kind:       nodeTemplate.Kind,
 			Name:       nodeTemplate.Name,
@@ -177,7 +177,7 @@ var _ = Describe("CloudProvider", func() {
 			provisioner.SetDefaults(ctx)
 			ExpectApplied(ctx, env.Client, provisioner)
 			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
 			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
@@ -187,7 +187,7 @@ var _ = Describe("CloudProvider", func() {
 			provisioner.SetDefaults(ctx)
 			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
 			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
@@ -343,7 +343,7 @@ var _ = Describe("CloudProvider", func() {
 			})
 			ExpectApplied(ctx, env.Client, provisioner)
 			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
 
 			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
@@ -373,7 +373,7 @@ var _ = Describe("CloudProvider", func() {
 			})
 			ExpectApplied(ctx, env.Client, provisioner)
 			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
@@ -395,7 +395,7 @@ var _ = Describe("CloudProvider", func() {
 			})
 			ExpectApplied(ctx, env.Client, provisioner)
 			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
 			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
 			Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("subnet-test1"))
@@ -415,7 +415,7 @@ var _ = Describe("CloudProvider", func() {
 			})
 			ExpectApplied(ctx, env.Client, provisioner)
 			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
 			input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
@@ -429,7 +429,7 @@ var _ = Describe("CloudProvider", func() {
 			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod(
 				coretest.PodOptions{NodeSelector: map[string]string{v1.LabelArchStable: v1alpha5.ArchitectureAmd64}})
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
 			input := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
@@ -459,7 +459,7 @@ var _ = Describe("CloudProvider", func() {
 			}})
 			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}})
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod)
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
 			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
 			Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-2"))
@@ -475,14 +475,14 @@ var _ = Describe("CloudProvider", func() {
 			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod1 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}})
 			pod2 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}})
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod1, pod2)
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod1, pod2)
 			ExpectScheduled(ctx, env.Client, pod1)
 			ExpectScheduled(ctx, env.Client, pod2)
 			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
 			Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-2"))
 			// Provision for another pod that should now use the other subnet since we've consumed some from the first launch.
 			pod3 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}})
-			ExpectProvisioned(ctx, env.Client, cluster, prov, pod3)
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod3)
 			ExpectScheduled(ctx, env.Client, pod3)
 			createFleetInput = awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
 			Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-1"))
@@ -495,7 +495,7 @@ var _ = Describe("CloudProvider", func() {
 			pod1 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}})
 			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate, pod1)
 			awsEnv.EC2API.CreateFleetBehavior.Error.Set(fmt.Errorf("CreateFleet synthetic error"))
-			bindings := ExpectProvisioned(ctx, env.Client, cluster, prov, pod1)
+			bindings := ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod1)
 			Expect(len(bindings)).To(Equal(0))
 		})
 		It("should launch instances into subnets that are excluded by another provisioner", func() {
@@ -508,7 +508,7 @@ var _ = Describe("CloudProvider", func() {
 			nodeTemplate.Spec.SubnetSelector = map[string]string{"Name": "test-subnet-1"}
 			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			podSubnet1 := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, prov, podSubnet1)
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, podSubnet1)
 			ExpectScheduled(ctx, env.Client, podSubnet1)
 			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
 			Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-1"))
@@ -519,7 +519,7 @@ var _ = Describe("CloudProvider", func() {
 			}})
 			ExpectApplied(ctx, env.Client, provisioner)
 			podSubnet2 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name}})
-			ExpectProvisioned(ctx, env.Client, cluster, prov, podSubnet2)
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, podSubnet2)
 			ExpectScheduled(ctx, env.Client, podSubnet2)
 			createFleetInput = awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
 			Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-2"))
