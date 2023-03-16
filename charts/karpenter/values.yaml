@@ -101,11 +101,26 @@ extraObjects: []
 #  kind: AWSNodeTemplate
 #  metadata:
 #    name: default
+#    annotations:
+#      "helm.sh/hook": "post-install, post-upgrade"
+#      "helm.sh/hook-weight": "1"
+#      "helm.sh/hook-delete-policy": before-hook-creation
 #  spec:
 #    subnetSelector:
 #      karpenter.sh/discovery: {CLUSTER_NAME}
 #    securityGroupSelector:
 #      karpenter.sh/discovery: {CLUSTER_NAME}
+#- apiVersion: karpenter.sh/v1alpha5
+#  kind: Provisioner
+#  metadata:
+#    name: default
+#    annotations:
+#      "helm.sh/hook": "post-install, post-upgrade"
+#      "helm.sh/hook-weight": "5"
+#      "helm.sh/hook-delete-policy": before-hook-creation
+#  spec:
+#    providerRef:
+#      name: default
 
 controller:
   image:
