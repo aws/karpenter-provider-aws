@@ -63,6 +63,8 @@ var _ = Describe("Expiration", func() {
 
 		// Eventually expect the node to be gone and a new one to come up
 		env.EventuallyExpectNotFound(node)
+		provisioner.Spec.TTLSecondsUntilExpired = nil
+		env.ExpectUpdated(provisioner)
 		env.EventuallyExpectCreatedNodeCount("==", 1)
 		env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(dep.Spec.Selector.MatchLabels), 1)
 	})
