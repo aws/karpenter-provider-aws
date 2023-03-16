@@ -1,3 +1,17 @@
+/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package main
 
 import (
@@ -11,7 +25,6 @@ import (
 
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/client-go/kubernetes"
@@ -29,10 +42,12 @@ import (
 
 var clusterName string
 var outFile string
+var overheadPercent float64
 
 func init() {
 	flag.StringVar(&clusterName, "cluster-name", "", "cluster name to use when passing subnets into GetInstanceTypes()")
 	flag.StringVar(&outFile, "out-file", "allocatable-diff.csv", "file to output the generated data")
+	flag.Float64Var(&overheadPercent, "overhead-percent", 0, "overhead percentage to use for calculations")
 	flag.Parse()
 }
 
@@ -44,7 +59,7 @@ func main() {
 	kubeClient := lo.Must(client.New(restConfig, client.Options{}))
 	kubernetesInterface := kubernetes.NewForConfigOrDie(restConfig)
 	ctx := context.Background()
-	ctx = settings.ToContext(ctx, &settings.Settings{ClusterName: clusterName, IsolatedVPC: true, VMMemoryOverheadPercent: 0})
+	ctx = settings.ToContext(ctx, &settings.Settings{ClusterName: clusterName, IsolatedVPC: true, VMMemoryOverheadPercent: overheadPercent})
 
 	file := lo.Must(os.OpenFile(outFile, os.O_RDWR|os.O_CREATE, 0777))
 	defer file.Close()
@@ -103,18 +118,18 @@ func main() {
 		// Write the details of the expected instance and the actual instance into a CSV line format
 		lo.Must0(w.Write([]string{
 			instanceType.Name,
-			fmt.Sprintf("%d", instanceType.Capacity.Memory().ScaledValue(resource.Mega)),
+			fmt.Sprintf("%d", instanceType.Capacity.Memory().Value()/1024/1024),
 			fmt.Sprintf("%d", instanceType.Capacity.Cpu().MilliValue()),
-			fmt.Sprintf("%d", instanceType.Capacity.StorageEphemeral().ScaledValue(resource.Mega)),
-			fmt.Sprintf("%d", allocatable.Memory().ScaledValue(resource.Mega)),
+			fmt.Sprintf("%d", instanceType.Capacity.StorageEphemeral().Value()/1024/1024),
+			fmt.Sprintf("%d", allocatable.Memory().Value()/1024/1024),
 			fmt.Sprintf("%d", allocatable.Cpu().MilliValue()),
-			fmt.Sprintf("%d", allocatable.StorageEphemeral().ScaledValue(resource.Mega)),
-			fmt.Sprintf("%d", node.Status.Capacity.Memory().ScaledValue(resource.Mega)),
+			fmt.Sprintf("%d", allocatable.StorageEphemeral().Value()/1024/1024),
+			fmt.Sprintf("%d", node.Status.Capacity.Memory().Value()/1024/1024),
 			fmt.Sprintf("%d", node.Status.Capacity.Cpu().MilliValue()),
-			fmt.Sprintf("%d", node.Status.Capacity.StorageEphemeral().ScaledValue(resource.Mega)),
-			fmt.Sprintf("%d", node.Status.Allocatable.Memory().ScaledValue(resource.Mega)),
+			fmt.Sprintf("%d", node.Status.Capacity.StorageEphemeral().Value()/1024/1024),
+			fmt.Sprintf("%d", node.Status.Allocatable.Memory().Value()/1024/1024),
 			fmt.Sprintf("%d", node.Status.Allocatable.Cpu().MilliValue()),
-			fmt.Sprintf("%d", node.Status.Allocatable.StorageEphemeral().ScaledValue(resource.Mega)),
+			fmt.Sprintf("%d", node.Status.Allocatable.StorageEphemeral().Value()/1024/1024),
 		}))
 	}
 }

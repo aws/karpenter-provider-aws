@@ -1,4 +1,4 @@
-module github.com/aws/karpenter/allocatable-diff
+module github.com/aws/karpenter/tools/allocatable-diff
 
 go 1.20
 
