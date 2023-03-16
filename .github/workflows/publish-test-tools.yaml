@@ -10,7 +10,7 @@ on:
 permissions:
   id-token: write
 jobs:
-  test-tools:
+  publish-tools:
     if: github.repository == 'aws/karpenter'
     runs-on: ubuntu-latest
     steps:
@@ -19,4 +19,5 @@ jobs:
           fetch-depth: 0
       - uses: ./.github/actions/install-go-and-dependencies
       - uses: ./.github/actions/authenticate-aws
-      - run: ./test/push-docker.sh
+      - run: ./push-docker.sh
+        working-directory: ./test
