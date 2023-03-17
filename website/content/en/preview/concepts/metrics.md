@@ -94,6 +94,9 @@ Pod state is the current state of pods. This metric can be used several ways as 
 ### `karpenter_cloudprovider_duration_seconds`
 Duration of cloud provider method calls. Labeled by the controller, method name and provider.
 
+### `karpenter_cloudprovider_instance_price_estimate`
+Estimated hourly price used when making informed decisions on node cost calculation. This is updated once on startup and then every 12 hours.
+
 ## Cloudprovider Batcher Metrics
 
 ### `karpenter_cloudprovider_batcher_batch_size`

@@ -113,10 +113,12 @@ var _ = Describe("Pricing", func() {
 		price, ok := awsEnv.PricingProvider.OnDemandPrice("c98.large")
 		Expect(ok).To(BeTrue())
 		Expect(price).To(BeNumerically("==", 1.20))
+		Expect(getPricingEstimateMetricValue("c98.large", ec2.UsageClassTypeOnDemand, "")).To(BeNumerically("==", 1.20))
 
 		price, ok = awsEnv.PricingProvider.OnDemandPrice("c99.large")
 		Expect(ok).To(BeTrue())
 		Expect(price).To(BeNumerically("==", 1.23))
+		Expect(getPricingEstimateMetricValue("c99.large", ec2.UsageClassTypeOnDemand, "")).To(BeNumerically("==", 1.23))
 	})
 	It("should update spot pricing with response from the pricing API", func() {
 		now := time.Now()
@@ -161,10 +163,12 @@ var _ = Describe("Pricing", func() {
 		price, ok := awsEnv.PricingProvider.SpotPrice("c98.large", "test-zone-1b")
 		Expect(ok).To(BeTrue())
 		Expect(price).To(BeNumerically("==", 1.10))
+		Expect(getPricingEstimateMetricValue("c98.large", ec2.UsageClassTypeSpot, "test-zone-1b")).To(BeNumerically("==", 1.10))
 
 		price, ok = awsEnv.PricingProvider.SpotPrice("c99.large", "test-zone-1a")
 		Expect(ok).To(BeTrue())
 		Expect(price).To(BeNumerically("==", 1.23))
+		Expect(getPricingEstimateMetricValue("c99.large", ec2.UsageClassTypeSpot, "test-zone-1a")).To(BeNumerically("==", 1.23))
 	})
 	It("should update zonal pricing with data from the spot pricing API", func() {
 		now := time.Now()
@@ -197,6 +201,7 @@ var _ = Describe("Pricing", func() {
 		price, ok := awsEnv.PricingProvider.SpotPrice("c98.large", "test-zone-1a")
 		Expect(ok).To(BeTrue())
 		Expect(price).To(BeNumerically("==", 1.20))
+		Expect(getPricingEstimateMetricValue("c98.large", ec2.UsageClassTypeSpot, "test-zone-1a")).To(BeNumerically("==", 1.20))
 
 		_, ok = awsEnv.PricingProvider.SpotPrice("c98.large", "test-zone-1b")
 		Expect(ok).ToNot(BeTrue())
@@ -255,3 +260,17 @@ var _ = Describe("Pricing", func() {
 			To(ContainElements("Linux/UNIX", "Linux/UNIX (Amazon VPC)"))
 	})
 })
+
+func getPricingEstimateMetricValue(instanceType string, capacityType string, zone string) float64 {
+	var value *float64
+	metric, ok := FindMetricWithLabelValues("karpenter_cloudprovider_instance_price_estimate", map[string]string{
+		pricing.InstanceTypeLabel: instanceType,
+		pricing.CapacityTypeLabel: capacityType,
+		pricing.RegionLabel:       "",
+		pricing.TopologyLabel:     zone,
+	})
+	Expect(ok).To(BeTrue())
+	value = metric.GetGauge().Value
+	Expect(value).To(Not(BeNil()))
+	return *value
+}
