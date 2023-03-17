@@ -21,6 +21,7 @@ If you are open to others contacting you about your use of Karpenter on Slack, a
 | Astradot | Using Karpenter on all K8s clusters in production and staging | N/A | [Homepage](https://astradot.com) |
 | Beeswax | Using Karpenter to scale our high load AdTech platform efficiently | `@James Wojewoda` | [Homepage](https://www.beeswax.com)
 | Canva | Using Karpetner to scale CPU and GPU workloads on EKS | `@groodt` | [Canva](https://www.canva.com/) |
+| Cloud Posse, LLC | Karpenter ships out-of-the-box in our Terraform Blueprint for EKS and is offered as part of our comprehensive multi-account [AWS reference architecture](https://cloudposse.com/reference-architecture/). Everything is Open Source (APACHE2). | `@osterman` | [Karpenter : The Cloud Posse Developer Hub](https://docs.cloudposse.com/components/catalog/aws/eks/karpenter/) |
 | Codefresh | Juggling workloads for the SAAS CD/GitOps offering | `@Yonatan Koren`, `@Ilia Medvedev` | [Codefresh](https://codefresh.io/) |
 | Conveyor | Using karpenter to scale our customers data pipelines on EKS | `@stijndehaes` | [Conveyor](https://conveyordata.com/) |
 | Cordial   | Using Karpenter to scale multiple EKS clusters quickly | `@dschaaff` | [Cordial](https://cordial.com) |
