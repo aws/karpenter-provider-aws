@@ -7,7 +7,7 @@ require (
 	github.com/aws/aws-sdk-go v1.44.212
 	github.com/aws/aws-sdk-go-v2/config v1.18.15
 	github.com/aws/karpenter v0.22.0
-	github.com/aws/karpenter-core v0.27.0
+	github.com/aws/karpenter-core v0.27.1-0.20230316153218-0b437c20140f
 	github.com/onsi/ginkgo/v2 v2.9.0
 	github.com/onsi/gomega v1.27.2
 	github.com/samber/lo v1.37.0
@@ -16,7 +16,7 @@ require (
 	k8s.io/apimachinery v0.25.4
 	k8s.io/client-go v0.25.4
 	knative.dev/pkg v0.0.0-20221123154742-05b694ec4d3a
-	sigs.k8s.io/controller-runtime v0.13.0
+	sigs.k8s.io/controller-runtime v0.13.1
 )
 
 require (
@@ -90,7 +90,7 @@ require (
 	golang.org/x/sys v0.5.0 // indirect
 	golang.org/x/term v0.5.0 // indirect
 	golang.org/x/text v0.7.0 // indirect
-	golang.org/x/time v0.0.0-20220609170525-579cf78fd858 // indirect
+	golang.org/x/time v0.3.0 // indirect
 	golang.org/x/tools v0.6.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect

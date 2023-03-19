@@ -46,7 +46,7 @@ var _ = Describe("Extended Resources", func() {
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{
-			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
+			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 			Requirements: []v1.NodeSelectorRequirement{
 				{
 					Key:      v1alpha1.LabelInstanceCategory,
@@ -85,7 +85,7 @@ var _ = Describe("Extended Resources", func() {
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{
-			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
+			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 			Requirements: []v1.NodeSelectorRequirement{
 				{
 					Key:      v1alpha1.LabelInstanceCategory,
@@ -129,7 +129,7 @@ var _ = Describe("Extended Resources", func() {
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{
-			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
+			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 			Requirements: []v1.NodeSelectorRequirement{
 				{
 					Key:      v1alpha1.LabelInstanceCategory,
@@ -182,7 +182,7 @@ var _ = Describe("Extended Resources", func() {
 		},
 		)
 		provisioner := test.Provisioner(test.ProvisionerOptions{
-			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
+			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 			Requirements: []v1.NodeSelectorRequirement{
 				{
 					Key:      v1alpha1.LabelInstanceCategory,
@@ -232,7 +232,7 @@ var _ = Describe("Extended Resources", func() {
 			AMISelector: map[string]string{"aws-ids": "ami-0fae925f94979981f"},
 		})
 		provisioner := test.Provisioner(test.ProvisionerOptions{
-			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
+			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 			Requirements: []v1.NodeSelectorRequirement{
 				{
 					Key:      v1alpha5.LabelCapacityType,

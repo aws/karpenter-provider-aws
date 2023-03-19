@@ -107,7 +107,7 @@ func benchmarkNotificationController(b *testing.B, messageCount int) {
 	}()
 
 	// Load all the fundamental components before setting up the controllers
-	recorder = coretest.NewEventRecorder()
+	recorder := coretest.NewEventRecorder()
 	unavailableOfferingsCache = awscache.NewUnavailableOfferings()
 
 	// Set-up the controllers

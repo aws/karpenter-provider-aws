@@ -37,7 +37,7 @@ var _ = Describe("Emptiness", func() {
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{
-			ProviderRef:          &v1alpha5.ProviderRef{Name: provider.Name},
+			ProviderRef:          &v1alpha5.MachineTemplateRef{Name: provider.Name},
 			TTLSecondsAfterEmpty: ptr.Int64(0),
 		})
 

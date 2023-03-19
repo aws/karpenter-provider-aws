@@ -77,7 +77,7 @@ var _ = Describe("Interruption", Label("AWS"), func() {
 					Values:   []string{v1alpha5.CapacityTypeSpot},
 				},
 			},
-			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
+			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 		})
 		numPods := 1
 		dep := test.Deployment(test.DeploymentOptions{
@@ -145,7 +145,7 @@ var _ = Describe("Interruption", Label("AWS"), func() {
 					Values:   []string{v1alpha5.CapacityTypeOnDemand},
 				},
 			},
-			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
+			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 		})
 		numPods := 1
 		dep := test.Deployment(test.DeploymentOptions{
@@ -185,7 +185,7 @@ var _ = Describe("Interruption", Label("AWS"), func() {
 					Values:   []string{v1alpha5.CapacityTypeOnDemand},
 				},
 			},
-			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
+			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 		})
 		numPods := 1
 		dep := test.Deployment(test.DeploymentOptions{
@@ -225,7 +225,7 @@ var _ = Describe("Interruption", Label("AWS"), func() {
 					Values:   []string{v1alpha5.CapacityTypeOnDemand},
 				},
 			},
-			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
+			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 		})
 		numPods := 1
 		dep := test.Deployment(test.DeploymentOptions{

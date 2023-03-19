@@ -51,7 +51,7 @@ var _ = Describe("AMI", func() {
 			},
 			AMISelector: map[string]string{"aws-ids": customAMI},
 		})
-		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
+		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
 		pod := test.Pod()
 
 		env.ExpectCreated(pod, provider, provisioner)
@@ -75,7 +75,7 @@ var _ = Describe("AMI", func() {
 			AMISelector: map[string]string{"aws-ids": fmt.Sprintf("%s,%s", customAMI, oldCustomAMI)},
 			UserData:    aws.String(fmt.Sprintf("#!/bin/bash\n/etc/eks/bootstrap.sh '%s'", settings.FromContext(env.Context).ClusterName)),
 		})
-		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
+		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
 		pod := test.Pod()
 
 		env.ExpectCreated(pod, provider, provisioner)
@@ -100,7 +100,7 @@ var _ = Describe("AMI", func() {
 			UserData:    aws.String(fmt.Sprintf("#!/bin/bash\n/etc/eks/bootstrap.sh '%s'", settings.FromContext(env.Context).ClusterName)),
 		})
 
-		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
+		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
 		pod := test.Pod()
 
 		env.ExpectCreated(pod, provider, provisioner)
@@ -123,7 +123,7 @@ var _ = Describe("AMI", func() {
 			UserData:    aws.String(fmt.Sprintf("#!/bin/bash\n/etc/eks/bootstrap.sh '%s'", settings.FromContext(env.Context).ClusterName)),
 		})
 
-		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
+		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
 		pod := test.Pod()
 
 		env.ExpectCreated(pod, provider, provisioner)
@@ -141,7 +141,7 @@ var _ = Describe("AMI", func() {
 			AMISelector: map[string]string{"aws::ids": customAMI},
 			UserData:    aws.String(fmt.Sprintf("#!/bin/bash\n/etc/eks/bootstrap.sh '%s'", settings.FromContext(env.Context).ClusterName)),
 		})
-		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
+		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
 		pod := test.Pod()
 
 		env.ExpectCreated(pod, provider, provisioner)
@@ -158,7 +158,7 @@ var _ = Describe("AMI", func() {
 				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			}})
 			provisioner := test.Provisioner(test.ProvisionerOptions{
-				ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
+				ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 			})
 			pod := test.Pod()
 			env.ExpectCreated(provider, provisioner, pod)
@@ -172,7 +172,7 @@ var _ = Describe("AMI", func() {
 				AMIFamily:             &v1alpha1.AMIFamilyBottlerocket,
 			}})
 			provisioner := test.Provisioner(test.ProvisionerOptions{
-				ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
+				ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 			})
 			pod := test.Pod()
 			env.ExpectCreated(provider, provisioner, pod)
@@ -186,7 +186,7 @@ var _ = Describe("AMI", func() {
 				AMIFamily:             &v1alpha1.AMIFamilyUbuntu,
 			}})
 			provisioner := test.Provisioner(test.ProvisionerOptions{
-				ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
+				ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 			})
 			pod := test.Pod()
 			env.ExpectCreated(provider, provisioner, pod)
@@ -202,7 +202,7 @@ var _ = Describe("AMI", func() {
 				AMISelector: map[string]string{"aws-ids": customAMI},
 				UserData:    aws.String(fmt.Sprintf("#!/bin/bash\n/etc/eks/bootstrap.sh '%s'", settings.FromContext(env.Context).ClusterName)),
 			})
-			provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
+			provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
 			pod := test.Pod()
 
 			env.ExpectCreated(pod, provider, provisioner)
@@ -225,7 +225,7 @@ var _ = Describe("AMI", func() {
 				UserData: aws.String(string(content)),
 			})
 			provisioner := test.Provisioner(test.ProvisionerOptions{
-				ProviderRef:   &v1alpha5.ProviderRef{Name: provider.Name},
+				ProviderRef:   &v1alpha5.MachineTemplateRef{Name: provider.Name},
 				Taints:        []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoExecute"}},
 				StartupTaints: []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoSchedule"}},
 			})
@@ -254,7 +254,7 @@ var _ = Describe("AMI", func() {
 				UserData: aws.String(string(content)),
 			})
 			provisioner := test.Provisioner(test.ProvisionerOptions{
-				ProviderRef:   &v1alpha5.ProviderRef{Name: provider.Name},
+				ProviderRef:   &v1alpha5.MachineTemplateRef{Name: provider.Name},
 				Taints:        []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoExecute"}},
 				StartupTaints: []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoSchedule"}},
 			})
@@ -283,7 +283,7 @@ var _ = Describe("AMI", func() {
 				UserData: aws.String(string(content)),
 			})
 			provisioner := test.Provisioner(test.ProvisionerOptions{
-				ProviderRef:   &v1alpha5.ProviderRef{Name: provider.Name},
+				ProviderRef:   &v1alpha5.MachineTemplateRef{Name: provider.Name},
 				Taints:        []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoExecute"}},
 				StartupTaints: []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoSchedule"}},
 			})

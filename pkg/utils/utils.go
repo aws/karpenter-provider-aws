@@ -17,6 +17,10 @@ package utils
 import (
 	"fmt"
 	"regexp"
+
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/samber/lo"
 )
 
 var (
@@ -36,4 +40,12 @@ func ParseInstanceID(providerID string) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("parsing instance id %s", providerID)
+}
+
+// MergeTags takes a variadic list of maps and merges them together into a list of
+// EC2 tags to be passed into EC2 API calls
+func MergeTags(tags ...map[string]string) []*ec2.Tag {
+	return lo.MapToSlice(lo.Assign(tags...), func(k, v string) *ec2.Tag {
+		return &ec2.Tag{Key: aws.String(k), Value: aws.String(v)}
+	})
 }

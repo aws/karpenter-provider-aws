@@ -41,7 +41,7 @@ var _ = Describe("Scheduling", func() {
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{
-			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
+			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 			Annotations: map[string]string{
 				"foo": "bar",
 				v1alpha5.DoNotConsolidateNodeAnnotationKey: "true",
@@ -59,7 +59,7 @@ var _ = Describe("Scheduling", func() {
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{
-			ProviderRef:  &v1alpha5.ProviderRef{Name: provider.Name},
+			ProviderRef:  &v1alpha5.MachineTemplateRef{Name: provider.Name},
 			Requirements: []v1.NodeSelectorRequirement{{Key: v1alpha1.LabelInstanceCategory, Operator: v1.NodeSelectorOpExists}},
 		})
 		nodeSelector := map[string]string{
@@ -113,7 +113,7 @@ var _ = Describe("Scheduling", func() {
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
-		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
+		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
 		pod := test.Pod()
 
 		env.ExpectCreated(provisioner, provider, pod)
@@ -125,7 +125,7 @@ var _ = Describe("Scheduling", func() {
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
-		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
+		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
 
 		deployment := test.Deployment(test.DeploymentOptions{Replicas: 50})
 		env.ExpectCreated(provisioner, provider, deployment)
@@ -137,7 +137,7 @@ var _ = Describe("Scheduling", func() {
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
-		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
+		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
 		// just two pods as they all need to land on the same node
 		podLabels := map[string]string{"test": "self-affinity"}
 		deployment := test.Deployment(test.DeploymentOptions{
@@ -164,7 +164,7 @@ var _ = Describe("Scheduling", func() {
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
-		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name}})
+		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
 
 		// one pod per zone
 		podLabels := map[string]string{"test": "zonal-spread"}
@@ -196,7 +196,7 @@ var _ = Describe("Scheduling", func() {
 		}})
 
 		provisionerLowPri := test.Provisioner(test.ProvisionerOptions{
-			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
+			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 			Weight:      ptr.Int32(10),
 			Requirements: []v1.NodeSelectorRequirement{
 				{
@@ -207,7 +207,7 @@ var _ = Describe("Scheduling", func() {
 			},
 		})
 		provisionerHighPri := test.Provisioner(test.ProvisionerOptions{
-			ProviderRef: &v1alpha5.ProviderRef{Name: provider.Name},
+			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 			Weight:      ptr.Int32(100),
 			Requirements: []v1.NodeSelectorRequirement{
 				{

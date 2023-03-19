@@ -1,0 +1,22 @@
+name: PublishReleaseNotificationListener
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - tools/release-notification-listener/**
+  schedule:
+    - cron: '0 13 * * MON'
+permissions:
+  id-token: write
+jobs:
+  publish-listener:
+    if: github.repository == 'aws/karpenter'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/install-go-and-dependencies
+      - uses: ./.github/actions/authenticate-aws
+      - run: ./push-docker.sh
+        working-directory: ./tools/release-notification-listener

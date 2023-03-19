@@ -235,7 +235,7 @@ func (c *CloudProvider) isAMIDrifted(ctx context.Context, machine *v1alpha5.Mach
 	return !lo.Contains(lo.Keys(amis), *instance.ImageId), nil
 }
 
-func (c *CloudProvider) resolveNodeTemplate(ctx context.Context, raw []byte, objRef *v1alpha5.ProviderRef) (*v1alpha1.AWSNodeTemplate, error) {
+func (c *CloudProvider) resolveNodeTemplate(ctx context.Context, raw []byte, objRef *v1alpha5.MachineTemplateRef) (*v1alpha1.AWSNodeTemplate, error) {
 	nodeTemplate := &v1alpha1.AWSNodeTemplate{}
 	if objRef != nil {
 		if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: objRef.Name}, nodeTemplate); err != nil {

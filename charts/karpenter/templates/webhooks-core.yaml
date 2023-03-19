@@ -1,35 +1,4 @@
 apiVersion: admissionregistration.k8s.io/v1
-kind: MutatingWebhookConfiguration
-metadata:
-  name: defaulting.webhook.karpenter.sh
-  labels:
-    {{- include "karpenter.labels" . | nindent 4 }}
-  {{- with .Values.additionalAnnotations }}
-  annotations:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
-webhooks:
-  - name: defaulting.webhook.karpenter.sh
-    admissionReviewVersions: ["v1"]
-    clientConfig:
-      service:
-        name: {{ include "karpenter.fullname" . }}
-        namespace: {{ .Release.Namespace }}
-    failurePolicy: Fail
-    sideEffects: None
-    rules:
-      - apiGroups:
-          - karpenter.sh
-        apiVersions:
-          - v1alpha5
-        resources:
-          - provisioners
-          - provisioners/status
-        operations:
-          - CREATE
-          - UPDATE
----
-apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
   name: validation.webhook.karpenter.sh
