@@ -1164,6 +1164,17 @@ var _ = Describe("LaunchTemplates", func() {
 			Expect(string(userData)).To(ContainSubstring("--ip-family ipv6"))
 			Expect(*input.LaunchTemplateData.MetadataOptions.HttpProtocolIpv6).To(Equal(ec2.LaunchTemplateInstanceMetadataProtocolIpv6Enabled))
 		})
+		It("should specify --dns-cluster-ip when running in an ipv4 cluster", func() {
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+			input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
+			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+			Expect(err).To(BeNil())
+			Expect(string(userData)).To(ContainSubstring("--dns-cluster-ip '10.0.100.10'"))
+		})
 		It("should pass ImageGCHighThresholdPercent when specified", func() {
 			provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
 				ImageGCHighThresholdPercent: aws.Int32(50),
@@ -1421,6 +1432,21 @@ var _ = Describe("LaunchTemplates", func() {
 				percent, err := strconv.Atoi(*config.Settings.Kubernetes.ImageGCLowThresholdPercent)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(percent).To(BeNumerically("==", 50))
+			})
+			It("should pass ClusterDNSIP when discovered", func() {
+				nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
+				ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+				input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
+				userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+				Expect(err).To(BeNil())
+				config := &bootstrap.BottlerocketConfig{}
+				Expect(config.UnmarshalTOML(userData)).To(Succeed())
+				Expect(config.Settings.Kubernetes.ClusterDNSIP).ToNot(BeNil())
+				Expect(*config.Settings.Kubernetes.ClusterDNSIP).To(Equal("10.0.100.10"))
 			})
 		})
 		Context("AL2 Custom UserData", func() {
