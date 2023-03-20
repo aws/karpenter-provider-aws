@@ -116,7 +116,7 @@ func (r Resolver) Resolve(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTem
 		resolved := &LaunchTemplate{
 			Options: options,
 			UserData: amiFamily.UserData(
-				machine.Spec.Kubelet,
+				r.defaultClusterDNS(options, machine.Spec.Kubelet),
 				append(machine.Spec.Taints, machine.Spec.StartupTaints...),
 				options.Labels,
 				options.CABundle,
@@ -160,4 +160,21 @@ func (o Options) DefaultMetadataOptions() *v1alpha1.MetadataOptions {
 		HTTPPutResponseHopLimit: aws.Int64(2),
 		HTTPTokens:              aws.String(ec2.LaunchTemplateHttpTokensStateRequired),
 	}
+}
+
+func (r Resolver) defaultClusterDNS(opts *Options, kubeletConfig *v1alpha5.KubeletConfiguration) *v1alpha5.KubeletConfiguration {
+	if opts.KubeDNSIP == nil {
+		return kubeletConfig
+	}
+	if kubeletConfig != nil && len(kubeletConfig.ClusterDNS) != 0 {
+		return kubeletConfig
+	}
+	if kubeletConfig == nil {
+		return &v1alpha5.KubeletConfiguration{
+			ClusterDNS: []string{opts.KubeDNSIP.String()},
+		}
+	}
+	newKubeletConfig := kubeletConfig.DeepCopy()
+	newKubeletConfig.ClusterDNS = []string{opts.KubeDNSIP.String()}
+	return newKubeletConfig
 }

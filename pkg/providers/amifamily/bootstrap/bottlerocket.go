@@ -51,20 +51,25 @@ func (b Bottlerocket) Script() (string, error) {
 		s.Settings.Kubernetes.MaxPods = aws.Int(110)
 	}
 
-	if b.KubeletConfig != nil && len(b.KubeletConfig.ClusterDNS) > 0 {
-		s.Settings.Kubernetes.ClusterDNSIP = &b.KubeletConfig.ClusterDNS[0]
-	}
 	if b.KubeletConfig != nil {
-		s.Settings.Kubernetes.SystemReserved = resources.StringMap(b.KubeletConfig.SystemReserved)
-		s.Settings.Kubernetes.KubeReserved = resources.StringMap(b.KubeletConfig.KubeReserved)
-		s.Settings.Kubernetes.EvictionHard = b.KubeletConfig.EvictionHard
+		if len(b.KubeletConfig.ClusterDNS) > 0 {
+			s.Settings.Kubernetes.ClusterDNSIP = &b.KubeletConfig.ClusterDNS[0]
+		}
+		if b.KubeletConfig.SystemReserved != nil {
+			s.Settings.Kubernetes.SystemReserved = resources.StringMap(b.KubeletConfig.SystemReserved)
+		}
+		if b.KubeletConfig.KubeReserved != nil {
+			s.Settings.Kubernetes.KubeReserved = resources.StringMap(b.KubeletConfig.KubeReserved)
+		}
+		if b.KubeletConfig.EvictionHard != nil {
+			s.Settings.Kubernetes.EvictionHard = b.KubeletConfig.EvictionHard
+		}
 		if b.KubeletConfig.ImageGCHighThresholdPercent != nil {
 			s.Settings.Kubernetes.ImageGCHighThresholdPercent = lo.ToPtr(strconv.FormatInt(int64(*b.KubeletConfig.ImageGCHighThresholdPercent), 10))
 		}
 		if b.KubeletConfig.ImageGCLowThresholdPercent != nil {
 			s.Settings.Kubernetes.ImageGCLowThresholdPercent = lo.ToPtr(strconv.FormatInt(int64(*b.KubeletConfig.ImageGCLowThresholdPercent), 10))
 		}
-
 	}
 
 	s.Settings.Kubernetes.NodeTaints = map[string][]string{}
