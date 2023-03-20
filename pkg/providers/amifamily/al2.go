@@ -34,27 +34,42 @@ type AL2 struct {
 }
 
 // SSMAlias returns the AMI Alias to query SSM
-func (a AL2) SSMAlias(version string) map[string]scheduling.Requirements {
-	result := map[string]scheduling.Requirements{}
+func (a AL2) SSMAlias(version string) []SSMAliasOutput {
+	var result []SSMAliasOutput
 
 	// amd64
 	requirements := scheduling.NewRequirements(
 		scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureAmd64),
 	)
-	result[fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", version)] = requirements
+	output := SSMAliasOutput{
+		Name:         "amazon-linux-2",
+		Query:        fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", version),
+		Requirements: requirements,
+	}
+	result = append(result, output)
 
 	// amd64 with gpu
 	requirements = scheduling.NewRequirements(
 		scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureAmd64),
 		scheduling.NewRequirement(v1alpha1.LabelInstanceGPUManufacturer, v1.NodeSelectorOpIn, "nvidia", "neuron"),
 	)
-	result[fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-gpu/recommended/image_id", version)] = requirements
+	output = SSMAliasOutput{
+		Name:         "amazon-linux-2-gpu",
+		Query:        fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-gpu/recommended/image_id", version),
+		Requirements: requirements,
+	}
+	result = append(result, output)
 
 	// arm64
 	requirements = scheduling.NewRequirements(
 		scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureArm64),
 	)
-	result[fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2%s/recommended/image_id", version, fmt.Sprintf("-%s", v1alpha5.ArchitectureArm64))] = requirements
+	output = SSMAliasOutput{
+		Name:         fmt.Sprintf("amazon-linux-2%s", fmt.Sprintf("-%s", v1alpha5.ArchitectureArm64)),
+		Query:        fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2%s/recommended/image_id", version, fmt.Sprintf("-%s", v1alpha5.ArchitectureArm64)),
+		Requirements: requirements,
+	}
+	result = append(result, output)
 
 	return result
 }

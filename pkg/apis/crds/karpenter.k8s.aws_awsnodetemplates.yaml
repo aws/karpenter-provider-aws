@@ -231,6 +231,9 @@ spec:
                     id:
                       description: Id of the AMI
                       type: string
+                    name:
+                      description: Name of the AMI
+                      type: string
                     requirements:
                       description: Requirements of the AMI to be utilized on an instance
                         type
@@ -265,6 +268,7 @@ spec:
                       type: array
                   required:
                   - id
+                  - name
                   - requirements
                   type: object
                 type: array

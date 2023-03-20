@@ -39,8 +39,8 @@ func (c Custom) UserData(_ *v1alpha5.KubeletConfiguration, _ []v1.Taint, _ map[s
 	}
 }
 
-func (c Custom) SSMAlias(_ string) map[string]scheduling.Requirements {
-	return map[string]scheduling.Requirements{"/unknown": scheduling.NewRequirements()}
+func (c Custom) SSMAlias(_ string) []SSMAliasOutput {
+	return []SSMAliasOutput{{Name: "", Query: "/unknown", Requirements: scheduling.NewRequirements()}}
 }
 
 func (c Custom) DefaultBlockDeviceMappings() []*v1alpha1.BlockDeviceMapping {

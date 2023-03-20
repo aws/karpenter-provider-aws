@@ -127,6 +127,7 @@ func (c *Controller) resolveAMIs(ctx context.Context, nodeTemplate *v1alpha1.AWS
 
 	nodeTemplate.Status.AMIs = lo.Map(lo.Keys(amiRequirement), func(ami amifamily.AMI, _ int) v1alpha1.AMI {
 		return v1alpha1.AMI{
+			Name:         ami.Name,
 			ID:           ami.AmiID,
 			Requirements: amiRequirement[ami].NodeSelectorRequirements(),
 		}

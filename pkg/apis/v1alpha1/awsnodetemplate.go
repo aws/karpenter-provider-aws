@@ -41,6 +41,9 @@ type AMI struct {
 	// Id of the AMI
 	// +required
 	ID string `json:"id"`
+	// Name of the AMI
+	// +required
+	Name string `json:"name"`
 	// Requirements of the AMI to be utilized on an instance type
 	// +required
 	Requirements []v1.NodeSelectorRequirement `json:"requirements"`

@@ -34,14 +34,19 @@ type Ubuntu struct {
 }
 
 // SSMAlias returns the AMI Alias to query SSM
-func (u Ubuntu) SSMAlias(version string) map[string]scheduling.Requirements {
+func (u Ubuntu) SSMAlias(version string) []SSMAliasOutput {
 	architectures := []string{v1alpha5.ArchitectureAmd64, v1alpha5.ArchitectureArm64}
-	result := map[string]scheduling.Requirements{}
+	var result []SSMAliasOutput
 	for _, arch := range architectures {
 		requirements := scheduling.NewRequirements(
 			scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, arch),
 		)
-		result[fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/%s/hvm/ebs-gp2/ami-id", version, arch)] = requirements
+		output := SSMAliasOutput{
+			Name:         fmt.Sprintf("ubuntu-20.4-eks-%s-%s", version, arch),
+			Query:        fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/%s/hvm/ebs-gp2/ami-id", version, arch),
+			Requirements: requirements,
+		}
+		result = append(result, output)
 	}
 
 	return result

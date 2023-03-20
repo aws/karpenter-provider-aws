@@ -39,8 +39,8 @@ type Bottlerocket struct {
 }
 
 // SSMAlias returns the AMI Alias to query SSM
-func (b Bottlerocket) SSMAlias(version string) map[string]scheduling.Requirements {
-	result := map[string]scheduling.Requirements{}
+func (b Bottlerocket) SSMAlias(version string) []SSMAliasOutput {
+	var result []SSMAliasOutput
 	architectures := []string{"x86_64", v1alpha5.ArchitectureArm64}
 
 	for _, arch := range architectures {
@@ -50,7 +50,12 @@ func (b Bottlerocket) SSMAlias(version string) map[string]scheduling.Requirement
 		} else {
 			requirements.Add(scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, arch))
 		}
-		result[fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/%s/latest/image_id", version, arch)] = requirements
+		output := SSMAliasOutput{
+			Name:         fmt.Sprintf("bottlerocket-aws-k8s-%s%s", version, "-"+arch),
+			Query:        fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/%s/latest/image_id", version, arch),
+			Requirements: requirements,
+		}
+		result = append(result, output)
 
 		requirements = scheduling.NewRequirements()
 		if arch == "x86_64" {
@@ -59,7 +64,12 @@ func (b Bottlerocket) SSMAlias(version string) map[string]scheduling.Requirement
 			requirements.Add(scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, arch))
 		}
 		requirements.Add(scheduling.NewRequirement(v1alpha1.LabelInstanceGPUManufacturer, v1.NodeSelectorOpIn, "nvidia"))
-		result[fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s%s/%s/latest/image_id", version, "-nvidia", arch)] = requirements
+		output = SSMAliasOutput{
+			Name:         fmt.Sprintf("bottlerocket-aws-k8s-%s%s%s", version, "-"+arch, "-nvidia"),
+			Query:        fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s%s/%s/latest/image_id", version, "-nvidia", arch),
+			Requirements: requirements,
+		}
+		result = append(result, output)
 	}
 
 	return result
