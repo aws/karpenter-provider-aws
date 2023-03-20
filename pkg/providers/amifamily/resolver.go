@@ -108,7 +108,7 @@ func New(kubeClient client.Client, amiProvider *Provider) *Resolver {
 // Multiple ResolvedTemplates are returned based on the instanceTypes passed in to support special AMIs for certain instance types like GPUs.
 func (r Resolver) Resolve(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, machine *v1alpha5.Machine, instanceTypes []*cloudprovider.InstanceType, options *Options) ([]*LaunchTemplate, error) {
 	amiFamily := GetAMIFamily(nodeTemplate.Spec.AMIFamily, options)
-	amiIDs, err := r.amiProvider.Get(ctx, nodeTemplate, instanceTypes, amiFamily)
+	amiIDs, err := r.amiProvider.MapInstanceTypes(ctx, nodeTemplate, instanceTypes, options)
 	if err != nil {
 		return nil, err
 	}

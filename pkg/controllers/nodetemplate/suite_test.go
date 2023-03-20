@@ -370,8 +370,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			amiFamily := amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, &amifamily.Options{})
-			amis, _ := awsEnv.AMIProvider.GetAMIWithRequirements(ctx, nodeTemplate, amiFamily)
+			amis, _ := awsEnv.AMIProvider.Get(ctx, nodeTemplate, &amifamily.Options{})
 			amiIds := lo.Map(lo.Keys(amis), func(ami amifamily.AMI, _ int) string {
 				return ami.AmiID
 			})
@@ -386,8 +385,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			amiFamily := amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, &amifamily.Options{})
-			amis, _ := awsEnv.AMIProvider.GetAMIWithRequirements(ctx, nodeTemplate, amiFamily)
+			amis, _ := awsEnv.AMIProvider.Get(ctx, nodeTemplate, &amifamily.Options{})
 			amiIds := lo.Map(lo.Keys(amis), func(ami amifamily.AMI, _ int) string {
 				return ami.AmiID
 			})
@@ -403,8 +401,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			amiFamily := amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, &amifamily.Options{})
-			amis, _ := awsEnv.AMIProvider.GetAMIWithRequirements(ctx, nodeTemplate, amiFamily)
+			amis, _ := awsEnv.AMIProvider.Get(ctx, nodeTemplate, &amifamily.Options{})
 			amiIds := lo.Map(lo.Keys(amis), func(ami amifamily.AMI, _ int) string {
 				return ami.AmiID
 			})
@@ -420,8 +417,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			amiFamily := amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, &amifamily.Options{})
-			amis, _ := awsEnv.AMIProvider.GetAMIWithRequirements(ctx, nodeTemplate, amiFamily)
+			amis, _ := awsEnv.AMIProvider.Get(ctx, nodeTemplate, &amifamily.Options{})
 			amiIds := lo.Map(lo.Keys(amis), func(ami amifamily.AMI, _ int) string {
 				return ami.AmiID
 			})
@@ -436,8 +432,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			amiFamily := amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, &amifamily.Options{})
-			amis, _ := awsEnv.AMIProvider.GetAMIWithRequirements(ctx, nodeTemplate, amiFamily)
+			amis, _ := awsEnv.AMIProvider.Get(ctx, nodeTemplate, &amifamily.Options{})
 			amiIds := lo.Map(lo.Keys(amis), func(ami amifamily.AMI, _ int) string {
 				return ami.AmiID
 			})
@@ -452,8 +447,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			amiFamily = amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, &amifamily.Options{})
-			amis, _ = awsEnv.AMIProvider.GetAMIWithRequirements(ctx, nodeTemplate, amiFamily)
+			amis, _ = awsEnv.AMIProvider.Get(ctx, nodeTemplate, &amifamily.Options{})
 			amiIds = lo.Map(lo.Keys(amis), func(ami amifamily.AMI, _ int) string {
 				return ami.AmiID
 			})
@@ -468,8 +462,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			amiFamily := amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, &amifamily.Options{})
-			amis, _ := awsEnv.AMIProvider.GetAMIWithRequirements(ctx, nodeTemplate, amiFamily)
+			amis, _ := awsEnv.AMIProvider.Get(ctx, nodeTemplate, &amifamily.Options{})
 			amiIds := lo.Map(lo.Keys(amis), func(ami amifamily.AMI, _ int) string {
 				return ami.AmiID
 			})
@@ -484,8 +477,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			amiFamily = amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, &amifamily.Options{})
-			amis, _ = awsEnv.AMIProvider.GetAMIWithRequirements(ctx, nodeTemplate, amiFamily)
+			amis, _ = awsEnv.AMIProvider.Get(ctx, nodeTemplate, &amifamily.Options{})
 			amiIds = lo.Map(lo.Keys(amis), func(ami amifamily.AMI, _ int) string {
 				return ami.AmiID
 			})
@@ -507,8 +499,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			amiFamily := amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, &amifamily.Options{})
-			amis, _ := awsEnv.AMIProvider.GetAMIWithRequirements(ctx, nodeTemplate, amiFamily)
+			amis, _ := awsEnv.AMIProvider.Get(ctx, nodeTemplate, &amifamily.Options{})
 			amiIds := lo.Map(lo.Keys(amis), func(ami amifamily.AMI, _ int) string {
 				return ami.AmiID
 			})

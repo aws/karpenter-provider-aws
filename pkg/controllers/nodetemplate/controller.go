@@ -60,8 +60,8 @@ func (c *Controller) Reconcile(ctx context.Context, nodeTemplate *v1alpha1.AWSNo
 
 	err := multierr.Combine(
 		c.resolveSubnets(ctx, nodeTemplate),
-		c.resolveSecurityGroup(ctx, nodeTemplate),
-		c.resolveAMI(ctx, nodeTemplate),
+		c.resolveSecurityGroups(ctx, nodeTemplate),
+		c.resolveAMIs(ctx, nodeTemplate),
 	)
 
 	if patchErr := c.kubeClient.Status().Patch(ctx, nodeTemplate, client.MergeFrom(stored)); patchErr != nil {
@@ -103,7 +103,7 @@ func (c *Controller) resolveSubnets(ctx context.Context, nodeTemplate *v1alpha1.
 	return nil
 }
 
-func (c *Controller) resolveSecurityGroup(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) error {
+func (c *Controller) resolveSecurityGroups(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) error {
 	securityGroupIds, err := c.securityGroupProvider.List(ctx, nodeTemplate)
 	if err != nil {
 		return err
@@ -118,10 +118,8 @@ func (c *Controller) resolveSecurityGroup(ctx context.Context, nodeTemplate *v1a
 	return nil
 }
 
-func (c *Controller) resolveAMI(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) error {
-	amiFamily := amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, &amifamily.Options{})
-
-	amiRequirement, err := c.amiProvider.GetAMIWithRequirements(ctx, nodeTemplate, amiFamily)
+func (c *Controller) resolveAMIs(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) error {
+	amiRequirement, err := c.amiProvider.Get(ctx, nodeTemplate, &amifamily.Options{})
 	if err != nil {
 		nodeTemplate.Status.AMIs = nil
 		return err

@@ -94,15 +94,16 @@ func (p *Provider) KubeServerVersion(ctx context.Context) (string, error) {
 	return version, nil
 }
 
-// Get returns a set of AMIIDs and corresponding instance types. AMI may vary due to architecture, accelerator, etc
+// MapInstanceTypes returns a set of AMIIDs and corresponding instance types. AMI may vary due to architecture, accelerator, etc
 // If AMI overrides are specified in the AWSNodeTemplate, then only those AMIs will be chosen.
-func (p *Provider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, instanceTypes []*cloudprovider.InstanceType, amiFamily AMIFamily) (map[string][]*cloudprovider.InstanceType, error) {
+func (p *Provider) MapInstanceTypes(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, instanceTypes []*cloudprovider.InstanceType, options *Options) (map[string][]*cloudprovider.InstanceType, error) {
 	amiIDs := map[string][]*cloudprovider.InstanceType{}
-	amiRequirements, err := p.GetAMIWithRequirements(ctx, nodeTemplate, amiFamily)
+	amiRequirements, err := p.Get(ctx, nodeTemplate, options)
 	if err != nil {
 		return nil, err
 	}
 	amis := lo.Keys(amiRequirements)
+
 	if !strings.Contains(amis[0].CreationDate, "nil-") {
 		amis = sortAMIsByCreationDate(amis)
 	} else {
@@ -125,17 +126,14 @@ func (p *Provider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTempla
 	return amiIDs, nil
 }
 
-func (p *Provider) GetAMIWithRequirements(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, amiFamily AMIFamily) (map[AMI]scheduling.Requirements, error) {
+func (p *Provider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, options *Options) (map[AMI]scheduling.Requirements, error) {
+	amiFamily := GetAMIFamily(nodeTemplate.Spec.AMIFamily, options)
 	kubernetesVersion, err := p.KubeServerVersion(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("getting kubernetes version %w", err)
 	}
-	amiRequirements, err := p.getAMIRequirements(ctx, nodeTemplate)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(amiRequirements) == 0 {
+	amiRequirements := make(map[AMI]scheduling.Requirements)
+	if len(nodeTemplate.Spec.AMISelector) == 0 {
 		ssmRequirements := amiFamily.SSMAlias(kubernetesVersion)
 		for ssm, ssmReq := range ssmRequirements {
 			ami, err := p.getDefaultAMIFromSSM(ctx, ssm)
@@ -146,6 +144,11 @@ func (p *Provider) GetAMIWithRequirements(ctx context.Context, nodeTemplate *v1a
 				AmiID:        ami,
 				CreationDate: "nil-" + time.Now().String(),
 			}] = ssmReq
+		}
+	} else {
+		amiRequirements, err = p.getAMIsFromSelector(ctx, nodeTemplate)
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -168,15 +171,8 @@ func (p *Provider) getDefaultAMIFromSSM(ctx context.Context, ssmQuery string) (s
 	return ami, nil
 }
 
-func (p *Provider) getAMIRequirements(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) (map[AMI]scheduling.Requirements, error) {
-	if len(nodeTemplate.Spec.AMISelector) == 0 {
-		return map[AMI]scheduling.Requirements{}, nil
-	}
-	return p.selectAMIs(ctx, nodeTemplate.Spec.AMISelector)
-}
-
-func (p *Provider) selectAMIs(ctx context.Context, amiSelector map[string]string) (map[AMI]scheduling.Requirements, error) {
-	ec2AMIs, err := p.fetchAMIsFromEC2(ctx, amiSelector)
+func (p *Provider) getAMIsFromSelector(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) (map[AMI]scheduling.Requirements, error) {
+	ec2AMIs, err := p.fetchAMIsFromEC2(ctx, nodeTemplate.Spec.AMISelector)
 	if err != nil {
 		return nil, err
 	}

@@ -218,8 +218,7 @@ func (c *CloudProvider) isAMIDrifted(ctx context.Context, machine *v1alpha5.Mach
 	if nodeTemplate.Spec.LaunchTemplateName != nil {
 		return false, nil
 	}
-	amis, err := c.amiProvider.Get(ctx, nodeTemplate, []*cloudprovider.InstanceType{nodeInstanceType},
-		amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, &amifamily.Options{}))
+	amis, err := c.amiProvider.MapInstanceTypes(ctx, nodeTemplate, []*cloudprovider.InstanceType{nodeInstanceType}, &amifamily.Options{})
 	if err != nil {
 		return false, fmt.Errorf("getting amis, %w", err)
 	}
