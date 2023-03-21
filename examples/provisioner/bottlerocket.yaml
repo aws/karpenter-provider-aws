@@ -23,7 +23,7 @@ spec:
     - deviceName: /dev/xvda
       ebs:
         volumeType: gp3
-        volumeSize: 4Gi
+        volumeSize: 2Gi
         deleteOnTermination: true
     - deviceName: /dev/xvdb
       ebs:
