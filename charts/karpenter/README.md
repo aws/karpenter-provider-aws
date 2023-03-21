@@ -56,7 +56,7 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | hostNetwork | bool | `false` | Bind the pod to the host network. This is required when using a custom CNI. |
 | imagePullPolicy | string | `"IfNotPresent"` | Image pull policy for Docker images. |
 | imagePullSecrets | list | `[]` | Image pull secrets for Docker images. |
-| logEncoding | string | `"console"` | Gloabl log encoding |
+| logEncoding | string | `"console"` | Global log encoding |
 | logLevel | string | `"debug"` | Global log level |
 | nameOverride | string | `""` | Overrides the chart's name. |
 | nodeSelector | object | `{"kubernetes.io/os":"linux"}` | Node selectors to schedule the pod to nodes with labels. |
