@@ -166,7 +166,7 @@ webhook:
   port: 8443
 # -- Global log level
 logLevel: debug
-# -- Gloabl log encoding
+# -- Global log encoding
 logEncoding: console
 # -- Global Settings to configure Karpenter
 settings:
