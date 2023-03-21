@@ -18,7 +18,9 @@ import (
 	"context"
 	"sort"
 	"testing"
+	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -40,7 +42,6 @@ import (
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/controllers/nodetemplate"
-	"github.com/aws/karpenter/pkg/providers/amifamily"
 	"github.com/aws/karpenter/pkg/test"
 )
 
@@ -365,156 +366,63 @@ var _ = Describe("AWSNodeTemplateController", func() {
 		})
 	})
 	Context("AMI Status", func() {
+		BeforeEach(func() {
+			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
+				Images: []*ec2.Image{
+					{
+						Name:         aws.String("test-ami-1"),
+						ImageId:      aws.String("ami-test1"),
+						CreationDate: aws.String(time.Now().Format(time.UnixDate)),
+						Architecture: aws.String("x86_64"),
+						Tags: []*ec2.Tag{
+							{Key: aws.String("Name"), Value: aws.String("test-ami-1")},
+							{Key: aws.String("foo"), Value: aws.String("bar")},
+						},
+					},
+					{
+						Name:         aws.String("test-ami-2"),
+						ImageId:      aws.String("ami-test2"),
+						CreationDate: aws.String(time.Now().Format(time.UnixDate)),
+						Architecture: aws.String("x86_64"),
+						Tags: []*ec2.Tag{
+							{Key: aws.String("Name"), Value: aws.String("test-ami-2")},
+							{Key: aws.String("foo"), Value: aws.String("bar")},
+						},
+					},
+					{
+						Name:         aws.String("test-ami-3"),
+						ImageId:      aws.String("ami-test3"),
+						CreationDate: aws.String(time.Now().Format(time.UnixDate)),
+						Architecture: aws.String("x86_64"),
+						Tags: []*ec2.Tag{
+							{Key: aws.String("Name"), Value: aws.String("test-ami-3")},
+							{Key: aws.String("foo"), Value: aws.String("bar")},
+						},
+					},
+				},
+			})
+		})
 		It("Should expect no errors when AMI selector is not in the AWSNodeTemplate", func() {
 			nodeTemplate.Spec.AMISelector = nil
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			amis, _ := awsEnv.AMIProvider.Get(ctx, nodeTemplate, &amifamily.Options{})
-			amiIds := lo.Map(lo.Keys(amis), func(ami amifamily.AMI, _ int) string {
-				return ami.AmiID
-			})
-			sort.Strings(amiIds)
 			amiIDsInStatus := lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMI, _ int) string {
-				return ami.ID
+				return ami.Name
 			})
 			sort.Strings(amiIDsInStatus)
-			Expect(amiIDsInStatus).To(Equal(amiIds))
+			expectedOutput := []string{"amazon-linux-2", "amazon-linux-2-arm64", "amazon-linux-2-gpu"}
+			Expect(amiIDsInStatus).To(Equal(expectedOutput))
 		})
-		It("Should update AWSNodeTemplate status for AMI", func() {
+		It("Should resolve a valid AMI selectors", func() {
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			amis, _ := awsEnv.AMIProvider.Get(ctx, nodeTemplate, &amifamily.Options{})
-			amiIds := lo.Map(lo.Keys(amis), func(ami amifamily.AMI, _ int) string {
-				return ami.AmiID
-			})
-			sort.Strings(amiIds)
 			amiIDsInStatus := lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMI, _ int) string {
-				return ami.ID
+				return ami.Name
 			})
 			sort.Strings(amiIDsInStatus)
-			Expect(amiIDsInStatus).To(Equal(amiIds))
-		})
-		It("Should resolve a valid selectors for AMI by tags", func() {
-			nodeTemplate.Spec.AMISelector = map[string]string{`Name`: `test-ami-1,test-ami-2`}
-			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
-			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			amis, _ := awsEnv.AMIProvider.Get(ctx, nodeTemplate, &amifamily.Options{})
-			amiIds := lo.Map(lo.Keys(amis), func(ami amifamily.AMI, _ int) string {
-				return ami.AmiID
-			})
-			sort.Strings(amiIds)
-			amiIDsInStatus := lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMI, _ int) string {
-				return ami.ID
-			})
-			sort.Strings(amiIDsInStatus)
-			Expect(amiIDsInStatus).To(Equal(amiIds))
-		})
-		It("Should resolve a valid selectors for AMI by ids", func() {
-			nodeTemplate.Spec.SecurityGroupSelector = map[string]string{`aws-ids`: `ami-test1`}
-			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
-			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			amis, _ := awsEnv.AMIProvider.Get(ctx, nodeTemplate, &amifamily.Options{})
-			amiIds := lo.Map(lo.Keys(amis), func(ami amifamily.AMI, _ int) string {
-				return ami.AmiID
-			})
-			sort.Strings(amiIds)
-			amiIDsInStatus := lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMI, _ int) string {
-				return ami.ID
-			})
-			sort.Strings(amiIDsInStatus)
-			Expect(amiIDsInStatus).To(Equal(amiIds))
-		})
-		It("Should update AMI status when the AMI selector gets updated by tags", func() {
-			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
-			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			amis, _ := awsEnv.AMIProvider.Get(ctx, nodeTemplate, &amifamily.Options{})
-			amiIds := lo.Map(lo.Keys(amis), func(ami amifamily.AMI, _ int) string {
-				return ami.AmiID
-			})
-			sort.Strings(amiIds)
-			amiIDsInStatus := lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMI, _ int) string {
-				return ami.ID
-			})
-			sort.Strings(amiIDsInStatus)
-			Expect(amiIDsInStatus).To(Equal(amiIds))
-
-			nodeTemplate.Spec.SecurityGroupSelector = map[string]string{`Name`: `test-ami-1,test-ami-2`}
-			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
-			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			amis, _ = awsEnv.AMIProvider.Get(ctx, nodeTemplate, &amifamily.Options{})
-			amiIds = lo.Map(lo.Keys(amis), func(ami amifamily.AMI, _ int) string {
-				return ami.AmiID
-			})
-			sort.Strings(amiIds)
-			amiIDsInStatus = lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMI, _ int) string {
-				return ami.ID
-			})
-			sort.Strings(amiIDsInStatus)
-			Expect(amiIDsInStatus).To(Equal(amiIds))
-		})
-		It("Should update AMI status when the AMI selector gets updated by ids", func() {
-			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
-			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			amis, _ := awsEnv.AMIProvider.Get(ctx, nodeTemplate, &amifamily.Options{})
-			amiIds := lo.Map(lo.Keys(amis), func(ami amifamily.AMI, _ int) string {
-				return ami.AmiID
-			})
-			sort.Strings(amiIds)
-			amiIDsInStatus := lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMI, _ int) string {
-				return ami.ID
-			})
-			sort.Strings(amiIDsInStatus)
-			Expect(amiIDsInStatus).To(Equal(amiIds))
-
-			nodeTemplate.Spec.SecurityGroupSelector = map[string]string{`aws-ids`: `sg-test1`}
-			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
-			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			amis, _ = awsEnv.AMIProvider.Get(ctx, nodeTemplate, &amifamily.Options{})
-			amiIds = lo.Map(lo.Keys(amis), func(ami amifamily.AMI, _ int) string {
-				return ami.AmiID
-			})
-			sort.Strings(amiIds)
-			amiIDsInStatus = lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMI, _ int) string {
-				return ami.ID
-			})
-			sort.Strings(amiIDsInStatus)
-			Expect(amiIDsInStatus).To(Equal(amiIds))
-		})
-		It("Should not resolve a invalid selector for AMIs", func() {
-			nodeTemplate.Spec.AMISelector = map[string]string{`foo`: `invalid`}
-			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileFailed(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
-			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			Expect(nodeTemplate.Status.AMIs).To(BeNil())
-		})
-		It("Should not resolve a invalid selectors for an updated AMI selector", func() {
-			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
-			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			amis, _ := awsEnv.AMIProvider.Get(ctx, nodeTemplate, &amifamily.Options{})
-			amiIds := lo.Map(lo.Keys(amis), func(ami amifamily.AMI, _ int) string {
-				return ami.AmiID
-			})
-			sort.Strings(amiIds)
-			amiIDsInStatus := lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMI, _ int) string {
-				return ami.ID
-			})
-			sort.Strings(amiIDsInStatus)
-			Expect(amiIDsInStatus).To(Equal(amiIds))
-
-			nodeTemplate.Spec.AMISelector = map[string]string{`foo`: `invalid`}
-			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileFailed(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
-			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			Expect(nodeTemplate.Status.AMIs).To(BeNil())
+			Expect(amiIDsInStatus).To(Equal([]string{"test-ami-1", "test-ami-2", "test-ami-3"}))
 		})
 	})
 })

@@ -105,7 +105,7 @@ func (p *Provider) MapInstanceTypes(ctx context.Context, nodeTemplate *v1alpha1.
 	}
 	amis := lo.Keys(amiRequirements)
 
-	if !strings.Contains(amis[0].CreationDate, "nil-") {
+	if amis[0].CreationDate != "" {
 		amis = sortAMIsByCreationDate(amis)
 	} else {
 		sort.Slice(amis, func(i, j int) bool {
