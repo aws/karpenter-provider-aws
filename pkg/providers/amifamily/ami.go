@@ -109,7 +109,7 @@ func (p *Provider) MapInstanceTypes(ctx context.Context, nodeTemplate *v1alpha1.
 		amis = sortAMIsByCreationDate(amis)
 	} else {
 		sort.Slice(amis, func(i, j int) bool {
-			return amis[i].AmiID >= amis[j].AmiID
+			return amis[i].Name >= amis[j].Name
 		})
 	}
 	for _, instanceType := range instanceTypes {
@@ -129,7 +129,7 @@ func (p *Provider) MapInstanceTypes(ctx context.Context, nodeTemplate *v1alpha1.
 
 func (p *Provider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, options *Options) (map[AMI]scheduling.Requirements, error) {
 	var err error
-	var amiRequirements = map[AMI]scheduling.Requirements{}
+	var amiRequirements map[AMI]scheduling.Requirements
 	if len(nodeTemplate.Spec.AMISelector) == 0 {
 		amiRequirements, err = p.getDefaultAMIFromSSM(ctx, nodeTemplate, options)
 		if err != nil {
@@ -152,18 +152,14 @@ func (p *Provider) getDefaultAMIFromSSM(ctx context.Context, nodeTemplate *v1alp
 		return nil, fmt.Errorf("getting kubernetes version %w", err)
 	}
 
-	var amiIDs = map[AMI]scheduling.Requirements{}
+	amiIDs := map[AMI]scheduling.Requirements{}
 	ssmRequirements := amiFamily.SSMAlias(kubernetesVersion)
 	for _, ssmOutput := range ssmRequirements {
-		ami, err := p.fetchAMIsFromSSM(ctx, ssmOutput.Query)
+		amiID, err := p.fetchAMIsFromSSM(ctx, ssmOutput.Query)
 		if err != nil {
 			return nil, err
 		}
-		amiIDs[AMI{
-			Name:         ssmOutput.Name,
-			AmiID:        ami,
-			CreationDate: "nil-" + time.Now().String(),
-		}] = ssmOutput.Requirements
+		amiIDs[AMI{Name: ssmOutput.Name, AmiID: amiID}] = ssmOutput.Requirements
 	}
 
 	return amiIDs, nil
