@@ -79,7 +79,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	fakePricingAPI := &fake.PricingAPI{}
 
 	// Providers
-	pricingProvider := pricing.NewProvider(ctx, fakePricingAPI, ec2api, "", make(chan struct{}))
+	pricingProvider := pricing.NewProvider(ctx, fakePricingAPI, ec2api, "")
 	subnetProvider := subnet.NewProvider(ec2api, subnetCache)
 	securityGroupProvider := securitygroup.NewProvider(ec2api, securityGroupCache)
 	amiProvider := amifamily.NewProvider(env.Client, env.KubernetesInterface, ssmapi, ec2api, ssmCache, ec2Cache, kubernetesVersionCache)
