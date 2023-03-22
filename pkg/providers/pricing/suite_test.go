@@ -26,6 +26,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
+	"k8s.io/apimachinery/pkg/types"
 	. "knative.dev/pkg/logging/testing"
 
 	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
@@ -83,6 +84,8 @@ var _ = Describe("Pricing", func() {
 	It("should return static on-demand data if pricing API fails", func() {
 		awsEnv.PricingAPI.NextError.Set(fmt.Errorf("failed"))
 		p := pricing.NewProvider(ctx, awsEnv.PricingAPI, awsEnv.EC2API, "")
+		controller := pricing.NewController(p)
+		ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
 		price, ok := p.OnDemandPrice("c5.large")
 		Expect(ok).To(BeTrue())
 		Expect(price).To(BeNumerically(">", 0))
@@ -90,6 +93,8 @@ var _ = Describe("Pricing", func() {
 	It("should return static spot data if EC2 describeSpotPriceHistory API fails", func() {
 		awsEnv.PricingAPI.NextError.Set(fmt.Errorf("failed"))
 		p := pricing.NewProvider(ctx, awsEnv.PricingAPI, awsEnv.EC2API, "")
+		controller := pricing.NewController(p)
+		ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
 		price, ok := p.SpotPrice("c5.large", "test-zone-1a")
 		Expect(ok).To(BeTrue())
 		Expect(price).To(BeNumerically(">", 0))
@@ -105,6 +110,8 @@ var _ = Describe("Pricing", func() {
 		})
 		updateStart := time.Now()
 		p := pricing.NewProvider(ctx, awsEnv.PricingAPI, awsEnv.EC2API, "")
+		controller := pricing.NewController(p)
+		ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
 		Eventually(func() bool { return p.OnDemandLastUpdated().After(updateStart) }).Should(BeTrue())
 
 		price, ok := p.OnDemandPrice("c98.large")
@@ -153,6 +160,8 @@ var _ = Describe("Pricing", func() {
 		})
 		updateStart := time.Now()
 		p := pricing.NewProvider(ctx, awsEnv.PricingAPI, awsEnv.EC2API, "")
+		controller := pricing.NewController(p)
+		ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
 		Eventually(func() bool { return p.SpotLastUpdated().After(updateStart) }).Should(BeTrue())
 
 		price, ok := p.SpotPrice("c98.large", "test-zone-1b")
@@ -189,6 +198,8 @@ var _ = Describe("Pricing", func() {
 		})
 		updateStart := time.Now()
 		p := pricing.NewProvider(ctx, awsEnv.PricingAPI, awsEnv.EC2API, "")
+		controller := pricing.NewController(p)
+		ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
 		Eventually(func() bool { return p.SpotLastUpdated().After(updateStart) }).Should(BeTrue())
 
 		price, ok := p.SpotPrice("c98.large", "test-zone-1a")
@@ -218,6 +229,8 @@ var _ = Describe("Pricing", func() {
 		})
 		updateStart := time.Now()
 		p := pricing.NewProvider(ctx, awsEnv.PricingAPI, awsEnv.EC2API, "")
+		controller := pricing.NewController(p)
+		ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
 		Eventually(func() bool { return p.SpotLastUpdated().After(updateStart) }).Should(BeTrue())
 
 		_, ok := p.SpotPrice("c99.large", "test-zone-1b")
@@ -246,6 +259,8 @@ var _ = Describe("Pricing", func() {
 			},
 		})
 		p := pricing.NewProvider(ctx, awsEnv.PricingAPI, awsEnv.EC2API, "")
+		controller := pricing.NewController(p)
+		ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
 		Eventually(func() bool { return p.SpotLastUpdated().After(updateStart) }, 5*time.Second).Should(BeTrue())
 		inp := awsEnv.EC2API.DescribeSpotPriceHistoryInput.Clone()
 		Expect(lo.Map(inp.ProductDescriptions, func(x *string, _ int) string { return *x })).
