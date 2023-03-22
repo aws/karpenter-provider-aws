@@ -229,7 +229,7 @@ spec:
                     for node launch
                   properties:
                     id:
-                      description: Id of the AMI
+                      description: ID of the AMI
                       type: string
                     name:
                       description: Name of the AMI
@@ -280,7 +280,7 @@ spec:
                     values utilized for node launch
                   properties:
                     id:
-                      description: Id of the security group
+                      description: ID of the security group
                       type: string
                   required:
                   - id
@@ -294,7 +294,7 @@ spec:
                     for node launch
                   properties:
                     id:
-                      description: Id of the subnet
+                      description: ID of the subnet
                       type: string
                     zone:
                       description: The associated availability zone

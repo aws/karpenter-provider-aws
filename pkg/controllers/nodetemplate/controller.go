@@ -19,7 +19,7 @@ import (
 	"sort"
 	"time"
 
-	"go.uber.org/multierr"
+	"knative.dev/pkg/logging"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -58,17 +58,26 @@ func NewController(kubeClient client.Client, subnetProvider *subnet.Provider, se
 func (c *Controller) Reconcile(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) (reconcile.Result, error) {
 	stored := nodeTemplate.DeepCopy()
 
-	err := multierr.Combine(
-		c.resolveSubnets(ctx, nodeTemplate),
-		c.resolveSecurityGroups(ctx, nodeTemplate),
-		c.resolveAMIs(ctx, nodeTemplate),
-	)
-
-	if patchErr := c.kubeClient.Status().Patch(ctx, nodeTemplate, client.MergeFrom(stored)); patchErr != nil {
-		err = multierr.Append(err, client.IgnoreNotFound(patchErr))
+	if err := c.resolveSubnets(ctx, nodeTemplate); err != nil {
+		logging.FromContext(ctx).Debugf("Could not resolve Subnets")
+		return reconcile.Result{}, err
 	}
 
-	return reconcile.Result{RequeueAfter: 5 * time.Minute}, err
+	if err := c.resolveSecurityGroups(ctx, nodeTemplate); err != nil {
+		logging.FromContext(ctx).Debugf("Could not resolve Security Groups")
+		return reconcile.Result{}, err
+	}
+
+	if err := c.resolveAMIs(ctx, nodeTemplate); err != nil {
+		logging.FromContext(ctx).Debugf("Could not resolve AMIs")
+		return reconcile.Result{}, err
+	}
+
+	if patchErr := c.kubeClient.Status().Patch(ctx, nodeTemplate, client.MergeFrom(stored)); patchErr != nil {
+		return reconcile.Result{}, client.IgnoreNotFound(patchErr)
+	}
+
+	return reconcile.Result{RequeueAfter: 5 * time.Minute}, nil
 }
 
 func (c *Controller) Name() string {

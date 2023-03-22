@@ -21,7 +21,7 @@ import (
 
 // Subnet contains resolved Subnet selector values utilized for node launch
 type Subnet struct {
-	// Id of the subnet
+	// ID of the subnet
 	// +required
 	ID string `json:"id"`
 	// The associated availability zone
@@ -31,14 +31,14 @@ type Subnet struct {
 
 // SecurityGroup contains resolved SecurityGroup selector values utilized for node launch
 type SecurityGroup struct {
-	// Id of the security group
+	// ID of the security group
 	// +required
 	ID string `json:"id"`
 }
 
 // AMI contains resolved AMI selector values utilized for node launch
 type AMI struct {
-	// Id of the AMI
+	// ID of the AMI
 	// +required
 	ID string `json:"id"`
 	// Name of the AMI
