@@ -35,8 +35,6 @@ import (
 	"go.uber.org/multierr"
 	"knative.dev/pkg/logging"
 
-	"github.com/aws/karpenter/pkg/apis/settings"
-
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
 )
 
@@ -97,7 +95,7 @@ func NewAPI(sess *session.Session, region string) pricingiface.PricingAPI {
 	return pricing.New(sess, &aws.Config{Region: aws.String(pricingAPIRegion)})
 }
 
-func NewProvider(ctx context.Context, pricing pricingiface.PricingAPI, ec2Api ec2iface.EC2API, region string, startAsync <-chan struct{}) *Provider {
+func NewProvider(ctx context.Context, pricing pricingiface.PricingAPI, ec2Api ec2iface.EC2API, region string) *Provider {
 	// see if we've got region specific pricing data
 	staticPricing, ok := initialOnDemandPrices[region]
 	if !ok {
@@ -115,38 +113,6 @@ func NewProvider(ctx context.Context, pricing pricingiface.PricingAPI, ec2Api ec
 		ec2:        ec2Api,
 		pricing:    pricing,
 		cm:         pretty.NewChangeMonitor(),
-	}
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("pricing"))
-
-	if settings.FromContext(ctx).IsolatedVPC {
-		logging.FromContext(ctx).Infof("assuming isolated VPC, pricing information will not be updated")
-	} else {
-		go func() {
-			// perform an initial price update at startup
-			p.updatePricing(ctx)
-
-			startup := time.Now()
-			// wait for leader election or to be signaled to exit
-			select {
-			case <-startAsync:
-			case <-ctx.Done():
-				return
-			}
-			// if it took many hours to be elected leader, we want to re-fetch pricing before we start our periodic
-			// polling
-			if time.Since(startup) > pricingUpdatePeriod {
-				p.updatePricing(ctx)
-			}
-
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case <-time.After(pricingUpdatePeriod):
-					p.updatePricing(ctx)
-				}
-			}
-		}()
 	}
 	return p
 }
@@ -201,7 +167,7 @@ func (p *Provider) SpotPrice(instanceType string, zone string) (float64, bool) {
 	return 0.0, false
 }
 
-func (p *Provider) updatePricing(ctx context.Context) {
+func (p *Provider) UpdatePricing(ctx context.Context) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
