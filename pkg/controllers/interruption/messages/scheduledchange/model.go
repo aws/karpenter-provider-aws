@@ -35,7 +35,7 @@ func (m Message) EC2InstanceIDs() []string {
 }
 
 func (Message) Kind() messages.Kind {
-	return messages.ScheduledChangeKind
+	return messages.Kind{Type: messages.ScheduledChangeKind}
 }
 
 type Detail struct {

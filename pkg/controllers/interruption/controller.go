@@ -50,6 +50,7 @@ import (
 type Action string
 
 const (
+	Terminate      Action = "Terminate"
 	CordonAndDrain Action = "CordonAndDrain"
 	NoAction       Action = "NoAction"
 )
@@ -139,9 +140,9 @@ func (c *Controller) parseMessage(raw *sqsapi.Message) (messages.Message, error)
 // handleMessage takes an action against every node involved in the message that is owned by a Provisioner
 func (c *Controller) handleMessage(ctx context.Context, instanceIDMap map[string]*v1.Node, msg messages.Message) (err error) {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("messageKind", msg.Kind()))
-	receivedMessages.WithLabelValues(string(msg.Kind())).Inc()
+	receivedMessages.WithLabelValues(string(msg.Kind().Type)).Inc()
 
-	if msg.Kind() == messages.NoOpKind {
+	if msg.Kind().Type == messages.NoOpKind {
 		return nil
 	}
 	var failedNodeNames []string
@@ -184,15 +185,32 @@ func (c *Controller) handleNode(ctx context.Context, msg messages.Message, node 
 	actionsPerformed.WithLabelValues(string(action)).Inc()
 
 	// Mark the offering as unavailable in the ICE cache since we got a spot interruption warning
-	if msg.Kind() == messages.SpotInterruptionKind {
+	if msg.Kind().Type == messages.SpotInterruptionKind {
 		zone := node.Labels[v1.LabelTopologyZone]
 		instanceType := node.Labels[v1.LabelInstanceTypeStable]
 		if zone != "" && instanceType != "" {
-			c.unavailableOfferingsCache.MarkUnavailable(ctx, string(msg.Kind()), instanceType, zone, v1alpha1.CapacityTypeSpot)
+			c.unavailableOfferingsCache.MarkUnavailable(ctx, string(msg.Kind().Type), instanceType, zone, v1alpha1.CapacityTypeSpot)
+		}
+	}
+	if action == Terminate {
+		if err := c.removeFinalizer(ctx, node); err != nil {
+			return fmt.Errorf("handling node message, %w", err)
 		}
 	}
 	if action != NoAction {
 		return c.deleteNode(ctx, node)
+	}
+	return nil
+}
+
+// removeFinalizer removes the finalizer to allow force deletion of the node
+func (c *Controller) removeFinalizer(ctx context.Context, node *v1.Node) error {
+	persisted := node.DeepCopy()
+	node.Finalizers = lo.Reject(node.Finalizers, func(finalizer string, _ int) bool {
+		return finalizer == v1alpha5.TerminationFinalizer
+	})
+	if err := c.kubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil {
+		return fmt.Errorf("patching out finalizer for terminated instance, %w", err)
 	}
 	return nil
 }
@@ -216,7 +234,7 @@ func (c *Controller) deleteNode(ctx context.Context, node *v1.Node) error {
 
 // notifyForMessage publishes the relevant alert based on the message kind
 func (c *Controller) notifyForMessage(msg messages.Message, n *v1.Node) {
-	switch msg.Kind() {
+	switch msg.Kind().Type {
 	case messages.RebalanceRecommendationKind:
 		c.recorder.Publish(interruptionevents.InstanceRebalanceRecommendation(n))
 
@@ -262,8 +280,13 @@ func (c *Controller) makeInstanceIDMap(ctx context.Context) (map[string]*v1.Node
 }
 
 func actionForMessage(msg messages.Message) Action {
-	switch msg.Kind() {
-	case messages.ScheduledChangeKind, messages.SpotInterruptionKind, messages.StateChangeKind:
+	switch msg.Kind().Type {
+	case messages.StateChangeKind:
+		if msg.Kind().ExtraDetail == statechange.TerminatedState {
+			return Terminate
+		}
+		return CordonAndDrain
+	case messages.ScheduledChangeKind, messages.SpotInterruptionKind:
 		return CordonAndDrain
 	default:
 		return NoAction

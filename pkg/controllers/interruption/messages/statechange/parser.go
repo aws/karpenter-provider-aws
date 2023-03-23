@@ -24,14 +24,16 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages"
 )
 
-var acceptedStates = sets.NewString("stopping", "stopped", "shutting-down", "terminated")
+var TerminatedState = "terminated"
+
+var acceptedStates = sets.NewString("stopping", "stopped", "shutting-down", TerminatedState)
 
 type Parser struct{}
 
 func (p Parser) Parse(raw string) (messages.Message, error) {
 	msg := Message{}
 	if err := json.Unmarshal([]byte(raw), &msg); err != nil {
-		return nil, fmt.Errorf("unmarhsalling the message as EC2InstanceStateChangeNotification, %w", err)
+		return nil, fmt.Errorf("unmarshalling the message as EC2InstanceStateChangeNotification, %w", err)
 	}
 
 	// We ignore states that are not in the set of states we can react to

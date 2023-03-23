@@ -27,5 +27,5 @@ func (Message) EC2InstanceIDs() []string {
 }
 
 func (Message) Kind() messages.Kind {
-	return messages.NoOpKind
+	return messages.Kind{Type: messages.NoOpKind}
 }

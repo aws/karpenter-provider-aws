@@ -32,14 +32,19 @@ type Message interface {
 	StartTime() time.Time
 }
 
-type Kind string
+type Type string
+
+type Kind struct {
+	Type        Type
+	ExtraDetail string
+}
 
 const (
-	RebalanceRecommendationKind Kind = "RebalanceRecommendationKind"
-	ScheduledChangeKind         Kind = "ScheduledChangeKind"
-	SpotInterruptionKind        Kind = "SpotInterruptionKind"
-	StateChangeKind             Kind = "StateChangeKind"
-	NoOpKind                    Kind = "NoOpKind"
+	RebalanceRecommendationKind Type = "RebalanceRecommendationKind"
+	ScheduledChangeKind         Type = "ScheduledChangeKind"
+	SpotInterruptionKind        Type = "SpotInterruptionKind"
+	StateChangeKind             Type = "StateChangeKind"
+	NoOpKind                    Type = "NoOpKind"
 )
 
 type Metadata struct {

@@ -35,6 +35,6 @@ func (m Message) EC2InstanceIDs() []string {
 	return []string{m.Detail.InstanceID}
 }
 
-func (Message) Kind() messages.Kind {
-	return messages.StateChangeKind
+func (m Message) Kind() messages.Kind {
+	return messages.Kind{Type: messages.StateChangeKind, ExtraDetail: m.Detail.State}
 }

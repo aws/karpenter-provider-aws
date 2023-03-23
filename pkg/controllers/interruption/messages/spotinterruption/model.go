@@ -36,5 +36,5 @@ func (m Message) EC2InstanceIDs() []string {
 }
 
 func (Message) Kind() messages.Kind {
-	return messages.SpotInterruptionKind
+	return messages.Kind{Type: messages.SpotInterruptionKind}
 }

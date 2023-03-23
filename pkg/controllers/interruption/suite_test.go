@@ -146,7 +146,7 @@ var _ = Describe("AWSInterruption", func() {
 		It("should delete the node when receiving a state change message", func() {
 			var nodes []*v1.Node
 			var messages []interface{}
-			for _, state := range []string{"terminated", "stopped", "stopping", "shutting-down"} {
+			for _, state := range []string{"stopped", "stopping", "shutting-down"} {
 				instanceID := fake.InstanceID()
 				nodes = append(nodes, coretest.Node(coretest.NodeOptions{
 					ObjectMeta: metav1.ObjectMeta{
@@ -164,7 +164,30 @@ var _ = Describe("AWSInterruption", func() {
 			ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
 			Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(Equal(1))
 			ExpectNotFound(ctx, env.Client, lo.Map(nodes, func(n *v1.Node, _ int) client.Object { return n })...)
-			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(4))
+			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(3))
+		})
+		It("should delete the node when receiving a terminated state change message", func() {
+			var nodes []*v1.Node
+			var messages []interface{}
+			instanceID := fake.InstanceID()
+			nodes = append(nodes, coretest.Node(coretest.NodeOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						v1alpha5.ProvisionerNameLabelKey: "default",
+					},
+					Finalizers: []string{v1alpha5.TerminationFinalizer},
+				},
+				ProviderID: fake.ProviderID(instanceID),
+			}))
+			messages = append(messages, stateChangeMessage(instanceID, statechange.TerminatedState))
+			ExpectMessagesCreated(messages...)
+			ExpectApplied(ctx, env.Client, lo.Map(nodes, func(n *v1.Node, _ int) client.Object { return n })...)
+
+			ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
+			Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(Equal(1))
+			// Expect Not Found as the termination finalizer was patched out and the node was terminated
+			ExpectNotFound(ctx, env.Client, lo.Map(nodes, func(n *v1.Node, _ int) client.Object { return n })...)
+			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
 		})
 		It("should handle multiple messages that cause node deletion", func() {
 			var nodes []*v1.Node

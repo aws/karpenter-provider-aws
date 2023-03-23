@@ -35,5 +35,5 @@ func (m Message) EC2InstanceIDs() []string {
 }
 
 func (Message) Kind() messages.Kind {
-	return messages.RebalanceRecommendationKind
+	return messages.Kind{Type: messages.RebalanceRecommendationKind}
 }
