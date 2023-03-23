@@ -25,6 +25,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	. "knative.dev/pkg/logging/testing"
 	_ "knative.dev/pkg/system/testing"
@@ -64,7 +65,7 @@ var _ = BeforeSuite(func() {
 	ctx = settings.ToContext(ctx, test.Settings())
 	awsEnv = test.NewEnvironment(ctx, env)
 
-	controller = nodetemplate.NewController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider)
+	controller = nodetemplate.NewController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceTypesProvider)
 })
 
 var _ = AfterSuite(func() {
@@ -372,7 +373,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 					{
 						Name:         aws.String("test-ami-1"),
 						ImageId:      aws.String("ami-test1"),
-						CreationDate: aws.String(time.Now().Format(time.UnixDate)),
+						CreationDate: aws.String(time.Now().Format(time.RFC3339)),
 						Architecture: aws.String("x86_64"),
 						Tags: []*ec2.Tag{
 							{Key: aws.String("Name"), Value: aws.String("test-ami-1")},
@@ -382,7 +383,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 					{
 						Name:         aws.String("test-ami-2"),
 						ImageId:      aws.String("ami-test2"),
-						CreationDate: aws.String(time.Now().Format(time.UnixDate)),
+						CreationDate: aws.String(time.Now().Add(time.Minute).Format(time.RFC3339)),
 						Architecture: aws.String("x86_64"),
 						Tags: []*ec2.Tag{
 							{Key: aws.String("Name"), Value: aws.String("test-ami-2")},
@@ -392,7 +393,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 					{
 						Name:         aws.String("test-ami-3"),
 						ImageId:      aws.String("ami-test3"),
-						CreationDate: aws.String(time.Now().Format(time.UnixDate)),
+						CreationDate: aws.String(time.Now().Add(2 * time.Minute).Format(time.RFC3339)),
 						Architecture: aws.String("x86_64"),
 						Tags: []*ec2.Tag{
 							{Key: aws.String("Name"), Value: aws.String("test-ami-3")},
@@ -422,7 +423,47 @@ var _ = Describe("AWSNodeTemplateController", func() {
 				return ami.Name
 			})
 			sort.Strings(amiIDsInStatus)
-			Expect(amiIDsInStatus).To(Equal([]string{"test-ami-1", "test-ami-2", "test-ami-3"}))
+			Expect(amiIDsInStatus).To(Equal([]string{"test-ami-3"}))
+		})
+		It("Should resolve a valid selectors for an ami with a well known tags", func() {
+			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
+				Images: []*ec2.Image{
+					{
+						Name:         aws.String("test-ami-4"),
+						ImageId:      aws.String("ami-test4"),
+						CreationDate: aws.String(time.Now().Add(2 * time.Minute).Format(time.RFC3339)),
+						Architecture: aws.String("x86_64"),
+						Tags: []*ec2.Tag{
+							{Key: aws.String("Name"), Value: aws.String("test-ami-3")},
+							{Key: aws.String("foo"), Value: aws.String("bar")},
+							{Key: aws.String("kubernetes.io/os"), Value: aws.String("test-requirement-1")},
+						},
+					},
+				},
+			})
+			ExpectApplied(ctx, env.Client, nodeTemplate)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
+			Expect(len(nodeTemplate.Status.AMIs)).To(Equal(1))
+			Expect(len(nodeTemplate.Status.AMIs[0].Requirements)).To(Equal(2))
+			Expect(nodeTemplate.Status.AMIs[0].Requirements).To(Equal(
+				[]v1.NodeSelectorRequirement{
+					{
+						Key:      "kubernetes.io/os",
+						Operator: "In",
+						Values: []string{
+							"test-requirement-1",
+						},
+					},
+					{
+						Key:      "kubernetes.io/arch",
+						Operator: "In",
+						Values: []string{
+							"amd64",
+						},
+					},
+				},
+			))
 		})
 	})
 })

@@ -27,7 +27,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
@@ -129,16 +128,29 @@ func (p *Provider) MapInstanceTypes(ctx context.Context, nodeTemplate *v1alpha1.
 
 func (p *Provider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, options *Options) (map[AMI]scheduling.Requirements, error) {
 	var err error
-	var amiRequirements map[AMI]scheduling.Requirements
+	amiRequirements := map[AMI]scheduling.Requirements{}
 	if len(nodeTemplate.Spec.AMISelector) == 0 {
 		amiRequirements, err = p.getDefaultAMIFromSSM(ctx, nodeTemplate, options)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		amiRequirements, err = p.getAMIsFromSelector(ctx, nodeTemplate)
+		allAmis, err := p.getAMIsFromSelector(ctx, nodeTemplate)
 		if err != nil {
 			return nil, err
+		}
+
+		requirementsHash := map[uint64]bool{}
+		amis := sortAMIsByCreationDate(lo.Keys(allAmis))
+		for _, ami := range amis {
+			hash, err := hashstructure.Hash(allAmis[ami].NodeSelectorRequirements(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+			if err != nil {
+				return nil, err
+			}
+			if _, ok := requirementsHash[hash]; !ok {
+				amiRequirements[ami] = allAmis[ami]
+			}
+			requirementsHash[hash] = true
 		}
 	}
 
@@ -152,33 +164,12 @@ func (p *Provider) getDefaultAMIFromSSM(ctx context.Context, nodeTemplate *v1alp
 		return nil, fmt.Errorf("getting kubernetes version %w", err)
 	}
 
-	amiIDs := map[AMI]scheduling.Requirements{}
-	ssmRequirements := amiFamily.SSMAlias(kubernetesVersion)
-	for _, ssmOutput := range ssmRequirements {
-		amiID, err := p.fetchAMIsFromSSM(ctx, ssmOutput.Query)
-		if err != nil {
-			return nil, err
-		}
-		amiIDs[AMI{Name: ssmOutput.Name, AmiID: amiID}] = ssmOutput.Requirements
-	}
-
-	return amiIDs, nil
-}
-
-func (p *Provider) fetchAMIsFromSSM(ctx context.Context, ssmQuery string) (string, error) {
-	if id, ok := p.ssmCache.Get(ssmQuery); ok {
-		return id.(string), nil
-	}
-	output, err := p.ssm.GetParameterWithContext(ctx, &ssm.GetParameterInput{Name: aws.String(ssmQuery)})
+	ssmRequirements, err := amiFamily.SSMAlias(ctx, kubernetesVersion, p.ssmCache, p.ssm, p.cm)
 	if err != nil {
-		return "", fmt.Errorf("getting ssm parameter %q, %w", ssmQuery, err)
+		return nil, err
 	}
-	ami := aws.StringValue(output.Parameter.Value)
-	p.ssmCache.SetDefault(ssmQuery, ami)
-	if p.cm.HasChanged("ssmquery-"+ssmQuery, ami) {
-		logging.FromContext(ctx).With("ami", ami, "query", ssmQuery).Debugf("discovered new ami")
-	}
-	return ami, nil
+
+	return ssmRequirements, nil
 }
 
 func (p *Provider) getAMIsFromSelector(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) (map[AMI]scheduling.Requirements, error) {

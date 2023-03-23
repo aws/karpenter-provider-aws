@@ -19,7 +19,6 @@ import (
 	"sort"
 	"time"
 
-	"knative.dev/pkg/logging"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -31,8 +30,10 @@ import (
 	"github.com/samber/lo"
 
 	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
+	"github.com/aws/karpenter-core/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/providers/amifamily"
+	"github.com/aws/karpenter/pkg/providers/instancetype"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
 	"github.com/aws/karpenter/pkg/providers/subnet"
 )
@@ -44,14 +45,16 @@ type Controller struct {
 	subnetProvider        *subnet.Provider
 	securityGroupProvider *securitygroup.Provider
 	amiProvider           *amifamily.Provider
+	instanceTypesProvider *instancetype.Provider
 }
 
-func NewController(kubeClient client.Client, subnetProvider *subnet.Provider, securityGroups *securitygroup.Provider, amiprovider *amifamily.Provider) corecontroller.Controller {
+func NewController(kubeClient client.Client, subnetProvider *subnet.Provider, securityGroups *securitygroup.Provider, amiprovider *amifamily.Provider, instnaceTypeProvider *instancetype.Provider) corecontroller.Controller {
 	return corecontroller.Typed[*v1alpha1.AWSNodeTemplate](kubeClient, &Controller{
 		kubeClient:            kubeClient,
 		subnetProvider:        subnetProvider,
 		securityGroupProvider: securityGroups,
 		amiProvider:           amiprovider,
+		instanceTypesProvider: instnaceTypeProvider,
 	})
 }
 
@@ -59,17 +62,14 @@ func (c *Controller) Reconcile(ctx context.Context, nodeTemplate *v1alpha1.AWSNo
 	stored := nodeTemplate.DeepCopy()
 
 	if err := c.resolveSubnets(ctx, nodeTemplate); err != nil {
-		logging.FromContext(ctx).Debugf("Could not resolve Subnets")
 		return reconcile.Result{}, err
 	}
 
 	if err := c.resolveSecurityGroups(ctx, nodeTemplate); err != nil {
-		logging.FromContext(ctx).Debugf("Could not resolve Security Groups")
 		return reconcile.Result{}, err
 	}
 
 	if err := c.resolveAMIs(ctx, nodeTemplate); err != nil {
-		logging.FromContext(ctx).Debugf("Could not resolve AMIs")
 		return reconcile.Result{}, err
 	}
 
@@ -134,11 +134,11 @@ func (c *Controller) resolveAMIs(ctx context.Context, nodeTemplate *v1alpha1.AWS
 		return err
 	}
 
-	nodeTemplate.Status.AMIs = lo.Map(lo.Keys(amiRequirement), func(ami amifamily.AMI, _ int) v1alpha1.AMI {
+	nodeTemplate.Status.AMIs = lo.MapToSlice(amiRequirement, func(ami amifamily.AMI, requirement scheduling.Requirements) v1alpha1.AMI {
 		return v1alpha1.AMI{
 			Name:         ami.Name,
 			ID:           ami.AmiID,
-			Requirements: amiRequirement[ami].NodeSelectorRequirements(),
+			Requirements: requirement.NodeSelectorRequirements(),
 		}
 	})
 

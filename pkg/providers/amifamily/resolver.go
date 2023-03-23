@@ -16,13 +16,18 @@ package amifamily
 
 import (
 	"context"
+	"fmt"
 	"net"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/ssm"
+	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
+	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	core "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
@@ -31,6 +36,7 @@ import (
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/scheduling"
+	"github.com/aws/karpenter-core/pkg/utils/pretty"
 )
 
 var DefaultEBS = v1alpha1.BlockDevice{
@@ -71,17 +77,12 @@ type LaunchTemplate struct {
 
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters
 type AMIFamily interface {
-	SSMAlias(version string) []SSMAliasOutput
+	SSMAlias(ctx context.Context, version string, ssmCache *cache.Cache, ssmapi ssmiface.SSMAPI, cm *pretty.ChangeMonitor) (map[AMI]scheduling.Requirements, error)
 	UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []core.Taint, labels map[string]string, caBundle *string, instanceTypes []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper
 	DefaultBlockDeviceMappings() []*v1alpha1.BlockDeviceMapping
 	DefaultMetadataOptions() *v1alpha1.MetadataOptions
 	EphemeralBlockDevice() *string
 	FeatureFlags() FeatureFlags
-}
-type SSMAliasOutput struct {
-	Name         string
-	Query        string
-	Requirements scheduling.Requirements
 }
 
 // FeatureFlags describes whether the features below are enabled for a given AMIFamily
@@ -93,6 +94,22 @@ type FeatureFlags struct {
 
 // DefaultFamily provides default values for AMIFamilies that compose it
 type DefaultFamily struct{}
+
+func (d *DefaultFamily) FetchAMIsFromSSM(ctx context.Context, ssmQuery string, ssmCache *cache.Cache, ssmapi ssmiface.SSMAPI, cm *pretty.ChangeMonitor) (string, error) {
+	if id, ok := ssmCache.Get(ssmQuery); ok {
+		return id.(string), nil
+	}
+	output, err := ssmapi.GetParameterWithContext(ctx, &ssm.GetParameterInput{Name: aws.String(ssmQuery)})
+	if err != nil {
+		return "", fmt.Errorf("getting ssm parameter %q, %w", ssmQuery, err)
+	}
+	ami := aws.StringValue(output.Parameter.Value)
+	ssmCache.SetDefault(ssmQuery, ami)
+	if cm.HasChanged("ssmquery-"+ssmQuery, ami) {
+		logging.FromContext(ctx).With("ami", ami, "query", ssmQuery).Debugf("discovered new ami")
+	}
+	return ami, nil
+}
 
 func (d DefaultFamily) FeatureFlags() FeatureFlags {
 	return FeatureFlags{

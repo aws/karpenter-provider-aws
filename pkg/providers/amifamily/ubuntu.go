@@ -15,9 +15,12 @@ limitations under the License.
 package amifamily
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
+	"github.com/patrickmn/go-cache"
 	v1 "k8s.io/api/core/v1"
 
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
@@ -26,6 +29,7 @@ import (
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/scheduling"
+	"github.com/aws/karpenter-core/pkg/utils/pretty"
 )
 
 type Ubuntu struct {
@@ -34,22 +38,26 @@ type Ubuntu struct {
 }
 
 // SSMAlias returns the AMI Alias to query SSM
-func (u Ubuntu) SSMAlias(version string) []SSMAliasOutput {
+func (u Ubuntu) SSMAlias(ctx context.Context, version string, ssmCache *cache.Cache, ssmapi ssmiface.SSMAPI, cm *pretty.ChangeMonitor) (map[AMI]scheduling.Requirements, error) {
 	architectures := []string{v1alpha5.ArchitectureAmd64, v1alpha5.ArchitectureArm64}
-	var result []SSMAliasOutput
+	amiRequirements := map[AMI]scheduling.Requirements{}
 	for _, arch := range architectures {
 		requirements := scheduling.NewRequirements(
 			scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, arch),
 		)
-		output := SSMAliasOutput{
-			Name:         fmt.Sprintf("ubuntu-20.4-eks-%s-%s", version, arch),
-			Query:        fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/%s/hvm/ebs-gp2/ami-id", version, arch),
-			Requirements: requirements,
+		query := fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/%s/hvm/ebs-gp2/ami-id", version, arch)
+		amiID, err := u.FetchAMIsFromSSM(ctx, query, ssmCache, ssmapi, cm)
+		if err != nil {
+			return nil, err
 		}
-		result = append(result, output)
+		output := AMI{
+			Name:  fmt.Sprintf("ubuntu-20.4-eks-%s-%s", version, arch),
+			AmiID: amiID,
+		}
+		amiRequirements[output] = requirements
 	}
 
-	return result
+	return amiRequirements, nil
 }
 
 // UserData returns the default userdata script for the AMI Family
