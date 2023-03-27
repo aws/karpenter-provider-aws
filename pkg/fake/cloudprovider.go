@@ -71,6 +71,10 @@ func (c *CloudProvider) Get(context.Context, string) (*v1alpha5.Machine, error) 
 	return nil, nil
 }
 
+func (c *CloudProvider) List(context.Context) ([]*v1alpha5.Machine, error) {
+	return nil, nil
+}
+
 func (c *CloudProvider) Delete(context.Context, *v1alpha5.Machine) error {
 	return nil
 }

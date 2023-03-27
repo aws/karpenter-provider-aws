@@ -65,8 +65,7 @@ type CloudProvider struct {
 	amiProvider          *amifamily.Provider
 }
 
-func New(ctx context.Context, instanceTypeProvider *instancetype.Provider,
-	instanceProvider *instance.Provider, kubeClient client.Client, amiProvider *amifamily.Provider) *CloudProvider {
+func New(instanceTypeProvider *instancetype.Provider, instanceProvider *instance.Provider, kubeClient client.Client, amiProvider *amifamily.Provider) *CloudProvider {
 	return &CloudProvider{
 		instanceTypeProvider: instanceTypeProvider,
 		instanceProvider:     instanceProvider,
