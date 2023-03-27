@@ -146,7 +146,3 @@ func (env *Environment) Reset() {
 	env.SubnetCache.Flush()
 	env.SecurityGroupCache.Flush()
 }
-
-func (env *Environment) Stop() {
-
-}
