@@ -29,7 +29,6 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	clock "k8s.io/utils/clock/testing"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -72,6 +71,7 @@ var cluster *state.Cluster
 var fakeClock *clock.FakeClock
 var provisioner *v1alpha5.Provisioner
 var nodeTemplate *v1alpha1.AWSNodeTemplate
+var machine *v1alpha5.Machine
 var cloudProvider *cloudprovider.CloudProvider
 
 func TestAWS(t *testing.T) {
@@ -88,7 +88,7 @@ var _ = BeforeSuite(func() {
 	awsEnv = test.NewEnvironment(ctx, env)
 
 	fakeClock = clock.NewFakeClock(time.Now())
-	cloudProvider = cloudprovider.New(ctx, awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, env.Client, awsEnv.AMIProvider)
+	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, env.Client, awsEnv.AMIProvider)
 	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
 	prov = provisioning.NewProvisioner(env.Client, env.KubernetesInterface.CoreV1(), events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster)
 	provisioningController = provisioning.NewController(env.Client, prov, events.NewRecorder(&record.FakeRecorder{}))
@@ -115,11 +115,6 @@ var _ = BeforeEach(func() {
 			},
 		},
 	}
-	nodeTemplate.SetGroupVersionKind(schema.GroupVersionKind{
-		Group:   v1alpha1.SchemeGroupVersion.Group,
-		Version: v1alpha1.SchemeGroupVersion.Version,
-		Kind:    "AWSNodeTemplate",
-	})
 	provisioner = test.Provisioner(coretest.ProvisionerOptions{
 		Requirements: []v1.NodeSelectorRequirement{{
 			Key:      v1alpha1.LabelInstanceCategory,
@@ -129,6 +124,18 @@ var _ = BeforeEach(func() {
 			APIVersion: nodeTemplate.APIVersion,
 			Kind:       nodeTemplate.Kind,
 			Name:       nodeTemplate.Name,
+		},
+	})
+	machine = coretest.Machine(v1alpha5.Machine{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels: map[string]string{
+				v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+			},
+		},
+		Spec: v1alpha5.MachineSpec{
+			MachineTemplateRef: &v1alpha5.MachineTemplateRef{
+				Name: nodeTemplate.Name,
+			},
 		},
 	})
 
@@ -144,6 +151,20 @@ var _ = AfterEach(func() {
 })
 
 var _ = Describe("CloudProvider", func() {
+	It("should return an ICE error when there are no instance types to launch", func() {
+		// Specify no instance types and expect to receive a capacity error
+		machine.Spec.Requirements = []v1.NodeSelectorRequirement{
+			{
+				Key:      v1.LabelInstanceTypeStable,
+				Operator: v1.NodeSelectorOpIn,
+				Values:   []string{},
+			},
+		}
+		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate, machine)
+		cloudProviderMachine, err := cloudProvider.Create(ctx, machine)
+		Expect(corecloudproivder.IsInsufficientCapacityError(err)).To(BeTrue())
+		Expect(cloudProviderMachine).To(BeNil())
+	})
 	Context("Defaulting", func() {
 		// Intent here is that if updates occur on the provisioningController, the Provisioner doesn't need to be recreated
 		It("should not set the InstanceProfile with the default if none provided in Provisioner", func() {
