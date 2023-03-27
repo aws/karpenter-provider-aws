@@ -84,8 +84,13 @@ func NewProvider(ctx context.Context, region string, ec2api ec2iface.EC2API, una
 }
 
 func (p *Provider) Create(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, machine *v1alpha5.Machine, instanceTypes []*cloudprovider.InstanceType) (*Instance, error) {
+	//beforeInstanceTypes := lo.Map(instanceTypes, func(i *cloudprovider.InstanceType, _ int) string { return i.Name })
 	instanceTypes = p.filterInstanceTypes(machine, instanceTypes)
 	instanceTypes = orderInstanceTypesByPrice(instanceTypes, scheduling.NewNodeSelectorRequirements(machine.Spec.Requirements...))
+	//if len(instanceTypes) < 10 {
+	//	//logging.FromContext(ctx).With("machine", machine.Name).Infof("Before Instance Types: %#v", beforeInstanceTypes)
+	//	//logging.FromContext(ctx).With("machine", machine.Name).Infof("After Instance Types: %#v", lo.Map(instanceTypes, func(i *cloudprovider.InstanceType, _ int) string { return i.Name }))
+	//}
 	if len(instanceTypes) > MaxInstanceTypes {
 		instanceTypes = instanceTypes[0:MaxInstanceTypes]
 	}
@@ -149,7 +154,7 @@ func (p *Provider) Get(ctx context.Context, id string) (*Instance, error) {
 	if awserrors.IsNotFound(err) {
 		return nil, cloudprovider.NewMachineNotFoundError(err)
 	}
-	if err != nil {
+	if err != nil || out == nil {
 		return nil, fmt.Errorf("failed to describe ec2 instances, %w", err)
 	}
 	instances, err := instancesFromOutput(out)
