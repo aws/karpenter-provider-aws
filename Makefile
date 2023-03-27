@@ -115,7 +115,7 @@ verify: tidy download ## Verify code. Includes dependencies, linting, formatting
 			exit 1;\
 		fi;}
 	@echo "Validating codegen/docgen build scripts..."
-	@find hack/code hack/docs -name "*.go" -type f -exec go build -o /dev/null {} \;
+	@find hack/code hack/docs -name "*.go" -type f -print0 | xargs -0 -I {} go build -o /dev/null {}
 
 vulncheck: ## Verify code vulnerabilities
 	@govulncheck ./pkg/...
