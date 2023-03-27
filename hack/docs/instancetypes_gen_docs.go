@@ -238,5 +238,5 @@ func NewAWSCloudProviderForCodeGen(ctx context.Context) *awscloudprovider.CloudP
 		RESTConfig:          &rest.Config{},
 		KubernetesInterface: lo.Must(kubernetes.NewForConfigAndClient(&rest.Config{}, &http.Client{Transport: &kubeDnsTransport{}})),
 	})
-	return awscloudprovider.New(context, context.InstanceTypesProvider, context.InstanceProvider, context.KubeClient, context.AMIProvider)
+	return awscloudprovider.New(context.InstanceTypesProvider, context.InstanceProvider, context.KubeClient, context.AMIProvider)
 }
