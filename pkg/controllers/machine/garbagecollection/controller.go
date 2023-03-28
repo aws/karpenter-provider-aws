@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package garbagecollect
+package garbagecollection
 
 import (
 	"context"
@@ -22,7 +22,6 @@ import (
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/util/workqueue"
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -32,6 +31,7 @@ import (
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	corecloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/operator/controller"
+	"github.com/aws/karpenter-core/pkg/utils/sets"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/controllers/machine/link"
 )
@@ -69,7 +69,7 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 	resolvedMachines := lo.Filter(machineList.Items, func(m v1alpha5.Machine, _ int) bool {
 		return m.Status.ProviderID != "" || m.Annotations[v1alpha5.MachineLinkedAnnotationKey] != ""
 	})
-	resolvedProviderIDs := sets.NewString(lo.Map(resolvedMachines, func(m v1alpha5.Machine, _ int) string {
+	resolvedProviderIDs := sets.New[string](lo.Map(resolvedMachines, func(m v1alpha5.Machine, _ int) string {
 		if m.Status.ProviderID != "" {
 			return m.Status.ProviderID
 		}
@@ -80,7 +80,7 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 		return reconcile.Result{}, fmt.Errorf("listing cloudprovider machines, %w", err)
 	}
 	managedRetrieved := lo.Filter(retrieved, func(m *v1alpha5.Machine, _ int) bool {
-		return m.Labels[v1alpha5.ManagedByLabelKey] != ""
+		return m.Labels[v1alpha5.ManagedByLabelKey] != "" && m.DeletionTimestamp.IsZero()
 	})
 	errs := make([]error, len(retrieved))
 	workqueue.ParallelizeUntil(ctx, 20, len(managedRetrieved), func(i int) {

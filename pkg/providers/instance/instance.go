@@ -28,11 +28,9 @@ import (
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 
-	"github.com/aws/karpenter-core/pkg/utils/functional"
 	"github.com/aws/karpenter-core/pkg/utils/resources"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
@@ -84,13 +82,8 @@ func NewProvider(ctx context.Context, region string, ec2api ec2iface.EC2API, una
 }
 
 func (p *Provider) Create(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, machine *v1alpha5.Machine, instanceTypes []*cloudprovider.InstanceType) (*Instance, error) {
-	//beforeInstanceTypes := lo.Map(instanceTypes, func(i *cloudprovider.InstanceType, _ int) string { return i.Name })
 	instanceTypes = p.filterInstanceTypes(machine, instanceTypes)
 	instanceTypes = orderInstanceTypesByPrice(instanceTypes, scheduling.NewNodeSelectorRequirements(machine.Spec.Requirements...))
-	//if len(instanceTypes) < 10 {
-	//	//logging.FromContext(ctx).With("machine", machine.Name).Infof("Before Instance Types: %#v", beforeInstanceTypes)
-	//	//logging.FromContext(ctx).With("machine", machine.Name).Infof("After Instance Types: %#v", lo.Map(instanceTypes, func(i *cloudprovider.InstanceType, _ int) string { return i.Name }))
-	//}
 	if len(instanceTypes) > MaxInstanceTypes {
 		instanceTypes = instanceTypes[0:MaxInstanceTypes]
 	}
@@ -110,21 +103,7 @@ func (p *Provider) Create(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTem
 	if err != nil {
 		return nil, err
 	}
-	instance := NewInstanceFromFleet(fleetInstance, tags)
-	var capacity v1.ResourceList
-	if instanceType, ok := lo.Find(instanceTypes, func(i *cloudprovider.InstanceType) bool {
-		return i.Name == instance.Type
-	}); ok {
-		capacity = functional.FilterMap(instanceType.Capacity, func(_ v1.ResourceName, v resource.Quantity) bool { return !resources.IsZero(v) })
-	}
-	logging.FromContext(ctx).With(
-		"id", instance.ID,
-		"instance-type", instance.Type,
-		"zone", instance.Zone,
-		"capacity-type", instance.CapacityType,
-		"capacity", capacity).Infof("launched instance")
-
-	return instance, nil
+	return NewInstanceFromFleet(fleetInstance, tags), nil
 }
 
 func (p *Provider) Link(ctx context.Context, id string) error {
@@ -151,10 +130,10 @@ func (p *Provider) Get(ctx context.Context, id string) (*Instance, error) {
 		InstanceIds: aws.StringSlice([]string{id}),
 		Filters:     []*ec2.Filter{instanceStateFilter},
 	})
-	if awserrors.IsNotFound(err) {
+	if awserrors.IsNotFound(err) || out == nil {
 		return nil, cloudprovider.NewMachineNotFoundError(err)
 	}
-	if err != nil || out == nil {
+	if err != nil {
 		return nil, fmt.Errorf("failed to describe ec2 instances, %w", err)
 	}
 	instances, err := instancesFromOutput(out)

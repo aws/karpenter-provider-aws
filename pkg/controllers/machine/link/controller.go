@@ -74,7 +74,7 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 	// Filter out any machines that shouldn't be linked
 	retrieved = lo.Filter(retrieved, func(m *v1alpha5.Machine, _ int) bool {
 		_, ok := m.Labels[v1alpha5.ManagedByLabelKey]
-		return !ok
+		return !ok && m.DeletionTimestamp.IsZero()
 	})
 	errs := make([]error, len(retrieved))
 	workqueue.ParallelizeUntil(ctx, 20, len(retrieved), func(i int) {

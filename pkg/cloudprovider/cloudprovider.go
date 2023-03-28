@@ -18,7 +18,9 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -317,6 +319,10 @@ func (c *CloudProvider) instanceToMachine(i *instance.Instance, instanceType *cl
 	}
 	machine.Labels = labels
 	machine.CreationTimestamp = metav1.Time{Time: i.LaunchTime}
+	// Set the deletionTimestamp to be the current time if the instance is currently terminating
+	if i.State == ec2.InstanceStateNameShuttingDown || i.State == ec2.InstanceStateNameTerminated {
+		machine.DeletionTimestamp = &metav1.Time{Time: time.Now()}
+	}
 	machine.Status.ProviderID = fmt.Sprintf("aws:///%s/%s", i.Zone, i.ID)
 	return machine
 }

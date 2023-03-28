@@ -57,9 +57,8 @@ type Provider struct {
 	// Fully initialized Instance Types are also cached based on the set of all instance types, zones, unavailableOfferings cache,
 	// node template, and kubelet configuration from the provisioner
 
-	zoneMu  sync.Mutex
-	typesMu sync.Mutex
-	cache   *cache.Cache
+	mu    sync.Mutex
+	cache *cache.Cache
 
 	unavailableOfferings *awscache.UnavailableOfferings
 	cm                   *pretty.ChangeMonitor
@@ -151,11 +150,10 @@ func (p *Provider) createOfferings(ctx context.Context, instanceType *ec2.Instan
 func (p *Provider) getInstanceTypeZones(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) (map[string]sets.String, error) {
 	// DO NOT REMOVE THIS LOCK ----------------------------------------------------------------------------
 	// We lock here so that multiple callers to getInstanceTypeZones do not result in cache misses and multiple
-	// calls to EC2 when we could have just made one call. This lock is here because multiple callers to EC2 result
-	// in A LOT of extra memory generated from the response for simultaneous callers.
+	// calls to EC2 when we could have just made one call.
 	// TODO @joinnis: This can be made more efficient by holding a Read lock and only obtaining the Write if not in cache
-	p.zoneMu.Lock()
-	defer p.zoneMu.Unlock()
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
 	subnetSelectorHash, err := hashstructure.Hash(nodeTemplate.Spec.SubnetSelector, hashstructure.FormatV2, nil)
 	if err != nil {
@@ -208,8 +206,8 @@ func (p *Provider) GetInstanceTypes(ctx context.Context) ([]*ec2.InstanceTypeInf
 	// calls to EC2 when we could have just made one call. This lock is here because multiple callers to EC2 result
 	// in A LOT of extra memory generated from the response for simultaneous callers.
 	// TODO @joinnis: This can be made more efficient by holding a Read lock and only obtaining the Write if not in cache
-	p.typesMu.Lock()
-	defer p.typesMu.Unlock()
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
 	if cached, ok := p.cache.Get(InstanceTypesCacheKey); ok {
 		return cached.([]*ec2.InstanceTypeInfo), nil

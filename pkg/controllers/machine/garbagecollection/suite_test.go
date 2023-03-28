@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package garbagecollect_test
+package garbagecollection_test
 
 import (
 	"context"
@@ -43,7 +43,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider"
-	"github.com/aws/karpenter/pkg/controllers/machine/garbagecollect"
+	"github.com/aws/karpenter/pkg/controllers/machine/garbagecollection"
 	"github.com/aws/karpenter/pkg/controllers/machine/link"
 	"github.com/aws/karpenter/pkg/fake"
 	"github.com/aws/karpenter/pkg/test"
@@ -52,7 +52,7 @@ import (
 var ctx context.Context
 var awsEnv *test.Environment
 var env *coretest.Environment
-var garbageCollectController controller.Controller
+var garbageCollectionController controller.Controller
 var linkedMachineCache *cache.Cache
 var cloudProvider *cloudprovider.CloudProvider
 
@@ -73,7 +73,7 @@ var _ = BeforeSuite(func() {
 	linkController := &link.Controller{
 		Cache: linkedMachineCache,
 	}
-	garbageCollectController = garbagecollect.NewController(env.Client, cloudProvider, linkController)
+	garbageCollectionController = garbagecollection.NewController(env.Client, cloudProvider, linkController)
 })
 
 var _ = AfterSuite(func() {
@@ -135,7 +135,7 @@ var _ = Describe("MachineGarbageCollection", func() {
 		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute))
 		awsEnv.EC2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
 
-		ExpectReconcileSucceeded(ctx, garbageCollectController, client.ObjectKey{})
+		ExpectReconcileSucceeded(ctx, garbageCollectionController, client.ObjectKey{})
 		_, err := cloudProvider.Get(ctx, providerID)
 		Expect(err).To(HaveOccurred())
 		Expect(corecloudprovider.IsMachineNotFoundError(err)).To(BeTrue())
@@ -150,7 +150,7 @@ var _ = Describe("MachineGarbageCollection", func() {
 		})
 		ExpectApplied(ctx, env.Client, node)
 
-		ExpectReconcileSucceeded(ctx, garbageCollectController, client.ObjectKey{})
+		ExpectReconcileSucceeded(ctx, garbageCollectionController, client.ObjectKey{})
 		_, err := cloudProvider.Get(ctx, providerID)
 		Expect(err).To(HaveOccurred())
 		Expect(corecloudprovider.IsMachineNotFoundError(err)).To(BeTrue())
@@ -194,7 +194,7 @@ var _ = Describe("MachineGarbageCollection", func() {
 			)
 			ids = append(ids, instanceID)
 		}
-		ExpectReconcileSucceeded(ctx, garbageCollectController, client.ObjectKey{})
+		ExpectReconcileSucceeded(ctx, garbageCollectionController, client.ObjectKey{})
 
 		wg := sync.WaitGroup{}
 		for _, id := range ids {
@@ -255,7 +255,7 @@ var _ = Describe("MachineGarbageCollection", func() {
 			machines = append(machines, machine)
 			ids = append(ids, instanceID)
 		}
-		ExpectReconcileSucceeded(ctx, garbageCollectController, client.ObjectKey{})
+		ExpectReconcileSucceeded(ctx, garbageCollectionController, client.ObjectKey{})
 
 		wg := sync.WaitGroup{}
 		for _, id := range ids {
@@ -279,7 +279,7 @@ var _ = Describe("MachineGarbageCollection", func() {
 		instance.LaunchTime = aws.Time(time.Now())
 		awsEnv.EC2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
 
-		ExpectReconcileSucceeded(ctx, garbageCollectController, client.ObjectKey{})
+		ExpectReconcileSucceeded(ctx, garbageCollectionController, client.ObjectKey{})
 		_, err := cloudProvider.Get(ctx, providerID)
 		Expect(err).NotTo(HaveOccurred())
 	})
@@ -293,7 +293,7 @@ var _ = Describe("MachineGarbageCollection", func() {
 		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute))
 		awsEnv.EC2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
 
-		ExpectReconcileSucceeded(ctx, garbageCollectController, client.ObjectKey{})
+		ExpectReconcileSucceeded(ctx, garbageCollectionController, client.ObjectKey{})
 		_, err := cloudProvider.Get(ctx, providerID)
 		Expect(err).NotTo(HaveOccurred())
 	})
@@ -312,7 +312,7 @@ var _ = Describe("MachineGarbageCollection", func() {
 		})
 		ExpectApplied(ctx, env.Client, machine, node)
 
-		ExpectReconcileSucceeded(ctx, garbageCollectController, client.ObjectKey{})
+		ExpectReconcileSucceeded(ctx, garbageCollectionController, client.ObjectKey{})
 		_, err := cloudProvider.Get(ctx, providerID)
 		Expect(err).ToNot(HaveOccurred())
 		ExpectExists(ctx, env.Client, node)
@@ -332,7 +332,7 @@ var _ = Describe("MachineGarbageCollection", func() {
 		})
 		ExpectApplied(ctx, env.Client, machine)
 
-		ExpectReconcileSucceeded(ctx, garbageCollectController, client.ObjectKey{})
+		ExpectReconcileSucceeded(ctx, garbageCollectionController, client.ObjectKey{})
 		_, err := cloudProvider.Get(ctx, providerID)
 		Expect(err).NotTo(HaveOccurred())
 	})
@@ -344,7 +344,7 @@ var _ = Describe("MachineGarbageCollection", func() {
 		// Add a provider id to the recently linked cache
 		linkedMachineCache.SetDefault(providerID, nil)
 
-		ExpectReconcileSucceeded(ctx, garbageCollectController, client.ObjectKey{})
+		ExpectReconcileSucceeded(ctx, garbageCollectionController, client.ObjectKey{})
 		_, err := cloudProvider.Get(ctx, providerID)
 		Expect(err).NotTo(HaveOccurred())
 	})
