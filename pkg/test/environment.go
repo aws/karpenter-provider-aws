@@ -136,6 +136,7 @@ func (env *Environment) Reset() {
 	env.EC2API.Reset()
 	env.SSMAPI.Reset()
 	env.PricingAPI.Reset()
+	env.PricingProvider.Reset()
 
 	env.SSMCache.Flush()
 	env.EC2Cache.Flush()

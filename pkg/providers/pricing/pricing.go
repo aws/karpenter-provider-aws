@@ -32,6 +32,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/pricing"
 	"github.com/aws/aws-sdk-go/service/pricing/pricingiface"
 	"github.com/samber/lo"
+	lop "github.com/samber/lo/parallel"
 	"go.uber.org/multierr"
 	"knative.dev/pkg/logging"
 
@@ -79,9 +80,6 @@ func newZonalPricing(defaultPrice float64) zonal {
 	return z
 }
 
-// pricingUpdatePeriod is how often we try to update our pricing information after the initial update on startup
-const pricingUpdatePeriod = 12 * time.Hour
-
 // NewPricingAPI returns a pricing API configured based on a particular region
 func NewAPI(sess *session.Session, region string) pricingiface.PricingAPI {
 	if sess == nil {
@@ -96,24 +94,14 @@ func NewAPI(sess *session.Session, region string) pricingiface.PricingAPI {
 }
 
 func NewProvider(ctx context.Context, pricing pricingiface.PricingAPI, ec2Api ec2iface.EC2API, region string) *Provider {
-	// see if we've got region specific pricing data
-	staticPricing, ok := initialOnDemandPrices[region]
-	if !ok {
-		// and if not, fall back to the always available us-east-1
-		staticPricing = initialOnDemandPrices["us-east-1"]
-	}
-
 	p := &Provider{
-		region:             region,
-		onDemandUpdateTime: initialPriceUpdate,
-		onDemandPrices:     staticPricing,
-		spotUpdateTime:     initialPriceUpdate,
-		// default our spot pricing to the same as the on-demand pricing until a price update
-		spotPrices: populateInitialSpotPricing(staticPricing),
-		ec2:        ec2Api,
-		pricing:    pricing,
-		cm:         pretty.NewChangeMonitor(),
+		region:  region,
+		ec2:     ec2Api,
+		pricing: pricing,
+		cm:      pretty.NewChangeMonitor(),
 	}
+	p.Reset()
+
 	return p
 }
 
@@ -167,37 +155,10 @@ func (p *Provider) SpotPrice(instanceType string, zone string) (float64, bool) {
 	return 0.0, false
 }
 
-func (p *Provider) UpdatePricing(ctx context.Context) {
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		if err := p.UpdateOnDemandPricing(ctx); err != nil {
-			logging.FromContext(ctx).Errorf("updating on-demand pricing, %s, using existing pricing data from %s", err, err.lastUpdateTime.Format(time.RFC3339))
-		}
-	}()
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		if err := p.UpdateSpotPricing(ctx); err != nil {
-			logging.FromContext(ctx).Errorf("updating spot pricing, %s, using existing pricing data from %s", err, err.lastUpdateTime.Format(time.RFC3339))
-		}
-	}()
-
-	wg.Wait()
-}
-
 func (p *Provider) UpdateOnDemandPricing(ctx context.Context) *Err {
-	// standard on-demand instances
-	var wg sync.WaitGroup
-	var onDemandPrices, onDemandMetalPrices map[string]float64
-	var onDemandErr, onDemandMetalErr error
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		onDemandPrices, onDemandErr = p.fetchOnDemandPricing(ctx,
+	filters := map[string][]*pricing.Filter{
+		// standard on-demand instances
+		"standard": {
 			&pricing.Filter{
 				Field: aws.String("tenancy"),
 				Type:  aws.String("TERM_MATCH"),
@@ -207,14 +168,10 @@ func (p *Provider) UpdateOnDemandPricing(ctx context.Context) *Err {
 				Field: aws.String("productFamily"),
 				Type:  aws.String("TERM_MATCH"),
 				Value: aws.String("Compute Instance"),
-			})
-	}()
-
-	// bare metal on-demand prices
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		onDemandMetalPrices, onDemandMetalErr = p.fetchOnDemandPricing(ctx,
+			},
+		},
+		// bare metal on-demand prices
+		"metal": {
 			&pricing.Filter{
 				Field: aws.String("tenancy"),
 				Type:  aws.String("TERM_MATCH"),
@@ -224,23 +181,28 @@ func (p *Provider) UpdateOnDemandPricing(ctx context.Context) *Err {
 				Field: aws.String("productFamily"),
 				Type:  aws.String("TERM_MATCH"),
 				Value: aws.String("Compute Instance (bare metal)"),
-			})
-	}()
+			},
+		},
+	}
+	errs := make([]error, len(lo.Keys(filters)))
+	allOnDemandPrices := make([]map[string]float64, len(lo.Keys(filters)))
 
-	wg.Wait()
+	lop.ForEach(lo.Keys(filters), func(x string, i int) {
+		allOnDemandPrices[i], errs[i] = p.fetchOnDemandPricing(ctx, filters[x][0], filters[x][1])
+	})
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	err := multierr.Append(onDemandErr, onDemandMetalErr)
+	err := multierr.Combine(errs...)
 	if err != nil {
 		return &Err{error: err, lastUpdateTime: p.onDemandUpdateTime}
 	}
 
-	if len(onDemandPrices) == 0 || len(onDemandMetalPrices) == 0 {
+	if len(allOnDemandPrices[0]) == 0 || len(allOnDemandPrices[1]) == 0 {
 		return &Err{error: errors.New("no on-demand pricing found"), lastUpdateTime: p.onDemandUpdateTime}
 	}
 
-	p.onDemandPrices = lo.Assign(onDemandPrices, onDemandMetalPrices)
+	p.onDemandPrices = lo.Assign(allOnDemandPrices[0], allOnDemandPrices[1])
 	p.onDemandUpdateTime = time.Now()
 	if p.cm.HasChanged("on-demand-prices", p.onDemandPrices) {
 		logging.FromContext(ctx).With("instance-type-count", len(p.onDemandPrices)).Infof("updated on-demand pricing")
@@ -416,4 +378,19 @@ func populateInitialSpotPricing(pricing map[string]float64) map[string]zonal {
 		m[it] = newZonalPricing(price)
 	}
 	return m
+}
+
+func (p *Provider) Reset() {
+	// see if we've got region specific pricing data
+	staticPricing, ok := initialOnDemandPrices[p.region]
+	if !ok {
+		// and if not, fall back to the always available us-east-1
+		staticPricing = initialOnDemandPrices["us-east-1"]
+	}
+
+	p.onDemandPrices = staticPricing
+	// default our spot pricing to the same as the on-demand pricing until a price update
+	p.spotPrices = populateInitialSpotPricing(staticPricing)
+	p.onDemandUpdateTime = initialPriceUpdate
+	p.spotUpdateTime = initialPriceUpdate
 }

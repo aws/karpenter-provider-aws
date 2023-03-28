@@ -16,11 +16,14 @@ package pricing
 
 import (
 	"context"
+	"time"
 
-	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
-	"knative.dev/pkg/logging"
+	lop "github.com/samber/lo/parallel"
+	"go.uber.org/multierr"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
 )
 
 type Controller struct {
@@ -34,10 +37,9 @@ func NewController(pricingProvider *Provider) *Controller {
 }
 
 func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconcile.Result, error) {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("pricing"))
-	c.pricingProvider.UpdatePricing(ctx)
+	err := c.updatePricing(ctx)
 
-	return reconcile.Result{RequeueAfter: pricingUpdatePeriod}, nil
+	return reconcile.Result{RequeueAfter: 12 * time.Hour}, err
 }
 
 func (c *Controller) Name() string {
@@ -46,4 +48,20 @@ func (c *Controller) Name() string {
 
 func (c *Controller) Builder(_ context.Context, m manager.Manager) corecontroller.Builder {
 	return corecontroller.NewSingletonManagedBy(m)
+}
+
+func (c *Controller) updatePricing(ctx context.Context) error {
+	work := []func(ctx context.Context) *Err{
+		c.pricingProvider.UpdateOnDemandPricing,
+		c.pricingProvider.UpdateSpotPricing,
+	}
+	errs := make([]error, len(work))
+	lop.ForEach(work, func(x func(ctx context.Context) *Err, i int) {
+		err := x(ctx)
+		if err != nil {
+			errs[i] = err.error
+		}
+	})
+
+	return multierr.Combine(errs...)
 }
