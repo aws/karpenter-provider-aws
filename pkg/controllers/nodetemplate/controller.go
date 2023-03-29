@@ -19,6 +19,7 @@ import (
 	"sort"
 	"time"
 
+	"go.uber.org/multierr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -30,7 +31,6 @@ import (
 	"github.com/samber/lo"
 
 	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
-	"github.com/aws/karpenter-core/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/providers/amifamily"
 	"github.com/aws/karpenter/pkg/providers/instancetype"
@@ -61,23 +61,17 @@ func NewController(kubeClient client.Client, subnetProvider *subnet.Provider, se
 func (c *Controller) Reconcile(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) (reconcile.Result, error) {
 	stored := nodeTemplate.DeepCopy()
 
-	if err := c.resolveSubnets(ctx, nodeTemplate); err != nil {
-		return reconcile.Result{}, err
-	}
-
-	if err := c.resolveSecurityGroups(ctx, nodeTemplate); err != nil {
-		return reconcile.Result{}, err
-	}
-
-	if err := c.resolveAMIs(ctx, nodeTemplate); err != nil {
-		return reconcile.Result{}, err
-	}
+	err := multierr.Combine(
+		c.resolveSubnets(ctx, nodeTemplate),
+		c.resolveSecurityGroups(ctx, nodeTemplate),
+		c.resolveAMIs(ctx, nodeTemplate),
+	)
 
 	if patchErr := c.kubeClient.Status().Patch(ctx, nodeTemplate, client.MergeFrom(stored)); patchErr != nil {
-		return reconcile.Result{}, client.IgnoreNotFound(patchErr)
+		err = multierr.Append(err, client.IgnoreNotFound(patchErr))
 	}
 
-	return reconcile.Result{RequeueAfter: 5 * time.Minute}, nil
+	return reconcile.Result{RequeueAfter: 5 * time.Minute}, err
 }
 
 func (c *Controller) Name() string {
@@ -134,11 +128,11 @@ func (c *Controller) resolveAMIs(ctx context.Context, nodeTemplate *v1alpha1.AWS
 		return err
 	}
 
-	nodeTemplate.Status.AMIs = lo.MapToSlice(amiRequirement, func(ami amifamily.AMI, requirement scheduling.Requirements) v1alpha1.AMI {
+	nodeTemplate.Status.AMIs = lo.Map(amiRequirement, func(ami amifamily.AMI, _ int) v1alpha1.AMI {
 		return v1alpha1.AMI{
 			Name:         ami.Name,
 			ID:           ami.AmiID,
-			Requirements: requirement.NodeSelectorRequirements(),
+			Requirements: ami.Requirements.NodeSelectorRequirements(),
 		}
 	})
 

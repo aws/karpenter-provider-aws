@@ -15,20 +15,16 @@ limitations under the License.
 package amifamily
 
 import (
-	"context"
 	"fmt"
 
-	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter/pkg/providers/amifamily/bootstrap"
 
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/scheduling"
-	"github.com/aws/karpenter-core/pkg/utils/pretty"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 
@@ -43,49 +39,41 @@ type Bottlerocket struct {
 }
 
 // SSMAlias returns the AMI Alias to query SSM
-func (b Bottlerocket) SSMAlias(ctx context.Context, version string, ssmCache *cache.Cache, ssmapi ssmiface.SSMAPI, cm *pretty.ChangeMonitor) (map[AMI]scheduling.Requirements, error) {
-	amiRequirements := map[AMI]scheduling.Requirements{}
-	architectures := []string{"x86_64", v1alpha5.ArchitectureArm64}
-
-	for _, arch := range architectures {
-		requirements := scheduling.NewRequirements()
-		if arch == "x86_64" {
-			requirements.Add(scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureAmd64))
-		} else {
-			requirements.Add(scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, arch))
-		}
-		query := fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/%s/latest/image_id", version, arch)
-		amiID, err := b.FetchAMIsFromSSM(ctx, query, ssmCache, ssmapi, cm)
-		if err != nil {
-			return nil, err
-		}
-		output := AMI{
-			Name:  fmt.Sprintf("bottlerocket-aws-k8s-%s%s", version, "-"+arch),
-			AmiID: amiID,
-		}
-		amiRequirements[output] = requirements
-
-		requirements = scheduling.NewRequirements()
-		if arch == "x86_64" {
-			requirements.Add(scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureAmd64))
-		} else {
-			requirements.Add(scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, arch))
-		}
-		requirements.Add(scheduling.NewRequirement(v1alpha1.LabelInstanceGPUManufacturer, v1.NodeSelectorOpIn, "nvidia"))
-
-		query = fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s%s/%s/latest/image_id", version, "-nvidia", arch)
-		amiID, err = b.FetchAMIsFromSSM(ctx, query, ssmCache, ssmapi, cm)
-		if err != nil {
-			return nil, err
-		}
-		output = AMI{
-			Name:  fmt.Sprintf("bottlerocket-aws-k8s-%s%s%s", version, "-"+arch, "-nvidia"),
-			AmiID: amiID,
-		}
-		amiRequirements[output] = requirements
+func (b Bottlerocket) DefaultAMIs(version string) []SSMAliasOutput {
+	return []SSMAliasOutput{
+		{
+			Name:  fmt.Sprintf("bottlerocket-aws-k8s-%s%s", version, "-x86_64"),
+			Query: fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/%s/latest/image_id", version, "x86_64"),
+			Requirements: scheduling.NewRequirements(
+				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureAmd64),
+				scheduling.NewRequirement(v1alpha1.LabelInstanceGPUManufacturer, v1.NodeSelectorOpNotIn, v1alpha1.NVIDIAGPU),
+			),
+		},
+		{
+			Name:  fmt.Sprintf("bottlerocket-aws-k8s-%s%s%s", version, "-x86_64", "-nvidia"),
+			Query: fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s%s/%s/latest/image_id", version, "-nvidia", "x86_64"),
+			Requirements: scheduling.NewRequirements(
+				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureAmd64),
+				scheduling.NewRequirement(v1alpha1.LabelInstanceGPUManufacturer, v1.NodeSelectorOpIn, v1alpha1.NVIDIAGPU),
+			),
+		},
+		{
+			Name:  fmt.Sprintf("bottlerocket-aws-k8s-%s%s", version, "-"+v1alpha5.ArchitectureArm64),
+			Query: fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/%s/latest/image_id", version, v1alpha5.ArchitectureArm64),
+			Requirements: scheduling.NewRequirements(
+				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureArm64),
+				scheduling.NewRequirement(v1alpha1.LabelInstanceGPUManufacturer, v1.NodeSelectorOpNotIn, v1alpha1.NVIDIAGPU),
+			),
+		},
+		{
+			Name:  fmt.Sprintf("bottlerocket-aws-k8s-%s%s%s", version, "-"+v1alpha5.ArchitectureArm64, "-nvidia"),
+			Query: fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s%s/%s/latest/image_id", version, "-nvidia", v1alpha5.ArchitectureArm64),
+			Requirements: scheduling.NewRequirements(
+				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureArm64),
+				scheduling.NewRequirement(v1alpha1.LabelInstanceGPUManufacturer, v1.NodeSelectorOpIn, v1alpha1.NVIDIAGPU),
+			),
+		},
 	}
-
-	return amiRequirements, nil
 }
 
 // UserData returns the default userdata script for the AMI Family

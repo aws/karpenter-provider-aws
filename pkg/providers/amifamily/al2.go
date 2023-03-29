@@ -15,17 +15,13 @@ limitations under the License.
 package amifamily
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
-	"github.com/patrickmn/go-cache"
 	v1 "k8s.io/api/core/v1"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/scheduling"
-	"github.com/aws/karpenter-core/pkg/utils/pretty"
 
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
@@ -38,55 +34,35 @@ type AL2 struct {
 }
 
 // SSMAlias returns the AMI Alias to query SSM
-func (a AL2) SSMAlias(ctx context.Context, version string, ssmCache *cache.Cache, ssmapi ssmiface.SSMAPI, cm *pretty.ChangeMonitor) (map[AMI]scheduling.Requirements, error) {
-	result := map[AMI]scheduling.Requirements{}
-	// amd64
-	requirements := scheduling.NewRequirements(
-		scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureAmd64),
-	)
-	query := fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", version)
-	amiID, err := a.FetchAMIsFromSSM(ctx, query, ssmCache, ssmapi, cm)
-	if err != nil {
-		return nil, err
+func (a AL2) DefaultAMIs(version string) []SSMAliasOutput {
+	return []SSMAliasOutput{
+		// AMD64
+		{
+			Name:  "amazon-linux-2",
+			Query: fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", version),
+			Requirements: scheduling.NewRequirements(
+				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureAmd64),
+				scheduling.NewRequirement(v1alpha1.LabelInstanceGPUManufacturer, v1.NodeSelectorOpNotIn, v1alpha1.NVIDIAGPU, v1alpha1.AWSNeuron)),
+		},
+		// AMD64 with gpu
+		{
+			Name:  "amazon-linux-2-gpu",
+			Query: fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-gpu/recommended/image_id", version),
+			Requirements: scheduling.NewRequirements(
+				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureAmd64),
+				scheduling.NewRequirement(v1alpha1.LabelInstanceGPUManufacturer, v1.NodeSelectorOpIn, v1alpha1.NVIDIAGPU, v1alpha1.AWSNeuron),
+			),
+		},
+		// ARM64
+		{
+			Name:  fmt.Sprintf("amazon-linux-2%s", fmt.Sprintf("-%s", v1alpha5.ArchitectureArm64)),
+			Query: fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2%s/recommended/image_id", version, fmt.Sprintf("-%s", v1alpha5.ArchitectureArm64)),
+			Requirements: scheduling.NewRequirements(
+				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureArm64),
+				scheduling.NewRequirement(v1alpha1.LabelInstanceGPUManufacturer, v1.NodeSelectorOpNotIn, v1alpha1.NVIDIAGPU, v1alpha1.AWSNeuron),
+			),
+		},
 	}
-	output := AMI{
-		Name:  "amazon-linux-2",
-		AmiID: amiID,
-	}
-	result[output] = requirements
-
-	// amd64 with gpu
-	requirements = scheduling.NewRequirements(
-		scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureAmd64),
-		scheduling.NewRequirement(v1alpha1.LabelInstanceGPUManufacturer, v1.NodeSelectorOpIn, "nvidia", "neuron"),
-	)
-	query = fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-gpu/recommended/image_id", version)
-	amiID, err = a.FetchAMIsFromSSM(ctx, query, ssmCache, ssmapi, cm)
-	if err != nil {
-		return nil, err
-	}
-	output = AMI{
-		Name:  "amazon-linux-2-gpu",
-		AmiID: amiID,
-	}
-	result[output] = requirements
-
-	// arm64
-	requirements = scheduling.NewRequirements(
-		scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureArm64),
-	)
-	query = fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2%s/recommended/image_id", version, fmt.Sprintf("-%s", v1alpha5.ArchitectureArm64))
-	amiID, err = a.FetchAMIsFromSSM(ctx, query, ssmCache, ssmapi, cm)
-	if err != nil {
-		return nil, err
-	}
-	output = AMI{
-		Name:  fmt.Sprintf("amazon-linux-2%s", fmt.Sprintf("-%s", v1alpha5.ArchitectureArm64)),
-		AmiID: amiID,
-	}
-	result[output] = requirements
-
-	return result, nil
 }
 
 // UserData returns the exact same string for equivalent input,

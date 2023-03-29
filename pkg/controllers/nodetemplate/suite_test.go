@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
+	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter-core/pkg/operator/injection"
 	"github.com/aws/karpenter-core/pkg/operator/options"
@@ -412,8 +413,56 @@ var _ = Describe("AWSNodeTemplateController", func() {
 				return ami.Name
 			})
 			sort.Strings(amiIDsInStatus)
-			expectedOutput := []string{"amazon-linux-2", "amazon-linux-2-arm64", "amazon-linux-2-gpu"}
-			Expect(amiIDsInStatus).To(Equal(expectedOutput))
+			expectedNameOutput := []string{"amazon-linux-2", "amazon-linux-2-arm64", "amazon-linux-2-gpu"}
+			Expect(amiIDsInStatus).To(Equal(expectedNameOutput))
+			expectedRequirementsOutput := [][]v1.NodeSelectorRequirement{
+				{
+					{
+						Key:      v1.LabelArchStable,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{v1alpha5.ArchitectureAmd64},
+					},
+					{
+						Key:      v1alpha1.LabelInstanceGPUManufacturer,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{v1alpha1.AWSNeuron, v1alpha1.NVIDIAGPU},
+					},
+				},
+				{
+					{
+						Key:      v1.LabelArchStable,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{v1alpha5.ArchitectureArm64},
+					},
+					{
+						Key:      v1alpha1.LabelInstanceGPUManufacturer,
+						Operator: v1.NodeSelectorOpNotIn,
+						Values:   []string{v1alpha1.AWSNeuron, v1alpha1.NVIDIAGPU},
+					},
+				},
+				{
+					{
+						Key:      v1.LabelArchStable,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{v1alpha5.ArchitectureAmd64},
+					},
+					{
+						Key:      v1alpha1.LabelInstanceGPUManufacturer,
+						Operator: v1.NodeSelectorOpNotIn,
+						Values:   []string{v1alpha1.AWSNeuron, v1alpha1.NVIDIAGPU},
+					},
+				},
+			}
+			amiRequirementsInStatus := lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMI, _ int) []v1.NodeSelectorRequirement {
+				return ami.Requirements
+			})
+			for ind := range amiRequirementsInStatus {
+				sort.Slice(amiRequirementsInStatus[ind], func(i, j int) bool {
+					return amiRequirementsInStatus[ind][i].Key > amiRequirementsInStatus[ind][j].Key
+				})
+			}
+			Expect(amiRequirementsInStatus).To(Equal(expectedRequirementsOutput))
+
 		})
 		It("Should resolve a valid AMI selectors", func() {
 			ExpectApplied(ctx, env.Client, nodeTemplate)
@@ -423,9 +472,25 @@ var _ = Describe("AWSNodeTemplateController", func() {
 				return ami.Name
 			})
 			sort.Strings(amiIDsInStatus)
-			Expect(amiIDsInStatus).To(Equal([]string{"test-ami-3"}))
+			Expect(nodeTemplate.Status.AMIs).To(Equal(
+				[]v1alpha1.AMI{
+					{
+						Name: "test-ami-3",
+						ID:   "ami-test3",
+						Requirements: []v1.NodeSelectorRequirement{
+							{
+								Key:      "kubernetes.io/arch",
+								Operator: "In",
+								Values: []string{
+									"amd64",
+								},
+							},
+						},
+					},
+				},
+			))
 		})
-		It("Should resolve a valid selectors for an ami with a well known tags", func() {
+		It("Should resolve a valid selectors for an ami with well-known tags", func() {
 			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
 				Images: []*ec2.Image{
 					{
@@ -446,7 +511,10 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 			Expect(len(nodeTemplate.Status.AMIs)).To(Equal(1))
 			Expect(len(nodeTemplate.Status.AMIs[0].Requirements)).To(Equal(2))
-			Expect(nodeTemplate.Status.AMIs[0].Requirements).To(Equal(
+			sort.Slice(nodeTemplate.Status.AMIs[0].Requirements, func(i, j int) bool {
+				return nodeTemplate.Status.AMIs[0].Requirements[i].Key > nodeTemplate.Status.AMIs[0].Requirements[j].Key
+			})
+			Expect(nodeTemplate.Status.AMIs[0].Requirements[:2:2]).To(Equal(
 				[]v1.NodeSelectorRequirement{
 					{
 						Key:      "kubernetes.io/os",

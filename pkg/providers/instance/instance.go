@@ -560,6 +560,11 @@ func combineFleetErrors(errors []*ec2.CreateFleetError) (errs error) {
 	for errorCode := range unique {
 		errs = multierr.Append(errs, fmt.Errorf(errorCode))
 	}
+	// If all the Fleet errors are ICE errors then we should wrap the combined error in the generic ICE error
+	iceErrorCount := lo.CountBy(errors, func(err *ec2.CreateFleetError) bool { return awserrors.IsUnfulfillableCapacity(err) })
+	if iceErrorCount == len(errors) {
+		return cloudprovider.NewInsufficientCapacityError(fmt.Errorf("with fleet error(s), %w", errs))
+	}
 	return fmt.Errorf("with fleet error(s), %w", errs)
 }
 

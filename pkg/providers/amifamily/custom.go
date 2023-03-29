@@ -15,17 +15,11 @@ limitations under the License.
 package amifamily
 
 import (
-	"context"
-
 	v1 "k8s.io/api/core/v1"
-
-	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
-	"github.com/patrickmn/go-cache"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/scheduling"
-	"github.com/aws/karpenter-core/pkg/utils/pretty"
 
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/providers/amifamily/bootstrap"
@@ -45,8 +39,8 @@ func (c Custom) UserData(_ *v1alpha5.KubeletConfiguration, _ []v1.Taint, _ map[s
 	}
 }
 
-func (c Custom) SSMAlias(ctx context.Context, _ string, _ *cache.Cache, _ ssmiface.SSMAPI, _ *pretty.ChangeMonitor) (map[AMI]scheduling.Requirements, error) {
-	return map[AMI]scheduling.Requirements{{}: scheduling.NewRequirements()}, nil
+func (c Custom) DefaultAMIs(_ string) []SSMAliasOutput {
+	return []SSMAliasOutput{{Name: "", Query: "/unknown", Requirements: scheduling.NewRequirements()}}
 }
 
 func (c Custom) DefaultBlockDeviceMappings() []*v1alpha1.BlockDeviceMapping {

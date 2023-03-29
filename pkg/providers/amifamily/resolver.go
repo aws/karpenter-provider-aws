@@ -21,13 +21,9 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ssm"
-	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
-	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	core "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
@@ -36,7 +32,6 @@ import (
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/scheduling"
-	"github.com/aws/karpenter-core/pkg/utils/pretty"
 )
 
 var DefaultEBS = v1alpha1.BlockDevice{
@@ -77,12 +72,18 @@ type LaunchTemplate struct {
 
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters
 type AMIFamily interface {
-	SSMAlias(ctx context.Context, version string, ssmCache *cache.Cache, ssmapi ssmiface.SSMAPI, cm *pretty.ChangeMonitor) (map[AMI]scheduling.Requirements, error)
+	DefaultAMIs(version string) []SSMAliasOutput
 	UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []core.Taint, labels map[string]string, caBundle *string, instanceTypes []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper
 	DefaultBlockDeviceMappings() []*v1alpha1.BlockDeviceMapping
 	DefaultMetadataOptions() *v1alpha1.MetadataOptions
 	EphemeralBlockDevice() *string
 	FeatureFlags() FeatureFlags
+}
+
+type SSMAliasOutput struct {
+	Name         string
+	Query        string
+	Requirements scheduling.Requirements
 }
 
 // FeatureFlags describes whether the features below are enabled for a given AMIFamily
@@ -94,22 +95,6 @@ type FeatureFlags struct {
 
 // DefaultFamily provides default values for AMIFamilies that compose it
 type DefaultFamily struct{}
-
-func (d *DefaultFamily) FetchAMIsFromSSM(ctx context.Context, ssmQuery string, ssmCache *cache.Cache, ssmapi ssmiface.SSMAPI, cm *pretty.ChangeMonitor) (string, error) {
-	if id, ok := ssmCache.Get(ssmQuery); ok {
-		return id.(string), nil
-	}
-	output, err := ssmapi.GetParameterWithContext(ctx, &ssm.GetParameterInput{Name: aws.String(ssmQuery)})
-	if err != nil {
-		return "", fmt.Errorf("getting ssm parameter %q, %w", ssmQuery, err)
-	}
-	ami := aws.StringValue(output.Parameter.Value)
-	ssmCache.SetDefault(ssmQuery, ami)
-	if cm.HasChanged("ssmquery-"+ssmQuery, ami) {
-		logging.FromContext(ctx).With("ami", ami, "query", ssmQuery).Debugf("discovered new ami")
-	}
-	return ami, nil
-}
 
 func (d DefaultFamily) FeatureFlags() FeatureFlags {
 	return FeatureFlags{
@@ -130,9 +115,13 @@ func New(kubeClient client.Client, amiProvider *Provider) *Resolver {
 // Multiple ResolvedTemplates are returned based on the instanceTypes passed in to support special AMIs for certain instance types like GPUs.
 func (r Resolver) Resolve(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, machine *v1alpha5.Machine, instanceTypes []*cloudprovider.InstanceType, options *Options) ([]*LaunchTemplate, error) {
 	amiFamily := GetAMIFamily(nodeTemplate.Spec.AMIFamily, options)
-	amiIDs, err := r.amiProvider.MapInstanceTypes(ctx, nodeTemplate, instanceTypes, options)
+	amis, err := r.amiProvider.Get(ctx, nodeTemplate, options)
 	if err != nil {
 		return nil, err
+	}
+	amiIDs := MapInstanceTypes(amis, instanceTypes)
+	if len(amiIDs) == 0 {
+		return nil, fmt.Errorf("no instance types satisfy requirements of amis %v,", amis)
 	}
 	var resolvedTemplates []*LaunchTemplate
 	for amiID, instanceTypes := range amiIDs {
