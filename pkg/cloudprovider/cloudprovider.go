@@ -231,7 +231,7 @@ func (c *CloudProvider) isAMIDrifted(ctx context.Context, machine *v1alpha5.Mach
 		return false, err
 	}
 	instance, err := c.instanceProvider.Get(ctx, instanceID)
-	if err != nil {
+	if cloudprovider.IgnoreMachineNotFoundError(err) != nil {
 		return false, fmt.Errorf("getting instance, %w", err)
 	}
 	return !lo.Contains(lo.Keys(mappedAMIs), *instance.ImageId), nil
