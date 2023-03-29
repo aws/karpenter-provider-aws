@@ -191,7 +191,7 @@ If an `amiSelector` matches more than one AMI, Karpenter will automatically dete
 
 If you need to express other constraints for an AMI beyond architecture, you can express these constraints as tags on the AMI. For example, if you want to limit an EC2 AMI to only be used with instanceTypes that have an `nvidia` GPU, you can specify an EC2 tag with a key of `karpenter.k8s.aws/instance-gpu-manufacturer` and value `nvidia` on that AMI.
 
-All labels defined [in the scheduling documentation](./scheduling#supported-labels) can be used as requirements for an EC2 AMI.
+All labels defined [in the scheduling documentation](../scheduling#well-known-labels) can be used as requirements for an EC2 AMI.
 
 ```bash
 > aws ec2 describe-images --image-id ami-123 --query Images[0].Tags
