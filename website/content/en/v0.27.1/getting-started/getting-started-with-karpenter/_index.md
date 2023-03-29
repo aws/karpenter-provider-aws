@@ -4,7 +4,7 @@ title: "Getting Started with Karpenter"
 linkTitle: "Getting Started with Karpenter"
 weight: 10
 description: >
-  Set up a cluster and add Karpenter 
+  Set up a cluster and add Karpenter
 ---
 
 Karpenter automatically provisions new nodes in response to unschedulable pods. Karpenter does this by observing events within the Kubernetes cluster, and then sending commands to the underlying cloud provider.
@@ -44,12 +44,12 @@ authenticate properly by running `aws sts get-caller-identity`.
 After setting up the tools, set the Karpenter version number:
 
 ```bash
-export KARPENTER_VERSION=v0.27.0
+export KARPENTER_VERSION=v0.27.1
 ```
 
 Then set the following environment variable:
 
-{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step01-config.sh" language="bash"%}}
+{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step01-config.sh" language="bash"%}}
 
 {{% alert title="Warning" color="warning" %}}
 If you open a new shell to run steps in this procedure, you need to set some or all of the environment variables again.
@@ -75,7 +75,11 @@ The following cluster configuration will:
 * Create a role to allow spot instances.
 * Run helm to install karpenter
 
-{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step02-create-cluster.sh" language="bash"%}}
+{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step02-create-cluster.sh" language="bash"%}}
+
+{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step06-add-spot-role.sh" language="bash"%}}
+
+{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step08-apply-helm-chart.sh" language="bash"%}}
 
 
 ### 4. Create Provisioner
@@ -98,7 +102,7 @@ Review the [provisioner CRD]({{<ref "../../concepts/provisioners" >}}) for more 
 
 Note: This provisioner will create capacity as long as the sum of all created capacity is less than the specified limit.
 
-{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step12-add-provisioner.sh" language="bash"%}}
+{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step12-add-provisioner.sh" language="bash"%}}
 
 Karpenter is now active and ready to begin provisioning nodes.
 
@@ -110,14 +114,14 @@ Create some pods using a deployment and watch Karpenter provision nodes in respo
 
 This deployment uses the [pause image](https://www.ianlewis.org/en/almighty-pause-container) and starts with zero replicas.
 
-{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step13-automatic-node-provisioning.sh" language="bash"%}}
+{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step13-automatic-node-provisioning.sh" language="bash"%}}
 
 ### Scale down deployment
 
 Now, delete the deployment. After 30 seconds (`ttlSecondsAfterEmpty`),
 Karpenter should terminate the now empty nodes.
 
-{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step14-deprovisioning.sh" language="bash"%}}
+{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step14-deprovisioning.sh" language="bash"%}}
 
 ## Add optional monitoring with Grafana
 
@@ -125,15 +129,15 @@ This section describes optional ways to configure Karpenter to enhance its capab
 In particular, the following commands deploy a Prometheus and Grafana stack that is suitable for this guide but does not include persistent storage or other configurations that would be necessary for monitoring a production deployment of Karpenter.
 This deployment includes two Karpenter dashboards that are automatically onboarded to Grafana. They provide a variety of visualization examples on Karpenter metrics.
 
-{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step09-add-prometheus-grafana.sh" language="bash"%}}
+{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step09-add-prometheus-grafana.sh" language="bash"%}}
 
 The Grafana instance may be accessed using port forwarding.
 
-{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step10-add-grafana-port-forward.sh" language="bash"%}}
+{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step10-add-grafana-port-forward.sh" language="bash"%}}
 
 The new stack has only one user, `admin`, and the password is stored in a secret. The following command will retrieve the password.
 
-{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step11-grafana-get-password.sh" language="bash"%}}
+{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step11-grafana-get-password.sh" language="bash"%}}
 
 ## Cleanup
 
@@ -145,9 +149,9 @@ finalizer to the node object, which blocks deletion until all pods are
 drained and the instance is terminated. Keep in mind, this only works for
 nodes provisioned by Karpenter.
 
-{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step15-delete-node.sh" language="bash"%}}
+{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step15-delete-node.sh" language="bash"%}}
 
 ### Delete the cluster
 To avoid additional charges, remove the demo infrastructure from your AWS account.
 
-{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step16-cleanup.sh" language="bash"%}}
+{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step16-cleanup.sh" language="bash"%}}
