@@ -112,9 +112,9 @@ controller:
     # -- Repository path to the controller image.
     repository: public.ecr.aws/karpenter/controller
     # -- Tag of the controller image.
-    tag: v0.27.0
+    tag: v0.27.1
     # -- SHA256 digest of the controller image.
-    digest: sha256:db45f56bf4730b77a38e39f097edce4ddba899b83981511bc0f227ba270d744e
+    digest: sha256:aa4c1b1dca9d928e4a04f63680ae14cc912bc1b02146e0d3d36c8cd873bbc1e9
   # -- SecurityContext for the controller container.
   securityContext: {}
   # -- Additional environment variables for the controller pod.
