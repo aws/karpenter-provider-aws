@@ -115,7 +115,6 @@ func NewOrDie(ctx cloudprovider.Context) Context {
 		pricing.NewAPI(sess, *sess.Config.Region),
 		ec2api,
 		*sess.Config.Region,
-		ctx.StartAsync,
 	)
 	amiProvider := amifamily.NewProvider(ctx.KubeClient, ctx.KubernetesInterface, ssm.New(sess), ec2api,
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
