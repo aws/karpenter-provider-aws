@@ -23,6 +23,7 @@ import (
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter-core/pkg/test"
+	"github.com/aws/karpenter-core/pkg/test/expectations"
 	"github.com/aws/karpenter/pkg/batcher"
 	"github.com/aws/karpenter/pkg/fake"
 
@@ -56,35 +57,73 @@ var _ = Describe("Batcher", func() {
 		// Cancel the context to make sure that we properly clean-up
 		cancel()
 	})
-	It("should limit the number of threads that run concurrently from the batcher", func() {
-		// This batcher will get canceled at the end of the test run
-		fakeBatcher = NewFakeBatcher(cancelCtx, time.Minute, 100)
+	Context("Concurrency", func() {
+		It("should limit the number of threads that run concurrently from the batcher", func() {
+			// This batcher will get canceled at the end of the test run
+			fakeBatcher = NewFakeBatcher(cancelCtx, time.Minute, 100)
 
-		// Generate 300 items that add to the batcher
-		for i := 0; i < 300; i++ {
-			go func() {
-				fakeBatcher.batcher.Add(cancelCtx, lo.ToPtr(test.RandomName()))
-			}()
-		}
+			// Generate 300 items that add to the batcher
+			for i := 0; i < 300; i++ {
+				go func() {
+					fakeBatcher.batcher.Add(cancelCtx, lo.ToPtr(test.RandomName()))
+				}()
+			}
 
-		// Check that we get to 100 threads, and we stay at 100 threads
-		Eventually(fakeBatcher.activeBatches.Load).Should(BeNumerically("==", 100))
-		Consistently(fakeBatcher.activeBatches.Load, time.Second*10).Should(BeNumerically("==", 100))
+			// Check that we get to 100 threads, and we stay at 100 threads
+			Eventually(fakeBatcher.activeBatches.Load).Should(BeNumerically("==", 100))
+			Consistently(fakeBatcher.activeBatches.Load, time.Second*10).Should(BeNumerically("==", 100))
+		})
+		It("should process 300 items in parallel to get quicker batching", func() {
+			// This batcher will get canceled at the end of the test run
+			fakeBatcher = NewFakeBatcher(cancelCtx, time.Second, 300)
+
+			// Generate 300 items that add to the batcher
+			for i := 0; i < 300; i++ {
+				go func() {
+					fakeBatcher.batcher.Add(cancelCtx, lo.ToPtr(test.RandomName()))
+				}()
+			}
+
+			Eventually(fakeBatcher.activeBatches.Load).Should(BeNumerically("==", 300))
+			Eventually(fakeBatcher.completedBatches.Load, time.Second*3).Should(BeNumerically("==", 300))
+		})
 	})
-	It("should process 300 items in parallel to get quicker batching", func() {
-		// This batcher will get canceled at the end of the test run
-		fakeBatcher = NewFakeBatcher(cancelCtx, time.Second, 300)
+	Context("Metrics", func() {
+		It("should create a batch_size metric when a batch is run", func() {
+			// This batcher will get canceled at the end of the test run
+			fakeBatcher = NewFakeBatcher(cancelCtx, time.Minute, 100)
 
-		// Generate 300 items that add to the batcher
-		for i := 0; i < 300; i++ {
-			go func() {
-				fakeBatcher.batcher.Add(cancelCtx, lo.ToPtr(test.RandomName()))
-			}()
-		}
+			// Generate 300 items that add to the batcher
+			for i := 0; i < 100; i++ {
+				go func() {
+					fakeBatcher.batcher.Add(cancelCtx, lo.ToPtr(test.RandomName()))
+				}()
+			}
+			Eventually(fakeBatcher.activeBatches.Load).Should(BeNumerically("==", 100))
 
-		// Check that we get to 100 threads, and we stay at 100 threads
-		Eventually(fakeBatcher.activeBatches.Load).Should(BeNumerically("==", 300))
-		Eventually(fakeBatcher.completedBatches.Load, time.Second*3).Should(BeNumerically("==", 300))
+			metric, ok := expectations.FindMetricWithLabelValues("karpenter_cloudprovider_batcher_batch_size", map[string]string{
+				"batcher": "fake",
+			})
+			Expect(ok).To(BeTrue())
+			Expect(metric.GetHistogram().GetSampleCount()).To(BeNumerically(">=", 100))
+		})
+		It("should create a batch_window_duration metric when a batch is run", func() {
+			// This batcher will get canceled at the end of the test run
+			fakeBatcher = NewFakeBatcher(cancelCtx, time.Minute, 100)
+
+			// Generate 300 items that add to the batcher
+			for i := 0; i < 100; i++ {
+				go func() {
+					fakeBatcher.batcher.Add(cancelCtx, lo.ToPtr(test.RandomName()))
+				}()
+			}
+			Eventually(fakeBatcher.activeBatches.Load).Should(BeNumerically("==", 100))
+
+			_, ok := expectations.FindMetricWithLabelValues("karpenter_cloudprovider_batcher_batch_time_seconds", map[string]string{
+				"batcher": "fake",
+			})
+			Expect(ok).To(BeTrue())
+		})
 	})
 })
 
@@ -100,6 +139,7 @@ func NewFakeBatcher(ctx context.Context, requestLength time.Duration, maxRequest
 	activeBatches := &atomic.Int64{}
 	completedBatches := &atomic.Int64{}
 	options := batcher.Options[string, string]{
+		Name:              "fake",
 		IdleTimeout:       100 * time.Millisecond,
 		MaxTimeout:        1 * time.Second,
 		MaxRequestWorkers: maxRequestWorkers,
