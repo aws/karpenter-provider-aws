@@ -358,6 +358,7 @@ var _ = Describe("CloudProvider", func() {
 					},
 				},
 			})
+			// fake change
 			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machineutil.NewFromNode(node))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(isDrifted).To(BeFalse())
