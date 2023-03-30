@@ -23,6 +23,7 @@ import (
 	awscontext "github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/controllers/interruption"
 	"github.com/aws/karpenter/pkg/controllers/nodetemplate"
+	"github.com/aws/karpenter/pkg/providers/pricing"
 	"github.com/aws/karpenter/pkg/utils/project"
 
 	"github.com/aws/karpenter-core/pkg/operator/controller"
@@ -32,10 +33,15 @@ func NewControllers(ctx awscontext.Context, cloudProvider *cloudprovider.CloudPr
 	logging.FromContext(ctx).With("version", project.Version).Debugf("discovered version")
 
 	controllers := []controller.Controller{
-		nodetemplate.NewController(ctx.KubeClient, ctx.SubnetProvider, ctx.SecurityGroupProvider, ctx.AMIProvider, ctx.InstanceTypesProvider),
+		nodetemplate.NewController(ctx.KubeClient, ctx.SubnetProvider, ctx.SecurityGroupProvider, ctx.AMIProvider),
 	}
 	if settings.FromContext(ctx).InterruptionQueueName != "" {
 		controllers = append(controllers, interruption.NewController(ctx.KubeClient, ctx.Clock, ctx.EventRecorder, interruption.NewSQSProvider(sqs.New(ctx.Session)), ctx.UnavailableOfferingsCache))
+	}
+	if settings.FromContext(ctx).IsolatedVPC {
+		logging.FromContext(ctx).Infof("assuming isolated VPC, pricing information will not be updated")
+	} else {
+		controllers = append(controllers, pricing.NewController(ctx.PricingProvider))
 	}
 	return controllers
 }

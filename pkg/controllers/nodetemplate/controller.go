@@ -33,7 +33,6 @@ import (
 	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/providers/amifamily"
-	"github.com/aws/karpenter/pkg/providers/instancetype"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
 	"github.com/aws/karpenter/pkg/providers/subnet"
 )
@@ -45,16 +44,14 @@ type Controller struct {
 	subnetProvider        *subnet.Provider
 	securityGroupProvider *securitygroup.Provider
 	amiProvider           *amifamily.Provider
-	instanceTypesProvider *instancetype.Provider
 }
 
-func NewController(kubeClient client.Client, subnetProvider *subnet.Provider, securityGroups *securitygroup.Provider, amiprovider *amifamily.Provider, instnaceTypeProvider *instancetype.Provider) corecontroller.Controller {
+func NewController(kubeClient client.Client, subnetProvider *subnet.Provider, securityGroups *securitygroup.Provider, amiprovider *amifamily.Provider) corecontroller.Controller {
 	return corecontroller.Typed[*v1alpha1.AWSNodeTemplate](kubeClient, &Controller{
 		kubeClient:            kubeClient,
 		subnetProvider:        subnetProvider,
 		securityGroupProvider: securityGroups,
 		amiProvider:           amiprovider,
-		instanceTypesProvider: instnaceTypeProvider,
 	})
 }
 

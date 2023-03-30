@@ -42,6 +42,7 @@ import (
 	"github.com/aws/karpenter-core/pkg/scheduling"
 	"github.com/aws/karpenter-core/pkg/utils/functional"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
+	"github.com/aws/karpenter-core/pkg/utils/resources"
 	"github.com/aws/karpenter-core/pkg/utils/sets"
 )
 
@@ -104,13 +105,21 @@ func MapInstanceTypes(amis []AMI, instanceTypes []*cloudprovider.InstanceType) m
 
 	for _, instanceType := range instanceTypes {
 		for _, ami := range amis {
-			if err := instanceType.Requirements.Compatible(ami.Requirements); err == nil {
+			if !resources.IsZero(instanceType.Capacity[v1alpha1.ResourceAWSNeuron]) {
+				if err := ami.Requirements.Compatible(
+					scheduling.NewRequirements(
+						scheduling.NewRequirement(v1alpha1.LabelInstanceGPUManufacturer, v1.NodeSelectorOpIn, v1alpha1.NVIDIAGPU, v1alpha1.AWSNeuron)),
+				); err == nil {
+					amiIDs[ami.AmiID] = append(amiIDs[ami.AmiID], instanceType)
+					break
+				}
+			} else if err := instanceType.Requirements.Compatible(ami.Requirements); err == nil {
 				amiIDs[ami.AmiID] = append(amiIDs[ami.AmiID], instanceType)
 				break
 			}
+
 		}
 	}
-
 	return amiIDs
 }
 
@@ -119,33 +128,32 @@ func MapInstanceTypes(amis []AMI, instanceTypes []*cloudprovider.InstanceType) m
 // If creation date is nil, the AMIs will be sorted by name in ascending order.
 func (p *Provider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, options *Options) ([]AMI, error) {
 	var err error
-	var amiRequirements []AMI
+	var amis []AMI
 	if len(nodeTemplate.Spec.AMISelector) == 0 {
-		amiRequirements, err = p.getDefaultAMIFromSSM(ctx, nodeTemplate, options)
+		amis, err = p.getDefaultAMIFromSSM(ctx, nodeTemplate, options)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		amiRequirements, err = p.getAMIsFromSelector(ctx, nodeTemplate)
+		amis, err = p.getAMIsFromSelector(ctx, nodeTemplate)
 		if err != nil {
 			return nil, err
 		}
 
 	}
-	amiRequirements = sortAMIsByCreationDate(amiRequirements)
+	amis = sortAMIsByCreationDate(amis)
 	if len(nodeTemplate.Spec.AMISelector) != 0 {
-		amiRequirements = groupAMIsByRequirements(amiRequirements)
+		amis = groupAMIsByRequirements(amis)
 	}
 
-	return amiRequirements, nil
+	return amis, nil
 }
 
 // Getting the most recent AMIs, by creation date, that have a unique set of requirements
 func groupAMIsByRequirements(amis []AMI) []AMI {
 	var result []AMI
 	requirementsHash := sets.New[uint64]()
-	sortedAMIs := sortAMIsByCreationDate(amis)
-	for _, ami := range sortedAMIs {
+	for _, ami := range amis {
 		hash := lo.Must(hashstructure.Hash(ami.Requirements.NodeSelectorRequirements(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true}))
 		if !requirementsHash.Has(hash) {
 			result = append(result, ami)
@@ -162,16 +170,16 @@ func (p *Provider) getDefaultAMIFromSSM(ctx context.Context, nodeTemplate *v1alp
 		return nil, fmt.Errorf("getting kubernetes version %w", err)
 	}
 
-	var amiIDs []AMI
+	var amis []AMI
 	ssmRequirements := amiFamily.DefaultAMIs(kubernetesVersion)
 	for _, ssmOutput := range ssmRequirements {
 		amiID, err := p.fetchAMIsFromSSM(ctx, ssmOutput.Query)
 		if err != nil {
 			return nil, err
 		}
-		amiIDs = append(amiIDs, AMI{Name: ssmOutput.Name, AmiID: amiID, Requirements: ssmOutput.Requirements})
+		amis = append(amis, AMI{Name: ssmOutput.Name, AmiID: amiID, Requirements: ssmOutput.Requirements})
 	}
-	return amiIDs, nil
+	return amis, nil
 }
 
 func (p *Provider) fetchAMIsFromSSM(ctx context.Context, ssmQuery string) (string, error) {
@@ -198,11 +206,11 @@ func (p *Provider) getAMIsFromSelector(ctx context.Context, nodeTemplate *v1alph
 	if len(ec2AMIs) == 0 {
 		return nil, fmt.Errorf("no amis exist given constraints")
 	}
-	var amiIDs []AMI
+	var amis []AMI
 	for _, ec2AMI := range ec2AMIs {
-		amiIDs = append(amiIDs, AMI{*ec2AMI.Name, *ec2AMI.ImageId, *ec2AMI.CreationDate, p.getRequirementsFromImage(ec2AMI)})
+		amis = append(amis, AMI{*ec2AMI.Name, *ec2AMI.ImageId, *ec2AMI.CreationDate, p.getRequirementsFromImage(ec2AMI)})
 	}
-	return amiIDs, nil
+	return amis, nil
 }
 
 func (p *Provider) fetchAMIsFromEC2(ctx context.Context, amiSelector map[string]string) ([]*ec2.Image, error) {
@@ -273,7 +281,9 @@ func sortAMIsByCreationDate(amis []AMI) []AMI {
 		if amis[i].CreationDate != "" {
 			itime, _ := time.Parse(time.RFC3339, amis[i].CreationDate)
 			jtime, _ := time.Parse(time.RFC3339, amis[j].CreationDate)
-			return itime.Unix() >= jtime.Unix()
+			if itime.Unix() != jtime.Unix() {
+				return itime.Unix() >= jtime.Unix()
+			}
 		}
 		return amis[i].Name >= amis[j].Name
 	})

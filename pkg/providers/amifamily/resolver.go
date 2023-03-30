@@ -119,12 +119,12 @@ func (r Resolver) Resolve(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTem
 	if err != nil {
 		return nil, err
 	}
-	amiIDs := MapInstanceTypes(amis, instanceTypes)
-	if len(amiIDs) == 0 {
+	mappedAMIs := MapInstanceTypes(amis, instanceTypes)
+	if len(mappedAMIs) == 0 {
 		return nil, fmt.Errorf("no instance types satisfy requirements of amis %v,", amis)
 	}
 	var resolvedTemplates []*LaunchTemplate
-	for amiID, instanceTypes := range amiIDs {
+	for amiID, instanceTypes := range mappedAMIs {
 		resolved := &LaunchTemplate{
 			Options: options,
 			UserData: amiFamily.UserData(

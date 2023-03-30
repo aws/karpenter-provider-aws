@@ -35,8 +35,6 @@ import (
 	"go.uber.org/multierr"
 	"knative.dev/pkg/logging"
 
-	"github.com/aws/karpenter/pkg/apis/settings"
-
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
 )
 
@@ -81,9 +79,6 @@ func newZonalPricing(defaultPrice float64) zonal {
 	return z
 }
 
-// pricingUpdatePeriod is how often we try to update our pricing information after the initial update on startup
-const pricingUpdatePeriod = 12 * time.Hour
-
 // NewPricingAPI returns a pricing API configured based on a particular region
 func NewAPI(sess *session.Session, region string) pricingiface.PricingAPI {
 	if sess == nil {
@@ -97,57 +92,16 @@ func NewAPI(sess *session.Session, region string) pricingiface.PricingAPI {
 	return pricing.New(sess, &aws.Config{Region: aws.String(pricingAPIRegion)})
 }
 
-func NewProvider(ctx context.Context, pricing pricingiface.PricingAPI, ec2Api ec2iface.EC2API, region string, startAsync <-chan struct{}) *Provider {
-	// see if we've got region specific pricing data
-	staticPricing, ok := initialOnDemandPrices[region]
-	if !ok {
-		// and if not, fall back to the always available us-east-1
-		staticPricing = initialOnDemandPrices["us-east-1"]
-	}
-
+func NewProvider(ctx context.Context, pricing pricingiface.PricingAPI, ec2Api ec2iface.EC2API, region string) *Provider {
 	p := &Provider{
-		region:             region,
-		onDemandUpdateTime: initialPriceUpdate,
-		onDemandPrices:     staticPricing,
-		spotUpdateTime:     initialPriceUpdate,
-		// default our spot pricing to the same as the on-demand pricing until a price update
-		spotPrices: populateInitialSpotPricing(staticPricing),
-		ec2:        ec2Api,
-		pricing:    pricing,
-		cm:         pretty.NewChangeMonitor(),
+		region:  region,
+		ec2:     ec2Api,
+		pricing: pricing,
+		cm:      pretty.NewChangeMonitor(),
 	}
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("pricing"))
+	// sets the pricing data from the static default state for the provider
+	p.Reset()
 
-	if settings.FromContext(ctx).IsolatedVPC {
-		logging.FromContext(ctx).Infof("assuming isolated VPC, pricing information will not be updated")
-	} else {
-		go func() {
-			// perform an initial price update at startup
-			p.updatePricing(ctx)
-
-			startup := time.Now()
-			// wait for leader election or to be signaled to exit
-			select {
-			case <-startAsync:
-			case <-ctx.Done():
-				return
-			}
-			// if it took many hours to be elected leader, we want to re-fetch pricing before we start our periodic
-			// polling
-			if time.Since(startup) > pricingUpdatePeriod {
-				p.updatePricing(ctx)
-			}
-
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case <-time.After(pricingUpdatePeriod):
-					p.updatePricing(ctx)
-				}
-			}
-		}()
-	}
 	return p
 }
 
@@ -201,28 +155,7 @@ func (p *Provider) SpotPrice(instanceType string, zone string) (float64, bool) {
 	return 0.0, false
 }
 
-func (p *Provider) updatePricing(ctx context.Context) {
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		if err := p.UpdateOnDemandPricing(ctx); err != nil {
-			logging.FromContext(ctx).Errorf("updating on-demand pricing, %s, using existing pricing data from %s", err, err.lastUpdateTime.Format(time.RFC3339))
-		}
-	}()
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		if err := p.UpdateSpotPricing(ctx); err != nil {
-			logging.FromContext(ctx).Errorf("updating spot pricing, %s, using existing pricing data from %s", err, err.lastUpdateTime.Format(time.RFC3339))
-		}
-	}()
-
-	wg.Wait()
-}
-
-func (p *Provider) UpdateOnDemandPricing(ctx context.Context) *Err {
+func (p *Provider) UpdateOnDemandPricing(ctx context.Context) error {
 	// standard on-demand instances
 	var wg sync.WaitGroup
 	var onDemandPrices, onDemandMetalPrices map[string]float64
@@ -378,7 +311,7 @@ func (p *Provider) onDemandPage(prices map[string]float64) func(output *pricing.
 }
 
 // nolint: gocyclo
-func (p *Provider) UpdateSpotPricing(ctx context.Context) *Err {
+func (p *Provider) UpdateSpotPricing(ctx context.Context) error {
 	totalOfferings := 0
 
 	prices := map[string]map[string]float64{}
@@ -450,4 +383,19 @@ func populateInitialSpotPricing(pricing map[string]float64) map[string]zonal {
 		m[it] = newZonalPricing(price)
 	}
 	return m
+}
+
+func (p *Provider) Reset() {
+	// see if we've got region specific pricing data
+	staticPricing, ok := initialOnDemandPrices[p.region]
+	if !ok {
+		// and if not, fall back to the always available us-east-1
+		staticPricing = initialOnDemandPrices["us-east-1"]
+	}
+
+	p.onDemandPrices = staticPricing
+	// default our spot pricing to the same as the on-demand pricing until a price update
+	p.spotPrices = populateInitialSpotPricing(staticPricing)
+	p.onDemandUpdateTime = initialPriceUpdate
+	p.spotUpdateTime = initialPriceUpdate
 }

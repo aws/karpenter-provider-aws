@@ -191,7 +191,7 @@ If an `amiSelector` matches more than one AMI, Karpenter will automatically dete
 
 If you need to express other constraints for an AMI beyond architecture, you can express these constraints as tags on the AMI. For example, if you want to limit an EC2 AMI to only be used with instanceTypes that have an `nvidia` GPU, you can specify an EC2 tag with a key of `karpenter.k8s.aws/instance-gpu-manufacturer` and value `nvidia` on that AMI.
 
-All labels defined [in the scheduling documentation](./scheduling#supported-labels) can be used as requirements for an EC2 AMI.
+All labels defined [in the scheduling documentation](../scheduling#well-known-labels) can be used as requirements for an EC2 AMI.
 
 ```bash
 > aws ec2 describe-images --image-id ami-123 --query Images[0].Tags
@@ -279,6 +279,8 @@ The `blockDeviceMappings` field in an AWSNodeTemplate can be used to control the
 
 Learn more about [block device mappings](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/block-device-mapping-concepts.html).
 
+### Examples
+
 ```yaml
 apiVersion: karpenter.k8s.aws/v1alpha1
 kind: AWSNodeTemplate
@@ -294,6 +296,57 @@ spec:
         deleteOnTermination: true
         throughput: 125
         snapshotID: snap-0123456789
+```
+
+### Defaults
+
+#### AL2
+
+```yaml
+apiVersion: karpenter.k8s.aws/v1alpha1
+kind: AWSNodeTemplate
+spec:
+  blockDeviceMappings:
+    - deviceName: /dev/xvda
+      ebs:
+        volumeSize: 20Gi
+        volumeType: gp3
+        encrypted: true
+```
+
+#### Bottlerocket
+
+```yaml
+apiVersion: karpenter.k8s.aws/v1alpha1
+kind: AWSNodeTemplate
+spec:
+  blockDeviceMappings:
+    # Root device
+    - deviceName: /dev/xvda
+      ebs:
+        volumeSize: 4Gi
+        volumeType: gp3
+        encrypted: true
+    # Data device: Container resources such as images and logs
+    - deviceName: /dev/xvdb
+      ebs:
+        volumeSize: 20Gi
+        volumeType: gp3
+        encrypted: true
+```
+
+#### Ubuntu
+
+```yaml
+apiVersion: karpenter.k8s.aws/v1alpha1
+kind: AWSNodeTemplate
+spec:
+  blockDeviceMappings:
+    - deviceName: /dev/sda1
+      ebs:
+        volumeSize: 20Gi
+        volumeType: gp3
+        encrypted: true
 ```
 
 ## spec.userData

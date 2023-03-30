@@ -92,7 +92,7 @@ One for your Karpenter node role and one for your existing node group.
 First set the Karpenter release you want to deploy.
 
 ```bash
-export KARPENTER_VERSION=v0.27.0
+export KARPENTER_VERSION=v0.27.1
 ```
 
 We can now generate a full Karpenter deployment yaml from the helm chart.
@@ -122,6 +122,9 @@ affinity:
           operator: In
           values:
           - ${NODEGROUP}
+  podAntiAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      - topologyKey: "kubernetes.io/hostname"
 ```
 
 Now that our deployment is ready we can create the karpenter namespace, create the provisioner CRD, and then deploy the rest of the karpenter resources.
