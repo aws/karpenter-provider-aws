@@ -1,6 +1,31 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# updateKarpenterCoreGoMod bumps the karpenter-core go.mod to the release version so that the
+# karpenter and karpenter-core release versions match
+updateKarpenterCoreGoMod(){
+  RELEASE_VERSION=$1
+  if [[ $GITHUB_ACCOUNT != $MAIN_GITHUB_ACCOUNT ]]; then
+    echo "not updating go mod for a repo other than the main repo"
+    return
+  fi
+  go get -u "github.com/aws/karpenter-core@${RELEASE_VERSION}"
+  cd test
+  go get -u "github.com/aws/karpenter-core@${RELEASE_VERSION}"
+  cd ..
+  make tidy
+}
+
+# updateTektonPreUpgradeVersion updates the version that we use for the pre-upgrade E2E test suite
+# so that we are constantly testing against the last minor version of Karpenter
+updateTektonPreUpgradeVersion(){
+  LAST_MINOR_VERSION=$(git tag --sort=committerdate | grep -v "v${RELEASE_VERSION_MAJOR}.${RELEASE_VERSION_MINOR}" | tail -1)
+  TEKTON_RELEASE_LISTENER_PATH="tools/release-notification-listener/listener/tekton.go"
+
+  # This command goes into the tekton release-listener file and replaces the preUpgradeVersion with the last minor version
+  sed -i "s/preUpgradeVersion = \".*\"/preUpgradeVersion = \"$LAST_MINOR_VERSION\"/" "$TEKTON_RELEASE_LISTENER_PATH"
+}
+
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 source "${SCRIPT_DIR}/common.sh"
 
@@ -12,7 +37,9 @@ if [[ $(releaseType $GIT_TAG) != $RELEASE_TYPE_STABLE ]]; then
   exit 1
 fi
 
-updateKarpenterCoreGoMod $GIT_TAG
+versionData "$GIT_TAG"
+updateKarpenterCoreGoMod "$GIT_TAG"
+updateTektonPreUpgradeVersion
 
 git config user.name "StableRelease"
 git config user.email "StableRelease@users.noreply.github.com"
