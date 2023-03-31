@@ -46,6 +46,7 @@ var (
 		},
 		pipelineUpgrade: {},
 	}
+	preUpgradeVersion = "v0.26.1"
 )
 
 func runTests(message *notificationMessage, args ...string) error {
@@ -111,7 +112,7 @@ func tknArgs(message *notificationMessage, pipelineName, testFilter string) []st
 		pipelineParams = append(pipelineParams, "ip-family=IPv6")
 		pipelineParams = append(pipelineParams, "git-ref="+gitRef)
 	case pipelineUpgrade:
-		pipelineParams = append(pipelineParams, "from-git-ref="+message.lastStableReleaseTagOrDefault())
+		pipelineParams = append(pipelineParams, "from-git-ref="+preUpgradeVersion)
 		pipelineParams = append(pipelineParams, "to-git-ref="+message.ReleaseIdentifier)
 	}
 
