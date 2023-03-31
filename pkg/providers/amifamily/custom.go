@@ -19,6 +19,7 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
+	"github.com/aws/karpenter-core/pkg/scheduling"
 
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/providers/amifamily/bootstrap"
@@ -38,8 +39,12 @@ func (c Custom) UserData(_ *v1alpha5.KubeletConfiguration, _ []v1.Taint, _ map[s
 	}
 }
 
-func (c Custom) SSMAlias(_ string, _ *cloudprovider.InstanceType) string {
-	return "/unknown"
+func (c Custom) DefaultAMI(_ string, _ *cloudprovider.InstanceType) DefaultAMIOutput {
+	return DefaultAMIOutput{
+		Name:         "",
+		Query:        "/unknown",
+		Requirements: scheduling.NewRequirements(),
+	}
 }
 
 func (c Custom) DefaultBlockDeviceMappings() []*v1alpha1.BlockDeviceMapping {

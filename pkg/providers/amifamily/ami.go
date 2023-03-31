@@ -122,7 +122,8 @@ func (p *Provider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTempla
 		}
 	} else {
 		for _, instanceType := range instanceTypes {
-			amiID, err := p.getDefaultAMIFromSSM(ctx, amiFamily.SSMAlias(kubernetesVersion, instanceType))
+			ssmAMI := amiFamily.DefaultAMI(kubernetesVersion, instanceType)
+			amiID, err := p.getDefaultAMIFromSSM(ctx, ssmAMI.Query)
 			if err != nil {
 				return nil, err
 			}

@@ -58,6 +58,8 @@ var (
 	ResourceAWSNeuron   v1.ResourceName = "aws.amazon.com/neuron"
 	ResourceHabanaGaudi v1.ResourceName = "habana.ai/gaudi"
 	ResourceAWSPodENI   v1.ResourceName = "vpc.amazonaws.com/pod-eni"
+	NVIDIAGPU                           = "nvidia"
+	AWSNeuron                           = "neuron"
 
 	LabelInstanceHypervisor                   = LabelDomain + "/instance-hypervisor"
 	LabelInstanceEncryptionInTransitSupported = LabelDomain + "/instance-encryption-in-transit-supported"

@@ -21,6 +21,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/scheduling"
 
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/utils/resources"
@@ -34,14 +35,32 @@ type AL2 struct {
 }
 
 // SSMAlias returns the AMI Alias to query SSM
-func (a AL2) SSMAlias(version string, instanceType *cloudprovider.InstanceType) string {
+func (a AL2) DefaultAMI(version string, instanceType *cloudprovider.InstanceType) DefaultAMIOutput {
 	amiSuffix := ""
+	requirements := scheduling.NewRequirements()
 	if !resources.IsZero(instanceType.Capacity[v1alpha1.ResourceNVIDIAGPU]) || !resources.IsZero(instanceType.Capacity[v1alpha1.ResourceAWSNeuron]) {
 		amiSuffix = "-gpu"
+		requirements.Add(
+			scheduling.NewRequirement(v1alpha1.LabelInstanceGPUManufacturer, v1.NodeSelectorOpNotIn, v1alpha1.NVIDIAGPU, v1alpha1.AWSNeuron),
+		)
 	} else if instanceType.Requirements.Get(v1.LabelArchStable).Has(v1alpha5.ArchitectureArm64) {
 		amiSuffix = fmt.Sprintf("-%s", v1alpha5.ArchitectureArm64)
+		requirements.Add(
+			scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureArm64),
+		)
 	}
-	return fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2%s/recommended/image_id", version, amiSuffix)
+
+	if !requirements.Has(v1.LabelArchStable) {
+		requirements.Add(
+			scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureAmd64),
+		)
+	}
+
+	return DefaultAMIOutput{
+		Name:         fmt.Sprintf("amazon-linux-2%s", amiSuffix),
+		Query:        fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2%s/recommended/image_id", version, amiSuffix),
+		Requirements: requirements,
+	}
 }
 
 // UserData returns the exact same string for equivalent input,

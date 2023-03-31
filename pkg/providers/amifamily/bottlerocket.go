@@ -22,6 +22,7 @@ import (
 	"github.com/aws/karpenter/pkg/providers/amifamily/bootstrap"
 
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
+	"github.com/aws/karpenter-core/pkg/scheduling"
 	"github.com/aws/karpenter-core/pkg/utils/resources"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -39,16 +40,31 @@ type Bottlerocket struct {
 }
 
 // SSMAlias returns the AMI Alias to query SSM
-func (b Bottlerocket) SSMAlias(version string, instanceType *cloudprovider.InstanceType) string {
+func (b Bottlerocket) DefaultAMI(version string, instanceType *cloudprovider.InstanceType) DefaultAMIOutput {
 	arch := "x86_64"
 	amiSuffix := ""
+	requirements := scheduling.NewRequirements()
 	if !resources.IsZero(instanceType.Capacity[v1alpha1.ResourceNVIDIAGPU]) {
 		amiSuffix = "-nvidia"
+		requirements.Add(
+			scheduling.NewRequirement(v1alpha1.LabelInstanceGPUManufacturer, v1.NodeSelectorOpNotIn, v1alpha1.NVIDIAGPU, v1alpha1.AWSNeuron),
+		)
 	}
 	if instanceType.Requirements.Get(v1.LabelArchStable).Has(v1alpha5.ArchitectureArm64) {
 		arch = v1alpha5.ArchitectureArm64
+		requirements.Add(
+			scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureArm64),
+		)
 	}
-	return fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s%s/%s/latest/image_id", version, amiSuffix, arch)
+	if !requirements.Has(v1.LabelArchStable) {
+		requirements.Add(
+			scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureAmd64),
+		)
+	}
+	return DefaultAMIOutput{
+		Name:  fmt.Sprintf("bottlerocket-%s%s", amiSuffix, arch),
+		Query: fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s%s/%s/latest/image_id", version, amiSuffix, arch),
+	}
 }
 
 // UserData returns the default userdata script for the AMI Family
