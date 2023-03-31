@@ -38,8 +38,9 @@ func (a AL2) SSMAlias(version string, instanceType *cloudprovider.InstanceType) 
 	amiSuffix := ""
 	if !resources.IsZero(instanceType.Capacity[v1alpha1.ResourceNVIDIAGPU]) || !resources.IsZero(instanceType.Capacity[v1alpha1.ResourceAWSNeuron]) {
 		amiSuffix = "-gpu"
-	} else if instanceType.Requirements.Get(v1.LabelArchStable).Has(v1alpha5.ArchitectureArm64) {
-		amiSuffix = fmt.Sprintf("-%s", v1alpha5.ArchitectureArm64)
+	}
+	if instanceType.Requirements.Get(v1.LabelArchStable).Has(v1alpha5.ArchitectureArm64) {
+		amiSuffix = fmt.Sprintf("%s-%s", amiSuffix, v1alpha5.ArchitectureArm64)
 	}
 	return fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2%s/recommended/image_id", version, amiSuffix)
 }
