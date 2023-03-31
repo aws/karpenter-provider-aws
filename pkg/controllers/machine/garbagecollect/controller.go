@@ -37,21 +37,24 @@ import (
 )
 
 type Controller struct {
-	kubeClient     client.Client
-	cloudProvider  *cloudprovider.CloudProvider
-	linkController *link.Controller // get machines recently linked by this controller
+	kubeClient      client.Client
+	cloudProvider   *cloudprovider.CloudProvider
+	successfulCount uint64           // keeps track of successful reconciles for more aggressive requeueing near the start of the controller
+	linkController  *link.Controller // get machines recently linked by this controller
+
 }
 
 func NewController(kubeClient client.Client, cloudProvider *cloudprovider.CloudProvider, linkController *link.Controller) *Controller {
 	return &Controller{
-		kubeClient:     kubeClient,
-		cloudProvider:  cloudProvider,
-		linkController: linkController,
+		kubeClient:      kubeClient,
+		cloudProvider:   cloudProvider,
+		successfulCount: 0,
+		linkController:  linkController,
 	}
 }
 
 func (c *Controller) Name() string {
-	return "machine.garbagecollection"
+	return "machine_garbagecollection"
 }
 
 func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconcile.Result, error) {
@@ -85,11 +88,12 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 
 		if !recentlyLinked &&
 			!resolvedProviderIDs.Has(managedRetrieved[i].Status.ProviderID) &&
-			managedRetrieved[i].CreationTimestamp.Add(time.Minute).Before(time.Now()) {
+			time.Since(managedRetrieved[i].CreationTimestamp.Time) > time.Second*30 {
 			errs[i] = c.garbageCollect(ctx, managedRetrieved[i], nodeList)
 		}
 	})
-	return reconcile.Result{RequeueAfter: time.Minute * 5}, multierr.Combine(errs...)
+	c.successfulCount++
+	return reconcile.Result{RequeueAfter: lo.Ternary(c.successfulCount <= 20, time.Second*10, time.Minute*2)}, multierr.Combine(errs...)
 }
 
 func (c *Controller) garbageCollect(ctx context.Context, machine *v1alpha5.Machine, nodeList *v1.NodeList) error {

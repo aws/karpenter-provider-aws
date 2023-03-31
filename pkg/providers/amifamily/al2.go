@@ -43,8 +43,9 @@ func (a AL2) DefaultAMI(version string, instanceType *cloudprovider.InstanceType
 		requirements.Add(
 			scheduling.NewRequirement(v1alpha1.LabelInstanceGPUManufacturer, v1.NodeSelectorOpNotIn, v1alpha1.NVIDIAGPU, v1alpha1.AWSNeuron),
 		)
-	} else if instanceType.Requirements.Get(v1.LabelArchStable).Has(v1alpha5.ArchitectureArm64) {
-		amiSuffix = fmt.Sprintf("-%s", v1alpha5.ArchitectureArm64)
+	}
+	if instanceType.Requirements.Get(v1.LabelArchStable).Has(v1alpha5.ArchitectureArm64) {
+		amiSuffix = fmt.Sprintf("%s-%s", amiSuffix, v1alpha5.ArchitectureArm64)
 		requirements.Add(
 			scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureArm64),
 		)
