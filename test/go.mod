@@ -11,7 +11,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.9.0
 	github.com/onsi/gomega v1.27.2
 	github.com/samber/lo v1.37.0
-	go.uber.org/multierr v1.9.0
+	go.uber.org/multierr v1.11.0
 	k8s.io/api v0.25.4
 	k8s.io/apimachinery v0.25.4
 	k8s.io/client-go v0.25.4
