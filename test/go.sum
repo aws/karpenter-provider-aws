@@ -48,8 +48,8 @@ github.com/avast/retry-go v3.0.0+incompatible h1:4SOWQ7Qs+oroOTQOYnAHqelpCO0biHS
 github.com/avast/retry-go v3.0.0+incompatible/go.mod h1:XtSnn+n/sHqQIpZ10K1qAevBhOOCWBLXXy3hyiqqBrY=
 github.com/aws/amazon-ec2-spot-interrupter v0.0.10 h1:ROxI1bLXpV/YoV4yoXsxQx9QyzPY7N8KqRqUq3nEJtw=
 github.com/aws/amazon-ec2-spot-interrupter v0.0.10/go.mod h1:Av6iKWBQSDB02SPiVQZPcFD04V3uWZBxn0eUxs3jRFM=
-github.com/aws/aws-sdk-go v1.44.212 h1:IRstlErdeKeQ8qBsCwWt4MG2RihUOcUJVqYwbvqpE28=
-github.com/aws/aws-sdk-go v1.44.212/go.mod h1:aVsgQcEevwlmQ7qHE9I3h+dtQgpqhFB+i8Phjh7fkwI=
+github.com/aws/aws-sdk-go v1.44.234 h1:8YbQ5AhpgV/cC7jYX8qS34Am/vcn2ZoIFJ1qIgwOL+0=
+github.com/aws/aws-sdk-go v1.44.234/go.mod h1:aVsgQcEevwlmQ7qHE9I3h+dtQgpqhFB+i8Phjh7fkwI=
 github.com/aws/aws-sdk-go-v2 v1.17.5 h1:TzCUW1Nq4H8Xscph5M/skINUitxM5UBAyvm2s7XBzL4=
 github.com/aws/aws-sdk-go-v2 v1.17.5/go.mod h1:uzbQtefpm44goOPmdKyAlXSNcwlRgF3ePWVW6EtJvvw=
 github.com/aws/aws-sdk-go-v2/config v1.18.15 h1:509yMO0pJUGUugBP2H9FOFyV+7Mz7sRR+snfDN5W4NY=
