@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/aws-sdk-go/aws"
@@ -316,10 +317,15 @@ func (e *EC2API) DescribeImagesWithContext(_ context.Context, input *ec2.Describ
 	if !e.DescribeImagesOutput.IsNil() {
 		return e.DescribeImagesOutput.Clone(), nil
 	}
+	if aws.StringValue(input.Filters[0].Values[0]) == "invalid" {
+		return &ec2.DescribeImagesOutput{}, nil
+	}
 	return &ec2.DescribeImagesOutput{
 		Images: []*ec2.Image{
 			{
+				Name:         aws.String(test.RandomName()),
 				ImageId:      aws.String(test.RandomName()),
+				CreationDate: aws.String(time.Now().Format(time.UnixDate)),
 				Architecture: aws.String("x86_64"),
 			},
 		},

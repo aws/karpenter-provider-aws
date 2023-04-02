@@ -16,6 +16,7 @@ package amifamily
 
 import (
 	"context"
+	"fmt"
 	"net"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -30,6 +31,7 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
+	"github.com/aws/karpenter-core/pkg/scheduling"
 )
 
 var DefaultEBS = v1alpha1.BlockDevice{
@@ -70,12 +72,18 @@ type LaunchTemplate struct {
 
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters
 type AMIFamily interface {
-	SSMAlias(version string, instanceType *cloudprovider.InstanceType) string
+	DefaultAMIs(version string) []DefaultAMIOutput
 	UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []core.Taint, labels map[string]string, caBundle *string, instanceTypes []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper
 	DefaultBlockDeviceMappings() []*v1alpha1.BlockDeviceMapping
 	DefaultMetadataOptions() *v1alpha1.MetadataOptions
 	EphemeralBlockDevice() *string
 	FeatureFlags() FeatureFlags
+}
+
+type DefaultAMIOutput struct {
+	Name         string
+	Query        string
+	Requirements scheduling.Requirements
 }
 
 // FeatureFlags describes whether the features below are enabled for a given AMIFamily
@@ -107,12 +115,16 @@ func New(kubeClient client.Client, amiProvider *Provider) *Resolver {
 // Multiple ResolvedTemplates are returned based on the instanceTypes passed in to support special AMIs for certain instance types like GPUs.
 func (r Resolver) Resolve(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, machine *v1alpha5.Machine, instanceTypes []*cloudprovider.InstanceType, options *Options) ([]*LaunchTemplate, error) {
 	amiFamily := GetAMIFamily(nodeTemplate.Spec.AMIFamily, options)
-	amiIDs, err := r.amiProvider.Get(ctx, nodeTemplate, instanceTypes, amiFamily)
+	amis, err := r.amiProvider.Get(ctx, nodeTemplate, options)
 	if err != nil {
 		return nil, err
 	}
+	mappedAMIs := MapInstanceTypes(amis, instanceTypes)
+	if len(mappedAMIs) == 0 {
+		return nil, fmt.Errorf("no instance types satisfy requirements of amis %v,", amis)
+	}
 	var resolvedTemplates []*LaunchTemplate
-	for amiID, instanceTypes := range amiIDs {
+	for amiID, instanceTypes := range mappedAMIs {
 		resolved := &LaunchTemplate{
 			Options: options,
 			UserData: amiFamily.UserData(

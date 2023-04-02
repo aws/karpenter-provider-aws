@@ -53,11 +53,13 @@ var (
 		AMIFamilyAL2:          sets.NewString("dockerd", "containerd"),
 		AMIFamilyUbuntu:       sets.NewString("dockerd", "containerd"),
 	}
-	ResourceNVIDIAGPU   v1.ResourceName = "nvidia.com/gpu"
-	ResourceAMDGPU      v1.ResourceName = "amd.com/gpu"
-	ResourceAWSNeuron   v1.ResourceName = "aws.amazon.com/neuron"
-	ResourceHabanaGaudi v1.ResourceName = "habana.ai/gaudi"
-	ResourceAWSPodENI   v1.ResourceName = "vpc.amazonaws.com/pod-eni"
+	ResourceNVIDIAGPU             v1.ResourceName         = "nvidia.com/gpu"
+	ResourceAMDGPU                v1.ResourceName         = "amd.com/gpu"
+	ResourceAWSNeuron             v1.ResourceName         = "aws.amazon.com/neuron"
+	ResourceHabanaGaudi           v1.ResourceName         = "habana.ai/gaudi"
+	ResourceAWSPodENI             v1.ResourceName         = "vpc.amazonaws.com/pod-eni"
+	NVIDIAacceleratorManufacturer AcceleratorManufacturer = "nvidia"
+	AWSAcceleratorManufacturer    AcceleratorManufacturer = "aws"
 
 	LabelInstanceHypervisor                   = LabelDomain + "/instance-hypervisor"
 	LabelInstanceEncryptionInTransitSupported = LabelDomain + "/instance-encryption-in-transit-supported"
@@ -127,3 +129,5 @@ func init() {
 		LabelInstanceAcceleratorMemory,
 	)
 }
+
+type AcceleratorManufacturer string

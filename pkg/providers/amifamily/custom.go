@@ -38,8 +38,8 @@ func (c Custom) UserData(_ *v1alpha5.KubeletConfiguration, _ []v1.Taint, _ map[s
 	}
 }
 
-func (c Custom) SSMAlias(_ string, _ *cloudprovider.InstanceType) string {
-	return "/unknown"
+func (c Custom) DefaultAMIs(_ string) []DefaultAMIOutput {
+	return nil
 }
 
 func (c Custom) DefaultBlockDeviceMappings() []*v1alpha1.BlockDeviceMapping {

@@ -25,6 +25,7 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
+	"github.com/aws/karpenter-core/pkg/scheduling"
 )
 
 type Ubuntu struct {
@@ -32,9 +33,24 @@ type Ubuntu struct {
 	*Options
 }
 
-// SSMAlias returns the AMI Alias to query SSM
-func (u Ubuntu) SSMAlias(version string, instanceType *cloudprovider.InstanceType) string {
-	return fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/%s/hvm/ebs-gp2/ami-id", version, instanceType.Requirements.Get(v1.LabelArchStable).Values()[0])
+// DefaultAMIs returns the AMI name, and Requirements, with an SSM query
+func (u Ubuntu) DefaultAMIs(version string) []DefaultAMIOutput {
+	return []DefaultAMIOutput{
+		{
+			Name:  fmt.Sprintf("ubuntu-20.4-eks-%s-%s", version, v1alpha5.ArchitectureAmd64),
+			Query: fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/%s/hvm/ebs-gp2/ami-id", version, v1alpha5.ArchitectureAmd64),
+			Requirements: scheduling.NewRequirements(
+				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureAmd64),
+			),
+		},
+		{
+			Name:  fmt.Sprintf("ubuntu-20.4-eks-%s-%s", version, v1alpha5.ArchitectureArm64),
+			Query: fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/%s/hvm/ebs-gp2/ami-id", version, v1alpha5.ArchitectureArm64),
+			Requirements: scheduling.NewRequirements(
+				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureArm64),
+			),
+		},
+	}
 }
 
 // UserData returns the default userdata script for the AMI Family
