@@ -178,6 +178,8 @@ var _ = Describe("Instance Types", func() {
 			"beta.kubernetes.io/os":         "linux",
 			v1.LabelInstanceType:            "g4dn.8xlarge",
 			"topology.ebs.csi.aws.com/zone": "test-zone-1a",
+			v1alpha1.LabelWindowsVersion:    "2019",
+			v1alpha1.LabelWindowsVariant:    "Core",
 		}
 
 		// Ensure that we're exercising all well known labels

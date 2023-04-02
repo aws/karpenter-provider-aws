@@ -65,7 +65,7 @@ type LaunchTemplate struct {
 	UserData            bootstrap.Bootstrapper
 	BlockDeviceMappings []*v1alpha1.BlockDeviceMapping
 	MetadataOptions     *v1alpha1.MetadataOptions
-	AMIID               string
+	Ami                 AMI
 	InstanceTypes       []*cloudprovider.InstanceType `hash:"ignore"`
 	DetailedMonitoring  bool
 }
@@ -78,6 +78,7 @@ type AMIFamily interface {
 	DefaultMetadataOptions() *v1alpha1.MetadataOptions
 	EphemeralBlockDevice() *string
 	FeatureFlags() FeatureFlags
+	IsWindows() bool
 }
 
 type DefaultAMIOutput struct {
@@ -104,6 +105,10 @@ func (d DefaultFamily) FeatureFlags() FeatureFlags {
 	}
 }
 
+func (d DefaultFamily) IsWindows() bool {
+	return false
+}
+
 // New constructs a new launch template Resolver
 func New(kubeClient client.Client, amiProvider *Provider) *Resolver {
 	return &Resolver{
@@ -119,12 +124,16 @@ func (r Resolver) Resolve(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTem
 	if err != nil {
 		return nil, err
 	}
+	amis = FilterAmiByRequirements(amis, scheduling.NewNodeSelectorRequirements(machine.Spec.Requirements...))
 	mappedAMIs := MapInstanceTypes(amis, instanceTypes)
 	if len(mappedAMIs) == 0 {
 		return nil, fmt.Errorf("no instance types satisfy requirements of amis %v,", amis)
 	}
 	var resolvedTemplates []*LaunchTemplate
 	for amiID, instanceTypes := range mappedAMIs {
+		ami, _ := lo.Find(amis, func(item AMI) bool {
+			return item.AmiID == amiID
+		})
 		resolved := &LaunchTemplate{
 			Options: options,
 			UserData: amiFamily.UserData(
@@ -138,7 +147,7 @@ func (r Resolver) Resolve(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTem
 			BlockDeviceMappings: nodeTemplate.Spec.BlockDeviceMappings,
 			MetadataOptions:     nodeTemplate.Spec.MetadataOptions,
 			DetailedMonitoring:  aws.BoolValue(nodeTemplate.Spec.DetailedMonitoring),
-			AMIID:               amiID,
+			Ami:                 ami,
 			InstanceTypes:       instanceTypes,
 		}
 		if resolved.BlockDeviceMappings == nil {
@@ -158,6 +167,8 @@ func GetAMIFamily(amiFamily *string, options *Options) AMIFamily {
 		return &Bottlerocket{Options: options}
 	case v1alpha1.AMIFamilyUbuntu:
 		return &Ubuntu{Options: options}
+	case v1alpha1.AMIFamilyWindowsServer:
+		return &Windows{Options: options}
 	case v1alpha1.AMIFamilyCustom:
 		return &Custom{Options: options}
 	default:

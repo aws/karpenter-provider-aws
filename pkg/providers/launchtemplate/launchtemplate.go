@@ -215,7 +215,7 @@ func (p *Provider) createLaunchTemplate(ctx context.Context, options *amifamily.
 			},
 			SecurityGroupIds: aws.StringSlice(options.SecurityGroupsIDs),
 			UserData:         aws.String(userData),
-			ImageId:          aws.String(options.AMIID),
+			ImageId:          aws.String(options.Ami.AmiID),
 			MetadataOptions: &ec2.LaunchTemplateInstanceMetadataOptionsRequest{
 				HttpEndpoint:            options.MetadataOptions.HTTPEndpoint,
 				HttpProtocolIpv6:        options.MetadataOptions.HTTPProtocolIPv6,
@@ -223,7 +223,7 @@ func (p *Provider) createLaunchTemplate(ctx context.Context, options *amifamily.
 				HttpTokens:              options.MetadataOptions.HTTPTokens,
 			},
 			TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{
-				{ResourceType: aws.String(ec2.ResourceTypeNetworkInterface), Tags: utils.MergeTags(options.Tags)},
+				{ResourceType: aws.String(ec2.ResourceTypeInstance), Tags: utils.MergeTags(options.Tags, options.Ami.GetLabelsFromRequirements())},
 			},
 		},
 		TagSpecifications: []*ec2.TagSpecification{

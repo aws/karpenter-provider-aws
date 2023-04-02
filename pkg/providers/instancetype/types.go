@@ -46,6 +46,9 @@ const (
 
 var (
 	instanceTypeScheme = regexp.MustCompile(`(^[a-z]+)(\-[0-9]+tb)?([0-9]+).*\.`)
+
+	instanceTypesSupportedForWindows = []string{"m4.16xlarge"}
+	instanceFamiliesLinuxOnly        = []string{"c3", "c4", "d2", "i2", "m4", "m6a"}
 )
 
 func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, kc *v1alpha5.KubeletConfiguration,
@@ -67,11 +70,12 @@ func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, kc *v1alph
 
 func computeRequirements(ctx context.Context, info *ec2.InstanceTypeInfo, offerings cloudprovider.Offerings, region string,
 	amiFamily amifamily.AMIFamily, kc *v1alpha5.KubeletConfiguration) scheduling.Requirements {
+
 	requirements := scheduling.NewRequirements(
 		// Well Known Upstream
 		scheduling.NewRequirement(v1.LabelInstanceTypeStable, v1.NodeSelectorOpIn, aws.StringValue(info.InstanceType)),
 		scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, getArchitecture(info)),
-		scheduling.NewRequirement(v1.LabelOSStable, v1.NodeSelectorOpIn, string(v1.Linux)),
+		scheduling.NewRequirement(v1.LabelOSStable, v1.NodeSelectorOpIn, getOS(info)...),
 		scheduling.NewRequirement(v1.LabelTopologyZone, v1.NodeSelectorOpIn, lo.Map(offerings.Available(), func(o cloudprovider.Offering, _ int) string { return o.Zone })...),
 		scheduling.NewRequirement(v1.LabelTopologyRegion, v1.NodeSelectorOpIn, region),
 		// Well Known to Karpenter
@@ -137,6 +141,38 @@ func computeRequirements(ctx context.Context, info *ec2.InstanceTypeInfo, offeri
 	return requirements
 }
 
+func getOS(info *ec2.InstanceTypeInfo) []string {
+	if isSupportedForWindows(info) {
+		return []string{string(v1.Linux), string(v1.Windows)}
+	}
+	return []string{string(v1.Linux)}
+
+}
+
+func isSupportedForWindows(info *ec2.InstanceTypeInfo) bool {
+
+	//Explicitly supported for windows
+	if lo.Contains(instanceTypesSupportedForWindows, *info.InstanceType) {
+		return true
+	}
+
+	//Non amd64
+	if getArchitecture(info) != v1alpha5.ArchitectureAmd64 {
+		return false
+	}
+
+	//https://docs.aws.amazon.com/eks/latest/userguide/windows-support.html
+	//Amazon EC2 instance types C3, C4, D2, I2, M4 (excluding m4.16xlarge), M6a.x, and R3 instances aren't supported for Windows workloads.
+	//From AWS support, M6a.x means all types in m6a family
+	split := strings.Split(*info.InstanceType, ".")
+	if len(split) != 2 || len(split) == 2 && lo.Contains(instanceFamiliesLinuxOnly, split[0]) {
+		return false
+	}
+
+	//We suppose other instance types are supported for windows
+	return true
+}
+
 func getArchitecture(info *ec2.InstanceTypeInfo) string {
 	for _, architecture := range info.ProcessorInfo.SupportedArchitectures {
 		if value, ok := v1alpha1.AWSToKubeArchitectures[aws.StringValue(architecture)]; ok {
@@ -149,7 +185,7 @@ func getArchitecture(info *ec2.InstanceTypeInfo) string {
 func computeCapacity(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily amifamily.AMIFamily,
 	blockDeviceMappings []*v1alpha1.BlockDeviceMapping, kc *v1alpha5.KubeletConfiguration) v1.ResourceList {
 
-	return v1.ResourceList{
+	resourceList := v1.ResourceList{
 		v1.ResourceCPU:               *cpu(info),
 		v1.ResourceMemory:            *memory(ctx, info),
 		v1.ResourceEphemeralStorage:  *ephemeralStorage(amiFamily, blockDeviceMappings),
@@ -160,6 +196,10 @@ func computeCapacity(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily 
 		v1alpha1.ResourceAWSNeuron:   *awsNeurons(info),
 		v1alpha1.ResourceHabanaGaudi: *habanaGaudis(info),
 	}
+	if amiFamily.IsWindows() {
+		resourceList[v1alpha1.ResourcePrivateIPv4Address] = *privateIPv4Address(aws.StringValue(info.InstanceType))
+	}
+	return resourceList
 }
 
 func cpu(info *ec2.InstanceTypeInfo) *resource.Quantity {
@@ -192,6 +232,17 @@ func ephemeralStorage(amiFamily amifamily.AMIFamily, blockDeviceMappings []*v1al
 	return amifamily.DefaultEBS.VolumeSize
 }
 
+func privateIPv4Address(name string) *resource.Quantity {
+	// https://docs.aws.amazon.com/eks/latest/userguide/windows-support.html
+	// The number of pods that you can run per Windows node
+	// is equal to the number of IP addresses available per elastic network interface for the node's instance type,
+	// minus one.
+	if limits, ok := Limits[name]; ok {
+		count := limits.IPv4PerInterface - 1
+		return resources.Quantity(fmt.Sprint(count))
+	}
+	return resources.Quantity("0")
+}
 func awsPodENI(ctx context.Context, name string) *resource.Quantity {
 	// https://docs.aws.amazon.com/eks/latest/userguide/security-groups-for-pods.html#supported-instance-types
 	limits, ok := Limits[name]
@@ -336,6 +387,8 @@ func evictionThreshold(memory *resource.Quantity, storage *resource.Quantity, am
 func pods(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily amifamily.AMIFamily, kc *v1alpha5.KubeletConfiguration) *resource.Quantity {
 	var count int64
 	switch {
+	case amiFamily.IsWindows():
+		count = aws.Int64Value(info.NetworkInfo.Ipv4AddressesPerInterface) - 1
 	case kc != nil && kc.MaxPods != nil:
 		count = int64(ptr.Int32Value(kc.MaxPods))
 	case !awssettings.FromContext(ctx).EnableENILimitedPodDensity:

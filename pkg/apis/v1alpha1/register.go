@@ -38,26 +38,45 @@ var (
 	RestrictedLabelDomains = []string{
 		LabelDomain,
 	}
-	AMIFamilyBottlerocket = "Bottlerocket"
-	AMIFamilyAL2          = "AL2"
-	AMIFamilyUbuntu       = "Ubuntu"
-	AMIFamilyCustom       = "Custom"
-	SupportedAMIFamilies  = []string{
+	AMIFamilyBottlerocket  = "Bottlerocket"
+	AMIFamilyAL2           = "AL2"
+	AMIFamilyUbuntu        = "Ubuntu"
+	AMIFamilyWindowsServer = "WindowsServer"
+	AMIFamilyCustom        = "Custom"
+	SupportedAMIFamilies   = []string{
 		AMIFamilyBottlerocket,
 		AMIFamilyAL2,
 		AMIFamilyUbuntu,
+		AMIFamilyWindowsServer,
 		AMIFamilyCustom,
 	}
 	SupportedContainerRuntimesByAMIFamily = map[string]sets.String{
-		AMIFamilyBottlerocket: sets.NewString("containerd"),
-		AMIFamilyAL2:          sets.NewString("dockerd", "containerd"),
-		AMIFamilyUbuntu:       sets.NewString("dockerd", "containerd"),
+		AMIFamilyBottlerocket:  sets.NewString("containerd"),
+		AMIFamilyAL2:           sets.NewString("dockerd", "containerd"),
+		AMIFamilyUbuntu:        sets.NewString("dockerd", "containerd"),
+		AMIFamilyWindowsServer: sets.NewString("containerd"),
 	}
-	ResourceNVIDIAGPU             v1.ResourceName         = "nvidia.com/gpu"
-	ResourceAMDGPU                v1.ResourceName         = "amd.com/gpu"
-	ResourceAWSNeuron             v1.ResourceName         = "aws.amazon.com/neuron"
-	ResourceHabanaGaudi           v1.ResourceName         = "habana.ai/gaudi"
-	ResourceAWSPodENI             v1.ResourceName         = "vpc.amazonaws.com/pod-eni"
+
+	Windows2019              = "2019"
+	Windows2022              = "2022"
+	WindowsCore              = "Core"
+	WindowsFull              = "Full"
+	SupportedWindowsVersions = []string{
+		Windows2019,
+		Windows2022,
+	}
+	SupportedWindowsVariants = []string{
+		WindowsCore,
+		WindowsFull,
+	}
+
+	ResourceNVIDIAGPU          v1.ResourceName = "nvidia.com/gpu"
+	ResourceAMDGPU             v1.ResourceName = "amd.com/gpu"
+	ResourceAWSNeuron          v1.ResourceName = "aws.amazon.com/neuron"
+	ResourceHabanaGaudi        v1.ResourceName = "habana.ai/gaudi"
+	ResourceAWSPodENI          v1.ResourceName = "vpc.amazonaws.com/pod-eni"
+	ResourcePrivateIPv4Address v1.ResourceName = "vpc.amazonaws.com/PrivateIPv4Address"
+
 	NVIDIAacceleratorManufacturer AcceleratorManufacturer = "nvidia"
 	AWSAcceleratorManufacturer    AcceleratorManufacturer = "aws"
 
@@ -85,6 +104,9 @@ var (
 	LabelInstanceAcceleratorManufacturer = LabelDomain + "/instance-accelerator-manufacturer"
 	LabelInstanceAcceleratorCount        = LabelDomain + "/instance-accelerator-count"
 	LabelInstanceAcceleratorMemory       = LabelDomain + "/instance-accelerator-memory"
+
+	LabelWindowsVersion = LabelDomain + "/windows-version"
+	LabelWindowsVariant = LabelDomain + "/windows-variant"
 
 	InterruptionInfrastructureFinalizer = Group + "/interruption-infrastructure"
 )
@@ -127,6 +149,8 @@ func init() {
 		LabelInstanceAcceleratorManufacturer,
 		LabelInstanceAcceleratorCount,
 		LabelInstanceAcceleratorMemory,
+		LabelWindowsVersion,
+		LabelWindowsVariant,
 	)
 }
 

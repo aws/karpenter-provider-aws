@@ -17,6 +17,7 @@ package amifamily
 import (
 	"context"
 	"fmt"
+	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"sort"
 	"strings"
 	"time"
@@ -35,7 +36,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/logging"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
@@ -301,4 +301,49 @@ func (p *Provider) getRequirementsFromImage(ec2Image *ec2.Image) scheduling.Requ
 	}
 	requirements.Add(scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, architecture))
 	return requirements
+}
+
+func FilterAmiByRequirements(amis []AMI, requirements scheduling.Requirements) []AMI {
+	var results []AMI
+	for _, ami := range amis {
+		keys := requirements.Keys().Intersection(ami.Requirements.Keys())
+		if len(keys) == 0 {
+			continue //no overlap, let's check next ami
+		}
+		compatible := true
+		for key := range keys {
+			requirement := requirements.Get(key)
+			amiRequirement := ami.Requirements.Get(key)
+			if requirement.Operator() == v1.NodeSelectorOpDoesNotExist {
+				compatible = false //machine requires OpDoesNotExist, but ami provides. incompatible
+				break
+			}
+			if requirement.Operator() == v1.NodeSelectorOpIn && len(lo.Intersect(requirement.Values(), amiRequirement.Values())) == 0 {
+				compatible = false //machine requires OpIn, but ami has no one. incompatible
+				break
+			}
+			if requirement.Operator() == v1.NodeSelectorOpNotIn && len(lo.Intersect(requirement.Values(), amiRequirement.Values())) > 0 {
+				compatible = false //machine requires OpNotIn, but ami has overlapped. incompatible
+				break
+			}
+		}
+		if compatible {
+			results = append(results, ami)
+		}
+	}
+
+	if len(results) != 0 {
+		return results
+	}
+	return amis
+}
+
+func (ami AMI) GetLabelsFromRequirements() map[string]string {
+	candidates := lo.PickBy(ami.Requirements, func(key string, value *scheduling.Requirement) bool {
+		return value.Any() != ""
+	})
+	return lo.MapValues(candidates, func(value *scheduling.Requirement, _ string) string {
+		return value.Any()
+	})
+
 }

@@ -221,6 +221,7 @@ func (c *CloudProvider) isAMIDrifted(ctx context.Context, machine *v1alpha5.Mach
 	if err != nil {
 		return false, fmt.Errorf("getting amis, %w", err)
 	}
+	amis = amifamily.FilterAmiByRequirements(amis, scheduling.NewNodeSelectorRequirements(machine.Spec.Requirements...))
 	mappedAMIs := amifamily.MapInstanceTypes(amis, []*cloudprovider.InstanceType{nodeInstanceType})
 	if len(mappedAMIs) == 0 {
 		return false, fmt.Errorf("no instance types satisfy requirements of amis %v,", amis)
@@ -321,12 +322,21 @@ func (c *CloudProvider) instanceToMachine(ctx context.Context, ec2instance *ec2.
 	labels[v1alpha1.LabelInstanceAMIID] = aws.StringValue(ec2instance.ImageId)
 	labels[v1.LabelTopologyZone] = aws.StringValue(ec2instance.Placement.AvailabilityZone)
 	labels[v1alpha5.LabelCapacityType] = instance.GetCapacityType(ec2instance)
+	labels[v1.LabelOSStable] = instance.GetOS(ec2instance)
+
 	if tag, ok := lo.Find(ec2instance.Tags, func(t *ec2.Tag) bool { return aws.StringValue(t.Key) == v1alpha5.ProvisionerNameLabelKey }); ok {
 		labels[v1alpha5.ProvisionerNameLabelKey] = aws.StringValue(tag.Value)
 	}
 	if tag, ok := lo.Find(ec2instance.Tags, func(t *ec2.Tag) bool { return aws.StringValue(t.Key) == v1alpha5.ManagedByLabelKey }); ok {
 		labels[v1alpha5.ManagedByLabelKey] = aws.StringValue(tag.Value)
 	}
+	if tag, ok := lo.Find(ec2instance.Tags, func(t *ec2.Tag) bool { return aws.StringValue(t.Key) == v1alpha1.LabelWindowsVersion }); ok {
+		labels[v1alpha1.LabelWindowsVersion] = aws.StringValue(tag.Value)
+	}
+	if tag, ok := lo.Find(ec2instance.Tags, func(t *ec2.Tag) bool { return aws.StringValue(t.Key) == v1alpha1.LabelWindowsVariant }); ok {
+		labels[v1alpha1.LabelWindowsVariant] = aws.StringValue(tag.Value)
+	}
+
 	machine.Name = lo.Ternary(
 		settings.FromContext(ctx).NodeNameConvention == settings.ResourceName,
 		aws.StringValue(ec2instance.InstanceId),

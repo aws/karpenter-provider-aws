@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/avast/retry-go"
@@ -582,4 +583,11 @@ func GetCapacityType(instance *ec2.Instance) string {
 		return v1alpha5.CapacityTypeSpot
 	}
 	return v1alpha5.CapacityTypeOnDemand
+}
+
+func GetOS(instance *ec2.Instance) string {
+	if strings.ToLower(aws.StringValue(instance.Platform)) == strings.ToLower(ec2.PlatformValuesWindows) {
+		return string(v1.Windows)
+	}
+	return string(v1.Linux)
 }
