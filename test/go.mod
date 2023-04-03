@@ -9,7 +9,7 @@ require (
 	github.com/aws/karpenter v0.22.0
 	github.com/aws/karpenter-core v0.27.1
 	github.com/onsi/ginkgo/v2 v2.9.2
-	github.com/onsi/gomega v1.27.4
+	github.com/onsi/gomega v1.27.6
 	github.com/samber/lo v1.38.1
 	go.uber.org/multierr v1.11.0
 	k8s.io/api v0.25.4
