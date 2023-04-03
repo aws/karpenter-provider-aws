@@ -9,7 +9,7 @@ require (
 	github.com/aws/aws-sdk-go v1.44.195
 	github.com/aws/karpenter-core v0.27.1
 	github.com/go-playground/validator/v10 v10.11.2
-	github.com/imdario/mergo v0.3.13
+	github.com/imdario/mergo v0.3.15
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/onsi/ginkgo/v2 v2.9.2
 	github.com/onsi/gomega v1.27.6
