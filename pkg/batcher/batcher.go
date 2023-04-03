@@ -22,12 +22,16 @@ import (
 	"time"
 
 	"github.com/mitchellh/hashstructure/v2"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/samber/lo"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/aws/karpenter-core/pkg/metrics"
 )
 
 // Options allows for configuration of the Batcher
 type Options[T input, U output] struct {
+	Name              string
 	IdleTimeout       time.Duration
 	MaxTimeout        time.Duration
 	MaxItems          int
@@ -127,6 +131,7 @@ func OneBucketHasher[T input](ctx context.Context, input *T) uint64 {
 
 func (b *Batcher[T, U]) run() {
 	for {
+		var measureDuration func()
 		select {
 		// context that we started with has completed so the app is shutting down
 		case <-b.ctx.Done():
@@ -134,8 +139,10 @@ func (b *Batcher[T, U]) run() {
 			return
 		case <-b.trigger:
 			// wait to start the batch of create fleet calls
+			measureDuration = metrics.Measure(batchWindowDuration.WithLabelValues(b.options.Name))
 		}
 		b.waitForIdle()
+		measureDuration() // Observe the length of time between the start of the batch and now
 
 		// Copy the requests, so we can reset the requests for the next batching loop
 		b.mu.Lock()
@@ -176,6 +183,8 @@ func (b *Batcher[T, U]) waitForIdle() {
 }
 
 func (b *Batcher[T, U]) runCalls(requests []*request[T, U]) {
+	// Measure the size of the request batch
+	batchSize.With(prometheus.Labels{batcherNameLabel: b.options.Name}).Observe(float64(len(requests)))
 	requestIdx := 0
 	for _, result := range b.options.BatchExecutor(requests[0].ctx, lo.Map(requests, func(req *request[T, U], _ int) *T { return req.input })) {
 		requests[requestIdx].requestor <- result
