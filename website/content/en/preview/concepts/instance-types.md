@@ -5814,6 +5814,9 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|1|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|aws|
+ |karpenter.k8s.aws/instance-accelerator-name|inferentia|
  |karpenter.k8s.aws/instance-category|inf|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
@@ -5840,6 +5843,9 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|1|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|aws|
+ |karpenter.k8s.aws/instance-accelerator-name|inferentia|
  |karpenter.k8s.aws/instance-category|inf|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
@@ -5866,6 +5872,9 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|4|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|aws|
+ |karpenter.k8s.aws/instance-accelerator-name|inferentia|
  |karpenter.k8s.aws/instance-category|inf|
  |karpenter.k8s.aws/instance-cpu|24|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
@@ -5892,6 +5901,9 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|16|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|aws|
+ |karpenter.k8s.aws/instance-accelerator-name|inferentia|
  |karpenter.k8s.aws/instance-category|inf|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
