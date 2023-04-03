@@ -164,6 +164,7 @@ func getInstanceTypeInfo(info *ec2.InstanceTypeInfo) string {
 func getInferenceAcceleratorDeviceInfo(info *ec2.InferenceDeviceInfo) string {
 	src := &bytes.Buffer{}
 	fmt.Fprintf(src, "{\n")
+	fmt.Fprintf(src, "Name: aws.String(\"%s\"),\n", lo.FromPtr(info.Name))
 	fmt.Fprintf(src, "Manufacturer: aws.String(\"%s\"),\n", lo.FromPtr(info.Manufacturer))
 	fmt.Fprintf(src, "Count: aws.Int64(%d),\n", lo.FromPtr(info.Count))
 	fmt.Fprintf(src, "},\n")

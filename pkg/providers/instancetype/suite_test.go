@@ -167,6 +167,10 @@ var _ = Describe("Instance Types", func() {
 			v1alpha1.LabelInstanceGPUCount:                     "1",
 			v1alpha1.LabelInstanceGPUMemory:                    "16384",
 			v1alpha1.LabelInstanceLocalNVME:                    "900",
+			v1alpha1.LabelInstanceAcceleratorName:              "t4",
+			v1alpha1.LabelInstanceAcceleratorManufacturer:      "nvidia",
+			v1alpha1.LabelInstanceAcceleratorCount:             "1",
+			v1alpha1.LabelInstanceAcceleratorMemory:            "16384",
 			// Deprecated Labels
 			v1.LabelFailureDomainBetaRegion: "",
 			v1.LabelFailureDomainBetaZone:   "test-zone-1a",
@@ -178,6 +182,18 @@ var _ = Describe("Instance Types", func() {
 
 		// Ensure that we're exercising all well known labels
 		Expect(lo.Keys(nodeSelector)).To(ContainElements(append(v1alpha5.WellKnownLabels.UnsortedList(), lo.Keys(v1alpha5.NormalizedLabels)...)))
+		pod := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: nodeSelector})
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+		ExpectScheduled(ctx, env.Client, pod)
+	})
+	It("should support instance type labels with accelerator", func() {
+		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+
+		nodeSelector := map[string]string{
+			v1alpha1.LabelInstanceAcceleratorName:         "inferentia",
+			v1alpha1.LabelInstanceAcceleratorManufacturer: "aws",
+			v1alpha1.LabelInstanceAcceleratorCount:        "1",
+		}
 		pod := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: nodeSelector})
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 		ExpectScheduled(ctx, env.Client, pod)

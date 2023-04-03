@@ -70,14 +70,19 @@ var (
 	LabelInstanceMemory                       = LabelDomain + "/instance-memory"
 	LabelInstanceNetworkBandwidth             = LabelDomain + "/instance-network-bandwidth"
 	LabelInstancePods                         = LabelDomain + "/instance-pods"
-	LabelInstanceGPUName                      = LabelDomain + "/instance-gpu-name"
-	LabelInstanceGPUManufacturer              = LabelDomain + "/instance-gpu-manufacturer"
-	LabelInstanceGPUCount                     = LabelDomain + "/instance-gpu-count"
-	LabelInstanceGPUMemory                    = LabelDomain + "/instance-gpu-memory"
-	LabelInstanceAMIID                        = LabelDomain + "/instance-ami-id"
-	LabelInstanceAcceleratorName              = LabelDomain + "/instance-accelerator-name"
-	LabelInstanceAcceleratorManufacturer      = LabelDomain + "/instance-accelerator-manufacturer"
-	LabelInstanceAcceleratorCount             = LabelDomain + "/instance-accelerator-count"
+	// TODO: will deprecate at v1beta1, remove at v1
+	LabelInstanceGPUName = LabelDomain + "/instance-gpu-name"
+	// TODO: will deprecate at v1beta1, remove at v1
+	LabelInstanceGPUManufacturer = LabelDomain + "/instance-gpu-manufacturer"
+	// TODO: will deprecate at v1beta1, remove at v1
+	LabelInstanceGPUCount = LabelDomain + "/instance-gpu-count"
+	// TODO: will deprecate at v1beta1, remove at v1
+	LabelInstanceGPUMemory               = LabelDomain + "/instance-gpu-memory"
+	LabelInstanceAMIID                   = LabelDomain + "/instance-ami-id"
+	LabelInstanceAcceleratorName         = LabelDomain + "/instance-accelerator-name"
+	LabelInstanceAcceleratorManufacturer = LabelDomain + "/instance-accelerator-manufacturer"
+	LabelInstanceAcceleratorCount        = LabelDomain + "/instance-accelerator-count"
+	LabelInstanceAcceleratorMemory       = LabelDomain + "/instance-accelerator-memory"
 
 	InterruptionInfrastructureFinalizer = Group + "/interruption-infrastructure"
 )
@@ -119,5 +124,6 @@ func init() {
 		LabelInstanceAcceleratorName,
 		LabelInstanceAcceleratorManufacturer,
 		LabelInstanceAcceleratorCount,
+		LabelInstanceAcceleratorMemory,
 	)
 }
