@@ -16,7 +16,7 @@ require (
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pelletier/go-toml/v2 v2.0.7
 	github.com/prometheus/client_golang v1.14.0
-	github.com/samber/lo v1.37.0
+	github.com/samber/lo v1.38.1
 	go.uber.org/multierr v1.11.0
 	go.uber.org/zap v1.24.0
 	golang.org/x/sync v0.1.0
