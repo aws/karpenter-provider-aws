@@ -18,9 +18,9 @@ package pricing
 
 import "time"
 
-// generated at 2023-03-22T15:29:25Z for us-east-1
+// generated at 2023-04-03T13:08:14Z for us-east-1
 
-var initialPriceUpdate, _ = time.Parse(time.RFC3339, "2023-03-22T15:29:25Z")
+var initialPriceUpdate, _ = time.Parse(time.RFC3339, "2023-04-03T13:08:14Z")
 var initialOnDemandPrices = map[string]map[string]float64{}
 
 func init() {
@@ -521,6 +521,8 @@ func init() {
 		"u-12tb1.112xlarge": 130.867000,
 		// u-24tb1 family
 		"u-24tb1.112xlarge": 261.730000,
+		// u-3tb1 family
+		"u-3tb1.56xlarge": 32.716500,
 		// u-6tb1 family
 		"u-6tb1.112xlarge": 65.433000, "u-6tb1.56xlarge": 55.610750,
 		// u-9tb1 family
@@ -562,6 +564,10 @@ func init() {
 		"c6i.12xlarge": 2.448000, "c6i.16xlarge": 3.264000, "c6i.24xlarge": 4.896000, "c6i.2xlarge": 0.408000,
 		"c6i.32xlarge": 6.528000, "c6i.4xlarge": 0.816000, "c6i.8xlarge": 1.632000, "c6i.large": 0.102000,
 		"c6i.metal": 6.528000, "c6i.xlarge": 0.204000,
+		// c6in family
+		"c6in.12xlarge": 3.276000, "c6in.16xlarge": 4.368000, "c6in.24xlarge": 6.552000, "c6in.2xlarge": 0.546000,
+		"c6in.32xlarge": 8.736000, "c6in.4xlarge": 1.092000, "c6in.8xlarge": 2.184000, "c6in.large": 0.136500,
+		"c6in.metal": 8.736000, "c6in.xlarge": 0.273000,
 		// d2 family
 		"d2.2xlarge": 1.656000, "d2.4xlarge": 3.312000, "d2.8xlarge": 6.624000, "d2.xlarge": 0.828000,
 		// g4dn family
@@ -648,6 +654,8 @@ func init() {
 		"u-24tb1.112xlarge": 261.730000,
 		// u-6tb1 family
 		"u-6tb1.112xlarge": 65.433000, "u-6tb1.56xlarge": 55.610750,
+		// u-9tb1 family
+		"u-9tb1.112xlarge": 98.150000,
 		// x1 family
 		"x1.16xlarge": 8.003000, "x1.32xlarge": 16.006000,
 		// x1e family
