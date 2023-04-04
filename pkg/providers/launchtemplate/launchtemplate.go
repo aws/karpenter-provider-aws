@@ -47,7 +47,7 @@ import (
 )
 
 const (
-	launchTemplateNameFormat = "Karpenter-%s-%s"
+	launchTemplateNameFormat = "Karpenter-%s"
 	karpenterManagedTagKey   = "karpenter.k8s.aws/cluster"
 )
 
@@ -132,7 +132,7 @@ func launchTemplateName(options *amifamily.LaunchTemplate) string {
 	if err != nil {
 		panic(fmt.Sprintf("hashing launch template, %s", err))
 	}
-	return fmt.Sprintf(launchTemplateNameFormat, options.ClusterName, fmt.Sprint(hash))
+	return fmt.Sprintf(launchTemplateNameFormat, fmt.Sprint(hash))
 }
 
 func (p *Provider) createAMIOptions(ctx context.Context, machine *v1alpha5.Machine, nodeTemplate *v1alpha1.AWSNodeTemplate, labels map[string]string) (*amifamily.Options, error) {
