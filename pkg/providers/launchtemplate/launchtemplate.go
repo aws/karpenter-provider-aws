@@ -47,7 +47,7 @@ import (
 )
 
 const (
-	launchTemplateNameFormat = "Karpenter-%s"
+	launchTemplateNameFormat = "karpenter.k8s.aws/%s"
 	karpenterManagedTagKey   = "karpenter.k8s.aws/cluster"
 )
 
