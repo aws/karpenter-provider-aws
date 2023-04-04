@@ -138,7 +138,7 @@ If you see this issue happens while using the`extraObjects` key from the values 
   metadata:
     name: default
     annotations:
-      "helm.sh/hook": "post-install, post-upgrade"
+      "helm.sh/hook": "post-install,post-upgrade"
       "helm.sh/hook-delete-policy": before-hook-creation
 ```
 
