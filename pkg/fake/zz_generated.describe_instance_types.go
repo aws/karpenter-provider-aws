@@ -146,6 +146,7 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 			InferenceAcceleratorInfo: &ec2.InferenceAcceleratorInfo{
 				Accelerators: []*ec2.InferenceDeviceInfo{
 					{
+						Name:         aws.String("Inferentia"),
 						Manufacturer: aws.String("AWS"),
 						Count:        aws.Int64(1),
 					},
@@ -177,6 +178,7 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 			InferenceAcceleratorInfo: &ec2.InferenceAcceleratorInfo{
 				Accelerators: []*ec2.InferenceDeviceInfo{
 					{
+						Name:         aws.String("Inferentia"),
 						Manufacturer: aws.String("AWS"),
 						Count:        aws.Int64(4),
 					},
