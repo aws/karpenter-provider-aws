@@ -301,10 +301,10 @@ func (p *Provider) cachedEvictedFunc(ctx context.Context) func(string, interface
 		}
 		launchTemplate := lt.(*ec2.LaunchTemplate)
 		if _, err := p.ec2api.DeleteLaunchTemplate(&ec2.DeleteLaunchTemplateInput{LaunchTemplateId: launchTemplate.LaunchTemplateId}); err != nil {
-			logging.FromContext(ctx).Errorf("Unable to delete launch template, %v", err)
+			logging.FromContext(ctx).With("launch-template", launchTemplate.LaunchTemplateName).Errorf("Unable to delete launch template, %v", err)
 			return
 		}
-		logging.FromContext(ctx).Debugf("deleted launch template")
+		logging.FromContext(ctx).With("launch-template", launchTemplate.LaunchTemplateName).Debugf("deleted launch template")
 	}
 }
 
