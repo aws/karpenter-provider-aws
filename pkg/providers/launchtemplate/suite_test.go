@@ -1203,6 +1203,20 @@ var _ = Describe("LaunchTemplates", func() {
 			Expect(err).To(BeNil())
 			Expect(string(userData)).To(ContainSubstring("--image-gc-low-threshold=50"))
 		})
+		It("should pass --cpu-fs-quota when specified", func() {
+			provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
+				CPUCFSQuota: aws.Bool(false),
+			}
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+			input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
+			userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+			Expect(err).To(BeNil())
+			Expect(string(userData)).To(ContainSubstring("--cpu-cfs-quota=false"))
+		})
 		Context("Bottlerocket", func() {
 			It("should merge in custom user data", func() {
 				ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{

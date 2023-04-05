@@ -104,8 +104,12 @@ spec:
       nodefs.available: 1m30s
       nodefs.inodesFree: 2m
     evictionMaxPodGracePeriod: 60
+    imageGCHighThresholdPercent: 85
+    imageGCLowThresholdPercent: 80
+    cpuCFSQuota: true
     podsPerCore: 2
     maxPods: 20
+    
 
   # Resource limits constrain the total size of the cluster.
   # Limits prevent Karpenter from creating new instances once the limit is exceeded.
@@ -251,7 +255,7 @@ For more information on weighting Provisioners, see the [Weighting Provisioners 
 ## spec.kubeletConfiguration
 
 Karpenter provides the ability to specify a few additional Kubelet args. These are all optional and provide support for
-additional customization and use cases. Adjust these only if you know you need to do so.
+additional customization and use cases. Adjust these only if you know you need to do so. For more details on kubelet configuration arguments, [see the KubeletConfiguration API specification docs](https://kubernetes.io/docs/reference/config-api/kubelet-config.v1beta1/).
 
 ```yaml
 spec:
@@ -280,6 +284,9 @@ spec:
       nodefs.available: 1m30s
       nodefs.inodesFree: 2m
     evictionMaxPodGracePeriod: 60
+    imageGCHighThresholdPercent: 85
+    imageGCLowThresholdPercent: 80
+    cpuCFSQuota: true
     podsPerCore: 2
     maxPods: 20
 ```

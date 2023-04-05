@@ -88,6 +88,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 				EvictionMaxPodGracePeriod:   ptr.Int32(120),
 				ImageGCHighThresholdPercent: ptr.Int32(50),
 				ImageGCLowThresholdPercent:  ptr.Int32(10),
+				CPUCFSQuota:                 ptr.Bool(false),
 			},
 		})
 
@@ -147,6 +148,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 				EvictionMaxPodGracePeriod:   ptr.Int32(120),
 				ImageGCHighThresholdPercent: ptr.Int32(50),
 				ImageGCLowThresholdPercent:  ptr.Int32(10),
+				CPUCFSQuota:                 ptr.Bool(false),
 			},
 		})
 
