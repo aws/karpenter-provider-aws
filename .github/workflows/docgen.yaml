@@ -8,7 +8,7 @@ permissions:
   id-token: write
 
 jobs:
-  doc-gen-ci:
+  docgen-ci:
     if: github.repository == 'aws/karpenter'
     runs-on: ubuntu-latest
     steps:
@@ -16,6 +16,6 @@ jobs:
       - uses: ./.github/actions/install-go-and-dependencies
       - uses: ./.github/actions/authenticate-aws
       - run: make docgen
-      - run: make api-code-gen
+      - run: make codegen
         env:
           ENABLE_GIT_PUSH: false
