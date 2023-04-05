@@ -128,6 +128,20 @@ Your security groups are not blocking you from reaching your webhook.
 This is especially relevant if you have used `terraform-eks-module` version `>=18` since that version changed its security
 approach, and now it's much more restrictive.
 
+If you see this issue happens while using the`extraObjects` key from the values file, ensure that:
+ * The helm install/upgrade command has the `--wait` flag (or `wait: true` when using helmfile)
+ * Your Provisioners and AWSNodeTemplates definitions have the proper [helm hooks annotations](https://helm.sh/docs/topics/charts_hooks/) to install them *after* the karpenter pods are running
+
+```yaml
+- apiVersion: karpenter.sh/v1alpha5
+  kind: Provisioner
+  metadata:
+    name: default
+    annotations:
+      "helm.sh/hook": "post-install,post-upgrade"
+      "helm.sh/hook-delete-policy": before-hook-creation
+```
+
 ## Provisioning
 
 ### DaemonSets can result in deployment failures
