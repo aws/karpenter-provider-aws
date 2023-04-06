@@ -28,13 +28,19 @@ import (
 
 type SSMAPI struct {
 	ssmiface.SSMAPI
-	GetParameterOutput *ssm.GetParameterOutput
-	WantErr            error
+	PresetParameterOutput map[string]string
+	GetParameterOutput    *ssm.GetParameterOutput
+	WantErr               error
 }
 
 func (a SSMAPI) GetParameterWithContext(ctx context.Context, input *ssm.GetParameterInput, opts ...request.Option) (*ssm.GetParameterOutput, error) {
 	if a.WantErr != nil {
 		return nil, a.WantErr
+	}
+	if amiID, ok := a.PresetParameterOutput[*input.Name]; ok {
+		return &ssm.GetParameterOutput{
+			Parameter: &ssm.Parameter{Value: aws.String(amiID)},
+		}, nil
 	}
 	hc, _ := hashstructure.Hash(input.Name, hashstructure.FormatV2, nil)
 	if a.GetParameterOutput != nil {

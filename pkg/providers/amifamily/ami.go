@@ -122,7 +122,7 @@ func (p *Provider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTempla
 			return nil, err
 		}
 	} else {
-		amis, err = p.getAMIsFromSelector(ctx, nodeTemplate)
+		amis, err = p.getAMIsFromSelector(ctx, nodeTemplate.Spec.AMISelector)
 		if err != nil {
 			return nil, err
 		}
@@ -160,8 +160,28 @@ func (p *Provider) getDefaultAMIFromSSM(ctx context.Context, nodeTemplate *v1alp
 		if err != nil {
 			return nil, err
 		}
-		amis = append(amis, AMI{Name: ssmOutput.Name, AmiID: amiID, Requirements: ssmOutput.Requirements})
+		amis = append(amis, AMI{AmiID: amiID, Requirements: ssmOutput.Requirements})
 	}
+
+	ids := lo.Reduce(amis, func(agg string, item AMI, _ int) string {
+		return agg + item.AmiID + ","
+	}, "")
+
+	selector := map[string]string{"aws-ids": ids}
+	amisDetails, err := p.getAMIsFromSelector(ctx, selector)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range amis {
+		ami, ok := lo.Find(amisDetails, func(x AMI) bool {
+			return x.AmiID == amis[i].AmiID
+		})
+		if ok {
+			amis[i].Name = ami.Name
+		}
+	}
+
 	return amis, nil
 }
 
@@ -181,8 +201,8 @@ func (p *Provider) fetchAMIsFromSSM(ctx context.Context, ssmQuery string) (strin
 	return ami, nil
 }
 
-func (p *Provider) getAMIsFromSelector(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) ([]AMI, error) {
-	ec2AMIs, err := p.fetchAMIsFromEC2(ctx, nodeTemplate.Spec.AMISelector)
+func (p *Provider) getAMIsFromSelector(ctx context.Context, selector map[string]string) ([]AMI, error) {
+	ec2AMIs, err := p.fetchAMIsFromEC2(ctx, selector)
 	if err != nil {
 		return nil, err
 	}

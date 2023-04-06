@@ -215,7 +215,19 @@ var _ = Describe("AMI", func() {
 
 			env.ExpectInstance(pod.Spec.NodeName).To(HaveField("ImageId", HaveValue(Equal(customAMI))))
 		})
-		It("should have the AWSNodeTemplateStatus for AMIs", func() {
+		It("should have the AWSNodeTemplateStatus for AMIs using wildcard", func() {
+			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+				AWS: v1alpha1.AWS{
+					SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+					SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+				},
+				AMISelector: map[string]string{"aws::name": "*"},
+			})
+
+			env.ExpectCreated(provider)
+			EventuallyExpectAMIsToExist(provider)
+		})
+		It("should have the AWSNodeTemplateStatus for AMIs using tags", func() {
 			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 				AWS: v1alpha1.AWS{
 					SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
@@ -225,7 +237,20 @@ var _ = Describe("AMI", func() {
 			})
 
 			env.ExpectCreated(provider)
-			EventuallyExpectAMIs(provider, customAMI)
+			EventuallyExpectAMIsToExist(provider)
+
+			var ant v1alpha1.AWSNodeTemplate
+			Expect(env.Client.Get(env, client.ObjectKeyFromObject(provider), &ant)).To(Succeed())
+			amiIDsInStatus := lo.Map(ant.Status.AMIs, func(ami v1alpha1.AMI, _ int) string {
+				return ami.ID
+			})
+			Expect(amiIDsInStatus).To(Equal([]string{customAMI}))
+			Expect(ant.Status.AMIs[0].Requirements).To(ContainElements(
+				scheduling.NewRequirements(
+					scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureAmd64),
+				).NodeSelectorRequirements(),
+			))
+
 		})
 	})
 
@@ -330,19 +355,11 @@ func getInstanceAttribute(nodeName string, attribute string) *ec2.DescribeInstan
 	Expect(err).ToNot(HaveOccurred())
 	return instanceAttribute
 }
-
-func EventuallyExpectAMIs(provider *v1alpha1.AWSNodeTemplate, amiID string) {
+func EventuallyExpectAMIsToExist(provider *v1alpha1.AWSNodeTemplate) {
 	Eventually(func(g Gomega) {
 		var ant v1alpha1.AWSNodeTemplate
 		g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(provider), &ant)).To(Succeed())
-		amiIDsInStatus := lo.Map(ant.Status.AMIs, func(ami v1alpha1.AMI, _ int) string {
-			return ami.ID
-		})
-		g.Expect(amiIDsInStatus).To(Equal([]string{amiID}))
-		g.Expect(ant.Status.AMIs[0].Requirements[:1:1]).To(Equal(
-			scheduling.NewRequirements(
-				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureAmd64),
-			).NodeSelectorRequirements(),
-		))
+		g.Expect(ant.Status.AMIs).ToNot(BeNil())
+		g.Expect(len(ant.Status.AMIs)).To(BeNumerically("<", 10))
 	}).WithTimeout(30 * time.Second).Should(Succeed())
 }

@@ -16,6 +16,7 @@ package nodetemplate_test
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"testing"
 	"time"
@@ -404,75 +405,111 @@ var _ = Describe("AWSNodeTemplateController", func() {
 				},
 			})
 		})
-		It("Should expect no errors when AMI selector is not in the AWSNodeTemplate", func() {
+		It("should resolve amiSelector AMIs and requirements into status", func() {
+			version := lo.Must(awsEnv.AMIProvider.KubeServerVersion(ctx))
+
+			awsEnv.SSMAPI.PresetParameterOutput = map[string]string{
+				fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", version):                                                   "ami-id-123",
+				fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-gpu/recommended/image_id", version):                                               "ami-id-456",
+				fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2%s/recommended/image_id", version, fmt.Sprintf("-%s", v1alpha5.ArchitectureArm64)): "ami-id-789",
+			}
+
+			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
+				Images: []*ec2.Image{
+					{
+						Name:         aws.String("test-ami-1"),
+						ImageId:      aws.String("ami-id-123"),
+						CreationDate: aws.String(time.Now().Format(time.RFC3339)),
+						Architecture: aws.String("x86_64"),
+						Tags: []*ec2.Tag{
+							{Key: aws.String("Name"), Value: aws.String("test-ami-1")},
+							{Key: aws.String("foo"), Value: aws.String("bar")},
+						},
+					},
+					{
+						Name:         aws.String("test-ami-2"),
+						ImageId:      aws.String("ami-id-456"),
+						CreationDate: aws.String(time.Now().Add(time.Minute).Format(time.RFC3339)),
+						Architecture: aws.String("x86_64"),
+						Tags: []*ec2.Tag{
+							{Key: aws.String("Name"), Value: aws.String("test-ami-2")},
+							{Key: aws.String("foo"), Value: aws.String("bar")},
+						},
+					},
+					{
+						Name:         aws.String("test-ami-3"),
+						ImageId:      aws.String("ami-id-789"),
+						CreationDate: aws.String(time.Now().Add(2 * time.Minute).Format(time.RFC3339)),
+						Architecture: aws.String("x86_64"),
+						Tags: []*ec2.Tag{
+							{Key: aws.String("Name"), Value: aws.String("test-ami-3")},
+							{Key: aws.String("foo"), Value: aws.String("bar")},
+						},
+					},
+				},
+			})
 			nodeTemplate.Spec.AMISelector = nil
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			amiIDsInStatus := lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMI, _ int) string {
-				return ami.Name
-			})
-			sort.Strings(amiIDsInStatus)
-			expectedNameOutput := []string{"amazon-linux-2", "amazon-linux-2-arm64", "amazon-linux-2-gpu"}
-			Expect(amiIDsInStatus).To(Equal(expectedNameOutput))
-			expectedRequirementsOutput := [][]v1.NodeSelectorRequirement{
+			sortRequirements(nodeTemplate.Status.AMIs)
+			Expect(nodeTemplate.Status.AMIs).To(ContainElements([]v1alpha1.AMI{
 				{
-					{
-						Key:      v1.LabelArchStable,
-						Operator: v1.NodeSelectorOpIn,
-						Values:   []string{v1alpha5.ArchitectureAmd64},
-					},
-					{
-						Key:      v1alpha1.LabelInstanceAcceleratorManufacturer,
-						Operator: v1.NodeSelectorOpIn,
-						Values:   []string{string(v1alpha1.AWSAcceleratorManufacturer), string(v1alpha1.NVIDIAacceleratorManufacturer)},
+					Name: "test-ami-1",
+					ID:   "ami-id-123",
+					Requirements: []v1.NodeSelectorRequirement{
+						{
+							Key:      v1.LabelArchStable,
+							Operator: v1.NodeSelectorOpIn,
+							Values:   []string{v1alpha5.ArchitectureAmd64},
+						},
+						{
+							Key:      v1alpha1.LabelInstanceAcceleratorManufacturer,
+							Operator: v1.NodeSelectorOpNotIn,
+							Values:   []string{string(v1alpha1.AWSAcceleratorManufacturer), string(v1alpha1.NVIDIAacceleratorManufacturer)},
+						},
 					},
 				},
 				{
-					{
-						Key:      v1.LabelArchStable,
-						Operator: v1.NodeSelectorOpIn,
-						Values:   []string{v1alpha5.ArchitectureArm64},
-					},
-					{
-						Key:      v1alpha1.LabelInstanceAcceleratorManufacturer,
-						Operator: v1.NodeSelectorOpNotIn,
-						Values:   []string{string(v1alpha1.AWSAcceleratorManufacturer), string(v1alpha1.NVIDIAacceleratorManufacturer)},
+					Name: "test-ami-3",
+					ID:   "ami-id-789",
+					Requirements: []v1.NodeSelectorRequirement{
+						{
+							Key:      v1.LabelArchStable,
+							Operator: v1.NodeSelectorOpIn,
+							Values:   []string{v1alpha5.ArchitectureArm64},
+						},
+						{
+							Key:      v1alpha1.LabelInstanceAcceleratorManufacturer,
+							Operator: v1.NodeSelectorOpNotIn,
+							Values:   []string{string(v1alpha1.AWSAcceleratorManufacturer), string(v1alpha1.NVIDIAacceleratorManufacturer)},
+						},
 					},
 				},
 				{
-					{
-						Key:      v1.LabelArchStable,
-						Operator: v1.NodeSelectorOpIn,
-						Values:   []string{v1alpha5.ArchitectureAmd64},
-					},
-					{
-						Key:      v1alpha1.LabelInstanceAcceleratorManufacturer,
-						Operator: v1.NodeSelectorOpNotIn,
-						Values:   []string{string(v1alpha1.AWSAcceleratorManufacturer), string(v1alpha1.NVIDIAacceleratorManufacturer)},
+					Name: "test-ami-2",
+					ID:   "ami-id-456",
+					Requirements: []v1.NodeSelectorRequirement{
+						{
+							Key:      v1.LabelArchStable,
+							Operator: v1.NodeSelectorOpIn,
+							Values:   []string{v1alpha5.ArchitectureAmd64},
+						},
+						{
+							Key:      v1alpha1.LabelInstanceAcceleratorManufacturer,
+							Operator: v1.NodeSelectorOpIn,
+							Values:   []string{string(v1alpha1.AWSAcceleratorManufacturer), string(v1alpha1.NVIDIAacceleratorManufacturer)},
+						},
 					},
 				},
-			}
-			amiRequirementsInStatus := lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMI, _ int) []v1.NodeSelectorRequirement {
-				return ami.Requirements
-			})
-			for ind := range amiRequirementsInStatus {
-				sort.Slice(amiRequirementsInStatus[ind], func(i, j int) bool {
-					return amiRequirementsInStatus[ind][i].Key > amiRequirementsInStatus[ind][j].Key
-				})
-			}
-			Expect(amiRequirementsInStatus).To(Equal(expectedRequirementsOutput))
-
+			},
+			))
 		})
-		It("Should resolve a valid AMI selectors", func() {
+		It("Should resolve a valid AMI selector", func() {
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			amiIDsInStatus := lo.Map(nodeTemplate.Status.AMIs, func(ami v1alpha1.AMI, _ int) string {
-				return ami.Name
-			})
-			sort.Strings(amiIDsInStatus)
-			Expect(nodeTemplate.Status.AMIs).To(Equal(
+			Expect(nodeTemplate.Status.AMIs).To(ContainElements(
 				[]v1alpha1.AMI{
 					{
 						Name: "test-ami-3",
@@ -490,7 +527,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 				},
 			))
 		})
-		It("Should resolve a valid selectors for an ami with well-known tags", func() {
+		It("should resolve amiSelector AMIs that have well-known tags as AMI requirements into status", func() {
 			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
 				Images: []*ec2.Image{
 					{
@@ -509,29 +546,38 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			Expect(len(nodeTemplate.Status.AMIs)).To(Equal(1))
-			Expect(len(nodeTemplate.Status.AMIs[0].Requirements)).To(Equal(2))
-			sort.Slice(nodeTemplate.Status.AMIs[0].Requirements, func(i, j int) bool {
-				return nodeTemplate.Status.AMIs[0].Requirements[i].Key > nodeTemplate.Status.AMIs[0].Requirements[j].Key
-			})
-			Expect(nodeTemplate.Status.AMIs[0].Requirements[:2:2]).To(Equal(
-				[]v1.NodeSelectorRequirement{
-					{
-						Key:      "kubernetes.io/os",
-						Operator: "In",
-						Values: []string{
-							"test-requirement-1",
+			sortRequirements(nodeTemplate.Status.AMIs)
+			Expect(nodeTemplate.Status.AMIs).To(ContainElements([]v1alpha1.AMI{
+				{
+					Name: "test-ami-4",
+					ID:   "ami-test4",
+					Requirements: []v1.NodeSelectorRequirement{
+						{
+							Key:      "kubernetes.io/os",
+							Operator: "In",
+							Values: []string{
+								"test-requirement-1",
+							},
 						},
-					},
-					{
-						Key:      "kubernetes.io/arch",
-						Operator: "In",
-						Values: []string{
-							"amd64",
+						{
+							Key:      "kubernetes.io/arch",
+							Operator: "In",
+							Values: []string{
+								"amd64",
+							},
 						},
 					},
 				},
+			},
 			))
 		})
 	})
 })
+
+func sortRequirements(amis []v1alpha1.AMI) {
+	for i := range amis {
+		sort.Slice(amis[i].Requirements, func(p, q int) bool {
+			return amis[i].Requirements[p].Key > amis[i].Requirements[q].Key
+		})
+	}
+}

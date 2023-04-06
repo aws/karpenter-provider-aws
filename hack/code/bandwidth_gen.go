@@ -63,53 +63,42 @@ func main() {
 	bandwidth := map[string]int64{}
 
 	for uri, selector := range uriSelectors {
-		response := lo.Must(http.Get(uri))
-		defer response.Body.Close()
+		func() {
+			response := lo.Must(http.Get(uri))
+			defer response.Body.Close()
 
-		doc := lo.Must(goquery.NewDocumentFromReader(response.Body))
-		for _, row := range doc.Find(selector).Next().Next().Next().Find("tbody").Find("tr").Nodes {
-			instanceTypeData := row.FirstChild.NextSibling.FirstChild.FirstChild.Data
-			bandwidthData := row.FirstChild.NextSibling.NextSibling.NextSibling.FirstChild.Data
-			bandwidth[instanceTypeData] = int64(lo.Must(strconv.ParseFloat(bandwidthData, 64)) * 1000)
-		}
-		for uri, selector := range uriSelectors {
-			func() {
-				response := lo.Must(http.Get(uri))
-				defer response.Body.Close()
+			doc := lo.Must(goquery.NewDocumentFromReader(response.Body))
 
-				doc := lo.Must(goquery.NewDocumentFromReader(response.Body))
-
-				// grab two tables that contain the network performance values
-				// first table will contain all the instance type and bandwidth data
-				// some rows will will have vague describe such as "Very Low", "Low", "Low to Moderate", etc.
-				// These instance types will can be found on the second table with absolute values in Gbps
-				// If the instance type is skipped on the first table it will be grabbed on the second table
-				for _, row := range doc.Find(selector).NextAllFiltered(".table-container").Eq(0).Find("tbody").Find("tr").Nodes {
-					instanceTypeData := row.FirstChild.NextSibling.FirstChild.FirstChild.Data
-					bandwidthData := row.FirstChild.NextSibling.NextSibling.NextSibling.FirstChild.Data
-					// exclude all rows that contain any of the following strings
-					if containsAny(bandwidthData, "Low", "Moderate", "High", "Up to") {
-						continue
-					}
-					bandwidthSlice := strings.Split(bandwidthData, " ")
-					// if the first value contains a multiplier i.e. (4x 100 Gigabit)
-					if strings.HasSuffix(bandwidthSlice[0], "x") {
-						multiplier := lo.Must(strconv.ParseFloat(bandwidthSlice[0][:len(bandwidthSlice[0])-1], 64))
-						bandwidth[instanceTypeData] = int64(lo.Must(strconv.ParseFloat(bandwidthSlice[1], 64)) * 1000 * multiplier)
-						// Check row for instancetype for described network performance value i.e (2 Gigabit)
-					} else {
-						bandwidth[instanceTypeData] = int64(lo.Must(strconv.ParseFloat(bandwidthSlice[0], 64)) * 1000)
-					}
+			// grab two tables that contain the network performance values
+			// first table will contain all the instance type and bandwidth data
+			// some rows will will have vague describe such as "Very Low", "Low", "Low to Moderate", etc.
+			// These instance types will can be found on the second table with absolute values in Gbps
+			// If the instance type is skipped on the first table it will be grabbed on the second table
+			for _, row := range doc.Find(selector).NextAllFiltered(".table-container").Eq(0).Find("tbody").Find("tr").Nodes {
+				instanceTypeData := row.FirstChild.NextSibling.FirstChild.FirstChild.Data
+				bandwidthData := row.FirstChild.NextSibling.NextSibling.NextSibling.FirstChild.Data
+				// exclude all rows that contain any of the following strings
+				if containsAny(bandwidthData, "Low", "Moderate", "High", "Up to") {
+					continue
 				}
-
-				// collect any remaining instancetypes
-				for _, row := range doc.Find(selector).NextAllFiltered(".table-container").Eq(1).Find("tbody").Find("tr").Nodes {
-					instanceTypeData := row.FirstChild.NextSibling.FirstChild.FirstChild.Data
-					bandwidthData := row.FirstChild.NextSibling.NextSibling.NextSibling.FirstChild.Data
-					bandwidth[instanceTypeData] = int64(lo.Must(strconv.ParseFloat(bandwidthData, 64)) * 1000)
+				bandwidthSlice := strings.Split(bandwidthData, " ")
+				// if the first value contains a multiplier i.e. (4x 100 Gigabit)
+				if strings.HasSuffix(bandwidthSlice[0], "x") {
+					multiplier := lo.Must(strconv.ParseFloat(bandwidthSlice[0][:len(bandwidthSlice[0])-1], 64))
+					bandwidth[instanceTypeData] = int64(lo.Must(strconv.ParseFloat(bandwidthSlice[1], 64)) * 1000 * multiplier)
+					// Check row for instancetype for described network performance value i.e (2 Gigabit)
+				} else {
+					bandwidth[instanceTypeData] = int64(lo.Must(strconv.ParseFloat(bandwidthSlice[0], 64)) * 1000)
 				}
-			}()
-		}
+			}
+
+			// collect any remaining instancetypes
+			for _, row := range doc.Find(selector).NextAllFiltered(".table-container").Eq(1).Find("tbody").Find("tr").Nodes {
+				instanceTypeData := row.FirstChild.NextSibling.FirstChild.FirstChild.Data
+				bandwidthData := row.FirstChild.NextSibling.NextSibling.NextSibling.FirstChild.Data
+				bandwidth[instanceTypeData] = int64(lo.Must(strconv.ParseFloat(bandwidthData, 64)) * 1000)
+			}
+		}()
 	}
 	if err := os.Setenv("AWS_SDK_LOAD_CONFIG", "true"); err != nil {
 		log.Fatalf("setting AWS_SDK_LOAD_CONFIG, %s", err)

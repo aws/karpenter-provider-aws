@@ -81,7 +81,6 @@ type AMIFamily interface {
 }
 
 type DefaultAMIOutput struct {
-	Name         string
 	Query        string
 	Requirements scheduling.Requirements
 }

@@ -42,7 +42,6 @@ type Bottlerocket struct {
 func (b Bottlerocket) DefaultAMIs(version string) []DefaultAMIOutput {
 	return []DefaultAMIOutput{
 		{
-			Name:  fmt.Sprintf("bottlerocket-aws-k8s-%s-x86_64", version),
 			Query: fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/x86_64/latest/image_id", version),
 			Requirements: scheduling.NewRequirements(
 				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureAmd64),
@@ -50,7 +49,6 @@ func (b Bottlerocket) DefaultAMIs(version string) []DefaultAMIOutput {
 			),
 		},
 		{
-			Name:  fmt.Sprintf("bottlerocket-aws-k8s-%s-x86_64-nvidia", version),
 			Query: fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/x86_64/latest/image_id", version),
 			Requirements: scheduling.NewRequirements(
 				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureAmd64),
@@ -58,7 +56,6 @@ func (b Bottlerocket) DefaultAMIs(version string) []DefaultAMIOutput {
 			),
 		},
 		{
-			Name:  fmt.Sprintf("bottlerocket-aws-k8s-%s%s", version, fmt.Sprintf("-%s", v1alpha5.ArchitectureArm64)),
 			Query: fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/%s/latest/image_id", version, v1alpha5.ArchitectureArm64),
 			Requirements: scheduling.NewRequirements(
 				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureArm64),
@@ -66,7 +63,6 @@ func (b Bottlerocket) DefaultAMIs(version string) []DefaultAMIOutput {
 			),
 		},
 		{
-			Name:  fmt.Sprintf("bottlerocket-aws-k8s-%s%s-nvidia", version, fmt.Sprintf("-%s", v1alpha5.ArchitectureArm64)),
 			Query: fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/%s/latest/image_id", version, v1alpha5.ArchitectureArm64),
 			Requirements: scheduling.NewRequirements(
 				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureArm64),
