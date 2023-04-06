@@ -5,7 +5,8 @@ config(){
   GITHUB_ACCOUNT="aws"
   AWS_ACCOUNT_ID="071440425669"
   ECR_GALLERY_NAME="karpenter"
-  RELEASE_REPO_ECR=${RELEASE_REPO_ECR:-public.ecr.aws/${ECR_GALLERY_NAME}/}
+  # RELEASE_REPO_ECR=${RELEASE_REPO_ECR:-public.ecr.aws/${ECR_GALLERY_NAME}/}
+  RELEASE_REPO_ECR="https://177544064073.dkr.ecr.us-west-2.amazonaws.com/v2/controller/"
   RELEASE_REPO_GH=${RELEASE_REPO_GH:-ghcr.io/${GITHUB_ACCOUNT}/karpenter}
 
   MAIN_GITHUB_ACCOUNT="aws"
