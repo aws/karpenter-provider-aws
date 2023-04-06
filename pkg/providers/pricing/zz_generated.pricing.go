@@ -18,9 +18,9 @@ package pricing
 
 import "time"
 
-// generated at 2023-02-27T15:52:29Z for us-east-1
+// generated at 2023-04-03T13:08:14Z for us-east-1
 
-var initialPriceUpdate, _ = time.Parse(time.RFC3339, "2023-02-27T15:52:29Z")
+var initialPriceUpdate, _ = time.Parse(time.RFC3339, "2023-04-03T13:08:14Z")
 var initialOnDemandPrices = map[string]map[string]float64{}
 
 func init() {
@@ -370,7 +370,7 @@ func init() {
 		// c6in family
 		"c6in.12xlarge": 3.276000, "c6in.16xlarge": 4.368000, "c6in.24xlarge": 6.552000, "c6in.2xlarge": 0.546000,
 		"c6in.32xlarge": 8.736000, "c6in.4xlarge": 1.092000, "c6in.8xlarge": 2.184000, "c6in.large": 0.136500,
-		"c6in.xlarge": 0.273000,
+		"c6in.metal": 8.736000, "c6in.xlarge": 0.273000,
 		// cc2 family
 		"cc2.8xlarge": 2.250000,
 		// d2 family
@@ -446,11 +446,11 @@ func init() {
 		// m6idn family
 		"m6idn.12xlarge": 4.801680, "m6idn.16xlarge": 6.402240, "m6idn.24xlarge": 9.603360,
 		"m6idn.2xlarge": 0.800280, "m6idn.32xlarge": 12.804480, "m6idn.4xlarge": 1.600560, "m6idn.8xlarge": 3.201120,
-		"m6idn.large": 0.200070, "m6idn.xlarge": 0.400140,
+		"m6idn.large": 0.200070, "m6idn.metal": 12.804480, "m6idn.xlarge": 0.400140,
 		// m6in family
 		"m6in.12xlarge": 4.183920, "m6in.16xlarge": 5.578560, "m6in.24xlarge": 8.367840, "m6in.2xlarge": 0.697320,
 		"m6in.32xlarge": 11.157120, "m6in.4xlarge": 1.394640, "m6in.8xlarge": 2.789280, "m6in.large": 0.174330,
-		"m6in.xlarge": 0.348660,
+		"m6in.metal": 11.157120, "m6in.xlarge": 0.348660,
 		// p2 family
 		"p2.16xlarge": 17.280000, "p2.8xlarge": 8.640000, "p2.xlarge": 1.080000,
 		// p3 family
@@ -498,11 +498,11 @@ func init() {
 		// r6idn family
 		"r6idn.12xlarge": 5.644080, "r6idn.16xlarge": 7.525440, "r6idn.24xlarge": 11.288160,
 		"r6idn.2xlarge": 0.940680, "r6idn.32xlarge": 15.050880, "r6idn.4xlarge": 1.881360, "r6idn.8xlarge": 3.762720,
-		"r6idn.large": 0.235170, "r6idn.xlarge": 0.470340,
+		"r6idn.large": 0.235170, "r6idn.metal": 15.050880, "r6idn.xlarge": 0.470340,
 		// r6in family
 		"r6in.12xlarge": 5.026320, "r6in.16xlarge": 6.701760, "r6in.24xlarge": 10.052640, "r6in.2xlarge": 0.837720,
 		"r6in.32xlarge": 13.403520, "r6in.4xlarge": 1.675440, "r6in.8xlarge": 3.350880, "r6in.large": 0.209430,
-		"r6in.xlarge": 0.418860,
+		"r6in.metal": 13.403520, "r6in.xlarge": 0.418860,
 		// t1 family
 		"t1.micro": 0.024000,
 		// t2 family
@@ -521,6 +521,8 @@ func init() {
 		"u-12tb1.112xlarge": 130.867000,
 		// u-24tb1 family
 		"u-24tb1.112xlarge": 261.730000,
+		// u-3tb1 family
+		"u-3tb1.56xlarge": 32.716500,
 		// u-6tb1 family
 		"u-6tb1.112xlarge": 65.433000, "u-6tb1.56xlarge": 55.610750,
 		// u-9tb1 family
@@ -562,6 +564,10 @@ func init() {
 		"c6i.12xlarge": 2.448000, "c6i.16xlarge": 3.264000, "c6i.24xlarge": 4.896000, "c6i.2xlarge": 0.408000,
 		"c6i.32xlarge": 6.528000, "c6i.4xlarge": 0.816000, "c6i.8xlarge": 1.632000, "c6i.large": 0.102000,
 		"c6i.metal": 6.528000, "c6i.xlarge": 0.204000,
+		// c6in family
+		"c6in.12xlarge": 3.276000, "c6in.16xlarge": 4.368000, "c6in.24xlarge": 6.552000, "c6in.2xlarge": 0.546000,
+		"c6in.32xlarge": 8.736000, "c6in.4xlarge": 1.092000, "c6in.8xlarge": 2.184000, "c6in.large": 0.136500,
+		"c6in.metal": 8.736000, "c6in.xlarge": 0.273000,
 		// d2 family
 		"d2.2xlarge": 1.656000, "d2.4xlarge": 3.312000, "d2.8xlarge": 6.624000, "d2.xlarge": 0.828000,
 		// g4dn family
@@ -648,6 +654,8 @@ func init() {
 		"u-24tb1.112xlarge": 261.730000,
 		// u-6tb1 family
 		"u-6tb1.112xlarge": 65.433000, "u-6tb1.56xlarge": 55.610750,
+		// u-9tb1 family
+		"u-9tb1.112xlarge": 98.150000,
 		// x1 family
 		"x1.16xlarge": 8.003000, "x1.32xlarge": 16.006000,
 		// x1e family
