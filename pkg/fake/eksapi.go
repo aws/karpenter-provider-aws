@@ -39,5 +39,7 @@ func (s *EKSAPI) Reset() {
 }
 
 func (s *EKSAPI) DescribeCluster(input *eks.DescribeClusterInput) (*eks.DescribeClusterOutput, error) {
-	return s.DescribeClusterBehaviour.Invoke(input)
+	return s.DescribeClusterBehaviour.Invoke(input, func(*eks.DescribeClusterInput) (*eks.DescribeClusterOutput, error) {
+		return nil, nil
+	})
 }

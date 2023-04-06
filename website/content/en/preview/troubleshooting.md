@@ -128,6 +128,20 @@ Your security groups are not blocking you from reaching your webhook.
 This is especially relevant if you have used `terraform-eks-module` version `>=18` since that version changed its security
 approach, and now it's much more restrictive.
 
+If you see this issue happens while using the`extraObjects` key from the values file, ensure that:
+ * The helm install/upgrade command has the `--wait` flag (or `wait: true` when using helmfile)
+ * Your Provisioners and AWSNodeTemplates definitions have the proper [helm hooks annotations](https://helm.sh/docs/topics/charts_hooks/) to install them *after* the karpenter pods are running
+
+```yaml
+- apiVersion: karpenter.sh/v1alpha5
+  kind: Provisioner
+  metadata:
+    name: default
+    annotations:
+      "helm.sh/hook": "post-install,post-upgrade"
+      "helm.sh/hook-delete-policy": before-hook-creation
+```
+
 ## Provisioning
 
 ### DaemonSets can result in deployment failures
@@ -467,5 +481,5 @@ caused by: Post "https://api.pricing.us-east-1.amazonaws.com/": dial tcp 52.94.2
 ```
 This network timeout occurs because there is no VPC endpoint available for the [Price List Query API.](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/using-pelong.html).
 To workaround this issue, Karpenter ships updated on-demand pricing data as part of the Karpenter binary; however, this means that pricing data will only be updated on Karpenter version upgrades.
-To disable pricing lookups and avoid the error messages, set the AWS_ISOLATED_VPC environment variable (or the `--aws-isolated-vpc` option) to true.
+To disable pricing lookups and avoid the error messages, set the `AWS_ISOLATED_VPC` environment variable (or the `--aws-isolated-vpc` option) to true.
 See [Environment Variables / CLI Flags]({{<ref "./concepts/settings/#environment-variables--cli-flags" >}}) for details.

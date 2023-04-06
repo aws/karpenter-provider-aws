@@ -5,7 +5,7 @@ if [ -z ${ENABLE_GIT_PUSH+x} ]; then
   ENABLE_GIT_PUSH=false
 fi
 
-echo "api-code-gen running ENABLE_GIT_PUSH: ${ENABLE_GIT_PUSH}"
+echo "codegen running ENABLE_GIT_PUSH: ${ENABLE_GIT_PUSH}"
 
 bandwidth() {
   GENERATED_FILE="pkg/providers/instancetype/zz_generated.bandwidth.go"
@@ -65,7 +65,7 @@ checkForUpdates() {
     noUpdates "${SUBJECT}"
     git checkout "${GENERATED_FILE}"
   else
-    echo "true" >/tmp/api-code-gen-updates
+    echo "true" >/tmp/codegen-updates
     git add "${GENERATED_FILE}"
     if [[ $ENABLE_GIT_PUSH == true ]]; then
       gitCommitAndPush "${SUBJECT}"
@@ -75,13 +75,13 @@ checkForUpdates() {
 
 gitOpenAndPullBranch() {
   git fetch origin
-  git checkout api-code-gen || git checkout -b api-code-gen || true
+  git checkout codegen || git checkout -b codegen || true
 }
 
 gitCommitAndPush() {
   UPDATE_SUBJECT=$1
-  git commit -m "APICodeGen updates from AWS API for ${UPDATE_SUBJECT}"
-  git push --set-upstream origin api-code-gen
+  git commit -m "CodeGen updates from AWS API for ${UPDATE_SUBJECT}"
+  git push --set-upstream origin codegen
 }
 
 noUpdates() {

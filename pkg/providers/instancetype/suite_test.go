@@ -32,7 +32,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
 	clock "k8s.io/utils/clock/testing"
@@ -45,7 +44,6 @@ import (
 	"github.com/aws/karpenter-core/pkg/controllers/provisioning"
 	"github.com/aws/karpenter-core/pkg/controllers/state"
 	"github.com/aws/karpenter-core/pkg/events"
-	"github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter-core/pkg/operator/injection"
 	"github.com/aws/karpenter-core/pkg/operator/options"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
@@ -75,7 +73,6 @@ var prov *provisioning.Provisioner
 var provisioner *v1alpha5.Provisioner
 var nodeTemplate *v1alpha1.AWSNodeTemplate
 var cluster *state.Cluster
-var provisioningController controller.Controller
 var cloudProvider *cloudprovider.CloudProvider
 
 func TestAWS(t *testing.T) {
@@ -92,10 +89,9 @@ var _ = BeforeSuite(func() {
 	awsEnv = test.NewEnvironment(ctx, env)
 
 	fakeClock = &clock.FakeClock{}
-	cloudProvider = cloudprovider.New(ctx, awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, env.Client, awsEnv.AMIProvider)
+	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, env.Client, awsEnv.AMIProvider)
 	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
 	prov = provisioning.NewProvisioner(env.Client, env.KubernetesInterface.CoreV1(), events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster)
-	provisioningController = provisioning.NewController(env.Client, prov, events.NewRecorder(&record.FakeRecorder{}))
 })
 
 var _ = AfterSuite(func() {
@@ -119,11 +115,6 @@ var _ = BeforeEach(func() {
 			},
 		},
 	}
-	nodeTemplate.SetGroupVersionKind(schema.GroupVersionKind{
-		Group:   v1alpha1.SchemeGroupVersion.Group,
-		Version: v1alpha1.SchemeGroupVersion.Version,
-		Kind:    "AWSNodeTemplate",
-	})
 	provisioner = test.Provisioner(coretest.ProvisionerOptions{
 		Requirements: []v1.NodeSelectorRequirement{{
 			Key:      v1alpha1.LabelInstanceCategory,
@@ -176,6 +167,10 @@ var _ = Describe("Instance Types", func() {
 			v1alpha1.LabelInstanceGPUCount:                     "1",
 			v1alpha1.LabelInstanceGPUMemory:                    "16384",
 			v1alpha1.LabelInstanceLocalNVME:                    "900",
+			v1alpha1.LabelInstanceAcceleratorName:              "t4",
+			v1alpha1.LabelInstanceAcceleratorManufacturer:      "nvidia",
+			v1alpha1.LabelInstanceAcceleratorCount:             "1",
+			v1alpha1.LabelInstanceAcceleratorMemory:            "16384",
 			// Deprecated Labels
 			v1.LabelFailureDomainBetaRegion: "",
 			v1.LabelFailureDomainBetaZone:   "test-zone-1a",
@@ -187,6 +182,18 @@ var _ = Describe("Instance Types", func() {
 
 		// Ensure that we're exercising all well known labels
 		Expect(lo.Keys(nodeSelector)).To(ContainElements(append(v1alpha5.WellKnownLabels.UnsortedList(), lo.Keys(v1alpha5.NormalizedLabels)...)))
+		pod := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: nodeSelector})
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+		ExpectScheduled(ctx, env.Client, pod)
+	})
+	It("should support instance type labels with accelerator", func() {
+		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+
+		nodeSelector := map[string]string{
+			v1alpha1.LabelInstanceAcceleratorName:         "inferentia",
+			v1alpha1.LabelInstanceAcceleratorManufacturer: "aws",
+			v1alpha1.LabelInstanceAcceleratorCount:        "1",
+		}
 		pod := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: nodeSelector})
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 		ExpectScheduled(ctx, env.Client, pod)
@@ -1221,7 +1228,7 @@ func makeFakeInstances() []*ec2.InstanceTypeInfo {
 	ctx := settings.ToContext(context.Background(), &settings.Settings{IsolatedVPC: true})
 	// Use keys from the static pricing data so that we guarantee pricing for the data
 	// Create uniform instance data so all of them schedule for a given pod
-	for _, it := range pricing.NewProvider(ctx, nil, nil, "us-east-1", nil).InstanceTypes() {
+	for _, it := range pricing.NewProvider(ctx, nil, nil, "us-east-1").InstanceTypes() {
 		instanceTypes = append(instanceTypes, &ec2.InstanceTypeInfo{
 			InstanceType: aws.String(it),
 			ProcessorInfo: &ec2.ProcessorInfo{

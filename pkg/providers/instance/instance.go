@@ -30,9 +30,11 @@ import (
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 
+	"github.com/aws/karpenter-core/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/batcher"
@@ -110,12 +112,19 @@ func (p *Provider) Create(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTem
 	); err != nil {
 		return nil, fmt.Errorf("retrieving node name for instance %s, %w", aws.StringValue(id), err)
 	}
+	var capacity v1.ResourceList
+	if instanceType, ok := lo.Find(instanceTypes, func(i *cloudprovider.InstanceType) bool {
+		return i.Name == aws.StringValue(instance.InstanceType)
+	}); ok {
+		capacity = functional.FilterMap(instanceType.Capacity, func(_ v1.ResourceName, v resource.Quantity) bool { return !resources.IsZero(v) })
+	}
 	logging.FromContext(ctx).With(
 		"id", aws.StringValue(instance.InstanceId),
 		"hostname", aws.StringValue(instance.PrivateDnsName),
 		"instance-type", aws.StringValue(instance.InstanceType),
 		"zone", aws.StringValue(instance.Placement.AvailabilityZone),
-		"capacity-type", GetCapacityType(instance)).Infof("launched new instance")
+		"capacity-type", GetCapacityType(instance),
+		"capacity", capacity).Infof("launched new instance")
 
 	return instance, nil
 }
@@ -559,6 +568,11 @@ func combineFleetErrors(errors []*ec2.CreateFleetError) (errs error) {
 	}
 	for errorCode := range unique {
 		errs = multierr.Append(errs, fmt.Errorf(errorCode))
+	}
+	// If all the Fleet errors are ICE errors then we should wrap the combined error in the generic ICE error
+	iceErrorCount := lo.CountBy(errors, func(err *ec2.CreateFleetError) bool { return awserrors.IsUnfulfillableCapacity(err) })
+	if iceErrorCount == len(errors) {
+		return cloudprovider.NewInsufficientCapacityError(fmt.Errorf("with fleet error(s), %w", errs))
 	}
 	return fmt.Errorf("with fleet error(s), %w", errs)
 }

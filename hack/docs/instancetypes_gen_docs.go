@@ -122,7 +122,12 @@ below are the resources available with some assumptions and after the instance o
 		familyName := strings.Split(it.Name, ".")[0]
 		families[familyName] = append(families[familyName], it)
 		for labelName := range it.Requirements {
-			labelNameMap.Insert(labelName)
+			// TODO: This is to remove the gpu labels from the docs
+			// GPU labels were removed from docs in favor of Accelerator labels
+			// this should be removed after v1 once gpu label has been removed.
+			if !strings.Contains(labelName, "gpu") {
+				labelNameMap.Insert(labelName)
+			}
 		}
 		for resourceName := range it.Capacity {
 			resourceNameMap.Insert(string(resourceName))
@@ -238,5 +243,5 @@ func NewAWSCloudProviderForCodeGen(ctx context.Context) *awscloudprovider.CloudP
 		RESTConfig:          &rest.Config{},
 		KubernetesInterface: lo.Must(kubernetes.NewForConfigAndClient(&rest.Config{}, &http.Client{Transport: &kubeDnsTransport{}})),
 	})
-	return awscloudprovider.New(context, context.InstanceTypesProvider, context.InstanceProvider, context.KubeClient, context.AMIProvider)
+	return awscloudprovider.New(context.InstanceTypesProvider, context.InstanceProvider, context.KubeClient, context.AMIProvider)
 }

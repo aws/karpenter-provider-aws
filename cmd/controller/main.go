@@ -42,7 +42,6 @@ func main() {
 		StartAsync:          operator.Elected(),
 	})
 	awsCloudProvider := cloudprovider.New(
-		awsCtx,
 		awsCtx.InstanceTypesProvider,
 		awsCtx.InstanceProvider,
 		awsCtx.KubeClient,

@@ -34,6 +34,7 @@ type DescribeInstancesBatcher struct {
 
 func NewDescribeInstancesBatcher(ctx context.Context, ec2api ec2iface.EC2API) *DescribeInstancesBatcher {
 	options := Options[ec2.DescribeInstancesInput, ec2.DescribeInstancesOutput]{
+		Name:          "describe_instances",
 		IdleTimeout:   100 * time.Millisecond,
 		MaxTimeout:    1 * time.Second,
 		MaxItems:      500,

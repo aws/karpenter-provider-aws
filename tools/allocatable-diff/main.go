@@ -78,7 +78,6 @@ func main() {
 		KubernetesInterface: kubernetesInterface,
 	})
 	cloudProvider := cloudprovider.New(
-		awsCtx,
 		awsCtx.InstanceTypesProvider,
 		awsCtx.InstanceProvider,
 		awsCtx.KubeClient,

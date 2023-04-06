@@ -87,6 +87,10 @@ var _ = Describe("Scheduling", func() {
 			v1alpha1.LabelInstanceGPUCount:                     "1",
 			v1alpha1.LabelInstanceGPUMemory:                    "16384",
 			v1alpha1.LabelInstanceLocalNVME:                    "900",
+			v1alpha1.LabelInstanceAcceleratorName:              "t4",
+			v1alpha1.LabelInstanceAcceleratorManufacturer:      "nvidia",
+			v1alpha1.LabelInstanceAcceleratorCount:             "1",
+			v1alpha1.LabelInstanceAcceleratorMemory:            "16384",
 			// Deprecated Labels
 			v1.LabelFailureDomainBetaRegion: env.Region,
 			v1.LabelFailureDomainBetaZone:   fmt.Sprintf("%sa", env.Region),
@@ -104,6 +108,32 @@ var _ = Describe("Scheduling", func() {
 		}})
 		// Ensure that we're exercising all well known labels
 		Expect(lo.Keys(nodeSelector)).To(ContainElements(append(v1alpha5.WellKnownLabels.UnsortedList(), lo.Keys(v1alpha5.NormalizedLabels)...)))
+		env.ExpectCreated(provisioner, provider, deployment)
+		env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
+		env.ExpectCreatedNodeCount("==", 1)
+	})
+	It("should support well known labels for an accelerator", func() {
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+		}})
+		provisioner := test.Provisioner(test.ProvisionerOptions{
+			ProviderRef:  &v1alpha5.MachineTemplateRef{Name: provider.Name},
+			Requirements: []v1.NodeSelectorRequirement{{Key: v1alpha1.LabelInstanceCategory, Operator: v1.NodeSelectorOpExists}},
+		})
+		nodeSelector := map[string]string{
+			v1alpha1.LabelInstanceAcceleratorName:         "inferentia",
+			v1alpha1.LabelInstanceAcceleratorManufacturer: "aws",
+			v1alpha1.LabelInstanceAcceleratorCount:        "1",
+		}
+		requirements := lo.MapToSlice(nodeSelector, func(key string, value string) v1.NodeSelectorRequirement {
+			return v1.NodeSelectorRequirement{Key: key, Operator: v1.NodeSelectorOpIn, Values: []string{value}}
+		})
+		deployment := test.Deployment(test.DeploymentOptions{Replicas: 1, PodOptions: test.PodOptions{
+			NodeSelector:     nodeSelector,
+			NodePreferences:  requirements,
+			NodeRequirements: requirements,
+		}})
 		env.ExpectCreated(provisioner, provider, deployment)
 		env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
 		env.ExpectCreatedNodeCount("==", 1)

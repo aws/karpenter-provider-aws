@@ -122,6 +122,9 @@ affinity:
           operator: In
           values:
           - ${NODEGROUP}
+  podAntiAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      - topologyKey: "kubernetes.io/hostname"
 ```
 
 Now that our deployment is ready we can create the karpenter namespace, create the provisioner CRD, and then deploy the rest of the karpenter resources.

@@ -3177,6 +3177,29 @@ below are the resources available with some assumptions and after the instance o
  |memory|234560Mi|
  |pods|688|
  |vpc.amazonaws.com/pod-eni|108|
+### `c6in.metal`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|c|
+ |karpenter.k8s.aws/instance-cpu|128|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|c6in|
+ |karpenter.k8s.aws/instance-generation|6|
+ |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-memory|262144|
+ |karpenter.k8s.aws/instance-pods|688|
+ |karpenter.k8s.aws/instance-size|metal|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|c6in.metal|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|127610m|
+ |ephemeral-storage|17Gi|
+ |memory|234560Mi|
+ |pods|688|
 ## c7g Family
 ### `c7g.medium`
 #### Labels
@@ -3766,15 +3789,15 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|8|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|habana|
+ |karpenter.k8s.aws/instance-accelerator-memory|32768|
+ |karpenter.k8s.aws/instance-accelerator-name|gaudi-hl-205|
  |karpenter.k8s.aws/instance-category|dl|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|dl1|
  |karpenter.k8s.aws/instance-generation|1|
- |karpenter.k8s.aws/instance-gpu-count|8|
- |karpenter.k8s.aws/instance-gpu-manufacturer|habana|
- |karpenter.k8s.aws/instance-gpu-memory|32768|
- |karpenter.k8s.aws/instance-gpu-name|gaudi-hl-205|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-local-nvme|4000|
  |karpenter.k8s.aws/instance-memory|786432|
@@ -3871,15 +3894,15 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|1|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-accelerator-memory|4096|
+ |karpenter.k8s.aws/instance-accelerator-name|k520|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|g2|
  |karpenter.k8s.aws/instance-generation|2|
- |karpenter.k8s.aws/instance-gpu-count|1|
- |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
- |karpenter.k8s.aws/instance-gpu-memory|4096|
- |karpenter.k8s.aws/instance-gpu-name|k520|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|15360|
  |karpenter.k8s.aws/instance-pods|58|
@@ -3899,15 +3922,15 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|4|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-accelerator-memory|4096|
+ |karpenter.k8s.aws/instance-accelerator-name|k520|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|g2|
  |karpenter.k8s.aws/instance-generation|2|
- |karpenter.k8s.aws/instance-gpu-count|4|
- |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
- |karpenter.k8s.aws/instance-gpu-memory|4096|
- |karpenter.k8s.aws/instance-gpu-name|k520|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|61440|
  |karpenter.k8s.aws/instance-pods|234|
@@ -3928,15 +3951,15 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|1|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-accelerator-memory|8192|
+ |karpenter.k8s.aws/instance-accelerator-name|m60|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|g3|
  |karpenter.k8s.aws/instance-generation|3|
- |karpenter.k8s.aws/instance-gpu-count|1|
- |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
- |karpenter.k8s.aws/instance-gpu-memory|8192|
- |karpenter.k8s.aws/instance-gpu-name|m60|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|124928|
  |karpenter.k8s.aws/instance-pods|234|
@@ -3956,15 +3979,15 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|2|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-accelerator-memory|8192|
+ |karpenter.k8s.aws/instance-accelerator-name|m60|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|g3|
  |karpenter.k8s.aws/instance-generation|3|
- |karpenter.k8s.aws/instance-gpu-count|2|
- |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
- |karpenter.k8s.aws/instance-gpu-memory|8192|
- |karpenter.k8s.aws/instance-gpu-name|m60|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|249856|
  |karpenter.k8s.aws/instance-pods|234|
@@ -3984,15 +4007,15 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|4|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-accelerator-memory|8192|
+ |karpenter.k8s.aws/instance-accelerator-name|m60|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|g3|
  |karpenter.k8s.aws/instance-generation|3|
- |karpenter.k8s.aws/instance-gpu-count|4|
- |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
- |karpenter.k8s.aws/instance-gpu-memory|8192|
- |karpenter.k8s.aws/instance-gpu-name|m60|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|499712|
  |karpenter.k8s.aws/instance-pods|737|
@@ -4013,15 +4036,15 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|1|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-accelerator-memory|8192|
+ |karpenter.k8s.aws/instance-accelerator-name|m60|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|g3s|
  |karpenter.k8s.aws/instance-generation|3|
- |karpenter.k8s.aws/instance-gpu-count|1|
- |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
- |karpenter.k8s.aws/instance-gpu-memory|8192|
- |karpenter.k8s.aws/instance-gpu-name|m60|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|31232|
  |karpenter.k8s.aws/instance-pods|58|
@@ -4042,15 +4065,15 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|1|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|amd|
+ |karpenter.k8s.aws/instance-accelerator-memory|8192|
+ |karpenter.k8s.aws/instance-accelerator-name|radeon-pro-v520|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|g4ad|
  |karpenter.k8s.aws/instance-generation|4|
- |karpenter.k8s.aws/instance-gpu-count|1|
- |karpenter.k8s.aws/instance-gpu-manufacturer|amd|
- |karpenter.k8s.aws/instance-gpu-memory|8192|
- |karpenter.k8s.aws/instance-gpu-name|radeon-pro-v520|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-local-nvme|150|
  |karpenter.k8s.aws/instance-memory|16384|
@@ -4073,15 +4096,15 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|1|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|amd|
+ |karpenter.k8s.aws/instance-accelerator-memory|8192|
+ |karpenter.k8s.aws/instance-accelerator-name|radeon-pro-v520|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|g4ad|
  |karpenter.k8s.aws/instance-generation|4|
- |karpenter.k8s.aws/instance-gpu-count|1|
- |karpenter.k8s.aws/instance-gpu-manufacturer|amd|
- |karpenter.k8s.aws/instance-gpu-memory|8192|
- |karpenter.k8s.aws/instance-gpu-name|radeon-pro-v520|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-local-nvme|300|
  |karpenter.k8s.aws/instance-memory|32768|
@@ -4104,15 +4127,15 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|1|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|amd|
+ |karpenter.k8s.aws/instance-accelerator-memory|8192|
+ |karpenter.k8s.aws/instance-accelerator-name|radeon-pro-v520|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|g4ad|
  |karpenter.k8s.aws/instance-generation|4|
- |karpenter.k8s.aws/instance-gpu-count|1|
- |karpenter.k8s.aws/instance-gpu-manufacturer|amd|
- |karpenter.k8s.aws/instance-gpu-memory|8192|
- |karpenter.k8s.aws/instance-gpu-name|radeon-pro-v520|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-local-nvme|600|
  |karpenter.k8s.aws/instance-memory|65536|
@@ -4135,15 +4158,15 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|2|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|amd|
+ |karpenter.k8s.aws/instance-accelerator-memory|8192|
+ |karpenter.k8s.aws/instance-accelerator-name|radeon-pro-v520|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|g4ad|
  |karpenter.k8s.aws/instance-generation|4|
- |karpenter.k8s.aws/instance-gpu-count|2|
- |karpenter.k8s.aws/instance-gpu-manufacturer|amd|
- |karpenter.k8s.aws/instance-gpu-memory|8192|
- |karpenter.k8s.aws/instance-gpu-name|radeon-pro-v520|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-local-nvme|1200|
  |karpenter.k8s.aws/instance-memory|131072|
@@ -4166,15 +4189,15 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|4|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|amd|
+ |karpenter.k8s.aws/instance-accelerator-memory|8192|
+ |karpenter.k8s.aws/instance-accelerator-name|radeon-pro-v520|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|g4ad|
  |karpenter.k8s.aws/instance-generation|4|
- |karpenter.k8s.aws/instance-gpu-count|4|
- |karpenter.k8s.aws/instance-gpu-manufacturer|amd|
- |karpenter.k8s.aws/instance-gpu-memory|8192|
- |karpenter.k8s.aws/instance-gpu-name|radeon-pro-v520|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-local-nvme|2400|
  |karpenter.k8s.aws/instance-memory|262144|
@@ -4198,15 +4221,15 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|1|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-accelerator-memory|16384|
+ |karpenter.k8s.aws/instance-accelerator-name|t4|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|g4dn|
  |karpenter.k8s.aws/instance-generation|4|
- |karpenter.k8s.aws/instance-gpu-count|1|
- |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
- |karpenter.k8s.aws/instance-gpu-memory|16384|
- |karpenter.k8s.aws/instance-gpu-name|t4|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-local-nvme|125|
  |karpenter.k8s.aws/instance-memory|16384|
@@ -4229,15 +4252,15 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|1|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-accelerator-memory|16384|
+ |karpenter.k8s.aws/instance-accelerator-name|t4|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|g4dn|
  |karpenter.k8s.aws/instance-generation|4|
- |karpenter.k8s.aws/instance-gpu-count|1|
- |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
- |karpenter.k8s.aws/instance-gpu-memory|16384|
- |karpenter.k8s.aws/instance-gpu-name|t4|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-local-nvme|225|
  |karpenter.k8s.aws/instance-memory|32768|
@@ -4260,15 +4283,15 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|1|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-accelerator-memory|16384|
+ |karpenter.k8s.aws/instance-accelerator-name|t4|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|g4dn|
  |karpenter.k8s.aws/instance-generation|4|
- |karpenter.k8s.aws/instance-gpu-count|1|
- |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
- |karpenter.k8s.aws/instance-gpu-memory|16384|
- |karpenter.k8s.aws/instance-gpu-name|t4|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-local-nvme|225|
  |karpenter.k8s.aws/instance-memory|65536|
@@ -4291,15 +4314,15 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|1|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-accelerator-memory|16384|
+ |karpenter.k8s.aws/instance-accelerator-name|t4|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|g4dn|
  |karpenter.k8s.aws/instance-generation|4|
- |karpenter.k8s.aws/instance-gpu-count|1|
- |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
- |karpenter.k8s.aws/instance-gpu-memory|16384|
- |karpenter.k8s.aws/instance-gpu-name|t4|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-local-nvme|900|
  |karpenter.k8s.aws/instance-memory|131072|
@@ -4322,15 +4345,15 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|4|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-accelerator-memory|16384|
+ |karpenter.k8s.aws/instance-accelerator-name|t4|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|g4dn|
  |karpenter.k8s.aws/instance-generation|4|
- |karpenter.k8s.aws/instance-gpu-count|4|
- |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
- |karpenter.k8s.aws/instance-gpu-memory|16384|
- |karpenter.k8s.aws/instance-gpu-name|t4|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-local-nvme|900|
  |karpenter.k8s.aws/instance-memory|196608|
@@ -4353,15 +4376,15 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|1|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-accelerator-memory|16384|
+ |karpenter.k8s.aws/instance-accelerator-name|t4|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|g4dn|
  |karpenter.k8s.aws/instance-generation|4|
- |karpenter.k8s.aws/instance-gpu-count|1|
- |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
- |karpenter.k8s.aws/instance-gpu-memory|16384|
- |karpenter.k8s.aws/instance-gpu-name|t4|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-local-nvme|900|
  |karpenter.k8s.aws/instance-memory|262144|
@@ -4384,15 +4407,15 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|8|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-accelerator-memory|16384|
+ |karpenter.k8s.aws/instance-accelerator-name|t4|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|g4dn|
  |karpenter.k8s.aws/instance-generation|4|
- |karpenter.k8s.aws/instance-gpu-count|8|
- |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
- |karpenter.k8s.aws/instance-gpu-memory|16384|
- |karpenter.k8s.aws/instance-gpu-name|t4|
  |karpenter.k8s.aws/instance-hypervisor||
  |karpenter.k8s.aws/instance-local-nvme|1800|
  |karpenter.k8s.aws/instance-memory|393216|
@@ -4416,15 +4439,15 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|1|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-accelerator-memory|24576|
+ |karpenter.k8s.aws/instance-accelerator-name|a10g|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|g5|
  |karpenter.k8s.aws/instance-generation|5|
- |karpenter.k8s.aws/instance-gpu-count|1|
- |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
- |karpenter.k8s.aws/instance-gpu-memory|24576|
- |karpenter.k8s.aws/instance-gpu-name|a10g|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-local-nvme|250|
  |karpenter.k8s.aws/instance-memory|16384|
@@ -4447,15 +4470,15 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|1|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-accelerator-memory|24576|
+ |karpenter.k8s.aws/instance-accelerator-name|a10g|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|g5|
  |karpenter.k8s.aws/instance-generation|5|
- |karpenter.k8s.aws/instance-gpu-count|1|
- |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
- |karpenter.k8s.aws/instance-gpu-memory|24576|
- |karpenter.k8s.aws/instance-gpu-name|a10g|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-local-nvme|450|
  |karpenter.k8s.aws/instance-memory|32768|
@@ -4478,15 +4501,15 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|1|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-accelerator-memory|24576|
+ |karpenter.k8s.aws/instance-accelerator-name|a10g|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|g5|
  |karpenter.k8s.aws/instance-generation|5|
- |karpenter.k8s.aws/instance-gpu-count|1|
- |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
- |karpenter.k8s.aws/instance-gpu-memory|24576|
- |karpenter.k8s.aws/instance-gpu-name|a10g|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-local-nvme|600|
  |karpenter.k8s.aws/instance-memory|65536|
@@ -4509,15 +4532,15 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|1|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-accelerator-memory|24576|
+ |karpenter.k8s.aws/instance-accelerator-name|a10g|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|g5|
  |karpenter.k8s.aws/instance-generation|5|
- |karpenter.k8s.aws/instance-gpu-count|1|
- |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
- |karpenter.k8s.aws/instance-gpu-memory|24576|
- |karpenter.k8s.aws/instance-gpu-name|a10g|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-local-nvme|900|
  |karpenter.k8s.aws/instance-memory|131072|
@@ -4540,15 +4563,15 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|4|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-accelerator-memory|24576|
+ |karpenter.k8s.aws/instance-accelerator-name|a10g|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|g5|
  |karpenter.k8s.aws/instance-generation|5|
- |karpenter.k8s.aws/instance-gpu-count|4|
- |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
- |karpenter.k8s.aws/instance-gpu-memory|24576|
- |karpenter.k8s.aws/instance-gpu-name|a10g|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-local-nvme|3800|
  |karpenter.k8s.aws/instance-memory|196608|
@@ -4571,15 +4594,15 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|1|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-accelerator-memory|24576|
+ |karpenter.k8s.aws/instance-accelerator-name|a10g|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|g5|
  |karpenter.k8s.aws/instance-generation|5|
- |karpenter.k8s.aws/instance-gpu-count|1|
- |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
- |karpenter.k8s.aws/instance-gpu-memory|24576|
- |karpenter.k8s.aws/instance-gpu-name|a10g|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-local-nvme|1900|
  |karpenter.k8s.aws/instance-memory|262144|
@@ -4602,15 +4625,15 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|4|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-accelerator-memory|24576|
+ |karpenter.k8s.aws/instance-accelerator-name|a10g|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|g5|
  |karpenter.k8s.aws/instance-generation|5|
- |karpenter.k8s.aws/instance-gpu-count|4|
- |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
- |karpenter.k8s.aws/instance-gpu-memory|24576|
- |karpenter.k8s.aws/instance-gpu-name|a10g|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-local-nvme|3800|
  |karpenter.k8s.aws/instance-memory|393216|
@@ -4633,15 +4656,15 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|8|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-accelerator-memory|24576|
+ |karpenter.k8s.aws/instance-accelerator-name|a10g|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|g5|
  |karpenter.k8s.aws/instance-generation|5|
- |karpenter.k8s.aws/instance-gpu-count|8|
- |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
- |karpenter.k8s.aws/instance-gpu-memory|24576|
- |karpenter.k8s.aws/instance-gpu-name|a10g|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-local-nvme|7600|
  |karpenter.k8s.aws/instance-memory|786432|
@@ -4665,15 +4688,15 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|1|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-accelerator-memory|16384|
+ |karpenter.k8s.aws/instance-accelerator-name|t4g|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|g5g|
  |karpenter.k8s.aws/instance-generation|5|
- |karpenter.k8s.aws/instance-gpu-count|1|
- |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
- |karpenter.k8s.aws/instance-gpu-memory|16384|
- |karpenter.k8s.aws/instance-gpu-name|t4g|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|8192|
  |karpenter.k8s.aws/instance-network-bandwidth|1250|
@@ -4695,15 +4718,15 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|1|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-accelerator-memory|16384|
+ |karpenter.k8s.aws/instance-accelerator-name|t4g|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|g5g|
  |karpenter.k8s.aws/instance-generation|5|
- |karpenter.k8s.aws/instance-gpu-count|1|
- |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
- |karpenter.k8s.aws/instance-gpu-memory|16384|
- |karpenter.k8s.aws/instance-gpu-name|t4g|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|16384|
  |karpenter.k8s.aws/instance-network-bandwidth|2500|
@@ -4725,15 +4748,15 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|1|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-accelerator-memory|16384|
+ |karpenter.k8s.aws/instance-accelerator-name|t4g|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|g5g|
  |karpenter.k8s.aws/instance-generation|5|
- |karpenter.k8s.aws/instance-gpu-count|1|
- |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
- |karpenter.k8s.aws/instance-gpu-memory|16384|
- |karpenter.k8s.aws/instance-gpu-name|t4g|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|32768|
  |karpenter.k8s.aws/instance-network-bandwidth|5000|
@@ -4755,15 +4778,15 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|1|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-accelerator-memory|16384|
+ |karpenter.k8s.aws/instance-accelerator-name|t4g|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|g5g|
  |karpenter.k8s.aws/instance-generation|5|
- |karpenter.k8s.aws/instance-gpu-count|1|
- |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
- |karpenter.k8s.aws/instance-gpu-memory|16384|
- |karpenter.k8s.aws/instance-gpu-name|t4g|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|65536|
  |karpenter.k8s.aws/instance-network-bandwidth|12000|
@@ -4785,15 +4808,15 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|2|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-accelerator-memory|16384|
+ |karpenter.k8s.aws/instance-accelerator-name|t4g|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|g5g|
  |karpenter.k8s.aws/instance-generation|5|
- |karpenter.k8s.aws/instance-gpu-count|2|
- |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
- |karpenter.k8s.aws/instance-gpu-memory|16384|
- |karpenter.k8s.aws/instance-gpu-name|t4g|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|131072|
  |karpenter.k8s.aws/instance-network-bandwidth|25000|
@@ -4815,15 +4838,15 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|2|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-accelerator-memory|16384|
+ |karpenter.k8s.aws/instance-accelerator-name|t4g|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|g5g|
  |karpenter.k8s.aws/instance-generation|5|
- |karpenter.k8s.aws/instance-gpu-count|2|
- |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
- |karpenter.k8s.aws/instance-gpu-memory|16384|
- |karpenter.k8s.aws/instance-gpu-name|t4g|
  |karpenter.k8s.aws/instance-hypervisor||
  |karpenter.k8s.aws/instance-memory|131072|
  |karpenter.k8s.aws/instance-network-bandwidth|25000|
@@ -5791,6 +5814,9 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|1|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|aws|
+ |karpenter.k8s.aws/instance-accelerator-name|inferentia|
  |karpenter.k8s.aws/instance-category|inf|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
@@ -5817,6 +5843,9 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|1|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|aws|
+ |karpenter.k8s.aws/instance-accelerator-name|inferentia|
  |karpenter.k8s.aws/instance-category|inf|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
@@ -5843,6 +5872,9 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|4|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|aws|
+ |karpenter.k8s.aws/instance-accelerator-name|inferentia|
  |karpenter.k8s.aws/instance-category|inf|
  |karpenter.k8s.aws/instance-cpu|24|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
@@ -5869,6 +5901,9 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|16|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|aws|
+ |karpenter.k8s.aws/instance-accelerator-name|inferentia|
  |karpenter.k8s.aws/instance-category|inf|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
@@ -9452,6 +9487,30 @@ below are the resources available with some assumptions and after the instance o
  |memory|477043Mi|
  |pods|688|
  |vpc.amazonaws.com/pod-eni|108|
+### `m6idn.metal`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|128|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m6idn|
+ |karpenter.k8s.aws/instance-generation|6|
+ |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-local-nvme|7600|
+ |karpenter.k8s.aws/instance-memory|524288|
+ |karpenter.k8s.aws/instance-pods|688|
+ |karpenter.k8s.aws/instance-size|metal|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m6idn.metal|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|127610m|
+ |ephemeral-storage|17Gi|
+ |memory|477043Mi|
+ |pods|688|
 ## m6in Family
 ### `m6in.large`
 #### Labels
@@ -9678,6 +9737,29 @@ below are the resources available with some assumptions and after the instance o
  |memory|477043Mi|
  |pods|688|
  |vpc.amazonaws.com/pod-eni|108|
+### `m6in.metal`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|128|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m6in|
+ |karpenter.k8s.aws/instance-generation|6|
+ |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-memory|524288|
+ |karpenter.k8s.aws/instance-pods|688|
+ |karpenter.k8s.aws/instance-size|metal|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m6in.metal|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|127610m|
+ |ephemeral-storage|17Gi|
+ |memory|477043Mi|
+ |pods|688|
 ## m7g Family
 ### `m7g.medium`
 #### Labels
@@ -9900,15 +9982,15 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|1|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-accelerator-memory|12288|
+ |karpenter.k8s.aws/instance-accelerator-name|k80|
  |karpenter.k8s.aws/instance-category|p|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|p2|
  |karpenter.k8s.aws/instance-generation|2|
- |karpenter.k8s.aws/instance-gpu-count|1|
- |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
- |karpenter.k8s.aws/instance-gpu-memory|12288|
- |karpenter.k8s.aws/instance-gpu-name|k80|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|62464|
  |karpenter.k8s.aws/instance-pods|58|
@@ -9928,15 +10010,15 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|8|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-accelerator-memory|12288|
+ |karpenter.k8s.aws/instance-accelerator-name|k80|
  |karpenter.k8s.aws/instance-category|p|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|p2|
  |karpenter.k8s.aws/instance-generation|2|
- |karpenter.k8s.aws/instance-gpu-count|8|
- |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
- |karpenter.k8s.aws/instance-gpu-memory|12288|
- |karpenter.k8s.aws/instance-gpu-name|k80|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|499712|
  |karpenter.k8s.aws/instance-pods|234|
@@ -9956,15 +10038,15 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|16|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-accelerator-memory|12288|
+ |karpenter.k8s.aws/instance-accelerator-name|k80|
  |karpenter.k8s.aws/instance-category|p|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|p2|
  |karpenter.k8s.aws/instance-generation|2|
- |karpenter.k8s.aws/instance-gpu-count|16|
- |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
- |karpenter.k8s.aws/instance-gpu-memory|12288|
- |karpenter.k8s.aws/instance-gpu-name|k80|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|749568|
  |karpenter.k8s.aws/instance-pods|234|
@@ -9985,15 +10067,15 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|1|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-accelerator-memory|16384|
+ |karpenter.k8s.aws/instance-accelerator-name|v100|
  |karpenter.k8s.aws/instance-category|p|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|p3|
  |karpenter.k8s.aws/instance-generation|3|
- |karpenter.k8s.aws/instance-gpu-count|1|
- |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
- |karpenter.k8s.aws/instance-gpu-memory|16384|
- |karpenter.k8s.aws/instance-gpu-name|v100|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|62464|
  |karpenter.k8s.aws/instance-pods|58|
@@ -10014,15 +10096,15 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|4|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-accelerator-memory|16384|
+ |karpenter.k8s.aws/instance-accelerator-name|v100|
  |karpenter.k8s.aws/instance-category|p|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|p3|
  |karpenter.k8s.aws/instance-generation|3|
- |karpenter.k8s.aws/instance-gpu-count|4|
- |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
- |karpenter.k8s.aws/instance-gpu-memory|16384|
- |karpenter.k8s.aws/instance-gpu-name|v100|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|249856|
  |karpenter.k8s.aws/instance-pods|234|
@@ -10043,15 +10125,15 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|8|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-accelerator-memory|16384|
+ |karpenter.k8s.aws/instance-accelerator-name|v100|
  |karpenter.k8s.aws/instance-category|p|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|p3|
  |karpenter.k8s.aws/instance-generation|3|
- |karpenter.k8s.aws/instance-gpu-count|8|
- |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
- |karpenter.k8s.aws/instance-gpu-memory|16384|
- |karpenter.k8s.aws/instance-gpu-name|v100|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|499712|
  |karpenter.k8s.aws/instance-pods|234|
@@ -10073,15 +10155,15 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|8|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-accelerator-memory|32768|
+ |karpenter.k8s.aws/instance-accelerator-name|v100|
  |karpenter.k8s.aws/instance-category|p|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|p3dn|
  |karpenter.k8s.aws/instance-generation|3|
- |karpenter.k8s.aws/instance-gpu-count|8|
- |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
- |karpenter.k8s.aws/instance-gpu-memory|32768|
- |karpenter.k8s.aws/instance-gpu-name|v100|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-local-nvme|1800|
  |karpenter.k8s.aws/instance-memory|786432|
@@ -10105,15 +10187,15 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|8|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-accelerator-memory|40960|
+ |karpenter.k8s.aws/instance-accelerator-name|a100|
  |karpenter.k8s.aws/instance-category|p|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|p4d|
  |karpenter.k8s.aws/instance-generation|4|
- |karpenter.k8s.aws/instance-gpu-count|8|
- |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
- |karpenter.k8s.aws/instance-gpu-memory|40960|
- |karpenter.k8s.aws/instance-gpu-name|a100|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-local-nvme|8000|
  |karpenter.k8s.aws/instance-memory|1179648|
@@ -13440,6 +13522,30 @@ below are the resources available with some assumptions and after the instance o
  |memory|962009Mi|
  |pods|688|
  |vpc.amazonaws.com/pod-eni|108|
+### `r6idn.metal`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|128|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r6idn|
+ |karpenter.k8s.aws/instance-generation|6|
+ |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-local-nvme|7600|
+ |karpenter.k8s.aws/instance-memory|1048576|
+ |karpenter.k8s.aws/instance-pods|688|
+ |karpenter.k8s.aws/instance-size|metal|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r6idn.metal|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|127610m|
+ |ephemeral-storage|17Gi|
+ |memory|962009Mi|
+ |pods|688|
 ## r6in Family
 ### `r6in.large`
 #### Labels
@@ -13666,6 +13772,29 @@ below are the resources available with some assumptions and after the instance o
  |memory|962009Mi|
  |pods|688|
  |vpc.amazonaws.com/pod-eni|108|
+### `r6in.metal`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|128|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r6in|
+ |karpenter.k8s.aws/instance-generation|6|
+ |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-memory|1048576|
+ |karpenter.k8s.aws/instance-pods|688|
+ |karpenter.k8s.aws/instance-size|metal|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r6in.metal|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|127610m|
+ |ephemeral-storage|17Gi|
+ |memory|962009Mi|
+ |pods|688|
 ## r7g Family
 ### `r7g.medium`
 #### Labels

@@ -65,8 +65,7 @@ type CloudProvider struct {
 	amiProvider          *amifamily.Provider
 }
 
-func New(ctx context.Context, instanceTypeProvider *instancetype.Provider,
-	instanceProvider *instance.Provider, kubeClient client.Client, amiProvider *amifamily.Provider) *CloudProvider {
+func New(instanceTypeProvider *instancetype.Provider, instanceProvider *instance.Provider, kubeClient client.Client, amiProvider *amifamily.Provider) *CloudProvider {
 	return &CloudProvider{
 		instanceTypeProvider: instanceTypeProvider,
 		instanceProvider:     instanceProvider,
@@ -218,10 +217,13 @@ func (c *CloudProvider) isAMIDrifted(ctx context.Context, machine *v1alpha5.Mach
 	if nodeTemplate.Spec.LaunchTemplateName != nil {
 		return false, nil
 	}
-	amis, err := c.amiProvider.Get(ctx, nodeTemplate, []*cloudprovider.InstanceType{nodeInstanceType},
-		amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, &amifamily.Options{}))
+	amis, err := c.amiProvider.Get(ctx, nodeTemplate, &amifamily.Options{})
 	if err != nil {
 		return false, fmt.Errorf("getting amis, %w", err)
+	}
+	mappedAMIs := amifamily.MapInstanceTypes(amis, []*cloudprovider.InstanceType{nodeInstanceType})
+	if len(mappedAMIs) == 0 {
+		return false, fmt.Errorf("no instance types satisfy requirements of amis %v,", amis)
 	}
 	// Get InstanceID to fetch from EC2
 	instanceID, err := utils.ParseInstanceID(machine.Status.ProviderID)
@@ -232,7 +234,7 @@ func (c *CloudProvider) isAMIDrifted(ctx context.Context, machine *v1alpha5.Mach
 	if err != nil {
 		return false, fmt.Errorf("getting instance, %w", err)
 	}
-	return !lo.Contains(lo.Keys(amis), *instance.ImageId), nil
+	return !lo.Contains(lo.Keys(mappedAMIs), *instance.ImageId), nil
 }
 
 func (c *CloudProvider) resolveNodeTemplate(ctx context.Context, raw []byte, objRef *v1alpha5.MachineTemplateRef) (*v1alpha1.AWSNodeTemplate, error) {

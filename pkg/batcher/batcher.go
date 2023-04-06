@@ -22,16 +22,22 @@ import (
 	"time"
 
 	"github.com/mitchellh/hashstructure/v2"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/samber/lo"
+	"golang.org/x/sync/errgroup"
+
+	"github.com/aws/karpenter-core/pkg/metrics"
 )
 
 // Options allows for configuration of the Batcher
 type Options[T input, U output] struct {
-	IdleTimeout   time.Duration
-	MaxTimeout    time.Duration
-	MaxItems      int
-	RequestHasher RequestHasher[T]
-	BatchExecutor BatchExecutor[T, U]
+	Name              string
+	IdleTimeout       time.Duration
+	MaxTimeout        time.Duration
+	MaxItems          int
+	MaxRequestWorkers int
+	RequestHasher     RequestHasher[T]
+	BatchExecutor     BatchExecutor[T, U]
 }
 
 // Result is a container for the output and error of an execution
@@ -53,11 +59,17 @@ type request[T input, U output] struct {
 
 // Batcher is used to batch API calls with identical parameters into a single call
 type Batcher[T input, U output] struct {
-	ctx      context.Context
+	ctx     context.Context
+	options Options[T, U]
+
 	mu       sync.Mutex
-	trigger  chan struct{}
 	requests map[uint64][]*request[T, U]
-	options  Options[T, U]
+
+	// trigger to initiate the batcher
+	trigger chan struct{}
+
+	// requestWorkers is a group of concurrent workers that execute requests
+	requestWorkers errgroup.Group
 }
 
 // BatchExecutor is a function that executes a slice of inputs against the batched API.
@@ -73,10 +85,14 @@ type RequestHasher[T input] func(ctx context.Context, input *T) uint64
 func NewBatcher[T input, U output](ctx context.Context, options Options[T, U]) *Batcher[T, U] {
 	b := &Batcher[T, U]{
 		ctx:      ctx,
-		requests: map[uint64][]*request[T, U]{},
-		trigger:  make(chan struct{}),
 		options:  options,
+		requests: map[uint64][]*request[T, U]{},
+		// The trigger channel is buffered since we shouldn't block the Add() method on the trigger channel
+		// if another Add() has already triggered it. This works because we add the request to the request map BEFORE
+		// we perform the trigger
+		trigger: make(chan struct{}, 1),
 	}
+	b.requestWorkers.SetLimit(lo.Ternary(b.options.MaxRequestWorkers != 0, b.options.MaxRequestWorkers, 100))
 	go b.run()
 	return b
 }
@@ -115,29 +131,45 @@ func OneBucketHasher[T input](ctx context.Context, input *T) uint64 {
 
 func (b *Batcher[T, U]) run() {
 	for {
+		var measureDuration func()
 		select {
 		// context that we started with has completed so the app is shutting down
 		case <-b.ctx.Done():
+			_ = b.requestWorkers.Wait()
 			return
 		case <-b.trigger:
 			// wait to start the batch of create fleet calls
+			measureDuration = metrics.Measure(batchWindowDuration.WithLabelValues(b.options.Name))
 		}
 		b.waitForIdle()
-		b.runCalls()
+		measureDuration() // Observe the length of time between the start of the batch and now
+
+		// Copy the requests, so we can reset the requests for the next batching loop
+		b.mu.Lock()
+		requests := b.requests
+		b.requests = map[uint64][]*request[T, U]{}
+		b.mu.Unlock()
+
+		for _, v := range requests {
+			req := v // create a local closure for the requests value
+			b.requestWorkers.Go(func() error {
+				b.runCalls(req)
+				return nil
+			})
+		}
 	}
 }
 
 func (b *Batcher[T, U]) waitForIdle() {
 	timeout := time.NewTimer(b.options.MaxTimeout)
 	idle := time.NewTimer(b.options.IdleTimeout)
-	count := 0
-	for {
+	count := 1 // we already got a single trigger
+	for b.options.MaxItems == 0 || count < b.options.MaxItems {
 		select {
+		case <-b.ctx.Done():
+			return
 		case <-b.trigger:
 			count++
-			if b.options.MaxItems != 0 && count >= b.options.MaxItems {
-				return
-			}
 			if !idle.Stop() {
 				<-idle.C
 			}
@@ -150,22 +182,16 @@ func (b *Batcher[T, U]) waitForIdle() {
 	}
 }
 
-func (b *Batcher[T, U]) runCalls() {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	requestMap := b.requests
-	b.requests = map[uint64][]*request[T, U]{}
-
-	for _, requestBatch := range requestMap {
-		requestIdx := 0
-		for _, result := range b.options.BatchExecutor(requestBatch[0].ctx, lo.Map(requestBatch, func(req *request[T, U], _ int) *T { return req.input })) {
-			requestBatch[requestIdx].requestor <- result
-			requestIdx++
-		}
-
-		// any unmapped outputs should return an error to the caller
-		for ; requestIdx < len(requestBatch); requestIdx++ {
-			requestBatch[requestIdx].requestor <- Result[U]{Err: fmt.Errorf("error making call")}
-		}
+func (b *Batcher[T, U]) runCalls(requests []*request[T, U]) {
+	// Measure the size of the request batch
+	batchSize.With(prometheus.Labels{batcherNameLabel: b.options.Name}).Observe(float64(len(requests)))
+	requestIdx := 0
+	for _, result := range b.options.BatchExecutor(requests[0].ctx, lo.Map(requests, func(req *request[T, U], _ int) *T { return req.input })) {
+		requests[requestIdx].requestor <- result
+		requestIdx++
+	}
+	// any unmapped outputs should return an error to the caller
+	for ; requestIdx < len(requests); requestIdx++ {
+		requests[requestIdx].requestor <- Result[U]{Err: fmt.Errorf("error making call")}
 	}
 }

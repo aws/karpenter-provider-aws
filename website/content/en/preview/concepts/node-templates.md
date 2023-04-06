@@ -160,7 +160,7 @@ spec:
 
 The AMI used when provisioning nodes can be controlled by the `amiFamily` field. Based on the value set for `amiFamily`, Karpenter will automatically query for the appropriate [EKS optimized AMI](https://docs.aws.amazon.com/eks/latest/userguide/eks-optimized-amis.html) via AWS Systems Manager (SSM). When an `amiFamily` of `Custom` is chosen, then an `amiSelector` must be specified that informs Karpenter on which custom AMIs are to be used.
 
-Currently, Karpenter supports `amiFamily` values `AL2`, `Bottlerocket`, `Ubuntu` and `Custom`. GPUs are only supported with `AL2` and `Bottlerocket`.
+Currently, Karpenter supports `amiFamily` values `AL2`, `Bottlerocket`, `Ubuntu` and `Custom`. GPUs are only supported with `AL2` and `Bottlerocket`. The `AL2` amiFamily does not support ARM64 GPU instance types unless you specify a custom amiSelector.
 
 ```yaml
 spec:
@@ -191,7 +191,7 @@ If an `amiSelector` matches more than one AMI, Karpenter will automatically dete
 
 If you need to express other constraints for an AMI beyond architecture, you can express these constraints as tags on the AMI. For example, if you want to limit an EC2 AMI to only be used with instanceTypes that have an `nvidia` GPU, you can specify an EC2 tag with a key of `karpenter.k8s.aws/instance-gpu-manufacturer` and value `nvidia` on that AMI.
 
-All labels defined [in the scheduling documentation](./scheduling#supported-labels) can be used as requirements for an EC2 AMI.
+All labels defined [in the scheduling documentation](../scheduling#well-known-labels) can be used as requirements for an EC2 AMI.
 
 ```bash
 > aws ec2 describe-images --image-id ami-123 --query Images[0].Tags

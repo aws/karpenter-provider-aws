@@ -31,6 +31,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	ec22 "github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/samber/lo"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/providers/pricing"
@@ -40,7 +42,7 @@ import (
 func main() {
 	flag.Parse()
 	if flag.NArg() != 1 {
-		log.Fatalf("Usage: %s pkg/cloudprovider/zz_generated.pricing.go", os.Args[0])
+		log.Fatalf("Usage: %s pkg/providers/pricing/zz_generated.pricing.go", os.Args[0])
 	}
 
 	f, err := os.Create("pricing.heapprofile")
@@ -71,7 +73,12 @@ func main() {
 	// record prices for each region we are interested in
 	for _, region := range []string{"us-east-1", "us-gov-west-1", "us-gov-east-1", "cn-north-1"} {
 		log.Println("fetching for", region)
-		pricingProvider := pricing.NewProvider(ctx, pricing.NewAPI(sess, region), ec2, region, make(chan struct{}))
+		pricingProvider := pricing.NewProvider(ctx, pricing.NewAPI(sess, region), ec2, region)
+		controller := pricing.NewController(pricingProvider)
+		_, err := controller.Reconcile(ctx, reconcile.Request{NamespacedName: types.NamespacedName{}})
+		if err != nil {
+			log.Fatalf("failed to initialize pricing provider %s", err)
+		}
 		for {
 			if pricingProvider.OnDemandLastUpdated().After(updateStarted) && pricingProvider.SpotLastUpdated().After(updateStarted) {
 				break

@@ -68,7 +68,7 @@ var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
 	awsEnv = test.NewEnvironment(ctx, env)
 
-	cloudProvider = cloudprovider.New(ctx, awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, env.Client, awsEnv.AMIProvider)
+	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, env.Client, awsEnv.AMIProvider)
 	linkedMachineCache = cache.New(time.Minute*10, time.Second*10)
 	linkController := &link.Controller{
 		Cache: linkedMachineCache,
@@ -132,7 +132,7 @@ var _ = Describe("MachineGarbageCollect", func() {
 
 	It("should delete an instance if there is no machine owner", func() {
 		// Launch time was 10m ago
-		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute * 10))
+		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute))
 		awsEnv.EC2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
 
 		ExpectReconcileSucceeded(ctx, garbageCollectController, client.ObjectKey{})
@@ -142,7 +142,7 @@ var _ = Describe("MachineGarbageCollect", func() {
 	})
 	It("should delete an instance along with the node if there is no machine owner (to quicken scheduling)", func() {
 		// Launch time was 10m ago
-		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute * 10))
+		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute))
 		awsEnv.EC2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
 
 		node := coretest.Node(coretest.NodeOptions{
@@ -186,8 +186,8 @@ var _ = Describe("MachineGarbageCollect", func() {
 					Placement: &ec2.Placement{
 						AvailabilityZone: aws.String("test-zone-1a"),
 					},
-					// Launch time was 10m ago
-					LaunchTime:   aws.Time(time.Now().Add(-time.Minute * 10)),
+					// Launch time was 1m ago
+					LaunchTime:   aws.Time(time.Now().Add(-time.Minute)),
 					InstanceId:   aws.String(instanceID),
 					InstanceType: aws.String("m5.large"),
 				},
@@ -241,7 +241,7 @@ var _ = Describe("MachineGarbageCollect", func() {
 						AvailabilityZone: aws.String("test-zone-1a"),
 					},
 					// Launch time was 10m ago
-					LaunchTime:   aws.Time(time.Now().Add(-time.Minute * 10)),
+					LaunchTime:   aws.Time(time.Now().Add(-time.Minute)),
 					InstanceId:   aws.String(instanceID),
 					InstanceType: aws.String("m5.large"),
 				},
@@ -290,7 +290,7 @@ var _ = Describe("MachineGarbageCollect", func() {
 		})
 
 		// Launch time was 10m ago
-		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute * 10))
+		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute))
 		awsEnv.EC2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
 
 		ExpectReconcileSucceeded(ctx, garbageCollectController, client.ObjectKey{})
@@ -299,7 +299,7 @@ var _ = Describe("MachineGarbageCollect", func() {
 	})
 	It("should not delete the instance or node if it already has a machine that matches it", func() {
 		// Launch time was 10m ago
-		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute * 10))
+		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute))
 		awsEnv.EC2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
 
 		machine := coretest.Machine(v1alpha5.Machine{
@@ -319,7 +319,7 @@ var _ = Describe("MachineGarbageCollect", func() {
 	})
 	It("should not delete an instance if it is linked", func() {
 		// Launch time was 10m ago
-		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute * 10))
+		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute))
 		awsEnv.EC2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
 
 		// Create a machine that is actively linking
@@ -338,7 +338,7 @@ var _ = Describe("MachineGarbageCollect", func() {
 	})
 	It("should not delete an instance if it is recently linked but the machine doesn't exist", func() {
 		// Launch time was 10m ago
-		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute * 10))
+		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute))
 		awsEnv.EC2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
 
 		// Add a provider id to the recently linked cache
