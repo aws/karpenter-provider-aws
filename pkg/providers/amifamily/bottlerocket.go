@@ -22,7 +22,7 @@ import (
 	"github.com/aws/karpenter/pkg/providers/amifamily/bootstrap"
 
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
-	"github.com/aws/karpenter-core/pkg/utils/resources"
+	"github.com/aws/karpenter-core/pkg/scheduling"
 
 	"github.com/aws/aws-sdk-go/aws"
 	v1 "k8s.io/api/core/v1"
@@ -38,17 +38,42 @@ type Bottlerocket struct {
 	*Options
 }
 
-// SSMAlias returns the AMI Alias to query SSM
-func (b Bottlerocket) SSMAlias(version string, instanceType *cloudprovider.InstanceType) string {
-	arch := "x86_64"
-	amiSuffix := ""
-	if !resources.IsZero(instanceType.Capacity[v1alpha1.ResourceNVIDIAGPU]) {
-		amiSuffix = "-nvidia"
+// DefaultAMIs returns the AMI name, and Requirements, with an SSM query
+func (b Bottlerocket) DefaultAMIs(version string) []DefaultAMIOutput {
+	return []DefaultAMIOutput{
+		{
+			Name:  fmt.Sprintf("bottlerocket-aws-k8s-%s-x86_64", version),
+			Query: fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/x86_64/latest/image_id", version),
+			Requirements: scheduling.NewRequirements(
+				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureAmd64),
+				scheduling.NewRequirement(v1alpha1.LabelInstanceAcceleratorManufacturer, v1.NodeSelectorOpNotIn, string(v1alpha1.NVIDIAacceleratorManufacturer)),
+			),
+		},
+		{
+			Name:  fmt.Sprintf("bottlerocket-aws-k8s-%s-x86_64-nvidia", version),
+			Query: fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/x86_64/latest/image_id", version),
+			Requirements: scheduling.NewRequirements(
+				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureAmd64),
+				scheduling.NewRequirement(v1alpha1.LabelInstanceAcceleratorManufacturer, v1.NodeSelectorOpIn, string(v1alpha1.NVIDIAacceleratorManufacturer)),
+			),
+		},
+		{
+			Name:  fmt.Sprintf("bottlerocket-aws-k8s-%s%s", version, fmt.Sprintf("-%s", v1alpha5.ArchitectureArm64)),
+			Query: fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/%s/latest/image_id", version, v1alpha5.ArchitectureArm64),
+			Requirements: scheduling.NewRequirements(
+				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureArm64),
+				scheduling.NewRequirement(v1alpha1.LabelInstanceAcceleratorManufacturer, v1.NodeSelectorOpNotIn, string(v1alpha1.NVIDIAacceleratorManufacturer)),
+			),
+		},
+		{
+			Name:  fmt.Sprintf("bottlerocket-aws-k8s-%s%s-nvidia", version, fmt.Sprintf("-%s", v1alpha5.ArchitectureArm64)),
+			Query: fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/%s/latest/image_id", version, v1alpha5.ArchitectureArm64),
+			Requirements: scheduling.NewRequirements(
+				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureArm64),
+				scheduling.NewRequirement(v1alpha1.LabelInstanceAcceleratorManufacturer, v1.NodeSelectorOpIn, string(v1alpha1.NVIDIAacceleratorManufacturer)),
+			),
+		},
 	}
-	if instanceType.Requirements.Get(v1.LabelArchStable).Has(v1alpha5.ArchitectureArm64) {
-		arch = v1alpha5.ArchitectureArm64
-	}
-	return fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s%s/%s/latest/image_id", version, amiSuffix, arch)
 }
 
 // UserData returns the default userdata script for the AMI Family
