@@ -25,6 +25,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/samber/lo"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 )
 
@@ -68,19 +69,19 @@ func execDescribeInstancesBatch(ec2api ec2iface.EC2API) BatchExecutor[ec2.Descri
 		for _, input := range inputs[1:] {
 			firstInput.InstanceIds = append(firstInput.InstanceIds, input.InstanceIds...)
 		}
-		missingInstanceIDs := lo.SliceToMap(firstInput.InstanceIds, func(instanceID *string) (string, struct{}) { return *instanceID, struct{}{} })
+		missingInstanceIDs := sets.NewString(lo.Map(firstInput.InstanceIds, func(i *string, _ int) string { return *i })...)
 
 		// Execute fully aggregated request
 		// We don't care about the error here since we'll break up the batch upon any sort of failure
 		_ = ec2api.DescribeInstancesPagesWithContext(ctx, firstInput, func(dio *ec2.DescribeInstancesOutput, b bool) bool {
 			for _, r := range dio.Reservations {
 				for _, instance := range r.Instances {
-					delete(missingInstanceIDs, *instance.InstanceId)
+					missingInstanceIDs.Delete(*instance.InstanceId)
 
 					// Find all indexes where we are requesting this instance and populate with the result
 					for reqID := range inputs {
 						if *inputs[reqID].InstanceIds[0] == *instance.InstanceId {
-							inst := instance
+							inst := instance // locally scoped to avoid pointer pollution in a range loop
 							results[reqID] = Result[ec2.DescribeInstancesOutput]{Output: &ec2.DescribeInstancesOutput{
 								Reservations: []*ec2.Reservation{{
 									OwnerId:       r.OwnerId,

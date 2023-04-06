@@ -24,6 +24,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/samber/lo"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 )
 
@@ -61,7 +62,7 @@ func execTerminateInstancesBatch(ec2api ec2iface.EC2API) BatchExecutor[ec2.Termi
 			firstInput.InstanceIds = append(firstInput.InstanceIds, input.InstanceIds...)
 		}
 		// Create a set of all instance IDs
-		stillRunning := lo.SliceToMap(firstInput.InstanceIds, func(instanceID *string) (string, struct{}) { return *instanceID, struct{}{} })
+		stillRunning := sets.NewString(lo.Map(firstInput.InstanceIds, func(i *string, _ int) string { return *i })...)
 
 		// Execute fully aggregated request
 		// We don't care about the error here since we'll break up the batch upon any sort of failure
@@ -78,7 +79,7 @@ func execTerminateInstancesBatch(ec2api ec2iface.EC2API) BatchExecutor[ec2.Termi
 		for _, instanceStateChanges := range output.TerminatingInstances {
 			// Remove all instances that successfully terminated and separate into distinct outputs
 			if lo.Contains([]string{ec2.InstanceStateNameShuttingDown, ec2.InstanceStateNameTerminated}, *instanceStateChanges.CurrentState.Name) {
-				delete(stillRunning, *instanceStateChanges.InstanceId)
+				stillRunning.Delete(*instanceStateChanges.InstanceId)
 
 				// Find all indexes where we are requesting this instance and populate with the result
 				for reqID := range inputs {
