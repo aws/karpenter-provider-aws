@@ -79,23 +79,20 @@ func execTerminateInstancesBatch(ec2api ec2iface.EC2API) BatchExecutor[ec2.Termi
 			// Remove all instances that successfully terminated and separate into distinct outputs
 			if lo.Contains([]string{ec2.InstanceStateNameShuttingDown, ec2.InstanceStateNameTerminated}, *instanceStateChanges.CurrentState.Name) {
 				delete(stillRunning, *instanceStateChanges.InstanceId)
-				// Order by inputs' index so that instance IDs from input and output are in the same order
-				_, reqID, ok := lo.FindIndexOf(inputs, func(input *ec2.TerminateInstancesInput) bool {
-					return *input.InstanceIds[0] == *instanceStateChanges.InstanceId
-				})
-				// if the instance ID returned from TerminateInstances was not passed as a TerminateInstanceInput, just skip
-				if !ok {
-					continue
-				}
-				// add instance ID as a separate output
-				results[reqID] = Result[ec2.TerminateInstancesOutput]{
-					Output: &ec2.TerminateInstancesOutput{
-						TerminatingInstances: []*ec2.InstanceStateChange{{
-							InstanceId:    instanceStateChanges.InstanceId,
-							CurrentState:  instanceStateChanges.CurrentState,
-							PreviousState: instanceStateChanges.PreviousState,
-						}},
-					},
+
+				// Find all indexes where we are requesting this instance and populate with the result
+				for reqID := range inputs {
+					if *inputs[reqID].InstanceIds[0] == *instanceStateChanges.InstanceId {
+						results[reqID] = Result[ec2.TerminateInstancesOutput]{
+							Output: &ec2.TerminateInstancesOutput{
+								TerminatingInstances: []*ec2.InstanceStateChange{{
+									InstanceId:    instanceStateChanges.InstanceId,
+									CurrentState:  instanceStateChanges.CurrentState,
+									PreviousState: instanceStateChanges.PreviousState,
+								}},
+							},
+						}
+					}
 				}
 			}
 		}
@@ -110,15 +107,13 @@ func execTerminateInstancesBatch(ec2api ec2iface.EC2API) BatchExecutor[ec2.Termi
 				defer wg.Done()
 				// try to execute separately
 				out, err := ec2api.TerminateInstancesWithContext(ctx, &ec2.TerminateInstancesInput{InstanceIds: []*string{aws.String(instanceID)}})
-				// Order by inputs' index so that instance IDs from input and output are in the same order
-				_, reqID, ok := lo.FindIndexOf(inputs, func(input *ec2.TerminateInstancesInput) bool {
-					return *input.InstanceIds[0] == instanceID
-				})
-				// if the instance ID returned from TerminateInstances was not passed as a TerminateInstanceInput, just skip
-				if !ok {
-					return
+
+				// Find all indexes where we are requesting this instance and populate with the result
+				for reqID := range inputs {
+					if *inputs[reqID].InstanceIds[0] == instanceID {
+						results[reqID] = Result[ec2.TerminateInstancesOutput]{Output: out, Err: err}
+					}
 				}
-				results[reqID] = Result[ec2.TerminateInstancesOutput]{Output: out, Err: err}
 			}(instanceID)
 		}
 		wg.Wait()
