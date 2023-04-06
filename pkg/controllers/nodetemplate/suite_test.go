@@ -423,9 +423,9 @@ var _ = Describe("AWSNodeTemplateController", func() {
 						Values:   []string{v1alpha5.ArchitectureAmd64},
 					},
 					{
-						Key:      v1alpha1.LabelInstanceGPUManufacturer,
+						Key:      v1alpha1.LabelInstanceAcceleratorManufacturer,
 						Operator: v1.NodeSelectorOpIn,
-						Values:   []string{v1alpha1.AWSNeuron, v1alpha1.NVIDIAGPU},
+						Values:   []string{string(v1alpha1.AWSAcceleratorManufacturer), string(v1alpha1.NVIDIAacceleratorManufacturer)},
 					},
 				},
 				{
@@ -435,9 +435,9 @@ var _ = Describe("AWSNodeTemplateController", func() {
 						Values:   []string{v1alpha5.ArchitectureArm64},
 					},
 					{
-						Key:      v1alpha1.LabelInstanceGPUManufacturer,
+						Key:      v1alpha1.LabelInstanceAcceleratorManufacturer,
 						Operator: v1.NodeSelectorOpNotIn,
-						Values:   []string{v1alpha1.AWSNeuron, v1alpha1.NVIDIAGPU},
+						Values:   []string{string(v1alpha1.AWSAcceleratorManufacturer), string(v1alpha1.NVIDIAacceleratorManufacturer)},
 					},
 				},
 				{
@@ -447,9 +447,9 @@ var _ = Describe("AWSNodeTemplateController", func() {
 						Values:   []string{v1alpha5.ArchitectureAmd64},
 					},
 					{
-						Key:      v1alpha1.LabelInstanceGPUManufacturer,
+						Key:      v1alpha1.LabelInstanceAcceleratorManufacturer,
 						Operator: v1.NodeSelectorOpNotIn,
-						Values:   []string{v1alpha1.AWSNeuron, v1alpha1.NVIDIAGPU},
+						Values:   []string{string(v1alpha1.AWSAcceleratorManufacturer), string(v1alpha1.NVIDIAacceleratorManufacturer)},
 					},
 				},
 			}

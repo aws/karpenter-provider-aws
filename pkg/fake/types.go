@@ -23,7 +23,6 @@ type MockedFunction[I any, O any] struct {
 	CalledWithInput AtomicPtrSlice[I] // Slice used to keep track of passed input to this function
 	Error           AtomicError       // Error to return a certain number of times defined by custom error options
 
-	defaultOutput   AtomicPtr[O] // Default output stores the default output if Output isn't set
 	successfulCalls atomic.Int32 // Internal construct to keep track of the number of times this function has successfully been called
 	failedCalls     atomic.Int32 // Internal construct to keep track of the number of times this function has failed (with error)
 }
@@ -35,32 +34,29 @@ func (m *MockedFunction[I, O]) Reset() {
 	m.CalledWithInput.Reset()
 	m.Error.Reset()
 
-	m.defaultOutput.Reset()
 	m.successfulCalls.Store(0)
 	m.failedCalls.Store(0)
 }
 
-func (m *MockedFunction[I, O]) WithDefault(output *O) *MockedFunction[I, O] {
-	m.defaultOutput.Set(output)
-	return m
-}
-
-func (m *MockedFunction[I, O]) Invoke(input *I) (*O, error) {
+func (m *MockedFunction[I, O]) Invoke(input *I, defaultTransformer func(*I) (*O, error)) (*O, error) {
 	err := m.Error.Get()
 	if err != nil {
 		m.failedCalls.Add(1)
 		return nil, err
 	}
 	m.CalledWithInput.Add(input)
-	m.successfulCalls.Add(1)
 
 	if !m.Output.IsNil() {
+		m.successfulCalls.Add(1)
 		return m.Output.Clone(), nil
 	}
-	if !m.defaultOutput.IsNil() {
-		return m.defaultOutput.Clone(), nil
+	out, err := defaultTransformer(input)
+	if err != nil {
+		m.failedCalls.Add(1)
+	} else {
+		m.successfulCalls.Add(1)
 	}
-	return new(O), nil
+	return out, err
 }
 
 func (m *MockedFunction[I, O]) Calls() int {

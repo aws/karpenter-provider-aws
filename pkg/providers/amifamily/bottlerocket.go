@@ -38,39 +38,39 @@ type Bottlerocket struct {
 	*Options
 }
 
-// SSMAlias returns the AMI Alias to query SSM
-func (b Bottlerocket) DefaultAMIs(version string) []SSMAliasOutput {
-	return []SSMAliasOutput{
+// DefaultAMIs returns the AMI name, and Requirements, with an SSM query
+func (b Bottlerocket) DefaultAMIs(version string) []DefaultAMIOutput {
+	return []DefaultAMIOutput{
 		{
-			Name:  fmt.Sprintf("bottlerocket-aws-k8s-%s%s", version, "-x86_64"),
-			Query: fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/%s/latest/image_id", version, "x86_64"),
+			Name:  fmt.Sprintf("bottlerocket-aws-k8s-%s-x86_64", version),
+			Query: fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/x86_64/latest/image_id", version),
 			Requirements: scheduling.NewRequirements(
 				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureAmd64),
-				scheduling.NewRequirement(v1alpha1.LabelInstanceGPUManufacturer, v1.NodeSelectorOpNotIn, v1alpha1.NVIDIAGPU),
+				scheduling.NewRequirement(v1alpha1.LabelInstanceAcceleratorManufacturer, v1.NodeSelectorOpNotIn, string(v1alpha1.NVIDIAacceleratorManufacturer)),
 			),
 		},
 		{
-			Name:  fmt.Sprintf("bottlerocket-aws-k8s-%s%s%s", version, "-x86_64", "-nvidia"),
-			Query: fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s%s/%s/latest/image_id", version, "-nvidia", "x86_64"),
+			Name:  fmt.Sprintf("bottlerocket-aws-k8s-%s-x86_64-nvidia", version),
+			Query: fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/x86_64/latest/image_id", version),
 			Requirements: scheduling.NewRequirements(
 				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureAmd64),
-				scheduling.NewRequirement(v1alpha1.LabelInstanceGPUManufacturer, v1.NodeSelectorOpIn, v1alpha1.NVIDIAGPU),
+				scheduling.NewRequirement(v1alpha1.LabelInstanceAcceleratorManufacturer, v1.NodeSelectorOpIn, string(v1alpha1.NVIDIAacceleratorManufacturer)),
 			),
 		},
 		{
-			Name:  fmt.Sprintf("bottlerocket-aws-k8s-%s%s", version, "-"+v1alpha5.ArchitectureArm64),
+			Name:  fmt.Sprintf("bottlerocket-aws-k8s-%s%s", version, fmt.Sprintf("-%s", v1alpha5.ArchitectureArm64)),
 			Query: fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/%s/latest/image_id", version, v1alpha5.ArchitectureArm64),
 			Requirements: scheduling.NewRequirements(
 				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureArm64),
-				scheduling.NewRequirement(v1alpha1.LabelInstanceGPUManufacturer, v1.NodeSelectorOpNotIn, v1alpha1.NVIDIAGPU),
+				scheduling.NewRequirement(v1alpha1.LabelInstanceAcceleratorManufacturer, v1.NodeSelectorOpNotIn, string(v1alpha1.NVIDIAacceleratorManufacturer)),
 			),
 		},
 		{
-			Name:  fmt.Sprintf("bottlerocket-aws-k8s-%s%s%s", version, "-"+v1alpha5.ArchitectureArm64, "-nvidia"),
-			Query: fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s%s/%s/latest/image_id", version, "-nvidia", v1alpha5.ArchitectureArm64),
+			Name:  fmt.Sprintf("bottlerocket-aws-k8s-%s%s-nvidia", version, fmt.Sprintf("-%s", v1alpha5.ArchitectureArm64)),
+			Query: fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/%s/latest/image_id", version, v1alpha5.ArchitectureArm64),
 			Requirements: scheduling.NewRequirements(
 				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureArm64),
-				scheduling.NewRequirement(v1alpha1.LabelInstanceGPUManufacturer, v1.NodeSelectorOpIn, v1alpha1.NVIDIAGPU),
+				scheduling.NewRequirement(v1alpha1.LabelInstanceAcceleratorManufacturer, v1.NodeSelectorOpIn, string(v1alpha1.NVIDIAacceleratorManufacturer)),
 			),
 		},
 	}

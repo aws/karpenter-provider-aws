@@ -42,7 +42,6 @@ import (
 	"github.com/aws/karpenter-core/pkg/scheduling"
 	"github.com/aws/karpenter-core/pkg/utils/functional"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
-	"github.com/aws/karpenter-core/pkg/utils/resources"
 	"github.com/aws/karpenter-core/pkg/utils/sets"
 )
 
@@ -98,34 +97,22 @@ func (p *Provider) KubeServerVersion(ctx context.Context) (string, error) {
 	return version, nil
 }
 
-// MapInstanceTypes returns a set of AMIIDs and corresponding instance types. AMI may vary due to architecture, accelerator, etc
-// If AMI overrides are specified in the AWSNodeTemplate, then only those AMIs will be chosen.
+// MapInstanceTypes returns a map of AMIIDs that are the most recent on creationDate to compatible instancetypes
 func MapInstanceTypes(amis []AMI, instanceTypes []*cloudprovider.InstanceType) map[string][]*cloudprovider.InstanceType {
 	amiIDs := map[string][]*cloudprovider.InstanceType{}
 
 	for _, instanceType := range instanceTypes {
 		for _, ami := range amis {
-			if !resources.IsZero(instanceType.Capacity[v1alpha1.ResourceAWSNeuron]) {
-				if err := ami.Requirements.Compatible(
-					scheduling.NewRequirements(
-						scheduling.NewRequirement(v1alpha1.LabelInstanceGPUManufacturer, v1.NodeSelectorOpIn, v1alpha1.NVIDIAGPU, v1alpha1.AWSNeuron)),
-				); err == nil {
-					amiIDs[ami.AmiID] = append(amiIDs[ami.AmiID], instanceType)
-					break
-				}
-			} else if err := instanceType.Requirements.Compatible(ami.Requirements); err == nil {
+			if err := instanceType.Requirements.Compatible(ami.Requirements); err == nil {
 				amiIDs[ami.AmiID] = append(amiIDs[ami.AmiID], instanceType)
 				break
 			}
-
 		}
 	}
 	return amiIDs
 }
 
-// Returning a list of AMIs with its associated requirements
-// the AMIs are sorted by creation date in descending order.
-// If creation date is nil, the AMIs will be sorted by name in ascending order.
+// Get Returning a list of AMIs with its associated requirements
 func (p *Provider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, options *Options) ([]AMI, error) {
 	var err error
 	var amis []AMI
@@ -139,17 +126,13 @@ func (p *Provider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTempla
 		if err != nil {
 			return nil, err
 		}
-
 	}
 	amis = sortAMIsByCreationDate(amis)
-	if len(nodeTemplate.Spec.AMISelector) != 0 {
-		amis = groupAMIsByRequirements(amis)
-	}
-
+	amis = groupAMIsByRequirements(amis)
 	return amis, nil
 }
 
-// Getting the most recent AMIs, by creation date, that have a unique set of requirements
+// groupAMIsByRequirements gets the most recent AMIs, by creation date, that have a unique set of requirements
 func groupAMIsByRequirements(amis []AMI) []AMI {
 	var result []AMI
 	requirementsHash := sets.New[uint64]()
@@ -276,9 +259,11 @@ func getFiltersAndOwners(amiSelector map[string]string) ([]*ec2.Filter, []*strin
 	return filters, owners
 }
 
+// sortAMIsByCreationDate the AMIs are sorted by creation date in descending order.
+// If creation date is nil or two AMIs have the same creation date, the AMIs will be sorted by name in ascending order.
 func sortAMIsByCreationDate(amis []AMI) []AMI {
 	sort.Slice(amis, func(i, j int) bool {
-		if amis[i].CreationDate != "" {
+		if amis[i].CreationDate != "" || amis[j].CreationDate != "" {
 			itime, _ := time.Parse(time.RFC3339, amis[i].CreationDate)
 			jtime, _ := time.Parse(time.RFC3339, amis[j].CreationDate)
 			if itime.Unix() != jtime.Unix() {

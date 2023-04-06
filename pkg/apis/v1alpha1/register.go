@@ -53,13 +53,13 @@ var (
 		AMIFamilyAL2:          sets.NewString("dockerd", "containerd"),
 		AMIFamilyUbuntu:       sets.NewString("dockerd", "containerd"),
 	}
-	ResourceNVIDIAGPU   v1.ResourceName = "nvidia.com/gpu"
-	ResourceAMDGPU      v1.ResourceName = "amd.com/gpu"
-	ResourceAWSNeuron   v1.ResourceName = "aws.amazon.com/neuron"
-	ResourceHabanaGaudi v1.ResourceName = "habana.ai/gaudi"
-	ResourceAWSPodENI   v1.ResourceName = "vpc.amazonaws.com/pod-eni"
-	NVIDIAGPU                           = "nvidia"
-	AWSNeuron                           = "neuron"
+	ResourceNVIDIAGPU             v1.ResourceName         = "nvidia.com/gpu"
+	ResourceAMDGPU                v1.ResourceName         = "amd.com/gpu"
+	ResourceAWSNeuron             v1.ResourceName         = "aws.amazon.com/neuron"
+	ResourceHabanaGaudi           v1.ResourceName         = "habana.ai/gaudi"
+	ResourceAWSPodENI             v1.ResourceName         = "vpc.amazonaws.com/pod-eni"
+	NVIDIAacceleratorManufacturer AcceleratorManufacturer = "nvidia"
+	AWSAcceleratorManufacturer    AcceleratorManufacturer = "aws"
 
 	LabelInstanceHypervisor                   = LabelDomain + "/instance-hypervisor"
 	LabelInstanceEncryptionInTransitSupported = LabelDomain + "/instance-encryption-in-transit-supported"
@@ -72,11 +72,19 @@ var (
 	LabelInstanceMemory                       = LabelDomain + "/instance-memory"
 	LabelInstanceNetworkBandwidth             = LabelDomain + "/instance-network-bandwidth"
 	LabelInstancePods                         = LabelDomain + "/instance-pods"
-	LabelInstanceGPUName                      = LabelDomain + "/instance-gpu-name"
-	LabelInstanceGPUManufacturer              = LabelDomain + "/instance-gpu-manufacturer"
-	LabelInstanceGPUCount                     = LabelDomain + "/instance-gpu-count"
-	LabelInstanceGPUMemory                    = LabelDomain + "/instance-gpu-memory"
-	LabelInstanceAMIID                        = LabelDomain + "/instance-ami-id"
+	// TODO: will deprecate at v1beta1, remove at v1
+	LabelInstanceGPUName = LabelDomain + "/instance-gpu-name"
+	// TODO: will deprecate at v1beta1, remove at v1
+	LabelInstanceGPUManufacturer = LabelDomain + "/instance-gpu-manufacturer"
+	// TODO: will deprecate at v1beta1, remove at v1
+	LabelInstanceGPUCount = LabelDomain + "/instance-gpu-count"
+	// TODO: will deprecate at v1beta1, remove at v1
+	LabelInstanceGPUMemory               = LabelDomain + "/instance-gpu-memory"
+	LabelInstanceAMIID                   = LabelDomain + "/instance-ami-id"
+	LabelInstanceAcceleratorName         = LabelDomain + "/instance-accelerator-name"
+	LabelInstanceAcceleratorManufacturer = LabelDomain + "/instance-accelerator-manufacturer"
+	LabelInstanceAcceleratorCount        = LabelDomain + "/instance-accelerator-count"
+	LabelInstanceAcceleratorMemory       = LabelDomain + "/instance-accelerator-memory"
 
 	InterruptionInfrastructureFinalizer = Group + "/interruption-infrastructure"
 )
@@ -115,5 +123,11 @@ func init() {
 		LabelInstanceGPUManufacturer,
 		LabelInstanceGPUCount,
 		LabelInstanceGPUMemory,
+		LabelInstanceAcceleratorName,
+		LabelInstanceAcceleratorManufacturer,
+		LabelInstanceAcceleratorCount,
+		LabelInstanceAcceleratorMemory,
 	)
 }
+
+type AcceleratorManufacturer string

@@ -20,6 +20,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 
+	"github.com/aws/karpenter-core/pkg/scheduling"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -139,5 +141,62 @@ var _ = Describe("AMI Selectors", func() {
 				Values: aws.StringSlice([]string{"my-ami"}),
 			},
 		}))
+	})
+	It("should sort amis by creationDate", func() {
+		amis := []AMI{
+			{
+				Name:         "test-ami-1",
+				AmiID:        "test-ami-1-id",
+				CreationDate: "2021-08-31T00:10:42.000Z",
+				Requirements: scheduling.NewRequirements(),
+			},
+			{
+				Name:         "test-ami-2",
+				AmiID:        "test-ami-2-id",
+				CreationDate: "2021-08-31T00:12:42.000Z",
+				Requirements: scheduling.NewRequirements(),
+			},
+			{
+				Name:         "test-ami-3",
+				AmiID:        "test-ami-3-id",
+				CreationDate: "2021-08-31T00:08:42.000Z",
+				Requirements: scheduling.NewRequirements(),
+			},
+			{
+				Name:         "test-ami-4",
+				AmiID:        "test-ami-4-id",
+				CreationDate: "",
+				Requirements: scheduling.NewRequirements(),
+			},
+		}
+		sortAMIsByCreationDate(amis)
+		Expect(amis).To(Equal(
+			[]AMI{
+				{
+					Name:         "test-ami-2",
+					AmiID:        "test-ami-2-id",
+					CreationDate: "2021-08-31T00:12:42.000Z",
+					Requirements: scheduling.NewRequirements(),
+				},
+				{
+					Name:         "test-ami-1",
+					AmiID:        "test-ami-1-id",
+					CreationDate: "2021-08-31T00:10:42.000Z",
+					Requirements: scheduling.NewRequirements(),
+				},
+				{
+					Name:         "test-ami-3",
+					AmiID:        "test-ami-3-id",
+					CreationDate: "2021-08-31T00:08:42.000Z",
+					Requirements: scheduling.NewRequirements(),
+				},
+				{
+					Name:         "test-ami-4",
+					AmiID:        "test-ami-4-id",
+					CreationDate: "",
+					Requirements: scheduling.NewRequirements(),
+				},
+			},
+		))
 	})
 })

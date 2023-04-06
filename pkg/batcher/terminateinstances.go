@@ -33,6 +33,7 @@ type TerminateInstancesBatcher struct {
 
 func NewTerminateInstancesBatcher(ctx context.Context, ec2api ec2iface.EC2API) *TerminateInstancesBatcher {
 	options := Options[ec2.TerminateInstancesInput, ec2.TerminateInstancesOutput]{
+		Name:          "terminate_instances",
 		IdleTimeout:   100 * time.Millisecond,
 		MaxTimeout:    1 * time.Second,
 		MaxItems:      500,

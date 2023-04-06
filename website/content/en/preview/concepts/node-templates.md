@@ -160,7 +160,7 @@ spec:
 
 The AMI used when provisioning nodes can be controlled by the `amiFamily` field. Based on the value set for `amiFamily`, Karpenter will automatically query for the appropriate [EKS optimized AMI](https://docs.aws.amazon.com/eks/latest/userguide/eks-optimized-amis.html) via AWS Systems Manager (SSM). When an `amiFamily` of `Custom` is chosen, then an `amiSelector` must be specified that informs Karpenter on which custom AMIs are to be used.
 
-Currently, Karpenter supports `amiFamily` values `AL2`, `Bottlerocket`, `Ubuntu` and `Custom`. GPUs are only supported with `AL2` and `Bottlerocket`.
+Currently, Karpenter supports `amiFamily` values `AL2`, `Bottlerocket`, `Ubuntu` and `Custom`. GPUs are only supported with `AL2` and `Bottlerocket`. The `AL2` amiFamily does not support ARM64 GPU instance types unless you specify a custom amiSelector.
 
 ```yaml
 spec:
@@ -562,4 +562,49 @@ status:
     securityGroups:
     - id: sg-041513b454818610b
     - id: sg-0286715698b894bca
+```
+
+## status.amis
+`status.amis` contains the `id`, `name`, and `requirements` of the amis utilized during node launch.
+
+**Examples**
+
+```yaml
+  amis:
+      - id: ami-03c3a3dcda64f5b75
+        name: amazon-linux-2-gpu
+        requirements:
+      - key: kubernetes.io/arch
+        operator: In
+        values:
+        - amd64
+      - key: karpenter.k8s.aws/instance-accelerator-manufacturer
+        operator: In
+        values:
+        - aws
+        - nvidia
+    - id: ami-06afb2d101cc4b8bd
+      name: amazon-linux-2-arm64
+      requirements:
+      - key: kubernetes.io/arch
+        operator: In
+        values:
+        - arm64
+      - key: karpenter.k8s.aws/instance-accelerator-manufacturer
+        operator: NotIn
+        values:
+        - aws
+        - nvidia
+    - id: ami-0e28b76d768af234e
+      name: amazon-linux-2
+      requirements:
+      - key: kubernetes.io/arch
+        operator: In
+        values:
+        - amd64
+      - key: karpenter.k8s.aws/instance-accelerator-manufacturer
+        operator: NotIn
+        values:
+        - aws
+        - nvidia
 ```

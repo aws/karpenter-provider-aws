@@ -33,33 +33,31 @@ type AL2 struct {
 	*Options
 }
 
-// SSMAlias returns the AMI Alias to query SSM
-func (a AL2) DefaultAMIs(version string) []SSMAliasOutput {
-	return []SSMAliasOutput{
-		// AMD64
+// DefaultAMIs returns the AMI name, and Requirements, with an SSM query
+func (a AL2) DefaultAMIs(version string) []DefaultAMIOutput {
+	return []DefaultAMIOutput{
 		{
 			Name:  "amazon-linux-2",
 			Query: fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", version),
 			Requirements: scheduling.NewRequirements(
 				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureAmd64),
-				scheduling.NewRequirement(v1alpha1.LabelInstanceGPUManufacturer, v1.NodeSelectorOpNotIn, v1alpha1.NVIDIAGPU, v1alpha1.AWSNeuron)),
+				scheduling.NewRequirement(v1alpha1.LabelInstanceAcceleratorManufacturer, v1.NodeSelectorOpNotIn, string(v1alpha1.NVIDIAacceleratorManufacturer), string(v1alpha1.AWSAcceleratorManufacturer)),
+			),
 		},
-		// AMD64 with gpu
 		{
 			Name:  "amazon-linux-2-gpu",
 			Query: fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-gpu/recommended/image_id", version),
 			Requirements: scheduling.NewRequirements(
 				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureAmd64),
-				scheduling.NewRequirement(v1alpha1.LabelInstanceGPUManufacturer, v1.NodeSelectorOpIn, v1alpha1.NVIDIAGPU, v1alpha1.AWSNeuron),
+				scheduling.NewRequirement(v1alpha1.LabelInstanceAcceleratorManufacturer, v1.NodeSelectorOpIn, string(v1alpha1.NVIDIAacceleratorManufacturer), string(v1alpha1.AWSAcceleratorManufacturer)),
 			),
 		},
-		// ARM64
 		{
-			Name:  fmt.Sprintf("amazon-linux-2%s", fmt.Sprintf("-%s", v1alpha5.ArchitectureArm64)),
+			Name:  "amazon-linux-2-arm64",
 			Query: fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2%s/recommended/image_id", version, fmt.Sprintf("-%s", v1alpha5.ArchitectureArm64)),
 			Requirements: scheduling.NewRequirements(
 				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureArm64),
-				scheduling.NewRequirement(v1alpha1.LabelInstanceGPUManufacturer, v1.NodeSelectorOpNotIn, v1alpha1.NVIDIAGPU, v1alpha1.AWSNeuron),
+				scheduling.NewRequirement(v1alpha1.LabelInstanceAcceleratorManufacturer, v1.NodeSelectorOpNotIn, string(v1alpha1.NVIDIAacceleratorManufacturer), string(v1alpha1.AWSAcceleratorManufacturer)),
 			),
 		},
 	}

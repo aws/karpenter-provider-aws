@@ -52,23 +52,21 @@ func (s *SQSAPI) Reset() {
 
 //nolint:revive,stylecheck
 func (s *SQSAPI) GetQueueUrlWithContext(_ context.Context, input *sqs.GetQueueUrlInput, _ ...request.Option) (*sqs.GetQueueUrlOutput, error) {
-	return s.GetQueueURLBehavior.WithDefault(&sqs.GetQueueUrlOutput{
-		QueueUrl: aws.String(dummyQueueURL),
-	}).Invoke(input)
-}
-
-func (s *SQSAPI) GetQueueAttributesWithContext(_ context.Context, input *sqs.GetQueueAttributesInput, _ ...request.Option) (*sqs.GetQueueAttributesOutput, error) {
-	return s.GetQueueAttributesBehavior.WithDefault(&sqs.GetQueueAttributesOutput{
-		Attributes: map[string]*string{
-			sqs.QueueAttributeNameQueueArn: aws.String("arn:aws:sqs:us-west-2:000000000000:Karpenter-Queue"),
-		},
-	}).Invoke(input)
+	return s.GetQueueURLBehavior.Invoke(input, func(_ *sqs.GetQueueUrlInput) (*sqs.GetQueueUrlOutput, error) {
+		return &sqs.GetQueueUrlOutput{
+			QueueUrl: aws.String(dummyQueueURL),
+		}, nil
+	})
 }
 
 func (s *SQSAPI) ReceiveMessageWithContext(_ context.Context, input *sqs.ReceiveMessageInput, _ ...request.Option) (*sqs.ReceiveMessageOutput, error) {
-	return s.ReceiveMessageBehavior.Invoke(input)
+	return s.ReceiveMessageBehavior.Invoke(input, func(_ *sqs.ReceiveMessageInput) (*sqs.ReceiveMessageOutput, error) {
+		return nil, nil
+	})
 }
 
 func (s *SQSAPI) DeleteMessageWithContext(_ context.Context, input *sqs.DeleteMessageInput, _ ...request.Option) (*sqs.DeleteMessageOutput, error) {
-	return s.DeleteMessageBehavior.Invoke(input)
+	return s.DeleteMessageBehavior.Invoke(input, func(_ *sqs.DeleteMessageInput) (*sqs.DeleteMessageOutput, error) {
+		return nil, nil
+	})
 }

@@ -72,7 +72,7 @@ type LaunchTemplate struct {
 
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters
 type AMIFamily interface {
-	DefaultAMIs(version string) []SSMAliasOutput
+	DefaultAMIs(version string) []DefaultAMIOutput
 	UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []core.Taint, labels map[string]string, caBundle *string, instanceTypes []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper
 	DefaultBlockDeviceMappings() []*v1alpha1.BlockDeviceMapping
 	DefaultMetadataOptions() *v1alpha1.MetadataOptions
@@ -80,7 +80,7 @@ type AMIFamily interface {
 	FeatureFlags() FeatureFlags
 }
 
-type SSMAliasOutput struct {
+type DefaultAMIOutput struct {
 	Name         string
 	Query        string
 	Requirements scheduling.Requirements
