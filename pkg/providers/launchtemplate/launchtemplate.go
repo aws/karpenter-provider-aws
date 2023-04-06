@@ -47,7 +47,7 @@ import (
 )
 
 const (
-	launchTemplateNameFormat = "Karpenter-%s-%s"
+	launchTemplateNameFormat = "karpenter.k8s.aws/%s"
 	karpenterManagedTagKey   = "karpenter.k8s.aws/cluster"
 )
 
@@ -132,7 +132,7 @@ func launchTemplateName(options *amifamily.LaunchTemplate) string {
 	if err != nil {
 		panic(fmt.Sprintf("hashing launch template, %s", err))
 	}
-	return fmt.Sprintf(launchTemplateNameFormat, options.ClusterName, fmt.Sprint(hash))
+	return fmt.Sprintf(launchTemplateNameFormat, fmt.Sprint(hash))
 }
 
 func (p *Provider) createAMIOptions(ctx context.Context, machine *v1alpha5.Machine, nodeTemplate *v1alpha1.AWSNodeTemplate, labels map[string]string) (*amifamily.Options, error) {
@@ -301,10 +301,10 @@ func (p *Provider) cachedEvictedFunc(ctx context.Context) func(string, interface
 		}
 		launchTemplate := lt.(*ec2.LaunchTemplate)
 		if _, err := p.ec2api.DeleteLaunchTemplate(&ec2.DeleteLaunchTemplateInput{LaunchTemplateId: launchTemplate.LaunchTemplateId}); err != nil {
-			logging.FromContext(ctx).Errorf("Unable to delete launch template, %v", err)
+			logging.FromContext(ctx).With("launch-template", launchTemplate.LaunchTemplateName).Errorf("Unable to delete launch template, %v", err)
 			return
 		}
-		logging.FromContext(ctx).Debugf("deleted launch template")
+		logging.FromContext(ctx).With("launch-template", launchTemplate.LaunchTemplateName).Debugf("deleted launch template")
 	}
 }
 
