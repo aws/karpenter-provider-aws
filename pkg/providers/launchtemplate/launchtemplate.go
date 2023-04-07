@@ -278,7 +278,6 @@ func (p *Provider) volumeSize(quantity *resource.Quantity) *int64 {
 func (p *Provider) hydrateCache(ctx context.Context) {
 	clusterName := settings.FromContext(ctx).ClusterName
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("tag-key", karpenterManagedTagKey, "tag-value", clusterName))
-	logging.FromContext(ctx).Debugf("hydrating the launch template cache")
 	if err := p.ec2api.DescribeLaunchTemplatesPagesWithContext(ctx, &ec2.DescribeLaunchTemplatesInput{
 		Filters: []*ec2.Filter{{Name: aws.String(fmt.Sprintf("tag:%s", karpenterManagedTagKey)), Values: []*string{aws.String(clusterName)}}},
 	}, func(output *ec2.DescribeLaunchTemplatesOutput, _ bool) bool {
@@ -288,8 +287,9 @@ func (p *Provider) hydrateCache(ctx context.Context) {
 		return true
 	}); err != nil {
 		logging.FromContext(ctx).Errorf(fmt.Sprintf("Unable to hydrate the AWS launch template cache, %s", err))
+	} else {
+		logging.FromContext(ctx).With("item-count", p.cache.ItemCount()).Debugf("hydrated launch template cache")
 	}
-	logging.FromContext(ctx).With("item-count", p.cache.ItemCount()).Debugf("finished hydrating the launch template cache")
 }
 
 func (p *Provider) cachedEvictedFunc(ctx context.Context) func(string, interface{}) {
@@ -301,7 +301,7 @@ func (p *Provider) cachedEvictedFunc(ctx context.Context) func(string, interface
 		}
 		launchTemplate := lt.(*ec2.LaunchTemplate)
 		if _, err := p.ec2api.DeleteLaunchTemplate(&ec2.DeleteLaunchTemplateInput{LaunchTemplateId: launchTemplate.LaunchTemplateId}); err != nil {
-			logging.FromContext(ctx).With("launch-template", launchTemplate.LaunchTemplateName).Errorf("Unable to delete launch template, %v", err)
+			logging.FromContext(ctx).With("launch-template", launchTemplate.LaunchTemplateName).Errorf("failed to delete launch template, %v", err)
 			return
 		}
 		logging.FromContext(ctx).With("launch-template", launchTemplate.LaunchTemplateName).Debugf("deleted launch template")

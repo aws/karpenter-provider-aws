@@ -124,7 +124,7 @@ func (p *Provider) Create(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTem
 		"instance-type", aws.StringValue(instance.InstanceType),
 		"zone", aws.StringValue(instance.Placement.AvailabilityZone),
 		"capacity-type", GetCapacityType(instance),
-		"capacity", capacity).Infof("launched new instance")
+		"capacity", capacity).Infof("launched instance")
 
 	return instance, nil
 }
