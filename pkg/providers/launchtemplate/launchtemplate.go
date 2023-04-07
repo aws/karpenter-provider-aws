@@ -288,7 +288,7 @@ func (p *Provider) hydrateCache(ctx context.Context) {
 	}); err != nil {
 		logging.FromContext(ctx).Errorf(fmt.Sprintf("Unable to hydrate the AWS launch template cache, %s", err))
 	} else {
-		logging.FromContext(ctx).With("item-count", p.cache.ItemCount()).Debugf("hydrated launch template cache")
+		logging.FromContext(ctx).With("count", p.cache.ItemCount()).Debugf("hydrated launch template cache")
 	}
 }
 
