@@ -157,6 +157,21 @@ func getInstanceTypeInfo(info *ec2.InstanceTypeInfo) string {
 	fmt.Fprintf(src, "MaximumNetworkInterfaces: aws.Int64(%d),\n", lo.FromPtr(info.NetworkInfo.MaximumNetworkInterfaces))
 	fmt.Fprintf(src, "Ipv4AddressesPerInterface: aws.Int64(%d),\n", lo.FromPtr(info.NetworkInfo.Ipv4AddressesPerInterface))
 	fmt.Fprintf(src, "EncryptionInTransitSupported: aws.Bool(%t),\n", lo.FromPtr(info.NetworkInfo.EncryptionInTransitSupported))
+	fmt.Fprintf(src, "DefaultNetworkCardIndex: aws.Int64(%d),\n", lo.FromPtr(info.NetworkInfo.DefaultNetworkCardIndex))
+	fmt.Fprintf(src, "NetworkCards: []*ec2.NetworkCardInfo{\n")
+	for _, networkCard := range info.NetworkInfo.NetworkCards {
+		fmt.Fprintf(src, getNetworkCardInfo(networkCard))
+	}
+	fmt.Fprintf(src, "},\n")
+	fmt.Fprintf(src, "},\n")
+	return src.String()
+}
+
+func getNetworkCardInfo(info *ec2.NetworkCardInfo) string {
+	src := &bytes.Buffer{}
+	fmt.Fprintf(src, "{\n")
+	fmt.Fprintf(src, "NetworkCardIndex: aws.Int64(%d),\n", lo.FromPtr(info.NetworkCardIndex))
+	fmt.Fprintf(src, "MaximumNetworkInterfaces: aws.Int64(%d),\n", lo.FromPtr(info.MaximumNetworkInterfaces))
 	fmt.Fprintf(src, "},\n")
 	return src.String()
 }
