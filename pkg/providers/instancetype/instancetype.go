@@ -225,7 +225,7 @@ func (p *Provider) GetInstanceTypes(ctx context.Context) ([]*ec2.InstanceTypeInf
 	}
 	if p.cm.HasChanged("instance-types", instanceTypes) {
 		logging.FromContext(ctx).With(
-			"instance-type-count", len(instanceTypes)).Debugf("discovered instance types")
+			"count", len(instanceTypes)).Debugf("discovered instance types")
 	}
 	atomic.AddUint64(&p.instanceTypesSeqNum, 1)
 	p.cache.SetDefault(InstanceTypesCacheKey, instanceTypes)
