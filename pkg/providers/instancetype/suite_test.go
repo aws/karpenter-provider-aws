@@ -809,6 +809,21 @@ var _ = Describe("Instance Types", func() {
 				Expect(it.Overhead.EvictionThreshold.Memory().Value()).To(BeNumerically("~", float64(it.Capacity.Memory().Value())*0.1, 10))
 			})
 		})
+		It("should default max pods based off of network interfaces", func() {
+			instanceInfo, err := awsEnv.InstanceTypesProvider.GetInstanceTypes(ctx)
+			Expect(err).To(BeNil())
+			provisioner = test.Provisioner(coretest.ProvisionerOptions{})
+			for _, info := range instanceInfo {
+				if *info.InstanceType == "t3.large" {
+					it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+					Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 35))
+				}
+				if *info.InstanceType == "m6idn.32xlarge" {
+					it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+					Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 345))
+				}
+			}
+		})
 		It("should set max-pods to user-defined value if specified", func() {
 			instanceInfo, err := awsEnv.InstanceTypesProvider.GetInstanceTypes(ctx)
 			Expect(err).To(BeNil())
@@ -856,7 +871,7 @@ var _ = Describe("Instance Types", func() {
 			provisioner = test.Provisioner(coretest.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{PodsPerCore: ptr.Int32(1)}})
 			for _, info := range instanceInfo {
 				it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
-				limitedPods := resources.Quantity(fmt.Sprint(*info.NetworkInfo.MaximumNetworkInterfaces*(*info.NetworkInfo.Ipv4AddressesPerInterface-1) + 2))
+				limitedPods := instancetype.ENILimitedPods(info)
 				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", limitedPods.Value()))
 			}
 		})
@@ -1242,8 +1257,12 @@ func makeFakeInstances() []*ec2.InstanceTypeInfo {
 				SizeInMiB: aws.Int64(8192),
 			},
 			NetworkInfo: &ec2.NetworkInfo{
-				MaximumNetworkInterfaces:  aws.Int64(3),
 				Ipv4AddressesPerInterface: aws.Int64(10),
+				DefaultNetworkCardIndex:   aws.Int64(0),
+				NetworkCards: []*ec2.NetworkCardInfo{{
+					NetworkCardIndex:         lo.ToPtr(int64(0)),
+					MaximumNetworkInterfaces: aws.Int64(3),
+				}},
 			},
 			SupportedUsageClasses: fake.DefaultSupportedUsageClasses,
 		})

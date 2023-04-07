@@ -48,7 +48,7 @@ instanceTypeTestData() {
   SUBJECT="Instance Type Test Data"
 
   go run hack/code/instancetype_testdata_gen.go --out-file ${GENERATED_FILE} \
-    --instance-types t3.large,m5.large,m5.xlarge,p3.8xlarge,g4dn.8xlarge,c6g.large,inf1.2xlarge,inf1.6xlarge,m5.metal,dl1.24xlarge
+    --instance-types t3.large,m5.large,m5.xlarge,p3.8xlarge,g4dn.8xlarge,c6g.large,inf1.2xlarge,inf1.6xlarge,m5.metal,dl1.24xlarge,m6idn.32xlarge
 
   GIT_DIFF=$(git diff --stat "${GENERATED_FILE}")
   checkForUpdates "${GIT_DIFF}" "${NO_UPDATE}" "${SUBJECT}" "${GENERATED_FILE}"
