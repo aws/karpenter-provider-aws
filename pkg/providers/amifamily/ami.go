@@ -176,7 +176,7 @@ func (p *Provider) fetchAMIsFromSSM(ctx context.Context, ssmQuery string) (strin
 	ami := aws.StringValue(output.Parameter.Value)
 	p.ssmCache.SetDefault(ssmQuery, ami)
 	if p.cm.HasChanged("ssmquery-"+ssmQuery, ami) {
-		logging.FromContext(ctx).With("ami", ami, "query", ssmQuery).Debugf("discovered new ami")
+		logging.FromContext(ctx).With("ami", ami, "query", ssmQuery).Debugf("discovered ami")
 	}
 	return ami, nil
 }
