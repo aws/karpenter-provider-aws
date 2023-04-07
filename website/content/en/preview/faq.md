@@ -39,8 +39,7 @@ Yes, as long as the controller has network and IAM/RBAC access to the Kubernetes
 Karpenter is tested with Kubernetes v1.21-v1.25. Support for Kubernetes v1.20 was dropped in Karpenter v0.22.0+ as described in the [Upgrade Guide]({{< ref "./upgrade-guide/" >}}).
 
 ### What Kubernetes distributions are supported?
-Karpenter documents integration with a fresh install of the latest AWS Elastic Kubernetes Service (EKS).
-Existing EKS distributions can be used, but this use case has not yet been documented.
+Karpenter documents integration with a fresh or existing install of the latest AWS Elastic Kubernetes Service (EKS).
 Other Kubernetes distributions (KOPs, etc.) can be used, but setting up cloud provider permissions for those distributions has not been documented.
 
 ### How does Karpenter interact with AWS node group features?
