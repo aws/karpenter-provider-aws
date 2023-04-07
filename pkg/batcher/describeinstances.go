@@ -25,6 +25,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/samber/lo"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 )
 
@@ -68,27 +69,28 @@ func execDescribeInstancesBatch(ec2api ec2iface.EC2API) BatchExecutor[ec2.Descri
 		for _, input := range inputs[1:] {
 			firstInput.InstanceIds = append(firstInput.InstanceIds, input.InstanceIds...)
 		}
-
-		missingInstanceIDs := lo.SliceToMap(firstInput.InstanceIds, func(instanceID *string) (string, struct{}) { return *instanceID, struct{}{} })
+		missingInstanceIDs := sets.NewString(lo.Map(firstInput.InstanceIds, func(i *string, _ int) string { return *i })...)
 
 		// Execute fully aggregated request
 		// We don't care about the error here since we'll break up the batch upon any sort of failure
 		_ = ec2api.DescribeInstancesPagesWithContext(ctx, firstInput, func(dio *ec2.DescribeInstancesOutput, b bool) bool {
 			for _, r := range dio.Reservations {
 				for _, instance := range r.Instances {
-					if _, reqID, ok := lo.FindLastIndexOf(inputs, func(input *ec2.DescribeInstancesInput) bool {
-						return *input.InstanceIds[0] == *instance.InstanceId
-					}); ok {
-						delete(missingInstanceIDs, *instance.InstanceId)
-						inst := instance
-						results[reqID] = Result[ec2.DescribeInstancesOutput]{Output: &ec2.DescribeInstancesOutput{
-							Reservations: []*ec2.Reservation{{
-								OwnerId:       r.OwnerId,
-								RequesterId:   r.RequesterId,
-								ReservationId: r.ReservationId,
-								Instances:     []*ec2.Instance{inst},
-							}},
-						}}
+					missingInstanceIDs.Delete(*instance.InstanceId)
+
+					// Find all indexes where we are requesting this instance and populate with the result
+					for reqID := range inputs {
+						if *inputs[reqID].InstanceIds[0] == *instance.InstanceId {
+							inst := instance // locally scoped to avoid pointer pollution in a range loop
+							results[reqID] = Result[ec2.DescribeInstancesOutput]{Output: &ec2.DescribeInstancesOutput{
+								Reservations: []*ec2.Reservation{{
+									OwnerId:       r.OwnerId,
+									RequesterId:   r.RequesterId,
+									ReservationId: r.ReservationId,
+									Instances:     []*ec2.Instance{inst},
+								}},
+							}}
+						}
 					}
 				}
 			}
@@ -107,15 +109,13 @@ func execDescribeInstancesBatch(ec2api ec2iface.EC2API) BatchExecutor[ec2.Descri
 				out, err := ec2api.DescribeInstancesWithContext(ctx, &ec2.DescribeInstancesInput{
 					Filters:     firstInput.Filters,
 					InstanceIds: []*string{aws.String(instanceID)}})
-				// Order by inputs' index so that instance IDs from input and output are in the same order
-				_, reqID, ok := lo.FindIndexOf(inputs, func(input *ec2.DescribeInstancesInput) bool {
-					return *input.InstanceIds[0] == instanceID
-				})
-				// if the instance ID returned from DescribeInstances was not passed as a DescribeInstancesInput, just skip
-				if !ok {
-					return
+
+				// Find all indexes where we are requesting this instance and populate with the result
+				for reqID := range inputs {
+					if *inputs[reqID].InstanceIds[0] == instanceID {
+						results[reqID] = Result[ec2.DescribeInstancesOutput]{Output: out, Err: err}
+					}
 				}
-				results[reqID] = Result[ec2.DescribeInstancesOutput]{Output: out, Err: err}
 			}(instanceID)
 		}
 		wg.Wait()
