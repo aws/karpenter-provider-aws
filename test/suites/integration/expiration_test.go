@@ -61,10 +61,23 @@ var _ = Describe("Expiration", func() {
 		node := env.Monitor.CreatedNodes()[0]
 		env.Monitor.Reset()
 
-		// Eventually expect the node to be gone and a new one to come up
-		env.EventuallyExpectNotFound(node)
+		// Eventually the node will be set as unschedulable, which means its actively being deprovisioned
+		Eventually(func(g Gomega) {
+			n := &v1.Node{}
+			g.Expect(env.Client.Get(env.Context, types.NamespacedName{Name: node.Name}, n)).Should(Succeed())
+			g.Expect(n.Spec.Unschedulable).Should(BeTrue())
+		}).Should(Succeed())
+
+		// Remove the TTLSecondsUntilExpired to make sure new node isn't deleted
+		// This is CRITICAL since it prevents nodes that are immediately spun up from immediately being expired and
+		// racing at the end of the E2E test, leaking node resources into subsequent tests
 		provisioner.Spec.TTLSecondsUntilExpired = nil
 		env.ExpectUpdated(provisioner)
+
+		// After the deletion timestamp is set and all pods are drained
+		// the node should be gone
+		env.EventuallyExpectNotFound(node)
+
 		env.EventuallyExpectCreatedNodeCount("==", 1)
 		env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(dep.Spec.Selector.MatchLabels), 1)
 	})
@@ -111,14 +124,16 @@ var _ = Describe("Expiration", func() {
 		provisioner.Spec.TTLSecondsUntilExpired = ptr.Int64(60)
 		env.ExpectUpdated(provisioner)
 
-		// Eventually the node deletion timestamp will be set
+		// Eventually the node will be set as unschedulable, which means its actively being deprovisioned
 		Eventually(func(g Gomega) {
 			n := &v1.Node{}
 			g.Expect(env.Client.Get(env.Context, types.NamespacedName{Name: node.Name}, n)).Should(Succeed())
-			g.Expect(n.DeletionTimestamp.IsZero()).Should(BeFalse())
+			g.Expect(n.Spec.Unschedulable).Should(BeTrue())
 		}).Should(Succeed())
 
 		// Remove the TTLSecondsUntilExpired to make sure new node isn't deleted
+		// This is CRITICAL since it prevents nodes that are immediately spun up from immediately being expired and
+		// racing at the end of the E2E test, leaking node resources into subsequent tests
 		provisioner.Spec.TTLSecondsUntilExpired = nil
 		env.ExpectUpdated(provisioner)
 
