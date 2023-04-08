@@ -50,7 +50,7 @@ echo '{
             "Action": "ec2:TerminateInstances",
             "Condition": {
                 "StringLike": {
-                    "ec2:ResourceTag/Name": "*karpenter*"
+                    "ec2:ResourceTag/karpenter.sh/provisioner-name": "*"
                 }
             },
             "Effect": "Allow",
