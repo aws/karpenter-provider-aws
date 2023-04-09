@@ -146,6 +146,10 @@ func (env *Environment) ExpectKarpenterPodsWithOffset(offset int) []*v1.Pod {
 	return lo.Map(podList.Items, func(p v1.Pod, _ int) *v1.Pod { return &p })
 }
 
+func (env *Environment) ExpectKarpenterPodsDeleted() {
+	env.ExpectKarpenterPodsDeletedWithOffset(1)
+}
+
 func (env *Environment) ExpectKarpenterPodsDeletedWithOffset(offset int) {
 	pods := env.ExpectKarpenterPodsWithOffset(offset + 1)
 	env.ExpectDeletedWithOffset(offset+1, lo.Map(pods, func(p *v1.Pod, _ int) client.Object {
@@ -185,18 +189,6 @@ func (env *Environment) ExpectUniqueNodeNames(selector labels.Selector, uniqueNa
 		nodeNames.Insert(pod.Spec.NodeName)
 	}
 	ExpectWithOffset(1, len(nodeNames)).To(BeNumerically("==", uniqueNames))
-}
-
-func (env *Environment) EventuallyExpectCreatedNodesInitialized() {
-	EventuallyWithOffset(1, func(g Gomega) {
-		nodes := env.Monitor.CreatedNodes()
-		nodeNames := sets.NewString(lo.Map(nodes, func(n *v1.Node, _ int) string { return n.Name })...)
-		initializedNodeNames := sets.NewString(lo.FilterMap(nodes, func(n *v1.Node, _ int) (string, bool) {
-			_, ok := n.Labels[v1alpha5.LabelNodeInitialized]
-			return n.Name, ok
-		})...)
-		g.Expect(nodeNames.Equal(initializedNodeNames)).To(BeTrue())
-	}).Should(Succeed())
 }
 
 func (env *Environment) eventuallyExpectScaleDown() {
@@ -248,6 +240,18 @@ func (env *Environment) EventuallyExpectCreatedNodeCount(comparator string, coun
 			fmt.Sprintf("expected %d created nodes, had %d (%v)", count, len(createdNodes), NodeNames(createdNodes)))
 	}).Should(Succeed())
 	return createdNodes
+}
+
+func (env *Environment) EventuallyExpectInitializedNodeCount(comparator string, count int) []*v1.Node {
+	var nodes []*v1.Node
+	EventuallyWithOffset(1, func(g Gomega) {
+		nodes = env.Monitor.CreatedNodes()
+		nodes = lo.Filter(nodes, func(n *v1.Node, _ int) bool {
+			return n.Labels[v1alpha5.LabelNodeInitialized] == "true"
+		})
+		g.Expect(len(nodes)).To(BeNumerically(comparator, count))
+	}).Should(Succeed())
+	return nodes
 }
 
 func (env *Environment) EventuallyExpectCreatedMachineCount(comparator string, count int) []*v1alpha5.Machine {

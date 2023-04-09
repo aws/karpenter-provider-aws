@@ -40,6 +40,7 @@ var (
 			"Interruption",
 			"Chaos",
 			"Drift",
+			"Machine",
 		},
 		pipelineIPv6: {
 			"IPv6",

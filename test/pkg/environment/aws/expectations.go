@@ -26,6 +26,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ssm"
 	. "github.com/onsi/ginkgo/v2" //nolint:revive,stylecheck
 	. "github.com/onsi/gomega"    //nolint:revive,stylecheck
+	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -123,17 +124,15 @@ func (env *Environment) GetSubnetNameAndIds(tags map[string]string) []SubnetInfo
 	}
 	var subnetInfo []SubnetInfo
 	err := env.EC2API.DescribeSubnetsPages(&ec2.DescribeSubnetsInput{Filters: filters}, func(dso *ec2.DescribeSubnetsOutput, _ bool) bool {
-		for _, subnet := range dso.Subnets {
-			for k := range subnet.Tags {
-				if aws.StringValue(subnet.Tags[k].Key) == "Name" {
-					subnetInfo = append(subnetInfo, SubnetInfo{ID: aws.StringValue(subnet.SubnetId), Name: aws.StringValue(subnet.Tags[k].Value)})
-					break
-				}
+		subnetInfo = lo.Map(dso.Subnets, func(s *ec2.Subnet, _ int) SubnetInfo {
+			elem := SubnetInfo{ID: aws.StringValue(s.SubnetId)}
+			if tag, ok := lo.Find(s.Tags, func(t *ec2.Tag) bool { return aws.StringValue(t.Key) == "Name" }); ok {
+				elem.Name = aws.StringValue(tag.Value)
 			}
-		}
+			return elem
+		})
 		return true
 	})
-
 	Expect(err).To(BeNil())
 	return subnetInfo
 }
