@@ -102,6 +102,9 @@ By adopting this practice we allow our users who are early adopters to test out 
 
 # Released Upgrade Notes
 
+## Upgrading to v0.28.0+
+* Container log level values `controller.logLevel` and `webhook.logLevel` are now removed from the Karpenter helm chart. Configure the container through the global value `logLevel`.
+
 ## Upgrading to v0.27.0+
 * The Karpenter controller pods now deploy with `kubernetes.io/hostname` self anti-affinity by default. If you are running Karpenter in HA (high-availability) mode and you do not have enough nodes to match the number of pod replicas you are deploying with, you will need to scale-out your nodes for Karpenter.
 * The following controller metrics changed and moved under the `controller_runtime` metrics namespace:

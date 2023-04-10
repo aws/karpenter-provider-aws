@@ -35,9 +35,3 @@ data:
         "timeEncoder": "iso8601"
       }
     }
-{{- with .Values.controller.logLevel }}
-  loglevel.controller: {{ . | quote }}
-{{- end }}
-{{- with .Values.webhook.logLevel }}
-  loglevel.webhook: {{ . | quote }}
-{{- end }}

@@ -154,10 +154,6 @@ controller:
   # -- Controller errorOutputPaths - default to stderr only
   errorOutputPaths:
     - stderr
-  # -- Controller log level, defaults to the global log level
-  logLevel: ""
-  # -- Controller log encoding, defaults to the global log encoding
-  logEncoding: ""
   # -- Additional volumeMounts for the controller pod.
   extraVolumeMounts: []
   # - name: aws-iam-token
@@ -174,7 +170,6 @@ controller:
     # -- The container port to use for http health probe.
     port: 8081
 webhook:
-  logLevel: error
   # -- The container port to use for the webhook.
   port: 8443
 # -- Global log level
