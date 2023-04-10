@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package context_test
+package operator_test
 
 import (
 	"context"
@@ -27,8 +27,8 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/settings"
-	awscontext "github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/fake"
+	awscontext "github.com/aws/karpenter/pkg/operator"
 	"github.com/aws/karpenter/pkg/test"
 
 	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
@@ -70,7 +70,7 @@ var _ = AfterEach(func() {
 	ExpectCleanedUp(ctx, env.Client)
 })
 
-var _ = Describe("Context", func() {
+var _ = Describe("Operator", func() {
 
 	It("should resolve endpoint if set via configuration", func() {
 		ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
