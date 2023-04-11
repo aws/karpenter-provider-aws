@@ -29,7 +29,7 @@ Update the zap-logger-config "level" and restart the Karpenter pod(s) to enable 
 
 #### Debug logging via Helm
 
-You can enable debug logging during installation with helm by setting the option `contreller.logLevel`.
+You can enable debug logging during installation with helm by setting the option `logLevel`.
 
 ```
 helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter \
