@@ -348,6 +348,20 @@ var _ = Describe("CloudProvider", func() {
 			Expect(err).To(HaveOccurred())
 			Expect(isDrifted).To(BeFalse())
 		})
+		It("should not error drift if the underlying machine does not exist", func() {
+			node := coretest.Node(coretest.NodeOptions{
+				ProviderID: fake.ProviderID(fake.InstanceID()),
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+						v1.LabelInstanceTypeStable:       selectedInstanceType.Name,
+					},
+				},
+			})
+			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machineutil.NewFromNode(node))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(isDrifted).To(BeFalse())
+		})
 	})
 	Context("Provider Backwards Compatibility", func() {
 		It("should launch a node using provider defaults", func() {
