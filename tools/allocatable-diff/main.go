@@ -28,16 +28,18 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/utils/clock"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+
+	coreoperator "github.com/aws/karpenter-core/pkg/operator"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	corecloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider"
-	awscontext "github.com/aws/karpenter/pkg/context"
+	"github.com/aws/karpenter/pkg/operator"
 )
 
 var clusterName string
@@ -57,7 +59,6 @@ func main() {
 	}
 	restConfig := config.GetConfigOrDie()
 	kubeClient := lo.Must(client.New(restConfig, client.Options{}))
-	kubernetesInterface := kubernetes.NewForConfigOrDie(restConfig)
 	ctx := context.Background()
 	ctx = settings.ToContext(ctx, &settings.Settings{ClusterName: clusterName, IsolatedVPC: true, VMMemoryOverheadPercent: overheadPercent})
 
@@ -70,18 +71,15 @@ func main() {
 	nodeList := &v1.NodeList{}
 	lo.Must0(kubeClient.List(ctx, nodeList))
 
-	awsCtx := awscontext.NewOrDie(corecloudprovider.Context{
-		Context:             ctx,
-		Clock:               clock.RealClock{},
-		RESTConfig:          restConfig,
-		KubeClient:          kubeClient,
-		KubernetesInterface: kubernetesInterface,
+	ctx, op := operator.NewOperator(ctx, &coreoperator.Operator{
+		Manager:             lo.Must(manager.New(restConfig, manager.Options{})),
+		KubernetesInterface: kubernetes.NewForConfigOrDie(restConfig),
 	})
 	cloudProvider := cloudprovider.New(
-		awsCtx.InstanceTypesProvider,
-		awsCtx.InstanceProvider,
-		awsCtx.KubeClient,
-		awsCtx.AMIProvider,
+		op.InstanceTypesProvider,
+		op.InstanceProvider,
+		op.GetClient(),
+		op.AMIProvider,
 	)
 	raw := &runtime.RawExtension{}
 	lo.Must0(raw.UnmarshalJSON(lo.Must(json.Marshal(&v1alpha1.AWS{
