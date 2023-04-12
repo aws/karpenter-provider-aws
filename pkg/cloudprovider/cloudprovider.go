@@ -193,7 +193,7 @@ func (c *CloudProvider) IsMachineDrifted(ctx context.Context, machine *v1alpha5.
 	}
 	amiDrifted, err := c.isAMIDrifted(ctx, machine, provisioner, nodeTemplate)
 	if err != nil {
-		return false, err
+		return false, cloudprovider.IgnoreMachineNotFoundError(fmt.Errorf("calculating ami drift, %w", err))
 	}
 	return amiDrifted, nil
 }
@@ -220,6 +220,9 @@ func (c *CloudProvider) isAMIDrifted(ctx context.Context, machine *v1alpha5.Mach
 	amis, err := c.amiProvider.Get(ctx, nodeTemplate, &amifamily.Options{})
 	if err != nil {
 		return false, fmt.Errorf("getting amis, %w", err)
+	}
+	if len(amis) == 0 {
+		return false, fmt.Errorf("no amis exist given constraints")
 	}
 	mappedAMIs := amifamily.MapInstanceTypes(amis, []*cloudprovider.InstanceType{nodeInstanceType})
 	if len(mappedAMIs) == 0 {

@@ -18,52 +18,50 @@ import (
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter/pkg/cloudprovider"
-	"github.com/aws/karpenter/pkg/context"
 	"github.com/aws/karpenter/pkg/controllers"
+	"github.com/aws/karpenter/pkg/operator"
 	"github.com/aws/karpenter/pkg/webhooks"
 
-	corecloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/cloudprovider/metrics"
 	corecontrollers "github.com/aws/karpenter-core/pkg/controllers"
 	"github.com/aws/karpenter-core/pkg/controllers/state"
-	"github.com/aws/karpenter-core/pkg/operator"
+	coreoperator "github.com/aws/karpenter-core/pkg/operator"
 	corewebhooks "github.com/aws/karpenter-core/pkg/webhooks"
 )
 
 func main() {
-	ctx, operator := operator.NewOperator()
-	awsCtx := context.NewOrDie(corecloudprovider.Context{
-		Context:             ctx,
-		Clock:               operator.Clock,
-		RESTConfig:          operator.RESTConfig,
-		KubeClient:          operator.GetClient(),
-		KubernetesInterface: operator.KubernetesInterface,
-		EventRecorder:       operator.EventRecorder,
-		StartAsync:          operator.Elected(),
-	})
+	ctx, op := operator.NewOperator(coreoperator.NewOperator())
 	awsCloudProvider := cloudprovider.New(
-		awsCtx.InstanceTypesProvider,
-		awsCtx.InstanceProvider,
-		awsCtx.KubeClient,
-		awsCtx.AMIProvider,
+		op.InstanceTypesProvider,
+		op.InstanceProvider,
+		op.GetClient(),
+		op.AMIProvider,
 	)
-	lo.Must0(operator.AddHealthzCheck("cloud-provider", awsCloudProvider.LivenessProbe))
+	lo.Must0(op.AddHealthzCheck("cloud-provider", awsCloudProvider.LivenessProbe))
 	cloudProvider := metrics.Decorate(awsCloudProvider)
 
-	operator.
+	op.
 		WithControllers(ctx, corecontrollers.NewControllers(
 			ctx,
-			operator.Clock,
-			operator.GetClient(),
-			operator.KubernetesInterface,
-			state.NewCluster(operator.Clock, operator.GetClient(), cloudProvider),
-			operator.EventRecorder,
+			op.Clock,
+			op.GetClient(),
+			op.KubernetesInterface,
+			state.NewCluster(op.Clock, op.GetClient(), cloudProvider),
+			op.EventRecorder,
 			cloudProvider,
 		)...).
 		WithWebhooks(corewebhooks.NewWebhooks()...).
 		WithControllers(ctx, controllers.NewControllers(
-			awsCtx,
-			awsCloudProvider,
+			ctx,
+			op.Session,
+			op.Clock,
+			op.GetClient(),
+			op.EventRecorder,
+			op.UnavailableOfferingsCache,
+			op.SubnetProvider,
+			op.SecurityGroupProvider,
+			op.PricingProvider,
+			op.AMIProvider,
 		)...).
 		WithWebhooks(webhooks.NewWebhooks()...).
 		Start(ctx)

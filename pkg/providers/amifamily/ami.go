@@ -162,23 +162,25 @@ func (p *Provider) getDefaultAMIFromSSM(ctx context.Context, nodeTemplate *v1alp
 		}
 		amis = append(amis, AMI{AmiID: amiID, Requirements: ssmOutput.Requirements})
 	}
-
+	// Creating selector filter by making a string of amiIds into a comma delineated string
 	ids := lo.Reduce(amis, func(agg string, item AMI, _ int) string {
 		return agg + item.AmiID + ","
 	}, "")
-
 	selector := map[string]string{"aws-ids": ids}
-	amisDetails, err := p.getAMIsFromSelector(ctx, selector)
+	// Collecting the AMI details of the default AMIs from EC2
+	amisDetails, err := p.fetchAMIsFromEC2(ctx, selector)
 	if err != nil {
 		return nil, err
 	}
 
+	// matching up the AMIs details that is received from EC2 with the default AMIs
+	// collecting the names of the default AMIs
 	for i := range amis {
-		ami, ok := lo.Find(amisDetails, func(x AMI) bool {
-			return x.AmiID == amis[i].AmiID
+		ami, ok := lo.Find(amisDetails, func(x *ec2.Image) bool {
+			return *x.ImageId == amis[i].AmiID
 		})
 		if ok {
-			amis[i].Name = ami.Name
+			amis[i].Name = *ami.Name
 		}
 	}
 
@@ -196,7 +198,7 @@ func (p *Provider) fetchAMIsFromSSM(ctx context.Context, ssmQuery string) (strin
 	ami := aws.StringValue(output.Parameter.Value)
 	p.ssmCache.SetDefault(ssmQuery, ami)
 	if p.cm.HasChanged("ssmquery-"+ssmQuery, ami) {
-		logging.FromContext(ctx).With("ami", ami, "query", ssmQuery).Debugf("discovered new ami")
+		logging.FromContext(ctx).With("ami", ami, "query", ssmQuery).Debugf("discovered ami")
 	}
 	return ami, nil
 }
@@ -205,9 +207,6 @@ func (p *Provider) getAMIsFromSelector(ctx context.Context, selector map[string]
 	ec2AMIs, err := p.fetchAMIsFromEC2(ctx, selector)
 	if err != nil {
 		return nil, err
-	}
-	if len(ec2AMIs) == 0 {
-		return nil, fmt.Errorf("no amis exist given constraints")
 	}
 	var amis []AMI
 	for _, ec2AMI := range ec2AMIs {

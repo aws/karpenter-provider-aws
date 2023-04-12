@@ -118,6 +118,9 @@ func (r Resolver) Resolve(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTem
 	if err != nil {
 		return nil, err
 	}
+	if len(amis) == 0 {
+		return nil, fmt.Errorf("no amis exist given constraints")
+	}
 	mappedAMIs := MapInstanceTypes(amis, instanceTypes)
 	if len(mappedAMIs) == 0 {
 		return nil, fmt.Errorf("no instance types satisfy requirements of amis %v,", amis)

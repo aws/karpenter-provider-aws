@@ -59,7 +59,7 @@ var (
 
 	instanceStateFilter = &ec2.Filter{
 		Name:   aws.String("instance-state-name"),
-		Values: aws.StringSlice([]string{ec2.InstanceStateNamePending, ec2.InstanceStateNameRunning, ec2.InstanceStateNameStopping, ec2.InstanceStateNameStopped}),
+		Values: aws.StringSlice([]string{ec2.InstanceStateNamePending, ec2.InstanceStateNameRunning, ec2.InstanceStateNameStopping, ec2.InstanceStateNameStopped, ec2.InstanceStateNameShuttingDown}),
 	}
 )
 
@@ -124,7 +124,7 @@ func (p *Provider) Create(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTem
 		"instance-type", aws.StringValue(instance.InstanceType),
 		"zone", aws.StringValue(instance.Placement.AvailabilityZone),
 		"capacity-type", GetCapacityType(instance),
-		"capacity", capacity).Infof("launched new instance")
+		"capacity", capacity).Infof("launched instance")
 
 	return instance, nil
 }

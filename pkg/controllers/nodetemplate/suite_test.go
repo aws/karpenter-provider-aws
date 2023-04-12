@@ -408,7 +408,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 		It("should resolve amiSelector AMIs and requirements into status", func() {
 			version := lo.Must(awsEnv.AMIProvider.KubeServerVersion(ctx))
 
-			awsEnv.SSMAPI.PresetParameterOutput = map[string]string{
+			awsEnv.SSMAPI.Parameters = map[string]string{
 				fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", version):                                                   "ami-id-123",
 				fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-gpu/recommended/image_id", version):                                               "ami-id-456",
 				fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2%s/recommended/image_id", version, fmt.Sprintf("-%s", v1alpha5.ArchitectureArm64)): "ami-id-789",

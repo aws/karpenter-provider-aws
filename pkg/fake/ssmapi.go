@@ -28,16 +28,16 @@ import (
 
 type SSMAPI struct {
 	ssmiface.SSMAPI
-	PresetParameterOutput map[string]string
-	GetParameterOutput    *ssm.GetParameterOutput
-	WantErr               error
+	Parameters         map[string]string
+	GetParameterOutput *ssm.GetParameterOutput
+	WantErr            error
 }
 
 func (a SSMAPI) GetParameterWithContext(ctx context.Context, input *ssm.GetParameterInput, opts ...request.Option) (*ssm.GetParameterOutput, error) {
 	if a.WantErr != nil {
 		return nil, a.WantErr
 	}
-	if amiID, ok := a.PresetParameterOutput[*input.Name]; ok {
+	if amiID, ok := a.Parameters[*input.Name]; ok {
 		return &ssm.GetParameterOutput{
 			Parameter: &ssm.Parameter{Value: aws.String(amiID)},
 		}, nil

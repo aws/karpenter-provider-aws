@@ -48,6 +48,13 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 				MaximumNetworkInterfaces:     aws.Int64(3),
 				Ipv4AddressesPerInterface:    aws.Int64(10),
 				EncryptionInTransitSupported: aws.Bool(false),
+				DefaultNetworkCardIndex:      aws.Int64(0),
+				NetworkCards: []*ec2.NetworkCardInfo{
+					{
+						NetworkCardIndex:         aws.Int64(0),
+						MaximumNetworkInterfaces: aws.Int64(3),
+					},
+				},
 			},
 		},
 		{
@@ -86,6 +93,25 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 				MaximumNetworkInterfaces:     aws.Int64(60),
 				Ipv4AddressesPerInterface:    aws.Int64(50),
 				EncryptionInTransitSupported: aws.Bool(true),
+				DefaultNetworkCardIndex:      aws.Int64(0),
+				NetworkCards: []*ec2.NetworkCardInfo{
+					{
+						NetworkCardIndex:         aws.Int64(0),
+						MaximumNetworkInterfaces: aws.Int64(15),
+					},
+					{
+						NetworkCardIndex:         aws.Int64(1),
+						MaximumNetworkInterfaces: aws.Int64(15),
+					},
+					{
+						NetworkCardIndex:         aws.Int64(2),
+						MaximumNetworkInterfaces: aws.Int64(15),
+					},
+					{
+						NetworkCardIndex:         aws.Int64(3),
+						MaximumNetworkInterfaces: aws.Int64(15),
+					},
+				},
 			},
 		},
 		{
@@ -124,6 +150,13 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 				MaximumNetworkInterfaces:     aws.Int64(4),
 				Ipv4AddressesPerInterface:    aws.Int64(15),
 				EncryptionInTransitSupported: aws.Bool(true),
+				DefaultNetworkCardIndex:      aws.Int64(0),
+				NetworkCards: []*ec2.NetworkCardInfo{
+					{
+						NetworkCardIndex:         aws.Int64(0),
+						MaximumNetworkInterfaces: aws.Int64(4),
+					},
+				},
 			},
 		},
 		{
@@ -156,6 +189,13 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 				MaximumNetworkInterfaces:     aws.Int64(4),
 				Ipv4AddressesPerInterface:    aws.Int64(10),
 				EncryptionInTransitSupported: aws.Bool(true),
+				DefaultNetworkCardIndex:      aws.Int64(0),
+				NetworkCards: []*ec2.NetworkCardInfo{
+					{
+						NetworkCardIndex:         aws.Int64(0),
+						MaximumNetworkInterfaces: aws.Int64(4),
+					},
+				},
 			},
 		},
 		{
@@ -188,6 +228,13 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 				MaximumNetworkInterfaces:     aws.Int64(8),
 				Ipv4AddressesPerInterface:    aws.Int64(30),
 				EncryptionInTransitSupported: aws.Bool(true),
+				DefaultNetworkCardIndex:      aws.Int64(0),
+				NetworkCards: []*ec2.NetworkCardInfo{
+					{
+						NetworkCardIndex:         aws.Int64(0),
+						MaximumNetworkInterfaces: aws.Int64(8),
+					},
+				},
 			},
 		},
 		{
@@ -211,6 +258,13 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 				MaximumNetworkInterfaces:     aws.Int64(3),
 				Ipv4AddressesPerInterface:    aws.Int64(10),
 				EncryptionInTransitSupported: aws.Bool(false),
+				DefaultNetworkCardIndex:      aws.Int64(0),
+				NetworkCards: []*ec2.NetworkCardInfo{
+					{
+						NetworkCardIndex:         aws.Int64(0),
+						MaximumNetworkInterfaces: aws.Int64(3),
+					},
+				},
 			},
 		},
 		{
@@ -234,6 +288,13 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 				MaximumNetworkInterfaces:     aws.Int64(15),
 				Ipv4AddressesPerInterface:    aws.Int64(50),
 				EncryptionInTransitSupported: aws.Bool(false),
+				DefaultNetworkCardIndex:      aws.Int64(0),
+				NetworkCards: []*ec2.NetworkCardInfo{
+					{
+						NetworkCardIndex:         aws.Int64(0),
+						MaximumNetworkInterfaces: aws.Int64(15),
+					},
+				},
 			},
 		},
 		{
@@ -257,6 +318,50 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 				MaximumNetworkInterfaces:     aws.Int64(4),
 				Ipv4AddressesPerInterface:    aws.Int64(15),
 				EncryptionInTransitSupported: aws.Bool(false),
+				DefaultNetworkCardIndex:      aws.Int64(0),
+				NetworkCards: []*ec2.NetworkCardInfo{
+					{
+						NetworkCardIndex:         aws.Int64(0),
+						MaximumNetworkInterfaces: aws.Int64(4),
+					},
+				},
+			},
+		},
+		{
+			InstanceType:                  aws.String("m6idn.32xlarge"),
+			SupportedUsageClasses:         aws.StringSlice([]string{"on-demand", "spot"}),
+			SupportedVirtualizationTypes:  aws.StringSlice([]string{"hvm"}),
+			BurstablePerformanceSupported: aws.Bool(false),
+			BareMetal:                     aws.Bool(false),
+			Hypervisor:                    aws.String("nitro"),
+			ProcessorInfo: &ec2.ProcessorInfo{
+				SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
+			},
+			VCpuInfo: &ec2.VCpuInfo{
+				DefaultCores: aws.Int64(64),
+				DefaultVCpus: aws.Int64(128),
+			},
+			MemoryInfo: &ec2.MemoryInfo{
+				SizeInMiB: aws.Int64(524288),
+			},
+			InstanceStorageInfo: &ec2.InstanceStorageInfo{NvmeSupport: aws.String("required"),
+				TotalSizeInGB: aws.Int64(7600),
+			},
+			NetworkInfo: &ec2.NetworkInfo{
+				MaximumNetworkInterfaces:     aws.Int64(14),
+				Ipv4AddressesPerInterface:    aws.Int64(50),
+				EncryptionInTransitSupported: aws.Bool(true),
+				DefaultNetworkCardIndex:      aws.Int64(0),
+				NetworkCards: []*ec2.NetworkCardInfo{
+					{
+						NetworkCardIndex:         aws.Int64(0),
+						MaximumNetworkInterfaces: aws.Int64(7),
+					},
+					{
+						NetworkCardIndex:         aws.Int64(1),
+						MaximumNetworkInterfaces: aws.Int64(7),
+					},
+				},
 			},
 		},
 		{
@@ -292,6 +397,13 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 				MaximumNetworkInterfaces:     aws.Int64(8),
 				Ipv4AddressesPerInterface:    aws.Int64(30),
 				EncryptionInTransitSupported: aws.Bool(false),
+				DefaultNetworkCardIndex:      aws.Int64(0),
+				NetworkCards: []*ec2.NetworkCardInfo{
+					{
+						NetworkCardIndex:         aws.Int64(0),
+						MaximumNetworkInterfaces: aws.Int64(8),
+					},
+				},
 			},
 		},
 		{
@@ -315,6 +427,13 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 				MaximumNetworkInterfaces:     aws.Int64(3),
 				Ipv4AddressesPerInterface:    aws.Int64(12),
 				EncryptionInTransitSupported: aws.Bool(false),
+				DefaultNetworkCardIndex:      aws.Int64(0),
+				NetworkCards: []*ec2.NetworkCardInfo{
+					{
+						NetworkCardIndex:         aws.Int64(0),
+						MaximumNetworkInterfaces: aws.Int64(3),
+					},
+				},
 			},
 		},
 	},
