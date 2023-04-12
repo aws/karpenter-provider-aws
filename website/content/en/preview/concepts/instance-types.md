@@ -3202,6 +3202,29 @@ below are the resources available with some assumptions and after the instance o
  |memory|238333Mi|
  |pods|345|
  |vpc.amazonaws.com/pod-eni|108|
+### `c6in.metal`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|c|
+ |karpenter.k8s.aws/instance-cpu|128|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|c6in|
+ |karpenter.k8s.aws/instance-generation|6|
+ |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-memory|262144|
+ |karpenter.k8s.aws/instance-pods|688|
+ |karpenter.k8s.aws/instance-size|metal|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|c6in.metal|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|127610m|
+ |ephemeral-storage|17Gi|
+ |memory|234560Mi|
+ |pods|688|
 ## c7g Family
 ### `c7g.medium`
 #### Labels
@@ -9516,6 +9539,30 @@ below are the resources available with some assumptions and after the instance o
  |memory|480816Mi|
  |pods|345|
  |vpc.amazonaws.com/pod-eni|108|
+### `m6idn.metal`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|128|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m6idn|
+ |karpenter.k8s.aws/instance-generation|6|
+ |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-local-nvme|7600|
+ |karpenter.k8s.aws/instance-memory|524288|
+ |karpenter.k8s.aws/instance-pods|688|
+ |karpenter.k8s.aws/instance-size|metal|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m6idn.metal|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|127610m|
+ |ephemeral-storage|17Gi|
+ |memory|477043Mi|
+ |pods|688|
 ## m6in Family
 ### `m6in.large`
 #### Labels
@@ -9767,6 +9814,29 @@ below are the resources available with some assumptions and after the instance o
  |memory|480816Mi|
  |pods|345|
  |vpc.amazonaws.com/pod-eni|108|
+### `m6in.metal`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|128|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m6in|
+ |karpenter.k8s.aws/instance-generation|6|
+ |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-memory|524288|
+ |karpenter.k8s.aws/instance-pods|688|
+ |karpenter.k8s.aws/instance-size|metal|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m6in.metal|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|127610m|
+ |ephemeral-storage|17Gi|
+ |memory|477043Mi|
+ |pods|688|
 ## m7g Family
 ### `m7g.medium`
 #### Labels
@@ -13564,6 +13634,30 @@ below are the resources available with some assumptions and after the instance o
  |memory|965782Mi|
  |pods|345|
  |vpc.amazonaws.com/pod-eni|108|
+### `r6idn.metal`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|128|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r6idn|
+ |karpenter.k8s.aws/instance-generation|6|
+ |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-local-nvme|7600|
+ |karpenter.k8s.aws/instance-memory|1048576|
+ |karpenter.k8s.aws/instance-pods|688|
+ |karpenter.k8s.aws/instance-size|metal|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r6idn.metal|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|127610m|
+ |ephemeral-storage|17Gi|
+ |memory|962009Mi|
+ |pods|688|
 ## r6in Family
 ### `r6in.large`
 #### Labels
@@ -13815,6 +13909,29 @@ below are the resources available with some assumptions and after the instance o
  |memory|965782Mi|
  |pods|345|
  |vpc.amazonaws.com/pod-eni|108|
+### `r6in.metal`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|128|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r6in|
+ |karpenter.k8s.aws/instance-generation|6|
+ |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-memory|1048576|
+ |karpenter.k8s.aws/instance-pods|688|
+ |karpenter.k8s.aws/instance-size|metal|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r6in.metal|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|127610m|
+ |ephemeral-storage|17Gi|
+ |memory|962009Mi|
+ |pods|688|
 ## r7g Family
 ### `r7g.medium`
 #### Labels
