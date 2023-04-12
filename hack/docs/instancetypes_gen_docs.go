@@ -20,9 +20,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io"
 	"log"
-	"net/http"
 	"os"
 	"sort"
 	"strings"
@@ -32,7 +30,9 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
-	"sigs.k8s.io/controller-runtime/pkg/client/config"
+	"k8s.io/client-go/rest"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
@@ -48,6 +48,23 @@ import (
 	"github.com/aws/karpenter-core/pkg/utils/resources"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 )
+
+// FakeManager is a manager that takes all the utilized calls from the operator setup
+type FakeManager struct {
+	manager.Manager
+}
+
+func (m *FakeManager) GetClient() client.Client {
+	return fake.NewClientBuilder().Build()
+}
+
+func (m *FakeManager) GetConfig() *rest.Config {
+	return &rest.Config{}
+}
+
+func (m *FakeManager) Elected() <-chan struct{} {
+	return make(chan struct{}, 1)
+}
 
 func main() {
 	flag.Parse()
@@ -66,10 +83,9 @@ func main() {
 		IsolatedVPC:     lo.ToPtr(true), // disable pricing lookup
 	}))
 
-	restConfig := config.GetConfigOrDie()
 	ctx, op := operator.NewOperator(ctx, &coreoperator.Operator{
-		Manager:             lo.Must(manager.New(restConfig, manager.Options{})),
-		KubernetesInterface: kubernetes.NewForConfigOrDie(restConfig),
+		Manager:             &FakeManager{},
+		KubernetesInterface: kubernetes.NewForConfigOrDie(&rest.Config{}),
 	})
 	cp := awscloudprovider.New(op.InstanceTypesProvider, op.InstanceProvider, op.GetClient(), op.AMIProvider)
 
@@ -207,41 +223,4 @@ below are the resources available with some assumptions and after the instance o
 			}
 		}
 	}
-}
-
-type kubeDnsTransport struct {
-}
-
-const kubeDNS = `{
-    "apiVersion": "v1",
-    "kind": "Service",
-    "metadata": {
-        "creationTimestamp": "2022-04-14T17:55:49Z",
-        "name": "kube-dns",
-        "namespace": "kube-system",
-        "resourceVersion": "262"
-    },
-    "spec": {
-        "clusterIP": "10.100.0.10",
-        "clusterIPs": [
-            "10.100.0.10"
-        ],
-        "internalTrafficPolicy": "Cluster",
-        "ipFamilies": [
-            "IPv4"
-        ],
-        "ipFamilyPolicy": "SingleStack",
-        "type": "ClusterIP"
-    }
-}
-`
-
-func (f kubeDnsTransport) RoundTrip(request *http.Request) (*http.Response, error) {
-	return &http.Response{
-		StatusCode: http.StatusOK,
-		Proto:      "http/1.0",
-		ProtoMajor: 1,
-		ProtoMinor: 0,
-		Body:       io.NopCloser(bytes.NewBufferString(kubeDNS)),
-	}, nil
 }
