@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package context
+package operator
 
 import (
 	"context"
@@ -23,7 +23,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/client"
+	awsclient "github.com/aws/aws-sdk-go/aws/client"
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/aws/aws-sdk-go/aws/request"
@@ -42,6 +42,7 @@ import (
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 
+	"github.com/aws/karpenter-core/pkg/operator"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	awscache "github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/providers/amifamily"
@@ -52,13 +53,11 @@ import (
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
 	"github.com/aws/karpenter/pkg/providers/subnet"
 	"github.com/aws/karpenter/pkg/utils/project"
-
-	"github.com/aws/karpenter-core/pkg/cloudprovider"
 )
 
-// Context is injected into the AWS CloudProvider's factories
-type Context struct {
-	cloudprovider.Context
+// Operator is injected into the AWS CloudProvider's factories
+type Operator struct {
+	*operator.Operator
 
 	Session                   *session.Session
 	UnavailableOfferingsCache *awscache.UnavailableOfferings
@@ -73,12 +72,11 @@ type Context struct {
 	InstanceProvider          *instance.Provider
 }
 
-func NewOrDie(ctx cloudprovider.Context) Context {
-	ctx.Context = logging.WithLogger(ctx, logging.FromContext(ctx).Named("aws"))
+func NewOperator(ctx context.Context, operator *operator.Operator) (context.Context, *Operator) {
 	sess := withUserAgent(session.Must(session.NewSession(
 		request.WithRetryer(
 			&aws.Config{STSRegionalEndpoint: endpoints.RegionalSTSEndpoint},
-			client.DefaultRetryer{NumMaxRetries: client.DefaultRetryerMaxNumRetries},
+			awsclient.DefaultRetryer{NumMaxRetries: awsclient.DefaultRetryerMaxNumRetries},
 		),
 	)))
 	if *sess.Config.Region == "" {
@@ -98,7 +96,7 @@ func NewOrDie(ctx cloudprovider.Context) Context {
 		logging.FromContext(ctx).With("cluster-endpoint", clusterEndpoint).Debugf("discovered cluster endpoint")
 	}
 	// We perform best-effort on resolving the kube-dns IP
-	kubeDNSIP, err := kubeDNSIP(ctx, ctx.KubernetesInterface)
+	kubeDNSIP, err := kubeDNSIP(ctx, operator.KubernetesInterface)
 	if err != nil {
 		// If we fail to get the kube-dns IP, we don't want to crash because this causes issues with custom DNS setups
 		// https://github.com/aws/karpenter/issues/2787
@@ -116,17 +114,17 @@ func NewOrDie(ctx cloudprovider.Context) Context {
 		ec2api,
 		*sess.Config.Region,
 	)
-	amiProvider := amifamily.NewProvider(ctx.KubeClient, ctx.KubernetesInterface, ssm.New(sess), ec2api,
+	amiProvider := amifamily.NewProvider(operator.GetClient(), operator.KubernetesInterface, ssm.New(sess), ec2api,
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
-	amiResolver := amifamily.New(ctx.KubeClient, amiProvider)
+	amiResolver := amifamily.New(operator.GetClient(), amiProvider)
 	launchTemplateProvider := launchtemplate.NewProvider(
 		ctx,
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
 		ec2api,
 		amiResolver,
 		securityGroupProvider,
-		lo.Must(getCABundle(ctx.RESTConfig)),
-		ctx.StartAsync,
+		lo.Must(getCABundle(operator.GetConfig())),
+		operator.Elected(),
 		kubeDNSIP,
 		clusterEndpoint,
 	)
@@ -148,8 +146,8 @@ func NewOrDie(ctx cloudprovider.Context) Context {
 		launchTemplateProvider,
 	)
 
-	return Context{
-		Context:                   ctx,
+	return ctx, &Operator{
+		Operator:                  operator,
 		Session:                   sess,
 		UnavailableOfferingsCache: unavailableOfferingsCache,
 		EC2API:                    ec2api,
