@@ -84,7 +84,7 @@ var _ = BeforeEach(func() {
 	awsEnv.Reset()
 })
 
-var _ = Describe("MachineGarbageCollect", func() {
+var _ = Describe("MachineGarbageCollection", func() {
 	var instance *ec2.Instance
 	var providerID string
 

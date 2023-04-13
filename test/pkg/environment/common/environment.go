@@ -54,7 +54,7 @@ func NewEnvironment(t *testing.T) *Environment {
 	config := NewConfig()
 	client := lo.Must(NewClient(config))
 
-	os.Setenv(system.NamespaceEnvKey, "karpenter")
+	lo.Must0(os.Setenv(system.NamespaceEnvKey, "karpenter"))
 	kubernetesInterface := kubernetes.NewForConfigOrDie(config)
 	ctx = injection.WithSettingsOrDie(ctx, kubernetesInterface, apis.Settings...)
 

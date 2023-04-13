@@ -105,7 +105,7 @@ func (env *Environment) Cleanup(opts ...Option) {
 		// Run the debug logger AfterEach() methods
 		debug.AfterEach(env.Context)
 	}
-	env.CleanupObjects(CleanableObjects)
+	env.CleanupObjects(CleanableObjects...)
 	env.eventuallyExpectScaleDown()
 	env.ExpectNoCrashes()
 }
@@ -118,7 +118,7 @@ func (env *Environment) ForceCleanup(opts ...Option) {
 	}
 
 	// Delete all the nodes if they weren't deleted by the provisioner propagation
-	env.CleanupObjects(ForceCleanableObjects)
+	env.CleanupObjects(ForceCleanableObjects...)
 }
 
 func (env *Environment) AfterEach(opts ...Option) {
@@ -130,7 +130,7 @@ func (env *Environment) AfterEach(opts ...Option) {
 	env.printControllerLogs(&v1.PodLogOptions{Container: "controller"})
 }
 
-func (env *Environment) CleanupObjects(cleanableObjects []functional.Pair[client.Object, client.ObjectList]) {
+func (env *Environment) CleanupObjects(cleanableObjects ...functional.Pair[client.Object, client.ObjectList]) {
 	namespaces := &v1.NamespaceList{}
 	Expect(env.Client.List(env, namespaces)).To(Succeed())
 	wg := sync.WaitGroup{}
