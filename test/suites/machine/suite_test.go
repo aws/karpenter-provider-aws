@@ -32,11 +32,6 @@ func TestMachine(t *testing.T) {
 
 		env = aws.NewEnvironment(t)
 	})
-	AfterSuite(func() {
-		Skip("machine is not yet enabled")
-
-		env.Stop()
-	})
 	RunSpecs(t, "Machine")
 }
 
