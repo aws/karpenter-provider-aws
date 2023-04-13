@@ -6,7 +6,7 @@ on:
 
 jobs:
   release-trigger:
-    if: github.repository == 'njtran/karpenter'
+    if: github.repository == 'aws/karpenter'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
