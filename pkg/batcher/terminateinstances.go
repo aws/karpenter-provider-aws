@@ -68,7 +68,7 @@ func execTerminateInstancesBatch(ec2api ec2iface.EC2API) BatchExecutor[ec2.Termi
 		// We don't care about the error here since we'll break up the batch upon any sort of failure
 		output, err := ec2api.TerminateInstancesWithContext(ctx, firstInput)
 		if err != nil {
-			logging.FromContext(ctx).Error("terminating instances, %s", err)
+			logging.FromContext(ctx).Errorf("terminating instances, %s", err)
 		}
 
 		if output == nil {
