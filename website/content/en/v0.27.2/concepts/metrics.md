@@ -8,6 +8,11 @@ description: >
 ---
 <!-- this document is generated from hack/docs/metrics_gen_docs.go -->
 Karpenter makes several metrics available in Prometheus format to allow monitoring cluster provisioning status. These metrics are available by default at `karpenter.karpenter.svc.cluster.local:8080/metrics` configurable via the `METRICS_PORT` environment variable documented [here](../settings)
+## Consistency Metrics
+
+### `karpenter_consistency_errors`
+Number of consistency checks that have failed.
+
 ## Deprovisioning Metrics
 
 ### `karpenter_deprovisioning_actions_performed`
@@ -88,4 +93,12 @@ Pod state is the current state of pods. This metric can be used several ways as 
 
 ### `karpenter_cloudprovider_duration_seconds`
 Duration of cloud provider method calls. Labeled by the controller, method name and provider.
+
+## Cloudprovider Batcher Metrics
+
+### `karpenter_cloudprovider_batcher_batch_size`
+Size of the request batch per batcher
+
+### `karpenter_cloudprovider_batcher_batch_time_seconds`
+Duration of the batching window per batcher
 

@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package integration_test
+package machine_test
 
 import (
 	"testing"
@@ -25,12 +25,14 @@ import (
 
 var env *aws.Environment
 
-func TestIntegration(t *testing.T) {
+func TestMachine(t *testing.T) {
 	RegisterFailHandler(Fail)
 	BeforeSuite(func() {
+		Skip("machine is not yet enabled")
+
 		env = aws.NewEnvironment(t)
 	})
-	RunSpecs(t, "Integration")
+	RunSpecs(t, "Machine")
 }
 
 var _ = BeforeEach(func() { env.BeforeEach() })

@@ -29,9 +29,9 @@ import (
 	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"github.com/aws/karpenter/test/pkg/debug"
 
 	awstest "github.com/aws/karpenter/pkg/test"
-	"github.com/aws/karpenter/test/pkg/environment/common"
 )
 
 var _ = Describe("Scheduling", func() {
@@ -150,7 +150,7 @@ var _ = Describe("Scheduling", func() {
 		env.EventuallyExpectHealthy(pod)
 		env.ExpectCreatedNodeCount("==", 1)
 	})
-	It("should provision a node for a deployment", Label(common.NoWatch), Label(common.NoEvents), func() {
+	It("should provision a node for a deployment", Label(debug.NoWatch), Label(debug.NoEvents), func() {
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},

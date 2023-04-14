@@ -6,14 +6,49 @@ description: >
   Troubleshoot Karpenter problems
 ---
 
+## Controller
+
+### Enable debug logging
+
+To enable debug logging on Karpenter you should update the `config-logging` ConfigMap which can be found in the same namespace as the controller.
+If you installed the controller in the `karpenter` namespace you can see the current config with
+
+```
+kubectl get configmap -n karpenter config-logging -o yaml
+apiVersion: v1                                 
+data:
+  loglevel.webhook: error
+  zap-logger-config: |
+    {
+      "level": debug",
+      development": false,
+...
+```
+
+Update the zap-logger-config "level" and restart the Karpenter pod(s) to enable debug logging.
+
+#### Debug logging via Helm
+
+You can enable debug logging during installation with helm by setting the option `logLevel`.
+
+```
+helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter \
+  --set logLevel=debug \
+  ...
+```
+
 ## Installation
 
 ### Missing Service Linked Role
+
 Unless your AWS account has already onboarded to EC2 Spot, you will need to create the service linked role to avoid `ServiceLinkedRoleCreationNotPermitted`.
+
 ```
 AuthFailure.ServiceLinkedRoleCreationNotPermitted: The provided credentials do not have permission to create the service-linked role for EC2 Spot Instances
 ```
+
 This can be resolved by creating the [Service Linked Role](https://docs.aws.amazon.com/batch/latest/userguide/spot_fleet_IAM_role.html).
+
 ```
 aws iam create-service-linked-role --aws-service-name spot.amazonaws.com
 ```
@@ -63,15 +98,18 @@ If Helm is showing an error when trying to install Karpenter helm charts:
 - If you are getting a 403 forbidden error, you can try `docker logout public.ecr.aws` as explained [here](https://docs.aws.amazon.com/AmazonECR/latest/public/public-troubleshooting.html)
 - If you are receiving this error: `Error: failed to download "oci://public.ecr.aws/karpenter/karpenter" at version "0.17.0"`, then you need to prepend a `v` to the version number: `v0.17.0`. Before Karpenter moved to OCI helm charts (pre-v0.17.0), both `v0.16.0` and `0.16.0` would work, but OCI charts require an exact version match.
 
-
 ### Helm Error when installing the `karpenter-crd` chart
 
 Karpenter v0.26.1+ introduced the `karpenter-crd` helm chart. When installing this chart on your cluster, if you have previously added the Karpenter CRDs to your cluster through the `karpenter` controller chart or through `kubectl replace`, Helm will reject the install of the chart due to `invalid ownership metadata`.
+
 - In the case of `invalid ownership metadata; label validation error: missing key "app.kubernetes.io/managed-by": must be set to "Helm"` run:
+
 ```shell
 kubectl label crd awsnodetemplates.karpenter.k8s.aws provisioners.karpenter.sh app.kubernetes.io/managed-by=Helm --overwrite
 ```
+
 - In the case of `annotation validation error: missing key "meta.helm.sh/release-namespace": must be set to "karpenter"` run:
+
 ```shell
 kubectl annotate crd awsnodetemplates.karpenter.k8s.aws provisioners.karpenter.sh meta.helm.sh/release-name=karpenter-crd --overwrite
 kubectl annotate crd awsnodetemplates.karpenter.k8s.aws provisioners.karpenter.sh meta.helm.sh/release-namespace=karpenter --overwrite
@@ -80,12 +118,15 @@ kubectl annotate crd awsnodetemplates.karpenter.k8s.aws provisioners.karpenter.s
 ## Uninstallation
 
 ### Unable to delete nodes after uninstalling Karpenter
+
 Karpenter adds a [finalizer](https://github.com/aws/karpenter/pull/466) to nodes that it provisions to support graceful node termination. If Karpenter is uninstalled, these finalizers will cause the API Server to block deletion until the finalizers are removed.
 
 You can fix this by patching the node objects:
+
 - `kubectl edit node <node_name>` and remove the line that says `karpenter.sh/termination` in the finalizers field.
 - Run the following script that gets all nodes with the finalizer and removes all the finalizers from those nodes.
   - NOTE: this will remove ALL finalizers from nodes with the karpenter finalizer.
+
 ```{bash}
 kubectl get nodes -ojsonpath='{range .items[*].metadata}{@.name}:{@.finalizers}{"\n"}' | grep "karpenter.sh/termination" | cut -d ':' -f 1 | xargs kubectl patch node --type='json' -p='[{"op": "remove", "path": "/metadata/finalizers"}]'
 ```
@@ -99,6 +140,7 @@ If you are not able to create a provisioner due to `Internal error occurred: fai
 Webhooks were renamed in v0.19.0. There's a bug in ArgoCD's upgrade workflow where webhooks are leaked. This results in Provisioner's failing to be validated, since the validation server no longer corresponds to the webhook definition.
 
 Delete the stale webhooks.
+
 ```
 kubectl delete mutatingwebhookconfigurations defaulting.webhook.provisioners.karpenter.sh
 kubectl delete validatingwebhookconfiguration validation.webhook.provisioners.karpenter.sh
@@ -108,8 +150,8 @@ kubectl delete validatingwebhookconfiguration validation.webhook.provisioners.ka
 
 If you are not able to create a provisioner due to `Error from server (InternalError): error when creating "provisioner.yaml": Internal error occurred: failed calling webhook "defaulting.webhook.karpenter.sh": Post "https://karpenter-webhook.karpenter.svc:443/default-resource?timeout=10s": context deadline exceeded`
 
-
 Verify that the karpenter pod is running (should see 2/2 containers with a "Ready" status)
+
 ```text
 kubectl get po -A -l app.kubernetes.io/name=karpenter
 NAME                       READY   STATUS    RESTARTS   AGE
@@ -117,6 +159,7 @@ karpenter-7b46fb5c-gcr9z   2/2     Running   0          17h
 ```
 
 Karpenter service has endpoints assigned to it
+
 ```text
 kubectl get ep -A -l app.kubernetes.io/name=karpenter
 NAMESPACE   NAME        ENDPOINTS                               AGE
@@ -127,6 +170,21 @@ Your security groups are not blocking you from reaching your webhook.
 
 This is especially relevant if you have used `terraform-eks-module` version `>=18` since that version changed its security
 approach, and now it's much more restrictive.
+
+If you see this issue happens while using the`extraObjects` key from the values file, ensure that:
+
+- The helm install/upgrade command has the `--wait` flag (or `wait: true` when using helmfile)
+- Your Provisioners and AWSNodeTemplates definitions have the proper [helm hooks annotations](https://helm.sh/docs/topics/charts_hooks/) to install them *after* the karpenter pods are running
+
+```yaml
+- apiVersion: karpenter.sh/v1alpha5
+  kind: Provisioner
+  metadata:
+    name: default
+    annotations:
+      "helm.sh/hook": "post-install,post-upgrade"
+      "helm.sh/hook-delete-policy": before-hook-creation
+```
 
 ## Provisioning
 
@@ -164,16 +222,19 @@ spec:
   securityGroupSelector:
     karpenter.sh/discovery: ${CLUSTER_NAME}
 ```
+
 To check your subnet and security group selectors, type the following:
 
 ```bash
 aws ec2 describe-subnets --filters Name=tag:karpenter.sh/discovery,Values=${CLUSTER_NAME}
 ```
+
 *Returns subnets matching the selector*
 
 ```bash
 aws ec2 describe-security-groups --filters Name=tag:karpenter.sh/discovery,Values=${CLUSTER_NAME}
 ```
+
 *Returns security groups matching the selector*
 
 Provisioners created without those tags and run in more recent Karpenter versions will fail with this message when you try to run the provisioner:
@@ -187,6 +248,7 @@ Provisioners created without those tags and run in more recent Karpenter version
 When leveraging [Security Groups for Pods](https://docs.aws.amazon.com/eks/latest/userguide/security-groups-for-pods.html), Karpenter will launch nodes as expected but pods will be stuck in "ContainerCreating" state for up to 30 minutes before transitioning to "Running". This is related to an interaction between Karpenter and the [amazon-vpc-resource-controller](https://github.com/aws/amazon-vpc-resource-controller-k8s) when a pod requests `vpc.amazonaws.com/pod-eni` resources.  More info can be found in [issue #1252](https://github.com/aws/karpenter/issues/1252).
 
 To workaround this problem, add the `vpc.amazonaws.com/has-trunk-attached: "false"` label in your Karpenter Provisioner spec and ensure instance-type requirements include [instance-types which support ENI trunking](https://github.com/aws/amazon-vpc-resource-controller-k8s/blob/master/pkg/aws/vpc/limits.go).
+
 ```yaml
 apiVersion: karpenter.sh/v1alpha5
 kind: Provisioner
@@ -197,6 +259,30 @@ spec:
     vpc.amazonaws.com/has-trunk-attached: "false"
   ttlSecondsAfterEmpty: 30
 ```
+
+### Pods using PVCs can hit volume limits and fail to scale-up
+
+When attempting to schedule a large number of pods with PersistentVolumes, it's possible that these pods will co-locate on the same node. Pods will report the following errors in their events using a `kubectl describe pod` call
+
+```console
+Warning   FailedAttachVolume    pod/example-pod                      AttachVolume.Attach failed for volume "***" : rpc error: code = Internal desc = Could not attach volume "***" to node "***": attachment of disk "***" failed, expected device to be attached but was attaching
+Warning   FailedMount           pod/example-pod                      Unable to attach or mount volumes: unmounted volumes=[***], unattached volumes=[***]: timed out waiting for the condition
+```
+
+In this case, Karpenter may fail to scale-up your nodes due to these pods due to one of the following reasons:
+
+#### Pods were not scheduled but Karpenter couldn't discover limits
+
+Karpenter does not support [in-tree storage plugins](https://kubernetes.io/blog/2021/12/10/storage-in-tree-to-csi-migration-status-update/) to provision PersistentVolumes, since nearly all of the in-tree plugins have been deprecated in upstream Kubernetes. This means that, if you are using a statically-provisioned PersistentVolume that references a volume source like `AWSElasticBlockStore` or a dynamically-provisioned PersistentVolume that references a StorageClass with a in-tree storage plugin provisioner like `kubernetes.io/aws-ebs`, Karpenter will fail to discover the maxiumum volume attachments for the node. Instead, Karpenter may think the node still has more schedulable space due to memory and cpu constraints when there is really no more schedulable space on the node due to volume limits. When Karpenter sees you are using an in-tree storage plugin on your pod volumes, it will print the following error message into the logs. If you see this message, upgrade your StorageClasses and statically-provisioned PersistentVolumes to use the latest CSI drivers for your cloud provider.
+
+```console
+2023-04-05T23:56:53.363Z        ERROR   controller.node_state   PersistentVolume source 'AWSElasticBlockStore' uses an in-tree storage plugin which is unsupported by Karpenter and is deprecated by Kubernetes. Scale-ups may fail because Karpenter will not discover driver limits. Use a PersistentVolume that references the 'CSI' volume source for Karpenter auto-scaling support.       {"commit": "b2af562", "node": "ip-192-168-36-137.us-west-2.compute.internal", "pod": "inflate0-6c4bdb8b75-7qmfd", "volume": "mypd", "persistent-volume": "pvc-11db7489-3c6e-46f3-a958-91f9d5009d41"}
+2023-04-05T23:56:53.464Z        ERROR   controller.node_state   StorageClass .spec.provisioner uses an in-tree storage plugin which is unsupported by Karpenter and is deprecated by Kubernetes. Scale-ups may fail because Karpenter will not discover driver limits. Create a new StorageClass with a .spec.provisioner referencing the CSI driver plugin name 'ebs.csi.aws.com'.     {"commit": "b2af562", "node": "ip-192-168-36-137.us-west-2.compute.internal", "pod": "inflate0-6c4bdb8b75-7qmfd", "volume": "mypd", "storage-class": "gp2", "provisioner": "kubernetes.io/aws-ebs"}
+```
+
+#### Pods were scheduled due to a race condition in Kubernetes
+
+Due to [this race condition in Kubernetes](https://github.com/kubernetes/kubernetes/issues/95911), it's possible that the scheduler and the CSINode can race during node registration such that the scheduler assumes that a node can mount more volumes than the node attachments support. There is currently no solve for this problem other than enforcing `toplogySpreadConstraints` and `podAntiAffinity` on your workloads that use PVCs such that you attempt to reduce the number of PVCs that schedule to a given node.
 
 ## Deprovisioning
 
@@ -253,12 +339,15 @@ For example, providing the wrong block storage device name in a custom launch te
 ```
 
 You can see errors like this by viewing Karpenter controller logs:
+
 ```bash
 kubectl get pods -A | grep karpenter
 ```
+
 ```bash
 karpenter     karpenter-XXXX   2/2     Running   2          21d
 ```
+
 ```bash
 kubectl logs karpenter-XXXX -c controller -n karpenter | less
 ```
@@ -268,6 +357,7 @@ kubectl logs karpenter-XXXX -c controller -n karpenter | less
 Karpenter uses node initialization to understand when to begin using the real node capacity and allocatable details for scheduling. It also utilizes initialization to determine when it can being consolidating nodes managed by Karpenter.
 
 Karpenter determines node initialization using three factors:
+
 1. Node readiness
 2. Expected resources are registered
 3. Provisioner startup taints are removed
@@ -283,6 +373,7 @@ To see troubleshooting around what might be preventing nodes from becoming ready
 Karpenter pull instance type information, including all expected resources that should register to your node. It then expects all these resources to properly register to a non-zero quantity in node `.status.allocatable`.
 
 Common resources that don't register and leave nodes in a non-initialized state:
+
 1. `nvidia.com/gpu` (or any gpu-based resource): A GPU instance type that supports the `nvidia.com/gpu` resource is launched but the daemon/daemonset to register the resource on the node doesn't exist
 2. `vpc.amazonaws.com/pod-eni`: An instance type is launched by the `ENABLE_POD_ENI` value is set to `false` in the `vpc-cni` plugin. Karpenter will expect that the `vpc.amazonaws.com/pod-eni` will be registered, but it never will.
 
@@ -294,11 +385,13 @@ Karpenter expects all startup taints specified in `.spec.startupTaints` of the p
 
 There are cases where the node starts, but fails to join the cluster and is marked "Node NotReady".
 Reasons that a node can fail to join the cluster include:
+
 - Permissions
 - Security Groups
 - Networking
 
 The easiest way to start debugging is to connect to the instance and get the Kubelet logs.  For an AL2 based node:
+
 ```bash
 # List the nodes managed by Karpenter
 kubectl get node -l karpenter.sh/provisioner-name
@@ -311,6 +404,7 @@ sudo journalctl -u kubelet
 ```
 
 For Bottlerocket, you'll need to get access to the root filesystem:
+
 ```bash
 # List the nodes managed by Karpenter
 kubectl get node -l karpenter.sh/provisioner-name
@@ -328,24 +422,27 @@ journalctl -u kubelet
 
 Here are examples of errors from Node NotReady issues that you might see from `journalctl`:
 
-* The runtime network not being ready can reflect a problem with IAM role permissions:
+- The runtime network not being ready can reflect a problem with IAM role permissions:
 
   ```
   KubeletNotReady runtime network not ready: NetworkReady=false reason:NetworkPluginNotReady message:Network plugin returns error: cni plugin not initialized
     ```
+
   See [Amazon EKS node IAM role](https://docs.aws.amazon.com/eks/latest/userguide/create-node-role.html) for details. If you’re using `eksctl`, the VPC CNI pods may be given permissions through IRSA instead. Verify that this set up is working as intended. You can also look at the logs for your CNI plugin from the `aws-node` pod:
 
   ```bash
   kubectl get pods -n kube-system | grep aws-node
   ```
+
   ```
   aws-node-?????             1/1     Running   2          20d
   ```
+
   ```bash
   kubectl logs aws-node-????? -n kube-system
   ```
 
-* Not being able to register the node with the Kubernetes API server indicates an error condition like the following:
+- Not being able to register the node with the Kubernetes API server indicates an error condition like the following:
 
   ```
   Attempting to register node" node="ip-192-168-67-130.ec2.internal"
@@ -357,8 +454,9 @@ Here are examples of errors from Node NotReady issues that you might see from `j
   Check the ConfigMap to check whether or not the correct node role is there. For example:
 
   ```bash
-  $ kubectl get configmaps -n kube-system aws-auth -o yaml
+  kubectl get configmaps -n kube-system aws-auth -o yaml
   ```
+
   ```yaml
   apiVersion: v1
   data:
@@ -381,13 +479,14 @@ Here are examples of errors from Node NotReady issues that you might see from `j
 
 If you are not able to resolve the Node NotReady issue on your own, run the [EKS Logs Collector](https://github.com/awslabs/amazon-eks-ami/blob/master/log-collector-script/linux/README.md) (if it’s an EKS optimized AMI) and look in the following places in the log:
 
-* Your UserData (in `/var_log/cloud-init-output.log` and `/var_log/cloud-init.log`)
-* Your kubelets (`/kubelet/kubelet.log`)
-* Your networking pod logs (`/var_log/aws-node`)
+- Your UserData (in `/var_log/cloud-init-output.log` and `/var_log/cloud-init.log`)
+- Your kubelets (`/kubelet/kubelet.log`)
+- Your networking pod logs (`/var_log/aws-node`)
 
 Reach out to the Karpenter team on [Slack](https://kubernetes.slack.com/archives/C02SFFZSA2K) or [GitHub](https://github.com/aws/karpenter/) if you are still stuck.
 
 ### Nodes stuck in pending and not running the kubelet due to outdated CNI
+
 If you have an EC2 instance get launched that is stuck in pending and ultimately not running the kubelet, you may see a message like this in your `/var/log/user-data.log`:
 
 > No entry for c6i.xlarge in /etc/eks/eni-max-pods.txt
@@ -395,6 +494,7 @@ If you have an EC2 instance get launched that is stuck in pending and ultimately
 This means that your CNI plugin is out of date. You can find instructions on how to update your plugin [here](https://docs.aws.amazon.com/eks/latest/userguide/managing-vpc-cni.html).
 
 ### Node terminates before ready on failed encrypted EBS volume
+
 If you are using a custom launch template and an encrypted EBS volume, the IAM principal launching the node may not have sufficient permissions to use the KMS customer managed key (CMK) for the EC2 EBS root volume.
 This issue also applies to [Block Device Mappings]({{<ref "./concepts/node-templates/#block-device-mappings" >}}) specified in the Provisioner.
 In either case, this results in the node terminating almost immediately upon creation.
@@ -465,7 +565,8 @@ ERROR   controller.aws.pricing  updating on-demand pricing, RequestError: send r
 caused by: Post "https://api.pricing.us-east-1.amazonaws.com/": dial tcp 52.94.231.236:443: i/o timeout; RequestError: send request failed
 caused by: Post "https://api.pricing.us-east-1.amazonaws.com/": dial tcp 52.94.231.236:443: i/o timeout, using existing pricing data from 2022-08-17T00:19:52Z  {"commit": "4b5f953"}
 ```
+
 This network timeout occurs because there is no VPC endpoint available for the [Price List Query API.](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/using-pelong.html).
 To workaround this issue, Karpenter ships updated on-demand pricing data as part of the Karpenter binary; however, this means that pricing data will only be updated on Karpenter version upgrades.
-To disable pricing lookups and avoid the error messages, set the AWS_ISOLATED_VPC environment variable (or the `--aws-isolated-vpc` option) to true.
+To disable pricing lookups and avoid the error messages, set the `AWS_ISOLATED_VPC` environment variable (or the `--aws-isolated-vpc` option) to true.
 See [Environment Variables / CLI Flags]({{<ref "./concepts/settings/#environment-variables--cli-flags" >}}) for details.
