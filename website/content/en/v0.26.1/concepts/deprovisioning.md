@@ -17,16 +17,16 @@ Karpenter automatically discovers deprovisionable nodes and spins up replacement
 2. For each deprovisionable node, execute a scheduling simulation with the pods on the node to find if any replacement nodes are needed.
 3. Cordon the node(s) to prevent pods from scheduling to it.
 4. Pre-spin any replacement nodes needed as calculated in Step (2), and wait for them to become ready.
-   1. If a replacement node fails to initialize, un-cordon the node(s), and restart from at Step (1).
+   1. If a replacement node fails to initialize, un-cordon the node(s), and restart from Step (1), starting at the first deprovisioning method again.
 5. Delete the node(s) and wait for the termination controller to gracefully shutdown the node(s).
-6. Once the termination controller terminates the node, go back to Step (1), starting at the the first method again.
+6. Once the termination controller terminates the node, go back to Step (1), starting at the the first deprovisioning method again.
 
 ### Termination Controller
 When a Karpenter node is deleted, the Karpenter finalizer will block deletion and the APIServer will set the `DeletionTimestamp` on the node, allowing Karpenter to gracefully shutdown the node, modeled after [K8s Graceful Node Shutdown](https://kubernetes.io/docs/concepts/architecture/nodes/#graceful-node-shutdown). Karpenter's graceful shutdown process will:
 1. Cordon the node to prevent pods from scheduling to it.
 2. Begin evicting the pods on the node with the [K8s Eviction API](https://kubernetes.io/docs/concepts/scheduling-eviction/api-eviction/) to respect PDBs, while ignoring all non-daemonset pods and [static pods](https://kubernetes.io/docs/tasks/configure-pod-container/static-pod/). Wait for the node to be fully drained before proceeding to Step (3).
-   1. While waiting, if the underlying instance of the node no longer exists, remove the finalizer to allow the APIServer to delete the node, completing termination.
-3. Terminate the instance in the Cloud Provider.
+   1. While waiting, if the underlying machine for the node no longer exists, remove the finalizer to allow the APIServer to delete the node, completing termination.
+3. Terminate the machine in the Cloud Provider.
 4. Remove the finalizer from the node to allow the APIServer to delete the node, completing termination.
 
 ## Methods
@@ -65,7 +65,7 @@ There are both automated and manual ways of deprovisioning nodes provisioned by 
 - Using preferred anti-affinity and topology spreads can reduce the effectiveness of consolidation. At node launch, Karpenter attempts to satisfy affinity and topology spread preferences. In order to reduce node churn, consolidation must also attempt to satisfy these constraints to avoid immediately consolidating nodes after they launch. This means that consolidation may not deprovision nodes in order to avoid violating preferences, even if kube-scheduler can fit the host pods elsewhere.  Karpenter reports these pods via logging to bring awareness to the possible issues they can cause (e.g. `pod default/inflate-anti-self-55894c5d8b-522jd has a preferred Anti-Affinity which can prevent consolidation`).
 
 - By adding the finalizer, Karpenter improves the default Kubernetes process of node deletion.
-When you run `kubectl delete node` on a node without a finalizer, the node is deleted without triggering the finalization logic. The instance will continue running in EC2, even though there is no longer a node object for it.
+When you run `kubectl delete node` on a node without a finalizer, the node is deleted without triggering the finalization logic. The machine will continue running in EC2, even though there is no longer a node object for it.
 The kubelet isn’t watching for its own existence, so if a node is deleted, the kubelet doesn’t terminate itself.
 All the pod objects get deleted by a garbage collection process later, because the pods’ node is gone.
 
