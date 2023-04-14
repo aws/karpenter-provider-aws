@@ -37,6 +37,17 @@ spec:
     - name: git-ref
       value: $(params.from-git-ref)
 
+  - name: upgrade-crds
+    taskRef:
+      name: upgrade-crds
+    params:
+    - name: cluster-name
+      value: $(params.cluster-name)
+    - name: git-ref
+      value: $(params.to-git-ref)
+    runAfter:
+    - setup
+
   - name: upgrade-chart
     taskRef:
       name: setup
@@ -48,18 +59,7 @@ spec:
     - name: git-ref
       value: $(params.to-git-ref)
     runAfter:
-    - setup
-
-  - name: upgrade-crds
-    taskRef:
-      name: upgrade-crds
-    params:
-    - name: cluster-name
-      value: $(params.cluster-name)
-    - name: git-ref
-      value: $(params.to-git-ref)
-    runAfter:
-    - upgrade-chart
+    - upgrade-crds
 
   - name: run-test
     taskRef:
@@ -74,7 +74,7 @@ spec:
     - name: test-filter
       value: Integration
     runAfter:
-    - upgrade-crds
+    - upgrade-chart
 
   finally:
   - name: dump-logs-on-failure
