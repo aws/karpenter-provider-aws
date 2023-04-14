@@ -162,6 +162,16 @@ func (p *Provider) getDefaultAMIFromSSM(ctx context.Context, nodeTemplate *v1alp
 		}
 		amis = append(amis, AMI{AmiID: amiID, Requirements: ssmOutput.Requirements})
 	}
+
+	amis, err = p.findAMINames(ctx, amis)
+	if err != nil {
+		return nil, err
+	}
+
+	return amis, nil
+}
+
+func (p *Provider) findAMINames(ctx context.Context, amis []AMI) ([]AMI, error) {
 	// Creating selector filter by making a string of amiIds into a comma delineated string
 	ids := lo.Reduce(amis, func(agg string, item AMI, _ int) string {
 		return agg + item.AmiID + ","
@@ -175,14 +185,15 @@ func (p *Provider) getDefaultAMIFromSSM(ctx context.Context, nodeTemplate *v1alp
 
 	// matching up the AMIs details that is received from EC2 with the default AMIs
 	// collecting the names of the default AMIs
-	for i := range amis {
-		ami, ok := lo.Find(amisDetails, func(x *ec2.Image) bool {
-			return *x.ImageId == amis[i].AmiID
+	amis = lo.Map(amis, func(x AMI, _ int) AMI {
+		ami, ok := lo.Find(amisDetails, func(image *ec2.Image) bool {
+			return *image.ImageId == x.AmiID
 		})
 		if ok {
-			amis[i].Name = *ami.Name
+			x.Name = *ami.Name
 		}
-	}
+		return x
+	})
 
 	return amis, nil
 }
@@ -207,6 +218,9 @@ func (p *Provider) getAMIsFromSelector(ctx context.Context, selector map[string]
 	ec2AMIs, err := p.fetchAMIsFromEC2(ctx, selector)
 	if err != nil {
 		return nil, err
+	}
+	if len(ec2AMIs) == 0 {
+		logging.FromContext(ctx).Errorf("no amis exist given constraints")
 	}
 	var amis []AMI
 	for _, ec2AMI := range ec2AMIs {

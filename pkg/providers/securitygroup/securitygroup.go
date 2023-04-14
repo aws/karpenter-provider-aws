@@ -69,6 +69,9 @@ func (p *Provider) List(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTempl
 	for _, securityGroup := range securityGroups {
 		securityGroupIds = append(securityGroupIds, aws.StringValue(securityGroup.GroupId))
 	}
+	if len(securityGroupIds) == 0 {
+		logging.FromContext(ctx).Errorf("no security group exist given constraint")
+	}
 	return securityGroupIds, nil
 }
 

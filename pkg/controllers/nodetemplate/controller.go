@@ -20,7 +20,8 @@ import (
 	"time"
 
 	"go.uber.org/multierr"
-	"knative.dev/pkg/logging"
+	"golang.org/x/time/rate"
+	"k8s.io/client-go/util/workqueue"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -81,16 +82,20 @@ func (c *Controller) Builder(ctx context.Context, m manager.Manager) corecontrol
 		NewControllerManagedBy(m).
 		For(&v1alpha1.AWSNodeTemplate{}).
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
-		WithOptions(controller.Options{MaxConcurrentReconciles: 10}))
+		WithOptions(controller.Options{
+			RateLimiter: workqueue.NewMaxOfRateLimiter(
+				workqueue.NewItemExponentialFailureRateLimiter(100*time.Millisecond, 1*time.Minute),
+				// 10 qps, 100 bucket size
+				&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(10), 100)},
+			),
+			MaxConcurrentReconciles: 10,
+		}))
 }
 
 func (c *Controller) resolveSubnets(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) error {
 	subnetList, err := c.subnetProvider.List(ctx, nodeTemplate)
 	if err != nil {
 		return err
-	}
-	if len(subnetList) == 0 {
-		logging.FromContext(ctx).Errorf("no subnets exist given constraints")
 	}
 
 	sort.Slice(subnetList, func(i, j int) bool {
@@ -112,9 +117,6 @@ func (c *Controller) resolveSecurityGroups(ctx context.Context, nodeTemplate *v1
 	if err != nil {
 		return err
 	}
-	if len(securityGroupIds) == 0 {
-		logging.FromContext(ctx).Errorf("no security groups exist given constraints")
-	}
 
 	nodeTemplate.Status.SecurityGroups = lo.Map(securityGroupIds, func(id string, _ int) v1alpha1.SecurityGroup {
 		return v1alpha1.SecurityGroup{
@@ -130,9 +132,6 @@ func (c *Controller) resolveAMIs(ctx context.Context, nodeTemplate *v1alpha1.AWS
 	if err != nil {
 		nodeTemplate.Status.AMIs = nil
 		return err
-	}
-	if len(amiRequirement) == 0 {
-		logging.FromContext(ctx).Errorf("no amis exist given constraints")
 	}
 
 	nodeTemplate.Status.AMIs = lo.Map(amiRequirement, func(ami amifamily.AMI, _ int) v1alpha1.AMI {
