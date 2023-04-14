@@ -6,6 +6,7 @@ description: >
   Understand different ways Karpenter deprovisions nodes
 ---
 
+## Control Flow
 Karpenter sets a Kubernetes [finalizer](https://kubernetes.io/docs/concepts/overview/working-with-objects/finalizers/) on each node it provisions.
 The finalizer signals to the Karpenter Termination controller to gracefully shutdown a node that receives a deletion request. Karpenter deprovisioning can be executed by Karpenter through the Deprovisioning Controler or by the user through manual deprovisioning.
 
