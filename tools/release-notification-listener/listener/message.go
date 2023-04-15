@@ -82,7 +82,7 @@ func processMessage(queueMessage *sqs.Message, config *config) {
 	}
 }
 
-func runTektonCommand(notificationMessage *notificationMessage, pipeline string, filter string) {
+func runTektonCommand(notificationMessage *notificationMessage, pipeline Pipeline, filter Filter) {
 	tknArgs := tknArgs(notificationMessage, pipeline, filter)
 	if err := runTests(notificationMessage, tknArgs...); err != nil {
 		log.Printf("failed running pipeline %s tests on message. %s", pipeline, err)

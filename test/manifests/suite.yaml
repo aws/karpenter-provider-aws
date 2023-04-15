@@ -11,6 +11,9 @@ spec:
     - name: kubernetes-version
       description: Kubernetes version to deploy
       default: "1.23"
+    - name: ip-family
+      default: IPv4
+      description: IP Family of the cluster. Valid values are IPv4 or IPv6
     - name: git-repo-url
       description: the git repo url can be used to run tests on a fork
       default: "https://github.com/aws/karpenter"
@@ -30,6 +33,8 @@ spec:
     params:
     - name: cluster-name
       value: $(params.cluster-name)
+    - name: ip-family
+      value: $(params.ip-family)
     - name: kubernetes-version
       value: $(params.kubernetes-version)
     - name: git-repo-url

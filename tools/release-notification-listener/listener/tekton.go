@@ -19,33 +19,51 @@ import (
 	"log"
 	"os/exec"
 	"strings"
+
+	"github.com/samber/lo"
+)
+
+type Pipeline string
+
+const (
+	PipelineSuite   Pipeline = "suite"
+	PipelineUpgrade Pipeline = "upgrade"
+)
+
+type Filter string
+
+const (
+	FilterIntegration         Filter = "Integration"
+	FilterConsolidation       Filter = "Consolidation"
+	FilterUtilization         Filter = "Utilization"
+	FilterInterruption        Filter = "Interruption"
+	FilterChaos               Filter = "Chaos"
+	FilterDrift               Filter = "Drift"
+	FilterMachine             Filter = "Machine"
+	FilterIPv6                Filter = "IPv6"
+	FilterResourceBasedNaming Filter = "ResourceBasedNaming"
 )
 
 const (
 	gitSHAMaxLength = 7
 	noPrNumber      = "none"
-
-	pipelineSuite   = "suite"
-	pipelineIPv6    = "ipv6"
-	pipelineUpgrade = "upgrade"
 )
 
 var (
 	tektonCLICommandPath string
-	pipelinesAndFilters  = map[string][]string{
-		pipelineSuite: {
-			"Integration",
-			"Consolidation",
-			"Utilization",
-			"Interruption",
-			"Chaos",
-			"Drift",
-			"Machine",
+	pipelinesAndFilters  = map[Pipeline][]Filter{
+		PipelineSuite: {
+			FilterIntegration,
+			FilterConsolidation,
+			FilterUtilization,
+			FilterInterruption,
+			FilterChaos,
+			FilterDrift,
+			FilterMachine,
+			FilterIPv6,
+			FilterResourceBasedNaming,
 		},
-		pipelineIPv6: {
-			"IPv6",
-		},
-		pipelineUpgrade: {},
+		PipelineUpgrade: {},
 	}
 	preUpgradeVersion = "v0.26.1"
 )
@@ -68,61 +86,58 @@ func shortenedGitSHA(identifier string) string {
 	return identifier
 }
 
-func tknArgs(message *notificationMessage, pipelineName, testFilter string) []string {
-	prefixFirstPart := strings.ToLower(pipelineName)
-	if testFilter != "" {
-		prefixFirstPart = strings.ToLower(testFilter)
-	}
-
-	prefixSecondPart := strings.ReplaceAll(shortenedGitSHA(message.ReleaseIdentifier), ".", "-")
-	gitRef := message.ReleaseIdentifier
-	if message.PrNumber != noPrNumber {
-		prefixSecondPart = fmt.Sprintf("pr-%s", message.PrNumber)
-		gitRef = fmt.Sprintf("pull/%s/head:tempbranch", message.PrNumber)
-	}
-
-	if message.ReleaseType == releaseTypePeriodic {
-		prefixSecondPart = releaseTypePeriodic
-	}
-	prefixName := fmt.Sprintf("%s-%s", prefixFirstPart, prefixSecondPart)
+func tknArgs(message *notificationMessage, pipeline Pipeline, filter Filter) []string {
+	gitRef := lo.Ternary(message.PrNumber == noPrNumber, message.ReleaseIdentifier, fmt.Sprintf("pull/%s/head:tempbranch", message.PrNumber))
 
 	args := []string{
 		"pipeline",
 		"start",
-		pipelineName,
+		string(pipeline),
 		"--namespace=karpenter-tests",
 		"--serviceaccount=karpenter-tests",
 		"--use-param-defaults",
-		"--prefix-name=" + prefixName,
+		"--prefix-name=" + getPrefixName(message, pipeline, filter),
 	}
+	for _, param := range getPipelineParams(pipeline, filter, gitRef) {
+		args = append(args, "--param", param)
+	}
+	return args
+}
 
-	pipelineParams := []string{
-		"kubernetes-version=" + "1.23",
-		"git-repo-url=" + "https://github.com/aws/karpenter",
+func getPrefixName(message *notificationMessage, pipeline Pipeline, filter Filter) string {
+	prefixFirstPart := strings.ToLower(string(pipeline))
+	if filter != "" {
+		prefixFirstPart = strings.ToLower(string(filter))
+	}
+	prefixSecondPart := strings.ReplaceAll(shortenedGitSHA(message.ReleaseIdentifier), ".", "-")
+	if message.PrNumber != noPrNumber {
+		prefixSecondPart = fmt.Sprintf("pr-%s", message.PrNumber)
+	}
+	if message.ReleaseType == releaseTypePeriodic {
+		prefixSecondPart = releaseTypePeriodic
+	}
+	return fmt.Sprintf("%s-%s", prefixFirstPart, prefixSecondPart)
+}
+
+func getPipelineParams(pipeline Pipeline, filter Filter, gitRef string) []string {
+	params := []string{
+		"kubernetes-version=1.23",
+		"git-repo-url=https://github.com/aws/karpenter",
 		"cleanup=true",
 	}
-
-	if testFilter != "" {
-		pipelineParams = append(pipelineParams, "test-filter="+testFilter)
+	if filter != "" {
+		params = append(params, fmt.Sprintf("test-filter=%s", filter))
 	}
-
-	switch pipelineName {
-	case pipelineSuite:
-		pipelineParams = append(pipelineParams, "git-ref="+gitRef)
-	case pipelineIPv6:
-		pipelineParams = append(pipelineParams, "ip-family=IPv6")
-		pipelineParams = append(pipelineParams, "git-ref="+gitRef)
-	case pipelineUpgrade:
-		pipelineParams = append(pipelineParams, "from-git-ref="+preUpgradeVersion)
-		pipelineParams = append(pipelineParams, "to-git-ref="+message.ReleaseIdentifier)
+	if filter == "IPv6" {
+		params = append(params, "ip-family=IPv6")
 	}
-
-	for _, param := range pipelineParams {
-		args = append(args, "--param")
-		args = append(args, param)
+	switch pipeline {
+	case PipelineUpgrade:
+		params = append(params, fmt.Sprintf("from-git-ref=%s", preUpgradeVersion), fmt.Sprintf("to-git-ref=%s", gitRef))
+	default:
+		params = append(params, fmt.Sprintf("git-ref=%s", gitRef))
 	}
-
-	return args
+	return params
 }
 
 func authenticateEKS(config *config) error {
