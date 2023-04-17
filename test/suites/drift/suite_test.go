@@ -22,7 +22,6 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -232,11 +231,12 @@ var _ = Describe("Drift", Label("AWS"), func() {
 			"featureGates.driftEnabled": "true",
 		})
 
-		subnets := selectSubnets()
+		subnets := env.GetSubnetNameAndIds(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
+		Expect(len(subnets)).To(BeNumerically(">1"))
 
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-			SubnetSelector:        map[string]string{"aws-ids": subnets[0]},
+			SubnetSelector:        map[string]string{"aws-ids": subnets[0].ID},
 			AMIFamily:             &v1alpha1.AMIFamilyCustom,
 		},
 			AMISelector: map[string]string{"aws-ids": customAMI},
@@ -258,7 +258,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		env.ExpectCreatedNodeCount("==", 1)
 
 		node := env.Monitor.CreatedNodes()[0]
-		provider.Spec.SubnetSelector = map[string]string{"aws-ids": subnets[1]}
+		provider.Spec.SubnetSelector = map[string]string{"aws-ids": subnets[1].ID}
 		env.ExpectCreatedOrUpdated(provider)
 
 		EventuallyWithOffset(1, func(g Gomega) {
@@ -271,6 +271,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		env.EventuallyExpectNotFound(pod, node)
 	})
 })
+<<<<<<< HEAD
 
 func selectSubnets() []string {
 	subnets, err := env.EC2API.DescribeSubnets(&ec2.DescribeSubnetsInput{
@@ -293,3 +294,5 @@ func selectSubnets() []string {
 }
 	})
 })
+=======
+>>>>>>> 584c908b (rebase and comments)

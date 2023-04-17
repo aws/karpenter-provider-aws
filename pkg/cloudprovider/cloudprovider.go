@@ -133,12 +133,7 @@ func (c *CloudProvider) List(ctx context.Context) ([]*v1alpha5.Machine, error) {
 }
 
 func (c *CloudProvider) Get(ctx context.Context, providerID string) (*v1alpha5.Machine, error) {
-	id, err := utils.ParseInstanceID(providerID)
-	if err != nil {
-		return nil, fmt.Errorf("getting instance ID, %w", err)
-	}
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("id", id))
-	instance, err := c.instanceProvider.Get(ctx, id)
+	instance, err := c.getInstanceFromMachine(ctx, providerID)
 	if err != nil {
 		return nil, fmt.Errorf("getting instance, %w", err)
 	}
@@ -305,11 +300,12 @@ func (c *CloudProvider) instanceToMachine(i *instance.Instance, instanceType *cl
 	return machine
 }
 
-func (c *CloudProvider) getInstanceFromMachine(ctx context.Context, machine *v1alpha5.Machine) (*ec2.Instance, error) {
-	instanceID, err := utils.ParseInstanceID(machine.Status.ProviderID)
+func (c *CloudProvider) getInstanceFromMachine(ctx context.Context, id string) (*ec2.Instance, error) {
+	instanceID, err := utils.ParseInstanceID(id)
 	if err != nil {
 		return nil, err
 	}
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("id", id))
 	instance, err := c.instanceProvider.Get(ctx, instanceID)
 	if err != nil {
 		return nil, fmt.Errorf("getting instance, %w", err)

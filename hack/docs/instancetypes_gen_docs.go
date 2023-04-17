@@ -87,7 +87,7 @@ func main() {
 		Manager:             &FakeManager{},
 		KubernetesInterface: kubernetes.NewForConfigOrDie(&rest.Config{}),
 	})
-	cp := awscloudprovider.New(op.InstanceTypesProvider, op.InstanceProvider, op.GetClient(), op.AMIProvider, op.SecurityGroupProvider)
+	cp := awscloudprovider.New(op.InstanceTypesProvider, op.InstanceProvider, op.GetClient(), op.AMIProvider, op.SecurityGroupProvider, op.SubnetProvider)
 
 	provider := v1alpha1.AWS{SubnetSelector: map[string]string{
 		"*": "*",
