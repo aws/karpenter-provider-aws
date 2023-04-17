@@ -11,6 +11,8 @@ spec:
       description: Name of the cluster under test.
     - name: test-filter
       description: Test filter passed to `go test -run`
+    - name: label-filter
+      description: Label filter passed to `go test -run`
     - name: git-repo-url
       description: the git repo url can be used to run tests on a fork
       default: "https://github.com/aws/karpenter"
@@ -39,4 +41,4 @@ spec:
     workingDir: $(workspaces.ws.path)
     script: |
       aws eks update-kubeconfig --name $(params.cluster-name)
-      KUBECONFIG=/root/.kube/config FOCUS=$(params.test-filter) make e2etests
+      KUBECONFIG=/root/.kube/config FOCUS=$(params.test-filter) LABEL_FILTER=$(params.label-filter) make e2etests

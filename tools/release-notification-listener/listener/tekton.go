@@ -30,18 +30,19 @@ const (
 	PipelineUpgrade Pipeline = "upgrade"
 )
 
-type Filter string
+type Suite string
 
 const (
-	FilterIntegration         Filter = "Integration"
-	FilterConsolidation       Filter = "Consolidation"
-	FilterUtilization         Filter = "Utilization"
-	FilterInterruption        Filter = "Interruption"
-	FilterChaos               Filter = "Chaos"
-	FilterDrift               Filter = "Drift"
-	FilterMachine             Filter = "Machine"
-	FilterIPv6                Filter = "IPv6"
-	FilterResourceBasedNaming Filter = "ResourceBasedNaming"
+	SuiteUpgrade             Suite = "Upgrade"
+	SuiteIntegration         Suite = "Integration"
+	SuiteConsolidation       Suite = "Consolidation"
+	SuiteUtilization         Suite = "Utilization"
+	SuiteInterruption        Suite = "Interruption"
+	SuiteChaos               Suite = "Chaos"
+	SuiteDrift               Suite = "Drift"
+	SuiteMachine             Suite = "Machine"
+	SuiteIPv6                Suite = "IPv6"
+	SuiteResourceBasedNaming Suite = "ResourceBasedNaming"
 )
 
 const (
@@ -51,19 +52,21 @@ const (
 
 var (
 	tektonCLICommandPath string
-	pipelinesAndFilters  = map[Pipeline][]Filter{
+	pipelinesAndSuites   = map[Pipeline][]Suite{
 		PipelineSuite: {
-			FilterIntegration,
-			FilterConsolidation,
-			FilterUtilization,
-			FilterInterruption,
-			FilterChaos,
-			FilterDrift,
-			FilterMachine,
-			FilterIPv6,
-			FilterResourceBasedNaming,
+			SuiteIntegration,
+			SuiteConsolidation,
+			SuiteUtilization,
+			SuiteInterruption,
+			SuiteChaos,
+			SuiteDrift,
+			SuiteMachine,
+			SuiteIPv6,
+			SuiteResourceBasedNaming,
 		},
-		PipelineUpgrade: {},
+		PipelineUpgrade: {
+			SuiteUpgrade,
+		},
 	}
 	preUpgradeVersion = "v0.26.1"
 )
@@ -86,7 +89,7 @@ func shortenedGitSHA(identifier string) string {
 	return identifier
 }
 
-func tknArgs(message *notificationMessage, pipeline Pipeline, filter Filter) []string {
+func tknArgs(message *notificationMessage, pipeline Pipeline, filter Suite) []string {
 	gitRef := lo.Ternary(message.PrNumber == noPrNumber, message.ReleaseIdentifier, fmt.Sprintf("pull/%s/head:tempbranch", message.PrNumber))
 
 	args := []string{
@@ -104,7 +107,7 @@ func tknArgs(message *notificationMessage, pipeline Pipeline, filter Filter) []s
 	return args
 }
 
-func getPrefixName(message *notificationMessage, pipeline Pipeline, filter Filter) string {
+func getPrefixName(message *notificationMessage, pipeline Pipeline, filter Suite) string {
 	prefixFirstPart := strings.ToLower(string(pipeline))
 	if filter != "" {
 		prefixFirstPart = strings.ToLower(string(filter))
@@ -119,24 +122,36 @@ func getPrefixName(message *notificationMessage, pipeline Pipeline, filter Filte
 	return fmt.Sprintf("%s-%s", prefixFirstPart, prefixSecondPart)
 }
 
-func getPipelineParams(pipeline Pipeline, filter Filter, gitRef string) []string {
+func getPipelineParams(pipeline Pipeline, suite Suite, gitRef string) []string {
 	params := []string{
 		"kubernetes-version=1.23",
 		"git-repo-url=https://github.com/aws/karpenter",
 		"cleanup=true",
 	}
-	if filter != "" {
-		params = append(params, fmt.Sprintf("test-filter=%s", filter))
-	}
-
-	switch filter {
-	case FilterIPv6:
-		params = append(params, "ip-family=IPv6")
-	case FilterResourceBasedNaming:
-		params = append(params, "hostname-type=resource-name")
+	// Apply test filters to the suites
+	switch suite {
+	case SuiteUpgrade:
+	case SuiteResourceBasedNaming:
+		params = append(params, "test-filter=''")
 	default:
-		params = append(params, "hostname-type=ip-name")
+		params = append(params, fmt.Sprintf("test-filter=%s", suite))
 	}
+	// Apply label filters to the suites
+	switch suite {
+	case SuiteUpgrade:
+	case SuiteResourceBasedNaming:
+		params = append(params, "label-filter=Smoke")
+	default:
+		params = append(params, "label-filter=''")
+	}
+	// Apply custom settings for setup given some test suites
+	switch suite {
+	case SuiteIPv6:
+		params = append(params, "ip-family=IPv6")
+	case SuiteResourceBasedNaming:
+		params = append(params, "hostname-type=resource-name")
+	}
+	// Apply settings based on the pipeline type
 	switch pipeline {
 	case PipelineUpgrade:
 		params = append(params, fmt.Sprintf("from-git-ref=%s", preUpgradeVersion), fmt.Sprintf("to-git-ref=%s", gitRef))

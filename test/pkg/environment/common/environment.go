@@ -21,6 +21,8 @@ import (
 	"testing"
 	"time"
 
+	. "github.com/onsi/ginkgo/v2" //nolint:revive,stylecheck
+
 	"github.com/onsi/gomega"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -37,6 +39,8 @@ import (
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/utils/project"
 )
+
+var SmokeTestLabel = Label("Smoke")
 
 type Environment struct {
 	context.Context

@@ -73,6 +73,8 @@ spec:
       value: $(params.to-git-ref)
     - name: test-filter
       value: Integration
+    - name: label-filter
+      value: ""
     runAfter:
     - upgrade-chart
 

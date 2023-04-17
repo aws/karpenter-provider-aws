@@ -114,6 +114,7 @@ spec:
         --approve
 
   - name: update-hostname-type
+    image: public.ecr.aws/karpenter/tools:latest
     script: |
       # Updates the hostname type of all cluster subnets to be the passed hostname type
       aws ec2 describe-subnets \
@@ -139,6 +140,7 @@ spec:
         --set settings.aws.clusterEndpoint=$(cat /root/.kube/config | grep server | awk '{print $2}') \
         --set settings.aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-$(params.cluster-name) \
         --set settings.aws.interruptionQueueName=$(params.cluster-name) \
+        --set settings.aws.nodeNameConvention=$(params.hostname-type) \
         --set controller.resources.requests.cpu=1 \
         --set controller.resources.requests.memory=1Gi \
         --set controller.resources.limits.cpu=1 \

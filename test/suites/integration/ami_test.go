@@ -32,6 +32,7 @@ import (
 	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"github.com/aws/karpenter/test/pkg/environment/common"
 
 	awstest "github.com/aws/karpenter/pkg/test"
 )
@@ -152,7 +153,7 @@ var _ = Describe("AMI", func() {
 	})
 
 	Context("AMIFamily", func() {
-		It("should provision a node using the AL2 family", func() {
+		It("should provision a node using the AL2 family", common.SmokeTestLabel, func() {
 			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
@@ -165,7 +166,7 @@ var _ = Describe("AMI", func() {
 			env.EventuallyExpectHealthy(pod)
 			env.ExpectCreatedNodeCount("==", 1)
 		})
-		It("should provision a node using the Bottlerocket family", func() {
+		It("should provision a node using the Bottlerocket family", common.SmokeTestLabel, func() {
 			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
@@ -179,7 +180,7 @@ var _ = Describe("AMI", func() {
 			env.EventuallyExpectHealthy(pod)
 			env.ExpectCreatedNodeCount("==", 1)
 		})
-		It("should provision a node using the Ubuntu family", func() {
+		It("should provision a node using the Ubuntu family", common.SmokeTestLabel, func() {
 			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
@@ -193,7 +194,7 @@ var _ = Describe("AMI", func() {
 			env.EventuallyExpectHealthy(pod)
 			env.ExpectCreatedNodeCount("==", 1)
 		})
-		It("should support Custom AMIFamily with AMI Selectors", func() {
+		It("should support Custom AMIFamily with AMI Selectors", common.SmokeTestLabel, func() {
 			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},

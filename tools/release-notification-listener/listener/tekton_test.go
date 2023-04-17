@@ -52,21 +52,21 @@ func TestTknArgs(t *testing.T) {
 
 	var tests = []struct {
 		msg               *notificationMessage
-		pipelineName      string
-		testFilter        string
+		pipeline          Pipeline
+		suite             Suite
 		wantArgsToContain []string
 	}{
 		{msg, "foo", "bar", []string{"test-filter=bar", "--prefix-name=bar-038d219"}},
 		{msg, "foo", "", []string{"--prefix-name=foo-038d219"}},
 		{msg2, "foo", "bar", []string{"test-filter=bar", "--prefix-name=bar-pr-123"}},
 		{msg2, "foo", "", []string{"--prefix-name=foo-pr-123"}},
-		{msg, pipelineIPv6, "", []string{"ip-family=IPv6"}},
-		{msg, pipelineUpgrade, "", []string{"to-git-ref=", "from-git-ref"}},
-		{msg3, pipelineSuite, "", []string{"git-ref=HEAD"}},
+		{msg, PipelineSuite, SuiteIPv6, []string{"ip-family=IPv6"}},
+		{msg, PipelineUpgrade, "", []string{"to-git-ref=", "from-git-ref"}},
+		{msg3, PipelineSuite, "", []string{"git-ref=HEAD"}},
 	}
 
 	for i, test := range tests {
-		args := tknArgs(test.msg, test.pipelineName, test.testFilter)
+		args := tknArgs(test.msg, test.pipeline, test.suite)
 		argsStr := fmt.Sprintf("%v", args)
 		for _, want := range test.wantArgsToContain {
 			if !strings.Contains(argsStr, want) {

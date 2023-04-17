@@ -83,6 +83,7 @@ e2etests: ## Run the e2e suite against your local cluster
 		-v \
 		./suites/... \
 		--ginkgo.focus="${FOCUS}" \
+		--ginkgo.label-filter="${LABEL_FILTER}" \
 		--ginkgo.timeout=180m \
 		--ginkgo.v
 
