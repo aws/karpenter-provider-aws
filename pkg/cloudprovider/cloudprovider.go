@@ -133,9 +133,9 @@ func (c *CloudProvider) List(ctx context.Context) ([]*v1alpha5.Machine, error) {
 }
 
 func (c *CloudProvider) Get(ctx context.Context, providerID string) (*v1alpha5.Machine, error) {
-	instance, err := c.getInstanceFromMachine(ctx, providerID)
+	instance, err := c.getInstance(ctx, providerID)
 	if err != nil {
-		return nil, fmt.Errorf("getting instance, %w", err)
+		return nil, err
 	}
 	instanceType, err := c.resolveInstanceTypeFromInstance(ctx, instance)
 	if err != nil {
@@ -300,7 +300,7 @@ func (c *CloudProvider) instanceToMachine(i *instance.Instance, instanceType *cl
 	return machine
 }
 
-func (c *CloudProvider) getInstanceFromMachine(ctx context.Context, id string) (*ec2.Instance, error) {
+func (c *CloudProvider) getInstance(ctx context.Context, id string) (*ec2.Instance, error) {
 	instanceID, err := utils.ParseInstanceID(id)
 	if err != nil {
 		return nil, err
