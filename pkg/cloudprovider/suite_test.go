@@ -326,7 +326,23 @@ var _ = Describe("CloudProvider", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(isDrifted).To(BeTrue())
 		})
-		It("should not return drifted if the AMI is valid", func() {
+		It("should return drifted if the subnet is not valid", func() {
+			node := coretest.Node(coretest.NodeOptions{
+				ProviderID: fake.ProviderID(lo.FromPtr(instance.InstanceId)),
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+						v1.LabelInstanceTypeStable:       selectedInstanceType.Name,
+					},
+				},
+			})
+			// Instance is a reference to what we return in the GetInstances call
+			instance.SubnetId = aws.String(fake.SubnetID())
+			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machineutil.NewFromNode(node))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(isDrifted).To(BeTrue())
+		})
+		It("should not return drifted if the node is valid", func() {
 			node := coretest.Node(coretest.NodeOptions{
 				ProviderID: fake.ProviderID(lo.FromPtr(instance.InstanceId)),
 				ObjectMeta: metav1.ObjectMeta{
@@ -480,36 +496,6 @@ var _ = Describe("CloudProvider", func() {
 			})
 			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machineutil.NewFromNode(node))
 			Expect(err).To(HaveOccurred())
-			Expect(isDrifted).To(BeFalse())
-		})
-		It("should return drifted if the subnet is not valid", func() {
-			node := coretest.Node(coretest.NodeOptions{
-				ProviderID: fake.ProviderID(lo.FromPtr(instance.InstanceId)),
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
-						v1.LabelInstanceTypeStable:       selectedInstanceType.Name,
-					},
-				},
-			})
-			// Instance is a reference to what we return in the GetInstances call
-			instance.SubnetId = aws.String(fake.SubnetID())
-			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machineutil.NewFromNode(node))
-			Expect(err).ToNot(HaveOccurred())
-			Expect(isDrifted).To(BeTrue())
-		})
-		It("should not return drifted if the subnet is valid", func() {
-			node := coretest.Node(coretest.NodeOptions{
-				ProviderID: fake.ProviderID(lo.FromPtr(instance.InstanceId)),
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
-						v1.LabelInstanceTypeStable:       selectedInstanceType.Name,
-					},
-				},
-			})
-			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machineutil.NewFromNode(node))
-			Expect(err).ToNot(HaveOccurred())
 			Expect(isDrifted).To(BeFalse())
 		})
 	})
