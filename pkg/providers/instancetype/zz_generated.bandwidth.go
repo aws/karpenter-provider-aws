@@ -20,8 +20,8 @@ package instancetype
 
 var (
 	InstanceTypeBandwidthMegabits = map[string]int64{
-		// g3.16xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
 		// f1.2xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
+		// g3.16xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
 		"t2.nano":           32,
 		"t3.nano":           32,
 		"t3a.nano":          32,
@@ -174,6 +174,7 @@ var (
 		"t3.2xlarge":        2048,
 		"t3a.2xlarge":       2048,
 		"t4g.2xlarge":       2048,
+		"inf2.xlarge":       2083,
 		"i3en.large":        2100,
 		"m5dn.large":        2100,
 		"m5n.large":         2100,
@@ -398,6 +399,7 @@ var (
 		"m5n.4xlarge":       16250,
 		"r5dn.4xlarge":      16250,
 		"r5n.4xlarge":       16250,
+		"inf2.8xlarge":      16667,
 		"c6a.12xlarge":      18750,
 		"c6i.12xlarge":      18750,
 		"c6id.12xlarge":     18750,
@@ -537,6 +539,7 @@ var (
 		"g5.24xlarge":       50000,
 		"i3en.12xlarge":     50000,
 		"im4gn.8xlarge":     50000,
+		"inf2.24xlarge":     50000,
 		"is4gen.8xlarge":    50000,
 		"m5dn.12xlarge":     50000,
 		"m5n.12xlarge":      50000,
@@ -592,6 +595,7 @@ var (
 		"i3en.metal":        100000,
 		"im4gn.16xlarge":    100000,
 		"inf1.24xlarge":     100000,
+		"inf2.48xlarge":     100000,
 		"m5dn.24xlarge":     100000,
 		"m5dn.metal":        100000,
 		"m5n.24xlarge":      100000,
@@ -642,5 +646,6 @@ var (
 		"p4d.24xlarge":      400000,
 		"p4de.24xlarge":     400000,
 		"trn1.32xlarge":     800000,
+		"trn1n.32xlarge":    1600000,
 	}
 )
