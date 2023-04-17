@@ -18,9 +18,9 @@ package pricing
 
 import "time"
 
-// generated at 2023-04-03T13:08:14Z for us-east-1
+// generated at 2023-04-17T13:08:12Z for us-east-1
 
-var initialPriceUpdate, _ = time.Parse(time.RFC3339, "2023-04-03T13:08:14Z")
+var initialPriceUpdate, _ = time.Parse(time.RFC3339, "2023-04-17T13:08:12Z")
 var initialOnDemandPrices = map[string]map[string]float64{}
 
 func init() {
@@ -138,6 +138,8 @@ func init() {
 		"im4gn.large": 0.181900, "im4gn.xlarge": 0.363790,
 		// inf1 family
 		"inf1.24xlarge": 4.721000, "inf1.2xlarge": 0.362000, "inf1.6xlarge": 1.180000, "inf1.xlarge": 0.228000,
+		// inf2 family
+		"inf2.24xlarge": 6.490630, "inf2.48xlarge": 12.981270, "inf2.8xlarge": 1.967860, "inf2.xlarge": 0.758200,
 		// is4gen family
 		"is4gen.2xlarge": 1.152600, "is4gen.4xlarge": 2.305200, "is4gen.8xlarge": 4.610400,
 		"is4gen.large": 0.288150, "is4gen.medium": 0.144080, "is4gen.xlarge": 0.576300,
@@ -297,6 +299,8 @@ func init() {
 		"t4g.nano": 0.004200, "t4g.small": 0.016800, "t4g.xlarge": 0.134400,
 		// trn1 family
 		"trn1.2xlarge": 1.343750, "trn1.32xlarge": 21.500000,
+		// trn1n family
+		"trn1n.32xlarge": 24.780000,
 		// u-12tb1 family
 		"u-12tb1.112xlarge": 109.200000,
 		// u-18tb1 family
