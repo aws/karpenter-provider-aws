@@ -52,8 +52,8 @@ There are both automated and manual ways of deprovisioning nodes provisioned by 
 * **Emptiness**: Karpenter notes when the last workload (non-daemonset) pod stops running on a node. From that point, Karpenter waits the number of seconds set by `ttlSecondsAfterEmpty` in the provisioner, then Karpenter requests to delete the node. This feature can keep costs down by removing nodes that are no longer being used for workloads.
 * **Expiration**: Karpenter will annotate nodes as expired and deprovision nodes after they have lived a set number of seconds, based on the provisioner `ttlSecondsUntilExpired` value. One use case for node expiry is to periodically recycle nodes. Old nodes (with a potentially outdated Kubernetes version or operating system) are deleted, and replaced with nodes on the current version (assuming that you requested the latest version, rather than a specific version).
 * **Consolidation**: Karpenter works to actively reduce cluster cost by identifying when:
-  * nodes can be removed as their workloads will run on other nodes in the cluster.
-  * nodes can be replaced with cheaper variants due to a change in the workloads.
+  * Nodes can be removed as their workloads will run on other nodes in the cluster.
+  * Nodes can be replaced with cheaper variants due to a change in the workloads.
 * **Drift**: Karpenter will annotate nodes as drifted and deprovision nodes that have drifted from their desired specification. Currently, Karpenter will only automatically mark nodes as drifted in the case of a drifted AMI.
 * **Interruption**: If enabled, Karpenter will watch for upcoming involuntary interruption events that could affect your nodes (health events, spot interruption, etc.) and will cordon, drain, and terminate the node(s) ahead of the event to reduce workload disruption.
 
