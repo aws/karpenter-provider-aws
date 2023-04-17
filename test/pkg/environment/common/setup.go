@@ -50,8 +50,6 @@ var (
 		{First: &v1alpha5.Provisioner{}, Second: &v1alpha5.ProvisionerList{}},
 		{First: &v1.LimitRange{}, Second: &v1.LimitRangeList{}},
 		{First: &schedulingv1.PriorityClass{}, Second: &schedulingv1.PriorityClassList{}},
-	}
-	ForceCleanableObjects = []functional.Pair[client.Object, client.ObjectList]{
 		{First: &v1.Node{}, Second: &v1.NodeList{}},
 		{First: &v1alpha5.Machine{}, Second: &v1alpha5.MachineList{}},
 	}
@@ -109,17 +107,6 @@ func (env *Environment) Cleanup(opts ...Option) {
 	env.CleanupObjects(CleanableObjects...)
 	env.eventuallyExpectScaleDown()
 	env.ExpectNoCrashes()
-}
-
-func (env *Environment) ForceCleanup(opts ...Option) {
-	options := ResolveOptions(opts)
-	if !options.DisableDebug {
-		fmt.Println("------- START FORCE CLEANUP -------")
-		defer fmt.Println("------- END FORCE CLEANUP -------")
-	}
-
-	// Delete all the nodes if they weren't deleted by the provisioner propagation
-	env.CleanupObjects(ForceCleanableObjects...)
 }
 
 func (env *Environment) AfterEach(opts ...Option) {

@@ -28,8 +28,6 @@ var env *aws.Environment
 func TestMachine(t *testing.T) {
 	RegisterFailHandler(Fail)
 	BeforeSuite(func() {
-		Skip("machine is not yet enabled")
-
 		env = aws.NewEnvironment(t)
 	})
 	RunSpecs(t, "Machine")
@@ -37,5 +35,4 @@ func TestMachine(t *testing.T) {
 
 var _ = BeforeEach(func() { env.BeforeEach() })
 var _ = AfterEach(func() { env.Cleanup() })
-var _ = AfterEach(func() { env.ForceCleanup() })
 var _ = AfterEach(func() { env.AfterEach() })

@@ -83,7 +83,7 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 		return m.Labels[v1alpha5.ManagedByLabelKey] != "" && m.DeletionTimestamp.IsZero()
 	})
 	errs := make([]error, len(retrieved))
-	workqueue.ParallelizeUntil(ctx, 20, len(managedRetrieved), func(i int) {
+	workqueue.ParallelizeUntil(ctx, 100, len(managedRetrieved), func(i int) {
 		_, recentlyLinked := c.linkController.Cache.Get(managedRetrieved[i].Status.ProviderID)
 
 		if !recentlyLinked &&

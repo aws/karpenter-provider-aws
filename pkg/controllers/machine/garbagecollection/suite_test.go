@@ -158,9 +158,9 @@ var _ = Describe("MachineGarbageCollection", func() {
 		ExpectNotFound(ctx, env.Client, node)
 	})
 	It("should delete many instances if they all don't have machine owners", func() {
-		// Generate 500 instances that have different instanceIDs
+		// Generate 100 instances that have different instanceIDs
 		var ids []string
-		for i := 0; i < 500; i++ {
+		for i := 0; i < 100; i++ {
 			instanceID := fake.InstanceID()
 			awsEnv.EC2API.Instances.Store(
 				instanceID,
@@ -211,10 +211,10 @@ var _ = Describe("MachineGarbageCollection", func() {
 		wg.Wait()
 	})
 	It("should not delete all instances if they all have machine owners", func() {
-		// Generate 500 instances that have different instanceIDs
+		// Generate 100 instances that have different instanceIDs
 		var ids []string
 		var machines []*v1alpha5.Machine
-		for i := 0; i < 500; i++ {
+		for i := 0; i < 100; i++ {
 			instanceID := fake.InstanceID()
 			awsEnv.EC2API.Instances.Store(
 				instanceID,

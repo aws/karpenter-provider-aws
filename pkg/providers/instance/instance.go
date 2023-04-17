@@ -130,7 +130,7 @@ func (p *Provider) Get(ctx context.Context, id string) (*Instance, error) {
 		InstanceIds: aws.StringSlice([]string{id}),
 		Filters:     []*ec2.Filter{instanceStateFilter},
 	})
-	if awserrors.IsNotFound(err) || out == nil {
+	if awserrors.IsNotFound(err) {
 		return nil, cloudprovider.NewMachineNotFoundError(err)
 	}
 	if err != nil {

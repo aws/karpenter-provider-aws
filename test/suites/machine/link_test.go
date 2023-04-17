@@ -18,6 +18,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -134,11 +135,14 @@ var _ = Describe("MachineLink", func() {
 		Expect(machine.Spec.MachineTemplateRef.Name).To(Equal(provider.Name))
 
 		// Expect the instance to have the karpenter.sh/managed-by tag
-		instance := env.GetInstanceByID(aws.StringValue(out.Instances[0].InstanceId))
-		_, ok := lo.Find(instance.Tags, func(t *ec2.Tag) bool {
-			return aws.StringValue(t.Key) == v1alpha5.ManagedByLabelKey
-		})
-		Expect(ok).To(BeTrue())
+		Eventually(func(g Gomega) {
+			instance := env.GetInstanceByID(aws.StringValue(out.Instances[0].InstanceId))
+			tag, ok := lo.Find(instance.Tags, func(t *ec2.Tag) bool {
+				return aws.StringValue(t.Key) == v1alpha5.ManagedByLabelKey
+			})
+			g.Expect(ok).To(BeTrue())
+			g.Expect(aws.StringValue(tag.Value)).To(Equal(settings.FromContext(env.Context).ClusterName))
+		}, time.Minute, time.Second).Should(Succeed())
 	})
 	It("should succeed to link a Machine for an existing instance launched by Karpenter with provider", func() {
 		provisioner := test.Provisioner(test.ProvisionerOptions{
@@ -191,10 +195,13 @@ var _ = Describe("MachineLink", func() {
 		Expect(machine.Annotations).To(HaveKeyWithValue(v1alpha5.ProviderCompatabilityAnnotationKey, v1alpha5.ProviderAnnotation(provisioner.Spec.Provider)[v1alpha5.ProviderCompatabilityAnnotationKey]))
 
 		// Expect the instance to have the karpenter.sh/managed-by tag
-		instance := env.GetInstanceByID(aws.StringValue(out.Instances[0].InstanceId))
-		_, ok := lo.Find(instance.Tags, func(t *ec2.Tag) bool {
-			return aws.StringValue(t.Key) == v1alpha5.ManagedByLabelKey
-		})
-		Expect(ok).To(BeTrue())
+		Eventually(func(g Gomega) {
+			instance := env.GetInstanceByID(aws.StringValue(out.Instances[0].InstanceId))
+			tag, ok := lo.Find(instance.Tags, func(t *ec2.Tag) bool {
+				return aws.StringValue(t.Key) == v1alpha5.ManagedByLabelKey
+			})
+			g.Expect(ok).To(BeTrue())
+			g.Expect(aws.StringValue(tag.Value)).To(Equal(settings.FromContext(env.Context).ClusterName))
+		}, time.Minute, time.Second).Should(Succeed())
 	})
 })

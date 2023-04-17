@@ -28,7 +28,7 @@ import (
 	"github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/controllers/interruption"
-	machinegarbagecollect "github.com/aws/karpenter/pkg/controllers/machine/garbagecollection"
+	machinegarbagecollection "github.com/aws/karpenter/pkg/controllers/machine/garbagecollection"
 	machinelink "github.com/aws/karpenter/pkg/controllers/machine/link"
 	"github.com/aws/karpenter/pkg/controllers/nodetemplate"
 	"github.com/aws/karpenter/pkg/providers/pricing"
@@ -49,7 +49,7 @@ func NewControllers(ctx context.Context, sess *session.Session, clk clock.Clock,
 	controllers := []controller.Controller{
 		nodetemplate.NewController(kubeClient, subnetProvider, securityGroupProvider),
 		linkController,
-		machinegarbagecollect.NewController(kubeClient, cloudProvider, linkController),
+		machinegarbagecollection.NewController(kubeClient, cloudProvider, linkController),
 	}
 	if settings.FromContext(ctx).InterruptionQueueName != "" {
 		controllers = append(controllers, interruption.NewController(kubeClient, clk, recorder, interruption.NewSQSProvider(sqs.New(sess)), unavailableOfferings))

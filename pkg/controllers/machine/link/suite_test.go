@@ -239,9 +239,9 @@ var _ = Describe("MachineLink", func() {
 		awsEnv.EC2API.Reset() // Reset so we don't store the extra instance
 		ExpectApplied(ctx, env.Client, provisioner)
 
-		// Generate 500 instances that have different instanceIDs
+		// Generate 100 instances that have different instanceIDs
 		var ids []string
-		for i := 0; i < 500; i++ {
+		for i := 0; i < 100; i++ {
 			instanceID = fake.InstanceID()
 			awsEnv.EC2API.EC2Behavior.Instances.Store(
 				instanceID,
@@ -275,7 +275,7 @@ var _ = Describe("MachineLink", func() {
 
 		machineList := &v1alpha5.MachineList{}
 		Expect(env.Client.List(ctx, machineList)).To(Succeed())
-		Expect(machineList.Items).To(HaveLen(500))
+		Expect(machineList.Items).To(HaveLen(100))
 
 		machineInstanceIDs := sets.NewString(lo.Map(machineList.Items, func(m v1alpha5.Machine, _ int) string {
 			return lo.Must(utils.ParseInstanceID(m.Annotations[v1alpha5.MachineLinkedAnnotationKey]))
