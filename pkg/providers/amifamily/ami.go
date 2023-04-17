@@ -219,9 +219,20 @@ func (p *Provider) fetchAMIsFromEC2(ctx context.Context, amiSelector map[string]
 	p.ec2Cache.SetDefault(fmt.Sprint(hash), output.Images)
 	amiIDs := lo.Map(output.Images, func(ami *ec2.Image, _ int) string { return *ami.ImageId })
 	if p.cm.HasChanged("amiIDs", amiIDs) {
-		logging.FromContext(ctx).With("ami-ids", amiIDs).Debugf("discovered images")
+		logging.FromContext(ctx).With("ids", concatenateAmiIDs(amiIDs), "count", len(amiIDs)).Debugf("discovered images")
 	}
 	return output.Images, nil
+}
+
+func concatenateAmiIDs(amisIds []string) string {
+	var amiString string
+	if len(amisIds) > 25 {
+		amiString = strings.Join(amisIds[:25], ", ")
+		amiString += fmt.Sprintf(" and %d other(s)", len(amisIds)-25)
+	} else {
+		amiString = strings.Join(amisIds, ", ")
+	}
+	return amiString
 }
 
 func getFiltersAndOwners(amiSelector map[string]string) ([]*ec2.Filter, []*string) {
