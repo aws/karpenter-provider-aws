@@ -128,8 +128,14 @@ func getPipelineParams(pipeline Pipeline, filter Filter, gitRef string) []string
 	if filter != "" {
 		params = append(params, fmt.Sprintf("test-filter=%s", filter))
 	}
-	if filter == "IPv6" {
+
+	switch filter {
+	case FilterIPv6:
 		params = append(params, "ip-family=IPv6")
+	case FilterResourceBasedNaming:
+		params = append(params, "hostname-type=resource-name")
+	default:
+		params = append(params, "hostname-type=ip-name")
 	}
 	switch pipeline {
 	case PipelineUpgrade:

@@ -15,6 +15,9 @@ spec:
     - name: ip-family
       description: IP Family of the cluster. Valid values are IPv4 or IPv6
       default: IPv4
+    - name: hostname-type
+      default: ip-name
+      description: Hostname type of the subnets in the cluster. Valid values are ip-name or resource-name
     - name: git-repo-url
       description: the git repo url can be used to run tests on a fork
       default: "https://github.com/aws/karpenter"
@@ -109,6 +112,19 @@ spec:
         --attach-policy-arn "arn:aws:iam::$(cat $(results.account-id.path)):policy/KarpenterControllerPolicy-$(params.cluster-name)" \
         --role-only \
         --approve
+
+  - name: update-hostname-type
+    script: |
+      # Updates the hostname type of all cluster subnets to be the passed hostname type
+      aws ec2 describe-subnets \
+        --filters Name=tag:karpenter.sh/discovery,Values=$(params.cluster-name) \
+        --query "Subnets[*].SubnetId" \
+        --output text | 
+      xargs \
+        -n 1 \
+        aws ec2 modify-subnet-attribute \
+          --private-dns-hostname-type-on-launch $(params.hostname-type) \
+          --subnet-id
 
   - name: install-karpenter
     image: public.ecr.aws/karpenter/tools:latest

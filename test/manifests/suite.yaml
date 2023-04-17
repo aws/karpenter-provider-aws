@@ -14,6 +14,9 @@ spec:
     - name: ip-family
       default: IPv4
       description: IP Family of the cluster. Valid values are IPv4 or IPv6
+    - name: hostname-type
+      default: ip-name
+      description: Hostname type of the subnets in the cluster. Valid values are ip-name or resource-name
     - name: git-repo-url
       description: the git repo url can be used to run tests on a fork
       default: "https://github.com/aws/karpenter"
@@ -35,6 +38,8 @@ spec:
       value: $(params.cluster-name)
     - name: ip-family
       value: $(params.ip-family)
+    - name: hostname-type
+      value: $(params.hostname-type)
     - name: kubernetes-version
       value: $(params.kubernetes-version)
     - name: git-repo-url
