@@ -19,8 +19,6 @@ require (
 	sigs.k8s.io/controller-runtime v0.13.1
 )
 
-replace github.com/aws/karpenter-core => github.com/njtran/karpenter-core v0.0.0-20230418174838-968e315dc6bd
-
 require (
 	github.com/Pallinder/go-randomdata v1.2.0 // indirect
 	github.com/PuerkitoBio/purell v1.1.1 // indirect
