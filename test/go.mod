@@ -7,7 +7,7 @@ require (
 	github.com/aws/aws-sdk-go v1.44.212
 	github.com/aws/aws-sdk-go-v2/config v1.18.15
 	github.com/aws/karpenter v0.22.0
-	github.com/aws/karpenter-core v0.27.1-0.20230327194120-eb4758b5696f
+	github.com/aws/karpenter-core v0.27.2
 	github.com/onsi/ginkgo/v2 v2.9.0
 	github.com/onsi/gomega v1.27.2
 	github.com/samber/lo v1.37.0
@@ -18,6 +18,8 @@ require (
 	knative.dev/pkg v0.0.0-20221123154742-05b694ec4d3a
 	sigs.k8s.io/controller-runtime v0.13.1
 )
+
+replace github.com/aws/karpenter-core => github.com/njtran/karpenter-core v0.0.0-20230418174838-968e315dc6bd
 
 require (
 	github.com/Pallinder/go-randomdata v1.2.0 // indirect
