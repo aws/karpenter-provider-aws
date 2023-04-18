@@ -158,7 +158,7 @@ func bySubsystem(metrics []metricInfo) func(i int, j int) bool {
 	subSystemSortOrder["nodes"] = 2
 	subSystemSortOrder["pods"] = 3
 	subSystemSortOrder["cloudprovider"] = 4
-	subSystemSortOrder["allocation_controller"] = 5
+	subSystemSortOrder["cloudprovider_batcher"] = 5
 	return func(i, j int) bool {
 		lhs := metrics[i]
 		rhs := metrics[j]
@@ -266,6 +266,8 @@ func getIdentMapping(identName string) (string, error) {
 		"interruptionSubsystem":   "interruption",
 		"nodeTemplateSubsystem":   "nodetemplate",
 		"deprovisioningSubsystem": "deprovisioning",
+		"consistencySubsystem":    "consistency",
+		"batcherSubsystem":        "cloudprovider_batcher",
 	}
 	if v, ok := identMapping[identName]; ok {
 		return v, nil

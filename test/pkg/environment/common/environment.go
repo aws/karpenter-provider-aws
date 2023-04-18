@@ -41,22 +41,20 @@ import (
 type Environment struct {
 	context.Context
 
-	Client            client.Client
-	Config            *rest.Config
-	KubeClient        kubernetes.Interface
-	Monitor           *Monitor
-	StartingNodeCount int
+	Client     client.Client
+	Config     *rest.Config
+	KubeClient kubernetes.Interface
+	Monitor    *Monitor
 
-	cancel context.CancelFunc
+	StartingNodeCount int
 }
 
 func NewEnvironment(t *testing.T) *Environment {
 	ctx := loggingtesting.TestContextWithLogger(t)
-	ctx, cancel := context.WithCancel(ctx)
 	config := NewConfig()
 	client := lo.Must(NewClient(config))
 
-	os.Setenv(system.NamespaceEnvKey, "karpenter")
+	lo.Must0(os.Setenv(system.NamespaceEnvKey, "karpenter"))
 	kubernetesInterface := kubernetes.NewForConfigOrDie(config)
 	ctx = injection.WithSettingsOrDie(ctx, kubernetesInterface, apis.Settings...)
 
@@ -68,13 +66,7 @@ func NewEnvironment(t *testing.T) *Environment {
 		Client:     client,
 		KubeClient: kubernetes.NewForConfigOrDie(config),
 		Monitor:    NewMonitor(ctx, client),
-
-		cancel: cancel,
 	}
-}
-
-func (env *Environment) Stop() {
-	env.cancel()
 }
 
 func NewConfig() *rest.Config {

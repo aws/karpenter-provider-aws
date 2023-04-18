@@ -20,9 +20,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io"
 	"log"
-	"net/http"
 	"os"
 	"sort"
 	"strings"
@@ -33,13 +31,17 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
+	coreoperator "github.com/aws/karpenter-core/pkg/operator"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	awscloudprovider "github.com/aws/karpenter/pkg/cloudprovider"
-	awscontext "github.com/aws/karpenter/pkg/context"
+	"github.com/aws/karpenter/pkg/operator"
 	"github.com/aws/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
@@ -47,14 +49,32 @@ import (
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 )
 
+// FakeManager is a manager that takes all the utilized calls from the operator setup
+type FakeManager struct {
+	manager.Manager
+}
+
+func (m *FakeManager) GetClient() client.Client {
+	return fake.NewClientBuilder().Build()
+}
+
+func (m *FakeManager) GetConfig() *rest.Config {
+	return &rest.Config{}
+}
+
+func (m *FakeManager) Elected() <-chan struct{} {
+	return make(chan struct{}, 1)
+}
+
 func main() {
 	flag.Parse()
 	if flag.NArg() != 1 {
 		log.Fatalf("Usage: %s path/to/markdown.md", os.Args[0])
 	}
 
-	os.Setenv("AWS_SDK_LOAD_CONFIG", "true")
-	os.Setenv("AWS_REGION", "us-east-1")
+	lo.Must0(os.Setenv("SYSTEM_NAMESPACE", "karpenter"))
+	lo.Must0(os.Setenv("AWS_SDK_LOAD_CONFIG", "true"))
+	lo.Must0(os.Setenv("AWS_REGION", "us-east-1"))
 
 	ctx := coresettings.ToContext(context.Background(), coretest.Settings())
 	ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
@@ -63,7 +83,12 @@ func main() {
 		IsolatedVPC:     lo.ToPtr(true), // disable pricing lookup
 	}))
 
-	cp := NewAWSCloudProviderForCodeGen(ctx)
+	ctx, op := operator.NewOperator(ctx, &coreoperator.Operator{
+		Manager:             &FakeManager{},
+		KubernetesInterface: kubernetes.NewForConfigOrDie(&rest.Config{}),
+	})
+	cp := awscloudprovider.New(op.InstanceTypesProvider, op.InstanceProvider, op.GetClient(), op.AMIProvider)
+
 	provider := v1alpha1.AWS{SubnetSelector: map[string]string{
 		"*": "*",
 	}}
@@ -122,7 +147,12 @@ below are the resources available with some assumptions and after the instance o
 		familyName := strings.Split(it.Name, ".")[0]
 		families[familyName] = append(families[familyName], it)
 		for labelName := range it.Requirements {
-			labelNameMap.Insert(labelName)
+			// TODO: This is to remove the gpu labels from the docs
+			// GPU labels were removed from docs in favor of Accelerator labels
+			// this should be removed after v1 once gpu label has been removed.
+			if !strings.Contains(labelName, "gpu") {
+				labelNameMap.Insert(labelName)
+			}
 		}
 		for resourceName := range it.Capacity {
 			resourceNameMap.Insert(string(resourceName))
@@ -193,50 +223,4 @@ below are the resources available with some assumptions and after the instance o
 			}
 		}
 	}
-}
-
-type kubeDnsTransport struct {
-}
-
-const kubeDNS = `{
-    "apiVersion": "v1",
-    "kind": "Service",
-    "metadata": {
-        "creationTimestamp": "2022-04-14T17:55:49Z",
-        "name": "kube-dns",
-        "namespace": "kube-system",
-        "resourceVersion": "262"
-    },
-    "spec": {
-        "clusterIP": "10.100.0.10",
-        "clusterIPs": [
-            "10.100.0.10"
-        ],
-        "internalTrafficPolicy": "Cluster",
-        "ipFamilies": [
-            "IPv4"
-        ],
-        "ipFamilyPolicy": "SingleStack",
-        "type": "ClusterIP"
-    }
-}
-`
-
-func (f kubeDnsTransport) RoundTrip(request *http.Request) (*http.Response, error) {
-	return &http.Response{
-		StatusCode: http.StatusOK,
-		Proto:      "http/1.0",
-		ProtoMajor: 1,
-		ProtoMinor: 0,
-		Body:       io.NopCloser(bytes.NewBufferString(kubeDNS)),
-	}, nil
-}
-
-func NewAWSCloudProviderForCodeGen(ctx context.Context) *awscloudprovider.CloudProvider {
-	context := awscontext.NewOrDie(cloudprovider.Context{
-		Context:             ctx,
-		RESTConfig:          &rest.Config{},
-		KubernetesInterface: lo.Must(kubernetes.NewForConfigAndClient(&rest.Config{}, &http.Client{Transport: &kubeDnsTransport{}})),
-	})
-	return awscloudprovider.New(context.InstanceTypesProvider, context.InstanceProvider, context.KubeClient, context.AMIProvider)
 }

@@ -68,7 +68,3 @@ func NewEnvironment(t *testing.T) *Environment {
 		SQSProvider:     interruption.NewSQSProvider(sqs.New(session)),
 	}
 }
-
-func (env *Environment) Stop() {
-	env.Environment.Stop()
-}

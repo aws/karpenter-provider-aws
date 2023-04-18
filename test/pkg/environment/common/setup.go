@@ -16,24 +16,17 @@ package common
 
 import (
 	"fmt"
-	"strings"
 	"sync"
-	"time"
 
 	. "github.com/onsi/ginkgo/v2" //nolint:revive,stylecheck
 	. "github.com/onsi/gomega"    //nolint:revive,stylecheck
-	"github.com/samber/lo"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
-	policyv1 "k8s.io/api/policy/v1beta1"
+	policyv1 "k8s.io/api/policy/v1"
 	schedulingv1 "k8s.io/api/scheduling/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/client-go/informers"
-	"k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter-core/pkg/apis"
@@ -41,8 +34,8 @@ import (
 	"github.com/aws/karpenter-core/pkg/operator/injection"
 	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter-core/pkg/utils/functional"
-	nodeutils "github.com/aws/karpenter-core/pkg/utils/node"
 	"github.com/aws/karpenter-core/pkg/utils/pod"
+	"github.com/aws/karpenter/test/pkg/debug"
 )
 
 var (
@@ -63,58 +56,21 @@ var (
 	}
 )
 
-const (
-	NoWatch  = "NoWatch"
-	NoEvents = "NoEvents"
-)
-
-var testStartTime time.Time
-var stop chan struct{}
-
 // nolint:gocyclo
 func (env *Environment) BeforeEach(opts ...Option) {
 	options := ResolveOptions(opts)
 	if !options.DisableDebug {
 		fmt.Println("------- START BEFORE -------")
 		defer fmt.Println("------- END BEFORE -------")
+
+		// Run the debug logger BeforeEach() methods
+		debug.BeforeEach(env.Context, env.Config, env.Client)
 	}
 	env.Context = injection.WithSettingsOrDie(env.Context, env.KubeClient, apis.Settings...)
 
-	stop = make(chan struct{})
-	testStartTime = time.Now()
+	// Expect this cluster to be clean for test runs to execute successfully
+	env.ExpectCleanCluster()
 
-	var nodes v1.NodeList
-	Expect(env.Client.List(env.Context, &nodes)).To(Succeed())
-	if !options.DisableDebug {
-		for i := range nodes.Items {
-			fmt.Println(env.getNodeInformation(&nodes.Items[i]))
-		}
-	}
-	for _, node := range nodes.Items {
-		if len(node.Spec.Taints) == 0 && !node.Spec.Unschedulable {
-			Fail(fmt.Sprintf("expected system pool node %s to be tainted", node.Name))
-		}
-	}
-
-	var pods v1.PodList
-	Expect(env.Client.List(env.Context, &pods)).To(Succeed())
-	if !options.DisableDebug {
-		for i := range pods.Items {
-			fmt.Println(getPodInformation(&pods.Items[i]))
-		}
-	}
-	for i := range pods.Items {
-		Expect(pod.IsProvisionable(&pods.Items[i])).To(BeFalse(),
-			fmt.Sprintf("expected to have no provisionable pods, found %s/%s", pods.Items[i].Namespace, pods.Items[i].Name))
-		Expect(pods.Items[i].Namespace).ToNot(Equal("default"),
-			fmt.Sprintf("expected no pods in the `default` namespace, found %s/%s", pods.Items[i].Namespace, pods.Items[i].Name))
-	}
-	// If the test is labeled as NoWatch, then the node/pod monitor will just list at the beginning
-	// of the test rather than perform a watch during it
-	if !options.DisableDebug && !lo.Contains(CurrentSpecReport().Labels(), NoWatch) {
-		env.startNodeMonitor(stop)
-		env.startPodMonitor(stop)
-	}
 	var provisioners v1alpha5.ProvisionerList
 	Expect(env.Client.List(env.Context, &provisioners)).To(Succeed())
 	Expect(provisioners.Items).To(HaveLen(0), "expected no provisioners to exist")
@@ -122,98 +78,22 @@ func (env *Environment) BeforeEach(opts ...Option) {
 	env.StartingNodeCount = env.Monitor.NodeCountAtReset()
 }
 
-func (env *Environment) getNodeInformation(n *v1.Node) string {
-	pods, _ := nodeutils.GetNodePods(env, env.Client, n)
-	return fmt.Sprintf("node %s ready=%s schedulable=%t initialized=%s pods=%d taints=%v", n.Name, nodeutils.GetCondition(n, v1.NodeReady).Status, !n.Spec.Unschedulable, n.Labels[v1alpha5.LabelNodeInitialized], len(pods), n.Spec.Taints)
-}
-
-func getPodInformation(p *v1.Pod) string {
-	var containerInfo strings.Builder
-	for _, c := range p.Status.ContainerStatuses {
-		if containerInfo.Len() > 0 {
-			fmt.Fprintf(&containerInfo, ", ")
+func (env *Environment) ExpectCleanCluster() {
+	var nodes v1.NodeList
+	Expect(env.Client.List(env.Context, &nodes)).To(Succeed())
+	for _, node := range nodes.Items {
+		if len(node.Spec.Taints) == 0 && !node.Spec.Unschedulable {
+			Fail(fmt.Sprintf("expected system pool node %s to be tainted", node.Name))
 		}
-		fmt.Fprintf(&containerInfo, "%s restarts=%d", c.Name, c.RestartCount)
 	}
-	return fmt.Sprintf("pods %s/%s provisionable=%v phase=%s nodename=%s owner=%#v [%s]", p.Namespace, p.Name,
-		pod.IsProvisionable(p), p.Status.Phase, p.Spec.NodeName, p.OwnerReferences, containerInfo.String())
-}
-
-// Partially copied from
-// https://github.com/kubernetes/kubernetes/blob/04ee339c7a4d36b4037ce3635993e2a9e395ebf3/staging/src/k8s.io/kubectl/pkg/describe/describe.go#L4232
-func getEventInformation(o v1.ObjectReference, el *v1.EventList) string {
-	sb := strings.Builder{}
-	sb.WriteString(fmt.Sprintf("------- %s/%s%s EVENTS -------\n",
-		strings.ToLower(o.Kind), lo.Ternary(o.Namespace != "", o.Namespace+"/", ""), o.Name))
-	if len(el.Items) == 0 {
-		return sb.String()
+	var pods v1.PodList
+	Expect(env.Client.List(env.Context, &pods)).To(Succeed())
+	for i := range pods.Items {
+		Expect(pod.IsProvisionable(&pods.Items[i])).To(BeFalse(),
+			fmt.Sprintf("expected to have no provisionable pods, found %s/%s", pods.Items[i].Namespace, pods.Items[i].Name))
+		Expect(pods.Items[i].Namespace).ToNot(Equal("default"),
+			fmt.Sprintf("expected no pods in the `default` namespace, found %s/%s", pods.Items[i].Namespace, pods.Items[i].Name))
 	}
-	for _, e := range el.Items {
-		source := e.Source.Component
-		if source == "" {
-			source = e.ReportingController
-		}
-		eventTime := e.EventTime
-		if eventTime.IsZero() {
-			eventTime = metav1.NewMicroTime(e.FirstTimestamp.Time)
-		}
-		sb.WriteString(fmt.Sprintf("time=%s type=%s reason=%s from=%s message=%s\n",
-			eventTime.Format(time.RFC3339),
-			e.Type,
-			e.Reason,
-			source,
-			strings.TrimSpace(e.Message)),
-		)
-	}
-	return sb.String()
-}
-
-// startPodMonitor monitors all pods that are provisioned in a namespace outside kube-system
-// and karpenter namespaces during a test
-func (env *Environment) startPodMonitor(stop <-chan struct{}) {
-	factory := informers.NewSharedInformerFactoryWithOptions(env.KubeClient, time.Second*30,
-		informers.WithTweakListOptions(func(l *metav1.ListOptions) {
-			l.FieldSelector = "metadata.namespace!=kube-system,metadata.namespace!=karpenter"
-		}))
-	podInformer := factory.Core().V1().Pods().Informer()
-	podInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			fmt.Printf("[CREATED %s] %s\n", time.Now().Format(time.RFC3339), getPodInformation(obj.(*v1.Pod)))
-		},
-		UpdateFunc: func(oldObj interface{}, newObj interface{}) {
-			if getPodInformation(oldObj.(*v1.Pod)) != getPodInformation(newObj.(*v1.Pod)) {
-				fmt.Printf("[UPDATED %s] %s\n", time.Now().Format(time.RFC3339), getPodInformation(newObj.(*v1.Pod)))
-			}
-		},
-		DeleteFunc: func(obj interface{}) {
-			fmt.Printf("[DELETED %s] %s\n", time.Now().Format(time.RFC3339), getPodInformation(obj.(*v1.Pod)))
-		},
-	})
-	factory.Start(stop)
-}
-
-// startNodeMonitor monitors all nodes that are provisioned by any provisioners during a test
-func (env *Environment) startNodeMonitor(stop <-chan struct{}) {
-	factory := informers.NewSharedInformerFactoryWithOptions(env.KubeClient, time.Second*30,
-		informers.WithTweakListOptions(func(l *metav1.ListOptions) { l.LabelSelector = v1alpha5.ProvisionerNameLabelKey }))
-	nodeInformer := factory.Core().V1().Nodes().Informer()
-	nodeInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			node := obj.(*v1.Node)
-			if _, ok := node.Labels[test.DiscoveryLabel]; ok {
-				fmt.Printf("[CREATED %s] %s\n", time.Now().Format(time.RFC3339), env.getNodeInformation(obj.(*v1.Node)))
-			}
-		},
-		UpdateFunc: func(oldObj interface{}, newObj interface{}) {
-			if env.getNodeInformation(oldObj.(*v1.Node)) != env.getNodeInformation(newObj.(*v1.Node)) {
-				fmt.Printf("[UPDATED %s] %s\n", time.Now().Format(time.RFC3339), env.getNodeInformation(newObj.(*v1.Node)))
-			}
-		},
-		DeleteFunc: func(obj interface{}) {
-			fmt.Printf("[DELETED %s] %s\n", time.Now().Format(time.RFC3339), env.getNodeInformation(obj.(*v1.Node)))
-		},
-	})
-	factory.Start(stop)
 }
 
 func (env *Environment) Cleanup(opts ...Option) {
@@ -221,8 +101,11 @@ func (env *Environment) Cleanup(opts ...Option) {
 	if !options.DisableDebug {
 		fmt.Println("------- START CLEANUP -------")
 		defer fmt.Println("------- END CLEANUP -------")
+
+		// Run the debug logger AfterEach() methods
+		debug.AfterEach(env.Context)
 	}
-	env.CleanupObjects(CleanableObjects)
+	env.CleanupObjects(CleanableObjects...)
 	env.eventuallyExpectScaleDown()
 	env.ExpectNoCrashes()
 }
@@ -235,7 +118,7 @@ func (env *Environment) ForceCleanup(opts ...Option) {
 	}
 
 	// Delete all the nodes if they weren't deleted by the provisioner propagation
-	env.CleanupObjects(ForceCleanableObjects)
+	env.CleanupObjects(ForceCleanableObjects...)
 }
 
 func (env *Environment) AfterEach(opts ...Option) {
@@ -244,16 +127,10 @@ func (env *Environment) AfterEach(opts ...Option) {
 		fmt.Println("------- START AFTER -------")
 		defer fmt.Println("------- END AFTER -------")
 	}
-	close(stop) // close the pod/node monitor watch channel
-	if !options.DisableDebug && !lo.Contains(CurrentSpecReport().Labels(), NoEvents) {
-		env.dumpKarpenterEvents(testStartTime)
-		env.dumpPodEvents(testStartTime)
-		env.dumpNodeEvents(testStartTime)
-	}
 	env.printControllerLogs(&v1.PodLogOptions{Container: "controller"})
 }
 
-func (env *Environment) CleanupObjects(cleanableObjects []functional.Pair[client.Object, client.ObjectList]) {
+func (env *Environment) CleanupObjects(cleanableObjects ...functional.Pair[client.Object, client.ObjectList]) {
 	namespaces := &v1.NamespaceList{}
 	Expect(env.Client.List(env, namespaces)).To(Succeed())
 	wg := sync.WaitGroup{}
@@ -281,67 +158,4 @@ func (env *Environment) CleanupObjects(cleanableObjects []functional.Pair[client
 		}
 	}
 	wg.Wait()
-}
-
-func (env *Environment) dumpKarpenterEvents(testStartTime time.Time) {
-	el := &v1.EventList{}
-	ExpectWithOffset(1, env.Client.List(env, el, client.InNamespace("karpenter"))).To(Succeed())
-
-	for k, v := range coallateEvents(filterTestEvents(el.Items, testStartTime)) {
-		fmt.Print(getEventInformation(k, v))
-	}
-}
-
-func (env *Environment) dumpPodEvents(testStartTime time.Time) {
-	el := &v1.EventList{}
-	ExpectWithOffset(1, env.Client.List(env, el, &client.ListOptions{
-		FieldSelector: fields.SelectorFromSet(map[string]string{"involvedObject.kind": "Pod"}),
-	})).To(Succeed())
-	events := lo.Filter(filterTestEvents(el.Items, testStartTime), func(e v1.Event, _ int) bool {
-		return e.InvolvedObject.Namespace != "kube-system"
-	})
-	for k, v := range coallateEvents(events) {
-		fmt.Print(getEventInformation(k, v))
-	}
-}
-
-func (env *Environment) dumpNodeEvents(testStartTime time.Time) {
-	nodeNames := sets.NewString(lo.Map(env.Monitor.CreatedNodes(), func(n *v1.Node, _ int) string { return n.Name })...)
-	el := &v1.EventList{}
-	ExpectWithOffset(1, env.Client.List(env, el, &client.ListOptions{
-		FieldSelector: fields.SelectorFromSet(map[string]string{"involvedObject.kind": "Node"}),
-	})).To(Succeed())
-
-	events := lo.Filter(filterTestEvents(el.Items, testStartTime), func(e v1.Event, _ int) bool {
-		return nodeNames.Has(e.InvolvedObject.Name)
-	})
-	for k, v := range coallateEvents(events) {
-		fmt.Print(getEventInformation(k, v))
-	}
-}
-
-func filterTestEvents(events []v1.Event, startTime time.Time) []v1.Event {
-	return lo.Filter(events, func(e v1.Event, _ int) bool {
-		if !e.EventTime.IsZero() {
-			if e.EventTime.BeforeTime(&metav1.Time{Time: startTime}) {
-				return false
-			}
-		} else if e.FirstTimestamp.Before(&metav1.Time{Time: startTime}) {
-			return false
-		}
-		return true
-	})
-}
-
-func coallateEvents(events []v1.Event) map[v1.ObjectReference]*v1.EventList {
-	eventMap := map[v1.ObjectReference]*v1.EventList{}
-	for i := range events {
-		elem := events[i]
-		objectKey := v1.ObjectReference{Kind: elem.InvolvedObject.Kind, Namespace: elem.InvolvedObject.Namespace, Name: elem.InvolvedObject.Name}
-		if _, ok := eventMap[objectKey]; !ok {
-			eventMap[objectKey] = &v1.EventList{}
-		}
-		eventMap[objectKey].Items = append(eventMap[objectKey].Items, elem)
-	}
-	return eventMap
 }

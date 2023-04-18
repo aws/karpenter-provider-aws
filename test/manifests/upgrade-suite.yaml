@@ -12,7 +12,6 @@ spec:
       description: Kubernetes version to deploy
       default: "1.23"
     - name: from-git-ref
-      default: v0.23.0
       description: Git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release.
     - name: git-repo-url
       description: the git repo url can be used to run tests on a fork
@@ -38,6 +37,17 @@ spec:
     - name: git-ref
       value: $(params.from-git-ref)
 
+  - name: upgrade-crds
+    taskRef:
+      name: upgrade-crds
+    params:
+    - name: cluster-name
+      value: $(params.cluster-name)
+    - name: git-ref
+      value: $(params.to-git-ref)
+    runAfter:
+    - setup
+
   - name: upgrade-chart
     taskRef:
       name: setup
@@ -49,18 +59,7 @@ spec:
     - name: git-ref
       value: $(params.to-git-ref)
     runAfter:
-    - setup
-
-  - name: upgrade-crds
-    taskRef:
-      name: upgrade-crds
-    params:
-    - name: cluster-name
-      value: $(params.cluster-name)
-    - name: git-ref
-      value: $(params.to-git-ref)
-    runAfter:
-    - upgrade-chart
+    - upgrade-crds
 
   - name: run-test
     taskRef:
@@ -75,7 +74,7 @@ spec:
     - name: test-filter
       value: Integration
     runAfter:
-    - upgrade-crds
+    - upgrade-chart
 
   finally:
   - name: dump-logs-on-failure

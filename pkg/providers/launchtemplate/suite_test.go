@@ -306,11 +306,13 @@ var _ = Describe("LaunchTemplates", func() {
 		It("should apply provider labels to the node", func() {
 			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
 				{
+					Name:         aws.String(coretest.RandomName()),
 					ImageId:      aws.String("ami-123"),
 					Architecture: aws.String("x86_64"),
 					CreationDate: aws.String("2022-08-15T12:00:00Z"),
 				},
 				{
+					Name:         aws.String(coretest.RandomName()),
 					ImageId:      aws.String("ami-456"),
 					Architecture: aws.String("arm64"),
 					CreationDate: aws.String("2022-08-10T12:00:00Z"),
@@ -585,6 +587,7 @@ var _ = Describe("LaunchTemplates", func() {
 		})
 		It("should not default block device mappings for custom AMIFamilies", func() {
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyCustom
+			nodeTemplate.Spec.AMISelector = map[string]string{"*": "*"}
 			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -595,6 +598,7 @@ var _ = Describe("LaunchTemplates", func() {
 		})
 		It("should use custom block device mapping for custom AMIFamilies", func() {
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyCustom
+			nodeTemplate.Spec.AMISelector = map[string]string{"*": "*"}
 			nodeTemplate.Spec.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{
 				{
 					DeviceName: aws.String("/dev/xvda"),
@@ -739,6 +743,7 @@ var _ = Describe("LaunchTemplates", func() {
 		})
 		It("should pack pods using blockdevicemappings for Custom AMIFamily", func() {
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyCustom
+			nodeTemplate.Spec.AMISelector = map[string]string{"*": "*"}
 			nodeTemplate.Spec.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{
 				{
 					DeviceName: aws.String("/dev/xvda"),
@@ -1536,6 +1541,7 @@ var _ = Describe("LaunchTemplates", func() {
 				nodeTemplate.Spec.AMISelector = map[string]string{"karpenter.sh/discovery": "my-cluster"}
 				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
 					{
+						Name:         aws.String(coretest.RandomName()),
 						ImageId:      aws.String("ami-123"),
 						Architecture: aws.String("x86_64"),
 						CreationDate: aws.String("2022-08-15T12:00:00Z")},
@@ -1556,6 +1562,7 @@ var _ = Describe("LaunchTemplates", func() {
 				nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyCustom
 				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
 					{
+						Name:         aws.String(coretest.RandomName()),
 						ImageId:      aws.String("ami-123"),
 						Architecture: aws.String("x86_64"),
 						CreationDate: aws.String("2022-08-15T12:00:00Z")},
@@ -1576,12 +1583,14 @@ var _ = Describe("LaunchTemplates", func() {
 				nodeTemplate.Spec.AMISelector = map[string]string{"aws-ids": "ami-123,ami-456"}
 				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
 					{
+						Name:         aws.String(coretest.RandomName()),
 						ImageId:      aws.String("ami-123"),
 						Architecture: aws.String("x86_64"),
 						Tags:         []*ec2.Tag{{Key: aws.String(v1.LabelInstanceTypeStable), Value: aws.String("m5.large")}},
 						CreationDate: aws.String("2022-08-15T12:00:00Z"),
 					},
 					{
+						Name:         aws.String(coretest.RandomName()),
 						ImageId:      aws.String("ami-456"),
 						Architecture: aws.String("x86_64"),
 						Tags:         []*ec2.Tag{{Key: aws.String(v1.LabelInstanceTypeStable), Value: aws.String("m5.xlarge")}},
@@ -1607,12 +1616,14 @@ var _ = Describe("LaunchTemplates", func() {
 			It("should create multiple launch templates when multiple amis are discovered with non-equivalent requirements", func() {
 				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
 					{
+						Name:         aws.String(coretest.RandomName()),
 						ImageId:      aws.String("ami-123"),
 						Architecture: aws.String("x86_64"),
 						Tags:         []*ec2.Tag{{Key: aws.String(v1.LabelInstanceTypeStable), Value: aws.String("m5.large")}},
 						CreationDate: aws.String("2022-08-15T12:00:00Z"),
 					},
 					{
+						Name:         aws.String(coretest.RandomName()),
 						ImageId:      aws.String("ami-456"),
 						Architecture: aws.String("x86_64"),
 						Tags:         []*ec2.Tag{{Key: aws.String(v1.LabelInstanceTypeStable), Value: aws.String("m5.xlarge")}},
@@ -1637,17 +1648,20 @@ var _ = Describe("LaunchTemplates", func() {
 			It("should create a launch template with the newest compatible AMI when multiple amis are discovered", func() {
 				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
 					{
+						Name:         aws.String(coretest.RandomName()),
 						ImageId:      aws.String("ami-123"),
 						Architecture: aws.String("x86_64"),
 						CreationDate: aws.String("2020-01-01T12:00:00Z"),
 					},
 					{
+						Name:         aws.String(coretest.RandomName()),
 						ImageId:      aws.String("ami-456"),
 						Architecture: aws.String("x86_64"),
 						CreationDate: aws.String("2021-01-01T12:00:00Z"),
 					},
 					{
 						// Incompatible because required ARM64
+						Name:         aws.String(coretest.RandomName()),
 						ImageId:      aws.String("ami-789"),
 						Architecture: aws.String("arm64"),
 						CreationDate: aws.String("2022-01-01T12:00:00Z"),
@@ -1687,8 +1701,7 @@ var _ = Describe("LaunchTemplates", func() {
 			})
 			It("should fail if no instanceType matches ami requirements.", func() {
 				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
-					{ImageId: aws.String("ami-123"), Architecture: aws.String("newnew"), CreationDate: aws.String("2022-01-01T12:00:00Z")},
-				}})
+					{Name: aws.String(coretest.RandomName()), ImageId: aws.String("ami-123"), Architecture: aws.String("newnew"), CreationDate: aws.String("2022-01-01T12:00:00Z")}}})
 				nodeTemplate.Spec.AMISelector = map[string]string{"karpenter.sh/discovery": "my-cluster"}
 				ExpectApplied(ctx, env.Client, nodeTemplate)
 				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name}})

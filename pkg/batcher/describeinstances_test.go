@@ -66,6 +66,35 @@ var _ = Describe("DescribeInstances Batcher", func() {
 		call := fakeEC2API.DescribeInstancesBehavior.CalledWithInput.Pop()
 		Expect(len(call.InstanceIds)).To(BeNumerically("==", len(instanceIDs)))
 	})
+	It("should batch input correctly when receiving multiple calls with the same instance id", func() {
+		instanceIDs := []string{"i-1", "i-1", "i-1", "i-2", "i-2"}
+		for _, id := range instanceIDs {
+			fakeEC2API.Instances.Store(id, &ec2.Instance{InstanceId: aws.String(id)})
+		}
+
+		var wg sync.WaitGroup
+		var receivedInstance int64
+		for _, instanceID := range instanceIDs {
+			wg.Add(1)
+			go func(instanceID string) {
+				defer GinkgoRecover()
+				defer wg.Done()
+				rsp, err := cfb.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
+					InstanceIds: []*string{aws.String(instanceID)},
+				})
+				Expect(err).To(BeNil())
+				atomic.AddInt64(&receivedInstance, 1)
+				Expect(rsp.Reservations).To(HaveLen(1))
+				Expect(rsp.Reservations[0].Instances).To(HaveLen(1))
+			}(instanceID)
+		}
+		wg.Wait()
+
+		Expect(receivedInstance).To(BeNumerically("==", len(instanceIDs)))
+		Expect(fakeEC2API.DescribeInstancesBehavior.CalledWithInput.Len()).To(BeNumerically("==", 1))
+		call := fakeEC2API.DescribeInstancesBehavior.CalledWithInput.Pop()
+		Expect(len(call.InstanceIds)).To(BeNumerically("==", len(instanceIDs)))
+	})
 	It("should handle partial terminations on batched call and recover with individual requests", func() {
 		instanceIDs := []string{"i-1", "i-2", "i-3"}
 		// Output with only the first Instance

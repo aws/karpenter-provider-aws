@@ -18,6 +18,17 @@ config(){
   RELEASE_TYPE_SNAPSHOT="snapshot"
 }
 
+# versionData sets all the version properties for the passed release version. It sets the values
+# RELEASE_VERSION_MAJOR, RELEASE_VERSION_MINOR, and RELEASE_VERSION_PATCH to be used by other scripts
+versionData(){
+  local VERSION="$1"
+  local VERSION="${VERSION#[vV]}"
+  RELEASE_VERSION_MAJOR="${VERSION%%\.*}"
+  RELEASE_VERSION_MINOR="${VERSION#*.}"
+  RELEASE_VERSION_MINOR="${RELEASE_VERSION_MINOR%.*}"
+  RELEASE_VERSION_PATCH="${VERSION##*.}"
+}
+
 release() {
   RELEASE_VERSION=$1
   echo "Release Type: $(releaseType "${RELEASE_VERSION}")
@@ -137,19 +148,6 @@ publishHelmChart() {
     helm push "${HELM_CHART_FILE_NAME}" "oci://${RELEASE_REPO}"
     rm "${HELM_CHART_FILE_NAME}"
     cd ..
-}
-
-updateKarpenterCoreGoMod(){
-  RELEASE_VERSION=$1
-  if [[ $GITHUB_ACCOUNT != $MAIN_GITHUB_ACCOUNT ]]; then
-    echo "not updating go mod for a repo other than the main repo"
-    return
-  fi
-  go get -u "github.com/aws/karpenter-core@${RELEASE_VERSION}"
-  cd test
-  go get -u "github.com/aws/karpenter-core@${RELEASE_VERSION}"
-  cd ..
-  make tidy
 }
 
 createNewWebsiteDirectory() {

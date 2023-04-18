@@ -42,6 +42,7 @@ import (
 	"github.com/aws/karpenter-core/pkg/scheduling"
 	"github.com/aws/karpenter-core/pkg/utils/functional"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
+	"github.com/aws/karpenter-core/pkg/utils/sets"
 )
 
 type Provider struct {
@@ -56,8 +57,10 @@ type Provider struct {
 }
 
 type AMI struct {
+	Name         string
 	AmiID        string
 	CreationDate string
+	Requirements scheduling.Requirements
 }
 
 const (
@@ -94,45 +97,75 @@ func (p *Provider) KubeServerVersion(ctx context.Context) (string, error) {
 	return version, nil
 }
 
-// Get returns a set of AMIIDs and corresponding instance types. AMI may vary due to architecture, accelerator, etc
-// If AMI overrides are specified in the AWSNodeTemplate, then only those AMIs will be chosen.
-func (p *Provider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, instanceTypes []*cloudprovider.InstanceType, amiFamily AMIFamily) (map[string][]*cloudprovider.InstanceType, error) {
+// MapInstanceTypes returns a map of AMIIDs that are the most recent on creationDate to compatible instancetypes
+func MapInstanceTypes(amis []AMI, instanceTypes []*cloudprovider.InstanceType) map[string][]*cloudprovider.InstanceType {
+	amiIDs := map[string][]*cloudprovider.InstanceType{}
+
+	for _, instanceType := range instanceTypes {
+		for _, ami := range amis {
+			if err := instanceType.Requirements.Compatible(ami.Requirements); err == nil {
+				amiIDs[ami.AmiID] = append(amiIDs[ami.AmiID], instanceType)
+				break
+			}
+		}
+	}
+	return amiIDs
+}
+
+// Get Returning a list of AMIs with its associated requirements
+func (p *Provider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, options *Options) ([]AMI, error) {
+	var err error
+	var amis []AMI
+	if len(nodeTemplate.Spec.AMISelector) == 0 {
+		amis, err = p.getDefaultAMIFromSSM(ctx, nodeTemplate, options)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		amis, err = p.getAMIsFromSelector(ctx, nodeTemplate)
+		if err != nil {
+			return nil, err
+		}
+	}
+	amis = sortAMIsByCreationDate(amis)
+	amis = groupAMIsByRequirements(amis)
+	return amis, nil
+}
+
+// groupAMIsByRequirements gets the most recent AMIs, by creation date, that have a unique set of requirements
+func groupAMIsByRequirements(amis []AMI) []AMI {
+	var result []AMI
+	requirementsHash := sets.New[uint64]()
+	for _, ami := range amis {
+		hash := lo.Must(hashstructure.Hash(ami.Requirements.NodeSelectorRequirements(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true}))
+		if !requirementsHash.Has(hash) {
+			result = append(result, ami)
+		}
+		requirementsHash.Insert(hash)
+	}
+	return result
+}
+
+func (p *Provider) getDefaultAMIFromSSM(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, options *Options) ([]AMI, error) {
+	amiFamily := GetAMIFamily(nodeTemplate.Spec.AMIFamily, options)
 	kubernetesVersion, err := p.KubeServerVersion(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("getting kubernetes version %w", err)
 	}
-	amiIDs := map[string][]*cloudprovider.InstanceType{}
-	amiRequirements, err := p.getAMIRequirements(ctx, nodeTemplate)
-	if err != nil {
-		return nil, err
+
+	var amis []AMI
+	ssmRequirements := amiFamily.DefaultAMIs(kubernetesVersion)
+	for _, ssmOutput := range ssmRequirements {
+		amiID, err := p.fetchAMIsFromSSM(ctx, ssmOutput.Query)
+		if err != nil {
+			return nil, err
+		}
+		amis = append(amis, AMI{Name: ssmOutput.Name, AmiID: amiID, Requirements: ssmOutput.Requirements})
 	}
-	if len(amiRequirements) > 0 {
-		// Iterate through AMIs in order of creation date to use latest AMI
-		amis := sortAMIsByCreationDate(amiRequirements)
-		for _, instanceType := range instanceTypes {
-			for _, ami := range amis {
-				if err := instanceType.Requirements.Compatible(amiRequirements[ami]); err == nil {
-					amiIDs[ami.AmiID] = append(amiIDs[ami.AmiID], instanceType)
-					break
-				}
-			}
-		}
-		if len(amiIDs) == 0 {
-			return nil, fmt.Errorf("no instance types satisfy requirements of amis %v,", lo.Keys(amiRequirements))
-		}
-	} else {
-		for _, instanceType := range instanceTypes {
-			amiID, err := p.getDefaultAMIFromSSM(ctx, amiFamily.SSMAlias(kubernetesVersion, instanceType))
-			if err != nil {
-				return nil, err
-			}
-			amiIDs[amiID] = append(amiIDs[amiID], instanceType)
-		}
-	}
-	return amiIDs, nil
+	return amis, nil
 }
 
-func (p *Provider) getDefaultAMIFromSSM(ctx context.Context, ssmQuery string) (string, error) {
+func (p *Provider) fetchAMIsFromSSM(ctx context.Context, ssmQuery string) (string, error) {
 	if id, ok := p.ssmCache.Get(ssmQuery); ok {
 		return id.(string), nil
 	}
@@ -143,31 +176,24 @@ func (p *Provider) getDefaultAMIFromSSM(ctx context.Context, ssmQuery string) (s
 	ami := aws.StringValue(output.Parameter.Value)
 	p.ssmCache.SetDefault(ssmQuery, ami)
 	if p.cm.HasChanged("ssmquery-"+ssmQuery, ami) {
-		logging.FromContext(ctx).With("ami", ami, "query", ssmQuery).Debugf("discovered new ami")
+		logging.FromContext(ctx).With("ami", ami, "query", ssmQuery).Debugf("discovered ami")
 	}
 	return ami, nil
 }
 
-func (p *Provider) getAMIRequirements(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) (map[AMI]scheduling.Requirements, error) {
-	if len(nodeTemplate.Spec.AMISelector) == 0 {
-		return map[AMI]scheduling.Requirements{}, nil
-	}
-	return p.selectAMIs(ctx, nodeTemplate.Spec.AMISelector)
-}
-
-func (p *Provider) selectAMIs(ctx context.Context, amiSelector map[string]string) (map[AMI]scheduling.Requirements, error) {
-	ec2AMIs, err := p.fetchAMIsFromEC2(ctx, amiSelector)
+func (p *Provider) getAMIsFromSelector(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) ([]AMI, error) {
+	ec2AMIs, err := p.fetchAMIsFromEC2(ctx, nodeTemplate.Spec.AMISelector)
 	if err != nil {
 		return nil, err
 	}
 	if len(ec2AMIs) == 0 {
 		return nil, fmt.Errorf("no amis exist given constraints")
 	}
-	var amiIDs = map[AMI]scheduling.Requirements{}
+	var amis []AMI
 	for _, ec2AMI := range ec2AMIs {
-		amiIDs[AMI{*ec2AMI.ImageId, *ec2AMI.CreationDate}] = p.getRequirementsFromImage(ec2AMI)
+		amis = append(amis, AMI{*ec2AMI.Name, *ec2AMI.ImageId, *ec2AMI.CreationDate, p.getRequirementsFromImage(ec2AMI)})
 	}
-	return amiIDs, nil
+	return amis, nil
 }
 
 func (p *Provider) fetchAMIsFromEC2(ctx context.Context, amiSelector map[string]string) ([]*ec2.Image, error) {
@@ -193,9 +219,20 @@ func (p *Provider) fetchAMIsFromEC2(ctx context.Context, amiSelector map[string]
 	p.ec2Cache.SetDefault(fmt.Sprint(hash), output.Images)
 	amiIDs := lo.Map(output.Images, func(ami *ec2.Image, _ int) string { return *ami.ImageId })
 	if p.cm.HasChanged("amiIDs", amiIDs) {
-		logging.FromContext(ctx).With("ami-ids", amiIDs).Debugf("discovered images")
+		logging.FromContext(ctx).With("ids", concatenateAmiIDs(amiIDs), "count", len(amiIDs)).Debugf("discovered images")
 	}
 	return output.Images, nil
+}
+
+func concatenateAmiIDs(amisIds []string) string {
+	var amiString string
+	if len(amisIds) > 25 {
+		amiString = strings.Join(amisIds[:25], ", ")
+		amiString += fmt.Sprintf(" and %d other(s)", len(amisIds)-25)
+	} else {
+		amiString = strings.Join(amisIds, ", ")
+	}
+	return amiString
 }
 
 func getFiltersAndOwners(amiSelector map[string]string) ([]*ec2.Filter, []*string) {
@@ -233,14 +270,20 @@ func getFiltersAndOwners(amiSelector map[string]string) ([]*ec2.Filter, []*strin
 	return filters, owners
 }
 
-func sortAMIsByCreationDate(amiRequirements map[AMI]scheduling.Requirements) []AMI {
-	amis := lo.Keys(amiRequirements)
-
+// sortAMIsByCreationDate the AMIs are sorted by creation date in descending order.
+// If creation date is nil or two AMIs have the same creation date, the AMIs will be sorted by name in ascending order.
+func sortAMIsByCreationDate(amis []AMI) []AMI {
 	sort.Slice(amis, func(i, j int) bool {
-		itime, _ := time.Parse(time.RFC3339, amis[i].CreationDate)
-		jtime, _ := time.Parse(time.RFC3339, amis[j].CreationDate)
-		return itime.Unix() >= jtime.Unix()
+		if amis[i].CreationDate != "" || amis[j].CreationDate != "" {
+			itime, _ := time.Parse(time.RFC3339, amis[i].CreationDate)
+			jtime, _ := time.Parse(time.RFC3339, amis[j].CreationDate)
+			if itime.Unix() != jtime.Unix() {
+				return itime.Unix() >= jtime.Unix()
+			}
+		}
+		return amis[i].Name >= amis[j].Name
 	})
+
 	return amis
 }
 

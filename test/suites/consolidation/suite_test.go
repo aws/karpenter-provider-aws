@@ -30,6 +30,7 @@ import (
 	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"github.com/aws/karpenter/test/pkg/debug"
 
 	awstest "github.com/aws/karpenter/pkg/test"
 	environmentaws "github.com/aws/karpenter/test/pkg/environment/aws"
@@ -46,9 +47,6 @@ func TestConsolidation(t *testing.T) {
 	BeforeSuite(func() {
 		env = environmentaws.NewEnvironment(t)
 	})
-	AfterSuite(func() {
-		env.Stop()
-	})
 	RunSpecs(t, "Consolidation")
 }
 
@@ -58,7 +56,7 @@ var _ = AfterEach(func() { env.ForceCleanup() })
 var _ = AfterEach(func() { env.AfterEach() })
 
 var _ = Describe("Consolidation", func() {
-	It("should consolidate nodes (delete)", Label(common.NoWatch), Label(common.NoEvents), func() {
+	It("should consolidate nodes (delete)", Label(debug.NoWatch), Label(debug.NoEvents), func() {
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},

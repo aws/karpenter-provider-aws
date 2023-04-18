@@ -167,6 +167,10 @@ var _ = Describe("Instance Types", func() {
 			v1alpha1.LabelInstanceGPUCount:                     "1",
 			v1alpha1.LabelInstanceGPUMemory:                    "16384",
 			v1alpha1.LabelInstanceLocalNVME:                    "900",
+			v1alpha1.LabelInstanceAcceleratorName:              "t4",
+			v1alpha1.LabelInstanceAcceleratorManufacturer:      "nvidia",
+			v1alpha1.LabelInstanceAcceleratorCount:             "1",
+			v1alpha1.LabelInstanceAcceleratorMemory:            "16384",
 			// Deprecated Labels
 			v1.LabelFailureDomainBetaRegion: "",
 			v1.LabelFailureDomainBetaZone:   "test-zone-1a",
@@ -178,6 +182,18 @@ var _ = Describe("Instance Types", func() {
 
 		// Ensure that we're exercising all well known labels
 		Expect(lo.Keys(nodeSelector)).To(ContainElements(append(v1alpha5.WellKnownLabels.UnsortedList(), lo.Keys(v1alpha5.NormalizedLabels)...)))
+		pod := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: nodeSelector})
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+		ExpectScheduled(ctx, env.Client, pod)
+	})
+	It("should support instance type labels with accelerator", func() {
+		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+
+		nodeSelector := map[string]string{
+			v1alpha1.LabelInstanceAcceleratorName:         "inferentia",
+			v1alpha1.LabelInstanceAcceleratorManufacturer: "aws",
+			v1alpha1.LabelInstanceAcceleratorCount:        "1",
+		}
 		pod := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: nodeSelector})
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 		ExpectScheduled(ctx, env.Client, pod)
@@ -793,6 +809,21 @@ var _ = Describe("Instance Types", func() {
 				Expect(it.Overhead.EvictionThreshold.Memory().Value()).To(BeNumerically("~", float64(it.Capacity.Memory().Value())*0.1, 10))
 			})
 		})
+		It("should default max pods based off of network interfaces", func() {
+			instanceInfo, err := awsEnv.InstanceTypesProvider.GetInstanceTypes(ctx)
+			Expect(err).To(BeNil())
+			provisioner = test.Provisioner(coretest.ProvisionerOptions{})
+			for _, info := range instanceInfo {
+				if *info.InstanceType == "t3.large" {
+					it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+					Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 35))
+				}
+				if *info.InstanceType == "m6idn.32xlarge" {
+					it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+					Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 345))
+				}
+			}
+		})
 		It("should set max-pods to user-defined value if specified", func() {
 			instanceInfo, err := awsEnv.InstanceTypesProvider.GetInstanceTypes(ctx)
 			Expect(err).To(BeNil())
@@ -840,7 +871,7 @@ var _ = Describe("Instance Types", func() {
 			provisioner = test.Provisioner(coretest.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{PodsPerCore: ptr.Int32(1)}})
 			for _, info := range instanceInfo {
 				it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
-				limitedPods := resources.Quantity(fmt.Sprint(*info.NetworkInfo.MaximumNetworkInterfaces*(*info.NetworkInfo.Ipv4AddressesPerInterface-1) + 2))
+				limitedPods := instancetype.ENILimitedPods(info)
 				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", limitedPods.Value()))
 			}
 		})
@@ -1212,7 +1243,7 @@ func makeFakeInstances() []*ec2.InstanceTypeInfo {
 	ctx := settings.ToContext(context.Background(), &settings.Settings{IsolatedVPC: true})
 	// Use keys from the static pricing data so that we guarantee pricing for the data
 	// Create uniform instance data so all of them schedule for a given pod
-	for _, it := range pricing.NewProvider(ctx, nil, nil, "us-east-1", nil).InstanceTypes() {
+	for _, it := range pricing.NewProvider(ctx, nil, nil, "us-east-1").InstanceTypes() {
 		instanceTypes = append(instanceTypes, &ec2.InstanceTypeInfo{
 			InstanceType: aws.String(it),
 			ProcessorInfo: &ec2.ProcessorInfo{
@@ -1226,8 +1257,12 @@ func makeFakeInstances() []*ec2.InstanceTypeInfo {
 				SizeInMiB: aws.Int64(8192),
 			},
 			NetworkInfo: &ec2.NetworkInfo{
-				MaximumNetworkInterfaces:  aws.Int64(3),
 				Ipv4AddressesPerInterface: aws.Int64(10),
+				DefaultNetworkCardIndex:   aws.Int64(0),
+				NetworkCards: []*ec2.NetworkCardInfo{{
+					NetworkCardIndex:         lo.ToPtr(int64(0)),
+					MaximumNetworkInterfaces: aws.Int64(3),
+				}},
 			},
 			SupportedUsageClasses: fake.DefaultSupportedUsageClasses,
 		})

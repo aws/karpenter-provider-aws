@@ -16,3 +16,4 @@ git reset --hard
 if [[ $(releaseType $GIT_TAG) == $RELEASE_TYPE_STABLE ]]; then
   release $GIT_TAG
 fi
+

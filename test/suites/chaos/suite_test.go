@@ -41,6 +41,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	awstest "github.com/aws/karpenter/pkg/test"
+	"github.com/aws/karpenter/test/pkg/debug"
 	"github.com/aws/karpenter/test/pkg/environment/common"
 )
 
@@ -50,9 +51,6 @@ func TestChaos(t *testing.T) {
 	RegisterFailHandler(Fail)
 	BeforeSuite(func() {
 		env = common.NewEnvironment(t)
-	})
-	AfterSuite(func() {
-		env.Stop()
 	})
 	RunSpecs(t, "Chaos")
 }
@@ -64,7 +62,7 @@ var _ = AfterEach(func() { env.AfterEach() })
 
 var _ = Describe("Chaos", func() {
 	Describe("Runaway Scale-Up", func() {
-		It("should not produce a runaway scale-up when consolidation is enabled", Label(common.NoWatch), Label(common.NoEvents), func() {
+		It("should not produce a runaway scale-up when consolidation is enabled", Label(debug.NoWatch), Label(debug.NoEvents), func() {
 			ctx, cancel := context.WithCancel(env.Context)
 			defer cancel()
 
@@ -109,7 +107,7 @@ var _ = Describe("Chaos", func() {
 				g.Expect(len(list.Items)).To(BeNumerically("<", 35))
 			}, time.Minute*5).Should(Succeed())
 		})
-		It("should not produce a runaway scale-up when ttlSecondsAfterEmpty is enabled", Label(common.NoWatch), Label(common.NoEvents), func() {
+		It("should not produce a runaway scale-up when ttlSecondsAfterEmpty is enabled", Label(debug.NoWatch), Label(debug.NoEvents), func() {
 			ctx, cancel := context.WithCancel(env.Context)
 			defer cancel()
 

@@ -1,0 +1,21 @@
+name: DocGenCI
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  id-token: write
+
+jobs:
+  docgen-ci:
+    if: github.repository == 'aws/karpenter'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/install-go-and-dependencies
+      - uses: ./.github/actions/authenticate-aws
+      - run: make docgen
+      - run: make codegen
+        env:
+          ENABLE_GIT_PUSH: false

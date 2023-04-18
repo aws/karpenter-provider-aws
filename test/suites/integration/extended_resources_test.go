@@ -75,7 +75,7 @@ var _ = Describe("Extended Resources", func() {
 		env.ExpectCreated(provisioner, provider, dep)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 1)
-		env.EventuallyExpectCreatedNodesInitialized()
+		env.EventuallyExpectInitializedNodeCount("==", 1)
 	})
 	It("should provision nodes for a deployment that requests nvidia.com/gpu (Bottlerocket)", func() {
 		// For Bottlerocket, we are testing that resources are initialized without needing a device plugin
@@ -114,7 +114,7 @@ var _ = Describe("Extended Resources", func() {
 		env.ExpectCreated(provisioner, provider, dep)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 1)
-		env.EventuallyExpectCreatedNodesInitialized()
+		env.EventuallyExpectInitializedNodeCount("==", 1)
 	})
 	It("should provision nodes for a deployment that requests vpc.amazonaws.com/pod-eni (security groups for pods)", func() {
 		ExpectPodENIEnabled()
@@ -158,7 +158,7 @@ var _ = Describe("Extended Resources", func() {
 		env.ExpectCreated(provisioner, provider, dep)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 1)
-		env.EventuallyExpectCreatedNodesInitialized()
+		env.EventuallyExpectInitializedNodeCount("==", 1)
 	})
 	It("should provision nodes for a deployment that requests amd.com/gpu", func() {
 		Skip("skipping test on AMD instance types")
@@ -216,7 +216,7 @@ var _ = Describe("Extended Resources", func() {
 			g.Expect(env.Monitor.RunningPodsCount(selector)).To(Equal(numPods))
 		}).WithTimeout(15 * time.Minute).Should(Succeed()) // The node needs additional time to install the AMD GPU driver
 		env.ExpectCreatedNodeCount("==", 1)
-		env.EventuallyExpectCreatedNodesInitialized()
+		env.EventuallyExpectInitializedNodeCount("==", 1)
 	})
 	// Need to subscribe to the AMI to run the test successfully
 	// https://aws.amazon.com/marketplace/pp/prodview-st5jc2rk3phr2?sr=0-2&ref_=beagle&applicationId=AWSMPContessa
@@ -267,7 +267,7 @@ var _ = Describe("Extended Resources", func() {
 		env.ExpectCreated(provisioner, provider, dep)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 1)
-		env.EventuallyExpectCreatedNodesInitialized()
+		env.EventuallyExpectInitializedNodeCount("==", 1)
 	})
 })
 
