@@ -83,7 +83,3 @@ func (w Windows) DefaultBlockDeviceMappings() []*v1alpha1.BlockDeviceMapping {
 func (w Windows) EphemeralBlockDevice() *string {
 	return aws.String("/dev/sda1")
 }
-
-func (w Windows) IsWindows() bool {
-	return true
-}

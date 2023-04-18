@@ -24,6 +24,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aws/karpenter/pkg/providers/amifamily"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	. "github.com/onsi/ginkgo/v2"
@@ -873,7 +875,8 @@ var _ = Describe("Instance Types", func() {
 			provisioner = test.Provisioner(coretest.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{PodsPerCore: ptr.Int32(1)}})
 			for _, info := range instanceInfo {
 				it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
-				limitedPods := instancetype.ENILimitedPods(info)
+				amiFamily := amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, &amifamily.Options{})
+				limitedPods := instancetype.ENILimitedPods(info, amiFamily)
 				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", limitedPods.Value()))
 			}
 		})

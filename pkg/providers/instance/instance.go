@@ -586,7 +586,7 @@ func GetCapacityType(instance *ec2.Instance) string {
 }
 
 func GetOS(instance *ec2.Instance) string {
-	if strings.ToLower(aws.StringValue(instance.Platform)) == strings.ToLower(ec2.PlatformValuesWindows) {
+	if strings.EqualFold(aws.StringValue(instance.Platform), ec2.PlatformValuesWindows) {
 		return string(v1.Windows)
 	}
 	return string(v1.Linux)

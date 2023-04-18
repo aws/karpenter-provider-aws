@@ -38,23 +38,23 @@ var (
 	RestrictedLabelDomains = []string{
 		LabelDomain,
 	}
-	AMIFamilyBottlerocket  = "Bottlerocket"
-	AMIFamilyAL2           = "AL2"
-	AMIFamilyUbuntu        = "Ubuntu"
-	AMIFamilyWindowsServer = "WindowsServer"
-	AMIFamilyCustom        = "Custom"
-	SupportedAMIFamilies   = []string{
+	AMIFamilyBottlerocket = "Bottlerocket"
+	AMIFamilyAL2          = "AL2"
+	AMIFamilyUbuntu       = "Ubuntu"
+	AMIFamilyWindows      = "Windows"
+	AMIFamilyCustom       = "Custom"
+	SupportedAMIFamilies  = []string{
 		AMIFamilyBottlerocket,
 		AMIFamilyAL2,
 		AMIFamilyUbuntu,
-		AMIFamilyWindowsServer,
+		AMIFamilyWindows,
 		AMIFamilyCustom,
 	}
 	SupportedContainerRuntimesByAMIFamily = map[string]sets.String{
-		AMIFamilyBottlerocket:  sets.NewString("containerd"),
-		AMIFamilyAL2:           sets.NewString("dockerd", "containerd"),
-		AMIFamilyUbuntu:        sets.NewString("dockerd", "containerd"),
-		AMIFamilyWindowsServer: sets.NewString("containerd"),
+		AMIFamilyBottlerocket: sets.NewString("containerd"),
+		AMIFamilyAL2:          sets.NewString("dockerd", "containerd"),
+		AMIFamilyUbuntu:       sets.NewString("dockerd", "containerd"),
+		AMIFamilyWindows:      sets.NewString("containerd"),
 	}
 
 	Windows2019              = "2019"

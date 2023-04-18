@@ -17,10 +17,11 @@ package amifamily
 import (
 	"context"
 	"fmt"
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"

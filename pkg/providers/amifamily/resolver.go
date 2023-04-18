@@ -78,7 +78,6 @@ type AMIFamily interface {
 	DefaultMetadataOptions() *v1alpha1.MetadataOptions
 	EphemeralBlockDevice() *string
 	FeatureFlags() FeatureFlags
-	IsWindows() bool
 }
 
 type DefaultAMIOutput struct {
@@ -103,10 +102,6 @@ func (d DefaultFamily) FeatureFlags() FeatureFlags {
 		PodsPerCoreEnabled:           true,
 		EvictionSoftEnabled:          true,
 	}
-}
-
-func (d DefaultFamily) IsWindows() bool {
-	return false
 }
 
 // New constructs a new launch template Resolver
@@ -167,7 +162,7 @@ func GetAMIFamily(amiFamily *string, options *Options) AMIFamily {
 		return &Bottlerocket{Options: options}
 	case v1alpha1.AMIFamilyUbuntu:
 		return &Ubuntu{Options: options}
-	case v1alpha1.AMIFamilyWindowsServer:
+	case v1alpha1.AMIFamilyWindows:
 		return &Windows{Options: options}
 	case v1alpha1.AMIFamilyCustom:
 		return &Custom{Options: options}

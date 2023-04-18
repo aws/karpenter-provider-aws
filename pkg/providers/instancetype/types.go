@@ -61,7 +61,7 @@ func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, kc *v1alph
 		Offerings:    offerings,
 		Capacity:     computeCapacity(ctx, info, amiFamily, nodeTemplate.Spec.BlockDeviceMappings, kc),
 		Overhead: &cloudprovider.InstanceTypeOverhead{
-			KubeReserved:      kubeReservedResources(cpu(info), pods(ctx, info, amiFamily, kc), ENILimitedPods(info), amiFamily, kc),
+			KubeReserved:      kubeReservedResources(cpu(info), pods(ctx, info, amiFamily, kc), ENILimitedPods(info, amiFamily), amiFamily, kc),
 			SystemReserved:    systemReservedResources(kc),
 			EvictionThreshold: evictionThreshold(memory(ctx, info), ephemeralStorage(amiFamily, nodeTemplate.Spec.BlockDeviceMappings), amiFamily, kc),
 		},
@@ -196,7 +196,7 @@ func computeCapacity(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily 
 		v1alpha1.ResourceAWSNeuron:   *awsNeurons(info),
 		v1alpha1.ResourceHabanaGaudi: *habanaGaudis(info),
 	}
-	if amiFamily.IsWindows() {
+	if _, ok := amiFamily.(amifamily.Windows); ok {
 		resourceList[v1alpha1.ResourcePrivateIPv4Address] = *privateIPv4Address(aws.StringValue(info.InstanceType))
 	}
 	return resourceList
@@ -298,10 +298,16 @@ func habanaGaudis(info *ec2.InstanceTypeInfo) *resource.Quantity {
 	return resources.Quantity(fmt.Sprint(count))
 }
 
-// The number of pods per node is calculated using the formula:
-// max number of ENIs * (IPv4 Addresses per ENI -1) + 2
-// https://github.com/awslabs/amazon-eks-ami/blob/master/files/eni-max-pods.txt#L20
-func ENILimitedPods(info *ec2.InstanceTypeInfo) *resource.Quantity {
+func ENILimitedPods(info *ec2.InstanceTypeInfo, amiFamily amifamily.AMIFamily) *resource.Quantity {
+	// https://docs.aws.amazon.com/eks/latest/userguide/windows-support.html
+	// The number of pods that you can run per Windows node is equal to the number of IP addresses
+	// available per elastic network interface for the node's instance type, minus one
+	if _, ok := amiFamily.(amifamily.Windows); ok {
+		return resources.Quantity(fmt.Sprint(aws.Int64Value(info.NetworkInfo.Ipv4AddressesPerInterface) - 1))
+	}
+	// The number of pods per node is calculated using the formula:
+	// max number of ENIs * (IPv4 Addresses per ENI -1) + 2
+	// https://github.com/awslabs/amazon-eks-ami/blob/master/files/eni-max-pods.txt#L20
 	// VPC CNI only uses the default network interface
 	// https://github.com/aws/amazon-vpc-cni-k8s/blob/3294231c0dce52cfe473bf6c62f47956a3b333b6/scripts/gen_vpc_ip_limits.go#L162
 	networkInterfaces := *info.NetworkInfo.NetworkCards[*info.NetworkInfo.DefaultNetworkCardIndex].MaximumNetworkInterfaces
@@ -386,15 +392,16 @@ func evictionThreshold(memory *resource.Quantity, storage *resource.Quantity, am
 
 func pods(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily amifamily.AMIFamily, kc *v1alpha5.KubeletConfiguration) *resource.Quantity {
 	var count int64
+	_, isWindows := amiFamily.(amifamily.Windows)
 	switch {
-	case amiFamily.IsWindows():
-		count = aws.Int64Value(info.NetworkInfo.Ipv4AddressesPerInterface) - 1
+	case isWindows:
+		count = ENILimitedPods(info, amiFamily).Value()
 	case kc != nil && kc.MaxPods != nil:
 		count = int64(ptr.Int32Value(kc.MaxPods))
 	case !awssettings.FromContext(ctx).EnableENILimitedPodDensity:
 		count = 110
 	default:
-		count = ENILimitedPods(info).Value()
+		count = ENILimitedPods(info, amiFamily).Value()
 	}
 	if kc != nil && ptr.Int32Value(kc.PodsPerCore) > 0 && amiFamily.FeatureFlags().PodsPerCoreEnabled {
 		count = lo.Min([]int64{int64(ptr.Int32Value(kc.PodsPerCore)) * ptr.Int64Value(info.VCpuInfo.DefaultVCpus), count})
