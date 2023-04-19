@@ -87,13 +87,7 @@ func (p *Provider) Create(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTem
 	if len(instanceTypes) > MaxInstanceTypes {
 		instanceTypes = instanceTypes[0:MaxInstanceTypes]
 	}
-
-	tags := lo.Assign(map[string]string{
-		"Name": fmt.Sprintf("%s/%s", v1alpha5.ProvisionerNameLabelKey, machine.Labels[v1alpha5.ProvisionerNameLabelKey]),
-		fmt.Sprintf("kubernetes.io/cluster/%s", settings.FromContext(ctx).ClusterName): "owned",
-		v1alpha5.ProvisionerNameLabelKey:                                               machine.Labels[v1alpha5.ProvisionerNameLabelKey],
-		v1alpha5.ManagedByLabelKey:                                                     settings.FromContext(ctx).ClusterName,
-	}, settings.FromContext(ctx).Tags, nodeTemplate.Spec.Tags)
+	tags := getTags(ctx, nodeTemplate, machine)
 	fleetInstance, err := p.launchInstance(ctx, nodeTemplate, machine, instanceTypes, tags)
 	if awserrors.IsLaunchTemplateNotFound(err) {
 		// retry once if launch template is not found. This allows karpenter to generate a new LT if the
@@ -192,7 +186,6 @@ func (p *Provider) launchInstance(ctx context.Context, nodeTemplate *v1alpha1.AW
 	if err != nil {
 		return nil, fmt.Errorf("getting subnets, %w", err)
 	}
-	tags := getTags(ctx, nodeTemplate, machine)
 
 	// Get Launch Template Configs, which may differ due to GPU or Architecture requirements
 	launchTemplateConfigs, err := p.getLaunchTemplateConfigs(ctx, nodeTemplate, machine, instanceTypes, zonalSubnets, capacityType, tags)
