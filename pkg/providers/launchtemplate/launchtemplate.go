@@ -88,7 +88,7 @@ func NewProvider(ctx context.Context, cache *cache.Cache, ec2api ec2iface.EC2API
 }
 
 func (p *Provider) EnsureAll(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, machine *v1alpha5.Machine,
-	instanceTypes []*cloudprovider.InstanceType, additionalLabels map[string]string) (map[string][]*cloudprovider.InstanceType, error) {
+	instanceTypes []*cloudprovider.InstanceType, additionalLabels map[string]string, tags map[string]string) (map[string][]*cloudprovider.InstanceType, error) {
 
 	p.Lock()
 	defer p.Unlock()
@@ -96,7 +96,7 @@ func (p *Provider) EnsureAll(ctx context.Context, nodeTemplate *v1alpha1.AWSNode
 	if nodeTemplate.Spec.LaunchTemplateName != nil {
 		return map[string][]*cloudprovider.InstanceType{ptr.StringValue(nodeTemplate.Spec.LaunchTemplateName): instanceTypes}, nil
 	}
-	options, err := p.createAMIOptions(ctx, machine, nodeTemplate, lo.Assign(machine.Labels, additionalLabels))
+	options, err := p.createAMIOptions(ctx, nodeTemplate, lo.Assign(machine.Labels, additionalLabels), tags)
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +135,7 @@ func launchTemplateName(options *amifamily.LaunchTemplate) string {
 	return fmt.Sprintf(launchTemplateNameFormat, fmt.Sprint(hash))
 }
 
-func (p *Provider) createAMIOptions(ctx context.Context, machine *v1alpha5.Machine, nodeTemplate *v1alpha1.AWSNodeTemplate, labels map[string]string) (*amifamily.Options, error) {
+func (p *Provider) createAMIOptions(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, labels, tags map[string]string) (*amifamily.Options, error) {
 	instanceProfile, err := p.getInstanceProfile(ctx, nodeTemplate)
 	if err != nil {
 		return nil, err
@@ -154,14 +154,10 @@ func (p *Provider) createAMIOptions(ctx context.Context, machine *v1alpha5.Machi
 		AWSENILimitedPodDensity: settings.FromContext(ctx).EnableENILimitedPodDensity,
 		InstanceProfile:         instanceProfile,
 		SecurityGroupsIDs:       securityGroupsIDs,
-		Tags: lo.Assign(settings.FromContext(ctx).Tags, nodeTemplate.Spec.Tags, map[string]string{
-			"Name": fmt.Sprintf("%s/%s", v1alpha5.ProvisionerNameLabelKey, machine.Labels[v1alpha5.ProvisionerNameLabelKey]),
-			fmt.Sprintf("kubernetes.io/cluster/%s", settings.FromContext(ctx).ClusterName): "owned",
-			v1alpha5.ProvisionerNameLabelKey:                                               machine.Labels[v1alpha5.ProvisionerNameLabelKey],
-		}),
-		Labels:    labels,
-		CABundle:  p.caBundle,
-		KubeDNSIP: p.KubeDNSIP,
+		Tags:                    tags,
+		Labels:                  labels,
+		CABundle:                p.caBundle,
+		KubeDNSIP:               p.KubeDNSIP,
 	}, nil
 }
 
