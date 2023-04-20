@@ -23,7 +23,10 @@ import (
 	"github.com/go-playground/validator/v10"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
+	"knative.dev/pkg/apis"
 	"knative.dev/pkg/configmap"
+
+	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 )
 
 type NodeNameConvention string
@@ -101,6 +104,7 @@ func (*Settings) Inject(ctx context.Context, cm *v1.ConfigMap) (context.Context,
 func (s Settings) Validate() error {
 	return multierr.Combine(
 		s.validateEndpoint(),
+		s.validateTags(),
 		validator.New().Struct(s),
 	)
 }
@@ -116,6 +120,17 @@ func (s Settings) validateEndpoint() error {
 		return fmt.Errorf("\"%s\" not a valid clusterEndpoint URL", s.ClusterEndpoint)
 	}
 	return nil
+}
+
+func (s Settings) validateTags() (err error) {
+	for k := range s.Tags {
+		for _, pattern := range v1alpha1.RestrictedTagPatterns {
+			if pattern.MatchString(k) {
+				err = multierr.Append(err, apis.ErrInvalidKeyName(k, "tags", fmt.Sprintf("tag contains a restricted tag %q", pattern.String())))
+			}
+		}
+	}
+	return err
 }
 
 func ToContext(ctx context.Context, s *Settings) context.Context {

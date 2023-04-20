@@ -247,7 +247,7 @@ karpenter.sh/provisioner-name: <provisioner-name>
 kubernetes.io/cluster/<cluster-name>: owned
 ```
 
-Additional tags can be added in the AWSNodeTemplate tags section which are merged with global tags in `aws.tags` (located in karpenter-global-settings ConfigMap) and can override the default tag values.
+Additional tags can be added in the AWSNodeTemplate tags section which are merged with global tags in `aws.tags` (located in karpenter-global-settings ConfigMap).
 ```yaml
 spec:
   tags:
@@ -255,6 +255,8 @@ spec:
     dev.corp.net/app: Calculator
     dev.corp.net/team: MyTeam
 ```
+
+Karpenter allows overrides of the default "Name" tag but does not allow overrides to restricted domains (such as "karpenter.sh", "karpenter.k8s.aws", and "kubernetes.io/cluster"). This ensures that Karpenter is able to correctly auto-discover machines that it owns.
 
 ## spec.metadataOptions
 
