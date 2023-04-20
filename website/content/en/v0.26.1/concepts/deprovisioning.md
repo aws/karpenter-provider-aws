@@ -13,6 +13,7 @@ The finalizer blocks deletion of the node object while the Termination Controlle
 ### Deprovisioning Controller
 Karpenter automatically discovers deprovisionable nodes and spins up replacements when needed. Karpenter deprovisions nodes by executing one [automatic method](#methods) at a time, in order of Expiration, Drift, Emptiness, and then Consolidation. Each method varies slightly but they all follow the standard deprovisioning process:
 1. Identify a list of prioritized candidates for the deprovisioning method.
+   * If there are [pods that cannot be evicted](#pod-eviction) on the node, Karpenter will ignore the node and try deprovisioning it later.
    * If there are no deprovisionable nodes, continue to the next deprovisioning method.
 2. For each deprovisionable node, execute a scheduling simulation with the pods on the node to find if any replacement nodes are needed.
 3. Cordon the node(s) to prevent pods from scheduling to it.

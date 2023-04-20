@@ -102,6 +102,12 @@ By adopting this practice we allow our users who are early adopters to test out 
 
 # Released Upgrade Notes
 
+## Upgrading to v0.28.0+
+* Karpenter now defines a set of "restricted tags" which can't be overridden with custom tagging in the AWSNodeTemplate or in the "karpenter-global-settings" ConfigMap. These tags include:
+  * karpenter.sh/provisioner-name
+  * kubernetes.io/cluster/<cluster-name>
+If you are currently using any of these tag overrides when tagging your instances, webhook validation will now fail.
+
 ## Upgrading to v0.27.0+
 * The Karpenter controller pods now deploy with `kubernetes.io/hostname` self anti-affinity by default. If you are running Karpenter in HA (high-availability) mode and you do not have enough nodes to match the number of pod replicas you are deploying with, you will need to scale-out your nodes for Karpenter.
 * The following controller metrics changed and moved under the `controller_runtime` metrics namespace:

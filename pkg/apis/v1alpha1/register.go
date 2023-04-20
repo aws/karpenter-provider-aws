@@ -15,6 +15,9 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"fmt"
+	"regexp"
+
 	"github.com/aws/aws-sdk-go/service/ec2"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -37,6 +40,13 @@ var (
 	}
 	RestrictedLabelDomains = []string{
 		LabelDomain,
+	}
+	RestrictedTagPatterns = []*regexp.Regexp{
+		// Adheres to cluster name pattern matching as specified in the API spec
+		// https://docs.aws.amazon.com/eks/latest/APIReference/API_CreateCluster.html
+		regexp.MustCompile(`^kubernetes.io/cluster/[0-9A-Za-z][A-Za-z0-9\-_]*$`),
+		regexp.MustCompile(fmt.Sprintf("^%s$", v1alpha5.ProvisionerNameLabelKey)),
+		regexp.MustCompile(fmt.Sprintf("^%s$", v1alpha5.ManagedByLabelKey)),
 	}
 	AMIFamilyBottlerocket = "Bottlerocket"
 	AMIFamilyAL2          = "AL2"

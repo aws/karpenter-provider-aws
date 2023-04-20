@@ -54,6 +54,7 @@ func (a *AWSNodeTemplateSpec) validate(_ context.Context) (errs *apis.FieldError
 		a.validateUserData(),
 		a.validateAMISelector(),
 		a.validateAMIFamily(),
+		a.validateTags(),
 	)
 }
 
@@ -95,6 +96,17 @@ func (a *AWSNodeTemplateSpec) validateAMISelector() (errs *apis.FieldError) {
 					message := fmt.Sprintf("%s['%s'] must be a valid ami-id (regex: %s)", amiSelectorPath, key, amiRegex.String())
 					errs = errs.Also(apis.ErrInvalidValue(fieldValue, message))
 				}
+			}
+		}
+	}
+	return errs
+}
+
+func (a *AWSNodeTemplateSpec) validateTags() (errs *apis.FieldError) {
+	for k := range a.Tags {
+		for _, pattern := range RestrictedTagPatterns {
+			if pattern.MatchString(k) {
+				errs = errs.Also(apis.ErrInvalidKeyName(k, "tags", fmt.Sprintf("tag contains a restricted tag matching %q", pattern.String())))
 			}
 		}
 	}
