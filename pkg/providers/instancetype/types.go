@@ -107,10 +107,9 @@ func computeRequirements(ctx context.Context, info *ec2.InstanceTypeInfo, offeri
 		requirements[v1alpha1.LabelInstanceCategory].Insert(instanceFamilyParts[1])
 		requirements[v1alpha1.LabelInstanceGeneration].Insert(instanceFamilyParts[3])
 	}
-	instanceTypeParts := strings.Split(aws.StringValue(info.InstanceType), ".")
-	if len(instanceTypeParts) == 2 {
-		requirements.Get(v1alpha1.LabelInstanceFamily).Insert(instanceTypeParts[0])
-		requirements.Get(v1alpha1.LabelInstanceSize).Insert(instanceTypeParts[1])
+	if family, size, ok := computeInstanceFamilyAndSize(aws.StringValue(info.InstanceType)); ok {
+		requirements.Get(v1alpha1.LabelInstanceFamily).Insert(family)
+		requirements.Get(v1alpha1.LabelInstanceSize).Insert(size)
 	}
 	if info.InstanceStorageInfo != nil && aws.StringValue(info.InstanceStorageInfo.NvmeSupport) != ec2.EphemeralNvmeSupportUnsupported {
 		requirements[v1alpha1.LabelInstanceLocalNVME].Insert(fmt.Sprint(aws.Int64Value(info.InstanceStorageInfo.TotalSizeInGB)))
@@ -164,8 +163,7 @@ func isSupportedForWindows(info *ec2.InstanceTypeInfo) bool {
 	//https://docs.aws.amazon.com/eks/latest/userguide/windows-support.html
 	//Amazon EC2 instance types C3, C4, D2, I2, M4 (excluding m4.16xlarge), M6a.x, and R3 instances aren't supported for Windows workloads.
 	//From AWS support, M6a.x means all types in m6a family
-	split := strings.Split(*info.InstanceType, ".")
-	if len(split) != 2 || len(split) == 2 && lo.Contains(instanceFamiliesLinuxOnly, split[0]) {
+	if family, _, ok := computeInstanceFamilyAndSize(aws.StringValue(info.InstanceType)); !ok || lo.Contains(instanceFamiliesLinuxOnly, family) {
 		return false
 	}
 
@@ -196,7 +194,7 @@ func computeCapacity(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily 
 		v1alpha1.ResourceAWSNeuron:   *awsNeurons(info),
 		v1alpha1.ResourceHabanaGaudi: *habanaGaudis(info),
 	}
-	if _, ok := amiFamily.(amifamily.Windows); ok {
+	if _, ok := amiFamily.(*amifamily.Windows); ok {
 		resourceList[v1alpha1.ResourcePrivateIPv4Address] = *privateIPv4Address(aws.StringValue(info.InstanceType))
 	}
 	return resourceList
@@ -228,6 +226,12 @@ func ephemeralStorage(amiFamily amifamily.AMIFamily, blockDeviceMappings []*v1al
 				}
 			}
 		}
+	}
+	//Return the ephemeralBlockDevice size if defined in ami
+	if ephemeralBlockDevice, ok := lo.Find(amiFamily.DefaultBlockDeviceMappings(), func(item *v1alpha1.BlockDeviceMapping) bool {
+		return *amiFamily.EphemeralBlockDevice() == *item.DeviceName
+	}); ok {
+		return ephemeralBlockDevice.EBS.VolumeSize
 	}
 	return amifamily.DefaultEBS.VolumeSize
 }
@@ -302,7 +306,7 @@ func ENILimitedPods(info *ec2.InstanceTypeInfo, amiFamily amifamily.AMIFamily) *
 	// https://docs.aws.amazon.com/eks/latest/userguide/windows-support.html
 	// The number of pods that you can run per Windows node is equal to the number of IP addresses
 	// available per elastic network interface for the node's instance type, minus one
-	if _, ok := amiFamily.(amifamily.Windows); ok {
+	if _, ok := amiFamily.(*amifamily.Windows); ok {
 		return resources.Quantity(fmt.Sprint(aws.Int64Value(info.NetworkInfo.Ipv4AddressesPerInterface) - 1))
 	}
 	// The number of pods per node is calculated using the formula:
@@ -392,7 +396,7 @@ func evictionThreshold(memory *resource.Quantity, storage *resource.Quantity, am
 
 func pods(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily amifamily.AMIFamily, kc *v1alpha5.KubeletConfiguration) *resource.Quantity {
 	var count int64
-	_, isWindows := amiFamily.(amifamily.Windows)
+	_, isWindows := amiFamily.(*amifamily.Windows)
 	switch {
 	case isWindows:
 		count = ENILimitedPods(info, amiFamily).Value()
@@ -437,4 +441,12 @@ func mustParsePercentage(v string) float64 {
 		p = 0
 	}
 	return p
+}
+
+func computeInstanceFamilyAndSize(instanceType string) (string, string, bool) {
+	instanceTypeParts := strings.Split(instanceType, ".")
+	if len(instanceTypeParts) == 2 {
+		return instanceTypeParts[0], instanceTypeParts[1], true
+	}
+	return "", "", false
 }

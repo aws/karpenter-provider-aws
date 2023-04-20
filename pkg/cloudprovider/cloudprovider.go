@@ -330,8 +330,8 @@ func (c *CloudProvider) instanceToMachine(ctx context.Context, ec2instance *ec2.
 	if tag, ok := lo.Find(ec2instance.Tags, func(t *ec2.Tag) bool { return aws.StringValue(t.Key) == v1alpha5.ManagedByLabelKey }); ok {
 		labels[v1alpha5.ManagedByLabelKey] = aws.StringValue(tag.Value)
 	}
-	if tag, ok := lo.Find(ec2instance.Tags, func(t *ec2.Tag) bool { return aws.StringValue(t.Key) == v1alpha1.LabelWindowsVersion }); ok {
-		labels[v1alpha1.LabelWindowsVersion] = aws.StringValue(tag.Value)
+	if tag, ok := lo.Find(ec2instance.Tags, func(t *ec2.Tag) bool { return aws.StringValue(t.Key) == v1.LabelWindowsBuild }); ok {
+		labels[v1.LabelWindowsBuild] = aws.StringValue(tag.Value)
 	}
 	if tag, ok := lo.Find(ec2instance.Tags, func(t *ec2.Tag) bool { return aws.StringValue(t.Key) == v1alpha1.LabelWindowsVariant }); ok {
 		labels[v1alpha1.LabelWindowsVariant] = aws.StringValue(tag.Value)

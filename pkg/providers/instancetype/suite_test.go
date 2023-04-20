@@ -153,6 +153,7 @@ var _ = Describe("Instance Types", func() {
 			v1.LabelOSStable:                 "linux",
 			v1.LabelArchStable:               "amd64",
 			v1alpha5.LabelCapacityType:       "on-demand",
+			v1.LabelWindowsBuild:             "10.0.17763",
 			// Well Known to AWS
 			v1alpha1.LabelInstanceHypervisor:                   "nitro",
 			v1alpha1.LabelInstanceEncryptionInTransitSupported: "true",
@@ -180,7 +181,6 @@ var _ = Describe("Instance Types", func() {
 			"beta.kubernetes.io/os":         "linux",
 			v1.LabelInstanceType:            "g4dn.8xlarge",
 			"topology.ebs.csi.aws.com/zone": "test-zone-1a",
-			v1alpha1.LabelWindowsVersion:    "2019",
 			v1alpha1.LabelWindowsVariant:    "Core",
 		}
 

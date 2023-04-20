@@ -57,13 +57,15 @@ var (
 		AMIFamilyWindows:      sets.NewString("containerd"),
 	}
 
-	Windows2019              = "2019"
-	Windows2022              = "2022"
-	WindowsCore              = "Core"
-	WindowsFull              = "Full"
-	SupportedWindowsVersions = []string{
-		Windows2019,
-		Windows2022,
+	Windows2019                            = "2019"
+	Windows2019Build                       = "10.0.17763"
+	Windows2022                            = "2022"
+	Windows2022Build                       = "10.0.20348"
+	WindowsCore                            = "Core"
+	WindowsFull                            = "Full"
+	SupportedWindowsVersionAndBuildMapping = map[string]string{
+		Windows2019: Windows2019Build,
+		Windows2022: Windows2022Build,
 	}
 	SupportedWindowsVariants = []string{
 		WindowsCore,
@@ -105,7 +107,6 @@ var (
 	LabelInstanceAcceleratorCount        = LabelDomain + "/instance-accelerator-count"
 	LabelInstanceAcceleratorMemory       = LabelDomain + "/instance-accelerator-memory"
 
-	LabelWindowsVersion = LabelDomain + "/windows-version"
 	LabelWindowsVariant = LabelDomain + "/windows-variant"
 
 	InterruptionInfrastructureFinalizer = Group + "/interruption-infrastructure"
@@ -149,7 +150,7 @@ func init() {
 		LabelInstanceAcceleratorManufacturer,
 		LabelInstanceAcceleratorCount,
 		LabelInstanceAcceleratorMemory,
-		LabelWindowsVersion,
+		v1.LabelWindowsBuild, //Todo: Move this to core
 		LabelWindowsVariant,
 	)
 }

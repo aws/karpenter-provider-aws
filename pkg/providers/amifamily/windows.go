@@ -40,14 +40,14 @@ type Windows struct {
 }
 
 func (w Windows) DefaultAMIs(version string) (results []DefaultAMIOutput) {
-	for _, windowsVersion := range v1alpha1.SupportedWindowsVersions {
+	for windowsVersion, windowsBuild := range v1alpha1.SupportedWindowsVersionAndBuildMapping {
 		for _, windowsVariant := range v1alpha1.SupportedWindowsVariants {
 			results = append(results, DefaultAMIOutput{Name: fmt.Sprintf("windows-server-%s-%s-%s", windowsVersion, windowsVariant, version),
 				Query: fmt.Sprintf("/aws/service/ami-windows-latest/Windows_Server-%s-English-%s-EKS_Optimized-%s/image_id", windowsVersion, windowsVariant, version),
 				Requirements: scheduling.NewRequirements(
 					scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureAmd64),
 					scheduling.NewRequirement(v1.LabelOSStable, v1.NodeSelectorOpIn, string(v1.Windows)),
-					scheduling.NewRequirement(v1alpha1.LabelWindowsVersion, v1.NodeSelectorOpIn, windowsVersion),
+					scheduling.NewRequirement(v1.LabelWindowsBuild, v1.NodeSelectorOpIn, windowsBuild),
 					scheduling.NewRequirement(v1alpha1.LabelWindowsVariant, v1.NodeSelectorOpIn, windowsVariant),
 				)})
 		}
