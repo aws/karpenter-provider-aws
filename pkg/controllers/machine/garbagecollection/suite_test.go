@@ -330,6 +330,7 @@ var _ = Describe("MachineGarbageCollection", func() {
 				},
 			},
 		})
+		machine.Status.ProviderID = ""
 		ExpectApplied(ctx, env.Client, machine)
 
 		ExpectReconcileSucceeded(ctx, garbageCollectionController, client.ObjectKey{})

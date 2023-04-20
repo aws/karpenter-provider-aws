@@ -7,7 +7,7 @@ require (
 	github.com/PuerkitoBio/goquery v1.8.1
 	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/aws/aws-sdk-go v1.44.195
-	github.com/aws/karpenter-core v0.27.3
+	github.com/aws/karpenter-core v0.27.4-0.20230421194413-62fe4ac537b8
 	github.com/go-playground/validator/v10 v10.11.2
 	github.com/imdario/mergo v0.3.15
 	github.com/mitchellh/hashstructure/v2 v2.0.2
@@ -28,8 +28,6 @@ require (
 	knative.dev/pkg v0.0.0-20221123154742-05b694ec4d3a
 	sigs.k8s.io/controller-runtime v0.13.1
 )
-
-replace github.com/aws/karpenter-core => github.com/jonathan-innis/karpenter-core v0.0.0-20230418004542-3a1bb05505a2
 
 require (
 	contrib.go.opencensus.io/exporter/ocagent v0.7.1-0.20200907061046-05415f1de66d // indirect

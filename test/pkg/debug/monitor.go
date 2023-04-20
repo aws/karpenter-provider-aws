@@ -75,6 +75,7 @@ func (m *Monitor) Stop() {
 
 func newControllers(kubeClient client.Client) []controller.Controller {
 	return []controller.Controller{
+		NewMachineController(kubeClient),
 		NewNodeController(kubeClient),
 		NewPodController(kubeClient),
 	}
