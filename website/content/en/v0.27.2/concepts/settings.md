@@ -41,7 +41,7 @@ data:
   # The maximum length of a batch window. The longer this is, the more pods we can consider for provisioning at one
   # time which usually results in fewer but larger nodes.
   batchMaxDuration: 10s
-  # The maximum amount of time with no new pending pods that if exceeded ends the current batching window. If pods arrive
+  # The maximum amount of time with no new ending pods that if exceeded ends the current batching window. If pods arrive
   # faster than this time, the batching window will be extended up to the maxDuration. If they arrive slower, the pods
   # will be batched separately.
   batchIdleDuration: 1s
