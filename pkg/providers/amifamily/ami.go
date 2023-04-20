@@ -307,32 +307,13 @@ func (p *Provider) getRequirementsFromImage(ec2Image *ec2.Image) scheduling.Requ
 func FilterAmiByRequirements(amis []AMI, requirements scheduling.Requirements) []AMI {
 	var results []AMI
 	for _, ami := range amis {
-		keys := requirements.Keys().Intersection(ami.Requirements.Keys())
-		if len(keys) == 0 {
-			continue //no overlap, let's check next ami
-		}
-		compatible := true
-		for key := range keys {
-			requirement := requirements.Get(key)
-			amiRequirement := ami.Requirements.Get(key)
-			if requirement.Operator() == v1.NodeSelectorOpDoesNotExist {
-				compatible = false //machine requires OpDoesNotExist, but ami provides. incompatible
-				break
-			}
-			if requirement.Operator() == v1.NodeSelectorOpIn && len(lo.Intersect(requirement.Values(), amiRequirement.Values())) == 0 {
-				compatible = false //machine requires OpIn, but ami has no one. incompatible
-				break
-			}
-			if requirement.Operator() == v1.NodeSelectorOpNotIn && len(lo.Intersect(requirement.Values(), amiRequirement.Values())) > 0 {
-				compatible = false //machine requires OpNotIn, but ami has overlapped. incompatible
-				break
-			}
-		}
-		if compatible {
+		if requirements.Compatible(ami.Requirements) == nil {
 			results = append(results, ami)
 		}
 	}
 
+	// If no compatible ami found, we return all just like before
+	// TODO: remove this check if not required
 	if len(results) != 0 {
 		return results
 	}
