@@ -138,6 +138,8 @@ data:
   ...
 ```
 
+For Spot Interruption Warnings, Karpenter will cordon and drain the node as per the above. There may be insufficient capacity to schedule the pods running on the affected node. The provisioner will then start a new instance to schedule these pods. Spot Interruptions have a 2 minute notice before Amazon EC2 reclaims the instance. Generally, this is sufficient time for the new node to become ready and to schedule the pods. Karpenter will follow the PDB while it drains the node. This means there is a chance that a node may not be fully drained by the time it is reclaimed.
+
 ## Drift
 
 If drift is enabled, Karpenter will deprovision nodes that have been marked as drifted with the annotation `karpenter.sh/voluntary-disruption: "drifted"`. Karpenter will automatically cordon, drain, and terminate nodes, while respecting any PDBs or `do-not-evict` pods that are configured. Karpenter will automatically mark nodes as drifted if the AMI that is used on the instance does not match the AMI set by the AWSNodeTemplate. Check the [AWSNodeTemplate Docs]({{<ref "./node-templates" >}}) settings for more.
