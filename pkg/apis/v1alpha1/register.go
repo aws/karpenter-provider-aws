@@ -55,23 +55,48 @@ var (
 	AMIFamilyBottlerocket = "Bottlerocket"
 	AMIFamilyAL2          = "AL2"
 	AMIFamilyUbuntu       = "Ubuntu"
+	AMIFamilyWindows2019  = "Windows2019"
+	AMIFamilyWindows2022  = "Windows2022"
 	AMIFamilyCustom       = "Custom"
 	SupportedAMIFamilies  = []string{
 		AMIFamilyBottlerocket,
 		AMIFamilyAL2,
 		AMIFamilyUbuntu,
+		AMIFamilyWindows2019,
+		AMIFamilyWindows2022,
 		AMIFamilyCustom,
 	}
 	SupportedContainerRuntimesByAMIFamily = map[string]sets.String{
 		AMIFamilyBottlerocket: sets.NewString("containerd"),
 		AMIFamilyAL2:          sets.NewString("dockerd", "containerd"),
 		AMIFamilyUbuntu:       sets.NewString("dockerd", "containerd"),
+		AMIFamilyWindows2019:  sets.NewString("containerd"),
+		AMIFamilyWindows2022:  sets.NewString("containerd"),
+	}
+
+	Windows2019              = "2019"
+	Windows2022              = "2022"
+	WindowsCore              = "Core"
+	Windows2019Build         = "10.0.17763"
+	Windows2022Build         = "10.0.20348"
+	SupportedWindowsVersions = []string{
+		Windows2019,
+		Windows2022,
+	}
+	SupportedWindowsVariants = []string{
+		WindowsCore,
+	}
+
+	SupportedWindowsBuilds = []string{
+		Windows2019Build,
+		Windows2022Build,
 	}
 	ResourceNVIDIAGPU             v1.ResourceName         = "nvidia.com/gpu"
 	ResourceAMDGPU                v1.ResourceName         = "amd.com/gpu"
 	ResourceAWSNeuron             v1.ResourceName         = "aws.amazon.com/neuron"
 	ResourceHabanaGaudi           v1.ResourceName         = "habana.ai/gaudi"
 	ResourceAWSPodENI             v1.ResourceName         = "vpc.amazonaws.com/pod-eni"
+	ResourcePrivateIPv4Address    v1.ResourceName         = "vpc.amazonaws.com/PrivateIPv4Address"
 	NVIDIAacceleratorManufacturer AcceleratorManufacturer = "nvidia"
 	AWSAcceleratorManufacturer    AcceleratorManufacturer = "aws"
 
@@ -133,6 +158,7 @@ func init() {
 		LabelInstanceAcceleratorName,
 		LabelInstanceAcceleratorManufacturer,
 		LabelInstanceAcceleratorCount,
+		v1.LabelWindowsBuild,
 	)
 }
 

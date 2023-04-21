@@ -24,6 +24,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aws/karpenter/pkg/providers/amifamily"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	. "github.com/onsi/ginkgo/v2"
@@ -179,8 +181,9 @@ var _ = Describe("Instance Types", func() {
 			"topology.ebs.csi.aws.com/zone": "test-zone-1a",
 		}
 
+		expected := v1alpha5.WellKnownLabels.Clone().Delete(v1.LabelWindowsBuild)
 		// Ensure that we're exercising all well known labels
-		Expect(lo.Keys(nodeSelector)).To(ContainElements(append(v1alpha5.WellKnownLabels.UnsortedList(), lo.Keys(v1alpha5.NormalizedLabels)...)))
+		Expect(lo.Keys(nodeSelector)).To(ContainElements(append(expected.UnsortedList(), lo.Keys(v1alpha5.NormalizedLabels)...)))
 
 		var pods []*v1.Pod
 		for key, value := range nodeSelector {
@@ -229,12 +232,13 @@ var _ = Describe("Instance Types", func() {
 		}
 
 		// Ensure that we're exercising all well known labels except for accelerator labels
-		expectedLabels := append(v1alpha5.WellKnownLabels.Difference(sets.NewString(
-			v1alpha1.LabelInstanceAcceleratorCount,
-			v1alpha1.LabelInstanceAcceleratorName,
-			v1alpha1.LabelInstanceAcceleratorManufacturer,
-		)).UnsortedList(), lo.Keys(v1alpha5.NormalizedLabels)...)
-		Expect(lo.Keys(nodeSelector)).To(ContainElements(expectedLabels))
+		Expect(lo.Keys(nodeSelector)).To(ContainElements(
+			append(
+				v1alpha5.WellKnownLabels.Clone().Delete(v1.LabelWindowsBuild).Difference(sets.NewString(
+					v1alpha1.LabelInstanceAcceleratorCount,
+					v1alpha1.LabelInstanceAcceleratorName,
+					v1alpha1.LabelInstanceAcceleratorManufacturer,
+				)).UnsortedList(), lo.Keys(v1alpha5.NormalizedLabels)...)))
 
 		pod := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: nodeSelector})
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -276,7 +280,7 @@ var _ = Describe("Instance Types", func() {
 		}
 
 		// Ensure that we're exercising all well known labels except for gpu labels and nvme
-		expectedLabels := append(v1alpha5.WellKnownLabels.Difference(sets.NewString(
+		expectedLabels := append(v1alpha5.WellKnownLabels.Clone().Delete(v1.LabelWindowsBuild).Difference(sets.NewString(
 			v1alpha1.LabelInstanceGPUCount,
 			v1alpha1.LabelInstanceGPUName,
 			v1alpha1.LabelInstanceGPUManufacturer,
@@ -1065,7 +1069,8 @@ var _ = Describe("Instance Types", func() {
 			provisioner = test.Provisioner(coretest.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{PodsPerCore: ptr.Int32(1)}})
 			for _, info := range instanceInfo {
 				it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
-				limitedPods := instancetype.ENILimitedPods(ctx, info)
+				amiFamily := amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, &amifamily.Options{})
+				limitedPods := instancetype.ENILimitedPods(ctx, info, amiFamily)
 				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", limitedPods.Value()))
 			}
 		})
