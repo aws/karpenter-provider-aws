@@ -56,7 +56,6 @@ var _ = BeforeEach(func() {
 	env.ExpectQueueExists()
 })
 var _ = AfterEach(func() { env.Cleanup() })
-var _ = AfterEach(func() { env.ForceCleanup() })
 var _ = AfterEach(func() { env.AfterEach() })
 
 var _ = Describe("Interruption", Label("AWS"), func() {

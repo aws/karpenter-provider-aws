@@ -54,7 +54,6 @@ var _ = BeforeEach(func() {
 })
 
 var _ = AfterEach(func() { env.Cleanup() })
-var _ = AfterEach(func() { env.ForceCleanup() })
 var _ = AfterEach(func() { env.AfterEach() })
 
 var _ = Describe("Drift", Label("AWS"), func() {

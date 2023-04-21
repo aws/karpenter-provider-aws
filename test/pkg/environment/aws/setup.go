@@ -49,10 +49,6 @@ func (env *Environment) Cleanup(opts ...common.Option) {
 	env.Environment.Cleanup(opts...)
 }
 
-func (env *Environment) ForceCleanup(opts ...common.Option) {
-	env.Environment.ForceCleanup(opts...)
-}
-
 func (env *Environment) AfterEach(opts ...common.Option) {
 	env.Environment.AfterEach(opts...)
 	// Ensure we reset settings after collecting the controller logs

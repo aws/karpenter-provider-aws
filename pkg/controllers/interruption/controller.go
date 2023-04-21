@@ -17,7 +17,6 @@ package interruption
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	sqsapi "github.com/aws/aws-sdk-go/service/sqs"
@@ -93,9 +92,13 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 	if len(sqsMessages) == 0 {
 		return reconcile.Result{}, nil
 	}
-	instanceIDMap, err := c.makeInstanceIDMap(ctx)
+	machineInstanceIDMap, err := c.makeMachineInstanceIDMap(ctx)
 	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("making instance id map, %w", err)
+		return reconcile.Result{}, fmt.Errorf("making machine instance id map, %w", err)
+	}
+	nodeInstanceIDMap, err := c.makeNodeInstanceIDMap(ctx)
+	if err != nil {
+		return reconcile.Result{}, fmt.Errorf("making node instance id map, %w", err)
 	}
 	errs := make([]error, len(sqsMessages))
 	workqueue.ParallelizeUntil(ctx, 10, len(sqsMessages), func(i int) {
@@ -106,7 +109,7 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 			errs[i] = c.deleteMessage(ctx, sqsMessages[i])
 			return
 		}
-		if e = c.handleMessage(ctx, instanceIDMap, msg); e != nil {
+		if e = c.handleMessage(ctx, machineInstanceIDMap, nodeInstanceIDMap, msg); e != nil {
 			errs[i] = fmt.Errorf("handling message, %w", e)
 			return
 		}
@@ -137,29 +140,28 @@ func (c *Controller) parseMessage(raw *sqsapi.Message) (messages.Message, error)
 }
 
 // handleMessage takes an action against every node involved in the message that is owned by a Provisioner
-func (c *Controller) handleMessage(ctx context.Context, instanceIDMap map[string]*v1.Node, msg messages.Message) (err error) {
+func (c *Controller) handleMessage(ctx context.Context, machineInstanceIDMap map[string]*v1alpha5.Machine,
+	nodeInstanceIDMap map[string]*v1.Node, msg messages.Message) (err error) {
+
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("messageKind", msg.Kind()))
 	receivedMessages.WithLabelValues(string(msg.Kind())).Inc()
 
 	if msg.Kind() == messages.NoOpKind {
 		return nil
 	}
-	var failedNodeNames []string
 	for _, instanceID := range msg.EC2InstanceIDs() {
-		node, ok := instanceIDMap[instanceID]
+		machine, ok := machineInstanceIDMap[instanceID]
 		if !ok {
 			continue
 		}
-		if e := c.handleNode(ctx, msg, node); e != nil {
-			failedNodeNames = append(failedNodeNames, node.Name)
+		node := nodeInstanceIDMap[instanceID]
+		if e := c.handleMachine(ctx, msg, machine, node); e != nil {
 			err = multierr.Append(err, e)
 		}
 	}
 	messageLatency.Observe(time.Since(msg.StartTime()).Seconds())
 	if err != nil {
-		return fmt.Errorf("failed to act on nodes [%s%s], %w",
-			strings.Join(lo.Slice(failedNodeNames, 0, 3), ","),
-			lo.Ternary(len(failedNodeNames) > 3, "...", ""), err)
+		return fmt.Errorf("acting on machines, %w", err)
 	}
 	return nil
 }
@@ -173,90 +175,112 @@ func (c *Controller) deleteMessage(ctx context.Context, msg *sqsapi.Message) err
 	return nil
 }
 
-// handleNode retrieves the action for the message and then performs the appropriate action against the node
-func (c *Controller) handleNode(ctx context.Context, msg messages.Message, node *v1.Node) error {
+// handleMachine retrieves the action for the message and then performs the appropriate action against the node
+func (c *Controller) handleMachine(ctx context.Context, msg messages.Message, machine *v1alpha5.Machine, node *v1.Node) error {
 	action := actionForMessage(msg)
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("node", node.Name))
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("machine", machine.Name))
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("action", string(action)))
+	if node != nil {
+		ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("node", node.Name))
+	}
 
 	// Record metric and event for this action
-	c.notifyForMessage(msg, node)
+	c.notifyForMessage(msg, machine, node)
 	actionsPerformed.WithLabelValues(string(action)).Inc()
 
 	// Mark the offering as unavailable in the ICE cache since we got a spot interruption warning
 	if msg.Kind() == messages.SpotInterruptionKind {
-		zone := node.Labels[v1.LabelTopologyZone]
-		instanceType := node.Labels[v1.LabelInstanceTypeStable]
+		zone := machine.Labels[v1.LabelTopologyZone]
+		instanceType := machine.Labels[v1.LabelInstanceTypeStable]
 		if zone != "" && instanceType != "" {
 			c.unavailableOfferingsCache.MarkUnavailable(ctx, string(msg.Kind()), instanceType, zone, v1alpha1.CapacityTypeSpot)
 		}
 	}
 	if action != NoAction {
-		return c.deleteNode(ctx, node)
+		return c.deleteMachine(ctx, machine, node)
 	}
 	return nil
 }
 
-// deleteNode removes the node from the api-server
-func (c *Controller) deleteNode(ctx context.Context, node *v1.Node) error {
-	if !node.DeletionTimestamp.IsZero() {
+// deleteMachine removes the machine from the api-server
+func (c *Controller) deleteMachine(ctx context.Context, machine *v1alpha5.Machine, node *v1.Node) error {
+	if !machine.DeletionTimestamp.IsZero() {
 		return nil
 	}
-	if err := c.kubeClient.Delete(ctx, node); err != nil {
+	if err := c.kubeClient.Delete(ctx, machine); err != nil {
 		return client.IgnoreNotFound(fmt.Errorf("deleting the node on interruption message, %w", err))
 	}
-	logging.FromContext(ctx).Infof("deleted node from interruption message")
-	c.recorder.Publish(interruptionevents.NodeTerminatingOnInterruption(node))
-	metrics.NodesTerminatedCounter.With(prometheus.Labels{
+	logging.FromContext(ctx).Infof("deleted machine from interruption message")
+	c.recorder.Publish(interruptionevents.TerminatingOnInterruption(node, machine)...)
+	metrics.MachinesTerminatedCounter.With(prometheus.Labels{
 		metrics.ReasonLabel:      terminationReasonLabel,
-		metrics.ProvisionerLabel: node.Labels[v1alpha5.ProvisionerNameLabelKey],
+		metrics.ProvisionerLabel: machine.Labels[v1alpha5.ProvisionerNameLabelKey],
 	}).Inc()
 	return nil
 }
 
 // notifyForMessage publishes the relevant alert based on the message kind
-func (c *Controller) notifyForMessage(msg messages.Message, n *v1.Node) {
+func (c *Controller) notifyForMessage(msg messages.Message, m *v1alpha5.Machine, n *v1.Node) {
 	switch msg.Kind() {
 	case messages.RebalanceRecommendationKind:
-		c.recorder.Publish(interruptionevents.InstanceRebalanceRecommendation(n))
+		c.recorder.Publish(interruptionevents.RebalanceRecommendation(n, m)...)
 
 	case messages.ScheduledChangeKind:
-		c.recorder.Publish(interruptionevents.InstanceUnhealthy(n))
+		c.recorder.Publish(interruptionevents.Unhealthy(n, m)...)
 
 	case messages.SpotInterruptionKind:
-		c.recorder.Publish(interruptionevents.InstanceSpotInterrupted(n))
+		c.recorder.Publish(interruptionevents.SpotInterrupted(n, m)...)
 
 	case messages.StateChangeKind:
 		typed := msg.(statechange.Message)
 		if lo.Contains([]string{"stopping", "stopped"}, typed.Detail.State) {
-			c.recorder.Publish(interruptionevents.InstanceStopping(n))
+			c.recorder.Publish(interruptionevents.Stopping(n, m)...)
 		} else {
-			c.recorder.Publish(interruptionevents.InstanceTerminating(n))
+			c.recorder.Publish(interruptionevents.Terminating(n, m)...)
 		}
 
 	default:
 	}
 }
 
-// makeInstanceIDMap builds a map between the instance id that is stored in the
-// node .spec.providerID and the node name stored on the host
-func (c *Controller) makeInstanceIDMap(ctx context.Context) (map[string]*v1.Node, error) {
+// makeMachineInstanceIDMap builds a map between the instance id that is stored in the
+// machine .status.providerID and the machine
+func (c *Controller) makeMachineInstanceIDMap(ctx context.Context) (map[string]*v1alpha5.Machine, error) {
+	m := map[string]*v1alpha5.Machine{}
+	machineList := &v1alpha5.MachineList{}
+	if err := c.kubeClient.List(ctx, machineList); err != nil {
+		return nil, fmt.Errorf("listing machines, %w", err)
+	}
+	for i := range machineList.Items {
+		if machineList.Items[i].Status.ProviderID == "" {
+			continue
+		}
+		id, err := utils.ParseInstanceID(machineList.Items[i].Status.ProviderID)
+		if err != nil || id == "" {
+			continue
+		}
+		m[id] = &machineList.Items[i]
+	}
+	return m, nil
+}
+
+// makeNodeInstanceIDMap builds a map between the instance id that is stored in the
+// node .spec.providerID and the node
+func (c *Controller) makeNodeInstanceIDMap(ctx context.Context) (map[string]*v1.Node, error) {
 	m := map[string]*v1.Node{}
 	nodeList := &v1.NodeList{}
 	if err := c.kubeClient.List(ctx, nodeList); err != nil {
 		return nil, fmt.Errorf("listing nodes, %w", err)
 	}
 	for i := range nodeList.Items {
-		node := nodeList.Items[i]
-		// If this node isn't owned by a provisioner, we shouldn't handle it
-		if _, ok := node.Labels[v1alpha5.ProvisionerNameLabelKey]; !ok {
+		if nodeList.Items[i].Spec.ProviderID == "" {
 			continue
 		}
-		id, err := utils.ParseInstanceID(node.Spec.ProviderID)
+		id, err := utils.ParseInstanceID(nodeList.Items[i].Spec.ProviderID)
 		if err != nil || id == "" {
 			continue
 		}
-		m[id] = &node
+		m[id] = &nodeList.Items[i]
 	}
 	return m, nil
 }

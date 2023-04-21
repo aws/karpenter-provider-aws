@@ -124,7 +124,7 @@ func (c *Controller) resolveSecurityGroups(ctx context.Context, nodeTemplate *v1
 	}
 	if len(securityGroupIds) == 0 && nodeTemplate.Spec.SecurityGroupSelector != nil {
 		nodeTemplate.Status.SecurityGroups = nil
-		return fmt.Errorf("no subnets exist given constraints")
+		return fmt.Errorf("no security groups exist given constraints")
 	}
 
 	nodeTemplate.Status.SecurityGroups = lo.Map(securityGroupIds, func(id string, _ int) v1alpha1.SecurityGroup {
@@ -137,16 +137,16 @@ func (c *Controller) resolveSecurityGroups(ctx context.Context, nodeTemplate *v1
 }
 
 func (c *Controller) resolveAMIs(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) error {
-	amiRequirement, err := c.amiProvider.Get(ctx, nodeTemplate, &amifamily.Options{})
+	amis, err := c.amiProvider.Get(ctx, nodeTemplate, &amifamily.Options{})
 	if err != nil {
 		return err
 	}
-	if len(amiRequirement) == 0 {
+	if len(amis) == 0 {
 		nodeTemplate.Status.AMIs = nil
 		return fmt.Errorf("no amis exist given constraints")
 	}
 
-	nodeTemplate.Status.AMIs = lo.Map(amiRequirement, func(ami amifamily.AMI, _ int) v1alpha1.AMI {
+	nodeTemplate.Status.AMIs = lo.Map(amis, func(ami amifamily.AMI, _ int) v1alpha1.AMI {
 		return v1alpha1.AMI{
 			Name:         ami.Name,
 			ID:           ami.AmiID,
