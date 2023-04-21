@@ -381,8 +381,7 @@ var _ = Describe("LaunchTemplates", func() {
 		It("should override default tag names", func() {
 			// these tags are defaulted, so ensure users can override them
 			nodeTemplate.Spec.Tags = map[string]string{
-				v1alpha5.ProvisionerNameLabelKey: "myprovisioner",
-				"Name":                           "myname",
+				"Name": "myname",
 			}
 			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()

@@ -225,7 +225,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 		It("Should not resolve a invalid selectors for Subnet", func() {
 			nodeTemplate.Spec.SubnetSelector = map[string]string{`foo`: `invalid`}
 			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			ExpectReconcileFailed(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 			Expect(nodeTemplate.Status.Subnets).To(BeNil())
 		})
@@ -246,7 +246,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 
 			nodeTemplate.Spec.SubnetSelector = map[string]string{`foo`: `invalid`}
 			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			ExpectReconcileFailed(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 			Expect(nodeTemplate.Status.Subnets).To(BeNil())
 		})
@@ -347,7 +347,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 		It("Should not resolve a invalid selectors for Security Groups", func() {
 			nodeTemplate.Spec.SecurityGroupSelector = map[string]string{`foo`: `invalid`}
 			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			ExpectReconcileFailed(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 			Expect(nodeTemplate.Status.SecurityGroups).To(BeNil())
 		})
@@ -363,7 +363,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 
 			nodeTemplate.Spec.SecurityGroupSelector = map[string]string{`foo`: `invalid`}
 			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			ExpectReconcileFailed(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 			Expect(nodeTemplate.Status.SecurityGroups).To(BeNil())
 		})

@@ -6,41 +6,35 @@ description: >
   Understand different ways Karpenter deprovisions nodes
 ---
 
+## Control Flow
 Karpenter sets a Kubernetes [finalizer](https://kubernetes.io/docs/concepts/overview/working-with-objects/finalizers/) on each node it provisions.
-The finalizer specifies additional actions the Karpenter controller will take in response to a node deletion request.
-These include:
+The finalizer blocks deletion of the node object while the Termination Controller cordons and drains the node, before removing the underlying machine. Deprovisioning is triggered by the Deprovisioning Controller, by the user through manual deprovisioning, or through an external system that sends a delete request to the node object.
 
-* Marking the node as unschedulable, so no further pods can be scheduled there.
-* Evicting all pods other than daemonsets from the node.
-* Terminating the instance from the cloud provider.
-* Deleting the node from the Kubernetes cluster.
+### Deprovisioning Controller
+Karpenter automatically discovers deprovisionable nodes and spins up replacements when needed. Karpenter deprovisions nodes by executing one [automatic method](#methods) at a time, in order of Expiration, Drift, Emptiness, and then Consolidation. Each method varies slightly but they all follow the standard deprovisioning process:
+1. Identify a list of prioritized candidates for the deprovisioning method.
+   * If there are [pods that cannot be evicted](#pod-eviction) on the node, Karpenter will ignore the node and try deprovisioning it later.
+   * If there are no deprovisionable nodes, continue to the next deprovisioning method.
+2. For each deprovisionable node, execute a scheduling simulation with the pods on the node to find if any replacement nodes are needed.
+3. Cordon the node(s) to prevent pods from scheduling to it.
+4. Pre-spin any replacement nodes needed as calculated in Step (2), and wait for them to become ready.
+   * If a replacement node fails to initialize, un-cordon the node(s), and restart from Step (1), starting at the first deprovisioning method again.
+5. Delete the node(s) and wait for the Termination Controller to gracefully shutdown the node(s).
+6. Once the Termination Controller terminates the node, go back to Step (1), starting at the the first deprovisioning method again.
+
+### Termination Controller
+When a Karpenter node is deleted, the Karpenter finalizer will block deletion and the APIServer will set the `DeletionTimestamp` on the node, allowing Karpenter to gracefully shutdown the node, modeled after [K8s Graceful Node Shutdown](https://kubernetes.io/docs/concepts/architecture/nodes/#graceful-node-shutdown). Karpenter's graceful shutdown process will:
+1. Cordon the node to prevent pods from scheduling to it.
+2. Begin evicting the pods on the node with the [K8s Eviction API](https://kubernetes.io/docs/concepts/scheduling-eviction/api-eviction/) to respect PDBs, while ignoring all non-daemonset pods and [static pods](https://kubernetes.io/docs/tasks/configure-pod-container/static-pod/). Wait for the node to be fully drained before proceeding to Step (3).
+   * While waiting, if the underlying machine for the node no longer exists, remove the finalizer to allow the APIServer to delete the node, completing termination.
+3. Terminate the machine in the Cloud Provider.
+4. Remove the finalizer from the node to allow the APIServer to delete the node, completing termination.
 
 ## Methods
 
 There are both automated and manual ways of deprovisioning nodes provisioned by Karpenter:
 
-* **Provisioner Deletion**: Nodes are considered to be "owned" by the Provisioner that launched them. Karpenter will gracefully terminate nodes when a provisioner is deleted.
-* **Emptiness**: Karpenter notes when the last workload (non-daemonset) pod stops running on a node. From that point, Karpenter waits the number of seconds set by `ttlSecondsAfterEmpty` in the provisioner, then Karpenter requests to delete the node. This feature can keep costs down by removing nodes that are no longer being used for workloads.
-* **Expiration**: Karpenter requests to delete the node after a set number of seconds, based on the provisioner `ttlSecondsUntilExpired`  value, from the time the node was provisioned. One use case for node expiry is to handle node upgrades. Old nodes (with a potentially outdated Kubernetes version or operating system) are deleted, and replaced with nodes on the current version (assuming that you requested the latest version, rather than a specific version).
-* **Consolidation**: Karpenter works to actively reduce cluster cost by identifying when nodes can be removed as their workloads will run on other nodes in the cluster and when nodes can be replaced with cheaper variants due to a change in the workloads.
-* **Interruption**: If enabled, Karpenter will watch for upcoming involuntary interruption events that could affect your nodes (health events, spot interruption, etc.) and will cordon, drain, and terminate the node(s) ahead of the event to reduce workload disruption.
-* **Drift**: Karpenter will deprovision nodes that have drifted from their desired specification. Once the node is annotated as drifted, Karpenter will deprovision the nodes and provision replacement nodes with the correct provisioning requirements when needed. Currently, Karpenter will only automatically mark nodes as drifted in the case of a drifted AMI.
-
-{{% alert title="Note" color="primary" %}}
-- Automated deprovisioning is configured through the ProvisionerSpec `.ttlSecondsAfterEmpty`
-, `.ttlSecondsUntilExpired` and `.consolidation.enabled` fields. If these are not configured, Karpenter will not
-default values for them and will not terminate nodes for that purpose.
-
-- Keep in mind that a small NodeExpiry results in a higher churn in cluster activity. So, for
-example, if a cluster brings up all nodes at once, all the pods on those nodes would fall into
-the same batching window on expiration.
-
-- Pods without an ownerRef (also called "controllerless" or "naked" pods) will be evicted during voluntary node disruption, such as expiration or consolidation. A pod with the annotation `karpenter.sh/do-not-evict: "true"` will cause its node to be opted out from voluntary node disruption workflows.
-
-- Using preferred anti-affinity and topology spreads can reduce the effectiveness of consolidation. At node launch, Karpenter attempts to satisfy affinity and topology spread preferences. In order to reduce node churn, consolidation must also attempt to satisfy these constraints to avoid immediately consolidating nodes after they launch. This means that consolidation may not deprovision nodes in order to avoid violating preferences, even if kube-scheduler can fit the host pods elsewhere.  Karpenter reports these pods via logging to bring awareness to the possible issues they can cause (e.g. `pod default/inflate-anti-self-55894c5d8b-522jd has a preferred Anti-Affinity which can prevent consolidation`).
-
-{{% /alert %}}
-
+### Manual Methods
 * **Node Deletion**: You could use `kubectl` to manually remove a single Karpenter node:
 
     ```bash
@@ -53,16 +47,31 @@ the same batching window on expiration.
     # Delete all nodes owned by a specific provisioner
     kubectl delete nodes -l karpenter.sh/provisioner-name=$PROVISIONER_NAME
     ```
+* **Provisioner Deletion**: Nodes are owned by the Provisioner through an [owner reference](https://kubernetes.io/docs/concepts/overview/working-with-objects/owners-dependents/#owner-references-in-object-specifications) that launched them. Karpenter will gracefully terminate nodes through cascading deletion when the owning provisioner is deleted.
 
-Whether through node expiry or manual deletion, Karpenter seeks to follow graceful termination procedures as described in Kubernetes [Graceful node shutdown](https://kubernetes.io/docs/concepts/architecture/nodes/#graceful-node-shutdown) documentation.
-If the Karpenter controller is removed or fails, the finalizers on the nodes are orphaned and will require manual removal.
-
+### Automated Methods
+* **Emptiness**: Karpenter notes when the last workload (non-daemonset) pod stops running on a node. From that point, Karpenter waits the number of seconds set by `ttlSecondsAfterEmpty` in the provisioner, then Karpenter requests to delete the node. This feature can keep costs down by removing nodes that are no longer being used for workloads.
+* **Expiration**: Karpenter will annotate nodes as expired and deprovision nodes after they have lived a set number of seconds, based on the provisioner `ttlSecondsUntilExpired` value. One use case for node expiry is to periodically recycle nodes. Old nodes (with a potentially outdated Kubernetes version or operating system) are deleted, and replaced with nodes on the current version (assuming that you requested the latest version, rather than a specific version).
+* **Consolidation**: Karpenter works to actively reduce cluster cost by identifying when:
+  * Nodes can be removed as their workloads will run on other nodes in the cluster.
+  * Nodes can be replaced with cheaper variants due to a change in the workloads.
+* **Drift**: Karpenter will annotate nodes as drifted and deprovision nodes that have drifted from their desired specification. Currently, Karpenter will only automatically mark nodes as drifted in the case of a drifted AMI.
+* **Interruption**: If enabled, Karpenter will watch for upcoming involuntary interruption events that could affect your nodes (health events, spot interruption, etc.) and will cordon, drain, and terminate the node(s) ahead of the event to reduce workload disruption.
 
 {{% alert title="Note" color="primary" %}}
-By adding the finalizer, Karpenter improves the default Kubernetes process of node deletion.
-When you run `kubectl delete node` on a node without a finalizer, the node is deleted without triggering the finalization logic. The instance will continue running in EC2, even though there is no longer a node object for it.
-The kubelet isn’t watching for its own existence, so if a node is deleted the kubelet doesn’t terminate itself.
+- Automated deprovisioning is configured through the ProvisionerSpec `.ttlSecondsAfterEmpty`, `.ttlSecondsUntilExpired` and `.consolidation.enabled` fields. If these are not configured, Karpenter will not set default values for them and will not terminate nodes for that purpose.
+
+- Keep in mind that a small `ttlSecondsUntilExpired` results in a higher churn in cluster activity. For a small enough `ttlSecondsUntilExpired`, nodes may expire faster than Karpenter can safely deprovision them, resulting in constant node deprovisioning.
+
+- Pods without an ownerRef (also called "controllerless" or "naked" pods) will be evicted during automatic node disruption, besides [Interruption](#interruption). A pod with the annotation `karpenter.sh/do-not-evict: "true"` will cause its node to be opted out from the same deprovisioning methods.
+
+- Using preferred anti-affinity and topology spreads can reduce the effectiveness of consolidation. At node launch, Karpenter attempts to satisfy affinity and topology spread preferences. In order to reduce node churn, consolidation must also attempt to satisfy these constraints to avoid immediately consolidating nodes after they launch. This means that consolidation may not deprovision nodes in order to avoid violating preferences, even if kube-scheduler can fit the host pods elsewhere.  Karpenter reports these pods via logging to bring awareness to the possible issues they can cause (e.g. `pod default/inflate-anti-self-55894c5d8b-522jd has a preferred Anti-Affinity which can prevent consolidation`).
+
+- By adding the finalizer, Karpenter improves the default Kubernetes process of node deletion.
+When you run `kubectl delete node` on a node without a finalizer, the node is deleted without triggering the finalization logic. The machine will continue running in EC2, even though there is no longer a node object for it.
+The kubelet isn’t watching for its own existence, so if a node is deleted, the kubelet doesn’t terminate itself.
 All the pod objects get deleted by a garbage collection process later, because the pods’ node is gone.
+
 {{% /alert %}}
 
 ## Consolidation

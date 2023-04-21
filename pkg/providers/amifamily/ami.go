@@ -171,6 +171,7 @@ func (p *Provider) getDefaultAMIFromSSM(ctx context.Context, nodeTemplate *v1alp
 	return amis, nil
 }
 
+// Associate a list of amiIDs with there ec2 AMI names
 func (p *Provider) findAMINames(ctx context.Context, amis []AMI) ([]AMI, error) {
 	// Creating selector filter by making a string of amiIds into a comma delineated string
 	ids := lo.Reduce(amis, func(agg string, item AMI, _ int) string {
@@ -218,9 +219,6 @@ func (p *Provider) getAMIsFromSelector(ctx context.Context, selector map[string]
 	ec2AMIs, err := p.fetchAMIsFromEC2(ctx, selector)
 	if err != nil {
 		return nil, err
-	}
-	if len(ec2AMIs) == 0 {
-		logging.FromContext(ctx).Errorf("no amis exist given constraints")
 	}
 	var amis []AMI
 	for _, ec2AMI := range ec2AMIs {

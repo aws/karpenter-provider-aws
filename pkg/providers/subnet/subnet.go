@@ -83,9 +83,6 @@ func (p *Provider) List(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTempl
 	if p.cm.HasChanged("subnets", subnetLog) {
 		logging.FromContext(ctx).With("subnets", subnetLog).Debugf("discovered subnets")
 	}
-	if len(output.Subnets) == 0 {
-		logging.FromContext(ctx).Errorf("no subnets exist given constraint")
-	}
 	return output.Subnets, nil
 }
 

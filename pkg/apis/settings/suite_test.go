@@ -81,6 +81,22 @@ var _ = Describe("Validation", func() {
 		Expect(s.Tags).To(HaveKeyWithValue("tag2", "value2"))
 		Expect(s.Tags).To(HaveKeyWithValue("example.com/tag", "my-value"))
 	})
+	It("should succeed validation when tags contain parts of restricted domains", func() {
+		cm := &v1.ConfigMap{
+			Data: map[string]string{
+				"aws.clusterEndpoint": "https://00000000000000000000000.gr7.us-west-2.eks.amazonaws.com",
+				"aws.clusterName":     "my-cluster",
+				"aws.tags":            `{"karpenter.sh/custom-key": "value1", "karpenter.sh/managed": "true", "kubernetes.io/role/key": "value2", "kubernetes.io/cluster/other-tag/hello": "value3"}`,
+			},
+		}
+		ctx, err := (&settings.Settings{}).Inject(ctx, cm)
+		Expect(err).ToNot(HaveOccurred())
+		s := settings.FromContext(ctx)
+		Expect(s.Tags).To(HaveKeyWithValue("karpenter.sh/custom-key", "value1"))
+		Expect(s.Tags).To(HaveKeyWithValue("karpenter.sh/managed", "true"))
+		Expect(s.Tags).To(HaveKeyWithValue("kubernetes.io/role/key", "value2"))
+		Expect(s.Tags).To(HaveKeyWithValue("kubernetes.io/cluster/other-tag/hello", "value3"))
+	})
 	It("should fail validation with panic when clusterName not included", func() {
 		cm := &v1.ConfigMap{
 			Data: map[string]string{
@@ -109,6 +125,37 @@ var _ = Describe("Validation", func() {
 			},
 		}
 		_, err := (&settings.Settings{}).Inject(ctx, cm)
+		Expect(err).To(HaveOccurred())
+	})
+	It("should fail validation when tags have keys that are in the restricted set of keys", func() {
+		cm := &v1.ConfigMap{
+			Data: map[string]string{
+				"aws.clusterEndpoint": "https://00000000000000000000000.gr7.us-west-2.eks.amazonaws.com",
+				"aws.clusterName":     "my-cluster",
+				"aws.tags":            `{"karpenter.sh/provisioner-name": "value1"}`,
+			},
+		}
+		_, err := (&settings.Settings{}).Inject(ctx, cm)
+		Expect(err).To(HaveOccurred())
+
+		cm = &v1.ConfigMap{
+			Data: map[string]string{
+				"aws.clusterEndpoint": "https://00000000000000000000000.gr7.us-west-2.eks.amazonaws.com",
+				"aws.clusterName":     "my-cluster",
+				"aws.tags":            `{"value1", "karpenter.sh/managed-by": "value"}`,
+			},
+		}
+		_, err = (&settings.Settings{}).Inject(ctx, cm)
+		Expect(err).To(HaveOccurred())
+
+		cm = &v1.ConfigMap{
+			Data: map[string]string{
+				"aws.clusterEndpoint": "https://00000000000000000000000.gr7.us-west-2.eks.amazonaws.com",
+				"aws.clusterName":     "my-cluster",
+				"aws.tags":            `{"kubernetes.io/cluster/my-cluster": "value2"}`,
+			},
+		}
+		_, err = (&settings.Settings{}).Inject(ctx, cm)
 		Expect(err).To(HaveOccurred())
 	})
 })

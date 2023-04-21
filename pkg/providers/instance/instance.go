@@ -218,8 +218,10 @@ func (p *Provider) launchInstance(ctx context.Context, nodeTemplate *v1alpha1.AW
 	if err != nil {
 		return nil, fmt.Errorf("getting subnets, %w", err)
 	}
+	tags := getTags(ctx, nodeTemplate, machine)
+
 	// Get Launch Template Configs, which may differ due to GPU or Architecture requirements
-	launchTemplateConfigs, err := p.getLaunchTemplateConfigs(ctx, nodeTemplate, machine, instanceTypes, zonalSubnets, capacityType)
+	launchTemplateConfigs, err := p.getLaunchTemplateConfigs(ctx, nodeTemplate, machine, instanceTypes, zonalSubnets, capacityType, tags)
 	if err != nil {
 		return nil, fmt.Errorf("getting launch template configs, %w", err)
 	}
@@ -227,11 +229,6 @@ func (p *Provider) launchInstance(ctx context.Context, nodeTemplate *v1alpha1.AW
 		logging.FromContext(ctx).Warn(err.Error())
 	}
 	// Create fleet
-	tags := utils.MergeTags(map[string]string{
-		"Name": fmt.Sprintf("%s/%s", v1alpha5.ProvisionerNameLabelKey, machine.Labels[v1alpha5.ProvisionerNameLabelKey]),
-		fmt.Sprintf("kubernetes.io/cluster/%s", settings.FromContext(ctx).ClusterName): "owned",
-		v1alpha5.ProvisionerNameLabelKey:                                               machine.Labels[v1alpha5.ProvisionerNameLabelKey],
-	}, settings.FromContext(ctx).Tags, nodeTemplate.Spec.Tags)
 	createFleetInput := &ec2.CreateFleetInput{
 		Type:                  aws.String(ec2.FleetTypeInstant),
 		Context:               nodeTemplate.Spec.Context,
@@ -241,9 +238,9 @@ func (p *Provider) launchInstance(ctx context.Context, nodeTemplate *v1alpha1.AW
 			TotalTargetCapacity:       aws.Int64(1),
 		},
 		TagSpecifications: []*ec2.TagSpecification{
-			{ResourceType: aws.String(ec2.ResourceTypeInstance), Tags: tags},
-			{ResourceType: aws.String(ec2.ResourceTypeVolume), Tags: tags},
-			{ResourceType: aws.String(ec2.ResourceTypeFleet), Tags: tags},
+			{ResourceType: aws.String(ec2.ResourceTypeInstance), Tags: utils.MergeTags(tags)},
+			{ResourceType: aws.String(ec2.ResourceTypeVolume), Tags: utils.MergeTags(tags)},
+			{ResourceType: aws.String(ec2.ResourceTypeFleet), Tags: utils.MergeTags(tags)},
 		},
 	}
 	if capacityType == v1alpha5.CapacityTypeSpot {
@@ -274,6 +271,17 @@ func (p *Provider) launchInstance(ctx context.Context, nodeTemplate *v1alpha1.AW
 	return createFleetOutput.Instances[0].InstanceIds[0], nil
 }
 
+func getTags(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, machine *v1alpha5.Machine) map[string]string {
+	overridableTags := map[string]string{
+		"Name": fmt.Sprintf("%s/%s", v1alpha5.ProvisionerNameLabelKey, machine.Labels[v1alpha5.ProvisionerNameLabelKey]),
+	}
+	staticTags := map[string]string{
+		fmt.Sprintf("kubernetes.io/cluster/%s", settings.FromContext(ctx).ClusterName): "owned",
+		v1alpha5.ProvisionerNameLabelKey:                                               machine.Labels[v1alpha5.ProvisionerNameLabelKey],
+	}
+	return lo.Assign(overridableTags, settings.FromContext(ctx).Tags, nodeTemplate.Spec.Tags, staticTags)
+}
+
 func (p *Provider) checkODFallback(machine *v1alpha5.Machine, instanceTypes []*cloudprovider.InstanceType, launchTemplateConfigs []*ec2.FleetLaunchTemplateConfigRequest) error {
 	// only evaluate for on-demand fallback if the capacity type for the request is OD and both OD and spot are allowed in requirements
 	if p.getCapacityType(machine, instanceTypes) != v1alpha5.CapacityTypeOnDemand || !scheduling.NewNodeSelectorRequirements(machine.Spec.Requirements...).Get(v1alpha5.LabelCapacityType).Has(v1alpha5.CapacityTypeSpot) {
@@ -297,9 +305,9 @@ func (p *Provider) checkODFallback(machine *v1alpha5.Machine, instanceTypes []*c
 }
 
 func (p *Provider) getLaunchTemplateConfigs(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, machine *v1alpha5.Machine,
-	instanceTypes []*cloudprovider.InstanceType, zonalSubnets map[string]*ec2.Subnet, capacityType string) ([]*ec2.FleetLaunchTemplateConfigRequest, error) {
+	instanceTypes []*cloudprovider.InstanceType, zonalSubnets map[string]*ec2.Subnet, capacityType string, tags map[string]string) ([]*ec2.FleetLaunchTemplateConfigRequest, error) {
 	var launchTemplateConfigs []*ec2.FleetLaunchTemplateConfigRequest
-	launchTemplates, err := p.launchTemplateProvider.EnsureAll(ctx, nodeTemplate, machine, instanceTypes, map[string]string{v1alpha5.LabelCapacityType: capacityType})
+	launchTemplates, err := p.launchTemplateProvider.EnsureAll(ctx, nodeTemplate, machine, instanceTypes, map[string]string{v1alpha5.LabelCapacityType: capacityType}, tags)
 	if err != nil {
 		return nil, fmt.Errorf("getting launch templates, %w", err)
 	}

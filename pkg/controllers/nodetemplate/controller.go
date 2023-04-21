@@ -16,6 +16,7 @@ package nodetemplate
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"time"
 
@@ -97,6 +98,10 @@ func (c *Controller) resolveSubnets(ctx context.Context, nodeTemplate *v1alpha1.
 	if err != nil {
 		return err
 	}
+	if len(subnetList) == 0 {
+		nodeTemplate.Status.Subnets = nil
+		return fmt.Errorf("no subnets exist given constraints")
+	}
 
 	sort.Slice(subnetList, func(i, j int) bool {
 		return int(*subnetList[i].AvailableIpAddressCount) > int(*subnetList[j].AvailableIpAddressCount)
@@ -117,6 +122,10 @@ func (c *Controller) resolveSecurityGroups(ctx context.Context, nodeTemplate *v1
 	if err != nil {
 		return err
 	}
+	if len(securityGroupIds) == 0 && nodeTemplate.Spec.SecurityGroupSelector != nil {
+		nodeTemplate.Status.SecurityGroups = nil
+		return fmt.Errorf("no subnets exist given constraints")
+	}
 
 	nodeTemplate.Status.SecurityGroups = lo.Map(securityGroupIds, func(id string, _ int) v1alpha1.SecurityGroup {
 		return v1alpha1.SecurityGroup{
@@ -130,8 +139,11 @@ func (c *Controller) resolveSecurityGroups(ctx context.Context, nodeTemplate *v1
 func (c *Controller) resolveAMIs(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) error {
 	amiRequirement, err := c.amiProvider.Get(ctx, nodeTemplate, &amifamily.Options{})
 	if err != nil {
-		nodeTemplate.Status.AMIs = nil
 		return err
+	}
+	if len(amiRequirement) == 0 {
+		nodeTemplate.Status.AMIs = nil
+		return fmt.Errorf("no amis exist given constraints")
 	}
 
 	nodeTemplate.Status.AMIs = lo.Map(amiRequirement, func(ami amifamily.AMI, _ int) v1alpha1.AMI {

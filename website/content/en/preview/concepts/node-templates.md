@@ -171,7 +171,7 @@ spec:
 
 AMISelector is used to configure custom AMIs for Karpenter to use, where the AMIs are discovered through `aws::` prefixed filters (`aws::ids`, `aws::owners` and `aws::name`) and [AWS tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html). This field is optional, and Karpenter will use the latest EKS-optimized AMIs if an amiSelector is not specified.
 
-To select an AMI by name, use `aws::name`. EC2 AMIs may be specified by any AWS tag, including `Name`. Selecting tag values using wildcards (`*`) is supported.
+To select an AMI by name, use `aws::name`. EC2 AMIs may be specified by any AWS tag, including `Name`. Selecting by tag or by name using wildcards (`*`) is supported.
 
 EC2 AMI IDs may be specified by using the key `aws::ids` (`aws-ids` is also supported) and then passing the IDs as a comma-separated string value.
 
@@ -247,7 +247,7 @@ karpenter.sh/provisioner-name: <provisioner-name>
 kubernetes.io/cluster/<cluster-name>: owned
 ```
 
-Additional tags can be added in the AWSNodeTemplate tags section which are merged with global tags in `aws.tags` (located in karpenter-global-settings ConfigMap) and can override the default tag values.
+Additional tags can be added in the AWSNodeTemplate tags section which are merged with global tags in `aws.tags` (located in karpenter-global-settings ConfigMap).
 ```yaml
 spec:
   tags:
@@ -255,6 +255,8 @@ spec:
     dev.corp.net/app: Calculator
     dev.corp.net/team: MyTeam
 ```
+
+Karpenter allows overrides of the default "Name" tag but does not allow overrides to restricted domains (such as "karpenter.sh", "karpenter.k8s.aws", and "kubernetes.io/cluster"). This ensures that Karpenter is able to correctly auto-discover machines that it owns.
 
 ## spec.metadataOptions
 
