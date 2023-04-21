@@ -122,7 +122,7 @@ func (p *Provider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTempla
 			return nil, err
 		}
 	} else {
-		amis, err = p.getAMIsFromSelector(ctx, nodeTemplate)
+		amis, err = p.getAMIsFromSelector(ctx, nodeTemplate.Spec.AMISelector)
 		if err != nil {
 			return nil, err
 		}
@@ -160,8 +160,42 @@ func (p *Provider) getDefaultAMIFromSSM(ctx context.Context, nodeTemplate *v1alp
 		if err != nil {
 			return nil, err
 		}
-		amis = append(amis, AMI{Name: ssmOutput.Name, AmiID: amiID, Requirements: ssmOutput.Requirements})
+		amis = append(amis, AMI{AmiID: amiID, Requirements: ssmOutput.Requirements})
 	}
+
+	amis, err = p.findAMINames(ctx, amis)
+	if err != nil {
+		return nil, err
+	}
+
+	return amis, nil
+}
+
+// Associate a list of amiIDs with there ec2 AMI names
+func (p *Provider) findAMINames(ctx context.Context, amis []AMI) ([]AMI, error) {
+	// Creating selector filter by making a string of amiIds into a comma delineated string
+	ids := lo.Reduce(amis, func(agg string, item AMI, _ int) string {
+		return agg + item.AmiID + ","
+	}, "")
+	selector := map[string]string{"aws-ids": ids}
+	// Collecting the AMI details of the default AMIs from EC2
+	amisDetails, err := p.fetchAMIsFromEC2(ctx, selector)
+	if err != nil {
+		return nil, err
+	}
+
+	// matching up the AMIs details that is received from EC2 with the default AMIs
+	// collecting the names of the default AMIs
+	amis = lo.Map(amis, func(x AMI, _ int) AMI {
+		ami, ok := lo.Find(amisDetails, func(image *ec2.Image) bool {
+			return *image.ImageId == x.AmiID
+		})
+		if ok {
+			x.Name = *ami.Name
+		}
+		return x
+	})
+
 	return amis, nil
 }
 
@@ -181,13 +215,10 @@ func (p *Provider) fetchAMIsFromSSM(ctx context.Context, ssmQuery string) (strin
 	return ami, nil
 }
 
-func (p *Provider) getAMIsFromSelector(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) ([]AMI, error) {
-	ec2AMIs, err := p.fetchAMIsFromEC2(ctx, nodeTemplate.Spec.AMISelector)
+func (p *Provider) getAMIsFromSelector(ctx context.Context, selector map[string]string) ([]AMI, error) {
+	ec2AMIs, err := p.fetchAMIsFromEC2(ctx, selector)
 	if err != nil {
 		return nil, err
-	}
-	if len(ec2AMIs) == 0 {
-		return nil, fmt.Errorf("no amis exist given constraints")
 	}
 	var amis []AMI
 	for _, ec2AMI := range ec2AMIs {

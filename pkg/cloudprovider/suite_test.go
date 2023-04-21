@@ -223,7 +223,12 @@ var _ = Describe("CloudProvider", func() {
 				Parameter: &ssm.Parameter{Value: aws.String(validAMI)},
 			}
 			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
-				Images: []*ec2.Image{{ImageId: aws.String(validAMI)}},
+				Images: []*ec2.Image{{
+					Name:         aws.String(coretest.RandomName()),
+					ImageId:      aws.String(validAMI),
+					Architecture: aws.String("x86_64"),
+					CreationDate: aws.String("2022-08-15T12:00:00Z"),
+				}},
 			})
 			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, provisioner)

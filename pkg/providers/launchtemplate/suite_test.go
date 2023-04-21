@@ -1709,6 +1709,18 @@ var _ = Describe("LaunchTemplates", func() {
 				Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(0))
 			})
 			It("should choose amis from SSM if no selector specified in AWSNodeTemplate", func() {
+				version := lo.Must(awsEnv.AMIProvider.KubeServerVersion(ctx))
+				awsEnv.SSMAPI.Parameters = map[string]string{
+					fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", version): "test-ami-123",
+				}
+				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
+					{
+						Name:         aws.String(coretest.RandomName()),
+						ImageId:      aws.String("test-ami-123"),
+						Architecture: aws.String("x86_64"),
+						CreationDate: aws.String("2022-08-15T12:00:00Z"),
+					},
+				}})
 				ExpectApplied(ctx, env.Client, nodeTemplate)
 				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name}})
 				ExpectApplied(ctx, env.Client, newProvisioner)

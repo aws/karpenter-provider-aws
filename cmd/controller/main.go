@@ -62,6 +62,7 @@ func main() {
 			op.SubnetProvider,
 			op.SecurityGroupProvider,
 			op.PricingProvider,
+			op.AMIProvider,
 		)...).
 		WithWebhooks(webhooks.NewWebhooks()...).
 		Start(ctx)

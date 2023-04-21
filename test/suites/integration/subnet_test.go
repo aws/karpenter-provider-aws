@@ -208,7 +208,7 @@ func EventuallyExpectSubnets(provider *v1alpha1.AWSNodeTemplate) {
 		if err := env.Client.Get(env, client.ObjectKeyFromObject(provider), &ant); err != nil {
 			return
 		}
-		subnetIDsInStatus := lo.Map(ant.Status.Subnets, func(subnet v1alpha1.SubnetStatus, _ int) string {
+		subnetIDsInStatus := lo.Map(ant.Status.Subnets, func(subnet v1alpha1.Subnet, _ int) string {
 			return subnet.ID
 		})
 

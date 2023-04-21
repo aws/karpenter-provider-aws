@@ -81,7 +81,6 @@ type AMIFamily interface {
 }
 
 type DefaultAMIOutput struct {
-	Name         string
 	Query        string
 	Requirements scheduling.Requirements
 }
@@ -118,6 +117,9 @@ func (r Resolver) Resolve(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTem
 	amis, err := r.amiProvider.Get(ctx, nodeTemplate, options)
 	if err != nil {
 		return nil, err
+	}
+	if len(amis) == 0 {
+		return nil, fmt.Errorf("no amis exist given constraints")
 	}
 	mappedAMIs := MapInstanceTypes(amis, instanceTypes)
 	if len(mappedAMIs) == 0 {

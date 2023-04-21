@@ -37,14 +37,12 @@ type Ubuntu struct {
 func (u Ubuntu) DefaultAMIs(version string) []DefaultAMIOutput {
 	return []DefaultAMIOutput{
 		{
-			Name:  fmt.Sprintf("ubuntu-20.4-eks-%s-%s", version, v1alpha5.ArchitectureAmd64),
 			Query: fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/%s/hvm/ebs-gp2/ami-id", version, v1alpha5.ArchitectureAmd64),
 			Requirements: scheduling.NewRequirements(
 				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureAmd64),
 			),
 		},
 		{
-			Name:  fmt.Sprintf("ubuntu-20.4-eks-%s-%s", version, v1alpha5.ArchitectureArm64),
 			Query: fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/%s/hvm/ebs-gp2/ami-id", version, v1alpha5.ArchitectureArm64),
 			Requirements: scheduling.NewRequirements(
 				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureArm64),

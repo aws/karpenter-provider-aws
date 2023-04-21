@@ -15,24 +15,38 @@ limitations under the License.
 package v1alpha1
 
 import (
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// SubnetStatus contains resolved Subnet selector values utilized for node launch
-type SubnetStatus struct {
-	// Id of the subnet
-	// +optional
-	ID string `json:"id,omitempty"`
+// Subnet contains resolved Subnet selector values utilized for node launch
+type Subnet struct {
+	// ID of the subnet
+	// +required
+	ID string `json:"id"`
 	// The associated availability zone
-	// +optional
-	Zone string `json:"zone,omitempty"`
+	// +required
+	Zone string `json:"zone"`
 }
 
-// SecurityGroupStatus contains resolved SecurityGroup selector values utilized for node launch
-type SecurityGroupStatus struct {
-	// Id of the security group
-	// +optional
-	ID string `json:"id,omitempty"`
+// SecurityGroup contains resolved SecurityGroup selector values utilized for node launch
+type SecurityGroup struct {
+	// ID of the security group
+	// +required
+	ID string `json:"id"`
+}
+
+// AMI contains resolved AMI selector values utilized for node launch
+type AMI struct {
+	// ID of the AMI
+	// +required
+	ID string `json:"id"`
+	// Name of the AMI
+	// +required
+	Name string `json:"name"`
+	// Requirements of the AMI to be utilized on an instance type
+	// +required
+	Requirements []v1.NodeSelectorRequirement `json:"requirements"`
 }
 
 // AWSNodeTemplateStatus contains the resolved state of the AWSNodeTemplate
@@ -40,11 +54,15 @@ type AWSNodeTemplateStatus struct {
 	// Subnets contains the current Subnet values that are available to the
 	// cluster under the subnet selectors.
 	// +optional
-	Subnets []SubnetStatus `json:"subnets,omitempty"`
+	Subnets []Subnet `json:"subnets,omitempty"`
 	// SecurityGroups contains the current Security Groups values that are available to the
 	// cluster under the SecurityGroups selectors.
 	// +optional
-	SecurityGroups []SecurityGroupStatus `json:"securityGroups,omitempty"`
+	SecurityGroups []SecurityGroup `json:"securityGroups,omitempty"`
+	// AMI contains the current AMI values that are available to the
+	// cluster under the AMI selectors.
+	// +optional
+	AMIs []AMI `json:"amis,omitempty"`
 }
 
 // AWSNodeTemplateSpec is the top level specification for the AWS Karpenter Provider.

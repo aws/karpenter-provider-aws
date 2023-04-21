@@ -16,10 +16,13 @@ package nodetemplate
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"time"
 
 	"go.uber.org/multierr"
+	"golang.org/x/time/rate"
+	"k8s.io/client-go/util/workqueue"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -32,6 +35,7 @@ import (
 
 	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/providers/amifamily"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
 	"github.com/aws/karpenter/pkg/providers/subnet"
 )
@@ -42,20 +46,26 @@ type Controller struct {
 	kubeClient            client.Client
 	subnetProvider        *subnet.Provider
 	securityGroupProvider *securitygroup.Provider
+	amiProvider           *amifamily.Provider
 }
 
-func NewController(kubeClient client.Client, subnetProvider *subnet.Provider, securityGroups *securitygroup.Provider) corecontroller.Controller {
+func NewController(kubeClient client.Client, subnetProvider *subnet.Provider, securityGroups *securitygroup.Provider, amiprovider *amifamily.Provider) corecontroller.Controller {
 	return corecontroller.Typed[*v1alpha1.AWSNodeTemplate](kubeClient, &Controller{
 		kubeClient:            kubeClient,
 		subnetProvider:        subnetProvider,
 		securityGroupProvider: securityGroups,
+		amiProvider:           amiprovider,
 	})
 }
 
 func (c *Controller) Reconcile(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) (reconcile.Result, error) {
 	stored := nodeTemplate.DeepCopy()
 
-	err := multierr.Combine(c.resolveSubnets(ctx, nodeTemplate), c.resolveSecurityGroup(ctx, nodeTemplate))
+	err := multierr.Combine(
+		c.resolveSubnets(ctx, nodeTemplate),
+		c.resolveSecurityGroups(ctx, nodeTemplate),
+		c.resolveAMIs(ctx, nodeTemplate),
+	)
 
 	if patchErr := c.kubeClient.Status().Patch(ctx, nodeTemplate, client.MergeFrom(stored)); patchErr != nil {
 		err = multierr.Append(err, client.IgnoreNotFound(patchErr))
@@ -73,7 +83,14 @@ func (c *Controller) Builder(ctx context.Context, m manager.Manager) corecontrol
 		NewControllerManagedBy(m).
 		For(&v1alpha1.AWSNodeTemplate{}).
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
-		WithOptions(controller.Options{MaxConcurrentReconciles: 10}))
+		WithOptions(controller.Options{
+			RateLimiter: workqueue.NewMaxOfRateLimiter(
+				workqueue.NewItemExponentialFailureRateLimiter(100*time.Millisecond, 1*time.Minute),
+				// 10 qps, 100 bucket size
+				&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(10), 100)},
+			),
+			MaxConcurrentReconciles: 10,
+		}))
 }
 
 func (c *Controller) resolveSubnets(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) error {
@@ -81,13 +98,17 @@ func (c *Controller) resolveSubnets(ctx context.Context, nodeTemplate *v1alpha1.
 	if err != nil {
 		return err
 	}
+	if len(subnetList) == 0 {
+		nodeTemplate.Status.Subnets = nil
+		return fmt.Errorf("no subnets exist given constraints")
+	}
 
 	sort.Slice(subnetList, func(i, j int) bool {
 		return int(*subnetList[i].AvailableIpAddressCount) > int(*subnetList[j].AvailableIpAddressCount)
 	})
 
-	nodeTemplate.Status.Subnets = lo.Map(subnetList, func(ec2subnet *ec2.Subnet, _ int) v1alpha1.SubnetStatus {
-		return v1alpha1.SubnetStatus{
+	nodeTemplate.Status.Subnets = lo.Map(subnetList, func(ec2subnet *ec2.Subnet, _ int) v1alpha1.Subnet {
+		return v1alpha1.Subnet{
 			ID:   *ec2subnet.SubnetId,
 			Zone: *ec2subnet.AvailabilityZone,
 		}
@@ -96,15 +117,40 @@ func (c *Controller) resolveSubnets(ctx context.Context, nodeTemplate *v1alpha1.
 	return nil
 }
 
-func (c *Controller) resolveSecurityGroup(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) error {
+func (c *Controller) resolveSecurityGroups(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) error {
 	securityGroupIds, err := c.securityGroupProvider.List(ctx, nodeTemplate)
 	if err != nil {
 		return err
 	}
+	if len(securityGroupIds) == 0 && nodeTemplate.Spec.SecurityGroupSelector != nil {
+		nodeTemplate.Status.SecurityGroups = nil
+		return fmt.Errorf("no security groups exist given constraints")
+	}
 
-	nodeTemplate.Status.SecurityGroups = lo.Map(securityGroupIds, func(id string, _ int) v1alpha1.SecurityGroupStatus {
-		return v1alpha1.SecurityGroupStatus{
+	nodeTemplate.Status.SecurityGroups = lo.Map(securityGroupIds, func(id string, _ int) v1alpha1.SecurityGroup {
+		return v1alpha1.SecurityGroup{
 			ID: id,
+		}
+	})
+
+	return nil
+}
+
+func (c *Controller) resolveAMIs(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) error {
+	amis, err := c.amiProvider.Get(ctx, nodeTemplate, &amifamily.Options{})
+	if err != nil {
+		return err
+	}
+	if len(amis) == 0 {
+		nodeTemplate.Status.AMIs = nil
+		return fmt.Errorf("no amis exist given constraints")
+	}
+
+	nodeTemplate.Status.AMIs = lo.Map(amis, func(ami amifamily.AMI, _ int) v1alpha1.AMI {
+		return v1alpha1.AMI{
+			Name:         ami.Name,
+			ID:           ami.AmiID,
+			Requirements: ami.Requirements.NodeSelectorRequirements(),
 		}
 	})
 
