@@ -15,6 +15,8 @@ limitations under the License.
 package integration_test
 
 import (
+	"time"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
@@ -53,6 +55,8 @@ var _ = Describe("Termination", func() {
 		// Node is deleted and now should be not found
 		env.ExpectDeleted(nodes[0])
 		env.EventuallyExpectNotFound(nodes[0])
-		Expect(lo.FromPtr(env.GetInstanceByID(instanceID).State.Name)).To(Equal("shutting-down"))
+		Eventually(func(g Gomega) {
+			g.Expect(lo.FromPtr(env.GetInstanceByID(instanceID).State.Name)).To(Equal("shutting-down"))
+		}, time.Second*10).Should(Succeed())
 	})
 })

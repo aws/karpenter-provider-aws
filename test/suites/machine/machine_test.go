@@ -225,7 +225,40 @@ var _ = Describe("StandaloneMachine", func() {
 		// Node is deleted and now should be not found
 		env.ExpectDeleted(machine)
 		env.EventuallyExpectNotFound(machine, node)
-		Expect(lo.FromPtr(env.GetInstanceByID(instanceID).State.Name)).To(Equal("shutting-down"))
+
+		Eventually(func(g Gomega) {
+			g.Expect(lo.FromPtr(env.GetInstanceByID(instanceID).State.Name)).To(Equal("shutting-down"))
+		}, time.Second*10).Should(Succeed())
+	})
+	It("should delete a machine from the node termination finalizer", func() {
+		machine := test.Machine(v1alpha5.Machine{
+			Spec: v1alpha5.MachineSpec{
+				Requirements: []v1.NodeSelectorRequirement{
+					{
+						Key:      v1alpha1.LabelInstanceCategory,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{"c"},
+					},
+				},
+				MachineTemplateRef: &v1alpha5.MachineTemplateRef{
+					Name: nodeTemplate.Name,
+				},
+			},
+		})
+		env.ExpectCreated(nodeTemplate, machine)
+		node := env.EventuallyExpectInitializedNodeCount("==", 1)[0]
+		machine = env.EventuallyExpectCreatedMachineCount("==", 1)[0]
+
+		instanceID := env.ExpectParsedProviderID(node.Spec.ProviderID)
+		env.GetInstance(node.Name)
+
+		// Delete the node and expect both the node and machine to be gone as well as the instance to be shutting-down
+		env.ExpectDeleted(node)
+		env.EventuallyExpectNotFound(machine, node)
+
+		Eventually(func(g Gomega) {
+			g.Expect(lo.FromPtr(env.GetInstanceByID(instanceID).State.Name)).To(Equal("shutting-down"))
+		}, time.Second*10).Should(Succeed())
 	})
 	It("should create a machine with custom labels passed through the userData", func() {
 		customAMI := env.GetCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", 1)
