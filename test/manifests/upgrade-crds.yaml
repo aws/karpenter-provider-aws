@@ -19,4 +19,5 @@ spec:
     script: |
       aws eks update-kubeconfig --name $(params.cluster-name)
       kubectl replace -f https://raw.githubusercontent.com/aws/karpenter/$(params.git-ref)/pkg/apis/crds/karpenter.sh_provisioners.yaml
+      kubectl replace -f https://raw.githubusercontent.com/aws/karpenter/$(params.git-ref)/pkg/apis/crds/karpenter.sh_machines.yaml
       kubectl replace -f https://raw.githubusercontent.com/aws/karpenter/$(params.git-ref)/pkg/apis/crds/karpenter.k8s.aws_awsnodetemplates.yaml

@@ -68,7 +68,9 @@ var _ = Describe("StandaloneMachine", func() {
 		node := env.EventuallyExpectInitializedNodeCount("==", 1)[0]
 		machine = env.EventuallyExpectCreatedMachineCount("==", 1)[0]
 		Expect(node.Labels).To(HaveKeyWithValue(v1alpha1.LabelInstanceCategory, "c"))
-		Expect(machine.StatusConditions().IsHappy()).To(BeTrue())
+		Eventually(func(g Gomega) {
+			g.Expect(machine.StatusConditions().IsHappy()).To(BeTrue())
+		}, time.Second*5).Should(Succeed())
 	})
 	It("should create a standard machine based on resource requests", func() {
 		machine := test.Machine(v1alpha5.Machine{
@@ -88,7 +90,9 @@ var _ = Describe("StandaloneMachine", func() {
 		node := env.EventuallyExpectInitializedNodeCount("==", 1)[0]
 		machine = env.EventuallyExpectCreatedMachineCount("==", 1)[0]
 		Expect(resources.Fits(machine.Spec.Resources.Requests, node.Status.Allocatable))
-		Expect(machine.StatusConditions().IsHappy()).To(BeTrue())
+		Eventually(func(g Gomega) {
+			g.Expect(machine.StatusConditions().IsHappy()).To(BeTrue())
+		}, time.Second*5).Should(Succeed())
 	})
 	It("should create a machine propagating all the machine spec details", func() {
 		machine := test.Machine(v1alpha5.Machine{
@@ -192,7 +196,9 @@ var _ = Describe("StandaloneMachine", func() {
 			},
 		))
 		machine = env.EventuallyExpectCreatedMachineCount("==", 1)[0]
-		Expect(machine.StatusConditions().IsHappy()).To(BeTrue())
+		Eventually(func(g Gomega) {
+			g.Expect(machine.StatusConditions().IsHappy()).To(BeTrue())
+		}, time.Second*5).Should(Succeed())
 	})
 	It("should remove the cloudProvider machine when the cluster machine is deleted", func() {
 		machine := test.Machine(v1alpha5.Machine{
@@ -257,7 +263,9 @@ var _ = Describe("StandaloneMachine", func() {
 		Expect(node.Labels).To(HaveKeyWithValue("custom-label", "custom-value"))
 		Expect(node.Labels).To(HaveKeyWithValue("custom-label2", "custom-value2"))
 		machine = env.EventuallyExpectCreatedMachineCount("==", 1)[0]
-		Expect(machine.StatusConditions().IsHappy()).To(BeTrue())
+		Eventually(func(g Gomega) {
+			g.Expect(machine.StatusConditions().IsHappy()).To(BeTrue())
+		}, time.Second*5).Should(Succeed())
 	})
 	It("should delete a machine after the registration timeout when the node doesn't register", func() {
 		customAMI := env.GetCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", 1)

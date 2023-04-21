@@ -45,7 +45,6 @@ func TestUtilization(t *testing.T) {
 
 var _ = BeforeEach(func() { env.BeforeEach() })
 var _ = AfterEach(func() { env.Cleanup() })
-var _ = AfterEach(func() { env.ForceCleanup() })
 var _ = AfterEach(func() { env.AfterEach() })
 
 var _ = Describe("Utilization", Label(debug.NoWatch), Label(debug.NoEvents), func() {

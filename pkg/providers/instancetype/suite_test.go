@@ -139,7 +139,58 @@ var _ = AfterEach(func() {
 })
 
 var _ = Describe("Instance Types", func() {
-	It("should support instance type labels", func() {
+	It("should support individual instance type labels", func() {
+		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+
+		nodeSelector := map[string]string{
+			// Well known
+			v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+			v1.LabelTopologyRegion:           "",
+			v1.LabelTopologyZone:             "test-zone-1a",
+			v1.LabelInstanceTypeStable:       "g4dn.8xlarge",
+			v1.LabelOSStable:                 "linux",
+			v1.LabelArchStable:               "amd64",
+			v1alpha5.LabelCapacityType:       "on-demand",
+			// Well Known to AWS
+			v1alpha1.LabelInstanceHypervisor:                   "nitro",
+			v1alpha1.LabelInstanceEncryptionInTransitSupported: "true",
+			v1alpha1.LabelInstanceCategory:                     "g",
+			v1alpha1.LabelInstanceGeneration:                   "4",
+			v1alpha1.LabelInstanceFamily:                       "g4dn",
+			v1alpha1.LabelInstanceSize:                         "8xlarge",
+			v1alpha1.LabelInstanceCPU:                          "32",
+			v1alpha1.LabelInstanceMemory:                       "131072",
+			v1alpha1.LabelInstanceNetworkBandwidth:             "50000",
+			v1alpha1.LabelInstancePods:                         "58",
+			v1alpha1.LabelInstanceGPUName:                      "t4",
+			v1alpha1.LabelInstanceGPUManufacturer:              "nvidia",
+			v1alpha1.LabelInstanceGPUCount:                     "1",
+			v1alpha1.LabelInstanceGPUMemory:                    "16384",
+			v1alpha1.LabelInstanceLocalNVME:                    "900",
+			v1alpha1.LabelInstanceAcceleratorName:              "t4",
+			v1alpha1.LabelInstanceAcceleratorManufacturer:      "nvidia",
+			v1alpha1.LabelInstanceAcceleratorCount:             "1",
+			v1alpha1.LabelInstanceAcceleratorMemory:            "16384",
+			// Deprecated Labels
+			v1.LabelFailureDomainBetaRegion: "",
+			v1.LabelFailureDomainBetaZone:   "test-zone-1a",
+			"beta.kubernetes.io/arch":       "amd64",
+			"beta.kubernetes.io/os":         "linux",
+			v1.LabelInstanceType:            "g4dn.8xlarge",
+			"topology.ebs.csi.aws.com/zone": "test-zone-1a",
+		}
+
+		// Ensure that we're exercising all well known labels
+		var pods []*v1.Pod
+		for key, value := range nodeSelector {
+			pods = append(pods, coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{key: value}}))
+		}
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pods...)
+		for _, pod := range pods {
+			ExpectScheduled(ctx, env.Client, pod)
+		}
+	})
+	It("should support combined instance type labels", func() {
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 
 		nodeSelector := map[string]string{

@@ -50,7 +50,7 @@ type Controller struct {
 	Cache         *cache.Cache // exists due to eventual consistency on the controller-runtime cache
 }
 
-func NewController(kubeClient client.Client, cloudProvider *cloudprovider.CloudProvider) controller.Controller {
+func NewController(kubeClient client.Client, cloudProvider *cloudprovider.CloudProvider) *Controller {
 	return &Controller{
 		kubeClient:    kubeClient,
 		cloudProvider: cloudProvider,
@@ -74,10 +74,10 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 	// Filter out any machines that shouldn't be linked
 	retrieved = lo.Filter(retrieved, func(m *v1alpha5.Machine, _ int) bool {
 		_, ok := m.Labels[v1alpha5.ManagedByLabelKey]
-		return !ok
+		return !ok && m.DeletionTimestamp.IsZero()
 	})
 	errs := make([]error, len(retrieved))
-	workqueue.ParallelizeUntil(ctx, 20, len(retrieved), func(i int) {
+	workqueue.ParallelizeUntil(ctx, 100, len(retrieved), func(i int) {
 		errs[i] = c.link(ctx, retrieved[i], machineList.Items)
 	})
 	// Effectively, don't requeue this again once it succeeds
