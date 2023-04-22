@@ -27,6 +27,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/util/workqueue"
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -67,9 +68,22 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 	if err := c.kubeClient.List(ctx, machineList); err != nil {
 		return reconcile.Result{}, err
 	}
+	nodeList := &v1.NodeList{}
+	if err := c.kubeClient.List(ctx, nodeList, client.HasLabels{v1alpha5.ProvisionerNameLabelKey}); err != nil {
+		return reconcile.Result{}, err
+	}
 	retrieved, err := c.cloudProvider.List(ctx)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("listing cloudprovider machines, %w", err)
+	}
+	retrievedIDs := sets.NewString(lo.Map(retrieved, func(m *v1alpha5.Machine, _ int) string { return m.Status.ProviderID })...)
+	// Inject any nodes that are re-owned using karpenter.sh/provisioner-name but aren't found from the cloudprovider.List() call
+	for i := range nodeList.Items {
+		if _, ok := lo.Find(retrieved, func(r *v1alpha5.Machine) bool {
+			return retrievedIDs.Has(nodeList.Items[i].Spec.ProviderID)
+		}); !ok {
+			retrieved = append(retrieved, machineutil.NewFromNode(&nodeList.Items[i]))
+		}
 	}
 	// Filter out any machines that shouldn't be linked
 	retrieved = lo.Filter(retrieved, func(m *v1alpha5.Machine, _ int) bool {

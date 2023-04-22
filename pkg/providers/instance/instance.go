@@ -100,13 +100,21 @@ func (p *Provider) Create(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTem
 	return NewInstanceFromFleet(fleetInstance, tags), nil
 }
 
-func (p *Provider) Link(ctx context.Context, id string) error {
+func (p *Provider) Link(ctx context.Context, id, provisionerName string) error {
 	_, err := p.ec2api.CreateTagsWithContext(ctx, &ec2.CreateTagsInput{
 		Resources: aws.StringSlice([]string{id}),
 		Tags: []*ec2.Tag{
 			{
 				Key:   aws.String(v1alpha5.ManagedByLabelKey),
 				Value: aws.String(settings.FromContext(ctx).ClusterName),
+			},
+			{
+				Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", settings.FromContext(ctx).ClusterName)),
+				Value: aws.String("owned"),
+			},
+			{
+				Key:   aws.String(v1alpha5.ProvisionerNameLabelKey),
+				Value: aws.String(provisionerName),
 			},
 		},
 	})
