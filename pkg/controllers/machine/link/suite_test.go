@@ -26,6 +26,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
 	. "knative.dev/pkg/logging/testing"
@@ -328,6 +329,47 @@ var _ = Describe("MachineLink", func() {
 		Expect(machine.Annotations).To(HaveKeyWithValue(v1alpha5.MachineLinkedAnnotationKey, providerID))
 		instance := ExpectInstanceExists(awsEnv.EC2API, instanceID)
 		ExpectManagedByTagExists(instance)
+	})
+	It("should link an instance that was re-owned with a provisioner-name label", func() {
+		awsEnv.EC2API.Reset() // Reset so we don't store the extra instance
+
+		// Don't include the provisioner-name tag
+		awsEnv.EC2API.EC2Behavior.Instances.Store(
+			instanceID,
+			&ec2.Instance{
+				State: &ec2.InstanceState{
+					Name: aws.String(ec2.InstanceStateNameRunning),
+				},
+				Tags: []*ec2.Tag{
+					{
+						Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", settings.FromContext(ctx).ClusterName)),
+						Value: aws.String("owned"),
+					},
+				},
+				PrivateDnsName: aws.String(fake.PrivateDNSName()),
+				Placement: &ec2.Placement{
+					AvailabilityZone: aws.String("test-zone-1a"),
+				},
+				InstanceId:   aws.String(instanceID),
+				InstanceType: aws.String("m5.large"),
+			},
+		)
+		node := coretest.Node(coretest.NodeOptions{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+				},
+			},
+			ProviderID: providerID,
+		})
+		ExpectApplied(ctx, env.Client, node, provisioner, nodeTemplate)
+		ExpectReconcileSucceeded(ctx, linkController, client.ObjectKey{})
+
+		machineList := &v1alpha5.MachineList{}
+		Expect(env.Client.List(ctx, machineList)).To(Succeed())
+		Expect(machineList.Items).To(HaveLen(1))
+		machine := machineList.Items[0]
+		Expect(machine.Annotations).To(HaveKeyWithValue(v1alpha5.MachineLinkedAnnotationKey, providerID))
 	})
 	It("should not link an instance without a provisioner tag", func() {
 		instance := ExpectInstanceExists(awsEnv.EC2API, instanceID)

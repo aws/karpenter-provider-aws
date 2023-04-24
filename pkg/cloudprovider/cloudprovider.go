@@ -105,7 +105,7 @@ func (c *CloudProvider) Link(ctx context.Context, machine *v1alpha5.Machine) err
 		return fmt.Errorf("getting instance ID, %w", err)
 	}
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("id", id))
-	return c.instanceProvider.Link(ctx, id)
+	return c.instanceProvider.Link(ctx, id, machine.Labels[v1alpha5.ProvisionerNameLabelKey])
 }
 
 func (c *CloudProvider) List(ctx context.Context) ([]*v1alpha5.Machine, error) {

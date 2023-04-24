@@ -23,6 +23,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/samber/lo"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -202,6 +203,75 @@ var _ = Describe("MachineLink", func() {
 			})
 			g.Expect(ok).To(BeTrue())
 			g.Expect(aws.StringValue(tag.Value)).To(Equal(settings.FromContext(env.Context).ClusterName))
+		}, time.Minute, time.Second).Should(Succeed())
+	})
+	It("should succeed to link a Machine for an existing instance re-owned by Karpenter", func() {
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
+			AMIFamily:             &v1alpha1.AMIFamilyAL2,
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+		}})
+		provisioner := test.Provisioner(test.ProvisionerOptions{
+			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
+		})
+		env.ExpectCreated(provisioner, provider)
+
+		// Update the userData for the instance input with the correct provisionerName
+		rawContent, err := os.ReadFile("testdata/al2_userdata_input.sh")
+		Expect(err).ToNot(HaveOccurred())
+
+		// No tag specifications since we're mocking an instance not launched by Karpenter
+		instanceInput.UserData = lo.ToPtr(base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf(string(rawContent), settings.FromContext(env.Context).ClusterName,
+			settings.FromContext(env.Context).ClusterEndpoint, env.ExpectCABundle(), provisioner.Name))))
+
+		// Create an instance manually to mock Karpenter launching an instance
+		out, err := env.EC2API.RunInstances(instanceInput)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(out.Instances).To(HaveLen(1))
+
+		// Always ensure that we cleanup the instance
+		DeferCleanup(func() {
+			_, err := env.EC2API.TerminateInstances(&ec2.TerminateInstancesInput{
+				InstanceIds: []*string{out.Instances[0].InstanceId},
+			})
+			if awserrors.IsNotFound(err) {
+				return
+			}
+			Expect(err).ToNot(HaveOccurred())
+		})
+
+		// Wait for the node to register with the cluster
+		node := env.EventuallyExpectCreatedNodeCount("==", 1)[0]
+
+		// Add the provisioner-name label to the node to re-own it
+		stored := node.DeepCopy()
+		node.Labels[v1alpha5.ProvisionerNameLabelKey] = provisioner.Name
+		Expect(env.Client.Patch(env.Context, node, client.MergeFrom(stored))).To(Succeed())
+
+		// Restart Karpenter to start the linking process
+		env.ExpectKarpenterPodsDeleted()
+
+		// Expect that the Machine is created when Karpenter starts up
+		machines := env.EventuallyExpectCreatedMachineCount("==", 1)
+		machine := machines[0]
+
+		// Expect the machine's fields are properly populated
+		Expect(machine.Spec.Requirements).To(Equal(provisioner.Spec.Requirements))
+		Expect(machine.Spec.MachineTemplateRef.Name).To(Equal(provider.Name))
+
+		// Expect the instance to have the karpenter.sh/managed-by tag and the karpenter.sh/provisioner-name tag
+		Eventually(func(g Gomega) {
+			instance := env.GetInstanceByID(aws.StringValue(out.Instances[0].InstanceId))
+			tag, ok := lo.Find(instance.Tags, func(t *ec2.Tag) bool {
+				return aws.StringValue(t.Key) == v1alpha5.ManagedByLabelKey
+			})
+			g.Expect(ok).To(BeTrue())
+			g.Expect(aws.StringValue(tag.Value)).To(Equal(settings.FromContext(env.Context).ClusterName))
+			tag, ok = lo.Find(instance.Tags, func(t *ec2.Tag) bool {
+				return aws.StringValue(t.Key) == v1alpha5.ProvisionerNameLabelKey
+			})
+			g.Expect(ok).To(BeTrue())
+			g.Expect(aws.StringValue(tag.Value)).To(Equal(provisioner.Name))
 		}, time.Minute, time.Second).Should(Succeed())
 	})
 })
