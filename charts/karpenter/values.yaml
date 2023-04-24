@@ -94,26 +94,6 @@ extraVolumes: []
 #         audience: sts.amazonaws.com
 #         expirationSeconds: 86400
 #         path: token
-
-# -- Array of extra K8s manifests to deploy
-extraObjects: []
-#- apiVersion: karpenter.k8s.aws/v1alpha1
-#  kind: AWSNodeTemplate
-#  metadata:
-#    name: default
-#  spec:
-#    subnetSelector:
-#      karpenter.sh/discovery: {CLUSTER_NAME}
-#    securityGroupSelector:
-#      karpenter.sh/discovery: {CLUSTER_NAME}
-#- apiVersion: karpenter.sh/v1alpha5
-#  kind: Provisioner
-#  metadata:
-#    name: default
-#  spec:
-#    providerRef:
-#      name: default
-
 controller:
   image:
     # -- Repository path to the controller image.

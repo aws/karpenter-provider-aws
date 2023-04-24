@@ -103,6 +103,7 @@ By adopting this practice we allow our users who are early adopters to test out 
 # Released Upgrade Notes
 
 ## Upgrading to v0.28.0+
+* The `extraObjects` value is now removed from the Helm chart. Having this value in the chart proved to not work in the majority of Karpenter installs and often led to anti-patterns, where the Karpenter resources installed to manage Karpenter's capacity were directly tied to the install of the Karpenter controller deployments. The Karpenter team recommends that, if you want to install Karpenter manifests alongside the Karpenter helm chart, to do so by creating a separate chart for the manifests, creating a dependency on the controller chart.
 * Karpenter now defines a set of "restricted tags" which can't be overridden with custom tagging in the AWSNodeTemplate or in the "karpenter-global-settings" ConfigMap. These tags include:
   * karpenter.sh/provisioner-name
   * kubernetes.io/cluster/<cluster-name>
