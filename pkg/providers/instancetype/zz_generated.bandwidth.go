@@ -20,8 +20,8 @@ package instancetype
 
 var (
 	InstanceTypeBandwidthMegabits = map[string]int64{
-		// f1.2xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
 		// g3.16xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
+		// f1.2xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
 		"t2.nano":           32,
 		"t3.nano":           32,
 		"t3a.nano":          32,
