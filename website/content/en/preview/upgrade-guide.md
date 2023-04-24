@@ -107,6 +107,15 @@ By adopting this practice we allow our users who are early adopters to test out 
   * karpenter.sh/provisioner-name
   * kubernetes.io/cluster/<cluster-name>
 If you are currently using any of these tag overrides when tagging your instances, webhook validation will now fail.
+* `v0.28.0` introduces the Machine CustomResource into the `karpenter.sh` API Group. Karpenter now orchestrates its CloudProvider capacity through these in-cluster Machine CustomResources. When performing a scheduling decision, Karpenter will create a Machine, resulting in launching CloudProvider capacity. The kubelet running on the new capacity will then register the node to the cluster shortly after launch.
+  * Karpenter will hydrate Machines on startup for existing capacity managed by Karpenter into the cluster. Existing capacity launched by an older version of Karpenter is discovered by finding CloudProvider capacity with the `karpenter.sh/provisioner-name` tag or the `karpenter.sh/provisioner-name` label on nodes.
+  
+{{% alert title="Rolling Back" color="warning" %}}
+If, after upgrading to `v0.28.0+`, a rollback to an older version of Karpenter needs to be performed, Karpenter will continue to function normally, though you will still have the Machine CustomResources on your cluster. You will need to manually delete the Machines and patch out the finalizers to fully complete the rollback.
+
+Karpenter marks CloudProvider capacity as "managed by" a Machine using the `karpenter-sh/managed-by` tag on the CloudProvider machine. It uses this tag to ensure that the Machine CustomResources in the cluster match the CloudProvider capacity managed by Karpenter. If these states don't match, Karpenter will garbage collect the capacity. Because of this, if performing an upgrade, followed by a rollback, followed by another upgrade to `v0.28.0+`, ensure you remove the `karpenter.sh/managed-by` tags from existing capacity; otherwise, Karpenter will deprovision the capacity without a Machine CR counterpart.
+{{% /alert %}}
+
 
 ## Upgrading to v0.27.0+
 * The Karpenter controller pods now deploy with `kubernetes.io/hostname` self anti-affinity by default. If you are running Karpenter in HA (high-availability) mode and you do not have enough nodes to match the number of pod replicas you are deploying with, you will need to scale-out your nodes for Karpenter.
