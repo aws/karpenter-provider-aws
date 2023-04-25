@@ -24,33 +24,23 @@ import (
 
 func (env Environment) ExpectLaunchTemplatesCreatedWithUserDataContaining(substrings ...string) {
 	Expect(env.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
-	for i := 0; i < env.EC2API.CalledWithCreateLaunchTemplateInput.Len(); i++ {
-		input := env.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
+	env.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(input *ec2.CreateLaunchTemplateInput) {
 		userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 		Expect(err).To(BeNil())
 		for _, substring := range substrings {
 			Expect(string(userData)).To(ContainSubstring(substring))
 		}
-	}
+	})
 }
 
 func (env Environment) ExpectLaunchTemplatesCreatedWithUserData(expected string) {
 	Expect(env.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
-	for i := 0; i < env.EC2API.CalledWithCreateLaunchTemplateInput.Len(); i++ {
-		input := env.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
+	env.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(input *ec2.CreateLaunchTemplateInput) {
 		userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 		Expect(err).To(BeNil())
 		// Newlines are always added for missing TOML fields, so strip them out before comparisons.
 		actualUserData := strings.Replace(string(userData), "\n", "", -1)
 		expectedUserData := strings.Replace(expected, "\n", "", -1)
 		Expect(expectedUserData).To(Equal(actualUserData))
-	}
-}
-
-func (env Environment) ExpectLaunchTemplates(expectFN func(ltInput ec2.CreateLaunchTemplateInput)) {
-	Expect(env.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
-	for i := 0; i < env.EC2API.CalledWithCreateLaunchTemplateInput.Len(); i++ {
-		ltInput := env.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
-		expectFN(*ltInput)
-	}
+	})
 }

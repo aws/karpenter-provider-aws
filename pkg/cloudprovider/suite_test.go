@@ -392,7 +392,8 @@ var _ = Describe("CloudProvider", func() {
 				return *req.LaunchTemplateSpecification.LaunchTemplateName
 			})
 			Expect(len(createFleetInput.LaunchTemplateConfigs)).To(BeNumerically("==", awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()))
-			awsEnv.ExpectLaunchTemplates(func(ltInput ec2.CreateLaunchTemplateInput) {
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
+			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
 				Expect(launchSpecNames).To(ContainElement(*ltInput.LaunchTemplateName))
 				Expect(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.Encrypted).To(Equal(aws.Bool(true)))
 			})
@@ -416,7 +417,8 @@ var _ = Describe("CloudProvider", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			awsEnv.ExpectLaunchTemplates(func(ltInput ec2.CreateLaunchTemplateInput) {
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
+			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
 				Expect(aws.StringValueSlice(ltInput.LaunchTemplateData.SecurityGroupIds)).To(ConsistOf("sg-test1"))
 			})
 		})
@@ -456,7 +458,8 @@ var _ = Describe("CloudProvider", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			awsEnv.ExpectLaunchTemplates(func(ltInput ec2.CreateLaunchTemplateInput) {
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
+			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
 				Expect(*ltInput.LaunchTemplateData.IamInstanceProfile.Name).To(Equal("overridden-profile"))
 			})
 		})
