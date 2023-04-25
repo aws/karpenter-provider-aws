@@ -232,7 +232,7 @@ func (p *Provider) createLaunchTemplate(ctx context.Context, options *amifamily.
 	if err != nil {
 		return nil, err
 	}
-	logging.FromContext(ctx).With("launch-template-id", aws.StringValue(output.LaunchTemplate.LaunchTemplateId)).Debugf("created launch template")
+	logging.FromContext(ctx).With("id", aws.StringValue(output.LaunchTemplate.LaunchTemplateId)).Debugf("created launch template")
 	return output.LaunchTemplate, nil
 }
 
@@ -300,8 +300,10 @@ func (p *Provider) cachedEvictedFunc(ctx context.Context) func(string, interface
 			logging.FromContext(ctx).With("launch-template", launchTemplate.LaunchTemplateName).Errorf("failed to delete launch template, %v", err)
 			return
 		}
-		logging.FromContext(ctx).With("launch-template", launchTemplate.LaunchTemplateName,
-			"id", aws.StringValue(launchTemplate.LaunchTemplateId)).Debugf("deleted launch template")
+		logging.FromContext(ctx).With(
+			"id", aws.StringValue(launchTemplate.LaunchTemplateId),
+			"name", aws.StringValue(launchTemplate.LaunchTemplateName),
+		).Debugf("deleted launch template")
 	}
 }
 
