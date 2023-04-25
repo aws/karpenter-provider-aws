@@ -934,7 +934,8 @@ var _ = Describe("Instance Types", func() {
 			// maxIPv4PerInterface = 12
 			// reservedENIs = 1,000,000
 			// max(3 - 1,000,000, 0) * (12 - 1) + 2 = 2
-			maxPods := 2
+			// if max-pods is 2, we output 0
+			maxPods := 0
 			Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", maxPods))
 		})
 		It("should override pods-per-core value", func() {
@@ -1268,14 +1269,12 @@ var _ = Describe("Instance Types", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
-			for i := 0; i < awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len(); i++ {
-				input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
-				Expect(*input.LaunchTemplateData.MetadataOptions.HttpEndpoint).To(Equal(ec2.LaunchTemplateInstanceMetadataEndpointStateEnabled))
-				Expect(*input.LaunchTemplateData.MetadataOptions.HttpProtocolIpv6).To(Equal(ec2.LaunchTemplateInstanceMetadataProtocolIpv6Disabled))
-				Expect(*input.LaunchTemplateData.MetadataOptions.HttpPutResponseHopLimit).To(Equal(int64(2)))
-				Expect(*input.LaunchTemplateData.MetadataOptions.HttpTokens).To(Equal(ec2.LaunchTemplateHttpTokensStateRequired))
-			}
+			awsEnv.ExpectLaunchTemplates(func(ltInput ec2.CreateLaunchTemplateInput) {
+				Expect(*ltInput.LaunchTemplateData.MetadataOptions.HttpEndpoint).To(Equal(ec2.LaunchTemplateInstanceMetadataEndpointStateEnabled))
+				Expect(*ltInput.LaunchTemplateData.MetadataOptions.HttpProtocolIpv6).To(Equal(ec2.LaunchTemplateInstanceMetadataProtocolIpv6Disabled))
+				Expect(*ltInput.LaunchTemplateData.MetadataOptions.HttpPutResponseHopLimit).To(Equal(int64(2)))
+				Expect(*ltInput.LaunchTemplateData.MetadataOptions.HttpTokens).To(Equal(ec2.LaunchTemplateHttpTokensStateRequired))
+			})
 		})
 		It("should set metadata options on generated launch template from provisioner configuration", func() {
 			nodeTemplate.Spec.MetadataOptions = &v1alpha1.MetadataOptions{
@@ -1288,14 +1287,12 @@ var _ = Describe("Instance Types", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
-			for i := 0; i < awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len(); i++ {
-				input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
-				Expect(*input.LaunchTemplateData.MetadataOptions.HttpEndpoint).To(Equal(ec2.LaunchTemplateInstanceMetadataEndpointStateDisabled))
-				Expect(*input.LaunchTemplateData.MetadataOptions.HttpProtocolIpv6).To(Equal(ec2.LaunchTemplateInstanceMetadataProtocolIpv6Enabled))
-				Expect(*input.LaunchTemplateData.MetadataOptions.HttpPutResponseHopLimit).To(Equal(int64(1)))
-				Expect(*input.LaunchTemplateData.MetadataOptions.HttpTokens).To(Equal(ec2.LaunchTemplateHttpTokensStateOptional))
-			}
+			awsEnv.ExpectLaunchTemplates(func(ltInput ec2.CreateLaunchTemplateInput) {
+				Expect(*ltInput.LaunchTemplateData.MetadataOptions.HttpEndpoint).To(Equal(ec2.LaunchTemplateInstanceMetadataEndpointStateDisabled))
+				Expect(*ltInput.LaunchTemplateData.MetadataOptions.HttpProtocolIpv6).To(Equal(ec2.LaunchTemplateInstanceMetadataProtocolIpv6Enabled))
+				Expect(*ltInput.LaunchTemplateData.MetadataOptions.HttpPutResponseHopLimit).To(Equal(int64(1)))
+				Expect(*ltInput.LaunchTemplateData.MetadataOptions.HttpTokens).To(Equal(ec2.LaunchTemplateHttpTokensStateOptional))
+			})
 		})
 	})
 })

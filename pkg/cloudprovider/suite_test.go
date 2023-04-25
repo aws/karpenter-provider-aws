@@ -388,17 +388,16 @@ var _ = Describe("CloudProvider", func() {
 
 			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
 			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
-			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
+			launchSpecNames := lo.Map(createFleetInput.LaunchTemplateConfigs, func(req *ec2.FleetLaunchTemplateConfigRequest, _ int) string {
+				return *req.LaunchTemplateSpecification.LaunchTemplateName
+			})
 			Expect(len(createFleetInput.LaunchTemplateConfigs)).To(BeNumerically("==", awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()))
-			for i := 0; i < awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len(); i++ {
-				lt := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
-				launchSpec := createFleetInput.LaunchTemplateConfigs[i].LaunchTemplateSpecification
-				launchSpecNames := lo.Map(createFleetInput.LaunchTemplateConfigs, func(req *ec2.FleetLaunchTemplateConfigRequest, _ int) string {
-					return *req.LaunchTemplateSpecification.LaunchTemplateName
-				})
-				Expect(launchSpecNames).To(ContainElement(*lt.LaunchTemplateName))
-				Expect(lt.LaunchTemplateData.BlockDeviceMappings[0].Ebs.Encrypted).To(Equal(aws.Bool(true)))
-				Expect(*launchSpec.Version).To(Equal("$Latest"))
+			awsEnv.ExpectLaunchTemplates(func(ltInput ec2.CreateLaunchTemplateInput) {
+				Expect(launchSpecNames).To(ContainElement(*ltInput.LaunchTemplateName))
+				Expect(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.Encrypted).To(Equal(aws.Bool(true)))
+			})
+			for _, ltSpec := range createFleetInput.LaunchTemplateConfigs {
+				Expect(*ltSpec.LaunchTemplateSpecification.Version).To(Equal("$Latest"))
 			}
 		})
 		It("should discover security groups by ID", func() {
@@ -417,11 +416,9 @@ var _ = Describe("CloudProvider", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
-			input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
-			Expect(aws.StringValueSlice(input.LaunchTemplateData.SecurityGroupIds)).To(ConsistOf(
-				"sg-test1",
-			))
+			awsEnv.ExpectLaunchTemplates(func(ltInput ec2.CreateLaunchTemplateInput) {
+				Expect(aws.StringValueSlice(ltInput.LaunchTemplateData.SecurityGroupIds)).To(ConsistOf("sg-test1"))
+			})
 		})
 		It("should discover subnets by ID", func() {
 			provisioner = test.Provisioner(coretest.ProvisionerOptions{
@@ -459,9 +456,9 @@ var _ = Describe("CloudProvider", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
-			input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
-			Expect(*input.LaunchTemplateData.IamInstanceProfile.Name).To(Equal("overridden-profile"))
+			awsEnv.ExpectLaunchTemplates(func(ltInput ec2.CreateLaunchTemplateInput) {
+				Expect(*ltInput.LaunchTemplateData.IamInstanceProfile.Name).To(Equal("overridden-profile"))
+			})
 		})
 	})
 	Context("Subnet Compatibility", func() {

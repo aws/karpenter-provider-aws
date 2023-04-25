@@ -113,8 +113,6 @@ func New(kubeClient client.Client, amiProvider *Provider) *Resolver {
 
 // Resolve generates launch templates using the static options and dynamically generates launch template parameters.
 // Multiple ResolvedTemplates are returned based on the instanceTypes passed in to support special AMIs for certain instance types like GPUs.
-//
-//nolint:gocyclo
 func (r Resolver) Resolve(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, machine *v1alpha5.Machine, instanceTypes []*cloudprovider.InstanceType, options *Options) ([]*LaunchTemplate, error) {
 	amiFamily := GetAMIFamily(nodeTemplate.Spec.AMIFamily, options)
 	amis, err := r.amiProvider.Get(ctx, nodeTemplate, options)
@@ -130,10 +128,9 @@ func (r Resolver) Resolve(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTem
 	}
 	var resolvedTemplates []*LaunchTemplate
 	for amiID, instanceTypes := range mappedAMIs {
-		maxPodsToInstanceTypes := map[int][]*cloudprovider.InstanceType{}
-		for _, instanceType := range instanceTypes {
-			maxPodsToInstanceTypes[int(instanceType.Capacity.Pods().Value())] = append(maxPodsToInstanceTypes[int(instanceType.Capacity.Pods().Value())], instanceType)
-		}
+		maxPodsToInstanceTypes := lo.GroupBy(instanceTypes, func(instanceType *cloudprovider.InstanceType) int {
+			return int(instanceType.Capacity.Pods().Value())
+		})
 		// In order to support reserved ENIs for CNI custom networking setups,
 		// we need to pass down the max-pods calculation to the kubelet.
 		// This requires that we resolve a unique launch template per max-pods value.
