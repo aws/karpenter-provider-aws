@@ -50,7 +50,6 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | controller.sidecarVolumeMounts | list | `[]` | Additional volumeMounts for the sidecar - this will be added to the volume mounts on top of extraVolumeMounts |
 | dnsConfig | object | `{}` | Configure DNS Config for the pod |
 | dnsPolicy | string | `"Default"` | Configure the DNS Policy for the pod |
-| extraObjects | list | `[]` | Array of extra K8s manifests to deploy |
 | extraVolumes | list | `[]` | Additional volumes for the pod. |
 | fullnameOverride | string | `""` | Overrides the chart's computed fullname. |
 | hostNetwork | bool | `false` | Bind the pod to the host network. This is required when using a custom CNI. |
