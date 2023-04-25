@@ -13,10 +13,12 @@ aws cloudformation list-stacks --stack-status-filter CREATE_COMPLETE ROLLBACK_FA
 
 
 # Clean up old launch templates
-launch_templates=$(aws ec2 describe-launch-templates |  jq -r '.LaunchTemplates[].LaunchTemplateName' | grep Karpenter-karpenter-tests)
-n_lts=$(echo ${launch_templates} | wc -w)
+launch_templates=($(aws ec2 describe-launch-templates |  jq -r '.LaunchTemplates[].LaunchTemplateName' | grep "karpenter.k8s.aws"))
+n_lts="${#launch_templates[@]}"
 echo "Removing ${n_lts} launch templates"
-for lt in ${launch_templates}; do
+
+# Iterate through every line in the launch template describe response
+for lt in "${launch_templates[@]}"; do
   echo "Deleting LT ${lt}"
-  aws ec2 delete-launch-template --no-cli-pager --launch-template-name ${lt}
+  aws ec2 delete-launch-template --no-cli-pager --launch-template-name "${lt}"
 done
