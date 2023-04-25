@@ -15,6 +15,8 @@ limitations under the License.
 package integration_test
 
 import (
+	"strconv"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	. "github.com/onsi/ginkgo/v2"
@@ -71,6 +73,27 @@ var _ = Describe("CNITests", func() {
 		allocatablePods, _ := node.Status.Allocatable.Pods().AsInt64()
 		Expect(allocatablePods).To(Equal(eniLimitedPodsFor(node.Labels["node.kubernetes.io/instance-type"])))
 	})
+	It("should set maxPods when reservedENIs is set", func() {
+		env.ExpectSettingsOverridden(map[string]string{
+			"aws.reservedENIs": "1",
+		})
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+			AWS: v1alpha1.AWS{
+				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+				AMIFamily:             &v1alpha1.AMIFamilyAL2,
+			},
+		})
+		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
+		pod := test.Pod()
+		env.ExpectCreated(pod, provider, provisioner)
+		env.EventuallyExpectHealthy(pod)
+		env.ExpectCreatedNodeCount("==", 1)
+		var node corev1.Node
+		Expect(env.Client.Get(env.Context, types.NamespacedName{Name: pod.Spec.NodeName}, &node)).To(Succeed())
+		allocatablePods, _ := node.Status.Allocatable.Pods().AsInt64()
+		Expect(allocatablePods).To(Equal(reservedENIsFor(node.Labels["node.kubernetes.io/instance-type"])))
+	})
 })
 
 func eniLimitedPodsFor(instanceType string) int64 {
@@ -80,4 +103,19 @@ func eniLimitedPodsFor(instanceType string) int64 {
 	Expect(err).ToNot(HaveOccurred())
 	networkInfo := *instance.InstanceTypes[0].NetworkInfo
 	return *networkInfo.MaximumNetworkInterfaces*(*networkInfo.Ipv4AddressesPerInterface-1) + 2
+}
+
+func reservedENIsFor(instanceType string) int64 {
+	instance, err := env.EC2API.DescribeInstanceTypes(&ec2.DescribeInstanceTypesInput{
+		InstanceTypes: aws.StringSlice([]string{instanceType}),
+	})
+	Expect(err).ToNot(HaveOccurred())
+	networkInfo := *instance.InstanceTypes[0].NetworkInfo
+	reservedENIs := 0
+	reservedENIsStr, ok := env.ExpectSettings().Data["aws.reservedENIs"]
+	if ok {
+		reservedENIs, err = strconv.Atoi(reservedENIsStr)
+		Expect(err).ToNot(HaveOccurred())
+	}
+	return (*networkInfo.MaximumNetworkInterfaces-int64(reservedENIs))*(*networkInfo.Ipv4AddressesPerInterface-1) + 2
 }
