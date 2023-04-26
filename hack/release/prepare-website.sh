@@ -7,12 +7,14 @@ source "${SCRIPT_DIR}/common.sh"
 config
 
 GIT_TAG=$(git describe --exact-match --tags || echo "none")
-if [[ $(releaseType $GIT_TAG) != $RELEASE_TYPE_STABLE ]]; then
+if [[ $(releaseType "$GIT_TAG") != $RELEASE_TYPE_STABLE ]]; then
   echo "Not a stable release. Missing required git tag."
   exit 1
 fi
 echo "RenderingPrep website files for ${GIT_TAG}"
 
-createNewWebsiteDirectory $GIT_TAG
-editWebsiteConfig $GIT_TAG
-editWebsiteVersionsMenu $GIT_TAG
+createNewWebsiteDirectory "$GIT_TAG"
+deleteMinorVersionWebsiteDirectory "$GIT_TAG"
+removeOldWebsiteDirectories
+editWebsiteConfig "$GIT_TAG"
+editWebsiteVersionsMenu "$GIT_TAG"
