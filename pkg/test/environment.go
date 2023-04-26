@@ -98,6 +98,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 			make(chan struct{}),
 			net.ParseIP("10.0.100.10"),
 			"https://test-cluster",
+			false,
 		)
 	instanceProvider :=
 		instance.NewProvider(ctx,

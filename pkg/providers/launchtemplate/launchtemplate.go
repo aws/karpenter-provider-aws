@@ -61,9 +61,10 @@ type Provider struct {
 	cm                    *pretty.ChangeMonitor
 	KubeDNSIP             net.IP
 	ClusterEndpoint       string
+	AssignPublicIPAddress bool
 }
 
-func NewProvider(ctx context.Context, cache *cache.Cache, ec2api ec2iface.EC2API, amiFamily *amifamily.Resolver, securityGroupProvider *securitygroup.Provider, caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP, clusterEndpoint string) *Provider {
+func NewProvider(ctx context.Context, cache *cache.Cache, ec2api ec2iface.EC2API, amiFamily *amifamily.Resolver, securityGroupProvider *securitygroup.Provider, caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP, clusterEndpoint string, assignPublicIPAddress bool) *Provider {
 	l := &Provider{
 		ec2api:                ec2api,
 		amiFamily:             amiFamily,
@@ -73,6 +74,7 @@ func NewProvider(ctx context.Context, cache *cache.Cache, ec2api ec2iface.EC2API
 		cm:                    pretty.NewChangeMonitor(),
 		KubeDNSIP:             kubeDNSIP,
 		ClusterEndpoint:       clusterEndpoint,
+		AssignPublicIPAddress: assignPublicIPAddress,
 	}
 	l.cache.OnEvicted(l.cachedEvictedFunc(ctx))
 	go func() {
@@ -156,10 +158,11 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeTemplate *v1alpha1.
 		SecurityGroups: lo.Map(securityGroups, func(s *ec2.SecurityGroup, _ int) v1alpha1.SecurityGroup {
 			return v1alpha1.SecurityGroup{ID: aws.StringValue(s.GroupId), Name: aws.StringValue(s.GroupName)}
 		}),
-		Tags:      tags,
-		Labels:    labels,
-		CABundle:  p.caBundle,
-		KubeDNSIP: p.KubeDNSIP,
+		Tags:                     tags,
+		Labels:                   labels,
+		CABundle:                 p.caBundle,
+		KubeDNSIP:                p.KubeDNSIP,
+		AssociatePublicIPAddress: p.AssignPublicIPAddress,
 	}, nil
 }
 
@@ -219,6 +222,11 @@ func (p *Provider) createLaunchTemplate(ctx context.Context, options *amifamily.
 				HttpProtocolIpv6:        options.MetadataOptions.HTTPProtocolIPv6,
 				HttpPutResponseHopLimit: options.MetadataOptions.HTTPPutResponseHopLimit,
 				HttpTokens:              options.MetadataOptions.HTTPTokens,
+			},
+			NetworkInterfaces: []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
+				{
+					AssociatePublicIpAddress: aws.Bool(options.AssociatePublicIPAddress),
+				},
 			},
 			TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{
 				{ResourceType: aws.String(ec2.ResourceTypeNetworkInterface), Tags: utils.MergeTags(options.Tags)},
