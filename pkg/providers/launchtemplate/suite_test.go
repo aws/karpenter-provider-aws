@@ -848,7 +848,7 @@ var _ = Describe("LaunchTemplates", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			awsEnv.ExpectLaunchTemplatesCreatedWithUserDataContaining("--use-max-pods false")
+			ExpectLaunchTemplatesCreatedWithUserDataContaining("--use-max-pods false")
 		})
 		It("should specify --use-max-pods=false when not using ENI-based pod density", func() {
 			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
@@ -859,7 +859,7 @@ var _ = Describe("LaunchTemplates", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			awsEnv.ExpectLaunchTemplatesCreatedWithUserDataContaining("--use-max-pods false", "--max-pods=110")
+			ExpectLaunchTemplatesCreatedWithUserDataContaining("--use-max-pods false", "--max-pods=110")
 		})
 		It("should specify --use-max-pods=false and --max-pods user value when user specifies maxPods in Provisioner", func() {
 			provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{MaxPods: aws.Int32(10)}
@@ -867,7 +867,7 @@ var _ = Describe("LaunchTemplates", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			awsEnv.ExpectLaunchTemplatesCreatedWithUserDataContaining("--use-max-pods false", "--max-pods=10")
+			ExpectLaunchTemplatesCreatedWithUserDataContaining("--use-max-pods false", "--max-pods=10")
 		})
 		It("should specify --system-reserved when overriding system reserved values", func() {
 			provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
@@ -1012,7 +1012,7 @@ var _ = Describe("LaunchTemplates", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			awsEnv.ExpectLaunchTemplatesCreatedWithUserDataContaining(fmt.Sprintf("--eviction-max-pod-grace-period=%d", 300))
+			ExpectLaunchTemplatesCreatedWithUserDataContaining(fmt.Sprintf("--eviction-max-pod-grace-period=%d", 300))
 		})
 		It("should specify --pods-per-core", func() {
 			provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
@@ -1022,7 +1022,7 @@ var _ = Describe("LaunchTemplates", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			awsEnv.ExpectLaunchTemplatesCreatedWithUserDataContaining(fmt.Sprintf("--pods-per-core=%d", 2))
+			ExpectLaunchTemplatesCreatedWithUserDataContaining(fmt.Sprintf("--pods-per-core=%d", 2))
 		})
 		It("should specify --pods-per-core with --max-pods enabled", func() {
 			provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
@@ -1033,14 +1033,14 @@ var _ = Describe("LaunchTemplates", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			awsEnv.ExpectLaunchTemplatesCreatedWithUserDataContaining(fmt.Sprintf("--pods-per-core=%d", 2), fmt.Sprintf("--max-pods=%d", 100))
+			ExpectLaunchTemplatesCreatedWithUserDataContaining(fmt.Sprintf("--pods-per-core=%d", 2), fmt.Sprintf("--max-pods=%d", 100))
 		})
 		It("should specify --container-runtime containerd by default", func() {
 			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			awsEnv.ExpectLaunchTemplatesCreatedWithUserDataContaining("--container-runtime containerd")
+			ExpectLaunchTemplatesCreatedWithUserDataContaining("--container-runtime containerd")
 		})
 		It("should specify dockerd if specified in the provisionerSpec", func() {
 			provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{ContainerRuntime: aws.String("dockerd")}
@@ -1048,7 +1048,7 @@ var _ = Describe("LaunchTemplates", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			awsEnv.ExpectLaunchTemplatesCreatedWithUserDataContaining("--container-runtime dockerd")
+			ExpectLaunchTemplatesCreatedWithUserDataContaining("--container-runtime dockerd")
 		})
 		It("should specify --container-runtime containerd when using Neuron GPUs", func() {
 			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{{Key: v1alpha1.LabelInstanceCategory, Operator: v1.NodeSelectorOpExists}}
@@ -1066,7 +1066,7 @@ var _ = Describe("LaunchTemplates", func() {
 			})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			awsEnv.ExpectLaunchTemplatesCreatedWithUserDataContaining("--container-runtime containerd")
+			ExpectLaunchTemplatesCreatedWithUserDataContaining("--container-runtime containerd")
 		})
 		It("should specify --container-runtime containerd when using Nvidia GPUs", func() {
 			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{{Key: v1alpha1.LabelInstanceCategory, Operator: v1.NodeSelectorOpExists}}
@@ -1084,7 +1084,7 @@ var _ = Describe("LaunchTemplates", func() {
 			})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			awsEnv.ExpectLaunchTemplatesCreatedWithUserDataContaining("--container-runtime containerd")
+			ExpectLaunchTemplatesCreatedWithUserDataContaining("--container-runtime containerd")
 		})
 		It("should specify --dns-cluster-ip and --ip-family when running in an ipv6 cluster", func() {
 			awsEnv.LaunchTemplateProvider.KubeDNSIP = net.ParseIP("fd4b:121b:812b::a")
@@ -1092,15 +1092,15 @@ var _ = Describe("LaunchTemplates", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			awsEnv.ExpectLaunchTemplatesCreatedWithUserDataContaining("--dns-cluster-ip 'fd4b:121b:812b::a'")
-			awsEnv.ExpectLaunchTemplatesCreatedWithUserDataContaining("--ip-family ipv6")
+			ExpectLaunchTemplatesCreatedWithUserDataContaining("--dns-cluster-ip 'fd4b:121b:812b::a'")
+			ExpectLaunchTemplatesCreatedWithUserDataContaining("--ip-family ipv6")
 		})
 		It("should specify --dns-cluster-ip when running in an ipv4 cluster", func() {
 			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			awsEnv.ExpectLaunchTemplatesCreatedWithUserDataContaining("--dns-cluster-ip '10.0.100.10'")
+			ExpectLaunchTemplatesCreatedWithUserDataContaining("--dns-cluster-ip '10.0.100.10'")
 		})
 		It("should pass ImageGCHighThresholdPercent when specified", func() {
 			provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
@@ -1110,7 +1110,7 @@ var _ = Describe("LaunchTemplates", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			awsEnv.ExpectLaunchTemplatesCreatedWithUserDataContaining("--image-gc-high-threshold=50")
+			ExpectLaunchTemplatesCreatedWithUserDataContaining("--image-gc-high-threshold=50")
 		})
 		It("should pass ImageGCLowThresholdPercent when specified", func() {
 			provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
@@ -1120,7 +1120,7 @@ var _ = Describe("LaunchTemplates", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			awsEnv.ExpectLaunchTemplatesCreatedWithUserDataContaining("--image-gc-low-threshold=50")
+			ExpectLaunchTemplatesCreatedWithUserDataContaining("--image-gc-low-threshold=50")
 		})
 		It("should pass --cpu-fs-quota when specified", func() {
 			provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
@@ -1130,7 +1130,7 @@ var _ = Describe("LaunchTemplates", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			awsEnv.ExpectLaunchTemplatesCreatedWithUserDataContaining("--cpu-cfs-quota=false")
+			ExpectLaunchTemplatesCreatedWithUserDataContaining("--cpu-cfs-quota=false")
 		})
 		Context("Bottlerocket", func() {
 			It("should merge in custom user data", func() {
@@ -1152,7 +1152,7 @@ var _ = Describe("LaunchTemplates", func() {
 				ExpectScheduled(ctx, env.Client, pod)
 				content, err = os.ReadFile("testdata/br_userdata_merged.golden")
 				Expect(err).To(BeNil())
-				awsEnv.ExpectLaunchTemplatesCreatedWithUserData(fmt.Sprintf(string(content), provisioner.Name))
+				ExpectLaunchTemplatesCreatedWithUserData(fmt.Sprintf(string(content), provisioner.Name))
 			})
 			It("should bootstrap when custom user data is empty", func() {
 				ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
@@ -1170,7 +1170,7 @@ var _ = Describe("LaunchTemplates", func() {
 				ExpectScheduled(ctx, env.Client, pod)
 				content, err := os.ReadFile("testdata/br_userdata_unmerged.golden")
 				Expect(err).To(BeNil())
-				awsEnv.ExpectLaunchTemplatesCreatedWithUserData(fmt.Sprintf(string(content), provisioner.Name))
+				ExpectLaunchTemplatesCreatedWithUserData(fmt.Sprintf(string(content), provisioner.Name))
 			})
 			It("should not bootstrap when provider ref points to a non-existent resource", func() {
 				ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
@@ -1389,7 +1389,7 @@ var _ = Describe("LaunchTemplates", func() {
 				content, err = os.ReadFile("testdata/al2_userdata_merged.golden")
 				Expect(err).To(BeNil())
 				expectedUserData := fmt.Sprintf(string(content), newProvisioner.Name)
-				awsEnv.ExpectLaunchTemplatesCreatedWithUserData(expectedUserData)
+				ExpectLaunchTemplatesCreatedWithUserData(expectedUserData)
 			})
 			It("should merge in custom user data not in multi-part mime format", func() {
 				ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
@@ -1408,7 +1408,7 @@ var _ = Describe("LaunchTemplates", func() {
 				content, err = os.ReadFile("testdata/al2_userdata_merged.golden")
 				Expect(err).To(BeNil())
 				expectedUserData := fmt.Sprintf(string(content), newProvisioner.Name)
-				awsEnv.ExpectLaunchTemplatesCreatedWithUserData(expectedUserData)
+				ExpectLaunchTemplatesCreatedWithUserData(expectedUserData)
 			})
 			It("should handle empty custom user data", func() {
 				ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
@@ -1424,7 +1424,7 @@ var _ = Describe("LaunchTemplates", func() {
 				content, err := os.ReadFile("testdata/al2_userdata_unmerged.golden")
 				Expect(err).To(BeNil())
 				expectedUserData := fmt.Sprintf(string(content), newProvisioner.Name)
-				awsEnv.ExpectLaunchTemplatesCreatedWithUserData(expectedUserData)
+				ExpectLaunchTemplatesCreatedWithUserData(expectedUserData)
 			})
 		})
 		Context("Custom AMI Selector", func() {
@@ -1465,7 +1465,7 @@ var _ = Describe("LaunchTemplates", func() {
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
-				awsEnv.ExpectLaunchTemplatesCreatedWithUserData("special user data")
+				ExpectLaunchTemplatesCreatedWithUserData("special user data")
 			})
 			It("should correctly use ami selector with specific IDs in AWSNodeTemplate", func() {
 				nodeTemplate.Spec.AMISelector = map[string]string{"aws-ids": "ami-123,ami-456"}
@@ -1630,7 +1630,7 @@ var _ = Describe("LaunchTemplates", func() {
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
-				awsEnv.ExpectLaunchTemplatesCreatedWithUserDataContaining("--dns-cluster-ip '10.0.10.100'")
+				ExpectLaunchTemplatesCreatedWithUserDataContaining("--dns-cluster-ip '10.0.10.100'")
 			})
 		})
 		Context("Instance Profile", func() {
@@ -1700,4 +1700,27 @@ func ExpectTagsNotFound(tags []*ec2.Tag, expectNotFound map[string]string) {
 		elem, ok := existingTags[k]
 		ExpectWithOffset(1, !ok || v != elem).To(BeTrue())
 	}
+}
+
+func ExpectLaunchTemplatesCreatedWithUserDataContaining(substrings ...string) {
+	Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
+	awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(input *ec2.CreateLaunchTemplateInput) {
+		userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+		Expect(err).To(BeNil())
+		for _, substring := range substrings {
+			Expect(string(userData)).To(ContainSubstring(substring))
+		}
+	})
+}
+
+func ExpectLaunchTemplatesCreatedWithUserData(expected string) {
+	Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
+	awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(input *ec2.CreateLaunchTemplateInput) {
+		userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+		Expect(err).To(BeNil())
+		// Newlines are always added for missing TOML fields, so strip them out before comparisons.
+		actualUserData := strings.Replace(string(userData), "\n", "", -1)
+		expectedUserData := strings.Replace(expected, "\n", "", -1)
+		Expect(expectedUserData).To(Equal(actualUserData))
+	})
 }
