@@ -81,7 +81,7 @@ func execCreateFleetBatch(ec2api ec2iface.EC2API) BatchExecutor[ec2.CreateFleetI
 							{
 								InstanceIds:                []*string{instanceID},
 								InstanceType:               reservation.InstanceType,
-								LaunchTemplateAndOverrides: reservation.LaunchTemplateAndOverrides, // start here
+								LaunchTemplateAndOverrides: reservation.LaunchTemplateAndOverrides,
 								Lifecycle:                  reservation.Lifecycle,
 								Platform:                   reservation.Platform,
 							},
