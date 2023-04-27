@@ -46,6 +46,7 @@ func New(ctx context.Context, config *rest.Config, kubeClient client.Client) *Mo
 			logger.WithOptions()
 			return ctx
 		},
+		MetricsBindAddress: "0",
 	}))
 	for _, c := range newControllers(kubeClient) {
 		lo.Must0(c.Builder(ctx, mgr).Complete(c), "failed to register controller")
