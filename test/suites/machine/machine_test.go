@@ -195,9 +195,11 @@ var _ = Describe("StandaloneMachine", func() {
 				BlockOwnerDeletion: lo.ToPtr(true),
 			},
 		))
-		machine = env.EventuallyExpectCreatedMachineCount("==", 1)[0]
+		env.EventuallyExpectCreatedMachineCount("==", 1)
 		Eventually(func(g Gomega) {
-			g.Expect(machine.StatusConditions().IsHappy()).To(BeTrue())
+			temp := &v1alpha5.Machine{}
+			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(machine), temp)).Should(Succeed())
+			g.Expect(temp.StatusConditions().IsHappy()).To(BeTrue())
 		}, time.Second*5).Should(Succeed())
 	})
 	It("should remove the cloudProvider machine when the cluster machine is deleted", func() {
@@ -295,9 +297,12 @@ var _ = Describe("StandaloneMachine", func() {
 		node := env.EventuallyExpectInitializedNodeCount("==", 1)[0]
 		Expect(node.Labels).To(HaveKeyWithValue("custom-label", "custom-value"))
 		Expect(node.Labels).To(HaveKeyWithValue("custom-label2", "custom-value2"))
-		machine = env.EventuallyExpectCreatedMachineCount("==", 1)[0]
+
+		env.EventuallyExpectCreatedMachineCount("==", 1)
 		Eventually(func(g Gomega) {
-			g.Expect(machine.StatusConditions().IsHappy()).To(BeTrue())
+			temp := &v1alpha5.Machine{}
+			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(machine), temp)).Should(Succeed())
+			g.Expect(temp.StatusConditions().IsHappy()).To(BeTrue())
 		}, time.Second*5).Should(Succeed())
 	})
 	It("should delete a machine after the registration timeout when the node doesn't register", func() {
@@ -338,11 +343,11 @@ var _ = Describe("StandaloneMachine", func() {
 
 		// Expect that the machine eventually launches and has false Registration/Initialization
 		Eventually(func(g Gomega) {
-			m := &v1alpha5.Machine{}
-			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(machine), m)).To(Succeed())
-			g.Expect(m.StatusConditions().GetCondition(v1alpha5.MachineLaunched).IsTrue()).To(BeTrue())
-			g.Expect(m.StatusConditions().GetCondition(v1alpha5.MachineRegistered).IsFalse()).To(BeTrue())
-			g.Expect(m.StatusConditions().GetCondition(v1alpha5.MachineInitialized).IsFalse()).To(BeTrue())
+			temp := &v1alpha5.Machine{}
+			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(machine), temp)).To(Succeed())
+			g.Expect(temp.StatusConditions().GetCondition(v1alpha5.MachineLaunched).IsTrue()).To(BeTrue())
+			g.Expect(temp.StatusConditions().GetCondition(v1alpha5.MachineRegistered).IsFalse()).To(BeTrue())
+			g.Expect(temp.StatusConditions().GetCondition(v1alpha5.MachineInitialized).IsFalse()).To(BeTrue())
 		}).Should(Succeed())
 
 		// Expect that the machine is eventually de-provisioned due to the registration timeout
