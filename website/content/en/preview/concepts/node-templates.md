@@ -219,10 +219,22 @@ Select all AMIs with a specified tag:
     karpenter.sh/discovery/MyClusterName: '*'
 ```
 
-Select AMIs by name:
+Select AMIs by the AMI name:
+```yaml
+  amiSelector:
+    aws::name: my-ami
+```
+Select AMIs by the Name tag:
 ```yaml
   amiSelector:
     Name: my-ami
+```
+
+Select AMIs by name and a specific owner:
+```yaml
+  amiSelector:
+    aws::name: my-ami
+    aws::owners: self/ownerAccountID
 ```
 
 Select AMIs by an arbitrary AWS tag key/value pair:
@@ -234,7 +246,7 @@ Select AMIs by an arbitrary AWS tag key/value pair:
 Specify AMIs explicitly by ID:
 ```yaml
   amiSelector:
-    aws-ids: "ami-123,ami-456"
+    aws::ids: "ami-123,ami-456"
 ```
 
 ## spec.tags
