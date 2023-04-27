@@ -58,7 +58,7 @@ func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, kc *v1alph
 		Offerings:    offerings,
 		Capacity:     computeCapacity(ctx, info, amiFamily, nodeTemplate.Spec.BlockDeviceMappings, kc),
 		Overhead: &cloudprovider.InstanceTypeOverhead{
-			KubeReserved:      kubeReservedResources(cpu(info), pods(ctx, info, amiFamily, kc), ENILimitedPods(info), amiFamily, kc),
+			KubeReserved:      kubeReservedResources(cpu(info), pods(ctx, info, amiFamily, kc), ENILimitedPods(ctx, info), amiFamily, kc),
 			SystemReserved:    systemReservedResources(kc),
 			EvictionThreshold: evictionThreshold(memory(ctx, info), ephemeralStorage(amiFamily, nodeTemplate.Spec.BlockDeviceMappings), amiFamily, kc),
 		},
@@ -250,12 +250,16 @@ func habanaGaudis(info *ec2.InstanceTypeInfo) *resource.Quantity {
 // The number of pods per node is calculated using the formula:
 // max number of ENIs * (IPv4 Addresses per ENI -1) + 2
 // https://github.com/awslabs/amazon-eks-ami/blob/master/files/eni-max-pods.txt#L20
-func ENILimitedPods(info *ec2.InstanceTypeInfo) *resource.Quantity {
+func ENILimitedPods(ctx context.Context, info *ec2.InstanceTypeInfo) *resource.Quantity {
 	// VPC CNI only uses the default network interface
 	// https://github.com/aws/amazon-vpc-cni-k8s/blob/3294231c0dce52cfe473bf6c62f47956a3b333b6/scripts/gen_vpc_ip_limits.go#L162
 	networkInterfaces := *info.NetworkInfo.NetworkCards[*info.NetworkInfo.DefaultNetworkCardIndex].MaximumNetworkInterfaces
+	usableNetworkInterfaces := lo.Max([]int64{(networkInterfaces - int64(awssettings.FromContext(ctx).ReservedENIs)), 0})
+	if usableNetworkInterfaces == 0 {
+		return resource.NewQuantity(0, resource.DecimalSI)
+	}
 	addressesPerInterface := *info.NetworkInfo.Ipv4AddressesPerInterface
-	return resources.Quantity(fmt.Sprint(networkInterfaces*(addressesPerInterface-1) + 2))
+	return resources.Quantity(fmt.Sprint(usableNetworkInterfaces*(addressesPerInterface-1) + 2))
 }
 
 func systemReservedResources(kc *v1alpha5.KubeletConfiguration) v1.ResourceList {
@@ -341,7 +345,7 @@ func pods(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily amifamily.A
 	case !awssettings.FromContext(ctx).EnableENILimitedPodDensity:
 		count = 110
 	default:
-		count = ENILimitedPods(info).Value()
+		count = ENILimitedPods(ctx, info).Value()
 	}
 	if kc != nil && ptr.Int32Value(kc.PodsPerCore) > 0 && amiFamily.FeatureFlags().PodsPerCoreEnabled {
 		count = lo.Min([]int64{int64(ptr.Int32Value(kc.PodsPerCore)) * ptr.Int64Value(info.VCpuInfo.DefaultVCpus), count})

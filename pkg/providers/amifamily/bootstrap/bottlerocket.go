@@ -19,8 +19,9 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/samber/lo"
 	"knative.dev/pkg/ptr"
+
+	"github.com/samber/lo"
 
 	"github.com/aws/karpenter-core/pkg/utils/resources"
 

@@ -21,6 +21,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/imdario/mergo"
 	"github.com/samber/lo"
 	core "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -127,29 +128,46 @@ func (r Resolver) Resolve(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTem
 	}
 	var resolvedTemplates []*LaunchTemplate
 	for amiID, instanceTypes := range mappedAMIs {
-		resolved := &LaunchTemplate{
-			Options: options,
-			UserData: amiFamily.UserData(
-				r.defaultClusterDNS(options, machine.Spec.Kubelet),
-				append(machine.Spec.Taints, machine.Spec.StartupTaints...),
-				options.Labels,
-				options.CABundle,
-				instanceTypes,
-				nodeTemplate.Spec.UserData,
-			),
-			BlockDeviceMappings: nodeTemplate.Spec.BlockDeviceMappings,
-			MetadataOptions:     nodeTemplate.Spec.MetadataOptions,
-			DetailedMonitoring:  aws.BoolValue(nodeTemplate.Spec.DetailedMonitoring),
-			AMIID:               amiID,
-			InstanceTypes:       instanceTypes,
+		maxPodsToInstanceTypes := lo.GroupBy(instanceTypes, func(instanceType *cloudprovider.InstanceType) int {
+			return int(instanceType.Capacity.Pods().Value())
+		})
+		// In order to support reserved ENIs for CNI custom networking setups,
+		// we need to pass down the max-pods calculation to the kubelet.
+		// This requires that we resolve a unique launch template per max-pods value.
+		for maxPods, instanceTypes := range maxPodsToInstanceTypes {
+			kubeletConfig := &v1alpha5.KubeletConfiguration{}
+			if machine.Spec.Kubelet != nil {
+				if err := mergo.Merge(kubeletConfig, machine.Spec.Kubelet); err != nil {
+					return nil, err
+				}
+			}
+			if kubeletConfig.MaxPods == nil {
+				kubeletConfig.MaxPods = lo.ToPtr(int32(maxPods))
+			}
+			resolved := &LaunchTemplate{
+				Options: options,
+				UserData: amiFamily.UserData(
+					r.defaultClusterDNS(options, kubeletConfig),
+					append(machine.Spec.Taints, machine.Spec.StartupTaints...),
+					options.Labels,
+					options.CABundle,
+					instanceTypes,
+					nodeTemplate.Spec.UserData,
+				),
+				BlockDeviceMappings: nodeTemplate.Spec.BlockDeviceMappings,
+				MetadataOptions:     nodeTemplate.Spec.MetadataOptions,
+				DetailedMonitoring:  aws.BoolValue(nodeTemplate.Spec.DetailedMonitoring),
+				AMIID:               amiID,
+				InstanceTypes:       instanceTypes,
+			}
+			if resolved.BlockDeviceMappings == nil {
+				resolved.BlockDeviceMappings = amiFamily.DefaultBlockDeviceMappings()
+			}
+			if resolved.MetadataOptions == nil {
+				resolved.MetadataOptions = amiFamily.DefaultMetadataOptions()
+			}
+			resolvedTemplates = append(resolvedTemplates, resolved)
 		}
-		if resolved.BlockDeviceMappings == nil {
-			resolved.BlockDeviceMappings = amiFamily.DefaultBlockDeviceMappings()
-		}
-		if resolved.MetadataOptions == nil {
-			resolved.MetadataOptions = amiFamily.DefaultMetadataOptions()
-		}
-		resolvedTemplates = append(resolvedTemplates, resolved)
 	}
 	return resolvedTemplates, nil
 }

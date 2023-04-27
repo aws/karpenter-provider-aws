@@ -52,6 +52,7 @@ var _ = Describe("Validation", func() {
 		Expect(s.NodeNameConvention).To(Equal(settings.IPName))
 		Expect(s.VMMemoryOverheadPercent).To(Equal(0.075))
 		Expect(len(s.Tags)).To(BeZero())
+		Expect(s.ReservedENIs).To(Equal(0))
 	})
 	It("should succeed to set custom values", func() {
 		cm := &v1.ConfigMap{
@@ -65,6 +66,7 @@ var _ = Describe("Validation", func() {
 				"aws.nodeNameConvention":         "resource-name",
 				"aws.vmMemoryOverheadPercent":    "0.1",
 				"aws.tags":                       `{"tag1": "value1", "tag2": "value2", "example.com/tag": "my-value"}`,
+				"aws.reservedENIs":               "1",
 			},
 		}
 		ctx, err := (&settings.Settings{}).Inject(ctx, cm)
@@ -80,6 +82,7 @@ var _ = Describe("Validation", func() {
 		Expect(s.Tags).To(HaveKeyWithValue("tag1", "value1"))
 		Expect(s.Tags).To(HaveKeyWithValue("tag2", "value2"))
 		Expect(s.Tags).To(HaveKeyWithValue("example.com/tag", "my-value"))
+		Expect(s.ReservedENIs).To(Equal(1))
 	})
 	It("should succeed validation when tags contain parts of restricted domains", func() {
 		cm := &v1.ConfigMap{
@@ -156,6 +159,15 @@ var _ = Describe("Validation", func() {
 			},
 		}
 		_, err = (&settings.Settings{}).Inject(ctx, cm)
+		Expect(err).To(HaveOccurred())
+	})
+	It("should fail validation with reservedENIs is negative", func() {
+		cm := &v1.ConfigMap{
+			Data: map[string]string{
+				"aws.reservedENIs": "-1",
+			},
+		}
+		_, err := (&settings.Settings{}).Inject(ctx, cm)
 		Expect(err).To(HaveOccurred())
 	})
 })

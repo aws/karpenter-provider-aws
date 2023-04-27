@@ -34,6 +34,7 @@ type SettingOptions struct {
 	VMMemoryOverheadPercent    *float64
 	InterruptionQueueName      *string
 	Tags                       map[string]string
+	ReservedENIs               *int
 }
 
 func Settings(overrides ...SettingOptions) *awssettings.Settings {
@@ -54,5 +55,6 @@ func Settings(overrides ...SettingOptions) *awssettings.Settings {
 		VMMemoryOverheadPercent:    lo.FromPtrOr(options.VMMemoryOverheadPercent, 0.075),
 		InterruptionQueueName:      lo.FromPtrOr(options.InterruptionQueueName, ""),
 		Tags:                       options.Tags,
+		ReservedENIs:               lo.FromPtrOr(options.ReservedENIs, 0),
 	}
 }

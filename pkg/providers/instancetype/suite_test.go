@@ -429,7 +429,7 @@ var _ = Describe("Instance Types", func() {
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 		ExpectScheduled(ctx, env.Client, pod)
 	})
-	It("should fail to launch AWS Pod ENI if the command line option enabling it isn't set", func() {
+	It("should fail to launch AWS Pod ENI if the setting enabling it isn't set", func() {
 		ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
 			EnablePodENI: lo.ToPtr(false),
 		}))
@@ -897,6 +897,47 @@ var _ = Describe("Instance Types", func() {
 				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 10))
 			}
 		})
+		It("should reserve ENIs when aws.reservedENIs is set and is used in max-pods calculation", func() {
+			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
+				ReservedENIs: lo.ToPtr(1),
+			}))
+
+			instanceInfo, err := awsEnv.InstanceTypesProvider.GetInstanceTypes(ctx)
+			Expect(err).To(BeNil())
+			t3Large, ok := lo.Find(instanceInfo, func(info *ec2.InstanceTypeInfo) bool {
+				return *info.InstanceType == "t3.large"
+			})
+			Expect(ok).To(Equal(true))
+			it := instancetype.NewInstanceType(ctx, t3Large, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+			// t3.large
+			// maxInterfaces = 3
+			// maxIPv4PerInterface = 12
+			// reservedENIs = 1
+			// (3 - 1) * (12 - 1) + 2 = 24
+			maxPods := 24
+			Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", maxPods))
+		})
+		It("should reserve ENIs when aws.reservedENIs is set and not go below 0 ENIs in max-pods calculation", func() {
+			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
+				ReservedENIs: lo.ToPtr(1_000_000),
+			}))
+
+			instanceInfo, err := awsEnv.InstanceTypesProvider.GetInstanceTypes(ctx)
+			Expect(err).To(BeNil())
+			t3Large, ok := lo.Find(instanceInfo, func(info *ec2.InstanceTypeInfo) bool {
+				return *info.InstanceType == "t3.large"
+			})
+			Expect(ok).To(Equal(true))
+			it := instancetype.NewInstanceType(ctx, t3Large, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+			// t3.large
+			// maxInterfaces = 3
+			// maxIPv4PerInterface = 12
+			// reservedENIs = 1,000,000
+			// max(3 - 1,000,000, 0) * (12 - 1) + 2 = 2
+			// if max-pods is 2, we output 0
+			maxPods := 0
+			Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", maxPods))
+		})
 		It("should override pods-per-core value", func() {
 			instanceInfo, err := awsEnv.InstanceTypesProvider.GetInstanceTypes(ctx)
 			Expect(err).To(BeNil())
@@ -922,7 +963,7 @@ var _ = Describe("Instance Types", func() {
 			provisioner = test.Provisioner(coretest.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{PodsPerCore: ptr.Int32(1)}})
 			for _, info := range instanceInfo {
 				it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
-				limitedPods := instancetype.ENILimitedPods(info)
+				limitedPods := instancetype.ENILimitedPods(ctx, info)
 				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", limitedPods.Value()))
 			}
 		})
@@ -1228,12 +1269,13 @@ var _ = Describe("Instance Types", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-			input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
-			Expect(*input.LaunchTemplateData.MetadataOptions.HttpEndpoint).To(Equal(ec2.LaunchTemplateInstanceMetadataEndpointStateEnabled))
-			Expect(*input.LaunchTemplateData.MetadataOptions.HttpProtocolIpv6).To(Equal(ec2.LaunchTemplateInstanceMetadataProtocolIpv6Disabled))
-			Expect(*input.LaunchTemplateData.MetadataOptions.HttpPutResponseHopLimit).To(Equal(int64(2)))
-			Expect(*input.LaunchTemplateData.MetadataOptions.HttpTokens).To(Equal(ec2.LaunchTemplateHttpTokensStateRequired))
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
+			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(*ltInput.LaunchTemplateData.MetadataOptions.HttpEndpoint).To(Equal(ec2.LaunchTemplateInstanceMetadataEndpointStateEnabled))
+				Expect(*ltInput.LaunchTemplateData.MetadataOptions.HttpProtocolIpv6).To(Equal(ec2.LaunchTemplateInstanceMetadataProtocolIpv6Disabled))
+				Expect(*ltInput.LaunchTemplateData.MetadataOptions.HttpPutResponseHopLimit).To(Equal(int64(2)))
+				Expect(*ltInput.LaunchTemplateData.MetadataOptions.HttpTokens).To(Equal(ec2.LaunchTemplateHttpTokensStateRequired))
+			})
 		})
 		It("should set metadata options on generated launch template from provisioner configuration", func() {
 			nodeTemplate.Spec.MetadataOptions = &v1alpha1.MetadataOptions{
@@ -1246,12 +1288,13 @@ var _ = Describe("Instance Types", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-			input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
-			Expect(*input.LaunchTemplateData.MetadataOptions.HttpEndpoint).To(Equal(ec2.LaunchTemplateInstanceMetadataEndpointStateDisabled))
-			Expect(*input.LaunchTemplateData.MetadataOptions.HttpProtocolIpv6).To(Equal(ec2.LaunchTemplateInstanceMetadataProtocolIpv6Enabled))
-			Expect(*input.LaunchTemplateData.MetadataOptions.HttpPutResponseHopLimit).To(Equal(int64(1)))
-			Expect(*input.LaunchTemplateData.MetadataOptions.HttpTokens).To(Equal(ec2.LaunchTemplateHttpTokensStateOptional))
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
+			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(*ltInput.LaunchTemplateData.MetadataOptions.HttpEndpoint).To(Equal(ec2.LaunchTemplateInstanceMetadataEndpointStateDisabled))
+				Expect(*ltInput.LaunchTemplateData.MetadataOptions.HttpProtocolIpv6).To(Equal(ec2.LaunchTemplateInstanceMetadataProtocolIpv6Enabled))
+				Expect(*ltInput.LaunchTemplateData.MetadataOptions.HttpPutResponseHopLimit).To(Equal(int64(1)))
+				Expect(*ltInput.LaunchTemplateData.MetadataOptions.HttpTokens).To(Equal(ec2.LaunchTemplateHttpTokensStateOptional))
+			})
 		})
 	})
 })
