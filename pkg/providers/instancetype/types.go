@@ -60,7 +60,7 @@ func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, kc *v1alph
 		Overhead: &cloudprovider.InstanceTypeOverhead{
 			KubeReserved:      kubeReservedResources(cpu(info), pods(ctx, info, amiFamily, kc), ENILimitedPods(ctx, info), amiFamily, kc),
 			SystemReserved:    systemReservedResources(kc),
-			EvictionThreshold: evictionThreshold(memory(ctx, info), ephemeralStorage(amiFamily, nodeTemplate.Spec.BlockDeviceMappings), amiFamily, kc),
+			EvictionThreshold: evictionThreshold(memory(ctx, info), ephemeralStorage(amiFamily, info, nodeTemplate.Spec.BlockDeviceMappings), amiFamily, kc),
 		},
 	}
 }
@@ -147,7 +147,7 @@ func computeCapacity(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily 
 	return v1.ResourceList{
 		v1.ResourceCPU:               *cpu(info),
 		v1.ResourceMemory:            *memory(ctx, info),
-		v1.ResourceEphemeralStorage:  *ephemeralStorage(amiFamily, blockDeviceMappings),
+		v1.ResourceEphemeralStorage:  *ephemeralStorage(amiFamily, info, blockDeviceMappings),
 		v1.ResourcePods:              *pods(ctx, info, amiFamily, kc),
 		v1alpha1.ResourceAWSPodENI:   *awsPodENI(ctx, aws.StringValue(info.InstanceType)),
 		v1alpha1.ResourceNVIDIAGPU:   *nvidiaGPUs(info),
@@ -169,7 +169,10 @@ func memory(ctx context.Context, info *ec2.InstanceTypeInfo) *resource.Quantity 
 }
 
 // Setting ephemeral-storage to be either the default value or what is defined in blockDeviceMappings
-func ephemeralStorage(amiFamily amifamily.AMIFamily, blockDeviceMappings []*v1alpha1.BlockDeviceMapping) *resource.Quantity {
+func ephemeralStorage(amiFamily amifamily.AMIFamily, info *ec2.InstanceTypeInfo, blockDeviceMappings []*v1alpha1.BlockDeviceMapping) *resource.Quantity {
+	if instanceStorage := amiFamily.InstanceStorage(info); instanceStorage != nil {
+		return instanceStorage
+	}
 	if len(blockDeviceMappings) != 0 {
 		switch amiFamily.(type) {
 		case *amifamily.Custom:

@@ -576,6 +576,18 @@ func (e *EC2API) DescribeInstanceTypeOfferingsPagesWithContext(_ context.Context
 				InstanceType: aws.String("m5.metal"),
 				Location:     aws.String("test-zone-1c"),
 			},
+			{
+				InstanceType: aws.String("m6idn.32xlarge"),
+				Location:     aws.String("test-zone-1a"),
+			},
+			{
+				InstanceType: aws.String("m6idn.32xlarge"),
+				Location:     aws.String("test-zone-1b"),
+			},
+			{
+				InstanceType: aws.String("m6idn.32xlarge"),
+				Location:     aws.String("test-zone-1c"),
+			},
 		},
 	}, false)
 	return nil

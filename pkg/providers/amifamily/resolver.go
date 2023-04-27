@@ -78,6 +78,7 @@ type AMIFamily interface {
 	DefaultBlockDeviceMappings() []*v1alpha1.BlockDeviceMapping
 	DefaultMetadataOptions() *v1alpha1.MetadataOptions
 	EphemeralBlockDevice() *string
+	InstanceStorage(*ec2.InstanceTypeInfo) *resource.Quantity
 	FeatureFlags() FeatureFlags
 }
 
@@ -192,6 +193,10 @@ func (o Options) DefaultMetadataOptions() *v1alpha1.MetadataOptions {
 		HTTPPutResponseHopLimit: aws.Int64(2),
 		HTTPTokens:              aws.String(ec2.LaunchTemplateHttpTokensStateRequired),
 	}
+}
+
+func (o Options) InstanceStorage(_ *ec2.InstanceTypeInfo) *resource.Quantity {
+	return nil
 }
 
 func (r Resolver) defaultClusterDNS(opts *Options, kubeletConfig *v1alpha5.KubeletConfiguration) *v1alpha5.KubeletConfiguration {

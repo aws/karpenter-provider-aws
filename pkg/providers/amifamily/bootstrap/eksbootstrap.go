@@ -68,6 +68,9 @@ func (e EKS) eksBootstrapScript() string {
 	userData.WriteString("exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1\n")
 	// Due to the way bootstrap.sh is written, parameters should not be passed to it with an equal sign
 	userData.WriteString(fmt.Sprintf("/etc/eks/bootstrap.sh '%s' --apiserver-endpoint '%s' %s", e.ClusterName, e.ClusterEndpoint, caBundleArg))
+	// Setup instance storage disks in a RAID-0 for kubelet and containerd
+	// This only runs if there are instance storage disks for the instance type
+	userData.WriteString(" --local-disks raid0")
 
 	if e.isIPv6() {
 		userData.WriteString(" \\\n--ip-family ipv6")

@@ -137,3 +137,28 @@ var _ = Describe("Static PVC", func() {
 		env.ExpectDeleted(pod)
 	})
 })
+
+var _ = Describe("Ephemeral Storage", func() {
+	It("should run a pod with ephemeral storage beyond EBS root block device mappings on AL2", func() {
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
+			AMIFamily:             &v1alpha1.AMIFamilyAL2,
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+		}})
+		provisioner := test.Provisioner(test.ProvisionerOptions{
+			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
+
+		pod := test.Pod(test.PodOptions{
+			ResourceRequirements: v1.ResourceRequirements{
+				Requests: v1.ResourceList{
+					v1.ResourceEphemeralStorage: resource.MustParse("100Gi"),
+				},
+			},
+		})
+
+		env.ExpectCreated(provisioner, provider, pod)
+		env.EventuallyExpectHealthy(pod)
+		env.ExpectCreatedNodeCount("==", 1)
+		env.ExpectDeleted(pod)
+	})
+})

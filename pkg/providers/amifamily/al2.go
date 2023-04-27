@@ -18,10 +18,13 @@ import (
 	"fmt"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/scheduling"
+	"github.com/aws/karpenter-core/pkg/utils/resources"
 
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
@@ -103,4 +106,11 @@ func (a AL2) DefaultBlockDeviceMappings() []*v1alpha1.BlockDeviceMapping {
 
 func (a AL2) EphemeralBlockDevice() *string {
 	return aws.String("/dev/xvda")
+}
+
+func (a AL2) InstanceStorage(instanceType *ec2.InstanceTypeInfo) *resource.Quantity {
+	if instanceType.InstanceStorageInfo == nil {
+		return nil
+	}
+	return resources.Quantity(fmt.Sprintf("%dG", *instanceType.InstanceStorageInfo.TotalSizeInGB))
 }

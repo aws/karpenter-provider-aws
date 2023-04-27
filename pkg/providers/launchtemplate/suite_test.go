@@ -630,6 +630,10 @@ var _ = Describe("LaunchTemplates", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 		})
 		It("should not pack pods if the sum of pod ephemeral-storage and overhead exceeds node capacity", func() {
+			provisioner.Spec.Requirements = append(provisioner.Spec.Requirements, v1.NodeSelectorRequirement{
+				Key:      v1alpha1.LabelInstanceLocalNVME,
+				Operator: v1.NodeSelectorOpDoesNotExist,
+			})
 			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod(coretest.PodOptions{ResourceRequirements: v1.ResourceRequirements{
 				Requests: map[v1.ResourceName]resource.Quantity{
@@ -662,6 +666,10 @@ var _ = Describe("LaunchTemplates", func() {
 			Expect(nodes).To(HaveLen(2))
 		})
 		It("should only pack pods with ephemeral-storage requests that will fit on an available node", func() {
+			provisioner.Spec.Requirements = append(provisioner.Spec.Requirements, v1.NodeSelectorRequirement{
+				Key:      v1alpha1.LabelInstanceLocalNVME,
+				Operator: v1.NodeSelectorOpDoesNotExist,
+			})
 			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pods := []*v1.Pod{
 				coretest.UnschedulablePod(coretest.PodOptions{ResourceRequirements: v1.ResourceRequirements{

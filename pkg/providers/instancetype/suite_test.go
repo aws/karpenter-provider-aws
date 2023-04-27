@@ -597,6 +597,50 @@ var _ = Describe("Instance Types", func() {
 		}
 		Expect(nodeNames.Len()).To(Equal(2))
 	})
+	It("should launch instances w/ instance storage for ephemeral storage resource requests when exceeding blockDeviceMapping on AL2 AMI Family", func() {
+		nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyAL2
+		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+		pod := coretest.UnschedulablePod(coretest.PodOptions{
+			ResourceRequirements: v1.ResourceRequirements{
+				Requests: v1.ResourceList{v1.ResourceEphemeralStorage: resource.MustParse("5000Gi")},
+			},
+		})
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+		ExpectScheduled(ctx, env.Client, pod)
+	})
+	It("should not launch instances w/ instance storage for ephemeral storage resource requests when exceeding blockDeviceMapping on Bottlerocket AMI Family", func() {
+		nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
+		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+		pod := coretest.UnschedulablePod(coretest.PodOptions{
+			ResourceRequirements: v1.ResourceRequirements{
+				Requests: v1.ResourceList{v1.ResourceEphemeralStorage: resource.MustParse("5000Gi")},
+			},
+		})
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+		ExpectNotScheduled(ctx, env.Client, pod)
+	})
+	It("should not launch instances w/ instance storage for ephemeral storage resource requests when exceeding blockDeviceMapping on Ubuntu AMI Family", func() {
+		nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyUbuntu
+		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+		pod := coretest.UnschedulablePod(coretest.PodOptions{
+			ResourceRequirements: v1.ResourceRequirements{
+				Requests: v1.ResourceList{v1.ResourceEphemeralStorage: resource.MustParse("5000Gi")},
+			},
+		})
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+		ExpectNotScheduled(ctx, env.Client, pod)
+	})
+	It("should not launch instances w/ instance storage for ephemeral storage resource requests when exceeding blockDeviceMapping on Custom AMI Family", func() {
+		nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyCustom
+		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+		pod := coretest.UnschedulablePod(coretest.PodOptions{
+			ResourceRequirements: v1.ResourceRequirements{
+				Requests: v1.ResourceList{v1.ResourceEphemeralStorage: resource.MustParse("5000Gi")},
+			},
+		})
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+		ExpectNotScheduled(ctx, env.Client, pod)
+	})
 	It("should set pods to 110 if not using ENI-based pod density", func() {
 		ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
 			EnableENILimitedPodDensity: lo.ToPtr(false),
