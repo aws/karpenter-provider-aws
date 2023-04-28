@@ -465,8 +465,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 						},
 						{
 							Key:      v1alpha1.LabelInstanceAcceleratorManufacturer,
-							Operator: v1.NodeSelectorOpNotIn,
-							Values:   []string{string(v1alpha1.AWSAcceleratorManufacturer), string(v1alpha1.NVIDIAacceleratorManufacturer)},
+							Operator: v1.NodeSelectorOpDoesNotExist,
 						},
 					},
 				},
@@ -481,8 +480,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 						},
 						{
 							Key:      v1alpha1.LabelInstanceAcceleratorManufacturer,
-							Operator: v1.NodeSelectorOpNotIn,
-							Values:   []string{string(v1alpha1.AWSAcceleratorManufacturer), string(v1alpha1.NVIDIAacceleratorManufacturer)},
+							Operator: v1.NodeSelectorOpDoesNotExist,
 						},
 					},
 				},

@@ -40,7 +40,7 @@ func (a AL2) DefaultAMIs(version string) []DefaultAMIOutput {
 			Query: fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", version),
 			Requirements: scheduling.NewRequirements(
 				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureAmd64),
-				scheduling.NewRequirement(v1alpha1.LabelInstanceAcceleratorManufacturer, v1.NodeSelectorOpNotIn, string(v1alpha1.NVIDIAacceleratorManufacturer), string(v1alpha1.AWSAcceleratorManufacturer)),
+				scheduling.NewRequirement(v1alpha1.LabelInstanceAcceleratorManufacturer, v1.NodeSelectorOpDoesNotExist, string(v1alpha1.NVIDIAacceleratorManufacturer), string(v1alpha1.AWSAcceleratorManufacturer)),
 			),
 		},
 		{
@@ -54,7 +54,7 @@ func (a AL2) DefaultAMIs(version string) []DefaultAMIOutput {
 			Query: fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-%s/recommended/image_id", version, v1alpha5.ArchitectureArm64),
 			Requirements: scheduling.NewRequirements(
 				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureArm64),
-				scheduling.NewRequirement(v1alpha1.LabelInstanceAcceleratorManufacturer, v1.NodeSelectorOpNotIn, string(v1alpha1.NVIDIAacceleratorManufacturer), string(v1alpha1.AWSAcceleratorManufacturer)),
+				scheduling.NewRequirement(v1alpha1.LabelInstanceAcceleratorManufacturer, v1.NodeSelectorOpDoesNotExist, string(v1alpha1.NVIDIAacceleratorManufacturer), string(v1alpha1.AWSAcceleratorManufacturer)),
 			),
 		},
 	}
