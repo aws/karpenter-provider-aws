@@ -105,6 +105,27 @@ func (env *Environment) ExpectSettings() *v1.ConfigMap {
 	return cm
 }
 
+// ExpectSettingsReplaced performs a full replace of the settings, replacing the existing data
+// with the data passed through
+func (env *Environment) ExpectSettingsReplaced(data ...map[string]string) {
+	cm := env.ExpectSettings()
+	stored := cm.DeepCopy()
+	cm.Data = lo.Assign(data...) // Completely replace the data
+
+	// If the data hasn't changed, we can just return and not update anything
+	if equality.Semantic.DeepEqual(stored, cm) {
+		return
+	}
+	// Update the configMap to update the settings
+	env.ExpectCreatedOrUpdated(cm)
+
+	// Get the karpenter pods and delete them to restart the containers
+	env.ExpectKarpenterPodsDeletedWithOffset(1)
+	env.EventuallyExpectKarpenterPodsHealthyWithOffset(1)
+}
+
+// ExpectSettingsOverridden overrides specific values specified through data. It only overrides
+// or inserts the specific values specified and does not upsert any of the existing data
 func (env *Environment) ExpectSettingsOverridden(data ...map[string]string) {
 	cm := env.ExpectSettings()
 	stored := cm.DeepCopy()

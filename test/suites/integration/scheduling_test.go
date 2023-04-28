@@ -35,7 +35,7 @@ import (
 	awstest "github.com/aws/karpenter/pkg/test"
 )
 
-var _ = Describe("Scheduling", Ordered, func() {
+var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 	var provider *v1alpha1.AWSNodeTemplate
 	var provisioner *v1alpha5.Provisioner
 	var selectors sets.String
@@ -46,8 +46,11 @@ var _ = Describe("Scheduling", Ordered, func() {
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
 		provisioner = test.Provisioner(test.ProvisionerOptions{
-			ProviderRef:  &v1alpha5.MachineTemplateRef{Name: provider.Name},
-			Requirements: []v1.NodeSelectorRequirement{{Key: v1alpha1.LabelInstanceCategory, Operator: v1.NodeSelectorOpExists}},
+			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
+			Requirements: []v1.NodeSelectorRequirement{
+				{Key: v1alpha1.LabelInstanceCategory, Operator: v1.NodeSelectorOpExists},
+				{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpExists},
+			},
 		})
 	})
 	BeforeAll(func() {
