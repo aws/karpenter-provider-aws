@@ -52,5 +52,5 @@ func (env *Environment) Cleanup(opts ...common.Option) {
 func (env *Environment) AfterEach(opts ...common.Option) {
 	env.Environment.AfterEach(opts...)
 	// Ensure we reset settings after collecting the controller logs
-	env.ExpectSettingsOverridden(persistedSettings.Data)
+	env.ExpectSettingsReplaced(persistedSettings.Data)
 }
