@@ -35,7 +35,7 @@ iamIdentityMappings:
   - system:nodes
 
 managedNodeGroups:
-- instanceType: m5.large
+- instanceType: t3a.medium
   amiFamily: AmazonLinux2
   name: ${CLUSTER_NAME}-ng
   desiredCapacity: 2
