@@ -61,10 +61,9 @@ type Provider struct {
 	cm                    *pretty.ChangeMonitor
 	KubeDNSIP             net.IP
 	ClusterEndpoint       string
-	AssignPublicIPAddress bool
 }
 
-func NewProvider(ctx context.Context, cache *cache.Cache, ec2api ec2iface.EC2API, amiFamily *amifamily.Resolver, securityGroupProvider *securitygroup.Provider, caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP, clusterEndpoint string, assignPublicIPAddress bool) *Provider {
+func NewProvider(ctx context.Context, cache *cache.Cache, ec2api ec2iface.EC2API, amiFamily *amifamily.Resolver, securityGroupProvider *securitygroup.Provider, caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP, clusterEndpoint string) *Provider {
 	l := &Provider{
 		ec2api:                ec2api,
 		amiFamily:             amiFamily,
@@ -74,7 +73,6 @@ func NewProvider(ctx context.Context, cache *cache.Cache, ec2api ec2iface.EC2API
 		cm:                    pretty.NewChangeMonitor(),
 		KubeDNSIP:             kubeDNSIP,
 		ClusterEndpoint:       clusterEndpoint,
-		AssignPublicIPAddress: assignPublicIPAddress,
 	}
 	l.cache.OnEvicted(l.cachedEvictedFunc(ctx))
 	go func() {
@@ -222,11 +220,6 @@ func (p *Provider) createLaunchTemplate(ctx context.Context, options *amifamily.
 				HttpProtocolIpv6:        options.MetadataOptions.HTTPProtocolIPv6,
 				HttpPutResponseHopLimit: options.MetadataOptions.HTTPPutResponseHopLimit,
 				HttpTokens:              options.MetadataOptions.HTTPTokens,
-			},
-			NetworkInterfaces: []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
-				{
-					AssociatePublicIpAddress: aws.Bool(options.AssociatePublicIPAddress),
-				},
 			},
 			TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{
 				{ResourceType: aws.String(ec2.ResourceTypeNetworkInterface), Tags: utils.MergeTags(options.Tags)},
