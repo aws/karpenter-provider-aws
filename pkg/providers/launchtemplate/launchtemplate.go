@@ -38,6 +38,7 @@ import (
 	awserrors "github.com/aws/karpenter/pkg/errors"
 	"github.com/aws/karpenter/pkg/providers/amifamily"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
+	"github.com/aws/karpenter/pkg/providers/subnet"
 	"github.com/aws/karpenter/pkg/utils"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
@@ -56,6 +57,7 @@ type Provider struct {
 	ec2api                ec2iface.EC2API
 	amiFamily             *amifamily.Resolver
 	securityGroupProvider *securitygroup.Provider
+	subnetProvider        *subnet.Provider
 	cache                 *cache.Cache
 	caBundle              *string
 	cm                    *pretty.ChangeMonitor
@@ -63,11 +65,12 @@ type Provider struct {
 	ClusterEndpoint       string
 }
 
-func NewProvider(ctx context.Context, cache *cache.Cache, ec2api ec2iface.EC2API, amiFamily *amifamily.Resolver, securityGroupProvider *securitygroup.Provider, caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP, clusterEndpoint string) *Provider {
+func NewProvider(ctx context.Context, cache *cache.Cache, ec2api ec2iface.EC2API, amiFamily *amifamily.Resolver, securityGroupProvider *securitygroup.Provider, subnetProvider *subnet.Provider, caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP, clusterEndpoint string) *Provider {
 	l := &Provider{
 		ec2api:                ec2api,
 		amiFamily:             amiFamily,
 		securityGroupProvider: securityGroupProvider,
+		subnetProvider:        subnetProvider,
 		cache:                 cache,
 		caBundle:              caBundle,
 		cm:                    pretty.NewChangeMonitor(),
@@ -148,6 +151,11 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeTemplate *v1alpha1.
 	if len(securityGroups) == 0 {
 		return nil, fmt.Errorf("no security groups exist given constraints")
 	}
+
+	onlyPrivateSubnets, err := p.subnetProvider.OnlyPrivateSubnets(ctx, nodeTemplate)
+	if err != nil {
+		return nil, err
+	}
 	return &amifamily.Options{
 		ClusterName:             settings.FromContext(ctx).ClusterName,
 		ClusterEndpoint:         p.ClusterEndpoint,
@@ -156,11 +164,11 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeTemplate *v1alpha1.
 		SecurityGroups: lo.Map(securityGroups, func(s *ec2.SecurityGroup, _ int) v1alpha1.SecurityGroup {
 			return v1alpha1.SecurityGroup{ID: aws.StringValue(s.GroupId), Name: aws.StringValue(s.GroupName)}
 		}),
-		Tags:                     tags,
-		Labels:                   labels,
-		CABundle:                 p.caBundle,
-		KubeDNSIP:                p.KubeDNSIP,
-		AssociatePublicIPAddress: p.AssignPublicIPAddress,
+		Tags:           tags,
+		Labels:         labels,
+		CABundle:       p.caBundle,
+		KubeDNSIP:      p.KubeDNSIP,
+		PrivateSubnets: onlyPrivateSubnets,
 	}, nil
 }
 
@@ -221,6 +229,7 @@ func (p *Provider) createLaunchTemplate(ctx context.Context, options *amifamily.
 				HttpPutResponseHopLimit: options.MetadataOptions.HTTPPutResponseHopLimit,
 				HttpTokens:              options.MetadataOptions.HTTPTokens,
 			},
+			NetworkInterfaces: options.NetworkInterface,
 			TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{
 				{ResourceType: aws.String(ec2.ResourceTypeNetworkInterface), Tags: utils.MergeTags(options.Tags)},
 			},

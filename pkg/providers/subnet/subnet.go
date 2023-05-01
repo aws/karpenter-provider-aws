@@ -89,6 +89,21 @@ func (p *Provider) List(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTempl
 	return output.Subnets, nil
 }
 
+// OnlyPrivateSubnets returns a bool indicating whether all referenced subnets do *not* assign public IPv4 addresses to instances created therein
+func (p *Provider) OnlyPrivateSubnets(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) (bool, error) {
+	subnets, err := p.List(ctx, nodeTemplate)
+	if err != nil {
+		return false, err
+	}
+	onlyPrivateSubnets := true
+	for _, sb := range subnets {
+		if *sb.MapPublicIpOnLaunch == true {
+			onlyPrivateSubnets = false
+		}
+	}
+	return onlyPrivateSubnets, nil
+}
+
 // ZonalSubnetsForLaunch returns a mapping of zone to the subnet with the most available IP addresses and deducts the passed ips from the available count
 func (p *Provider) ZonalSubnetsForLaunch(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, instanceTypes []*cloudprovider.InstanceType, capacityType string) (map[string]*ec2.Subnet, error) {
 	subnets, err := p.List(ctx, nodeTemplate)

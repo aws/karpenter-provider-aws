@@ -54,11 +54,11 @@ type Options struct {
 	InstanceProfile         string
 	CABundle                *string `hash:"ignore"`
 	// Level-triggered fields that may change out of sync.
-	SecurityGroups           []v1alpha1.SecurityGroup
-	Tags                     map[string]string
-	Labels                   map[string]string `hash:"ignore"`
-	KubeDNSIP                net.IP
-	AssociatePublicIPAddress bool // default: false
+	SecurityGroups []v1alpha1.SecurityGroup
+	Tags           map[string]string
+	Labels         map[string]string `hash:"ignore"`
+	KubeDNSIP      net.IP
+	PrivateSubnets bool
 }
 
 // LaunchTemplate holds the dynamically generated launch template parameters
@@ -70,6 +70,7 @@ type LaunchTemplate struct {
 	AMIID               string
 	InstanceTypes       []*cloudprovider.InstanceType `hash:"ignore"`
 	DetailedMonitoring  bool
+	NetworkInterface    []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest
 }
 
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters
@@ -127,6 +128,12 @@ func (r Resolver) Resolve(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTem
 	if len(mappedAMIs) == 0 {
 		return nil, fmt.Errorf("no instance types satisfy requirements of amis %v,", amis)
 	}
+	var networkInterface []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest
+	if options.PrivateSubnets {
+		networkInterface = []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{{AssociatePublicIpAddress: aws.Bool(false)}}
+	} else {
+		networkInterface = nil
+	}
 	var resolvedTemplates []*LaunchTemplate
 	for amiID, instanceTypes := range mappedAMIs {
 		maxPodsToInstanceTypes := lo.GroupBy(instanceTypes, func(instanceType *cloudprovider.InstanceType) int {
@@ -160,6 +167,7 @@ func (r Resolver) Resolve(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTem
 				DetailedMonitoring:  aws.BoolValue(nodeTemplate.Spec.DetailedMonitoring),
 				AMIID:               amiID,
 				InstanceTypes:       instanceTypes,
+				NetworkInterface:    networkInterface,
 			}
 			if resolved.BlockDeviceMappings == nil {
 				resolved.BlockDeviceMappings = amiFamily.DefaultBlockDeviceMappings()
