@@ -97,7 +97,7 @@ func (p *Provider) OnlyPrivateSubnets(ctx context.Context, nodeTemplate *v1alpha
 	}
 	onlyPrivateSubnets := true
 	for _, sb := range subnets {
-		if *sb.MapPublicIpOnLaunch == true {
+		if *sb.MapPublicIpOnLaunch {
 			onlyPrivateSubnets = false
 		}
 	}
