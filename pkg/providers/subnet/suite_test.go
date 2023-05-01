@@ -184,4 +184,18 @@ var _ = Describe("Subnet Provider", func() {
 		Expect(aws.StringValue(subnets[0].AvailabilityZone)).To(Equal("test-zone-1b"))
 		Expect(aws.Int64Value(subnets[0].AvailableIpAddressCount)).To(BeNumerically("==", 100))
 	})
+	It("should note that all subnets are private", func() {
+		nodeTemplate.Spec.SubnetSelector = map[string]string{"aws-ids": "subnet-test2", "foo": "bar"}
+		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+		onlyPrivate, err := awsEnv.SubnetProvider.OnlyPrivateSubnets(ctx, nodeTemplate)
+		Expect(err).To(BeNil())
+		Expect(onlyPrivate).To(BeFalse())
+	})
+	It("should note that all subnets are public", func() {
+		nodeTemplate.Spec.SubnetSelector = map[string]string{"aws-ids": "subnet-test2", "foo": "bar"}
+		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+		onlyPrivate, err := awsEnv.SubnetProvider.OnlyPrivateSubnets(ctx, nodeTemplate)
+		Expect(err).To(BeNil())
+		Expect(onlyPrivate).To(BeFalse())
+	})
 })

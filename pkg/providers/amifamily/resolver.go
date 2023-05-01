@@ -131,8 +131,6 @@ func (r Resolver) Resolve(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTem
 	var networkInterface []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest
 	if options.PrivateSubnets {
 		networkInterface = []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{{AssociatePublicIpAddress: aws.Bool(false)}}
-	} else {
-		networkInterface = nil
 	}
 	var resolvedTemplates []*LaunchTemplate
 	for amiID, instanceTypes := range mappedAMIs {
