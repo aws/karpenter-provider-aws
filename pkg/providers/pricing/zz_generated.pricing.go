@@ -18,9 +18,9 @@ package pricing
 
 import "time"
 
-// generated at 2023-04-17T13:08:12Z for us-east-1
+// generated at 2023-05-01T13:14:33Z for us-east-1
 
-var initialPriceUpdate, _ = time.Parse(time.RFC3339, "2023-04-17T13:08:12Z")
+var initialPriceUpdate, _ = time.Parse(time.RFC3339, "2023-05-01T13:14:33Z")
 var initialOnDemandPrices = map[string]map[string]float64{}
 
 func init() {
@@ -371,6 +371,10 @@ func init() {
 		"c6i.12xlarge": 2.448000, "c6i.16xlarge": 3.264000, "c6i.24xlarge": 4.896000, "c6i.2xlarge": 0.408000,
 		"c6i.32xlarge": 6.528000, "c6i.4xlarge": 0.816000, "c6i.8xlarge": 1.632000, "c6i.large": 0.102000,
 		"c6i.metal": 6.528000, "c6i.xlarge": 0.204000,
+		// c6id family
+		"c6id.12xlarge": 2.923200, "c6id.16xlarge": 3.897600, "c6id.24xlarge": 5.846400, "c6id.2xlarge": 0.487200,
+		"c6id.32xlarge": 7.795200, "c6id.4xlarge": 0.974400, "c6id.8xlarge": 1.948800, "c6id.large": 0.121800,
+		"c6id.metal": 7.795200, "c6id.xlarge": 0.243600,
 		// c6in family
 		"c6in.12xlarge": 3.276000, "c6in.16xlarge": 4.368000, "c6in.24xlarge": 6.552000, "c6in.2xlarge": 0.546000,
 		"c6in.32xlarge": 8.736000, "c6in.4xlarge": 1.092000, "c6in.8xlarge": 2.184000, "c6in.large": 0.136500,
@@ -447,6 +451,10 @@ func init() {
 		"m6i.12xlarge": 2.904000, "m6i.16xlarge": 3.872000, "m6i.24xlarge": 5.808000, "m6i.2xlarge": 0.484000,
 		"m6i.32xlarge": 7.744000, "m6i.4xlarge": 0.968000, "m6i.8xlarge": 1.936000, "m6i.large": 0.121000,
 		"m6i.metal": 7.744000, "m6i.xlarge": 0.242000,
+		// m6id family
+		"m6id.12xlarge": 3.604800, "m6id.16xlarge": 4.806400, "m6id.24xlarge": 7.209600, "m6id.2xlarge": 0.600800,
+		"m6id.32xlarge": 9.612800, "m6id.4xlarge": 1.201600, "m6id.8xlarge": 2.403200, "m6id.large": 0.150200,
+		"m6id.metal": 9.612800, "m6id.xlarge": 0.300400,
 		// m6idn family
 		"m6idn.12xlarge": 4.801680, "m6idn.16xlarge": 6.402240, "m6idn.24xlarge": 9.603360,
 		"m6idn.2xlarge": 0.800280, "m6idn.32xlarge": 12.804480, "m6idn.4xlarge": 1.600560, "m6idn.8xlarge": 3.201120,
@@ -499,6 +507,10 @@ func init() {
 		"r6i.12xlarge": 3.624000, "r6i.16xlarge": 4.832000, "r6i.24xlarge": 7.248000, "r6i.2xlarge": 0.604000,
 		"r6i.32xlarge": 9.664000, "r6i.4xlarge": 1.208000, "r6i.8xlarge": 2.416000, "r6i.large": 0.151000,
 		"r6i.metal": 9.664000, "r6i.xlarge": 0.302000,
+		// r6id family
+		"r6id.12xlarge": 4.360800, "r6id.16xlarge": 5.814400, "r6id.24xlarge": 8.721600, "r6id.2xlarge": 0.726800,
+		"r6id.32xlarge": 11.628800, "r6id.4xlarge": 1.453600, "r6id.8xlarge": 2.907200, "r6id.large": 0.181700,
+		"r6id.metal": 11.628800, "r6id.xlarge": 0.363400,
 		// r6idn family
 		"r6idn.12xlarge": 5.644080, "r6idn.16xlarge": 7.525440, "r6idn.24xlarge": 11.288160,
 		"r6idn.2xlarge": 0.940680, "r6idn.32xlarge": 15.050880, "r6idn.4xlarge": 1.881360, "r6idn.8xlarge": 3.762720,
