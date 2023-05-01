@@ -257,92 +257,118 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			nodeTemplate.Spec.SecurityGroupSelector = nil
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
-			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			securityGroupsIDs, _ := awsEnv.SecurityGroupProvider.List(ctx, nodeTemplate)
-			securityGroupsIDInStatus := lo.Map(nodeTemplate.Status.SecurityGroups, func(securitygroup v1alpha1.SecurityGroup, _ int) string {
-				return securitygroup.ID
-			})
-			Expect(securityGroupsIDInStatus).To(Equal(securityGroupsIDs))
+			Expect(nodeTemplate.Status.SecurityGroups).To(BeNil())
 		})
 		It("Should update AWSNodeTemplate status for Security Groups", func() {
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			securityGroupsIDs, _ := awsEnv.SecurityGroupProvider.List(ctx, nodeTemplate)
-			securityGroupsIDInStatus := lo.Map(nodeTemplate.Status.SecurityGroups, func(securitygroup v1alpha1.SecurityGroup, _ int) string {
-				return securitygroup.ID
-			})
-			Expect(securityGroupsIDInStatus).To(Equal(securityGroupsIDs))
+			Expect(nodeTemplate.Status.SecurityGroups).To(Equal([]v1alpha1.SecurityGroup{
+				{
+					ID:   "sg-test1",
+					Name: "securityGroup-test1",
+				},
+				{
+					ID:   "sg-test2",
+					Name: "securityGroup-test2",
+				},
+				{
+					ID:   "sg-test3",
+					Name: "securityGroup-test3",
+				},
+			}))
 		})
 		It("Should resolve a valid selectors for Security Groups by tags", func() {
 			nodeTemplate.Spec.SecurityGroupSelector = map[string]string{`Name`: `test-security-group-1,test-security-group-2`}
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			securityGroupsIDs, _ := awsEnv.SecurityGroupProvider.List(ctx, nodeTemplate)
-			correctSecurityGroupsIDs := lo.Map(securityGroupsIDs, func(securitygroup string, _ int) v1alpha1.SecurityGroup {
-				return v1alpha1.SecurityGroup{
-					ID: securitygroup,
-				}
-			})
-			Expect(nodeTemplate.Status.SecurityGroups).To(Equal(correctSecurityGroupsIDs))
+			Expect(nodeTemplate.Status.SecurityGroups).To(Equal([]v1alpha1.SecurityGroup{
+				{
+					ID:   "sg-test1",
+					Name: "securityGroup-test1",
+				},
+				{
+					ID:   "sg-test2",
+					Name: "securityGroup-test2",
+				},
+			}))
 		})
 		It("Should resolve a valid selectors for Security Groups by ids", func() {
 			nodeTemplate.Spec.SecurityGroupSelector = map[string]string{`aws-ids`: `sg-test1`}
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			securityGroupsIDs, _ := awsEnv.SecurityGroupProvider.List(ctx, nodeTemplate)
-			correctSecurityGroupsIDs := lo.Map(securityGroupsIDs, func(securitygroup string, _ int) v1alpha1.SecurityGroup {
-				return v1alpha1.SecurityGroup{
-					ID: securitygroup,
-				}
-			})
-			Expect(nodeTemplate.Status.SecurityGroups).To(Equal(correctSecurityGroupsIDs))
+			Expect(nodeTemplate.Status.SecurityGroups).To(Equal([]v1alpha1.SecurityGroup{
+				{
+					ID:   "sg-test1",
+					Name: "securityGroup-test1",
+				},
+			}))
 		})
 		It("Should update Security Groups status when the Security Groups selector gets updated by tags", func() {
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			securityGroupsIDs, _ := awsEnv.SecurityGroupProvider.List(ctx, nodeTemplate)
-			securityGroupsIDInStatus := lo.Map(nodeTemplate.Status.SecurityGroups, func(securitygroup v1alpha1.SecurityGroup, _ int) string {
-				return securitygroup.ID
-			})
-			Expect(securityGroupsIDInStatus).To(Equal(securityGroupsIDs))
+			Expect(nodeTemplate.Status.SecurityGroups).To(Equal([]v1alpha1.SecurityGroup{
+				{
+					ID:   "sg-test1",
+					Name: "securityGroup-test1",
+				},
+				{
+					ID:   "sg-test2",
+					Name: "securityGroup-test2",
+				},
+				{
+					ID:   "sg-test3",
+					Name: "securityGroup-test3",
+				},
+			}))
 
 			nodeTemplate.Spec.SecurityGroupSelector = map[string]string{`Name`: `test-security-group-1,test-security-group-2`}
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			securityGroupsIDs, _ = awsEnv.SecurityGroupProvider.List(ctx, nodeTemplate)
-			correctSecurityGroupsIDs := lo.Map(securityGroupsIDs, func(securitygroup string, _ int) v1alpha1.SecurityGroup {
-				return v1alpha1.SecurityGroup{
-					ID: securitygroup,
-				}
-			})
-			Expect(nodeTemplate.Status.SecurityGroups).To(Equal(correctSecurityGroupsIDs))
+			Expect(nodeTemplate.Status.SecurityGroups).To(Equal([]v1alpha1.SecurityGroup{
+				{
+					ID:   "sg-test1",
+					Name: "securityGroup-test1",
+				},
+				{
+					ID:   "sg-test2",
+					Name: "securityGroup-test2",
+				},
+			}))
 		})
 		It("Should update Security Groups status when the Security Groups selector gets updated by ids", func() {
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			securityGroupsIDs, _ := awsEnv.SecurityGroupProvider.List(ctx, nodeTemplate)
-			securityGroupsIDInStatus := lo.Map(nodeTemplate.Status.SecurityGroups, func(securitygroup v1alpha1.SecurityGroup, _ int) string {
-				return securitygroup.ID
-			})
-			Expect(securityGroupsIDInStatus).To(Equal(securityGroupsIDs))
+			Expect(nodeTemplate.Status.SecurityGroups).To(Equal([]v1alpha1.SecurityGroup{
+				{
+					ID:   "sg-test1",
+					Name: "securityGroup-test1",
+				},
+				{
+					ID:   "sg-test2",
+					Name: "securityGroup-test2",
+				},
+				{
+					ID:   "sg-test3",
+					Name: "securityGroup-test3",
+				},
+			}))
 
 			nodeTemplate.Spec.SecurityGroupSelector = map[string]string{`aws-ids`: `sg-test1`}
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			securityGroupsIDs, _ = awsEnv.SecurityGroupProvider.List(ctx, nodeTemplate)
-			correctSecurityGroupsIDs := lo.Map(securityGroupsIDs, func(securitygroup string, _ int) v1alpha1.SecurityGroup {
-				return v1alpha1.SecurityGroup{
-					ID: securitygroup,
-				}
-			})
-			Expect(nodeTemplate.Status.SecurityGroups).To(Equal(correctSecurityGroupsIDs))
+			Expect(nodeTemplate.Status.SecurityGroups).To(Equal([]v1alpha1.SecurityGroup{
+				{
+					ID:   "sg-test1",
+					Name: "securityGroup-test1",
+				},
+			}))
 		})
 		It("Should not resolve a invalid selectors for Security Groups", func() {
 			nodeTemplate.Spec.SecurityGroupSelector = map[string]string{`foo`: `invalid`}
@@ -355,11 +381,20 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			securityGroupsIDs, _ := awsEnv.SecurityGroupProvider.List(ctx, nodeTemplate)
-			securityGroupsIDInStatus := lo.Map(nodeTemplate.Status.SecurityGroups, func(securitygroup v1alpha1.SecurityGroup, _ int) string {
-				return securitygroup.ID
-			})
-			Expect(securityGroupsIDInStatus).To(Equal(securityGroupsIDs))
+			Expect(nodeTemplate.Status.SecurityGroups).To(Equal([]v1alpha1.SecurityGroup{
+				{
+					ID:   "sg-test1",
+					Name: "securityGroup-test1",
+				},
+				{
+					ID:   "sg-test2",
+					Name: "securityGroup-test2",
+				},
+				{
+					ID:   "sg-test3",
+					Name: "securityGroup-test3",
+				},
+			}))
 
 			nodeTemplate.Spec.SecurityGroupSelector = map[string]string{`foo`: `invalid`}
 			ExpectApplied(ctx, env.Client, nodeTemplate)

@@ -421,21 +421,24 @@ func (e *EC2API) DescribeSecurityGroupsWithContext(ctx context.Context, input *e
 	}
 	sgs := []*ec2.SecurityGroup{
 		{
-			GroupId: aws.String("sg-test1"),
+			GroupId:   aws.String("sg-test1"),
+			GroupName: aws.String("securityGroup-test1"),
 			Tags: []*ec2.Tag{
 				{Key: aws.String("Name"), Value: aws.String("test-security-group-1")},
 				{Key: aws.String("foo"), Value: aws.String("bar")},
 			},
 		},
 		{
-			GroupId: aws.String("sg-test2"),
+			GroupId:   aws.String("sg-test2"),
+			GroupName: aws.String("securityGroup-test2"),
 			Tags: []*ec2.Tag{
 				{Key: aws.String("Name"), Value: aws.String("test-security-group-2")},
 				{Key: aws.String("foo"), Value: aws.String("bar")},
 			},
 		},
 		{
-			GroupId: aws.String("sg-test3"),
+			GroupId:   aws.String("sg-test3"),
+			GroupName: aws.String("securityGroup-test3"),
 			Tags: []*ec2.Tag{
 				{Key: aws.String("Name"), Value: aws.String("test-security-group-3")},
 				{Key: aws.String("TestTag")},
