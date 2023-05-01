@@ -79,10 +79,21 @@ The following cluster configuration will:
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step06-add-spot-role.sh" language="bash"%}}
 
+### 4. Install Karpenter
+
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step08-apply-helm-chart.sh" language="bash"%}}
 
+{{% alert title="Warning" color="warning" %}}
+Karpenter creates a mapping between CloudProvider machines and CustomResources in the cluster for capacity tracking. To ensure this mapping is consistent, Karpenter utilizes the following tag keys:
 
-### 4. Create Provisioner
+* `karpenter.sh/managed-by`
+* `karpenter.sh/provisioner-name`
+* `kubernetes.io/cluster/${CLUSTER_NAME}`
+
+Because Karpenter takes this dependency, any user that has the ability to Create/Delete these tags on CloudProvider machines will have the ability to orchestrate Karpenter to Create/Delete CloudProvider machines as a side effect. We recommend that you [enforce tag-based IAM policies](https://docs.aws.amazon.com/IAM/latest/UserGuide/access_tags.html) on these tags against any EC2 instance resource (`i-*`) for any users that might have [CreateTags](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateTags.html)/[DeleteTags](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DeleteTags.html) permissions but should not have [RunInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_RunInstances.html)/[TerminateInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_TerminateInstances.html) permissions.
+{{% /alert %}}
+
+### 5. Create Provisioner
 
 A single Karpenter provisioner is capable of handling many different pod
 shapes. Karpenter makes scheduling and provisioning decisions based on pod
