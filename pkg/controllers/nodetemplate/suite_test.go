@@ -464,7 +464,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 							Values:   []string{v1alpha5.ArchitectureAmd64},
 						},
 						{
-							Key:      v1alpha1.LabelInstanceAcceleratorManufacturer,
+							Key:      v1alpha1.LabelInstanceAcceleratorCount,
 							Operator: v1.NodeSelectorOpDoesNotExist,
 						},
 					},
@@ -479,7 +479,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 							Values:   []string{v1alpha5.ArchitectureArm64},
 						},
 						{
-							Key:      v1alpha1.LabelInstanceAcceleratorManufacturer,
+							Key:      v1alpha1.LabelInstanceAcceleratorCount,
 							Operator: v1.NodeSelectorOpDoesNotExist,
 						},
 					},
@@ -494,9 +494,8 @@ var _ = Describe("AWSNodeTemplateController", func() {
 							Values:   []string{v1alpha5.ArchitectureAmd64},
 						},
 						{
-							Key:      v1alpha1.LabelInstanceAcceleratorManufacturer,
-							Operator: v1.NodeSelectorOpIn,
-							Values:   []string{string(v1alpha1.AWSAcceleratorManufacturer), string(v1alpha1.NVIDIAacceleratorManufacturer)},
+							Key:      v1alpha1.LabelInstanceAcceleratorCount,
+							Operator: v1.NodeSelectorOpExists,
 						},
 					},
 				},

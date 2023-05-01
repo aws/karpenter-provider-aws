@@ -99,17 +99,15 @@ func (p *Provider) KubeServerVersion(ctx context.Context) (string, error) {
 
 // MapInstanceTypes returns a map of AMIIDs that are the most recent on creationDate to compatible instancetypes
 func MapInstanceTypes(amis []AMI, instanceTypes []*cloudprovider.InstanceType) map[string][]*cloudprovider.InstanceType {
-	amiIDs := map[string][]*cloudprovider.InstanceType{}
-
+	mapping := map[string][]*cloudprovider.InstanceType{}
 	for _, instanceType := range instanceTypes {
-		for _, ami := range amis {
-			if err := instanceType.Requirements.Compatible(ami.Requirements); err == nil {
-				amiIDs[ami.AmiID] = append(amiIDs[ami.AmiID], instanceType)
-				break
-			}
+		if ami, ok := lo.Find(amis, func(a AMI) bool {
+			return instanceType.Requirements.Compatible(a.Requirements) == nil
+		}); ok {
+			mapping[ami.AmiID] = append(mapping[ami.AmiID], instanceType)
 		}
 	}
-	return amiIDs
+	return mapping
 }
 
 // Get Returning a list of AMIs with its associated requirements
