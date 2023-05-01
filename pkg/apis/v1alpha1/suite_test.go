@@ -76,6 +76,20 @@ var _ = Describe("Validation", func() {
 			}
 			Expect(ant.Validate(ctx)).To(Succeed())
 		})
+		It("should succeed by validating that regex is properly escaped", func() {
+			ant.Spec.Tags = map[string]string{
+				"karpenterzsh/provisioner-name": "value",
+			}
+			Expect(ant.Validate(ctx)).To(Succeed())
+			ant.Spec.Tags = map[string]string{
+				"kubernetesbio/cluster/test": "value",
+			}
+			Expect(ant.Validate(ctx)).To(Succeed())
+			ant.Spec.Tags = map[string]string{
+				"karpenterzsh/managed-by": "test",
+			}
+			Expect(ant.Validate(ctx)).To(Succeed())
+		})
 		It("should fail if tags contain a restricted domain key", func() {
 			ant.Spec.Tags = map[string]string{
 				"karpenter.sh/provisioner-name": "value",
