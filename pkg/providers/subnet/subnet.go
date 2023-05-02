@@ -95,15 +95,12 @@ func (p *Provider) OnlyPrivateSubnets(ctx context.Context, nodeTemplate *v1alpha
 	if err != nil {
 		return false, err
 	}
-	onlyPrivateSubnets := true
 	for _, sb := range subnets {
-		if sb.MapPublicIpOnLaunch != nil {
-			if *sb.MapPublicIpOnLaunch {
-				onlyPrivateSubnets = false
-			}
+		if aws.BoolValue(sb.MapPublicIpOnLaunch) {
+			return false, nil
 		}
 	}
-	return onlyPrivateSubnets, nil
+	return true, nil
 }
 
 // ZonalSubnetsForLaunch returns a mapping of zone to the subnet with the most available IP addresses and deducts the passed ips from the available count
