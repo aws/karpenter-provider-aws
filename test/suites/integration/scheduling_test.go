@@ -189,16 +189,12 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 		env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
 		env.ExpectCreatedNodeCount("==", 1)
 	})
-	It("should support well-known labels for an accelerator (nvidia)", func() {
+	It("should support well-known labels for a gpu (nvidia)", func() {
 		nodeSelector := map[string]string{
-			v1alpha1.LabelInstanceGPUName:                 "t4",
-			v1alpha1.LabelInstanceGPUMemory:               "16384",
-			v1alpha1.LabelInstanceGPUManufacturer:         "nvidia",
-			v1alpha1.LabelInstanceGPUCount:                "1",
-			v1alpha1.LabelInstanceAcceleratorName:         "t4",
-			v1alpha1.LabelInstanceAcceleratorMemory:       "16384",
-			v1alpha1.LabelInstanceAcceleratorManufacturer: "nvidia",
-			v1alpha1.LabelInstanceAcceleratorCount:        "1",
+			v1alpha1.LabelInstanceGPUName:         "t4",
+			v1alpha1.LabelInstanceGPUMemory:       "16384",
+			v1alpha1.LabelInstanceGPUManufacturer: "nvidia",
+			v1alpha1.LabelInstanceGPUCount:        "1",
 		}
 		selectors.Insert(lo.Keys(nodeSelector)...) // Add node selector keys to selectors used in testing to ensure we test all labels
 		requirements := lo.MapToSlice(nodeSelector, func(key string, value string) v1.NodeSelectorRequirement {

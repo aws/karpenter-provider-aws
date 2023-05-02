@@ -190,7 +190,6 @@ var _ = Describe("Provisioner", func() {
 					v1alpha1.LabelInstanceAcceleratorName,
 					v1alpha1.LabelInstanceAcceleratorManufacturer,
 					v1alpha1.LabelInstanceAcceleratorCount,
-					v1alpha1.LabelInstanceAcceleratorMemory,
 				} {
 					provisioner.Spec.Labels = map[string]string{label: randomdata.SillyName()}
 					Expect(provisioner.Validate(ctx)).To(Succeed())

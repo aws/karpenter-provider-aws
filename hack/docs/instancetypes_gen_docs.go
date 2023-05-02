@@ -147,12 +147,7 @@ below are the resources available with some assumptions and after the instance o
 		familyName := strings.Split(it.Name, ".")[0]
 		families[familyName] = append(families[familyName], it)
 		for labelName := range it.Requirements {
-			// TODO: This is to remove the gpu labels from the docs
-			// GPU labels were removed from docs in favor of Accelerator labels
-			// this should be removed after v1 once gpu label has been removed.
-			if !strings.Contains(labelName, "gpu") {
-				labelNameMap.Insert(labelName)
-			}
+			labelNameMap.Insert(labelName)
 		}
 		for resourceName := range it.Capacity {
 			resourceNameMap.Insert(string(resourceName))

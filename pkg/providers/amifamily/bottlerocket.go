@@ -45,28 +45,44 @@ func (b Bottlerocket) DefaultAMIs(version string) []DefaultAMIOutput {
 			Query: fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/x86_64/latest/image_id", version),
 			Requirements: scheduling.NewRequirements(
 				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureAmd64),
-				scheduling.NewRequirement(v1alpha1.LabelInstanceAcceleratorManufacturer, v1.NodeSelectorOpNotIn, string(v1alpha1.NVIDIAacceleratorManufacturer)),
+				scheduling.NewRequirement(v1alpha1.LabelInstanceGPUCount, v1.NodeSelectorOpDoesNotExist),
+				scheduling.NewRequirement(v1alpha1.LabelInstanceAcceleratorCount, v1.NodeSelectorOpDoesNotExist),
 			),
 		},
 		{
 			Query: fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/x86_64/latest/image_id", version),
 			Requirements: scheduling.NewRequirements(
 				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureAmd64),
-				scheduling.NewRequirement(v1alpha1.LabelInstanceAcceleratorManufacturer, v1.NodeSelectorOpIn, string(v1alpha1.NVIDIAacceleratorManufacturer)),
+				scheduling.NewRequirement(v1alpha1.LabelInstanceGPUCount, v1.NodeSelectorOpExists),
+			),
+		},
+		{
+			Query: fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/x86_64/latest/image_id", version),
+			Requirements: scheduling.NewRequirements(
+				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureAmd64),
+				scheduling.NewRequirement(v1alpha1.LabelInstanceAcceleratorCount, v1.NodeSelectorOpExists),
 			),
 		},
 		{
 			Query: fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/%s/latest/image_id", version, v1alpha5.ArchitectureArm64),
 			Requirements: scheduling.NewRequirements(
 				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureArm64),
-				scheduling.NewRequirement(v1alpha1.LabelInstanceAcceleratorManufacturer, v1.NodeSelectorOpNotIn, string(v1alpha1.NVIDIAacceleratorManufacturer)),
+				scheduling.NewRequirement(v1alpha1.LabelInstanceGPUCount, v1.NodeSelectorOpDoesNotExist),
+				scheduling.NewRequirement(v1alpha1.LabelInstanceAcceleratorCount, v1.NodeSelectorOpDoesNotExist),
 			),
 		},
 		{
 			Query: fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/%s/latest/image_id", version, v1alpha5.ArchitectureArm64),
 			Requirements: scheduling.NewRequirements(
 				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureArm64),
-				scheduling.NewRequirement(v1alpha1.LabelInstanceAcceleratorManufacturer, v1.NodeSelectorOpIn, string(v1alpha1.NVIDIAacceleratorManufacturer)),
+				scheduling.NewRequirement(v1alpha1.LabelInstanceGPUCount, v1.NodeSelectorOpExists),
+			),
+		},
+		{
+			Query: fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/%s/latest/image_id", version, v1alpha5.ArchitectureArm64),
+			Requirements: scheduling.NewRequirements(
+				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureArm64),
+				scheduling.NewRequirement(v1alpha1.LabelInstanceAcceleratorCount, v1.NodeSelectorOpExists),
 			),
 		},
 	}

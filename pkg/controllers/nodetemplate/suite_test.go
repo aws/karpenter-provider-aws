@@ -464,9 +464,12 @@ var _ = Describe("AWSNodeTemplateController", func() {
 							Values:   []string{v1alpha5.ArchitectureAmd64},
 						},
 						{
-							Key:      v1alpha1.LabelInstanceAcceleratorManufacturer,
-							Operator: v1.NodeSelectorOpNotIn,
-							Values:   []string{string(v1alpha1.AWSAcceleratorManufacturer), string(v1alpha1.NVIDIAacceleratorManufacturer)},
+							Key:      v1alpha1.LabelInstanceGPUCount,
+							Operator: v1.NodeSelectorOpDoesNotExist,
+						},
+						{
+							Key:      v1alpha1.LabelInstanceAcceleratorCount,
+							Operator: v1.NodeSelectorOpDoesNotExist,
 						},
 					},
 				},
@@ -480,9 +483,12 @@ var _ = Describe("AWSNodeTemplateController", func() {
 							Values:   []string{v1alpha5.ArchitectureArm64},
 						},
 						{
-							Key:      v1alpha1.LabelInstanceAcceleratorManufacturer,
-							Operator: v1.NodeSelectorOpNotIn,
-							Values:   []string{string(v1alpha1.AWSAcceleratorManufacturer), string(v1alpha1.NVIDIAacceleratorManufacturer)},
+							Key:      v1alpha1.LabelInstanceGPUCount,
+							Operator: v1.NodeSelectorOpDoesNotExist,
+						},
+						{
+							Key:      v1alpha1.LabelInstanceAcceleratorCount,
+							Operator: v1.NodeSelectorOpDoesNotExist,
 						},
 					},
 				},
@@ -496,9 +502,23 @@ var _ = Describe("AWSNodeTemplateController", func() {
 							Values:   []string{v1alpha5.ArchitectureAmd64},
 						},
 						{
-							Key:      v1alpha1.LabelInstanceAcceleratorManufacturer,
+							Key:      v1alpha1.LabelInstanceGPUCount,
+							Operator: v1.NodeSelectorOpExists,
+						},
+					},
+				},
+				{
+					Name: "test-ami-2",
+					ID:   "ami-id-456",
+					Requirements: []v1.NodeSelectorRequirement{
+						{
+							Key:      v1.LabelArchStable,
 							Operator: v1.NodeSelectorOpIn,
-							Values:   []string{string(v1alpha1.AWSAcceleratorManufacturer), string(v1alpha1.NVIDIAacceleratorManufacturer)},
+							Values:   []string{v1alpha5.ArchitectureAmd64},
+						},
+						{
+							Key:      v1alpha1.LabelInstanceAcceleratorCount,
+							Operator: v1.NodeSelectorOpExists,
 						},
 					},
 				},

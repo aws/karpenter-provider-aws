@@ -93,7 +93,6 @@ func computeRequirements(ctx context.Context, info *ec2.InstanceTypeInfo, offeri
 		scheduling.NewRequirement(v1alpha1.LabelInstanceAcceleratorName, v1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1alpha1.LabelInstanceAcceleratorManufacturer, v1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1alpha1.LabelInstanceAcceleratorCount, v1.NodeSelectorOpDoesNotExist),
-		scheduling.NewRequirement(v1alpha1.LabelInstanceAcceleratorMemory, v1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1alpha1.LabelInstanceHypervisor, v1.NodeSelectorOpIn, aws.StringValue(info.Hypervisor)),
 		scheduling.NewRequirement(v1alpha1.LabelInstanceEncryptionInTransitSupported, v1.NodeSelectorOpIn, fmt.Sprint(aws.BoolValue(info.NetworkInfo.EncryptionInTransitSupported))),
 	)
@@ -118,10 +117,6 @@ func computeRequirements(ctx context.Context, info *ec2.InstanceTypeInfo, offeri
 	// GPU Labels
 	if info.GpuInfo != nil && len(info.GpuInfo.Gpus) == 1 {
 		gpu := info.GpuInfo.Gpus[0]
-		requirements.Get(v1alpha1.LabelInstanceAcceleratorName).Insert(lowerKabobCase(aws.StringValue(gpu.Name)))
-		requirements.Get(v1alpha1.LabelInstanceAcceleratorManufacturer).Insert(lowerKabobCase(aws.StringValue(gpu.Manufacturer)))
-		requirements.Get(v1alpha1.LabelInstanceAcceleratorCount).Insert(fmt.Sprint(aws.Int64Value(gpu.Count)))
-		requirements.Get(v1alpha1.LabelInstanceAcceleratorMemory).Insert(fmt.Sprint(aws.Int64Value(gpu.MemoryInfo.SizeInMiB)))
 		requirements.Get(v1alpha1.LabelInstanceGPUName).Insert(lowerKabobCase(aws.StringValue(gpu.Name)))
 		requirements.Get(v1alpha1.LabelInstanceGPUManufacturer).Insert(lowerKabobCase(aws.StringValue(gpu.Manufacturer)))
 		requirements.Get(v1alpha1.LabelInstanceGPUCount).Insert(fmt.Sprint(aws.Int64Value(gpu.Count)))
