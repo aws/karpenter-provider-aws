@@ -215,14 +215,17 @@ func (p *Provider) fetchAMIsFromSSM(ctx context.Context, ssmQuery string) (strin
 	return ami, nil
 }
 
-func (p *Provider) getAMIsFromSelector(ctx context.Context, selector map[string]string) ([]AMI, error) {
+func (p *Provider) getAMIsFromSelector(ctx context.Context, selector map[string]string) (amis []AMI, err error) {
 	ec2AMIs, err := p.fetchAMIsFromEC2(ctx, selector)
 	if err != nil {
 		return nil, err
 	}
-	var amis []AMI
 	for _, ec2AMI := range ec2AMIs {
-		amis = append(amis, AMI{*ec2AMI.Name, *ec2AMI.ImageId, *ec2AMI.CreationDate, p.getRequirementsFromImage(ec2AMI)})
+		a := AMI{*ec2AMI.Name, *ec2AMI.ImageId, *ec2AMI.CreationDate, p.getRequirementsFromImage(ec2AMI)}
+		// Only support well-known architectures for AMI resolution
+		if v1alpha1.WellKnownArchitectures.Has(a.Requirements.Get(v1.LabelArchStable).Any()) {
+			amis = append(amis, a)
+		}
 	}
 	return amis, nil
 }

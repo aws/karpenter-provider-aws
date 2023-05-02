@@ -167,10 +167,9 @@ var _ = Describe("Instance Types", func() {
 			v1alpha1.LabelInstanceGPUCount:                     "1",
 			v1alpha1.LabelInstanceGPUMemory:                    "16384",
 			v1alpha1.LabelInstanceLocalNVME:                    "900",
-			v1alpha1.LabelInstanceAcceleratorName:              "t4",
-			v1alpha1.LabelInstanceAcceleratorManufacturer:      "nvidia",
+			v1alpha1.LabelInstanceAcceleratorName:              "inferentia",
+			v1alpha1.LabelInstanceAcceleratorManufacturer:      "aws",
 			v1alpha1.LabelInstanceAcceleratorCount:             "1",
-			v1alpha1.LabelInstanceAcceleratorMemory:            "16384",
 			// Deprecated Labels
 			v1.LabelFailureDomainBetaRegion: "",
 			v1.LabelFailureDomainBetaZone:   "test-zone-1a",
@@ -181,6 +180,8 @@ var _ = Describe("Instance Types", func() {
 		}
 
 		// Ensure that we're exercising all well known labels
+		Expect(lo.Keys(nodeSelector)).To(ContainElements(append(v1alpha5.WellKnownLabels.UnsortedList(), lo.Keys(v1alpha5.NormalizedLabels)...)))
+
 		var pods []*v1.Pod
 		for key, value := range nodeSelector {
 			pods = append(pods, coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{key: value}}))
@@ -218,10 +219,6 @@ var _ = Describe("Instance Types", func() {
 			v1alpha1.LabelInstanceGPUCount:                     "1",
 			v1alpha1.LabelInstanceGPUMemory:                    "16384",
 			v1alpha1.LabelInstanceLocalNVME:                    "900",
-			v1alpha1.LabelInstanceAcceleratorName:              "t4",
-			v1alpha1.LabelInstanceAcceleratorManufacturer:      "nvidia",
-			v1alpha1.LabelInstanceAcceleratorCount:             "1",
-			v1alpha1.LabelInstanceAcceleratorMemory:            "16384",
 			// Deprecated Labels
 			v1.LabelFailureDomainBetaRegion: "",
 			v1.LabelFailureDomainBetaZone:   "test-zone-1a",
@@ -231,8 +228,14 @@ var _ = Describe("Instance Types", func() {
 			"topology.ebs.csi.aws.com/zone": "test-zone-1a",
 		}
 
-		// Ensure that we're exercising all well known labels
-		Expect(lo.Keys(nodeSelector)).To(ContainElements(append(v1alpha5.WellKnownLabels.UnsortedList(), lo.Keys(v1alpha5.NormalizedLabels)...)))
+		// Ensure that we're exercising all well known labels except for accelerator labels
+		expectedLabels := append(v1alpha5.WellKnownLabels.Difference(sets.NewString(
+			v1alpha1.LabelInstanceAcceleratorCount,
+			v1alpha1.LabelInstanceAcceleratorName,
+			v1alpha1.LabelInstanceAcceleratorManufacturer,
+		)).UnsortedList(), lo.Keys(v1alpha5.NormalizedLabels)...)
+		Expect(lo.Keys(nodeSelector)).To(ContainElements(expectedLabels))
+
 		pod := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: nodeSelector})
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 		ExpectScheduled(ctx, env.Client, pod)
@@ -241,10 +244,47 @@ var _ = Describe("Instance Types", func() {
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 
 		nodeSelector := map[string]string{
-			v1alpha1.LabelInstanceAcceleratorName:         "inferentia",
-			v1alpha1.LabelInstanceAcceleratorManufacturer: "aws",
-			v1alpha1.LabelInstanceAcceleratorCount:        "1",
+			// Well known
+			v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+			v1.LabelTopologyRegion:           "",
+			v1.LabelTopologyZone:             "test-zone-1a",
+			v1.LabelInstanceTypeStable:       "inf1.2xlarge",
+			v1.LabelOSStable:                 "linux",
+			v1.LabelArchStable:               "amd64",
+			v1alpha5.LabelCapacityType:       "on-demand",
+			// Well Known to AWS
+			v1alpha1.LabelInstanceHypervisor:                   "nitro",
+			v1alpha1.LabelInstanceEncryptionInTransitSupported: "true",
+			v1alpha1.LabelInstanceCategory:                     "inf",
+			v1alpha1.LabelInstanceGeneration:                   "1",
+			v1alpha1.LabelInstanceFamily:                       "inf1",
+			v1alpha1.LabelInstanceSize:                         "2xlarge",
+			v1alpha1.LabelInstanceCPU:                          "8",
+			v1alpha1.LabelInstanceMemory:                       "16384",
+			v1alpha1.LabelInstanceNetworkBandwidth:             "5000",
+			v1alpha1.LabelInstancePods:                         "38",
+			v1alpha1.LabelInstanceAcceleratorName:              "inferentia",
+			v1alpha1.LabelInstanceAcceleratorManufacturer:      "aws",
+			v1alpha1.LabelInstanceAcceleratorCount:             "1",
+			// Deprecated Labels
+			v1.LabelFailureDomainBetaRegion: "",
+			v1.LabelFailureDomainBetaZone:   "test-zone-1a",
+			"beta.kubernetes.io/arch":       "amd64",
+			"beta.kubernetes.io/os":         "linux",
+			v1.LabelInstanceType:            "inf1.2xlarge",
+			"topology.ebs.csi.aws.com/zone": "test-zone-1a",
 		}
+
+		// Ensure that we're exercising all well known labels except for gpu labels and nvme
+		expectedLabels := append(v1alpha5.WellKnownLabels.Difference(sets.NewString(
+			v1alpha1.LabelInstanceGPUCount,
+			v1alpha1.LabelInstanceGPUName,
+			v1alpha1.LabelInstanceGPUManufacturer,
+			v1alpha1.LabelInstanceGPUMemory,
+			v1alpha1.LabelInstanceLocalNVME,
+		)).UnsortedList(), lo.Keys(v1alpha5.NormalizedLabels)...)
+		Expect(lo.Keys(nodeSelector)).To(ContainElements(expectedLabels))
+
 		pod := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: nodeSelector})
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 		ExpectScheduled(ctx, env.Client, pod)
