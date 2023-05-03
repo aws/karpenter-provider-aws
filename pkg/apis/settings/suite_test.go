@@ -49,7 +49,6 @@ var _ = Describe("Validation", func() {
 		Expect(s.EnablePodENI).To(BeFalse())
 		Expect(s.EnableENILimitedPodDensity).To(BeTrue())
 		Expect(s.IsolatedVPC).To(BeFalse())
-		Expect(s.NodeNameConvention).To(Equal(settings.IPName))
 		Expect(s.VMMemoryOverheadPercent).To(Equal(0.075))
 		Expect(len(s.Tags)).To(BeZero())
 		Expect(s.ReservedENIs).To(Equal(0))
@@ -63,7 +62,6 @@ var _ = Describe("Validation", func() {
 				"aws.enablePodENI":               "true",
 				"aws.enableENILimitedPodDensity": "false",
 				"aws.isolatedVPC":                "true",
-				"aws.nodeNameConvention":         "resource-name",
 				"aws.vmMemoryOverheadPercent":    "0.1",
 				"aws.tags":                       `{"tag1": "value1", "tag2": "value2", "example.com/tag": "my-value"}`,
 				"aws.reservedENIs":               "1",
@@ -76,7 +74,35 @@ var _ = Describe("Validation", func() {
 		Expect(s.EnablePodENI).To(BeTrue())
 		Expect(s.EnableENILimitedPodDensity).To(BeFalse())
 		Expect(s.IsolatedVPC).To(BeTrue())
-		Expect(s.NodeNameConvention).To(Equal(settings.ResourceName))
+		Expect(s.VMMemoryOverheadPercent).To(Equal(0.1))
+		Expect(len(s.Tags)).To(Equal(3))
+		Expect(s.Tags).To(HaveKeyWithValue("tag1", "value1"))
+		Expect(s.Tags).To(HaveKeyWithValue("tag2", "value2"))
+		Expect(s.Tags).To(HaveKeyWithValue("example.com/tag", "my-value"))
+		Expect(s.ReservedENIs).To(Equal(1))
+	})
+	It("should succeed when setting values that no longer exist (backwards compatibility)", func() {
+		cm := &v1.ConfigMap{
+			Data: map[string]string{
+				"aws.clusterEndpoint":            "https://00000000000000000000000.gr7.us-west-2.eks.amazonaws.com",
+				"aws.clusterName":                "my-cluster",
+				"aws.defaultInstanceProfile":     "karpenter",
+				"aws.enablePodENI":               "true",
+				"aws.enableENILimitedPodDensity": "false",
+				"aws.isolatedVPC":                "true",
+				"aws.vmMemoryOverheadPercent":    "0.1",
+				"aws.tags":                       `{"tag1": "value1", "tag2": "value2", "example.com/tag": "my-value"}`,
+				"aws.reservedENIs":               "1",
+				"aws.nodeNameConvention":         "resource-name",
+			},
+		}
+		ctx, err := (&settings.Settings{}).Inject(ctx, cm)
+		Expect(err).ToNot(HaveOccurred())
+		s := settings.FromContext(ctx)
+		Expect(s.DefaultInstanceProfile).To(Equal("karpenter"))
+		Expect(s.EnablePodENI).To(BeTrue())
+		Expect(s.EnableENILimitedPodDensity).To(BeFalse())
+		Expect(s.IsolatedVPC).To(BeTrue())
 		Expect(s.VMMemoryOverheadPercent).To(Equal(0.1))
 		Expect(len(s.Tags)).To(Equal(3))
 		Expect(s.Tags).To(HaveKeyWithValue("tag1", "value1"))

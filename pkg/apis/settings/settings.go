@@ -29,13 +29,6 @@ import (
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 )
 
-type NodeNameConvention string
-
-const (
-	IPName       NodeNameConvention = "ip-name"
-	ResourceName NodeNameConvention = "resource-name"
-)
-
 type settingsKeyType struct{}
 
 var ContextKey = settingsKeyType{}
@@ -47,7 +40,6 @@ var defaultSettings = &Settings{
 	EnablePodENI:               false,
 	EnableENILimitedPodDensity: true,
 	IsolatedVPC:                false,
-	NodeNameConvention:         IPName,
 	VMMemoryOverheadPercent:    0.075,
 	InterruptionQueueName:      "",
 	Tags:                       map[string]string{},
@@ -62,8 +54,7 @@ type Settings struct {
 	EnablePodENI               bool
 	EnableENILimitedPodDensity bool
 	IsolatedVPC                bool
-	NodeNameConvention         NodeNameConvention `validate:"required"`
-	VMMemoryOverheadPercent    float64            `validate:"min=0"`
+	VMMemoryOverheadPercent    float64 `validate:"min=0"`
 	InterruptionQueueName      string
 	Tags                       map[string]string
 	ReservedENIs               int `validate:"min=0"`
@@ -84,7 +75,6 @@ func (*Settings) Inject(ctx context.Context, cm *v1.ConfigMap) (context.Context,
 		configmap.AsBool("aws.enablePodENI", &s.EnablePodENI),
 		configmap.AsBool("aws.enableENILimitedPodDensity", &s.EnableENILimitedPodDensity),
 		configmap.AsBool("aws.isolatedVPC", &s.IsolatedVPC),
-		AsTypedString("aws.nodeNameConvention", &s.NodeNameConvention),
 		configmap.AsFloat64("aws.vmMemoryOverheadPercent", &s.VMMemoryOverheadPercent),
 		configmap.AsString("aws.interruptionQueueName", &s.InterruptionQueueName),
 		AsStringMap("aws.tags", &s.Tags),
