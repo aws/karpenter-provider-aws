@@ -27,7 +27,6 @@ import (
 	"net/textproto"
 	"sort"
 	"strings"
-	"sync"
 
 	"github.com/samber/lo"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -65,86 +64,95 @@ func (e EKS) eksBootstrapScript() string {
 		caBundleArg = fmt.Sprintf("--b64-cluster-ca '%s'", *e.CABundle)
 	}
 	var userData bytes.Buffer
-	var kubeletExtraArgs strings.Builder
 	userData.WriteString("#!/bin/bash -xe\n")
 	userData.WriteString("exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1\n")
 	// Due to the way bootstrap.sh is written, parameters should not be passed to it with an equal sign
 	userData.WriteString(fmt.Sprintf("/etc/eks/bootstrap.sh '%s' --apiserver-endpoint '%s' %s", e.ClusterName, e.ClusterEndpoint, caBundleArg))
 
-	kubeletExtraArgs.WriteString(strings.Join([]string{e.nodeLabelArg(), e.nodeTaintArg()}, " "))
-
 	if e.isIPv6() {
 		userData.WriteString(" \\\n--ip-family ipv6")
-	}
-	if e.KubeletConfig != nil && e.KubeletConfig.MaxPods != nil {
-		userData.WriteString(" \\\n--use-max-pods false")
-		kubeletExtraArgs.WriteString(fmt.Sprintf(" --max-pods=%d", ptr.Int32Value(e.KubeletConfig.MaxPods)))
-	} else if !e.AWSENILimitedPodDensity {
-		userData.WriteString(" \\\n--use-max-pods false")
-		kubeletExtraArgs.WriteString(" --max-pods=110")
-	}
-	if e.KubeletConfig != nil && e.KubeletConfig.PodsPerCore != nil {
-		kubeletExtraArgs.WriteString(fmt.Sprintf(" --pods-per-core=%d", ptr.Int32Value(e.KubeletConfig.PodsPerCore)))
-	}
-
-	if e.KubeletConfig != nil {
-		// We have to convert some of these maps so that their values return the correct string
-		kubeletExtraArgs.WriteString(joinParameterArgs("--system-reserved", resources.StringMap(e.KubeletConfig.SystemReserved), "="))
-		kubeletExtraArgs.WriteString(joinParameterArgs("--kube-reserved", resources.StringMap(e.KubeletConfig.KubeReserved), "="))
-		kubeletExtraArgs.WriteString(joinParameterArgs("--eviction-hard", e.KubeletConfig.EvictionHard, "<"))
-		kubeletExtraArgs.WriteString(joinParameterArgs("--eviction-soft", e.KubeletConfig.EvictionSoft, "<"))
-		kubeletExtraArgs.WriteString(joinParameterArgs("--eviction-soft-grace-period", lo.MapValues(e.KubeletConfig.EvictionSoftGracePeriod, func(v metav1.Duration, _ string) string { return v.Duration.String() }), "="))
-
-		if e.KubeletConfig.EvictionMaxPodGracePeriod != nil {
-			kubeletExtraArgs.WriteString(fmt.Sprintf(" --eviction-max-pod-grace-period=%d", ptr.Int32Value(e.KubeletConfig.EvictionMaxPodGracePeriod)))
-		}
-		if e.KubeletConfig.ImageGCHighThresholdPercent != nil {
-			kubeletExtraArgs.WriteString(fmt.Sprintf(" --image-gc-high-threshold=%d", ptr.Int32Value(e.KubeletConfig.ImageGCHighThresholdPercent)))
-		}
-		if e.KubeletConfig.ImageGCLowThresholdPercent != nil {
-			kubeletExtraArgs.WriteString(fmt.Sprintf(" --image-gc-low-threshold=%d", ptr.Int32Value(e.KubeletConfig.ImageGCLowThresholdPercent)))
-		}
-		if e.KubeletConfig.CPUCFSQuota != nil {
-			kubeletExtraArgs.WriteString(fmt.Sprintf(" --cpu-cfs-quota=%t", lo.FromPtr(e.KubeletConfig.CPUCFSQuota)))
-		}
 	}
 	if e.ContainerRuntime != "" {
 		userData.WriteString(fmt.Sprintf(" \\\n--container-runtime %s", e.ContainerRuntime))
 	}
-	if kubeletExtraArgsStr := strings.Trim(kubeletExtraArgs.String(), " "); len(kubeletExtraArgsStr) > 0 {
-		userData.WriteString(fmt.Sprintf(" \\\n--kubelet-extra-args '%s'", kubeletExtraArgsStr))
-	}
 	if e.KubeletConfig != nil && len(e.KubeletConfig.ClusterDNS) > 0 {
 		userData.WriteString(fmt.Sprintf(" \\\n--dns-cluster-ip '%s'", e.KubeletConfig.ClusterDNS[0]))
+	}
+	if (e.KubeletConfig != nil && e.KubeletConfig.MaxPods != nil) || !e.AWSENILimitedPodDensity {
+		userData.WriteString(" \\\n--use-max-pods false")
+	}
+	if args := e.kubeletExtraArgs(); len(args) > 0 {
+		userData.WriteString(fmt.Sprintf(" \\\n--kubelet-extra-args '%s'", strings.Join(args, " ")))
 	}
 	return userData.String()
 }
 
+func (e EKS) kubeletExtraArgs() (args []string) {
+	args = append(args, e.nodeLabelArg(), e.nodeTaintArg(), e.maxPodsArg())
+
+	if e.KubeletConfig == nil {
+		return lo.Compact(args)
+	}
+	if e.KubeletConfig.PodsPerCore != nil {
+		args = append(args, fmt.Sprintf("--pods-per-core=%d", ptr.Int32Value(e.KubeletConfig.PodsPerCore)))
+	}
+	// We have to convert some of these maps so that their values return the correct string
+	args = append(args, joinParameterArgs("--system-reserved", resources.StringMap(e.KubeletConfig.SystemReserved), "="))
+	args = append(args, joinParameterArgs("--kube-reserved", resources.StringMap(e.KubeletConfig.KubeReserved), "="))
+	args = append(args, joinParameterArgs("--eviction-hard", e.KubeletConfig.EvictionHard, "<"))
+	args = append(args, joinParameterArgs("--eviction-soft", e.KubeletConfig.EvictionSoft, "<"))
+	args = append(args, joinParameterArgs("--eviction-soft-grace-period", lo.MapValues(e.KubeletConfig.EvictionSoftGracePeriod, func(v metav1.Duration, _ string) string { return v.Duration.String() }), "="))
+
+	if e.KubeletConfig.EvictionMaxPodGracePeriod != nil {
+		args = append(args, fmt.Sprintf("--eviction-max-pod-grace-period=%d", ptr.Int32Value(e.KubeletConfig.EvictionMaxPodGracePeriod)))
+	}
+	if e.KubeletConfig.ImageGCHighThresholdPercent != nil {
+		args = append(args, fmt.Sprintf("--image-gc-high-threshold=%d", ptr.Int32Value(e.KubeletConfig.ImageGCHighThresholdPercent)))
+	}
+	if e.KubeletConfig.ImageGCLowThresholdPercent != nil {
+		args = append(args, fmt.Sprintf("--image-gc-low-threshold=%d", ptr.Int32Value(e.KubeletConfig.ImageGCLowThresholdPercent)))
+	}
+	if e.KubeletConfig.CPUCFSQuota != nil {
+		args = append(args, fmt.Sprintf("--cpu-cfs-quota=%t", lo.FromPtr(e.KubeletConfig.CPUCFSQuota)))
+	}
+	return lo.Compact(args)
+}
+
+func (e EKS) maxPodsArg() string {
+	if e.KubeletConfig != nil && e.KubeletConfig.MaxPods != nil {
+		return fmt.Sprintf("--max-pods=%d", ptr.Int32Value(e.KubeletConfig.MaxPods))
+	}
+	if !e.AWSENILimitedPodDensity {
+		return "--max-pods=110"
+	}
+	return ""
+}
+
 func (e EKS) nodeTaintArg() string {
-	nodeTaintsArg := ""
-	taintStrings := []string{}
-	var once sync.Once
+	if len(e.Taints) == 0 {
+		return ""
+	}
+	var taintStrings []string
 	for _, taint := range e.Taints {
-		once.Do(func() { nodeTaintsArg = "--register-with-taints=" })
 		taintStrings = append(taintStrings, fmt.Sprintf("%s=%s:%s", taint.Key, taint.Value, taint.Effect))
 	}
-	return fmt.Sprintf("%s%s", nodeTaintsArg, strings.Join(taintStrings, ","))
+	return fmt.Sprintf("--register-with-taints=%q", strings.Join(taintStrings, ","))
 }
 
 func (e EKS) nodeLabelArg() string {
-	nodeLabelArg := ""
-	labelStrings := []string{}
-	var once sync.Once
+	if len(e.Labels) == 0 {
+		return ""
+	}
+	var labelStrings []string
 	keys := lo.Keys(e.Labels)
 	sort.Strings(keys) // ensures this list is deterministic, for easy testing.
 	for _, key := range keys {
 		if v1alpha5.LabelDomainExceptions.Has(key) {
 			continue
 		}
-		once.Do(func() { nodeLabelArg = "--node-labels=" })
 		labelStrings = append(labelStrings, fmt.Sprintf("%s=%v", key, e.Labels[key]))
 	}
-	return fmt.Sprintf("%s%s", nodeLabelArg, strings.Join(labelStrings, ","))
+	return fmt.Sprintf("--node-labels=%q", strings.Join(labelStrings, ","))
 }
 
 // joinParameterArgs joins a map of keys and values by their separator. The separator will sit between the
@@ -156,7 +164,7 @@ func joinParameterArgs[K comparable, V any](name string, m map[K]V, separator st
 		args = append(args, fmt.Sprintf("%v%s%v", k, separator, v))
 	}
 	if len(args) > 0 {
-		return fmt.Sprintf(" %s=%s", name, strings.Join(args, ","))
+		return fmt.Sprintf("%s=%q", name, strings.Join(args, ","))
 	}
 	return ""
 }
