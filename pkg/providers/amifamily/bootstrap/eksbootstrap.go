@@ -78,9 +78,7 @@ func (e EKS) eksBootstrapScript() string {
 	if e.KubeletConfig != nil && len(e.KubeletConfig.ClusterDNS) > 0 {
 		userData.WriteString(fmt.Sprintf(" \\\n--dns-cluster-ip '%s'", e.KubeletConfig.ClusterDNS[0]))
 	}
-	if e.KubeletConfig != nil && e.KubeletConfig.MaxPods != nil {
-		userData.WriteString(" \\\n--use-max-pods false")
-	} else if !e.AWSENILimitedPodDensity {
+	if (e.KubeletConfig != nil && e.KubeletConfig.MaxPods != nil) || !e.AWSENILimitedPodDensity {
 		userData.WriteString(" \\\n--use-max-pods false")
 	}
 	if args := e.kubeletExtraArgs(); len(args) > 0 {
@@ -90,37 +88,44 @@ func (e EKS) eksBootstrapScript() string {
 }
 
 func (e EKS) kubeletExtraArgs() (args []string) {
-	args = append(args, e.nodeLabelArg(), e.nodeTaintArg())
-	if e.KubeletConfig != nil && e.KubeletConfig.MaxPods != nil {
-		args = append(args, fmt.Sprintf("--max-pods=%d", ptr.Int32Value(e.KubeletConfig.MaxPods)))
-	} else if !e.AWSENILimitedPodDensity {
-		args = append(args, "--max-pods=110")
+	args = append(args, e.nodeLabelArg(), e.nodeTaintArg(), e.maxPodsArg())
+
+	if e.KubeletConfig == nil {
+		return lo.Compact(args)
 	}
-	if e.KubeletConfig != nil && e.KubeletConfig.PodsPerCore != nil {
+	if e.KubeletConfig.PodsPerCore != nil {
 		args = append(args, fmt.Sprintf("--pods-per-core=%d", ptr.Int32Value(e.KubeletConfig.PodsPerCore)))
 	}
-	if e.KubeletConfig != nil {
-		// We have to convert some of these maps so that their values return the correct string
-		args = append(args, joinParameterArgs("--system-reserved", resources.StringMap(e.KubeletConfig.SystemReserved), "="))
-		args = append(args, joinParameterArgs("--kube-reserved", resources.StringMap(e.KubeletConfig.KubeReserved), "="))
-		args = append(args, joinParameterArgs("--eviction-hard", e.KubeletConfig.EvictionHard, "<"))
-		args = append(args, joinParameterArgs("--eviction-soft", e.KubeletConfig.EvictionSoft, "<"))
-		args = append(args, joinParameterArgs("--eviction-soft-grace-period", lo.MapValues(e.KubeletConfig.EvictionSoftGracePeriod, func(v metav1.Duration, _ string) string { return v.Duration.String() }), "="))
+	// We have to convert some of these maps so that their values return the correct string
+	args = append(args, joinParameterArgs("--system-reserved", resources.StringMap(e.KubeletConfig.SystemReserved), "="))
+	args = append(args, joinParameterArgs("--kube-reserved", resources.StringMap(e.KubeletConfig.KubeReserved), "="))
+	args = append(args, joinParameterArgs("--eviction-hard", e.KubeletConfig.EvictionHard, "<"))
+	args = append(args, joinParameterArgs("--eviction-soft", e.KubeletConfig.EvictionSoft, "<"))
+	args = append(args, joinParameterArgs("--eviction-soft-grace-period", lo.MapValues(e.KubeletConfig.EvictionSoftGracePeriod, func(v metav1.Duration, _ string) string { return v.Duration.String() }), "="))
 
-		if e.KubeletConfig.EvictionMaxPodGracePeriod != nil {
-			args = append(args, fmt.Sprintf("--eviction-max-pod-grace-period=%d", ptr.Int32Value(e.KubeletConfig.EvictionMaxPodGracePeriod)))
-		}
-		if e.KubeletConfig.ImageGCHighThresholdPercent != nil {
-			args = append(args, fmt.Sprintf("--image-gc-high-threshold=%d", ptr.Int32Value(e.KubeletConfig.ImageGCHighThresholdPercent)))
-		}
-		if e.KubeletConfig.ImageGCLowThresholdPercent != nil {
-			args = append(args, fmt.Sprintf("--image-gc-low-threshold=%d", ptr.Int32Value(e.KubeletConfig.ImageGCLowThresholdPercent)))
-		}
-		if e.KubeletConfig.CPUCFSQuota != nil {
-			args = append(args, fmt.Sprintf("--cpu-cfs-quota=%t", lo.FromPtr(e.KubeletConfig.CPUCFSQuota)))
-		}
+	if e.KubeletConfig.EvictionMaxPodGracePeriod != nil {
+		args = append(args, fmt.Sprintf("--eviction-max-pod-grace-period=%d", ptr.Int32Value(e.KubeletConfig.EvictionMaxPodGracePeriod)))
 	}
-	return lo.Filter(args, func(s string, _ int) bool { return s != "" })
+	if e.KubeletConfig.ImageGCHighThresholdPercent != nil {
+		args = append(args, fmt.Sprintf("--image-gc-high-threshold=%d", ptr.Int32Value(e.KubeletConfig.ImageGCHighThresholdPercent)))
+	}
+	if e.KubeletConfig.ImageGCLowThresholdPercent != nil {
+		args = append(args, fmt.Sprintf("--image-gc-low-threshold=%d", ptr.Int32Value(e.KubeletConfig.ImageGCLowThresholdPercent)))
+	}
+	if e.KubeletConfig.CPUCFSQuota != nil {
+		args = append(args, fmt.Sprintf("--cpu-cfs-quota=%t", lo.FromPtr(e.KubeletConfig.CPUCFSQuota)))
+	}
+	return lo.Compact(args)
+}
+
+func (e EKS) maxPodsArg() string {
+	if e.KubeletConfig != nil && e.KubeletConfig.MaxPods != nil {
+		return fmt.Sprintf("--max-pods=%d", ptr.Int32Value(e.KubeletConfig.MaxPods))
+	}
+	if !e.AWSENILimitedPodDensity {
+		return "--max-pods=110"
+	}
+	return ""
 }
 
 func (e EKS) nodeTaintArg() string {
