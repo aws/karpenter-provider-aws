@@ -378,6 +378,7 @@ func (e *EC2API) DescribeSubnetsWithContext(ctx context.Context, input *ec2.Desc
 			SubnetId:                aws.String("subnet-test1"),
 			AvailabilityZone:        aws.String("test-zone-1a"),
 			AvailableIpAddressCount: aws.Int64(100),
+			MapPublicIpOnLaunch:     aws.Bool(false),
 			Tags: []*ec2.Tag{
 				{Key: aws.String("Name"), Value: aws.String("test-subnet-1")},
 				{Key: aws.String("foo"), Value: aws.String("bar")},
@@ -387,6 +388,7 @@ func (e *EC2API) DescribeSubnetsWithContext(ctx context.Context, input *ec2.Desc
 			SubnetId:                aws.String("subnet-test2"),
 			AvailabilityZone:        aws.String("test-zone-1b"),
 			AvailableIpAddressCount: aws.Int64(100),
+			MapPublicIpOnLaunch:     aws.Bool(true),
 			Tags: []*ec2.Tag{
 				{Key: aws.String("Name"), Value: aws.String("test-subnet-2")},
 				{Key: aws.String("foo"), Value: aws.String("bar")},
