@@ -89,14 +89,14 @@ func (p *Provider) List(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTempl
 	return output.Subnets, nil
 }
 
-// OnlyPrivateSubnets returns a bool indicating whether all referenced subnets do *not* assign public IPv4 addresses to instances created therein
-func (p *Provider) OnlyPrivateSubnets(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) (bool, error) {
+// AssociatePublicIpv4Addrs returns a bool indicating whether all referenced subnets assign public IPv4 addresses to EC2 instances created therein
+func (p *Provider) AssociatePublicIpv4Addrs(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) (bool, error) {
 	subnets, err := p.List(ctx, nodeTemplate)
 	if err != nil {
 		return false, err
 	}
 	for _, sb := range subnets {
-		if aws.BoolValue(sb.MapPublicIpOnLaunch) {
+		if !aws.BoolValue(sb.MapPublicIpOnLaunch) {
 			return false, nil
 		}
 	}

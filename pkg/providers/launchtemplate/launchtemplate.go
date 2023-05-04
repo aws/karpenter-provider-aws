@@ -151,7 +151,7 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeTemplate *v1alpha1.
 	if len(securityGroups) == 0 {
 		return nil, fmt.Errorf("no security groups exist given constraints")
 	}
-	onlyPrivateSubnets, err := p.subnetProvider.OnlyPrivateSubnets(ctx, nodeTemplate) // this is where the privatesubet setting is set
+	associatePublicIpv4Addrs, err := p.subnetProvider.AssociatePublicIpv4Addrs(ctx, nodeTemplate)
 	if err != nil {
 		return nil, err
 	}
@@ -163,11 +163,11 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeTemplate *v1alpha1.
 		SecurityGroups: lo.Map(securityGroups, func(s *ec2.SecurityGroup, _ int) v1alpha1.SecurityGroup {
 			return v1alpha1.SecurityGroup{ID: aws.StringValue(s.GroupId), Name: aws.StringValue(s.GroupName)}
 		}),
-		Tags:           tags,
-		Labels:         labels,
-		CABundle:       p.caBundle,
-		KubeDNSIP:      p.KubeDNSIP,
-		PrivateSubnets: onlyPrivateSubnets,
+		Tags:                     tags,
+		Labels:                   labels,
+		CABundle:                 p.caBundle,
+		KubeDNSIP:                p.KubeDNSIP,
+		AssociatePublicIpV4Addrs: associatePublicIpv4Addrs,
 	}, nil
 }
 
