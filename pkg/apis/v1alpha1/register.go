@@ -70,8 +70,8 @@ var (
 		AMIFamilyBottlerocket: sets.NewString("containerd"),
 		AMIFamilyAL2:          sets.NewString("dockerd", "containerd"),
 		AMIFamilyUbuntu:       sets.NewString("dockerd", "containerd"),
-		AMIFamilyWindows2019:  sets.NewString("containerd"),
-		AMIFamilyWindows2022:  sets.NewString("containerd"),
+		AMIFamilyWindows2019:  sets.NewString("dockerd", "containerd"),
+		AMIFamilyWindows2022:  sets.NewString("dockerd", "containerd"),
 	}
 
 	Windows2019              = "2019"
