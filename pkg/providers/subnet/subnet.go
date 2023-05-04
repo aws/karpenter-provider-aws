@@ -93,9 +93,18 @@ func (p *Provider) List(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTempl
 func (p *Provider) OnlyPrivateSubnets(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) (bool, error) {
 	subnets, err := p.List(ctx, nodeTemplate)
 	if err != nil {
+		fmt.Printf("zzzzzzzzzzzzzzzzzzzzz --OnlyPrivateSubnets listing error branch %v\n", err)
 		return false, err
 	}
+	fmt.Printf("zzzzzzzzzzzzzzzzzzzzzz --OnlyPrivateSubnets analyzing %d subnets\n\n", len(subnets))
+	fmt.Printf("zzzzzzzzzzzzzzzzzzzzzz -- subnets are: %v\n\n", subnets)
 	for _, sb := range subnets {
+		if sb.MapPublicIpOnLaunch == nil {
+			fmt.Printf("zzzzzzzzzzzzzzzzzz -- MapPublicIpOnLaunch is nil\n")
+		}
+
+		fmt.Printf("zzzzzzzzzzzzzzzzzzz -- MapPublicIpOnLaunch value is %t\n", aws.BoolValue(sb.MapPublicIpOnLaunch))
+
 		if aws.BoolValue(sb.MapPublicIpOnLaunch) {
 			return false, nil
 		}

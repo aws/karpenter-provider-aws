@@ -128,10 +128,12 @@ func (r Resolver) Resolve(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTem
 	if len(mappedAMIs) == 0 {
 		return nil, fmt.Errorf("no instance types satisfy requirements of amis %v,", amis)
 	}
-	var networkInterface []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest
-	if options.PrivateSubnets {
-		networkInterface = []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{{AssociatePublicIpAddress: aws.Bool(false)}}
-	}
+
+	networkInterface := []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{{AssociatePublicIpAddress: aws.Bool(!options.PrivateSubnets)}} // is this correct????
+	// var networkInterface []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest
+	// if options.PrivateSubnets {
+	// 	networkInterface = []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{{AssociatePublicIpAddress: aws.Bool(false)}}
+	// }
 	var resolvedTemplates []*LaunchTemplate
 	for amiID, instanceTypes := range mappedAMIs {
 		maxPodsToInstanceTypes := lo.GroupBy(instanceTypes, func(instanceType *cloudprovider.InstanceType) int {
@@ -173,7 +175,13 @@ func (r Resolver) Resolve(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTem
 			if resolved.MetadataOptions == nil {
 				resolved.MetadataOptions = amiFamily.DefaultMetadataOptions()
 			}
+			if resolved.NetworkInterface == nil {
+				panic("I expectd a non-nil network interface")
+			} else {
+				fmt.Printf("Network interface: %v\n", resolved.NetworkInterface)
+			}
 			resolvedTemplates = append(resolvedTemplates, resolved)
+			// fmt.Printf("yyyyyyyyyyyy ---- network interface: %t\n", &(resolved.NetworkInterface[0].AssociatePublicIpAddress))
 		}
 	}
 	return resolvedTemplates, nil

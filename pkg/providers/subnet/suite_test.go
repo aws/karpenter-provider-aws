@@ -191,7 +191,7 @@ var _ = Describe("Subnet Provider", func() {
 		Expect(err).To(BeNil())
 		Expect(onlyPrivate).To(BeTrue())
 	})
-	It("should note that at least one subnet assigns a public IPv4 address to EC2 instances on launch", func() {
+	It("should note that at least one subnet assigns a public IPv4 address to EC2instances on launch", func() {
 		nodeTemplate.Spec.SubnetSelector = map[string]string{"aws-ids": "subnet-test2"}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 		onlyPrivate, err := awsEnv.SubnetProvider.OnlyPrivateSubnets(ctx, nodeTemplate)

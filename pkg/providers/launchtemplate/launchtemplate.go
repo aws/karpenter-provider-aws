@@ -152,10 +152,11 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeTemplate *v1alpha1.
 		return nil, fmt.Errorf("no security groups exist given constraints")
 	}
 
-	onlyPrivateSubnets, err := p.subnetProvider.OnlyPrivateSubnets(ctx, nodeTemplate)
+	onlyPrivateSubnets, err := p.subnetProvider.OnlyPrivateSubnets(ctx, nodeTemplate) // this is where the privatesubet setting is set
 	if err != nil {
 		return nil, err
 	}
+	fmt.Printf("xxxxxxxxxxxxxxxxxxxxxxxx -- onlyPrivateSubnets in createAMIOptions: %t\n", onlyPrivateSubnets)
 	return &amifamily.Options{
 		ClusterName:             settings.FromContext(ctx).ClusterName,
 		ClusterEndpoint:         p.ClusterEndpoint,
