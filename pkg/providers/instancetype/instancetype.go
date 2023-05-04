@@ -21,6 +21,8 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/prometheus/client_golang/prometheus"
+
 	awscache "github.com/aws/karpenter/pkg/cache"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -103,6 +105,14 @@ func (p *Provider) List(ctx context.Context, kc *v1alpha5.KubeletConfiguration, 
 	result := lo.Map(instanceTypes, func(i *ec2.InstanceTypeInfo, _ int) *cloudprovider.InstanceType {
 		return NewInstanceType(ctx, i, kc, p.region, nodeTemplate, p.createOfferings(ctx, i, instanceTypeZones[aws.StringValue(i.InstanceType)]))
 	})
+	for _, instanceType := range instanceTypes {
+		InstanceTypeVCPU.With(prometheus.Labels{
+			InstanceTypeLabel: *instanceType.InstanceType,
+		}).Set(float64(aws.Int64Value(instanceType.VCpuInfo.DefaultVCpus)))
+		InstanceTypeMemory.With(prometheus.Labels{
+			InstanceTypeLabel: *instanceType.InstanceType,
+		}).Set(float64(aws.Int64Value(instanceType.MemoryInfo.SizeInMiB) * 1024 * 1024))
+	}
 	p.cache.SetDefault(key, result)
 	return result, nil
 }
