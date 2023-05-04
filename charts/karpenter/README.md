@@ -2,20 +2,20 @@
 
 A Helm chart for Karpenter, an open-source node provisioning project built for Kubernetes.
 
-![Version: 0.27.3](https://img.shields.io/badge/Version-0.27.3-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.27.3](https://img.shields.io/badge/AppVersion-0.27.3-informational?style=flat-square)
+![Version: 0.28.0-rc.1](https://img.shields.io/badge/Version-0.28.0--rc.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.28.0-rc.1](https://img.shields.io/badge/AppVersion-0.28.0--rc.1-informational?style=flat-square)
 
 ## Documentation
 
-For full Karpenter documentation please checkout [https://karpenter.sh](https://karpenter.sh/v0.27.3/).
+For full Karpenter documentation please checkout [https://karpenter.sh](https://karpenter.sh/v0.28.0-rc.1/).
 
 ## Installing the Chart
 
-You can follow the detailed installation instruction in the [documentation](https://karpenter.sh/v0.27.3/getting-started/getting-started-with-karpenter/#install) which covers the Karpenter prerequisites and installation options. The outcome of these instructions should result in something like the following command.
+You can follow the detailed installation instruction in the [documentation](https://karpenter.sh/v0.28.0-rc.1/getting-started/getting-started-with-karpenter/#install) which covers the Karpenter prerequisites and installation options. The outcome of these instructions should result in something like the following command.
 
 ```bash
 helm upgrade --install --namespace karpenter --create-namespace \
   karpenter oci://public.ecr.aws/karpenter/karpenter \
-  --version v0.27.3 \
+  --version v0.28.0-rc.1 \
   --set serviceAccount.annotations.eks\.amazonaws\.com/role-arn=${KARPENTER_IAM_ROLE_ARN} \
   --set settings.aws.clusterName=${CLUSTER_NAME} \
   --set settings.aws.clusterEndpoint=${CLUSTER_ENDPOINT} \
@@ -37,9 +37,9 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | controller.errorOutputPaths | list | `["stderr"]` | Controller errorOutputPaths - default to stderr only |
 | controller.extraVolumeMounts | list | `[]` | Additional volumeMounts for the controller pod. |
 | controller.healthProbe.port | int | `8081` | The container port to use for http health probe. |
-| controller.image.digest | string | `"sha256:87ea68abc00b806e45df8a519eacf845f5f0fa577596edc3be83fad6e550aefb"` | SHA256 digest of the controller image. |
+| controller.image.digest | string | `"sha256:6d834b2624f972aec170fedc95008d569fbe476f2a6bd8659c305c74bd3d8553"` | SHA256 digest of the controller image. |
 | controller.image.repository | string | `"public.ecr.aws/karpenter/controller"` | Repository path to the controller image. |
-| controller.image.tag | string | `"v0.27.3"` | Tag of the controller image. |
+| controller.image.tag | string | `"v0.28.0-rc.1"` | Tag of the controller image. |
 | controller.logEncoding | string | `""` | Controller log encoding, defaults to the global log encoding |
 | controller.logLevel | string | `""` | Controller log level, defaults to the global log level |
 | controller.metrics.port | int | `8080` | The container port to use for metrics. |
