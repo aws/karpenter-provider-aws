@@ -34,6 +34,7 @@ If you are open to others contacting you about your use of Karpenter on Slack, a
 | Nirvana Money | Building healthy, happy financial lives - Using Karpenter to manage all-Spot clusters | `@DWSR` | [Homepage](https://www.nirvana.money/) |
 | OccMundial | Using karpenter to manage our production workloads, using the dynamic scaling according to workload that needs to scale.  | `@parraletz` | [Homepage](https://www.occ.com.mx) |
 | Omaze | Intelligently using Karpenter's autoscaling to power our platforms | `@devopsidiot` | [Homepage](https://www.omaze.com/) |
+| PITS Global Data Recovery Services | Used to manage continuous integration and continuous delivery/deployment workflows. | N/A | [PITS Global Data Recovery Services](https://www.pitsdatarecovery.net/) |
 | PlanetScale | Leveraging Karpenter to dynamically deploy serverless MySQL workloads. | `@jtcunning` | [Homepage](https://www.planetscale.com/) |
 | QuestDB | Using Karpenter for the service nodes of the QuestBD Cloud (time-series database). | [questdb slack group](https://slack.questdb.io/) | [QuestDB](https://questdb.io/) |
 | Sendcloud | Using Karpenter to scale our k8s clusters for Europe’s #1 shipping automation platform  | N/A | [Homepage](https://www.sendcloud.com/) |
