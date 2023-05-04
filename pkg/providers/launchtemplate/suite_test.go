@@ -1623,7 +1623,6 @@ var _ = Describe("LaunchTemplates", func() {
 				Expect(*input.LaunchTemplateData.ImageId).To(ContainSubstring("test-ami"))
 			})
 		})
-
 		Context("Subnet-based Launch Template Configration", func() {
 			It("should explicitly set 'AssignPublicIPv4' to false in the Launch Template", func() {
 				nodeTemplate.Spec.SubnetSelector = map[string]string{"Name": "test-subnet-1,test-subnet-3"}
@@ -1642,12 +1641,9 @@ var _ = Describe("LaunchTemplates", func() {
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
 				input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
-				fmt.Printf("aaaaaaaaaaaaaaaaaaaa -- resultant launch template %v\n", input.LaunchTemplateData.NetworkInterfaces)
 				Expect(*input.LaunchTemplateData.NetworkInterfaces[0].AssociatePublicIpAddress).To(BeTrue()) //
 			})
-			// add a test elsewhere that checks whether a Launch Template is configured with or without AssignPublicIPv4
 		})
-
 		Context("Kubelet Args", func() {
 			It("should specify the --dns-cluster-ip flag when clusterDNSIP is set", func() {
 				provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{ClusterDNS: []string{"10.0.10.100"}}
