@@ -180,8 +180,6 @@ settings:
     # -- If true then assume we can't reach AWS services which don't have a VPC endpoint
     # This also has the effect of disabling look-ups to the AWS pricing endpoint
     isolatedVPC: false
-    # -- The node naming convention (either "ip-name" or "resource-name")
-    nodeNameConvention: "ip-name"
     # -- The VM memory overhead as a percent that will be subtracted from the total memory for all instance types
     vmMemoryOverheadPercent: 0.075
     # -- interruptionQueueName is disabled if not specified. Enabling interruption handling may

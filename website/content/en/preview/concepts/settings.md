@@ -58,8 +58,6 @@ data:
   # If true, then assume we can't reach AWS services which don't have a VPC endpoint
   # This also has the effect of disabling look-ups to the AWS pricing endpoint
   aws.isolatedVPC: "false"
-  # The node naming convention (either "ip-name" or "resource-name"; use "ip-name" for resource DNS names such as i-0123456789.ec2.internal and "resource-name" when using the external cloud provider)
-  aws.nodeNameConvention: ip-name
   # The VM memory overhead as a percent that will be subtracted
   # from the total memory for all instance types
   aws.vmMemoryOverheadPercent: "0.075"
