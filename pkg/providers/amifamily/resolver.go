@@ -129,11 +129,7 @@ func (r Resolver) Resolve(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTem
 		return nil, fmt.Errorf("no instance types satisfy requirements of amis %v,", amis)
 	}
 
-	var networkInterface []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest
-	if !options.AssociatePublicIPv4Addrs {
-		networkInterface = []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{{AssociatePublicIpAddress: aws.Bool(false)}}
-	}
-
+	networkInterface := generateLaunchTemplateNetworkConfigrationSpecRequest(options)
 	var resolvedTemplates []*LaunchTemplate
 	for amiID, instanceTypes := range mappedAMIs {
 		maxPodsToInstanceTypes := lo.GroupBy(instanceTypes, func(instanceType *cloudprovider.InstanceType) int {
@@ -218,4 +214,11 @@ func (r Resolver) defaultClusterDNS(opts *Options, kubeletConfig *v1alpha5.Kubel
 	newKubeletConfig := kubeletConfig.DeepCopy()
 	newKubeletConfig.ClusterDNS = []string{opts.KubeDNSIP.String()}
 	return newKubeletConfig
+}
+
+func generateLaunchTemplateNetworkConfigrationSpecRequest(options *Options) []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest {
+	if !options.AssociatePublicIPv4Addrs {
+		return []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{{AssociatePublicIpAddress: aws.Bool(false)}}
+	}
+	return nil
 }
