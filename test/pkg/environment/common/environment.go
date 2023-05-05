@@ -24,7 +24,10 @@ import (
 
 	"github.com/onsi/gomega"
 	"github.com/prometheus/client_golang/api"
+<<<<<<< HEAD
 	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
+=======
+>>>>>>> 456ef596 (Setup baseline for scale testing)
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
