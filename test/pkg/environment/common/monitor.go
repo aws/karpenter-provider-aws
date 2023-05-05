@@ -123,6 +123,12 @@ func (m *Monitor) CreatedNodes() []*v1.Node {
 	return lo.Filter(m.Nodes(), func(n *v1.Node, _ int) bool { return !resetNodeNames.Has(n.Name) })
 }
 
+// DeletedNodes returns the nodes that have been deleted since the last reset (essentially NodesAtReset - Nodes)
+func (m *Monitor) DeletedNodes() []*v1.Node {
+	currentNodeNames := sets.NewString(lo.Map(m.Nodes(), func(n *v1.Node, _ int) string { return n.Name })...)
+	return lo.Filter(m.NodesAtReset(), func(n *v1.Node, _ int) bool { return !currentNodeNames.Has(n.Name) })
+}
+
 // PendingPods returns the number of pending pods matching the given selector
 func (m *Monitor) PendingPods(selector labels.Selector) []*v1.Pod {
 	var pods []*v1.Pod

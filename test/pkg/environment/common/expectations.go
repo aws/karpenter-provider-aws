@@ -314,6 +314,17 @@ func (env *Environment) EventuallyExpectCreatedNodeCount(comparator string, coun
 	return createdNodes
 }
 
+func (env *Environment) EventuallyExpectDeletedNodeCount(comparator string, count int) []*v1.Node {
+	By(fmt.Sprintf("waiting for deleted nodes to be %s to %d", comparator, count))
+	var deletedNodes []*v1.Node
+	EventuallyWithOffset(1, func(g Gomega) {
+		deletedNodes = env.Monitor.DeletedNodes()
+		g.Expect(len(deletedNodes)).To(BeNumerically(comparator, count),
+			fmt.Sprintf("expected %d deleted nodes, had %d (%v)", count, len(deletedNodes), NodeNames(deletedNodes)))
+	}).Should(Succeed())
+	return deletedNodes
+}
+
 func (env *Environment) EventuallyExpectInitializedNodeCount(comparator string, count int) []*v1.Node {
 	By(fmt.Sprintf("waiting for initialized nodes to be %s to %d", comparator, count))
 	var nodes []*v1.Node

@@ -7,7 +7,10 @@ import (
 	"github.com/samber/lo"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
+<<<<<<< HEAD
 	"k8s.io/apimachinery/pkg/api/resource"
+=======
+>>>>>>> b0128b0a (chore: add emptiness test)
 	"k8s.io/apimachinery/pkg/labels"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
