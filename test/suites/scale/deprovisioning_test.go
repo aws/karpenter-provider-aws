@@ -7,10 +7,7 @@ import (
 	"github.com/samber/lo"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
-<<<<<<< HEAD
 	"k8s.io/apimachinery/pkg/api/resource"
-=======
->>>>>>> b0128b0a (chore: add emptiness test)
 	"k8s.io/apimachinery/pkg/labels"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
@@ -65,6 +62,10 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 
 	AfterEach(func() {
 		env.Cleanup()
+	})
+
+	AfterEach(func() {
+		env.ExpectCleanCluster()
 	})
 
 	Context("Multiple Deprovisioners", func() {
@@ -182,6 +183,92 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 		maxPodDensity := replicasPerNode + dsCount
 		expectedNodeCount := 30
 		replicas := replicasPerNode * expectedNodeCount
+
+		deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
+		provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
+			MaxPods: lo.ToPtr[int32](int32(maxPodDensity)),
+		}
+
+		By("waiting for the deployment to deploy all of its pods")
+		env.ExpectCreated(deployment)
+		env.EventuallyExpectPendingPodCount(selector, replicas)
+
+		By("kicking off provisioning by applying the provisioner and nodeTemplate")
+		env.ExpectCreated(provisioner, nodeTemplate)
+
+		env.EventuallyExpectCreatedMachineCount(">=", expectedNodeCount)
+		env.EventuallyExpectCreatedNodeCount(">=", expectedNodeCount)
+		env.EventuallyExpectInitializedNodeCount(">=", expectedNodeCount)
+		env.EventuallyExpectHealthyPodCount(selector, replicas)
+
+		// Fully scale down all pods to make nodes empty
+		deployment.Spec.Replicas = lo.ToPtr[int32](0)
+		env.ExpectCreatedOrUpdated(deployment)
+		env.EventuallyExpectHealthyPodCount(selector, 0)
+
+		provisioner.Spec.TTLSecondsAfterEmpty = lo.ToPtr[int64](0)
+		env.ExpectCreatedOrUpdated(deployment)
+
+		env.EventuallyExpectDeletedNodeCount("==", expectedNodeCount)
+	})
+	Context("Expiration", func() {
+		// Before Deprovisioning, we need to Provision the cluster to the state that we need.
+		replicas := 6000
+		maxPodDensity := 200
+		expectedNodeCount := 30
+
+		deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
+		provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
+			MaxPods: lo.ToPtr[int32](int32(maxPodDensity)),
+		}
+
+		By("waiting for the deployment to deploy all of its pods")
+		env.ExpectCreated(deployment)
+		env.EventuallyExpectPendingPodCount(selector, replicas)
+
+		By("kicking off provisioning by applying the provisioner and nodeTemplate")
+		env.ExpectCreated(provisioner, nodeTemplate)
+
+		env.EventuallyExpectCreatedMachineCount(">=", expectedNodeCount)
+		env.EventuallyExpectCreatedNodeCount(">=", expectedNodeCount)
+		env.EventuallyExpectInitializedNodeCount(">=", expectedNodeCount)
+		env.EventuallyExpectHealthyPodCount(selector, replicas)
+
+		// Change Provisioner limits so that replacement nodes will use another provisioner.
+		provisioner.Spec.Limits = &v1alpha5.Limits{
+			Resources: v1.ResourceList{
+				v1.ResourceCPU: resource.MustParse("0"),
+				v1.ResourceMemory: resource.MustParse("0Gi"),
+			},
+		}
+		// Enable Expiration
+		provisioner.Spec.TTLSecondsUntilExpired = lo.ToPtr[int64](0)
+
+		noExpireProvisioner := test.Provisioner(test.ProvisionerOptions{
+			Requirements: []v1.NodeSelectorRequirement{
+				{
+					Key:      v1alpha1.LabelInstanceSize,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{"4xlarge"},
+				},
+				{
+					Key: v1alpha5.LabelCapacityType,
+					Operator: v1.NodeSelectorOpIn,
+					Values: []string{v1alpha1.CapacityTypeOnDemand},
+				},
+			},
+			ProviderRef: &v1alpha5.MachineTemplateRef{
+				Name: nodeTemplate.Name,
+			},
+		})
+		env.ExpectCreatedOrUpdated(provisioner, noExpireProvisioner)
+		env.EventuallyExpectDeletedNodeCount("==", expectedNodeCount)
+	})
+	Context("Drift", func() {
+		// Before Deprovisioning, we need to Provision the cluster to the state that we need.
+		replicas := 6000
+		maxPodDensity := 200
+		expectedNodeCount := 30
 
 		deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
 		provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
