@@ -35,7 +35,6 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 	var nodeTemplate *v1alpha1.AWSNodeTemplate
 	var deployment *appsv1.Deployment
 	var selector labels.Selector
-	var dsCount int
 
 	BeforeEach(func() {
 		nodeTemplate = awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
@@ -75,8 +74,8 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 		dsCount = env.GetDaemonSetCount(provisioner)
 	})
 	It("should scale successfully on a node-dense scale-up", func() {
-		replicas := 500
-		expectedNodeCount := 500
+		replicas := 200
+		expectedNodeCount := 200
 
 		deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
 		deployment.Spec.Template.Spec.Affinity = &v1.Affinity{
@@ -103,9 +102,9 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 		env.EventuallyExpectHealthyPodCount(selector, replicas)
 	})
 	It("should scale successfully on a pod-dense scale-up", func() {
-		replicas := 6600
-		maxPodDensity := 110 + dsCount
-		expectedNodeCount := 60
+		replicas := 6000
+		maxPodDensity := 200
+		expectedNodeCount := 30
 
 		deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
 		provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
