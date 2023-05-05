@@ -102,6 +102,13 @@ By adopting this practice we allow our users who are early adopters to test out 
 
 # Released Upgrade Notes
 
+## Upgrading to v0.27.3+
+* The `defaulting.webhook.karpenter.sh` mutating webhook was removed in `v0.27.3`. If you are coming from an older version of Karpenter where this webhook existed and the webhook was not managed by Helm, you may need to delete the stale webhook.
+
+```console
+kubectl delete mutatingwebhookconfigurations defaulting.webhook.karpenter.sh
+```
+
 ## Upgrading to v0.27.0+
 * The Karpenter controller pods now deploy with `kubernetes.io/hostname` self anti-affinity by default. If you are running Karpenter in HA (high-availability) mode and you do not have enough nodes to match the number of pod replicas you are deploying with, you will need to scale-out your nodes for Karpenter.
 * The following controller metrics changed and moved under the `controller_runtime` metrics namespace:

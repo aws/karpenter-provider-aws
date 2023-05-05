@@ -137,16 +137,22 @@ kubectl get nodes -ojsonpath='{range .items[*].metadata}{@.name}:{@.finalizers}{
 
 If you are not able to create a provisioner due to `Internal error occurred: failed calling webhook "validation.webhook.provisioners.karpenter.sh":`
 
-Webhooks were renamed in v0.19.0. There's a bug in ArgoCD's upgrade workflow where webhooks are leaked. This results in Provisioner's failing to be validated, since the validation server no longer corresponds to the webhook definition.
+Webhooks were renamed in `v0.19.0`. There's a bug in ArgoCD's upgrade workflow where webhooks are leaked. This results in Provisioner's failing to be validated, since the validation server no longer corresponds to the webhook definition.
 
 Delete the stale webhooks.
 
-```
+```text
 kubectl delete mutatingwebhookconfigurations defaulting.webhook.provisioners.karpenter.sh
 kubectl delete validatingwebhookconfiguration validation.webhook.provisioners.karpenter.sh
 ```
 
 ### Failed calling webhook "defaulting.webhook.karpenter.sh"
+
+The `defaulting.webhook.karpenter.sh` mutating webhook was removed in `v0.27.3`. If you are coming from an older version of Karpenter where this webhook existed and the webhook was not managed by Helm, you may need to delete the stale webhook.
+
+```text
+kubectl delete mutatingwebhookconfigurations defaulting.webhook.karpenter.sh
+```
 
 If you are not able to create a provisioner due to `Error from server (InternalError): error when creating "provisioner.yaml": Internal error occurred: failed calling webhook "defaulting.webhook.karpenter.sh": Post "https://karpenter-webhook.karpenter.svc:443/default-resource?timeout=10s": context deadline exceeded`
 
