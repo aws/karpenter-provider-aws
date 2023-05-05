@@ -286,6 +286,16 @@ func (env *Environment) EventuallyExpectCreatedMachineCount(comparator string, c
 	})
 }
 
+func (env *Environment) EventuallyExpectMachinesReady(machines ...*v1alpha5.Machine) {
+	Eventually(func(g Gomega) {
+		for _, machine := range machines {
+			temp := &v1alpha5.Machine{}
+			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(machine), temp)).Should(Succeed())
+			g.Expect(temp.StatusConditions().IsHappy()).To(BeTrue())
+		}
+	}).Should(Succeed())
+}
+
 func (env *Environment) GetNode(nodeName string) v1.Node {
 	var node v1.Node
 	ExpectWithOffset(1, env.Client.Get(env.Context, types.NamespacedName{Name: nodeName}, &node)).To(Succeed())
