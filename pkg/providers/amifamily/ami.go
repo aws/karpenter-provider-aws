@@ -92,7 +92,7 @@ func (p *Provider) KubeServerVersion(ctx context.Context) (string, error) {
 	version := fmt.Sprintf("%s.%s", serverVersion.Major, strings.TrimSuffix(serverVersion.Minor, "+"))
 	p.kubernetesVersionCache.SetDefault(kubernetesVersionCacheKey, version)
 	if p.cm.HasChanged("kubernetes-version", version) {
-		logging.FromContext(ctx).With("kubernetes-version", version).Debugf("discovered kubernetes version")
+		logging.FromContext(ctx).With("version", version).Debugf("discovered kubernetes version")
 	}
 	return version, nil
 }
@@ -127,8 +127,10 @@ func (p *Provider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTempla
 			return nil, err
 		}
 	}
-	amis = sortAMIsByCreationDate(amis)
-	amis = groupAMIsByRequirements(amis)
+	amis = groupAMIsByRequirements(sortAMIsByCreationDate(amis))
+	if p.cm.HasChanged(fmt.Sprintf("amis/%s", nodeTemplate.Name), amis) {
+		logging.FromContext(ctx).With("ids", amiList(amis), "count", len(amis)).Debugf("discovered amis")
+	}
 	return amis, nil
 }
 
@@ -162,7 +164,6 @@ func (p *Provider) getDefaultAMIFromSSM(ctx context.Context, nodeTemplate *v1alp
 		}
 		amis = append(amis, AMI{AmiID: amiID, Requirements: ssmOutput.Requirements})
 	}
-
 	amis, err = p.findAMINames(ctx, amis)
 	if err != nil {
 		return nil, err
@@ -209,9 +210,6 @@ func (p *Provider) fetchAMIsFromSSM(ctx context.Context, ssmQuery string) (strin
 	}
 	ami := aws.StringValue(output.Parameter.Value)
 	p.ssmCache.SetDefault(ssmQuery, ami)
-	if p.cm.HasChanged("ssmquery-"+ssmQuery, ami) {
-		logging.FromContext(ctx).With("ami", ami, "query", ssmQuery).Debugf("discovered ami")
-	}
 	return ami, nil
 }
 
@@ -249,24 +247,20 @@ func (p *Provider) fetchAMIsFromEC2(ctx context.Context, amiSelector map[string]
 	if err != nil {
 		return nil, fmt.Errorf("describing images %+v, %w", filters, err)
 	}
-
 	p.ec2Cache.SetDefault(fmt.Sprint(hash), output.Images)
-	amiIDs := lo.Map(output.Images, func(ami *ec2.Image, _ int) string { return *ami.ImageId })
-	if p.cm.HasChanged("amiIDs", amiIDs) {
-		logging.FromContext(ctx).With("ids", concatenateAmiIDs(amiIDs), "count", len(amiIDs)).Debugf("discovered images")
-	}
 	return output.Images, nil
 }
 
-func concatenateAmiIDs(amisIds []string) string {
-	var amiString string
-	if len(amisIds) > 25 {
-		amiString = strings.Join(amisIds[:25], ", ")
-		amiString += fmt.Sprintf(" and %d other(s)", len(amisIds)-25)
+func amiList(amis []AMI) string {
+	var sb strings.Builder
+	ids := lo.Map(amis, func(a AMI, _ int) string { return a.AmiID })
+	if len(amis) > 25 {
+		sb.WriteString(strings.Join(ids[:25], ", "))
+		sb.WriteString(fmt.Sprintf(" and %d other(s)", len(amis)-25))
 	} else {
-		amiString = strings.Join(amisIds, ", ")
+		sb.WriteString(strings.Join(ids, ", "))
 	}
-	return amiString
+	return sb.String()
 }
 
 func getFiltersAndOwners(amiSelector map[string]string) ([]*ec2.Filter, []*string) {
