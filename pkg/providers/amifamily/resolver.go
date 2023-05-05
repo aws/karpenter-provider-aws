@@ -58,7 +58,7 @@ type Options struct {
 	Tags                     map[string]string
 	Labels                   map[string]string `hash:"ignore"`
 	KubeDNSIP                net.IP
-	AssociatePublicIpV4Addrs bool
+	AssociatePublicIPv4Addrs bool
 }
 
 // LaunchTemplate holds the dynamically generated launch template parameters
@@ -128,7 +128,7 @@ func (r Resolver) Resolve(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTem
 	if len(mappedAMIs) == 0 {
 		return nil, fmt.Errorf("no instance types satisfy requirements of amis %v,", amis)
 	}
-	networkInterface := []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{{AssociatePublicIpAddress: aws.Bool(options.AssociatePublicIpV4Addrs)}}
+	networkInterface := []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{{AssociatePublicIpAddress: aws.Bool(options.AssociatePublicIPv4Addrs)}}
 	var resolvedTemplates []*LaunchTemplate
 	for amiID, instanceTypes := range mappedAMIs {
 		maxPodsToInstanceTypes := lo.GroupBy(instanceTypes, func(instanceType *cloudprovider.InstanceType) int {

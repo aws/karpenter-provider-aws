@@ -151,7 +151,7 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeTemplate *v1alpha1.
 	if len(securityGroups) == 0 {
 		return nil, fmt.Errorf("no security groups exist given constraints")
 	}
-	associatePublicIpv4Addrs, err := p.subnetProvider.AssociatePublicIpv4Addrs(ctx, nodeTemplate)
+	associatePublicIPv4Addrs, err := p.subnetProvider.CheckAnyPublicIPv4Associations(ctx, nodeTemplate)
 	if err != nil {
 		return nil, err
 	}
@@ -167,7 +167,7 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeTemplate *v1alpha1.
 		Labels:                   labels,
 		CABundle:                 p.caBundle,
 		KubeDNSIP:                p.KubeDNSIP,
-		AssociatePublicIpV4Addrs: associatePublicIpv4Addrs,
+		AssociatePublicIPv4Addrs: associatePublicIPv4Addrs,
 	}, nil
 }
 
