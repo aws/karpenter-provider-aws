@@ -40,6 +40,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
+	pscheduling "github.com/aws/karpenter-core/pkg/controllers/provisioning/scheduling"
+	"github.com/aws/karpenter-core/pkg/scheduling"
 	"github.com/aws/karpenter-core/pkg/test"
 )
 
@@ -236,7 +238,14 @@ func (env *Environment) ExpectActiveKarpenterPodWithOffset(offset int) *v1.Pod {
 	return pod
 }
 
+func (env *Environment) EventuallyExpectPendingPodCount(selector labels.Selector, numPods int) {
+	EventuallyWithOffset(1, func(g Gomega) {
+		g.Expect(env.Monitor.PendingPodsCount(selector)).To(Equal(numPods))
+	}).Should(Succeed())
+}
+
 func (env *Environment) EventuallyExpectHealthyPodCount(selector labels.Selector, numPods int) {
+	By(fmt.Sprintf("waiting for %d pods matching selector %s to be ready", numPods, selector.String()))
 	EventuallyWithOffset(1, func(g Gomega) {
 		g.Expect(env.Monitor.RunningPodsCount(selector)).To(Equal(numPods))
 	}).Should(Succeed())
@@ -293,6 +302,7 @@ func NodeNames(nodes []*v1.Node) []string {
 }
 
 func (env *Environment) EventuallyExpectCreatedNodeCount(comparator string, count int) []*v1.Node {
+	By(fmt.Sprintf("waiting for created nodes to be %s to %d", comparator, count))
 	var createdNodes []*v1.Node
 	EventuallyWithOffset(1, func(g Gomega) {
 		createdNodes = env.Monitor.CreatedNodes()
@@ -303,6 +313,7 @@ func (env *Environment) EventuallyExpectCreatedNodeCount(comparator string, coun
 }
 
 func (env *Environment) EventuallyExpectInitializedNodeCount(comparator string, count int) []*v1.Node {
+	By(fmt.Sprintf("waiting for initialized nodes to be %s to %d", comparator, count))
 	var nodes []*v1.Node
 	EventuallyWithOffset(1, func(g Gomega) {
 		nodes = env.Monitor.CreatedNodes()
@@ -315,6 +326,7 @@ func (env *Environment) EventuallyExpectInitializedNodeCount(comparator string, 
 }
 
 func (env *Environment) EventuallyExpectCreatedMachineCount(comparator string, count int) []*v1alpha5.Machine {
+	By(fmt.Sprintf("waiting for created machines to be %s to %d", comparator, count))
 	machineList := &v1alpha5.MachineList{}
 	EventuallyWithOffset(1, func(g Gomega) {
 		g.Expect(env.Client.List(env.Context, machineList)).To(Succeed())
@@ -354,6 +366,8 @@ var (
 
 func (env *Environment) printControllerLogs(options *v1.PodLogOptions) {
 	fmt.Println("------- START CONTROLLER LOGS -------")
+	defer fmt.Println("------- END CONTROLLER LOGS -------")
+
 	if options.SinceTime == nil {
 		options.SinceTime = lastLogged.DeepCopy()
 		lastLogged = metav1.Now()
@@ -429,4 +443,23 @@ func (env *Environment) ExpectCABundle() string {
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 	logging.FromContext(env.Context).Debugf("Discovered caBundle, length %d", len(transportConfig.TLS.CAData))
 	return base64.StdEncoding.EncodeToString(transportConfig.TLS.CAData)
+}
+
+func (env *Environment) GetDaemonSetCount(prov *v1alpha5.Provisioner) int {
+	// Performs the same logic as the scheduler to get the number of daemonset
+	// pods that we estimate we will need to schedule as overhead to each node
+	daemonSetList := &appsv1.DaemonSetList{}
+	Expect(env.Client.List(env.Context, daemonSetList)).To(Succeed())
+
+	return lo.CountBy(daemonSetList.Items, func(d appsv1.DaemonSet) bool {
+		p := &v1.Pod{Spec: d.Spec.Template.Spec}
+		nodeTemplate := pscheduling.NewMachineTemplate(prov)
+		if err := nodeTemplate.Taints.Tolerates(p); err != nil {
+			return false
+		}
+		if err := nodeTemplate.Requirements.Compatible(scheduling.NewPodRequirements(p)); err != nil {
+			return false
+		}
+		return true
+	})
 }

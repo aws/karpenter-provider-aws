@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/onsi/gomega"
+	"github.com/prometheus/client_golang/api"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -38,6 +39,11 @@ import (
 	"github.com/aws/karpenter/pkg/utils/project"
 )
 
+const (
+	clusterMetricServiceEndpoint = "prometheus-kube-prometheus-prometheus.prometheus.svc.cluster.local:9090"
+	localMetricServiceEndpoint   = "localhost:9090"
+)
+
 type Environment struct {
 	context.Context
 
@@ -45,6 +51,7 @@ type Environment struct {
 	Config     *rest.Config
 	KubeClient kubernetes.Interface
 	Monitor    *Monitor
+	PromClient api.Client
 
 	StartingNodeCount int
 }
@@ -66,6 +73,7 @@ func NewEnvironment(t *testing.T) *Environment {
 		Client:     client,
 		KubeClient: kubernetes.NewForConfigOrDie(config),
 		Monitor:    NewMonitor(ctx, client),
+		PromClient: lo.Must(api.NewClient(api.Config{Address: localMetricServiceEndpoint})),
 	}
 }
 

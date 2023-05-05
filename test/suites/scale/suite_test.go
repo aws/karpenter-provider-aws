@@ -12,25 +12,29 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package common
+package scale_test
 
-type Option func(Options) Options
+import (
+	"testing"
+	"time"
 
-type Options struct {
-	DisableDebug bool
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+
+	"github.com/aws/karpenter/test/pkg/environment/aws"
+)
+
+var env *aws.Environment
+
+func TestScale(t *testing.T) {
+	RegisterFailHandler(Fail)
+	BeforeSuite(func() {
+		env = aws.NewEnvironment(t)
+		SetDefaultEventuallyTimeout(15 * time.Minute)
+	})
+	RunSpecs(t, "Scale")
 }
 
-func DisableDebug(o Options) Options {
-	o.DisableDebug = true
-	return o
-}
-
-func ResolveOptions(opts []Option) Options {
-	o := Options{}
-	for _, opt := range opts {
-		if opt != nil {
-			o = opt(o)
-		}
-	}
-	return o
-}
+var _ = BeforeEach(func() { env.BeforeEach() })
+var _ = AfterEach(func() { env.Cleanup() })
+var _ = AfterEach(func() { env.AfterEach() })
