@@ -83,6 +83,9 @@ type AWSNodeTemplateSpec struct {
 	// DetailedMonitoring controls if detailed monitoring is enabled for instances that are launched
 	// +optional
 	DetailedMonitoring *bool `json:"detailedMonitoring,omitempty"`
+	// DedicatedHost contains the configuration to launch nodes on AWS Dedicated hosts
+	// +options
+	DedicatedHost DedicatedHostSpec `json:"dedicatedHost,omitempty"`
 }
 
 // AWSNodeTemplate is the Schema for the AWSNodeTemplate API
@@ -103,4 +106,10 @@ type AWSNodeTemplateList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []AWSNodeTemplate `json:"items"`
+}
+
+// DedicatedHostSpect contains the configuration for LaunchTemplates to run instances on dedicated hosts
+type DedicatedHostSpec struct {
+	LicenseConfigurationArn []string `json:"licenseConfiguration,omitempty"`
+	HostResourceGroupArn    string `json:"hostResourceGroup,omitempty"`
 }
