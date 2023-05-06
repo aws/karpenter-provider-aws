@@ -180,9 +180,9 @@ func GetAMIFamily(amiFamily *string, options *Options) AMIFamily {
 	case v1alpha1.AMIFamilyUbuntu:
 		return &Ubuntu{Options: options}
 	case v1alpha1.AMIFamilyWindows2019:
-		return &Windows{Options: options, Version: v1alpha1.Windows2019, Build: v1alpha1.Windows2019Build, Variant: v1alpha1.WindowsCore}
+		return &Windows{Options: options, Version: v1alpha1.Windows2019, Build: v1alpha1.Windows2019Build}
 	case v1alpha1.AMIFamilyWindows2022:
-		return &Windows{Options: options, Version: v1alpha1.Windows2022, Build: v1alpha1.Windows2022Build, Variant: v1alpha1.WindowsCore}
+		return &Windows{Options: options, Version: v1alpha1.Windows2022, Build: v1alpha1.Windows2022Build}
 	case v1alpha1.AMIFamilyCustom:
 		return &Custom{Options: options}
 	default:

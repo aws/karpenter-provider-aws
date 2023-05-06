@@ -181,7 +181,9 @@ var _ = Describe("Instance Types", func() {
 			"topology.ebs.csi.aws.com/zone": "test-zone-1a",
 		}
 
-		expected := v1alpha5.WellKnownLabels.Clone().Delete(v1.LabelWindowsBuild)
+		expected := v1alpha5.WellKnownLabels.Difference(sets.NewString(
+			v1.LabelWindowsBuild,
+		))
 		// Ensure that we're exercising all well known labels
 		Expect(lo.Keys(nodeSelector)).To(ContainElements(append(expected.UnsortedList(), lo.Keys(v1alpha5.NormalizedLabels)...)))
 
@@ -234,10 +236,11 @@ var _ = Describe("Instance Types", func() {
 		// Ensure that we're exercising all well known labels except for accelerator labels
 		Expect(lo.Keys(nodeSelector)).To(ContainElements(
 			append(
-				v1alpha5.WellKnownLabels.Clone().Delete(v1.LabelWindowsBuild).Difference(sets.NewString(
+				v1alpha5.WellKnownLabels.Difference(sets.NewString(
 					v1alpha1.LabelInstanceAcceleratorCount,
 					v1alpha1.LabelInstanceAcceleratorName,
 					v1alpha1.LabelInstanceAcceleratorManufacturer,
+					v1.LabelWindowsBuild,
 				)).UnsortedList(), lo.Keys(v1alpha5.NormalizedLabels)...)))
 
 		pod := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: nodeSelector})
@@ -280,12 +283,13 @@ var _ = Describe("Instance Types", func() {
 		}
 
 		// Ensure that we're exercising all well known labels except for gpu labels and nvme
-		expectedLabels := append(v1alpha5.WellKnownLabels.Clone().Delete(v1.LabelWindowsBuild).Difference(sets.NewString(
+		expectedLabels := append(v1alpha5.WellKnownLabels.Difference(sets.NewString(
 			v1alpha1.LabelInstanceGPUCount,
 			v1alpha1.LabelInstanceGPUName,
 			v1alpha1.LabelInstanceGPUManufacturer,
 			v1alpha1.LabelInstanceGPUMemory,
 			v1alpha1.LabelInstanceLocalNVME,
+			v1.LabelWindowsBuild,
 		)).UnsortedList(), lo.Keys(v1alpha5.NormalizedLabels)...)
 		Expect(lo.Keys(nodeSelector)).To(ContainElements(expectedLabels))
 
