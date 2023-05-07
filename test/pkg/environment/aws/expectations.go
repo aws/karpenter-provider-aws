@@ -192,7 +192,8 @@ func (env *Environment) GetSubnetNameAndIds(tags map[string]string) []SubnetInfo
 
 type SecurityGroup struct {
 	ec2.GroupIdentifier
-	Tags []*ec2.Tag
+	VpcID *string
+	Tags  []*ec2.Tag
 }
 
 // GetSecurityGroups returns all getSecurityGroups matching the label selector
@@ -209,6 +210,7 @@ func (env *Environment) GetSecurityGroups(tags map[string]string) []SecurityGrou
 		for _, sg := range dso.SecurityGroups {
 			securityGroups = append(securityGroups, SecurityGroup{
 				Tags:            sg.Tags,
+				VpcID:           sg.VpcId,
 				GroupIdentifier: ec2.GroupIdentifier{GroupId: sg.GroupId, GroupName: sg.GroupName},
 			})
 		}

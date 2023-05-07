@@ -27,14 +27,15 @@ import (
 // Instance is an internal data representation of either an ec2.Instance or an ec2.FleetInstance
 // It contains all the common data that is needed to inject into the Machine from either of these responses
 type Instance struct {
-	LaunchTime   time.Time
-	State        string
-	ID           string
-	ImageID      string
-	Type         string
-	Zone         string
-	CapacityType string
-	Tags         map[string]string
+	LaunchTime       time.Time
+	State            string
+	ID               string
+	ImageID          string
+	Type             string
+	Zone             string
+	CapacityType     string
+	SecurityGroupIDs []string
+	Tags             map[string]string
 }
 
 func NewInstance(out *ec2.Instance) *Instance {
@@ -46,7 +47,10 @@ func NewInstance(out *ec2.Instance) *Instance {
 		Type:         aws.StringValue(out.InstanceType),
 		Zone:         aws.StringValue(out.Placement.AvailabilityZone),
 		CapacityType: lo.Ternary(out.SpotInstanceRequestId != nil, v1alpha5.CapacityTypeSpot, v1alpha5.CapacityTypeOnDemand),
-		Tags:         lo.SliceToMap(out.Tags, func(t *ec2.Tag) (string, string) { return aws.StringValue(t.Key), aws.StringValue(t.Value) }),
+		SecurityGroupIDs: lo.Map(out.SecurityGroups, func(securitygroup *ec2.GroupIdentifier, _ int) string {
+			return aws.StringValue(securitygroup.GroupId)
+		}),
+		Tags: lo.SliceToMap(out.Tags, func(t *ec2.Tag) (string, string) { return aws.StringValue(t.Key), aws.StringValue(t.Value) }),
 	}
 
 }
