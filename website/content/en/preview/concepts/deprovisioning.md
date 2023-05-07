@@ -142,9 +142,12 @@ data:
 
 ## Drift
 
-If drift is enabled, Karpenter will deprovision nodes that have been marked as drifted with the annotation `karpenter.sh/voluntary-disruption: "drifted"`. Karpenter will automatically cordon, drain, and terminate nodes, while respecting any PDBs or `do-not-evict` pods that are configured. Karpenter will automatically mark nodes as drifted if the AMI that is used on the instance does not match the AMI set by the AWSNodeTemplate. Check the [AWSNodeTemplate Docs]({{<ref "./node-templates" >}}) settings for more.
+If drift is enabled, Karpenter will deprovision nodes that have been marked as drifted with the annotation `karpenter.sh/voluntary-disruption: "drifted"`. Karpenter will automatically cordon, drain, and terminate nodes, while respecting any PDBs or `do-not-evict` pods that are configured. Karpenter will automatically mark nodes as drifted if instances contain configurations does not match the resolved sets from the AWSNodeTemplate. Check the [AWSNodeTemplate Docs]({{<ref "./node-templates" >}}) settings for more.
 
-If users annotate their own nodes with `karpenter.sh/voluntary-disruption: "drifted"`, Karpenter will respect the annotation and deprovision the nodes.
+The current fields that support drift:
+ - AWSNodeTemplate.Spec.amiFamily 
+ - AWSNodeTemplate.Spec.amiSelector
+ - AWSNodeTemplate.Spec.securityGroupSelector  
 
 {{% alert title="Note" color="primary" %}}
 Karpenter will only automatically mark nodes as drifted in the case of a drifted AMI. More methods of drift will be implemented in the future. Please cut a feature request if you'd like to see more methods implemented.

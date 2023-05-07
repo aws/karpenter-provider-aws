@@ -23,6 +23,7 @@ import (
 
 	"github.com/samber/lo"
 	"k8s.io/client-go/tools/record"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -40,6 +41,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/controllers/nodetemplate"
 	"github.com/aws/karpenter/pkg/test"
 
 	machineutil "github.com/aws/karpenter-core/pkg/utils/machine"
@@ -53,6 +55,7 @@ import (
 	"github.com/aws/karpenter-core/pkg/controllers/provisioning"
 	"github.com/aws/karpenter-core/pkg/controllers/state"
 	"github.com/aws/karpenter-core/pkg/events"
+	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter-core/pkg/operator/injection"
 	"github.com/aws/karpenter-core/pkg/operator/options"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
@@ -87,7 +90,7 @@ var _ = BeforeSuite(func() {
 	awsEnv = test.NewEnvironment(ctx, env)
 
 	fakeClock = clock.NewFakeClock(time.Now())
-	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, env.Client, awsEnv.AMIProvider)
+	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider)
 	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
 	prov = provisioning.NewProvisioner(env.Client, env.KubernetesInterface.CoreV1(), events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster)
 })
@@ -215,10 +218,14 @@ var _ = Describe("CloudProvider", func() {
 	})
 	Context("Node Drift", func() {
 		var validAMI string
+		var validSecurityGroup string
 		var selectedInstanceType *corecloudproivder.InstanceType
 		var instance *ec2.Instance
+		var nodeTemplateController corecontroller.Controller
 		BeforeEach(func() {
 			validAMI = fake.ImageID()
+			validSecurityGroup = fake.SecurityGroupID()
+			nodeTemplateController = nodetemplate.NewController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider)
 			awsEnv.SSMAPI.GetParameterOutput = &ssm.GetParameterOutput{
 				Parameter: &ssm.Parameter{Value: aws.String(validAMI)},
 			}
@@ -228,6 +235,12 @@ var _ = Describe("CloudProvider", func() {
 					ImageId:      aws.String(validAMI),
 					Architecture: aws.String("x86_64"),
 					CreationDate: aws.String("2022-08-15T12:00:00Z"),
+				}},
+			})
+			awsEnv.EC2API.DescribeSecurityGroupsOutput.Set(&ec2.DescribeSecurityGroupsOutput{
+				SecurityGroups: []*ec2.SecurityGroup{{
+					GroupId:   aws.String(validSecurityGroup),
+					GroupName: aws.String("test-securitygroup"),
 				}},
 			})
 			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
@@ -313,6 +326,42 @@ var _ = Describe("CloudProvider", func() {
 			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machineutil.NewFromNode(node))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(isDrifted).To(BeTrue())
+		})
+		It("should return drifted if the securitygroup is not valid", func() {
+			machine := coretest.Machine(v1alpha5.Machine{
+				Status: v1alpha5.MachineStatus{
+					ProviderID: fake.ProviderID(lo.FromPtr(instance.InstanceId)),
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+						v1.LabelInstanceTypeStable:       selectedInstanceType.Name,
+					},
+				},
+			})
+			// Instance is a reference to what we return in the GetInstances call
+			instance.SecurityGroups = []*ec2.GroupIdentifier{{GroupId: aws.String(fake.SecurityGroupID())}}
+			ExpectReconcileSucceeded(ctx, nodeTemplateController, client.ObjectKeyFromObject(nodeTemplate))
+			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machine)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(isDrifted).To(BeTrue())
+		})
+		It("should not return drifted if the securitygroup is valid", func() {
+			machine := coretest.Machine(v1alpha5.Machine{
+				Status: v1alpha5.MachineStatus{
+					ProviderID: fake.ProviderID(lo.FromPtr(instance.InstanceId)),
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+						v1.LabelInstanceTypeStable:       selectedInstanceType.Name,
+					},
+				},
+			})
+			ExpectReconcileSucceeded(ctx, nodeTemplateController, client.ObjectKeyFromObject(nodeTemplate))
+			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machine)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(isDrifted).To(BeFalse())
 		})
 		It("should not return drifted if the AMI is valid", func() {
 			node := coretest.Node(coretest.NodeOptions{

@@ -25,16 +25,26 @@ import (
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/providers/amifamily"
+	"github.com/aws/karpenter/pkg/providers/instance"
 	"github.com/aws/karpenter/pkg/utils"
 )
 
 func (c *CloudProvider) isNodeTemplateDrifted(ctx context.Context, machine *v1alpha5.Machine, provisioner *v1alpha5.Provisioner, nodeTemplate *v1alpha1.AWSNodeTemplate) (bool, error) {
+	ec2Instance, err := c.getInstance(ctx, machine.Status.ProviderID)
+	if err != nil {
+		return false, cloudprovider.IgnoreMachineNotFoundError(err)
+	}
+
 	amiDrifted, err := c.isAMIDrifted(ctx, machine, provisioner, nodeTemplate)
 	if err != nil {
 		return false, cloudprovider.IgnoreMachineNotFoundError(fmt.Errorf("calculating ami drift, %w", err))
 	}
+	securitygroupDrifted := c.areSecurityGroupsDrifted(ec2Instance, nodeTemplate)
+	if err != nil {
+		return false, cloudprovider.IgnoreMachineNotFoundError(fmt.Errorf("calculating securitygroup drift, %w", err))
+	}
 
-	return amiDrifted, nil
+	return amiDrifted || securitygroupDrifted, nil
 }
 
 func (c *CloudProvider) isAMIDrifted(ctx context.Context, machine *v1alpha5.Machine, provisioner *v1alpha5.Provisioner, nodeTemplate *v1alpha1.AWSNodeTemplate) (bool, error) {
@@ -72,4 +82,29 @@ func (c *CloudProvider) isAMIDrifted(ctx context.Context, machine *v1alpha5.Mach
 		return false, fmt.Errorf("getting instance, %w", err)
 	}
 	return !lo.Contains(lo.Keys(mappedAMIs), instance.ImageID), nil
+}
+
+// Checks if the security groups are drifted, by comparing the AWSNodeTemplate.Status.SecurityGroups
+// to the ec2 instance security groups
+func (c *CloudProvider) areSecurityGroupsDrifted(ec2Instance *instance.Instance, nodeTemplate *v1alpha1.AWSNodeTemplate) bool {
+	securityGroupIds := lo.Map(nodeTemplate.Status.SecurityGroups, func(sg v1alpha1.SecurityGroup, _ int) string { return sg.ID })
+
+	lo.EveryBy(securityGroupIds, func(id string) bool {
+		return lo.Contains(ec2Instance.SecurityGroupIDs, id)
+	})
+
+	return false
+}
+
+func (c *CloudProvider) getInstance(ctx context.Context, providerID string) (*instance.Instance, error) {
+	// Get InstanceID to fetch from EC2
+	instanceID, err := utils.ParseInstanceID(providerID)
+	if err != nil {
+		return nil, err
+	}
+	instance, err := c.instanceProvider.Get(ctx, instanceID)
+	if err != nil {
+		return nil, fmt.Errorf("getting instance, %w", err)
+	}
+	return instance, nil
 }
