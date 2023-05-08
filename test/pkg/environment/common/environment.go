@@ -107,6 +107,7 @@ func getPromClient(ctx context.Context) v1.API {
 		logging.FromContext(ctx).With("endpoint", clusterMetricServiceEndpoint).Debugf("using cluster service prometheus client")
 		return v1.NewAPI(lo.Must(api.NewClient(api.Config{Address: clusterMetricServiceEndpoint})))
 	}
+	// This assumes that you have done "kubectl port-forward -n <namespace> svc/<name> 9090"
 	if _, err := http.DefaultClient.Get(localMetricServiceEndpoint); err == nil {
 		logging.FromContext(ctx).With("endpoint", localMetricServiceEndpoint).Debugf("using local prometheus client")
 		return v1.NewAPI(lo.Must(api.NewClient(api.Config{Address: localMetricServiceEndpoint})))

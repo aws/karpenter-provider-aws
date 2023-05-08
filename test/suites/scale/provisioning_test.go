@@ -15,8 +15,6 @@ limitations under the License.
 package scale_test
 
 import (
-	"fmt"
-
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/samber/lo"
 	appsv1 "k8s.io/api/apps/v1"
@@ -64,6 +62,7 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 			},
 		})
 		selector = labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels)
+		// Zonal topology spread to avoid exhausting IPs in each subnet
 		deployment.Spec.Template.Spec.TopologySpreadConstraints = []v1.TopologySpreadConstraint{
 			{
 				LabelSelector:     deployment.Spec.Selector,
@@ -131,9 +130,5 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 		env.EventuallyExpectCreatedNodeCount("==", expectedNodeCount)
 		env.EventuallyExpectInitializedNodeCount("==", expectedNodeCount)
 		env.EventuallyExpectHealthyPodCount(selector, replicas)
-
-		fmt.Println(env.ExpectQuery(`karpenter_machines_created`).String())
-		fmt.Println(env.ExpectQuery(`karpenter_nodes_created`).String())
-		fmt.Println(env.ExpectQuery(`karpenter_pods_startup_time_seconds`).String())
 	})
 })

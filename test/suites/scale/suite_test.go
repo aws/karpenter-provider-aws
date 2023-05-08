@@ -15,6 +15,7 @@ limitations under the License.
 package scale_test
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -30,11 +31,33 @@ func TestScale(t *testing.T) {
 	RegisterFailHandler(Fail)
 	BeforeSuite(func() {
 		env = aws.NewEnvironment(t)
+		Expect(env.PromClient).ToNot(BeNil(), "Prometheus service could not be discovered. "+
+			"If testing scale testing locally, prometheus should be able to be accessed on localhost:9090 by port-forwarding "+
+			"with \"kubectl port-forward -n <namespace> svc/<name> 9090\"")
 		SetDefaultEventuallyTimeout(15 * time.Minute)
 	})
 	RunSpecs(t, "Scale")
 }
 
-var _ = BeforeEach(func() { env.BeforeEach() })
+var _ = BeforeEach(func() {
+	// We restart during scale testing to clear out the summary quantiles so that we get separate metrics
+	// for each individual test case
+	env.EventuallyExpectKarpenterRestarted()
+	env.BeforeEach()
+})
 var _ = AfterEach(func() { env.Cleanup() })
-var _ = AfterEach(func() { env.AfterEach() })
+var _ = AfterEach(func() {
+	PrintSLOMetrics()
+	env.AfterEach()
+})
+
+func PrintSLOMetrics() {
+	// TODO @joinnis: Testing the PromQL querying
+	fmt.Println(env.ExpectQuery("karpenter_machines_created", nil)[0].Value)
+	fmt.Println(env.ExpectQuery("karpenter_nodes_created", nil)[0].Value)
+	fmt.Println(env.ExpectQuery("karpenter_pods_startup_time_seconds", nil).String())
+	fmt.Println(env.ExpectQuery("karpenter_pods_startup_time_seconds_count", nil).String())
+	fmt.Println(env.ExpectQuery("karpenter_consistency_errors", nil).String())
+	fmt.Println(env.ExpectQuery("karpenter_deprovisioning_replacement_node_initialized_seconds", nil).String())
+	fmt.Println(env.ExpectQuery("karpenter_deprovisioning_evaluation_duration_seconds", nil).String())
+}

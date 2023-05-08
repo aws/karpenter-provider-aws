@@ -466,21 +466,34 @@ func (env *Environment) GetDaemonSetCount(prov *v1alpha5.Provisioner) int {
 	})
 }
 
-func (env *Environment) ExpectQuery(query string) model.Value {
-	value, warn, err := env.PromClient.Query(env.Context, query, time.Now())
+func (env *Environment) ExpectQuery(metric string, labels map[string]string) model.Vector {
+	karpenterPod := env.ExpectActiveKarpenterPodWithOffset(1)
+
+	labels = lo.Assign(labels, map[string]string{"pod": karpenterPod.Name, "namespace": karpenterPod.Namespace})
+	value, warn, err := env.PromClient.Query(env.Context, buildQueryString(metric, labels), time.Now())
 	Expect(warn).To(HaveLen(0))
 	Expect(err).To(BeNil())
-	return value
+	return value.(model.Vector)
 }
 
-func (env *Environment) ExpectRangeQuery(query string, r promv1.Range) model.Value {
-	value, warn, err := env.PromClient.QueryRange(env.Context, query, r)
+func (env *Environment) ExpectRangeQuery(metric string, labels map[string]string, r promv1.Range) model.Vector {
+	karpenterPod := env.ExpectActiveKarpenterPodWithOffset(1)
+
+	labels = lo.Assign(labels, map[string]string{"pod": karpenterPod.Name, "namespace": karpenterPod.Namespace})
+	value, warn, err := env.PromClient.QueryRange(env.Context, buildQueryString(metric, labels), r)
 	Expect(warn).To(HaveLen(0))
 	Expect(err).To(BeNil())
-	return value
+	return value.(model.Vector)
 }
 
 // ExpectSLOsMaintained describes a set of expectations that Karpenter MUST meet in order to ensure its SLOs
 func (env *Environment) ExpectSLOsMaintained() {
 
+}
+
+func buildQueryString(metric string, labels map[string]string) string {
+	if len(labels) == 0 {
+		return metric
+	}
+	return fmt.Sprintf(`%s{%s}`, metric, strings.Join(lo.MapToSlice(labels, func(k, v string) string { return fmt.Sprintf(`%s="%s"`, k, v) }), ","))
 }
