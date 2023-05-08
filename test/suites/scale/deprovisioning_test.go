@@ -64,10 +64,6 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 		env.Cleanup()
 	})
 
-	AfterEach(func() {
-		env.Cleanup()
-	})
-
 	Context("Multiple Deprovisioners", func() {
 		It("should be a dummy test to compile", func() {
 			Skip("skip dummy test that isn't ready yet")
@@ -219,9 +215,10 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 	})
 	It("should expire all nodes", func () {
 		// Before Deprovisioning, we need to Provision the cluster to the state that we need.
-		maxPodDensity := 110
+		replicasPerNode := 1
+		maxPodDensity := replicasPerNode + dsCount
 		expectedNodeCount := 30
-		replicas := maxPodDensity * expectedNodeCount
+		replicas := replicasPerNode * expectedNodeCount
 
 		deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
 		provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
