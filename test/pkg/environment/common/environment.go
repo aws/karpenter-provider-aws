@@ -17,17 +17,20 @@ package common
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/onsi/gomega"
 	"github.com/prometheus/client_golang/api"
+	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	"knative.dev/pkg/logging"
 	loggingtesting "knative.dev/pkg/logging/testing"
 	"knative.dev/pkg/system"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -40,8 +43,8 @@ import (
 )
 
 const (
-	clusterMetricServiceEndpoint = "prometheus-kube-prometheus-prometheus.prometheus.svc.cluster.local:9090"
-	localMetricServiceEndpoint   = "localhost:9090"
+	clusterMetricServiceEndpoint = "http://prometheus-kube-prometheus-prometheus.prometheus.svc.cluster.local:9090"
+	localMetricServiceEndpoint   = "http://localhost:9090"
 )
 
 type Environment struct {
@@ -51,7 +54,7 @@ type Environment struct {
 	Config     *rest.Config
 	KubeClient kubernetes.Interface
 	Monitor    *Monitor
-	PromClient api.Client
+	PromClient v1.API
 
 	StartingNodeCount int
 }
@@ -73,7 +76,7 @@ func NewEnvironment(t *testing.T) *Environment {
 		Client:     client,
 		KubeClient: kubernetes.NewForConfigOrDie(config),
 		Monitor:    NewMonitor(ctx, client),
-		PromClient: lo.Must(api.NewClient(api.Config{Address: localMetricServiceEndpoint})),
+		PromClient: getPromClient(ctx),
 	}
 }
 
@@ -95,4 +98,19 @@ func NewClient(config *rest.Config) (client.Client, error) {
 		return nil, err
 	}
 	return client.New(config, client.Options{Scheme: scheme})
+}
+
+// getPromClient performs a fallback mechanism for getting the prometheus client for prometheus queries starting
+// with the cluster endpoint, falling back to a local endpoint, ending with no prometheus client at all
+func getPromClient(ctx context.Context) v1.API {
+	if _, err := http.DefaultClient.Get(clusterMetricServiceEndpoint); err == nil {
+		logging.FromContext(ctx).With("endpoint", clusterMetricServiceEndpoint).Debugf("using cluster service prometheus client")
+		return v1.NewAPI(lo.Must(api.NewClient(api.Config{Address: clusterMetricServiceEndpoint})))
+	}
+	if _, err := http.DefaultClient.Get(localMetricServiceEndpoint); err == nil {
+		logging.FromContext(ctx).With("endpoint", localMetricServiceEndpoint).Debugf("using local prometheus client")
+		return v1.NewAPI(lo.Must(api.NewClient(api.Config{Address: localMetricServiceEndpoint})))
+	}
+	logging.FromContext(ctx).Debug("using no prometheus client")
+	return nil
 }

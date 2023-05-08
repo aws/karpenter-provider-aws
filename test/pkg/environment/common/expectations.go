@@ -24,6 +24,8 @@ import (
 
 	. "github.com/onsi/ginkgo/v2" //nolint:revive,stylecheck
 	. "github.com/onsi/gomega"    //nolint:revive,stylecheck
+	promv1 "github.com/prometheus/client_golang/api/prometheus/v1"
+	"github.com/prometheus/common/model"
 	"github.com/samber/lo"
 	appsv1 "k8s.io/api/apps/v1"
 	coordinationv1 "k8s.io/api/coordination/v1"
@@ -462,4 +464,23 @@ func (env *Environment) GetDaemonSetCount(prov *v1alpha5.Provisioner) int {
 		}
 		return true
 	})
+}
+
+func (env *Environment) ExpectQuery(query string) model.Value {
+	value, warn, err := env.PromClient.Query(env.Context, query, time.Now())
+	Expect(warn).To(HaveLen(0))
+	Expect(err).To(BeNil())
+	return value
+}
+
+func (env *Environment) ExpectRangeQuery(query string, r promv1.Range) model.Value {
+	value, warn, err := env.PromClient.QueryRange(env.Context, query, r)
+	Expect(warn).To(HaveLen(0))
+	Expect(err).To(BeNil())
+	return value
+}
+
+// ExpectSLOsMaintained describes a set of expectations that Karpenter MUST meet in order to ensure its SLOs
+func (env *Environment) ExpectSLOsMaintained() {
+
 }
