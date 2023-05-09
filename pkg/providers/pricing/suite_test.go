@@ -263,7 +263,7 @@ var _ = Describe("Pricing", func() {
 
 func getPricingEstimateMetricValue(instanceType string, capacityType string, zone string) float64 {
 	var value *float64
-	metric, ok := FindMetricWithLabelValues("karpenter_cloudprovider_instance_price_estimate", map[string]string{
+	metric, ok := FindMetricWithLabelValues("karpenter_cloudprovider_instance_type_price_estimate", map[string]string{
 		pricing.InstanceTypeLabel: instanceType,
 		pricing.CapacityTypeLabel: capacityType,
 		pricing.RegionLabel:       "",
