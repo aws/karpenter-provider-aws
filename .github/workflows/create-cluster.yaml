@@ -1,0 +1,23 @@
+name: create-cluster
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+env:
+  AWS_REGION: us-west-2
+permissions:
+  id-token: write # This is required for requesting the JWT
+  contents: read  # This is required for actions/checkout
+jobs:
+  create-cluster:
+    runs-on: ubuntu-latest
+    steps:
+      - name: configure aws credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::330700974597:role/GHATest
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Deploy EKS cluster to region
+        run: |
+          eksctl create cluster --name my-cluster --version 1.25 --without-nodegroup
