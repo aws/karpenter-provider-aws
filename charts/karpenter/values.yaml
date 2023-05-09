@@ -158,16 +158,6 @@ controller:
   logLevel: ""
   # -- Controller log encoding, defaults to the global log encoding
   logEncoding: ""
-  # -- Controller encoder configurations
-  encoderConfig: 
-    timeKey: "time"
-    levelKey: "level"
-    nameKey: "logger"
-    callerKey: "caller"
-    messageKey: "message"
-    stacktraceKey: "stacktrace"
-    levelEncoder: "capital"
-    timeEncoder: "iso8601" 
   # -- Additional volumeMounts for the controller pod.
   extraVolumeMounts: []
   # - name: aws-iam-token
@@ -191,6 +181,16 @@ webhook:
 logLevel: debug
 # -- Global log encoding
 logEncoding: console
+# -- Encoder configurations
+encoderConfig: 
+  timeKey: "time"
+  levelKey: "level"
+  nameKey: "logger"
+  callerKey: "caller"
+  messageKey: "message"
+  stacktraceKey: "stacktrace"
+  levelEncoder: "capital"
+  timeEncoder: "iso8601" 
 # -- Global Settings to configure Karpenter
 settings:
   # -- The maximum length of a batch window. The longer this is, the more pods we can consider for provisioning at one
