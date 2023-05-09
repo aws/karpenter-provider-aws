@@ -95,12 +95,10 @@ func (p *Provider) CheckAnyPublicIPv4Associations(ctx context.Context, nodeTempl
 	if err != nil {
 		return false, err
 	}
-	for _, sb := range subnets {
-		if !aws.BoolValue(sb.MapPublicIpOnLaunch) {
-			return false, nil
-		}
-	}
-	return true, nil
+	_, ok := lo.Find(subnets, func(s *ec2.Subnet) bool {
+		return !aws.BoolValue(s.MapPublicIpOnLaunch)
+	})
+	return !ok, nil
 }
 
 // ZonalSubnetsForLaunch returns a mapping of zone to the subnet with the most available IP addresses and deducts the passed ips from the available count
