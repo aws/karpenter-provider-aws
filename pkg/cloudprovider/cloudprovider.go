@@ -225,9 +225,9 @@ func (c *CloudProvider) isAMIDrifted(ctx context.Context, machine *v1alpha5.Mach
 	if len(amis) == 0 {
 		return false, fmt.Errorf("no amis exist given constraints")
 	}
-	mappedAMIs := amifamily.MapInstanceTypes(amis, []*cloudprovider.InstanceType{nodeInstanceType})
-	if len(mappedAMIs) == 0 {
-		return false, fmt.Errorf("no instance types satisfy requirements of amis %v,", amis)
+	mappedAMIs, err := amifamily.MapInstanceTypes(amis, []*cloudprovider.InstanceType{nodeInstanceType})
+	if err != nil {
+		return false, err
 	}
 	// Get InstanceID to fetch from EC2
 	instanceID, err := utils.ParseInstanceID(machine.Status.ProviderID)
