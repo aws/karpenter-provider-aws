@@ -1,0 +1,49 @@
+name: Cleanup
+description: 'Runs all the cleanup tasks to cleanup resources deployed during E2E'
+inputs:
+  account_id:
+    description: "Account ID to access AWS"
+    required: true
+  role:
+    description: "Role to access AWS"
+    required: true
+  region:
+    description: "Region to access AWS"
+    required: true
+  cluster_name:
+    description: 'Name of the cluster to be launched by eksctl'
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: configure aws credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        role-to-assume: arn:aws:iam::${{ inputs.account_id }}:role/${{ inputs.role }}
+        aws-region: ${{ inputs.region }}
+        role-duration-seconds: 10800
+    - uses: actions/checkout@v3
+      with:
+        path: "actions"
+    - uses: ./actions/.github/actions/e2e/install-eksctl
+    - name: delete-cluster
+      shell: bash
+      run: |
+        eksctl delete cluster --name ${{ inputs.cluster_name }} --timeout 60m --wait || true
+    - name: delete-iam-policies
+      shell: bash
+      run: |
+        aws cloudformation delete-stack --stack-name iam-${{ inputs.cluster_name }}
+        aws cloudformation wait stack-delete-complete --stack-name iam-${{ inputs.cluster_name }}
+    - name: delete-launch-templates
+      shell: bash
+      run: |
+        aws ec2 describe-launch-templates \
+          --filter Name=tag:karpenter.k8s.aws/cluster,Values=${{ inputs.cluster_name }} \
+          --query "LaunchTemplates[*].LaunchTemplateId" \
+          --output text |
+        xargs \
+          -n 1 \
+          -r \
+          aws ec2 delete-launch-template \
+            --launch-template-id

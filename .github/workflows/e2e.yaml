@@ -1,0 +1,94 @@
+name: E2E
+on:
+  workflow_call:
+    inputs:
+      git_repo:
+        type: string
+        default: "aws/karpenter"
+      git_ref:
+        type: string
+      suite:
+        type: string
+        required: true
+      event_name:
+        type: string
+        required: true
+    secrets:
+      SLACK_WEBHOOK_URL:
+        required: true
+env:
+  AWS_REGION: us-east-2
+  K8s_VERSION: 1.25
+  ACCOUNT_ID: 330700974597
+  ROLE_NAME: GHATest
+permissions:
+  id-token: write # This is required for requesting the JWT
+  contents: read  # This is required for actions/checkout
+jobs:
+  run-suite:
+    runs-on: ubuntu-latest
+    steps:
+      - name: configure aws credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::${{ env.ACCOUNT_ID }}:role/${{ env.ROLE_NAME }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-duration-seconds: 10800
+      - uses: actions/checkout@v3
+        with:
+          path: actions
+      - name: generate cluster name
+        run: |
+          CLUSTER_NAME=$(echo ${{ inputs.suite }}-$RANDOM$RANDOM | awk '{print tolower($0)}')
+          echo "Using cluster name \"$CLUSTER_NAME\""
+          echo CLUSTER_NAME=$CLUSTER_NAME >> $GITHUB_ENV
+      - name: create eks cluster '${{ env.CLUSTER_NAME }}'
+        uses: ./actions/.github/actions/e2e/create-cluster
+        with:
+          account_id: ${{ env.ACCOUNT_ID }}
+          role: ${{ env.ROLE_NAME }}
+          region: ${{ env.AWS_REGION }}
+          cluster_name: ${{ env.CLUSTER_NAME }}
+          ip_family: ${{ inputs.suite == 'IPv6' && 'IPv6' || 'IPv4' }} # Set the value to IPv6 if IPv6 suite, else IPv4
+          git_repo: ${{ inputs.git_repo }}
+          git_ref: ${{ inputs.git_ref }}
+      - name: install prometheus
+        uses: ./actions/.github/actions/e2e/install-prometheus
+        with:
+          region: us-west-2
+          workspace: ws-076042fb-35be-4a2e-baaa-b2a80780606b
+      - name: install karpenter
+        uses: ./actions/.github/actions/e2e/install-karpenter
+        with:
+          account_id: ${{ env.ACCOUNT_ID }}
+          role: ${{ env.ROLE_NAME }}
+          region: ${{ env.AWS_REGION }}
+          cluster_name: ${{ env.CLUSTER_NAME }}
+          git_repo: ${{ inputs.git_repo }}
+          git_ref: ${{ inputs.git_ref }}
+      - name: run the ${{ inputs.suite }} test suite
+        run: |
+          aws eks update-kubeconfig --name ${{ env.CLUSTER_NAME }}
+          FOCUS=${{ inputs.suite }} make e2etests
+      - name: notify slack of success or failure
+        uses: ./actions/.github/actions/e2e/slack/notify
+        if: ${{ (inputs.event_name == 'schedule' || inputs.event_name == 'push') && (success() || failure()) }}
+        with:
+          url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          suite: ${{ inputs.suite }}
+      - name: dump logs on failure
+        uses: ./actions/.github/actions/e2e/dump-logs
+        if: failure() || cancelled()
+        with:
+          account_id: ${{ env.ACCOUNT_ID }}
+          role: ${{ env.ROLE_NAME }}
+          region: ${{ env.AWS_REGION }}
+          cluster_name: ${{ env.CLUSTER_NAME }}
+      - name: cleanup karpenter and cluster '${{ env.CLUSTER_NAME }}' resources
+        uses: ./actions/.github/actions/e2e/cleanup
+        if: always()
+        with:
+          account_id: ${{ env.ACCOUNT_ID }}
+          role: ${{ env.ROLE_NAME }}
+          region: ${{ env.AWS_REGION }}
+          cluster_name: ${{ env.CLUSTER_NAME }}

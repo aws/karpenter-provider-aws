@@ -1,0 +1,62 @@
+name: InstallKarpenter
+description: 'Installs Go Downloads and installs Karpenter Dependencies'
+inputs:
+  account_id:
+    description: "Account ID to access AWS"
+    required: true
+  role:
+    description: "Role to access AWS"
+    required: true
+  region:
+    description: "Region to access AWS"
+    required: true
+  cluster_name:
+    description: 'Name of the cluster to be launched by eksctl'
+    required: true
+  git_repo:
+    description: "The git repo can be used to run tests on a fork"
+    default: "aws/karpenter"
+  git_ref:
+    description: "The git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release"
+runs:
+  using: "composite"
+  steps:
+  - name: configure aws credentials
+    uses: aws-actions/configure-aws-credentials@v2
+    with:
+      role-to-assume: arn:aws:iam::${{ inputs.account_id }}:role/${{ inputs.role }}
+      aws-region: ${{ inputs.region }}
+      role-duration-seconds: 10800
+  - uses: actions/checkout@v3
+    with:
+      repository: ${{ inputs.git_repo }}
+      ref: ${{ inputs.git_ref }}
+  - uses: actions/checkout@v3
+    with:
+      path: "actions"
+  - uses: ./actions/.github/actions/e2e/install-helm
+  - name: install-karpenter
+    shell: bash
+    # TODO @joinnis: Change the --version argument back to --version v0-$(git rev-parse HEAD)
+    run: |
+      aws eks update-kubeconfig --name ${{ inputs.cluster_name }}
+      helm upgrade --install --namespace karpenter --create-namespace \
+        karpenter oci://public.ecr.aws/karpenter/karpenter \
+        --version v0.28.0-rc.1 \
+        --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="arn:aws:iam::${{ inputs.account_id }}:role/${{ inputs.cluster_name }}-karpenter" \
+        --set settings.aws.clusterName=${{ inputs.cluster_name }} \
+        --set settings.aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${{ inputs.cluster_name }} \
+        --set settings.aws.interruptionQueueName=${{ inputs.cluster_name }} \
+        --set controller.resources.requests.cpu=1 \
+        --set controller.resources.requests.memory=1Gi \
+        --set controller.resources.limits.cpu=1 \
+        --set controller.resources.limits.memory=1Gi \
+        --wait
+  - name: diff-karpenter
+    shell: bash
+    # TODO @joinnis: Change the --version argument back to --version v0-$(git rev-parse HEAD)
+    run: |
+      helm diff upgrade --namespace karpenter \
+        karpenter oci://public.ecr.aws/karpenter/karpenter \
+        --version v0.28.0-rc.1 \
+        --reuse-values --three-way-merge --detailed-exitcode

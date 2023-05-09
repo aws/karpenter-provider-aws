@@ -1,0 +1,41 @@
+name: UpgradeCRDs
+description: 'Installs Go Downloads and installs Karpenter Dependencies'
+inputs:
+  account_id:
+    description: "Account ID to access AWS"
+    required: true
+  role:
+    description: "Role to access AWS"
+    required: true
+  region:
+    description: "Region to access AWS"
+    required: true
+  cluster_name:
+    description: 'Name of the cluster to be launched by eksctl'
+    required: true
+  git_repo:
+    description: "The git repo can be used to run tests on a fork"
+    default: "aws/karpenter"
+  git_ref:
+    description: "The git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release"
+runs:
+  using: "composite"
+  steps:
+    - name: configure aws credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        role-to-assume: arn:aws:iam::${{ inputs.account_id }}:role/${{ inputs.role }}
+        aws-region: ${{ inputs.region }}
+        role-duration-seconds: 10800
+    - uses: actions/checkout@v3
+      with:
+        repository: ${{ inputs.git_repo }}
+        ref: ${{ inputs.git_ref }}
+    - uses: actions/checkout@v3
+      with:
+        path: "actions"
+    - name: install-karpenter
+      shell: bash
+      run: |
+        aws eks update-kubeconfig --name ${{ inputs.cluster_name }}
+        kubectl apply -f pkg/apis/crds/

@@ -6,6 +6,7 @@ on:
   workflow_dispatch:
 jobs:
   ci-test:
+    if: github.repository == 'aws/karpenter'
     runs-on: ubuntu-latest
     strategy:
         matrix:

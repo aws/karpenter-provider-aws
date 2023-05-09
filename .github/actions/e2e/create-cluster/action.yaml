@@ -1,0 +1,113 @@
+name: CreateCluster
+description: 'Installs Go Downloads and installs Karpenter Dependencies'
+inputs:
+  account_id:
+    description: "Account ID to access AWS"
+    required: true
+  role:
+    description: "Role to access AWS"
+    required: true
+  region:
+    description: "Region to access AWS"
+    required: true
+  cluster_name:
+    description: 'Name of the cluster to be launched by eksctl'
+    required: true
+  kubernetes_version:
+    description: 'Version of Kubernetes to use for the launched cluster'
+    required: false
+    default: "1.25"
+  ip_family:
+    description: "IP Family of the cluster. Valid values are IPv4 or IPv6"
+    required: false
+    default: "IPv4"
+  git_repo:
+    description: "The git repo can be used to run tests on a fork"
+    required: false
+    default: "aws/karpenter"
+  git_ref:
+    description: "The git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release"
+    required: false
+runs:
+  using: "composite"
+  steps:
+  - name: configure aws credentials
+    uses: aws-actions/configure-aws-credentials@v2
+    with:
+      role-to-assume: arn:aws:iam::${{ inputs.account_id }}:role/${{ inputs.role }}
+      aws-region: ${{ inputs.region }}
+      role-duration-seconds: 10800
+  - uses: actions/checkout@v3
+    with:
+      repository: ${{ inputs.git_repo }}
+      ref: ${{ inputs.git_ref }}
+  - uses: actions/checkout@v3
+    with:
+      path: "actions"
+  - uses: ./actions/.github/actions/e2e/install-eksctl
+  - name: create iam policies
+    shell: bash
+    run: |
+      # Resolve the cloudformation path with fallback
+      CLOUDFORMATION_PATH=website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml
+      if [ ! -f $CLOUDFORMATION_PATH ]; then
+        CLOUDFORMATION_PATH=website/content/en/preview/getting-started/getting-started-with-eksctl/cloudformation.yaml
+      fi
+      
+      aws iam create-service-linked-role --aws-service-name spot.amazonaws.com || true
+      aws cloudformation deploy \
+        --stack-name iam-${{ inputs.cluster_name }} \
+        --template-file $CLOUDFORMATION_PATH \
+        --capabilities CAPABILITY_NAMED_IAM \
+        --parameter-overrides "ClusterName=${{ inputs.cluster_name }}"
+  - name: create cluster
+    shell: bash
+    run: |
+      eksctl create cluster -f - <<EOF
+      ---
+      apiVersion: eksctl.io/v1alpha5
+      kind: ClusterConfig
+      metadata:
+        name: ${{ inputs.cluster_name }}
+        region: ${{ inputs.region }}
+        version: "${{ inputs.kubernetes_version }}"
+        tags:
+          karpenter.sh/discovery: ${{ inputs.cluster_name }}
+      kubernetesNetworkConfig:
+        ipFamily: ${{ inputs.ip_family }}
+      managedNodeGroups:
+        - instanceType: m5.xlarge
+          amiFamily: AmazonLinux2
+          name: ${{ inputs.cluster_name }}-system-pool
+          desiredCapacity: 2
+          disableIMDSv1: true
+          minSize: 2
+          maxSize: 2
+          taints:
+          - key: CriticalAddonsOnly
+            value: "true"
+            effect: NoSchedule
+      iam:
+        withOIDC: true
+      addons:
+      - name: vpc-cni
+      - name: coredns
+      - name: kube-proxy
+      - name: aws-ebs-csi-driver
+        wellKnownPolicies:
+          ebsCSIController: true
+      EOF
+
+      eksctl create iamidentitymapping \
+      --username system:node:{{EC2PrivateDNSName}} \
+      --cluster "${{ inputs.cluster_name }}" \
+      --arn "arn:aws:iam::${{ inputs.account_id }}:role/KarpenterNodeRole-${{ inputs.cluster_name }}" \
+      --group system:bootstrappers \
+      --group system:nodes
+
+      eksctl create iamserviceaccount \
+        --cluster "${{ inputs.cluster_name }}" --name karpenter --namespace karpenter \
+        --role-name "${{ inputs.cluster_name }}-karpenter" \
+        --attach-policy-arn "arn:aws:iam::${{ inputs.account_id }}:policy/KarpenterControllerPolicy-${{ inputs.cluster_name }}" \
+        --role-only \
+        --approve
