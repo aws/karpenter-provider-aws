@@ -15,12 +15,12 @@ limitations under the License.
 package scale_test
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"knative.dev/pkg/logging"
 
 	"github.com/aws/karpenter/test/pkg/environment/aws"
 )
@@ -53,11 +53,11 @@ var _ = AfterEach(func() {
 
 func PrintSLOMetrics() {
 	// TODO @joinnis: Testing the PromQL querying
-	fmt.Println(env.ExpectQuery("karpenter_machines_created", nil)[0].Value)
-	fmt.Println(env.ExpectQuery("karpenter_nodes_created", nil)[0].Value)
-	fmt.Println(env.ExpectQuery("karpenter_pods_startup_time_seconds", nil).String())
-	fmt.Println(env.ExpectQuery("karpenter_pods_startup_time_seconds_count", nil).String())
-	fmt.Println(env.ExpectQuery("karpenter_consistency_errors", nil).String())
-	fmt.Println(env.ExpectQuery("karpenter_deprovisioning_replacement_node_initialized_seconds", nil).String())
-	fmt.Println(env.ExpectQuery("karpenter_deprovisioning_evaluation_duration_seconds", nil).String())
+	logging.FromContext(env).Infof(env.ExpectPrometheusQuery("karpenter_machines_created", nil).String())
+	logging.FromContext(env).Infof(env.ExpectPrometheusQuery("karpenter_nodes_created", nil).String())
+	logging.FromContext(env).Infof(env.ExpectPrometheusQuery("karpenter_pods_startup_time_seconds", nil).String())
+	logging.FromContext(env).Infof(env.ExpectPrometheusQuery("karpenter_pods_startup_time_seconds_count", nil).String())
+	logging.FromContext(env).Infof(env.ExpectPrometheusQuery("karpenter_consistency_errors", nil).String())
+	logging.FromContext(env).Infof(env.ExpectPrometheusQuery("karpenter_deprovisioning_replacement_node_initialized_seconds", nil).String())
+	logging.FromContext(env).Infof(env.ExpectPrometheusQuery("karpenter_deprovisioning_evaluation_duration_seconds", nil).String())
 }
