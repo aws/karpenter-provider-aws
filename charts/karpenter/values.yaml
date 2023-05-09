@@ -158,6 +158,16 @@ controller:
   logLevel: ""
   # -- Controller log encoding, defaults to the global log encoding
   logEncoding: ""
+  # -- Controller encoder configurations
+  encoderConfig: 
+    timeKey: "time"
+    levelKey: "level"
+    nameKey: "logger"
+    callerKey: "caller"
+    messageKey: "message"
+    stacktraceKey: "stacktrace"
+    levelEncoder: "capital"
+    timeEncoder: "iso8601" 
   # -- Additional volumeMounts for the controller pod.
   extraVolumeMounts: []
   # - name: aws-iam-token

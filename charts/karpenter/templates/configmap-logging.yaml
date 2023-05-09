@@ -25,14 +25,14 @@ data:
       "errorOutputPaths": [{{ include "karpenter.controller.errorOutputPathsList" . }}],
       "encoding": "{{ .Values.logEncoding }}",
       "encoderConfig": {
-        "timeKey": "time",
-        "levelKey": "level",
-        "nameKey": "logger",
-        "callerKey": "caller",
-        "messageKey": "message",
-        "stacktraceKey": "stacktrace",
-        "levelEncoder": "capital",
-        "timeEncoder": "iso8601"
+        "timeKey": "{{ .Values.encoderConfig.timeKey }}",
+        "levelKey": "{{ .Values.encoderConfig.levelKey }}",
+        "nameKey": "{{ .Values.encoderConfig.nameKey }}",
+        "callerKey": "{{ .Values.encoderConfig.callerKey }}",
+        "messageKey": "{{ .Values.encoderConfig.messageKey }}",
+        "stacktraceKey": "{{ .Values.encoderConfig.stacktraceKey }}",
+        "levelEncoder": "{{ .Values.encoderConfig.levelEncoder }}",
+        "timeEncoder": "{{ .Values.encoderConfig.timeEncoder }}"
       }
     }
 {{- with .Values.controller.logLevel }}
