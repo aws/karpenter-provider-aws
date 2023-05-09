@@ -110,7 +110,7 @@ func (p *Provider) EnsureAll(ctx context.Context, nodeTemplate *v1alpha1.AWSNode
 	launchTemplates := map[string][]*cloudprovider.InstanceType{}
 	for _, resolvedLaunchTemplate := range resolvedLaunchTemplates {
 		// Ensure the launch template exists, or create it
-		ec2LaunchTemplate, err := p.ensureLaunchTemplate(ctx, resolvedLaunchTemplate)
+		ec2LaunchTemplate, err := p.ensureLaunchTemplate(ctx, resolvedLaunchTemplate, nodeTemplate)
 		if err != nil {
 			return nil, err
 		}
@@ -151,7 +151,6 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeTemplate *v1alpha1.
 	if len(securityGroups) == 0 {
 		return nil, fmt.Errorf("no security groups exist given constraints")
 	}
-	associatePublicIPv4Addrs, err := p.subnetProvider.CheckAnyPublicIPv4Associations(ctx, nodeTemplate)
 	if err != nil {
 		return nil, err
 	}
@@ -171,7 +170,7 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeTemplate *v1alpha1.
 	}, nil
 }
 
-func (p *Provider) ensureLaunchTemplate(ctx context.Context, options *amifamily.LaunchTemplate) (*ec2.LaunchTemplate, error) {
+func (p *Provider) ensureLaunchTemplate(ctx context.Context, options *amifamily.LaunchTemplate, nodeTemplate *v1alpha1.AWSNodeTemplate) (*ec2.LaunchTemplate, error) {
 	var launchTemplate *ec2.LaunchTemplate
 	name := launchTemplateName(options)
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("launch-template-name", name))
@@ -186,7 +185,7 @@ func (p *Provider) ensureLaunchTemplate(ctx context.Context, options *amifamily.
 	})
 	// Create LT if one doesn't exist
 	if awserrors.IsNotFound(err) {
-		launchTemplate, err = p.createLaunchTemplate(ctx, options)
+		launchTemplate, err = p.createLaunchTemplate(ctx, options, nodeTemplate)
 		if err != nil {
 			return nil, fmt.Errorf("creating launch template, %w", err)
 		}
@@ -204,10 +203,21 @@ func (p *Provider) ensureLaunchTemplate(ctx context.Context, options *amifamily.
 	return launchTemplate, nil
 }
 
-func (p *Provider) createLaunchTemplate(ctx context.Context, options *amifamily.LaunchTemplate) (*ec2.LaunchTemplate, error) {
+func (p *Provider) createLaunchTemplate(ctx context.Context, options *amifamily.LaunchTemplate, nodeTemplate *v1alpha1.AWSNodeTemplate) (*ec2.LaunchTemplate, error) {
 	userData, err := options.UserData.Script()
 	if err != nil {
 		return nil, err
+	}
+	networkInterface, err := p.generateNetworkInterface(ctx, nodeTemplate, options)
+	if err != nil {
+		return nil, err
+	}
+
+	var securityGroupIds []*string
+	if networkInterface != nil {
+		securityGroupIds = nil // if the network interface is defined, the security groups are defined within it
+	} else {
+		securityGroupIds = lo.Map(options.SecurityGroups, func(s v1alpha1.SecurityGroup, _ int) *string { return aws.String(s.ID) })
 	}
 	output, err := p.ec2api.CreateLaunchTemplateWithContext(ctx, &ec2.CreateLaunchTemplateInput{
 		LaunchTemplateName: aws.String(launchTemplateName(options)),
@@ -219,7 +229,7 @@ func (p *Provider) createLaunchTemplate(ctx context.Context, options *amifamily.
 			Monitoring: &ec2.LaunchTemplatesMonitoringRequest{
 				Enabled: aws.Bool(options.DetailedMonitoring),
 			},
-			SecurityGroupIds: lo.Map(options.SecurityGroups, func(s v1alpha1.SecurityGroup, _ int) *string { return aws.String(s.ID) }),
+			SecurityGroupIds: securityGroupIds,
 			UserData:         aws.String(userData),
 			ImageId:          aws.String(options.AMIID),
 			MetadataOptions: &ec2.LaunchTemplateInstanceMetadataOptionsRequest{
@@ -228,7 +238,7 @@ func (p *Provider) createLaunchTemplate(ctx context.Context, options *amifamily.
 				HttpPutResponseHopLimit: options.MetadataOptions.HTTPPutResponseHopLimit,
 				HttpTokens:              options.MetadataOptions.HTTPTokens,
 			},
-			NetworkInterfaces: options.NetworkInterface,
+			NetworkInterfaces: networkInterface,
 			TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{
 				{ResourceType: aws.String(ec2.ResourceTypeNetworkInterface), Tags: utils.MergeTags(options.Tags)},
 			},
@@ -245,6 +255,23 @@ func (p *Provider) createLaunchTemplate(ctx context.Context, options *amifamily.
 	}
 	logging.FromContext(ctx).With("id", aws.StringValue(output.LaunchTemplate.LaunchTemplateId)).Debugf("created launch template")
 	return output.LaunchTemplate, nil
+}
+
+func (p *Provider) generateNetworkInterface(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, options *amifamily.LaunchTemplate) ([]*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest, error) {
+	associatePublicIPv4Addrs, err := p.subnetProvider.CheckAnyPublicIPv4Associations(ctx, nodeTemplate)
+	if err != nil {
+		return nil, err
+	}
+	if !associatePublicIPv4Addrs {
+		return []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
+			{
+				AssociatePublicIpAddress: aws.Bool(false),
+				DeviceIndex:              aws.Int64(0),
+				Groups:                   lo.Map(options.SecurityGroups, func(s v1alpha1.SecurityGroup, _ int) *string { return aws.String(s.ID) }),
+			},
+		}, nil
+	}
+	return nil, nil
 }
 
 func (p *Provider) blockDeviceMappings(blockDeviceMappings []*v1alpha1.BlockDeviceMapping) []*ec2.LaunchTemplateBlockDeviceMappingRequest {

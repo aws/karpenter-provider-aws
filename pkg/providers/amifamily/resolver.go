@@ -70,7 +70,6 @@ type LaunchTemplate struct {
 	AMIID               string
 	InstanceTypes       []*cloudprovider.InstanceType `hash:"ignore"`
 	DetailedMonitoring  bool
-	NetworkInterface    []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest
 }
 
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters
@@ -128,7 +127,6 @@ func (r Resolver) Resolve(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTem
 	if len(mappedAMIs) == 0 {
 		return nil, fmt.Errorf("no instance types satisfy requirements of amis %v,", amis)
 	}
-	networkInterface := options.generateLaunchTemplateNetworkConfigrationSpecRequest()
 	var resolvedTemplates []*LaunchTemplate
 	for amiID, instanceTypes := range mappedAMIs {
 		maxPodsToInstanceTypes := lo.GroupBy(instanceTypes, func(instanceType *cloudprovider.InstanceType) int {
@@ -162,7 +160,6 @@ func (r Resolver) Resolve(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTem
 				DetailedMonitoring:  aws.BoolValue(nodeTemplate.Spec.DetailedMonitoring),
 				AMIID:               amiID,
 				InstanceTypes:       instanceTypes,
-				NetworkInterface:    networkInterface,
 			}
 			if resolved.BlockDeviceMappings == nil {
 				resolved.BlockDeviceMappings = amiFamily.DefaultBlockDeviceMappings()
@@ -213,11 +210,4 @@ func (r Resolver) defaultClusterDNS(opts *Options, kubeletConfig *v1alpha5.Kubel
 	newKubeletConfig := kubeletConfig.DeepCopy()
 	newKubeletConfig.ClusterDNS = []string{opts.KubeDNSIP.String()}
 	return newKubeletConfig
-}
-
-func (o Options) generateLaunchTemplateNetworkConfigrationSpecRequest() []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest {
-	if !o.AssociatePublicIPv4Addrs {
-		return []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{{AssociatePublicIpAddress: aws.Bool(false)}}
-	}
-	return nil
 }
