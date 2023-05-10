@@ -119,7 +119,7 @@ func MapInstanceTypes(amis []AMI, instanceTypes []*cloudprovider.InstanceType) (
 	}
 
 	if len(amiIDs) == 0 {
-		return nil, fmt.Errorf("no instance types satisfy requirements of amis %v \n summary : [ %w ]", amiList(amis), errs)
+		return nil, fmt.Errorf("no instance types satisfy requirements of amis %v summary: [ %w ]", amiList(amis), errs)
 	}
 
 	return amiIDs, nil
