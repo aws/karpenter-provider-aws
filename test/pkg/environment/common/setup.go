@@ -89,13 +89,13 @@ func (env *Environment) ExpectCleanCluster() {
 }
 
 func (env *Environment) Cleanup() {
-	debug.AfterEach(env.Context)
 	env.CleanupObjects(CleanableObjects...)
 	env.eventuallyExpectScaleDown()
 	env.ExpectNoCrashes()
 }
 
 func (env *Environment) AfterEach() {
+	debug.AfterEach(env.Context)
 	env.printControllerLogs(&v1.PodLogOptions{Container: "controller"})
 }
 

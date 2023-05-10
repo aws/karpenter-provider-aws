@@ -24,8 +24,6 @@ import (
 
 	. "github.com/onsi/ginkgo/v2" //nolint:revive,stylecheck
 	. "github.com/onsi/gomega"    //nolint:revive,stylecheck
-	promv1 "github.com/prometheus/client_golang/api/prometheus/v1"
-	"github.com/prometheus/common/model"
 	"github.com/samber/lo"
 	appsv1 "k8s.io/api/apps/v1"
 	coordinationv1 "k8s.io/api/coordination/v1"
@@ -475,36 +473,4 @@ func (env *Environment) GetDaemonSetCount(prov *v1alpha5.Provisioner) int {
 		}
 		return true
 	})
-}
-
-func (env *Environment) ExpectPrometheusQuery(metric string, labels map[string]string) model.Vector {
-	karpenterPod := env.ExpectActiveKarpenterPodWithOffset(1)
-
-	labels = lo.Assign(labels, map[string]string{"pod": karpenterPod.Name, "namespace": karpenterPod.Namespace})
-	value, warn, err := env.PromClient.Query(env.Context, buildQueryString(metric, labels), time.Now())
-	Expect(warn).To(HaveLen(0))
-	Expect(err).To(BeNil())
-	return value.(model.Vector)
-}
-
-func (env *Environment) ExpectRangeQuery(metric string, labels map[string]string, r promv1.Range) model.Vector {
-	karpenterPod := env.ExpectActiveKarpenterPodWithOffset(1)
-
-	labels = lo.Assign(labels, map[string]string{"pod": karpenterPod.Name, "namespace": karpenterPod.Namespace})
-	value, warn, err := env.PromClient.QueryRange(env.Context, buildQueryString(metric, labels), r)
-	Expect(warn).To(HaveLen(0))
-	Expect(err).To(BeNil())
-	return value.(model.Vector)
-}
-
-// ExpectSLOsMaintained describes a set of expectations that Karpenter MUST meet in order to ensure its SLOs
-func (env *Environment) ExpectSLOsMaintained() {
-
-}
-
-func buildQueryString(metric string, labels map[string]string) string {
-	if len(labels) == 0 {
-		return metric
-	}
-	return fmt.Sprintf(`%s{%s}`, metric, strings.Join(lo.MapToSlice(labels, func(k, v string) string { return fmt.Sprintf(`%s="%s"`, k, v) }), ","))
 }

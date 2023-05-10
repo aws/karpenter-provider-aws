@@ -16,6 +16,7 @@ package scale_test
 
 import (
 	"fmt"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/samber/lo"
@@ -75,6 +76,15 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			Limits: v1.ResourceList{},
 		})
 		deployment = test.Deployment()
+		// Zonal topology spread to avoid exhausting IPs in each subnet
+		deployment.Spec.Template.Spec.TopologySpreadConstraints = []v1.TopologySpreadConstraint{
+			{
+				LabelSelector:     deployment.Spec.Selector,
+				TopologyKey:       v1.LabelTopologyZone,
+				MaxSkew:           1,
+				WhenUnsatisfiable: v1.DoNotSchedule,
+			},
+		}
 		selector = labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels)
 		dsCount = env.GetDaemonSetCount(provisioner)
 	})
@@ -90,7 +100,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			// Before Deprovisioning, we need to Provision the cluster to the state that we need.
 			replicasPerNode := 1
 			maxPodDensity := replicasPerNode + dsCount
-			expectedNodeCount := 30
+			expectedNodeCount := 200
 			replicas := replicasPerNode * expectedNodeCount
 
 			deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
@@ -105,14 +115,17 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			By("kicking off provisioning by applying the provisioner and nodeTemplate")
 			env.ExpectCreated(provisioner, nodeTemplate)
 
+			startTime := time.Now()
+
 			env.EventuallyExpectCreatedMachineCount(">=", expectedNodeCount)
 			env.EventuallyExpectCreatedNodeCount(">=", expectedNodeCount)
 			env.EventuallyExpectInitializedNodeCount(">=", expectedNodeCount)
 			env.EventuallyExpectHealthyPodCount(selector, replicas)
+			fmt.Printf("It took %f for all pods to be healthy", time.Since(startTime).Seconds())
 
 			createdNodes := env.Monitor.CreatedNodeCount()
 
-			By(fmt.Sprintf("Created %d nodes. Resetting monitor for deprovisioning.", createdNodes))
+			By(fmt.Sprintf("created %d nodes. resetting monitor for deprovisioning.", createdNodes))
 			env.Monitor.Reset()
 			By("waiting for all deployment pods to be deleted")
 			// Fully scale down all pods to make nodes empty
@@ -121,10 +134,12 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			env.EventuallyExpectHealthyPodCount(selector, 0)
 
 			By("kicking off deprovisioning by adding ttlSecondsAfterEmpty")
+			startTime = time.Now()
 			provisioner.Spec.TTLSecondsAfterEmpty = lo.ToPtr[int64](0)
 			env.ExpectCreatedOrUpdated(provisioner)
 
 			env.EventuallyExpectDeletedNodeCount("==", createdNodes)
+			fmt.Printf("It took %f for all nodes to be deprovisioned", time.Since(startTime).Seconds())
 		})
 	})
 	Context("Expiration", func() {

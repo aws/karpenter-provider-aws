@@ -20,7 +20,6 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"knative.dev/pkg/logging"
 
 	"github.com/aws/karpenter/test/pkg/environment/aws"
 )
@@ -48,18 +47,6 @@ var _ = BeforeEach(func() {
 var _ = AfterEach(func() { env.Cleanup() })
 var _ = AfterEach(func() {
 	time.Sleep(time.Second * 30) // Need to wait a bit of time here to let the scrape interval to pass
-	PrintSLOMetrics()
+	env.ExpectSLOsMaintained()
 	env.AfterEach()
 })
-
-func PrintSLOMetrics() {
-	// TODO @joinnis: Testing the PromQL querying
-	logging.FromContext(env).Infof(env.ExpectPrometheusQuery("karpenter_machines_created", nil).String())
-	logging.FromContext(env).Infof(env.ExpectPrometheusQuery("karpenter_nodes_created", nil).String())
-	logging.FromContext(env).Infof(env.ExpectPrometheusQuery("karpenter_pods_startup_time_seconds", nil).String())
-	logging.FromContext(env).Infof(env.ExpectPrometheusQuery("karpenter_pods_startup_time_seconds_count", nil).String())
-	logging.FromContext(env).Infof(env.ExpectPrometheusQuery("karpenter_consistency_errors", nil).String())
-	logging.FromContext(env).Infof(env.ExpectPrometheusQuery("karpenter_deprovisioning_replacement_node_initialized_seconds", nil).String())
-	logging.FromContext(env).Infof(env.ExpectPrometheusQuery("karpenter_deprovisioning_evaluation_duration_seconds_count", nil).String())
-	logging.FromContext(env).Infof(env.ExpectPrometheusQuery("karpenter_deprovisioning_actions_performed", nil).String())
-}

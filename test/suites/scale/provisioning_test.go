@@ -87,8 +87,9 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 		dsCount = env.GetDaemonSetCount(provisioner)
 	})
 	It("should scale successfully on a node-dense scale-up", func() {
-		replicas := 500
+		replicasPerNode := 1
 		expectedNodeCount := 500
+		replicas := replicasPerNode * expectedNodeCount
 
 		deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
 		deployment.Spec.Template.Spec.Affinity = &v1.Affinity{
@@ -115,9 +116,10 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 		env.EventuallyExpectHealthyPodCount(selector, replicas)
 	})
 	It("should scale successfully on a pod-dense scale-up", func() {
-		replicas := 6600
-		maxPodDensity := 110 + dsCount
+		replicasPerNode := 110
+		maxPodDensity := replicasPerNode + dsCount
 		expectedNodeCount := 60
+		replicas := replicasPerNode * expectedNodeCount
 
 		deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
 		provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
