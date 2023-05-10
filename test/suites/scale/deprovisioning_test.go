@@ -64,6 +64,11 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 					Operator: v1.NodeSelectorOpIn,
 					Values:   []string{v1alpha1.CapacityTypeOnDemand},
 				},
+				{
+					Key:      v1.LabelOSStable,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{string(v1.Linux)},
+				},
 			},
 			// No limits!!!
 			// https://tenor.com/view/chaos-gif-22919457

@@ -477,7 +477,7 @@ func (env *Environment) GetDaemonSetCount(prov *v1alpha5.Provisioner) int {
 	})
 }
 
-func (env *Environment) ExpectPrometheusQuery(metric string, labels map[string]string) model.Value {
+func (env *Environment) ExpectPrometheusQuery(metric string, labels map[string]string) model.Vector {
 	karpenterPod := env.ExpectActiveKarpenterPodWithOffset(1)
 
 	labels = lo.Assign(labels, map[string]string{"pod": karpenterPod.Name, "namespace": karpenterPod.Namespace})

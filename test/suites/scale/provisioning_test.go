@@ -46,6 +46,18 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 			ProviderRef: &v1alpha5.MachineTemplateRef{
 				Name: nodeTemplate.Name,
 			},
+			Requirements: []v1.NodeSelectorRequirement{
+				{
+					Key:      v1alpha5.LabelCapacityType,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{v1alpha1.CapacityTypeOnDemand},
+				},
+				{
+					Key:      v1.LabelOSStable,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{string(v1.Linux)},
+				},
+			},
 			// No limits!!!
 			// https://tenor.com/view/chaos-gif-22919457
 			Limits: v1.ResourceList{},
@@ -111,13 +123,13 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 		provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
 			MaxPods: lo.ToPtr[int32](int32(maxPodDensity)),
 		}
-		provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
-			{
+		provisioner.Spec.Requirements = append(provisioner.Spec.Requirements,
+			v1.NodeSelectorRequirement{
 				Key:      v1alpha1.LabelInstanceSize,
 				Operator: v1.NodeSelectorOpIn,
 				Values:   []string{"4xlarge"},
 			},
-		}
+		)
 
 		By("waiting for the deployment to deploy all of its pods")
 		env.ExpectCreated(deployment)
