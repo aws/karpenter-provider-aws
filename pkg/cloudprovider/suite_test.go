@@ -422,7 +422,7 @@ var _ = Describe("CloudProvider", func() {
 				Expect(aws.StringValueSlice(ltInput.LaunchTemplateData.NetworkInterfaces[0].Groups)).To(ConsistOf("sg-test1"))
 			})
 		})
-		It("should discover secuirty groups by ID in the LT when no network interfaces are defined", func() {
+		It("should discover security groups by ID in the LT when no network interfaces are defined", func() {
 			provisioner = test.Provisioner(coretest.ProvisionerOptions{
 				Provider: v1alpha1.AWS{
 					AMIFamily:             aws.String(v1alpha1.AMIFamilyAL2),
