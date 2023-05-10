@@ -119,22 +119,10 @@ func MapInstanceTypes(amis []AMI, instanceTypes []*cloudprovider.InstanceType) (
 	}
 
 	if len(amiIDs) == 0 {
-		return nil, fmt.Errorf("no instance types %v satisfy requirements of amis %v : %w ", instanceNames(instanceTypes), amis, errs)
+		return nil, fmt.Errorf("no instance types satisfy requirements of amis %v \n summary : [ %w ]", amiList(amis), errs)
 	}
 
 	return amiIDs, nil
-}
-
-func instanceNames(instanceTypes []*cloudprovider.InstanceType) string {
-	var sb strings.Builder
-	names := lo.Map(instanceTypes, func(i *cloudprovider.InstanceType, _ int) string { return i.Name })
-	if len(names) > 10 {
-		sb.WriteString(strings.Join(names[:10], ", "))
-		sb.WriteString(fmt.Sprintf(" and %d other(s)", len(names)-10))
-	} else {
-		sb.WriteString(strings.Join(names, ", "))
-	}
-	return sb.String()
 }
 
 // Get Returning a list of AMIs with its associated requirements
