@@ -78,15 +78,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 		env.Cleanup()
 	})
 
-	Context("Multiple Deprovisioners", func() {
-		It("should be a dummy test to compile", func() {
-			Skip("skip dummy test that isn't ready yet")
-			// TODO @joinnis: Write the rest of this test case
-
-			env.ExpectCreated(provisioner, nodeTemplate, deployment)
-			fmt.Println(selector)
-		})
-	})
+	Context("Multiple Deprovisioners", func() {})
 	Context("Consolidation", func() {})
 	Context("Emptiness", func() {
 		It("should deprovision all nodes when empty", func() {
