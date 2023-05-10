@@ -616,6 +616,34 @@ var _ = Describe("Instance Types", func() {
 			Expect(it.Capacity.Pods().Value()).ToNot(BeNumerically("==", 110))
 		}
 	})
+	It("should expose vcpu metrics for instance types", func() {
+		instanceInfo, err := awsEnv.InstanceTypesProvider.List(ctx, provisioner.Spec.KubeletConfiguration, nodeTemplate)
+		Expect(err).To(BeNil())
+		Expect(len(instanceInfo)).To(BeNumerically(">", 0))
+		for _, info := range instanceInfo {
+			metric, ok := FindMetricWithLabelValues("karpenter_cloudprovider_instance_type_cpu_cores", map[string]string{
+				instancetype.InstanceTypeLabel: info.Name,
+			})
+			Expect(ok).To(BeTrue())
+			Expect(metric).To(Not(BeNil()))
+			value := metric.GetGauge().Value
+			Expect(aws.Float64Value(value)).To(BeNumerically(">", 0))
+		}
+	})
+	It("should expose memory metrics for instance types", func() {
+		instanceInfo, err := awsEnv.InstanceTypesProvider.List(ctx, provisioner.Spec.KubeletConfiguration, nodeTemplate)
+		Expect(err).To(BeNil())
+		Expect(len(instanceInfo)).To(BeNumerically(">", 0))
+		for _, info := range instanceInfo {
+			metric, ok := FindMetricWithLabelValues("karpenter_cloudprovider_instance_type_memory_bytes", map[string]string{
+				instancetype.InstanceTypeLabel: info.Name,
+			})
+			Expect(ok).To(BeTrue())
+			Expect(metric).To(Not(BeNil()))
+			value := metric.GetGauge().Value
+			Expect(aws.Float64Value(value)).To(BeNumerically(">", 0))
+		}
+	})
 
 	Context("Overhead", func() {
 		var info *ec2.InstanceTypeInfo

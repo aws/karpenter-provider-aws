@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package pricing
+package instancetype
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
@@ -26,25 +26,31 @@ const (
 )
 
 var (
-	InstanceTypeLabel     = "instance_type"
-	CapacityTypeLabel     = "capacity_type"
-	RegionLabel           = "region"
-	TopologyLabel         = "zone"
-	InstancePriceEstimate = prometheus.NewGaugeVec(
+	InstanceTypeLabel = "instance_type"
+
+	InstanceTypeVCPU = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: metrics.Namespace,
 			Subsystem: cloudProviderSubsystem,
-			Name:      "instance_type_price_estimate",
-			Help:      "Estimated hourly price used when making informed decisions on node cost calculation. This is updated once on startup and then every 12 hours.",
+			Name:      "instance_type_cpu_cores",
+			Help:      "VCPUs cores for a given instance type.",
 		},
 		[]string{
 			InstanceTypeLabel,
-			CapacityTypeLabel,
-			RegionLabel,
-			TopologyLabel,
+		})
+
+	InstanceTypeMemory = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: metrics.Namespace,
+			Subsystem: cloudProviderSubsystem,
+			Name:      "instance_type_memory_bytes",
+			Help:      "Memory, in bytes, for a given instance type.",
+		},
+		[]string{
+			InstanceTypeLabel,
 		})
 )
 
 func init() {
-	crmetrics.Registry.MustRegister(InstancePriceEstimate)
+	crmetrics.Registry.MustRegister(InstanceTypeVCPU, InstanceTypeMemory)
 }
