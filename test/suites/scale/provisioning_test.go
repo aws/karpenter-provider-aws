@@ -27,10 +27,9 @@ import (
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	awstest "github.com/aws/karpenter/pkg/test"
-	"github.com/aws/karpenter/test/pkg/debug"
 )
 
-var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), func() {
+var _ = Describe("Provisioning", func() {
 	var provisioner *v1alpha5.Provisioner
 	var nodeTemplate *v1alpha1.AWSNodeTemplate
 	var deployment *appsv1.Deployment
@@ -92,6 +91,7 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 		replicas := replicasPerNode * expectedNodeCount
 
 		deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
+		// Hostname anti-affinity to require one pod on each node
 		deployment.Spec.Template.Spec.Affinity = &v1.Affinity{
 			PodAntiAffinity: &v1.PodAntiAffinity{
 				RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{

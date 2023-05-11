@@ -1,3 +1,17 @@
+/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package common
 
 import (
@@ -67,25 +81,25 @@ func (env *Environment) ExpectPrometheusRangeQuery(metric string, labels map[str
 func (env *Environment) ExpectSLOsMaintained() {
 	fmt.Printf("# of CloudProvider Create Errors: %s\n", env.ExpectPrometheusQuery(cloudProviderErrorsTotal, map[string]string{"method": "Create"}))
 
-	fmt.Printf("P99 for CloudProvider Create: %s\n", env.ExpectPrometheusHistogramQuantile(cloudProviderMethodDuration, 0.99, map[string]string{"method": "Create"}))
-	fmt.Printf("P90 for CloudProvider Create: %s\n", env.ExpectPrometheusHistogramQuantile(cloudProviderMethodDuration, 0.90, map[string]string{"method": "Create"}))
-	fmt.Printf("P50 for CloudProvider Create: %s\n", env.ExpectPrometheusHistogramQuantile(cloudProviderMethodDuration, 0.50, map[string]string{"method": "Create"}))
+	fmt.Printf("P99 for CloudProvider Create: %s\n", env.ExpectPrometheusHistogramQuantile(cloudProviderMethodDuration, 0.99, map[string]string{"method": "Create"})[0].Value)
+	fmt.Printf("P90 for CloudProvider Create: %s\n", env.ExpectPrometheusHistogramQuantile(cloudProviderMethodDuration, 0.90, map[string]string{"method": "Create"})[0].Value)
+	fmt.Printf("P50 for CloudProvider Create: %s\n", env.ExpectPrometheusHistogramQuantile(cloudProviderMethodDuration, 0.50, map[string]string{"method": "Create"})[0].Value)
 
-	fmt.Printf("P99 for Scheduling: %s\n", env.ExpectPrometheusHistogramQuantile(schedulingDuration, 0.99, nil))
-	fmt.Printf("P90 for Scheduling: %s\n", env.ExpectPrometheusHistogramQuantile(schedulingDuration, 0.90, nil))
-	fmt.Printf("P50 for Scheduling: %s\n", env.ExpectPrometheusHistogramQuantile(schedulingDuration, 0.50, nil))
+	fmt.Printf("P99 for Scheduling: %s\n", env.ExpectPrometheusHistogramQuantile(schedulingDuration, 0.99, nil)[0].Value)
+	fmt.Printf("P90 for Scheduling: %s\n", env.ExpectPrometheusHistogramQuantile(schedulingDuration, 0.90, nil)[0].Value)
+	fmt.Printf("P50 for Scheduling: %s\n", env.ExpectPrometheusHistogramQuantile(schedulingDuration, 0.50, nil)[0].Value)
 
-	fmt.Printf("P99 for Deprovisioning Emptiness: %s\n", env.ExpectPrometheusHistogramQuantile(deprovisioningDurationBucket, 0.99, map[string]string{"method": "emptiness"}))
-	fmt.Printf("P90 for Deprovisioning Emptiness: %s\n", env.ExpectPrometheusHistogramQuantile(deprovisioningDurationBucket, 0.90, map[string]string{"method": "emptiness"}))
-	fmt.Printf("P50 for Deprovisioning Emptiness: %s\n", env.ExpectPrometheusHistogramQuantile(deprovisioningDurationBucket, 0.50, map[string]string{"method": "emptiness"}))
+	fmt.Printf("P99 for Deprovisioning Emptiness: %s\n", env.ExpectPrometheusHistogramQuantile(deprovisioningDurationBucket, 0.99, map[string]string{"method": "emptiness"})[0].Value)
+	fmt.Printf("P90 for Deprovisioning Emptiness: %s\n", env.ExpectPrometheusHistogramQuantile(deprovisioningDurationBucket, 0.90, map[string]string{"method": "emptiness"})[0].Value)
+	fmt.Printf("P50 for Deprovisioning Emptiness: %s\n", env.ExpectPrometheusHistogramQuantile(deprovisioningDurationBucket, 0.50, map[string]string{"method": "emptiness"})[0].Value)
 
-	fmt.Printf("P99 for Pod Startup Time: %s\n", env.ExpectPrometheusSummaryQuantile(podStartupTime, 0.99, nil))
-	fmt.Printf("P90 for Pod Startup Time: %s\n", env.ExpectPrometheusSummaryQuantile(podStartupTime, 0.9, nil))
-	fmt.Printf("P90 for Pod Startup Time: %s\n", env.ExpectPrometheusSummaryQuantile(podStartupTime, 0.5, nil))
+	fmt.Printf("P99 for Pod Startup Time: %s\n", env.ExpectPrometheusSummaryQuantile(podStartupTime, 0.99, nil)[0].Value)
+	fmt.Printf("P90 for Pod Startup Time: %s\n", env.ExpectPrometheusSummaryQuantile(podStartupTime, 0.9, nil)[0].Value)
+	fmt.Printf("P90 for Pod Startup Time: %s\n", env.ExpectPrometheusSummaryQuantile(podStartupTime, 0.5, nil)[0].Value)
 
-	fmt.Printf("P99 for Node Termination Time: %s\n", env.ExpectPrometheusSummaryQuantile(nodeTerminationTime, 0.99, nil))
-	fmt.Printf("P90 for Node Termination Time: %s\n", env.ExpectPrometheusSummaryQuantile(nodeTerminationTime, 0.9, nil))
-	fmt.Printf("P90 for Node Termination Time: %s\n", env.ExpectPrometheusSummaryQuantile(nodeTerminationTime, 0.5, nil))
+	fmt.Printf("P99 for Node Termination Time: %s\n", env.ExpectPrometheusSummaryQuantile(nodeTerminationTime, 0.99, nil)[0].Value)
+	fmt.Printf("P90 for Node Termination Time: %s\n", env.ExpectPrometheusSummaryQuantile(nodeTerminationTime, 0.9, nil)[0].Value)
+	fmt.Printf("P90 for Node Termination Time: %s\n", env.ExpectPrometheusSummaryQuantile(nodeTerminationTime, 0.5, nil)[0].Value)
 }
 
 func buildHistogramQuantileQueryString(metric string, quantile float64, labels map[string]string) string {

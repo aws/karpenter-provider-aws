@@ -301,6 +301,17 @@ func NodeNames(nodes []*v1.Node) []string {
 	})
 }
 
+func (env *Environment) EventuallyExpectNodeCount(comparator string, count int) []*v1.Node {
+	By(fmt.Sprintf("waiting for nodes to be %s to %d", comparator, count))
+	nodeList := &v1.NodeList{}
+	EventuallyWithOffset(1, func(g Gomega) {
+		g.Expect(env.Client.List(env, nodeList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
+		g.Expect(len(nodeList.Items)).To(BeNumerically(comparator, count),
+			fmt.Sprintf("expected %d nodes, had %d (%v)", count, len(nodeList.Items), NodeNames(lo.ToSlicePtr(nodeList.Items))))
+	}).Should(Succeed())
+	return lo.ToSlicePtr(nodeList.Items)
+}
+
 func (env *Environment) EventuallyExpectCreatedNodeCount(comparator string, count int) []*v1.Node {
 	By(fmt.Sprintf("waiting for created nodes to be %s to %d", comparator, count))
 	var createdNodes []*v1.Node

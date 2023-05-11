@@ -19,21 +19,25 @@ import (
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/uuid"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/controllers/interruption/messages"
+	"github.com/aws/karpenter/pkg/controllers/interruption/messages/scheduledchange"
 	awstest "github.com/aws/karpenter/pkg/test"
-	"github.com/aws/karpenter/test/pkg/debug"
+	"github.com/aws/karpenter/pkg/utils"
 )
 
-var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), func() {
+var _ = Describe("Deprovisioning", func() {
 	var provisioner *v1alpha5.Provisioner
 	var nodeTemplate *v1alpha1.AWSNodeTemplate
 	var deployment *appsv1.Deployment
@@ -75,7 +79,17 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			// https://tenor.com/view/chaos-gif-22919457
 			Limits: v1.ResourceList{},
 		})
-		deployment = test.Deployment()
+		deployment = test.Deployment(test.DeploymentOptions{
+			PodOptions: test.PodOptions{
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{
+						v1.ResourceCPU:    resource.MustParse("100m"),
+						v1.ResourceMemory: resource.MustParse("100Mi"),
+					},
+				},
+				TerminationGracePeriodSeconds: lo.ToPtr[int64](0),
+			},
+		})
 		// Zonal topology spread to avoid exhausting IPs in each subnet
 		deployment.Spec.Template.Spec.TopologySpreadConstraints = []v1.TopologySpreadConstraint{
 			{
@@ -94,11 +108,9 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 	})
 
 	Context("Multiple Deprovisioners", func() {})
-	Context("Consolidation", func() {})
-	Context("Emptiness", func() {
-		It("should deprovision all nodes when empty", func() {
-			// Before Deprovisioning, we need to Provision the cluster to the state that we need.
-			replicasPerNode := 1
+	Context("Consolidation", func() {
+		It("should consolidate nodes to get a higher utilization (multi-consolidation delete)", func() {
+			replicasPerNode := 20
 			maxPodDensity := replicasPerNode + dsCount
 			expectedNodeCount := 200
 			replicas := replicasPerNode * expectedNodeCount
@@ -115,18 +127,97 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			By("kicking off provisioning by applying the provisioner and nodeTemplate")
 			env.ExpectCreated(provisioner, nodeTemplate)
 
-			startTime := time.Now()
-
-			env.EventuallyExpectCreatedMachineCount(">=", expectedNodeCount)
-			env.EventuallyExpectCreatedNodeCount(">=", expectedNodeCount)
-			env.EventuallyExpectInitializedNodeCount(">=", expectedNodeCount)
+			env.EventuallyExpectCreatedMachineCount("==", expectedNodeCount)
+			env.EventuallyExpectCreatedNodeCount("==", expectedNodeCount)
+			env.EventuallyExpectInitializedNodeCount("==", expectedNodeCount)
 			env.EventuallyExpectHealthyPodCount(selector, replicas)
-			fmt.Printf("It took %f for all pods to be healthy", time.Since(startTime).Seconds())
 
-			createdNodes := env.Monitor.CreatedNodeCount()
+			env.Monitor.Reset() // Reset the monitor so that we now track the nodes starting at this point in time
 
-			By(fmt.Sprintf("created %d nodes. resetting monitor for deprovisioning.", createdNodes))
-			env.Monitor.Reset()
+			replicas = int(float64(replicas) * 0.2)
+			deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
+			env.ExpectUpdated(deployment)
+
+			By("kicking off deprovisioning by adding enabling consolidation")
+			provisioner.Spec.Consolidation = &v1alpha5.Consolidation{Enabled: lo.ToPtr(true)}
+			env.ExpectUpdated(provisioner)
+
+			env.EventuallyExpectDeletedNodeCount("==", int(float64(expectedNodeCount)*0.8))
+			env.EventuallyExpectNodeCount("==", int(float64(expectedNodeCount)*0.2))
+			env.EventuallyExpectHealthyPodCount(selector, replicas)
+		})
+		It("should consolidate nodes to get a higher utilization (multi-consolidation replace)", func() {
+			replicasPerNode := 1
+			expectedNodeCount := 30
+			replicas := replicasPerNode * expectedNodeCount
+
+			deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
+			// Hostname anti-affinity to require one pod on each node
+			deployment.Spec.Template.Spec.Affinity = &v1.Affinity{
+				PodAntiAffinity: &v1.PodAntiAffinity{
+					RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
+						{
+							LabelSelector: deployment.Spec.Selector,
+							TopologyKey:   v1.LabelHostname,
+						},
+					},
+				},
+			}
+
+			By("waiting for the deployment to deploy all of its pods")
+			env.ExpectCreated(deployment)
+			env.EventuallyExpectPendingPodCount(selector, replicas)
+
+			By("kicking off provisioning by applying the provisioner and nodeTemplate")
+			env.ExpectCreated(provisioner, nodeTemplate)
+
+			env.EventuallyExpectCreatedMachineCount("==", expectedNodeCount)
+			env.EventuallyExpectCreatedNodeCount("==", expectedNodeCount)
+			env.EventuallyExpectInitializedNodeCount("==", expectedNodeCount)
+			env.EventuallyExpectHealthyPodCount(selector, replicas)
+
+			env.Monitor.Reset() // Reset the monitor so that we now track the nodes starting at this point in time
+
+			By("kicking off deprovisioning by adding enabling consolidation")
+			// The provisioner defaults to a larger instance type than we need so enabling consolidation and making
+			// the requirements wide-open should cause deletes and increase our utilization on the cluster
+			provisioner.Spec.Consolidation = &v1alpha5.Consolidation{Enabled: lo.ToPtr(true)}
+			provisioner.Spec.Requirements = lo.Reject(provisioner.Spec.Requirements, func(r v1.NodeSelectorRequirement, _ int) bool {
+				return r.Key == v1alpha1.LabelInstanceSize
+			})
+			env.ExpectUpdated(provisioner)
+
+			env.EventuallyExpectDeletedNodeCount("==", expectedNodeCount) // every node should delete due to replacement
+			env.EventuallyExpectNodeCount("==", expectedNodeCount)
+			env.EventuallyExpectHealthyPodCount(selector, replicas)
+		})
+	})
+	Context("Emptiness", func() {
+		It("should deprovision all nodes when empty", func() {
+			replicasPerNode := 20
+			maxPodDensity := replicasPerNode + dsCount
+			expectedNodeCount := 200
+			replicas := replicasPerNode * expectedNodeCount
+
+			deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
+			provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
+				MaxPods: lo.ToPtr[int32](int32(maxPodDensity)),
+			}
+
+			By("waiting for the deployment to deploy all of its pods")
+			env.ExpectCreated(deployment)
+			env.EventuallyExpectPendingPodCount(selector, replicas)
+
+			By("kicking off provisioning by applying the provisioner and nodeTemplate")
+			env.ExpectCreated(provisioner, nodeTemplate)
+
+			env.EventuallyExpectCreatedMachineCount("==", expectedNodeCount)
+			env.EventuallyExpectCreatedNodeCount("==", expectedNodeCount)
+			env.EventuallyExpectInitializedNodeCount("==", expectedNodeCount)
+			env.EventuallyExpectHealthyPodCount(selector, replicas)
+
+			env.Monitor.Reset() // Reset the monitor so that we now track the nodes starting at this point in time
+
 			By("waiting for all deployment pods to be deleted")
 			// Fully scale down all pods to make nodes empty
 			deployment.Spec.Replicas = lo.ToPtr[int32](0)
@@ -134,18 +225,17 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			env.EventuallyExpectHealthyPodCount(selector, 0)
 
 			By("kicking off deprovisioning by adding ttlSecondsAfterEmpty")
-			startTime = time.Now()
 			provisioner.Spec.TTLSecondsAfterEmpty = lo.ToPtr[int64](0)
 			env.ExpectCreatedOrUpdated(provisioner)
 
-			env.EventuallyExpectDeletedNodeCount("==", createdNodes)
-			fmt.Printf("It took %f for all nodes to be deprovisioned", time.Since(startTime).Seconds())
+			env.EventuallyExpectDeletedNodeCount("==", expectedNodeCount)
+			env.EventuallyExpectNodeCount("==", 0)
+			env.EventuallyExpectHealthyPodCount(selector, replicas)
 		})
 	})
 	Context("Expiration", func() {
 		It("should expire all nodes", func() {
-			// Before Deprovisioning, we need to Provision the cluster to the state that we need.
-			replicasPerNode := 1
+			replicasPerNode := 20
 			maxPodDensity := replicasPerNode + dsCount
 			expectedNodeCount := 30
 			replicas := replicasPerNode * expectedNodeCount
@@ -162,15 +252,13 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			By("kicking off provisioning by applying the provisioner and nodeTemplate")
 			env.ExpectCreated(provisioner, nodeTemplate)
 
-			env.EventuallyExpectCreatedMachineCount(">=", expectedNodeCount)
-			env.EventuallyExpectCreatedNodeCount(">=", expectedNodeCount)
-			env.EventuallyExpectInitializedNodeCount(">=", expectedNodeCount)
+			env.EventuallyExpectCreatedMachineCount("==", expectedNodeCount)
+			env.EventuallyExpectCreatedNodeCount("==", expectedNodeCount)
+			env.EventuallyExpectInitializedNodeCount("==", expectedNodeCount)
 			env.EventuallyExpectHealthyPodCount(selector, replicas)
 
-			createdNodes := env.Monitor.CreatedNodeCount()
+			env.Monitor.Reset() // Reset the monitor so that we now track the nodes starting at this point in time
 
-			By(fmt.Sprintf("Created %d nodes. Resetting monitor for deprovisioning.", createdNodes))
-			env.Monitor.Reset()
 			By("kicking off deprovisioning by adding expiration and another provisioner")
 			// Change Provisioner limits so that replacement nodes will use another provisioner.
 			provisioner.Spec.Limits = &v1alpha5.Limits{
@@ -200,13 +288,16 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 				},
 			})
 			env.ExpectCreatedOrUpdated(provisioner, noExpireProvisioner)
-			env.EventuallyExpectDeletedNodeCount("==", createdNodes)
+
+			env.EventuallyExpectDeletedNodeCount("==", expectedNodeCount)
+			env.EventuallyExpectNodeCount("==", expectedNodeCount)
+			env.EventuallyExpectHealthyPodCount(selector, replicas)
 		})
 	})
 	Context("Drift", func() {
 		It("should drift all nodes", func() {
 			// Before Deprovisioning, we need to Provision the cluster to the state that we need.
-			replicasPerNode := 1
+			replicasPerNode := 20
 			maxPodDensity := replicasPerNode + dsCount
 			expectedNodeCount := 30
 			replicas := replicasPerNode * expectedNodeCount
@@ -223,15 +314,13 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			By("kicking off provisioning by applying the provisioner and nodeTemplate")
 			env.ExpectCreated(provisioner, nodeTemplate)
 
-			env.EventuallyExpectCreatedMachineCount(">=", expectedNodeCount)
-			env.EventuallyExpectCreatedNodeCount(">=", expectedNodeCount)
-			env.EventuallyExpectInitializedNodeCount(">=", expectedNodeCount)
+			env.EventuallyExpectCreatedMachineCount("==", expectedNodeCount)
+			env.EventuallyExpectCreatedNodeCount("==", expectedNodeCount)
+			env.EventuallyExpectInitializedNodeCount("==", expectedNodeCount)
 			env.EventuallyExpectHealthyPodCount(selector, replicas)
 
-			createdNodes := env.Monitor.CreatedNodeCount()
+			env.Monitor.Reset() // Reset the monitor so that we now track the nodes starting at this point in time
 
-			By(fmt.Sprintf("Created %d nodes. Resetting monitor for deprovisioning.", createdNodes))
-			env.Monitor.Reset()
 			By("waiting for all deployment pods to be deleted")
 			// Fully scale down all pods to make nodes empty
 			deployment.Spec.Replicas = lo.ToPtr[int32](0)
@@ -242,8 +331,76 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			provisioner.Spec.TTLSecondsAfterEmpty = lo.ToPtr[int64](0)
 			env.ExpectCreatedOrUpdated(provisioner)
 
-			env.EventuallyExpectDeletedNodeCount("==", createdNodes)
+			env.EventuallyExpectDeletedNodeCount("==", expectedNodeCount)
+			env.EventuallyExpectNodeCount("==", expectedNodeCount)
+			env.EventuallyExpectHealthyPodCount(selector, replicas)
 		})
 	})
-	Context("Interruption", func() {})
+	Context("Interruption", func() {
+		It("should interrupt all nodes due to scheduledChange", func() {
+			replicasPerNode := 20
+			maxPodDensity := replicasPerNode + dsCount
+			expectedNodeCount := 200
+			replicas := replicasPerNode * expectedNodeCount
+
+			deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
+			provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
+				MaxPods: lo.ToPtr[int32](int32(maxPodDensity)),
+			}
+
+			By("waiting for the deployment to deploy all of its pods")
+			env.ExpectCreated(deployment)
+			env.EventuallyExpectPendingPodCount(selector, replicas)
+
+			By("kicking off provisioning by applying the provisioner and nodeTemplate")
+			env.ExpectCreated(provisioner, nodeTemplate)
+
+			env.EventuallyExpectCreatedMachineCount("==", expectedNodeCount)
+			env.EventuallyExpectCreatedNodeCount("==", expectedNodeCount)
+			nodes := env.EventuallyExpectInitializedNodeCount("==", expectedNodeCount)
+			env.EventuallyExpectHealthyPodCount(selector, replicas)
+
+			env.Monitor.Reset() // Reset the monitor so that we now track the nodes starting at this point in time
+
+			var msgs []scheduledchange.Message
+			for _, node := range nodes {
+				instanceID, err := utils.ParseInstanceID(node.Spec.ProviderID)
+				Expect(err).ToNot(HaveOccurred())
+				msgs = append(msgs, scheduledChangeMessage(env.Region, "000000000000", instanceID))
+			}
+
+			By("kicking off deprovisioning by creating scheduledChange messages against the SQS queue")
+			env.ExpectMessagesCreated(msgs)
+
+			env.EventuallyExpectDeletedNodeCount("==", expectedNodeCount)
+			env.EventuallyExpectNodeCount("==", expectedNodeCount)
+			env.EventuallyExpectHealthyPodCount(selector, replicas)
+		})
+	})
 })
+
+func scheduledChangeMessage(region, accountID, involvedInstanceID string) scheduledchange.Message {
+	return scheduledchange.Message{
+		Metadata: messages.Metadata{
+			Version:    "0",
+			Account:    accountID,
+			DetailType: "AWS Health Event",
+			ID:         string(uuid.NewUUID()),
+			Region:     region,
+			Resources: []string{
+				fmt.Sprintf("arn:aws:ec2:%s:instance/%s", region, involvedInstanceID),
+			},
+			Source: "aws.health",
+			Time:   time.Now(),
+		},
+		Detail: scheduledchange.Detail{
+			Service:           "EC2",
+			EventTypeCategory: "scheduledChange",
+			AffectedEntities: []scheduledchange.AffectedEntity{
+				{
+					EntityValue: involvedInstanceID,
+				},
+			},
+		},
+	}
+}
