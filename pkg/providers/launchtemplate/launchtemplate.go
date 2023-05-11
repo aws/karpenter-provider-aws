@@ -110,7 +110,7 @@ func (p *Provider) EnsureAll(ctx context.Context, nodeTemplate *v1alpha1.AWSNode
 	launchTemplates := map[string][]*cloudprovider.InstanceType{}
 	for _, resolvedLaunchTemplate := range resolvedLaunchTemplates {
 		// Ensure the launch template exists, or create it
-		ec2LaunchTemplate, err := p.ensureLaunchTemplate(ctx, resolvedLaunchTemplate, nodeTemplate)
+		ec2LaunchTemplate, err := p.ensureLaunchTemplate(ctx, resolvedLaunchTemplate)
 		if err != nil {
 			return nil, err
 		}
@@ -154,6 +154,11 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeTemplate *v1alpha1.
 	if err != nil {
 		return nil, err
 	}
+	anyPublicIPv4Associations, err := p.subnetProvider.CheckAnyPublicIPv4Associations(ctx, nodeTemplate)
+	if err != nil {
+		return nil, err
+	}
+
 	return &amifamily.Options{
 		ClusterName:             settings.FromContext(ctx).ClusterName,
 		ClusterEndpoint:         p.ClusterEndpoint,
@@ -162,15 +167,15 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeTemplate *v1alpha1.
 		SecurityGroups: lo.Map(securityGroups, func(s *ec2.SecurityGroup, _ int) v1alpha1.SecurityGroup {
 			return v1alpha1.SecurityGroup{ID: aws.StringValue(s.GroupId), Name: aws.StringValue(s.GroupName)}
 		}),
-		Tags:                     tags,
-		Labels:                   labels,
-		CABundle:                 p.caBundle,
-		KubeDNSIP:                p.KubeDNSIP,
-		AssociatePublicIPv4Addrs: associatePublicIPv4Addrs,
+		Tags:                       tags,
+		Labels:                     labels,
+		CABundle:                   p.caBundle,
+		KubeDNSIP:                  p.KubeDNSIP,
+		AssociatePublicIpv4Address: aws.Bool(anyPublicIPv4Associations),
 	}, nil
 }
 
-func (p *Provider) ensureLaunchTemplate(ctx context.Context, options *amifamily.LaunchTemplate, nodeTemplate *v1alpha1.AWSNodeTemplate) (*ec2.LaunchTemplate, error) {
+func (p *Provider) ensureLaunchTemplate(ctx context.Context, options *amifamily.LaunchTemplate) (*ec2.LaunchTemplate, error) {
 	var launchTemplate *ec2.LaunchTemplate
 	name := launchTemplateName(options)
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("launch-template-name", name))
@@ -185,7 +190,7 @@ func (p *Provider) ensureLaunchTemplate(ctx context.Context, options *amifamily.
 	})
 	// Create LT if one doesn't exist
 	if awserrors.IsNotFound(err) {
-		launchTemplate, err = p.createLaunchTemplate(ctx, options, nodeTemplate)
+		launchTemplate, err = p.createLaunchTemplate(ctx, options)
 		if err != nil {
 			return nil, fmt.Errorf("creating launch template, %w", err)
 		}
@@ -203,16 +208,12 @@ func (p *Provider) ensureLaunchTemplate(ctx context.Context, options *amifamily.
 	return launchTemplate, nil
 }
 
-func (p *Provider) createLaunchTemplate(ctx context.Context, options *amifamily.LaunchTemplate, nodeTemplate *v1alpha1.AWSNodeTemplate) (*ec2.LaunchTemplate, error) {
+func (p *Provider) createLaunchTemplate(ctx context.Context, options *amifamily.LaunchTemplate) (*ec2.LaunchTemplate, error) {
 	userData, err := options.UserData.Script()
 	if err != nil {
 		return nil, err
 	}
-	networkInterface, err := p.generateNetworkInterface(ctx, nodeTemplate, options)
-	if err != nil {
-		return nil, err
-	}
-
+	networkInterface := p.generateNetworkInterface(options)
 	var securityGroupIds []*string
 	if networkInterface != nil {
 		securityGroupIds = nil // if the network interface is defined, the security groups are defined within it
@@ -257,21 +258,17 @@ func (p *Provider) createLaunchTemplate(ctx context.Context, options *amifamily.
 	return output.LaunchTemplate, nil
 }
 
-func (p *Provider) generateNetworkInterface(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, options *amifamily.LaunchTemplate) ([]*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest, error) {
-	associatePublicIPv4Addrs, err := p.subnetProvider.CheckAnyPublicIPv4Associations(ctx, nodeTemplate)
-	if err != nil {
-		return nil, err
-	}
-	if !associatePublicIPv4Addrs {
+func (p *Provider) generateNetworkInterface(options *amifamily.LaunchTemplate) []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest {
+	if !aws.BoolValue(options.AssociatePublicIpv4Address) {
 		return []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
 			{
 				AssociatePublicIpAddress: aws.Bool(false),
 				DeviceIndex:              aws.Int64(0),
 				Groups:                   lo.Map(options.SecurityGroups, func(s v1alpha1.SecurityGroup, _ int) *string { return aws.String(s.ID) }),
 			},
-		}, nil
+		}
 	}
-	return nil, nil
+	return nil
 }
 
 func (p *Provider) blockDeviceMappings(blockDeviceMappings []*v1alpha1.BlockDeviceMapping) []*ec2.LaunchTemplateBlockDeviceMappingRequest {
