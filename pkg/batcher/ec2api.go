@@ -17,7 +17,7 @@ package batcher
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/ec2iface"
 )
 
 type EC2API struct {

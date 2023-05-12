@@ -25,7 +25,7 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/utils/resources"
 
-	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go-v2/aws"
 )
 
 type Bottlerocket struct {

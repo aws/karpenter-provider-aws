@@ -20,9 +20,9 @@ import (
 	"fmt"
 	syncatomic "sync/atomic"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/sqs"
-	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	"github.com/aws/aws-sdk-go-v2/service/sqs/sqsiface"
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter-core/pkg/utils/atomic"

@@ -17,8 +17,8 @@ package instance
 import (
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"

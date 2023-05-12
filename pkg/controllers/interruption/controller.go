@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"time"
 
-	sqsapi "github.com/aws/aws-sdk-go/service/sqs"
+	sqsapi "github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
