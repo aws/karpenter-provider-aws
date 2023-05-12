@@ -1,6 +1,3 @@
-# Logout of docker to perform an unauthenticated pull against the public ECR
-docker logout public.ecr.aws
-
 # Logout of helm registry to perform an authenticated pull against the public ECR
 helm registry logout public.ecr.aws
 
