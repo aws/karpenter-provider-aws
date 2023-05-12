@@ -117,6 +117,16 @@ type MetadataOptions struct {
 	// 1.0 credentials are not available.
 	// +optional
 	HTTPTokens *string `json:"httpTokens,omitempty"`
+
+	// InstanceMetadataTags enables access to tags in the instance
+	// metadata. It allows local processes that are running on an instance to
+	// view the instance's tag information directly from the instance metadata.
+	// That means you do not need to execute DescribeInstances or DescribeTags
+	// API calls to retrieve tag information, which reduces amount of your AWS API
+	// calls. For more information see Work with instance tags in instance metadata (https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html#allow-access-to-tags-in-IMDS).
+	// If metadata options is non-nil, but this parameter is not specified, the
+	// default state is \"disabled\"."
+	InstanceMetadataTags *string `json:"instanceMetadataTags,omitempty"`
 }
 
 type BlockDeviceMapping struct {

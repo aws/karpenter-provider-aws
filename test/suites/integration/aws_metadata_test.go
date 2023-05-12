@@ -40,6 +40,7 @@ var _ = Describe("MetadataOptions", func() {
 						HTTPProtocolIPv6:        aws.String("enabled"),
 						HTTPPutResponseHopLimit: aws.Int64(1),
 						HTTPTokens:              aws.String("required"),
+						InstanceMetadataTags:    aws.String("enabled"),
 					},
 				},
 			},
@@ -57,7 +58,7 @@ var _ = Describe("MetadataOptions", func() {
 			HttpProtocolIpv6:        aws.String("enabled"),
 			HttpPutResponseHopLimit: aws.Int64(1),
 			HttpTokens:              aws.String("required"),
-			InstanceMetadataTags:    aws.String("disabled"),
+			InstanceMetadataTags:    aws.String("enabled"),
 		}))))
 	})
 })

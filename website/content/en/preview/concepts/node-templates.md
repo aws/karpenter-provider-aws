@@ -285,6 +285,7 @@ spec:
     httpProtocolIPv6: disabled
     httpPutResponseHopLimit: 2
     httpTokens: required
+    instanceMetadataTags: disabled
 ```
 
 ## spec.blockDeviceMappings

@@ -191,6 +191,7 @@ func (o Options) DefaultMetadataOptions() *v1alpha1.MetadataOptions {
 		HTTPProtocolIPv6:        aws.String(lo.Ternary(o.KubeDNSIP == nil || o.KubeDNSIP.To4() != nil, ec2.LaunchTemplateInstanceMetadataProtocolIpv6Disabled, ec2.LaunchTemplateInstanceMetadataProtocolIpv6Enabled)),
 		HTTPPutResponseHopLimit: aws.Int64(2),
 		HTTPTokens:              aws.String(ec2.LaunchTemplateHttpTokensStateRequired),
+		InstanceMetadataTags:    aws.String(ec2.LaunchTemplateInstanceMetadataTagsStateDisabled),
 	}
 }
 

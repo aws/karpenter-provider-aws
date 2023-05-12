@@ -149,6 +149,7 @@ func (a *AWS) validateMetadataOptions() (errs *apis.FieldError) {
 		a.validateHTTPProtocolIpv6(),
 		a.validateHTTPPutResponseHopLimit(),
 		a.validateHTTPTokens(),
+		a.validateInstanceMetadataTags(),
 	).ViaField(metadataOptionsPath)
 }
 
@@ -182,6 +183,13 @@ func (a *AWS) validateHTTPTokens() *apis.FieldError {
 		return nil
 	}
 	return a.validateStringEnum(*a.MetadataOptions.HTTPTokens, "httpTokens", ec2.LaunchTemplateHttpTokensState_Values())
+}
+
+func (a *AWS) validateInstanceMetadataTags() *apis.FieldError {
+	if a.MetadataOptions.InstanceMetadataTags == nil {
+		return nil
+	}
+	return a.validateStringEnum(*a.MetadataOptions.InstanceMetadataTags, "instanceMetadataTags", ec2.LaunchTemplateInstanceMetadataTagsState_Values())
 }
 
 func (a *AWS) validateAMIFamily() *apis.FieldError {

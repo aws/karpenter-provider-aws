@@ -217,6 +217,7 @@ func (p *Provider) createLaunchTemplate(ctx context.Context, options *amifamily.
 				HttpProtocolIpv6:        options.MetadataOptions.HTTPProtocolIPv6,
 				HttpPutResponseHopLimit: options.MetadataOptions.HTTPPutResponseHopLimit,
 				HttpTokens:              options.MetadataOptions.HTTPTokens,
+				InstanceMetadataTags:    options.MetadataOptions.InstanceMetadataTags,
 			},
 			TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{
 				{ResourceType: aws.String(ec2.ResourceTypeNetworkInterface), Tags: utils.MergeTags(options.Tags)},

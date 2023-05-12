@@ -1343,6 +1343,7 @@ var _ = Describe("Instance Types", func() {
 				Expect(*ltInput.LaunchTemplateData.MetadataOptions.HttpProtocolIpv6).To(Equal(ec2.LaunchTemplateInstanceMetadataProtocolIpv6Disabled))
 				Expect(*ltInput.LaunchTemplateData.MetadataOptions.HttpPutResponseHopLimit).To(Equal(int64(2)))
 				Expect(*ltInput.LaunchTemplateData.MetadataOptions.HttpTokens).To(Equal(ec2.LaunchTemplateHttpTokensStateRequired))
+				Expect(*ltInput.LaunchTemplateData.MetadataOptions.InstanceMetadataTags).To(Equal(ec2.LaunchTemplateInstanceMetadataTagsStateDisabled))
 			})
 		})
 		It("should set metadata options on generated launch template from provisioner configuration", func() {
@@ -1362,6 +1363,7 @@ var _ = Describe("Instance Types", func() {
 				Expect(*ltInput.LaunchTemplateData.MetadataOptions.HttpProtocolIpv6).To(Equal(ec2.LaunchTemplateInstanceMetadataProtocolIpv6Enabled))
 				Expect(*ltInput.LaunchTemplateData.MetadataOptions.HttpPutResponseHopLimit).To(Equal(int64(1)))
 				Expect(*ltInput.LaunchTemplateData.MetadataOptions.HttpTokens).To(Equal(ec2.LaunchTemplateHttpTokensStateOptional))
+				Expect(*ltInput.LaunchTemplateData.MetadataOptions.InstanceMetadataTags).To(Equal(ec2.LaunchTemplateInstanceMetadataTagsStateEnabled))
 			})
 		})
 	})
