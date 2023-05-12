@@ -24,7 +24,7 @@ iam:
       namespace: karpenter
     roleName: ${CLUSTER_NAME}-karpenter
     attachPolicyARNs:
-    - arn:aws:iam::${AWS_ACCOUNT_ID}:policy/KarpenterControllerPolicy-${CLUSTER_NAME}
+    - arn:${AWS_PARTITION}:iam::${AWS_ACCOUNT_ID}:policy/KarpenterControllerPolicy-${CLUSTER_NAME}
     roleOnly: true
 
 iamIdentityMappings:
