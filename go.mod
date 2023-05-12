@@ -8,6 +8,7 @@ require (
 	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/aws/aws-sdk-go-v2 v1.44.253
 	github.com/aws/karpenter-core v0.27.4-0.20230503190441-611e27dd0aef
+
 	github.com/go-playground/validator/v10 v10.13.0
 	github.com/imdario/mergo v0.3.15
 	github.com/mitchellh/hashstructure/v2 v2.0.2
@@ -26,7 +27,7 @@ require (
 	k8s.io/apimachinery v0.25.4
 	k8s.io/client-go v0.25.4
 	k8s.io/utils v0.0.0-20221108210102-8e77b1f39fe2
-	knative.dev/pkg v0.0.0-20221123154742-05b694ec4d3a
+	knative.dev/pkg v0.0.0-20230502134655-db8a35330281
 	sigs.k8s.io/controller-runtime v0.13.1
 )
 
