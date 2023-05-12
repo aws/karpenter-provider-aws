@@ -154,12 +154,7 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeTemplate *v1alpha1.
 	if err != nil {
 		return nil, err
 	}
-	anyPublicIPv4Associations, err := p.subnetProvider.CheckAnyPublicIPv4Associations(ctx, nodeTemplate)
-	if err != nil {
-		return nil, err
-	}
-
-	return &amifamily.Options{
+	options := &amifamily.Options{
 		ClusterName:             settings.FromContext(ctx).ClusterName,
 		ClusterEndpoint:         p.ClusterEndpoint,
 		AWSENILimitedPodDensity: settings.FromContext(ctx).EnableENILimitedPodDensity,
@@ -167,12 +162,21 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeTemplate *v1alpha1.
 		SecurityGroups: lo.Map(securityGroups, func(s *ec2.SecurityGroup, _ int) v1alpha1.SecurityGroup {
 			return v1alpha1.SecurityGroup{ID: aws.StringValue(s.GroupId), Name: aws.StringValue(s.GroupName)}
 		}),
-		Tags:                       tags,
-		Labels:                     labels,
-		CABundle:                   p.caBundle,
-		KubeDNSIP:                  p.KubeDNSIP,
-		AssociatePublicIpv4Address: aws.Bool(anyPublicIPv4Associations),
-	}, nil
+		Tags:      tags,
+		Labels:    labels,
+		CABundle:  p.caBundle,
+		KubeDNSIP: p.KubeDNSIP,
+	}
+	if ok, err := p.subnetProvider.CheckAnyPublicIPv4Associations(ctx, nodeTemplate); err != nil {
+		return nil, err
+	} else if !ok {
+		// If all referenced subnets do not assign public IPv4 addresses to EC2 instances therein, we explicitly set
+		// AssociatePublicIpAddress to 'false' in the Launch Template, generated based on this configuration struct.
+		// This is done to help comply with with AWS account policies that require the explicitly setting of that field to 'false'.
+		// https://github.com/aws/karpenter/issues/3815
+		options.AssociatePublicIpv4Address = aws.Bool(false)
+	}
+	return options, nil
 }
 
 func (p *Provider) ensureLaunchTemplate(ctx context.Context, options *amifamily.LaunchTemplate) (*ec2.LaunchTemplate, error) {
@@ -259,10 +263,10 @@ func (p *Provider) createLaunchTemplate(ctx context.Context, options *amifamily.
 }
 
 func (p *Provider) generateNetworkInterface(options *amifamily.LaunchTemplate) []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest {
-	if !aws.BoolValue(options.AssociatePublicIpv4Address) {
+	if options.AssociatePublicIpv4Address != nil {
 		return []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
 			{
-				AssociatePublicIpAddress: aws.Bool(false),
+				AssociatePublicIpAddress: options.AssociatePublicIpv4Address,
 				DeviceIndex:              aws.Int64(0),
 				Groups:                   lo.Map(options.SecurityGroups, func(s v1alpha1.SecurityGroup, _ int) *string { return aws.String(s.ID) }),
 			},
