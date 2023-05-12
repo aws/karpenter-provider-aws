@@ -7,18 +7,14 @@ runs:
       with:
         go-version-file: go.mod
         check-latest: true
+        cache-dependency-path: "**/go.sum"
     - uses: actions/cache@v3
-      id: cache-deps
+      id: cache-toolchain
       with:
         path: |
-          ~/.cache/go-build
-          ~/go/pkg/
-          ~/go/bin/
           ~/.kubebuilder/bin
-        key: ${{ runner.os }}-go-cache-${{ hashFiles('go.sum', 'hack/toolchain.sh') }}
-    - run: |
-        make toolchain
+          ~/go/bin
+        key: ${{ runner.os }}-toolchain-cache-${{ hashFiles('hack/toolchain.sh') }}
+    - if: ${{ steps.cache-toolchain.outputs.cache-hit != 'true' }}
       shell: bash
-      if: ${{ steps.cache-deps.outputs.cache-hit != 'true' }}
-
-
+      run: make toolchain
