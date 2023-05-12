@@ -23,7 +23,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-      - uses: ./.github/actions/install-go-and-dependencies
+      - uses: ./.github/actions/install-deps
       - run: make vulncheck
       - uses: github/codeql-action/init@v2
         with:

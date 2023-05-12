@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: ./.github/actions/install-go-and-dependencies
+      - uses: ./.github/actions/install-deps
       - run: |
           git config user.name "APICodeGen"
           git config user.email "APICodeGen@users.noreply.github.com"
