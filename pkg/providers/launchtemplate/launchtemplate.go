@@ -262,6 +262,11 @@ func (p *Provider) createLaunchTemplate(ctx context.Context, options *amifamily.
 	return output.LaunchTemplate, nil
 }
 
+// generateNetworkInterface generates a network interface for the launch template.
+// If all referenced subnets do not assign public IPv4 addresses to EC2 instances therein, we explicitly set
+// AssociatePublicIpAddress to 'false' in the Launch Template, generated based on this configuration struct.
+// This is done to help comply with with AWS account policies that require the explicitly setting of that field to 'false'.
+// https://github.com/aws/karpenter/issues/3815
 func (p *Provider) generateNetworkInterface(options *amifamily.LaunchTemplate) []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest {
 	if options.AssociatePublicIpv4Address != nil {
 		return []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
