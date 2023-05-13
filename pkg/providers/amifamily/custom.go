@@ -51,5 +51,5 @@ func (c Custom) DefaultBlockDeviceMappings() []*v1alpha1.BlockDeviceMapping {
 // EphemeralBlockDevice is the block device that the pods on the node will use. For an AMI of a custom family, this is unknown
 // to us.
 func (c Custom) EphemeralBlockDevice() *string {
-	return nil
+	return v1alpha1.EphemeralBlockDevice(v1alpha1.AMIFamilyCustom)
 }

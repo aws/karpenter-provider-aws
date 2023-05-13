@@ -15,6 +15,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"github.com/aws/aws-sdk-go/aws"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -195,4 +196,17 @@ func DeserializeProvider(raw []byte) (*AWS, error) {
 		a.SetGroupVersionKind(*gvk)
 	}
 	return a, nil
+}
+
+func EphemeralBlockDevice(amiFamily string) *string {
+	switch amiFamily {
+	case AMIFamilyBottlerocket:
+		return aws.String("/dev/xvdb")
+	case AMIFamilyUbuntu:
+		return aws.String("/dev/sda1")
+	case AMIFamilyCustom:
+		return nil
+	default:
+		return aws.String("/dev/xvda")
+	}
 }

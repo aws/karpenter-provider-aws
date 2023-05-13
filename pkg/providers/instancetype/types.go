@@ -173,9 +173,10 @@ func ephemeralStorage(amiFamily amifamily.AMIFamily, blockDeviceMappings []*v1al
 	if len(blockDeviceMappings) != 0 {
 		switch amiFamily.(type) {
 		case *amifamily.Custom:
-			volSize := blockDeviceMappings[len(blockDeviceMappings)-1].EBS.VolumeSize
-			if volSize != nil {
-				return volSize
+			// We can't know if a custom AMI is going to have a volume size.
+			volumeSize := blockDeviceMappings[len(blockDeviceMappings)-1].EBS.VolumeSize
+			if volumeSize != nil {
+				return volumeSize
 			}
 		default:
 			ephemeralBlockDevice := amiFamily.EphemeralBlockDevice()

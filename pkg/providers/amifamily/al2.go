@@ -102,5 +102,5 @@ func (a AL2) DefaultBlockDeviceMappings() []*v1alpha1.BlockDeviceMapping {
 }
 
 func (a AL2) EphemeralBlockDevice() *string {
-	return aws.String("/dev/xvda")
+	return v1alpha1.EphemeralBlockDevice(v1alpha1.AMIFamilyAL2)
 }

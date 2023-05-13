@@ -17,7 +17,6 @@ package amifamily
 import (
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/aws"
 	v1 "k8s.io/api/core/v1"
 
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
@@ -76,5 +75,5 @@ func (u Ubuntu) DefaultBlockDeviceMappings() []*v1alpha1.BlockDeviceMapping {
 }
 
 func (u Ubuntu) EphemeralBlockDevice() *string {
-	return aws.String("/dev/sda1")
+	return v1alpha1.EphemeralBlockDevice(v1alpha1.AMIFamilyUbuntu)
 }

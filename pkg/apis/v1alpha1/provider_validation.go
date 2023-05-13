@@ -19,6 +19,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"knative.dev/pkg/apis"
@@ -226,7 +227,7 @@ func (a *AWS) validateEBS(blockDeviceMapping *BlockDeviceMapping) (errs *apis.Fi
 	}
 	for _, err := range []*apis.FieldError{
 		a.validateVolumeType(blockDeviceMapping),
-		a.validateVolumeSize(blockDeviceMapping),
+		a.validateVolumeSizeAndRootVolume(blockDeviceMapping),
 	} {
 		if err != nil {
 			errs = errs.Also(err.ViaField("ebs"))
@@ -242,8 +243,12 @@ func (a *AWS) validateVolumeType(blockDeviceMapping *BlockDeviceMapping) *apis.F
 	return nil
 }
 
-func (a *AWS) validateVolumeSize(blockDeviceMapping *BlockDeviceMapping) *apis.FieldError {
-	// if an EBS mapping is present, one of volumeSize or snapshotID must be present
+func (a *AWS) validateVolumeSizeAndRootVolume(blockDeviceMapping *BlockDeviceMapping) *apis.FieldError {
+	// If the EBS volume is the root volume, ensure that snapshotID is not used.
+	if aws.StringValue(a.AMIFamily) != AMIFamilyCustom && blockDeviceMapping.DeviceName == EphemeralBlockDevice(aws.StringValue(a.AMIFamily)) {
+		return apis.ErrDisallowedFields("snapshotID")
+	}
+	// If an EBS mapping is present, one of volumeSize or snapshotID must be present
 	if blockDeviceMapping.EBS.SnapshotID != nil && blockDeviceMapping.EBS.VolumeSize == nil {
 		return nil
 	} else if blockDeviceMapping.EBS.VolumeSize == nil {
