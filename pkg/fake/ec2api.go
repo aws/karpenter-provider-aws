@@ -24,10 +24,10 @@ import (
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/aws/awserr"
-	"github.com/aws/aws-sdk-go-v2/aws/request"
+	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
-	"github.com/aws/aws-sdk-go-v2/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"

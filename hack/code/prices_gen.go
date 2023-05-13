@@ -28,7 +28,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/aws/session"
+	"github.com/aws/aws-sdk-go/aws/session"
 	ec22 "github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/types"

@@ -21,9 +21,9 @@ import (
 	"github.com/mitchellh/hashstructure/v2"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/aws/request"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
-	"github.com/aws/aws-sdk-go-v2/service/ssm/ssmiface"
+	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
 )
 
 type SSMAPI struct {

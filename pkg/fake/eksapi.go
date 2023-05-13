@@ -16,7 +16,7 @@ package fake
 
 import (
 	"github.com/aws/aws-sdk-go-v2/service/eks"
-	"github.com/aws/aws-sdk-go-v2/service/eks/eksiface"
+	"github.com/aws/aws-sdk-go/service/eks/eksiface"
 )
 
 const ()

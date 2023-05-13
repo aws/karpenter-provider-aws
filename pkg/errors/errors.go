@@ -17,7 +17,7 @@ package errors
 import (
 	"errors"
 
-	"github.com/aws/aws-sdk-go-v2/aws/awserr"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"k8s.io/apimachinery/pkg/util/sets"

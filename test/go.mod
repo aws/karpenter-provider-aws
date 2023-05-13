@@ -4,8 +4,13 @@ go 1.20
 
 require (
 	github.com/aws/amazon-ec2-spot-interrupter v0.0.10
-	github.com/aws/aws-sdk-go v1.44.253
+	github.com/aws/aws-sdk-go v1.44.262
+	github.com/aws/aws-sdk-go-v2 v1.18.0
 	github.com/aws/aws-sdk-go-v2/config v1.18.22
+	github.com/aws/aws-sdk-go-v2/service/ec2 v1.97.0
+	github.com/aws/aws-sdk-go-v2/service/iam v1.19.4
+	github.com/aws/aws-sdk-go-v2/service/sqs v1.22.0
+	github.com/aws/aws-sdk-go-v2/service/ssm v1.36.4
 	github.com/aws/karpenter v0.22.0
 	github.com/aws/karpenter-core v0.28.0-rc.1.0.20230511223122-32dcbf1816f5
 	github.com/onsi/ginkgo/v2 v2.9.2
@@ -24,16 +29,15 @@ require (
 	github.com/PuerkitoBio/purell v1.1.1 // indirect
 	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
 	github.com/avast/retry-go v3.0.0+incompatible // indirect
-	github.com/aws/aws-sdk-go-v2 v1.18.0 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.13.21 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.13.3 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.33 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.27 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/ini v1.3.34 // indirect
-	github.com/aws/aws-sdk-go-v2/service/ec2 v1.86.1 // indirect
+	github.com/aws/aws-sdk-go-v2/service/eks v1.27.12 // indirect
 	github.com/aws/aws-sdk-go-v2/service/fis v1.14.4 // indirect
-	github.com/aws/aws-sdk-go-v2/service/iam v1.19.4 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.9.27 // indirect
+	github.com/aws/aws-sdk-go-v2/service/pricing v1.19.6 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.12.9 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.14.9 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.18.10 // indirect
