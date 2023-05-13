@@ -74,23 +74,11 @@ var (
 		AMIFamilyWindows2022:  sets.NewString("dockerd", "containerd"),
 	}
 
-	Windows2019              = "2019"
-	Windows2022              = "2022"
-	WindowsCore              = "Core"
-	Windows2019Build         = "10.0.17763"
-	Windows2022Build         = "10.0.20348"
-	SupportedWindowsVersions = []string{
-		Windows2019,
-		Windows2022,
-	}
-	SupportedWindowsVariants = []string{
-		WindowsCore,
-	}
-
-	SupportedWindowsBuilds = []string{
-		Windows2019Build,
-		Windows2022Build,
-	}
+	Windows2019                                           = "2019"
+	Windows2022                                           = "2022"
+	WindowsCore                                           = "Core"
+	Windows2019Build                                      = "10.0.17763"
+	Windows2022Build                                      = "10.0.20348"
 	ResourceNVIDIAGPU             v1.ResourceName         = "nvidia.com/gpu"
 	ResourceAMDGPU                v1.ResourceName         = "amd.com/gpu"
 	ResourceAWSNeuron             v1.ResourceName         = "aws.amazon.com/neuron"

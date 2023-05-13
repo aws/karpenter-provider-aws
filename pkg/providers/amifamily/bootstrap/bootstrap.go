@@ -15,7 +15,17 @@ limitations under the License.
 package bootstrap
 
 import (
+	"fmt"
+	"sort"
+	"strings"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/aws/karpenter-core/pkg/utils/resources"
+
+	"github.com/samber/lo"
 	core "k8s.io/api/core/v1"
+	"knative.dev/pkg/ptr"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 )
@@ -31,6 +41,73 @@ type Options struct {
 	AWSENILimitedPodDensity bool
 	ContainerRuntime        *string
 	CustomUserData          *string
+}
+
+func (o Options) asKubeletExtraArgs() (args []string) {
+	args = append(args, o.nodeLabelArg(), o.nodeTaintArg(), o.maxPodsArg())
+
+	if o.KubeletConfig == nil {
+		return lo.Compact(args)
+	}
+	if o.KubeletConfig.PodsPerCore != nil {
+		args = append(args, fmt.Sprintf("--pods-per-core=%d", ptr.Int32Value(o.KubeletConfig.PodsPerCore)))
+	}
+	// We have to convert some of these maps so that their values return the correct string
+	args = append(args, joinParameterArgs("--system-reserved", resources.StringMap(o.KubeletConfig.SystemReserved), "="))
+	args = append(args, joinParameterArgs("--kube-reserved", resources.StringMap(o.KubeletConfig.KubeReserved), "="))
+	args = append(args, joinParameterArgs("--eviction-hard", o.KubeletConfig.EvictionHard, "<"))
+	args = append(args, joinParameterArgs("--eviction-soft", o.KubeletConfig.EvictionSoft, "<"))
+	args = append(args, joinParameterArgs("--eviction-soft-grace-period", lo.MapValues(o.KubeletConfig.EvictionSoftGracePeriod, func(v metav1.Duration, _ string) string { return v.Duration.String() }), "="))
+
+	if o.KubeletConfig.EvictionMaxPodGracePeriod != nil {
+		args = append(args, fmt.Sprintf("--eviction-max-pod-grace-period=%d", ptr.Int32Value(o.KubeletConfig.EvictionMaxPodGracePeriod)))
+	}
+	if o.KubeletConfig.ImageGCHighThresholdPercent != nil {
+		args = append(args, fmt.Sprintf("--image-gc-high-threshold=%d", ptr.Int32Value(o.KubeletConfig.ImageGCHighThresholdPercent)))
+	}
+	if o.KubeletConfig.ImageGCLowThresholdPercent != nil {
+		args = append(args, fmt.Sprintf("--image-gc-low-threshold=%d", ptr.Int32Value(o.KubeletConfig.ImageGCLowThresholdPercent)))
+	}
+	if o.KubeletConfig.CPUCFSQuota != nil {
+		args = append(args, fmt.Sprintf("--cpu-cfs-quota=%t", lo.FromPtr(o.KubeletConfig.CPUCFSQuota)))
+	}
+	return lo.Compact(args)
+}
+func (o Options) maxPodsArg() string {
+	if o.KubeletConfig != nil && o.KubeletConfig.MaxPods != nil {
+		return fmt.Sprintf("--max-pods=%d", ptr.Int32Value(o.KubeletConfig.MaxPods))
+	}
+	if !o.AWSENILimitedPodDensity {
+		return "--max-pods=110"
+	}
+	return ""
+}
+
+func (o Options) nodeTaintArg() string {
+	if len(o.Taints) == 0 {
+		return ""
+	}
+	var taintStrings []string
+	for _, taint := range o.Taints {
+		taintStrings = append(taintStrings, fmt.Sprintf("%s=%s:%s", taint.Key, taint.Value, taint.Effect))
+	}
+	return fmt.Sprintf("--register-with-taints=%q", strings.Join(taintStrings, ","))
+}
+
+func (o Options) nodeLabelArg() string {
+	if len(o.Labels) == 0 {
+		return ""
+	}
+	var labelStrings []string
+	keys := lo.Keys(o.Labels)
+	sort.Strings(keys) // ensures this list is deterministic, for easy testing.
+	for _, key := range keys {
+		if v1alpha5.LabelDomainExceptions.Has(key) {
+			continue
+		}
+		labelStrings = append(labelStrings, fmt.Sprintf("%s=%v", key, o.Labels[key]))
+	}
+	return fmt.Sprintf("--node-labels=%q", strings.Join(labelStrings, ","))
 }
 
 // Bootstrapper can be implemented to generate a bootstrap script

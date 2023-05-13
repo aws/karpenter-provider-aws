@@ -141,5 +141,6 @@ func (b Bottlerocket) FeatureFlags() FeatureFlags {
 		UsesENILimitedMemoryOverhead: false,
 		PodsPerCoreEnabled:           false,
 		EvictionSoftEnabled:          false,
+		SupportsENILimitedPodDensity: true,
 	}
 }

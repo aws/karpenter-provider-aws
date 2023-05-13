@@ -92,6 +92,7 @@ type FeatureFlags struct {
 	UsesENILimitedMemoryOverhead bool
 	PodsPerCoreEnabled           bool
 	EvictionSoftEnabled          bool
+	SupportsENILimitedPodDensity bool
 }
 
 // DefaultFamily provides default values for AMIFamilies that compose it
@@ -102,6 +103,7 @@ func (d DefaultFamily) FeatureFlags() FeatureFlags {
 		UsesENILimitedMemoryOverhead: true,
 		PodsPerCoreEnabled:           true,
 		EvictionSoftEnabled:          true,
+		SupportsENILimitedPodDensity: true,
 	}
 }
 

@@ -58,7 +58,7 @@ func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, kc *v1alph
 		Offerings:    offerings,
 		Capacity:     computeCapacity(ctx, info, amiFamily, nodeTemplate.Spec.BlockDeviceMappings, kc),
 		Overhead: &cloudprovider.InstanceTypeOverhead{
-			KubeReserved:      kubeReservedResources(cpu(info), pods(ctx, info, amiFamily, kc), ENILimitedPods(ctx, info, amiFamily), amiFamily, kc),
+			KubeReserved:      kubeReservedResources(cpu(info), pods(ctx, info, amiFamily, kc), ENILimitedPods(ctx, info), amiFamily, kc),
 			SystemReserved:    systemReservedResources(kc),
 			EvictionThreshold: evictionThreshold(memory(ctx, info), ephemeralStorage(amiFamily, nodeTemplate.Spec.BlockDeviceMappings), amiFamily, kc),
 		},
@@ -145,9 +145,13 @@ func hardcodeNeuron(requirements scheduling.Requirements, info *ec2.InstanceType
 }
 
 func getOS(info *ec2.InstanceTypeInfo, amiFamily amifamily.AMIFamily) string {
-	if _, ok := amiFamily.(*amifamily.Windows); ok && getArchitecture(info) == v1alpha5.ArchitectureAmd64 {
-		return string(v1.Windows)
+	if _, ok := amiFamily.(*amifamily.Windows); ok {
+		if getArchitecture(info) == v1alpha5.ArchitectureAmd64 {
+			return string(v1.Windows)
+		}
+		return ""
 	}
+
 	return string(v1.Linux)
 }
 
@@ -176,7 +180,7 @@ func computeCapacity(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily 
 	}
 	if _, ok := amiFamily.(*amifamily.Windows); ok {
 		//ResourcePrivateIPv4Address is the same as ENILimitedPods on Windows node
-		resourceList[v1alpha1.ResourcePrivateIPv4Address] = *privateIPv4Address(info, amiFamily)
+		resourceList[v1alpha1.ResourcePrivateIPv4Address] = *privateIPv4Address(info)
 	}
 	return resourceList
 }
@@ -286,13 +290,7 @@ func habanaGaudis(info *ec2.InstanceTypeInfo) *resource.Quantity {
 	return resources.Quantity(fmt.Sprint(count))
 }
 
-func ENILimitedPods(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily amifamily.AMIFamily) *resource.Quantity {
-	// https://docs.aws.amazon.com/eks/latest/userguide/windows-support.html
-	// The number of pods that you can run per Windows node is equal to the number of IP addresses
-	// available per elastic network interface for the node's instance type, minus one
-	if _, ok := amiFamily.(*amifamily.Windows); ok {
-		return resources.Quantity(fmt.Sprint(aws.Int64Value(info.NetworkInfo.Ipv4AddressesPerInterface) - 1))
-	}
+func ENILimitedPods(ctx context.Context, info *ec2.InstanceTypeInfo) *resource.Quantity {
 	// The number of pods per node is calculated using the formula:
 	// max number of ENIs * (IPv4 Addresses per ENI -1) + 2
 	// https://github.com/awslabs/amazon-eks-ami/blob/master/files/eni-max-pods.txt#L20
@@ -308,16 +306,10 @@ func ENILimitedPods(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily a
 	return resources.Quantity(fmt.Sprint(usableNetworkInterfaces*(addressesPerInterface-1) + 2))
 }
 
-func privateIPv4Address(info *ec2.InstanceTypeInfo, amiFamily amifamily.AMIFamily) *resource.Quantity {
+func privateIPv4Address(info *ec2.InstanceTypeInfo) *resource.Quantity {
+
 	//https://github.com/aws/amazon-vpc-resource-controller-k8s/blob/ecbd6965a0100d9a070110233762593b16023287/pkg/provider/ip/provider.go#L297
-
-	var capacity int64
-	if _, ok := amiFamily.(*amifamily.Windows); ok {
-		capacity = aws.Int64Value(info.NetworkInfo.Ipv4AddressesPerInterface) - 1
-	} else {
-		capacity = (aws.Int64Value(info.NetworkInfo.Ipv4AddressesPerInterface) - 1) * (aws.Int64Value(info.NetworkInfo.NetworkCards[*info.NetworkInfo.DefaultNetworkCardIndex].MaximumNetworkInterfaces))
-
-	}
+	capacity := aws.Int64Value(info.NetworkInfo.Ipv4AddressesPerInterface) - 1
 	return resources.Quantity(fmt.Sprint(capacity))
 }
 
@@ -398,16 +390,14 @@ func evictionThreshold(memory *resource.Quantity, storage *resource.Quantity, am
 
 func pods(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily amifamily.AMIFamily, kc *v1alpha5.KubeletConfiguration) *resource.Quantity {
 	var count int64
-	_, isWindows := amiFamily.(*amifamily.Windows)
 	switch {
-	case isWindows:
-		count = ENILimitedPods(ctx, info, amiFamily).Value()
 	case kc != nil && kc.MaxPods != nil:
 		count = int64(ptr.Int32Value(kc.MaxPods))
-	case !awssettings.FromContext(ctx).EnableENILimitedPodDensity:
-		count = 110
+	case awssettings.FromContext(ctx).EnableENILimitedPodDensity && amiFamily.FeatureFlags().SupportsENILimitedPodDensity:
+		count = ENILimitedPods(ctx, info).Value()
 	default:
-		count = ENILimitedPods(ctx, info, amiFamily).Value()
+		count = 110
+
 	}
 	if kc != nil && ptr.Int32Value(kc.PodsPerCore) > 0 && amiFamily.FeatureFlags().PodsPerCoreEnabled {
 		count = lo.Min([]int64{int64(ptr.Int32Value(kc.PodsPerCore)) * ptr.Int64Value(info.VCpuInfo.DefaultVCpus), count})

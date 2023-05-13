@@ -24,8 +24,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/karpenter/pkg/providers/amifamily"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	. "github.com/onsi/ginkgo/v2"
@@ -179,11 +177,10 @@ var _ = Describe("Instance Types", func() {
 			"beta.kubernetes.io/os":         "linux",
 			v1.LabelInstanceType:            "g4dn.8xlarge",
 			"topology.ebs.csi.aws.com/zone": "test-zone-1a",
+			v1.LabelWindowsBuild:            "some-build",
 		}
 
-		expected := v1alpha5.WellKnownLabels.Difference(sets.NewString(
-			v1.LabelWindowsBuild,
-		))
+		expected := v1alpha5.WellKnownLabels
 		// Ensure that we're exercising all well known labels
 		Expect(lo.Keys(nodeSelector)).To(ContainElements(append(expected.UnsortedList(), lo.Keys(v1alpha5.NormalizedLabels)...)))
 
@@ -1073,8 +1070,7 @@ var _ = Describe("Instance Types", func() {
 			provisioner = test.Provisioner(coretest.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{PodsPerCore: ptr.Int32(1)}})
 			for _, info := range instanceInfo {
 				it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
-				amiFamily := amifamily.GetAMIFamily(nodeTemplate.Spec.AMIFamily, &amifamily.Options{})
-				limitedPods := instancetype.ENILimitedPods(ctx, info, amiFamily)
+				limitedPods := instancetype.ENILimitedPods(ctx, info)
 				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", limitedPods.Value()))
 			}
 		})
