@@ -268,10 +268,10 @@ func (p *Provider) createLaunchTemplate(ctx context.Context, options *amifamily.
 // This is done to help comply with with AWS account policies that require the explicitly setting of that field to 'false'.
 // https://github.com/aws/karpenter/issues/3815
 func (p *Provider) generateNetworkInterface(options *amifamily.LaunchTemplate) []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest {
-	if options.AssociatePublicIpv4Address != nil {
+	if options.AssociatePublicIPv4Addrs != nil {
 		return []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
 			{
-				AssociatePublicIpAddress: options.AssociatePublicIpv4Address,
+				AssociatePublicIpAddress: options.AssociatePublicIPv4Addrs,
 				DeviceIndex:              aws.Int64(0),
 				Groups:                   lo.Map(options.SecurityGroups, func(s v1alpha1.SecurityGroup, _ int) *string { return aws.String(s.ID) }),
 			},

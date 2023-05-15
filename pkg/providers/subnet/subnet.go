@@ -89,8 +89,8 @@ func (p *Provider) List(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTempl
 	return output.Subnets, nil
 }
 
-// CheckAnyPublicIPv4Associations returns a bool indicating whether all referenced subnets assign public IPv4 addresses to EC2 instances created therein
-func (p *Provider) CheckAnyPublicIPv4Associations(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) (bool, error) {
+// CheckAnyPublicIPAssociations returns a bool indicating whether all referenced subnets assign public IPv4 addresses to EC2 instances created therein
+func (p *Provider) CheckAnyPublicIPAssociations(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) (bool, error) {
 	subnets, err := p.List(ctx, nodeTemplate)
 	if err != nil {
 		return false, err

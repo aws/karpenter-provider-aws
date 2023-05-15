@@ -187,14 +187,14 @@ var _ = Describe("Subnet Provider", func() {
 	It("should note that no subnets assign a public IPv4 address to EC2 instances on launch", func() {
 		nodeTemplate.Spec.SubnetSelector = map[string]string{"Name": "test-subnet-1,test-subnet-3"}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-		onlyPrivate, err := awsEnv.SubnetProvider.CheckAnyPublicIPv4Associations(ctx, nodeTemplate)
+		onlyPrivate, err := awsEnv.SubnetProvider.CheckAnyPublicIPAssociations(ctx, nodeTemplate)
 		Expect(err).To(BeNil())
 		Expect(onlyPrivate).To(BeFalse())
 	})
 	It("should note that at least one subnet assigns a public IPv4 address to EC2instances on launch", func() {
 		nodeTemplate.Spec.SubnetSelector = map[string]string{"aws-ids": "subnet-test2"}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-		onlyPrivate, err := awsEnv.SubnetProvider.CheckAnyPublicIPv4Associations(ctx, nodeTemplate)
+		onlyPrivate, err := awsEnv.SubnetProvider.CheckAnyPublicIPAssociations(ctx, nodeTemplate)
 		Expect(err).To(BeNil())
 		Expect(onlyPrivate).To(BeTrue())
 	})

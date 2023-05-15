@@ -48,12 +48,12 @@ type Resolver struct {
 
 // Options define the static launch template parameters
 type Options struct {
-	ClusterName                string
-	ClusterEndpoint            string
-	AWSENILimitedPodDensity    bool
-	InstanceProfile            string
-	CABundle                   *string `hash:"ignore"`
-	AssociatePublicIpv4Address *bool
+	ClusterName              string
+	ClusterEndpoint          string
+	AWSENILimitedPodDensity  bool
+	InstanceProfile          string
+	CABundle                 *string `hash:"ignore"`
+	AssociatePublicIpAddress *bool   //nolint:revive,stylecheck
 	// Level-triggered fields that may change out of sync.
 	SecurityGroups           []v1alpha1.SecurityGroup
 	Tags                     map[string]string
