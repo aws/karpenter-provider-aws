@@ -239,7 +239,7 @@ func (p *Provider) createLaunchTemplate(ctx context.Context, options *amifamily.
 			TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{
 				{ResourceType: aws.String(ec2.ResourceTypeNetworkInterface), Tags: utils.MergeTags(options.Tags)},
 			},
-			LicenseSpecifications: createLicenseSpecifications(options.LicenseSpecification),
+			LicenseSpecifications: createLicenseSpecifications(options.LicenseSpecifications),
 			Placement: &ec2.LaunchTemplatePlacementRequest{
 				HostResourceGroupArn: aws.String(options.Placement.HostResourceGroupArn),
 			},
