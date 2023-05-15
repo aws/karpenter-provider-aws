@@ -12,5 +12,5 @@ runs:
   steps:
     - shell: bash
       run: |
-        JSON='{"message": "${{ inputs.message }}"}`
+        JSON='{"message": "${{ inputs.message }}"}'
         curl -X POST -H 'Content-Type: application/json' --data "${JSON}" "$(printf "${{ inputs.url }}" | tr -d "\n")"

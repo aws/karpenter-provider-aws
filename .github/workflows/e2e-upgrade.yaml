@@ -54,8 +54,12 @@ jobs:
       - name: install prometheus
         uses: ./actions/.github/actions/e2e/install-prometheus
         with:
-          region: us-west-2
-          workspace: ws-076042fb-35be-4a2e-baaa-b2a80780606b
+          account_id: ${{ env.ACCOUNT_ID }}
+          role: ${{ env.ROLE_NAME }}
+          region: ${{ env.AWS_REGION }}
+          cluster_name: ${{ env.CLUSTER_NAME }}
+          workspace_region: us-west-2
+          workspace_id: ws-076042fb-35be-4a2e-baaa-b2a80780606b
       - name: install karpenter
         uses: ./actions/.github/actions/e2e/install-karpenter
         with:

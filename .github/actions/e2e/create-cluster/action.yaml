@@ -97,14 +97,18 @@ runs:
         wellKnownPolicies:
           ebsCSIController: true
       EOF
-
+  - name: give KarpenterNodeRole permission to bootstrap
+    shell: bash
+    run: |
       eksctl create iamidentitymapping \
       --username system:node:{{EC2PrivateDNSName}} \
       --cluster "${{ inputs.cluster_name }}" \
       --arn "arn:aws:iam::${{ inputs.account_id }}:role/KarpenterNodeRole-${{ inputs.cluster_name }}" \
       --group system:bootstrappers \
       --group system:nodes
-
+  - name: assign karpenter IRSA permissions
+    shell: bash
+    run: |
       eksctl create iamserviceaccount \
         --cluster "${{ inputs.cluster_name }}" --name karpenter --namespace karpenter \
         --role-name "${{ inputs.cluster_name }}-karpenter" \
