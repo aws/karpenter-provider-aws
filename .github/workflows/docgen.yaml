@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: ./.github/actions/install-go-and-dependencies
+      - uses: ./.github/actions/install-deps
       - uses: ./.github/actions/authenticate-aws
       - run: make docgen
       - run: make codegen
