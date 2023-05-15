@@ -77,6 +77,7 @@ battletest: ## Run randomized, racing, code-covered tests
 
 e2etests: ## Run the e2e suite against your local cluster
 	cd test && CLUSTER_NAME=${CLUSTER_NAME} go test \
+		-race \
 		-p 1 \
 		-count 1 \
 		-timeout 180m \
