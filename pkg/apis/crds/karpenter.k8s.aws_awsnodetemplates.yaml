@@ -144,6 +144,11 @@ spec:
                   a custom launch template and is exposed in the Spec as `launchTemplate`
                   for backwards compatibility.'
                 type: string
+              licenseSpecifications:
+                description: AWS License configuration https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-ec2-launchtemplate-launchtemplatedata.html#cfn-ec2-launchtemplate-launchtemplatedata-licensespecifications
+                items:
+                  type: string
+                type: array
               metadataOptions:
                 description: "MetadataOptions for the generated launch template of
                   provisioned nodes. \n This specifies the exposure of the Instance
@@ -190,6 +195,13 @@ spec:
                       retrieval requests. In this state, retrieving the IAM role credentials
                       always returns the version 2.0 credentials; the version 1.0
                       credentials are not available."
+                    type: string
+                type: object
+              placement:
+                description: DedicatedHost contains the configuration to launch nodes
+                  on AWS Dedicated hosts
+                properties:
+                  hostResourceGroupArn:
                     type: string
                 type: object
               securityGroupSelector:

@@ -167,7 +167,7 @@ func (r Resolver) Resolve(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTem
 				AMIID:                amiID,
 				InstanceTypes:        instanceTypes,
 				LicenseSpecification: nodeTemplate.Spec.LicenseSpecifications,
-				Placement:            Placement(nodeTemplate.Spec.Placement),
+				Placement:            Placement{HostResourceGroupArn: nodeTemplate.Spec.Placement.HostResourceGroupArn},
 			}
 			if resolved.BlockDeviceMappings == nil {
 				resolved.BlockDeviceMappings = amiFamily.DefaultBlockDeviceMappings()
