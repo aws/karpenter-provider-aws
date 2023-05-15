@@ -19,12 +19,14 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2" //nolint:revive,stylecheck
 	. "github.com/onsi/gomega"    //nolint:revive,stylecheck
 	"github.com/samber/lo"
 	appsv1 "k8s.io/api/apps/v1"
+	coordinationv1 "k8s.io/api/coordination/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -120,8 +122,7 @@ func (env *Environment) ExpectSettingsReplaced(data ...map[string]string) {
 	env.ExpectCreatedOrUpdated(cm)
 
 	// Get the karpenter pods and delete them to restart the containers
-	env.ExpectKarpenterPodsDeletedWithOffset(1)
-	env.EventuallyExpectKarpenterPodsHealthyWithOffset(1)
+	env.EventuallyExpectKarpenterRestartedWithOffset(1)
 }
 
 // ExpectSettingsOverridden overrides specific values specified through data. It only overrides
@@ -139,8 +140,7 @@ func (env *Environment) ExpectSettingsOverridden(data ...map[string]string) {
 	env.ExpectCreatedOrUpdated(cm)
 
 	// Get the karpenter pods and delete them to restart the containers
-	env.ExpectKarpenterPodsDeletedWithOffset(1)
-	env.EventuallyExpectKarpenterPodsHealthyWithOffset(1)
+	env.EventuallyExpectKarpenterRestartedWithOffset(1)
 }
 
 func (env *Environment) ExpectFound(obj client.Object) {
@@ -159,6 +159,15 @@ func (env *Environment) EventuallyExpectHealthy(pods ...*v1.Pod) {
 	}
 }
 
+func (env *Environment) EventuallyExpectKarpenterRestarted() {
+	env.EventuallyExpectKarpenterRestartedWithOffset(1)
+}
+
+func (env *Environment) EventuallyExpectKarpenterRestartedWithOffset(offset int) {
+	env.ExpectKarpenterPodsDeletedWithOffset(offset + 1)
+	env.EventuallyExpectKarpenterPodsHealthyWithOffset(offset + 1)
+}
+
 func (env *Environment) ExpectKarpenterPodsWithOffset(offset int) []*v1.Pod {
 	podList := &v1.PodList{}
 	ExpectWithOffset(offset+1, env.Client.List(env.Context, podList, client.MatchingLabels{
@@ -167,8 +176,23 @@ func (env *Environment) ExpectKarpenterPodsWithOffset(offset int) []*v1.Pod {
 	return lo.Map(podList.Items, func(p v1.Pod, _ int) *v1.Pod { return &p })
 }
 
-func (env *Environment) ExpectKarpenterPodsDeleted() {
-	env.ExpectKarpenterPodsDeletedWithOffset(1)
+func (env *Environment) ExpectActiveKarpenterPodWithOffset(offset int) *v1.Pod {
+	podName := env.ExpectActiveKarpenterPodNameWithOffset(offset + 1)
+
+	pod := &v1.Pod{}
+	ExpectWithOffset(offset+1, env.Client.Get(env.Context, types.NamespacedName{Name: podName, Namespace: "karpenter"}, pod)).To(Succeed())
+	return pod
+}
+
+func (env *Environment) ExpectActiveKarpenterPodNameWithOffset(offset int) string {
+	lease := &coordinationv1.Lease{}
+	ExpectWithOffset(offset+1, env.Client.Get(env.Context, types.NamespacedName{Name: "karpenter-leader-election", Namespace: "karpenter"}, lease)).To(Succeed())
+
+	// Holder identity for lease is always in the format "<pod-name>_<pseudo-random-value>
+	holderArr := strings.Split(lo.FromPtr(lease.Spec.HolderIdentity), "_")
+	ExpectWithOffset(offset+1, len(holderArr)).To(BeNumerically(">", 0))
+
+	return holderArr[0]
 }
 
 func (env *Environment) ExpectKarpenterPodsDeletedWithOffset(offset int) {
@@ -189,12 +213,13 @@ func (env *Environment) EventuallyExpectKarpenterPodsHealthyWithOffset(offset in
 				HaveField("Type", Equal(v1.PodReady)),
 				HaveField("Status", Equal(v1.ConditionTrue)),
 			)))
+			g.Expect(pod.Status.Phase).To(Equal(v1.PodRunning))
+			g.Expect(pod.DeletionTimestamp.IsZero()).To(BeTrue()) // All pods that we grab shouldn't be deleting, which means they're all up
 		}
+		g.Expect(env.ExpectActiveKarpenterPodNameWithOffset(offset + 1)).To(BeElementOf(lo.Map(pods, func(p *v1.Pod, _ int) string {
+			return p.Name
+		})))
 	}).Should(Succeed())
-
-	// We add this delay in here since we currently don't have the liveness/readiness probe working on the webhook
-	// which means there's a bit of time after the pods go ready that the webhook isn't actually ready to receive traffic yet
-	time.Sleep(time.Second * 5)
 }
 
 func (env *Environment) EventuallyExpectHealthyPodCount(selector labels.Selector, numPods int) {
