@@ -14,7 +14,7 @@ jobs:
       K8S_VERSION: ${{ matrix.k8sVersion }}
     steps:
     - uses: actions/checkout@v3
-    - uses: ./.github/actions/install-go-and-dependencies
+    - uses: ./.github/actions/install-deps
     - run: make ci-test
     - uses: shogo82148/actions-goveralls@v1
       if: env.K8S_VERSION == '1.24.x'
