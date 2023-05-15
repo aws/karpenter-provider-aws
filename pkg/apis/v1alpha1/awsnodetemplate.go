@@ -85,7 +85,10 @@ type AWSNodeTemplateSpec struct {
 	DetailedMonitoring *bool `json:"detailedMonitoring,omitempty"`
 	// DedicatedHost contains the configuration to launch nodes on AWS Dedicated hosts
 	// +options
-	DedicatedHost DedicatedHostSpec `json:"dedicatedHost,omitempty"`
+	Placement Placement `json:"placement,omitempty"`
+	// AWS License configuration
+	// https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-ec2-launchtemplate-launchtemplatedata.html#cfn-ec2-launchtemplate-launchtemplatedata-licensespecifications
+	LicenseSpecifications []string `json:"licenseSpecifications,omitempty"`
 }
 
 // AWSNodeTemplate is the Schema for the AWSNodeTemplate API
@@ -108,8 +111,8 @@ type AWSNodeTemplateList struct {
 	Items           []AWSNodeTemplate `json:"items"`
 }
 
-// DedicatedHostSpect contains the configuration for LaunchTemplates to run instances on dedicated hosts
-type DedicatedHostSpec struct {
-	LicenseConfigurationArn []string `json:"licenseConfiguration,omitempty"`
-	HostResourceGroupArn    string `json:"hostResourceGroup,omitempty"`
+// Placement contains the configuration for LaunchTemplates to run instances on dedicated hosts
+// https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-ec2-launchtemplate-launchtemplatedata.html#cfn-ec2-launchtemplate-launchtemplatedata-placement
+type Placement struct {
+	HostResourceGroupArn string `json:"hostResourceGroupArn,omitempty"`
 }
