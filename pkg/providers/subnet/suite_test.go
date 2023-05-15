@@ -119,6 +119,7 @@ var _ = Describe("Subnet Provider", func() {
 		Expect(subnets).To(HaveLen(1))
 		Expect(aws.StringValue(subnets[0].SubnetId)).To(Equal("subnet-test1"))
 		Expect(aws.StringValue(subnets[0].AvailabilityZone)).To(Equal("test-zone-1a"))
+		Expect(aws.Int64Value(subnets[0].AvailableIpAddressCount)).To(BeNumerically("==", 100))
 	})
 	It("should discover subnets by IDs", func() {
 		nodeTemplate.Spec.SubnetSelector = map[string]string{"aws-ids": "subnet-test1,subnet-test2"}
@@ -128,8 +129,10 @@ var _ = Describe("Subnet Provider", func() {
 		Expect(subnets).To(HaveLen(2))
 		Expect(aws.StringValue(subnets[0].SubnetId)).To(Equal("subnet-test1"))
 		Expect(aws.StringValue(subnets[0].AvailabilityZone)).To(Equal("test-zone-1a"))
+		Expect(aws.Int64Value(subnets[0].AvailableIpAddressCount)).To(BeNumerically("==", 100))
 		Expect(aws.StringValue(subnets[1].SubnetId)).To(Equal("subnet-test2"))
 		Expect(aws.StringValue(subnets[1].AvailabilityZone)).To(Equal("test-zone-1b"))
+		Expect(aws.Int64Value(subnets[1].AvailableIpAddressCount)).To(BeNumerically("==", 100))
 	})
 	It("should discover subnets by IDs and tags", func() {
 		nodeTemplate.Spec.SubnetSelector = map[string]string{"aws-ids": "subnet-test1,subnet-test2", "foo": "bar"}
@@ -140,8 +143,10 @@ var _ = Describe("Subnet Provider", func() {
 		Expect(subnets).To(HaveLen(2))
 		Expect(aws.StringValue(subnets[0].SubnetId)).To(Equal("subnet-test1"))
 		Expect(aws.StringValue(subnets[0].AvailabilityZone)).To(Equal("test-zone-1a"))
+		Expect(aws.Int64Value(subnets[0].AvailableIpAddressCount)).To(BeNumerically("==", 100))
 		Expect(aws.StringValue(subnets[1].SubnetId)).To(Equal("subnet-test2"))
 		Expect(aws.StringValue(subnets[1].AvailabilityZone)).To(Equal("test-zone-1b"))
+		Expect(aws.Int64Value(subnets[1].AvailableIpAddressCount)).To(BeNumerically("==", 100))
 	})
 	It("should discover subnets by a single tag", func() {
 		nodeTemplate.Spec.SubnetSelector = map[string]string{"Name": "test-subnet-1"}
@@ -152,6 +157,7 @@ var _ = Describe("Subnet Provider", func() {
 		Expect(subnets).To(HaveLen(1))
 		Expect(aws.StringValue(subnets[0].SubnetId)).To(Equal("subnet-test1"))
 		Expect(aws.StringValue(subnets[0].AvailabilityZone)).To(Equal("test-zone-1a"))
+		Expect(aws.Int64Value(subnets[0].AvailableIpAddressCount)).To(BeNumerically("==", 100))
 	})
 	It("should discover subnets by multiple tag values", func() {
 		nodeTemplate.Spec.SubnetSelector = map[string]string{"Name": "test-subnet-1,test-subnet-2"}
@@ -162,8 +168,10 @@ var _ = Describe("Subnet Provider", func() {
 		Expect(subnets).To(HaveLen(2))
 		Expect(aws.StringValue(subnets[0].SubnetId)).To(Equal("subnet-test1"))
 		Expect(aws.StringValue(subnets[0].AvailabilityZone)).To(Equal("test-zone-1a"))
+		Expect(aws.Int64Value(subnets[0].AvailableIpAddressCount)).To(BeNumerically("==", 100))
 		Expect(aws.StringValue(subnets[1].SubnetId)).To(Equal("subnet-test2"))
 		Expect(aws.StringValue(subnets[1].AvailabilityZone)).To(Equal("test-zone-1b"))
+		Expect(aws.Int64Value(subnets[1].AvailableIpAddressCount)).To(BeNumerically("==", 100))
 	})
 	It("should discover subnets by IDs intersected with tags", func() {
 		nodeTemplate.Spec.SubnetSelector = map[string]string{"aws-ids": "subnet-test2", "foo": "bar"}
@@ -174,5 +182,6 @@ var _ = Describe("Subnet Provider", func() {
 		Expect(subnets).To(HaveLen(1))
 		Expect(aws.StringValue(subnets[0].SubnetId)).To(Equal("subnet-test2"))
 		Expect(aws.StringValue(subnets[0].AvailabilityZone)).To(Equal("test-zone-1b"))
+		Expect(aws.Int64Value(subnets[0].AvailableIpAddressCount)).To(BeNumerically("==", 100))
 	})
 })
