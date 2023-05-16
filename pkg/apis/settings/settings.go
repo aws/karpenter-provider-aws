@@ -83,6 +83,8 @@ func (*Settings) Inject(ctx context.Context, cm *v1.ConfigMap) (context.Context,
 		configmap.AsString("aws.interruptionQueueName", &s.InterruptionQueueName),
 		AsStringMap("aws.tags", &s.Tags),
 		configmap.AsInt("aws.reservedENIs", &s.ReservedENIs),
+		configmap.AsFloat64("aws.spotPriceMultiplier", &s.SpotPriceMultiplier),
+		configmap.AsFloat64("aws.onDemandPriceMultiplier", &s.OnDemandPriceMultiplier)
 	); err != nil {
 		return ctx, fmt.Errorf("parsing settings, %w", err)
 	}
