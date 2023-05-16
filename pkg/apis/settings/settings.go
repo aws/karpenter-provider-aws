@@ -44,8 +44,8 @@ var defaultSettings = &Settings{
 	InterruptionQueueName:      "",
 	Tags:                       map[string]string{},
 	ReservedENIs:               0,
-	SpotDiscount:               1,
-	OnDemandDiscount:           1,
+	SpotPriceMultiplier:        1,
+	OnDemandPriceMultiplier:    1,
 }
 
 // +k8s:deepcopy-gen=true
