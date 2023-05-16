@@ -435,6 +435,7 @@ func (p *Provider) isMixedCapacityLaunch(machine *v1alpha5.Machine, instanceType
 
 // filterUnwantedSpot is used to filter out spot types that are more expensive than the cheapest on-demand type that we
 // could launch during mixed capacity-type launches
+// Discount as a percentage are passed in and applied to ondemand and spot pricing
 func filterUnwantedSpot(instanceTypes []*cloudprovider.InstanceType, onDemandDiscount float64, spotDiscount float64) []*cloudprovider.InstanceType {
 	cheapestOnDemand := math.MaxFloat64
 	// first, find the price of our cheapest available on-demand instance type that could support this node
