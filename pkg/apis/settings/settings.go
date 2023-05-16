@@ -44,6 +44,8 @@ var defaultSettings = &Settings{
 	InterruptionQueueName:      "",
 	Tags:                       map[string]string{},
 	ReservedENIs:               0,
+	SpotDiscount:               1,
+	OnDemandDiscount:           1,
 }
 
 // +k8s:deepcopy-gen=true
@@ -57,7 +59,9 @@ type Settings struct {
 	VMMemoryOverheadPercent    float64 `validate:"min=0"`
 	InterruptionQueueName      string
 	Tags                       map[string]string
-	ReservedENIs               int `validate:"min=0"`
+	ReservedENIs               int     `validate:"min=0"`
+	SpotDiscount               float64 `validate:"min=0"`
+	OnDemandDiscount           float64 `validate:"min=0"`
 }
 
 func (*Settings) ConfigMap() string {
