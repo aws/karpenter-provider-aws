@@ -442,8 +442,9 @@ func filterUnwantedSpot(instanceTypes []*cloudprovider.InstanceType, onDemandPri
 	// first, find the price of our cheapest available on-demand instance type that could support this node
 	for _, it := range instanceTypes {
 		for _, o := range it.Offerings.Available() {
-			if o.CapacityType == v1alpha5.CapacityTypeOnDemand && o.Price < cheapestOnDemand {
-				cheapestOnDemand = o.Price * onDemandPriceMultiplier
+			currentPrice := o.Price * onDemandPriceMultiplier
+			if o.CapacityType == v1alpha5.CapacityTypeOnDemand && currentPrice < cheapestOnDemand {
+				cheapestOnDemand = currentPrice
 			}
 		}
 	}
