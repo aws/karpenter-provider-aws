@@ -151,9 +151,6 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeTemplate *v1alpha1.
 	if len(securityGroups) == 0 {
 		return nil, fmt.Errorf("no security groups exist given constraints")
 	}
-	if err != nil {
-		return nil, err
-	}
 	options := &amifamily.Options{
 		ClusterName:             settings.FromContext(ctx).ClusterName,
 		ClusterEndpoint:         p.ClusterEndpoint,
@@ -167,14 +164,14 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeTemplate *v1alpha1.
 		CABundle:  p.caBundle,
 		KubeDNSIP: p.KubeDNSIP,
 	}
-	if ok, err := p.subnetProvider.CheckAnyPublicIPv4Associations(ctx, nodeTemplate); err != nil {
+	if ok, err := p.subnetProvider.CheckAnyPublicIPAssociations(ctx, nodeTemplate); err != nil {
 		return nil, err
 	} else if !ok {
 		// If all referenced subnets do not assign public IPv4 addresses to EC2 instances therein, we explicitly set
 		// AssociatePublicIpAddress to 'false' in the Launch Template, generated based on this configuration struct.
 		// This is done to help comply with with AWS account policies that require the explicitly setting of that field to 'false'.
 		// https://github.com/aws/karpenter/issues/3815
-		options.AssociatePublicIpv4Address = aws.Bool(false)
+		options.AssociatePublicIPv4Addrs = aws.Bool(false)
 	}
 	return options, nil
 }
@@ -265,7 +262,7 @@ func (p *Provider) createLaunchTemplate(ctx context.Context, options *amifamily.
 // generateNetworkInterface generates a network interface for the launch template.
 // If all referenced subnets do not assign public IPv4 addresses to EC2 instances therein, we explicitly set
 // AssociatePublicIpAddress to 'false' in the Launch Template, generated based on this configuration struct.
-// This is done to help comply with with AWS account policies that require the explicitly setting of that field to 'false'.
+// This is done to help comply with AWS account policies that require explicitly setting that field to 'false'.
 // https://github.com/aws/karpenter/issues/3815
 func (p *Provider) generateNetworkInterface(options *amifamily.LaunchTemplate) []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest {
 	if options.AssociatePublicIPv4Addrs != nil {

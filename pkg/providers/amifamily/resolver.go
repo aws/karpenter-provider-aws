@@ -59,7 +59,7 @@ type Options struct {
 	Tags                     map[string]string
 	Labels                   map[string]string `hash:"ignore"`
 	KubeDNSIP                net.IP
-	AssociatePublicIPv4Addrs bool
+	AssociatePublicIPv4Addrs *bool
 }
 
 // LaunchTemplate holds the dynamically generated launch template parameters
