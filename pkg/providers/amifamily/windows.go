@@ -56,10 +56,6 @@ func (w Windows) DefaultAMIs(version string) []DefaultAMIOutput {
 
 // UserData returns the default userdata script for the AMI Family
 func (w Windows) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []v1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper {
-	containerRuntime := aws.String("containerd")
-	if kubeletConfig != nil && kubeletConfig.ContainerRuntime != nil {
-		containerRuntime = kubeletConfig.ContainerRuntime
-	}
 	return bootstrap.Windows{
 		Options: bootstrap.Options{
 			ClusterName:     w.Options.ClusterName,
@@ -70,7 +66,6 @@ func (w Windows) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints [
 			CABundle:        caBundle,
 			CustomUserData:  customUserData,
 		},
-		ContainerRuntime: *containerRuntime,
 	}
 }
 
@@ -91,8 +86,8 @@ func (w Windows) EphemeralBlockDevice() *string {
 func (w Windows) FeatureFlags() FeatureFlags {
 	return FeatureFlags{
 		UsesENILimitedMemoryOverhead: false,
-		PodsPerCoreEnabled:           false,
-		EvictionSoftEnabled:          false,
+		PodsPerCoreEnabled:           true,
+		EvictionSoftEnabled:          true,
 		SupportsENILimitedPodDensity: false,
 	}
 }

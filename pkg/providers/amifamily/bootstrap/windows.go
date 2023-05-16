@@ -23,7 +23,6 @@ import (
 
 type Windows struct {
 	Options
-	ContainerRuntime string
 }
 
 // nolint:gocyclo
@@ -34,9 +33,6 @@ func (w Windows) Script() (string, error) {
 	userData.WriteString(fmt.Sprintf(`& $EKSBootstrapScriptFile -EKSClusterName '%s' -APIServerEndpoint '%s'`, w.ClusterName, w.ClusterEndpoint))
 	if w.CABundle != nil {
 		userData.WriteString(fmt.Sprintf(` -Base64ClusterCA '%s'`, *w.CABundle))
-	}
-	if w.ContainerRuntime != "" {
-		userData.WriteString(fmt.Sprintf(` -ContainerRuntime '%s'`, w.ContainerRuntime))
 	}
 	if args := w.asKubeletExtraArgs(); len(args) > 0 {
 		userData.WriteString(fmt.Sprintf(` -KubeletExtraArgs '%s'`, strings.Join(args, " ")))

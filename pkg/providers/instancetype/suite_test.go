@@ -180,9 +180,8 @@ var _ = Describe("Instance Types", func() {
 			v1.LabelWindowsBuild:            "some-build",
 		}
 
-		expected := v1alpha5.WellKnownLabels
 		// Ensure that we're exercising all well known labels
-		Expect(lo.Keys(nodeSelector)).To(ContainElements(append(expected.UnsortedList(), lo.Keys(v1alpha5.NormalizedLabels)...)))
+		Expect(lo.Keys(nodeSelector)).To(ContainElements(append(v1alpha5.WellKnownLabels.UnsortedList(), lo.Keys(v1alpha5.NormalizedLabels)...)))
 
 		var pods []*v1.Pod
 		for key, value := range nodeSelector {
@@ -647,6 +646,31 @@ var _ = Describe("Instance Types", func() {
 			Expect(it.Capacity.Pods().Value()).ToNot(BeNumerically("==", 110))
 		}
 	})
+	It("should set pods to 110 even ENILimitedPodDensity is enabled in awssettings but amifamily doesn't support", func() {
+		instanceInfo, err := awsEnv.InstanceTypesProvider.GetInstanceTypes(ctx)
+		Expect(err).To(BeNil())
+		windowsNodeTemplate := &v1alpha1.AWSNodeTemplate{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: coretest.RandomName(),
+			},
+			Spec: v1alpha1.AWSNodeTemplateSpec{
+				AWS: v1alpha1.AWS{
+					AMIFamily:             aws.String(v1alpha1.AMIFamilyWindows2019),
+					SubnetSelector:        map[string]string{"*": "*"},
+					SecurityGroupSelector: map[string]string{"*": "*"},
+				},
+			},
+		}
+
+		ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
+			EnableENILimitedPodDensity: lo.ToPtr(true),
+		}))
+		for _, info := range instanceInfo {
+			it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", windowsNodeTemplate, nil)
+			Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 110))
+		}
+	})
+
 	It("should expose vcpu metrics for instance types", func() {
 		instanceInfo, err := awsEnv.InstanceTypesProvider.List(ctx, provisioner.Spec.KubeletConfiguration, nodeTemplate)
 		Expect(err).To(BeNil())

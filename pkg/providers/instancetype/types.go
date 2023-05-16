@@ -71,7 +71,7 @@ func computeRequirements(ctx context.Context, info *ec2.InstanceTypeInfo, offeri
 		// Well Known Upstream
 		scheduling.NewRequirement(v1.LabelInstanceTypeStable, v1.NodeSelectorOpIn, aws.StringValue(info.InstanceType)),
 		scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, getArchitecture(info)),
-		scheduling.NewRequirement(v1.LabelOSStable, v1.NodeSelectorOpIn, getOS(info, amiFamily)),
+		getOSRequirement(info, amiFamily),
 		scheduling.NewRequirement(v1.LabelTopologyZone, v1.NodeSelectorOpIn, lo.Map(offerings.Available(), func(o cloudprovider.Offering, _ int) string { return o.Zone })...),
 		scheduling.NewRequirement(v1.LabelTopologyRegion, v1.NodeSelectorOpIn, region),
 		// Well Known to Karpenter
@@ -144,15 +144,14 @@ func hardcodeNeuron(requirements scheduling.Requirements, info *ec2.InstanceType
 	return requirements
 }
 
-func getOS(info *ec2.InstanceTypeInfo, amiFamily amifamily.AMIFamily) string {
+func getOSRequirement(info *ec2.InstanceTypeInfo, amiFamily amifamily.AMIFamily) *scheduling.Requirement {
 	if _, ok := amiFamily.(*amifamily.Windows); ok {
 		if getArchitecture(info) == v1alpha5.ArchitectureAmd64 {
-			return string(v1.Windows)
+			return scheduling.NewRequirement(v1.LabelOSStable, v1.NodeSelectorOpIn, string(v1.Windows))
 		}
-		return ""
+		return scheduling.NewRequirement(v1.LabelOSStable, v1.NodeSelectorOpDoesNotExist)
 	}
-
-	return string(v1.Linux)
+	return scheduling.NewRequirement(v1.LabelOSStable, v1.NodeSelectorOpIn, string(v1.Linux))
 }
 
 func getArchitecture(info *ec2.InstanceTypeInfo) string {
