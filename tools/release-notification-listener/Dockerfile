@@ -56,7 +56,7 @@ WORKDIR /release-notification-listener
 RUN GOPROXY=direct go build .
 
 # Install tekton CLI
-RUN curl --silent --location "https://github.com/tektoncd/cli/releases/download/v0.28.0/tkn_0.28.0_$(uname -s)_x86_64.tar.gz" | tar xz -C /tmp
+RUN curl --silent --location "https://github.com/tektoncd/cli/releases/download/v0.31.0/tkn_0.31.0_$(uname -s)_x86_64.tar.gz" | tar xz -C /tmp
 RUN mv /tmp/tkn /usr/local/bin
 
 RUN go build -o release-notification-listener
