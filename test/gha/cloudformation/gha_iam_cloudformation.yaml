@@ -18,20 +18,211 @@ Resources:
     Properties:
       ManagedPolicyName: GithubActionsPolicy
       PolicyDocument:
-        Version: "2012-10-17"
+        Version: '2012-10-17'
         Statement:
           - Effect: Allow
-            Resource: "*"
             Action:
-              - iam:*
-              - cloudformation:*
-              - ssm:*
-              - fis:*
-              - eks:*
-              - autoscaling:*
-              - ec2:*
-              - sqs:*
-              - events:*
+              - ec2:CreateTags
+              - ec2:DescribeAddresses
+              - ec2:DescribeAvailabilityZones
+              - ec2:DescribeEgressOnlyInternetGateways
+              - ec2:DescribeImages
+              - ec2:DescribeInstanceTypeOfferings
+              - ec2:DescribeInstanceTypes
+              - ec2:DescribeInstances
+              - ec2:DescribeInternetGateways
+              - ec2:DescribeKeyPairs
+              - ec2:DescribeLaunchTemplateVersions
+              - ec2:DescribeLaunchTemplates
+              - ec2:DescribeNatGateways
+              - ec2:DescribeNetworkAcls
+              - ec2:DescribeRouteTables
+              - ec2:DescribeSecurityGroups
+              - ec2:DescribeSubnets
+              - ec2:DescribeVolumes
+              - ec2:DescribeVpcs
+              - ec2:DisassociateRouteTable
+              - ec2:DisassociateVpcCidrBlock
+              - ec2:ReleaseAddress
+              - eks:CreateCluster
+              - sts:GetCallerIdentity
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - cloudformation:CreateChangeSet
+              - cloudformation:CreateStack
+              - cloudformation:DeleteStack
+              - cloudformation:DescribeChangeSet
+              - cloudformation:DescribeStacks
+              - cloudformation:ExecuteChangeSet
+            Resource: !Sub "arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/*"
+          - Effect: Allow
+            Action:
+              - ec2:CreateEgressOnlyInternetGateway
+              - ec2:DeleteEgressOnlyInternetGateway
+            Resource: !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:egress-only-internet-gateway/*"
+          - Effect: Allow
+            Action: ec2:AllocateAddress
+            Resource: !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:elastic-ip/*"
+          - Effect: Allow
+            Action:
+              - ec2:DescribeInstanceAttribute
+              - ec2:RunInstances
+              - ec2:StopInstances
+              - ec2:TerminateInstances
+            Resource: !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/*"
+          - Effect: Allow
+            Action:
+              - ec2:AttachInternetGateway
+              - ec2:CreateInternetGateway
+              - ec2:DeleteInternetGateway
+              - ec2:DetachInternetGateway
+            Resource: !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:internet-gateway/*"
+          - Effect: Allow
+            Action:
+              - ec2:CreateLaunchTemplate
+              - ec2:DeleteLaunchTemplate
+            Resource: !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:launch-template/*"
+          - Effect: Allow
+            Action:
+              - ec2:CreateNatGateway
+              - ec2:DeleteNatGateway
+            Resource: !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:natgateway/*"
+          - Effect: Allow
+            Action: ec2:RunInstances
+            Resource: !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:network-interface/*"
+          - Effect: Allow
+            Action:
+              - ec2:AssociateRouteTable
+              - ec2:CreateRoute
+              - ec2:CreateRouteTable
+              - ec2:DeleteRoute
+              - ec2:DeleteRouteTable
+            Resource: !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:route-table/*"
+          - Effect: Allow
+            Action:
+              - ec2:AuthorizeSecurityGroupIngress
+              - ec2:CreateSecurityGroup
+              - ec2:DeleteSecurityGroup
+              - ec2:RevokeSecurityGroupIngress
+              - ec2:RunInstances
+            Resource: !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:security-group/*"
+          - Effect: Allow
+            Action:
+              - ec2:CreateNatGateway
+              - ec2:CreateSubnet
+              - ec2:DeleteSubnet
+              - ec2:ModifySubnetAttribute
+              - ec2:RunInstances
+            Resource: !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:subnet/*"
+          - Effect: Allow
+            Action: ec2:RunInstances
+            Resource: !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:volume/*"
+          - Effect: Allow
+            Action:
+              - ec2:AssociateVpcCidrBlock
+              - ec2:AttachInternetGateway
+              - ec2:CreateEgressOnlyInternetGateway
+              - ec2:CreateRouteTable
+              - ec2:CreateSubnet
+              - ec2:CreateVpc
+              - ec2:DeleteVpc
+              - ec2:DescribeVpcAttribute
+              - ec2:DetachInternetGateway
+              - ec2:ModifyVpcAttribute
+            Resource: !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:vpc/*"
+          - Effect: Allow
+            Action: ec2:RunInstances
+            Resource: !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}::image/*"
+          - Effect: Allow
+            Action:
+              - eks:CreateAddon
+              - eks:DeleteAddon
+              - eks:DescribeAddon
+              - eks:CreateNodegroup
+              - eks:DeleteCluster
+              - eks:DescribeCluster
+              - eks:ListFargateProfiles
+            Resource: !Sub "arn:${AWS::Partition}:eks:${AWS::Region}:${AWS::AccountId}:cluster/*"
+          - Effect: Allow
+            Action:
+              - eks:DeleteNodegroup
+              - eks:DescribeNodegroup
+            Resource: !Sub "arn:${AWS::Partition}:eks:${AWS::Region}:${AWS::AccountId}:nodegroup/*"
+          - Effect: Allow
+            Action: fis:CreateExperimentTemplate
+            Resource: !Sub "arn:${AWS::Partition}:fis:${AWS::Region}:${AWS::AccountId}:action/*"
+          - Effect: Allow
+            Action:
+              - fis:CreateExperimentTemplate
+              - fis:DeleteExperimentTemplate
+              - fis:StartExperiment
+            Resource: !Sub "arn:${AWS::Partition}:fis:${AWS::Region}:${AWS::AccountId}:experiment-template/*"
+          - Effect: Allow
+            Action:
+              - fis:GetExperiment
+              - fis:StartExperiment
+            Resource: !Sub "arn:${AWS::Partition}:fis:${AWS::Region}:${AWS::AccountId}:experiment/*"
+          - Effect: Allow
+            Action:
+              - iam:AddRoleToInstanceProfile
+              - iam:CreateInstanceProfile
+              - iam:DeleteInstanceProfile
+              - iam:GetInstanceProfile
+              - iam:RemoveRoleFromInstanceProfile
+            Resource: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:instance-profile/*"
+          - Effect: Allow
+            Action:
+              - iam:CreateOpenIDConnectProvider
+              - iam:DeleteOpenIDConnectProvider
+              - iam:GetOpenIDConnectProvider
+            Resource: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:oidc-provider/*"
+          - Effect: Allow
+            Action:
+              - iam:CreatePolicy
+              - iam:DeletePolicy
+              - iam:GetPolicy
+              - iam:ListPolicyVersions
+            Resource: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/*"
+          - Effect: Allow
+            Action:
+              - iam:AttachRolePolicy
+              - iam:CreateRole
+              - iam:DeleteRole
+              - iam:DeleteRolePolicy
+              - iam:DetachRolePolicy
+              - iam:GetRole
+              - iam:GetRolePolicy
+              - iam:ListAttachedRolePolicies
+              - iam:PutRolePolicy
+            Resource: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/*"
+          - Effect: Allow
+            Action:
+              - iam:CreateServiceLinkedRole
+            Resource:
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/eks-nodegroup.amazonaws.com/AWSServiceRoleForAmazonEKSNodegroup"
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/spot.amazonaws.com/AWSServiceRoleForEC2Spot"
+          - Effect: Allow
+            Action:
+              - kms:CreateGrant
+              - kms:GenerateDataKeyWithoutPlaintext
+            Resource: !Sub "arn:${AWS::Partition}:kms:${AWS::Region}:${AWS::AccountId}:key/*"
+          - Effect: Allow
+            Action:
+              - sqs:CreateQueue
+              - sqs:DeleteQueue
+              - sqs:AddPermission
+              - sqs:DeletePermission
+              - sqs:SetQueueAttributes
+            Resource: !Sub "arn:${AWS::Partition}:sqs:${AWS::Region}:${AWS::AccountId}:*"
+          - Effect: Allow
+            Action:
+              - events:PutRule
+              - events:DeleteRule
+            Resource: !Sub "arn:${AWS::Partition}:events:${AWS::Region}:${AWS::AccountId}:rule/*"
+          - Effect: Allow
+            Action: ssm:GetParameter
+            Resource: !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/*"
   GithubActionsRole:
     Type: AWS::IAM::Role
     Properties:
@@ -44,7 +235,7 @@ Resources:
         Statement:
           - Effect: Allow
             Principal:
-              Federated: !Ref OIDCProvider
+              Federated: !Ref GithubOIDCProvider
             Action:
               - "sts:AssumeRoleWithWebIdentity"
             Condition:

@@ -3,7 +3,7 @@
 ### Deploying ManagedPrometheus and its Policy
 ```console
 aws cloudformation deploy \
-    --stack-name GHAManagedPrometheus \
+    --stack-name GithubActionsManagedPrometheus \
     --template-file prometheus_cloudformation.yaml \
     --capabilities CAPABILITY_NAMED_IAM
 ```
@@ -11,7 +11,7 @@ aws cloudformation deploy \
 ### Deploying Github Actions IAM Policies and OIDC Provider
 
 ```console
-aws cloduformation deploy --stack-name GHAIAM \
+aws cloudformation deploy --stack-name GithubActionsIAM \
     --template-file gha_iam_cloudformation.yaml \
     --parameter-overrides "Repository=aws/karpenter" \
     --capabilities CAPABILITY_NAMED_IAM
