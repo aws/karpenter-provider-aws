@@ -18,9 +18,9 @@ package pricing
 
 import "time"
 
-// generated at 2023-05-01T13:14:33Z for us-east-1
+// generated at 2023-05-15T13:08:12Z for us-east-1
 
-var initialPriceUpdate, _ = time.Parse(time.RFC3339, "2023-05-01T13:14:33Z")
+var initialPriceUpdate, _ = time.Parse(time.RFC3339, "2023-05-15T13:08:12Z")
 var initialOnDemandPrices = map[string]map[string]float64{}
 
 func init() {
@@ -130,6 +130,9 @@ func init() {
 		// i3en family
 		"i3en.12xlarge": 5.424000, "i3en.24xlarge": 10.848000, "i3en.2xlarge": 0.904000, "i3en.3xlarge": 1.356000,
 		"i3en.6xlarge": 2.712000, "i3en.large": 0.226000, "i3en.metal": 10.848000, "i3en.xlarge": 0.452000,
+		// i4g family
+		"i4g.16xlarge": 4.942080, "i4g.2xlarge": 0.617760, "i4g.4xlarge": 1.235520, "i4g.8xlarge": 2.471040,
+		"i4g.large": 0.154440, "i4g.xlarge": 0.308880,
 		// i4i family
 		"i4i.16xlarge": 5.491000, "i4i.2xlarge": 0.686000, "i4i.32xlarge": 10.982400, "i4i.4xlarge": 1.373000,
 		"i4i.8xlarge": 2.746000, "i4i.large": 0.172000, "i4i.metal": 10.982000, "i4i.xlarge": 0.343000,
