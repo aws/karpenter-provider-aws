@@ -82,7 +82,7 @@ func NewProvider(ctx context.Context, region string, ec2api ec2iface.EC2API, una
 }
 
 func (p *Provider) Create(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, machine *v1alpha5.Machine, instanceTypes []*cloudprovider.InstanceType) (*Instance, error) {
-	instanceTypes = p.filterInstanceTypes(machine, instanceTypes, settings.FromContext(ctx).OnDemandDiscount, settings.FromContext(ctx).SpotDiscount)
+	instanceTypes = p.filterInstanceTypes(machine, instanceTypes, settings.FromContext(ctx).OnDemandPriceMultiplier, settings.FromContext(ctx).SpotPriceMultiplier)
 	instanceTypes = orderInstanceTypesByPrice(instanceTypes, scheduling.NewNodeSelectorRequirements(machine.Spec.Requirements...))
 	if len(instanceTypes) > MaxInstanceTypes {
 		instanceTypes = instanceTypes[0:MaxInstanceTypes]
@@ -396,12 +396,13 @@ func orderInstanceTypesByPrice(instanceTypes []*cloudprovider.InstanceType, requ
 
 // filterInstanceTypes is used to provide filtering on the list of potential instance types to further limit it to those
 // that make the most sense given our specific AWS cloudprovider.
-func (p *Provider) filterInstanceTypes(machine *v1alpha5.Machine, instanceTypes []*cloudprovider.InstanceType, onDemandDiscount float64, spotDiscount float64) []*cloudprovider.InstanceType {
+// multiplier for the on-demand and spot price. This is useful for volume discounts.
+func (p *Provider) filterInstanceTypes(machine *v1alpha5.Machine, instanceTypes []*cloudprovider.InstanceType, onDemandPriceMultiplier float64, spotPriceMultiplier float64) []*cloudprovider.InstanceType {
 	instanceTypes = filterExoticInstanceTypes(instanceTypes)
 	// If we could potentially launch either a spot or on-demand node, we want to filter out the spot instance types that
 	// are more expensive than the cheapest on-demand type.
 	if p.isMixedCapacityLaunch(machine, instanceTypes) {
-		instanceTypes = filterUnwantedSpot(instanceTypes, onDemandDiscount, spotDiscount)
+		instanceTypes = filterUnwantedSpot(instanceTypes, onDemandPriceMultiplier, spotPriceMultiplier)
 	}
 	return instanceTypes
 }
@@ -435,14 +436,14 @@ func (p *Provider) isMixedCapacityLaunch(machine *v1alpha5.Machine, instanceType
 
 // filterUnwantedSpot is used to filter out spot types that are more expensive than the cheapest on-demand type that we
 // could launch during mixed capacity-type launches
-// Discount as a percentage are passed in and applied to ondemand and spot pricing
-func filterUnwantedSpot(instanceTypes []*cloudprovider.InstanceType, onDemandDiscount float64, spotDiscount float64) []*cloudprovider.InstanceType {
+// multiplier for the on-demand and spot price. This is useful for volume discounts.
+func filterUnwantedSpot(instanceTypes []*cloudprovider.InstanceType, onDemandPriceMultiplier float64, spotPriceMultiplier float64) []*cloudprovider.InstanceType {
 	cheapestOnDemand := math.MaxFloat64
 	// first, find the price of our cheapest available on-demand instance type that could support this node
 	for _, it := range instanceTypes {
 		for _, o := range it.Offerings.Available() {
 			if o.CapacityType == v1alpha5.CapacityTypeOnDemand && o.Price < cheapestOnDemand {
-				cheapestOnDemand = o.Price * onDemandDiscount
+				cheapestOnDemand = o.Price * onDemandPriceMultiplier
 			}
 		}
 	}
@@ -455,7 +456,7 @@ func filterUnwantedSpot(instanceTypes []*cloudprovider.InstanceType, onDemandDis
 		if len(available) == 0 {
 			return false
 		}
-		return available.Cheapest().Price*spotDiscount <= cheapestOnDemand
+		return available.Cheapest().Price*spotPriceMultiplier <= cheapestOnDemand
 	})
 	return instanceTypes
 }

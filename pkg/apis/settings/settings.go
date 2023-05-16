@@ -60,8 +60,8 @@ type Settings struct {
 	InterruptionQueueName      string
 	Tags                       map[string]string
 	ReservedENIs               int     `validate:"min=0"`
-	SpotDiscount               float64 `validate:"min=0"`
-	OnDemandDiscount           float64 `validate:"min=0"`
+	SpotPriceMultiplier        float64 `validate:"min=0"`
+	OnDemandPriceMultiplier    float64 `validate:"min=0"`
 }
 
 func (*Settings) ConfigMap() string {
