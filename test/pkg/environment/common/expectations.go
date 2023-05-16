@@ -110,6 +110,7 @@ func (env *Environment) ExpectSettings() *v1.ConfigMap {
 // ExpectSettingsReplaced performs a full replace of the settings, replacing the existing data
 // with the data passed through
 func (env *Environment) ExpectSettingsReplaced(data ...map[string]string) {
+	By("replacing settings in the karpenter-global-settings ConfigMap")
 	cm := env.ExpectSettings()
 	stored := cm.DeepCopy()
 	cm.Data = lo.Assign(data...) // Completely replace the data
@@ -128,6 +129,7 @@ func (env *Environment) ExpectSettingsReplaced(data ...map[string]string) {
 // ExpectSettingsOverridden overrides specific values specified through data. It only overrides
 // or inserts the specific values specified and does not upsert any of the existing data
 func (env *Environment) ExpectSettingsOverridden(data ...map[string]string) {
+	By("overriding settings in the karpenter-global-settings ConfigMap")
 	cm := env.ExpectSettings()
 	stored := cm.DeepCopy()
 	cm.Data = lo.Assign(append([]map[string]string{cm.Data}, data...)...)
@@ -164,8 +166,47 @@ func (env *Environment) EventuallyExpectKarpenterRestarted() {
 }
 
 func (env *Environment) EventuallyExpectKarpenterRestartedWithOffset(offset int) {
-	env.ExpectKarpenterPodsDeletedWithOffset(offset + 1)
-	env.EventuallyExpectKarpenterPodsHealthyWithOffset(offset + 1)
+	By("rolling out the new karpenter deployment")
+	env.EventuallyExpectRolloutWithOffset(offset+1, "karpenter", "karpenter")
+
+	By("waiting for a new karpenter pod to hold the lease")
+	pods := env.ExpectKarpenterPodsWithOffset(offset + 1)
+	EventuallyWithOffset(offset+1, func(g Gomega) {
+		name := env.ExpectActiveKarpenterPodNameWithOffset(offset + 1)
+		g.Expect(lo.ContainsBy(pods, func(p *v1.Pod) bool {
+			return p.Name == name
+		})).To(BeTrue())
+	}).Should(Succeed())
+}
+
+func (env *Environment) EventuallyExpectRolloutWithOffset(offset int, name, namespace string) {
+	By("restarting the deployment")
+	deploy := &appsv1.Deployment{}
+	ExpectWithOffset(offset+1, env.Client.Get(env.Context, types.NamespacedName{Name: name, Namespace: namespace}, deploy)).To(Succeed())
+
+	stored := deploy.DeepCopy()
+	restartedAtAnnotation := map[string]string{
+		"kubectl.kubernetes.io/restartedAt": time.Now().Format(time.RFC3339),
+	}
+	deploy.Spec.Template.Annotations = lo.Assign(deploy.Spec.Template.Annotations, restartedAtAnnotation)
+	ExpectWithOffset(offset+1, env.Client.Patch(env.Context, deploy, client.MergeFrom(stored))).To(Succeed())
+
+	By("waiting for the newly generated deployment to rollout")
+	EventuallyWithOffset(offset+1, func(g Gomega) {
+		podList := &v1.PodList{}
+		g.Expect(env.Client.List(env.Context, podList, client.InNamespace(namespace))).To(Succeed())
+		pods := lo.Filter(podList.Items, func(p v1.Pod, _ int) bool {
+			return p.Annotations["kubectl.kubernetes.io/restartedAt"] == restartedAtAnnotation["kubectl.kubernetes.io/restartedAt"]
+		})
+		g.Expect(len(pods)).To(BeNumerically("==", lo.FromPtr(deploy.Spec.Replicas)))
+		for _, pod := range pods {
+			g.Expect(pod.Status.Conditions).To(ContainElement(And(
+				HaveField("Type", Equal(v1.PodReady)),
+				HaveField("Status", Equal(v1.ConditionTrue)),
+			)))
+			g.Expect(pod.Status.Phase).To(Equal(v1.PodRunning))
+		}
+	}).Should(Succeed())
 }
 
 func (env *Environment) ExpectKarpenterPodsWithOffset(offset int) []*v1.Pod {
@@ -174,14 +215,6 @@ func (env *Environment) ExpectKarpenterPodsWithOffset(offset int) []*v1.Pod {
 		"app.kubernetes.io/instance": "karpenter",
 	})).To(Succeed())
 	return lo.Map(podList.Items, func(p v1.Pod, _ int) *v1.Pod { return &p })
-}
-
-func (env *Environment) ExpectActiveKarpenterPodWithOffset(offset int) *v1.Pod {
-	podName := env.ExpectActiveKarpenterPodNameWithOffset(offset + 1)
-
-	pod := &v1.Pod{}
-	ExpectWithOffset(offset+1, env.Client.Get(env.Context, types.NamespacedName{Name: podName, Namespace: "karpenter"}, pod)).To(Succeed())
-	return pod
 }
 
 func (env *Environment) ExpectActiveKarpenterPodNameWithOffset(offset int) string {
@@ -195,31 +228,12 @@ func (env *Environment) ExpectActiveKarpenterPodNameWithOffset(offset int) strin
 	return holderArr[0]
 }
 
-func (env *Environment) ExpectKarpenterPodsDeletedWithOffset(offset int) {
-	pods := env.ExpectKarpenterPodsWithOffset(offset + 1)
-	env.ExpectDeletedWithOffset(offset+1, lo.Map(pods, func(p *v1.Pod, _ int) client.Object {
-		return p
-	})...)
-	env.EventuallyExpectNotFoundWithOffset(1, lo.Map(pods, func(p *v1.Pod, _ int) client.Object {
-		return p
-	})...)
-}
+func (env *Environment) ExpectActiveKarpenterPodWithOffset(offset int) *v1.Pod {
+	podName := env.ExpectActiveKarpenterPodNameWithOffset(offset + 1)
 
-func (env *Environment) EventuallyExpectKarpenterPodsHealthyWithOffset(offset int) {
-	EventuallyWithOffset(offset+1, func(g Gomega) {
-		pods := env.ExpectKarpenterPodsWithOffset(offset + 1)
-		for _, pod := range pods {
-			g.Expect(pod.Status.Conditions).To(ContainElement(And(
-				HaveField("Type", Equal(v1.PodReady)),
-				HaveField("Status", Equal(v1.ConditionTrue)),
-			)))
-			g.Expect(pod.Status.Phase).To(Equal(v1.PodRunning))
-			g.Expect(pod.DeletionTimestamp.IsZero()).To(BeTrue()) // All pods that we grab shouldn't be deleting, which means they're all up
-		}
-		g.Expect(env.ExpectActiveKarpenterPodNameWithOffset(offset + 1)).To(BeElementOf(lo.Map(pods, func(p *v1.Pod, _ int) string {
-			return p.Name
-		})))
-	}).Should(Succeed())
+	pod := &v1.Pod{}
+	ExpectWithOffset(offset+1, env.Client.Get(env.Context, types.NamespacedName{Name: podName, Namespace: "karpenter"}, pod)).To(Succeed())
+	return pod
 }
 
 func (env *Environment) EventuallyExpectHealthyPodCount(selector labels.Selector, numPods int) {
