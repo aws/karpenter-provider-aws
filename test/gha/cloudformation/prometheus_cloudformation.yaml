@@ -1,22 +1,17 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: Resources used by prometheus-operator installation with remote_write permission for AMP
-Parameters:
-  WorkspaceId:
-    Type: String
-    Description: "AMP workspace id"
-  WorkspaceRegion:
-    Type: String
-    Description: "AMP workspace region"
 Resources:
-  ManagedPrometheusIngestionPolicy:
+  PrometheusWorkspace:
+    Type: AWS::APS::Workspace
+  PrometheusWorkspaceIngestionPolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:
-      ManagedPolicyName: ManagedPrometheusIngestionPolicy
+      ManagedPolicyName: PrometheusWorkspaceIngestionPolicy
       PolicyDocument:
         Version: "2012-10-17"
         Statement:
           - Effect: Allow
-            Resource: !Sub "arn:${AWS::Partition}:aps:${WorkspaceRegion}:${AWS::AccountId}:workspace/${WorkspaceId}"
+            Resource: !Ref PrometheusWorkspace
             Action:
               - aps:RemoteWrite
               - aps:GetSeries

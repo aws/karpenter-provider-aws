@@ -11,6 +11,7 @@ on:
   pull_request:
 jobs:
   e2e:
+    if: github.repository == 'aws/karpenter'
     strategy:
       fail-fast: false
       matrix:
@@ -23,6 +24,7 @@ jobs:
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
   e2e-upgrade:
+    if: github.repository == 'aws/karpenter'
     uses: ./.github/workflows/e2e-upgrade.yaml
     with:
       from_git_ref: v0.26.1

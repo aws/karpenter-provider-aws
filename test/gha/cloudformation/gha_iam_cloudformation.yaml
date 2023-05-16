@@ -1,0 +1,54 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: IAM roles needed to orchestrate the tests in the Github Actions
+Parameters:
+  Repository:
+    Type: String
+    Description: "Fully qualified repository name, formatted as <organization>/<repository-name>"
+Resources:
+  GithubOIDCProvider:
+    Type: AWS::IAM::OIDCProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList:
+        - sts.amazonaws.com
+      ThumbprintList:
+        - 6938fd4d98bab03faadb97b34396831e3780aea1
+  GithubActionsPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: GithubActionsPolicy
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Resource: "*"
+            Action:
+              - iam:*
+              - cloudformation:*
+              - ssm:*
+              - fis:*
+              - eks:*
+              - autoscaling:*
+              - ec2:*
+              - sqs:*
+              - events:*
+  GithubActionsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: GithubActionsRole
+      ManagedPolicyArns:
+        - !Ref GithubActionsPolicy
+      MaxSessionDuration: 21600 # 6 hours is the max session for GHA
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Ref OIDCProvider
+            Action:
+              - "sts:AssumeRoleWithWebIdentity"
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+              StringLike:
+                token.actions.githubusercontent.com:sub: !Sub "repo:${Repository}:*"

@@ -73,6 +73,7 @@ runs:
         version: "${{ inputs.kubernetes_version }}"
         tags:
           karpenter.sh/discovery: ${{ inputs.cluster_name }}
+          github.com/run_id: ${{ github.run_id }}
       kubernetesNetworkConfig:
         ipFamily: ${{ inputs.ip_family }}
       managedNodeGroups:

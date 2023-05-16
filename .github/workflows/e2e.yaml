@@ -17,10 +17,11 @@ on:
       SLACK_WEBHOOK_URL:
         required: true
 env:
-  AWS_REGION: us-east-2
+  AWS_REGION: us-east-1
   K8s_VERSION: 1.25
-  ACCOUNT_ID: 330700974597
-  ROLE_NAME: GHATest
+  ACCOUNT_ID: 857221689048
+  ROLE_NAME: GithubActionsRole
+  WORKSPACE_ID: ws-076042fb-35be-4a2e-baaa-b2a80780606b
 permissions:
   id-token: write # This is required for requesting the JWT
   contents: read  # This is required for actions/checkout
@@ -59,8 +60,7 @@ jobs:
           role: ${{ env.ROLE_NAME }}
           region: ${{ env.AWS_REGION }}
           cluster_name: ${{ env.CLUSTER_NAME }}
-          workspace_region: us-west-2
-          workspace_id: ws-076042fb-35be-4a2e-baaa-b2a80780606b
+          workspace_id: ${{ env.WORKSPACE_ID }}
       - name: install karpenter
         uses: ./actions/.github/actions/e2e/install-karpenter
         with:
