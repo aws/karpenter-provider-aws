@@ -23,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	"knative.dev/pkg/ptr"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
@@ -34,17 +35,35 @@ import (
 )
 
 var _ = Describe("KubeletConfiguration Overrides", func() {
-	DescribeTable("should startup successfully with all kubelet configuration set",
-		func(amiFamily *string) {
-			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
+	Context("All kubelet configuration set", func() {
+		var nodeTemplate *v1alpha1.AWSNodeTemplate
+		var provisioner *v1alpha5.Provisioner
+
+		windowsVPCCNIConfigMap := &v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "amazon-vpc-cni",
+				Namespace: "kube-system",
+			},
+			Data: map[string]string{
+				"enable-windows-ipam": "true",
+			},
+		}
+
+		BeforeEach(func() {
+			nodeTemplate = awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-				AMIFamily:             amiFamily,
 			}})
 
 			// MaxPods needs to account for the daemonsets that will run on the nodes
-			provisioner := test.Provisioner(test.ProvisionerOptions{
-				ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
+			provisioner = test.Provisioner(test.ProvisionerOptions{
+				ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name},
+				Requirements: []v1.NodeSelectorRequirement{
+					{
+						Key:      v1.LabelOSStable,
+						Operator: v1.NodeSelectorOpExists,
+					},
+				},
 				Kubelet: &v1alpha5.KubeletConfiguration{
 					ContainerRuntime: ptr.String("containerd"),
 					MaxPods:          ptr.Int32(110),
@@ -89,16 +108,47 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 					CPUCFSQuota:                 ptr.Bool(false),
 				},
 			})
+		})
+		DescribeTable("Linux AMIFamilies",
+			func(amiFamily *string) {
+				nodeTemplate.Spec.AMIFamily = amiFamily
+				pod := test.Pod(test.PodOptions{
+					NodeSelector: map[string]string{
+						v1.LabelOSStable:   string(v1.Linux),
+						v1.LabelArchStable: "amd64",
+					},
+				})
+				env.ExpectCreated(provisioner, nodeTemplate, pod)
+				env.EventuallyExpectHealthy(pod)
+				env.ExpectCreatedNodeCount("==", 1)
+			},
+			Entry("when the AMIFamily is AL2", &v1alpha1.AMIFamilyAL2),
+			Entry("when the AMIFamily is Ubuntu", &v1alpha1.AMIFamilyUbuntu),
+			Entry("when the AMIFamily is Bottlerocket", &v1alpha1.AMIFamilyBottlerocket),
+		)
+		DescribeTable("Windows AMIFamilies",
+			func(amiFamily *string) {
+				env.ExpectCreatedOrUpdated(windowsVPCCNIConfigMap)
+				DeferCleanup(func() {
+					env.ExpectDeleted(windowsVPCCNIConfigMap)
+				})
 
-			pod := test.Pod()
-			env.ExpectCreated(provisioner, provider, pod)
-			env.EventuallyExpectHealthy(pod)
-			env.ExpectCreatedNodeCount("==", 1)
-		},
-		Entry("when the AMIFamily is AL2", &v1alpha1.AMIFamilyAL2),
-		Entry("when the AMIFamily is Ubuntu", &v1alpha1.AMIFamilyUbuntu),
-		Entry("when the AMIFamily is Bottlerocket", &v1alpha1.AMIFamilyBottlerocket),
-	)
+				nodeTemplate.Spec.AMIFamily = amiFamily
+				pod := test.Pod(test.PodOptions{
+					Image: "mcr.microsoft.com/k8s/core/pause:1.2.0",
+					NodeSelector: map[string]string{
+						v1.LabelOSStable:   string(v1.Windows),
+						v1.LabelArchStable: "amd64",
+					},
+				})
+				env.ExpectCreated(provisioner, nodeTemplate, pod)
+				env.EventuallyExpectHealthyWithTimeout(time.Minute*15, pod)
+				env.ExpectCreatedNodeCount("==", 1)
+			},
+			Entry("when the AMIFamily is Windows2019", &v1alpha1.AMIFamilyWindows2019),
+			Entry("when the AMIFamily is Windows2022", &v1alpha1.AMIFamilyWindows2022),
+		)
+	})
 	It("should schedule pods onto separate nodes when maxPods is set", func() {
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
@@ -237,3 +287,13 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		env.ExpectUniqueNodeNames(selector, 1)
 	})
 })
+
+func ExpectWindowsIPAMEnabled() {
+	env.ExpectDaemonSetEnvironmentVariableUpdatedWithOffset(1, types.NamespacedName{Namespace: "kube-system", Name: "aws-node"},
+		"ENABLE_POD_ENI", "true")
+}
+
+func ExpectWindowsIPAMDisabled() {
+	env.ExpectDaemonSetEnvironmentVariableUpdatedWithOffset(1, types.NamespacedName{Namespace: "kube-system", Name: "aws-node"},
+		"ENABLE_POD_ENI", "false")
+}

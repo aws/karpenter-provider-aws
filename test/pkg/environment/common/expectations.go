@@ -199,14 +199,28 @@ func (env *Environment) ExpectFound(obj client.Object) {
 }
 
 func (env *Environment) EventuallyExpectHealthy(pods ...*v1.Pod) {
+	GinkgoHelper()
 	for _, pod := range pods {
-		EventuallyWithOffset(1, func(g Gomega) {
+		Eventually(func(g Gomega) {
 			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(pod), pod)).To(Succeed())
 			g.Expect(pod.Status.Conditions).To(ContainElement(And(
 				HaveField("Type", Equal(v1.PodReady)),
 				HaveField("Status", Equal(v1.ConditionTrue)),
 			)))
 		}).Should(Succeed())
+	}
+}
+
+func (env *Environment) EventuallyExpectHealthyWithTimeout(timeout time.Duration, pods ...*v1.Pod) {
+	GinkgoHelper()
+	for _, pod := range pods {
+		Eventually(func(g Gomega) {
+			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(pod), pod)).To(Succeed())
+			g.Expect(pod.Status.Conditions).To(ContainElement(And(
+				HaveField("Type", Equal(v1.PodReady)),
+				HaveField("Status", Equal(v1.ConditionTrue)),
+			)))
+		}).WithTimeout(timeout).Should(Succeed())
 	}
 }
 
