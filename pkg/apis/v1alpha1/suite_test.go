@@ -152,6 +152,9 @@ var _ = Describe("Validation", func() {
 		})
 		It("should succeed when snapshotID is set for the root volume for Custom", func() {
 			ant.Spec.AMIFamily = &v1alpha1.AMIFamilyCustom
+			ant.Spec.AMISelector = map[string]string{
+				"*": "*",
+			}
 			ant.Spec.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{
 				{
 					DeviceName: v1alpha1.EphemeralBlockDevice(v1alpha1.AMIFamilyCustom),
