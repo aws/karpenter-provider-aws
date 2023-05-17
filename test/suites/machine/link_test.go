@@ -125,7 +125,7 @@ var _ = Describe("MachineLink", func() {
 		env.EventuallyExpectCreatedNodeCount("==", 1)
 
 		// Restart Karpenter to start the linking process
-		env.ExpectKarpenterPodsDeleted()
+		env.EventuallyExpectKarpenterRestarted()
 
 		// Expect that the Machine is created when Karpenter starts up
 		machines := env.EventuallyExpectCreatedMachineCount("==", 1)
@@ -185,7 +185,7 @@ var _ = Describe("MachineLink", func() {
 		env.EventuallyExpectCreatedNodeCount("==", 1)
 
 		// Restart Karpenter to start the linking process
-		env.ExpectKarpenterPodsDeleted()
+		env.EventuallyExpectKarpenterRestarted()
 
 		// Expect that the Machine is created when Karpenter starts up
 		machines := env.EventuallyExpectCreatedMachineCount("==", 1)
@@ -249,7 +249,7 @@ var _ = Describe("MachineLink", func() {
 		Expect(env.Client.Patch(env.Context, node, client.MergeFrom(stored))).To(Succeed())
 
 		// Restart Karpenter to start the linking process
-		env.ExpectKarpenterPodsDeleted()
+		env.EventuallyExpectKarpenterRestarted()
 
 		// Expect that the Machine is created when Karpenter starts up
 		machines := env.EventuallyExpectCreatedMachineCount("==", 1)
