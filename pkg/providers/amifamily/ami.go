@@ -111,7 +111,15 @@ func MapInstanceTypes(amis []AMI, instanceTypes []*cloudprovider.InstanceType) (
 
 	if len(amiIDs) == 0 {
 		instances := lo.Map(instanceTypes, func(i *cloudprovider.InstanceType, _ int) string { return i.Name })
-		return nil, fmt.Errorf("no instance types satisfy requirements of amis %v instance-types: %v", amis, instances[:5])
+		var displayInstances []string
+		remainingInstance := ""
+		if len(instances) < 5 {
+			displayInstances = instances
+		} else {
+			displayInstances = instances[:5]
+			remainingInstance = fmt.Sprintf(" and %v others", len(instances)-5)
+		}
+		return nil, fmt.Errorf("no instance types satisfy requirements of amis %v instance-types: [%v] %v", amis, strings.Join(displayInstances, ","), remainingInstance)
 	}
 
 	return amiIDs, nil
