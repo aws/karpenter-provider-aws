@@ -302,10 +302,23 @@ func NodeNames(nodes []*v1.Node) []string {
 }
 
 func (env *Environment) EventuallyExpectNodeCount(comparator string, count int) []*v1.Node {
+	GinkgoHelper()
 	By(fmt.Sprintf("waiting for nodes to be %s to %d", comparator, count))
 	nodeList := &v1.NodeList{}
-	EventuallyWithOffset(1, func(g Gomega) {
+	Eventually(func(g Gomega) {
 		g.Expect(env.Client.List(env, nodeList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
+		g.Expect(len(nodeList.Items)).To(BeNumerically(comparator, count),
+			fmt.Sprintf("expected %d nodes, had %d (%v)", count, len(nodeList.Items), NodeNames(lo.ToSlicePtr(nodeList.Items))))
+	}).Should(Succeed())
+	return lo.ToSlicePtr(nodeList.Items)
+}
+
+func (env *Environment) EventuallyExpectNodeCountWithSelector(comparator string, count int, selector labels.Selector) []*v1.Node {
+	GinkgoHelper()
+	By(fmt.Sprintf("waiting for nodes with selector %v to be %s to %d", selector, comparator, count))
+	nodeList := &v1.NodeList{}
+	Eventually(func(g Gomega) {
+		g.Expect(env.Client.List(env, nodeList, client.HasLabels{test.DiscoveryLabel}, client.MatchingLabelsSelector{Selector: selector})).To(Succeed())
 		g.Expect(len(nodeList.Items)).To(BeNumerically(comparator, count),
 			fmt.Sprintf("expected %d nodes, had %d (%v)", count, len(nodeList.Items), NodeNames(lo.ToSlicePtr(nodeList.Items))))
 	}).Should(Succeed())
@@ -324,10 +337,26 @@ func (env *Environment) EventuallyExpectCreatedNodeCount(comparator string, coun
 }
 
 func (env *Environment) EventuallyExpectDeletedNodeCount(comparator string, count int) []*v1.Node {
+	GinkgoHelper()
 	By(fmt.Sprintf("waiting for deleted nodes to be %s to %d", comparator, count))
 	var deletedNodes []*v1.Node
-	EventuallyWithOffset(1, func(g Gomega) {
+	Eventually(func(g Gomega) {
 		deletedNodes = env.Monitor.DeletedNodes()
+		g.Expect(len(deletedNodes)).To(BeNumerically(comparator, count),
+			fmt.Sprintf("expected %d deleted nodes, had %d (%v)", count, len(deletedNodes), NodeNames(deletedNodes)))
+	}).Should(Succeed())
+	return deletedNodes
+}
+
+func (env *Environment) EventuallyExpectDeletedNodeCountWithSelector(comparator string, count int, selector labels.Selector) []*v1.Node {
+	GinkgoHelper()
+	By(fmt.Sprintf("waiting for deleted nodes with selector %v to be %s to %d", selector, comparator, count))
+	var deletedNodes []*v1.Node
+	Eventually(func(g Gomega) {
+		deletedNodes = env.Monitor.DeletedNodes()
+		deletedNodes = lo.Filter(deletedNodes, func(n *v1.Node, _ int) bool {
+			return selector.Matches(labels.Set(n.Labels))
+		})
 		g.Expect(len(deletedNodes)).To(BeNumerically(comparator, count),
 			fmt.Sprintf("expected %d deleted nodes, had %d (%v)", count, len(deletedNodes), NodeNames(deletedNodes)))
 	}).Should(Succeed())

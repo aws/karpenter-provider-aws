@@ -27,9 +27,10 @@ import (
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	awstest "github.com/aws/karpenter/pkg/test"
+	"github.com/aws/karpenter/test/pkg/debug"
 )
 
-var _ = Describe("Provisioning", func() {
+var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), func() {
 	var provisioner *v1alpha5.Provisioner
 	var nodeTemplate *v1alpha1.AWSNodeTemplate
 	var deployment *appsv1.Deployment
@@ -74,6 +75,7 @@ var _ = Describe("Provisioning", func() {
 		})
 		selector = labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels)
 		// Zonal topology spread to avoid exhausting IPs in each subnet
+		// TODO @joinnis: Use prefix delegation to avoid IP exhaustion issues with private AZs and ipv4
 		deployment.Spec.Template.Spec.TopologySpreadConstraints = []v1.TopologySpreadConstraint{
 			{
 				LabelSelector:     deployment.Spec.Selector,
@@ -118,9 +120,8 @@ var _ = Describe("Provisioning", func() {
 	It("should scale successfully on a pod-dense scale-up", func() {
 		replicasPerNode := 110
 		maxPodDensity := replicasPerNode + dsCount
-		expectedNodeCount := 60
+		expectedNodeCount := 60 // A multiple of 3 and 4 so that it spreads evenly with 3 or 4 AZs
 		replicas := replicasPerNode * expectedNodeCount
-
 		deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
 		provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
 			MaxPods: lo.ToPtr[int32](int32(maxPodDensity)),

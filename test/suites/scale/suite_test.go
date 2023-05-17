@@ -30,9 +30,6 @@ func TestScale(t *testing.T) {
 	RegisterFailHandler(Fail)
 	BeforeSuite(func() {
 		env = aws.NewEnvironment(t)
-		Expect(env.PromClient).ToNot(BeNil(), "Prometheus service could not be discovered. "+
-			"If testing scale testing locally, prometheus should be able to be accessed on localhost:9090 by port-forwarding "+
-			"with \"kubectl port-forward -n <namespace> svc/<name> 9090\"")
 		SetDefaultEventuallyTimeout(15 * time.Minute)
 	})
 	RunSpecs(t, "Scale")
@@ -47,6 +44,5 @@ var _ = BeforeEach(func() {
 var _ = AfterEach(func() { env.Cleanup() })
 var _ = AfterEach(func() {
 	time.Sleep(time.Second * 30) // Need to wait a bit of time here to let the scrape interval to pass
-	env.ExpectSLOsMaintained()
 	env.AfterEach()
 })

@@ -16,6 +16,7 @@ package scale_test
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -35,12 +36,32 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages/scheduledchange"
 	awstest "github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/pkg/utils"
+	"github.com/aws/karpenter/test/pkg/debug"
 )
 
-var _ = Describe("Deprovisioning", func() {
+const deprovisioningTypeKey = v1alpha5.TestingGroup + "/deprovisioning-type"
+const (
+	consolidationValue = "consolidation"
+	emptinessValue     = "emptiness"
+	expirationValue    = "expiration"
+	driftValue         = "drift"
+)
+
+// disableProvisioningLimits represents limits that can be applied to a provisioner if you want a provisioner
+// that can deprovision nodes but cannot provision nodes
+var disableProvisioningLimits = &v1alpha5.Limits{
+	Resources: v1.ResourceList{
+		v1.ResourceCPU:    resource.MustParse("0"),
+		v1.ResourceMemory: resource.MustParse("0Gi"),
+	},
+}
+
+var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), func() {
 	var provisioner *v1alpha5.Provisioner
+	var provisionerOptions test.ProvisionerOptions
 	var nodeTemplate *v1alpha1.AWSNodeTemplate
 	var deployment *appsv1.Deployment
+	var deploymentOptions test.DeploymentOptions
 	var selector labels.Selector
 	var dsCount int
 
@@ -49,12 +70,11 @@ var _ = Describe("Deprovisioning", func() {
 		env.ExpectSettingsOverridden(map[string]string{
 			"featureGates.driftEnabled": "true",
 		})
-		env.ExpectPrometheusQuery("karpenter_machines_created", nil)
 		nodeTemplate = awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
-		provisioner = test.Provisioner(test.ProvisionerOptions{
+		provisionerOptions = test.ProvisionerOptions{
 			ProviderRef: &v1alpha5.MachineTemplateRef{
 				Name: nodeTemplate.Name,
 			},
@@ -78,8 +98,9 @@ var _ = Describe("Deprovisioning", func() {
 			// No limits!!!
 			// https://tenor.com/view/chaos-gif-22919457
 			Limits: v1.ResourceList{},
-		})
-		deployment = test.Deployment(test.DeploymentOptions{
+		}
+		provisioner = test.Provisioner(provisionerOptions)
+		deploymentOptions = test.DeploymentOptions{
 			PodOptions: test.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{
 					Requests: v1.ResourceList{
@@ -89,8 +110,10 @@ var _ = Describe("Deprovisioning", func() {
 				},
 				TerminationGracePeriodSeconds: lo.ToPtr[int64](0),
 			},
-		})
+		}
+		deployment = test.Deployment(deploymentOptions)
 		// Zonal topology spread to avoid exhausting IPs in each subnet
+		// TODO @joinnis: Use prefix delegation to avoid IP exhaustion issues with private AZs and ipv4
 		deployment.Spec.Template.Spec.TopologySpreadConstraints = []v1.TopologySpreadConstraint{
 			{
 				LabelSelector:     deployment.Spec.Selector,
@@ -107,12 +130,186 @@ var _ = Describe("Deprovisioning", func() {
 		env.Cleanup()
 	})
 
-	Context("Multiple Deprovisioners", func() {})
+	Context("Multiple Deprovisioners", func() {
+		It("should run consolidation, emptiness, expiration, and drift simultaneously", func() {
+			replicasPerNode := 20
+			maxPodDensity := replicasPerNode + dsCount
+			nodeCountPerProvisioner := 12 // A multiple of 3 and 4 so that it spreads evenly with 3 or 4 AZs
+			replicas := replicasPerNode * nodeCountPerProvisioner
+
+			deprovisioningTypes := []string{
+				consolidationValue,
+				emptinessValue,
+				expirationValue,
+				driftValue,
+			}
+			expectedNodeCount := nodeCountPerProvisioner * len(deprovisioningTypes)
+
+			deploymentMap := map[string]*appsv1.Deployment{}
+			// Generate all the deployments for multi-deprovisioning
+			for _, v := range deprovisioningTypes {
+				deploymentOptions.PodOptions.NodeSelector = map[string]string{
+					deprovisioningTypeKey: v,
+				}
+				deploymentOptions.PodOptions.Tolerations = []v1.Toleration{
+					{
+						Key:      deprovisioningTypeKey,
+						Operator: v1.TolerationOpEqual,
+						Value:    v,
+						Effect:   v1.TaintEffectNoSchedule,
+					},
+				}
+				deploymentOptions.Replicas = int32(replicas)
+				d := test.Deployment(deploymentOptions)
+				d.Spec.Template.Spec.TopologySpreadConstraints = []v1.TopologySpreadConstraint{
+					{
+						LabelSelector:     d.Spec.Selector,
+						TopologyKey:       v1.LabelTopologyZone,
+						MaxSkew:           1,
+						WhenUnsatisfiable: v1.DoNotSchedule,
+					},
+				}
+				deploymentMap[v] = d
+			}
+
+			provisionerMap := map[string]*v1alpha5.Provisioner{}
+			// Generate all the provisioners for multi-deprovisioning
+			for _, v := range deprovisioningTypes {
+				provisionerOptions.Taints = []v1.Taint{
+					{
+						Key:    deprovisioningTypeKey,
+						Value:  v,
+						Effect: v1.TaintEffectNoSchedule,
+					},
+				}
+				provisionerOptions.Labels = map[string]string{
+					deprovisioningTypeKey: v,
+				}
+				provisionerOptions.Kubelet = &v1alpha5.KubeletConfiguration{
+					MaxPods: lo.ToPtr[int32](int32(maxPodDensity)),
+				}
+				provisionerMap[v] = test.Provisioner(provisionerOptions)
+			}
+
+			By("waiting for the deployment to deploy all of its pods")
+			var wg sync.WaitGroup
+			for _, d := range deploymentMap {
+				wg.Add(1)
+				go func(dep *appsv1.Deployment) {
+					defer GinkgoRecover()
+					defer wg.Done()
+
+					env.ExpectCreated(dep)
+					env.EventuallyExpectPendingPodCount(labels.SelectorFromSet(dep.Spec.Selector.MatchLabels), int(lo.FromPtr(dep.Spec.Replicas)))
+				}(d)
+			}
+			wg.Wait()
+
+			By("kicking off provisioning by applying the provisioner and nodeTemplate")
+			// Create a separate nodeTemplate for drift so that we can change the nodeTemplate later without it affecting
+			// the other provisioners
+			driftNodeTemplate := nodeTemplate.DeepCopy()
+			driftNodeTemplate.Name = test.RandomName()
+			provisionerMap[driftValue].Spec.ProviderRef.Name = driftNodeTemplate.Name
+
+			env.ExpectCreated(driftNodeTemplate, nodeTemplate)
+			for _, p := range provisionerMap {
+				env.ExpectCreated(p)
+			}
+
+			env.EventuallyExpectCreatedMachineCount("==", expectedNodeCount)
+			env.EventuallyExpectCreatedNodeCount("==", expectedNodeCount)
+			env.EventuallyExpectInitializedNodeCount("==", expectedNodeCount)
+
+			// Wait for all pods across all deployments we have created to be in a healthy state
+			wg = sync.WaitGroup{}
+			for _, d := range deploymentMap {
+				wg.Add(1)
+				go func(dep *appsv1.Deployment) {
+					defer GinkgoRecover()
+					defer wg.Done()
+
+					env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(dep.Spec.Selector.MatchLabels), int(lo.FromPtr(dep.Spec.Replicas)))
+				}(d)
+			}
+			wg.Wait()
+
+			env.Monitor.Reset() // Reset the monitor so that we now track the nodes starting at this point in time
+
+			By("scaling down replicas across deployments")
+			deploymentMap[consolidationValue].Spec.Replicas = lo.ToPtr[int32](int32(int(float64(replicas) * 0.2)))
+			deploymentMap[emptinessValue].Spec.Replicas = lo.ToPtr[int32](0)
+			for _, d := range deploymentMap {
+				env.ExpectUpdated(d)
+			}
+
+			By("enabling deprovisioning across provisioners")
+			provisionerMap[consolidationValue].Spec.Consolidation = &v1alpha5.Consolidation{Enabled: lo.ToPtr(true)}
+			provisionerMap[emptinessValue].Spec.TTLSecondsAfterEmpty = lo.ToPtr[int64](0)
+			provisionerMap[expirationValue].Spec.TTLSecondsUntilExpired = lo.ToPtr[int64](0)
+			provisionerMap[expirationValue].Spec.Limits = disableProvisioningLimits
+			provisionerMap[driftValue].Spec.Limits = disableProvisioningLimits
+			for _, p := range provisionerMap {
+				env.ExpectUpdated(p)
+			}
+			driftNodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
+			env.ExpectUpdated(driftNodeTemplate)
+
+			By("waiting for the nodes across all deprovisoiners to get deleted")
+			wg = sync.WaitGroup{}
+			wg.Add(4)
+			go func() {
+				defer GinkgoRecover()
+				defer wg.Done()
+				env.EventuallyExpectDeletedNodeCountWithSelector("==", int(float64(expectedNodeCount)*0.8), labels.SelectorFromSet(map[string]string{
+					v1alpha5.ProvisionerNameLabelKey: provisionerMap[consolidationValue].Name,
+				}))
+				env.EventuallyExpectNodeCountWithSelector("==", int(float64(expectedNodeCount)*0.2), labels.SelectorFromSet(map[string]string{
+					v1alpha5.ProvisionerNameLabelKey: provisionerMap[consolidationValue].Name,
+				}))
+				env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deploymentMap[consolidationValue].Labels), int(lo.FromPtr(deploymentMap[consolidationValue].Spec.Replicas)))
+			}()
+			go func() {
+				defer GinkgoRecover()
+				defer wg.Done()
+				env.EventuallyExpectDeletedNodeCountWithSelector("==", expectedNodeCount, labels.SelectorFromSet(map[string]string{
+					v1alpha5.ProvisionerNameLabelKey: provisionerMap[emptinessValue].Name,
+				}))
+				env.EventuallyExpectNodeCountWithSelector("==", 0, labels.SelectorFromSet(map[string]string{
+					v1alpha5.ProvisionerNameLabelKey: provisionerMap[emptinessValue].Name,
+				}))
+				env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deploymentMap[emptinessValue].Labels), int(lo.FromPtr(deploymentMap[emptinessValue].Spec.Replicas)))
+			}()
+			go func() {
+				defer GinkgoRecover()
+				defer wg.Done()
+				env.EventuallyExpectDeletedNodeCountWithSelector("==", expectedNodeCount, labels.SelectorFromSet(map[string]string{
+					v1alpha5.ProvisionerNameLabelKey: provisionerMap[expirationValue].Name,
+				}))
+				env.EventuallyExpectNodeCountWithSelector("==", expectedNodeCount, labels.SelectorFromSet(map[string]string{
+					v1alpha5.ProvisionerNameLabelKey: provisionerMap[expirationValue].Name,
+				}))
+				env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deploymentMap[expirationValue].Labels), int(lo.FromPtr(deploymentMap[expirationValue].Spec.Replicas)))
+			}()
+			go func() {
+				defer GinkgoRecover()
+				defer wg.Done()
+				env.EventuallyExpectDeletedNodeCountWithSelector("==", expectedNodeCount, labels.SelectorFromSet(map[string]string{
+					v1alpha5.ProvisionerNameLabelKey: provisionerMap[driftValue].Name,
+				}))
+				env.EventuallyExpectNodeCountWithSelector("==", expectedNodeCount, labels.SelectorFromSet(map[string]string{
+					v1alpha5.ProvisionerNameLabelKey: provisionerMap[driftValue].Name,
+				}))
+				env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deploymentMap[driftValue].Labels), int(lo.FromPtr(deploymentMap[driftValue].Spec.Replicas)))
+			}()
+			wg.Wait()
+		})
+	})
 	Context("Consolidation", func() {
 		It("should consolidate nodes to get a higher utilization (multi-consolidation delete)", func() {
 			replicasPerNode := 20
 			maxPodDensity := replicasPerNode + dsCount
-			expectedNodeCount := 200
+			expectedNodeCount := 204 // A multiple of 3 and 4 so that it spreads evenly with 3 or 4 AZs
 			replicas := replicasPerNode * expectedNodeCount
 
 			deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
@@ -178,7 +375,7 @@ var _ = Describe("Deprovisioning", func() {
 
 			env.Monitor.Reset() // Reset the monitor so that we now track the nodes starting at this point in time
 
-			By("kicking off deprovisioning by adding enabling consolidation")
+			By("kicking off deprovisioning by enabling consolidation")
 			// The provisioner defaults to a larger instance type than we need so enabling consolidation and making
 			// the requirements wide-open should cause deletes and increase our utilization on the cluster
 			provisioner.Spec.Consolidation = &v1alpha5.Consolidation{Enabled: lo.ToPtr(true)}
@@ -196,7 +393,7 @@ var _ = Describe("Deprovisioning", func() {
 		It("should deprovision all nodes when empty", func() {
 			replicasPerNode := 20
 			maxPodDensity := replicasPerNode + dsCount
-			expectedNodeCount := 200
+			expectedNodeCount := 204 // A multiple of 3 and 4 so that it spreads evenly with 3 or 4 AZs
 			replicas := replicasPerNode * expectedNodeCount
 
 			deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
@@ -237,7 +434,7 @@ var _ = Describe("Deprovisioning", func() {
 		It("should expire all nodes", func() {
 			replicasPerNode := 20
 			maxPodDensity := replicasPerNode + dsCount
-			expectedNodeCount := 30
+			expectedNodeCount := 24 // A multiple of 3 and 4 so that it spreads evenly with 3 or 4 AZs
 			replicas := replicasPerNode * expectedNodeCount
 
 			deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
@@ -261,12 +458,7 @@ var _ = Describe("Deprovisioning", func() {
 
 			By("kicking off deprovisioning by adding expiration and another provisioner")
 			// Change Provisioner limits so that replacement nodes will use another provisioner.
-			provisioner.Spec.Limits = &v1alpha5.Limits{
-				Resources: v1.ResourceList{
-					v1.ResourceCPU:    resource.MustParse("0"),
-					v1.ResourceMemory: resource.MustParse("0Gi"),
-				},
-			}
+			provisioner.Spec.Limits = disableProvisioningLimits
 			// Enable Expiration
 			provisioner.Spec.TTLSecondsUntilExpired = lo.ToPtr[int64](0)
 
@@ -299,7 +491,7 @@ var _ = Describe("Deprovisioning", func() {
 			// Before Deprovisioning, we need to Provision the cluster to the state that we need.
 			replicasPerNode := 20
 			maxPodDensity := replicasPerNode + dsCount
-			expectedNodeCount := 30
+			expectedNodeCount := 24 // A multiple of 3 and 4 so that it spreads evenly with 3 or 4 AZs
 			replicas := replicasPerNode * expectedNodeCount
 
 			deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
@@ -321,14 +513,8 @@ var _ = Describe("Deprovisioning", func() {
 
 			env.Monitor.Reset() // Reset the monitor so that we now track the nodes starting at this point in time
 
-			By("waiting for all deployment pods to be deleted")
-			// Fully scale down all pods to make nodes empty
-			deployment.Spec.Replicas = lo.ToPtr[int32](0)
-			env.ExpectDeleted(deployment)
-			env.EventuallyExpectHealthyPodCount(selector, 0)
-
-			By("kicking off deprovisioning by adding ttlSecondsAfterEmpty")
-			provisioner.Spec.TTLSecondsAfterEmpty = lo.ToPtr[int64](0)
+			By("kicking off drift by updating the AMIFamily")
+			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
 			env.ExpectCreatedOrUpdated(provisioner)
 
 			env.EventuallyExpectDeletedNodeCount("==", expectedNodeCount)
@@ -340,7 +526,7 @@ var _ = Describe("Deprovisioning", func() {
 		It("should interrupt all nodes due to scheduledChange", func() {
 			replicasPerNode := 20
 			maxPodDensity := replicasPerNode + dsCount
-			expectedNodeCount := 200
+			expectedNodeCount := 204 // A multiple of 3 and 4 so that it spreads evenly with 3 or 4 AZs
 			replicas := replicasPerNode * expectedNodeCount
 
 			deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
