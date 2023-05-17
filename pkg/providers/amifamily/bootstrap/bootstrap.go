@@ -19,15 +19,13 @@ import (
 	"sort"
 	"strings"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/aws/karpenter-core/pkg/utils/resources"
-
 	"github.com/samber/lo"
 	core "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"knative.dev/pkg/ptr"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/utils/resources"
 )
 
 // Options is the node bootstrapping parameters passed from Karpenter to the provisioning node
@@ -43,11 +41,14 @@ type Options struct {
 	CustomUserData          *string
 }
 
-func (o Options) asKubeletExtraArgs() (args []string) {
-	args = append(args, o.nodeLabelArg(), o.nodeTaintArg(), o.maxPodsArg())
+func (o Options) kubeletExtraArgs() (args []string) {
+	args = append(args, o.nodeLabelArg(), o.nodeTaintArg())
 
 	if o.KubeletConfig == nil {
 		return lo.Compact(args)
+	}
+	if o.KubeletConfig.MaxPods != nil {
+		args = append(args, fmt.Sprintf("--max-pods=%d", ptr.Int32Value(o.KubeletConfig.MaxPods)))
 	}
 	if o.KubeletConfig.PodsPerCore != nil {
 		args = append(args, fmt.Sprintf("--pods-per-core=%d", ptr.Int32Value(o.KubeletConfig.PodsPerCore)))
@@ -72,15 +73,6 @@ func (o Options) asKubeletExtraArgs() (args []string) {
 		args = append(args, fmt.Sprintf("--cpu-cfs-quota=%t", lo.FromPtr(o.KubeletConfig.CPUCFSQuota)))
 	}
 	return lo.Compact(args)
-}
-func (o Options) maxPodsArg() string {
-	if o.KubeletConfig != nil && o.KubeletConfig.MaxPods != nil {
-		return fmt.Sprintf("--max-pods=%d", ptr.Int32Value(o.KubeletConfig.MaxPods))
-	}
-	if !o.AWSENILimitedPodDensity {
-		return "--max-pods=110"
-	}
-	return ""
 }
 
 func (o Options) nodeTaintArg() string {
@@ -108,6 +100,20 @@ func (o Options) nodeLabelArg() string {
 		labelStrings = append(labelStrings, fmt.Sprintf("%s=%v", key, o.Labels[key]))
 	}
 	return fmt.Sprintf("--node-labels=%q", strings.Join(labelStrings, ","))
+}
+
+// joinParameterArgs joins a map of keys and values by their separator. The separator will sit between the
+// arguments in a comma-separated list i.e. arg1<sep>val1,arg2<sep>val2
+func joinParameterArgs[K comparable, V any](name string, m map[K]V, separator string) string {
+	var args []string
+
+	for k, v := range m {
+		args = append(args, fmt.Sprintf("%v%s%v", k, separator, v))
+	}
+	if len(args) > 0 {
+		return fmt.Sprintf("%s=%q", name, strings.Join(args, ","))
+	}
+	return ""
 }
 
 // Bootstrapper can be implemented to generate a bootstrap script

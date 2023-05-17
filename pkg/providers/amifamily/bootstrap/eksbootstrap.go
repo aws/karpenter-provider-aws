@@ -75,24 +75,21 @@ func (e EKS) eksBootstrapScript() string {
 	if (e.KubeletConfig != nil && e.KubeletConfig.MaxPods != nil) || !e.AWSENILimitedPodDensity {
 		userData.WriteString(" \\\n--use-max-pods false")
 	}
-	if args := e.asKubeletExtraArgs(); len(args) > 0 {
+	if args := e.kubeletExtraArgs(); len(args) > 0 {
 		userData.WriteString(fmt.Sprintf(" \\\n--kubelet-extra-args '%s'", strings.Join(args, " ")))
 	}
 	return userData.String()
 }
 
-// joinParameterArgs joins a map of keys and values by their separator. The separator will sit between the
-// arguments in a comma-separated list i.e. arg1<sep>val1,arg2<sep>val2
-func joinParameterArgs[K comparable, V any](name string, m map[K]V, separator string) string {
-	var args []string
-
-	for k, v := range m {
-		args = append(args, fmt.Sprintf("%v%s%v", k, separator, v))
+// kubeletExtraArgs for the EKS bootstrap.sh script uses the concept of ENI-limited pod density to set pods
+// If this argument is explicitly disabled, then set the max-pods value on the kubelet to the static value of 110
+func (e EKS) kubeletExtraArgs() []string {
+	args := e.Options.kubeletExtraArgs()
+	// Set the static value for --max-pods to 110 when AWSENILimitedPodDensity is explicitly disabled and the value isn't set
+	if !e.AWSENILimitedPodDensity && (e.KubeletConfig == nil || e.KubeletConfig.MaxPods == nil) {
+		args = append(args, "--max-pods=110")
 	}
-	if len(args) > 0 {
-		return fmt.Sprintf("%s=%q", name, strings.Join(args, ","))
-	}
-	return ""
+	return args
 }
 
 func (e EKS) mergeCustomUserData(userDatas ...string) (string, error) {

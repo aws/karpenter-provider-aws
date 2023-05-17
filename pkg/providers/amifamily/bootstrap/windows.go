@@ -34,7 +34,7 @@ func (w Windows) Script() (string, error) {
 	if w.CABundle != nil {
 		userData.WriteString(fmt.Sprintf(` -Base64ClusterCA '%s'`, *w.CABundle))
 	}
-	if args := w.asKubeletExtraArgs(); len(args) > 0 {
+	if args := w.kubeletExtraArgs(); len(args) > 0 {
 		userData.WriteString(fmt.Sprintf(` -KubeletExtraArgs '%s'`, strings.Join(args, " ")))
 	}
 	if w.KubeletConfig != nil && len(w.KubeletConfig.ClusterDNS) > 0 {
@@ -43,7 +43,6 @@ func (w Windows) Script() (string, error) {
 	if w.KubeletConfig != nil && w.KubeletConfig.ContainerRuntime != nil {
 		userData.WriteString(fmt.Sprintf(` -ContainerRuntime '%s'`, *w.KubeletConfig.ContainerRuntime))
 	}
-
 	userData.WriteString("\n</powershell>")
 	return base64.StdEncoding.EncodeToString(userData.Bytes()), nil
 }
