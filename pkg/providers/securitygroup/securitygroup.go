@@ -51,7 +51,7 @@ func NewProvider(ec2api ec2iface.EC2API, cache *cache.Cache) *Provider {
 	}
 }
 
-func (p *Provider) List(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) ([]string, error) {
+func (p *Provider) List(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) ([]*ec2.SecurityGroup, error) {
 	p.Lock()
 	defer p.Unlock()
 	// Get SecurityGroups
@@ -59,7 +59,7 @@ func (p *Provider) List(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTempl
 	// The check will not be necessary
 	filters := p.getFilters(nodeTemplate)
 	if len(filters) == 0 {
-		return []string{}, nil
+		return []*ec2.SecurityGroup{}, nil
 	}
 	securityGroups, err := p.getSecurityGroups(ctx, filters)
 	if err != nil {
@@ -72,7 +72,7 @@ func (p *Provider) List(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTempl
 			})).
 			Debugf("discovered security groups")
 	}
-	return lo.Map(securityGroups, func(s *ec2.SecurityGroup, _ int) string { return aws.StringValue(s.GroupId) }), nil
+	return securityGroups, nil
 }
 
 func (p *Provider) getFilters(nodeTemplate *v1alpha1.AWSNodeTemplate) []*ec2.Filter {
