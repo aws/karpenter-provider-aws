@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: Resources used by prometheus-operator installation with remote_write permission for AMP
+Description: Resources used for monitoring the GHA test runs using Prometheus
 Resources:
   PrometheusWorkspace:
     Type: AWS::APS::Workspace
@@ -17,3 +17,7 @@ Resources:
               - aps:GetSeries
               - aps:GetLabels
               - aps:GetMetricMetadata
+Outputs:
+  WorkspaceID:
+    Description: "Prometheus Workspace ID"
+    Value: !Ref PrometheusWorkspace

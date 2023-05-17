@@ -30,11 +30,16 @@ runs:
       shell: bash
       run: |
         eksctl delete cluster --name ${{ inputs.cluster_name }} --timeout 60m --wait || true
-    - name: delete-iam-policies
+    - name: delete-iam-policies-stack
       shell: bash
       run: |
         aws cloudformation delete-stack --stack-name iam-${{ inputs.cluster_name }}
         aws cloudformation wait stack-delete-complete --stack-name iam-${{ inputs.cluster_name }}
+    - name: delete-cluster-stack
+      shell: bash
+      run: |
+        aws cloudformation delete-stack --stack-name eksctl-${{ inputs.cluster_name }}-cluster || true
+        aws cloudformation wait stack-delete-complete --stack-name eksctl-${{ inputs.cluster_name }}-cluster || true
     - name: delete-launch-templates
       shell: bash
       run: |

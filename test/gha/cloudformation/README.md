@@ -4,7 +4,16 @@
 ```console
 aws cloudformation deploy \
     --stack-name GithubActionsManagedPrometheus \
-    --template-file prometheus_cloudformation.yaml \
+    --template-file gha_prometheus_cloudformation.yaml \
+    --capabilities CAPABILITY_NAMED_IAM
+```
+
+### [Optional] Deploying ManagedGrafana and its Policy
+```console
+aws cloudformation deploy \
+    --stack-name GithubActionsManagedGrafana \
+    --template-file gha_grafana_cloudformation.yaml \
+    --parameter-overrides "GrafanaWorkspaceIDPMetadata=<saml-idp-metadata-contents>" "PrometheusWorkspaceID=<workspace-id>" \
     --capabilities CAPABILITY_NAMED_IAM
 ```
 
@@ -13,7 +22,7 @@ aws cloudformation deploy \
 ```console
 aws cloudformation deploy --stack-name GithubActionsIAM \
     --template-file gha_iam_cloudformation.yaml \
-    --parameter-overrides "Repository=aws/karpenter" \
+    --parameter-overrides "Repository=aws/karpenter" "PrometheusWorkspaceID=<workspace-id>" \
     --capabilities CAPABILITY_NAMED_IAM
 ```
 

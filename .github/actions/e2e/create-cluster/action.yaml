@@ -72,8 +72,8 @@ runs:
         region: ${{ inputs.region }}
         version: "${{ inputs.kubernetes_version }}"
         tags:
-          karpenter.sh/discovery: ${{ inputs.cluster_name }}
-          github.com/run_id: ${{ github.run_id }}
+          karpenter.sh/discovery: "${{ inputs.cluster_name }}"
+          github.com/run_id: "${{ github.run_id }}"
       kubernetesNetworkConfig:
         ipFamily: ${{ inputs.ip_family }}
       managedNodeGroups:
@@ -84,11 +84,21 @@ runs:
           disableIMDSv1: true
           minSize: 2
           maxSize: 2
+          iam:
+            instanceRolePermissionsBoundary: "arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsDesignatedPermissionsBoundary"
           taints:
           - key: CriticalAddonsOnly
             value: "true"
             effect: NoSchedule
       iam:
+        serviceAccounts:
+        - metadata:
+            name: aws-node
+            namespace: kube-system
+          attachPolicyARNs:
+            - "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
+          permissionsBoundary: "arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsDesignatedPermissionsBoundary"
+        serviceRolePermissionsBoundary: "arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsDesignatedPermissionsBoundary"
         withOIDC: true
       addons:
       - name: vpc-cni

@@ -1,0 +1,74 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Resources used for monitoring the GHA test runs using Grafana
+Parameters:
+  GrafanaWorkspaceIDPMetadata:
+    Type: String
+    Description: "SAML Configuration Metadata for connecting the Grafana Workspace to an Identity Provider"
+  PrometheusWorkspaceID:
+    Type: String
+    Description: "Prometheus workspace to give access to Grafana to query metrics from"
+Resources:
+  GrafanaWorkspace:
+    Type: AWS::Grafana::Workspace
+    Properties:
+      Name: KarpenterTestMonitoring
+      Description: Amazon Grafana Workspace for Karpenter Test Monitoring
+      AccountAccessType: CURRENT_ACCOUNT
+      PermissionType: CUSTOMER_MANAGED
+      RoleArn: !Ref GrafanaWorkspaceRole
+      AuthenticationProviders:
+        - SAML
+      SamlConfiguration:
+        IdpMetadata:
+          Xml: >-
+            <md:EntityDescriptor xmlns:md='urn:oasis:names:tc:SAML:2.0:metadata'
+            entityID='entityId'>DATA</md:EntityDescriptor>
+        AssertionAttributes:
+          Name: displayName
+          Login: mail
+          Email: mail
+          Role: role
+        RoleValues:
+          Admin:
+            - admin
+        LoginValidityDuration: 120
+  GrafanaWorkspaceRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      ManagedPolicyArns:
+        - !Ref GrafanaToPrometheusDataSourcePolicy
+        - arn:aws:iam::aws:policy/service-role/AmazonGrafanaCloudWatchAccess
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - grafana.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+  GrafanaToPrometheusDataSourcePolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: GrafanaToPrometheusDataSourcePolicy
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - aps:ListWorkspaces
+              - aps:DescribeWorkspace
+              - aps:QueryMetrics
+              - aps:GetLabels
+              - aps:GetSeries
+              - aps:GetMetricMetadata
+            Resource: !Sub "arn:${AWS::Partition}:aps:${AWS::Region}:${AWS::AccountId}:workspace/${PrometheusWorkspaceID}"
+Outputs:
+  WorkspaceEndpoint:
+    Value: !GetAtt GrafanaWorkspace.Endpoint
+  WorkspaceStatus:
+    Value: !GetAtt GrafanaWorkspace.Status
+  WorkspaceID:
+    Value: !Ref GrafanaWorkspace
+  GrafanaVersion:
+    Value: !GetAtt GrafanaWorkspace.GrafanaVersion
