@@ -224,10 +224,13 @@ func awsNeurons(info *ec2.InstanceTypeInfo) *resource.Quantity {
 	count := int64(0)
 	if info.InferenceAcceleratorInfo != nil {
 		for _, accelerator := range info.InferenceAcceleratorInfo.Accelerators {
-			count += *accelerator.Count
+			// Check if the accelerator type is for Trainium instances
+			if *accelerator.Type == "neuron" {
+				count += *accelerator.Count
+			}
 		}
 	}
-	return resources.Quantity(fmt.Sprint(count))
+	return resource.NewQuantity(count, resource.DecimalSI)
 }
 
 func habanaGaudis(info *ec2.InstanceTypeInfo) *resource.Quantity {
