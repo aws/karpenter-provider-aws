@@ -17,7 +17,6 @@ package amifamily
 import (
 	"context"
 	"fmt"
-	"go.uber.org/multierr"
 	"sort"
 	"strings"
 	"time"
@@ -101,25 +100,18 @@ func (p *Provider) KubeServerVersion(ctx context.Context) (string, error) {
 // MapInstanceTypes returns a map of AMIIDs that are the most recent on creationDate to compatible instancetypes
 func MapInstanceTypes(amis []AMI, instanceTypes []*cloudprovider.InstanceType) (map[string][]*cloudprovider.InstanceType, error) {
 	amiIDs := map[string][]*cloudprovider.InstanceType{}
-	seenErrors := map[string]bool{}
-	var errs error
 	for _, instanceType := range instanceTypes {
 		for _, ami := range amis {
-			err := instanceType.Requirements.Compatible(ami.Requirements)
-			if err == nil {
+			if err := instanceType.Requirements.Compatible(ami.Requirements); err == nil {
 				amiIDs[ami.AmiID] = append(amiIDs[ami.AmiID], instanceType)
 				break
-			} else if len(seenErrors) < 3 {
-				if _, ok := seenErrors[err.Error()]; !ok {
-					seenErrors[err.Error()] = true
-					errs = multierr.Append(errs, fmt.Errorf("instance type %v is incompatible with ami %v reason %w", instanceType.Name, ami.Name, err))
-				}
 			}
 		}
 	}
 
 	if len(amiIDs) == 0 {
-		return nil, fmt.Errorf("no instance types satisfy requirements of amis %v summary: [ %w ]", amiList(amis), errs)
+		instances := lo.Map(instanceTypes, func(i *cloudprovider.InstanceType, _ int) string { return i.Name })
+		return nil, fmt.Errorf("no instance types satisfy requirements of amis %v instance-types: %v", amis, instances[:5])
 	}
 
 	return amiIDs, nil
