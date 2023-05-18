@@ -94,14 +94,40 @@ extraVolumes: []
 #         audience: sts.amazonaws.com
 #         expirationSeconds: 86400
 #         path: token
+
+# -- Array of extra K8s manifests to deploy
+extraObjects: []
+#- apiVersion: karpenter.k8s.aws/v1alpha1
+#  kind: AWSNodeTemplate
+#  metadata:
+#    name: default
+#    annotations:
+#      "helm.sh/hook": "post-install,post-upgrade"
+#      "helm.sh/hook-delete-policy": before-hook-creation
+#  spec:
+#    subnetSelector:
+#      karpenter.sh/discovery: {CLUSTER_NAME}
+#    securityGroupSelector:
+#      karpenter.sh/discovery: {CLUSTER_NAME}
+#- apiVersion: karpenter.sh/v1alpha5
+#  kind: Provisioner
+#  metadata:
+#    name: default
+#    annotations:
+#      "helm.sh/hook": "post-install,post-upgrade"
+#      "helm.sh/hook-delete-policy": before-hook-creation
+#  spec:
+#    providerRef:
+#      name: default
+
 controller:
   image:
     # -- Repository path to the controller image.
     repository: public.ecr.aws/karpenter/controller
     # -- Tag of the controller image.
-    tag: v0.27.3
+    tag: v0.27.5
     # -- SHA256 digest of the controller image.
-    digest: sha256:87ea68abc00b806e45df8a519eacf845f5f0fa577596edc3be83fad6e550aefb
+    digest: sha256:f9023101d05d0c0c6a5d67f19b8ecf754bf97cb4e94b41d9d80a75ee5be5150c
   # -- SecurityContext for the controller container.
   securityContext: {}
   # -- Additional environment variables for the controller pod.
@@ -143,7 +169,7 @@ controller:
   sidecarVolumeMounts: []
   metrics:
     # -- The container port to use for metrics.
-    port: 8000
+    port: 8080
   healthProbe:
     # -- The container port to use for http health probe.
     port: 8081
@@ -180,6 +206,8 @@ settings:
     # -- If true then assume we can't reach AWS services which don't have a VPC endpoint
     # This also has the effect of disabling look-ups to the AWS pricing endpoint
     isolatedVPC: false
+    # -- The node naming convention (either "ip-name" or "resource-name")
+    nodeNameConvention: "ip-name"
     # -- The VM memory overhead as a percent that will be subtracted from the total memory for all instance types
     vmMemoryOverheadPercent: 0.075
     # -- interruptionQueueName is disabled if not specified. Enabling interruption handling may
