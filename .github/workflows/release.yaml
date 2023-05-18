@@ -26,7 +26,7 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ env.TAG_COMMIT }}
-      - uses: ./.github/actions/install-go-and-dependencies
+      - uses: ./.github/actions/install-deps
       - uses: ./.github/actions/authenticate-aws
       - uses: ./.github/actions/authenticate-ghcr
         with:

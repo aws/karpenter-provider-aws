@@ -17,7 +17,7 @@ jobs:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
-      - uses: ./.github/actions/install-go-and-dependencies
+      - uses: ./.github/actions/install-deps
       - uses: ./.github/actions/authenticate-aws
       - run: ./push-docker.sh
         working-directory: ./test

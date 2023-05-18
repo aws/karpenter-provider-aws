@@ -1,0 +1,20 @@
+name: InstallDependencies
+description: 'Installs Go Downloads and installs Karpenter Dependencies'
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/setup-go@v4
+      with:
+        go-version-file: go.mod
+        check-latest: true
+        cache-dependency-path: "**/go.sum"
+    - uses: actions/cache@v3
+      id: cache-toolchain
+      with:
+        path: |
+          ~/.kubebuilder/bin
+          ~/go/bin
+        key: ${{ runner.os }}-toolchain-cache-${{ hashFiles('hack/toolchain.sh') }}
+    - if: ${{ steps.cache-toolchain.outputs.cache-hit != 'true' }}
+      shell: bash
+      run: make toolchain
