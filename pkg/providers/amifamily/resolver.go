@@ -166,8 +166,6 @@ func (r Resolver) Resolve(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTem
 				DetailedMonitoring:    aws.BoolValue(nodeTemplate.Spec.DetailedMonitoring),
 				AMIID:                 amiID,
 				InstanceTypes:         instanceTypes,
-				LicenseSpecifications: nodeTemplate.Spec.LicenseSpecifications,
-				Placement:             Placement{HostResourceGroupArn: nodeTemplate.Spec.Placement.HostResourceGroupArn},
 			}
 			if resolved.BlockDeviceMappings == nil {
 				resolved.BlockDeviceMappings = amiFamily.DefaultBlockDeviceMappings()
@@ -175,6 +173,12 @@ func (r Resolver) Resolve(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTem
 			if resolved.MetadataOptions == nil {
 				resolved.MetadataOptions = amiFamily.DefaultMetadataOptions()
 			}
+            if len(nodeTemplate.Spec.LicenseSpecifications) > 0 {
+				resolved.LicenseSpecifications = nodeTemplate.Spec.LicenseSpecifications
+            }
+            if nodeTemplate.Spec.Placement.HostResourceGroupArn != "" {
+				resolved.Placement = Placement{HostResourceGroupArn: nodeTemplate.Spec.Placement.HostResourceGroupArn}
+            }
 			resolvedTemplates = append(resolvedTemplates, resolved)
 		}
 	}

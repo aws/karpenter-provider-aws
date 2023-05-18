@@ -240,9 +240,7 @@ func (p *Provider) createLaunchTemplate(ctx context.Context, options *amifamily.
 				{ResourceType: aws.String(ec2.ResourceTypeNetworkInterface), Tags: utils.MergeTags(options.Tags)},
 			},
 			LicenseSpecifications: createLicenseSpecifications(options.LicenseSpecifications),
-			Placement: &ec2.LaunchTemplatePlacementRequest{
-				HostResourceGroupArn: aws.String(options.Placement.HostResourceGroupArn),
-			},
+			Placement:             createPlacement(&options.Placement),
 		},
 		TagSpecifications: []*ec2.TagSpecification{
 			{
@@ -277,11 +275,23 @@ func (p *Provider) generateNetworkInterface(options *amifamily.LaunchTemplate) [
 }
 
 func createLicenseSpecifications(licenseSpecifications []string) []*ec2.LaunchTemplateLicenseConfigurationRequest {
+	if len(licenseSpecifications) == 0 {
+		return nil
+	}
 	output := []*ec2.LaunchTemplateLicenseConfigurationRequest{}
 	for _, s := range licenseSpecifications {
 		output = append(output, &ec2.LaunchTemplateLicenseConfigurationRequest{LicenseConfigurationArn: aws.String(s)})
 	}
 	return output
+}
+
+func createPlacement(placement *amifamily.Placement) *ec2.LaunchTemplatePlacementRequest {
+	if placement == nil || placement.HostResourceGroupArn == "" {
+		return nil
+	}
+	return &ec2.LaunchTemplatePlacementRequest{
+		HostResourceGroupArn: aws.String(placement.HostResourceGroupArn),
+	}
 }
 
 func (p *Provider) blockDeviceMappings(blockDeviceMappings []*v1alpha1.BlockDeviceMapping) []*ec2.LaunchTemplateBlockDeviceMappingRequest {
