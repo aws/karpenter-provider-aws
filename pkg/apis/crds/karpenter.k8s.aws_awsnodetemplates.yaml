@@ -268,7 +268,6 @@ spec:
                       type: array
                   required:
                   - id
-                  - name
                   - requirements
                   type: object
                 type: array
@@ -281,6 +280,9 @@ spec:
                   properties:
                     id:
                       description: ID of the security group
+                      type: string
+                    name:
+                      description: Name of the security group
                       type: string
                   required:
                   - id
