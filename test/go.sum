@@ -82,8 +82,8 @@ github.com/aws/aws-sdk-go-v2/service/ssooidc v1.14.6 h1:B8cauxOH1W1v7rd8RdI/MWno
 github.com/aws/aws-sdk-go-v2/service/ssooidc v1.14.6/go.mod h1:Lh/bc9XUf8CfOY6Jp5aIkQtN+j1mc+nExc+KXj9jx2s=
 github.com/aws/aws-sdk-go-v2/service/sts v1.18.7 h1:bWNgNdRko2x6gqa0blfATqAZKZokPIeM1vfmQt2pnvM=
 github.com/aws/aws-sdk-go-v2/service/sts v1.18.7/go.mod h1:JuTnSoeePXmMVe9G8NcjjwgOKEfZ4cOjMuT2IBT/2eI=
-github.com/aws/karpenter-core v0.27.4-0.20230516213910-fd3f7d15c696 h1:AA1ejHwDZnkwSw84zBH8FO//AgMf5nKD80DnaqrypT4=
-github.com/aws/karpenter-core v0.27.4-0.20230516213910-fd3f7d15c696/go.mod h1:NQOEY9xxhPi6xUTknEA0KaY9pPbXzS5N4EKkZ5f85d8=
+github.com/aws/karpenter-core v0.27.4 h1:z9KtZpdYpoOVORzW4iQcPEa0nXuG1oQLssF0rjgI+KU=
+github.com/aws/karpenter-core v0.27.4/go.mod h1:NQOEY9xxhPi6xUTknEA0KaY9pPbXzS5N4EKkZ5f85d8=
 github.com/aws/smithy-go v1.13.5 h1:hgz0X/DX0dGqTYpGALqXJoRKRj5oQ7150i5FdTePzO8=
 github.com/aws/smithy-go v1.13.5/go.mod h1:Tg+OJXh4MB2R/uN61Ko2f6hTZwB/ZYGOtib8J3gBHzA=
 github.com/benbjohnson/clock v1.1.0 h1:Q92kusRqC1XV2MjkWETPvjJVqKetz1OzxZB7mHJLju8=
