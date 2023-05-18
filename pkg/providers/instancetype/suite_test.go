@@ -71,7 +71,9 @@ var awsEnv *test.Environment
 var fakeClock *clock.FakeClock
 var prov *provisioning.Provisioner
 var provisioner *v1alpha5.Provisioner
+var windowsProvisioner *v1alpha5.Provisioner
 var nodeTemplate *v1alpha1.AWSNodeTemplate
+var windowsNodeTemplate *v1alpha1.AWSNodeTemplate
 var cluster *state.Cluster
 var cloudProvider *cloudprovider.CloudProvider
 
@@ -126,6 +128,27 @@ var _ = BeforeEach(func() {
 			Name:       nodeTemplate.Name,
 		},
 	})
+	windowsNodeTemplate = test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+		AWS: v1alpha1.AWS{
+			AMIFamily: &v1alpha1.AMIFamilyWindows2022,
+		},
+	})
+	windowsProvisioner = test.Provisioner(coretest.ProvisionerOptions{
+		Requirements: []v1.NodeSelectorRequirement{
+			{
+				Key:      v1alpha1.LabelInstanceCategory,
+				Operator: v1.NodeSelectorOpExists,
+			},
+			{
+				Key:      v1.LabelOSStable,
+				Operator: v1.NodeSelectorOpIn,
+				Values:   []string{string(v1.Windows)},
+			},
+		},
+		ProviderRef: &v1alpha5.MachineTemplateRef{
+			Name: windowsNodeTemplate.Name,
+		},
+	})
 
 	cluster.Reset()
 	awsEnv.Reset()
@@ -140,7 +163,7 @@ var _ = AfterEach(func() {
 
 var _ = Describe("Instance Types", func() {
 	It("should support individual instance type labels", func() {
-		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+		ExpectApplied(ctx, env.Client, provisioner, windowsProvisioner, nodeTemplate, windowsNodeTemplate)
 
 		nodeSelector := map[string]string{
 			// Well known
@@ -177,7 +200,7 @@ var _ = Describe("Instance Types", func() {
 			"beta.kubernetes.io/os":         "linux",
 			v1.LabelInstanceType:            "g4dn.8xlarge",
 			"topology.ebs.csi.aws.com/zone": "test-zone-1a",
-			v1.LabelWindowsBuild:            "some-build",
+			v1.LabelWindowsBuild:            v1alpha1.Windows2022Build,
 		}
 
 		// Ensure that we're exercising all well known labels

@@ -38,7 +38,7 @@ var _ = Describe("Webhooks", func() {
 					ProviderRef: &v1alpha5.MachineTemplateRef{Name: "test"},
 				})
 				env.ExpectCreated(provisioner)
-				env.ExpectFound(provisioner)
+				env.ExpectExists(provisioner)
 
 				Expect(len(provisioner.Spec.Requirements)).To(Equal(5))
 				Expect(provisioner.Spec.Requirements).To(ContainElement(v1.NodeSelectorRequirement{
@@ -99,7 +99,7 @@ var _ = Describe("Webhooks", func() {
 					},
 				})
 				env.ExpectCreated(provisioner)
-				env.ExpectFound(provisioner)
+				env.ExpectExists(provisioner)
 
 				Expect(len(provisioner.Spec.Requirements)).To(Equal(5))
 				Expect(provisioner.Spec.Requirements).To(ContainElement(v1.NodeSelectorRequirement{

@@ -71,9 +71,10 @@ func computeRequirements(ctx context.Context, info *ec2.InstanceTypeInfo, offeri
 		// Well Known Upstream
 		scheduling.NewRequirement(v1.LabelInstanceTypeStable, v1.NodeSelectorOpIn, aws.StringValue(info.InstanceType)),
 		scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, getArchitecture(info)),
-		getOSRequirement(info, amiFamily),
+		scheduling.NewRequirement(v1.LabelOSStable, v1.NodeSelectorOpIn, getOS(info, amiFamily)...),
 		scheduling.NewRequirement(v1.LabelTopologyZone, v1.NodeSelectorOpIn, lo.Map(offerings.Available(), func(o cloudprovider.Offering, _ int) string { return o.Zone })...),
 		scheduling.NewRequirement(v1.LabelTopologyRegion, v1.NodeSelectorOpIn, region),
+		scheduling.NewRequirement(v1.LabelWindowsBuild, v1.NodeSelectorOpDoesNotExist),
 		// Well Known to Karpenter
 		scheduling.NewRequirement(v1alpha5.LabelCapacityType, v1.NodeSelectorOpIn, lo.Map(offerings.Available(), func(o cloudprovider.Offering, _ int) string { return o.CapacityType })...),
 		// Well Known to AWS
@@ -129,6 +130,10 @@ func computeRequirements(ctx context.Context, info *ec2.InstanceTypeInfo, offeri
 		requirements.Get(v1alpha1.LabelInstanceAcceleratorManufacturer).Insert(lowerKabobCase(aws.StringValue(accelerator.Manufacturer)))
 		requirements.Get(v1alpha1.LabelInstanceAcceleratorCount).Insert(fmt.Sprint(aws.Int64Value(accelerator.Count)))
 	}
+	// Windows Build Version Labels
+	if family, ok := amiFamily.(*amifamily.Windows); ok {
+		requirements.Get(v1.LabelWindowsBuild).Insert(family.Build)
+	}
 	return hardcodeNeuron(requirements, info)
 }
 
@@ -144,14 +149,14 @@ func hardcodeNeuron(requirements scheduling.Requirements, info *ec2.InstanceType
 	return requirements
 }
 
-func getOSRequirement(info *ec2.InstanceTypeInfo, amiFamily amifamily.AMIFamily) *scheduling.Requirement {
+func getOS(info *ec2.InstanceTypeInfo, amiFamily amifamily.AMIFamily) []string {
 	if _, ok := amiFamily.(*amifamily.Windows); ok {
 		if getArchitecture(info) == v1alpha5.ArchitectureAmd64 {
-			return scheduling.NewRequirement(v1.LabelOSStable, v1.NodeSelectorOpIn, string(v1.Windows))
+			return []string{string(v1.Windows)}
 		}
-		return scheduling.NewRequirement(v1.LabelOSStable, v1.NodeSelectorOpDoesNotExist)
+		return []string{}
 	}
-	return scheduling.NewRequirement(v1.LabelOSStable, v1.NodeSelectorOpIn, string(v1.Linux))
+	return []string{string(v1.Linux)}
 }
 
 func getArchitecture(info *ec2.InstanceTypeInfo) string {

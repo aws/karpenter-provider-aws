@@ -16,6 +16,7 @@ package integration_test
 
 import (
 	"fmt"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -31,6 +32,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/test/pkg/debug"
+	"github.com/aws/karpenter/test/pkg/environment/aws"
 
 	awstest "github.com/aws/karpenter/pkg/test"
 )
@@ -226,6 +228,36 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 		}})
 		env.ExpectCreated(provisioner, provider, deployment)
 		env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
+		env.ExpectCreatedNodeCount("==", 1)
+	})
+	It("should support well-known labels for windows-build version", func() {
+		env.ExpectWindowsIPAMEnabled()
+		DeferCleanup(func() {
+			env.ExpectWindowsIPAMDisabled()
+		})
+
+		nodeSelector := map[string]string{
+			// Well Known
+			v1.LabelWindowsBuild: v1alpha1.Windows2022Build,
+			v1.LabelOSStable:     string(v1.Windows), // Specify the OS to enable vpc-resource-controller to inject the PrivateIPv4Address resource
+		}
+		selectors.Insert(lo.Keys(nodeSelector)...) // Add node selector keys to selectors used in testing to ensure we test all labels
+		requirements := lo.MapToSlice(nodeSelector, func(key string, value string) v1.NodeSelectorRequirement {
+			return v1.NodeSelectorRequirement{Key: key, Operator: v1.NodeSelectorOpIn, Values: []string{value}}
+		})
+		deployment := test.Deployment(test.DeploymentOptions{Replicas: 1, PodOptions: test.PodOptions{
+			NodeSelector:     nodeSelector,
+			NodePreferences:  requirements,
+			NodeRequirements: requirements,
+			Image:            aws.WindowsDefaultImage,
+		}})
+		provider.Spec.AMIFamily = &v1alpha1.AMIFamilyWindows2022
+		provisioner.Spec.Requirements = append(provisioner.Spec.Requirements, v1.NodeSelectorRequirement{
+			Key:      v1.LabelOSStable,
+			Operator: v1.NodeSelectorOpExists,
+		})
+		env.ExpectCreated(provisioner, provider, deployment)
+		env.EventuallyExpectHealthyPodCountWithTimeout(time.Minute*10, labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
 		env.ExpectCreatedNodeCount("==", 1)
 	})
 	It("should provision a node for naked pods", func() {

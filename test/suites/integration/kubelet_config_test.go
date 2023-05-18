@@ -29,6 +29,7 @@ import (
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	awstest "github.com/aws/karpenter/pkg/test"
+	"github.com/aws/karpenter/test/pkg/environment/aws"
 
 	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
@@ -38,16 +39,6 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 	Context("All kubelet configuration set", func() {
 		var nodeTemplate *v1alpha1.AWSNodeTemplate
 		var provisioner *v1alpha5.Provisioner
-
-		windowsVPCCNIConfigMap := &v1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "amazon-vpc-cni",
-				Namespace: "kube-system",
-			},
-			Data: map[string]string{
-				"enable-windows-ipam": "true",
-			},
-		}
 
 		BeforeEach(func() {
 			nodeTemplate = awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
@@ -128,21 +119,21 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		)
 		DescribeTable("Windows AMIFamilies",
 			func(amiFamily *string) {
-				env.ExpectCreatedOrUpdated(windowsVPCCNIConfigMap)
+				env.ExpectWindowsIPAMEnabled()
 				DeferCleanup(func() {
-					env.ExpectDeleted(windowsVPCCNIConfigMap)
+					env.ExpectWindowsIPAMDisabled()
 				})
 
 				nodeTemplate.Spec.AMIFamily = amiFamily
 				pod := test.Pod(test.PodOptions{
-					Image: "mcr.microsoft.com/k8s/core/pause:1.2.0",
+					Image: aws.WindowsDefaultImage,
 					NodeSelector: map[string]string{
 						v1.LabelOSStable:   string(v1.Windows),
 						v1.LabelArchStable: "amd64",
 					},
 				})
 				env.ExpectCreated(provisioner, nodeTemplate, pod)
-				env.EventuallyExpectHealthyWithTimeout(time.Minute*15, pod)
+				env.EventuallyExpectHealthyWithTimeout(time.Minute*10, pod)
 				env.ExpectCreatedNodeCount("==", 1)
 			},
 			Entry("when the AMIFamily is Windows2019", &v1alpha1.AMIFamilyWindows2019),
