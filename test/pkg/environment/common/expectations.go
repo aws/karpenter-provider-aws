@@ -97,23 +97,47 @@ func (env *Environment) ExpectCreatedOrUpdated(objects ...client.Object) {
 	}
 }
 
+// ExpectSettings gets the karpenter-global-settings ConfigMap
 func (env *Environment) ExpectSettings() *v1.ConfigMap {
-	cm := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "karpenter-global-settings",
-			Namespace: "karpenter",
-		},
-	}
-	err := env.Client.Get(env, client.ObjectKeyFromObject(cm), cm)
-	Expect(client.IgnoreNotFound(err)).ToNot(HaveOccurred())
-	return cm
+	GinkgoHelper()
+	return env.ExpectConfigMapExists(types.NamespacedName{Namespace: "karpenter", Name: "karpenter-global-settings"})
 }
 
 // ExpectSettingsReplaced performs a full replace of the settings, replacing the existing data
 // with the data passed through
 func (env *Environment) ExpectSettingsReplaced(data ...map[string]string) {
-	By("replacing settings in the karpenter-global-settings ConfigMap")
-	cm := env.ExpectSettings()
+	GinkgoHelper()
+	env.ExpectConfigMapDataReplaced(types.NamespacedName{Namespace: "karpenter", Name: "karpenter-global-settings"}, data...)
+	env.EventuallyExpectKarpenterRestartedWithOffset(1)
+
+}
+
+// ExpectSettingsOverridden overrides specific values specified through data. It only overrides
+// or inserts the specific values specified and does not upsert any of the existing data
+func (env *Environment) ExpectSettingsOverridden(data ...map[string]string) {
+	GinkgoHelper()
+	env.ExpectConfigMapDataOverridden(types.NamespacedName{Namespace: "karpenter", Name: "karpenter-global-settings"}, data...)
+	env.EventuallyExpectKarpenterRestartedWithOffset(1)
+}
+
+func (env *Environment) ExpectConfigMapExists(key types.NamespacedName) *v1.ConfigMap {
+	GinkgoHelper()
+	cm := &v1.ConfigMap{}
+	Expect(env.Client.Get(env, key, cm)).To(Succeed())
+	return cm
+}
+
+func (env *Environment) ExpectConfigMapDataReplaced(key types.NamespacedName, data ...map[string]string) {
+	GinkgoHelper()
+	cm := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      key.Name,
+			Namespace: key.Namespace,
+		},
+	}
+	err := env.Client.Get(env, key, cm)
+	Expect(client.IgnoreNotFound(err)).ToNot(HaveOccurred())
+
 	stored := cm.DeepCopy()
 	cm.Data = lo.Assign(data...) // Completely replace the data
 
@@ -123,16 +147,19 @@ func (env *Environment) ExpectSettingsReplaced(data ...map[string]string) {
 	}
 	// Update the configMap to update the settings
 	env.ExpectCreatedOrUpdated(cm)
-
-	// Get the karpenter pods and delete them to restart the containers
-	env.EventuallyExpectKarpenterRestartedWithOffset(1)
 }
 
-// ExpectSettingsOverridden overrides specific values specified through data. It only overrides
-// or inserts the specific values specified and does not upsert any of the existing data
-func (env *Environment) ExpectSettingsOverridden(data ...map[string]string) {
-	By("overriding settings in the karpenter-global-settings ConfigMap")
-	cm := env.ExpectSettings()
+func (env *Environment) ExpectConfigMapDataOverridden(key types.NamespacedName, data ...map[string]string) {
+	GinkgoHelper()
+	cm := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      key.Name,
+			Namespace: key.Namespace,
+		},
+	}
+	err := env.Client.Get(env, key, cm)
+	Expect(client.IgnoreNotFound(err)).ToNot(HaveOccurred())
+
 	stored := cm.DeepCopy()
 	cm.Data = lo.Assign(append([]map[string]string{cm.Data}, data...)...)
 
@@ -142,9 +169,26 @@ func (env *Environment) ExpectSettingsOverridden(data ...map[string]string) {
 	}
 	// Update the configMap to update the settings
 	env.ExpectCreatedOrUpdated(cm)
+}
 
-	// Get the karpenter pods and delete them to restart the containers
-	env.EventuallyExpectKarpenterRestartedWithOffset(1)
+func (env *Environment) ExpectPodENIEnabled() {
+	env.ExpectDaemonSetEnvironmentVariableUpdatedWithOffset(1, types.NamespacedName{Namespace: "kube-system", Name: "aws-node"},
+		"ENABLE_POD_ENI", "true")
+}
+
+func (env *Environment) ExpectPodENIDisabled() {
+	env.ExpectDaemonSetEnvironmentVariableUpdatedWithOffset(1, types.NamespacedName{Namespace: "kube-system", Name: "aws-node"},
+		"ENABLE_POD_ENI", "false")
+}
+
+func (env *Environment) ExpectPrefixDelegationEnabled() {
+	env.ExpectDaemonSetEnvironmentVariableUpdatedWithOffset(1, types.NamespacedName{Namespace: "kube-system", Name: "aws-node"},
+		"ENABLE_PREFIX_DELEGATION", "true")
+}
+
+func (env *Environment) ExpectPrefixDelegationDisabled() {
+	env.ExpectDaemonSetEnvironmentVariableUpdatedWithOffset(1, types.NamespacedName{Namespace: "kube-system", Name: "aws-node"},
+		"ENABLE_PREFIX_DELEGATION", "false")
 }
 
 func (env *Environment) ExpectFound(obj client.Object) {

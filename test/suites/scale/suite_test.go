@@ -30,19 +30,20 @@ func TestScale(t *testing.T) {
 	RegisterFailHandler(Fail)
 	BeforeSuite(func() {
 		env = aws.NewEnvironment(t)
-		SetDefaultEventuallyTimeout(15 * time.Minute)
+		SetDefaultEventuallyTimeout(time.Hour)
+
+		env.ExpectPrefixDelegationEnabled()
+		DeferCleanup(func() {
+			env.ExpectPrefixDelegationDisabled()
+		})
 	})
 	RunSpecs(t, "Scale")
 }
 
 var _ = BeforeEach(func() {
-	// We restart during scale testing to clear out the summary quantiles so that we get separate metrics
-	// for each individual test case
-	env.EventuallyExpectKarpenterRestarted()
 	env.BeforeEach()
 })
 var _ = AfterEach(func() { env.Cleanup() })
 var _ = AfterEach(func() {
-	time.Sleep(time.Second * 30) // Need to wait a bit of time here to let the scrape interval to pass
 	env.AfterEach()
 })

@@ -15,6 +15,9 @@ limitations under the License.
 package scale_test
 
 import (
+	"context"
+	"time"
+
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/samber/lo"
 	appsv1 "k8s.io/api/apps/v1"
@@ -77,20 +80,10 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 			},
 		})
 		selector = labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels)
-		// Zonal topology spread to avoid exhausting IPs in each subnet
-		// TODO @joinnis: Use prefix delegation to avoid IP exhaustion issues with private AZs and ipv4
-		deployment.Spec.Template.Spec.TopologySpreadConstraints = []v1.TopologySpreadConstraint{
-			{
-				LabelSelector:     deployment.Spec.Selector,
-				TopologyKey:       v1.LabelTopologyZone,
-				MaxSkew:           1,
-				WhenUnsatisfiable: v1.DoNotSchedule,
-			},
-		}
 		// Get the DS pod count and use it to calculate the DS pod overhead
 		dsCount = env.GetDaemonSetCount(provisioner)
 	})
-	It("should scale successfully on a node-dense scale-up", func() {
+	It("should scale successfully on a node-dense scale-up", func(_ context.Context) {
 		replicasPerNode := 1
 		expectedNodeCount := 500
 		replicas := replicasPerNode * expectedNodeCount
@@ -121,11 +114,11 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 			env.EventuallyExpectInitializedNodeCount("==", expectedNodeCount)
 			env.EventuallyExpectHealthyPodCount(selector, replicas)
 		}, aws.ProvisioningEventType, testGroup, "pod-dense")
-	})
-	It("should scale successfully on a pod-dense scale-up", func() {
+	}, SpecTimeout(10*time.Minute))
+	It("should scale successfully on a pod-dense scale-up", func(_ context.Context) {
 		replicasPerNode := 110
 		maxPodDensity := replicasPerNode + dsCount
-		expectedNodeCount := 60 // A multiple of 3 and 4 so that it spreads evenly with 3 or 4 AZs
+		expectedNodeCount := 60
 		replicas := replicasPerNode * expectedNodeCount
 		deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
 		provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
@@ -152,5 +145,5 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 			env.EventuallyExpectInitializedNodeCount("==", expectedNodeCount)
 			env.EventuallyExpectHealthyPodCount(selector, replicas)
 		}, aws.ProvisioningEventType, testGroup, "node-dense")
-	})
+	}, SpecTimeout(10*time.Minute))
 })

@@ -15,6 +15,7 @@ limitations under the License.
 package scale_test
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -126,16 +127,6 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			},
 		}
 		deployment = test.Deployment(deploymentOptions)
-		// Zonal topology spread to avoid exhausting IPs in each subnet
-		// TODO @joinnis: Use prefix delegation to avoid IP exhaustion issues with private AZs and ipv4
-		deployment.Spec.Template.Spec.TopologySpreadConstraints = []v1.TopologySpreadConstraint{
-			{
-				LabelSelector:     deployment.Spec.Selector,
-				TopologyKey:       v1.LabelTopologyZone,
-				MaxSkew:           1,
-				WhenUnsatisfiable: v1.DoNotSchedule,
-			},
-		}
 		selector = labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels)
 		dsCount = env.GetDaemonSetCount(provisioner)
 	})
@@ -145,10 +136,10 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 	})
 
 	Context("Multiple Deprovisioners", func() {
-		It("should run consolidation, emptiness, expiration, and drift simultaneously", func() {
+		It("should run consolidation, emptiness, expiration, and drift simultaneously", func(_ context.Context) {
 			replicasPerNode := 20
 			maxPodDensity := replicasPerNode + dsCount
-			nodeCountPerProvisioner := 12 // A multiple of 3 and 4 so that it spreads evenly with 3 or 4 AZs
+			nodeCountPerProvisioner := 10
 			replicas := replicasPerNode * nodeCountPerProvisioner
 
 			deprovisioningTypes := []string{
@@ -165,6 +156,9 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 				deploymentOptions.PodOptions.NodeSelector = map[string]string{
 					deprovisioningTypeKey: v,
 				}
+				deploymentOptions.PodOptions.Labels = map[string]string{
+					deprovisioningTypeKey: v,
+				}
 				deploymentOptions.PodOptions.Tolerations = []v1.Toleration{
 					{
 						Key:      deprovisioningTypeKey,
@@ -175,14 +169,6 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 				}
 				deploymentOptions.Replicas = int32(replicas)
 				d := test.Deployment(deploymentOptions)
-				d.Spec.Template.Spec.TopologySpreadConstraints = []v1.TopologySpreadConstraint{
-					{
-						LabelSelector:     d.Spec.Selector,
-						TopologyKey:       v1.LabelTopologyZone,
-						MaxSkew:           1,
-						WhenUnsatisfiable: v1.DoNotSchedule,
-					},
-				}
 				deploymentMap[v] = d
 			}
 
@@ -262,16 +248,13 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			env.MeasureDurationFor(func() {
 				By("enabling deprovisioning across provisioners")
 				// Create provisioners for expiration and drift so that these provisioners can do replacement
-				provisionerMap[noExpirationValue] = provisionerMap[expirationValue].DeepCopy()
-				provisionerMap[noExpirationValue].Name = test.RandomName()
-				provisionerMap[noDriftValue] = provisionerMap[driftValue].DeepCopy()
-				provisionerMap[noDriftValue].Name = test.RandomName()
+				provisionerMap[noExpirationValue] = test.Provisioner()
+				provisionerMap[noExpirationValue].Spec = provisionerMap[expirationValue].Spec
 
 				provisionerMap[consolidationValue].Spec.Consolidation = &v1alpha5.Consolidation{Enabled: lo.ToPtr(true)}
 				provisionerMap[emptinessValue].Spec.TTLSecondsAfterEmpty = lo.ToPtr[int64](0)
 				provisionerMap[expirationValue].Spec.TTLSecondsUntilExpired = lo.ToPtr[int64](0)
 				provisionerMap[expirationValue].Spec.Limits = disableProvisioningLimits
-				provisionerMap[driftValue].Spec.Limits = disableProvisioningLimits
 				for _, p := range provisionerMap {
 					env.ExpectCreatedOrUpdated(p)
 				}
@@ -284,56 +267,68 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 				go func() {
 					defer GinkgoRecover()
 					defer wg.Done()
-					env.EventuallyExpectDeletedNodeCountWithSelector("==", int(float64(nodeCountPerProvisioner)*0.8), labels.SelectorFromSet(map[string]string{
-						v1alpha5.ProvisionerNameLabelKey: provisionerMap[consolidationValue].Name,
-					}))
-					env.EventuallyExpectNodeCountWithSelector("==", int(float64(nodeCountPerProvisioner)*0.2), labels.SelectorFromSet(map[string]string{
-						v1alpha5.ProvisionerNameLabelKey: provisionerMap[consolidationValue].Name,
-					}))
-					env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deploymentMap[consolidationValue].Labels), int(lo.FromPtr(deploymentMap[consolidationValue].Spec.Replicas)))
+
+					env.MeasureDurationFor(func() {
+						env.EventuallyExpectDeletedNodeCountWithSelector("==", int(float64(nodeCountPerProvisioner)*0.8), labels.SelectorFromSet(map[string]string{
+							v1alpha5.ProvisionerNameLabelKey: provisionerMap[consolidationValue].Name,
+						}))
+						env.EventuallyExpectNodeCountWithSelector("==", int(float64(nodeCountPerProvisioner)*0.2), labels.SelectorFromSet(map[string]string{
+							v1alpha5.ProvisionerNameLabelKey: provisionerMap[consolidationValue].Name,
+						}))
+						env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deploymentMap[consolidationValue].Spec.Selector.MatchLabels), int(lo.FromPtr(deploymentMap[consolidationValue].Spec.Replicas)))
+					}, aws.DeprovisioningEventType, multipleDeprovisionersTestGroup, defaultTestName, map[string]string{aws.TestSubEventTypeDimension: consolidationValue})
 				}()
 				go func() {
 					defer GinkgoRecover()
 					defer wg.Done()
-					env.EventuallyExpectDeletedNodeCountWithSelector("==", nodeCountPerProvisioner, labels.SelectorFromSet(map[string]string{
-						v1alpha5.ProvisionerNameLabelKey: provisionerMap[emptinessValue].Name,
-					}))
-					env.EventuallyExpectNodeCountWithSelector("==", 0, labels.SelectorFromSet(map[string]string{
-						v1alpha5.ProvisionerNameLabelKey: provisionerMap[emptinessValue].Name,
-					}))
-					env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deploymentMap[emptinessValue].Labels), int(lo.FromPtr(deploymentMap[emptinessValue].Spec.Replicas)))
+
+					env.MeasureDurationFor(func() {
+						env.EventuallyExpectDeletedNodeCountWithSelector("==", nodeCountPerProvisioner, labels.SelectorFromSet(map[string]string{
+							v1alpha5.ProvisionerNameLabelKey: provisionerMap[emptinessValue].Name,
+						}))
+						env.EventuallyExpectNodeCountWithSelector("==", 0, labels.SelectorFromSet(map[string]string{
+							v1alpha5.ProvisionerNameLabelKey: provisionerMap[emptinessValue].Name,
+						}))
+						env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deploymentMap[emptinessValue].Spec.Selector.MatchLabels), int(lo.FromPtr(deploymentMap[emptinessValue].Spec.Replicas)))
+					}, aws.DeprovisioningEventType, multipleDeprovisionersTestGroup, defaultTestName, map[string]string{aws.TestSubEventTypeDimension: emptinessValue})
 				}()
 				go func() {
 					defer GinkgoRecover()
 					defer wg.Done()
-					env.EventuallyExpectDeletedNodeCountWithSelector("==", nodeCountPerProvisioner, labels.SelectorFromSet(map[string]string{
-						v1alpha5.ProvisionerNameLabelKey: provisionerMap[expirationValue].Name,
-					}))
-					env.EventuallyExpectNodeCountWithSelector("==", nodeCountPerProvisioner, labels.SelectorFromSet(map[string]string{
-						v1alpha5.ProvisionerNameLabelKey: provisionerMap[expirationValue].Name,
-					}))
-					env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deploymentMap[expirationValue].Labels), int(lo.FromPtr(deploymentMap[expirationValue].Spec.Replicas)))
+
+					env.MeasureDurationFor(func() {
+						env.EventuallyExpectDeletedNodeCountWithSelector("==", nodeCountPerProvisioner, labels.SelectorFromSet(map[string]string{
+							v1alpha5.ProvisionerNameLabelKey: provisionerMap[expirationValue].Name,
+						}))
+						env.EventuallyExpectNodeCountWithSelector("==", nodeCountPerProvisioner, labels.SelectorFromSet(map[string]string{
+							v1alpha5.ProvisionerNameLabelKey: provisionerMap[noExpirationValue].Name,
+						}))
+						env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deploymentMap[expirationValue].Spec.Selector.MatchLabels), int(lo.FromPtr(deploymentMap[expirationValue].Spec.Replicas)))
+					}, aws.DeprovisioningEventType, multipleDeprovisionersTestGroup, defaultTestName, map[string]string{aws.TestSubEventTypeDimension: expirationValue})
 				}()
 				go func() {
 					defer GinkgoRecover()
 					defer wg.Done()
-					env.EventuallyExpectDeletedNodeCountWithSelector("==", nodeCountPerProvisioner, labels.SelectorFromSet(map[string]string{
-						v1alpha5.ProvisionerNameLabelKey: provisionerMap[driftValue].Name,
-					}))
-					env.EventuallyExpectNodeCountWithSelector("==", nodeCountPerProvisioner, labels.SelectorFromSet(map[string]string{
-						v1alpha5.ProvisionerNameLabelKey: provisionerMap[driftValue].Name,
-					}))
-					env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deploymentMap[driftValue].Labels), int(lo.FromPtr(deploymentMap[driftValue].Spec.Replicas)))
+
+					env.MeasureDurationFor(func() {
+						env.EventuallyExpectDeletedNodeCountWithSelector("==", nodeCountPerProvisioner, labels.SelectorFromSet(map[string]string{
+							v1alpha5.ProvisionerNameLabelKey: provisionerMap[driftValue].Name,
+						}))
+						env.EventuallyExpectNodeCountWithSelector("==", nodeCountPerProvisioner, labels.SelectorFromSet(map[string]string{
+							v1alpha5.ProvisionerNameLabelKey: provisionerMap[driftValue].Name,
+						}))
+						env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deploymentMap[driftValue].Spec.Selector.MatchLabels), int(lo.FromPtr(deploymentMap[driftValue].Spec.Replicas)))
+					}, aws.DeprovisioningEventType, multipleDeprovisionersTestGroup, defaultTestName, map[string]string{aws.TestSubEventTypeDimension: driftValue})
 				}()
 				wg.Wait()
 			}, aws.DeprovisioningEventType, multipleDeprovisionersTestGroup, defaultTestName)
-		})
+		}, SpecTimeout(30*time.Minute))
 	})
 	Context("Consolidation", func() {
-		It("should consolidate nodes to get a higher utilization (multi-consolidation delete)", func() {
+		It("should consolidate nodes to get a higher utilization (multi-consolidation delete)", func(_ context.Context) {
 			replicasPerNode := 20
 			maxPodDensity := replicasPerNode + dsCount
-			expectedNodeCount := 204 // A multiple of 3 and 4 so that it spreads evenly with 3 or 4 AZs
+			expectedNodeCount := 200
 			replicas := replicasPerNode * expectedNodeCount
 
 			deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
@@ -370,10 +365,10 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 				env.EventuallyExpectNodeCount("==", int(float64(expectedNodeCount)*0.2))
 				env.EventuallyExpectHealthyPodCount(selector, replicas)
 			}, aws.DeprovisioningEventType, consolidationTestGroup, "delete")
-		})
-		It("should consolidate nodes to get a higher utilization (multi-consolidation replace)", func() {
+		}, SpecTimeout(10*time.Minute))
+		It("should consolidate nodes to get a higher utilization (single consolidation replace)", func(_ context.Context) {
 			replicasPerNode := 1
-			expectedNodeCount := 30
+			expectedNodeCount := 20 // we're currently doing around 1 node/2 mins so this test should run deprovisioning in about 45m
 			replicas := replicasPerNode * expectedNodeCount
 
 			deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
@@ -419,13 +414,13 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 				env.EventuallyExpectNodeCount("==", expectedNodeCount)
 				env.EventuallyExpectHealthyPodCount(selector, replicas)
 			}, aws.DeprovisioningEventType, consolidationTestGroup, "replace")
-		})
+		}, SpecTimeout(time.Hour))
 	})
 	Context("Emptiness", func() {
-		It("should deprovision all nodes when empty", func() {
+		It("should deprovision all nodes when empty", func(_ context.Context) {
 			replicasPerNode := 20
 			maxPodDensity := replicasPerNode + dsCount
-			expectedNodeCount := 204 // A multiple of 3 and 4 so that it spreads evenly with 3 or 4 AZs
+			expectedNodeCount := 200
 			replicas := replicasPerNode * expectedNodeCount
 
 			deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
@@ -464,13 +459,13 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 				env.EventuallyExpectNodeCount("==", 0)
 				env.EventuallyExpectHealthyPodCount(selector, replicas)
 			}, aws.DeprovisioningEventType, emptinessTestGroup, defaultTestName)
-		})
+		}, SpecTimeout(10*time.Minute))
 	})
 	Context("Expiration", func() {
-		It("should expire all nodes", func() {
+		It("should expire all nodes", func(_ context.Context) {
 			replicasPerNode := 20
 			maxPodDensity := replicasPerNode + dsCount
-			expectedNodeCount := 24 // A multiple of 3 and 4 so that it spreads evenly with 3 or 4 AZs
+			expectedNodeCount := 20 // we're currently doing around 1 node/2 mins so this test should run deprovisioning in about 45m
 			replicas := replicasPerNode * expectedNodeCount
 
 			deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
@@ -524,14 +519,14 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 				env.EventuallyExpectNodeCount("==", expectedNodeCount)
 				env.EventuallyExpectHealthyPodCount(selector, replicas)
 			}, aws.DeprovisioningEventType, expirationTestGroup, defaultTestName)
-		})
+		}, SpecTimeout(time.Hour))
 	})
 	Context("Drift", func() {
-		It("should drift all nodes", func() {
+		It("should drift all nodes", func(_ context.Context) {
 			// Before Deprovisioning, we need to Provision the cluster to the state that we need.
 			replicasPerNode := 20
 			maxPodDensity := replicasPerNode + dsCount
-			expectedNodeCount := 24 // A multiple of 3 and 4 so that it spreads evenly with 3 or 4 AZs
+			expectedNodeCount := 20 // we're currently doing around 1 node/2 mins so this test should run deprovisioning in about 45m
 			replicas := replicasPerNode * expectedNodeCount
 
 			deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
@@ -564,13 +559,13 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 				env.EventuallyExpectNodeCount("==", expectedNodeCount)
 				env.EventuallyExpectHealthyPodCount(selector, replicas)
 			}, aws.DeprovisioningEventType, driftTestGroup, defaultTestName)
-		})
+		}, SpecTimeout(time.Hour))
 	})
 	Context("Interruption", func() {
-		It("should interrupt all nodes due to scheduledChange", func() {
+		It("should interrupt all nodes due to scheduledChange", func(_ context.Context) {
 			replicasPerNode := 20
 			maxPodDensity := replicasPerNode + dsCount
-			expectedNodeCount := 204 // A multiple of 3 and 4 so that it spreads evenly with 3 or 4 AZs
+			expectedNodeCount := 200
 			replicas := replicasPerNode * expectedNodeCount
 
 			deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
@@ -609,7 +604,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 				env.EventuallyExpectNodeCount("==", expectedNodeCount)
 				env.EventuallyExpectHealthyPodCount(selector, replicas)
 			}, aws.DeprovisioningEventType, interruptionTestGroup, defaultTestName)
-		})
+		}, SpecTimeout(time.Minute*10))
 	})
 })
 
