@@ -28,7 +28,10 @@ import (
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	awstest "github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/test/pkg/debug"
+	"github.com/aws/karpenter/test/pkg/environment/aws"
 )
+
+const testGroup = "provisioning"
 
 var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), func() {
 	var provisioner *v1alpha5.Provisioner
@@ -109,13 +112,15 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 		env.ExpectCreated(deployment)
 		env.EventuallyExpectPendingPodCount(selector, replicas)
 
-		By("kicking off provisioning by applying the provisioner and nodeTemplate")
-		env.ExpectCreated(provisioner, nodeTemplate)
+		env.MeasureDurationFor(func() {
+			By("kicking off provisioning by applying the provisioner and nodeTemplate")
+			env.ExpectCreated(provisioner, nodeTemplate)
 
-		env.EventuallyExpectCreatedMachineCount("==", expectedNodeCount)
-		env.EventuallyExpectCreatedNodeCount("==", expectedNodeCount)
-		env.EventuallyExpectInitializedNodeCount("==", expectedNodeCount)
-		env.EventuallyExpectHealthyPodCount(selector, replicas)
+			env.EventuallyExpectCreatedMachineCount("==", expectedNodeCount)
+			env.EventuallyExpectCreatedNodeCount("==", expectedNodeCount)
+			env.EventuallyExpectInitializedNodeCount("==", expectedNodeCount)
+			env.EventuallyExpectHealthyPodCount(selector, replicas)
+		}, aws.ProvisioningEventType, testGroup, "pod-dense")
 	})
 	It("should scale successfully on a pod-dense scale-up", func() {
 		replicasPerNode := 110
@@ -134,16 +139,18 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 			},
 		)
 
-		By("waiting for the deployment to deploy all of its pods")
-		env.ExpectCreated(deployment)
-		env.EventuallyExpectPendingPodCount(selector, replicas)
+		env.MeasureDurationFor(func() {
+			By("waiting for the deployment to deploy all of its pods")
+			env.ExpectCreated(deployment)
+			env.EventuallyExpectPendingPodCount(selector, replicas)
 
-		By("kicking off provisioning by applying the provisioner and nodeTemplate")
-		env.ExpectCreated(provisioner, nodeTemplate)
+			By("kicking off provisioning by applying the provisioner and nodeTemplate")
+			env.ExpectCreated(provisioner, nodeTemplate)
 
-		env.EventuallyExpectCreatedMachineCount("==", expectedNodeCount)
-		env.EventuallyExpectCreatedNodeCount("==", expectedNodeCount)
-		env.EventuallyExpectInitializedNodeCount("==", expectedNodeCount)
-		env.EventuallyExpectHealthyPodCount(selector, replicas)
+			env.EventuallyExpectCreatedMachineCount("==", expectedNodeCount)
+			env.EventuallyExpectCreatedNodeCount("==", expectedNodeCount)
+			env.EventuallyExpectInitializedNodeCount("==", expectedNodeCount)
+			env.EventuallyExpectHealthyPodCount(selector, replicas)
+		}, aws.ProvisioningEventType, testGroup, "node-dense")
 	})
 })
