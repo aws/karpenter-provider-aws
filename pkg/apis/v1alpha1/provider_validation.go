@@ -264,7 +264,7 @@ func (a *AWS) validateRootVolume(blockDeviceMapping *BlockDeviceMapping) *apis.F
 	// If the EBS volume is the root volume, ensure that snapshotID is not used.
 	if aws.StringValue(blockDeviceMapping.DeviceName) == aws.StringValue(EphemeralBlockDevice(aws.StringValue(a.AMIFamily))) &&
 		blockDeviceMapping.EBS.SnapshotID != nil {
-		return apis.ErrDisallowedFields("snapshotID")
+		return apis.ErrGeneric("cannot set snapshotID for root volume", "snapshotID")
 	}
 	return nil
 }
