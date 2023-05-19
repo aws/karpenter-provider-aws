@@ -107,17 +107,18 @@ func (env *Environment) ExpectSettings() *v1.ConfigMap {
 // with the data passed through
 func (env *Environment) ExpectSettingsReplaced(data ...map[string]string) {
 	GinkgoHelper()
-	env.ExpectConfigMapDataReplaced(types.NamespacedName{Namespace: "karpenter", Name: "karpenter-global-settings"}, data...)
-	env.EventuallyExpectKarpenterRestartedWithOffset(1)
-
+	if env.ExpectConfigMapDataReplaced(types.NamespacedName{Namespace: "karpenter", Name: "karpenter-global-settings"}, data...) {
+		env.EventuallyExpectKarpenterRestarted()
+	}
 }
 
 // ExpectSettingsOverridden overrides specific values specified through data. It only overrides
 // or inserts the specific values specified and does not upsert any of the existing data
 func (env *Environment) ExpectSettingsOverridden(data ...map[string]string) {
 	GinkgoHelper()
-	env.ExpectConfigMapDataOverridden(types.NamespacedName{Namespace: "karpenter", Name: "karpenter-global-settings"}, data...)
-	env.EventuallyExpectKarpenterRestartedWithOffset(1)
+	if env.ExpectConfigMapDataOverridden(types.NamespacedName{Namespace: "karpenter", Name: "karpenter-global-settings"}, data...) {
+		env.EventuallyExpectKarpenterRestarted()
+	}
 }
 
 func (env *Environment) ExpectConfigMapExists(key types.NamespacedName) *v1.ConfigMap {
@@ -127,7 +128,7 @@ func (env *Environment) ExpectConfigMapExists(key types.NamespacedName) *v1.Conf
 	return cm
 }
 
-func (env *Environment) ExpectConfigMapDataReplaced(key types.NamespacedName, data ...map[string]string) {
+func (env *Environment) ExpectConfigMapDataReplaced(key types.NamespacedName, data ...map[string]string) (changed bool) {
 	GinkgoHelper()
 	cm := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -143,13 +144,14 @@ func (env *Environment) ExpectConfigMapDataReplaced(key types.NamespacedName, da
 
 	// If the data hasn't changed, we can just return and not update anything
 	if equality.Semantic.DeepEqual(stored, cm) {
-		return
+		return false
 	}
 	// Update the configMap to update the settings
 	env.ExpectCreatedOrUpdated(cm)
+	return true
 }
 
-func (env *Environment) ExpectConfigMapDataOverridden(key types.NamespacedName, data ...map[string]string) {
+func (env *Environment) ExpectConfigMapDataOverridden(key types.NamespacedName, data ...map[string]string) (changed bool) {
 	GinkgoHelper()
 	cm := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -165,10 +167,11 @@ func (env *Environment) ExpectConfigMapDataOverridden(key types.NamespacedName, 
 
 	// If the data hasn't changed, we can just return and not update anything
 	if equality.Semantic.DeepEqual(stored, cm) {
-		return
+		return false
 	}
 	// Update the configMap to update the settings
 	env.ExpectCreatedOrUpdated(cm)
+	return true
 }
 
 func (env *Environment) ExpectPodENIEnabled() {
@@ -208,37 +211,35 @@ func (env *Environment) EventuallyExpectHealthy(pods ...*v1.Pod) {
 }
 
 func (env *Environment) EventuallyExpectKarpenterRestarted() {
-	env.EventuallyExpectKarpenterRestartedWithOffset(1)
-}
-
-func (env *Environment) EventuallyExpectKarpenterRestartedWithOffset(offset int) {
+	GinkgoHelper()
 	By("rolling out the new karpenter deployment")
-	env.EventuallyExpectRolloutWithOffset(offset+1, "karpenter", "karpenter")
+	env.EventuallyExpectRollout("karpenter", "karpenter")
 
 	By("waiting for a new karpenter pod to hold the lease")
-	pods := env.ExpectKarpenterPodsWithOffset(offset + 1)
-	EventuallyWithOffset(offset+1, func(g Gomega) {
-		name := env.ExpectActiveKarpenterPodNameWithOffset(offset + 1)
+	pods := env.ExpectKarpenterPods()
+	Eventually(func(g Gomega) {
+		name := env.ExpectActiveKarpenterPodName()
 		g.Expect(lo.ContainsBy(pods, func(p *v1.Pod) bool {
 			return p.Name == name
 		})).To(BeTrue())
 	}).Should(Succeed())
 }
 
-func (env *Environment) EventuallyExpectRolloutWithOffset(offset int, name, namespace string) {
+func (env *Environment) EventuallyExpectRollout(name, namespace string) {
+	GinkgoHelper()
 	By("restarting the deployment")
 	deploy := &appsv1.Deployment{}
-	ExpectWithOffset(offset+1, env.Client.Get(env.Context, types.NamespacedName{Name: name, Namespace: namespace}, deploy)).To(Succeed())
+	Expect(env.Client.Get(env.Context, types.NamespacedName{Name: name, Namespace: namespace}, deploy)).To(Succeed())
 
 	stored := deploy.DeepCopy()
 	restartedAtAnnotation := map[string]string{
 		"kubectl.kubernetes.io/restartedAt": time.Now().Format(time.RFC3339),
 	}
 	deploy.Spec.Template.Annotations = lo.Assign(deploy.Spec.Template.Annotations, restartedAtAnnotation)
-	ExpectWithOffset(offset+1, env.Client.Patch(env.Context, deploy, client.MergeFrom(stored))).To(Succeed())
+	Expect(env.Client.Patch(env.Context, deploy, client.MergeFrom(stored))).To(Succeed())
 
 	By("waiting for the newly generated deployment to rollout")
-	EventuallyWithOffset(offset+1, func(g Gomega) {
+	Eventually(func(g Gomega) {
 		podList := &v1.PodList{}
 		g.Expect(env.Client.List(env.Context, podList, client.InNamespace(namespace))).To(Succeed())
 		pods := lo.Filter(podList.Items, func(p v1.Pod, _ int) bool {
@@ -255,30 +256,33 @@ func (env *Environment) EventuallyExpectRolloutWithOffset(offset int, name, name
 	}).Should(Succeed())
 }
 
-func (env *Environment) ExpectKarpenterPodsWithOffset(offset int) []*v1.Pod {
+func (env *Environment) ExpectKarpenterPods() []*v1.Pod {
+	GinkgoHelper()
 	podList := &v1.PodList{}
-	ExpectWithOffset(offset+1, env.Client.List(env.Context, podList, client.MatchingLabels{
+	Expect(env.Client.List(env.Context, podList, client.MatchingLabels{
 		"app.kubernetes.io/instance": "karpenter",
 	})).To(Succeed())
 	return lo.Map(podList.Items, func(p v1.Pod, _ int) *v1.Pod { return &p })
 }
 
-func (env *Environment) ExpectActiveKarpenterPodNameWithOffset(offset int) string {
+func (env *Environment) ExpectActiveKarpenterPodName() string {
+	GinkgoHelper()
 	lease := &coordinationv1.Lease{}
-	ExpectWithOffset(offset+1, env.Client.Get(env.Context, types.NamespacedName{Name: "karpenter-leader-election", Namespace: "karpenter"}, lease)).To(Succeed())
+	Expect(env.Client.Get(env.Context, types.NamespacedName{Name: "karpenter-leader-election", Namespace: "karpenter"}, lease)).To(Succeed())
 
 	// Holder identity for lease is always in the format "<pod-name>_<pseudo-random-value>
 	holderArr := strings.Split(lo.FromPtr(lease.Spec.HolderIdentity), "_")
-	ExpectWithOffset(offset+1, len(holderArr)).To(BeNumerically(">", 0))
+	Expect(len(holderArr)).To(BeNumerically(">", 0))
 
 	return holderArr[0]
 }
 
-func (env *Environment) ExpectActiveKarpenterPodWithOffset(offset int) *v1.Pod {
-	podName := env.ExpectActiveKarpenterPodNameWithOffset(offset + 1)
+func (env *Environment) ExpectActiveKarpenterPod() *v1.Pod {
+	GinkgoHelper()
+	podName := env.ExpectActiveKarpenterPodName()
 
 	pod := &v1.Pod{}
-	ExpectWithOffset(offset+1, env.Client.Get(env.Context, types.NamespacedName{Name: podName, Namespace: "karpenter"}, pod)).To(Succeed())
+	Expect(env.Client.Get(env.Context, types.NamespacedName{Name: podName, Namespace: "karpenter"}, pod)).To(Succeed())
 	return pod
 }
 
@@ -467,7 +471,7 @@ func (env *Environment) printControllerLogs(options *v1.PodLogOptions) {
 		options.SinceTime = lastLogged.DeepCopy()
 		lastLogged = metav1.Now()
 	}
-	pods := env.ExpectKarpenterPodsWithOffset(1)
+	pods := env.ExpectKarpenterPods()
 	for _, pod := range pods {
 		temp := options.DeepCopy() // local version of the log options
 

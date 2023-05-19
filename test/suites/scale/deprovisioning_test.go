@@ -81,7 +81,6 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 	var dsCount int
 
 	BeforeEach(func() {
-		// Expect the Prometheus client to be up
 		env.ExpectSettingsOverridden(map[string]string{
 			"featureGates.driftEnabled": "true",
 		})
@@ -261,65 +260,59 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 				driftNodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
 				env.ExpectUpdated(driftNodeTemplate)
 
-				By("waiting for the nodes across all deprovisoiners to get deleted")
-				wg = sync.WaitGroup{}
-				wg.Add(4)
-				go func() {
-					defer GinkgoRecover()
-					defer wg.Done()
-
-					env.MeasureDurationFor(func() {
-						env.EventuallyExpectDeletedNodeCountWithSelector("==", int(float64(nodeCountPerProvisioner)*0.8), labels.SelectorFromSet(map[string]string{
-							v1alpha5.ProvisionerNameLabelKey: provisionerMap[consolidationValue].Name,
-						}))
-						env.EventuallyExpectNodeCountWithSelector("==", int(float64(nodeCountPerProvisioner)*0.2), labels.SelectorFromSet(map[string]string{
-							v1alpha5.ProvisionerNameLabelKey: provisionerMap[consolidationValue].Name,
-						}))
-						env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deploymentMap[consolidationValue].Spec.Selector.MatchLabels), int(lo.FromPtr(deploymentMap[consolidationValue].Spec.Replicas)))
-					}, aws.DeprovisioningEventType, multipleDeprovisionersTestGroup, defaultTestName, map[string]string{aws.TestSubEventTypeDimension: consolidationValue})
-				}()
-				go func() {
-					defer GinkgoRecover()
-					defer wg.Done()
-
-					env.MeasureDurationFor(func() {
-						env.EventuallyExpectDeletedNodeCountWithSelector("==", nodeCountPerProvisioner, labels.SelectorFromSet(map[string]string{
-							v1alpha5.ProvisionerNameLabelKey: provisionerMap[emptinessValue].Name,
-						}))
-						env.EventuallyExpectNodeCountWithSelector("==", 0, labels.SelectorFromSet(map[string]string{
-							v1alpha5.ProvisionerNameLabelKey: provisionerMap[emptinessValue].Name,
-						}))
-						env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deploymentMap[emptinessValue].Spec.Selector.MatchLabels), int(lo.FromPtr(deploymentMap[emptinessValue].Spec.Replicas)))
-					}, aws.DeprovisioningEventType, multipleDeprovisionersTestGroup, defaultTestName, map[string]string{aws.TestSubEventTypeDimension: emptinessValue})
-				}()
-				go func() {
-					defer GinkgoRecover()
-					defer wg.Done()
-
-					env.MeasureDurationFor(func() {
-						env.EventuallyExpectDeletedNodeCountWithSelector("==", nodeCountPerProvisioner, labels.SelectorFromSet(map[string]string{
-							v1alpha5.ProvisionerNameLabelKey: provisionerMap[expirationValue].Name,
-						}))
-						env.EventuallyExpectNodeCountWithSelector("==", nodeCountPerProvisioner, labels.SelectorFromSet(map[string]string{
+				By("waiting for the nodes across all deprovisioners to get deleted")
+				type testAssertions struct {
+					deletedCount             int
+					deletedNodeCountSelector labels.Selector
+					nodeCount                int
+					nodeCountSelector        labels.Selector
+				}
+				assertionMap := map[string]testAssertions{
+					consolidationValue: {
+						deletedCount: int(float64(nodeCountPerProvisioner) * 0.8),
+						nodeCount:    int(float64(nodeCountPerProvisioner) * 0.2),
+					},
+					emptinessValue: {
+						deletedCount: nodeCountPerProvisioner,
+						nodeCount:    0,
+					},
+					expirationValue: {
+						deletedCount: nodeCountPerProvisioner,
+						nodeCount:    nodeCountPerProvisioner,
+						nodeCountSelector: labels.SelectorFromSet(map[string]string{
 							v1alpha5.ProvisionerNameLabelKey: provisionerMap[noExpirationValue].Name,
-						}))
-						env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deploymentMap[expirationValue].Spec.Selector.MatchLabels), int(lo.FromPtr(deploymentMap[expirationValue].Spec.Replicas)))
-					}, aws.DeprovisioningEventType, multipleDeprovisionersTestGroup, defaultTestName, map[string]string{aws.TestSubEventTypeDimension: expirationValue})
-				}()
-				go func() {
-					defer GinkgoRecover()
-					defer wg.Done()
+						}),
+					},
+					driftValue: {
+						deletedCount: nodeCountPerProvisioner,
+						nodeCount:    nodeCountPerProvisioner,
+					},
+				}
+				wg = sync.WaitGroup{}
+				for k, v := range assertionMap {
+					wg.Add(1)
+					go func(d string, assertions testAssertions) {
+						defer GinkgoRecover()
+						defer wg.Done()
 
-					env.MeasureDurationFor(func() {
-						env.EventuallyExpectDeletedNodeCountWithSelector("==", nodeCountPerProvisioner, labels.SelectorFromSet(map[string]string{
-							v1alpha5.ProvisionerNameLabelKey: provisionerMap[driftValue].Name,
-						}))
-						env.EventuallyExpectNodeCountWithSelector("==", nodeCountPerProvisioner, labels.SelectorFromSet(map[string]string{
-							v1alpha5.ProvisionerNameLabelKey: provisionerMap[driftValue].Name,
-						}))
-						env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deploymentMap[driftValue].Spec.Selector.MatchLabels), int(lo.FromPtr(deploymentMap[driftValue].Spec.Replicas)))
-					}, aws.DeprovisioningEventType, multipleDeprovisionersTestGroup, defaultTestName, map[string]string{aws.TestSubEventTypeDimension: driftValue})
-				}()
+						env.MeasureDurationFor(func() {
+							// Provide a default selector based on the original provisioner name if one isn't specified
+							selector = assertions.deletedNodeCountSelector
+							if selector == nil {
+								selector = labels.SelectorFromSet(map[string]string{v1alpha5.ProvisionerNameLabelKey: provisionerMap[d].Name})
+							}
+							env.EventuallyExpectDeletedNodeCountWithSelector("==", assertions.deletedCount, selector)
+
+							// Provide a default selector based on the original provisioner name if one isn't specified
+							selector = assertions.nodeCountSelector
+							if selector == nil {
+								selector = labels.SelectorFromSet(map[string]string{v1alpha5.ProvisionerNameLabelKey: provisionerMap[d].Name})
+							}
+							env.EventuallyExpectNodeCountWithSelector("==", assertions.nodeCount, selector)
+							env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deploymentMap[d].Spec.Selector.MatchLabels), int(lo.FromPtr(deploymentMap[d].Spec.Replicas)))
+						}, aws.DeprovisioningEventType, multipleDeprovisionersTestGroup, defaultTestName, map[string]string{aws.TestSubEventTypeDimension: d})
+					}(k, v)
+				}
 				wg.Wait()
 			}, aws.DeprovisioningEventType, multipleDeprovisionersTestGroup, defaultTestName)
 		}, SpecTimeout(30*time.Minute))
@@ -553,7 +546,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			env.MeasureDurationFor(func() {
 				By("kicking off deprovisioning drift by changing the nodeTemplate AMIFamily")
 				nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
-				env.ExpectCreatedOrUpdated(provisioner)
+				env.ExpectCreatedOrUpdated(nodeTemplate)
 
 				env.EventuallyExpectDeletedNodeCount("==", expectedNodeCount)
 				env.EventuallyExpectNodeCount("==", expectedNodeCount)
@@ -563,6 +556,8 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 	})
 	Context("Interruption", func() {
 		It("should interrupt all nodes due to scheduledChange", func(_ context.Context) {
+			env.ExpectQueueExists() // Ensure the queue exists before sending messages
+
 			replicasPerNode := 20
 			maxPodDensity := replicasPerNode + dsCount
 			expectedNodeCount := 200
@@ -589,7 +584,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 
 			env.Monitor.Reset() // Reset the monitor so that we now track the nodes starting at this point in time
 
-			var msgs []scheduledchange.Message
+			var msgs []interface{}
 			for _, node := range nodes {
 				instanceID, err := utils.ParseInstanceID(node.Spec.ProviderID)
 				Expect(err).ToNot(HaveOccurred())
@@ -598,7 +593,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 
 			env.MeasureDurationFor(func() {
 				By("kicking off deprovisioning by adding scheduledChange messages to the queue")
-				env.ExpectMessagesCreated(msgs)
+				env.ExpectMessagesCreated(msgs...)
 
 				env.EventuallyExpectDeletedNodeCount("==", expectedNodeCount)
 				env.EventuallyExpectNodeCount("==", expectedNodeCount)

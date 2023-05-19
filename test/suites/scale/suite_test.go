@@ -40,10 +40,6 @@ func TestScale(t *testing.T) {
 	RunSpecs(t, "Scale")
 }
 
-var _ = BeforeEach(func() {
-	env.BeforeEach()
-})
+var _ = BeforeEach(func() { env.BeforeEach() })
 var _ = AfterEach(func() { env.Cleanup() })
-var _ = AfterEach(func() {
-	env.AfterEach()
-})
+var _ = AfterEach(func() { env.AfterEach() })
