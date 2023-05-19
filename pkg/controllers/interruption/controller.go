@@ -148,7 +148,6 @@ func (c *Controller) handleMessage(ctx context.Context, machineInstanceIDMap map
 	if msg.Kind() == messages.NoOpKind {
 		receivedMessages.With(prometheus.Labels{
 			messageTypeLabel: string(msg.Kind()),
-			provisionerLabel: "",
 		}).Inc()
 		return nil
 	}
@@ -160,7 +159,6 @@ func (c *Controller) handleMessage(ctx context.Context, machineInstanceIDMap map
 		node := nodeInstanceIDMap[instanceID]
 		receivedMessages.With(prometheus.Labels{
 			messageTypeLabel: string(msg.Kind()),
-			provisionerLabel: machine.Labels[v1alpha5.ProvisionerNameLabelKey],
 		}).Inc()
 		if e := c.handleMachine(ctx, msg, machine, node); e != nil {
 			err = multierr.Append(err, e)
