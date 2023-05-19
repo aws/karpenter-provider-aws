@@ -26,6 +26,7 @@ const (
 	messageTypeLabel       = "message_type"
 	actionTypeLabel        = "action_type"
 	terminationReasonLabel = "interruption"
+	provisionerLabel			 = "provisioner"
 )
 
 var (
@@ -34,9 +35,9 @@ var (
 			Namespace: metrics.Namespace,
 			Subsystem: interruptionSubsystem,
 			Name:      "received_messages",
-			Help:      "Count of messages received from the SQS queue. Broken down by message type and whether the message was actionable.",
+			Help:      "Count of messages received from the SQS queue. Broken down by message type, whether the message was actionable, and the provisioner for the action.",
 		},
-		[]string{messageTypeLabel},
+		[]string{messageTypeLabel, provisionerLabel},
 	)
 	deletedMessages = prometheus.NewCounter(
 		prometheus.CounterOpts{
@@ -60,9 +61,9 @@ var (
 			Namespace: metrics.Namespace,
 			Subsystem: interruptionSubsystem,
 			Name:      "actions_performed",
-			Help:      "Number of notification actions performed. Labeled by action",
+			Help:      "Number of notification actions performed. Labeled by action and provisioner.",
 		},
-		[]string{actionTypeLabel},
+		[]string{actionTypeLabel, provisionerLabel},
 	)
 )
 

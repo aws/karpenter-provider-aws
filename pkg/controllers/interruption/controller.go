@@ -144,9 +144,12 @@ func (c *Controller) handleMessage(ctx context.Context, machineInstanceIDMap map
 	nodeInstanceIDMap map[string]*v1.Node, msg messages.Message) (err error) {
 
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("messageKind", msg.Kind()))
-	receivedMessages.WithLabelValues(string(msg.Kind())).Inc()
 
 	if msg.Kind() == messages.NoOpKind {
+		receivedMessages.With(prometheus.Labels{
+			messageTypeLabel: string(msg.Kind()),
+			provisionerLabel: "",
+		}).Inc()
 		return nil
 	}
 	for _, instanceID := range msg.EC2InstanceIDs() {
@@ -155,6 +158,10 @@ func (c *Controller) handleMessage(ctx context.Context, machineInstanceIDMap map
 			continue
 		}
 		node := nodeInstanceIDMap[instanceID]
+		receivedMessages.With(prometheus.Labels{
+			messageTypeLabel: string(msg.Kind()),
+			provisionerLabel: machine.Labels[v1alpha5.ProvisionerNameLabelKey],
+		}).Inc()
 		if e := c.handleMachine(ctx, msg, machine, node); e != nil {
 			err = multierr.Append(err, e)
 		}
@@ -186,7 +193,10 @@ func (c *Controller) handleMachine(ctx context.Context, msg messages.Message, ma
 
 	// Record metric and event for this action
 	c.notifyForMessage(msg, machine, node)
-	actionsPerformed.WithLabelValues(string(action)).Inc()
+	actionsPerformed.With(prometheus.Labels{
+		actionTypeLabel:	string(action),
+		provisionerLabel:	machine.Labels[v1alpha5.ProvisionerNameLabelKey],
+	}).Inc()
 
 	// Mark the offering as unavailable in the ICE cache since we got a spot interruption warning
 	if msg.Kind() == messages.SpotInterruptionKind {
