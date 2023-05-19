@@ -42,7 +42,7 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | controller.image.tag | string | `"v0.27.5"` | Tag of the controller image. |
 | controller.logEncoding | string | `""` | Controller log encoding, defaults to the global log encoding |
 | controller.logLevel | string | `""` | Controller log level, defaults to the global log level |
-| controller.metrics.port | int | `8080` | The container port to use for metrics. |
+| controller.metrics.port | int | `8000` | The container port to use for metrics. |
 | controller.outputPaths | list | `["stdout"]` | Controller outputPaths - default to stdout only |
 | controller.resources | object | `{}` | Resources for the controller pod. |
 | controller.securityContext | object | `{}` | SecurityContext for the controller container. |
@@ -50,7 +50,6 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | controller.sidecarVolumeMounts | list | `[]` | Additional volumeMounts for the sidecar - this will be added to the volume mounts on top of extraVolumeMounts |
 | dnsConfig | object | `{}` | Configure DNS Config for the pod |
 | dnsPolicy | string | `"Default"` | Configure the DNS Policy for the pod |
-| extraObjects | list | `[]` | Array of extra K8s manifests to deploy |
 | extraVolumes | list | `[]` | Additional volumes for the pod. |
 | fullnameOverride | string | `""` | Overrides the chart's computed fullname. |
 | hostNetwork | bool | `false` | Bind the pod to the host network. This is required when using a custom CNI. |
@@ -74,8 +73,8 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | serviceMonitor.additionalLabels | object | `{}` | Additional labels for the ServiceMonitor. |
 | serviceMonitor.enabled | bool | `false` | Specifies whether a ServiceMonitor should be created. |
 | serviceMonitor.endpointConfig | object | `{}` | Endpoint configuration for the ServiceMonitor. |
-| settings | object | `{"aws":{"clusterEndpoint":"","clusterName":"","defaultInstanceProfile":"","enableENILimitedPodDensity":true,"enablePodENI":false,"interruptionQueueName":"","isolatedVPC":false,"nodeNameConvention":"ip-name","tags":null,"vmMemoryOverheadPercent":0.075},"batchIdleDuration":"1s","batchMaxDuration":"10s","featureGates":{"driftEnabled":false}}` | Global Settings to configure Karpenter |
-| settings.aws | object | `{"clusterEndpoint":"","clusterName":"","defaultInstanceProfile":"","enableENILimitedPodDensity":true,"enablePodENI":false,"interruptionQueueName":"","isolatedVPC":false,"nodeNameConvention":"ip-name","tags":null,"vmMemoryOverheadPercent":0.075}` | AWS-specific configuration values |
+| settings | object | `{"aws":{"clusterEndpoint":"","clusterName":"","defaultInstanceProfile":"","enableENILimitedPodDensity":true,"enablePodENI":false,"interruptionQueueName":"","isolatedVPC":false,"tags":null,"vmMemoryOverheadPercent":0.075},"batchIdleDuration":"1s","batchMaxDuration":"10s","featureGates":{"driftEnabled":false}}` | Global Settings to configure Karpenter |
+| settings.aws | object | `{"clusterEndpoint":"","clusterName":"","defaultInstanceProfile":"","enableENILimitedPodDensity":true,"enablePodENI":false,"interruptionQueueName":"","isolatedVPC":false,"tags":null,"vmMemoryOverheadPercent":0.075}` | AWS-specific configuration values |
 | settings.aws.clusterEndpoint | string | `""` | Cluster endpoint. If not set, will be discovered during startup (EKS only) |
 | settings.aws.clusterName | string | `""` | Cluster name. |
 | settings.aws.defaultInstanceProfile | string | `""` | The default instance profile to use when launching nodes |
@@ -83,7 +82,6 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | settings.aws.enablePodENI | bool | `false` | If true then instances that support pod ENI will report a vpc.amazonaws.com/pod-eni resource |
 | settings.aws.interruptionQueueName | string | `""` | interruptionQueueName is disabled if not specified. Enabling interruption handling may require additional permissions on the controller service account. Additional permissions are outlined in the docs. |
 | settings.aws.isolatedVPC | bool | `false` | If true then assume we can't reach AWS services which don't have a VPC endpoint This also has the effect of disabling look-ups to the AWS pricing endpoint |
-| settings.aws.nodeNameConvention | string | `"ip-name"` | The node naming convention (either "ip-name" or "resource-name") |
 | settings.aws.tags | string | `nil` | The global tags to use on all AWS infrastructure resources (launch templates, instances, etc.) across node templates |
 | settings.aws.vmMemoryOverheadPercent | float | `0.075` | The VM memory overhead as a percent that will be subtracted from the total memory for all instance types |
 | settings.batchIdleDuration | string | `"1s"` | The maximum amount of time with no new ending pods that if exceeded ends the current batching window. If pods arrive faster than this time, the batching window will be extended up to the maxDuration. If they arrive slower, the pods will be batched separately. |
