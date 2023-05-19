@@ -245,11 +245,13 @@ func (a *AWS) validateVolumeType(blockDeviceMapping *BlockDeviceMapping) *apis.F
 
 func (a *AWS) validateVolumeSizeAndRootVolume(blockDeviceMapping *BlockDeviceMapping) *apis.FieldError {
 	// If the EBS volume is the root volume, ensure that snapshotID is not used.
+	// Filter out Custom AMIs as we can't know what the root volume is by device name.
 	if aws.StringValue(a.AMIFamily) != AMIFamilyCustom &&
-		blockDeviceMapping.DeviceName == EphemeralBlockDevice(aws.StringValue(a.AMIFamily)) &&
+		aws.StringValue(blockDeviceMapping.DeviceName) == aws.StringValue(EphemeralBlockDevice(aws.StringValue(a.AMIFamily))) &&
 		blockDeviceMapping.EBS.SnapshotID != nil {
 		return apis.ErrDisallowedFields("snapshotID")
 	}
+
 	// If an EBS mapping is present, one of volumeSize or snapshotID must be present
 	if blockDeviceMapping.EBS.SnapshotID != nil && blockDeviceMapping.EBS.VolumeSize == nil {
 		return nil
