@@ -192,53 +192,12 @@ func (c *CloudProvider) IsMachineDrifted(ctx context.Context, machine *v1alpha5.
 	if err != nil {
 		return false, client.IgnoreNotFound(fmt.Errorf("resolving node template, %w", err))
 	}
-	amiDrifted, err := c.isAMIDrifted(ctx, machine, provisioner, nodeTemplate)
-	if err != nil {
-		return false, cloudprovider.IgnoreMachineNotFoundError(fmt.Errorf("calculating ami drift, %w", err))
-	}
-	return amiDrifted, nil
+	return c.isNodeTemplateDrifted(ctx, machine, provisioner, nodeTemplate)
 }
 
 // Name returns the CloudProvider implementation name.
 func (c *CloudProvider) Name() string {
 	return "aws"
-}
-
-func (c *CloudProvider) isAMIDrifted(ctx context.Context, machine *v1alpha5.Machine, provisioner *v1alpha5.Provisioner, nodeTemplate *v1alpha1.AWSNodeTemplate) (bool, error) {
-	instanceTypes, err := c.GetInstanceTypes(ctx, provisioner)
-	if err != nil {
-		return false, fmt.Errorf("getting instanceTypes, %w", err)
-	}
-	nodeInstanceType, found := lo.Find(instanceTypes, func(instType *cloudprovider.InstanceType) bool {
-		return instType.Name == machine.Labels[v1.LabelInstanceTypeStable]
-	})
-	if !found {
-		return false, fmt.Errorf(`finding node instance type "%s"`, machine.Labels[v1.LabelInstanceTypeStable])
-	}
-	if nodeTemplate.Spec.LaunchTemplateName != nil {
-		return false, nil
-	}
-	amis, err := c.amiProvider.Get(ctx, nodeTemplate, &amifamily.Options{})
-	if err != nil {
-		return false, fmt.Errorf("getting amis, %w", err)
-	}
-	if len(amis) == 0 {
-		return false, fmt.Errorf("no amis exist given constraints")
-	}
-	mappedAMIs, err := amifamily.MapInstanceTypes(amis, []*cloudprovider.InstanceType{nodeInstanceType})
-	if err != nil {
-		return false, err
-	}
-	// Get InstanceID to fetch from EC2
-	instanceID, err := utils.ParseInstanceID(machine.Status.ProviderID)
-	if err != nil {
-		return false, err
-	}
-	instance, err := c.instanceProvider.Get(ctx, instanceID)
-	if err != nil {
-		return false, fmt.Errorf("getting instance, %w", err)
-	}
-	return !lo.Contains(lo.Keys(mappedAMIs), instance.ImageID), nil
 }
 
 func (c *CloudProvider) resolveNodeTemplate(ctx context.Context, raw []byte, objRef *v1alpha5.MachineTemplateRef) (*v1alpha1.AWSNodeTemplate, error) {

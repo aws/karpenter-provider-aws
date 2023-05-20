@@ -141,11 +141,11 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeTemplate *v1alpha1.
 		return nil, err
 	}
 	// Get constrained security groups
-	securityGroupsIDs, err := p.securityGroupProvider.List(ctx, nodeTemplate)
+	securityGroups, err := p.securityGroupProvider.List(ctx, nodeTemplate)
 	if err != nil {
 		return nil, err
 	}
-	if len(securityGroupsIDs) == 0 {
+	if len(securityGroups) == 0 {
 		return nil, fmt.Errorf("no security groups exist given constraints")
 	}
 	return &amifamily.Options{
@@ -153,11 +153,13 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeTemplate *v1alpha1.
 		ClusterEndpoint:         p.ClusterEndpoint,
 		AWSENILimitedPodDensity: settings.FromContext(ctx).EnableENILimitedPodDensity,
 		InstanceProfile:         instanceProfile,
-		SecurityGroupsIDs:       securityGroupsIDs,
-		Tags:                    tags,
-		Labels:                  labels,
-		CABundle:                p.caBundle,
-		KubeDNSIP:               p.KubeDNSIP,
+		SecurityGroups: lo.Map(securityGroups, func(s *ec2.SecurityGroup, _ int) v1alpha1.SecurityGroup {
+			return v1alpha1.SecurityGroup{ID: aws.StringValue(s.GroupId), Name: aws.StringValue(s.GroupName)}
+		}),
+		Tags:      tags,
+		Labels:    labels,
+		CABundle:  p.caBundle,
+		KubeDNSIP: p.KubeDNSIP,
 	}, nil
 }
 
@@ -209,7 +211,7 @@ func (p *Provider) createLaunchTemplate(ctx context.Context, options *amifamily.
 			Monitoring: &ec2.LaunchTemplatesMonitoringRequest{
 				Enabled: aws.Bool(options.DetailedMonitoring),
 			},
-			SecurityGroupIds: aws.StringSlice(options.SecurityGroupsIDs),
+			SecurityGroupIds: lo.Map(options.SecurityGroups, func(s v1alpha1.SecurityGroup, _ int) *string { return aws.String(s.ID) }),
 			UserData:         aws.String(userData),
 			ImageId:          aws.String(options.AMIID),
 			MetadataOptions: &ec2.LaunchTemplateInstanceMetadataOptionsRequest{
