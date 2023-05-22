@@ -121,7 +121,7 @@ func (b Bottlerocket) DefaultBlockDeviceMappings() []*v1alpha1.BlockDeviceMappin
 }
 
 func (b Bottlerocket) EphemeralBlockDevice() *string {
-	return v1alpha1.EphemeralBlockDevice(v1alpha1.AMIFamilyBottlerocket)
+	return aws.String("/dev/xvdb")
 }
 
 // PodsPerCoreEnabled is currently disabled for Bottlerocket AMIFamily because it does

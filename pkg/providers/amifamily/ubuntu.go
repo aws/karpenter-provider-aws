@@ -19,6 +19,7 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/providers/amifamily/bootstrap"
 
@@ -75,5 +76,5 @@ func (u Ubuntu) DefaultBlockDeviceMappings() []*v1alpha1.BlockDeviceMapping {
 }
 
 func (u Ubuntu) EphemeralBlockDevice() *string {
-	return v1alpha1.EphemeralBlockDevice(v1alpha1.AMIFamilyUbuntu)
+	return aws.String("/dev/sda1")
 }
