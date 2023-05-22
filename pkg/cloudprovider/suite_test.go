@@ -419,7 +419,7 @@ var _ = Describe("CloudProvider", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
 			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
-				Expect(aws.StringValueSlice(ltInput.LaunchTemplateData.NetworkInterfaces[0].Groups)).To(ConsistOf("sg-test1"))
+				Expect(aws.StringValueSlice(ltInput.LaunchTemplateData.SecurityGroupIds)).To(ConsistOf("sg-test1"))
 			})
 		})
 		It("should discover security groups by ID in the LT when no network interfaces are defined", func() {
