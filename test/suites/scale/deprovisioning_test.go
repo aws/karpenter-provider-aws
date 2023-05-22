@@ -52,7 +52,7 @@ const (
 )
 
 const (
-	multipleDeprovisionersTestGroup = "multipleDeprovsioners"
+	multipleDeprovisionersTestGroup = "multipleDeprovisioners"
 	consolidationTestGroup          = "consolidation"
 	emptinessTestGroup              = "emptiness"
 	expirationTestGroup             = "expiration"
@@ -246,7 +246,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 
 			env.MeasureDurationFor(func() {
 				By("enabling deprovisioning across provisioners")
-				// Create provisioners for expiration and drift so that these provisioners can do replacement
+				// Create a provisioner for expiration so that expiration can do replacement
 				provisionerMap[noExpirationValue] = test.Provisioner()
 				provisionerMap[noExpirationValue].Spec = provisionerMap[expirationValue].Spec
 
@@ -315,7 +315,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 				}
 				wg.Wait()
 			}, aws.DeprovisioningEventType, multipleDeprovisionersTestGroup, defaultTestName)
-		}, SpecTimeout(30*time.Minute))
+		}, SpecTimeout(time.Hour))
 	})
 	Context("Consolidation", func() {
 		It("should consolidate nodes to get a higher utilization (multi-consolidation delete)", func(_ context.Context) {
@@ -489,23 +489,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 				// Enable Expiration
 				provisioner.Spec.TTLSecondsUntilExpired = lo.ToPtr[int64](0)
 
-				noExpireProvisioner := test.Provisioner(test.ProvisionerOptions{
-					Requirements: []v1.NodeSelectorRequirement{
-						{
-							Key:      v1alpha1.LabelInstanceSize,
-							Operator: v1.NodeSelectorOpIn,
-							Values:   []string{"4xlarge"},
-						},
-						{
-							Key:      v1alpha5.LabelCapacityType,
-							Operator: v1.NodeSelectorOpIn,
-							Values:   []string{v1alpha1.CapacityTypeOnDemand},
-						},
-					},
-					ProviderRef: &v1alpha5.MachineTemplateRef{
-						Name: nodeTemplate.Name,
-					},
-				})
+				noExpireProvisioner := test.Provisioner(provisionerOptions)
 				env.ExpectCreatedOrUpdated(provisioner, noExpireProvisioner)
 
 				env.EventuallyExpectDeletedNodeCount("==", expectedNodeCount)
