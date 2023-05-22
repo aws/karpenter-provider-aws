@@ -181,8 +181,8 @@ func ephemeralStorage(amiFamily amifamily.AMIFamily, blockDeviceMappings []*v1al
 		default:
 			ephemeralBlockDevice := amiFamily.EphemeralBlockDevice()
 			for _, blockDevice := range blockDeviceMappings {
-				// If a block device mapping exists in the provider for the root volume, set the volume size specified in the provider
-				if *blockDevice.DeviceName == *ephemeralBlockDevice {
+				// If a block device mapping exists in the provider for the root volume, use the volume size specified in the provider. If not, use the default
+				if *blockDevice.DeviceName == *ephemeralBlockDevice && blockDevice.EBS.VolumeSize != nil {
 					return blockDevice.EBS.VolumeSize
 				}
 			}

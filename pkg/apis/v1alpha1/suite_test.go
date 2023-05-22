@@ -25,11 +25,7 @@ import (
 	. "knative.dev/pkg/logging/testing"
 	"knative.dev/pkg/ptr"
 
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
 
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 )
@@ -105,102 +101,6 @@ var _ = Describe("Validation", func() {
 			Expect(ant.Validate(ctx)).To(Not(Succeed()))
 			ant.Spec.Tags = map[string]string{
 				"karpenter.sh/managed-by": "test",
-			}
-			Expect(ant.Validate(ctx)).To(Not(Succeed()))
-		})
-	})
-	Context("BlockDeviceMappings", func() {
-		resourceQuantity := resource.MustParse("20Gi")
-		It("should fail when snapshotID is set for the root volume for Bottlerocket", func() {
-			ant.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
-			ant.Spec.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{
-				{
-					DeviceName: v1alpha1.EphemeralBlockDevice(v1alpha1.AMIFamilyBottlerocket),
-					EBS: &v1alpha1.BlockDevice{
-						SnapshotID: aws.String("snap-xxxxxxxx"),
-						VolumeType: aws.String(ec2.VolumeTypeGp3),
-					},
-				},
-			}
-			Expect(ant.Validate(ctx)).To(Not(Succeed()))
-		})
-		It("should fail when snapshotID is set for the root volume for AL2", func() {
-			ant.Spec.AMIFamily = &v1alpha1.AMIFamilyAL2
-			ant.Spec.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{
-				{
-					DeviceName: v1alpha1.EphemeralBlockDevice(v1alpha1.AMIFamilyAL2),
-					EBS: &v1alpha1.BlockDevice{
-						SnapshotID: aws.String("snap-xxxxxxxx"),
-						VolumeType: aws.String(ec2.VolumeTypeGp3),
-					},
-				},
-			}
-			Expect(ant.Validate(ctx)).To(Not(Succeed()))
-		})
-		It("should fail when snapshotID is set for the root volume for Ubuntu", func() {
-			ant.Spec.AMIFamily = &v1alpha1.AMIFamilyUbuntu
-			ant.Spec.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{
-				{
-					DeviceName: v1alpha1.EphemeralBlockDevice(v1alpha1.AMIFamilyUbuntu),
-					EBS: &v1alpha1.BlockDevice{
-						SnapshotID: aws.String("snap-xxxxxxxx"),
-						VolumeType: aws.String(ec2.VolumeTypeGp3),
-					},
-				},
-			}
-			Expect(ant.Validate(ctx)).To(Not(Succeed()))
-		})
-		It("should succeed when snapshotID is set for a Custom AMI", func() {
-			ant.Spec.AMIFamily = &v1alpha1.AMIFamilyCustom
-			ant.Spec.AMISelector = map[string]string{
-				"*": "*",
-			}
-			ant.Spec.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{
-				{
-					// Doesn't matter what device name, so use AL2 default
-					DeviceName: v1alpha1.EphemeralBlockDevice(v1alpha1.AMIFamilyAL2),
-					EBS: &v1alpha1.BlockDevice{
-						SnapshotID: aws.String("snap-xxxxxxxx"),
-						VolumeType: aws.String(ec2.VolumeTypeGp3),
-					},
-				},
-			}
-			Expect(ant.Validate(ctx)).To(Succeed())
-		})
-		It("should fail when both volumeSize and snapshotID are set", func() {
-			ant.Spec.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{
-				{
-					DeviceName: v1alpha1.EphemeralBlockDevice(v1alpha1.AMIFamilyCustom),
-					EBS: &v1alpha1.BlockDevice{
-						SnapshotID: aws.String("snap-xxxxxxxx"),
-						VolumeSize: &resourceQuantity,
-						VolumeType: aws.String(ec2.VolumeTypeGp3),
-					},
-				},
-			}
-			Expect(ant.Validate(ctx)).To(Not(Succeed()))
-		})
-		It("should fail when neither volumeSize nor snapshotID are set", func() {
-			ant.Spec.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{
-				{
-					DeviceName: v1alpha1.EphemeralBlockDevice(v1alpha1.AMIFamilyCustom),
-					EBS: &v1alpha1.BlockDevice{
-						VolumeType: aws.String(ec2.VolumeTypeGp3),
-					},
-				},
-			}
-			Expect(ant.Validate(ctx)).To(Not(Succeed()))
-		})
-		It("should fail when neither volumeSize is less than the default for gp3", func() {
-			lowResourceQuantity := resource.MustParse("10Gi")
-			ant.Spec.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{
-				{
-					DeviceName: v1alpha1.EphemeralBlockDevice(v1alpha1.AMIFamilyCustom),
-					EBS: &v1alpha1.BlockDevice{
-						VolumeSize: &lowResourceQuantity,
-						VolumeType: aws.String(ec2.VolumeTypeGp3),
-					},
-				},
 			}
 			Expect(ant.Validate(ctx)).To(Not(Succeed()))
 		})
