@@ -169,9 +169,9 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeTemplate *v1alpha1.
 	} else if !ok {
 		// If all referenced subnets do not assign public IPv4 addresses to EC2 instances therein, we explicitly set
 		// AssociatePublicIpAddress to 'false' in the Launch Template, generated based on this configuration struct.
-		// This is done to help comply with with AWS account policies that require the explicitly setting of that field to 'false'.
+		// This is done to help comply with AWS account policies that require explicitly setting of that field to 'false'.
 		// https://github.com/aws/karpenter/issues/3815
-		options.AssociatePublicIPv4Addrs = aws.Bool(false)
+		options.AssociatePublicIPAddress = aws.Bool(false)
 	}
 	return options, nil
 }
@@ -215,12 +215,6 @@ func (p *Provider) createLaunchTemplate(ctx context.Context, options *amifamily.
 		return nil, err
 	}
 	networkInterface := p.generateNetworkInterface(options)
-	var securityGroupIds []*string
-	if networkInterface != nil {
-		securityGroupIds = nil // if the network interface is defined, the security groups are defined within it
-	} else {
-		securityGroupIds = lo.Map(options.SecurityGroups, func(s v1alpha1.SecurityGroup, _ int) *string { return aws.String(s.ID) })
-	}
 	output, err := p.ec2api.CreateLaunchTemplateWithContext(ctx, &ec2.CreateLaunchTemplateInput{
 		LaunchTemplateName: aws.String(launchTemplateName(options)),
 		LaunchTemplateData: &ec2.RequestLaunchTemplateData{
@@ -231,7 +225,8 @@ func (p *Provider) createLaunchTemplate(ctx context.Context, options *amifamily.
 			Monitoring: &ec2.LaunchTemplatesMonitoringRequest{
 				Enabled: aws.Bool(options.DetailedMonitoring),
 			},
-			SecurityGroupIds: securityGroupIds,
+			// If the network interface is defined, the security groups are defined within it
+			SecurityGroupIds: lo.Ternary(networkInterface != nil, nil, lo.Map(options.SecurityGroups, func(s v1alpha1.SecurityGroup, _ int) *string { return aws.String(s.ID) })),
 			UserData:         aws.String(userData),
 			ImageId:          aws.String(options.AMIID),
 			MetadataOptions: &ec2.LaunchTemplateInstanceMetadataOptionsRequest{
@@ -265,10 +260,10 @@ func (p *Provider) createLaunchTemplate(ctx context.Context, options *amifamily.
 // This is done to help comply with AWS account policies that require explicitly setting that field to 'false'.
 // https://github.com/aws/karpenter/issues/3815
 func (p *Provider) generateNetworkInterface(options *amifamily.LaunchTemplate) []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest {
-	if options.AssociatePublicIPv4Addrs != nil {
+	if options.AssociatePublicIPAddress != nil {
 		return []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
 			{
-				AssociatePublicIpAddress: options.AssociatePublicIPv4Addrs,
+				AssociatePublicIpAddress: options.AssociatePublicIPAddress,
 				DeviceIndex:              aws.Int64(0),
 				Groups:                   lo.Map(options.SecurityGroups, func(s v1alpha1.SecurityGroup, _ int) *string { return aws.String(s.ID) }),
 			},

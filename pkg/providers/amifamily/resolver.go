@@ -48,18 +48,17 @@ type Resolver struct {
 
 // Options define the static launch template parameters
 type Options struct {
-	ClusterName              string
-	ClusterEndpoint          string
-	AWSENILimitedPodDensity  bool
-	InstanceProfile          string
-	CABundle                 *string `hash:"ignore"`
-	AssociatePublicIPAddress *bool
+	ClusterName             string
+	ClusterEndpoint         string
+	AWSENILimitedPodDensity bool
+	InstanceProfile         string
+	CABundle                *string `hash:"ignore"`
 	// Level-triggered fields that may change out of sync.
 	SecurityGroups           []v1alpha1.SecurityGroup
 	Tags                     map[string]string
 	Labels                   map[string]string `hash:"ignore"`
 	KubeDNSIP                net.IP
-	AssociatePublicIPv4Addrs *bool
+	AssociatePublicIPAddress *bool
 }
 
 // LaunchTemplate holds the dynamically generated launch template parameters
