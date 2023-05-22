@@ -64,7 +64,7 @@ clean-run: ## Clean resources deployed by the run target
 	kubectl delete configmap -n ${SYSTEM_NAMESPACE} karpenter-global-settings --ignore-not-found
 
 test: ## Run tests
-	go test -v ./pkg/... --ginkgo.focus="${FOCUS}" --ginkgo.v
+	go test -v ./pkg/... --ginkgo.focus="${FOCUS}" --ginkgo.vv
 
 battletest: ## Run randomized, racing, code-covered tests
 	go test -v ./pkg/... \
@@ -72,7 +72,7 @@ battletest: ## Run randomized, racing, code-covered tests
 		-cover -coverprofile=coverage.out -outputdir=. -coverpkg=./pkg/... \
 		--ginkgo.focus="${FOCUS}" \
 		--ginkgo.randomize-all \
-		--ginkgo.v \
+		--ginkgo.vv \
 		-tags random_test_delay
 
 e2etests: ## Run the e2e suite against your local cluster
@@ -84,7 +84,7 @@ e2etests: ## Run the e2e suite against your local cluster
 		./suites/... \
 		--ginkgo.focus="${FOCUS}" \
 		--ginkgo.timeout=180m \
-		--ginkgo.v
+		--ginkgo.vv
 
 benchmark:
 	go test -tags=test_performance -run=NoTests -bench=. ./...

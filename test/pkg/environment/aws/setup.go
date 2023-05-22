@@ -15,15 +15,12 @@ limitations under the License.
 package aws
 
 import (
-	"fmt"
-
 	//nolint:revive,stylecheck
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter-core/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	"github.com/aws/karpenter/test/pkg/environment/common"
 )
 
 var persistedSettings *v1.ConfigMap
@@ -34,27 +31,18 @@ var (
 	}
 )
 
-func (env *Environment) BeforeEach(opts ...common.Option) {
+func (env *Environment) BeforeEach() {
 	persistedSettings = env.ExpectSettings()
-	env.Environment.BeforeEach(opts...)
+	env.Environment.BeforeEach()
 }
 
-func (env *Environment) Cleanup(opts ...common.Option) {
-	options := common.ResolveOptions(opts)
-	if !options.DisableDebug {
-		fmt.Println("------- START AWS CLEANUP -------")
-		defer fmt.Println("------- END AWS CLEANUP -------")
-	}
+func (env *Environment) Cleanup() {
 	env.Environment.CleanupObjects(CleanableObjects...)
-	env.Environment.Cleanup(opts...)
+	env.Environment.Cleanup()
 }
 
-func (env *Environment) ForceCleanup(opts ...common.Option) {
-	env.Environment.ForceCleanup(opts...)
-}
-
-func (env *Environment) AfterEach(opts ...common.Option) {
-	env.Environment.AfterEach(opts...)
+func (env *Environment) AfterEach() {
+	env.Environment.AfterEach()
 	// Ensure we reset settings after collecting the controller logs
 	env.ExpectSettingsOverridden(persistedSettings.Data)
 }
