@@ -39,4 +39,4 @@ spec:
     workingDir: $(workspaces.ws.path)
     script: |
       aws eks update-kubeconfig --name $(params.cluster-name)
-      KUBECONFIG=/root/.kube/config FOCUS=$(params.test-filter) make e2etests
+      KUBECONFIG=/root/.kube/config ENABLE_CLOUDWATCH=true TEST_SUITE="$(params.test-filter)" make e2etests
