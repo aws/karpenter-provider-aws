@@ -96,9 +96,9 @@ func (p *Provider) CheckAnyPublicIPAssociations(ctx context.Context, nodeTemplat
 		return false, err
 	}
 	_, ok := lo.Find(subnets, func(s *ec2.Subnet) bool {
-		return !aws.BoolValue(s.MapPublicIpOnLaunch)
+		return aws.BoolValue(s.MapPublicIpOnLaunch)
 	})
-	return !ok, nil
+	return ok, nil
 }
 
 // ZonalSubnetsForLaunch returns a mapping of zone to the subnet with the most available IP addresses and deducts the passed ips from the available count
