@@ -144,11 +144,9 @@ func (c *Controller) handleMessage(ctx context.Context, machineInstanceIDMap map
 	nodeInstanceIDMap map[string]*v1.Node, msg messages.Message) (err error) {
 
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("messageKind", msg.Kind()))
+	receivedMessages.WithLabelValues(string(msg.Kind())).Inc()
 
 	if msg.Kind() == messages.NoOpKind {
-		receivedMessages.With(prometheus.Labels{
-			messageTypeLabel: string(msg.Kind()),
-		}).Inc()
 		return nil
 	}
 	for _, instanceID := range msg.EC2InstanceIDs() {
@@ -157,9 +155,6 @@ func (c *Controller) handleMessage(ctx context.Context, machineInstanceIDMap map
 			continue
 		}
 		node := nodeInstanceIDMap[instanceID]
-		receivedMessages.With(prometheus.Labels{
-			messageTypeLabel: string(msg.Kind()),
-		}).Inc()
 		if e := c.handleMachine(ctx, msg, machine, node); e != nil {
 			err = multierr.Append(err, e)
 		}
