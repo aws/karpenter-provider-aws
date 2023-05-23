@@ -54,10 +54,11 @@ type Options struct {
 	InstanceProfile         string
 	CABundle                *string `hash:"ignore"`
 	// Level-triggered fields that may change out of sync.
-	SecurityGroups []v1alpha1.SecurityGroup
-	Tags           map[string]string
-	Labels         map[string]string `hash:"ignore"`
-	KubeDNSIP      net.IP
+	SecurityGroups           []v1alpha1.SecurityGroup
+	Tags                     map[string]string
+	Labels                   map[string]string `hash:"ignore"`
+	KubeDNSIP                net.IP
+	AssociatePublicIPAddress *bool
 }
 
 // LaunchTemplate holds the dynamically generated launch template parameters
