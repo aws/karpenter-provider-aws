@@ -26,7 +26,7 @@ const (
 	messageTypeLabel       = "message_type"
 	actionTypeLabel        = "action_type"
 	terminationReasonLabel = "interruption"
-	provisionerLabel			 = "provisioner"
+	provisionerLabel       = "provisioner"
 )
 
 var (

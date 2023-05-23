@@ -187,8 +187,8 @@ func (c *Controller) handleMachine(ctx context.Context, msg messages.Message, ma
 	// Record metric and event for this action
 	c.notifyForMessage(msg, machine, node)
 	actionsPerformed.With(prometheus.Labels{
-		actionTypeLabel:	string(action),
-		provisionerLabel:	machine.Labels[v1alpha5.ProvisionerNameLabelKey],
+		actionTypeLabel:  string(action),
+		provisionerLabel: machine.Labels[v1alpha5.ProvisionerNameLabelKey],
 	}).Inc()
 
 	// Mark the offering as unavailable in the ICE cache since we got a spot interruption warning
