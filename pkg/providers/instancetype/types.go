@@ -177,11 +177,10 @@ func ephemeralStorage(amiFamily amifamily.AMIFamily, blockDeviceMappings []*v1al
 			volumeSize := blockDeviceMappings[len(blockDeviceMappings)-1].EBS.VolumeSize
 			return lo.Ternary(volumeSize != nil, volumeSize, amifamily.DefaultEBS.VolumeSize)
 		default:
-			ephemeralBlockDevice := amiFamily.EphemeralBlockDevice()
 			// If a block device mapping exists in the provider for the root volume, use the volume size specified in the provider. If not, use the default
 			if blockDeviceMapping, ok := lo.Find(blockDeviceMappings, func(bdm *v1alpha1.BlockDeviceMapping) bool {
-				return *bdm.DeviceName == *ephemeralBlockDevice && bdm.EBS.VolumeSize != nil
-			}); ok {
+				return *bdm.DeviceName == *amiFamily.EphemeralBlockDevice()
+			}); ok && blockDeviceMapping.EBS.VolumeSize != nil {
 				return blockDeviceMapping.EBS.VolumeSize
 			}
 		}
