@@ -36,7 +36,7 @@ import (
 
 const testGroup = "provisioning"
 
-var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), func() {
+var _ = Describe("Provisioning", Label(debug.NoWatch), func() {
 	var provisioner *v1alpha5.Provisioner
 	var nodeTemplate *v1alpha1.AWSNodeTemplate
 	var deployment *appsv1.Deployment
