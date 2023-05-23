@@ -214,3 +214,17 @@ func (env *Environment) GetCustomAMI(amiPath string, versionOffset int) string {
 	Expect(err).To(BeNil())
 	return *parameter.Parameter.Value
 }
+
+func (env *Environment) ExpectRunInstances(instanceInput *ec2.RunInstancesInput) *ec2.Reservation {
+	GinkgoHelper()
+	// implement IMDSv2
+	instanceInput.MetadataOptions = &ec2.InstanceMetadataOptionsRequest{
+		HttpEndpoint: aws.String("enabled"),
+		HttpTokens:   aws.String("required"),
+	}
+
+	out, err := env.EC2API.RunInstances(instanceInput)
+	Expect(err).ToNot(HaveOccurred())
+
+	return out
+}
