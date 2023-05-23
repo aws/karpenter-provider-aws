@@ -1331,6 +1331,80 @@ var _ = Describe("Instance Types", func() {
 			Expect(node.Labels).To(HaveKeyWithValue(v1alpha5.ProvisionerNameLabelKey, provisioner.Name))
 		})
 	})
+	Context("Ephemeral Storage", func() {
+		BeforeEach(func() {
+			nodeTemplate.Spec.AMIFamily = aws.String(v1alpha1.AMIFamilyAL2)
+			nodeTemplate.Spec.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{
+				{
+					DeviceName: aws.String("/dev/xvda"),
+					EBS: &v1alpha1.BlockDevice{
+						SnapshotID: aws.String("snap-xxxxxxxx"),
+					},
+				},
+			}
+		})
+		It("should default to EBS defaults when volumeSize is not defined in blockDeviceMappings for custom AMIs", func() {
+			nodeTemplate.Spec.AMIFamily = aws.String(v1alpha1.AMIFamilyCustom)
+			nodeTemplate.Spec.AMISelector = map[string]string{
+				"*": "*",
+			}
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(*node.Status.Capacity.StorageEphemeral()).To(Equal(resource.MustParse("20Gi")))
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
+			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(ltInput.LaunchTemplateData.BlockDeviceMappings).To(HaveLen(1))
+				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].DeviceName).To(Equal("/dev/xvda"))
+				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.SnapshotId).To(Equal("snap-xxxxxxxx"))
+			})
+		})
+		It("should default to EBS defaults when volumeSize is not defined in blockDeviceMappings for AL2 Root volume", func() {
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(*node.Status.Capacity.StorageEphemeral()).To(Equal(resource.MustParse("20Gi")))
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
+			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(ltInput.LaunchTemplateData.BlockDeviceMappings).To(HaveLen(1))
+				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].DeviceName).To(Equal("/dev/xvda"))
+				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.SnapshotId).To(Equal("snap-xxxxxxxx"))
+			})
+		})
+		It("should default to EBS defaults when volumeSize is not defined in blockDeviceMappings for Bottlerocket Root volume", func() {
+			nodeTemplate.Spec.AMIFamily = aws.String(v1alpha1.AMIFamilyBottlerocket)
+			nodeTemplate.Spec.BlockDeviceMappings[0].DeviceName = aws.String("/dev/xvdb")
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(*node.Status.Capacity.StorageEphemeral()).To(Equal(resource.MustParse("20Gi")))
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
+			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
+				Expect(ltInput.LaunchTemplateData.BlockDeviceMappings).To(HaveLen(1))
+				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].DeviceName).To(Equal("/dev/xvdb"))
+				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.SnapshotId).To(Equal("snap-xxxxxxxx"))
+			})
+		})
+		It("should default to EBS defaults when volumeSize is not defined in blockDeviceMappings for Ubuntu Root volume", func() {
+			nodeTemplate.Spec.AMIFamily = aws.String(v1alpha1.AMIFamilyUbuntu)
+			nodeTemplate.Spec.BlockDeviceMappings[0].DeviceName = aws.String("/dev/sda1")
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(*node.Status.Capacity.StorageEphemeral()).To(Equal(resource.MustParse("20Gi")))
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
+			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(ltInput.LaunchTemplateData.BlockDeviceMappings).To(HaveLen(1))
+				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].DeviceName).To(Equal("/dev/sda1"))
+				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.SnapshotId).To(Equal("snap-xxxxxxxx"))
+			})
+		})
+	})
 	Context("Metadata Options", func() {
 		It("should default metadata options on generated launch template", func() {
 			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
