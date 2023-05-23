@@ -120,19 +120,6 @@ func (b Bottlerocket) DefaultBlockDeviceMappings() []*v1alpha1.BlockDeviceMappin
 	}
 }
 
-func (b Bottlerocket) EphemeralStorage(blockDeviceMappings []*v1alpha1.BlockDeviceMapping) *resource.Quantity {
-	if len(blockDeviceMappings) != 0 {
-		ephemeralBlockDevice := b.EphemeralBlockDevice()
-		for _, blockDevice := range blockDeviceMappings {
-			// If a block device mapping exists in the provider for the root volume, use the volume size specified in the provider. If not, use the default
-			if *blockDevice.DeviceName == *ephemeralBlockDevice && blockDevice.EBS.VolumeSize != nil {
-				return blockDevice.EBS.VolumeSize
-			}
-		}
-	}
-	return DefaultEBS.VolumeSize
-}
-
 func (b Bottlerocket) EphemeralBlockDevice() *string {
 	return aws.String("/dev/xvdb")
 }

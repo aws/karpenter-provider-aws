@@ -17,9 +17,8 @@ package amifamily
 import (
 	"fmt"
 
-	v1 "k8s.io/api/core/v1"
-
 	"github.com/aws/aws-sdk-go/aws"
+	v1 "k8s.io/api/core/v1"
 
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/providers/amifamily/bootstrap"
