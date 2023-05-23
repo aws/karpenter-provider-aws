@@ -42,15 +42,17 @@ runs:
       aws eks update-kubeconfig --name ${{ inputs.cluster_name }}
       helm upgrade --install --namespace karpenter --create-namespace \
         karpenter oci://public.ecr.aws/karpenter/karpenter \
-        --version v0.28.0-rc.1 \
-        --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="arn:aws:iam::${{ inputs.account_id }}:role/${{ inputs.cluster_name }}-karpenter" \
+        --version v0-$(git rev-parse HEAD) \
+        --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="arn:aws:iam::${{ inputs.account_id }}:role/karpenter-irsa-${{ inputs.cluster_name }}" \
         --set settings.aws.clusterName=${{ inputs.cluster_name }} \
         --set settings.aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${{ inputs.cluster_name }} \
         --set settings.aws.interruptionQueueName=${{ inputs.cluster_name }} \
-        --set controller.resources.requests.cpu=1 \
-        --set controller.resources.requests.memory=1Gi \
-        --set controller.resources.limits.cpu=1 \
-        --set controller.resources.limits.memory=1Gi \
+        --set controller.resources.requests.cpu=3 \
+        --set controller.resources.requests.memory=3Gi \
+        --set controller.resources.limits.cpu=3 \
+        --set controller.resources.limits.memory=3Gi \
+        --set serviceMonitor.enabled=true \
+        --set serviceMonitor.additionalLabels.scrape=enabled \
         --wait
   - name: diff-karpenter
     shell: bash

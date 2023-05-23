@@ -27,15 +27,11 @@ runs:
       shell: bash
       run: |
         helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-    - name: assign prometheus IRSA permissions
+    - name: create prometheus namespace
       shell: bash
       run: |
-        eksctl create iamserviceaccount \
-          --cluster "${{ inputs.cluster_name }}" --name prometheus-kube-prometheus-prometheus --namespace prometheus \
-          --role-name "${{ inputs.cluster_name }}-prometheus" \
-          --attach-policy-arn "arn:aws:iam::${{ inputs.account_id }}:policy/PrometheusWorkspaceIngestionPolicy" \
-          --role-only \
-          --approve
+        kubectl create ns prometheus
+        kubectl label ns prometheus scrape=enabled
     - name: install prometheus
       shell: bash
       run: |
@@ -44,4 +40,4 @@ runs:
           -f ./actions/.github/actions/e2e/install-prometheus/values.yaml \
           --set prometheus.prometheusSpec.remoteWrite[0].url=https://aps-workspaces.${{ inputs.region }}.amazonaws.com/workspaces/${{ inputs.workspace_id }}/api/v1/remote_write \
           --set prometheus.prometheusSpec.remoteWrite[0].sigv4.region=${{ inputs.region }} \
-          --set prometheus.serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="arn:aws:iam::${{ inputs.account_id }}:role/${{ inputs.cluster_name }}-prometheus"
+          --set prometheus.serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="arn:aws:iam::${{ inputs.account_id }}:role/prometheus-irsa-${{ inputs.cluster_name }}"

@@ -79,7 +79,7 @@ jobs:
           FOCUS=${{ inputs.suite }} make e2etests
       - name: notify slack of success or failure
         uses: ./actions/.github/actions/e2e/slack/notify
-        if: ${{ (inputs.event_name == 'schedule' || inputs.event_name == 'push') && (success() || failure()) }}
+        if: ${{ success() || failure() }}
         with:
           url: ${{ secrets.SLACK_WEBHOOK_URL }}
           suite: ${{ inputs.suite }}

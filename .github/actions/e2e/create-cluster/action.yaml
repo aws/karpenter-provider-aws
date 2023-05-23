@@ -72,12 +72,12 @@ runs:
         region: ${{ inputs.region }}
         version: "${{ inputs.kubernetes_version }}"
         tags:
-          karpenter.sh/discovery: "${{ inputs.cluster_name }}"
-          github.com/run_id: "${{ github.run_id }}"
+          karpenter.sh/discovery: ${{ inputs.cluster_name }}
+          github.com/run-url: "https://github.com/${{ inputs.git_repo }}/actions/runs/${{ github.run_id }}"
       kubernetesNetworkConfig:
         ipFamily: ${{ inputs.ip_family }}
       managedNodeGroups:
-        - instanceType: m5.xlarge
+        - instanceType: c5.xlarge
           amiFamily: AmazonLinux2
           name: ${{ inputs.cluster_name }}-system-pool
           desiredCapacity: 2
@@ -85,26 +85,40 @@ runs:
           minSize: 2
           maxSize: 2
           iam:
-            instanceRolePermissionsBoundary: "arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsDesignatedPermissionsBoundary"
+            instanceRolePermissionsBoundary: "arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"
           taints:
           - key: CriticalAddonsOnly
             value: "true"
             effect: NoSchedule
       iam:
+        serviceRolePermissionsBoundary: "arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"
         serviceAccounts:
-        - metadata:
-            name: aws-node
-            namespace: kube-system
-          attachPolicyARNs:
-            - "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
-          permissionsBoundary: "arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsDesignatedPermissionsBoundary"
-        serviceRolePermissionsBoundary: "arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsDesignatedPermissionsBoundary"
+          - metadata:
+              name: karpenter
+              namespace: karpenter
+            attachPolicyARNs:
+              - "arn:aws:iam::${{ inputs.account_id }}:policy/KarpenterControllerPolicy-${{ inputs.cluster_name }}"
+            permissionsBoundary: "arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"
+            roleName: karpenter-irsa-${{ inputs.cluster_name }}
+            roleOnly: true
+          - metadata:
+              name: prometheus-kube-prometheus-prometheus
+              namespace: prometheus
+            attachPolicyARNs:
+              - "arn:aws:iam::${{ inputs.account_id }}:policy/PrometheusWorkspaceIngestionPolicy"
+            permissionsBoundary: "arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"
+            roleName: prometheus-irsa-${{ inputs.cluster_name }}
+            roleOnly: true
         withOIDC: true
       addons:
       - name: vpc-cni
+        permissionsBoundary: "arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"
       - name: coredns
+        permissionsBoundary: "arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"
       - name: kube-proxy
+        permissionsBoundary: "arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"
       - name: aws-ebs-csi-driver
+        permissionsBoundary: "arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"
         wellKnownPolicies:
           ebsCSIController: true
       EOF
@@ -117,12 +131,3 @@ runs:
       --arn "arn:aws:iam::${{ inputs.account_id }}:role/KarpenterNodeRole-${{ inputs.cluster_name }}" \
       --group system:bootstrappers \
       --group system:nodes
-  - name: assign karpenter IRSA permissions
-    shell: bash
-    run: |
-      eksctl create iamserviceaccount \
-        --cluster "${{ inputs.cluster_name }}" --name karpenter --namespace karpenter \
-        --role-name "${{ inputs.cluster_name }}-karpenter" \
-        --attach-policy-arn "arn:aws:iam::${{ inputs.account_id }}:policy/KarpenterControllerPolicy-${{ inputs.cluster_name }}" \
-        --role-only \
-        --approve
