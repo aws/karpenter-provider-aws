@@ -106,8 +106,7 @@ var _ = Describe("MachineLink", func() {
 			settings.FromContext(env.Context).ClusterEndpoint, env.ExpectCABundle(), provisioner.Name))))
 
 		// Create an instance manually to mock Karpenter launching an instance
-		out, err := env.EC2API.RunInstances(instanceInput)
-		Expect(err).ToNot(HaveOccurred())
+		out := env.ExpectRunInstances(instanceInput)
 		Expect(out.Instances).To(HaveLen(1))
 
 		// Always ensure that we cleanup the instance
@@ -163,8 +162,7 @@ var _ = Describe("MachineLink", func() {
 			settings.FromContext(env.Context).ClusterEndpoint, env.ExpectCABundle(), provisioner.Name))))
 
 		// Create an instance manually to mock Karpenter launching an instance
-		out, err := env.EC2API.RunInstances(instanceInput)
-		Expect(err).ToNot(HaveOccurred())
+		out := env.ExpectRunInstances(instanceInput)
 		Expect(out.Instances).To(HaveLen(1))
 
 		// Always ensure that we cleanup the instance
@@ -208,8 +206,7 @@ var _ = Describe("MachineLink", func() {
 			settings.FromContext(env.Context).ClusterEndpoint, env.ExpectCABundle(), provisioner.Name))))
 
 		// Create an instance manually to mock Karpenter launching an instance
-		out, err := env.EC2API.RunInstances(instanceInput)
-		Expect(err).ToNot(HaveOccurred())
+		out := env.ExpectRunInstances(instanceInput)
 		Expect(out.Instances).To(HaveLen(1))
 
 		// Always ensure that we cleanup the instance
