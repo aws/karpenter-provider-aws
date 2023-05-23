@@ -279,7 +279,10 @@ var _ = Describe("Drift", Label("AWS"), func() {
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			}})
-			provisioner = test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name}})
+			provisioner = test.Provisioner(test.ProvisionerOptions{
+				Requirements: []v1.NodeSelectorRequirement{{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha5.CapacityTypeOnDemand}}},
+				ProviderRef:  &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name},
+			})
 			// Add a do-not-evict pod so that we can check node metadata before we deprovision
 			pod = test.Pod(test.PodOptions{
 				ObjectMeta: metav1.ObjectMeta{
@@ -289,7 +292,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 				},
 			})
 		})
-		DescribeTable("provisioner static drift", func(fieldName string, provisionerOption test.ProvisionerOptions) {
+		DescribeTable("Provisioner Drift", func(fieldName string, provisionerOption test.ProvisionerOptions) {
 			provisionerOption.ObjectMeta = provisioner.ObjectMeta
 			updatedProvisioner := test.Provisioner(
 				test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name}},
@@ -334,6 +337,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 				EvictionSoftGracePeriod: map[string]metav1.Duration{"memory.available": {Duration: time.Minute}},
 			}}),
 			Entry("Start-up Taints Drift", "Start-up Taint", test.ProvisionerOptions{StartupTaints: []v1.Taint{{Key: "example.com/another-taint-2", Effect: v1.TaintEffectPreferNoSchedule}}}),
+			Entry("NodeRequirement Drift", "NodeRequirement", test.ProvisionerOptions{Requirements: []v1.NodeSelectorRequirement{{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha5.CapacityTypeSpot}}}}),
 		)
 	})
 })
