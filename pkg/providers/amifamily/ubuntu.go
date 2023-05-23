@@ -18,8 +18,10 @@ import (
 	"fmt"
 
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/aws/aws-sdk-go/aws"
+
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/providers/amifamily/bootstrap"
 
@@ -73,6 +75,19 @@ func (u Ubuntu) DefaultBlockDeviceMappings() []*v1alpha1.BlockDeviceMapping {
 		DeviceName: u.EphemeralBlockDevice(),
 		EBS:        &DefaultEBS,
 	}}
+}
+
+func (u Ubuntu) EphemeralStorage(blockDeviceMappings []*v1alpha1.BlockDeviceMapping) *resource.Quantity {
+	if len(blockDeviceMappings) != 0 {
+		ephemeralBlockDevice := u.EphemeralBlockDevice()
+		for _, blockDevice := range blockDeviceMappings {
+			// If a block device mapping exists in the provider for the root volume, use the volume size specified in the provider. If not, use the default
+			if *blockDevice.DeviceName == *ephemeralBlockDevice && blockDevice.EBS.VolumeSize != nil {
+				return blockDevice.EBS.VolumeSize
+			}
+		}
+	}
+	return DefaultEBS.VolumeSize
 }
 
 func (u Ubuntu) EphemeralBlockDevice() *string {

@@ -16,6 +16,7 @@ package amifamily
 
 import (
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
@@ -46,6 +47,17 @@ func (c Custom) DefaultBlockDeviceMappings() []*v1alpha1.BlockDeviceMapping {
 	// By returning nil, we ensure that EC2 will automatically choose the volumes defined by the AMI
 	// and we don't need to describe the AMI ourselves.
 	return nil
+}
+
+func (c Custom) EphemeralStorage(blockDeviceMappings []*v1alpha1.BlockDeviceMapping) *resource.Quantity {
+	if len(blockDeviceMappings) != 0 {
+		// We can't know if a custom AMI is going to have a volume size.
+		volumeSize := blockDeviceMappings[len(blockDeviceMappings)-1].EBS.VolumeSize
+		if volumeSize != nil {
+			return volumeSize
+		}
+	}
+	return DefaultEBS.VolumeSize
 }
 
 // EphemeralBlockDevice is the block device that the pods on the node will use. For an AMI of a custom family, this is unknown

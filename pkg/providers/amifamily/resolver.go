@@ -79,6 +79,7 @@ type AMIFamily interface {
 	DefaultBlockDeviceMappings() []*v1alpha1.BlockDeviceMapping
 	DefaultMetadataOptions() *v1alpha1.MetadataOptions
 	EphemeralBlockDevice() *string
+	EphemeralStorage([]*v1alpha1.BlockDeviceMapping) *resource.Quantity
 	FeatureFlags() FeatureFlags
 }
 

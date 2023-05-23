@@ -170,25 +170,7 @@ func memory(ctx context.Context, info *ec2.InstanceTypeInfo) *resource.Quantity 
 
 // Setting ephemeral-storage to be either the default value or what is defined in blockDeviceMappings
 func ephemeralStorage(amiFamily amifamily.AMIFamily, blockDeviceMappings []*v1alpha1.BlockDeviceMapping) *resource.Quantity {
-	if len(blockDeviceMappings) != 0 {
-		switch amiFamily.(type) {
-		case *amifamily.Custom:
-			// We can't know if a custom AMI is going to have a volume size.
-			volumeSize := blockDeviceMappings[len(blockDeviceMappings)-1].EBS.VolumeSize
-			if volumeSize != nil {
-				return volumeSize
-			}
-		default:
-			ephemeralBlockDevice := amiFamily.EphemeralBlockDevice()
-			for _, blockDevice := range blockDeviceMappings {
-				// If a block device mapping exists in the provider for the root volume, use the volume size specified in the provider. If not, use the default
-				if *blockDevice.DeviceName == *ephemeralBlockDevice && blockDevice.EBS.VolumeSize != nil {
-					return blockDevice.EBS.VolumeSize
-				}
-			}
-		}
-	}
-	return amifamily.DefaultEBS.VolumeSize
+	return amiFamily.EphemeralStorage(blockDeviceMappings)
 }
 
 func awsPodENI(ctx context.Context, name string) *resource.Quantity {
