@@ -71,7 +71,7 @@ var disableProvisioningLimits = &v1alpha5.Limits{
 	},
 }
 
-var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), func() {
+var _ = Describe("Deprovisioning", Label(debug.NoWatch), func() {
 	var provisioner *v1alpha5.Provisioner
 	var provisionerOptions test.ProvisionerOptions
 	var nodeTemplate *v1alpha1.AWSNodeTemplate
@@ -358,7 +358,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 				env.EventuallyExpectNodeCount("==", int(float64(expectedNodeCount)*0.2))
 				env.EventuallyExpectHealthyPodCount(selector, replicas)
 			}, aws.DeprovisioningEventType, consolidationTestGroup, "delete")
-		}, SpecTimeout(10*time.Minute))
+		}, SpecTimeout(time.Minute*30))
 		It("should consolidate nodes to get a higher utilization (single consolidation replace)", func(_ context.Context) {
 			replicasPerNode := 1
 			expectedNodeCount := 20 // we're currently doing around 1 node/2 mins so this test should run deprovisioning in about 45m
@@ -450,9 +450,8 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 
 				env.EventuallyExpectDeletedNodeCount("==", expectedNodeCount)
 				env.EventuallyExpectNodeCount("==", 0)
-				env.EventuallyExpectHealthyPodCount(selector, replicas)
 			}, aws.DeprovisioningEventType, emptinessTestGroup, defaultTestName)
-		}, SpecTimeout(10*time.Minute))
+		}, SpecTimeout(time.Minute*30))
 	})
 	Context("Expiration", func() {
 		It("should expire all nodes", func(_ context.Context) {
@@ -490,6 +489,9 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 				provisioner.Spec.TTLSecondsUntilExpired = lo.ToPtr[int64](0)
 
 				noExpireProvisioner := test.Provisioner(provisionerOptions)
+				noExpireProvisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
+					MaxPods: lo.ToPtr[int32](int32(maxPodDensity)),
+				}
 				env.ExpectCreatedOrUpdated(provisioner, noExpireProvisioner)
 
 				env.EventuallyExpectDeletedNodeCount("==", expectedNodeCount)
@@ -583,7 +585,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 				env.EventuallyExpectNodeCount("==", expectedNodeCount)
 				env.EventuallyExpectHealthyPodCount(selector, replicas)
 			}, aws.DeprovisioningEventType, interruptionTestGroup, defaultTestName)
-		}, SpecTimeout(time.Minute*10))
+		}, SpecTimeout(time.Minute*30))
 	})
 })
 

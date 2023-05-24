@@ -87,6 +87,7 @@ e2etests: ## Run the e2e suite against your local cluster
 		./suites/$(shell echo $(TEST_SUITE) | tr A-Z a-z)/... \
 		--ginkgo.focus="${FOCUS}" \
 		--ginkgo.timeout=180m \
+		--ginkgo.grace-period=3m \
 		--ginkgo.vv
 
 benchmark:
