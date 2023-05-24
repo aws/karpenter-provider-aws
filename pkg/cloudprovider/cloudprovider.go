@@ -171,7 +171,9 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, provisioner *v1alp
 
 func (c *CloudProvider) Delete(ctx context.Context, machine *v1alpha5.Machine) error {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("machine", machine.Name))
-	id, err := utils.ParseInstanceID(machine.Status.ProviderID)
+
+	providerID := lo.Ternary(machine.Status.ProviderID != "", machine.Status.ProviderID, machine.Annotations[v1alpha5.MachineLinkedAnnotationKey])
+	id, err := utils.ParseInstanceID(providerID)
 	if err != nil {
 		return fmt.Errorf("getting instance ID, %w", err)
 	}
