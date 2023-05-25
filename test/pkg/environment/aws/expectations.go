@@ -23,12 +23,23 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/fis"
+	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/ssm"
+	"github.com/aws/aws-sdk-go/service/sts"
 	. "github.com/onsi/ginkgo/v2" //nolint:revive,stylecheck
 	. "github.com/onsi/gomega"    //nolint:revive,stylecheck
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+// Spot Interruption experiment details partially copied from
+// https://github.com/aws/amazon-ec2-spot-interrupter/blob/main/pkg/itn/itn.go
+const (
+	fisRoleName    = "aws-fis-itn"
+	fisTargetLimit = 5
+	spotITNAction  = "aws:ec2:send-spot-instance-interruptions"
 )
 
 func (env *Environment) ExpectInstance(nodeName string) Assertion {
@@ -41,6 +52,48 @@ func (env *Environment) ExpectIPv6ClusterDNS() string {
 	kubeDNSIP := net.ParseIP(dnsService.Spec.ClusterIP)
 	Expect(kubeDNSIP.To4()).To(BeNil())
 	return kubeDNSIP.String()
+}
+
+func (env *Environment) ExpectSpotInterruptionExperiment(instanceIDs ...string) *fis.Experiment {
+	GinkgoHelper()
+	template := &fis.CreateExperimentTemplateInput{
+		Actions:        map[string]*fis.CreateExperimentTemplateActionInput{},
+		Targets:        map[string]*fis.CreateExperimentTemplateTargetInput{},
+		StopConditions: []*fis.CreateExperimentTemplateStopConditionInput{{Source: aws.String("none")}},
+		RoleArn:        env.ExpectSpotInterruptionRole().Arn,
+		Description:    aws.String(fmt.Sprintf("trigger spot ITN for instances %v", instanceIDs)),
+	}
+	for j, ids := range lo.Chunk(instanceIDs, 5) {
+		key := fmt.Sprintf("itn%d", j)
+		template.Actions[key] = &fis.CreateExperimentTemplateActionInput{
+			ActionId: aws.String(spotITNAction),
+			Parameters: map[string]*string{
+				// durationBeforeInterruption is the time before the instance is terminated, so we add 2 minutes
+				"durationBeforeInterruption": aws.String("PT120S"),
+			},
+			Targets: map[string]*string{"SpotInstances": aws.String(key)},
+		}
+		template.Targets[key] = &fis.CreateExperimentTemplateTargetInput{
+			ResourceType:  aws.String("aws:ec2:spot-instance"),
+			SelectionMode: aws.String("ALL"),
+			ResourceArns: aws.StringSlice(lo.Map(ids, func(id string, _ int) string {
+				return fmt.Sprintf("arn:aws:ec2:%s:%s:instance/%s", env.Region, env.ExpectAccountID(), id)
+			})),
+		}
+	}
+	experimentTemplate, err := env.FISAPI.CreateExperimentTemplateWithContext(env.Context, template)
+	Expect(err).ToNot(HaveOccurred())
+	experiment, err := env.FISAPI.StartExperimentWithContext(env.Context, &fis.StartExperimentInput{ExperimentTemplateId: experimentTemplate.ExperimentTemplate.Id})
+	Expect(err).ToNot(HaveOccurred())
+	return experiment.Experiment
+}
+
+func (env *Environment) ExpectExperimentTemplateDeleted(id string) {
+	GinkgoHelper()
+	_, err := env.FISAPI.DeleteExperimentTemplateWithContext(env.Context, &fis.DeleteExperimentTemplateInput{
+		Id: aws.String(id),
+	})
+	Expect(err).ToNot(HaveOccurred())
 }
 
 func (env *Environment) GetInstance(nodeName string) ec2.Instance {
@@ -227,4 +280,20 @@ func (env *Environment) ExpectRunInstances(instanceInput *ec2.RunInstancesInput)
 	Expect(err).ToNot(HaveOccurred())
 
 	return out
+}
+
+func (env *Environment) ExpectSpotInterruptionRole() *iam.Role {
+	GinkgoHelper()
+	out, err := env.IAMAPI.GetRoleWithContext(env.Context, &iam.GetRoleInput{
+		RoleName: aws.String(fisRoleName),
+	})
+	Expect(err).ToNot(HaveOccurred())
+	return out.Role
+}
+
+func (env *Environment) ExpectAccountID() string {
+	GinkgoHelper()
+	identity, err := env.STSAPI.GetCallerIdentityWithContext(env.Context, &sts.GetCallerIdentityInput{})
+	Expect(err).ToNot(HaveOccurred())
+	return aws.StringValue(identity.Account)
 }
