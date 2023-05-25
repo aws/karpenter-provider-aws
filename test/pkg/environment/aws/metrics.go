@@ -50,10 +50,11 @@ const (
 	TestSubEventTypeDimension   = "subEventType"
 	TestGroupDimension          = "group"
 	TestNameDimension           = "name"
+	CommitHashDimension         = "commitHash"
 )
 
 // MeasureDurationFor observes the duration between the beginning of the function f() and the end of the function f()
-func (env *Environment) MeasureDurationFor(f func(), eventType EventType, group, name string, additionalLabels ...map[string]string) {
+func (env *Environment) MeasureDurationFor(f func(), eventType EventType, group, name, commit string, additionalLabels ...map[string]string) {
 	GinkgoHelper()
 	start := time.Now()
 	f()
@@ -61,6 +62,7 @@ func (env *Environment) MeasureDurationFor(f func(), eventType EventType, group,
 		TestEventTypeDimension: string(eventType),
 		TestGroupDimension:     group,
 		TestNameDimension:      name,
+		CommitHashDimension:    commit,
 	})...))
 }
 
