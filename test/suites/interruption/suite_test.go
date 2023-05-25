@@ -97,7 +97,7 @@ var _ = Describe("Interruption", Label("AWS"), func() {
 		By("interrupting the spot instance")
 		exp := env.ExpectSpotInterruptionExperiment(instanceID)
 		DeferCleanup(func() {
-			env.ExpectExperimentDeleted(*exp.ExperimentTemplateId)
+			env.ExpectExperimentTemplateDeleted(*exp.ExperimentTemplateId)
 		})
 
 		// We are expecting the node to be terminated before the termination is complete

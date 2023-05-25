@@ -63,7 +63,7 @@ func (env *Environment) ExpectSpotInterruptionExperiment(instanceIDs ...string) 
 		RoleArn:        env.ExpectSpotInterruptionRole().Arn,
 		Description:    aws.String(fmt.Sprintf("trigger spot ITN for instances %v", instanceIDs)),
 	}
-	for j, batch := range batchInstances(instanceIDs, fisTargetLimit) {
+	for j, ids := range lo.Chunk(instanceIDs, 5) {
 		key := fmt.Sprintf("itn%d", j)
 		template.Actions[key] = &fis.CreateExperimentTemplateActionInput{
 			ActionId: aws.String(spotITNAction),
@@ -76,7 +76,9 @@ func (env *Environment) ExpectSpotInterruptionExperiment(instanceIDs ...string) 
 		template.Targets[key] = &fis.CreateExperimentTemplateTargetInput{
 			ResourceType:  aws.String("aws:ec2:spot-instance"),
 			SelectionMode: aws.String("ALL"),
-			ResourceArns:  aws.StringSlice(instanceIDsToARNs(batch, env.Region, env.ExpectAccountID())),
+			ResourceArns: aws.StringSlice(lo.Map(ids, func(id string, _ int) string {
+				return fmt.Sprintf("arn:aws:ec2:%s:%s:instance/%s", env.Region, env.ExpectAccountID(), id)
+			})),
 		}
 	}
 	experimentTemplate, err := env.FISAPI.CreateExperimentTemplateWithContext(env.Context, template)
@@ -86,7 +88,7 @@ func (env *Environment) ExpectSpotInterruptionExperiment(instanceIDs ...string) 
 	return experiment.Experiment
 }
 
-func (env *Environment) ExpectExperimentDeleted(id string) {
+func (env *Environment) ExpectExperimentTemplateDeleted(id string) {
 	GinkgoHelper()
 	_, err := env.FISAPI.DeleteExperimentTemplateWithContext(env.Context, &fis.DeleteExperimentTemplateInput{
 		Id: aws.String(id),
@@ -294,28 +296,4 @@ func (env *Environment) ExpectAccountID() string {
 	identity, err := env.STSAPI.GetCallerIdentityWithContext(env.Context, &sts.GetCallerIdentityInput{})
 	Expect(err).ToNot(HaveOccurred())
 	return aws.StringValue(identity.Account)
-}
-
-func batchInstances(instanceIDs []string, size int) [][]string {
-	var instanceIDBatches [][]string
-	var currentBatch []string
-	for i, instanceID := range instanceIDs {
-		if i%size == 0 && len(currentBatch) > 0 {
-			instanceIDBatches = append(instanceIDBatches, currentBatch)
-			currentBatch = []string{}
-		}
-		currentBatch = append(currentBatch, instanceID)
-	}
-	if len(currentBatch) > 0 {
-		instanceIDBatches = append(instanceIDBatches, currentBatch)
-	}
-	return instanceIDBatches
-}
-
-func instanceIDsToARNs(instanceIDs []string, region string, accountID string) []string {
-	var arns []string
-	for _, instanceID := range instanceIDs {
-		arns = append(arns, fmt.Sprintf("arn:aws:ec2:%s:%s:instance/%s", region, accountID, instanceID))
-	}
-	return arns
 }
