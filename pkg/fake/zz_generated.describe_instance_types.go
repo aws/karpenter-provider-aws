@@ -436,5 +436,95 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 				},
 			},
 		},
+		{
+			InstanceType:                  aws.String("t4g.medium"),
+			SupportedUsageClasses:         aws.StringSlice([]string{"on-demand", "spot"}),
+			SupportedVirtualizationTypes:  aws.StringSlice([]string{"hvm"}),
+			BurstablePerformanceSupported: aws.Bool(true),
+			BareMetal:                     aws.Bool(false),
+			Hypervisor:                    aws.String("nitro"),
+			ProcessorInfo: &ec2.ProcessorInfo{
+				SupportedArchitectures: aws.StringSlice([]string{"arm64"}),
+			},
+			VCpuInfo: &ec2.VCpuInfo{
+				DefaultCores: aws.Int64(2),
+				DefaultVCpus: aws.Int64(2),
+			},
+			MemoryInfo: &ec2.MemoryInfo{
+				SizeInMiB: aws.Int64(4096),
+			},
+			NetworkInfo: &ec2.NetworkInfo{
+				MaximumNetworkInterfaces:     aws.Int64(3),
+				Ipv4AddressesPerInterface:    aws.Int64(6),
+				EncryptionInTransitSupported: aws.Bool(false),
+				DefaultNetworkCardIndex:      aws.Int64(0),
+				NetworkCards: []*ec2.NetworkCardInfo{
+					{
+						NetworkCardIndex:         aws.Int64(0),
+						MaximumNetworkInterfaces: aws.Int64(3),
+					},
+				},
+			},
+		},
+		{
+			InstanceType:                  aws.String("t4g.small"),
+			SupportedUsageClasses:         aws.StringSlice([]string{"on-demand", "spot"}),
+			SupportedVirtualizationTypes:  aws.StringSlice([]string{"hvm"}),
+			BurstablePerformanceSupported: aws.Bool(true),
+			BareMetal:                     aws.Bool(false),
+			Hypervisor:                    aws.String("nitro"),
+			ProcessorInfo: &ec2.ProcessorInfo{
+				SupportedArchitectures: aws.StringSlice([]string{"arm64"}),
+			},
+			VCpuInfo: &ec2.VCpuInfo{
+				DefaultCores: aws.Int64(2),
+				DefaultVCpus: aws.Int64(2),
+			},
+			MemoryInfo: &ec2.MemoryInfo{
+				SizeInMiB: aws.Int64(2048),
+			},
+			NetworkInfo: &ec2.NetworkInfo{
+				MaximumNetworkInterfaces:     aws.Int64(3),
+				Ipv4AddressesPerInterface:    aws.Int64(4),
+				EncryptionInTransitSupported: aws.Bool(false),
+				DefaultNetworkCardIndex:      aws.Int64(0),
+				NetworkCards: []*ec2.NetworkCardInfo{
+					{
+						NetworkCardIndex:         aws.Int64(0),
+						MaximumNetworkInterfaces: aws.Int64(3),
+					},
+				},
+			},
+		},
+		{
+			InstanceType:                  aws.String("t4g.xlarge"),
+			SupportedUsageClasses:         aws.StringSlice([]string{"on-demand", "spot"}),
+			SupportedVirtualizationTypes:  aws.StringSlice([]string{"hvm"}),
+			BurstablePerformanceSupported: aws.Bool(true),
+			BareMetal:                     aws.Bool(false),
+			Hypervisor:                    aws.String("nitro"),
+			ProcessorInfo: &ec2.ProcessorInfo{
+				SupportedArchitectures: aws.StringSlice([]string{"arm64"}),
+			},
+			VCpuInfo: &ec2.VCpuInfo{
+				DefaultCores: aws.Int64(4),
+				DefaultVCpus: aws.Int64(4),
+			},
+			MemoryInfo: &ec2.MemoryInfo{
+				SizeInMiB: aws.Int64(16384),
+			},
+			NetworkInfo: &ec2.NetworkInfo{
+				MaximumNetworkInterfaces:     aws.Int64(4),
+				Ipv4AddressesPerInterface:    aws.Int64(15),
+				EncryptionInTransitSupported: aws.Bool(false),
+				DefaultNetworkCardIndex:      aws.Int64(0),
+				NetworkCards: []*ec2.NetworkCardInfo{
+					{
+						NetworkCardIndex:         aws.Int64(0),
+						MaximumNetworkInterfaces: aws.Int64(4),
+					},
+				},
+			},
+		},
 	},
 }
