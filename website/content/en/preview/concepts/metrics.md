@@ -16,7 +16,10 @@ Number of consistency checks that have failed.
 ## Deprovisioning Metrics
 
 ### `karpenter_deprovisioning_actions_performed`
-Number of deprovisioning actions performed. Labeled by action.
+Number of deprovisioning actions performed. Labeled by deprovisioner.
+
+### `karpenter_deprovisioning_eligible_machines`
+Number of machines eligible for deprovisioning by Karpenter. Labeled by deprovisioner
 
 ### `karpenter_deprovisioning_evaluation_duration_seconds`
 Duration of the deprovisioning evaluation process in seconds.
@@ -93,6 +96,9 @@ Pod state is the current state of pods. This metric can be used several ways as 
 
 ### `karpenter_cloudprovider_duration_seconds`
 Duration of cloud provider method calls. Labeled by the controller, method name and provider.
+
+### `karpenter_cloudprovider_errors_total`
+Total number of errors returned from CloudProvider calls.
 
 ### `karpenter_cloudprovider_instance_type_cpu_cores`
 VCPUs cores for a given instance type.
