@@ -1,9 +1,6 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: Resources used for monitoring the GHA test runs using Grafana
 Parameters:
-  GrafanaWorkspaceIDPMetadata:
-    Type: String
-    Description: "SAML Configuration Metadata for connecting the Grafana Workspace to an Identity Provider"
   PrometheusWorkspaceID:
     Type: String
     Description: "Prometheus workspace to give access to Grafana to query metrics from"

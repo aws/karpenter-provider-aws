@@ -1,4 +1,4 @@
-name: E2ETestMatrix
+name: E2EMatrix
 on:
   schedule:
     - cron: '7 */12 * * *'

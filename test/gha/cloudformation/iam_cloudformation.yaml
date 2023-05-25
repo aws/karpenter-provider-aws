@@ -443,14 +443,6 @@ Resources:
                 token.actions.githubusercontent.com:aud: sts.amazonaws.com
               StringLike:
                 token.actions.githubusercontent.com:sub: !Sub "repo:${Repository}:ref:refs/heads/main"
-          # Allow Admin to assume the GithubActions role
-          - Effect: Allow
-            Principal:
-              AWS: "*"
-            Action: "sts:AssumeRole"
-            Condition:
-              StringLike:
-                "aws:PrincipalArn": !Sub "arn:aws:sts::${AWS::AccountId}:assumed-role/Admin/*"
   FISInterruptionRole:
     Type: AWS::IAM::Role
     Properties:
