@@ -54,7 +54,8 @@ const (
 	TestGroupDimension          = "group"
 	TestNameDimension           = "name"
 	GitRefDimension             = "gitRef"
-	NodeCountDimension          = "nodeCount"
+	DeprovisionedNodeCountDimension          = "deprovisionedNodeCount"
+	ProvisionedNodeCountDimension          = "provisionedNodeCount"
 	PodDensityDimension         = "podDensity"
 )
 
@@ -98,9 +99,10 @@ func (env *Environment) ExpectMetric(name string, unit string, value float64, la
 	Expect(err).ToNot(HaveOccurred())
 }
 
-func GenerateTestDimensions(nodeCount, podDensity int) map[string]string {
+func GenerateTestDimensions(provisionedNodeCount, deprovisionedNodeCount, podDensity int) map[string]string {
 	return map[string]string{
-		NodeCountDimension:  strconv.Itoa(nodeCount),
+		DeprovisionedNodeCountDimension:  strconv.Itoa(deprovisionedNodeCount),
+		ProvisionedNodeCountDimension: strconv.Itoa(provisionedNodeCount),
 		PodDensityDimension: strconv.Itoa(podDensity),
 	}
 }
