@@ -62,7 +62,10 @@ func NewEnvironment(t *testing.T) *Environment {
 
 	lo.Must0(os.Setenv(system.NamespaceEnvKey, "karpenter"))
 	kubernetesInterface := kubernetes.NewForConfigOrDie(config)
-	ctx = context.WithValue(injection.WithSettingsOrDie(ctx, kubernetesInterface, apis.Settings...), GitRefContextKey, os.Getenv("GIT_REF"))
+	ctx = injection.WithSettingsOrDie(ctx, kubernetesInterface, apis.Settings...)
+	if val, ok := os.LookupEnv("GIT_REF"); ok {
+		ctx = context.WithValue(ctx, GitRefContextKey, val)
+	}
 
 	gomega.SetDefaultEventuallyTimeout(5 * time.Minute)
 	gomega.SetDefaultEventuallyPollingInterval(1 * time.Second)
