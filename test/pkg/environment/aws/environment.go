@@ -17,8 +17,6 @@ package aws
 import (
 	"testing"
 
-	"github.com/aws/amazon-ec2-spot-interrupter/pkg/itn"
-	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/client"
 	"github.com/aws/aws-sdk-go/aws/endpoints"
@@ -27,9 +25,11 @@ import (
 	"github.com/aws/aws-sdk-go/service/cloudwatch"
 	"github.com/aws/aws-sdk-go/service/cloudwatch/cloudwatchiface"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/fis"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/aws/aws-sdk-go/service/ssm"
+	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/samber/lo"
 	"k8s.io/utils/env"
 
@@ -43,13 +43,14 @@ type Environment struct {
 	*common.Environment
 	Region string
 
+	STSAPI        *sts.STS
 	EC2API        *ec2.EC2
 	SSMAPI        *ssm.SSM
 	IAMAPI        *iam.IAM
+	FISAPI        *fis.FIS
 	CloudwatchAPI cloudwatchiface.CloudWatchAPI
 
-	SQSProvider     *interruption.SQSProvider
-	InterruptionAPI *itn.ITN
+	SQSProvider *interruption.SQSProvider
 }
 
 func NewEnvironment(t *testing.T) *Environment {
@@ -65,14 +66,16 @@ func NewEnvironment(t *testing.T) *Environment {
 	))
 
 	return &Environment{
-		Region:          *session.Config.Region,
-		Environment:     env,
-		EC2API:          ec2.New(session),
-		SSMAPI:          ssm.New(session),
-		IAMAPI:          iam.New(session),
-		CloudwatchAPI:   GetCloudWatchAPI(session),
-		InterruptionAPI: itn.New(lo.Must(config.LoadDefaultConfig(env.Context))),
-		SQSProvider:     interruption.NewSQSProvider(sqs.New(session)),
+		Region:      *session.Config.Region,
+		Environment: env,
+
+		STSAPI:        sts.New(session),
+		EC2API:        ec2.New(session),
+		SSMAPI:        ssm.New(session),
+		IAMAPI:        iam.New(session),
+		FISAPI:        fis.New(session),
+		CloudwatchAPI: GetCloudWatchAPI(session),
+		SQSProvider:   interruption.NewSQSProvider(sqs.New(session)),
 	}
 }
 
