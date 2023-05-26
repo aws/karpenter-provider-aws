@@ -22,21 +22,14 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/aws/karpenter/test/pkg/environment/aws"
-	"github.com/aws/karpenter/test/pkg/environment/common"
 )
 
 var env *aws.Environment
-var gitRef string
 
 func TestScale(t *testing.T) {
 	RegisterFailHandler(Fail)
 	BeforeSuite(func() {
 		env = aws.NewEnvironment(t)
-		if env.Context.Value(common.GitRefContextKey) != nil {
-			gitRef = env.Value(common.GitRefContextKey).(string)
-		} else {
-			gitRef = "n/a"
-		}
 		SetDefaultEventuallyTimeout(time.Hour)
 
 		env.ExpectPrefixDelegationEnabled()
