@@ -24,6 +24,8 @@ import (
 	. "github.com/onsi/gomega"    //nolint:revive,stylecheck
 	"github.com/samber/lo"
 
+	"github.com/aws/karpenter/test/pkg/environment/common"
+
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 )
 
@@ -50,6 +52,7 @@ const (
 	TestSubEventTypeDimension   = "subEventType"
 	TestGroupDimension          = "group"
 	TestNameDimension           = "name"
+	GitRefDimension             = "gitRef"
 )
 
 // MeasureDurationFor observes the duration between the beginning of the function f() and the end of the function f()
@@ -66,7 +69,8 @@ func (env *Environment) MeasureDurationFor(f func(), eventType EventType, group,
 
 func (env *Environment) ExpectEventDurationMetric(d time.Duration, labels map[string]string) {
 	GinkgoHelper()
-	env.ExpectMetric("eventDuration", cloudwatch.StandardUnitSeconds, d.Seconds(), labels)
+	gitRef := lo.Ternary(env.Context.Value(common.GitRefContextKey) != nil, env.Value(common.GitRefContextKey).(string), "n/a")
+	env.ExpectMetric("eventDuration", cloudwatch.StandardUnitSeconds, d.Seconds(), lo.Assign(labels, map[string]string{GitRefDimension: gitRef}))
 }
 
 func (env *Environment) ExpectMetric(name string, unit string, value float64, labels map[string]string) {

@@ -318,6 +318,46 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), func() {
 		}, SpecTimeout(time.Hour))
 	})
 	Context("Consolidation", func() {
+		It("should delete all empty nodes with consolidation", func(_ context.Context) {
+			replicasPerNode := 20
+			maxPodDensity := replicasPerNode + dsCount
+			expectedNodeCount := 200
+			replicas := replicasPerNode * expectedNodeCount
+
+			deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
+			provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
+				MaxPods: lo.ToPtr[int32](int32(maxPodDensity)),
+			}
+
+			By("waiting for the deployment to deploy all of its pods")
+			env.ExpectCreated(deployment)
+			env.EventuallyExpectPendingPodCount(selector, replicas)
+
+			env.MeasureDurationFor(func() {
+				By("kicking off provisioning by applying the provisioner and nodeTemplate")
+				env.ExpectCreated(provisioner, nodeTemplate)
+
+				env.EventuallyExpectCreatedMachineCount("==", expectedNodeCount)
+				env.EventuallyExpectCreatedNodeCount("==", expectedNodeCount)
+				env.EventuallyExpectInitializedNodeCount("==", expectedNodeCount)
+				env.EventuallyExpectHealthyPodCount(selector, replicas)
+			}, aws.ProvisioningEventType, consolidationTestGroup, "empty/delete")
+
+			env.Monitor.Reset() // Reset the monitor so that we now track the nodes starting at this point in time
+
+			// Delete deployment to make nodes empty
+			env.ExpectDeleted(deployment)
+			env.EventuallyExpectHealthyPodCount(selector, 0)
+
+			env.MeasureDurationFor(func() {
+				By("kicking off deprovisioning by setting the consolidation enabled value on the provisioner")
+				provisioner.Spec.Consolidation = &v1alpha5.Consolidation{Enabled: lo.ToPtr(true)}
+				env.ExpectUpdated(provisioner)
+
+				env.EventuallyExpectDeletedNodeCount("==", expectedNodeCount)
+				env.EventuallyExpectNodeCount("==", 0)
+			}, aws.DeprovisioningEventType, consolidationTestGroup, "empty/delete")
+		}, SpecTimeout(time.Minute*30))
 		It("should consolidate nodes to get a higher utilization (multi-consolidation delete)", func(_ context.Context) {
 			replicasPerNode := 20
 			maxPodDensity := replicasPerNode + dsCount
@@ -348,6 +388,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), func() {
 			replicas = int(float64(replicas) * 0.2)
 			deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
 			env.ExpectUpdated(deployment)
+			env.EventuallyExpectHealthyPodCount(selector, replicas)
 
 			env.MeasureDurationFor(func() {
 				By("kicking off deprovisioning by setting the consolidation enabled value on the provisioner")
@@ -438,8 +479,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), func() {
 			env.Monitor.Reset() // Reset the monitor so that we now track the nodes starting at this point in time
 
 			By("waiting for all deployment pods to be deleted")
-			// Fully scale down all pods to make nodes empty
-			deployment.Spec.Replicas = lo.ToPtr[int32](0)
+			// Delete deployment to make nodes empty
 			env.ExpectDeleted(deployment)
 			env.EventuallyExpectHealthyPodCount(selector, 0)
 
