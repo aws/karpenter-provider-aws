@@ -11,7 +11,7 @@ Resources:
       InstanceProfileName: !Sub "KarpenterNodeInstanceProfile-${ClusterName}"
       Path: "/"
       Roles:
-        - Ref: "KarpenterNodeRole"
+        - !Ref "KarpenterNodeRole"
   KarpenterNodeRole:
     Type: "AWS::IAM::Role"
     Properties:
@@ -39,16 +39,24 @@ Resources:
         Version: "2012-10-17"
         Statement:
           - Effect: Allow
-            Resource: "*"
+            Resource:
+              - !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}::image/*"
+              - !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}::snapshot/*"
+              - !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:fleet/*"
+              - !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/*"
+              - !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:spot-instances-request/*"
+              - !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:security-group/*"
+              - !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:volume/*"
+              - !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:network-interface/*"
+              - !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:subnet/*"
+              - !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:launch-template/*"
             Action:
-              # Write Operations
               - ec2:CreateFleet
               - ec2:CreateLaunchTemplate
               - ec2:CreateTags
-              - ec2:DeleteLaunchTemplate
-              - ec2:RunInstances
-              - ec2:TerminateInstances
-              # Read Operations
+          - Effect: Allow
+            Resource: "*"
+            Action:
               - ec2:DescribeAvailabilityZones
               - ec2:DescribeImages
               - ec2:DescribeInstances
@@ -58,8 +66,39 @@ Resources:
               - ec2:DescribeSecurityGroups
               - ec2:DescribeSpotPriceHistory
               - ec2:DescribeSubnets
-              - pricing:GetProducts
-              - ssm:GetParameter
+            Condition:
+              StringEquals:
+                "ec2:Region": !Sub "${AWS::Region}"
+          - Effect: Allow
+            Resource: "*"
+            Action: pricing:GetProducts
+          - Effect: Allow
+            Resource: !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}::parameter/aws/service/*"
+            Action: ssm:GetParameter
+          - Effect: Allow
+            Resource: !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/*"
+            Action: ec2:TerminateInstances
+            Condition:
+              StringEquals:
+                "aws:ResourceTag/karpenter.sh/managed-by": !Sub "${ClusterName}"
+          - Effect: Allow
+            Resource: !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:launch-template/*"
+            Action: ec2:DeleteLaunchTemplate
+            Condition:
+              StringEquals:
+                "aws:ResourceTag/karpenter.k8s.aws/cluster": !Sub "${ClusterName}"
+          - Effect: Allow
+            Resource:
+              - !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}::image/*"
+              - !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}::snapshot/*"
+              - !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/*"
+              - !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:spot-instances-request/*"
+              - !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:security-group/*"
+              - !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:volume/*"
+              - !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:network-interface/*"
+              - !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:subnet/*"
+              - !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:launch-template/*"
+            Action: ec2:RunInstances
           - Effect: Allow
             Action:
               # Write Operations
