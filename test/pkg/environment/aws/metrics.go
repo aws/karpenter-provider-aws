@@ -15,6 +15,7 @@ limitations under the License.
 package aws
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -47,12 +48,15 @@ const (
 )
 
 const (
-	scaleTestingMetricNamespace = v1alpha5.TestingGroup + "/scale"
-	TestEventTypeDimension      = "eventType"
-	TestSubEventTypeDimension   = "subEventType"
-	TestGroupDimension          = "group"
-	TestNameDimension           = "name"
-	GitRefDimension             = "gitRef"
+	scaleTestingMetricNamespace     = v1alpha5.TestingGroup + "/scale"
+	TestEventTypeDimension          = "eventType"
+	TestSubEventTypeDimension       = "subEventType"
+	TestGroupDimension              = "group"
+	TestNameDimension               = "name"
+	GitRefDimension                 = "gitRef"
+	DeprovisionedNodeCountDimension = "deprovisionedNodeCount"
+	ProvisionedNodeCountDimension   = "provisionedNodeCount"
+	PodDensityDimension             = "podDensity"
 )
 
 // MeasureDurationFor observes the duration between the beginning of the function f() and the end of the function f()
@@ -93,4 +97,12 @@ func (env *Environment) ExpectMetric(name string, unit string, value float64, la
 		},
 	})
 	Expect(err).ToNot(HaveOccurred())
+}
+
+func GenerateTestDimensions(provisionedNodeCount, deprovisionedNodeCount, podDensity int) map[string]string {
+	return map[string]string{
+		DeprovisionedNodeCountDimension: strconv.Itoa(deprovisionedNodeCount),
+		ProvisionedNodeCountDimension:   strconv.Itoa(provisionedNodeCount),
+		PodDensityDimension:             strconv.Itoa(podDensity),
+	}
 }
