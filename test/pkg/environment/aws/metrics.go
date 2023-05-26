@@ -24,6 +24,8 @@ import (
 	. "github.com/onsi/gomega"    //nolint:revive,stylecheck
 	"github.com/samber/lo"
 
+	"github.com/aws/karpenter/test/pkg/environment/common"
+
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 )
 
@@ -50,11 +52,11 @@ const (
 	TestSubEventTypeDimension   = "subEventType"
 	TestGroupDimension          = "group"
 	TestNameDimension           = "name"
-	CommitHashDimension         = "commitHash"
+	GitRefDimension             = "gitRef"
 )
 
 // MeasureDurationFor observes the duration between the beginning of the function f() and the end of the function f()
-func (env *Environment) MeasureDurationFor(f func(), eventType EventType, group, name, commit string, additionalLabels ...map[string]string) {
+func (env *Environment) MeasureDurationFor(f func(), eventType EventType, group, name string, additionalLabels ...map[string]string) {
 	GinkgoHelper()
 	start := time.Now()
 	f()
@@ -62,13 +64,13 @@ func (env *Environment) MeasureDurationFor(f func(), eventType EventType, group,
 		TestEventTypeDimension: string(eventType),
 		TestGroupDimension:     group,
 		TestNameDimension:      name,
-		CommitHashDimension:    commit,
 	})...))
 }
 
 func (env *Environment) ExpectEventDurationMetric(d time.Duration, labels map[string]string) {
 	GinkgoHelper()
-	env.ExpectMetric("eventDuration", cloudwatch.StandardUnitSeconds, d.Seconds(), labels)
+	gitRef := lo.Ternary(env.Context.Value(common.GitRefContextKey) != nil, env.Value(common.GitRefContextKey).(string), "n/a")
+	env.ExpectMetric("eventDuration", cloudwatch.StandardUnitSeconds, d.Seconds(), lo.Assign(labels, map[string]string{GitRefDimension: gitRef}))
 }
 
 func (env *Environment) ExpectMetric(name string, unit string, value float64, labels map[string]string) {

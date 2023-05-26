@@ -113,7 +113,7 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), func() {
 			env.EventuallyExpectCreatedNodeCount("==", expectedNodeCount)
 			env.EventuallyExpectInitializedNodeCount("==", expectedNodeCount)
 			env.EventuallyExpectHealthyPodCount(selector, replicas)
-		}, aws.ProvisioningEventType, testGroup, "pod-dense", gitRef)
+		}, aws.ProvisioningEventType, testGroup, "pod-dense")
 	}, SpecTimeout(time.Minute*30))
 	It("should scale successfully on a pod-dense scale-up", func(_ context.Context) {
 		replicasPerNode := 110
@@ -144,6 +144,6 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), func() {
 			env.EventuallyExpectCreatedNodeCount("==", expectedNodeCount)
 			env.EventuallyExpectInitializedNodeCount("==", expectedNodeCount)
 			env.EventuallyExpectHealthyPodCount(selector, replicas)
-		}, aws.ProvisioningEventType, testGroup, "node-dense", gitRef)
+		}, aws.ProvisioningEventType, testGroup, "node-dense")
 	}, SpecTimeout(time.Minute*30))
 })

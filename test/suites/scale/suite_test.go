@@ -32,8 +32,8 @@ func TestScale(t *testing.T) {
 	RegisterFailHandler(Fail)
 	BeforeSuite(func() {
 		env = aws.NewEnvironment(t)
-		if env.Context.Value(common.GitRefKey) != nil {
-			gitRef = env.Value(common.GitRefKey).(string)
+		if env.Context.Value(common.GitRefContextKey) != nil {
+			gitRef = env.Value(common.GitRefContextKey).(string)
 		} else {
 			gitRef = "n/a"
 		}

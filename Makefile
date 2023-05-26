@@ -37,7 +37,6 @@ GETTING_STARTED_SCRIPT_DIR = website/content/en/preview/getting-started/getting-
 # Common Directories
 MOD_DIRS = $(shell find . -name go.mod -type f | xargs dirname)
 KARPENTER_CORE_DIR = $(shell go list -m -f '{{ .Dir }}' github.com/aws/karpenter-core)
-GIT_REF = $(shell git rev-parse HEAD)
 
 # TEST_SUITE enables you to select a specific test suite directory to run "make e2etests" or "make test" against
 TEST_SUITE ?= "..."
@@ -80,7 +79,7 @@ battletest: ## Run randomized, racing, code-covered tests
 		-tags random_test_delay
 
 e2etests: ## Run the e2e suite against your local cluster
-	cd test && GIT_REF=${GIT_REF} CLUSTER_NAME=${CLUSTER_NAME} go test \
+	cd test && CLUSTER_NAME=${CLUSTER_NAME} go test \
 		-p 1 \
 		-count 1 \
 		-timeout 180m \
