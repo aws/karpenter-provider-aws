@@ -64,6 +64,12 @@ func (c *Controller) Name() string {
 }
 
 func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconcile.Result, error) {
+	// We LIST machines on the CloudProvider BEFORE we grab Machines/Nodes on the cluster so that we make sure that, if
+	// LISTing instances takes a long time, our information is more updated by the time we get to Machine and Node LIST
+	retrieved, err := c.cloudProvider.List(ctx)
+	if err != nil {
+		return reconcile.Result{}, fmt.Errorf("listing cloudprovider machines, %w", err)
+	}
 	machineList := &v1alpha5.MachineList{}
 	if err := c.kubeClient.List(ctx, machineList); err != nil {
 		return reconcile.Result{}, err
@@ -71,10 +77,6 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 	nodeList := &v1.NodeList{}
 	if err := c.kubeClient.List(ctx, nodeList, client.HasLabels{v1alpha5.ProvisionerNameLabelKey}); err != nil {
 		return reconcile.Result{}, err
-	}
-	retrieved, err := c.cloudProvider.List(ctx)
-	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("listing cloudprovider machines, %w", err)
 	}
 	retrievedIDs := sets.NewString(lo.Map(retrieved, func(m *v1alpha5.Machine, _ int) string { return m.Status.ProviderID })...)
 	// Inject any nodes that are re-owned using karpenter.sh/provisioner-name but aren't found from the cloudprovider.List() call
