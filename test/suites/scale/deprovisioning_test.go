@@ -269,7 +269,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), func() {
 					deletedNodeCountSelector labels.Selector
 					nodeCount                int
 					nodeCountSelector        labels.Selector
-					createdCount 			 int
+					createdCount             int
 				}
 				assertionMap := map[string]testAssertions{
 					consolidationValue: {
