@@ -115,7 +115,7 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), func() {
 			env.EventuallyExpectHealthyPodCount(selector, replicas)
 		}, aws.ProvisioningEventType, testGroup, "pod-dense", aws.GenerateTestDimensions(expectedNodeCount, 0, replicasPerNode))
 	}, SpecTimeout(time.Minute*30))
-	It("should scale successfully on a pod-dense scale-up", func(_ context.Context) {
+	It("should scale successfully on a pod-dense scale-up", Label(debug.NoEvents), func(_ context.Context) {
 		replicasPerNode := 110
 		maxPodDensity := replicasPerNode + dsCount
 		expectedNodeCount := 60
