@@ -71,7 +71,7 @@ var disableProvisioningLimits = &v1alpha5.Limits{
 	},
 }
 
-var _ = Describe("Deprovisioning", Label(debug.NoWatch), func() {
+var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), func() {
 	var provisioner *v1alpha5.Provisioner
 	var provisionerOptions test.ProvisionerOptions
 	var nodeTemplate *v1alpha1.AWSNodeTemplate
@@ -135,7 +135,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), func() {
 	})
 
 	Context("Multiple Deprovisioners", func() {
-		It("should run consolidation, emptiness, expiration, and drift simultaneously", Label(debug.NoEvents), func(_ context.Context) {
+		It("should run consolidation, emptiness, expiration, and drift simultaneously", func(_ context.Context) {
 			replicasPerNode := 20
 			maxPodDensity := replicasPerNode + dsCount
 			nodeCountPerProvisioner := 10
@@ -333,7 +333,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), func() {
 		}, SpecTimeout(time.Hour))
 	})
 	Context("Consolidation", func() {
-		It("should delete all empty nodes with consolidation", Label(debug.NoEvents), func(_ context.Context) {
+		It("should delete all empty nodes with consolidation", func(_ context.Context) {
 			replicasPerNode := 20
 			maxPodDensity := replicasPerNode + dsCount
 			expectedNodeCount := 200
@@ -373,7 +373,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), func() {
 				env.EventuallyExpectNodeCount("==", 0)
 			}, aws.DeprovisioningEventType, consolidationTestGroup, "empty/delete", aws.GenerateTestDimensions(0, expectedNodeCount, replicasPerNode))
 		}, SpecTimeout(time.Minute*30))
-		It("should consolidate nodes to get a higher utilization (multi-consolidation delete)", Label(debug.NoEvents), func(_ context.Context) {
+		It("should consolidate nodes to get a higher utilization (multi-consolidation delete)", func(_ context.Context) {
 			replicasPerNode := 20
 			maxPodDensity := replicasPerNode + dsCount
 			expectedNodeCount := 200
@@ -415,7 +415,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), func() {
 				env.EventuallyExpectHealthyPodCount(selector, replicas)
 			}, aws.DeprovisioningEventType, consolidationTestGroup, "delete", aws.GenerateTestDimensions(env.Monitor.CreatedNodeCount(), int(float64(expectedNodeCount)*0.8), replicasPerNode))
 		}, SpecTimeout(time.Minute*30))
-		It("should consolidate nodes to get a higher utilization (single consolidation replace)", Label(debug.NoEvents), func(_ context.Context) {
+		It("should consolidate nodes to get a higher utilization (single consolidation replace)", func(_ context.Context) {
 			replicasPerNode := 1
 			expectedNodeCount := 20 // we're currently doing around 1 node/2 mins so this test should run deprovisioning in about 45m
 			replicas := replicasPerNode * expectedNodeCount
@@ -465,8 +465,8 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), func() {
 			}, aws.DeprovisioningEventType, consolidationTestGroup, "replace", aws.GenerateTestDimensions(env.Monitor.CreatedNodeCount(), expectedNodeCount, replicasPerNode))
 		}, SpecTimeout(time.Hour))
 	})
-	Context("Emptiness", Label(debug.NoEvents), func() {
-		It("should deprovision all nodes when empty", Label(debug.NoEvents), func(_ context.Context) {
+	Context("Emptiness", func() {
+		It("should deprovision all nodes when empty", func(_ context.Context) {
 			replicasPerNode := 20
 			maxPodDensity := replicasPerNode + dsCount
 			expectedNodeCount := 200
@@ -508,8 +508,8 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), func() {
 			}, aws.DeprovisioningEventType, emptinessTestGroup, defaultTestName, aws.GenerateTestDimensions(0, expectedNodeCount, replicasPerNode))
 		}, SpecTimeout(time.Minute*30))
 	})
-	Context("Expiration", Label(debug.NoEvents), func() {
-		It("should expire all nodes", Label(debug.NoEvents), func(_ context.Context) {
+	Context("Expiration", func() {
+		It("should expire all nodes", func(_ context.Context) {
 			replicasPerNode := 20
 			maxPodDensity := replicasPerNode + dsCount
 			expectedNodeCount := 20 // we're currently doing around 1 node/2 mins so this test should run deprovisioning in about 45m
@@ -556,7 +556,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), func() {
 		}, SpecTimeout(time.Hour))
 	})
 	Context("Drift", func() {
-		It("should drift all nodes", Label(debug.NoEvents), func(_ context.Context) {
+		It("should drift all nodes", func(_ context.Context) {
 			// Before Deprovisioning, we need to Provision the cluster to the state that we need.
 			replicasPerNode := 20
 			maxPodDensity := replicasPerNode + dsCount
@@ -595,8 +595,8 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), func() {
 			}, aws.DeprovisioningEventType, driftTestGroup, defaultTestName, aws.GenerateTestDimensions(expectedNodeCount, expectedNodeCount, replicasPerNode))
 		}, SpecTimeout(time.Hour))
 	})
-	Context("Interruption", Label(debug.NoEvents), func() {
-		It("should interrupt all nodes due to scheduledChange", Label(debug.NoEvents), func(_ context.Context) {
+	Context("Interruption", func() {
+		It("should interrupt all nodes due to scheduledChange", func(_ context.Context) {
 			env.ExpectQueueExists() // Ensure the queue exists before sending messages
 
 			replicasPerNode := 20
