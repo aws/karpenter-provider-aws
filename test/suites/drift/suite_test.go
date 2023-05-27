@@ -66,7 +66,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		})
 		// choose an old static image
 		parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
-			Name: awssdk.String("/aws/service/eks/optimized-ami/1.23/amazon-linux-2/amazon-eks-node-1.23-v20221101/image_id"),
+			Name: awssdk.String("/aws/service/eks/optimized-ami/1.23/amazon-linux-2/amazon-eks-node-1.23-v20230322/image_id"),
 		})
 		Expect(err).To(BeNil())
 		oldCustomAMI := *parameter.Parameter.Value
@@ -112,7 +112,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		})
 		// choose an old static image
 		parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
-			Name: awssdk.String("/aws/service/eks/optimized-ami/1.23/amazon-linux-2/amazon-eks-node-1.23-v20221101/image_id"),
+			Name: awssdk.String("/aws/service/eks/optimized-ami/1.23/amazon-linux-2/amazon-eks-node-1.23-v20230322/image_id"),
 		})
 		Expect(err).To(BeNil())
 		oldCustomAMI := *parameter.Parameter.Value

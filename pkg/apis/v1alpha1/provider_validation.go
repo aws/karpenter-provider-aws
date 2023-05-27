@@ -243,7 +243,7 @@ func (a *AWS) validateVolumeType(blockDeviceMapping *BlockDeviceMapping) *apis.F
 }
 
 func (a *AWS) validateVolumeSize(blockDeviceMapping *BlockDeviceMapping) *apis.FieldError {
-	// if an EBS mapping is present, one of volumeSize or snapshotID must be present
+	// If an EBS mapping is present, one of volumeSize or snapshotID must be present
 	if blockDeviceMapping.EBS.SnapshotID != nil && blockDeviceMapping.EBS.VolumeSize == nil {
 		return nil
 	} else if blockDeviceMapping.EBS.VolumeSize == nil {

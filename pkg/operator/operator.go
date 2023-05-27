@@ -123,6 +123,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		ec2api,
 		amiResolver,
 		securityGroupProvider,
+		subnetProvider,
 		lo.Must(getCABundle(operator.GetConfig())),
 		operator.Elected(),
 		kubeDNSIP,

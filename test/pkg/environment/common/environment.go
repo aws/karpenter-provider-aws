@@ -38,6 +38,12 @@ import (
 	"github.com/aws/karpenter/pkg/utils/project"
 )
 
+type ContextKey string
+
+const (
+	GitRefContextKey = ContextKey("gitRef")
+)
+
 type Environment struct {
 	context.Context
 
@@ -57,6 +63,9 @@ func NewEnvironment(t *testing.T) *Environment {
 	lo.Must0(os.Setenv(system.NamespaceEnvKey, "karpenter"))
 	kubernetesInterface := kubernetes.NewForConfigOrDie(config)
 	ctx = injection.WithSettingsOrDie(ctx, kubernetesInterface, apis.Settings...)
+	if val, ok := os.LookupEnv("GIT_REF"); ok {
+		ctx = context.WithValue(ctx, GitRefContextKey, val)
+	}
 
 	gomega.SetDefaultEventuallyTimeout(5 * time.Minute)
 	gomega.SetDefaultEventuallyPollingInterval(1 * time.Second)

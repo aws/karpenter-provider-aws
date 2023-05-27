@@ -378,6 +378,7 @@ func (e *EC2API) DescribeSubnetsWithContext(ctx context.Context, input *ec2.Desc
 			SubnetId:                aws.String("subnet-test1"),
 			AvailabilityZone:        aws.String("test-zone-1a"),
 			AvailableIpAddressCount: aws.Int64(100),
+			MapPublicIpOnLaunch:     aws.Bool(false),
 			Tags: []*ec2.Tag{
 				{Key: aws.String("Name"), Value: aws.String("test-subnet-1")},
 				{Key: aws.String("foo"), Value: aws.String("bar")},
@@ -387,6 +388,7 @@ func (e *EC2API) DescribeSubnetsWithContext(ctx context.Context, input *ec2.Desc
 			SubnetId:                aws.String("subnet-test2"),
 			AvailabilityZone:        aws.String("test-zone-1b"),
 			AvailableIpAddressCount: aws.Int64(100),
+			MapPublicIpOnLaunch:     aws.Bool(true),
 			Tags: []*ec2.Tag{
 				{Key: aws.String("Name"), Value: aws.String("test-subnet-2")},
 				{Key: aws.String("foo"), Value: aws.String("bar")},
@@ -421,21 +423,24 @@ func (e *EC2API) DescribeSecurityGroupsWithContext(ctx context.Context, input *e
 	}
 	sgs := []*ec2.SecurityGroup{
 		{
-			GroupId: aws.String("sg-test1"),
+			GroupId:   aws.String("sg-test1"),
+			GroupName: aws.String("securityGroup-test1"),
 			Tags: []*ec2.Tag{
 				{Key: aws.String("Name"), Value: aws.String("test-security-group-1")},
 				{Key: aws.String("foo"), Value: aws.String("bar")},
 			},
 		},
 		{
-			GroupId: aws.String("sg-test2"),
+			GroupId:   aws.String("sg-test2"),
+			GroupName: aws.String("securityGroup-test2"),
 			Tags: []*ec2.Tag{
 				{Key: aws.String("Name"), Value: aws.String("test-security-group-2")},
 				{Key: aws.String("foo"), Value: aws.String("bar")},
 			},
 		},
 		{
-			GroupId: aws.String("sg-test3"),
+			GroupId:   aws.String("sg-test3"),
+			GroupName: aws.String("securityGroup-test3"),
 			Tags: []*ec2.Tag{
 				{Key: aws.String("Name"), Value: aws.String("test-security-group-3")},
 				{Key: aws.String("TestTag")},

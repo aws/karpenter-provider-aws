@@ -118,18 +118,19 @@ func (c *Controller) resolveSubnets(ctx context.Context, nodeTemplate *v1alpha1.
 }
 
 func (c *Controller) resolveSecurityGroups(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) error {
-	securityGroupIds, err := c.securityGroupProvider.List(ctx, nodeTemplate)
+	securityGroups, err := c.securityGroupProvider.List(ctx, nodeTemplate)
 	if err != nil {
 		return err
 	}
-	if len(securityGroupIds) == 0 && nodeTemplate.Spec.SecurityGroupSelector != nil {
+	if len(securityGroups) == 0 && nodeTemplate.Spec.SecurityGroupSelector != nil {
 		nodeTemplate.Status.SecurityGroups = nil
 		return fmt.Errorf("no security groups exist given constraints")
 	}
 
-	nodeTemplate.Status.SecurityGroups = lo.Map(securityGroupIds, func(id string, _ int) v1alpha1.SecurityGroup {
+	nodeTemplate.Status.SecurityGroups = lo.Map(securityGroups, func(securityGroup *ec2.SecurityGroup, _ int) v1alpha1.SecurityGroup {
 		return v1alpha1.SecurityGroup{
-			ID: id,
+			ID:   *securityGroup.GroupId,
+			Name: *securityGroup.GroupName,
 		}
 	})
 
