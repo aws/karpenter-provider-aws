@@ -71,7 +71,7 @@ var disableProvisioningLimits = &v1alpha5.Limits{
 	},
 }
 
-var _ = Describe("Deprovisioning", Label(debug.NoWatch), func() {
+var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), func() {
 	var provisioner *v1alpha5.Provisioner
 	var provisionerOptions test.ProvisionerOptions
 	var nodeTemplate *v1alpha1.AWSNodeTemplate

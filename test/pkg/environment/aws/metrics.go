@@ -73,7 +73,10 @@ func (env *Environment) MeasureDurationFor(f func(), eventType EventType, group,
 
 func (env *Environment) ExpectEventDurationMetric(d time.Duration, labels map[string]string) {
 	GinkgoHelper()
-	gitRef := lo.Ternary(env.Context.Value(common.GitRefContextKey) != nil, env.Value(common.GitRefContextKey).(string), "n/a")
+	gitRef := "n/a"
+	if env.Context.Value(common.GitRefContextKey) != nil {
+		gitRef = env.Value(common.GitRefContextKey).(string)
+	}
 	env.ExpectMetric("eventDuration", cloudwatch.StandardUnitSeconds, d.Seconds(), lo.Assign(labels, map[string]string{GitRefDimension: gitRef}))
 }
 
