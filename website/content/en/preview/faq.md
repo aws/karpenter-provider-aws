@@ -118,7 +118,7 @@ If the instance type is unavailable for some reason, then fleet will move on to 
 If you are using the spot capacity type, Karpenter uses the price-capacity-optimized allocation strategy. This tells fleet to find the instance type that EC2 has the most capacity for while also considering price. This allocation strategy will balance cost and decrease the probability of a spot interruption happening in the near term.
 See [Choose the appropriate allocation strategy](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-fleet-allocation-strategy.html#ec2-fleet-allocation-use-cases) for information on fleet optimization.
 
-### How does Karpenter calculates the resource usage by Daemonsets while placing a pod?
+### How does Karpenter calculate the resource usage of Daemonsets when simulating scheduling?
 
 Karpenter currently calculates the applicable daemonsets at the provisioner level with label selectors/taints, etc. It does not look to see if there are requirements on the daemonsets that would exclude it from running on particular instances that the provisioner could or couldn't launch.
 The recommendation for now is to use multiple provisioners with taints/tolerations or label selectors to limit daemonsets to only nodes launched from specific provisioners.
