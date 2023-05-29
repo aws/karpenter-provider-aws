@@ -17,7 +17,6 @@ package link
 import (
 	"context"
 	"fmt"
-	"math"
 	"time"
 
 	"github.com/patrickmn/go-cache"
@@ -97,7 +96,7 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 		errs[i] = c.link(ctx, retrieved[i], machineList.Items)
 	})
 	// Effectively, don't requeue this again once it succeeds
-	return reconcile.Result{RequeueAfter: math.MaxInt64}, multierr.Combine(errs...)
+	return reconcile.Result{}, multierr.Combine(errs...)
 }
 
 func (c *Controller) link(ctx context.Context, retrieved *v1alpha5.Machine, existingMachines []v1alpha5.Machine) error {
