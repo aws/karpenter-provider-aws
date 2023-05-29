@@ -87,7 +87,7 @@ var _ = BeforeSuite(func() {
 	awsEnv = test.NewEnvironment(ctx, env)
 
 	fakeClock = clock.NewFakeClock(time.Now())
-	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, env.Client, awsEnv.AMIProvider)
+	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, env.Client, awsEnv.AMIProvider, events.NewRecorder(&record.FakeRecorder{}))
 	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
 	prov = provisioning.NewProvisioner(env.Client, env.KubernetesInterface.CoreV1(), events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster)
 })

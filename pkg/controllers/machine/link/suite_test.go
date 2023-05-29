@@ -29,6 +29,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/client-go/tools/record"
 	. "knative.dev/pkg/logging/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -39,6 +40,7 @@ import (
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
 
+	"github.com/aws/karpenter-core/pkg/events"
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
@@ -67,7 +69,7 @@ var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
 	awsEnv = test.NewEnvironment(ctx, env)
 
-	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, env.Client, awsEnv.AMIProvider)
+	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, env.Client, awsEnv.AMIProvider, events.NewRecorder(&record.FakeRecorder{}))
 	linkController = link.NewController(env.Client, cloudProvider)
 })
 var _ = AfterSuite(func() {

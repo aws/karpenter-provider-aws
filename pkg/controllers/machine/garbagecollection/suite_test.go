@@ -28,12 +28,14 @@ import (
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/tools/record"
 	. "knative.dev/pkg/logging/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	corecloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
+	"github.com/aws/karpenter-core/pkg/events"
 	"github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	coretest "github.com/aws/karpenter-core/pkg/test"
@@ -68,7 +70,7 @@ var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
 	awsEnv = test.NewEnvironment(ctx, env)
 
-	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, env.Client, awsEnv.AMIProvider)
+	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, env.Client, awsEnv.AMIProvider, events.NewRecorder(&record.FakeRecorder{}))
 	linkedMachineCache = cache.New(time.Minute*10, time.Second*10)
 	linkController := &link.Controller{
 		Cache: linkedMachineCache,

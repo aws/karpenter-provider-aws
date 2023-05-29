@@ -47,6 +47,7 @@ import (
 	coreapis "github.com/aws/karpenter-core/pkg/apis"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
+	"github.com/aws/karpenter-core/pkg/events"
 )
 
 func init() {
@@ -61,14 +62,16 @@ type CloudProvider struct {
 	instanceProvider     *instance.Provider
 	kubeClient           client.Client
 	amiProvider          *amifamily.Provider
+	recorder             events.Recorder
 }
 
-func New(instanceTypeProvider *instancetype.Provider, instanceProvider *instance.Provider, kubeClient client.Client, amiProvider *amifamily.Provider) *CloudProvider {
+func New(instanceTypeProvider *instancetype.Provider, instanceProvider *instance.Provider, kubeClient client.Client, amiProvider *amifamily.Provider, recorder events.Recorder) *CloudProvider {
 	return &CloudProvider{
 		instanceTypeProvider: instanceTypeProvider,
 		instanceProvider:     instanceProvider,
 		kubeClient:           kubeClient,
 		amiProvider:          amiProvider,
+		recorder:             recorder,
 	}
 }
 
@@ -85,10 +88,26 @@ func (c *CloudProvider) Create(ctx context.Context, machine *v1alpha5.Machine) (
 		return nil, fmt.Errorf("resolving instance types, %w", err)
 	}
 	if len(instanceTypes) == 0 {
+		c.recorder.Publish(events.Event{
+			InvolvedObject: machine,
+			Type:           v1.EventTypeWarning,
+			Reason:         "InsufficientCapacityError",
+			Message:        fmt.Sprintf("Machine %s event: all requested instance types were unavailable during launch", machine.Name),
+			DedupeValues:   []string{machine.Name},
+		})
 		return nil, cloudprovider.NewInsufficientCapacityError(fmt.Errorf("all requested instance types were unavailable during launch"))
 	}
 	instance, err := c.instanceProvider.Create(ctx, nodeTemplate, machine, instanceTypes)
 	if err != nil {
+		if cloudprovider.IsInsufficientCapacityError(err) {
+			c.recorder.Publish(events.Event{
+				InvolvedObject: machine,
+				Type:           v1.EventTypeWarning,
+				Reason:         "InsufficientCapacityError",
+				Message:        fmt.Sprintf("Machine %s event: %s", machine.Name, err),
+				DedupeValues:   []string{machine.Name},
+			})
+		}
 		return nil, fmt.Errorf("creating instance, %w", err)
 	}
 	instanceType, _ := lo.Find(instanceTypes, func(i *cloudprovider.InstanceType) bool {

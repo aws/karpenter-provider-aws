@@ -31,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -45,6 +46,7 @@ import (
 	"github.com/aws/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
+	"github.com/aws/karpenter-core/pkg/events"
 	"github.com/aws/karpenter-core/pkg/utils/resources"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 )
@@ -87,7 +89,7 @@ func main() {
 		Manager:             &FakeManager{},
 		KubernetesInterface: kubernetes.NewForConfigOrDie(&rest.Config{}),
 	})
-	cp := awscloudprovider.New(op.InstanceTypesProvider, op.InstanceProvider, op.GetClient(), op.AMIProvider)
+	cp := awscloudprovider.New(op.InstanceTypesProvider, op.InstanceProvider, op.GetClient(), op.AMIProvider, events.NewRecorder(&record.FakeRecorder{}))
 
 	provider := v1alpha1.AWS{SubnetSelector: map[string]string{
 		"*": "*",
