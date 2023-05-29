@@ -89,6 +89,18 @@ func (p *Provider) List(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTempl
 	return output.Subnets, nil
 }
 
+// CheckAnyPublicIPAssociations returns a bool indicating whether all referenced subnets assign public IPv4 addresses to EC2 instances created therein
+func (p *Provider) CheckAnyPublicIPAssociations(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) (bool, error) {
+	subnets, err := p.List(ctx, nodeTemplate)
+	if err != nil {
+		return false, err
+	}
+	_, ok := lo.Find(subnets, func(s *ec2.Subnet) bool {
+		return aws.BoolValue(s.MapPublicIpOnLaunch)
+	})
+	return ok, nil
+}
+
 // ZonalSubnetsForLaunch returns a mapping of zone to the subnet with the most available IP addresses and deducts the passed ips from the available count
 func (p *Provider) ZonalSubnetsForLaunch(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, instanceTypes []*cloudprovider.InstanceType, capacityType string) (map[string]*ec2.Subnet, error) {
 	subnets, err := p.List(ctx, nodeTemplate)

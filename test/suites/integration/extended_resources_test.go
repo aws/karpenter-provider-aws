@@ -27,7 +27,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
@@ -117,9 +116,9 @@ var _ = Describe("Extended Resources", func() {
 		env.EventuallyExpectInitializedNodeCount("==", 1)
 	})
 	It("should provision nodes for a deployment that requests vpc.amazonaws.com/pod-eni (security groups for pods)", func() {
-		ExpectPodENIEnabled()
+		env.ExpectPodENIEnabled()
 		DeferCleanup(func() {
-			ExpectPodENIDisabled()
+			env.ExpectPodENIDisabled()
 		})
 		env.ExpectSettingsOverridden(map[string]string{
 			"aws.enablePodENI": "true",
@@ -482,14 +481,4 @@ func ExpectHabanaDevicePluginCreated() {
 			},
 		},
 	})
-}
-
-func ExpectPodENIEnabled() {
-	env.ExpectDaemonSetEnvironmentVariableUpdatedWithOffset(1, types.NamespacedName{Namespace: "kube-system", Name: "aws-node"},
-		"ENABLE_POD_ENI", "true")
-}
-
-func ExpectPodENIDisabled() {
-	env.ExpectDaemonSetEnvironmentVariableUpdatedWithOffset(1, types.NamespacedName{Namespace: "kube-system", Name: "aws-node"},
-		"ENABLE_POD_ENI", "false")
 }

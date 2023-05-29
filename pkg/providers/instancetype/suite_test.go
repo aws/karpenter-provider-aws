@@ -40,7 +40,7 @@ import (
 
 	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
-	corecloudproivder "github.com/aws/karpenter-core/pkg/cloudprovider"
+	corecloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/controllers/provisioning"
 	"github.com/aws/karpenter-core/pkg/controllers/state"
 	"github.com/aws/karpenter-core/pkg/events"
@@ -334,7 +334,7 @@ var _ = Describe("Instance Types", func() {
 			return iPrice < jPrice
 		})
 		// Expect that the launch template overrides gives the 60 cheapest instance types
-		expected := sets.NewString(lo.Map(its[:instance.MaxInstanceTypes], func(i *corecloudproivder.InstanceType, _ int) string {
+		expected := sets.NewString(lo.Map(its[:instance.MaxInstanceTypes], func(i *corecloudprovider.InstanceType, _ int) string {
 			return i.Name
 		})...)
 		Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
@@ -648,8 +648,16 @@ var _ = Describe("Instance Types", func() {
 	Context("Overhead", func() {
 		var info *ec2.InstanceTypeInfo
 		BeforeEach(func() {
+			ctx, err := (&settings.Settings{}).Inject(ctx, &v1.ConfigMap{
+				Data: map[string]string{
+					"aws.clusterName": "karpenter-cluster",
+				},
+			})
+			Expect(err).To(BeNil())
+
+			s := settings.FromContext(ctx)
 			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
-				VMMemoryOverheadPercent: lo.ToPtr[float64](0),
+				VMMemoryOverheadPercent: &s.VMMemoryOverheadPercent,
 			}))
 
 			var ok bool
@@ -1048,6 +1056,57 @@ var _ = Describe("Instance Types", func() {
 				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 110))
 			}
 		})
+		It("shouldn't report more resources than are actually available on instances", func() {
+
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			its, err := cloudProvider.GetInstanceTypes(ctx, provisioner)
+			Expect(err).To(BeNil())
+
+			instanceTypes := map[string]*corecloudprovider.InstanceType{}
+			for _, it := range its {
+				instanceTypes[it.Name] = it
+			}
+
+			for _, tc := range []struct {
+				InstanceType string
+				// Actual allocatable values as reported by the node from kubelet. You find these
+				// by launching the node and inspecting the node status allocatable.
+				Memory resource.Quantity
+				CPU    resource.Quantity
+			}{
+				{
+					InstanceType: "t4g.small",
+					Memory:       resource.MustParse("1408312Ki"),
+					CPU:          resource.MustParse("1930m"),
+				},
+				{
+					InstanceType: "t4g.medium",
+					Memory:       resource.MustParse("3377496Ki"),
+					CPU:          resource.MustParse("1930m"),
+				},
+				{
+					InstanceType: "t4g.xlarge",
+					Memory:       resource.MustParse("15136012Ki"),
+					CPU:          resource.MustParse("3920m"),
+				},
+				{
+					InstanceType: "m5.large",
+					Memory:       resource.MustParse("7220184Ki"),
+					CPU:          resource.MustParse("1930m"),
+				},
+			} {
+				it, ok := instanceTypes[tc.InstanceType]
+				Expect(ok).To(BeTrue(), fmt.Sprintf("didn't find instance type %q, add to instanceTypeTestData in ./hack/codegen.sh", tc.InstanceType))
+
+				allocatable := it.Allocatable()
+				// We need to ensure that our estimate of the allocatable resources <= the value that kubelet reports.  If it's greater,
+				// we can launch nodes that can't actually run the pods.
+				Expect(allocatable.Memory().AsApproximateFloat64()).To(BeNumerically("<=", tc.Memory.AsApproximateFloat64()),
+					fmt.Sprintf("memory estimate for %s was too large, had %s vs %s", tc.InstanceType, allocatable.Memory().String(), tc.Memory.String()))
+				Expect(allocatable.Cpu().AsApproximateFloat64()).To(BeNumerically("<=", tc.CPU.AsApproximateFloat64()),
+					fmt.Sprintf("CPU estimate for %s was too large, had %s vs %s", tc.InstanceType, allocatable.Cpu().String(), tc.CPU.String()))
+			}
+		})
 	})
 	Context("Insufficient Capacity Error Cache", func() {
 		It("should launch instances of different type on second reconciliation attempt with Insufficient Capacity Error Cache fallback", func() {
@@ -1329,6 +1388,80 @@ var _ = Describe("Instance Types", func() {
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(HaveKeyWithValue(v1alpha5.ProvisionerNameLabelKey, provisioner.Name))
+		})
+	})
+	Context("Ephemeral Storage", func() {
+		BeforeEach(func() {
+			nodeTemplate.Spec.AMIFamily = aws.String(v1alpha1.AMIFamilyAL2)
+			nodeTemplate.Spec.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{
+				{
+					DeviceName: aws.String("/dev/xvda"),
+					EBS: &v1alpha1.BlockDevice{
+						SnapshotID: aws.String("snap-xxxxxxxx"),
+					},
+				},
+			}
+		})
+		It("should default to EBS defaults when volumeSize is not defined in blockDeviceMappings for custom AMIs", func() {
+			nodeTemplate.Spec.AMIFamily = aws.String(v1alpha1.AMIFamilyCustom)
+			nodeTemplate.Spec.AMISelector = map[string]string{
+				"*": "*",
+			}
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(*node.Status.Capacity.StorageEphemeral()).To(Equal(resource.MustParse("20Gi")))
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
+			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(ltInput.LaunchTemplateData.BlockDeviceMappings).To(HaveLen(1))
+				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].DeviceName).To(Equal("/dev/xvda"))
+				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.SnapshotId).To(Equal("snap-xxxxxxxx"))
+			})
+		})
+		It("should default to EBS defaults when volumeSize is not defined in blockDeviceMappings for AL2 Root volume", func() {
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(*node.Status.Capacity.StorageEphemeral()).To(Equal(resource.MustParse("20Gi")))
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
+			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(ltInput.LaunchTemplateData.BlockDeviceMappings).To(HaveLen(1))
+				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].DeviceName).To(Equal("/dev/xvda"))
+				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.SnapshotId).To(Equal("snap-xxxxxxxx"))
+			})
+		})
+		It("should default to EBS defaults when volumeSize is not defined in blockDeviceMappings for Bottlerocket Root volume", func() {
+			nodeTemplate.Spec.AMIFamily = aws.String(v1alpha1.AMIFamilyBottlerocket)
+			nodeTemplate.Spec.BlockDeviceMappings[0].DeviceName = aws.String("/dev/xvdb")
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(*node.Status.Capacity.StorageEphemeral()).To(Equal(resource.MustParse("20Gi")))
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
+			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
+				Expect(ltInput.LaunchTemplateData.BlockDeviceMappings).To(HaveLen(1))
+				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].DeviceName).To(Equal("/dev/xvdb"))
+				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.SnapshotId).To(Equal("snap-xxxxxxxx"))
+			})
+		})
+		It("should default to EBS defaults when volumeSize is not defined in blockDeviceMappings for Ubuntu Root volume", func() {
+			nodeTemplate.Spec.AMIFamily = aws.String(v1alpha1.AMIFamilyUbuntu)
+			nodeTemplate.Spec.BlockDeviceMappings[0].DeviceName = aws.String("/dev/sda1")
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(*node.Status.Capacity.StorageEphemeral()).To(Equal(resource.MustParse("20Gi")))
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
+			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(ltInput.LaunchTemplateData.BlockDeviceMappings).To(HaveLen(1))
+				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].DeviceName).To(Equal("/dev/sda1"))
+				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.SnapshotId).To(Equal("snap-xxxxxxxx"))
+			})
 		})
 	})
 	Context("Metadata Options", func() {

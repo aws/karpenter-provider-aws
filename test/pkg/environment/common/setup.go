@@ -56,15 +56,8 @@ var (
 )
 
 // nolint:gocyclo
-func (env *Environment) BeforeEach(opts ...Option) {
-	options := ResolveOptions(opts)
-	if !options.DisableDebug {
-		fmt.Println("------- START BEFORE -------")
-		defer fmt.Println("------- END BEFORE -------")
-
-		// Run the debug logger BeforeEach() methods
-		debug.BeforeEach(env.Context, env.Config, env.Client)
-	}
+func (env *Environment) BeforeEach() {
+	debug.BeforeEach(env.Context, env.Config, env.Client)
 	env.Context = injection.WithSettingsOrDie(env.Context, env.KubeClient, apis.Settings...)
 
 	// Expect this cluster to be clean for test runs to execute successfully
@@ -95,26 +88,14 @@ func (env *Environment) ExpectCleanCluster() {
 	}
 }
 
-func (env *Environment) Cleanup(opts ...Option) {
-	options := ResolveOptions(opts)
-	if !options.DisableDebug {
-		fmt.Println("------- START CLEANUP -------")
-		defer fmt.Println("------- END CLEANUP -------")
-
-		// Run the debug logger AfterEach() methods
-		debug.AfterEach(env.Context)
-	}
+func (env *Environment) Cleanup() {
 	env.CleanupObjects(CleanableObjects...)
 	env.eventuallyExpectScaleDown()
 	env.ExpectNoCrashes()
 }
 
-func (env *Environment) AfterEach(opts ...Option) {
-	options := ResolveOptions(opts)
-	if !options.DisableDebug {
-		fmt.Println("------- START AFTER -------")
-		defer fmt.Println("------- END AFTER -------")
-	}
+func (env *Environment) AfterEach() {
+	debug.AfterEach(env.Context)
 	env.printControllerLogs(&v1.PodLogOptions{Container: "controller"})
 }
 
