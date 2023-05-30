@@ -108,9 +108,12 @@ Resources:
               "Effect": "Allow",
               "Resource": "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:launch-template/*",
               "Action": "ec2:DeleteLaunchTemplate",
-              "Condition": {
+               "Condition": {
                 "StringEquals": {
-                  "aws:ResourceTag/karpenter.k8s.aws/cluster": "${ClusterName}"
+                  "aws:ResourceTag/kubernetes.io/cluster/${ClusterName}": "owned"
+                },
+                "StringLike": {
+                  "aws:ResourceTag/karpenter.sh/provisioner-name": "*"
                 }
               }
             },
