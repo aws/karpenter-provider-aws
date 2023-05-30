@@ -35,87 +35,122 @@ Resources:
     Type: AWS::IAM::ManagedPolicy
     Properties:
       ManagedPolicyName: !Sub "KarpenterControllerPolicy-${ClusterName}"
-      PolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Resource:
-              - !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}::image/*"
-              - !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}::snapshot/*"
-              - !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:fleet/*"
-              - !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/*"
-              - !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:spot-instances-request/*"
-              - !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:security-group/*"
-              - !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:volume/*"
-              - !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:network-interface/*"
-              - !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:subnet/*"
-              - !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:launch-template/*"
-            Action:
-              - ec2:CreateFleet
-              - ec2:CreateLaunchTemplate
-              - ec2:CreateTags
-          - Effect: Allow
-            Resource: "*"
-            Action:
-              - ec2:DescribeAvailabilityZones
-              - ec2:DescribeImages
-              - ec2:DescribeInstances
-              - ec2:DescribeInstanceTypeOfferings
-              - ec2:DescribeInstanceTypes
-              - ec2:DescribeLaunchTemplates
-              - ec2:DescribeSecurityGroups
-              - ec2:DescribeSpotPriceHistory
-              - ec2:DescribeSubnets
-            Condition:
-              StringEquals:
-                "ec2:Region": !Sub "${AWS::Region}"
-          - Effect: Allow
-            Resource: "*"
-            Action: pricing:GetProducts
-          - Effect: Allow
-            Resource: !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}::parameter/aws/service/*"
-            Action: ssm:GetParameter
-          - Effect: Allow
-            Resource: !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/*"
-            Action: ec2:TerminateInstances
-            Condition:
-              StringEquals:
-                "aws:ResourceTag/karpenter.sh/managed-by": !Sub "${ClusterName}"
-          - Effect: Allow
-            Resource: !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:launch-template/*"
-            Action: ec2:DeleteLaunchTemplate
-            Condition:
-              StringEquals:
-                "aws:ResourceTag/karpenter.k8s.aws/cluster": !Sub "${ClusterName}"
-          - Effect: Allow
-            Resource:
-              - !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}::image/*"
-              - !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}::snapshot/*"
-              - !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/*"
-              - !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:spot-instances-request/*"
-              - !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:security-group/*"
-              - !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:volume/*"
-              - !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:network-interface/*"
-              - !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:subnet/*"
-              - !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:launch-template/*"
-            Action: ec2:RunInstances
-          - Effect: Allow
-            Action:
-              # Write Operations
-              - sqs:DeleteMessage
-              # Read Operations
-              - sqs:GetQueueAttributes
-              - sqs:GetQueueUrl
-              - sqs:ReceiveMessage
-            Resource: !GetAtt KarpenterInterruptionQueue.Arn
-          - Effect: Allow
-            Action:
-              - iam:PassRole
-            Resource: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/KarpenterNodeRole-${ClusterName}"
-          - Effect: Allow
-            Action:
-              - eks:DescribeCluster
-            Resource: !Sub "arn:${AWS::Partition}:eks:${AWS::Region}:${AWS::AccountId}:cluster/${ClusterName}"
+      # The PolicyDocument must be in JSON string format because we use a StringEquals condition that uses a interpolated
+      # value in one of its key parameters which isn't natively supported by CloudFormation
+      PolicyDocument: !Sub |
+        {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Resource": [
+                "arn:${AWS::Partition}:ec2:${AWS::Region}::image/*",
+                "arn:${AWS::Partition}:ec2:${AWS::Region}::snapshot/*",
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:fleet/*",
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/*",
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:spot-instances-request/*",
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:security-group/*",
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:volume/*",
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:network-interface/*",
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:subnet/*",
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:launch-template/*"
+              ],
+              "Action": [
+                "ec2:CreateFleet",
+                "ec2:CreateLaunchTemplate",
+                "ec2:CreateTags"
+              ]
+            },
+            {
+              "Effect": "Allow",
+              "Resource": "*",
+              "Action": [
+                "ec2:DescribeAvailabilityZones",
+                "ec2:DescribeImages",
+                "ec2:DescribeInstances",
+                "ec2:DescribeInstanceTypeOfferings",
+                "ec2:DescribeInstanceTypes",
+                "ec2:DescribeLaunchTemplates",
+                "ec2:DescribeSecurityGroups",
+                "ec2:DescribeSpotPriceHistory",
+                "ec2:DescribeSubnets"
+              ],
+              "Condition": {
+                "StringEquals": {
+                  "ec2:Region": "${AWS::Region}"
+                }
+              }
+            },
+            {
+              "Effect": "Allow",
+              "Resource": "*",
+              "Action": "pricing:GetProducts"
+            },
+            {
+              "Effect": "Allow",
+              "Resource": "arn:${AWS::Partition}:ssm:${AWS::Region}::parameter/aws/service/*",
+              "Action": "ssm:GetParameter"
+            },
+            {
+              "Effect": "Allow",
+              "Resource": "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/*",
+              "Action": "ec2:TerminateInstances",
+              "Condition": {
+                "StringEquals": {
+                  "aws:ResourceTag/kubernetes.io/cluster/${ClusterName}": "owned"
+                },
+                "StringLike": {
+                  "aws:ResourceTag/karpenter.sh/provisioner-name": "*"
+                }
+              }
+            },
+            {
+              "Effect": "Allow",
+              "Resource": "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:launch-template/*",
+              "Action": "ec2:DeleteLaunchTemplate",
+              "Condition": {
+                "StringEquals": {
+                  "aws:ResourceTag/karpenter.k8s.aws/cluster": "${ClusterName}"
+                }
+              }
+            },
+            {
+              "Effect": "Allow",
+              "Resource": [
+                "arn:${AWS::Partition}:ec2:${AWS::Region}::image/*",
+                "arn:${AWS::Partition}:ec2:${AWS::Region}::snapshot/*",
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/*",
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:spot-instances-request/*",
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:security-group/*",
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:volume/*",
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:network-interface/*",
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:subnet/*",
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:launch-template/*"
+              ],
+              "Action": "ec2:RunInstances"
+            },
+            {
+              "Effect": "Allow",
+              "Resource": "${KarpenterInterruptionQueue.Arn}",
+              "Action": [
+                "sqs:DeleteMessage",
+                "sqs:GetQueueAttributes",
+                "sqs:GetQueueUrl",
+                "sqs:ReceiveMessage"
+              ]
+            },
+            {
+              "Effect": "Allow",
+              "Resource": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/KarpenterNodeRole-${ClusterName}",
+              "Action": "iam:PassRole"
+            },
+            {
+              "Effect": "Allow",
+              "Resource": "arn:${AWS::Partition}:eks:${AWS::Region}:${AWS::AccountId}:cluster/${ClusterName}",
+              "Action": "eks:DescribeCluster"
+            }
+          ]
+        }
   KarpenterInterruptionQueue:
     Type: AWS::SQS::Queue
     Properties:
