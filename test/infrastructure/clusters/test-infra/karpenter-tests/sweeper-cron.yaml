@@ -1,37 +1,17 @@
 apiVersion: v1
-kind: ServiceAccount
+kind: ConfigMap
 metadata:
-  name: karpenter-tests-cleanup
+  name: sweeper
   namespace: karpenter-tests
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: karpenter-tests-cleanup-role
-  namespace: karpenter-tests
-rules:
-  - apiGroups: ["tekton.dev"]
-    resources: ["pipelineruns"]
-    verbs: ["delete", "list"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: karpenter-tests-cleanup-role-binding
-  namespace: karpenter-tests
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: karpenter-tests-cleanup-role
-subjects:
-  - kind: ServiceAccount
-    name: karpenter-tests-cleanup
-    namespace: karpenter-tests
+data:
+  sweeper.sh: |+
+    #!/usr/bin/env bash
+    set -euo pipefail
 ---
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: pipelines-cleanup
+  name: sweeper
   namespace: karpenter-tests
 spec:
   concurrencyPolicy: Forbid
@@ -49,14 +29,14 @@ spec:
             - command:
                 - /bin/sh
                 - -c
-                - /bin/pipelines-cleanup.sh
+                - /bin/sweeper.sh
               image: public.ecr.aws/bitnami/kubectl:1.22
               imagePullPolicy: IfNotPresent
               volumeMounts:
                 - name: scripts
-                  mountPath: /bin/pipelines-cleanup.sh
-                  subPath: pipelines-cleanup.sh
-              name: pipelines-cleanup
+                  mountPath: /bin/sweeper.sh
+                  subPath: sweeper.sh
+              name: sweeper
               resources:
                 requests:
                   cpu: 250m
@@ -64,7 +44,8 @@ spec:
                 limits:
                   memory: 256Mi
           restartPolicy: OnFailure
-          serviceAccountName: karpenter-tests-cleanup
+          # This serviceAccountName has permission to make calls against EC2 in the account
+          serviceAccountName: karpenter-tests
       ttlSecondsAfterFinished: 300
   # every day on the 12th hour
   schedule: '* 12 * * *'
