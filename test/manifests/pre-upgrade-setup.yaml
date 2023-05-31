@@ -24,9 +24,6 @@ spec:
       default: "https://github.com/aws/karpenter"
     - name: git-ref
       description: Git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release.
-    - name: instance-size
-      description: Instance size used for the node group for cluster creation.
-      default: "c5.4xlarge"
   results:
     - name: account-id
     - name: region
@@ -81,7 +78,7 @@ spec:
         kubernetesNetworkConfig:
           ipFamily: $(params.ip-family)
         managedNodeGroups:
-          - instanceType: $(params.instance-size)
+          - instanceType: c5.4xlarge
             amiFamily: AmazonLinux2
             name: $(params.cluster-name)-system-pool
             disableIMDSv1: true
