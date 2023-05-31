@@ -14,7 +14,7 @@ n_old_instances="${#old_instances[@]}"
 echo "Removing ${n_old_instances} old instances"
 
 if (( n_old_instances > 0 )); then
-  aws ec2 terminate-instances --instance-ids ${old_instances}
+  aws ec2 terminate-instances --instance-ids "${old_instances[*]}"
 fi
 
 # Delete old stacks from the account
