@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"regexp"
 
+	"github.com/samber/lo"
+
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	"knative.dev/pkg/apis"
 
@@ -55,6 +57,7 @@ func (a *AWSNodeTemplateSpec) validate(_ context.Context) (errs *apis.FieldError
 		a.validateAMISelector(),
 		a.validateAMIFamily(),
 		a.validateTags(),
+		a.ValidateNetworkInterfaces(),
 	)
 }
 
@@ -111,4 +114,29 @@ func (a *AWSNodeTemplateSpec) validateTags() (errs *apis.FieldError) {
 		}
 	}
 	return errs
+}
+
+func (a *AWSNodeTemplateSpec) ValidateNetworkInterfaces() (errs *apis.FieldError) {
+	if a.NetworkInterfaces != nil {
+		if len(a.NetworkInterfaces) > 2 {
+			return errs.Also(apis.ErrInvalidValue(len(a.NetworkInterfaces), "networkInterfaces.length", "maximum number of network interfaces supported is 2")) // TODO
+		}
+		for _, networkInterface := range a.NetworkInterfaces {
+			if networkInterface != nil {
+				errs = errs.Also(networkInterface.Validate())
+			}
+		}
+	}
+	return nil
+}
+func (n *NetworkInterface) Validate() (errs *apis.FieldError) {
+	if n.InterfaceType != nil {
+		_, valid := lo.Find([]string{"interface", "efa"}, func(item string) bool {
+			return item == *n.InterfaceType
+		})
+		if !valid {
+			return errs.Also(apis.ErrInvalidValue(n.InterfaceType, "interfaceType must be either interface or efa"))
+		}
+	}
+	return nil
 }

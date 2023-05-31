@@ -260,16 +260,34 @@ func (p *Provider) createLaunchTemplate(ctx context.Context, options *amifamily.
 // This is done to help comply with AWS account policies that require explicitly setting that field to 'false'.
 // https://github.com/aws/karpenter/issues/3815
 func (p *Provider) generateNetworkInterface(options *amifamily.LaunchTemplate) []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest {
-	if options.AssociatePublicIPAddress != nil {
-		return []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
-			{
-				AssociatePublicIpAddress: options.AssociatePublicIPAddress,
-				DeviceIndex:              aws.Int64(0),
-				Groups:                   lo.Map(options.SecurityGroups, func(s v1alpha1.SecurityGroup, _ int) *string { return aws.String(s.ID) }),
-			},
+	if len(options.NetworkInterfaces) == 0 {
+		if options.AssociatePublicIPAddress != nil {
+			return []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
+				{
+					AssociatePublicIpAddress: options.AssociatePublicIPAddress,
+					DeviceIndex:              aws.Int64(0),
+					Groups:                   lo.Map(options.SecurityGroups, func(s v1alpha1.SecurityGroup, _ int) *string { return aws.String(s.ID) }),
+				},
+			}
 		}
+		return nil
 	}
-	return nil
+
+	var networkInterfacesRequest []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest
+	for _, networkInterface := range options.NetworkInterfaces {
+		networkInterfacesRequest = append(networkInterfacesRequest, &ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
+			AssociateCarrierIpAddress: networkInterface.AssociateCarrierIPAddress,
+			AssociatePublicIpAddress:  networkInterface.AssociatePublicIPAddress,
+			DeleteOnTermination:       networkInterface.DeleteOnTermination,
+			Description:               networkInterface.Description,
+			DeviceIndex:               networkInterface.DeviceIndex,
+			InterfaceType:             networkInterface.InterfaceType,
+			NetworkCardIndex:          networkInterface.NetworkCardIndex,
+			Groups:                    lo.Map(options.SecurityGroups, func(s v1alpha1.SecurityGroup, _ int) *string { return aws.String(s.ID) }),
+		})
+	}
+	return networkInterfacesRequest
+
 }
 
 func (p *Provider) blockDeviceMappings(blockDeviceMappings []*v1alpha1.BlockDeviceMapping) []*ec2.LaunchTemplateBlockDeviceMappingRequest {

@@ -27,6 +27,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 )
 
@@ -103,6 +104,28 @@ var _ = Describe("Validation", func() {
 				"karpenter.sh/managed-by": "test",
 			}
 			Expect(ant.Validate(ctx)).To(Not(Succeed()))
+		})
+	})
+	Context("networkInterfaces", func() {
+		It("should succeed when networkInterfaces are empty", func() {
+			ant.Spec.NetworkInterfaces = []*v1alpha1.NetworkInterface{}
+			Expect(ant.Validate(ctx)).To(Succeed())
+		})
+		It("should succeed when networkInterfaces are less than or equal to 2 items", func() {
+			ant.Spec.NetworkInterfaces = make([]*v1alpha1.NetworkInterface, 2)
+			Expect(ant.Validate(ctx)).To(Succeed())
+		})
+		It("should fail when networkInterfaces are more than 2 items", func() {
+			ant.Spec.NetworkInterfaces = make([]*v1alpha1.NetworkInterface, 3)
+			Expect(ant.Validate(ctx)).Error()
+		})
+		It("should fail when the networkInterface use non supported type", func() {
+			ant.Spec.NetworkInterfaces = []*v1alpha1.NetworkInterface{
+				{
+					InterfaceType: aws.String("non-supported-type"),
+				},
+			}
+			Expect(ant.Validate(ctx)).Error()
 		})
 	})
 })

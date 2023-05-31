@@ -70,6 +70,7 @@ type LaunchTemplate struct {
 	AMIID               string
 	InstanceTypes       []*cloudprovider.InstanceType `hash:"ignore"`
 	DetailedMonitoring  bool
+	NetworkInterfaces   []*v1alpha1.NetworkInterface
 }
 
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters
@@ -160,6 +161,7 @@ func (r Resolver) Resolve(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTem
 				DetailedMonitoring:  aws.BoolValue(nodeTemplate.Spec.DetailedMonitoring),
 				AMIID:               amiID,
 				InstanceTypes:       instanceTypes,
+				NetworkInterfaces:   nodeTemplate.Spec.NetworkInterfaces,
 			}
 			if resolved.BlockDeviceMappings == nil {
 				resolved.BlockDeviceMappings = amiFamily.DefaultBlockDeviceMappings()
