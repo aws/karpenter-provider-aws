@@ -54,7 +54,7 @@ func NewController(kubeClient client.Client, cloudProvider *cloudprovider.CloudP
 }
 
 func (c *Controller) Name() string {
-	return "machine_garbagecollection"
+	return "machine.garbagecollection"
 }
 
 func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconcile.Result, error) {

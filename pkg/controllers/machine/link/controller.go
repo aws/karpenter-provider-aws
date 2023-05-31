@@ -58,7 +58,7 @@ func NewController(kubeClient client.Client, cloudProvider *cloudprovider.CloudP
 }
 
 func (c *Controller) Name() string {
-	return "machine_link"
+	return "machine.link"
 }
 
 func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconcile.Result, error) {
