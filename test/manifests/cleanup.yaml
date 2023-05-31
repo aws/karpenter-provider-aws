@@ -22,6 +22,8 @@ spec:
   - name: delete-iam-policies
     image: public.ecr.aws/karpenter/tools:latest
     script: |
+      aws cloudformation delete-stack --stack-name iam-Dany-IMDSv1-$(params.cluster-name)  
+      aws cloudformation wait stack-delete-complete --stack-name iam-Dany-IMDSv1-$(params.cluster-name)
       aws cloudformation delete-stack --stack-name iam-$(params.cluster-name)
       aws cloudformation wait stack-delete-complete --stack-name iam-$(params.cluster-name)
 

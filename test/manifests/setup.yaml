@@ -50,6 +50,11 @@ spec:
     script: |
       aws iam create-service-linked-role --aws-service-name spot.amazonaws.com || true
       aws cloudformation deploy \
+        --stack-name iam-Dany-IMDSv1-$(params.cluster-name) 
+        --template-file test/hack/cloudformation/denyAllIMDSv1.yaml
+        --capabilities CAPABILITY_NAMED_IAM 
+        --parameter-overrides "ClusterName=$(params.cluster-name)"
+      aws cloudformation deploy \
         --stack-name iam-$(params.cluster-name) \
         --template-file website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml \
         --capabilities CAPABILITY_NAMED_IAM \
@@ -105,7 +110,8 @@ spec:
       eksctl create iamserviceaccount \
         --cluster "$(params.cluster-name)" --name karpenter --namespace karpenter \
         --role-name "$(params.cluster-name)-karpenter" \
-        --attach-policy-arn "arn:aws:iam::$(cat $(results.account-id.path)):policy/KarpenterControllerPolicy-$(params.cluster-name)" \
+        --attach-policy-arn "arn:aws:iam::$(cat $(results.account-id.path)):policy/KarpenterControllerPolicy-$(params.cluster-name)"  \
+        --attach-policy-arn "arn:aws:iam::$(cat $(results.account-id.path)):policy/DenyAllIMDSv1P2-$(params.cluster-name)" \
         --role-only \
         --approve
 

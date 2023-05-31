@@ -1,0 +1,30 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Resources used by https://github.com/aws/karpenter
+Parameters:
+  ClusterName:
+    Type: String
+    Description: "EKS cluster name"
+Resources:
+  DenyAllIMDSv1P2:
+    Type: AWS::IAM::ManagedPolicy
+    Properties: 
+      ManagedPolicyName: !Sub "DenyAllIMDSv1P2-${ClusterName}"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Deny
+            Action: 
+              - ec2:RunInstances
+            Resource: "arn:aws:ec2:*:*:instance/*"
+            Condition:
+              StringNotEquals:
+                "ec2:MetadataHttpTokens": required
+          - Effect: Deny
+            Action: ec2:ModifyInstanceMetadataOptions
+            Resource: "arn:aws:ec2:*:*:instance/*"
+            Condition:
+              StringEquals: 
+                "ec2:Attribute": HttpTokens
+              StringNotEquals:
+                "ec2:Attribute/HttpTokens": required
+        
