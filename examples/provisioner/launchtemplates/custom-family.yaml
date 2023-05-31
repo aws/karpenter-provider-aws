@@ -11,7 +11,8 @@ spec:
       cpu: 20
   providerRef:
     name: custom-family
-  ttlSecondsAfterEmpty: 30
+  consolidation: 
+    enabled: true
 ---
 apiVersion: karpenter.k8s.aws/v1alpha1
 kind: AWSNodeTemplate

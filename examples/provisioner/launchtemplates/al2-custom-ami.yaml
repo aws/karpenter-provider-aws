@@ -12,7 +12,8 @@ spec:
       cpu: 20
   providerRef:
     name: al2
-  ttlSecondsAfterEmpty: 30
+  consolidation: 
+    enabled: true
 ---
 apiVersion: karpenter.k8s.aws/v1alpha1
 kind: AWSNodeTemplate
