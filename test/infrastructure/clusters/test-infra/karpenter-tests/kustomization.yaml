@@ -8,6 +8,7 @@ resources:
   - test-suites.yaml
 configMapGenerator:
   - name: scripts
+    namespace: karpenter-tests
     files:
       - scripts/pipeline-cleanup.sh
       - scripts/pipeline-trigger.sh

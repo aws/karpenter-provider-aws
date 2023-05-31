@@ -28,6 +28,7 @@ FROM golang:1.20-alpine
 RUN echo "@testing http://dl-cdn.alpinelinux.org/alpine/edge/testing" >>/etc/apk/repositories
 RUN apk update
 RUN apk add --no-cache \
+    coreutils \
     curl \
     tar \
     bash \
