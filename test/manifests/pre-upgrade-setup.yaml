@@ -78,7 +78,7 @@ spec:
         kubernetesNetworkConfig:
           ipFamily: $(params.ip-family)
         managedNodeGroups:
-          - instanceType: m5.large
+          - instanceType: c5.4xlarge
             amiFamily: AmazonLinux2
             name: $(params.cluster-name)-system-pool
             disableIMDSv1: true
@@ -96,17 +96,17 @@ spec:
         - name: coredns
         - name: kube-proxy
         - name: aws-ebs-csi-driver
-          wellKnownPolicies: 
+          wellKnownPolicies:
             ebsCSIController: true
         EOF
-        
+
         eksctl create iamidentitymapping \
         --username system:node:{{EC2PrivateDNSName}} \
         --cluster "$(params.cluster-name)" \
         --arn "arn:aws:iam::$(cat $(results.account-id.path)):role/KarpenterNodeRole-$(params.cluster-name)" \
         --group system:bootstrappers \
         --group system:nodes
-        
+
         eksctl create iamserviceaccount \
           --cluster "$(params.cluster-name)" --name karpenter --namespace karpenter \
           --role-name "$(params.cluster-name)-karpenter" \
@@ -127,8 +127,8 @@ spec:
           --set settings.aws.clusterEndpoint=$(cat /root/.kube/config | grep server | awk '{print $2}') \
           --set settings.aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-$(params.cluster-name) \
           --set settings.aws.interruptionQueueName=$(params.cluster-name) \
-          --set controller.resources.requests.cpu=1 \
-          --set controller.resources.requests.memory=1Gi \
-          --set controller.resources.limits.cpu=1 \
-          --set controller.resources.limits.memory=1Gi \
+          --set controller.resources.requests.cpu=4 \
+          --set controller.resources.requests.memory=4Gi \
+          --set controller.resources.limits.cpu=4 \
+          --set controller.resources.limits.memory=4Gi \
           --wait
