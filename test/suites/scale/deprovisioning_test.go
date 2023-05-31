@@ -94,11 +94,6 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			},
 			Requirements: []v1.NodeSelectorRequirement{
 				{
-					Key:      v1alpha1.LabelInstanceSize,
-					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{"4xlarge"},
-				},
-				{
 					Key:      v1alpha5.LabelCapacityType,
 					Operator: v1.NodeSelectorOpIn,
 					Values:   []string{v1alpha1.CapacityTypeOnDemand},
@@ -118,8 +113,8 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			PodOptions: test.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{
 					Requests: v1.ResourceList{
-						v1.ResourceCPU:    resource.MustParse("100m"),
-						v1.ResourceMemory: resource.MustParse("100Mi"),
+						v1.ResourceCPU:    resource.MustParse("10m"),
+						v1.ResourceMemory: resource.MustParse("50Mi"),
 					},
 				},
 				TerminationGracePeriodSeconds: lo.ToPtr[int64](0),

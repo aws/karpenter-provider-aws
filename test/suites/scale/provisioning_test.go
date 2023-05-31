@@ -72,8 +72,8 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), func() {
 			PodOptions: test.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{
 					Requests: v1.ResourceList{
-						v1.ResourceCPU:    resource.MustParse("100m"),
-						v1.ResourceMemory: resource.MustParse("100Mi"),
+						v1.ResourceCPU:    resource.MustParse("10m"),
+						v1.ResourceMemory: resource.MustParse("50Mi"),
 					},
 				},
 				TerminationGracePeriodSeconds: lo.ToPtr[int64](0),
@@ -126,9 +126,10 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), func() {
 		}
 		provisioner.Spec.Requirements = append(provisioner.Spec.Requirements,
 			v1.NodeSelectorRequirement{
+				// With Prefix Delegation enabled, .large instances can have 434 pods.
 				Key:      v1alpha1.LabelInstanceSize,
 				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{"4xlarge"},
+				Values:   []string{"large"},
 			},
 		)
 
