@@ -5,7 +5,7 @@ go 1.20
 require (
 	github.com/aws/aws-sdk-go v1.44.267
 	github.com/aws/karpenter v0.22.0
-	github.com/aws/karpenter-core v0.28.0-rc.1.0.20230524172501-4418ff4eef78
+	github.com/aws/karpenter-core v0.28.0-rc.2
 	github.com/onsi/ginkgo/v2 v2.9.2
 	github.com/onsi/gomega v1.27.6
 	github.com/samber/lo v1.38.1
