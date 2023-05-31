@@ -1,0 +1,43 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: sweeper
+  namespace: karpenter-tests
+spec:
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          volumes:
+            - name: scripts
+              configMap:
+                name: scripts
+                defaultMode: 0777
+          containers:
+            - command:
+                - /bin/sh
+                - -c
+                - /bin/cleanup.sh
+              image: public.ecr.aws/karpenter/tools:latest
+              imagePullPolicy: IfNotPresent
+              volumeMounts:
+                - name: scripts
+                  mountPath: /bin/cleanup.sh
+                  subPath: cleanup.sh
+              name: sweeper
+              resources:
+                requests:
+                  cpu: 250m
+                  memory: 256Mi
+                limits:
+                  memory: 256Mi
+          restartPolicy: OnFailure
+          # This serviceAccountName has permission to make calls against EC2 in the account
+          serviceAccountName: karpenter-tests
+      ttlSecondsAfterFinished: 300
+  # every day on the 12th hour
+  schedule: '* 12 * * *'
+  successfulJobsHistoryLimit: 3
+  suspend: false

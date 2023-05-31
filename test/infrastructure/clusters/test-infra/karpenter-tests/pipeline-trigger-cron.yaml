@@ -28,22 +28,6 @@ subjects:
   name: karpenter-tests-trigger
   namespace: karpenter-tests
 ---
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: pipelines-trigger
-  namespace: karpenter-tests
-data:
-  pipelines-trigger.sh: |+
-    #!/usr/bin/env bash
-    set -euo pipefail
-
-    export AWS_REGION=us-east-1
-    export AWS_ACCOUNT_ID=$(aws sts get-caller-identity | jq -r '.Account')
-    MESSAGE="{\"releaseType\":\"periodic\",\"releaseIdentifier\":\"HEAD\",\"prNumber\":\"none\",\"githubAccount\":\"aws\"}"
-    QUEUE_URL=https://sqs.us-east-1.amazonaws.com/${AWS_ACCOUNT_ID}/ReleaseQueue
-    aws sqs send-message --queue-url $QUEUE_URL --message-body $MESSAGE
----
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -57,9 +41,9 @@ spec:
       template:
         spec:
           volumes:
-            - name: pipelines-trigger
+            - name: scripts
               configMap:
-                name: pipelines-trigger
+                name: scripts
                 defaultMode: 0777
           containers:
           - command:
@@ -69,7 +53,7 @@ spec:
             image: public.ecr.aws/karpenter/tools:latest
             imagePullPolicy: IfNotPresent
             volumeMounts:
-            - name: pipelines-trigger
+            - name: scripts
               mountPath: /bin/pipelines-trigger.sh
               subPath: pipelines-trigger.sh
             name: pipelines-trigger
