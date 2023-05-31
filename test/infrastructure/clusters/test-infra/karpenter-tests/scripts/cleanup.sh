@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
 # Clean up the CI account from failed CF stacks or failed test runs
 # The script assumes the aws CLI command is authenticated AWS_REGION is set
@@ -8,7 +9,7 @@ EXPIRATION_TIME=$(date -d 'now-12 hours' +%Y-%m-%dT%H:%M --utc)
 echo "Expiration time for all resources is: $EXPIRATION_TIME"
 
 # Grab all instances that are older than the EXPIRATION_TIME and then filter out the KITInfrastructure instances
-old_instances=($(aws ec2 describe-instances --filters Name=instance-state-name,Values=running --query "Reservations[].Instances[?LaunchTime <= '$EXPIRATION_TIME'][]" | grep -v "kubernetes.io/cluster/KITInfrastructure" | jq -r '.[].InstanceId' | sort))
+old_instances=($(aws ec2 describe-instances --filters Name=instance-state-name,Values=running --query "Reservations[].Instances[?LaunchTime <= '$EXPIRATION_TIME'][]" | grep -v "kubernetes.io/cluster/KITInfrastructure" | jq -r '.[].InstanceId'))
 n_old_instances="${#old_instances[@]}"
 echo "Removing ${n_old_instances} old instances"
 

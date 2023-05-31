@@ -12,4 +12,4 @@ configMapGenerator:
     files:
       - scripts/pipeline-cleanup.sh
       - scripts/pipeline-trigger.sh
-      - scripts/sweep.sh
+      - scripts/cleanup.sh
