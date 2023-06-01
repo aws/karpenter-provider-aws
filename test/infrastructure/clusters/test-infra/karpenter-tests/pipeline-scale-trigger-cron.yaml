@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: sweeper
+  name: pipelines-scale-trigger
   namespace: karpenter-tests
 spec:
   concurrencyPolicy: Forbid
@@ -19,14 +19,14 @@ spec:
             - command:
                 - /bin/sh
                 - -c
-                - /bin/cleanup.sh
-              image: public.ecr.aws/karpenter/tools:latest
+                - /bin/pipeline-scale-trigger.sh
+              image: public.ecr.aws/bitnami/kubectl:1.22
               imagePullPolicy: IfNotPresent
               volumeMounts:
                 - name: scripts
-                  mountPath: /bin/cleanup.sh
-                  subPath: cleanup.sh
-              name: sweeper
+                  mountPath: /bin/pipeline-scale-trigger.sh
+                  subPath: pipeline-scale-trigger.sh
+              name: pipeline-scale-trigger
               resources:
                 requests:
                   cpu: 250m
@@ -34,10 +34,9 @@ spec:
                 limits:
                   memory: 256Mi
           restartPolicy: OnFailure
-          # This serviceAccountName has permission to make calls against EC2 in the account
-          serviceAccountName: karpenter-tests
+          serviceAccountName: karpenter-tests-trigger
       ttlSecondsAfterFinished: 300
-  # every day, every 12th hour
-  schedule: '* */12 * * *'
+  # every 24 hours on the 18th hour starting at the 7th minute
+  schedule: '7 18 * * *'
   successfulJobsHistoryLimit: 3
   suspend: false
