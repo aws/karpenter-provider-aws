@@ -415,6 +415,13 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			expectedNodeCount := 20 // we're currently doing around 1 node/2 mins so this test should run deprovisioning in about 45m
 			replicas := replicasPerNode * expectedNodeCount
 
+			// Add in a instance type size requirement that's larger than the smallest that fits the pods.
+			provisioner.Spec.Requirements = append(provisioner.Spec.Requirements, v1.NodeSelectorRequirement{
+				Key:      v1alpha1.LabelInstanceSize,
+				Operator: v1.NodeSelectorOpIn,
+				Values:   []string{"2xlarge"},
+			})
+
 			deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
 			// Hostname anti-affinity to require one pod on each node
 			deployment.Spec.Template.Spec.Affinity = &v1.Affinity{
