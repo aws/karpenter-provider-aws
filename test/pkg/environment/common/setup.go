@@ -50,6 +50,8 @@ var (
 		{First: &v1alpha5.Provisioner{}, Second: &v1alpha5.ProvisionerList{}},
 		{First: &v1.LimitRange{}, Second: &v1.LimitRangeList{}},
 		{First: &schedulingv1.PriorityClass{}, Second: &schedulingv1.PriorityClassList{}},
+	}
+	FinalizableObjects = []functional.Pair[client.Object, client.ObjectList]{
 		{First: &v1.Node{}, Second: &v1.NodeList{}},
 		{First: &v1alpha5.Machine{}, Second: &v1alpha5.MachineList{}},
 	}
@@ -90,6 +92,7 @@ func (env *Environment) ExpectCleanCluster() {
 
 func (env *Environment) Cleanup() {
 	env.CleanupObjects(CleanableObjects...)
+	env.CleanupObjects(FinalizableObjects...)
 	env.eventuallyExpectScaleDown()
 	env.ExpectNoCrashes()
 }
