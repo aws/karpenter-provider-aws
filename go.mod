@@ -6,7 +6,7 @@ require (
 	github.com/Pallinder/go-randomdata v1.2.0
 	github.com/PuerkitoBio/goquery v1.8.1
 	github.com/avast/retry-go v3.0.0+incompatible
-	github.com/aws/aws-sdk-go v1.44.267
+	github.com/aws/aws-sdk-go v1.44.273
 	github.com/aws/karpenter-core v0.28.0-rc.2
 	github.com/go-playground/validator/v10 v10.13.0
 	github.com/imdario/mergo v0.3.15
