@@ -37,7 +37,7 @@ spec:
           # This serviceAccountName has permission to make calls against EC2 in the account
           serviceAccountName: karpenter-tests
       ttlSecondsAfterFinished: 300
-  # every day on the 12th hour
-  schedule: '* 12 * * *'
+  # every day, every 12th hour
+  schedule: '* */12 * * *'
   successfulJobsHistoryLimit: 3
   suspend: false
