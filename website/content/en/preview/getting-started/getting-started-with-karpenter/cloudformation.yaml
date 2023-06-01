@@ -35,7 +35,7 @@ Resources:
     Type: AWS::IAM::ManagedPolicy
     Properties:
       ManagedPolicyName: !Sub "KarpenterControllerPolicy-${ClusterName}"
-      # The PolicyDocument must be in JSON string format because we use a StringEquals condition that uses a interpolated
+      # The PolicyDocument must be in JSON string format because we use a StringEquals condition that uses an interpolated
       # value in one of its key parameters which isn't natively supported by CloudFormation
       PolicyDocument: !Sub |
         {
@@ -111,7 +111,7 @@ Resources:
               }
             },
             {
-              "Sid": "AllowScopedResourceTagging",
+              "Sid": "AllowScopedResourceCreationTagging",
               "Effect": "Allow",
               "Resource": [
                 "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:fleet/*",
@@ -196,25 +196,17 @@ Resources:
               "Action": "ssm:GetParameter"
             },
             {
-              "Sid": "AllowScopedInstanceTermination",
+              "Sid": "AllowScopedDeletion",
               "Effect": "Allow",
-              "Resource": "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/*",
-              "Action": "ec2:TerminateInstances",
+              "Resource": [
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/*",
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:launch-template/*"
+              ],
+              "Action": [
+                "ec2:TerminateInstances",
+                "ec2:DeleteLaunchTemplate"
+              ],
               "Condition": {
-                "StringEquals": {
-                  "aws:ResourceTag/kubernetes.io/cluster/${ClusterName}": "owned"
-                },
-                "StringLike": {
-                  "aws:ResourceTag/karpenter.sh/provisioner-name": "*"
-                }
-              }
-            },
-            {
-              "Sid": "AllowScopedLaunchTemplateDeletion",
-              "Effect": "Allow",
-              "Resource": "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:launch-template/*",
-              "Action": "ec2:DeleteLaunchTemplate",
-               "Condition": {
                 "StringEquals": {
                   "aws:ResourceTag/kubernetes.io/cluster/${ClusterName}": "owned"
                 },
