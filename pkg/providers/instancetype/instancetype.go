@@ -21,6 +21,8 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/prometheus/client_golang/prometheus"
+
 	awscache "github.com/aws/karpenter/pkg/cache"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -103,6 +105,14 @@ func (p *Provider) List(ctx context.Context, kc *v1alpha5.KubeletConfiguration, 
 	result := lo.Map(instanceTypes, func(i *ec2.InstanceTypeInfo, _ int) *cloudprovider.InstanceType {
 		return NewInstanceType(ctx, i, kc, p.region, nodeTemplate, p.createOfferings(ctx, i, instanceTypeZones[aws.StringValue(i.InstanceType)]))
 	})
+	for _, instanceType := range instanceTypes {
+		InstanceTypeVCPU.With(prometheus.Labels{
+			InstanceTypeLabel: *instanceType.InstanceType,
+		}).Set(float64(aws.Int64Value(instanceType.VCpuInfo.DefaultVCpus)))
+		InstanceTypeMemory.With(prometheus.Labels{
+			InstanceTypeLabel: *instanceType.InstanceType,
+		}).Set(float64(aws.Int64Value(instanceType.MemoryInfo.SizeInMiB) * 1024 * 1024))
+	}
 	p.cache.SetDefault(key, result)
 	return result, nil
 }
@@ -148,6 +158,13 @@ func (p *Provider) createOfferings(ctx context.Context, instanceType *ec2.Instan
 }
 
 func (p *Provider) getInstanceTypeZones(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) (map[string]sets.String, error) {
+	// DO NOT REMOVE THIS LOCK ----------------------------------------------------------------------------
+	// We lock here so that multiple callers to getInstanceTypeZones do not result in cache misses and multiple
+	// calls to EC2 when we could have just made one call.
+	// TODO @joinnis: This can be made more efficient by holding a Read lock and only obtaining the Write if not in cache
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	subnetSelectorHash, err := hashstructure.Hash(nodeTemplate.Spec.SubnetSelector, hashstructure.FormatV2, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to hash the subnet selector: %w", err)

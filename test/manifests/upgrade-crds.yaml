@@ -9,14 +9,29 @@ spec:
   params:
     - name: cluster-name
       description: Name of the cluster under test.
+    - name: git-repo-url
+      description: the git repo url can be used to run tests on a fork
+      default: "https://github.com/aws/karpenter"
     - name: git-ref
       description: Git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release.
   workspaces:
     - name: ws
   steps:
+  - name: checkout-repository
+    image: alpine/git
+    workingDir: $(workspaces.ws.path)
+    script: |
+      echo "Cloning $(params.git-repo-url)"
+      git clone $(params.git-repo-url).git .
+      
+      echo "Fetching: $(params.git-ref)"
+      git fetch origin $(params.git-ref)
+      
+      echo "Checking out git ref: $(echo $(params.git-ref) | cut -d":" -f2)"
+      git checkout $(echo $(params.git-ref)| cut -d":" -f2)
   - name: upgrade-crds
     image: public.ecr.aws/karpenter/tools:latest
+    workingDir: $(workspaces.ws.path)
     script: |
       aws eks update-kubeconfig --name $(params.cluster-name)
-      kubectl replace -f https://raw.githubusercontent.com/aws/karpenter/$(params.git-ref)/pkg/apis/crds/karpenter.sh_provisioners.yaml
-      kubectl replace -f https://raw.githubusercontent.com/aws/karpenter/$(params.git-ref)/pkg/apis/crds/karpenter.k8s.aws_awsnodetemplates.yaml
+      kubectl apply -f pkg/apis/crds/

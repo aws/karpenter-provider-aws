@@ -137,16 +137,22 @@ kubectl get nodes -ojsonpath='{range .items[*].metadata}{@.name}:{@.finalizers}{
 
 If you are not able to create a provisioner due to `Internal error occurred: failed calling webhook "validation.webhook.provisioners.karpenter.sh":`
 
-Webhooks were renamed in v0.19.0. There's a bug in ArgoCD's upgrade workflow where webhooks are leaked. This results in Provisioner's failing to be validated, since the validation server no longer corresponds to the webhook definition.
+Webhooks were renamed in `v0.19.0`. There's a bug in ArgoCD's upgrade workflow where webhooks are leaked. This results in Provisioner's failing to be validated, since the validation server no longer corresponds to the webhook definition.
 
 Delete the stale webhooks.
 
-```
+```text
 kubectl delete mutatingwebhookconfigurations defaulting.webhook.provisioners.karpenter.sh
 kubectl delete validatingwebhookconfiguration validation.webhook.provisioners.karpenter.sh
 ```
 
 ### Failed calling webhook "defaulting.webhook.karpenter.sh"
+
+The `defaulting.webhook.karpenter.sh` mutating webhook was removed in `v0.27.3`. If you are coming from an older version of Karpenter where this webhook existed and the webhook was not managed by Helm, you may need to delete the stale webhook.
+
+```text
+kubectl delete mutatingwebhookconfigurations defaulting.webhook.karpenter.sh
+```
 
 If you are not able to create a provisioner due to `Error from server (InternalError): error when creating "provisioner.yaml": Internal error occurred: failed calling webhook "defaulting.webhook.karpenter.sh": Post "https://karpenter-webhook.karpenter.svc:443/default-resource?timeout=10s": context deadline exceeded`
 
@@ -170,21 +176,6 @@ Your security groups are not blocking you from reaching your webhook.
 
 This is especially relevant if you have used `terraform-eks-module` version `>=18` since that version changed its security
 approach, and now it's much more restrictive.
-
-If you see this issue happens while using the`extraObjects` key from the values file, ensure that:
-
-- The helm install/upgrade command has the `--wait` flag (or `wait: true` when using helmfile)
-- Your Provisioners and AWSNodeTemplates definitions have the proper [helm hooks annotations](https://helm.sh/docs/topics/charts_hooks/) to install them *after* the karpenter pods are running
-
-```yaml
-- apiVersion: karpenter.sh/v1alpha5
-  kind: Provisioner
-  metadata:
-    name: default
-    annotations:
-      "helm.sh/hook": "post-install,post-upgrade"
-      "helm.sh/hook-delete-policy": before-hook-creation
-```
 
 ## Provisioning
 

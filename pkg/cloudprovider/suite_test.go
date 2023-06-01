@@ -21,7 +21,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Pallinder/go-randomdata"
 	"github.com/samber/lo"
 	"k8s.io/client-go/tools/record"
 
@@ -41,9 +40,12 @@ import (
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/cloudprovider"
-	"github.com/aws/karpenter/pkg/fake"
 	"github.com/aws/karpenter/pkg/test"
+
+	machineutil "github.com/aws/karpenter-core/pkg/utils/machine"
+	"github.com/aws/karpenter/pkg/cloudprovider"
+
+	"github.com/aws/karpenter/pkg/fake"
 
 	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
@@ -51,13 +53,11 @@ import (
 	"github.com/aws/karpenter-core/pkg/controllers/provisioning"
 	"github.com/aws/karpenter-core/pkg/controllers/state"
 	"github.com/aws/karpenter-core/pkg/events"
-	"github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter-core/pkg/operator/injection"
 	"github.com/aws/karpenter-core/pkg/operator/options"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
-	machineutil "github.com/aws/karpenter-core/pkg/utils/machine"
 )
 
 var ctx context.Context
@@ -66,13 +66,12 @@ var opts options.Options
 var env *coretest.Environment
 var awsEnv *test.Environment
 var prov *provisioning.Provisioner
-var provisioningController controller.Controller
+var cloudProvider *cloudprovider.CloudProvider
 var cluster *state.Cluster
 var fakeClock *clock.FakeClock
 var provisioner *v1alpha5.Provisioner
 var nodeTemplate *v1alpha1.AWSNodeTemplate
 var machine *v1alpha5.Machine
-var cloudProvider *cloudprovider.CloudProvider
 
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -91,7 +90,6 @@ var _ = BeforeSuite(func() {
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, env.Client, awsEnv.AMIProvider)
 	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
 	prov = provisioning.NewProvisioner(env.Client, env.KubernetesInterface.CoreV1(), events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster)
-	provisioningController = provisioning.NewController(env.Client, prov, events.NewRecorder(&record.FakeRecorder{}))
 })
 
 var _ = AfterSuite(func() {
@@ -225,7 +223,12 @@ var _ = Describe("CloudProvider", func() {
 				Parameter: &ssm.Parameter{Value: aws.String(validAMI)},
 			}
 			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
-				Images: []*ec2.Image{{ImageId: aws.String(validAMI)}},
+				Images: []*ec2.Image{{
+					Name:         aws.String(coretest.RandomName()),
+					ImageId:      aws.String(validAMI),
+					Architecture: aws.String("x86_64"),
+					CreationDate: aws.String("2022-08-15T12:00:00Z"),
+				}},
 			})
 			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, provisioner)
@@ -235,13 +238,15 @@ var _ = Describe("CloudProvider", func() {
 			// Create the instance we want returned from the EC2 API
 			instance = &ec2.Instance{
 				ImageId:               aws.String(validAMI),
-				PrivateDnsName:        aws.String(randomdata.IpV4Address()),
 				InstanceType:          aws.String(selectedInstanceType.Name),
 				SpotInstanceRequestId: aws.String(coretest.RandomName()),
 				State: &ec2.InstanceState{
 					Name: aws.String(ec2.InstanceStateNameRunning),
 				},
 				InstanceId: aws.String(fake.InstanceID()),
+				Placement: &ec2.Placement{
+					AvailabilityZone: aws.String("test-zone-1a"),
+				},
 			}
 			awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(&ec2.DescribeInstancesOutput{
 				Reservations: []*ec2.Reservation{{Instances: []*ec2.Instance{instance}}},
@@ -381,18 +386,20 @@ var _ = Describe("CloudProvider", func() {
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
 
-			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-			firstLt := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
 			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
-
 			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
-			launchTemplate := createFleetInput.LaunchTemplateConfigs[0].LaunchTemplateSpecification
-			Expect(createFleetInput.LaunchTemplateConfigs).To(HaveLen(1))
-
-			Expect(*createFleetInput.LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName).
-				To(Equal(*firstLt.LaunchTemplateName))
-			Expect(firstLt.LaunchTemplateData.BlockDeviceMappings[0].Ebs.Encrypted).To(Equal(aws.Bool(true)))
-			Expect(*launchTemplate.Version).To(Equal("$Latest"))
+			launchSpecNames := lo.Map(createFleetInput.LaunchTemplateConfigs, func(req *ec2.FleetLaunchTemplateConfigRequest, _ int) string {
+				return *req.LaunchTemplateSpecification.LaunchTemplateName
+			})
+			Expect(len(createFleetInput.LaunchTemplateConfigs)).To(BeNumerically("==", awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()))
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
+			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(launchSpecNames).To(ContainElement(*ltInput.LaunchTemplateName))
+				Expect(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.Encrypted).To(Equal(aws.Bool(true)))
+			})
+			for _, ltSpec := range createFleetInput.LaunchTemplateConfigs {
+				Expect(*ltSpec.LaunchTemplateSpecification.Version).To(Equal("$Latest"))
+			}
 		})
 		It("should discover security groups by ID", func() {
 			provisioner = test.Provisioner(coretest.ProvisionerOptions{
@@ -410,11 +417,31 @@ var _ = Describe("CloudProvider", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-			input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
-			Expect(aws.StringValueSlice(input.LaunchTemplateData.SecurityGroupIds)).To(ConsistOf(
-				"sg-test1",
-			))
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
+			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(aws.StringValueSlice(ltInput.LaunchTemplateData.SecurityGroupIds)).To(ConsistOf("sg-test1"))
+			})
+		})
+		It("should discover security groups by ID in the LT when no network interfaces are defined", func() {
+			provisioner = test.Provisioner(coretest.ProvisionerOptions{
+				Provider: v1alpha1.AWS{
+					AMIFamily:             aws.String(v1alpha1.AMIFamilyAL2),
+					SubnetSelector:        map[string]string{"aws-ids": "subnet-test2"},
+					SecurityGroupSelector: map[string]string{"aws-ids": "sg-test1"},
+				},
+				Requirements: []v1.NodeSelectorRequirement{{
+					Key:      v1alpha1.LabelInstanceCategory,
+					Operator: v1.NodeSelectorOpExists,
+				}},
+			})
+			ExpectApplied(ctx, env.Client, provisioner)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
+			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(aws.StringValueSlice(ltInput.LaunchTemplateData.SecurityGroupIds)).To(ConsistOf("sg-test1"))
+			})
 		})
 		It("should discover subnets by ID", func() {
 			provisioner = test.Provisioner(coretest.ProvisionerOptions{
@@ -452,9 +479,10 @@ var _ = Describe("CloudProvider", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
-			input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
-			Expect(*input.LaunchTemplateData.IamInstanceProfile.Name).To(Equal("overridden-profile"))
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
+			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(*ltInput.LaunchTemplateData.IamInstanceProfile.Name).To(Equal("overridden-profile"))
+			})
 		})
 	})
 	Context("Subnet Compatibility", func() {
@@ -468,7 +496,7 @@ var _ = Describe("CloudProvider", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
 			input := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
-			Expect(input.LaunchTemplateConfigs).To(HaveLen(1))
+			Expect(len(input.LaunchTemplateConfigs)).To(BeNumerically(">=", 1))
 
 			foundNonGPULT := false
 			for _, v := range input.LaunchTemplateConfigs {

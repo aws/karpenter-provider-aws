@@ -51,21 +51,19 @@ var (
 		{First: &v1.LimitRange{}, Second: &v1.LimitRangeList{}},
 		{First: &schedulingv1.PriorityClass{}, Second: &schedulingv1.PriorityClassList{}},
 	}
-	ForceCleanableObjects = []functional.Pair[client.Object, client.ObjectList]{
+	// Delete objects with Karpenter finalizers separately. Executing delete calls on all of these objects at once
+	// may be grouped as DeleteCollection requests, which have a lower timeout than individual delete calls (before k8s 1.27).
+	// Separating them out diminishes the chance of running into timeouts when doing cleanup for tests of high scale.
+	// https://github.com/kubernetes/kubernetes/pull/115341
+	FinalizableObjects = []functional.Pair[client.Object, client.ObjectList]{
 		{First: &v1.Node{}, Second: &v1.NodeList{}},
+		{First: &v1alpha5.Machine{}, Second: &v1alpha5.MachineList{}},
 	}
 )
 
 // nolint:gocyclo
-func (env *Environment) BeforeEach(opts ...Option) {
-	options := ResolveOptions(opts)
-	if !options.DisableDebug {
-		fmt.Println("------- START BEFORE -------")
-		defer fmt.Println("------- END BEFORE -------")
-
-		// Run the debug logger BeforeEach() methods
-		debug.BeforeEach(env.Context, env.Config, env.Client)
-	}
+func (env *Environment) BeforeEach() {
+	debug.BeforeEach(env.Context, env.Config, env.Client)
 	env.Context = injection.WithSettingsOrDie(env.Context, env.KubeClient, apis.Settings...)
 
 	// Expect this cluster to be clean for test runs to execute successfully
@@ -96,37 +94,15 @@ func (env *Environment) ExpectCleanCluster() {
 	}
 }
 
-func (env *Environment) Cleanup(opts ...Option) {
-	options := ResolveOptions(opts)
-	if !options.DisableDebug {
-		fmt.Println("------- START CLEANUP -------")
-		defer fmt.Println("------- END CLEANUP -------")
-
-		// Run the debug logger AfterEach() methods
-		debug.AfterEach(env.Context)
-	}
+func (env *Environment) Cleanup() {
 	env.CleanupObjects(CleanableObjects...)
+	env.CleanupObjects(FinalizableObjects...)
 	env.eventuallyExpectScaleDown()
 	env.ExpectNoCrashes()
 }
 
-func (env *Environment) ForceCleanup(opts ...Option) {
-	options := ResolveOptions(opts)
-	if !options.DisableDebug {
-		fmt.Println("------- START FORCE CLEANUP -------")
-		defer fmt.Println("------- END FORCE CLEANUP -------")
-	}
-
-	// Delete all the nodes if they weren't deleted by the provisioner propagation
-	env.CleanupObjects(ForceCleanableObjects...)
-}
-
-func (env *Environment) AfterEach(opts ...Option) {
-	options := ResolveOptions(opts)
-	if !options.DisableDebug {
-		fmt.Println("------- START AFTER -------")
-		defer fmt.Println("------- END AFTER -------")
-	}
+func (env *Environment) AfterEach() {
+	debug.AfterEach(env.Context)
 	env.printControllerLogs(&v1.PodLogOptions{Container: "controller"})
 }
 

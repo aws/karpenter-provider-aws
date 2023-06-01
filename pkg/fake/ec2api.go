@@ -118,6 +118,7 @@ func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFlee
 			spotInstanceRequestID = aws.String(test.RandomName())
 		}
 
+		fulfilled := 0
 		for _, ltc := range input.LaunchTemplateConfigs {
 			for _, override := range ltc.Overrides {
 				skipInstance := false
@@ -141,7 +142,7 @@ func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFlee
 					e.CalledWithCreateLaunchTemplateInput.Add(lt)
 				}
 				instanceState := ec2.InstanceStateNameRunning
-				for i := 0; i < int(*input.TargetCapacitySpecification.TotalTargetCapacity); i++ {
+				for ; fulfilled < int(*input.TargetCapacitySpecification.TotalTargetCapacity); fulfilled++ {
 					instance := &ec2.Instance{
 						ImageId:               aws.String(*amiID),
 						InstanceId:            aws.String(test.RandomName()),
@@ -157,20 +158,28 @@ func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFlee
 					instanceIds = append(instanceIds, instance.InstanceId)
 				}
 			}
+			if fulfilled == int(*input.TargetCapacitySpecification.TotalTargetCapacity) {
+				break
+			}
 		}
-
-		result := &ec2.CreateFleetOutput{Instances: []*ec2.CreateFleetInstance{{
-			InstanceIds:                instanceIds,
-			LaunchTemplateAndOverrides: &ec2.LaunchTemplateAndOverridesResponse{Overrides: &ec2.FleetLaunchTemplateOverrides{SubnetId: input.LaunchTemplateConfigs[0].Overrides[0].SubnetId}},
-		}}}
+		result := &ec2.CreateFleetOutput{Instances: []*ec2.CreateFleetInstance{
+			{
+				InstanceIds:  instanceIds,
+				InstanceType: input.LaunchTemplateConfigs[0].Overrides[0].InstanceType,
+				Lifecycle:    input.TargetCapacitySpecification.DefaultTargetCapacityType,
+				LaunchTemplateAndOverrides: &ec2.LaunchTemplateAndOverridesResponse{
+					Overrides: &ec2.FleetLaunchTemplateOverrides{
+						SubnetId:         input.LaunchTemplateConfigs[0].Overrides[0].SubnetId,
+						InstanceType:     input.LaunchTemplateConfigs[0].Overrides[0].InstanceType,
+						AvailabilityZone: input.LaunchTemplateConfigs[0].Overrides[0].AvailabilityZone,
+					},
+				},
+			},
+		}}
 		for _, pool := range skippedPools {
 			result.Errors = append(result.Errors, &ec2.CreateFleetError{
 				ErrorCode: aws.String("InsufficientInstanceCapacity"),
 				LaunchTemplateAndOverrides: &ec2.LaunchTemplateAndOverridesResponse{
-					LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecification{
-						LaunchTemplateId:   input.LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateId,
-						LaunchTemplateName: input.LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName,
-					},
 					Overrides: &ec2.FleetLaunchTemplateOverrides{
 						InstanceType:     aws.String(pool.InstanceType),
 						AvailabilityZone: aws.String(pool.Zone),
@@ -221,7 +230,7 @@ func (e *EC2API) CreateTagsWithContext(_ context.Context, input *ec2.CreateTagsI
 			instance := raw.(*ec2.Instance)
 
 			// Upsert any tags that have the same key
-			newTagKeys := sets.New[string](lo.Map(input.Tags, func(t *ec2.Tag, _ int) string { return aws.StringValue(t.Key) })...)
+			newTagKeys := sets.New(lo.Map(input.Tags, func(t *ec2.Tag, _ int) string { return aws.StringValue(t.Key) })...)
 			instance.Tags = lo.Filter(input.Tags, func(t *ec2.Tag, _ int) bool { return newTagKeys.Has(aws.StringValue(t.Key)) })
 			instance.Tags = append(instance.Tags, input.Tags...)
 		}
@@ -369,6 +378,7 @@ func (e *EC2API) DescribeSubnetsWithContext(ctx context.Context, input *ec2.Desc
 			SubnetId:                aws.String("subnet-test1"),
 			AvailabilityZone:        aws.String("test-zone-1a"),
 			AvailableIpAddressCount: aws.Int64(100),
+			MapPublicIpOnLaunch:     aws.Bool(false),
 			Tags: []*ec2.Tag{
 				{Key: aws.String("Name"), Value: aws.String("test-subnet-1")},
 				{Key: aws.String("foo"), Value: aws.String("bar")},
@@ -378,6 +388,7 @@ func (e *EC2API) DescribeSubnetsWithContext(ctx context.Context, input *ec2.Desc
 			SubnetId:                aws.String("subnet-test2"),
 			AvailabilityZone:        aws.String("test-zone-1b"),
 			AvailableIpAddressCount: aws.Int64(100),
+			MapPublicIpOnLaunch:     aws.Bool(true),
 			Tags: []*ec2.Tag{
 				{Key: aws.String("Name"), Value: aws.String("test-subnet-2")},
 				{Key: aws.String("foo"), Value: aws.String("bar")},
@@ -412,21 +423,24 @@ func (e *EC2API) DescribeSecurityGroupsWithContext(ctx context.Context, input *e
 	}
 	sgs := []*ec2.SecurityGroup{
 		{
-			GroupId: aws.String("sg-test1"),
+			GroupId:   aws.String("sg-test1"),
+			GroupName: aws.String("securityGroup-test1"),
 			Tags: []*ec2.Tag{
 				{Key: aws.String("Name"), Value: aws.String("test-security-group-1")},
 				{Key: aws.String("foo"), Value: aws.String("bar")},
 			},
 		},
 		{
-			GroupId: aws.String("sg-test2"),
+			GroupId:   aws.String("sg-test2"),
+			GroupName: aws.String("securityGroup-test2"),
 			Tags: []*ec2.Tag{
 				{Key: aws.String("Name"), Value: aws.String("test-security-group-2")},
 				{Key: aws.String("foo"), Value: aws.String("bar")},
 			},
 		},
 		{
-			GroupId: aws.String("sg-test3"),
+			GroupId:   aws.String("sg-test3"),
+			GroupName: aws.String("securityGroup-test3"),
 			Tags: []*ec2.Tag{
 				{Key: aws.String("Name"), Value: aws.String("test-security-group-3")},
 				{Key: aws.String("TestTag")},

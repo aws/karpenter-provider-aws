@@ -30,10 +30,10 @@ type SettingOptions struct {
 	EnablePodENI               *bool
 	EnableENILimitedPodDensity *bool
 	IsolatedVPC                *bool
-	NodeNameConvention         *awssettings.NodeNameConvention
 	VMMemoryOverheadPercent    *float64
 	InterruptionQueueName      *string
 	Tags                       map[string]string
+	ReservedENIs               *int
 }
 
 func Settings(overrides ...SettingOptions) *awssettings.Settings {
@@ -50,9 +50,9 @@ func Settings(overrides ...SettingOptions) *awssettings.Settings {
 		EnablePodENI:               lo.FromPtrOr(options.EnablePodENI, true),
 		EnableENILimitedPodDensity: lo.FromPtrOr(options.EnableENILimitedPodDensity, true),
 		IsolatedVPC:                lo.FromPtrOr(options.IsolatedVPC, false),
-		NodeNameConvention:         lo.FromPtrOr(options.NodeNameConvention, awssettings.IPName),
 		VMMemoryOverheadPercent:    lo.FromPtrOr(options.VMMemoryOverheadPercent, 0.075),
 		InterruptionQueueName:      lo.FromPtrOr(options.InterruptionQueueName, ""),
 		Tags:                       options.Tags,
+		ReservedENIs:               lo.FromPtrOr(options.ReservedENIs, 0),
 	}
 }

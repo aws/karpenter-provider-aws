@@ -75,7 +75,7 @@ battletest: ## Run randomized, racing, code-covered tests
 		-cover -coverprofile=coverage.out -outputdir=. -coverpkg=./pkg/... \
 		--ginkgo.focus="${FOCUS}" \
 		--ginkgo.randomize-all \
-		--ginkgo.v \
+		--ginkgo.vv \
 		-tags random_test_delay
 
 e2etests: ## Run the e2e suite against your local cluster
@@ -87,7 +87,8 @@ e2etests: ## Run the e2e suite against your local cluster
 		./suites/$(shell echo $(TEST_SUITE) | tr A-Z a-z)/... \
 		--ginkgo.focus="${FOCUS}" \
 		--ginkgo.timeout=180m \
-		--ginkgo.v
+		--ginkgo.grace-period=3m \
+		--ginkgo.vv
 
 benchmark:
 	go test -tags=test_performance -run=NoTests -bench=. ./...
@@ -110,7 +111,7 @@ coverage:
 verify: tidy download ## Verify code. Includes dependencies, linting, formatting, etc
 	go generate ./...
 	hack/boilerplate.sh
-	curl https://raw.githubusercontent.com/aws/karpenter-core/main/pkg/apis/crds/karpenter.sh_provisioners.yaml > pkg/apis/crds/karpenter.sh_provisioners.yaml
+	cp $(KARPENTER_CORE_DIR)/pkg/apis/crds/* pkg/apis/crds
 	$(foreach dir,$(MOD_DIRS),cd $(dir) && golangci-lint run $(newline))
 	@git diff --quiet ||\
 		{ echo "New file modification detected in the Git working tree. Please check in before commit."; git --no-pager diff --name-only | uniq | awk '{print "  - " $$0}'; \

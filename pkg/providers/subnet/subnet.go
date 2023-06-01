@@ -79,11 +79,26 @@ func (p *Provider) List(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTempl
 	for _, subnet := range output.Subnets {
 		delete(p.inflightIPs, *subnet.SubnetId)
 	}
-	subnetLog := Pretty(output.Subnets)
-	if p.cm.HasChanged("subnets", subnetLog) {
-		logging.FromContext(ctx).With("subnets", subnetLog).Debugf("discovered subnets")
+	if p.cm.HasChanged(fmt.Sprintf("subnets/%s", nodeTemplate.Name), output.Subnets) {
+		logging.FromContext(ctx).
+			With("subnets", lo.Map(output.Subnets, func(s *ec2.Subnet, _ int) string {
+				return fmt.Sprintf("%s (%s)", aws.StringValue(s.SubnetId), aws.StringValue(s.AvailabilityZone))
+			})).
+			Debugf("discovered subnets")
 	}
 	return output.Subnets, nil
+}
+
+// CheckAnyPublicIPAssociations returns a bool indicating whether all referenced subnets assign public IPv4 addresses to EC2 instances created therein
+func (p *Provider) CheckAnyPublicIPAssociations(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) (bool, error) {
+	subnets, err := p.List(ctx, nodeTemplate)
+	if err != nil {
+		return false, err
+	}
+	_, ok := lo.Find(subnets, func(s *ec2.Subnet) bool {
+		return aws.BoolValue(s.MapPublicIpOnLaunch)
+	})
+	return ok, nil
 }
 
 // ZonalSubnetsForLaunch returns a mapping of zone to the subnet with the most available IP addresses and deducts the passed ips from the available count
@@ -232,12 +247,4 @@ func getFilters(nodeTemplate *v1alpha1.AWSNodeTemplate) []*ec2.Filter {
 		}
 	}
 	return filters
-}
-
-func Pretty(subnets []*ec2.Subnet) []string {
-	names := []string{}
-	for _, subnet := range subnets {
-		names = append(names, fmt.Sprintf("%s (%s)", aws.StringValue(subnet.SubnetId), aws.StringValue(subnet.AvailabilityZone)))
-	}
-	return names
 }

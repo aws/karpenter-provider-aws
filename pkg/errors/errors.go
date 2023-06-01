@@ -19,7 +19,6 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/eventbridge"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
@@ -34,7 +33,6 @@ var (
 		"InvalidInstanceID.NotFound",
 		launchTemplateNotFoundCode,
 		sqs.ErrCodeQueueDoesNotExist,
-		(&eventbridge.ResourceNotFoundException{}).Code(),
 	)
 	// unfulfillableCapacityErrorCodes signify that capacity is temporarily unable to be launched
 	unfulfillableCapacityErrorCodes = sets.NewString(

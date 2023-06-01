@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -27,6 +28,7 @@ import (
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
@@ -63,7 +65,7 @@ var _ = Describe("AMI", func() {
 	It("should use the most recent AMI when discovering multiple", func() {
 		// choose an old static image
 		parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
-			Name: aws.String("/aws/service/eks/optimized-ami/1.23/amazon-linux-2/amazon-eks-node-1.23-v20221101/image_id"),
+			Name: aws.String("/aws/service/eks/optimized-ami/1.23/amazon-linux-2/amazon-eks-node-1.23-v20230322/image_id"),
 		})
 		Expect(err).To(BeNil())
 		oldCustomAMI := *parameter.Parameter.Value
@@ -211,6 +213,34 @@ var _ = Describe("AMI", func() {
 
 			env.ExpectInstance(pod.Spec.NodeName).To(HaveField("ImageId", HaveValue(Equal(customAMI))))
 		})
+		It("should have the AWSNodeTemplateStatus for AMIs using wildcard", func() {
+			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+				AWS: v1alpha1.AWS{
+					SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+					SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+				},
+				AMISelector: map[string]string{"aws::name": "*"},
+			})
+
+			env.ExpectCreated(provider)
+			ant := EventuallyExpectAMIsToExist(provider)
+			Expect(len(ant.Status.AMIs)).To(BeNumerically("<", 10))
+		})
+		It("should have the AWSNodeTemplateStatus for AMIs using tags", func() {
+			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+				AWS: v1alpha1.AWS{
+					SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+					SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+				},
+				AMISelector: map[string]string{"aws-ids": customAMI},
+			})
+
+			env.ExpectCreated(provider)
+			ant := EventuallyExpectAMIsToExist(provider)
+
+			Expect(len(ant.Status.AMIs)).To(BeNumerically("==", 1))
+			Expect(ant.Status.AMIs[0].ID).To(Equal(customAMI))
+		})
 	})
 
 	Context("UserData", func() {
@@ -313,4 +343,14 @@ func getInstanceAttribute(nodeName string, attribute string) *ec2.DescribeInstan
 	})
 	Expect(err).ToNot(HaveOccurred())
 	return instanceAttribute
+}
+
+func EventuallyExpectAMIsToExist(provider *v1alpha1.AWSNodeTemplate) v1alpha1.AWSNodeTemplate {
+	var ant v1alpha1.AWSNodeTemplate
+	Eventually(func(g Gomega) {
+		g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(provider), &ant)).To(Succeed())
+		g.Expect(ant.Status.AMIs).ToNot(BeNil())
+	}).WithTimeout(30 * time.Second).Should(Succeed())
+
+	return ant
 }

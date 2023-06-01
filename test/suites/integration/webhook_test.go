@@ -15,6 +15,8 @@ limitations under the License.
 package integration_test
 
 import (
+	"fmt"
+
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/ptr"
 
@@ -250,7 +252,9 @@ var _ = Describe("Webhooks", func() {
 				}))).ToNot(Succeed())
 			})
 		})
-		Context("AWSNodeTemplate", func() {
+	})
+	Context("AWSNodeTemplate", func() {
+		Context("Validation", func() {
 			It("should error when amiSelector is not defined for amiFamily Custom", func() {
 				Expect(env.Client.Create(env, awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 					AMIFamily:             &v1alpha1.AMIFamilyCustom,
@@ -282,6 +286,36 @@ var _ = Describe("Webhooks", func() {
 					SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 				},
 					AMISelector: map[string]string{"aws-ids": "must-start-with-ami"},
+				}))).ToNot(Succeed())
+			})
+			It("should succeed when tags don't contain restricted keys", func() {
+				Expect(env.Client.Create(env, awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
+					SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+					SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+					Tags:                  map[string]string{"karpenter.sh/custom-key": "custom-value", "kubernetes.io/role/key": "custom-value"},
+				},
+				}))).To(Succeed())
+			})
+			It("should error when tags contains a restricted key", func() {
+				Expect(env.Client.Create(env, awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
+					SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+					SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+					Tags:                  map[string]string{"karpenter.sh/provisioner-name": "custom-value"},
+				},
+				}))).ToNot(Succeed())
+
+				Expect(env.Client.Create(env, awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
+					SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+					SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+					Tags:                  map[string]string{"karpenter.sh/managed-by": settings.FromContext(env.Context).ClusterName},
+				},
+				}))).ToNot(Succeed())
+
+				Expect(env.Client.Create(env, awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
+					SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+					SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+					Tags:                  map[string]string{fmt.Sprintf("kubernetes.io/cluster/%s", settings.FromContext(env.Context).ClusterName): "owned"},
+				},
 				}))).ToNot(Succeed())
 			})
 		})

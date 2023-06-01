@@ -41,7 +41,7 @@ data:
   # The maximum length of a batch window. The longer this is, the more pods we can consider for provisioning at one
   # time which usually results in fewer but larger nodes.
   batchMaxDuration: 10s
-  # The maximum amount of time with no new ending pods that if exceeded ends the current batching window. If pods arrive
+  # The maximum amount of time with no new pending pods that if exceeded ends the current batching window. If pods arrive
   # faster than this time, the batching window will be extended up to the maxDuration. If they arrive slower, the pods
   # will be batched separately.
   batchIdleDuration: 1s
@@ -58,8 +58,6 @@ data:
   # If true, then assume we can't reach AWS services which don't have a VPC endpoint
   # This also has the effect of disabling look-ups to the AWS pricing endpoint
   aws.isolatedVPC: "false"
-  # The node naming convention (either "ip-name" or "resource-name"; use "ip-name" for resource DNS names such as i-0123456789.ec2.internal and "resource-name" when using the external cloud provider)
-  aws.nodeNameConvention: ip-name
   # The VM memory overhead as a percent that will be subtracted
   # from the total memory for all instance types
   aws.vmMemoryOverheadPercent: "0.075"
@@ -68,6 +66,9 @@ data:
   aws.interruptionQueueName: karpenter-cluster
   # Global tags are specified by including a JSON object of string to string from tag key to tag value
   aws.tags: '{"custom-tag1-key": "custom-tag-value", "custom-tag2-key": "custom-tag-value"}'
+  # Reserved ENIs are not included in the calculations for max-pods or kube-reserved
+  # This is most often used in the VPC CNI custom networking setup https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html
+  aws.reservedENIs: "1"
 ```
 
 ### Feature Gates

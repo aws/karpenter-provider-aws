@@ -68,7 +68,7 @@ var _ = Describe("StandaloneMachine", func() {
 		node := env.EventuallyExpectInitializedNodeCount("==", 1)[0]
 		machine = env.EventuallyExpectCreatedMachineCount("==", 1)[0]
 		Expect(node.Labels).To(HaveKeyWithValue(v1alpha1.LabelInstanceCategory, "c"))
-		Expect(machine.StatusConditions().IsHappy()).To(BeTrue())
+		env.EventuallyExpectMachinesReady(machine)
 	})
 	It("should create a standard machine based on resource requests", func() {
 		machine := test.Machine(v1alpha5.Machine{
@@ -88,7 +88,7 @@ var _ = Describe("StandaloneMachine", func() {
 		node := env.EventuallyExpectInitializedNodeCount("==", 1)[0]
 		machine = env.EventuallyExpectCreatedMachineCount("==", 1)[0]
 		Expect(resources.Fits(machine.Spec.Resources.Requests, node.Status.Allocatable))
-		Expect(machine.StatusConditions().IsHappy()).To(BeTrue())
+		env.EventuallyExpectMachinesReady(machine)
 	})
 	It("should create a machine propagating all the machine spec details", func() {
 		machine := test.Machine(v1alpha5.Machine{
@@ -191,8 +191,8 @@ var _ = Describe("StandaloneMachine", func() {
 				BlockOwnerDeletion: lo.ToPtr(true),
 			},
 		))
-		machine = env.EventuallyExpectCreatedMachineCount("==", 1)[0]
-		Expect(machine.StatusConditions().IsHappy()).To(BeTrue())
+		env.EventuallyExpectCreatedMachineCount("==", 1)
+		env.EventuallyExpectMachinesReady(machine)
 	})
 	It("should remove the cloudProvider machine when the cluster machine is deleted", func() {
 		machine := test.Machine(v1alpha5.Machine{
@@ -219,7 +219,40 @@ var _ = Describe("StandaloneMachine", func() {
 		// Node is deleted and now should be not found
 		env.ExpectDeleted(machine)
 		env.EventuallyExpectNotFound(machine, node)
-		Expect(lo.FromPtr(env.GetInstanceByID(instanceID).State.Name)).To(Equal("shutting-down"))
+
+		Eventually(func(g Gomega) {
+			g.Expect(lo.FromPtr(env.GetInstanceByID(instanceID).State.Name)).To(Equal("shutting-down"))
+		}, time.Second*10).Should(Succeed())
+	})
+	It("should delete a machine from the node termination finalizer", func() {
+		machine := test.Machine(v1alpha5.Machine{
+			Spec: v1alpha5.MachineSpec{
+				Requirements: []v1.NodeSelectorRequirement{
+					{
+						Key:      v1alpha1.LabelInstanceCategory,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{"c"},
+					},
+				},
+				MachineTemplateRef: &v1alpha5.MachineTemplateRef{
+					Name: nodeTemplate.Name,
+				},
+			},
+		})
+		env.ExpectCreated(nodeTemplate, machine)
+		node := env.EventuallyExpectInitializedNodeCount("==", 1)[0]
+		machine = env.EventuallyExpectCreatedMachineCount("==", 1)[0]
+
+		instanceID := env.ExpectParsedProviderID(node.Spec.ProviderID)
+		env.GetInstance(node.Name)
+
+		// Delete the node and expect both the node and machine to be gone as well as the instance to be shutting-down
+		env.ExpectDeleted(node)
+		env.EventuallyExpectNotFound(machine, node)
+
+		Eventually(func(g Gomega) {
+			g.Expect(lo.FromPtr(env.GetInstanceByID(instanceID).State.Name)).To(Equal("shutting-down"))
+		}, time.Second*10).Should(Succeed())
 	})
 	It("should create a machine with custom labels passed through the userData", func() {
 		customAMI := env.GetCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", 1)
@@ -256,8 +289,9 @@ var _ = Describe("StandaloneMachine", func() {
 		node := env.EventuallyExpectInitializedNodeCount("==", 1)[0]
 		Expect(node.Labels).To(HaveKeyWithValue("custom-label", "custom-value"))
 		Expect(node.Labels).To(HaveKeyWithValue("custom-label2", "custom-value2"))
-		machine = env.EventuallyExpectCreatedMachineCount("==", 1)[0]
-		Expect(machine.StatusConditions().IsHappy()).To(BeTrue())
+
+		env.EventuallyExpectCreatedMachineCount("==", 1)
+		env.EventuallyExpectMachinesReady(machine)
 	})
 	It("should delete a machine after the registration timeout when the node doesn't register", func() {
 		customAMI := env.GetCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", 1)
@@ -297,11 +331,11 @@ var _ = Describe("StandaloneMachine", func() {
 
 		// Expect that the machine eventually launches and has false Registration/Initialization
 		Eventually(func(g Gomega) {
-			m := &v1alpha5.Machine{}
-			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(machine), m)).To(Succeed())
-			g.Expect(m.StatusConditions().GetCondition(v1alpha5.MachineLaunched).IsTrue()).To(BeTrue())
-			g.Expect(m.StatusConditions().GetCondition(v1alpha5.MachineRegistered).IsFalse()).To(BeTrue())
-			g.Expect(m.StatusConditions().GetCondition(v1alpha5.MachineInitialized).IsFalse()).To(BeTrue())
+			temp := &v1alpha5.Machine{}
+			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(machine), temp)).To(Succeed())
+			g.Expect(temp.StatusConditions().GetCondition(v1alpha5.MachineLaunched).IsTrue()).To(BeTrue())
+			g.Expect(temp.StatusConditions().GetCondition(v1alpha5.MachineRegistered).IsFalse()).To(BeTrue())
+			g.Expect(temp.StatusConditions().GetCondition(v1alpha5.MachineInitialized).IsFalse()).To(BeTrue())
 		}).Should(Succeed())
 
 		// Expect that the machine is eventually de-provisioned due to the registration timeout

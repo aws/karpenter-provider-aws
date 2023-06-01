@@ -24,3 +24,16 @@ spec:
     script: |
       aws cloudformation delete-stack --stack-name iam-$(params.cluster-name)
       aws cloudformation wait stack-delete-complete --stack-name iam-$(params.cluster-name)
+
+  - name: delete-launch-templates
+    image: public.ecr.aws/karpenter/tools:latest
+    script: |
+      aws ec2 describe-launch-templates \
+        --filter Name=tag:karpenter.k8s.aws/cluster,Values=$(params.cluster-name) \
+        --query "LaunchTemplates[*].LaunchTemplateId" \
+        --output text |
+      xargs \
+        -n 1 \
+        -r \
+        aws ec2 delete-launch-template \
+          --launch-template-id

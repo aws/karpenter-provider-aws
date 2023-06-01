@@ -221,31 +221,89 @@ spec:
             description: AWSNodeTemplateStatus contains the resolved state of the
               AWSNodeTemplate
             properties:
+              amis:
+                description: AMI contains the current AMI values that are available
+                  to the cluster under the AMI selectors.
+                items:
+                  description: AMI contains resolved AMI selector values utilized
+                    for node launch
+                  properties:
+                    id:
+                      description: ID of the AMI
+                      type: string
+                    name:
+                      description: Name of the AMI
+                      type: string
+                    requirements:
+                      description: Requirements of the AMI to be utilized on an instance
+                        type
+                      items:
+                        description: A node selector requirement is a selector that
+                          contains values, a key, and an operator that relates the
+                          key and values.
+                        properties:
+                          key:
+                            description: The label key that the selector applies to.
+                            type: string
+                          operator:
+                            description: Represents a key's relationship to a set
+                              of values. Valid operators are In, NotIn, Exists, DoesNotExist.
+                              Gt, and Lt.
+                            type: string
+                          values:
+                            description: An array of string values. If the operator
+                              is In or NotIn, the values array must be non-empty.
+                              If the operator is Exists or DoesNotExist, the values
+                              array must be empty. If the operator is Gt or Lt, the
+                              values array must have a single element, which will
+                              be interpreted as an integer. This array is replaced
+                              during a strategic merge patch.
+                            items:
+                              type: string
+                            type: array
+                        required:
+                        - key
+                        - operator
+                        type: object
+                      type: array
+                  required:
+                  - id
+                  - requirements
+                  type: object
+                type: array
               securityGroups:
                 description: SecurityGroups contains the current Security Groups values
                   that are available to the cluster under the SecurityGroups selectors.
                 items:
-                  description: SecurityGroupStatus contains resolved SecurityGroup
-                    selector values utilized for node launch
+                  description: SecurityGroup contains resolved SecurityGroup selector
+                    values utilized for node launch
                   properties:
                     id:
-                      description: Id of the security group
+                      description: ID of the security group
                       type: string
+                    name:
+                      description: Name of the security group
+                      type: string
+                  required:
+                  - id
                   type: object
                 type: array
               subnets:
                 description: Subnets contains the current Subnet values that are available
                   to the cluster under the subnet selectors.
                 items:
-                  description: SubnetStatus contains resolved Subnet selector values
-                    utilized for node launch
+                  description: Subnet contains resolved Subnet selector values utilized
+                    for node launch
                   properties:
                     id:
-                      description: Id of the subnet
+                      description: ID of the subnet
                       type: string
                     zone:
                       description: The associated availability zone
                       type: string
+                  required:
+                  - id
+                  - zone
                   type: object
                 type: array
             type: object

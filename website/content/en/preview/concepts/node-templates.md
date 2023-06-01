@@ -219,10 +219,22 @@ Select all AMIs with a specified tag:
     karpenter.sh/discovery/MyClusterName: '*'
 ```
 
-Select AMIs by name:
+Select AMIs by the AMI name:
+```yaml
+  amiSelector:
+    aws::name: my-ami
+```
+Select AMIs by the Name tag:
 ```yaml
   amiSelector:
     Name: my-ami
+```
+
+Select AMIs by name and a specific owner:
+```yaml
+  amiSelector:
+    aws::name: my-ami
+    aws::owners: self/ownerAccountID
 ```
 
 Select AMIs by an arbitrary AWS tag key/value pair:
@@ -234,7 +246,7 @@ Select AMIs by an arbitrary AWS tag key/value pair:
 Specify AMIs explicitly by ID:
 ```yaml
   amiSelector:
-    aws-ids: "ami-123,ami-456"
+    aws::ids: "ami-123,ami-456"
 ```
 
 ## spec.tags
@@ -247,7 +259,7 @@ karpenter.sh/provisioner-name: <provisioner-name>
 kubernetes.io/cluster/<cluster-name>: owned
 ```
 
-Additional tags can be added in the AWSNodeTemplate tags section which are merged with global tags in `aws.tags` (located in karpenter-global-settings ConfigMap) and can override the default tag values.
+Additional tags can be added in the AWSNodeTemplate tags section which are merged with global tags in `aws.tags` (located in karpenter-global-settings ConfigMap).
 ```yaml
 spec:
   tags:
@@ -255,6 +267,8 @@ spec:
     dev.corp.net/app: Calculator
     dev.corp.net/team: MyTeam
 ```
+
+Karpenter allows overrides of the default "Name" tag but does not allow overrides to restricted domains (such as "karpenter.sh", "karpenter.k8s.aws", and "kubernetes.io/cluster"). This ensures that Karpenter is able to correctly auto-discover machines that it owns.
 
 ## spec.metadataOptions
 
@@ -553,7 +567,7 @@ status:
 ```
 
 ## status.securityGroups
-`status.securityGroups` contains the `id` of the security groups utilized during node launch.
+`status.securityGroups` contains the `id` and `name` of the security groups utilized during node launch.
 
 **Examples**
 
@@ -561,5 +575,52 @@ status:
   status:
     securityGroups:
     - id: sg-041513b454818610b
+      name: ClusterSharedNodeSecurityGroup
     - id: sg-0286715698b894bca
+      name: ControlPlaneSecurityGroup-1AQ073TSAAPW
+```
+
+## status.amis
+`status.amis` contains the `id`, `name`, and `requirements` of the amis utilized during node launch.
+
+**Examples**
+
+```yaml
+  amis:
+      - id: ami-03c3a3dcda64f5b75
+        name: amazon-linux-2-gpu
+        requirements:
+      - key: kubernetes.io/arch
+        operator: In
+        values:
+        - amd64
+      - key: karpenter.k8s.aws/instance-accelerator-manufacturer
+        operator: In
+        values:
+        - aws
+        - nvidia
+    - id: ami-06afb2d101cc4b8bd
+      name: amazon-linux-2-arm64
+      requirements:
+      - key: kubernetes.io/arch
+        operator: In
+        values:
+        - arm64
+      - key: karpenter.k8s.aws/instance-accelerator-manufacturer
+        operator: NotIn
+        values:
+        - aws
+        - nvidia
+    - id: ami-0e28b76d768af234e
+      name: amazon-linux-2
+      requirements:
+      - key: kubernetes.io/arch
+        operator: In
+        values:
+        - amd64
+      - key: karpenter.k8s.aws/instance-accelerator-manufacturer
+        operator: NotIn
+        values:
+        - aws
+        - nvidia
 ```

@@ -26,8 +26,12 @@ import (
 	"github.com/aws/karpenter-core/pkg/events"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/cache"
+	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/controllers/interruption"
+	machinegarbagecollection "github.com/aws/karpenter/pkg/controllers/machine/garbagecollection"
+	machinelink "github.com/aws/karpenter/pkg/controllers/machine/link"
 	"github.com/aws/karpenter/pkg/controllers/nodetemplate"
+	"github.com/aws/karpenter/pkg/providers/amifamily"
 	"github.com/aws/karpenter/pkg/providers/pricing"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
 	"github.com/aws/karpenter/pkg/providers/subnet"
@@ -37,13 +41,16 @@ import (
 )
 
 func NewControllers(ctx context.Context, sess *session.Session, clk clock.Clock, kubeClient client.Client, recorder events.Recorder,
-	unavailableOfferings *cache.UnavailableOfferings, subnetProvider *subnet.Provider,
-	securityGroupProvider *securitygroup.Provider, pricingProvider *pricing.Provider) []controller.Controller {
+	unavailableOfferings *cache.UnavailableOfferings, cloudProvider *cloudprovider.CloudProvider, subnetProvider *subnet.Provider,
+	securityGroupProvider *securitygroup.Provider, pricingProvider *pricing.Provider, amiProvider *amifamily.Provider) []controller.Controller {
 
 	logging.FromContext(ctx).With("version", project.Version).Debugf("discovered version")
 
+	linkController := machinelink.NewController(kubeClient, cloudProvider)
 	controllers := []controller.Controller{
-		nodetemplate.NewController(kubeClient, subnetProvider, securityGroupProvider),
+		nodetemplate.NewController(kubeClient, subnetProvider, securityGroupProvider, amiProvider),
+		linkController,
+		machinegarbagecollection.NewController(kubeClient, cloudProvider, linkController),
 	}
 	if settings.FromContext(ctx).InterruptionQueueName != "" {
 		controllers = append(controllers, interruption.NewController(kubeClient, clk, recorder, interruption.NewSQSProvider(sqs.New(sess)), unavailableOfferings))

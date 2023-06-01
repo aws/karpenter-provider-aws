@@ -32,7 +32,6 @@ spec:
       TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
       curl -H "X-aws-ec2-metadata-token: $TOKEN" -v http://169.254.169.254/latest/meta-data/identity-credentials/ec2/info | jq -r ".AccountId" | tr -d '\n' > $(results.account-id.path)
       curl -H "X-aws-ec2-metadata-token: $TOKEN" -v http://169.254.169.254/latest/meta-data/placement/region > $(results.region.path)
-
   - name: checkout-repository
     image: alpine/git
     workingDir: $(workspaces.ws.path)
@@ -74,7 +73,7 @@ spec:
       kubernetesNetworkConfig:
         ipFamily: $(params.ip-family)
       managedNodeGroups:
-        - instanceType: m5.large
+        - instanceType: "c5.4xlarge"
           amiFamily: AmazonLinux2
           name: $(params.cluster-name)-system-pool
           desiredCapacity: 2
@@ -123,10 +122,10 @@ spec:
         --set settings.aws.clusterEndpoint=$(cat /root/.kube/config | grep server | awk '{print $2}') \
         --set settings.aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-$(params.cluster-name) \
         --set settings.aws.interruptionQueueName=$(params.cluster-name) \
-        --set controller.resources.requests.cpu=1 \
-        --set controller.resources.requests.memory=1Gi \
-        --set controller.resources.limits.cpu=1 \
-        --set controller.resources.limits.memory=1Gi \
+        --set controller.resources.requests.cpu=4 \
+        --set controller.resources.requests.memory=4Gi \
+        --set controller.resources.limits.cpu=4 \
+        --set controller.resources.limits.memory=4Gi \
         --wait
 
   - name: diff-karpenter

@@ -58,9 +58,11 @@ func main() {
 			op.GetClient(),
 			op.EventRecorder,
 			op.UnavailableOfferingsCache,
+			awsCloudProvider,
 			op.SubnetProvider,
 			op.SecurityGroupProvider,
 			op.PricingProvider,
+			op.AMIProvider,
 		)...).
 		WithWebhooks(webhooks.NewWebhooks()...).
 		Start(ctx)

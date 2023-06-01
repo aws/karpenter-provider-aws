@@ -16,13 +16,16 @@ Number of consistency checks that have failed.
 ## Deprovisioning Metrics
 
 ### `karpenter_deprovisioning_actions_performed`
-Number of deprovisioning actions performed. Labeled by action.
+Number of deprovisioning actions performed. Labeled by deprovisioner.
+
+### `karpenter_deprovisioning_eligible_machines`
+Number of machines eligible for deprovisioning by Karpenter. Labeled by deprovisioner
 
 ### `karpenter_deprovisioning_evaluation_duration_seconds`
 Duration of the deprovisioning evaluation process in seconds.
 
-### `karpenter_deprovisioning_replacement_node_initialized_seconds`
-Amount of time required for a replacement node to become initialized.
+### `karpenter_deprovisioning_replacement_machine_initialized_seconds`
+Amount of time required for a replacement machine to become initialized.
 
 ## Interruption Metrics
 
@@ -58,13 +61,13 @@ The Provisioner Usage Percentage is the percentage of each resource used based o
 Node allocatable are the resources allocatable by nodes.
 
 ### `karpenter_nodes_created`
-Number of nodes created in total by Karpenter. Labeled by reason the node was created and the owning provisioner.
+Number of nodes created in total by Karpenter. Labeled by owning provisioner.
 
 ### `karpenter_nodes_system_overhead`
 Node system daemon overhead are the resources reserved for system overhead, the difference between the node's capacity and allocatable values are reported by the status.
 
 ### `karpenter_nodes_terminated`
-Number of nodes terminated in total by Karpenter. Labeled by reason the node was terminated and the owning provisioner.
+Number of nodes terminated in total by Karpenter. Labeled by owning provisioner.
 
 ### `karpenter_nodes_termination_time_seconds`
 The time taken between a node's deletion request and the removal of its finalizer
@@ -93,6 +96,18 @@ Pod state is the current state of pods. This metric can be used several ways as 
 
 ### `karpenter_cloudprovider_duration_seconds`
 Duration of cloud provider method calls. Labeled by the controller, method name and provider.
+
+### `karpenter_cloudprovider_errors_total`
+Total number of errors returned from CloudProvider calls.
+
+### `karpenter_cloudprovider_instance_type_cpu_cores`
+VCPUs cores for a given instance type.
+
+### `karpenter_cloudprovider_instance_type_memory_bytes`
+Memory, in bytes, for a given instance type.
+
+### `karpenter_cloudprovider_instance_type_price_estimate`
+Estimated hourly price used when making informed decisions on node cost calculation. This is updated once on startup and then every 12 hours.
 
 ## Cloudprovider Batcher Metrics
 

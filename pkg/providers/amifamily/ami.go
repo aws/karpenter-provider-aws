@@ -92,7 +92,7 @@ func (p *Provider) KubeServerVersion(ctx context.Context) (string, error) {
 	version := fmt.Sprintf("%s.%s", serverVersion.Major, strings.TrimSuffix(serverVersion.Minor, "+"))
 	p.kubernetesVersionCache.SetDefault(kubernetesVersionCacheKey, version)
 	if p.cm.HasChanged("kubernetes-version", version) {
-		logging.FromContext(ctx).With("kubernetes-version", version).Debugf("discovered kubernetes version")
+		logging.FromContext(ctx).With("version", version).Debugf("discovered kubernetes version")
 	}
 	return version, nil
 }
@@ -122,13 +122,15 @@ func (p *Provider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTempla
 			return nil, err
 		}
 	} else {
-		amis, err = p.getAMIsFromSelector(ctx, nodeTemplate)
+		amis, err = p.getAMIsFromSelector(ctx, nodeTemplate.Spec.AMISelector)
 		if err != nil {
 			return nil, err
 		}
 	}
-	amis = sortAMIsByCreationDate(amis)
-	amis = groupAMIsByRequirements(amis)
+	amis = groupAMIsByRequirements(sortAMIsByCreationDate(amis))
+	if p.cm.HasChanged(fmt.Sprintf("amis/%s", nodeTemplate.Name), amis) {
+		logging.FromContext(ctx).With("ids", amiList(amis), "count", len(amis)).Debugf("discovered amis")
+	}
 	return amis, nil
 }
 
@@ -160,8 +162,41 @@ func (p *Provider) getDefaultAMIFromSSM(ctx context.Context, nodeTemplate *v1alp
 		if err != nil {
 			return nil, err
 		}
-		amis = append(amis, AMI{Name: ssmOutput.Name, AmiID: amiID, Requirements: ssmOutput.Requirements})
+		amis = append(amis, AMI{AmiID: amiID, Requirements: ssmOutput.Requirements})
 	}
+	amis, err = p.findAMINames(ctx, amis)
+	if err != nil {
+		return nil, err
+	}
+
+	return amis, nil
+}
+
+// Associate a list of amiIDs with there ec2 AMI names
+func (p *Provider) findAMINames(ctx context.Context, amis []AMI) ([]AMI, error) {
+	// Creating selector filter by making a string of amiIds into a comma delineated string
+	ids := lo.Reduce(amis, func(agg string, item AMI, _ int) string {
+		return agg + item.AmiID + ","
+	}, "")
+	selector := map[string]string{"aws-ids": ids}
+	// Collecting the AMI details of the default AMIs from EC2
+	amisDetails, err := p.fetchAMIsFromEC2(ctx, selector)
+	if err != nil {
+		return nil, err
+	}
+
+	// matching up the AMIs details that is received from EC2 with the default AMIs
+	// collecting the names of the default AMIs
+	amis = lo.Map(amis, func(x AMI, _ int) AMI {
+		ami, ok := lo.Find(amisDetails, func(image *ec2.Image) bool {
+			return *image.ImageId == x.AmiID
+		})
+		if ok {
+			x.Name = *ami.Name
+		}
+		return x
+	})
+
 	return amis, nil
 }
 
@@ -175,23 +210,20 @@ func (p *Provider) fetchAMIsFromSSM(ctx context.Context, ssmQuery string) (strin
 	}
 	ami := aws.StringValue(output.Parameter.Value)
 	p.ssmCache.SetDefault(ssmQuery, ami)
-	if p.cm.HasChanged("ssmquery-"+ssmQuery, ami) {
-		logging.FromContext(ctx).With("ami", ami, "query", ssmQuery).Debugf("discovered ami")
-	}
 	return ami, nil
 }
 
-func (p *Provider) getAMIsFromSelector(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) ([]AMI, error) {
-	ec2AMIs, err := p.fetchAMIsFromEC2(ctx, nodeTemplate.Spec.AMISelector)
+func (p *Provider) getAMIsFromSelector(ctx context.Context, selector map[string]string) (amis []AMI, err error) {
+	ec2AMIs, err := p.fetchAMIsFromEC2(ctx, selector)
 	if err != nil {
 		return nil, err
 	}
-	if len(ec2AMIs) == 0 {
-		return nil, fmt.Errorf("no amis exist given constraints")
-	}
-	var amis []AMI
 	for _, ec2AMI := range ec2AMIs {
-		amis = append(amis, AMI{*ec2AMI.Name, *ec2AMI.ImageId, *ec2AMI.CreationDate, p.getRequirementsFromImage(ec2AMI)})
+		a := AMI{*ec2AMI.Name, *ec2AMI.ImageId, *ec2AMI.CreationDate, p.getRequirementsFromImage(ec2AMI)}
+		// Only support well-known architectures for AMI resolution
+		if v1alpha1.WellKnownArchitectures.Has(a.Requirements.Get(v1.LabelArchStable).Any()) {
+			amis = append(amis, a)
+		}
 	}
 	return amis, nil
 }
@@ -215,24 +247,20 @@ func (p *Provider) fetchAMIsFromEC2(ctx context.Context, amiSelector map[string]
 	if err != nil {
 		return nil, fmt.Errorf("describing images %+v, %w", filters, err)
 	}
-
 	p.ec2Cache.SetDefault(fmt.Sprint(hash), output.Images)
-	amiIDs := lo.Map(output.Images, func(ami *ec2.Image, _ int) string { return *ami.ImageId })
-	if p.cm.HasChanged("amiIDs", amiIDs) {
-		logging.FromContext(ctx).With("ids", concatenateAmiIDs(amiIDs), "count", len(amiIDs)).Debugf("discovered images")
-	}
 	return output.Images, nil
 }
 
-func concatenateAmiIDs(amisIds []string) string {
-	var amiString string
-	if len(amisIds) > 25 {
-		amiString = strings.Join(amisIds[:25], ", ")
-		amiString += fmt.Sprintf(" and %d other(s)", len(amisIds)-25)
+func amiList(amis []AMI) string {
+	var sb strings.Builder
+	ids := lo.Map(amis, func(a AMI, _ int) string { return a.AmiID })
+	if len(amis) > 25 {
+		sb.WriteString(strings.Join(ids[:25], ", "))
+		sb.WriteString(fmt.Sprintf(" and %d other(s)", len(amis)-25))
 	} else {
-		amiString = strings.Join(amisIds, ", ")
+		sb.WriteString(strings.Join(ids, ", "))
 	}
-	return amiString
+	return sb.String()
 }
 
 func getFiltersAndOwners(amiSelector map[string]string) ([]*ec2.Filter, []*string) {

@@ -18,6 +18,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -96,8 +97,7 @@ var _ = Describe("MachineGarbageCollection", func() {
 			settings.FromContext(env.Context).ClusterEndpoint, env.ExpectCABundle(), provisioner.Name))))
 
 		// Create an instance manually to mock Karpenter launching an instance
-		out, err := env.EC2API.RunInstances(instanceInput)
-		Expect(err).ToNot(HaveOccurred())
+		out := env.ExpectRunInstances(instanceInput)
 		Expect(out.Instances).To(HaveLen(1))
 
 		// Always ensure that we cleanup the instance
@@ -128,7 +128,9 @@ var _ = Describe("MachineGarbageCollection", func() {
 
 		// Eventually expect the node and the instance to be removed (shutting-down)
 		env.EventuallyExpectNotFound(node)
-		Expect(lo.FromPtr(env.GetInstanceByID(aws.StringValue(out.Instances[0].InstanceId)).State.Name)).To(Equal("shutting-down"))
+		Eventually(func(g Gomega) {
+			g.Expect(lo.FromPtr(env.GetInstanceByID(aws.StringValue(out.Instances[0].InstanceId)).State.Name)).To(Equal("shutting-down"))
+		}, time.Second*10).Should(Succeed())
 	})
 	It("should succeed to garbage collect a Machine that was deleted without the cluster's knowledge", func() {
 		// Disable the interruption queue for the garbage collection test

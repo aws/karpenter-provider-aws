@@ -158,6 +158,17 @@ createNewWebsiteDirectory() {
     find website/content/en/${RELEASE_VERSION}/*/*/*.yaml -type f | xargs perl -i -p -e "s/preview/${RELEASE_VERSION}/g;"
 }
 
+deleteMinorVersionWebsiteDirectory() {
+  RELEASE_VERSION=$1
+  versionData "$RELEASE_VERSION"
+  find website/content/en/* -type d -name "v${RELEASE_VERSION_MAJOR}.${RELEASE_VERSION_MINOR}*" -maxdepth 0 | grep -v "$RELEASE_VERSION" | xargs -r -n 1 rm -r
+}
+
+removeOldWebsiteDirectories() {
+  # Get all the directories except the last 2 directories sorted from earliest to latest version
+  find website/content/en/* -type d -name "*" -maxdepth 0 | grep -v "preview" | sort | head -n -2 | xargs -r -n 1 rm -r
+}
+
 editWebsiteConfig() {
   RELEASE_VERSION=$1
 

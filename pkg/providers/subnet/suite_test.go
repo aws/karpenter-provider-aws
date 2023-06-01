@@ -31,7 +31,6 @@ import (
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/providers/subnet"
 	"github.com/aws/karpenter/pkg/test"
 
 	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
@@ -114,70 +113,89 @@ var _ = Describe("Subnet Provider", func() {
 	It("should discover subnet by ID", func() {
 		nodeTemplate.Spec.SubnetSelector = map[string]string{"aws-ids": "subnet-test1"}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-		resolvedSubnetProvider, err := awsEnv.SubnetProvider.List(ctx, nodeTemplate)
-		resolvedSubnet := subnet.Pretty(resolvedSubnetProvider)
+		subnets, err := awsEnv.SubnetProvider.List(ctx, nodeTemplate)
+
 		Expect(err).To(BeNil())
-		Expect(len(resolvedSubnet)).To(Equal(1))
-		Expect(resolvedSubnet).To(ConsistOf(
-			"subnet-test1 (test-zone-1a)",
-		))
+		Expect(subnets).To(HaveLen(1))
+		Expect(aws.StringValue(subnets[0].SubnetId)).To(Equal("subnet-test1"))
+		Expect(aws.StringValue(subnets[0].AvailabilityZone)).To(Equal("test-zone-1a"))
+		Expect(aws.Int64Value(subnets[0].AvailableIpAddressCount)).To(BeNumerically("==", 100))
 	})
 	It("should discover subnets by IDs", func() {
 		nodeTemplate.Spec.SubnetSelector = map[string]string{"aws-ids": "subnet-test1,subnet-test2"}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-		resolvedSubnetProvider, err := awsEnv.SubnetProvider.List(ctx, nodeTemplate)
-		resolvedSubnet := subnet.Pretty(resolvedSubnetProvider)
+		subnets, err := awsEnv.SubnetProvider.List(ctx, nodeTemplate)
 		Expect(err).To(BeNil())
-		Expect(len(resolvedSubnet)).To(Equal(2))
-		Expect(resolvedSubnet).To(ConsistOf(
-			"subnet-test1 (test-zone-1a)",
-			"subnet-test2 (test-zone-1b)",
-		))
+		Expect(subnets).To(HaveLen(2))
+		Expect(aws.StringValue(subnets[0].SubnetId)).To(Equal("subnet-test1"))
+		Expect(aws.StringValue(subnets[0].AvailabilityZone)).To(Equal("test-zone-1a"))
+		Expect(aws.Int64Value(subnets[0].AvailableIpAddressCount)).To(BeNumerically("==", 100))
+		Expect(aws.StringValue(subnets[1].SubnetId)).To(Equal("subnet-test2"))
+		Expect(aws.StringValue(subnets[1].AvailabilityZone)).To(Equal("test-zone-1b"))
+		Expect(aws.Int64Value(subnets[1].AvailableIpAddressCount)).To(BeNumerically("==", 100))
 	})
 	It("should discover subnets by IDs and tags", func() {
 		nodeTemplate.Spec.SubnetSelector = map[string]string{"aws-ids": "subnet-test1,subnet-test2", "foo": "bar"}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-		resolvedSubnetProvider, err := awsEnv.SubnetProvider.List(ctx, nodeTemplate)
-		resolvedSubnet := subnet.Pretty(resolvedSubnetProvider)
+		subnets, err := awsEnv.SubnetProvider.List(ctx, nodeTemplate)
+
 		Expect(err).To(BeNil())
-		Expect(len(resolvedSubnet)).To(Equal(2))
-		Expect(resolvedSubnet).To(ConsistOf(
-			"subnet-test1 (test-zone-1a)",
-			"subnet-test2 (test-zone-1b)",
-		))
+		Expect(subnets).To(HaveLen(2))
+		Expect(aws.StringValue(subnets[0].SubnetId)).To(Equal("subnet-test1"))
+		Expect(aws.StringValue(subnets[0].AvailabilityZone)).To(Equal("test-zone-1a"))
+		Expect(aws.Int64Value(subnets[0].AvailableIpAddressCount)).To(BeNumerically("==", 100))
+		Expect(aws.StringValue(subnets[1].SubnetId)).To(Equal("subnet-test2"))
+		Expect(aws.StringValue(subnets[1].AvailabilityZone)).To(Equal("test-zone-1b"))
+		Expect(aws.Int64Value(subnets[1].AvailableIpAddressCount)).To(BeNumerically("==", 100))
 	})
 	It("should discover subnets by a single tag", func() {
 		nodeTemplate.Spec.SubnetSelector = map[string]string{"Name": "test-subnet-1"}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-		resolvedSubnetProvider, err := awsEnv.SubnetProvider.List(ctx, nodeTemplate)
-		resolvedSubnet := subnet.Pretty(resolvedSubnetProvider)
+		subnets, err := awsEnv.SubnetProvider.List(ctx, nodeTemplate)
+
 		Expect(err).To(BeNil())
-		Expect(len(resolvedSubnet)).To(Equal(1))
-		Expect(resolvedSubnet).To(ConsistOf(
-			"subnet-test1 (test-zone-1a)",
-		))
+		Expect(subnets).To(HaveLen(1))
+		Expect(aws.StringValue(subnets[0].SubnetId)).To(Equal("subnet-test1"))
+		Expect(aws.StringValue(subnets[0].AvailabilityZone)).To(Equal("test-zone-1a"))
+		Expect(aws.Int64Value(subnets[0].AvailableIpAddressCount)).To(BeNumerically("==", 100))
 	})
 	It("should discover subnets by multiple tag values", func() {
 		nodeTemplate.Spec.SubnetSelector = map[string]string{"Name": "test-subnet-1,test-subnet-2"}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-		resolvedSubnetProvider, err := awsEnv.SubnetProvider.List(ctx, nodeTemplate)
-		resolvedSubnet := subnet.Pretty(resolvedSubnetProvider)
+		subnets, err := awsEnv.SubnetProvider.List(ctx, nodeTemplate)
+
 		Expect(err).To(BeNil())
-		Expect(len(resolvedSubnet)).To(Equal(2))
-		Expect(resolvedSubnet).To(ConsistOf(
-			"subnet-test1 (test-zone-1a)",
-			"subnet-test2 (test-zone-1b)",
-		))
+		Expect(subnets).To(HaveLen(2))
+		Expect(aws.StringValue(subnets[0].SubnetId)).To(Equal("subnet-test1"))
+		Expect(aws.StringValue(subnets[0].AvailabilityZone)).To(Equal("test-zone-1a"))
+		Expect(aws.Int64Value(subnets[0].AvailableIpAddressCount)).To(BeNumerically("==", 100))
+		Expect(aws.StringValue(subnets[1].SubnetId)).To(Equal("subnet-test2"))
+		Expect(aws.StringValue(subnets[1].AvailabilityZone)).To(Equal("test-zone-1b"))
+		Expect(aws.Int64Value(subnets[1].AvailableIpAddressCount)).To(BeNumerically("==", 100))
 	})
 	It("should discover subnets by IDs intersected with tags", func() {
 		nodeTemplate.Spec.SubnetSelector = map[string]string{"aws-ids": "subnet-test2", "foo": "bar"}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-		resolvedSubnetProvider, err := awsEnv.SubnetProvider.List(ctx, nodeTemplate)
-		resolvedSubnet := subnet.Pretty(resolvedSubnetProvider)
+		subnets, err := awsEnv.SubnetProvider.List(ctx, nodeTemplate)
+
 		Expect(err).To(BeNil())
-		Expect(len(resolvedSubnet)).To(Equal(1))
-		Expect(resolvedSubnet).To(ConsistOf(
-			"subnet-test2 (test-zone-1b)",
-		))
+		Expect(subnets).To(HaveLen(1))
+		Expect(aws.StringValue(subnets[0].SubnetId)).To(Equal("subnet-test2"))
+		Expect(aws.StringValue(subnets[0].AvailabilityZone)).To(Equal("test-zone-1b"))
+		Expect(aws.Int64Value(subnets[0].AvailableIpAddressCount)).To(BeNumerically("==", 100))
+	})
+	It("should note that no subnets assign a public IPv4 address to EC2 instances on launch", func() {
+		nodeTemplate.Spec.SubnetSelector = map[string]string{"Name": "test-subnet-1,test-subnet-3"}
+		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+		onlyPrivate, err := awsEnv.SubnetProvider.CheckAnyPublicIPAssociations(ctx, nodeTemplate)
+		Expect(err).To(BeNil())
+		Expect(onlyPrivate).To(BeFalse())
+	})
+	It("should note that at least one subnet assigns a public IPv4 address to EC2instances on launch", func() {
+		nodeTemplate.Spec.SubnetSelector = map[string]string{"aws-ids": "subnet-test2"}
+		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+		onlyPrivate, err := awsEnv.SubnetProvider.CheckAnyPublicIPAssociations(ctx, nodeTemplate)
+		Expect(err).To(BeNil())
+		Expect(onlyPrivate).To(BeTrue())
 	})
 })

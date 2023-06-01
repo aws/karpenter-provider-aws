@@ -33,6 +33,8 @@ import (
 	"github.com/aws/karpenter/pkg/providers/subnet"
 
 	coretest "github.com/aws/karpenter-core/pkg/test"
+
+	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
 type Environment struct {
@@ -92,6 +94,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 			ec2api,
 			amiResolver,
 			securityGroupProvider,
+			subnetProvider,
 			ptr.String("ca-bundle"),
 			make(chan struct{}),
 			net.ParseIP("10.0.100.10"),
@@ -146,4 +149,15 @@ func (env *Environment) Reset() {
 	env.LaunchTemplateCache.Flush()
 	env.SubnetCache.Flush()
 	env.SecurityGroupCache.Flush()
+
+	mfs, err := crmetrics.Registry.Gather()
+	if err != nil {
+		for _, mf := range mfs {
+			for _, metric := range mf.GetMetric() {
+				if metric != nil {
+					metric.Reset()
+				}
+			}
+		}
+	}
 }

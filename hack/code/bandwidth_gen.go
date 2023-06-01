@@ -113,6 +113,7 @@ func main() {
 
 	instanceTypes := lo.Keys(bandwidth)
 	// 2d sort for readability
+	sort.Strings(allInstanceTypes)
 	sort.Strings(instanceTypes)
 	sort.SliceStable(instanceTypes, func(i, j int) bool {
 		return bandwidth[instanceTypes[i]] < bandwidth[instanceTypes[j]]

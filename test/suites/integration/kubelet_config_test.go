@@ -19,8 +19,6 @@ import (
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
-	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,135 +26,79 @@ import (
 	"knative.dev/pkg/ptr"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
-	"github.com/aws/karpenter-core/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	awstest "github.com/aws/karpenter/pkg/test"
 
-	pscheduling "github.com/aws/karpenter-core/pkg/controllers/provisioning/scheduling"
 	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 )
 
 var _ = Describe("KubeletConfiguration Overrides", func() {
-	It("should startup successfully with all kubelet configuration set", func() {
-		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-		}})
+	DescribeTable("should startup successfully with all kubelet configuration set",
+		func(amiFamily *string) {
+			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
+				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+				AMIFamily:             amiFamily,
+			}})
 
-		// MaxPods needs to account for the daemonsets that will run on the nodes
-		provisioner := test.Provisioner(test.ProvisionerOptions{
-			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
-			Kubelet: &v1alpha5.KubeletConfiguration{
-				ContainerRuntime: ptr.String("containerd"),
-				MaxPods:          ptr.Int32(110),
-				PodsPerCore:      ptr.Int32(10),
-				SystemReserved: v1.ResourceList{
-					v1.ResourceCPU:              resource.MustParse("200m"),
-					v1.ResourceMemory:           resource.MustParse("200Mi"),
-					v1.ResourceEphemeralStorage: resource.MustParse("1Gi"),
+			// MaxPods needs to account for the daemonsets that will run on the nodes
+			provisioner := test.Provisioner(test.ProvisionerOptions{
+				ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
+				Kubelet: &v1alpha5.KubeletConfiguration{
+					ContainerRuntime: ptr.String("containerd"),
+					MaxPods:          ptr.Int32(110),
+					PodsPerCore:      ptr.Int32(10),
+					SystemReserved: v1.ResourceList{
+						v1.ResourceCPU:              resource.MustParse("200m"),
+						v1.ResourceMemory:           resource.MustParse("200Mi"),
+						v1.ResourceEphemeralStorage: resource.MustParse("1Gi"),
+					},
+					KubeReserved: v1.ResourceList{
+						v1.ResourceCPU:              resource.MustParse("200m"),
+						v1.ResourceMemory:           resource.MustParse("200Mi"),
+						v1.ResourceEphemeralStorage: resource.MustParse("1Gi"),
+					},
+					EvictionHard: map[string]string{
+						"memory.available":   "5%",
+						"nodefs.available":   "5%",
+						"nodefs.inodesFree":  "5%",
+						"imagefs.available":  "5%",
+						"imagefs.inodesFree": "5%",
+						"pid.available":      "3%",
+					},
+					EvictionSoft: map[string]string{
+						"memory.available":   "10%",
+						"nodefs.available":   "10%",
+						"nodefs.inodesFree":  "10%",
+						"imagefs.available":  "10%",
+						"imagefs.inodesFree": "10%",
+						"pid.available":      "6%",
+					},
+					EvictionSoftGracePeriod: map[string]metav1.Duration{
+						"memory.available":   {Duration: time.Minute * 2},
+						"nodefs.available":   {Duration: time.Minute * 2},
+						"nodefs.inodesFree":  {Duration: time.Minute * 2},
+						"imagefs.available":  {Duration: time.Minute * 2},
+						"imagefs.inodesFree": {Duration: time.Minute * 2},
+						"pid.available":      {Duration: time.Minute * 2},
+					},
+					EvictionMaxPodGracePeriod:   ptr.Int32(120),
+					ImageGCHighThresholdPercent: ptr.Int32(50),
+					ImageGCLowThresholdPercent:  ptr.Int32(10),
+					CPUCFSQuota:                 ptr.Bool(false),
 				},
-				KubeReserved: v1.ResourceList{
-					v1.ResourceCPU:              resource.MustParse("200m"),
-					v1.ResourceMemory:           resource.MustParse("200Mi"),
-					v1.ResourceEphemeralStorage: resource.MustParse("1Gi"),
-				},
-				EvictionHard: map[string]string{
-					"memory.available":   "5%",
-					"nodefs.available":   "5%",
-					"nodefs.inodesFree":  "5%",
-					"imagefs.available":  "5%",
-					"imagefs.inodesFree": "5%",
-					"pid.available":      "3%",
-				},
-				EvictionSoft: map[string]string{
-					"memory.available":   "10%",
-					"nodefs.available":   "10%",
-					"nodefs.inodesFree":  "10%",
-					"imagefs.available":  "10%",
-					"imagefs.inodesFree": "10%",
-					"pid.available":      "6%",
-				},
-				EvictionSoftGracePeriod: map[string]metav1.Duration{
-					"memory.available":   {Duration: time.Minute * 2},
-					"nodefs.available":   {Duration: time.Minute * 2},
-					"nodefs.inodesFree":  {Duration: time.Minute * 2},
-					"imagefs.available":  {Duration: time.Minute * 2},
-					"imagefs.inodesFree": {Duration: time.Minute * 2},
-					"pid.available":      {Duration: time.Minute * 2},
-				},
-				EvictionMaxPodGracePeriod:   ptr.Int32(120),
-				ImageGCHighThresholdPercent: ptr.Int32(50),
-				ImageGCLowThresholdPercent:  ptr.Int32(10),
-				CPUCFSQuota:                 ptr.Bool(false),
-			},
-		})
+			})
 
-		pod := test.Pod()
-		env.ExpectCreated(provisioner, provider, pod)
-		env.EventuallyExpectHealthy(pod)
-		env.ExpectCreatedNodeCount("==", 1)
-	})
-	It("should startup successfully with all kubelet configuration set (Bottlerocket)", func() {
-		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			AMIFamily:             &v1alpha1.AMIFamilyBottlerocket,
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-		}})
-
-		// MaxPods needs to account for the daemonsets that will run on the nodes
-		provisioner := test.Provisioner(test.ProvisionerOptions{
-			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
-			Kubelet: &v1alpha5.KubeletConfiguration{
-				ContainerRuntime: ptr.String("containerd"),
-				MaxPods:          ptr.Int32(110),
-				PodsPerCore:      ptr.Int32(10),
-				SystemReserved: v1.ResourceList{
-					v1.ResourceCPU:              resource.MustParse("200m"),
-					v1.ResourceMemory:           resource.MustParse("200Mi"),
-					v1.ResourceEphemeralStorage: resource.MustParse("1Gi"),
-				},
-				KubeReserved: v1.ResourceList{
-					v1.ResourceCPU:              resource.MustParse("200m"),
-					v1.ResourceMemory:           resource.MustParse("200Mi"),
-					v1.ResourceEphemeralStorage: resource.MustParse("1Gi"),
-				},
-				EvictionHard: map[string]string{
-					"memory.available":   "5%",
-					"nodefs.available":   "5%",
-					"nodefs.inodesFree":  "5%",
-					"imagefs.available":  "5%",
-					"imagefs.inodesFree": "5%",
-					"pid.available":      "3%",
-				},
-				EvictionSoft: map[string]string{
-					"memory.available":   "10%",
-					"nodefs.available":   "10%",
-					"nodefs.inodesFree":  "10%",
-					"imagefs.available":  "10%",
-					"imagefs.inodesFree": "10%",
-					"pid.available":      "6%",
-				},
-				EvictionSoftGracePeriod: map[string]metav1.Duration{
-					"memory.available":   {Duration: time.Minute * 2},
-					"nodefs.available":   {Duration: time.Minute * 2},
-					"nodefs.inodesFree":  {Duration: time.Minute * 2},
-					"imagefs.available":  {Duration: time.Minute * 2},
-					"imagefs.inodesFree": {Duration: time.Minute * 2},
-					"pid.available":      {Duration: time.Minute * 2},
-				},
-				EvictionMaxPodGracePeriod:   ptr.Int32(120),
-				ImageGCHighThresholdPercent: ptr.Int32(50),
-				ImageGCLowThresholdPercent:  ptr.Int32(10),
-				CPUCFSQuota:                 ptr.Bool(false),
-			},
-		})
-
-		pod := test.Pod()
-		env.ExpectCreated(provisioner, provider, pod)
-		env.EventuallyExpectHealthy(pod)
-		env.ExpectCreatedNodeCount("==", 1)
-	})
+			pod := test.Pod()
+			env.ExpectCreated(provisioner, provider, pod)
+			env.EventuallyExpectHealthy(pod)
+			env.ExpectCreatedNodeCount("==", 1)
+		},
+		Entry("when the AMIFamily is AL2", &v1alpha1.AMIFamilyAL2),
+		Entry("when the AMIFamily is Ubuntu", &v1alpha1.AMIFamilyUbuntu),
+		Entry("when the AMIFamily is Bottlerocket", &v1alpha1.AMIFamilyBottlerocket),
+	)
 	It("should schedule pods onto separate nodes when maxPods is set", func() {
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
@@ -176,7 +118,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		})
 
 		// Get the DS pod count and use it to calculate the DS pod overhead
-		dsCount := getDaemonSetPodCount(provisioner)
+		dsCount := env.GetDaemonSetCount(provisioner)
 		provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
 			MaxPods: ptr.Int32(1 + int32(dsCount)),
 		}
@@ -244,7 +186,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		//   2. If # of DS pods is even, we will have i.e. ceil((4+2)/2) = 3
 		//      Since we restrict node to two cores, we will allow 6 pods. Both nodes will have
 		//      4 DS pods and 2 test pods.
-		dsCount := getDaemonSetPodCount(provisioner)
+		dsCount := env.GetDaemonSetCount(provisioner)
 		provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
 			PodsPerCore: ptr.Int32(int32(math.Ceil(float64(2+dsCount) / 2))),
 		}
@@ -295,24 +237,3 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		env.ExpectUniqueNodeNames(selector, 1)
 	})
 })
-
-// Performs the same logic as the scheduler to get the number of daemonset
-// pods that we estimate we will need to schedule as overhead to each node
-func getDaemonSetPodCount(provisioner *v1alpha5.Provisioner) int {
-	daemonSetList := &appsv1.DaemonSetList{}
-	Expect(env.Client.List(env.Context, daemonSetList)).To(Succeed())
-
-	count := 0
-	for _, daemonSet := range daemonSetList.Items {
-		p := &v1.Pod{Spec: daemonSet.Spec.Template.Spec}
-		nodeTemplate := pscheduling.NewMachineTemplate(provisioner)
-		if err := nodeTemplate.Taints.Tolerates(p); err != nil {
-			continue
-		}
-		if err := nodeTemplate.Requirements.Compatible(scheduling.NewPodRequirements(p)); err != nil {
-			continue
-		}
-		count++
-	}
-	return count
-}

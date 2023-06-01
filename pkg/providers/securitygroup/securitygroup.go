@@ -25,6 +25,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
+	"github.com/samber/lo"
 	"knative.dev/pkg/logging"
 
 	"github.com/aws/karpenter-core/pkg/utils/functional"
@@ -50,7 +51,7 @@ func NewProvider(ec2api ec2iface.EC2API, cache *cache.Cache) *Provider {
 	}
 }
 
-func (p *Provider) List(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) ([]string, error) {
+func (p *Provider) List(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) ([]*ec2.SecurityGroup, error) {
 	p.Lock()
 	defer p.Unlock()
 	// Get SecurityGroups
@@ -58,22 +59,24 @@ func (p *Provider) List(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTempl
 	// The check will not be necessary
 	filters := p.getFilters(nodeTemplate)
 	if len(filters) == 0 {
-		return []string{}, nil
+		return []*ec2.SecurityGroup{}, nil
 	}
 	securityGroups, err := p.getSecurityGroups(ctx, filters)
 	if err != nil {
 		return nil, err
 	}
-	// Convert to IDs
-	securityGroupIds := []string{}
-	for _, securityGroup := range securityGroups {
-		securityGroupIds = append(securityGroupIds, aws.StringValue(securityGroup.GroupId))
+	if p.cm.HasChanged(fmt.Sprintf("security-groups/%s", nodeTemplate.Name), securityGroups) {
+		logging.FromContext(ctx).
+			With("security-groups", lo.Map(securityGroups, func(s *ec2.SecurityGroup, _ int) string {
+				return aws.StringValue(s.GroupId)
+			})).
+			Debugf("discovered security groups")
 	}
-	return securityGroupIds, nil
+	return securityGroups, nil
 }
 
 func (p *Provider) getFilters(nodeTemplate *v1alpha1.AWSNodeTemplate) []*ec2.Filter {
-	filters := []*ec2.Filter{}
+	var filters []*ec2.Filter
 	for key, value := range nodeTemplate.Spec.SecurityGroupSelector {
 		if key == "aws-ids" {
 			filters = append(filters, &ec2.Filter{
@@ -108,16 +111,5 @@ func (p *Provider) getSecurityGroups(ctx context.Context, filters []*ec2.Filter)
 		return nil, fmt.Errorf("describing security groups %+v, %w", filters, err)
 	}
 	p.cache.SetDefault(fmt.Sprint(hash), output.SecurityGroups)
-	if p.cm.HasChanged("security-groups", output.SecurityGroups) {
-		logging.FromContext(ctx).With("security-groups", p.securityGroupIds(output.SecurityGroups)).Debugf("discovered security groups")
-	}
 	return output.SecurityGroups, nil
-}
-
-func (p *Provider) securityGroupIds(securityGroups []*ec2.SecurityGroup) []string {
-	names := []string{}
-	for _, securityGroup := range securityGroups {
-		names = append(names, aws.StringValue(securityGroup.GroupId))
-	}
-	return names
 }
