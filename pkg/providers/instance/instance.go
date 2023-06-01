@@ -109,10 +109,6 @@ func (p *Provider) Link(ctx context.Context, id, provisionerName string) error {
 				Value: aws.String(settings.FromContext(ctx).ClusterName),
 			},
 			{
-				Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", settings.FromContext(ctx).ClusterName)),
-				Value: aws.String("owned"),
-			},
-			{
 				Key:   aws.String(v1alpha5.ProvisionerNameLabelKey),
 				Value: aws.String(provisionerName),
 			},
