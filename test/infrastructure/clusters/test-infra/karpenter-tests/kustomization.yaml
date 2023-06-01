@@ -2,14 +2,17 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - pipeline-cleanup-cron.yaml
+  - pipeline-scale-trigger-cron.yaml
   - pipeline-trigger-cron.yaml
   - sweeper-cron.yaml
   - rbac.yaml
   - test-suites.yaml
+  - test-trigger-sa.yaml
 configMapGenerator:
   - name: scripts
     namespace: karpenter-tests
     files:
       - scripts/pipeline-cleanup.sh
+      - scripts/pipeline-scale-trigger.sh
       - scripts/pipeline-trigger.sh
       - scripts/cleanup.sh
