@@ -34,6 +34,9 @@ spec:
   metadataOptions: { ... }       # optional, configures IMDS for the instance
   blockDeviceMappings: [ ... ]   # optional, configures storage devices for the instance
   detailedMonitoring: "..."      # optional, configures detailed monitoring for the instance
+  licenseSpecifications: [ ... ] # optional, configures licenseSpecifications in aws launch templates
+  placement:
+    hostResourceGroupArn: "..."  # optional, configures the Host Resource Group ARN to place instances on dedicated hosts
 status:
   subnets: { ... }               # resolved subnets
   securityGroups: { ... }        # resolved security groups

@@ -1663,6 +1663,19 @@ var _ = Describe("LaunchTemplates", func() {
 				Expect(len(input.LaunchTemplateData.NetworkInterfaces)).To(BeNumerically("==", 0))
 			})
 		})
+		Context("Placement Launch Template Configuration", func() {
+			It("should set 'LicenseSpecification' and 'Placement.HostResourceGroupArn' in the launch template", func() {
+				nodeTemplate.Spec.LicenseSpecifications = []string{"foo"}
+				nodeTemplate.Spec.Placement = v1alpha1.Placement{HostResourceGroupArn: "myhrg"}
+				ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
+                Expect(len(input.LaunchTemplateData.LicenseSpecifications)).To(Equal("myLicense"))
+				Expect(len(*input.LaunchTemplateData.Placement.HostResourceGroupArn)).To(Equal("myhrg"))
+			})
+		})
 		Context("Kubelet Args", func() {
 			It("should specify the --dns-cluster-ip flag when clusterDNSIP is set", func() {
 				provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{ClusterDNS: []string{"10.0.10.100"}}
