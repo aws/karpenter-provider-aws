@@ -145,6 +145,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		instanceTypeProvider,
 		subnetProvider,
 		launchTemplateProvider,
+		operator.EventRecorder,
 	)
 
 	return ctx, &Operator{

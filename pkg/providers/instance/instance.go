@@ -31,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 
+	"github.com/aws/karpenter-core/pkg/events"
 	"github.com/aws/karpenter-core/pkg/utils/resources"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
@@ -66,10 +67,11 @@ type Provider struct {
 	subnetProvider         *subnet.Provider
 	launchTemplateProvider *launchtemplate.Provider
 	ec2Batcher             *batcher.EC2API
+	recorder               events.Recorder
 }
 
 func NewProvider(ctx context.Context, region string, ec2api ec2iface.EC2API, unavailableOfferings *cache.UnavailableOfferings,
-	instanceTypeProvider *instancetype.Provider, subnetProvider *subnet.Provider, launchTemplateProvider *launchtemplate.Provider) *Provider {
+	instanceTypeProvider *instancetype.Provider, subnetProvider *subnet.Provider, launchTemplateProvider *launchtemplate.Provider, recorder events.Recorder) *Provider {
 	return &Provider{
 		region:                 region,
 		ec2api:                 ec2api,
@@ -78,6 +80,7 @@ func NewProvider(ctx context.Context, region string, ec2api ec2iface.EC2API, una
 		subnetProvider:         subnetProvider,
 		launchTemplateProvider: launchTemplateProvider,
 		ec2Batcher:             batcher.EC2(ctx, ec2api),
+		recorder:               recorder,
 	}
 }
 

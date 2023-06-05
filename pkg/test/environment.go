@@ -18,6 +18,7 @@ import (
 	"context"
 	"net"
 
+	"k8s.io/client-go/tools/record"
 	"knative.dev/pkg/ptr"
 
 	"github.com/patrickmn/go-cache"
@@ -32,6 +33,7 @@ import (
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
 	"github.com/aws/karpenter/pkg/providers/subnet"
 
+	"github.com/aws/karpenter-core/pkg/events"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 
 	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
@@ -108,6 +110,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 			instanceTypesProvider,
 			subnetProvider,
 			launchTemplateProvider,
+			events.NewRecorder(&record.FakeRecorder{}),
 		)
 
 	return &Environment{
