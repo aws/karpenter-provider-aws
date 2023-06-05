@@ -131,7 +131,7 @@ Now that our deployment is ready we can create the karpenter namespace, create t
 ## Create default provisioner
 
 We need to create a default provisioner so Karpenter knows what types of nodes we want for unscheduled workloads.
-You can refer to some of the [example provisioners](https://github.com/aws/karpenter/tree{{< githubRelRef >}}examples/provisioner) for specific needs.
+You can refer to some of the [example provisioners](https://github.com/aws/karpenter/tree/v0.26.1/examples/provisioner) for specific needs.
 
 {{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step11-create-provisioner.sh" language="bash" %}}
 
