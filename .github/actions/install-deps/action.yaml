@@ -1,5 +1,9 @@
 name: InstallDependencies
 description: 'Installs Go Downloads and installs Karpenter Dependencies'
+inputs:
+  k8sVersion:
+    description: Kubernetes version to use when installing the toolchain
+    default: "1.24.x"
 runs:
   using: "composite"
   steps:
@@ -14,7 +18,7 @@ runs:
         path: |
           ~/.kubebuilder/bin
           ~/go/bin
-        key: ${{ runner.os }}-toolchain-cache-${{ hashFiles('hack/toolchain.sh') }}
+        key: ${{ runner.os }}-${{ inputs.k8sVersion }}-toolchain-cache-${{ hashFiles('hack/toolchain.sh') }}
     - if: ${{ steps.cache-toolchain.outputs.cache-hit != 'true' }}
       shell: bash
-      run: make toolchain
+      run: K8S_VERSION=${{ inputs.k8sVersion }} make toolchain

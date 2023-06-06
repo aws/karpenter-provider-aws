@@ -28,17 +28,6 @@ subjects:
     name: karpenter-tests-cleanup
     namespace: karpenter-tests
 ---
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: pipelines-cleanup
-  namespace: karpenter-tests
-data:
-  pipelines-cleanup.sh: |+
-    #!/usr/bin/env bash
-    set -euo pipefail
-    kubectl get pipelineruns -o go-template --template '{{range .items}}{{.metadata.name}} {{.metadata.creationTimestamp}}{{"\n"}}{{end}}' | awk '$2 <= "'$(date -d 'now-7 days' -Ins --utc | sed 's/+0000/Z/')'" { print $1 }' | xargs --no-run-if-empty kubectl delete pipelinerun
----
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -52,9 +41,9 @@ spec:
       template:
         spec:
           volumes:
-            - name: pipelines-cleanup
+            - name: scripts
               configMap:
-                name: pipelines-cleanup
+                name: scripts
                 defaultMode: 0777
           containers:
             - command:
@@ -64,7 +53,7 @@ spec:
               image: public.ecr.aws/bitnami/kubectl:1.22
               imagePullPolicy: IfNotPresent
               volumeMounts:
-                - name: pipelines-cleanup
+                - name: scripts
                   mountPath: /bin/pipelines-cleanup.sh
                   subPath: pipelines-cleanup.sh
               name: pipelines-cleanup

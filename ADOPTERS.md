@@ -18,6 +18,7 @@ If you are open to others contacting you about your use of Karpenter on Slack, a
 | Amazon, Inc. | Scaling production workloads and batch jobs in all AWS regions | `@Alex Kestner`, `@Ellis Tarn` | [Introducing Karpenter](https://aws.amazon.com/blogs/aws/introducing-karpenter-an-open-source-high-performance-kubernetes-cluster-autoscaler/) |
 | Airtel Digital Ltd. | Karpenter for all kind of spiky and base workload and to increase spot coverage. | `@Sagar Arora` | [Homepage](https://www.wynk.in)
 | Anthropic | Better utilizing mixes of instance types for more reliable capacity | N/A | [Homepage](https://anthropic.com) |
+| AppsFlyer | Managing statefull workloads like Kafka and more | `@alicvsroxas` `@danielvrog`| [Homepage](https://www.appsflyer.com/)|
 | Astradot | Using Karpenter on all K8s clusters in production and staging | N/A | [Homepage](https://astradot.com) |
 | Beeswax | Using Karpenter to scale our high load AdTech platform efficiently | `@James Wojewoda` | [Homepage](https://www.beeswax.com)
 | Canva | Using Karpetner to scale CPU and GPU workloads on EKS | `@groodt` | [Canva](https://www.canva.com/) |
@@ -44,3 +45,4 @@ If you are open to others contacting you about your use of Karpenter on Slack, a
 | The Scale Factory | Using Karpenter (controllers on EC2/Fargate) to efficiently scale K8s workloads and empowering our customer teams to do the same  | `@marko` | [Homepage](https://www.scalefactory.com) |
 | Tyk Cloud | Scaling workloads for the Cloud Free plan  | `@Artem Hluvchynskyi`, `@gowtham` | [Tyk Cloud](https://tyk.io/cloud/) |
 | Wehkamp | Using Karpenter to scale the EKS clusters for our e-commerce platforms | `@ChrisV` | [Wehkamp](https://www.wehkamp.nl) & [Wehkamp Techblog](https://medium.com/wehkamp-techblog)|
+| Next Insurance | Using Karpenter to manage the nodes in all our EKS clusters, including dev and prod, on demand and spots | `@moshebs` | [Homepage](https://www.nextinsurance.com)|

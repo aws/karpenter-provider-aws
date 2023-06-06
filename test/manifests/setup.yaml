@@ -58,7 +58,7 @@ spec:
   - name: create-cluster
     image: public.ecr.aws/karpenter/tools:latest
     script: |
-      cmd="create"  
+      cmd="create"
       eksctl get cluster --name $(params.cluster-name) && cmd="upgrade"
       eksctl ${cmd} cluster -f - <<EOF
       ---
@@ -73,7 +73,7 @@ spec:
       kubernetesNetworkConfig:
         ipFamily: $(params.ip-family)
       managedNodeGroups:
-        - instanceType: "c5.2xlarge"
+        - instanceType: "c5.4xlarge"
           amiFamily: AmazonLinux2
           name: $(params.cluster-name)-system-pool
           desiredCapacity: 2

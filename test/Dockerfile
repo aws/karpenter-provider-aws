@@ -25,9 +25,10 @@ RUN set -ex; \
 FROM golang:1.20-alpine
 
 # Install APK packages
-RUN echo "@testing http://dl-cdn.alpinelinux.org/alpine/edge/testing" >>/etc/apk/repositories
+RUN echo "@community http://dl-cdn.alpinelinux.org/alpine/edge/community" >>/etc/apk/repositories
 RUN apk update
 RUN apk add --no-cache \
+    coreutils \
     curl \
     tar \
     bash \
@@ -37,8 +38,8 @@ RUN apk add --no-cache \
     jq \
     make \
     gcompat \
-    helm@testing \
-    kubectl@testing
+    helm@community \
+    kubectl@community
 
 # Install AWS CLI
 COPY --from=installer /usr/local/aws-cli/ /usr/local/aws-cli/
