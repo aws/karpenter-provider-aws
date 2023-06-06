@@ -357,10 +357,13 @@ func (p *Provider) updateUnavailableOfferingsCache(ctx context.Context, errors [
 		if awserrors.IsUnfulfillableCapacity(err) {
 			p.unavailableOfferings.MarkUnavailableForFleetErr(ctx, err, capacityType)
 			// Add a k8s event for the instance type and zone without the involved object which has an ICE error
+			instanceType := aws.StringValue(err.LaunchTemplateAndOverrides.Overrides.InstanceType)
+			availabilityZone := aws.StringValue(err.LaunchTemplateAndOverrides.Overrides.AvailabilityZone)
 			p.recorder.Publish(events.Event{
-				Type:    v1.EventTypeWarning,
-				Reason:  "InsufficientCapacityError",
-				Message: fmt.Sprintf("got InsufficientCapacityError for the instanceType %s, availabilityZone %s, capacityType %s", aws.StringValue(err.LaunchTemplateAndOverrides.Overrides.InstanceType), aws.StringValue(err.LaunchTemplateAndOverrides.Overrides.AvailabilityZone), capacityType),
+				Type:         v1.EventTypeWarning,
+				Reason:       "InsufficientCapacityError",
+				Message:      fmt.Sprintf("InsufficientCapacityError for the instanceType %s, availabilityZone %s, capacityType %s", instanceType, availabilityZone, capacityType),
+				DedupeValues: []string{fmt.Sprintf("ice-%s-%s-%s", instanceType, availabilityZone, capacityType)},
 			})
 		}
 	}
