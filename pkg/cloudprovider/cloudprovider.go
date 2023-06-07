@@ -198,7 +198,11 @@ func (c *CloudProvider) IsMachineDrifted(ctx context.Context, machine *v1alpha5.
 	if err != nil {
 		return false, client.IgnoreNotFound(fmt.Errorf("resolving node template, %w", err))
 	}
-	return c.isNodeTemplateDrifted(ctx, machine, provisioner, nodeTemplate)
+	drifted, err := c.isNodeTemplateDrifted(ctx, machine, provisioner, nodeTemplate)
+	if err != nil {
+		return false, cloudprovider.IgnoreMachineNotFoundError(err)
+	}
+	return drifted, nil
 }
 
 // Name returns the CloudProvider implementation name.

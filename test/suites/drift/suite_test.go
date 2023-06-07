@@ -28,6 +28,7 @@ import (
 
 	awssdk "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/aws/aws-sdk-go/service/ssm"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
@@ -152,14 +153,18 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		env.ExpectSettingsOverridden(map[string]string{
 			"featureGates.driftEnabled": "true",
 		})
+		By("Getting the Cluster VPCID")
+		output, err := env.EKSAPI.DescribeCluster(&eks.DescribeClusterInput{Name: awssdk.String(settings.FromContext(env.Context).ClusterName)})
+		Expect(err).To(BeNil())
+
 		By("creating a new securitygroup")
 		securitygroup := env.GetSecurityGroups(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
 		Expect(len(securitygroup)).To(BeNumerically("==", 2))
 
 		createSecurityGroup := &ec2.CreateSecurityGroupInput{
 			GroupName:   awssdk.String("security-group-drift"),
-			Description: awssdk.String("Drift Test"),
-			VpcId:       awssdk.String(*securitygroup[0].VpcID),
+			Description: awssdk.String("End-to-end Drift Test, should delete after drift test is completed"),
+			VpcId:       output.Cluster.ResourcesVpcConfig.VpcId,
 			TagSpecifications: []*ec2.TagSpecification{
 				{
 					ResourceType: awssdk.String("security-group"),
@@ -177,7 +182,6 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		DeferCleanup(func() {
 			By("deleting the new securitygroup")
 			// // Need to make sure that all instance launched with the security group are terminated
-			// time.Sleep(time.Minute)
 			EventuallyWithOffset(1, func(g Gomega) {
 				output, err := env.EC2API.DescribeNetworkInterfaces(&ec2.DescribeNetworkInterfacesInput{
 					Filters: []*ec2.Filter{{Name: awssdk.String("group-id"), Values: []*string{newSecurityGroup.GroupId}}},
@@ -195,12 +199,11 @@ var _ = Describe("Drift", Label("AWS"), func() {
 			}).Should(Succeed())
 		})
 		By("creating a new provider with the new securitygroup")
-		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"aws-ids": fmt.Sprintf("%s,%s,%s", *securitygroup[0].GroupId, *securitygroup[1].GroupId, awssdk.StringValue(newSecurityGroup.GroupId))},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-		},
-			AMISelector: map[string]string{"aws-ids": customAMI},
-			UserData:    awssdk.String(fmt.Sprintf("#!/bin/bash\n/etc/eks/bootstrap.sh '%s'", settings.FromContext(env.Context).ClusterName)),
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+			AWS: v1alpha1.AWS{
+				SecurityGroupSelector: map[string]string{"aws-ids": fmt.Sprintf("%s,%s,%s", *securitygroup[0].GroupId, *securitygroup[1].GroupId, awssdk.StringValue(newSecurityGroup.GroupId))},
+				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			},
 		})
 		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
 

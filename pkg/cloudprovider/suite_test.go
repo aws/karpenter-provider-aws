@@ -23,7 +23,6 @@ import (
 
 	"github.com/samber/lo"
 	"k8s.io/client-go/tools/record"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -41,7 +40,6 @@ import (
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/controllers/nodetemplate"
 	"github.com/aws/karpenter/pkg/test"
 
 	machineutil "github.com/aws/karpenter-core/pkg/utils/machine"
@@ -55,7 +53,6 @@ import (
 	"github.com/aws/karpenter-core/pkg/controllers/provisioning"
 	"github.com/aws/karpenter-core/pkg/controllers/state"
 	"github.com/aws/karpenter-core/pkg/events"
-	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter-core/pkg/operator/injection"
 	"github.com/aws/karpenter-core/pkg/operator/options"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
@@ -221,11 +218,9 @@ var _ = Describe("CloudProvider", func() {
 		var validSecurityGroup string
 		var selectedInstanceType *corecloudproivder.InstanceType
 		var instance *ec2.Instance
-		var nodeTemplateController corecontroller.Controller
 		BeforeEach(func() {
 			validAMI = fake.ImageID()
 			validSecurityGroup = fake.SecurityGroupID()
-			nodeTemplateController = nodetemplate.NewController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider)
 			awsEnv.SSMAPI.GetParameterOutput = &ssm.GetParameterOutput{
 				Parameter: &ssm.Parameter{Value: aws.String(validAMI)},
 			}
@@ -237,12 +232,12 @@ var _ = Describe("CloudProvider", func() {
 					CreationDate: aws.String("2022-08-15T12:00:00Z"),
 				}},
 			})
-			awsEnv.EC2API.DescribeSecurityGroupsOutput.Set(&ec2.DescribeSecurityGroupsOutput{
-				SecurityGroups: []*ec2.SecurityGroup{{
-					GroupId:   aws.String(validSecurityGroup),
-					GroupName: aws.String("test-securitygroup"),
-				}},
-			})
+			nodeTemplate.Status.SecurityGroups = []v1alpha1.SecurityGroup{
+				{
+					ID:   validSecurityGroup,
+					Name: "test-securitygroup",
+				},
+			}
 			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, provisioner)
 			Expect(err).ToNot(HaveOccurred())
@@ -260,6 +255,7 @@ var _ = Describe("CloudProvider", func() {
 				Placement: &ec2.Placement{
 					AvailabilityZone: aws.String("test-zone-1a"),
 				},
+				SecurityGroups: []*ec2.GroupIdentifier{{GroupId: aws.String(validSecurityGroup)}},
 			}
 			awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(&ec2.DescribeInstancesOutput{
 				Reservations: []*ec2.Reservation{{Instances: []*ec2.Instance{instance}}},
@@ -341,10 +337,73 @@ var _ = Describe("CloudProvider", func() {
 			})
 			// Instance is a reference to what we return in the GetInstances call
 			instance.SecurityGroups = []*ec2.GroupIdentifier{{GroupId: aws.String(fake.SecurityGroupID())}}
-			ExpectReconcileSucceeded(ctx, nodeTemplateController, client.ObjectKeyFromObject(nodeTemplate))
 			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machine)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(isDrifted).To(BeTrue())
+		})
+		It("should return drifted if the multiple instance securitygroup are not valid", func() {
+			machine := coretest.Machine(v1alpha5.Machine{
+				Status: v1alpha5.MachineStatus{
+					ProviderID: fake.ProviderID(lo.FromPtr(instance.InstanceId)),
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+						v1.LabelInstanceTypeStable:       selectedInstanceType.Name,
+					},
+				},
+			})
+			// Instance is a reference to what we return in the GetInstances call
+			instance.SecurityGroups = []*ec2.GroupIdentifier{{GroupId: aws.String(fake.SecurityGroupID())}, {GroupId: aws.String(validSecurityGroup)}}
+			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machine)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(isDrifted).To(BeTrue())
+		})
+		It("should return drifted if more AWSNodeTemplate securitygroup are present then instance securitygroup", func() {
+			machine := coretest.Machine(v1alpha5.Machine{
+				Status: v1alpha5.MachineStatus{
+					ProviderID: fake.ProviderID(lo.FromPtr(instance.InstanceId)),
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+						v1.LabelInstanceTypeStable:       selectedInstanceType.Name,
+					},
+				},
+			})
+			nodeTemplate.Status.SecurityGroups = []v1alpha1.SecurityGroup{
+				{
+					ID:   validSecurityGroup,
+					Name: "test-securitygroup",
+				},
+				{
+					ID:   fake.SecurityGroupID(),
+					Name: "test-securitygroup",
+				},
+			}
+			ExpectApplied(ctx, env.Client, nodeTemplate)
+			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machine)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(isDrifted).To(BeTrue())
+		})
+		It("should not return drifted if the securitygroup is defined in the launchTemplateName", func() {
+			machine := coretest.Machine(v1alpha5.Machine{
+				Status: v1alpha5.MachineStatus{
+					ProviderID: fake.ProviderID(lo.FromPtr(instance.InstanceId)),
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+						v1.LabelInstanceTypeStable:       selectedInstanceType.Name,
+					},
+				},
+			})
+			nodeTemplate.Spec.LaunchTemplateName = aws.String("validLaunchTemplateName")
+			nodeTemplate.Spec.SecurityGroupSelector = nil
+			nodeTemplate.Status.SecurityGroups = nil
+			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machine)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(isDrifted).To(BeFalse())
 		})
 		It("should not return drifted if the securitygroup is valid", func() {
 			machine := coretest.Machine(v1alpha5.Machine{
@@ -358,7 +417,6 @@ var _ = Describe("CloudProvider", func() {
 					},
 				},
 			})
-			ExpectReconcileSucceeded(ctx, nodeTemplateController, client.ObjectKeyFromObject(nodeTemplate))
 			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machine)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(isDrifted).To(BeFalse())
