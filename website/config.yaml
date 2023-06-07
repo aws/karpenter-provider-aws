@@ -68,8 +68,8 @@ params:
         desc: 'Chat with us on Slack in the #aws-provider channel'
   latest_release_version: v0.27.5
   versions:
-    - v0.27.5
-    - v0.26.1
+    - v0.27
+    - v0.26
     - preview
 menu:
   main:
@@ -79,5 +79,5 @@ menu:
       pre: <i class='fab fa-github'></i>
     - name: Docs
       weight: 20
-      url: 'v0.27.5'
+      url: 'docs'
       pre: <i class='fas fa-book'></i>

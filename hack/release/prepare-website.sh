@@ -14,7 +14,6 @@ fi
 echo "RenderingPrep website files for ${GIT_TAG}"
 
 createNewWebsiteDirectory "$GIT_TAG"
-deleteMinorVersionWebsiteDirectory "$GIT_TAG"
 removeOldWebsiteDirectories
 editWebsiteConfig "$GIT_TAG"
 editWebsiteVersionsMenu "$GIT_TAG"
