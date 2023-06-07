@@ -53,7 +53,6 @@ import (
 	"github.com/aws/karpenter-core/pkg/controllers/provisioning"
 	"github.com/aws/karpenter-core/pkg/controllers/state"
 	"github.com/aws/karpenter-core/pkg/events"
-	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter-core/pkg/operator/injection"
 	"github.com/aws/karpenter-core/pkg/operator/options"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
@@ -219,7 +218,6 @@ var _ = Describe("CloudProvider", func() {
 		var validSecurityGroup string
 		var selectedInstanceType *corecloudproivder.InstanceType
 		var instance *ec2.Instance
-		var nodeTemplateController corecontroller.Controller
 		BeforeEach(func() {
 			validAMI = fake.ImageID()
 			validSecurityGroup = fake.SecurityGroupID()

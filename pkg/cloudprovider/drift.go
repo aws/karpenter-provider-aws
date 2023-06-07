@@ -34,10 +34,6 @@ func (c *CloudProvider) isNodeTemplateDrifted(ctx context.Context, machine *v1al
 	if err != nil {
 		return false, err
 	}
-	securitygroupDrifted := c.areSecurityGroupsDrifted(ec2Instance, nodeTemplate)
-	if err != nil {
-		return false, cloudprovider.IgnoreMachineNotFoundError(fmt.Errorf("calculating securitygroup drift, %w", err))
-	}
 
 	amiDrifted, err := c.isAMIDrifted(ctx, machine, provisioner, nodeTemplate)
 	if err != nil {
