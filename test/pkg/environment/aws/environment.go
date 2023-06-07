@@ -25,6 +25,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/cloudwatch"
 	"github.com/aws/aws-sdk-go/service/cloudwatch/cloudwatchiface"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/aws/aws-sdk-go/service/fis"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/sqs"
@@ -48,6 +49,7 @@ type Environment struct {
 	SSMAPI        *ssm.SSM
 	IAMAPI        *iam.IAM
 	FISAPI        *fis.FIS
+	EKSAPI        *eks.EKS
 	CloudwatchAPI cloudwatchiface.CloudWatchAPI
 
 	SQSProvider *interruption.SQSProvider
@@ -74,6 +76,7 @@ func NewEnvironment(t *testing.T) *Environment {
 		SSMAPI:        ssm.New(session),
 		IAMAPI:        iam.New(session),
 		FISAPI:        fis.New(session),
+		EKSAPI:        eks.New(session),
 		CloudwatchAPI: GetCloudWatchAPI(session),
 		SQSProvider:   interruption.NewSQSProvider(sqs.New(session)),
 	}
