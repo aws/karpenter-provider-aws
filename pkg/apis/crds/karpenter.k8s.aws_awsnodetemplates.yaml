@@ -227,6 +227,18 @@ spec:
                         are not creating an EFA, specify interface or omit this parameter.
                         \n Valid values: interface | efa"
                       type: string
+                    ipv4PrefixCount:
+                      description: The number of IPv4 prefixes to be automatically
+                        assigned to the network interface. You cannot use this option
+                        if you use the Ipv4Prefix option.
+                      format: int64
+                      type: integer
+                    ipv6PrefixCount:
+                      description: The number of IPv6 prefixes to be automatically
+                        assigned to the network interface. You cannot use this option
+                        if you use the Ipv6Prefix option.
+                      format: int64
+                      type: integer
                     networkCardIndex:
                       description: The index of the network card. Some instance types
                         support multiple network cards. The primary network interface

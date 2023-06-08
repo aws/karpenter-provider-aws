@@ -283,6 +283,8 @@ func (p *Provider) generateNetworkInterface(options *amifamily.LaunchTemplate) [
 			DeviceIndex:               networkInterface.DeviceIndex,
 			InterfaceType:             networkInterface.InterfaceType,
 			NetworkCardIndex:          networkInterface.NetworkCardIndex,
+			Ipv4PrefixCount:           networkInterface.IPv4PrefixCount,
+			Ipv6PrefixCount:           networkInterface.IPv6PrefixCount,
 			Groups:                    lo.Map(options.SecurityGroups, func(s v1alpha1.SecurityGroup, _ int) *string { return aws.String(s.ID) }),
 		})
 	}

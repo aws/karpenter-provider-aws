@@ -233,4 +233,12 @@ type NetworkInterface struct {
 	// cards. The primary network interface must be assigned to network card index
 	// 0. The default is network card index 0.
 	NetworkCardIndex *int64 `json:"networkCardIndex,omitempty"`
+
+	// The number of IPv4 prefixes to be automatically assigned to the network interface.
+	// You cannot use this option if you use the Ipv4Prefix option.
+	IPv4PrefixCount *int64 `json:"ipv4PrefixCount,omitempty"`
+
+	// The number of IPv6 prefixes to be automatically assigned to the network interface.
+	// You cannot use this option if you use the Ipv6Prefix option.
+	IPv6PrefixCount *int64 `json:"ipv6PrefixCount,omitempty"`
 }
