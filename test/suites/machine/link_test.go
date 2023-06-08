@@ -195,18 +195,15 @@ var _ = Describe("MachineLink", func() {
 		_, ok := lo.Find(instance.Tags, func(t *ec2.Tag) bool {
 			return aws.StringValue(t.Key) == v1alpha5.ManagedByLabelKey
 		})
-		env.ExpectCreated(provisioner, provider)
-
-		// Update the userData for the instance input with the correct provisionerName
-		rawContent, err := os.ReadFile("testdata/al2_userdata_input.sh")
-		Expect(err).ToNot(HaveOccurred())
+		Expect(ok).To(BeTrue())
+		env.ExpectCreated(provisioner)
 
 		// No tag specifications since we're mocking an instance not launched by Karpenter
 		instanceInput.UserData = lo.ToPtr(base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf(string(rawContent), settings.FromContext(env.Context).ClusterName,
 			settings.FromContext(env.Context).ClusterEndpoint, env.ExpectCABundle(), provisioner.Name))))
 
 		// Create an instance manually to mock Karpenter launching an instance
-		out := env.ExpectRunInstances(instanceInput)
+		out = env.ExpectRunInstances(instanceInput)
 		Expect(out.Instances).To(HaveLen(1))
 
 		// Always ensure that we cleanup the instance
@@ -232,12 +229,11 @@ var _ = Describe("MachineLink", func() {
 		env.EventuallyExpectKarpenterRestarted()
 
 		// Expect that the Machine is created when Karpenter starts up
-		machines := env.EventuallyExpectCreatedMachineCount("==", 1)
-		machine := machines[0]
+		machines = env.EventuallyExpectCreatedMachineCount("==", 1)
+		machine = machines[0]
 
 		// Expect the machine's fields are properly populated
 		Expect(machine.Spec.Requirements).To(Equal(provisioner.Spec.Requirements))
-		Expect(machine.Spec.MachineTemplateRef.Name).To(Equal(provider.Name))
 
 		// Expect the instance to have the karpenter.sh/managed-by tag and the karpenter.sh/provisioner-name tag
 		Eventually(func(g Gomega) {
