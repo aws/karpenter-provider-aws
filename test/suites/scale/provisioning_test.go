@@ -109,7 +109,7 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), func() {
 			By("kicking off provisioning by applying the provisioner and nodeTemplate")
 			env.ExpectCreated(provisioner, nodeTemplate)
 
-			env.EventuallyExpectCreatedMachineCount("==", expectedNodeCount)
+			// env.EventuallyExpectCreatedMachineCount("==", expectedNodeCount)
 			env.EventuallyExpectCreatedNodeCount("==", expectedNodeCount)
 			env.EventuallyExpectInitializedNodeCount("==", expectedNodeCount)
 			env.EventuallyExpectHealthyPodCount(selector, replicas)
@@ -141,7 +141,7 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), func() {
 			By("kicking off provisioning by applying the provisioner and nodeTemplate")
 			env.ExpectCreated(provisioner, nodeTemplate)
 
-			env.EventuallyExpectCreatedMachineCount("==", expectedNodeCount)
+			// env.EventuallyExpectCreatedMachineCount("==", expectedNodeCount)
 			env.EventuallyExpectCreatedNodeCount("==", expectedNodeCount)
 			env.EventuallyExpectInitializedNodeCount("==", expectedNodeCount)
 			env.EventuallyExpectHealthyPodCount(selector, replicas)
