@@ -129,6 +129,22 @@ func computeRequirements(ctx context.Context, info *ec2.InstanceTypeInfo, offeri
 		requirements.Get(v1alpha1.LabelInstanceAcceleratorManufacturer).Insert(lowerKabobCase(aws.StringValue(accelerator.Manufacturer)))
 		requirements.Get(v1alpha1.LabelInstanceAcceleratorCount).Insert(fmt.Sprint(aws.Int64Value(accelerator.Count)))
 	}
+	// Trn1 Accelerators
+	if *info.InstanceType == "trn1.2xlarge" {
+		requirements.Get(v1alpha1.LabelInstanceAcceleratorName).Insert(lowerKabobCase("Inferentia"))
+		requirements.Get(v1alpha1.LabelInstanceAcceleratorManufacturer).Insert(lowerKabobCase("AWS"))
+		requirements.Get(v1alpha1.LabelInstanceAcceleratorCount).Insert(fmt.Sprint(1))
+	}
+	if *info.InstanceType == "trn1.32xlarge" {
+		requirements.Get(v1alpha1.LabelInstanceAcceleratorName).Insert(lowerKabobCase("Inferentia"))
+		requirements.Get(v1alpha1.LabelInstanceAcceleratorManufacturer).Insert(lowerKabobCase("AWS"))
+		requirements.Get(v1alpha1.LabelInstanceAcceleratorCount).Insert(fmt.Sprint(16))
+	}
+	if *info.InstanceType == "trnn1.32xlarge" {
+		requirements.Get(v1alpha1.LabelInstanceAcceleratorName).Insert(lowerKabobCase("Inferentia"))
+		requirements.Get(v1alpha1.LabelInstanceAcceleratorManufacturer).Insert(lowerKabobCase("AWS"))
+		requirements.Get(v1alpha1.LabelInstanceAcceleratorCount).Insert(fmt.Sprint(16))
+	}
 	return requirements
 }
 
@@ -236,7 +252,7 @@ func awsNeurons(info *ec2.InstanceTypeInfo) *resource.Quantity {
 			}
 		}
 	}
-	return resource.NewQuantity(count, resource.DecimalSI)
+	return resources.Quantity(fmt.Sprint(count))
 }
 
 func habanaGaudis(info *ec2.InstanceTypeInfo) *resource.Quantity {
