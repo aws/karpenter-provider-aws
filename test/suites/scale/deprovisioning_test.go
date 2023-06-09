@@ -473,7 +473,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 		}, SpecTimeout(time.Hour))
 	})
 	Context("Emptiness", func() {
-		FIt("should deprovision all nodes when empty", func(_ context.Context) {
+		It("should deprovision all nodes when empty", func(_ context.Context) {
 			replicasPerNode := 20
 			maxPodDensity := replicasPerNode + dsCount
 			expectedNodeCount := 200
