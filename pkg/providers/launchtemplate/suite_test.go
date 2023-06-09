@@ -1664,16 +1664,19 @@ var _ = Describe("LaunchTemplates", func() {
 			})
 		})
 		Context("Placement Launch Template Configuration", func() {
-			It("should set 'LicenseSpecification' and 'Placement.HostResourceGroupArn' in the launch template", func() {
-				nodeTemplate.Spec.LicenseSpecifications = []string{"foo"}
-				nodeTemplate.Spec.Placement = v1alpha1.Placement{HostResourceGroupArn: "myhrg"}
+			It("should set 'LicenseSpecification', 'Placement.GroupId' and 'Placement.HostResourceGroupArn' in the launch template", func() {
+				nodeTemplate.Spec.LicenseSpecifications = []string{"mylicense"}
+				nodeTemplate.Spec.Placement = v1alpha1.Placement{HostResourceGroupArn: "myhrg", GroupId: "pg-12345"}
 				ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
-				input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
-                Expect(len(input.LaunchTemplateData.LicenseSpecifications)).To(Equal("myLicense"))
-				Expect(len(*input.LaunchTemplateData.Placement.HostResourceGroupArn)).To(Equal("myhrg"))
+				awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+					Expect(len(ltInput.LaunchTemplateData.LicenseSpecifications)).To(Equal(1))
+					Expect(aws.StringValue(ltInput.LaunchTemplateData.LicenseSpecifications[0].LicenseConfigurationArn)).To(Equal("mylicense"))
+					Expect(aws.StringValue(ltInput.LaunchTemplateData.Placement.HostResourceGroupArn)).To(Equal("myhrg"))
+					Expect(aws.StringValue(ltInput.LaunchTemplateData.Placement.GroupId)).To(Equal("pg-12345"))
+				})
 			})
 		})
 		Context("Kubelet Args", func() {

@@ -74,6 +74,7 @@ type LaunchTemplate struct {
 }
 type Placement struct {
 	HostResourceGroupArn string
+	GroupId              string
 }
 
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters
@@ -161,11 +162,11 @@ func (r Resolver) Resolve(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTem
 					instanceTypes,
 					nodeTemplate.Spec.UserData,
 				),
-				BlockDeviceMappings:   nodeTemplate.Spec.BlockDeviceMappings,
-				MetadataOptions:       nodeTemplate.Spec.MetadataOptions,
-				DetailedMonitoring:    aws.BoolValue(nodeTemplate.Spec.DetailedMonitoring),
-				AMIID:                 amiID,
-				InstanceTypes:         instanceTypes,
+				BlockDeviceMappings: nodeTemplate.Spec.BlockDeviceMappings,
+				MetadataOptions:     nodeTemplate.Spec.MetadataOptions,
+				DetailedMonitoring:  aws.BoolValue(nodeTemplate.Spec.DetailedMonitoring),
+				AMIID:               amiID,
+				InstanceTypes:       instanceTypes,
 			}
 			if resolved.BlockDeviceMappings == nil {
 				resolved.BlockDeviceMappings = amiFamily.DefaultBlockDeviceMappings()
@@ -173,12 +174,12 @@ func (r Resolver) Resolve(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTem
 			if resolved.MetadataOptions == nil {
 				resolved.MetadataOptions = amiFamily.DefaultMetadataOptions()
 			}
-            if len(nodeTemplate.Spec.LicenseSpecifications) > 0 {
+			if len(nodeTemplate.Spec.LicenseSpecifications) > 0 {
 				resolved.LicenseSpecifications = nodeTemplate.Spec.LicenseSpecifications
-            }
-            if nodeTemplate.Spec.Placement.HostResourceGroupArn != "" {
-				resolved.Placement = Placement{HostResourceGroupArn: nodeTemplate.Spec.Placement.HostResourceGroupArn}
-            }
+			}
+			if nodeTemplate.Spec.Placement.HostResourceGroupArn != "" || nodeTemplate.Spec.Placement.GroupId != "" {
+				resolved.Placement = Placement{HostResourceGroupArn: nodeTemplate.Spec.Placement.HostResourceGroupArn, GroupId: nodeTemplate.Spec.Placement.GroupId}
+			}
 			resolvedTemplates = append(resolvedTemplates, resolved)
 		}
 	}

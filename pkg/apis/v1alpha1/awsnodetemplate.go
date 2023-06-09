@@ -117,4 +117,6 @@ type AWSNodeTemplateList struct {
 type Placement struct {
 	// +optional
 	HostResourceGroupArn string `json:"hostResourceGroupArn,omitempty"`
+	// +optional
+	GroupId string `json:"groupdId,omitempty"`
 }

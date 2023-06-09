@@ -286,12 +286,17 @@ func createLicenseSpecifications(licenseSpecifications []string) []*ec2.LaunchTe
 }
 
 func createPlacement(placement *amifamily.Placement) *ec2.LaunchTemplatePlacementRequest {
-	if placement == nil || placement.HostResourceGroupArn == "" {
+	var request = &ec2.LaunchTemplatePlacementRequest{}
+	if placement == nil {
 		return nil
 	}
-	return &ec2.LaunchTemplatePlacementRequest{
-		HostResourceGroupArn: aws.String(placement.HostResourceGroupArn),
+	if placement.HostResourceGroupArn != "" {
+		request.HostResourceGroupArn = aws.String(placement.HostResourceGroupArn)
 	}
+	if placement.GroupId != "" {
+		request.GroupId = aws.String(placement.GroupId)
+	}
+	return request
 }
 
 func (p *Provider) blockDeviceMappings(blockDeviceMappings []*v1alpha1.BlockDeviceMapping) []*ec2.LaunchTemplateBlockDeviceMappingRequest {
