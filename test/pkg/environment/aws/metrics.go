@@ -60,24 +60,25 @@ const (
 )
 
 // MeasureDurationFor observes the duration between the beginning of the function f() and the end of the function f()
-func (env *Environment) MeasureDurationFor(f func(), eventType EventType, group, name string, additionalLabels ...map[string]string) {
+func (env *Environment) MeasureDurationFor(f func(), eventType EventType, group, name string, additionalLabels map[string]string) {
 	GinkgoHelper()
 	start := time.Now()
 	f()
-	env.ExpectEventDurationMetric(time.Since(start), lo.Assign(append(additionalLabels, map[string]string{
-		TestEventTypeDimension: string(eventType),
-		TestGroupDimension:     group,
-		TestNameDimension:      name,
-	})...))
-}
-
-func (env *Environment) ExpectEventDurationMetric(d time.Duration, labels map[string]string) {
-	GinkgoHelper()
 	gitRef := "n/a"
 	if env.Context.Value(common.GitRefContextKey) != nil {
 		gitRef = env.Value(common.GitRefContextKey).(string)
 	}
-	env.ExpectMetric("eventDuration", cloudwatch.StandardUnitSeconds, d.Seconds(), lo.Assign(labels, map[string]string{GitRefDimension: gitRef}))
+	env.ExpectEventDurationMetric(time.Since(start), lo.Assign(map[string]string{
+		TestEventTypeDimension: string(eventType),
+		TestGroupDimension:     group,
+		TestNameDimension:      name,
+		GitRefDimension:        gitRef,
+	}, additionalLabels))
+}
+
+func (env *Environment) ExpectEventDurationMetric(d time.Duration, labels map[string]string) {
+	GinkgoHelper()
+	env.ExpectMetric("eventDuration", cloudwatch.StandardUnitSeconds, d.Seconds(), labels)
 }
 
 func (env *Environment) ExpectMetric(name string, unit string, value float64, labels map[string]string) {
