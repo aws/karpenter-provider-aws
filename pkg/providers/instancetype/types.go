@@ -244,12 +244,15 @@ func amdGPUs(info *ec2.InstanceTypeInfo) *resource.Quantity {
 
 func awsNeurons(info *ec2.InstanceTypeInfo) *resource.Quantity {
 	count := int64(0)
-	if info.InferenceAcceleratorInfo != nil {
+	if *info.InstanceType == "trn1.2xlarge" {
+		count = int64(1)
+	} else if *info.InstanceType == "trn1.32xlarge" {
+		count = int64(16)
+	} else if *info.InstanceType == "trn1n.32xlarge" {
+		count = int64(16)
+	} else if info.InferenceAcceleratorInfo != nil {
 		for _, accelerator := range info.InferenceAcceleratorInfo.Accelerators {
-			// Check if the accelerator type is for Trainium instances
-			if *accelerator.Type == "neuron" {
-				count += *accelerator.Count
-			}
+			count += *accelerator.Count
 		}
 	}
 	return resources.Quantity(fmt.Sprint(count))
