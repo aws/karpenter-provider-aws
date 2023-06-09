@@ -103,124 +103,136 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			subnet, _ := awsEnv.SubnetProvider.List(ctx, nodeTemplate)
-			subnetIDs := lo.Map(subnet, func(ec2subnet *ec2.Subnet, _ int) string {
-				return *ec2subnet.SubnetId
-			})
-			sort.Strings(subnetIDs)
-			subnetIDsInStatus := lo.Map(nodeTemplate.Status.Subnets, func(subnet v1alpha1.Subnet, _ int) string {
-				return subnet.ID
-			})
-			sort.Strings(subnetIDsInStatus)
-			Expect(subnetIDsInStatus).To(Equal(subnetIDs))
+			Expect(nodeTemplate.Status.Subnets).To(Equal([]v1alpha1.Subnet{
+				{
+					ID:   "subnet-test1",
+					Zone: "test-zone-1a",
+				},
+				{
+					ID:   "subnet-test2",
+					Zone: "test-zone-1b",
+				},
+				{
+					ID:   "subnet-test3",
+					Zone: "test-zone-1c",
+				},
+			}))
 		})
 		It("Should have the correct ordering for the Subnets", func() {
+			awsEnv.EC2API.DescribeSubnetsOutput.Set(&ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{
+				{SubnetId: aws.String("subnet-test1"), AvailabilityZone: aws.String("test-zone-1a"), AvailableIpAddressCount: aws.Int64(20)},
+				{SubnetId: aws.String("subnet-test2"), AvailabilityZone: aws.String("test-zone-1b"), AvailableIpAddressCount: aws.Int64(100)},
+				{SubnetId: aws.String("subnet-test3"), AvailabilityZone: aws.String("test-zone-1c"), AvailableIpAddressCount: aws.Int64(50)},
+			}})
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			subnet, _ := awsEnv.SubnetProvider.List(ctx, nodeTemplate)
-			sort.Slice(subnet, func(i, j int) bool {
-				return int(*subnet[i].AvailableIpAddressCount) > int(*subnet[j].AvailableIpAddressCount)
-			})
-			correctSubnetIDs := lo.Map(subnet, func(ec2subnet *ec2.Subnet, _ int) string {
-				return *ec2subnet.SubnetId
-			})
-			subnetIDsInStatus := lo.Map(nodeTemplate.Status.Subnets, func(subnet v1alpha1.Subnet, _ int) string {
-				return subnet.ID
-			})
-			Expect(subnetIDsInStatus).To(Equal(correctSubnetIDs))
+			Expect(nodeTemplate.Status.Subnets).To(Equal([]v1alpha1.Subnet{
+				{
+					ID:   "subnet-test2",
+					Zone: "test-zone-1b",
+				},
+				{
+					ID:   "subnet-test3",
+					Zone: "test-zone-1c",
+				},
+				{
+					ID:   "subnet-test1",
+					Zone: "test-zone-1a",
+				},
+			}))
 		})
 		It("Should resolve a valid selectors for Subnet by tags", func() {
 			nodeTemplate.Spec.SubnetSelector = map[string]string{`Name`: `test-subnet-1,test-subnet-2`}
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			subnet, _ := awsEnv.SubnetProvider.List(ctx, nodeTemplate)
-			sort.Slice(subnet, func(i, j int) bool {
-				return int(*subnet[i].AvailableIpAddressCount) > int(*subnet[j].AvailableIpAddressCount)
-			})
-			correctSubnets := lo.Map(subnet, func(ec2subnet *ec2.Subnet, _ int) v1alpha1.Subnet {
-				return v1alpha1.Subnet{
-					ID:   *ec2subnet.SubnetId,
-					Zone: *ec2subnet.AvailabilityZone,
-				}
-			})
-			Expect(nodeTemplate.Status.Subnets).To(Equal(correctSubnets))
+			Expect(nodeTemplate.Status.Subnets).To(Equal([]v1alpha1.Subnet{
+				{
+					ID:   "subnet-test1",
+					Zone: "test-zone-1a",
+				},
+				{
+					ID:   "subnet-test2",
+					Zone: "test-zone-1b",
+				},
+			}))
 		})
 		It("Should resolve a valid selectors for Subnet by ids", func() {
 			nodeTemplate.Spec.SubnetSelector = map[string]string{`aws-ids`: `subnet-test1`}
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			subnet, _ := awsEnv.SubnetProvider.List(ctx, nodeTemplate)
-			correctSubnetIDs := lo.Map(subnet, func(ec2subnet *ec2.Subnet, _ int) v1alpha1.Subnet {
-				return v1alpha1.Subnet{
-					ID:   *ec2subnet.SubnetId,
-					Zone: *ec2subnet.AvailabilityZone,
-				}
-			})
-			// Only one subnet will be resolved
-			Expect(nodeTemplate.Status.Subnets).To(Equal(correctSubnetIDs))
+			Expect(nodeTemplate.Status.Subnets).To(Equal([]v1alpha1.Subnet{
+				{
+					ID:   "subnet-test1",
+					Zone: "test-zone-1a",
+				},
+			}))
 		})
 		It("Should update Subnet status when the Subnet selector gets updated by tags", func() {
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			subnet, _ := awsEnv.SubnetProvider.List(ctx, nodeTemplate)
-			subnetIDs := lo.Map(subnet, func(ec2subnet *ec2.Subnet, _ int) string {
-				return *ec2subnet.SubnetId
-			})
-			sort.Strings(subnetIDs)
-			subnetIDsInStatus := lo.Map(nodeTemplate.Status.Subnets, func(subnet v1alpha1.Subnet, _ int) string {
-				return subnet.ID
-			})
-			sort.Strings(subnetIDsInStatus)
-			Expect(subnetIDsInStatus).To(Equal(subnetIDs))
+			Expect(nodeTemplate.Status.Subnets).To(Equal([]v1alpha1.Subnet{
+				{
+					ID:   "subnet-test1",
+					Zone: "test-zone-1a",
+				},
+				{
+					ID:   "subnet-test2",
+					Zone: "test-zone-1b",
+				},
+				{
+					ID:   "subnet-test3",
+					Zone: "test-zone-1c",
+				},
+			}))
 
 			nodeTemplate.Spec.SubnetSelector = map[string]string{`Name`: `test-subnet-1,test-subnet-2`}
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			subnet, _ = awsEnv.SubnetProvider.List(ctx, nodeTemplate)
-			sort.Slice(subnet, func(i, j int) bool {
-				return int(*subnet[i].AvailableIpAddressCount) > int(*subnet[j].AvailableIpAddressCount)
-			})
-			correctSubnets := lo.Map(subnet, func(ec2subnet *ec2.Subnet, _ int) v1alpha1.Subnet {
-				return v1alpha1.Subnet{
-					ID:   *ec2subnet.SubnetId,
-					Zone: *ec2subnet.AvailabilityZone,
-				}
-			})
-			Expect(nodeTemplate.Status.Subnets).To(Equal(correctSubnets))
+			Expect(nodeTemplate.Status.Subnets).To(Equal([]v1alpha1.Subnet{
+				{
+					ID:   "subnet-test1",
+					Zone: "test-zone-1a",
+				},
+				{
+					ID:   "subnet-test2",
+					Zone: "test-zone-1b",
+				},
+			}))
 		})
 		It("Should update Subnet status when the Subnet selector gets updated by ids", func() {
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			subnet, _ := awsEnv.SubnetProvider.List(ctx, nodeTemplate)
-			subnetIDs := lo.Map(subnet, func(ec2subnet *ec2.Subnet, _ int) string {
-				return *ec2subnet.SubnetId
-			})
-			sort.Strings(subnetIDs)
-			subnetIDsInStatus := lo.Map(nodeTemplate.Status.Subnets, func(subnet v1alpha1.Subnet, _ int) string {
-				return subnet.ID
-			})
-			sort.Strings(subnetIDsInStatus)
-			Expect(subnetIDsInStatus).To(Equal(subnetIDs))
+			Expect(nodeTemplate.Status.Subnets).To(Equal([]v1alpha1.Subnet{
+				{
+					ID:   "subnet-test1",
+					Zone: "test-zone-1a",
+				},
+				{
+					ID:   "subnet-test2",
+					Zone: "test-zone-1b",
+				},
+				{
+					ID:   "subnet-test3",
+					Zone: "test-zone-1c",
+				},
+			}))
 
 			nodeTemplate.Spec.SubnetSelector = map[string]string{`aws-ids`: `subnet-test1`}
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			subnet, _ = awsEnv.SubnetProvider.List(ctx, nodeTemplate)
-			correctSubnetIDs := lo.Map(subnet, func(ec2subnet *ec2.Subnet, _ int) v1alpha1.Subnet {
-				return v1alpha1.Subnet{
-					ID:   *ec2subnet.SubnetId,
-					Zone: *ec2subnet.AvailabilityZone,
-				}
-			})
-			// Only one subnet will be resolved
-			Expect(nodeTemplate.Status.Subnets).To(Equal(correctSubnetIDs))
+			Expect(nodeTemplate.Status.Subnets).To(Equal([]v1alpha1.Subnet{
+				{
+					ID:   "subnet-test1",
+					Zone: "test-zone-1a",
+				},
+			}))
 		})
 		It("Should not resolve a invalid selectors for Subnet", func() {
 			nodeTemplate.Spec.SubnetSelector = map[string]string{`foo`: `invalid`}
@@ -233,16 +245,20 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			subnet, _ := awsEnv.SubnetProvider.List(ctx, nodeTemplate)
-			subnetIDs := lo.Map(subnet, func(ec2subnet *ec2.Subnet, _ int) string {
-				return *ec2subnet.SubnetId
-			})
-			sort.Strings(subnetIDs)
-			subnetIDsInStatus := lo.Map(nodeTemplate.Status.Subnets, func(subnet v1alpha1.Subnet, _ int) string {
-				return subnet.ID
-			})
-			sort.Strings(subnetIDsInStatus)
-			Expect(subnetIDsInStatus).To(Equal(subnetIDs))
+			Expect(nodeTemplate.Status.Subnets).To(Equal([]v1alpha1.Subnet{
+				{
+					ID:   "subnet-test1",
+					Zone: "test-zone-1a",
+				},
+				{
+					ID:   "subnet-test2",
+					Zone: "test-zone-1b",
+				},
+				{
+					ID:   "subnet-test3",
+					Zone: "test-zone-1c",
+				},
+			}))
 
 			nodeTemplate.Spec.SubnetSelector = map[string]string{`foo`: `invalid`}
 			ExpectApplied(ctx, env.Client, nodeTemplate)
@@ -257,92 +273,118 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			nodeTemplate.Spec.SecurityGroupSelector = nil
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
-			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			securityGroupsIDs, _ := awsEnv.SecurityGroupProvider.List(ctx, nodeTemplate)
-			securityGroupsIDInStatus := lo.Map(nodeTemplate.Status.SecurityGroups, func(securitygroup v1alpha1.SecurityGroup, _ int) string {
-				return securitygroup.ID
-			})
-			Expect(securityGroupsIDInStatus).To(Equal(securityGroupsIDs))
+			Expect(nodeTemplate.Status.SecurityGroups).To(BeNil())
 		})
 		It("Should update AWSNodeTemplate status for Security Groups", func() {
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			securityGroupsIDs, _ := awsEnv.SecurityGroupProvider.List(ctx, nodeTemplate)
-			securityGroupsIDInStatus := lo.Map(nodeTemplate.Status.SecurityGroups, func(securitygroup v1alpha1.SecurityGroup, _ int) string {
-				return securitygroup.ID
-			})
-			Expect(securityGroupsIDInStatus).To(Equal(securityGroupsIDs))
+			Expect(nodeTemplate.Status.SecurityGroups).To(Equal([]v1alpha1.SecurityGroup{
+				{
+					ID:   "sg-test1",
+					Name: "securityGroup-test1",
+				},
+				{
+					ID:   "sg-test2",
+					Name: "securityGroup-test2",
+				},
+				{
+					ID:   "sg-test3",
+					Name: "securityGroup-test3",
+				},
+			}))
 		})
 		It("Should resolve a valid selectors for Security Groups by tags", func() {
 			nodeTemplate.Spec.SecurityGroupSelector = map[string]string{`Name`: `test-security-group-1,test-security-group-2`}
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			securityGroupsIDs, _ := awsEnv.SecurityGroupProvider.List(ctx, nodeTemplate)
-			correctSecurityGroupsIDs := lo.Map(securityGroupsIDs, func(securitygroup string, _ int) v1alpha1.SecurityGroup {
-				return v1alpha1.SecurityGroup{
-					ID: securitygroup,
-				}
-			})
-			Expect(nodeTemplate.Status.SecurityGroups).To(Equal(correctSecurityGroupsIDs))
+			Expect(nodeTemplate.Status.SecurityGroups).To(Equal([]v1alpha1.SecurityGroup{
+				{
+					ID:   "sg-test1",
+					Name: "securityGroup-test1",
+				},
+				{
+					ID:   "sg-test2",
+					Name: "securityGroup-test2",
+				},
+			}))
 		})
 		It("Should resolve a valid selectors for Security Groups by ids", func() {
 			nodeTemplate.Spec.SecurityGroupSelector = map[string]string{`aws-ids`: `sg-test1`}
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			securityGroupsIDs, _ := awsEnv.SecurityGroupProvider.List(ctx, nodeTemplate)
-			correctSecurityGroupsIDs := lo.Map(securityGroupsIDs, func(securitygroup string, _ int) v1alpha1.SecurityGroup {
-				return v1alpha1.SecurityGroup{
-					ID: securitygroup,
-				}
-			})
-			Expect(nodeTemplate.Status.SecurityGroups).To(Equal(correctSecurityGroupsIDs))
+			Expect(nodeTemplate.Status.SecurityGroups).To(Equal([]v1alpha1.SecurityGroup{
+				{
+					ID:   "sg-test1",
+					Name: "securityGroup-test1",
+				},
+			}))
 		})
 		It("Should update Security Groups status when the Security Groups selector gets updated by tags", func() {
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			securityGroupsIDs, _ := awsEnv.SecurityGroupProvider.List(ctx, nodeTemplate)
-			securityGroupsIDInStatus := lo.Map(nodeTemplate.Status.SecurityGroups, func(securitygroup v1alpha1.SecurityGroup, _ int) string {
-				return securitygroup.ID
-			})
-			Expect(securityGroupsIDInStatus).To(Equal(securityGroupsIDs))
+			Expect(nodeTemplate.Status.SecurityGroups).To(Equal([]v1alpha1.SecurityGroup{
+				{
+					ID:   "sg-test1",
+					Name: "securityGroup-test1",
+				},
+				{
+					ID:   "sg-test2",
+					Name: "securityGroup-test2",
+				},
+				{
+					ID:   "sg-test3",
+					Name: "securityGroup-test3",
+				},
+			}))
 
 			nodeTemplate.Spec.SecurityGroupSelector = map[string]string{`Name`: `test-security-group-1,test-security-group-2`}
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			securityGroupsIDs, _ = awsEnv.SecurityGroupProvider.List(ctx, nodeTemplate)
-			correctSecurityGroupsIDs := lo.Map(securityGroupsIDs, func(securitygroup string, _ int) v1alpha1.SecurityGroup {
-				return v1alpha1.SecurityGroup{
-					ID: securitygroup,
-				}
-			})
-			Expect(nodeTemplate.Status.SecurityGroups).To(Equal(correctSecurityGroupsIDs))
+			Expect(nodeTemplate.Status.SecurityGroups).To(Equal([]v1alpha1.SecurityGroup{
+				{
+					ID:   "sg-test1",
+					Name: "securityGroup-test1",
+				},
+				{
+					ID:   "sg-test2",
+					Name: "securityGroup-test2",
+				},
+			}))
 		})
 		It("Should update Security Groups status when the Security Groups selector gets updated by ids", func() {
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			securityGroupsIDs, _ := awsEnv.SecurityGroupProvider.List(ctx, nodeTemplate)
-			securityGroupsIDInStatus := lo.Map(nodeTemplate.Status.SecurityGroups, func(securitygroup v1alpha1.SecurityGroup, _ int) string {
-				return securitygroup.ID
-			})
-			Expect(securityGroupsIDInStatus).To(Equal(securityGroupsIDs))
+			Expect(nodeTemplate.Status.SecurityGroups).To(Equal([]v1alpha1.SecurityGroup{
+				{
+					ID:   "sg-test1",
+					Name: "securityGroup-test1",
+				},
+				{
+					ID:   "sg-test2",
+					Name: "securityGroup-test2",
+				},
+				{
+					ID:   "sg-test3",
+					Name: "securityGroup-test3",
+				},
+			}))
 
 			nodeTemplate.Spec.SecurityGroupSelector = map[string]string{`aws-ids`: `sg-test1`}
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			securityGroupsIDs, _ = awsEnv.SecurityGroupProvider.List(ctx, nodeTemplate)
-			correctSecurityGroupsIDs := lo.Map(securityGroupsIDs, func(securitygroup string, _ int) v1alpha1.SecurityGroup {
-				return v1alpha1.SecurityGroup{
-					ID: securitygroup,
-				}
-			})
-			Expect(nodeTemplate.Status.SecurityGroups).To(Equal(correctSecurityGroupsIDs))
+			Expect(nodeTemplate.Status.SecurityGroups).To(Equal([]v1alpha1.SecurityGroup{
+				{
+					ID:   "sg-test1",
+					Name: "securityGroup-test1",
+				},
+			}))
 		})
 		It("Should not resolve a invalid selectors for Security Groups", func() {
 			nodeTemplate.Spec.SecurityGroupSelector = map[string]string{`foo`: `invalid`}
@@ -355,11 +397,20 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			securityGroupsIDs, _ := awsEnv.SecurityGroupProvider.List(ctx, nodeTemplate)
-			securityGroupsIDInStatus := lo.Map(nodeTemplate.Status.SecurityGroups, func(securitygroup v1alpha1.SecurityGroup, _ int) string {
-				return securitygroup.ID
-			})
-			Expect(securityGroupsIDInStatus).To(Equal(securityGroupsIDs))
+			Expect(nodeTemplate.Status.SecurityGroups).To(Equal([]v1alpha1.SecurityGroup{
+				{
+					ID:   "sg-test1",
+					Name: "securityGroup-test1",
+				},
+				{
+					ID:   "sg-test2",
+					Name: "securityGroup-test2",
+				},
+				{
+					ID:   "sg-test3",
+					Name: "securityGroup-test3",
+				},
+			}))
 
 			nodeTemplate.Spec.SecurityGroupSelector = map[string]string{`foo`: `invalid`}
 			ExpectApplied(ctx, env.Client, nodeTemplate)

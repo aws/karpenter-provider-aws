@@ -25,7 +25,6 @@ import (
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/util/workqueue"
@@ -34,13 +33,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/aws/karpenter-core/pkg/metrics"
-	"github.com/aws/karpenter/pkg/cloudprovider"
-
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	corecloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
+	"github.com/aws/karpenter-core/pkg/metrics"
 	"github.com/aws/karpenter-core/pkg/operator/controller"
 	machineutil "github.com/aws/karpenter-core/pkg/utils/machine"
+	"github.com/aws/karpenter/pkg/cloudprovider"
 )
 
 const creationReasonLabel = "linking"
@@ -60,10 +58,16 @@ func NewController(kubeClient client.Client, cloudProvider *cloudprovider.CloudP
 }
 
 func (c *Controller) Name() string {
-	return "machine_link"
+	return "machine.link"
 }
 
 func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconcile.Result, error) {
+	// We LIST machines on the CloudProvider BEFORE we grab Machines/Nodes on the cluster so that we make sure that, if
+	// LISTing instances takes a long time, our information is more updated by the time we get to Machine and Node LIST
+	retrieved, err := c.cloudProvider.List(ctx)
+	if err != nil {
+		return reconcile.Result{}, fmt.Errorf("listing cloudprovider machines, %w", err)
+	}
 	machineList := &v1alpha5.MachineList{}
 	if err := c.kubeClient.List(ctx, machineList); err != nil {
 		return reconcile.Result{}, err
@@ -71,10 +75,6 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 	nodeList := &v1.NodeList{}
 	if err := c.kubeClient.List(ctx, nodeList, client.HasLabels{v1alpha5.ProvisionerNameLabelKey}); err != nil {
 		return reconcile.Result{}, err
-	}
-	retrieved, err := c.cloudProvider.List(ctx)
-	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("listing cloudprovider machines, %w", err)
 	}
 	retrievedIDs := sets.NewString(lo.Map(retrieved, func(m *v1alpha5.Machine, _ int) string { return m.Status.ProviderID })...)
 	// Inject any nodes that are re-owned using karpenter.sh/provisioner-name but aren't found from the cloudprovider.List() call
@@ -88,7 +88,7 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 	// Filter out any machines that shouldn't be linked
 	retrieved = lo.Filter(retrieved, func(m *v1alpha5.Machine, _ int) bool {
 		_, ok := m.Labels[v1alpha5.ManagedByLabelKey]
-		return !ok && m.DeletionTimestamp.IsZero()
+		return !ok && m.DeletionTimestamp.IsZero() && m.Labels[v1alpha5.ProvisionerNameLabelKey] != ""
 	})
 	errs := make([]error, len(retrieved))
 	workqueue.ParallelizeUntil(ctx, 100, len(retrieved), func(i int) {
@@ -99,17 +99,10 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 }
 
 func (c *Controller) link(ctx context.Context, retrieved *v1alpha5.Machine, existingMachines []v1alpha5.Machine) error {
-	provisionerName, ok := retrieved.Labels[v1alpha5.ProvisionerNameLabelKey]
-	if !ok {
-		return corecloudprovider.IgnoreMachineNotFoundError(c.cloudProvider.Delete(ctx, retrieved))
-	}
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("provider-id", retrieved.Status.ProviderID, "provisioner", provisionerName))
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("provider-id", retrieved.Status.ProviderID, "provisioner", retrieved.Labels[v1alpha5.ProvisionerNameLabelKey]))
 	provisioner := &v1alpha5.Provisioner{}
-	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: provisionerName}, provisioner); err != nil {
-		if errors.IsNotFound(err) {
-			return corecloudprovider.IgnoreMachineNotFoundError(c.cloudProvider.Delete(ctx, retrieved))
-		}
-		return err
+	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: retrieved.Labels[v1alpha5.ProvisionerNameLabelKey]}, provisioner); err != nil {
+		return client.IgnoreNotFound(err)
 	}
 	if c.shouldCreateLinkedMachine(retrieved, existingMachines) {
 		machine := machineutil.New(&v1.Node{}, provisioner)

@@ -54,10 +54,20 @@ func NewController(kubeClient client.Client, cloudProvider *cloudprovider.CloudP
 }
 
 func (c *Controller) Name() string {
-	return "machine_garbagecollection"
+	return "machine.garbagecollection"
 }
 
 func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconcile.Result, error) {
+	// We LIST machines on the CloudProvider BEFORE we grab Machines/Nodes on the cluster so that we make sure that, if
+	// LISTing instances takes a long time, our information is more updated by the time we get to Machine and Node LIST
+	// This works since our CloudProvider instances are deleted based on whether the Machine exists or not, not vise-versa
+	retrieved, err := c.cloudProvider.List(ctx)
+	if err != nil {
+		return reconcile.Result{}, fmt.Errorf("listing cloudprovider machines, %w", err)
+	}
+	managedRetrieved := lo.Filter(retrieved, func(m *v1alpha5.Machine, _ int) bool {
+		return m.Labels[v1alpha5.ManagedByLabelKey] != "" && m.DeletionTimestamp.IsZero()
+	})
 	machineList := &v1alpha5.MachineList{}
 	if err := c.kubeClient.List(ctx, machineList); err != nil {
 		return reconcile.Result{}, err
@@ -75,13 +85,6 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 		}
 		return m.Annotations[v1alpha5.MachineLinkedAnnotationKey]
 	})...)
-	retrieved, err := c.cloudProvider.List(ctx)
-	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("listing cloudprovider machines, %w", err)
-	}
-	managedRetrieved := lo.Filter(retrieved, func(m *v1alpha5.Machine, _ int) bool {
-		return m.Labels[v1alpha5.ManagedByLabelKey] != "" && m.DeletionTimestamp.IsZero()
-	})
 	errs := make([]error, len(retrieved))
 	workqueue.ParallelizeUntil(ctx, 100, len(managedRetrieved), func(i int) {
 		_, recentlyLinked := c.linkController.Cache.Get(managedRetrieved[i].Status.ProviderID)

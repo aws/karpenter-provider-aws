@@ -74,13 +74,13 @@ To do that we have to modify the `aws-auth` ConfigMap in the cluster.
 {{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step08-edit-aws-auth.sh" language="bash" %}}
 
 You will need to add a section to the mapRoles that looks something like this.
-Replace the `${AWS_ACCOUNT_ID}` variable with your account and `${CLUSTER_NAME}` variable with the cluster name, but do not replace the `{{EC2PrivateDNSName}}`.
+Replace the `${AWS_PARTITION}` variable with the account partition, `${AWS_ACCOUNT_ID}` variable with your account ID, and `${CLUSTER_NAME}` variable with the cluster name, but do not replace the `{{EC2PrivateDNSName}}`.
 
 ```yaml
 - groups:
   - system:bootstrappers
   - system:nodes
-  rolearn: arn:aws:iam::${AWS_ACCOUNT_ID}:role/KarpenterNodeRole-${CLUSTER_NAME}
+  rolearn: arn:${AWS_PARTITION}:iam::${AWS_ACCOUNT_ID}:role/KarpenterNodeRole-${CLUSTER_NAME}
   username: system:node:{{EC2PrivateDNSName}}
 ```
 

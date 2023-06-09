@@ -393,6 +393,9 @@ var _ = Describe("MachineLink", func() {
 		machineList := &v1alpha5.MachineList{}
 		Expect(env.Client.List(ctx, machineList)).To(Succeed())
 		Expect(machineList.Items).To(HaveLen(0))
+
+		// Expect that the instance was left alone if the provisioner wasn't found
+		ExpectInstanceExists(awsEnv.EC2API, instanceID)
 	})
 	It("should not link an instance for an instance that is already linked", func() {
 		m := coretest.Machine(v1alpha5.Machine{

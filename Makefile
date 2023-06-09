@@ -38,6 +38,9 @@ GETTING_STARTED_SCRIPT_DIR = website/content/en/preview/getting-started/getting-
 MOD_DIRS = $(shell find . -name go.mod -type f | xargs dirname)
 KARPENTER_CORE_DIR = $(shell go list -m -f '{{ .Dir }}' github.com/aws/karpenter-core)
 
+# TEST_SUITE enables you to select a specific test suite directory to run "make e2etests" or "make test" against
+TEST_SUITE ?= "..."
+
 help: ## Display help
 	@awk 'BEGIN {FS = ":.*##"; printf "Usage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
@@ -64,7 +67,7 @@ clean-run: ## Clean resources deployed by the run target
 	kubectl delete configmap -n ${SYSTEM_NAMESPACE} karpenter-global-settings --ignore-not-found
 
 test: ## Run tests
-	go test -v ./pkg/... --ginkgo.focus="${FOCUS}" --ginkgo.v
+	go test -v ./pkg/$(shell echo $(TEST_SUITE) | tr A-Z a-z)/... --ginkgo.focus="${FOCUS}" --ginkgo.vv
 
 battletest: ## Run randomized, racing, code-covered tests
 	go test -v ./pkg/... \
@@ -72,7 +75,7 @@ battletest: ## Run randomized, racing, code-covered tests
 		-cover -coverprofile=coverage.out -outputdir=. -coverpkg=./pkg/... \
 		--ginkgo.focus="${FOCUS}" \
 		--ginkgo.randomize-all \
-		--ginkgo.v \
+		--ginkgo.vv \
 		-tags random_test_delay
 
 e2etests: ## Run the e2e suite against your local cluster
@@ -81,10 +84,11 @@ e2etests: ## Run the e2e suite against your local cluster
 		-count 1 \
 		-timeout 180m \
 		-v \
-		./suites/... \
+		./suites/$(shell echo $(TEST_SUITE) | tr A-Z a-z)/... \
 		--ginkgo.focus="${FOCUS}" \
 		--ginkgo.timeout=180m \
-		--ginkgo.v
+		--ginkgo.grace-period=3m \
+		--ginkgo.vv
 
 benchmark:
 	go test -tags=test_performance -run=NoTests -bench=. ./...

@@ -567,7 +567,7 @@ status:
 ```
 
 ## status.securityGroups
-`status.securityGroups` contains the `id` of the security groups utilized during node launch.
+`status.securityGroups` contains the `id` and `name` of the security groups utilized during node launch.
 
 **Examples**
 
@@ -575,7 +575,9 @@ status:
   status:
     securityGroups:
     - id: sg-041513b454818610b
+      name: ClusterSharedNodeSecurityGroup
     - id: sg-0286715698b894bca
+      name: ControlPlaneSecurityGroup-1AQ073TSAAPW
 ```
 
 ## status.amis

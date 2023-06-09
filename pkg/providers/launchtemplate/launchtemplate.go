@@ -38,6 +38,7 @@ import (
 	awserrors "github.com/aws/karpenter/pkg/errors"
 	"github.com/aws/karpenter/pkg/providers/amifamily"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
+	"github.com/aws/karpenter/pkg/providers/subnet"
 	"github.com/aws/karpenter/pkg/utils"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
@@ -56,6 +57,7 @@ type Provider struct {
 	ec2api                ec2iface.EC2API
 	amiFamily             *amifamily.Resolver
 	securityGroupProvider *securitygroup.Provider
+	subnetProvider        *subnet.Provider
 	cache                 *cache.Cache
 	caBundle              *string
 	cm                    *pretty.ChangeMonitor
@@ -63,11 +65,12 @@ type Provider struct {
 	ClusterEndpoint       string
 }
 
-func NewProvider(ctx context.Context, cache *cache.Cache, ec2api ec2iface.EC2API, amiFamily *amifamily.Resolver, securityGroupProvider *securitygroup.Provider, caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP, clusterEndpoint string) *Provider {
+func NewProvider(ctx context.Context, cache *cache.Cache, ec2api ec2iface.EC2API, amiFamily *amifamily.Resolver, securityGroupProvider *securitygroup.Provider, subnetProvider *subnet.Provider, caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP, clusterEndpoint string) *Provider {
 	l := &Provider{
 		ec2api:                ec2api,
 		amiFamily:             amiFamily,
 		securityGroupProvider: securityGroupProvider,
+		subnetProvider:        subnetProvider,
 		cache:                 cache,
 		caBundle:              caBundle,
 		cm:                    pretty.NewChangeMonitor(),
@@ -141,24 +144,36 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeTemplate *v1alpha1.
 		return nil, err
 	}
 	// Get constrained security groups
-	securityGroupsIDs, err := p.securityGroupProvider.List(ctx, nodeTemplate)
+	securityGroups, err := p.securityGroupProvider.List(ctx, nodeTemplate)
 	if err != nil {
 		return nil, err
 	}
-	if len(securityGroupsIDs) == 0 {
+	if len(securityGroups) == 0 {
 		return nil, fmt.Errorf("no security groups exist given constraints")
 	}
-	return &amifamily.Options{
+	options := &amifamily.Options{
 		ClusterName:             settings.FromContext(ctx).ClusterName,
 		ClusterEndpoint:         p.ClusterEndpoint,
 		AWSENILimitedPodDensity: settings.FromContext(ctx).EnableENILimitedPodDensity,
 		InstanceProfile:         instanceProfile,
-		SecurityGroupsIDs:       securityGroupsIDs,
-		Tags:                    tags,
-		Labels:                  labels,
-		CABundle:                p.caBundle,
-		KubeDNSIP:               p.KubeDNSIP,
-	}, nil
+		SecurityGroups: lo.Map(securityGroups, func(s *ec2.SecurityGroup, _ int) v1alpha1.SecurityGroup {
+			return v1alpha1.SecurityGroup{ID: aws.StringValue(s.GroupId), Name: aws.StringValue(s.GroupName)}
+		}),
+		Tags:      tags,
+		Labels:    labels,
+		CABundle:  p.caBundle,
+		KubeDNSIP: p.KubeDNSIP,
+	}
+	if ok, err := p.subnetProvider.CheckAnyPublicIPAssociations(ctx, nodeTemplate); err != nil {
+		return nil, err
+	} else if !ok {
+		// If all referenced subnets do not assign public IPv4 addresses to EC2 instances therein, we explicitly set
+		// AssociatePublicIpAddress to 'false' in the Launch Template, generated based on this configuration struct.
+		// This is done to help comply with AWS account policies that require explicitly setting of that field to 'false'.
+		// https://github.com/aws/karpenter/issues/3815
+		options.AssociatePublicIPAddress = aws.Bool(false)
+	}
+	return options, nil
 }
 
 func (p *Provider) ensureLaunchTemplate(ctx context.Context, options *amifamily.LaunchTemplate) (*ec2.LaunchTemplate, error) {
@@ -199,6 +214,7 @@ func (p *Provider) createLaunchTemplate(ctx context.Context, options *amifamily.
 	if err != nil {
 		return nil, err
 	}
+	networkInterface := p.generateNetworkInterface(options)
 	output, err := p.ec2api.CreateLaunchTemplateWithContext(ctx, &ec2.CreateLaunchTemplateInput{
 		LaunchTemplateName: aws.String(launchTemplateName(options)),
 		LaunchTemplateData: &ec2.RequestLaunchTemplateData{
@@ -209,7 +225,8 @@ func (p *Provider) createLaunchTemplate(ctx context.Context, options *amifamily.
 			Monitoring: &ec2.LaunchTemplatesMonitoringRequest{
 				Enabled: aws.Bool(options.DetailedMonitoring),
 			},
-			SecurityGroupIds: aws.StringSlice(options.SecurityGroupsIDs),
+			// If the network interface is defined, the security groups are defined within it
+			SecurityGroupIds: lo.Ternary(networkInterface != nil, nil, lo.Map(options.SecurityGroups, func(s v1alpha1.SecurityGroup, _ int) *string { return aws.String(s.ID) })),
 			UserData:         aws.String(userData),
 			ImageId:          aws.String(options.AMIID),
 			MetadataOptions: &ec2.LaunchTemplateInstanceMetadataOptionsRequest{
@@ -218,6 +235,7 @@ func (p *Provider) createLaunchTemplate(ctx context.Context, options *amifamily.
 				HttpPutResponseHopLimit: options.MetadataOptions.HTTPPutResponseHopLimit,
 				HttpTokens:              options.MetadataOptions.HTTPTokens,
 			},
+			NetworkInterfaces: networkInterface,
 			TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{
 				{ResourceType: aws.String(ec2.ResourceTypeNetworkInterface), Tags: utils.MergeTags(options.Tags)},
 			},
@@ -234,6 +252,24 @@ func (p *Provider) createLaunchTemplate(ctx context.Context, options *amifamily.
 	}
 	logging.FromContext(ctx).With("id", aws.StringValue(output.LaunchTemplate.LaunchTemplateId)).Debugf("created launch template")
 	return output.LaunchTemplate, nil
+}
+
+// generateNetworkInterface generates a network interface for the launch template.
+// If all referenced subnets do not assign public IPv4 addresses to EC2 instances therein, we explicitly set
+// AssociatePublicIpAddress to 'false' in the Launch Template, generated based on this configuration struct.
+// This is done to help comply with AWS account policies that require explicitly setting that field to 'false'.
+// https://github.com/aws/karpenter/issues/3815
+func (p *Provider) generateNetworkInterface(options *amifamily.LaunchTemplate) []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest {
+	if options.AssociatePublicIPAddress != nil {
+		return []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
+			{
+				AssociatePublicIpAddress: options.AssociatePublicIPAddress,
+				DeviceIndex:              aws.Int64(0),
+				Groups:                   lo.Map(options.SecurityGroups, func(s v1alpha1.SecurityGroup, _ int) *string { return aws.String(s.ID) }),
+			},
+		}
+	}
+	return nil
 }
 
 func (p *Provider) blockDeviceMappings(blockDeviceMappings []*v1alpha1.BlockDeviceMapping) []*ec2.LaunchTemplateBlockDeviceMappingRequest {

@@ -162,7 +162,12 @@ func cpu(info *ec2.InstanceTypeInfo) *resource.Quantity {
 }
 
 func memory(ctx context.Context, info *ec2.InstanceTypeInfo) *resource.Quantity {
-	mem := resources.Quantity(fmt.Sprintf("%dMi", *info.MemoryInfo.SizeInMiB))
+	sizeInMib := *info.MemoryInfo.SizeInMiB
+	// Gravitons have an extra 64 MiB of cma reserved memory that we can't use
+	if len(info.ProcessorInfo.SupportedArchitectures) > 0 && *info.ProcessorInfo.SupportedArchitectures[0] == "arm64" {
+		sizeInMib -= 64
+	}
+	mem := resources.Quantity(fmt.Sprintf("%dMi", sizeInMib))
 	// Account for VM overhead in calculation
 	mem.Sub(resource.MustParse(fmt.Sprintf("%dMi", int64(math.Ceil(float64(mem.Value())*awssettings.FromContext(ctx).VMMemoryOverheadPercent/1024/1024)))))
 	return mem
@@ -173,14 +178,15 @@ func ephemeralStorage(amiFamily amifamily.AMIFamily, blockDeviceMappings []*v1al
 	if len(blockDeviceMappings) != 0 {
 		switch amiFamily.(type) {
 		case *amifamily.Custom:
-			return blockDeviceMappings[len(blockDeviceMappings)-1].EBS.VolumeSize
+			// We can't know if a custom AMI is going to have a volume size.
+			volumeSize := blockDeviceMappings[len(blockDeviceMappings)-1].EBS.VolumeSize
+			return lo.Ternary(volumeSize != nil, volumeSize, amifamily.DefaultEBS.VolumeSize)
 		default:
-			ephemeralBlockDevice := amiFamily.EphemeralBlockDevice()
-			for _, blockDevice := range blockDeviceMappings {
-				// If a block device mapping exists in the provider for the root volume, set the volume size specified in the provider
-				if *blockDevice.DeviceName == *ephemeralBlockDevice {
-					return blockDevice.EBS.VolumeSize
-				}
+			// If a block device mapping exists in the provider for the root volume, use the volume size specified in the provider. If not, use the default
+			if blockDeviceMapping, ok := lo.Find(blockDeviceMappings, func(bdm *v1alpha1.BlockDeviceMapping) bool {
+				return *bdm.DeviceName == *amiFamily.EphemeralBlockDevice()
+			}); ok && blockDeviceMapping.EBS.VolumeSize != nil {
+				return blockDeviceMapping.EBS.VolumeSize
 			}
 		}
 	}

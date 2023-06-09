@@ -9,14 +9,13 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
         matrix:
-          k8sVersion: ["1.21.x", "1.22.x", "1.23.x", "1.24.x", "1.25.x"]
-    env:
-      K8S_VERSION: ${{ matrix.k8sVersion }}
+          k8sVersion: ["1.22.x", "1.23.x", "1.24.x", "1.25.x", "1.26.x", "1.27.x"]
     steps:
     - uses: actions/checkout@v3
     - uses: ./.github/actions/install-deps
-    - run: make ci-test
+      with:
+        k8sVersion: ${{ matrix.k8sVersion }}
+    - run: K8S_VERSION=${{ matrix.k8sVersion }} make ci-test
     - uses: shogo82148/actions-goveralls@v1
-      if: env.K8S_VERSION == '1.24.x'
       with:
         path-to-profile: coverage.out

@@ -2,7 +2,7 @@ export function versionWarning() {
   const viewingVersion = window.location.pathname.split('/')[1]
 
   // only alert if we recognize the version string
-  if (!viewingVersion || !viewingVersion.match(/^v\d+\.\d+\.\d+$/)) {
+  if (!viewingVersion || !viewingVersion.match(/^v\d+\.\d+$/)) {
     return
   }
 

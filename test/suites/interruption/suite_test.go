@@ -15,9 +15,7 @@ limitations under the License.
 package interruption
 
 import (
-	"context"
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
@@ -92,39 +90,19 @@ var _ = Describe("Interruption", Label("AWS"), func() {
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 1)
 
-		ctx, cancel := context.WithCancel(env.Context)
-		defer cancel() // In case the test fails, we need this so that the goroutine monitoring the events is closed
-
 		node := env.Monitor.CreatedNodes()[0]
 		instanceID, err := utils.ParseInstanceID(node.Spec.ProviderID)
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Interrupting the spot instance")
-		_, events, err := env.InterruptionAPI.Interrupt(env.Context, []string{instanceID}, 0, true)
-		Expect(err).ToNot(HaveOccurred())
+		By("interrupting the spot instance")
+		exp := env.ExpectSpotInterruptionExperiment(instanceID)
+		DeferCleanup(func() {
+			env.ExpectExperimentTemplateDeleted(*exp.ExperimentTemplateId)
+		})
 
-		// Monitor the events channel
-		done := make(chan struct{})
-		go func() {
-			defer GinkgoRecover()
-			defer fmt.Println("[FIS EVENT MONITOR] Closing event goroutine monitoring")
-			for {
-				select {
-				case event := <-events:
-					if strings.Contains(event.Message, "Spot Instance Shutdown sent") {
-						Fail("Node didn't terminate before spot instance shutdown was sent")
-					}
-					fmt.Printf("[FIS EVENT MONITOR] %s\n", event.Message)
-				case <-done:
-					return
-				case <-ctx.Done():
-					return
-				}
-			}
-		}()
-
-		env.EventuallyExpectNotFound(node)
-		close(done) // Once the node is gone, we can close the event channel because the test has effectively succeeded
+		// We are expecting the node to be terminated before the termination is complete
+		By("waiting to receive the interruption and terminate the node")
+		env.EventuallyExpectNotFoundAssertion(node).WithTimeout(time.Second * 110).Should(Succeed())
 		env.EventuallyExpectHealthyPodCount(selector, 1)
 	})
 	It("should terminate the node at the API server when the EC2 instance is stopped", func() {

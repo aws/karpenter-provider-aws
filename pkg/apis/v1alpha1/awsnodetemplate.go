@@ -34,6 +34,9 @@ type SecurityGroup struct {
 	// ID of the security group
 	// +required
 	ID string `json:"id"`
+	// Name of the security group
+	// +optional
+	Name string `json:"name,omitempty"`
 }
 
 // AMI contains resolved AMI selector values utilized for node launch
@@ -42,8 +45,8 @@ type AMI struct {
 	// +required
 	ID string `json:"id"`
 	// Name of the AMI
-	// +required
-	Name string `json:"name"`
+	// +optional
+	Name string `json:"name,omitempty"`
 	// Requirements of the AMI to be utilized on an instance type
 	// +required
 	Requirements []v1.NodeSelectorRequirement `json:"requirements"`

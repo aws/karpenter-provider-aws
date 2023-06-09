@@ -8,6 +8,23 @@ description: >
 ---
 <!-- this document is generated from hack/docs/metrics_gen_docs.go -->
 Karpenter makes several metrics available in Prometheus format to allow monitoring cluster provisioning status. These metrics are available by default at `karpenter.karpenter.svc.cluster.local:8080/metrics` configurable via the `METRICS_PORT` environment variable documented [here](../settings)
+## Controller Runtime Metrics
+
+### `controller_runtime_active_workers`
+Number of currently used workers per controller
+
+### `controller_runtime_max_concurrent_reconciles`
+Maximum number of concurrent reconciles per controller
+
+### `controller_runtime_reconcile_errors_total`
+Total number of reconciliation errors per controller
+
+### `controller_runtime_reconcile_time_seconds`
+Length of time per reconciliation per controller
+
+### `controller_runtime_reconcile_total`
+Total number of reconciliations per controller
+
 ## Consistency Metrics
 
 ### `karpenter_consistency_errors`
@@ -16,7 +33,10 @@ Number of consistency checks that have failed.
 ## Deprovisioning Metrics
 
 ### `karpenter_deprovisioning_actions_performed`
-Number of deprovisioning actions performed. Labeled by action.
+Number of deprovisioning actions performed. Labeled by deprovisioner.
+
+### `karpenter_deprovisioning_eligible_machines`
+Number of machines eligible for deprovisioning by Karpenter. Labeled by deprovisioner
 
 ### `karpenter_deprovisioning_evaluation_duration_seconds`
 Duration of the deprovisioning evaluation process in seconds.
@@ -37,6 +57,23 @@ Length of time between message creation in queue and an action taken on the mess
 
 ### `karpenter_interruption_received_messages`
 Count of messages received from the SQS queue. Broken down by message type and whether the message was actionable.
+
+## Machines Metrics
+
+### `karpenter_machines_created`
+Number of machines created in total by Karpenter. Labeled by reason the machine was created and the owning provisioner.
+
+### `karpenter_machines_initialized`
+Number of machines initialized in total by Karpenter. Labeled by the owning provisioner.
+
+### `karpenter_machines_launched`
+Number of machines launched in total by Karpenter. Labeled by the owning provisioner.
+
+### `karpenter_machines_registered`
+Number of machines registered in total by Karpenter. Labeled by the owning provisioner.
+
+### `karpenter_machines_terminated`
+Number of machines terminated in total by Karpenter. Labeled by reason the machine was terminated.
 
 ## Provisioner Metrics
 
@@ -93,6 +130,9 @@ Pod state is the current state of pods. This metric can be used several ways as 
 
 ### `karpenter_cloudprovider_duration_seconds`
 Duration of cloud provider method calls. Labeled by the controller, method name and provider.
+
+### `karpenter_cloudprovider_errors_total`
+Total number of errors returned from CloudProvider calls.
 
 ### `karpenter_cloudprovider_instance_type_cpu_cores`
 VCPUs cores for a given instance type.

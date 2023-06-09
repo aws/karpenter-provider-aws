@@ -83,7 +83,7 @@ func (c *EventClient) dumpNodeEvents(ctx context.Context) error {
 	}); err != nil {
 		return err
 	}
-	for k, v := range coallateEvents(el.Items) {
+	for k, v := range coallateEvents(filterTestEvents(el.Items, c.start)) {
 		fmt.Print(getEventInformation(k, v))
 	}
 	return nil
