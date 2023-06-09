@@ -129,6 +129,10 @@ func computeRequirements(ctx context.Context, info *ec2.InstanceTypeInfo, offeri
 		requirements.Get(v1alpha1.LabelInstanceAcceleratorManufacturer).Insert(lowerKabobCase(aws.StringValue(accelerator.Manufacturer)))
 		requirements.Get(v1alpha1.LabelInstanceAcceleratorCount).Insert(fmt.Sprint(aws.Int64Value(accelerator.Count)))
 	}
+	return hardcodeNeuron(requirements, info)
+}
+
+func hardcodeNeuron(requirements scheduling.Requirements, info *ec2.InstanceTypeInfo) scheduling.Requirements {
 	// Trn1 Accelerators
 	if *info.InstanceType == "trn1.2xlarge" {
 		requirements.Get(v1alpha1.LabelInstanceAcceleratorName).Insert(lowerKabobCase("Inferentia"))
