@@ -52,6 +52,7 @@ import (
 	"github.com/aws/karpenter/pkg/providers/pricing"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
 	"github.com/aws/karpenter/pkg/providers/subnet"
+	"github.com/aws/karpenter/pkg/utils/errcode"
 	"github.com/aws/karpenter/pkg/utils/project"
 )
 
@@ -175,7 +176,7 @@ func withUserAgent(sess *session.Session) *session.Session {
 func checkEC2Connectivity(ctx context.Context, api *ec2.EC2) error {
 	_, err := api.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{DryRun: aws.Bool(true)})
 	var aerr awserr.Error
-	if errors.As(err, &aerr) && aerr.Code() == "DryRunOperation" {
+	if errors.As(err, &aerr) && aerr.Code() == errcode.DryRunOperation {
 		return nil
 	}
 	return err

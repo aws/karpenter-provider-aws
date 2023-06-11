@@ -16,6 +16,7 @@ package instancetype
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"sync"
@@ -24,8 +25,10 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	awscache "github.com/aws/karpenter/pkg/cache"
+	"github.com/aws/karpenter/pkg/utils/errcode"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/mitchellh/hashstructure/v2"
@@ -118,6 +121,9 @@ func (p *Provider) List(ctx context.Context, kc *v1alpha5.KubeletConfiguration, 
 }
 
 func (p *Provider) LivenessProbe(req *http.Request) error {
+	if err := p.checkAWSAuth(req.Context()); err != nil {
+		return err
+	}
 	if err := p.subnetProvider.LivenessProbe(req); err != nil {
 		return err
 	}
@@ -125,6 +131,15 @@ func (p *Provider) LivenessProbe(req *http.Request) error {
 		return err
 	}
 	return nil
+}
+
+func (p *Provider) checkAWSAuth(ctx context.Context) error {
+	_, err := p.ec2api.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{DryRun: aws.Bool(true)})
+	var aerr awserr.Error
+	if errors.As(err, &aerr) && aerr.Code() == errcode.DryRunOperation {
+		return nil
+	}
+	return err
 }
 
 func (p *Provider) createOfferings(ctx context.Context, instanceType *ec2.InstanceTypeInfo, zones sets.String) []cloudprovider.Offering {

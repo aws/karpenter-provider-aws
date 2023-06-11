@@ -16,12 +16,14 @@ package subnet
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"sort"
 	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/mitchellh/hashstructure/v2"
@@ -30,6 +32,7 @@ import (
 	"knative.dev/pkg/logging"
 
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/utils/errcode"
 
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/utils/functional"
@@ -201,9 +204,20 @@ func (p *Provider) UpdateInflightIPs(createFleetInput *ec2.CreateFleetInput, cre
 
 func (p *Provider) LivenessProbe(req *http.Request) error {
 	p.Lock()
-	//nolint: staticcheck
+	if err := p.checkAWSAuth(req.Context()); err != nil {
+		return err
+	}
 	p.Unlock()
 	return nil
+}
+
+func (p *Provider) checkAWSAuth(ctx context.Context) error {
+	_, err := p.ec2api.DescribeSubnetsWithContext(ctx, &ec2.DescribeSubnetsInput{DryRun: aws.Bool(true)})
+	var aerr awserr.Error
+	if errors.As(err, &aerr) && aerr.Code() == errcode.DryRunOperation {
+		return nil
+	}
+	return err
 }
 
 func (p *Provider) minPods(instanceTypes []*cloudprovider.InstanceType, zone string, capacityType string) int64 {

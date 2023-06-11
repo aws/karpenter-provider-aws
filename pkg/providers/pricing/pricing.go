@@ -26,11 +26,13 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/aws/aws-sdk-go/service/pricing"
 	"github.com/aws/aws-sdk-go/service/pricing/pricingiface"
+	"github.com/aws/karpenter/pkg/utils/errcode"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
@@ -387,9 +389,20 @@ func (p *Provider) UpdateSpotPricing(ctx context.Context) error {
 func (p *Provider) LivenessProbe(req *http.Request) error {
 	// ensure we don't deadlock and nolint for the empty critical section
 	p.mu.Lock()
-	//nolint: staticcheck
+	if err := p.checkAWSAuth(req.Context()); err != nil {
+		return err
+	}
 	p.mu.Unlock()
 	return nil
+}
+
+func (p *Provider) checkAWSAuth(ctx context.Context) error {
+	_, err := p.ec2.DescribeSpotPriceHistoryWithContext(ctx, &ec2.DescribeSpotPriceHistoryInput{DryRun: aws.Bool(true)})
+	var aerr awserr.Error
+	if errors.As(err, &aerr) && aerr.Code() == errcode.DryRunOperation {
+		return nil
+	}
+	return err
 }
 
 func populateInitialSpotPricing(pricing map[string]float64) map[string]zonal {
