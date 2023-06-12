@@ -456,7 +456,8 @@ spec:
     operator: In
     values: ["c4.large"]
   limits:
-    cpu: 100
+    resources:
+      cpu: 100
 ```
 
 #### Default Provisioner
