@@ -27,6 +27,7 @@ versionData(){
   RELEASE_VERSION_MINOR="${VERSION#*.}"
   RELEASE_VERSION_MINOR="${RELEASE_VERSION_MINOR%.*}"
   RELEASE_VERSION_PATCH="${VERSION##*.}"
+  RELEASE_MINOR_VERSION="v${RELEASE_VERSION_MAJOR}.${RELEASE_VERSION_MINOR}"
 }
 
 release() {
@@ -152,37 +153,33 @@ publishHelmChart() {
 
 createNewWebsiteDirectory() {
     RELEASE_VERSION=$1
-    mkdir -p website/content/en/${RELEASE_VERSION}
-    cp -r website/content/en/preview/* website/content/en/${RELEASE_VERSION}/
-    find website/content/en/${RELEASE_VERSION}/ -type f | xargs perl -i -p -e "s/{{< param \"latest_release_version\" >}}/${RELEASE_VERSION}/g;"
-    find website/content/en/${RELEASE_VERSION}/*/*/*.yaml -type f | xargs perl -i -p -e "s/preview/${RELEASE_VERSION}/g;"
-}
+    versionData "${RELEASE_VERSION}"
+    
+    mkdir -p "website/content/en/${RELEASE_MINOR_VERSION}"
+    cp -r website/content/en/preview/* website/content/en/${RELEASE_MINOR_VERSION}/
+    find "website/content/en/${RELEASE_MINOR_VERSION}/" -type f | xargs perl -i -p -e "s/{{< param \"latest_release_version\" >}}/${RELEASE_VERSION}/g;"
+    find website/content/en/${RELEASE_MINOR_VERSION}/*/*/*.yaml -type f | xargs perl -i -p -e "s/preview/${RELEASE_VERSION}/g;"
+    find "website/content/en/${RELEASE_MINOR_VERSION}/" -type f | xargs perl -i -p -e "s/{{< githubRelRef >}}/\/${RELEASE_VERSION}\//g;"
 
-deleteMinorVersionWebsiteDirectory() {
-  RELEASE_VERSION=$1
-  versionData "$RELEASE_VERSION"
-  find website/content/en/* -type d -name "v${RELEASE_VERSION_MAJOR}.${RELEASE_VERSION_MINOR}*" -maxdepth 0 | grep -v "$RELEASE_VERSION" | xargs -r -n 1 rm -r
+    rm -rf website/content/en/docs
+    mkdir -p website/content/en/docs
+    cp -r website/content/en/${RELEASE_MINOR_VERSION}/* website/content/en/docs/
 }
 
 removeOldWebsiteDirectories() {
-  # Get all the directories except the last 2 directories sorted from earliest to latest version
-  find website/content/en/* -type d -name "*" -maxdepth 0 | grep -v "preview" | sort | head -n -2 | xargs -r -n 1 rm -r
+  local n=5
+  # Get all the directories except the last n directories sorted from earliest to latest version
+  last_n_versions=$(find website/content/en/* -type d -name "*" -maxdepth 0 | grep -v "preview\|docs" | sort | tail -n "$n")
+  last_n_versions+=$(echo -e "\nwebsite/content/en/preview")
+  last_n_versions+=$(echo -e "\nwebsite/content/en/docs")
+  all=$(find website/content/en/* -type d -name "*" -maxdepth 0)
+  ## symmetric difference
+  comm -3 <(sort <<< $last_n_versions) <(sort <<< $all) | tr -d '\t' | xargs -r -n 1 rm -r
 }
 
 editWebsiteConfig() {
   RELEASE_VERSION=$1
-
-  # sed has a different syntax on mac
-  if [[ "$OSTYPE" == "darwin"* ]]; then
-    sed -i '' '/^\/docs\/\*/d' website/static/_redirects
-  else
-    sed -i '/^\/docs\/\*/d' website/static/_redirects
-  fi
-
-  echo "/docs/*     	                /${RELEASE_VERSION}/:splat" >>website/static/_redirects
-
   yq -i ".params.latest_release_version = \"${RELEASE_VERSION}\"" website/config.yaml
-  yq -i ".menu.main[] |=select(.name == \"Docs\") .url = \"${RELEASE_VERSION}\"" website/config.yaml
 }
 
 # editWebsiteVersionsMenu sets relevant releases in the version dropdown menu of the website
@@ -192,7 +189,8 @@ editWebsiteConfig() {
 # a selected minor releases we can maintain that list in the repo and use it in here
 editWebsiteVersionsMenu() {
   RELEASE_VERSION=$1
-  VERSIONS=(${RELEASE_VERSION})
+  versionData "${RELEASE_VERSION}"
+  VERSIONS=(${RELEASE_MINOR_VERSION})
   while IFS= read -r LINE; do
     SANITIZED_VERSION=$(echo "${LINE}" | sed -e 's/["-]//g' -e 's/ *//g')
     VERSIONS+=("${SANITIZED_VERSION}")

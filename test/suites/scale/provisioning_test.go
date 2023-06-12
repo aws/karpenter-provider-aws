@@ -63,6 +63,11 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), func() {
 					Operator: v1.NodeSelectorOpIn,
 					Values:   []string{string(v1.Linux)},
 				},
+				{
+					Key:      "karpenter.k8s.aws/instance-hypervisor",
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{"nitro"},
+				},
 			},
 			// No limits!!!
 			// https://tenor.com/view/chaos-gif-22919457

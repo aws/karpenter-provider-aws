@@ -1,9 +1,10 @@
 {{ $pageDir := index (split (path.Dir .Page.RelPermalink) "/") 1 }}
 <!-- special treatment for the homepage. we treat it same as latest docs //-->
-{{ if eq $pageDir "" }}
-	{{ $pageDir = .Site.Params.latest_release_version }}
+{{ if or (eq $pageDir "docs") (eq $pageDir "") }}
+	{{ $pageDir = printf "%s.%s" ( index ( split .Site.Params.latest_release_version "." ) 0 ) ( index ( split .Site.Params.latest_release_version "." ) 1 ) }}
 {{ end }}
-{{ $pagePath := replace .Page.RelPermalink $pageDir "" }}
+{{ $pagePath := replace .Page.RelPermalink "docs" "" }}
+{{ $pagePath = replace $pagePath $pageDir "" }}
 
 <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
 	{{ $pageDir }} {{ if eq (index .Site.Params.versions 0) $pageDir }} (latest) {{ end }}
