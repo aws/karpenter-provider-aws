@@ -37,7 +37,6 @@ runs:
   - uses: ./actions/.github/actions/e2e/install-helm
   - name: install-karpenter
     shell: bash
-    # TODO @joinnis: Change the --version argument back to --version v0-$(git rev-parse HEAD)
     run: |
       aws eks update-kubeconfig --name ${{ inputs.cluster_name }}
       helm upgrade --install --namespace karpenter --create-namespace \
