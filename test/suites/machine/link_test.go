@@ -138,7 +138,7 @@ var _ = Describe("MachineLink", func() {
 		Eventually(func(g Gomega) {
 			instance := env.GetInstanceByID(aws.StringValue(out.Instances[0].InstanceId))
 			tag, ok := lo.Find(instance.Tags, func(t *ec2.Tag) bool {
-				return aws.StringValue(t.Key) == v1alpha5.ManagedByLabelKey
+				return aws.StringValue(t.Key) == v1alpha5.MachineManagedByAnnotationKey
 			})
 			g.Expect(ok).To(BeTrue())
 			g.Expect(aws.StringValue(tag.Value)).To(Equal(settings.FromContext(env.Context).ClusterName))
@@ -197,7 +197,7 @@ var _ = Describe("MachineLink", func() {
 		Eventually(func(g Gomega) {
 			instance := env.GetInstanceByID(aws.StringValue(out.Instances[0].InstanceId))
 			tag, ok := lo.Find(instance.Tags, func(t *ec2.Tag) bool {
-				return aws.StringValue(t.Key) == v1alpha5.ManagedByLabelKey
+				return aws.StringValue(t.Key) == v1alpha5.MachineManagedByAnnotationKey
 			})
 			g.Expect(ok).To(BeTrue())
 			g.Expect(aws.StringValue(tag.Value)).To(Equal(settings.FromContext(env.Context).ClusterName))
@@ -260,7 +260,7 @@ var _ = Describe("MachineLink", func() {
 		Eventually(func(g Gomega) {
 			instance := env.GetInstanceByID(aws.StringValue(out.Instances[0].InstanceId))
 			tag, ok := lo.Find(instance.Tags, func(t *ec2.Tag) bool {
-				return aws.StringValue(t.Key) == v1alpha5.ManagedByLabelKey
+				return aws.StringValue(t.Key) == v1alpha5.MachineManagedByAnnotationKey
 			})
 			g.Expect(ok).To(BeTrue())
 			g.Expect(aws.StringValue(tag.Value)).To(Equal(settings.FromContext(env.Context).ClusterName))

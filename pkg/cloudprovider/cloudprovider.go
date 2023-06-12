@@ -263,6 +263,7 @@ func (c *CloudProvider) resolveProvisionerFromInstance(ctx context.Context, inst
 func (c *CloudProvider) instanceToMachine(i *instance.Instance, instanceType *cloudprovider.InstanceType) *v1alpha5.Machine {
 	machine := &v1alpha5.Machine{}
 	labels := map[string]string{}
+	annotations := map[string]string{}
 
 	if instanceType != nil {
 		for key, req := range instanceType.Requirements {
@@ -278,10 +279,11 @@ func (c *CloudProvider) instanceToMachine(i *instance.Instance, instanceType *cl
 	if v, ok := i.Tags[v1alpha5.ProvisionerNameLabelKey]; ok {
 		labels[v1alpha5.ProvisionerNameLabelKey] = v
 	}
-	if v, ok := i.Tags[v1alpha5.ManagedByLabelKey]; ok {
-		labels[v1alpha5.ManagedByLabelKey] = v
+	if v, ok := i.Tags[v1alpha5.MachineManagedByAnnotationKey]; ok {
+		annotations[v1alpha5.MachineManagedByAnnotationKey] = v
 	}
 	machine.Labels = labels
+	machine.Annotations = annotations
 	machine.CreationTimestamp = metav1.Time{Time: i.LaunchTime}
 	// Set the deletionTimestamp to be the current time if the instance is currently terminating
 	if i.State == ec2.InstanceStateNameShuttingDown || i.State == ec2.InstanceStateNameTerminated {

@@ -18,6 +18,8 @@ require (
 	sigs.k8s.io/controller-runtime v0.13.1
 )
 
+replace github.com/aws/karpenter-core => github.com/jonathan-innis/karpenter-core v0.0.0-20230612215957-2ac2edf1f31c
+
 require (
 	github.com/Pallinder/go-randomdata v1.2.0 // indirect
 	github.com/PuerkitoBio/purell v1.1.1 // indirect
@@ -47,7 +49,7 @@ require (
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/pprof v0.0.0-20210720184732-4bb14d4b1be1 // indirect
 	github.com/google/uuid v1.3.0 // indirect
-	github.com/imdario/mergo v0.3.15 // indirect
+	github.com/imdario/mergo v0.3.16 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
