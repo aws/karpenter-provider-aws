@@ -443,7 +443,7 @@ Your UserData -
 [settings.kubernetes]
 "unknown-setting" = "unknown"
 [settings.kubernetes.node-labels]
-'field.controlled.by/karpenter': 'will-be-overridden'
+'field.controlled.by/karpenter' = 'will-be-overridden'
 ```
 
 Final merged UserData -
