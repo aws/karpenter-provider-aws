@@ -54,6 +54,7 @@ jobs:
           role: ${{ env.ROLE_NAME }}
           region: ${{ env.AWS_REGION }}
           cluster_name: ${{ env.CLUSTER_NAME }}
+          kubernetes_version: ${{ env.K8S_VERSION }}
           ip_family: ${{ inputs.suite == 'IPv6' && 'IPv6' || 'IPv4' }} # Set the value to IPv6 if IPv6 suite, else IPv4
           git_repo: ${{ inputs.git_repo }}
           git_ref: ${{ inputs.git_ref }}

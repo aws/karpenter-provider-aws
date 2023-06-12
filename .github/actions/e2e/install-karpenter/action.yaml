@@ -56,9 +56,8 @@ runs:
         --wait
   - name: diff-karpenter
     shell: bash
-    # TODO @joinnis: Change the --version argument back to --version v0-$(git rev-parse HEAD)
     run: |
       helm diff upgrade --namespace karpenter \
         karpenter oci://public.ecr.aws/karpenter/karpenter \
-        --version v0.28.0-rc.1 \
+        --version v0-$(git rev-parse HEAD) \
         --reuse-values --three-way-merge --detailed-exitcode

@@ -18,7 +18,7 @@ jobs:
     uses: ./.github/workflows/e2e.yaml
     with:
       suite: ${{ matrix.suite }}
-      git_repo: jonathan-innis/karpenter
+      git_repo: aws/karpenter
       event_name: ${{ github.event_name }}
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
@@ -27,7 +27,7 @@ jobs:
     uses: ./.github/workflows/e2e-upgrade.yaml
     with:
       from_git_ref: v0.26.1
-      git_repo: jonathan-innis/karpenter
+      git_repo: aws/karpenter
       event_name: ${{ github.event_name }}
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
