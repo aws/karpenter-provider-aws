@@ -36,7 +36,7 @@ runs:
     with:
       role-to-assume: arn:aws:iam::${{ inputs.account_id }}:role/${{ inputs.role }}
       aws-region: ${{ inputs.region }}
-      role-duration-seconds: 10800
+      role-duration-seconds: 21600
   - uses: actions/checkout@v3
     with:
       repository: ${{ inputs.git_repo }}
@@ -80,7 +80,7 @@ runs:
       kubernetesNetworkConfig:
         ipFamily: ${{ inputs.ip_family }}
       managedNodeGroups:
-        - instanceType: c5.xlarge
+        - instanceType: c5.4xlarge
           amiFamily: AmazonLinux2
           name: ${{ inputs.cluster_name }}-system-pool
           desiredCapacity: 2

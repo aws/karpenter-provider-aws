@@ -31,13 +31,14 @@ permissions:
 jobs:
   run-suite:
     runs-on: ubuntu-latest
+    container: public.ecr.aws/karpenter/tools:latest
     steps:
       - name: configure aws credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
           role-to-assume: arn:aws:iam::${{ env.ACCOUNT_ID }}:role/${{ env.ROLE_NAME }}
           aws-region: ${{ env.AWS_REGION }}
-          role-duration-seconds: 10800
+          role-duration-seconds: 21600
       - uses: actions/checkout@v3
         with:
           path: actions
