@@ -21,6 +21,7 @@ import (
 
 	"knative.dev/pkg/ptr"
 
+	"github.com/imdario/mergo"
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter-core/pkg/utils/resources"
@@ -43,7 +44,9 @@ func (b Bottlerocket) Script() (string, error) {
 	s.Settings.Kubernetes.ClusterName = &b.ClusterName
 	s.Settings.Kubernetes.APIServer = &b.ClusterEndpoint
 	s.Settings.Kubernetes.ClusterCertificate = b.CABundle
-	s.Settings.Kubernetes.NodeLabels = b.Labels
+	if err := mergo.MergeWithOverwrite(&s.Settings.Kubernetes.NodeLabels, b.Labels); err != nil {
+		return "", err
+	}
 
 	// Backwards compatibility for AWSENILimitedPodDensity flag
 	if b.KubeletConfig != nil && b.KubeletConfig.MaxPods != nil {
