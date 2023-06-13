@@ -277,11 +277,42 @@ Due to [this race condition in Kubernetes](https://github.com/kubernetes/kuberne
 
 ### CNI is unable to allocate IPs to pods
 
-Whenever a new pod is assigned to a node, the CNI will assign an IP address to that pod (assuming it isn't using host networking), allowing it to communicate with other pods on the cluster. It's possible for this IP allocation and assignment process to fail for a number of reasons. If this process fails, you may see the error shown below.
+_Note: This troubleshooting guidance is specific to the VPC CNI that is shipped by default with EKS clusters. If you are using a custom CNI, some of this guidance may not apply to your cluster._
 
-#### Pod Density for node is greater than supported pod density for the ENIs
+Whenever a new pod is assigned to a node, the CNI will assign an IP address to that pod (assuming it isn't using host networking), allowing it to communicate with other pods on the cluster. It's possible for this IP allocation and assignment process to fail for a number of reasons. If this process fails, you may see an error similar to the one below.
 
-#### IP Exhaustion 
+```bash
+time=2023-06-12T19:18:15Z type=Warning reason=FailedCreatePodSandBox from=kubelet message=Failed to create pod sandbox: rpc error: code = Unknown desc = failed to setup network for sandbox "0f46f3f1289eed7afab81b6945c49336ef556861fe5bb09a902a00772848b7cc": plugin type="aws-cni" name="aws-cni" failed (add): add cmd: failed to assign an IP address to container
+```
+
+#### `maxPods` is greater than the node's supported pod density
+
+By default, the number of pods on a node is limited by both the number of networking interfaces (ENIs) that may be attached to an instance type and the number of IP addresses that can be assigned to each ENI.  See [IP addresses per network interface per instance type](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-eni.html#AvailableIpPerENI) for a more detailed information on these instance types' limits.
+
+If the max-pods (configured through your Provisioner [`kubeletConfiguration`]({{<ref "./concepts/provisioners#speckubeletconfiguration" >}})) is greater than the number of supported IPs for a given instance type, the CNI will fail to assign an IP to the pod and your pod will be left in a `ContainerCreating` state.
+
+##### Solutions
+
+To avoid this discrepancy between `maxPods` and the supported pod density of the EC2 instance based on ENIs and allocatable IPs, you can perform one of the following actions on your cluster:
+
+1. Enable [Prefix Delegation](https://www.eksworkshop.com/docs/networking/prefix/) to increase the number of allocatable IPs for the ENIs on each instance type
+2. Reduce your `maxPods` value to be under the maximum pod density for the instance types assigned to your Provisioner
+3. Remove the `maxPods` value from your [`kubeletConfiguration`]({{<ref "./concepts/provisioners#speckubeletconfiguration" >}}) if you no longer need it and instead rely on the defaulted values from Karpenter and EKS AMIs.
+
+For more information on pod density, view the [Pod Density Conceptual Documentation]({{<ref "./concepts/pod-density" >}}).
+
+#### IP exhaustion in a subnet
+
+When a node is launched by Karpenter, it is assigned to a subnet within your VPC based on the [`subnetSelector`]({{<ref "./concepts/node-templates#specsubnetselector" >}}) value in your [`AWSNodeTemplate`]({{<ref "./concepts/node-templates" >}})). When a subnet becomes IP address constrained, EC2 may think that it can successfully launch an instance in the subnet; however, when the CNI tries to assign IPs to the pods, there are none remaining. In this case, your pod will stay in a `ContainerCreating` state until an IP address is freed in the subnet and the CNI can assign one to the pod.
+
+##### Solutions
+
+1. Use `topologySpreadConstraints` on `topology.kubernetes.io/zone` to spread your pods and nodes more evenly across zones
+2. Increase the IP address space (CIDR) for the subnets selected by your `AWSNodeTemplate`
+3. Use [custom networking](https://www.eksworkshop.com/docs/networking/custom-networking/) to assign separate IP address spaces to your pods and your nodes
+4. [Run your EKS cluster on IPv6](https://aws.github.io/aws-eks-best-practices/networking/ipv6/) (Note: IPv6 clusters have some known limitations which should be well-understood before choosing to use one)
+
+For more troubleshooting information on why your pod may have a `FailedCreateSandbox` error, view the [EKS CreatePodSandbox Knowledge Center Post](https://repost.aws/knowledge-center/eks-failed-create-pod-sandbox).
 
 ## Deprovisioning
 
