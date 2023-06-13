@@ -23,6 +23,7 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
+	"github.com/aws/karpenter-core/pkg/utils/sets"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/providers/amifamily"
 	"github.com/aws/karpenter/pkg/providers/instance"
@@ -87,19 +88,18 @@ func (c *CloudProvider) isAMIDrifted(ctx context.Context, machine *v1alpha5.Mach
 // Checks if the security groups are drifted, by comparing the AWSNodeTemplate.Status.SecurityGroups
 // to the ec2 instance security groups
 func (c *CloudProvider) areSecurityGroupsDrifted(ec2Instance *instance.Instance, nodeTemplate *v1alpha1.AWSNodeTemplate) (bool, error) {
-	// nodeTemplate.Spec.SecurityGroupSelector can be nill if the user is using a launchTemplateName to define SecurityGroups
+	// nodeTemplate.Spec.SecurityGroupSelector can be nil if the user is using a launchTemplateName to define SecurityGroups
 	// Karpenter will not drift on changes to securitygroup in the launchTemplateName
-	if nodeTemplate.Spec.SecurityGroupSelector == nil && nodeTemplate.Spec.LaunchTemplateName != nil {
+	if nodeTemplate.Spec.LaunchTemplateName != nil {
 		return false, nil
 	}
 
-	securityGroupIds := lo.Map(nodeTemplate.Status.SecurityGroups, func(sg v1alpha1.SecurityGroup, _ int) string { return sg.ID })
+	securityGroupIds := sets.New(lo.Map(nodeTemplate.Status.SecurityGroups, func(sg v1alpha1.SecurityGroup, _ int) string { return sg.ID })...)
 	if len(securityGroupIds) == 0 {
 		return false, fmt.Errorf("no security groups exist given constraints")
 	}
 
-	left, right := lo.Difference(securityGroupIds, ec2Instance.SecurityGroupIDs)
-	return len(left) > 0 || len(right) > 0, nil
+	return !securityGroupIds.Equal(sets.New(ec2Instance.SecurityGroupIDs...)), nil
 }
 
 func (c *CloudProvider) getInstance(ctx context.Context, providerID string) (*instance.Instance, error) {

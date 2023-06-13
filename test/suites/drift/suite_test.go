@@ -16,6 +16,7 @@ package drift
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -60,11 +61,11 @@ var _ = AfterEach(func() { env.AfterEach() })
 var _ = Describe("Drift", Label("AWS"), func() {
 	BeforeEach(func() {
 		customAMI = env.GetCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", 1)
-	})
-	It("should deprovision nodes that have drifted due to AMIs", func() {
 		env.ExpectSettingsOverridden(map[string]string{
 			"featureGates.driftEnabled": "true",
 		})
+	})
+	It("should deprovision nodes that have drifted due to AMIs", func() {
 		// choose an old static image
 		parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
 			Name: awssdk.String("/aws/service/eks/optimized-ami/1.23/amazon-linux-2/amazon-eks-node-1.23-v20230322/image_id"),
@@ -150,58 +151,53 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		}).WithTimeout(time.Minute).Should(Succeed())
 	})
 	It("should deprovision nodes that have drifted due to securitygroup", func() {
-		env.ExpectSettingsOverridden(map[string]string{
-			"featureGates.driftEnabled": "true",
-		})
-		By("Getting the Cluster VPCID")
+		By("getting the cluster vpc id")
 		output, err := env.EKSAPI.DescribeCluster(&eks.DescribeClusterInput{Name: awssdk.String(settings.FromContext(env.Context).ClusterName)})
 		Expect(err).To(BeNil())
 
-		By("creating a new securitygroup")
-		securitygroup := env.GetSecurityGroups(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
-		Expect(len(securitygroup)).To(BeNumerically("==", 2))
+		By("looking for security groups")
+		securitygroups := env.GetSecurityGroups(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
+		testSecurityGroup, found := lo.Find(securitygroups, func(sg aws.SecurityGroup) bool {
+			return awssdk.StringValue(sg.GroupName) == "security-group-drift"
+		})
 
-		createSecurityGroup := &ec2.CreateSecurityGroupInput{
-			GroupName:   awssdk.String("security-group-drift"),
-			Description: awssdk.String("End-to-end Drift Test, should delete after drift test is completed"),
-			VpcId:       output.Cluster.ResourcesVpcConfig.VpcId,
-			TagSpecifications: []*ec2.TagSpecification{
-				{
-					ResourceType: awssdk.String("security-group"),
-					Tags: []*ec2.Tag{
-						{
-							Key:   awssdk.String("security-group-drift"),
-							Value: awssdk.String(settings.FromContext(env.Context).ClusterName),
+		if !found {
+			By("creating new security group")
+			createSecurityGroup := &ec2.CreateSecurityGroupInput{
+				GroupName:   awssdk.String("security-group-drift"),
+				Description: awssdk.String("End-to-end Drift Test, should delete after drift test is completed"),
+				VpcId:       output.Cluster.ResourcesVpcConfig.VpcId,
+				TagSpecifications: []*ec2.TagSpecification{
+					{
+						ResourceType: awssdk.String("security-group"),
+						Tags: []*ec2.Tag{
+							{
+								Key:   awssdk.String("karpenter.sh/discovery"),
+								Value: awssdk.String(settings.FromContext(env.Context).ClusterName),
+							},
 						},
 					},
 				},
-			},
+			}
+			newSecurityGroup, err := env.EC2API.CreateSecurityGroup(createSecurityGroup)
+			Expect(err).To(BeNil())
+			testSecurityGroup = aws.SecurityGroup{
+				GroupIdentifier: ec2.GroupIdentifier{GroupId: newSecurityGroup.GroupId},
+				Tags:            newSecurityGroup.Tags,
+			}
 		}
-		newSecurityGroup, err := env.EC2API.CreateSecurityGroup(createSecurityGroup)
-		Expect(err).To(BeNil())
-		DeferCleanup(func() {
-			By("deleting the new securitygroup")
-			// // Need to make sure that all instance launched with the security group are terminated
-			EventuallyWithOffset(1, func(g Gomega) {
-				output, err := env.EC2API.DescribeNetworkInterfaces(&ec2.DescribeNetworkInterfacesInput{
-					Filters: []*ec2.Filter{{Name: awssdk.String("group-id"), Values: []*string{newSecurityGroup.GroupId}}},
-				})
-				g.Expect(err).To(BeNil())
-				_, err = env.EC2API.ModifyNetworkInterfaceAttribute(&ec2.ModifyNetworkInterfaceAttributeInput{
-					NetworkInterfaceId: output.NetworkInterfaces[0].NetworkInterfaceId,
-					Groups:             lo.Map(securitygroup, func(sg aws.SecurityGroup, _ int) *string { return sg.GroupId }),
-				})
-				g.Expect(err).To(BeNil())
-				_, err = env.EC2API.DeleteSecurityGroup(&ec2.DeleteSecurityGroupInput{
-					GroupId: newSecurityGroup.GroupId,
-				})
-				g.Expect(err).To(BeNil())
-			}).Should(Succeed())
-		})
+
 		By("creating a new provider with the new securitygroup")
+		awsIDs := lo.Map(securitygroups, func(sg aws.SecurityGroup, _ int) string {
+			if awssdk.StringValue(sg.GroupId) != awssdk.StringValue(testSecurityGroup.GroupId) {
+				return awssdk.StringValue(sg.GroupId)
+			}
+			return ""
+		})
+		providerSecurityGroupId := strings.Join(lo.WithoutEmpty(awsIDs), ",")
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 			AWS: v1alpha1.AWS{
-				SecurityGroupSelector: map[string]string{"aws-ids": fmt.Sprintf("%s,%s,%s", *securitygroup[0].GroupId, *securitygroup[1].GroupId, awssdk.StringValue(newSecurityGroup.GroupId))},
+				SecurityGroupSelector: map[string]string{"aws-ids": fmt.Sprintf("%s,%s", providerSecurityGroupId, awssdk.StringValue(testSecurityGroup.GroupId))},
 				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			},
 		})
@@ -221,7 +217,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		env.ExpectCreatedNodeCount("==", 1)
 		By("updating the provider securitygroup")
 		node := env.Monitor.CreatedNodes()[0]
-		provider.Spec.SecurityGroupSelector = map[string]string{"aws-ids": fmt.Sprintf("%s,%s", *securitygroup[0].GroupId, *securitygroup[1].GroupId)}
+		provider.Spec.SecurityGroupSelector = map[string]string{"aws-ids": providerSecurityGroupId}
 		env.ExpectCreatedOrUpdated(provider)
 
 		By("checking the node metadata")
