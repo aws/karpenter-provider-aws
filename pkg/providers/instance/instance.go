@@ -105,7 +105,7 @@ func (p *Provider) Link(ctx context.Context, id, provisionerName string) error {
 		Resources: aws.StringSlice([]string{id}),
 		Tags: []*ec2.Tag{
 			{
-				Key:   aws.String(v1alpha5.ManagedByLabelKey),
+				Key:   aws.String(v1alpha5.MachineManagedByAnnotationKey),
 				Value: aws.String(settings.FromContext(ctx).ClusterName),
 			},
 			{
@@ -253,7 +253,7 @@ func getTags(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, machin
 	staticTags := map[string]string{
 		fmt.Sprintf("kubernetes.io/cluster/%s", settings.FromContext(ctx).ClusterName): "owned",
 		v1alpha5.ProvisionerNameLabelKey:                                               machine.Labels[v1alpha5.ProvisionerNameLabelKey],
-		v1alpha5.ManagedByLabelKey:                                                     settings.FromContext(ctx).ClusterName,
+		v1alpha5.MachineManagedByAnnotationKey:                                         settings.FromContext(ctx).ClusterName,
 	}
 	return lo.Assign(overridableTags, settings.FromContext(ctx).Tags, nodeTemplate.Spec.Tags, staticTags)
 }

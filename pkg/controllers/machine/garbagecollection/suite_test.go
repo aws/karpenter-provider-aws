@@ -113,7 +113,7 @@ var _ = Describe("MachineGarbageCollection", func() {
 					Value: aws.String(provisioner.Name),
 				},
 				{
-					Key:   aws.String(v1alpha5.ManagedByLabelKey),
+					Key:   aws.String(v1alpha5.MachineManagedByAnnotationKey),
 					Value: aws.String(settings.FromContext(ctx).ClusterName),
 				},
 			},
@@ -178,7 +178,7 @@ var _ = Describe("MachineGarbageCollection", func() {
 							Value: aws.String("default"),
 						},
 						{
-							Key:   aws.String(v1alpha5.ManagedByLabelKey),
+							Key:   aws.String(v1alpha5.MachineManagedByAnnotationKey),
 							Value: aws.String(settings.FromContext(ctx).ClusterName),
 						},
 					},
@@ -232,7 +232,7 @@ var _ = Describe("MachineGarbageCollection", func() {
 							Value: aws.String("default"),
 						},
 						{
-							Key:   aws.String(v1alpha5.ManagedByLabelKey),
+							Key:   aws.String(v1alpha5.MachineManagedByAnnotationKey),
 							Value: aws.String(settings.FromContext(ctx).ClusterName),
 						},
 					},
@@ -286,7 +286,7 @@ var _ = Describe("MachineGarbageCollection", func() {
 	It("should not delete an instance if it was not launched by a machine", func() {
 		// Remove the "karpenter.sh/managed-by" tag (this isn't launched by a machine)
 		instance.Tags = lo.Reject(instance.Tags, func(t *ec2.Tag, _ int) bool {
-			return aws.StringValue(t.Key) == v1alpha5.ManagedByLabelKey
+			return aws.StringValue(t.Key) == v1alpha5.MachineManagedByAnnotationKey
 		})
 
 		// Launch time was 10m ago

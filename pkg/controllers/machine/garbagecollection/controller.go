@@ -66,7 +66,7 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 		return reconcile.Result{}, fmt.Errorf("listing cloudprovider machines, %w", err)
 	}
 	managedRetrieved := lo.Filter(retrieved, func(m *v1alpha5.Machine, _ int) bool {
-		return m.Labels[v1alpha5.ManagedByLabelKey] != "" && m.DeletionTimestamp.IsZero()
+		return m.Annotations[v1alpha5.MachineManagedByAnnotationKey] != "" && m.DeletionTimestamp.IsZero()
 	})
 	machineList := &v1alpha5.MachineList{}
 	if err := c.kubeClient.List(ctx, machineList); err != nil {

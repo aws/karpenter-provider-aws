@@ -50,7 +50,7 @@ var (
 		// https://docs.aws.amazon.com/eks/latest/APIReference/API_CreateCluster.html
 		regexp.MustCompile(`^kubernetes\.io/cluster/[0-9A-Za-z][A-Za-z0-9\-_]*$`),
 		regexp.MustCompile(fmt.Sprintf("^%s$", regexp.QuoteMeta(v1alpha5.ProvisionerNameLabelKey))),
-		regexp.MustCompile(fmt.Sprintf("^%s$", regexp.QuoteMeta(v1alpha5.ManagedByLabelKey))),
+		regexp.MustCompile(fmt.Sprintf("^%s$", regexp.QuoteMeta(v1alpha5.MachineManagedByAnnotationKey))),
 	}
 	AMIFamilyBottlerocket = "Bottlerocket"
 	AMIFamilyAL2          = "AL2"
