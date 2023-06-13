@@ -88,7 +88,9 @@ spec:
       ipv6PrefixCount: 1                  # optional, The number of IPv6 prefixes that AWS automatically assigns to the network interface.
     - { ... }
 ```
-in addition, we will only support two networkInterfaces per node, this way we guarantee that the node will be able to run on all instance types.
+
+in addition, we will only support two networkInterfaces per node, this way we guarantee that the node will be able to
+run on all instance types.
 
 subnet and securityGroup will remain part of the `AWSNodeTemplate` and will be used for both network interfaces.
 in following iterations, as the `AWSNodeTemplate` move from `v1alpha1` to higher versions, we can add support for:
@@ -97,4 +99,31 @@ in following iterations, as the `AWSNodeTemplate` move from `v1alpha1` to higher
 subnetSelector: String
 securityGroupSelector: String
 ```
-this way we can support different subnets and security groups for each network interface, we can also remove the limit of having only 2 network interfaces per LaunchTemplate.
+
+this way we can support different subnets and security groups for each network interface, we can also remove the limit
+of having only 2 network interfaces per LaunchTemplate.
+
+The [drift design doc #366](https://github.com/aws/karpenter-core/pull/366) suggests classifying CRD fields as  (1) Static, (2) Dynamic, or (3) Behavioral. in this
+context, the networkInterfaces would be classified as following:
+
+|                                                                | Static | Dynamic | Behavioral |
+|----------------------------------------------------------------|--------|---------|------------|
+| AWSNodeTemplate.NetworkInterfaces.length                       | x      |         |            |
+| AWSNodeTemplate.NetworkInterfaces.order                        | x      |         |            |
+| AWSNodeTemplate.NetworkInterfaces[@].AssociateCarrierIpAddress | x      |         |            |
+| AWSNodeTemplate.NetworkInterfaces[@].AssociatePublicIpAddress  | x      |         |            |
+| AWSNodeTemplate.NetworkInterfaces[@].DeleteOnTermination       |        |         | x          |
+| AWSNodeTemplate.NetworkInterfaces[@].Description               | x      |         |            |
+| AWSNodeTemplate.NetworkInterfaces[@].DeviceIndex               | x      |         |            |
+| AWSNodeTemplate.NetworkInterfaces[@].InterfaceType             | x      |         |            |
+| AWSNodeTemplate.NetworkInterfaces[@].NetworkCardIndex          | x      |         |            |
+| AWSNodeTemplate.NetworkInterfaces[@].ipv4PrefixCount           | x      |         |            |
+| AWSNodeTemplate.NetworkInterfaces[@].ipv6PrefixCount           | x      |         |            |
+
+since `AWSNodeTemplate.NetworkInterfaces` is a list, Drift would be triggered if:
+
+- the number of network interfaces of the node do not match the length of `AWSNodeTemplate.NetworkInterfaces`
+- the order of network interfaces of a node do not match the order of `AWSNodeTemplate.NetworkInterfaces` when sorted
+  by `NetworkCardIndex` and `DeviceIndex`.
+  `AWSNodeTemplate.NetworkInterfaces` do not define `NetworkCardIndex` or `DeviceIndex`, their values are assumed to
+  equal the index of the  `v1alpha1.NetworkInterface` object in th list
