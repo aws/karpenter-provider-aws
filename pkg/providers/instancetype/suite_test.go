@@ -601,9 +601,9 @@ var _ = Describe("Instance Types", func() {
 		nodeNames := sets.NewString()
 		provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
 			{
-				Key:      v1alpha1.LabelInstanceCategory,
+				Key:      v1.LabelInstanceTypeStable,
 				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{"trn"},
+				Values:   []string{"trn1.2xlarge"},
 			},
 		}
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)

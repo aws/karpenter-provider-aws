@@ -132,22 +132,14 @@ func computeRequirements(ctx context.Context, info *ec2.InstanceTypeInfo, offeri
 	return hardcodeNeuron(requirements, info)
 }
 
+// TODO: remove function once DescribeInstanceTypes contains the accelerator data
+// Values found from: https://aws.amazon.com/ec2/instance-types/trn1/
 func hardcodeNeuron(requirements scheduling.Requirements, info *ec2.InstanceTypeInfo) scheduling.Requirements {
 	// Trn1 Accelerators
-	if *info.InstanceType == "trn1.2xlarge" {
+	if strings.Contains(*info.InstanceType, "trn1") {
 		requirements.Get(v1alpha1.LabelInstanceAcceleratorName).Insert(lowerKabobCase("Inferentia"))
 		requirements.Get(v1alpha1.LabelInstanceAcceleratorManufacturer).Insert(lowerKabobCase("AWS"))
-		requirements.Get(v1alpha1.LabelInstanceAcceleratorCount).Insert(fmt.Sprint(1))
-	}
-	if *info.InstanceType == "trn1.32xlarge" {
-		requirements.Get(v1alpha1.LabelInstanceAcceleratorName).Insert(lowerKabobCase("Inferentia"))
-		requirements.Get(v1alpha1.LabelInstanceAcceleratorManufacturer).Insert(lowerKabobCase("AWS"))
-		requirements.Get(v1alpha1.LabelInstanceAcceleratorCount).Insert(fmt.Sprint(16))
-	}
-	if *info.InstanceType == "trnn1.32xlarge" {
-		requirements.Get(v1alpha1.LabelInstanceAcceleratorName).Insert(lowerKabobCase("Inferentia"))
-		requirements.Get(v1alpha1.LabelInstanceAcceleratorManufacturer).Insert(lowerKabobCase("AWS"))
-		requirements.Get(v1alpha1.LabelInstanceAcceleratorCount).Insert(fmt.Sprint(16))
+		requirements.Get(v1alpha1.LabelInstanceAcceleratorCount).Insert(fmt.Sprint(awsNeurons(info)))
 	}
 	return requirements
 }
@@ -246,6 +238,8 @@ func amdGPUs(info *ec2.InstanceTypeInfo) *resource.Quantity {
 	return resources.Quantity(fmt.Sprint(count))
 }
 
+// TODO: remove trn1 hardcode values once DescribeInstanceTypes contains the accelerator data
+// Values found from: https://aws.amazon.com/ec2/instance-types/trn1/
 func awsNeurons(info *ec2.InstanceTypeInfo) *resource.Quantity {
 	count := int64(0)
 	if *info.InstanceType == "trn1.2xlarge" {
