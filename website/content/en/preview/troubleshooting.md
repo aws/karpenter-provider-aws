@@ -275,6 +275,14 @@ Karpenter does not support [in-tree storage plugins](https://kubernetes.io/blog/
 
 Due to [this race condition in Kubernetes](https://github.com/kubernetes/kubernetes/issues/95911), it's possible that the scheduler and the CSINode can race during node registration such that the scheduler assumes that a node can mount more volumes than the node attachments support. There is currently no solve for this problem other than enforcing `toplogySpreadConstraints` and `podAntiAffinity` on your workloads that use PVCs such that you attempt to reduce the number of PVCs that schedule to a given node.
 
+### CNI is unable to allocate IPs to pods
+
+Whenever a new pod is assigned to a node, the CNI will assign an IP address to that pod (assuming it isn't using host networking), allowing it to communicate with other pods on the cluster. It's possible for this IP allocation and assignment process to fail for a number of reasons. If this process fails, you may see the error shown below.
+
+#### Pod Density for node is greater than supported pod density for the ENIs
+
+#### IP Exhaustion 
+
 ## Deprovisioning
 
 ### Nodes not deprovisioned
