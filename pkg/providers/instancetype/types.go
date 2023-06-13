@@ -136,7 +136,7 @@ func computeRequirements(ctx context.Context, info *ec2.InstanceTypeInfo, offeri
 // Values found from: https://aws.amazon.com/ec2/instance-types/trn1/
 func hardcodeNeuron(requirements scheduling.Requirements, info *ec2.InstanceTypeInfo) scheduling.Requirements {
 	// Trn1 Accelerators
-	if strings.Contains(*info.InstanceType, "trn1") {
+	if strings.HasPrefix(*info.InstanceType, "trn1") {
 		requirements.Get(v1alpha1.LabelInstanceAcceleratorName).Insert(lowerKabobCase("Inferentia"))
 		requirements.Get(v1alpha1.LabelInstanceAcceleratorManufacturer).Insert(lowerKabobCase("AWS"))
 		requirements.Get(v1alpha1.LabelInstanceAcceleratorCount).Insert(fmt.Sprint(awsNeurons(info)))
