@@ -406,7 +406,7 @@ Resources:
             Action: iam:PassRole
             Resource:
               - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/KarpenterNodeRole-*"
-              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-fis-itn"
+              - !Ref FISInterruptionRole
           - Effect: Allow
             Action:
              - pricing:GetProducts
