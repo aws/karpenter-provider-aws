@@ -435,7 +435,7 @@ func ExpectInstanceExists(api *fake.EC2API, instanceID string) *ec2.Instance {
 
 func ExpectManagedByTagExists(instance *ec2.Instance) *ec2.Tag {
 	tag, ok := lo.Find(instance.Tags, func(t *ec2.Tag) bool {
-		return aws.StringValue(t.Key) == v1alpha5.ManagedByLabelKey
+		return aws.StringValue(t.Key) == v1alpha5.MachineManagedByAnnotationKey
 	})
 	Expect(ok).To(BeTrue())
 	return tag
