@@ -56,7 +56,7 @@ Resources:
               - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/eksctl-*"
               - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/karpenter-irsa-*"
               - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/prometheus-irsa-*"
-              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-fis-itn"
+              - !GetAtt FISInterruptionRole.Arn
           - Effect: Allow
             Action: iam:PassRole
             Resource: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/eksctl-*"
@@ -406,7 +406,7 @@ Resources:
             Action: iam:PassRole
             Resource:
               - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/KarpenterNodeRole-*"
-              - !Ref FISInterruptionRole
+              - !GetAtt FISInterruptionRole.Arn
           - Effect: Allow
             Action:
              - pricing:GetProducts
