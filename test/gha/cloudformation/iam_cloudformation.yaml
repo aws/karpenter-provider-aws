@@ -39,15 +39,21 @@ Resources:
               ArnEquals:
                 "iam:PermissionsBoundary": !Ref GithubActionsPermissionsBoundary
           - Effect: Allow
+            Action: iam:DeleteRole
+            Resource:
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/KarpenterNodeRole-*"
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/eksctl-*"
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/karpenter-irsa-*"
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/prometheus-irsa-*"
+          - Effect: Allow
             Action:
               - iam:GetRole
               - iam:GetRolePolicy
               - iam:ListAttachedRolePolicies
-              - iam:DeleteRole
             Resource:
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/eks-nodegroup.amazonaws.com/AWSServiceRoleForAmazonEKSNodegroup"
               - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/KarpenterNodeRole-*"
               - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/eksctl-*"
-              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/eks-nodegroup.amazonaws.com/AWSServiceRoleForAmazonEKSNodegroup"
               - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/karpenter-irsa-*"
               - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/prometheus-irsa-*"
               - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-fis-itn"

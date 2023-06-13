@@ -28,7 +28,6 @@ permissions:
 jobs:
   run-suite:
     runs-on: ubuntu-latest
-    container: public.ecr.aws/karpenter/tools:latest
     steps:
       - name: configure aws credentials
         uses: aws-actions/configure-aws-credentials@v2
