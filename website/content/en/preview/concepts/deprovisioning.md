@@ -142,15 +142,54 @@ data:
 
 ## Drift
 
-If drift is enabled, Karpenter will deprovision nodes that have been marked as drifted with the annotation `karpenter.sh/voluntary-disruption: "drifted"`. Karpenter will automatically cordon, drain, and terminate nodes, while respecting any PDBs or `do-not-evict` pods that are configured. Karpenter will automatically mark nodes as drifted if the AMI that is used on the instance does not match the AMI set by the AWSNodeTemplate. Check the [AWSNodeTemplate Docs]({{<ref "./node-templates" >}}) settings for more.
+Karpenter Drift will classify each CRD field as a (1) Static, (2) Dynamic, or (3) Behavioral field and will treat them differently. Static Drift will be a one-way reconciliation, triggered only by CRD changes. Dynamic Drift will be a two-way reconciliation, triggered by machine/node/instance changes and Provisioner or AWSNodetemplate changes.
 
-If users annotate their own nodes with `karpenter.sh/voluntary-disruption: "drifted"`, Karpenter will respect the annotation and deprovision the nodes.
+1. For Static Fields, values in the CRDs are reflected in the machine in the same way that they’re set. A machine will be detected as drifted if the values in the CRDs do not match the values in the machine.
 
-{{% alert title="Note" color="primary" %}}
-Karpenter will only automatically mark nodes as drifted in the case of a drifted AMI. More methods of drift will be implemented in the future. Please cut a feature request if you'd like to see more methods implemented.
-{{% /alert %}}
+2. Dynamic Fields can correspond to multiple values and must be handled differently. Dynamic fields can create cases where drift occurs without changes to CRDs, or where CRD changes do not result in drift. For example, if a machine has `node.kubernetes.io/instance-type: m5.large`, and requirements change from `node.kubernetes.io/instance-type In [m5.large]` to `node.kubernetes.io/instance-type In [m5.large, m5.2xlarge]`, the machine will not be drifted because it's value is still compatible with the new requirements. Conversely, for an AWS Installation, if a machine is using a machine image `ami: ami-abc`, but a new image is published, Karpenter's `AWSNodeTemplate.amiSelector` will discover that the new correct value is `ami: ami-xyz`, and detect the machine as drifted.
+
+3. Behavioral Fields are treated as over-arching settings on the Provisioner to dictate how Karpenter behaves. These fields don’t correspond to settings on the machine or instance. They’re set by the user to control Karpenter’s Provisioning and Deprovisioning logic. Since these don’t map to a desired state of machines, these fields will not be considered for Drift.
+
+Read the [Drift Design](https://github.com/aws/karpenter-core/pull/366/files) for more.
+
+|Provisioner Fields          | Static | Dynamic | Behavioral | Implemented |
+|----------------------------|  :---: |  :---:  |   :---:    |    :---:    |
+| Startup Taints             |    x   |         |            |             |
+| Taints                     |    x   |         |            |             |
+| Labels                     |    x   |         |            |             |
+| Annotations                |    x   |         |            |             |
+| Node Requirements          |        |    x    |            |             |
+| Kubelet Configuration      |    x   |         |            |             |
+| Weight                     |        |         |      x     |     NA      |
+| Limits                     |        |         |      x     |     NA      |
+| Consolidation              |        |         |      x     |     NA      |
+| TTLSecondsUntilExpired     |        |         |      x     |     NA      |
+| TTLSecondsAfterEmpty       |        |         |      x     |     NA      |
+
+
+|AWSNodeTemplate Fields      | Static | Dynamic | Behavioral | Implemented |
+|----------------------------|  :---: |  :---:  |   :---:    |    :---:    |
+| Subnet Selector            |        |    x    |            |             |
+| Security Group Selector    |        |    x    |            |             |
+| Instance Profile           |    x   |         |            |             |
+| AMI Family/AMI Selector    |        |    x    |            |      x      |
+| UserData                   |    x   |         |            |             |
+| Tags                       |    x   |         |            |             |
+| Metadata Options           |    x   |         |            |             |
+| Block Device Mappings      |    x   |         |            |             |
+| Detailed Monitoring        |    x   |         |            |             |
+|                            |        |         |            |             |
+
 
 To enable the drift feature flag, refer to the [Settings Feature Gates]({{<ref "./settings#feature-gates" >}}).
+
+Karpenter will annotate the nodes with the `karpenter.sh/voluntary-disruption: "drifted"` if the node is drifted, and does not have the annotation,
+
+Karpenter will remove the  `karpenter.sh/voluntary-disruption: "drifted"` annotation for the following these scenarios:
+1. The `featureGates.driftEnabled` is not enabled but the node is drifted, karpenter will remove the annotation so another disruption controller can annotate the node.
+2. The node isn't drifted, but has the annotation, karpenter will remove it.
+
+If the node is marked as voluntarily disrupted by another controller, karpenter will do nothing.
 
 ## Disabling Deprovisioning
 
