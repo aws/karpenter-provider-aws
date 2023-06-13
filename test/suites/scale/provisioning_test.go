@@ -89,6 +89,12 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), func() {
 		dsCount = env.GetDaemonSetCount(provisioner)
 	})
 	It("should scale successfully on a node-dense scale-up", func(_ context.Context) {
+		// Disable Prefix Delegation for the node-dense scale-up to not exhaust the IPs
+		// This is required because of the number of Warm ENIs that will be created and the number of IPs
+		// that will be allocated across this large number of nodes, despite the fact that the ENI CIDR space will
+		// be extremely under-utilized
+		env.ExpectPrefixDelegationDisabled()
+
 		replicasPerNode := 1
 		expectedNodeCount := 500
 		replicas := replicasPerNode * expectedNodeCount

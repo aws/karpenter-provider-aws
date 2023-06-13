@@ -31,15 +31,16 @@ func TestScale(t *testing.T) {
 	BeforeSuite(func() {
 		env = aws.NewEnvironment(t)
 		SetDefaultEventuallyTimeout(time.Hour)
-
-		env.ExpectPrefixDelegationEnabled()
-		DeferCleanup(func() {
-			env.ExpectPrefixDelegationDisabled()
-		})
 	})
 	RunSpecs(t, "Scale")
 }
 
-var _ = BeforeEach(func() { env.BeforeEach() })
+var _ = BeforeEach(func() {
+	env.ExpectPrefixDelegationEnabled()
+	env.BeforeEach()
+})
 var _ = AfterEach(func() { env.Cleanup() })
-var _ = AfterEach(func() { env.AfterEach() })
+var _ = AfterEach(func() {
+	env.AfterEach()
+	env.ExpectPrefixDelegationDisabled()
+})
