@@ -14,6 +14,8 @@ cat <<EOF | kubectl create -f -
    params:
    - name: test-filter
      value: "Scale"
+   - name: test-timeout
+     value: "6h"
    pipelineRef:
      name: suite
    serviceAccountName: karpenter-tests
