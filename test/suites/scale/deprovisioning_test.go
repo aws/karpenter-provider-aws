@@ -208,8 +208,9 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			// the other provisioners
 			driftNodeTemplate := nodeTemplate.DeepCopy()
 			driftNodeTemplate.Name = test.RandomName()
-			provisionerMap[driftValue].Spec.ProviderRef.Name = driftNodeTemplate.Name
-
+			provisionerMap[driftValue].Spec.ProviderRef = &v1alpha5.MachineTemplateRef{
+				Name: driftNodeTemplate.Name,
+			}
 			env.MeasureDurationFor(func() {
 				By("kicking off provisioning by applying the provisioner and nodeTemplate")
 				env.ExpectCreated(driftNodeTemplate, nodeTemplate)
