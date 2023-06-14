@@ -70,11 +70,7 @@ type LaunchTemplate struct {
 	InstanceTypes         []*cloudprovider.InstanceType `hash:"ignore"`
 	DetailedMonitoring    bool
 	LicenseSpecifications []string
-	Placement             Placement
-}
-type Placement struct {
-	HostResourceGroupArn string
-	GroupId              string
+	Placement             *v1alpha1.Placement
 }
 
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters
@@ -167,6 +163,7 @@ func (r Resolver) Resolve(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTem
 				DetailedMonitoring:  aws.BoolValue(nodeTemplate.Spec.DetailedMonitoring),
 				AMIID:               amiID,
 				InstanceTypes:       instanceTypes,
+				Placement:           nodeTemplate.Spec.Placement,
 			}
 			if resolved.BlockDeviceMappings == nil {
 				resolved.BlockDeviceMappings = amiFamily.DefaultBlockDeviceMappings()
@@ -176,9 +173,6 @@ func (r Resolver) Resolve(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTem
 			}
 			if len(nodeTemplate.Spec.LicenseSpecifications) > 0 {
 				resolved.LicenseSpecifications = nodeTemplate.Spec.LicenseSpecifications
-			}
-			if nodeTemplate.Spec.Placement.HostResourceGroupArn != "" || nodeTemplate.Spec.Placement.GroupId != "" {
-				resolved.Placement = Placement{HostResourceGroupArn: nodeTemplate.Spec.Placement.HostResourceGroupArn, GroupId: nodeTemplate.Spec.Placement.GroupId}
 			}
 			resolvedTemplates = append(resolvedTemplates, resolved)
 		}

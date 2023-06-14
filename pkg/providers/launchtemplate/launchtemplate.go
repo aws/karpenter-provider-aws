@@ -240,7 +240,7 @@ func (p *Provider) createLaunchTemplate(ctx context.Context, options *amifamily.
 				{ResourceType: aws.String(ec2.ResourceTypeNetworkInterface), Tags: utils.MergeTags(options.Tags)},
 			},
 			LicenseSpecifications: createLicenseSpecifications(options.LicenseSpecifications),
-			Placement:             createPlacement(&options.Placement),
+			Placement:             createPlacement(options.Placement),
 		},
 		TagSpecifications: []*ec2.TagSpecification{
 			{
@@ -285,18 +285,14 @@ func createLicenseSpecifications(licenseSpecifications []string) []*ec2.LaunchTe
 	return output
 }
 
-func createPlacement(placement *amifamily.Placement) *ec2.LaunchTemplatePlacementRequest {
-	var request = &ec2.LaunchTemplatePlacementRequest{}
+func createPlacement(placement *v1alpha1.Placement) *ec2.LaunchTemplatePlacementRequest {
 	if placement == nil {
 		return nil
 	}
-	if placement.HostResourceGroupArn != "" {
-		request.HostResourceGroupArn = aws.String(placement.HostResourceGroupArn)
-	}
-	if placement.GroupId != "" {
-		request.GroupId = aws.String(placement.GroupId)
-	}
-	return request
+	return &ec2.LaunchTemplatePlacementRequest{
+        HostResourceGroupArn: placement.HostResourceGroupARN,
+        GroupId: placement.GroupID,
+    }
 }
 
 func (p *Provider) blockDeviceMappings(blockDeviceMappings []*v1alpha1.BlockDeviceMapping) []*ec2.LaunchTemplateBlockDeviceMappingRequest {

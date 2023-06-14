@@ -1666,7 +1666,7 @@ var _ = Describe("LaunchTemplates", func() {
 		Context("Placement Launch Template Configuration", func() {
 			It("should set 'LicenseSpecification', 'Placement.GroupId' and 'Placement.HostResourceGroupArn' in the launch template", func() {
 				nodeTemplate.Spec.LicenseSpecifications = []string{"mylicense"}
-				nodeTemplate.Spec.Placement = v1alpha1.Placement{HostResourceGroupArn: "myhrg", GroupId: "pg-12345"}
+				nodeTemplate.Spec.Placement = &v1alpha1.Placement{HostResourceGroupARN: aws.String("myhrg"), GroupID: aws.String("pg-12345")}
 				ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)

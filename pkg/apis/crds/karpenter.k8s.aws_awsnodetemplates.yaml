@@ -201,9 +201,9 @@ spec:
                 description: DedicatedHost contains the configuration to launch nodes
                   on AWS Dedicated hosts
                 properties:
-                  groupdId:
+                  groupdID:
                     type: string
-                  hostResourceGroupArn:
+                  hostResourceGroupARN:
                     type: string
                 type: object
               securityGroupSelector:

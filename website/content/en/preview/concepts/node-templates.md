@@ -36,8 +36,8 @@ spec:
   detailedMonitoring: "..."      # optional, configures detailed monitoring for the instance
   licenseSpecifications: [ ... ] # optional, configures licenseSpecifications in aws launch templates
   placement:
-    hostResourceGroupArn: "..."  # optional, configures the Host Resource Group ARN to place instances on dedicated hosts
-    groupId: "..."               # optional, configures the Group ID of a placement group.
+    hostResourceGroupARN: "..."  # optional, configures the Host Resource Group ARN to place instances on dedicated hosts
+    groupID: "..."               # optional, configures the Group ID of a placement group.
 status:
   subnets: { ... }               # resolved subnets
   securityGroups: { ... }        # resolved security groups
