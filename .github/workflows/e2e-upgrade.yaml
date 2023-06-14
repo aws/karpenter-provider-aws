@@ -1,0 +1,116 @@
+name: E2EUpgrade
+on:
+  workflow_call:
+    inputs:
+      git_repo:
+        type: string
+        default: "aws/karpenter"
+      from_git_ref:
+        type: string
+        required: true
+      to_git_ref:
+        type: string
+      event_name:
+        type: string
+        required: true
+    secrets:
+      SLACK_WEBHOOK_URL:
+        required: true
+env:
+  AWS_REGION: us-east-1
+  K8s_VERSION: 1.25
+  ACCOUNT_ID: 857221689048
+  ROLE_NAME: GithubActionsRole
+  WORKSPACE_ID: ws-076042fb-35be-4a2e-baaa-b2a80780606b
+permissions:
+  id-token: write # This is required for requesting the JWT
+  contents: read  # This is required for actions/checkout
+jobs:
+  run-suite:
+    runs-on: ubuntu-latest
+    steps:
+      - name: configure aws credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::${{ env.ACCOUNT_ID }}:role/${{ env.ROLE_NAME }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-duration-seconds: 21600
+      - uses: actions/checkout@v3
+        with:
+          path: actions
+      - name: generate cluster name
+        run: |
+          CLUSTER_NAME="upgrade-$RANDOM$RANDOM"
+          echo "Using cluster name \"$CLUSTER_NAME\""
+          echo CLUSTER_NAME=$CLUSTER_NAME >> $GITHUB_ENV
+      - name: create eks cluster '${{ env.CLUSTER_NAME }}'
+        uses: ./actions/.github/actions/e2e/create-cluster
+        with:
+          account_id: ${{ env.ACCOUNT_ID }}
+          role: ${{ env.ROLE_NAME }}
+          region: ${{ env.AWS_REGION }}
+          cluster_name: ${{ env.CLUSTER_NAME }}
+          kubernetes_version: ${{ env.K8S_VERSION }}
+          ip_family: IPv4 # Set the value to IPv6 if IPv6 suite, else IPv4
+          git_repo: ${{ inputs.git_repo }}
+      - name: install prometheus
+        uses: ./actions/.github/actions/e2e/install-prometheus
+        with:
+          account_id: ${{ env.ACCOUNT_ID }}
+          role: ${{ env.ROLE_NAME }}
+          region: ${{ env.AWS_REGION }}
+          cluster_name: ${{ env.CLUSTER_NAME }}
+          workspace_id: ${{ env.WORKSPACE_ID }}
+      - name: install karpenter
+        uses: ./actions/.github/actions/e2e/install-karpenter
+        with:
+          account_id: ${{ env.ACCOUNT_ID }}
+          role: ${{ env.ROLE_NAME }}
+          region: ${{ env.AWS_REGION }}
+          cluster_name: ${{ env.CLUSTER_NAME }}
+          git_repo: ${{ inputs.git_repo }}
+          git_ref: ${{ inputs.from_git_ref }}
+      - name: upgrade crds
+        uses: ./actions/.github/actions/e2e/upgrade-crds
+        with:
+          account_id: ${{ env.ACCOUNT_ID }}
+          role: ${{ env.ROLE_NAME }}
+          region: ${{ env.AWS_REGION }}
+          cluster_name: ${{ env.CLUSTER_NAME }}
+          git_repo: ${{ inputs.git_repo }}
+          git_ref: ${{ inputs.to_git_ref }}
+      - name: upgrade karpenter
+        uses: ./actions/.github/actions/e2e/install-karpenter
+        with:
+          account_id: ${{ env.ACCOUNT_ID }}
+          role: ${{ env.ROLE_NAME }}
+          region: ${{ env.AWS_REGION }}
+          cluster_name: ${{ env.CLUSTER_NAME }}
+          git_repo: ${{ inputs.git_repo }}
+          git_ref: ${{ inputs.to_git_ref }}
+      - name: run the Upgrade test suite
+        run: |
+          aws eks update-kubeconfig --name ${{ env.CLUSTER_NAME }}
+          FOCUS=Integration make e2etests
+      - name: notify slack of success or failure
+        uses: ./actions/.github/actions/e2e/slack/notify
+        if: ${{ (inputs.event_name == 'schedule' || inputs.event_name == 'push') && (success() || failure()) }}
+        with:
+          url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          suite: Upgrade
+      - name: dump logs on failure
+        uses: ./actions/.github/actions/e2e/dump-logs
+        if: failure() || cancelled()
+        with:
+          account_id: ${{ env.ACCOUNT_ID }}
+          role: ${{ env.ROLE_NAME }}
+          region: ${{ env.AWS_REGION }}
+          cluster_name: ${{ env.CLUSTER_NAME }}
+      - name: cleanup karpenter and cluster '${{ env.CLUSTER_NAME }}' resources
+        uses: ./actions/.github/actions/e2e/cleanup
+        if: always()
+        with:
+          account_id: ${{ env.ACCOUNT_ID }}
+          role: ${{ env.ROLE_NAME }}
+          region: ${{ env.AWS_REGION }}
+          cluster_name: ${{ env.CLUSTER_NAME }}

@@ -1,0 +1,33 @@
+name: E2EMatrix
+on:
+  schedule:
+    - cron: '7 */12 * * *'
+  push:
+    branches: [main]
+  workflow_run:
+    workflows: [ApprovalComment]
+    types: [completed]
+  workflow_dispatch:
+jobs:
+  e2e:
+    if: github.repository == 'aws/karpenter'
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [Integration, Machine, Consolidation, Utilization, Interruption, Drift, Chaos, IPv6]
+    uses: ./.github/workflows/e2e.yaml
+    with:
+      suite: ${{ matrix.suite }}
+      git_repo: aws/karpenter
+      event_name: ${{ github.event_name }}
+    secrets:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+  e2e-upgrade:
+    if: github.repository == 'aws/karpenter'
+    uses: ./.github/workflows/e2e-upgrade.yaml
+    with:
+      from_git_ref: v0.26.1
+      git_repo: aws/karpenter
+      event_name: ${{ github.event_name }}
+    secrets:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

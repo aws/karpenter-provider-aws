@@ -1,0 +1,23 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Resources used for monitoring the GHA test runs using Prometheus
+Resources:
+  PrometheusWorkspace:
+    Type: AWS::APS::Workspace
+  PrometheusWorkspaceIngestionPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: PrometheusWorkspaceIngestionPolicy
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Resource: !Ref PrometheusWorkspace
+            Action:
+              - aps:RemoteWrite
+              - aps:GetSeries
+              - aps:GetLabels
+              - aps:GetMetricMetadata
+Outputs:
+  WorkspaceID:
+    Description: "Prometheus Workspace ID"
+    Value: !Ref PrometheusWorkspace
