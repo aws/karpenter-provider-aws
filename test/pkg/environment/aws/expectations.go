@@ -37,7 +37,7 @@ import (
 // Spot Interruption experiment details partially copied from
 // https://github.com/aws/amazon-ec2-spot-interrupter/blob/main/pkg/itn/itn.go
 const (
-	fisRoleName    = "aws-fis-itn"
+	fisRoleName    = "FISInterruptionRole"
 	fisTargetLimit = 5
 	spotITNAction  = "aws:ec2:send-spot-instance-interruptions"
 )
@@ -63,7 +63,7 @@ func (env *Environment) ExpectSpotInterruptionExperiment(instanceIDs ...string) 
 		RoleArn:        env.ExpectSpotInterruptionRole().Arn,
 		Description:    aws.String(fmt.Sprintf("trigger spot ITN for instances %v", instanceIDs)),
 	}
-	for j, ids := range lo.Chunk(instanceIDs, 5) {
+	for j, ids := range lo.Chunk(instanceIDs, fisTargetLimit) {
 		key := fmt.Sprintf("itn%d", j)
 		template.Actions[key] = &fis.CreateExperimentTemplateActionInput{
 			ActionId: aws.String(spotITNAction),

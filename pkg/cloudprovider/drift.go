@@ -96,7 +96,7 @@ func (c *CloudProvider) areSecurityGroupsDrifted(ec2Instance *instance.Instance,
 
 	securityGroupIds := sets.New(lo.Map(nodeTemplate.Status.SecurityGroups, func(sg v1alpha1.SecurityGroup, _ int) string { return sg.ID })...)
 	if len(securityGroupIds) == 0 {
-		return false, fmt.Errorf("no security groups exist given constraints")
+		return false, fmt.Errorf("no security groups exist in the AWSNodeTemplate Status")
 	}
 
 	return !securityGroupIds.Equal(sets.New(ec2Instance.SecurityGroupIDs...)), nil

@@ -21,9 +21,11 @@ updateKarpenterCoreGoMod(){
 updateTektonPreUpgradeVersion(){
   LAST_MINOR_VERSION=$(git tag --sort=committerdate | grep -v "v${RELEASE_VERSION_MAJOR}.${RELEASE_VERSION_MINOR}" | tail -1)
   TEKTON_RELEASE_LISTENER_PATH="tools/release-notification-listener/listener/tekton.go"
+  GITHUB_ACTION_E2E_MATRIX_PATH=".github/workflows/e2e-matrix.yaml"
 
   # This command goes into the tekton release-listener file and replaces the preUpgradeVersion with the last minor version
   sed -i "s/preUpgradeVersion = \".*\"/preUpgradeVersion = \"$LAST_MINOR_VERSION\"/" "$TEKTON_RELEASE_LISTENER_PATH"
+  sed -i "s/from_git_ref:.*/from_git_ref: $LAST_MINOR_VERSION/" "$GITHUB_ACTION_E2E_MATRIX_PATH"
 }
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)

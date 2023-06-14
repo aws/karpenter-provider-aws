@@ -1,0 +1,25 @@
+name: NotifySlack
+description: 'Notifies slack of the success or failure of the suite'
+inputs:
+  suite:
+    description: "Suite that's running"
+    required: true
+  url:
+    description: "Webhook URL to send the Slack notification to"
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/checkout@v3
+      with:
+        path: actions
+    - uses: ./actions/.github/actions/e2e/slack/send-message
+      if: ${{ job.status == 'success' }}
+      with:
+        url: ${{ inputs.url }}
+        message: ":white_check_mark: ${{ inputs.suite }}-${{ github.run_id }} suite succeeded"
+    - uses: ./actions/.github/actions/e2e/slack/send-message
+      if: ${{ job.status == 'failure' }}
+      with:
+        url: ${{ inputs.url }}
+        message: ":x: ${{ inputs.suite }}-${{ github.run_id }} suite failed"

@@ -1,0 +1,45 @@
+prometheusOperator:
+  tolerations:
+    - key: CriticalAddonsOnly
+      operator: Exists
+  admissionWebhooks:
+    patch:
+      tolerations:
+        - key: CriticalAddonsOnly
+          operator: Exists
+prometheus-node-exporter:
+  tolerations:
+    - key: CriticalAddonsOnly
+      operator: Exists
+nodeExporter:
+  enabled: false
+kube-state-metrics:
+  tolerations:
+    - key: CriticalAddonsOnly
+      operator: Exists
+grafana:
+  tolerations:
+    - key: CriticalAddonsOnly
+      operator: Exists
+alertmanager:
+  alertmanagerSpec:
+    tolerations:
+      - key: CriticalAddonsOnly
+        operator: Exists
+prometheus:
+  prometheusSpec:
+    tolerations:
+      - key: CriticalAddonsOnly
+        operator: Exists
+    resources:
+      requests:
+        cpu: 1
+        memory: 5Gi
+      limits:
+        cpu: 1
+        memory: 5Gi
+    remoteWrite:
+      - queueConfig:
+          maxSamplesPerSend: 1000
+          maxShards: 200
+          capacity: 2500
