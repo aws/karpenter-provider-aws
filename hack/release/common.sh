@@ -47,7 +47,6 @@ Helm Chart Version $(helmChartVersion $RELEASE_VERSION)"
   cosignImages
   publishHelmChart "karpenter" "${RELEASE_VERSION}" "${RELEASE_REPO_ECR}"
   publishHelmChart "karpenter-crd" "${RELEASE_VERSION}" "${RELEASE_REPO_ECR}"
-  notifyRelease "$RELEASE_VERSION" $PR_NUMBER
   pullPrivateReplica "$RELEASE_VERSION"
 }
 
@@ -111,18 +110,6 @@ cosignImages() {
         -a GIT_VERSION="${RELEASE_VERSION}" \
         -a BUILD_DATE="$(buildDate)" \
         "${CONTROLLER_IMG}"
-}
-
-notifyRelease() {
-    RELEASE_VERSION=$1
-    PR_NUMBER=$2
-    RELEASE_TYPE=$(releaseType $RELEASE_VERSION)
-    LAST_STABLE_RELEASE_TAG=$(git describe --tags --abbrev=0)
-    MESSAGE="{\"releaseType\":\"${RELEASE_TYPE}\",\"releaseIdentifier\":\"${RELEASE_VERSION}\",\"prNumber\":\"${PR_NUMBER}\",\"githubAccount\":\"${GITHUB_ACCOUNT}\",\"lastStableReleaseTag\":\"${LAST_STABLE_RELEASE_TAG}\"}"
-    aws sns publish \
-        --topic-arn ${SNS_TOPIC_ARN} \
-        --message ${MESSAGE} \
-        --no-cli-pager
 }
 
 pullPrivateReplica(){
