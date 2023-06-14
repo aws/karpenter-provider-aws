@@ -87,7 +87,7 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 	}
 	// Filter out any machines that shouldn't be linked
 	retrieved = lo.Filter(retrieved, func(m *v1alpha5.Machine, _ int) bool {
-		_, ok := m.Labels[v1alpha5.ManagedByLabelKey]
+		_, ok := m.Annotations[v1alpha5.MachineManagedByAnnotationKey]
 		return !ok && m.DeletionTimestamp.IsZero() && m.Labels[v1alpha5.ProvisionerNameLabelKey] != ""
 	})
 	errs := make([]error, len(retrieved))

@@ -23,6 +23,9 @@ spec:
     - name: test-filter
       description: Test filter passed to `go test -run`
       default: "IPv6"
+    - name: test-timeout
+      description: Test timeout passed to `go test -run`
+      default: "3h"
     - name: cleanup
       default: "true"
       description: If true, clean up resources
@@ -55,6 +58,8 @@ spec:
       value: $(params.git-ref)
     - name: test-filter
       value: $(params.test-filter)
+    - name: test-timeout
+      value: $(params.test-timeout)
     runAfter:
     - setup
 

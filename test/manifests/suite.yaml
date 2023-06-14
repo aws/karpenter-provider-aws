@@ -19,6 +19,9 @@ spec:
       description: Git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release.
     - name: test-filter
       description: Test filter passed to `go test -run`
+    - name: test-timeout
+      description: Test timeout passed to `go test -run`
+      default: "3h"
     - name: cleanup
       default: "true"
       description: If true, clean up resources
@@ -49,6 +52,8 @@ spec:
       value: $(params.git-ref)
     - name: test-filter
       value: $(params.test-filter)
+    - name: test-timeout
+      value: $(params.test-timeout)
     runAfter:
     - setup
 
