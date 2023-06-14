@@ -2,9 +2,6 @@ name: E2E
 on:
   workflow_call:
     inputs:
-      region:
-        type: string
-        default: "us-east-1"
       git_repo:
         type: string
         default: "aws/karpenter"
@@ -20,7 +17,7 @@ on:
       SLACK_WEBHOOK_URL:
         required: true
 env:
-  AWS_REGION: ${{ inputs.region }}
+  AWS_REGION: us-east-2
   K8s_VERSION: 1.25
   ACCOUNT_ID: 857221689048
   ROLE_NAME: GithubActionsRole

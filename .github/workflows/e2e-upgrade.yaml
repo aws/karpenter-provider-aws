@@ -17,7 +17,7 @@ on:
       SLACK_WEBHOOK_URL:
         required: true
 env:
-  AWS_REGION: us-east-1
+  AWS_REGION: us-east-2
   K8s_VERSION: 1.25
   ACCOUNT_ID: 857221689048
   ROLE_NAME: GithubActionsRole
