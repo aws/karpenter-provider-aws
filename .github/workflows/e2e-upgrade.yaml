@@ -21,7 +21,7 @@ env:
   K8s_VERSION: 1.25
   ACCOUNT_ID: 857221689048
   ROLE_NAME: GithubActionsRole
-  WORKSPACE_ID: ws-076042fb-35be-4a2e-baaa-b2a80780606b
+  WORKSPACE_ID: ws-d4d85b73-ac6d-4448-b858-363834e66ff4
 permissions:
   id-token: write # This is required for requesting the JWT
   contents: read  # This is required for actions/checkout
