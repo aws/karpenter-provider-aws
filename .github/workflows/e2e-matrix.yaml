@@ -13,7 +13,26 @@ on:
 #   2. Upstream Karpenter repo triggered the job by workflow_run, which requires maintainer check to succeed
 #   3. Downstream fork triggered the job through dispatch and has set 'ENABLE_E2E' in repo environment variables
 jobs:
+  resolve-git-ref:
+    if: (github.repository == 'aws/karpenter' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')) || (vars.ENABLE_E2E && github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    outputs:
+      GIT_REF: ${{ steps.resolve-step.outputs.GIT_REF }}
+    steps:
+      # Download the artifact and resolve the commit if initiated by PR snapshot
+      # Otherwise, use the currently checked-out branch to run the E2E tests against
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/download-artifact
+        if: github.event_name == 'workflow_run'
+      - id: resolve-step
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
+            echo GIT_REF=$(tail -n 1 /tmp/artifacts/metadata.txt) >> $GITHUB_OUTPUT
+          else
+            echo GIT_REF="" >> $GITHUB_OUTPUT
+          fi
   e2e:
+    needs: [resolve-git-ref]
     if: (github.repository == 'aws/karpenter' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')) || (vars.ENABLE_E2E && github.event_name == 'workflow_dispatch')
     strategy:
       fail-fast: false
@@ -23,14 +42,17 @@ jobs:
     with:
       suite: ${{ matrix.suite }}
       git_repo: aws/karpenter
+      git_ref: ${{ needs.resolve-git-ref.outputs.GIT_REF }}
       event_name: ${{ github.event_name }}
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
   e2e-upgrade:
+    needs: [resolve-git-ref]
     if: (github.repository == 'aws/karpenter' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')) || (vars.ENABLE_E2E && github.event_name == 'workflow_dispatch')
     uses: ./.github/workflows/e2e-upgrade.yaml
     with:
       from_git_ref: v0.26.1
+      to_git_ref: ${{ needs.resolve-git-ref.outputs.GIT_REF }}
       git_repo: aws/karpenter
       event_name: ${{ github.event_name }}
     secrets:
