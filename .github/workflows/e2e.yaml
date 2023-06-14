@@ -81,6 +81,7 @@ jobs:
         with:
           url: ${{ secrets.SLACK_WEBHOOK_URL }}
           suite: ${{ inputs.suite }}
+          event_name: ${{ inputs.event_name }}
       - name: dump logs on failure
         uses: ./actions/.github/actions/e2e/dump-logs
         if: failure() || cancelled()
