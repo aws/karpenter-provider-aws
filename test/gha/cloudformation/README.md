@@ -22,8 +22,8 @@ aws cloudformation deploy \
 ```console
 aws cloudformation deploy --stack-name GithubActionsIAM \
     --template-file iam_cloudformation.yaml \
-    --parameter-overrides "Repository=aws/karpenter" "PrometheusWorkspaceID=<workspace-id>" \
+    --parameter-overrides "Repository=<repository>" Branches="*" "PrometheusWorkspaceID=<workspace-id>" \
     --capabilities CAPABILITY_NAMED_IAM
 ```
 
-_Note: If deploying this cloudformation stack to reference back to your own repository, ensure you replace the `Repository` parameter override with your fully-qualified repository name in the format `<organization>/<repo-name>`_
+_Note: If deploying this cloudformation stack to reference back to your own repository, ensure you replace the `Repository` parameter override with your fully-qualified repository name in the format `<organization>/<repo-name>`. This parameter (along with the `Branches` parameter) tells the OIDC provider that is deployed for the action to reach out to, which branches and repos it should allow tokens to come from._
