@@ -77,13 +77,13 @@ spec:
   blockDeviceMappings: [ ... ]            # optional, configures storage devices for the instance
   detailedMonitoring: "..."               # optional, configures detailed monitoring for the instance
   networkInterfaces:                      # optional, configures network interfaces for the instance
-    - AssociateCarrierIpAddress: false    # optional, Indicates whether to associate a Carrier IP address with eth0 for a new network interface.
-      AssociatePublicIpAddress: false     # optional, Indicates whether to assign a public IPv4 address to eth0 for a new network interface.
-      DeleteOnTermination: false          # optional, Indicates whether the network interface is deleted when the instance is terminated.
-      Description: "..."                  # optional, A description for the network interface.
-      DeviceIndex: 0                      # required, The device index for the network interface attachment.
-      InterfaceType: "interface"          # optional, The interface type for the network interface. To create an Elastic Fabric Adapter (EFA), specify efa
-      NetworkCardIndex: 0                 # optional, The index of the network card. Some instance types support multiple network cards. The primary network interface must be assigned to network card index 0. The default is network card index 0.
+    - associateCarrierIPAddress: false    # optional, Indicates whether to associate a Carrier IP address with eth0 for a new network interface.
+      associatePublicIPAddress: false     # optional, Indicates whether to assign a public IPv4 address to eth0 for a new network interface.
+      deleteOnTermination: false          # optional, Indicates whether the network interface is deleted when the instance is terminated.
+      description: "..."                  # optional, A description for the network interface.
+      deviceIndex: 0                      # required, The device index for the network interface attachment.
+      interfaceType: "interface"          # optional, The interface type for the network interface. To create an Elastic Fabric Adapter (EFA), specify efa
+      networkCardIndex: 0 
       ipv4PrefixCount: 1                  # optional, The number of IPv4 prefixes that AWS automatically assigns to the network interface.
       ipv6PrefixCount: 1                  # optional, The number of IPv6 prefixes that AWS automatically assigns to the network interface.
     - { ... }
