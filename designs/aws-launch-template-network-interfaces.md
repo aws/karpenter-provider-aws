@@ -122,7 +122,7 @@ context, the networkInterfaces would be classified as following:
 
 since `AWSNodeTemplate.NetworkInterfaces` is a list, Drift would be triggered if:
 
-- the number of network interfaces of the node do not match the length of `AWSNodeTemplate.NetworkInterfaces`
+- the number of network interfaces of the node does not contain the specified `AWSNodeTemplate.NetworkInterfaces`
 - the order of network interfaces of a node do not match the order of `AWSNodeTemplate.NetworkInterfaces` when sorted
   by `NetworkCardIndex` and `DeviceIndex`.
   `AWSNodeTemplate.NetworkInterfaces` do not define `NetworkCardIndex` or `DeviceIndex`, their values are assumed to
