@@ -229,14 +229,12 @@ spec:
                       type: string
                     ipv4PrefixCount:
                       description: The number of IPv4 prefixes to be automatically
-                        assigned to the network interface. You cannot use this option
-                        if you use the Ipv4Prefix option.
+                        assigned to the network interface.
                       format: int64
                       type: integer
                     ipv6PrefixCount:
                       description: The number of IPv6 prefixes to be automatically
-                        assigned to the network interface. You cannot use this option
-                        if you use the Ipv6Prefix option.
+                        assigned to the network interface.
                       format: int64
                       type: integer
                     networkCardIndex:

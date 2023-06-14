@@ -89,9 +89,6 @@ spec:
     - { ... }
 ```
 
-in addition, we will only support two networkInterfaces per node, this way we guarantee that the node will be able to
-run on all instance types.
-
 subnet and securityGroup will remain part of the `AWSNodeTemplate` and will be used for both network interfaces.
 in following iterations, as the `AWSNodeTemplate` move from `v1alpha1` to higher versions, we can add support for:
 
