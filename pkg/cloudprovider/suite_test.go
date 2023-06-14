@@ -341,7 +341,7 @@ var _ = Describe("CloudProvider", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(isDrifted).To(BeTrue())
 		})
-		It("should return drifted if multiple instance securitygroup do not match AWSNodeTemplate securitygroups", func() {
+		It("should return drifted if instance securitygroup do not match AWSNodeTemplateStatus", func() {
 			machine := coretest.Machine(v1alpha5.Machine{
 				Status: v1alpha5.MachineStatus{
 					ProviderID: fake.ProviderID(lo.FromPtr(instance.InstanceId)),
@@ -386,6 +386,39 @@ var _ = Describe("CloudProvider", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(isDrifted).To(BeTrue())
 		})
+		It("should return drifted if more instance security groups are present than AWSNodeTemplate security groups", func() {
+			machine := coretest.Machine(v1alpha5.Machine{
+				Status: v1alpha5.MachineStatus{
+					ProviderID: fake.ProviderID(lo.FromPtr(instance.InstanceId)),
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+						v1.LabelInstanceTypeStable:       selectedInstanceType.Name,
+					},
+				},
+			})
+			nodeTemplate.Status.SecurityGroups = []v1alpha1.SecurityGroup{
+				{
+					ID:   validSecurityGroup,
+					Name: "test-securitygroup",
+				},
+				{
+					ID:   fake.SecurityGroupID(),
+					Name: "test-securitygroup",
+				},
+			}
+			// Instance is a reference to what we return in the GetInstances call
+			instance.SecurityGroups = []*ec2.GroupIdentifier{
+				{GroupId: aws.String(fake.SecurityGroupID())},
+				{GroupId: aws.String(fake.SecurityGroupID())},
+				{GroupId: aws.String(validSecurityGroup)},
+			}
+			ExpectApplied(ctx, env.Client, nodeTemplate)
+			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machine)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(isDrifted).To(BeTrue())
+		})
 		It("should not return drifted if launchTemplateName is defined", func() {
 			machine := coretest.Machine(v1alpha5.Machine{
 				Status: v1alpha5.MachineStatus{
@@ -405,7 +438,7 @@ var _ = Describe("CloudProvider", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(isDrifted).To(BeFalse())
 		})
-		It("should not return drifted if the securitygroup is match", func() {
+		It("should not return drifted if the securitygroups match", func() {
 			machine := coretest.Machine(v1alpha5.Machine{
 				Status: v1alpha5.MachineStatus{
 					ProviderID: fake.ProviderID(lo.FromPtr(instance.InstanceId)),
