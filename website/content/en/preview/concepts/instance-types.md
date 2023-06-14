@@ -5473,6 +5473,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14422Mi|
  |pods|29|
+ |vpc.amazonaws.com/pod-eni|9|
 ### `i4g.xlarge`
 #### Labels
  | Label | Value |
@@ -5498,6 +5499,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29258Mi|
  |pods|58|
+ |vpc.amazonaws.com/pod-eni|18|
 ### `i4g.2xlarge`
 #### Labels
  | Label | Value |
@@ -5523,6 +5525,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|59568Mi|
  |pods|58|
+ |vpc.amazonaws.com/pod-eni|38|
 ### `i4g.4xlarge`
 #### Labels
  | Label | Value |
@@ -5548,6 +5551,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118253Mi|
  |pods|234|
+ |vpc.amazonaws.com/pod-eni|54|
 ### `i4g.8xlarge`
 #### Labels
  | Label | Value |
@@ -5573,6 +5577,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|239495Mi|
  |pods|234|
+ |vpc.amazonaws.com/pod-eni|54|
 ### `i4g.16xlarge`
 #### Labels
  | Label | Value |
@@ -5598,6 +5603,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|476445Mi|
  |pods|737|
+ |vpc.amazonaws.com/pod-eni|107|
 ## i4i Family
 ### `i4i.large`
 #### Labels
@@ -15011,6 +15017,9 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|1|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|aws|
+ |karpenter.k8s.aws/instance-accelerator-name|inferentia|
  |karpenter.k8s.aws/instance-category|trn|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
@@ -15028,6 +15037,7 @@ below are the resources available with some assumptions and after the instance o
 #### Resources
  | Resource | Quantity |
  |--|--|
+ |aws.amazon.com/neuron|1|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
  |memory|29317Mi|
@@ -15037,6 +15047,9 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|16|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|aws|
+ |karpenter.k8s.aws/instance-accelerator-name|inferentia|
  |karpenter.k8s.aws/instance-category|trn|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
@@ -15054,6 +15067,7 @@ below are the resources available with some assumptions and after the instance o
 #### Resources
  | Resource | Quantity |
  |--|--|
+ |aws.amazon.com/neuron|16|
  |cpu|127610m|
  |ephemeral-storage|17Gi|
  |memory|481894Mi|
@@ -15064,6 +15078,9 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|16|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|aws|
+ |karpenter.k8s.aws/instance-accelerator-name|inferentia|
  |karpenter.k8s.aws/instance-category|trn|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
@@ -15081,6 +15098,7 @@ below are the resources available with some assumptions and after the instance o
 #### Resources
  | Resource | Quantity |
  |--|--|
+ |aws.amazon.com/neuron|16|
  |cpu|127610m|
  |ephemeral-storage|17Gi|
  |memory|481894Mi|
