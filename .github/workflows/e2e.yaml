@@ -1,5 +1,25 @@
 name: E2E
 on:
+  workflow_dispatch:
+    inputs:
+      git_repo:
+        type: string
+        default: "aws/karpenter"
+      git_ref:
+        type: string
+      suite:
+        type: choice
+        required: true
+        options:
+          - Integration
+          - Machine
+          - Consolidation
+          - Utilization
+          - Interruption
+          - Drift
+          - Chaos
+          - IPv6
+          - Scale
   workflow_call:
     inputs:
       git_repo:

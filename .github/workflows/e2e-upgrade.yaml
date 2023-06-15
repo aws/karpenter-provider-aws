@@ -1,5 +1,15 @@
 name: E2EUpgrade
 on:
+  workflow_dispatch:
+    inputs:
+      git_repo:
+        type: string
+        default: "aws/karpenter"
+      from_git_ref:
+        type: string
+        required: true
+      to_git_ref:
+        type: string
   workflow_call:
     inputs:
       git_repo:
