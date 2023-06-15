@@ -171,9 +171,7 @@ func (r Resolver) Resolve(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTem
 			if resolved.MetadataOptions == nil {
 				resolved.MetadataOptions = amiFamily.DefaultMetadataOptions()
 			}
-			if len(nodeTemplate.Spec.LicenseSpecifications) > 0 {
-				resolved.LicenseSpecifications = nodeTemplate.Spec.LicenseSpecifications
-			}
+			resolved.LicenseSpecifications = nodeTemplate.Spec.LicenseSpecifications
 			resolvedTemplates = append(resolvedTemplates, resolved)
 		}
 	}

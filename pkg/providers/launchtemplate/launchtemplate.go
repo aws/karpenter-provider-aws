@@ -290,9 +290,9 @@ func createPlacement(placement *v1alpha1.Placement) *ec2.LaunchTemplatePlacement
 		return nil
 	}
 	return &ec2.LaunchTemplatePlacementRequest{
-        HostResourceGroupArn: placement.HostResourceGroupARN,
-        GroupId: placement.GroupID,
-    }
+		HostResourceGroupArn: placement.HostResourceGroupARN,
+		GroupId:              placement.GroupID,
+	}
 }
 
 func (p *Provider) blockDeviceMappings(blockDeviceMappings []*v1alpha1.BlockDeviceMapping) []*ec2.LaunchTemplateBlockDeviceMappingRequest {
