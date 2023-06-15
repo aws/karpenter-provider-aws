@@ -4,6 +4,9 @@ Parameters:
   Repository:
     Type: String
     Description: "Fully qualified repository name, formatted as <organization>/<repository-name>"
+  Branches:
+    Type: String
+    Description: "The restrictions on which branches have permission to reach out to the OIDC provider. This is useful for security hardening of your github actions as described in https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions"
   PrometheusWorkspaceID:
     Type: String
     Description: "Prometheus workspace to forward cluster prometheus metrics to"
@@ -448,7 +451,7 @@ Resources:
               StringEquals:
                 token.actions.githubusercontent.com:aud: sts.amazonaws.com
               StringLike:
-                token.actions.githubusercontent.com:sub: !Sub "repo:${Repository}:ref:refs/heads/main"
+                token.actions.githubusercontent.com:sub: !Sub "repo:${Repository}:ref:${Branches}"
   FISInterruptionRole:
     Type: AWS::IAM::Role
     Properties:

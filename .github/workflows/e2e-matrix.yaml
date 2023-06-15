@@ -8,9 +8,13 @@ on:
     workflows: [ApprovalComment]
     types: [completed]
   workflow_dispatch:
+# All jobs will run under the following conditions:
+#   1. Upstream Karpenter repo triggered the job by schedule, push, or dispatch
+#   2. Upstream Karpenter repo triggered the job by workflow_run, which requires maintainer check to succeed
+#   3. Downstream fork triggered the job through dispatch and has set 'ENABLE_E2E' in repo environment variables
 jobs:
   e2e:
-    if: github.repository == 'aws/karpenter' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')
+    if: (github.repository == 'aws/karpenter' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')) || (vars.ENABLE_E2E && github.event_name == 'workflow_dispatch')
     strategy:
       fail-fast: false
       matrix:
@@ -23,7 +27,7 @@ jobs:
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
   e2e-upgrade:
-    if: github.repository == 'aws/karpenter' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')
+    if: (github.repository == 'aws/karpenter' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')) || (vars.ENABLE_E2E && github.event_name == 'workflow_dispatch')
     uses: ./.github/workflows/e2e-upgrade.yaml
     with:
       from_git_ref: v0.26.1
