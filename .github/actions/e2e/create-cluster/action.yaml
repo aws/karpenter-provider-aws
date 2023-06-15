@@ -49,6 +49,14 @@ runs:
       # Update the Cloudformation policy to add the permissionBoundary to the NodeRole
       yq -i '.Resources.KarpenterNodeRole.Properties.PermissionsBoundary="arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"' $CLOUDFORMATION_PATH
       
+      # Iterate through the policy and add more permissive tagging for tests to succeed
+      # There are various tests that add more tags than are permitted by the default policy
+      EXTRA_TAGS=""
+      for TAG in "TestTag" "example.com\/tag" "custom-tag" "custom-tag2"; do
+        EXTRA_TAGS="$EXTRA_TAGS\n                    \"$TAG\","
+      done
+      sed -i "s/\"aws:TagKeys\": \[/\"aws:TagKeys\": \[$EXTRA_TAGS/" "$CLOUDFORMATION_PATH"
+      
       aws iam create-service-linked-role --aws-service-name spot.amazonaws.com || true
       aws cloudformation deploy \
         --stack-name iam-${{ inputs.cluster_name }} \
