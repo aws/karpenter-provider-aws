@@ -426,12 +426,11 @@ Resources:
               - aps:GetMetricMetadata
             Resource: !Sub "arn:${AWS::Partition}:aps:${AWS::Region}:${AWS::AccountId}:workspace/${PrometheusWorkspaceID}"
           - Effect: Allow
-            Action:
-              - cloudwatch:PutMetricData
+            Action: cloudwatch:PutMetricData
             Resource: "*"
             Condition:
-              StringEquals:
-                "cloudwatch:namespace": "testing.karpenter.sh/scale"
+              StringLike:
+                "cloudwatch:namespace": "testing.karpenter.sh/*"
   GithubActionsRole:
     Type: AWS::IAM::Role
     Properties:
