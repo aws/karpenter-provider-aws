@@ -1,0 +1,16 @@
+name: NotifySlack
+description: 'Notifies slack of the success or failure of the suite'
+inputs:
+  message:
+    description: "Message to send to the Slack webhook notification channel"
+    required: true
+  url:
+    description: "Webhook URL to send the Slack notification to"
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - shell: bash
+      run: |
+        JSON='{"message": "${{ inputs.message }}"}'
+        curl -X POST -H 'Content-Type: application/json' --data "${JSON}" "$(printf "${{ inputs.url }}" | tr -d "\n")"

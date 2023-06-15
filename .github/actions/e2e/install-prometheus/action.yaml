@@ -1,0 +1,43 @@
+name: InstallPrometheus
+description: 'Installs prometheus'
+inputs:
+  account_id:
+    description: "Account ID to access AWS"
+    required: true
+  role:
+    description: "Role to access AWS"
+    required: true
+  region:
+    description: "Region to access AWS"
+    required: true
+  cluster_name:
+    description: 'Name of the cluster to be launched by eksctl'
+    required: true
+  workspace_id:
+    description: "Id of the prometheus remote_write workspace"
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/checkout@v3
+      with:
+        path: "actions"
+    - uses: ./actions/.github/actions/e2e/install-helm
+    - name: add prometheus repo
+      shell: bash
+      run: |
+        helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+    - name: create prometheus namespace
+      shell: bash
+      run: |
+        kubectl create ns prometheus
+        kubectl label ns prometheus scrape=enabled
+    - name: install prometheus
+      shell: bash
+      run: |
+        helm upgrade --install prometheus prometheus-community/kube-prometheus-stack \
+          -n prometheus --create-namespace \
+          -f ./actions/.github/actions/e2e/install-prometheus/values.yaml \
+          --set prometheus.prometheusSpec.remoteWrite[0].url=https://aps-workspaces.${{ inputs.region }}.amazonaws.com/workspaces/${{ inputs.workspace_id }}/api/v1/remote_write \
+          --set prometheus.prometheusSpec.remoteWrite[0].sigv4.region=${{ inputs.region }} \
+          --set prometheus.serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="arn:aws:iam::${{ inputs.account_id }}:role/prometheus-irsa-${{ inputs.cluster_name }}"
