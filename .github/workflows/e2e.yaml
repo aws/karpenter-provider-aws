@@ -7,6 +7,8 @@ on:
         default: "aws/karpenter"
       git_ref:
         type: string
+      pr_number:
+        type: string
       suite:
         type: string
         required: true
@@ -71,10 +73,11 @@ jobs:
           TEST_SUITE="${{ inputs.suite }}" make e2etests
       - name: notify slack of success or failure
         uses: ./actions/.github/actions/e2e/slack/notify
-        if: ${{ success() || failure() }}
+        if: success() || failure()
         with:
           url: ${{ secrets.SLACK_WEBHOOK_URL }}
           suite: ${{ inputs.suite }}
+          pr_number: ${{ inputs.pr_number }}
           event_name: ${{ inputs.event_name }}
       - name: dump logs on failure
         uses: ./actions/.github/actions/e2e/dump-logs
