@@ -16,6 +16,8 @@ jobs:
         with:
           fetch-depth: 0
       - uses: ./.github/actions/download-artifact
+      - run: |
+          echo "I made a change here that I can mess with"
       - name: Parse artifacts and assign GA environment variables
         run: |
           repo=$(head -n 1 /tmp/artifacts/metadata.txt)
