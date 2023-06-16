@@ -323,7 +323,7 @@ var _ = Describe("CloudProvider", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(isDrifted).To(BeTrue())
 		})
-		It("should return drifted if the AWSNodeTemplate securitygroup do not match the machine", func() {
+		It("should return drifted if the instance securitygroup is not contained AWSNodeTemplate securitygroup", func() {
 			machine := coretest.Machine(v1alpha5.Machine{
 				Status: v1alpha5.MachineStatus{
 					ProviderID: fake.ProviderID(lo.FromPtr(instance.InstanceId)),
@@ -341,7 +341,7 @@ var _ = Describe("CloudProvider", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(isDrifted).To(BeTrue())
 		})
-		It("should return drifted if instance securitygroup do not match AWSNodeTemplateStatus", func() {
+		It("should return drifted if instance securitygroup is not contained AWSNodeTemplateStatus", func() {
 			machine := coretest.Machine(v1alpha5.Machine{
 				Status: v1alpha5.MachineStatus{
 					ProviderID: fake.ProviderID(lo.FromPtr(instance.InstanceId)),

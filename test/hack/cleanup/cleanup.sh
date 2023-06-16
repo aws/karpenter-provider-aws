@@ -1,1 +1,1 @@
-../../infrastructure/clusters/test-infra/karpenter-tests/scripts/sweep.sh
+../../infrastructure/clusters/test-infra/karpenter-tests/scripts/cleanup.sh

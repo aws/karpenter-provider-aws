@@ -55,7 +55,7 @@ runs:
       fi
       
       # Update the Cloudformation policy to add the permissionBoundary to the NodeRole
-      yq -i '.Resources.KarpenterNodeRole.Properties.PermissionsBoundary.="arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"' $CLOUDFORMATION_PATH
+      yq -i '.Resources.KarpenterNodeRole.Properties.PermissionsBoundary="arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"' $CLOUDFORMATION_PATH
       
       aws iam create-service-linked-role --aws-service-name spot.amazonaws.com || true
       aws cloudformation deploy \

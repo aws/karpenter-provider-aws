@@ -172,7 +172,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 				},
 			},
 		}
-		env.EC2API.CreateSecurityGroup(createSecurityGroup)
+		_, _ = env.EC2API.CreateSecurityGroup(createSecurityGroup)
 
 		By("looking for security groups")
 		securitygroups := env.GetSecurityGroups(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})

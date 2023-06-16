@@ -1,3 +1,4 @@
 # Redirects from what the browser requests to what we serve
+/v0.28.0/*                      /v0.28/:splat
 /v0.27.5/*                      /v0.27/:splat
 /v0.26.1/*                      /v0.26/:splat

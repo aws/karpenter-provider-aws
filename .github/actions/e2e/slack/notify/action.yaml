@@ -7,19 +7,32 @@ inputs:
   url:
     description: "Webhook URL to send the Slack notification to"
     required: true
+  event_name:
+    description: "Type of event that triggered this test run"
+    required: true
 runs:
   using: "composite"
   steps:
     - uses: actions/checkout@v3
       with:
         path: actions
+    - shell: bash
+      run: |
+        if [[ ${{ inputs.event_name }} == "schedule" ]]; then
+          RUN_NAME="${{ inputs.suite }}-periodic"
+        else
+          RUN_NAME="${{ inputs.suite }}-${GITHUB_SHA::7}"
+        fi
+        
+        # Convert the RUN_NAME to all lowercase
+        echo RUN_NAME=${RUN_NAME,,} >> $GITHUB_ENV
     - uses: ./actions/.github/actions/e2e/slack/send-message
       if: ${{ job.status == 'success' }}
       with:
         url: ${{ inputs.url }}
-        message: ":white_check_mark: ${{ inputs.suite }}-${{ github.run_id }} suite succeeded"
+        message: ":white_check_mark: ${{ env.RUN_NAME }} tests succeeded"
     - uses: ./actions/.github/actions/e2e/slack/send-message
       if: ${{ job.status == 'failure' }}
       with:
         url: ${{ inputs.url }}
-        message: ":x: ${{ inputs.suite }}-${{ github.run_id }} suite failed"
+        message: ":x: ${{ env.RUN_NAME }} tests failed"
