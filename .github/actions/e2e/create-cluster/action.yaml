@@ -55,10 +55,14 @@ runs:
         --template-file $CLOUDFORMATION_PATH \
         --capabilities CAPABILITY_NAMED_IAM \
         --parameter-overrides "ClusterName=${{ inputs.cluster_name }}"
-  - name: create cluster
+  - name: create or upgrade cluster
     shell: bash
     run: |
-      eksctl create cluster -f - <<EOF
+      # Create or Upgrade the cluster based on whether the cluster already exists
+      cmd="create"
+      eksctl get cluster --name $(params.cluster-name) && cmd="upgrade"
+      
+      eksctl ${cmd} cluster -f - <<EOF
       ---
       apiVersion: eksctl.io/v1alpha5
       kind: ClusterConfig

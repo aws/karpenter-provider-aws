@@ -52,7 +52,7 @@ jobs:
           cluster_name: ${{ env.CLUSTER_NAME }}
           kubernetes_version: ${{ vars.K8S_VERSION }}
           ip_family: IPv4 # Set the value to IPv6 if IPv6 suite, else IPv4
-          git_ref: ${{ inputs.to_git_ref }}
+          git_ref: ${{ inputs.from_git_ref }}
       - name: install prometheus
         uses: ./.github/actions/e2e/install-prometheus
         with:
@@ -61,7 +61,7 @@ jobs:
           region: ${{ vars.AWS_REGION }}
           cluster_name: ${{ env.CLUSTER_NAME }}
           workspace_id: ${{ vars.WORKSPACE_ID }}
-          git_ref: ${{ inputs.to_git_ref }}
+          git_ref: ${{ inputs.from_git_ref }}
       - name: install karpenter
         uses: ./.github/actions/e2e/install-karpenter
         with:
@@ -70,6 +70,25 @@ jobs:
           region: ${{ vars.AWS_REGION }}
           cluster_name: ${{ env.CLUSTER_NAME }}
           git_ref: ${{ inputs.from_git_ref }}
+      - name: upgrade eks cluster '${{ env.CLUSTER_NAME }}'
+        uses: ./.github/actions/e2e/create-cluster
+        with:
+          account_id: ${{ vars.ACCOUNT_ID }}
+          role: ${{ vars.ROLE_NAME }}
+          region: ${{ vars.AWS_REGION }}
+          cluster_name: ${{ env.CLUSTER_NAME }}
+          kubernetes_version: ${{ vars.K8S_VERSION }}
+          ip_family: IPv4 # Set the value to IPv6 if IPv6 suite, else IPv4
+          git_ref: ${{ inputs.to_git_ref }}
+      - name: upgrade prometheus
+        uses: ./.github/actions/e2e/install-prometheus
+        with:
+          account_id: ${{ vars.ACCOUNT_ID }}
+          role: ${{ vars.ROLE_NAME }}
+          region: ${{ vars.AWS_REGION }}
+          cluster_name: ${{ env.CLUSTER_NAME }}
+          workspace_id: ${{ vars.WORKSPACE_ID }}
+          git_ref: ${{ inputs.to_git_ref }}
       - name: upgrade crds
         uses: ./.github/actions/e2e/upgrade-crds
         with:
