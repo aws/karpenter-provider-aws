@@ -16,12 +16,15 @@ inputs:
   workspace_id:
     description: "Id of the prometheus remote_write workspace"
     required: true
+  git_ref:
+    description: "The git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release"
 runs:
   using: "composite"
   steps:
     - uses: actions/checkout@v3
       with:
         path: "actions"
+        ref: ${{ inputs.git_ref }}
     - uses: ./actions/.github/actions/e2e/install-helm
     - name: add prometheus repo
       shell: bash

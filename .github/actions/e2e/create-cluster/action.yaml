@@ -21,10 +21,6 @@ inputs:
     description: "IP Family of the cluster. Valid values are IPv4 or IPv6"
     required: false
     default: "IPv4"
-  git_repo:
-    description: "The git repo can be used to run tests on a fork"
-    required: false
-    default: "aws/karpenter"
   git_ref:
     description: "The git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release"
     required: false
@@ -39,11 +35,11 @@ runs:
       role-duration-seconds: 21600
   - uses: actions/checkout@v3
     with:
-      repository: ${{ inputs.git_repo }}
       ref: ${{ inputs.git_ref }}
   - uses: actions/checkout@v3
     with:
       path: "actions"
+      ref: ${{ inputs.git_ref }}
   - uses: ./actions/.github/actions/e2e/install-eksctl
   - name: create iam policies
     shell: bash

@@ -9,7 +9,6 @@ jobs:
     uses: ./.github/workflows/e2e.yaml
     with:
       suite: Scale
-      git_repo: aws/karpenter
       event_name: ${{ github.event_name }}
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

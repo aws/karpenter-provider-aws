@@ -9,6 +9,8 @@ inputs:
   url:
     description: "Webhook URL to send the Slack notification to"
     required: true
+  git_ref:
+    description: "The git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release"
   event_name:
     description: "Type of event that triggered this test run"
     required: true
@@ -18,6 +20,7 @@ runs:
     - uses: actions/checkout@v3
       with:
         path: actions
+        ref: ${{ inputs.git_ref }}
     - shell: bash
       run: |
         if [[ ! -z "${{ inputs.pr_number }}" ]]; then

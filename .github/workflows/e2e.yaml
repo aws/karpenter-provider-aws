@@ -2,9 +2,6 @@ name: E2E
 on:
   workflow_dispatch:
     inputs:
-      git_repo:
-        type: string
-        default: "aws/karpenter"
       git_ref:
         type: string
       suite:
@@ -22,9 +19,6 @@ on:
           - Scale
   workflow_call:
     inputs:
-      git_repo:
-        type: string
-        default: "aws/karpenter"
       git_ref:
         type: string
       pr_number:
@@ -54,6 +48,7 @@ jobs:
       - uses: actions/checkout@v3
         with:
           path: actions
+          ref: ${{ inputs.git_ref }}
       - name: generate cluster name
         run: |
           CLUSTER_NAME=$(echo ${{ inputs.suite }}-$RANDOM$RANDOM | awk '{print tolower($0)}')
@@ -68,7 +63,6 @@ jobs:
           cluster_name: ${{ env.CLUSTER_NAME }}
           kubernetes_version: ${{ vars.K8S_VERSION }}
           ip_family: ${{ inputs.suite == 'IPv6' && 'IPv6' || 'IPv4' }} # Set the value to IPv6 if IPv6 suite, else IPv4
-          git_repo: ${{ inputs.git_repo }}
           git_ref: ${{ inputs.git_ref }}
       - name: install prometheus
         uses: ./actions/.github/actions/e2e/install-prometheus
@@ -78,6 +72,7 @@ jobs:
           region: ${{ vars.AWS_REGION }}
           cluster_name: ${{ env.CLUSTER_NAME }}
           workspace_id: ${{ vars.WORKSPACE_ID }}
+          git_ref: ${{ inputs.git_ref }}
       - name: install karpenter
         uses: ./actions/.github/actions/e2e/install-karpenter
         with:
@@ -85,7 +80,6 @@ jobs:
           role: ${{ vars.ROLE_NAME }}
           region: ${{ vars.AWS_REGION }}
           cluster_name: ${{ env.CLUSTER_NAME }}
-          git_repo: ${{ inputs.git_repo }}
           git_ref: ${{ inputs.git_ref }}
       - name: run the ${{ inputs.suite }} test suite
         run: |
@@ -99,6 +93,7 @@ jobs:
           suite: ${{ inputs.suite }}
           pr_number: ${{ inputs.pr_number }}
           event_name: ${{ inputs.event_name }}
+          git_ref: ${{ inputs.git_ref }}
       - name: dump logs on failure
         uses: ./actions/.github/actions/e2e/dump-logs
         if: failure() || cancelled()
@@ -115,3 +110,4 @@ jobs:
           role: ${{ vars.ROLE_NAME }}
           region: ${{ vars.AWS_REGION }}
           cluster_name: ${{ env.CLUSTER_NAME }}
+          git_ref: ${{ inputs.git_ref }}
