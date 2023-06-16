@@ -467,6 +467,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 				})
 				env.ExpectUpdated(provisioner)
 
+				env.EventuallyExpectCreatedNodeCount("==", expectedNodeCount)
 				env.EventuallyExpectDeletedNodeCount("==", expectedNodeCount) // every node should delete due to replacement
 				env.EventuallyExpectNodeCount("==", expectedNodeCount)
 				env.EventuallyExpectHealthyPodCount(selector, replicas)
