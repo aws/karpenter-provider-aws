@@ -356,17 +356,24 @@ func (p *Provider) updateUnavailableOfferingsCache(ctx context.Context, errors [
 	for _, err := range errors {
 		if awserrors.IsUnfulfillableCapacity(err) {
 			p.unavailableOfferings.MarkUnavailableForFleetErr(ctx, err, capacityType)
+
 			// Add a k8s event for the instance type and zone without the involved object which has an ICE error
 			instanceType := aws.StringValue(err.LaunchTemplateAndOverrides.Overrides.InstanceType)
 			availabilityZone := aws.StringValue(err.LaunchTemplateAndOverrides.Overrides.AvailabilityZone)
-			p.recorder.Publish(events.Event{
-				Type:         v1.EventTypeWarning,
-				Reason:       "InsufficientCapacityError",
-				Message:      fmt.Sprintf("InsufficientCapacityError for the instanceType %s, availabilityZone %s, capacityType %s", instanceType, availabilityZone, capacityType),
-				DedupeValues: []string{fmt.Sprintf("ice-%s-%s-%s", instanceType, availabilityZone, capacityType)},
-			})
+
+			p.publishEvent(v1.EventTypeWarning, "InsufficientCapacityError", fmt.Sprintf("InsufficientCapacityError for the instanceType %s, availabilityZone %s, capacityType %s", instanceType, availabilityZone, capacityType), []string{fmt.Sprintf("ice-%s-%s-%s", instanceType, availabilityZone, capacityType)})
 		}
 	}
+}
+
+// publishEvent is a helper method which publishes a k8s event with the parameters passed on to it
+func (p *Provider) publishEvent(eventType string, reason string, message string, dedupeValues []string) {
+	p.recorder.Publish(events.Event{
+		Type:         eventType,
+		Reason:       reason,
+		Message:      message,
+		DedupeValues: dedupeValues,
+	})
 }
 
 // getCapacityType selects spot if both constraints are flexible and there is an
