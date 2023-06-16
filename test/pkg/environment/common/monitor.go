@@ -101,7 +101,7 @@ func (m *Monitor) NodeCountAtReset() int {
 
 // CreatedNodeCount returns the number of nodes created since the last reset
 func (m *Monitor) CreatedNodeCount() int {
-	return m.NodeCount() - m.NodeCountAtReset()
+	return len(m.CreatedNodes())
 }
 
 // NodesAtReset returns a slice of nodes that the monitor saw at the last reset
