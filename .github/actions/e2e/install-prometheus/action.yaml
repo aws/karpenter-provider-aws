@@ -23,7 +23,6 @@ runs:
   steps:
     - uses: actions/checkout@v3
       with:
-        path: "actions"
         ref: ${{ inputs.git_ref }}
     - uses: ./.github/actions/e2e/install-helm
     - name: add prometheus repo

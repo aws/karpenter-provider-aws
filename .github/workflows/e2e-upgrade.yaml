@@ -37,7 +37,6 @@ jobs:
           role-duration-seconds: 21600
       - uses: actions/checkout@v3
         with:
-          path: actions
           ref: ${{ inputs.to_git_ref }}
       - name: generate cluster name
         run: |

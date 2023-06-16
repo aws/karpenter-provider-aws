@@ -36,10 +36,6 @@ runs:
   - uses: actions/checkout@v3
     with:
       ref: ${{ inputs.git_ref }}
-  - uses: actions/checkout@v3
-    with:
-      path: "actions"
-      ref: ${{ inputs.git_ref }}
   - uses: ./.github/actions/e2e/install-eksctl
   - name: create iam policies
     shell: bash

@@ -26,7 +26,6 @@ runs:
         role-duration-seconds: 21600
     - uses: actions/checkout@v3
       with:
-        path: "actions"
         ref: ${{ inputs.git_ref }}
     - uses: ./.github/actions/e2e/install-eksctl
     - name: delete-cluster

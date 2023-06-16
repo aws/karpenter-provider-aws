@@ -19,7 +19,6 @@ runs:
   steps:
     - uses: actions/checkout@v3
       with:
-        path: actions
         ref: ${{ inputs.git_ref }}
     - shell: bash
       run: |

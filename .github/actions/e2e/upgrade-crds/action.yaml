@@ -27,10 +27,6 @@ runs:
     - uses: actions/checkout@v3
       with:
         ref: ${{ inputs.git_ref }}
-    - uses: actions/checkout@v3
-      with:
-        path: "actions"
-        ref: ${{ inputs.git_ref }}
     - name: install-karpenter
       shell: bash
       run: |
