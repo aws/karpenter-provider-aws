@@ -1,7 +1,7 @@
 name: E2EMatrix
 on:
   schedule:
-    - cron: '7 */12 * * *'
+    - cron: '7 */8 * * *'
   push:
     branches: [main]
   workflow_run:
