@@ -55,7 +55,7 @@ jobs:
           echo "Using cluster name \"$CLUSTER_NAME\""
           echo CLUSTER_NAME=$CLUSTER_NAME >> $GITHUB_ENV
       - name: create eks cluster '${{ env.CLUSTER_NAME }}'
-        uses: ./actions/.github/actions/e2e/create-cluster
+        uses: ./.github/actions/e2e/create-cluster
         with:
           account_id: ${{ vars.ACCOUNT_ID }}
           role: ${{ vars.ROLE_NAME }}
@@ -65,7 +65,7 @@ jobs:
           ip_family: ${{ inputs.suite == 'IPv6' && 'IPv6' || 'IPv4' }} # Set the value to IPv6 if IPv6 suite, else IPv4
           git_ref: ${{ inputs.git_ref }}
       - name: install prometheus
-        uses: ./actions/.github/actions/e2e/install-prometheus
+        uses: ./.github/actions/e2e/install-prometheus
         with:
           account_id: ${{ vars.ACCOUNT_ID }}
           role: ${{ vars.ROLE_NAME }}
@@ -74,7 +74,7 @@ jobs:
           workspace_id: ${{ vars.WORKSPACE_ID }}
           git_ref: ${{ inputs.git_ref }}
       - name: install karpenter
-        uses: ./actions/.github/actions/e2e/install-karpenter
+        uses: ./.github/actions/e2e/install-karpenter
         with:
           account_id: ${{ vars.ACCOUNT_ID }}
           role: ${{ vars.ROLE_NAME }}
@@ -86,7 +86,7 @@ jobs:
           aws eks update-kubeconfig --name ${{ env.CLUSTER_NAME }}
           TEST_SUITE="${{ inputs.suite }}" make e2etests
       - name: notify slack of success or failure
-        uses: ./actions/.github/actions/e2e/slack/notify
+        uses: ./.github/actions/e2e/slack/notify
         if: success() || failure()
         with:
           url: ${{ secrets.SLACK_WEBHOOK_URL }}
@@ -95,7 +95,7 @@ jobs:
           event_name: ${{ inputs.event_name }}
           git_ref: ${{ inputs.git_ref }}
       - name: dump logs on failure
-        uses: ./actions/.github/actions/e2e/dump-logs
+        uses: ./.github/actions/e2e/dump-logs
         if: failure() || cancelled()
         with:
           account_id: ${{ vars.ACCOUNT_ID }}
@@ -103,7 +103,7 @@ jobs:
           region: ${{ vars.AWS_REGION }}
           cluster_name: ${{ env.CLUSTER_NAME }}
       - name: cleanup karpenter and cluster '${{ env.CLUSTER_NAME }}' resources
-        uses: ./actions/.github/actions/e2e/cleanup
+        uses: ./.github/actions/e2e/cleanup
         if: always()
         with:
           account_id: ${{ vars.ACCOUNT_ID }}

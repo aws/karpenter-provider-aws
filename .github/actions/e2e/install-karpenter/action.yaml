@@ -31,7 +31,7 @@ runs:
     with:
       path: "actions"
       ref: ${{ inputs.git_ref }}
-  - uses: ./actions/.github/actions/e2e/install-helm
+  - uses: ./.github/actions/e2e/install-helm
   - name: install-karpenter
     shell: bash
     run: |
