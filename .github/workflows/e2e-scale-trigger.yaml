@@ -2,7 +2,6 @@ name: E2EScaleTrigger
 on:
   schedule:
     - cron: '7 18 * * *'
-  workflow_dispatch:
 jobs:
   scale:
     if: github.repository == 'aws/karpenter' || github.event_name == 'workflow_dispatch'

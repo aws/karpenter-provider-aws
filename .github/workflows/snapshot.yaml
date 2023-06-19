@@ -1,0 +1,21 @@
+name: Snapshot
+on:
+  pull_request_review:
+    types:
+      - submitted
+env:
+  ACCOUNT_ID: 071440425669
+  ROLE_NAME: Github
+permissions:
+  id-token: write # This is required for requesting the JWT
+  contents: read  # This is required for actions/checkout
+jobs:
+  e2e-matrix:
+    if: startsWith(github.event.review.body ,'/karpenter snapshot')
+    uses: ./.github/workflows/e2e-matrix.yaml
+    with:
+      git_ref: ${{ github.event.review.commit_id }}
+      pr_number: ${{ github.event.pull_request.number }}
+      event_name: ${{ github.event_name }}
+    secrets:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

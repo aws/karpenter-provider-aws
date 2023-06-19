@@ -1,0 +1,14 @@
+name: E2EMatrixTrigger
+on:
+  schedule:
+    - cron: '7 */8 * * *'
+  push:
+    branches:
+     - main
+jobs:
+  e2e-matrix:
+    uses: ./.github/workflows/e2e-matrix.yaml
+    with:
+      event_name: ${{ github.event_name }}
+    secrets:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

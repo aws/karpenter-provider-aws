@@ -44,6 +44,7 @@ permissions:
 jobs:
   run-suite:
     runs-on: ubuntu-latest
+    environment: e2e
     steps:
       - name: configure aws credentials
         uses: aws-actions/configure-aws-credentials@v2
