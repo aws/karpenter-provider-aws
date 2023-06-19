@@ -1,7 +1,7 @@
 name: E2EMatrix
 on:
   schedule:
-    - cron: '7 */12 * * *'
+    - cron: '7 */8 * * *'
   push:
     branches: [main]
   workflow_run:
@@ -17,18 +17,21 @@ jobs:
     if: (github.repository == 'aws/karpenter' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')) || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     outputs:
+      PR_NUM: ${{ steps.resolve-step.outputs.PR_NUM }}
       GIT_REF: ${{ steps.resolve-step.outputs.GIT_REF }}
     steps:
       # Download the artifact and resolve the commit if initiated by PR snapshot
       # Otherwise, use the currently checked-out branch to run the E2E tests against
       - uses: actions/checkout@v3
-      - uses: ./.github/actions/download-artifact
-        if: github.event_name == 'workflow_run'
+      - if: github.event_name == 'workflow_run'
+        uses: ./.github/actions/download-artifact
       - id: resolve-step
         run: |
           if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
+            echo PR_NUM=$(head -n 1 /tmp/artifacts/metadata.txt) >> $GITHUB_OUTPUT
             echo GIT_REF=$(tail -n 1 /tmp/artifacts/metadata.txt) >> $GITHUB_OUTPUT
           else
+            echo PR_NUM="" >> $GITHUB_OUTPUT
             echo GIT_REF="" >> $GITHUB_OUTPUT
           fi
   e2e:
@@ -43,6 +46,7 @@ jobs:
       suite: ${{ matrix.suite }}
       git_repo: aws/karpenter
       git_ref: ${{ needs.resolve-git-ref.outputs.GIT_REF }}
+      pr_number: ${{ needs.resolve-git-ref.outputs.PR_NUM }}
       event_name: ${{ github.event_name }}
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
@@ -51,9 +55,10 @@ jobs:
     if: (github.repository == 'aws/karpenter' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')) || github.event_name == 'workflow_dispatch'
     uses: ./.github/workflows/e2e-upgrade.yaml
     with:
+      git_repo: aws/karpenter
       from_git_ref: v0.26.1
       to_git_ref: ${{ needs.resolve-git-ref.outputs.GIT_REF }}
-      git_repo: aws/karpenter
+      pr_number: ${{ needs.resolve-git-ref.outputs.PR_NUM }}
       event_name: ${{ github.event_name }}
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
