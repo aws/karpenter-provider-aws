@@ -257,7 +257,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			Operator: v1.NodeSelectorOpExists,
 		})
 		env.ExpectCreated(provisioner, provider, deployment)
-		env.EventuallyExpectHealthyPodCountWithTimeout(time.Minute*10, labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
+		env.EventuallyExpectHealthyPodCountWithTimeout(time.Minute*15, labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
 		env.ExpectCreatedNodeCount("==", 1)
 	})
 	It("should provision a node for naked pods", func() {

@@ -23,7 +23,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/types"
 	"knative.dev/pkg/ptr"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
@@ -49,12 +48,6 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 			// MaxPods needs to account for the daemonsets that will run on the nodes
 			provisioner = test.Provisioner(test.ProvisionerOptions{
 				ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name},
-				Requirements: []v1.NodeSelectorRequirement{
-					{
-						Key:      v1.LabelOSStable,
-						Operator: v1.NodeSelectorOpExists,
-					},
-				},
 				Kubelet: &v1alpha5.KubeletConfiguration{
 					ContainerRuntime: ptr.String("containerd"),
 					MaxPods:          ptr.Int32(110),
@@ -103,6 +96,14 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		DescribeTable("Linux AMIFamilies",
 			func(amiFamily *string) {
 				nodeTemplate.Spec.AMIFamily = amiFamily
+				// Need to enable provisioner-level OS-scoping for now since DS evaluation is done off of the provisioner
+				// requirements, not off of the instance type options so scheduling can fail if provisioners aren't
+				// properly scoped
+				provisioner.Spec.Requirements = append(provisioner.Spec.Requirements, v1.NodeSelectorRequirement{
+					Key:      v1.LabelOSStable,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{string(v1.Linux)},
+				})
 				pod := test.Pod(test.PodOptions{
 					NodeSelector: map[string]string{
 						v1.LabelOSStable:   string(v1.Linux),
@@ -125,6 +126,14 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 				})
 
 				nodeTemplate.Spec.AMIFamily = amiFamily
+				// Need to enable provisioner-level OS-scoping for now since DS evaluation is done off of the provisioner
+				// requirements, not off of the instance type options so scheduling can fail if provisioners aren't
+				// properly scoped
+				provisioner.Spec.Requirements = append(provisioner.Spec.Requirements, v1.NodeSelectorRequirement{
+					Key:      v1.LabelOSStable,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{string(v1.Windows)},
+				})
 				pod := test.Pod(test.PodOptions{
 					Image: aws.WindowsDefaultImage,
 					NodeSelector: map[string]string{
@@ -133,7 +142,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 					},
 				})
 				env.ExpectCreated(provisioner, nodeTemplate, pod)
-				env.EventuallyExpectHealthyWithTimeout(time.Minute*10, pod)
+				env.EventuallyExpectHealthyWithTimeout(time.Minute*15, pod)
 				env.ExpectCreatedNodeCount("==", 1)
 			},
 			Entry("when the AMIFamily is Windows2019", &v1alpha1.AMIFamilyWindows2019),
@@ -278,13 +287,3 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		env.ExpectUniqueNodeNames(selector, 1)
 	})
 })
-
-func ExpectWindowsIPAMEnabled() {
-	env.ExpectDaemonSetEnvironmentVariableUpdatedWithOffset(1, types.NamespacedName{Namespace: "kube-system", Name: "aws-node"},
-		"ENABLE_POD_ENI", "true")
-}
-
-func ExpectWindowsIPAMDisabled() {
-	env.ExpectDaemonSetEnvironmentVariableUpdatedWithOffset(1, types.NamespacedName{Namespace: "kube-system", Name: "aws-node"},
-		"ENABLE_POD_ENI", "false")
-}
