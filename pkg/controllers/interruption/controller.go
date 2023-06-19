@@ -210,7 +210,7 @@ func (c *Controller) deleteMachine(ctx context.Context, machine *v1alpha5.Machin
 	if err := c.kubeClient.Delete(ctx, machine); err != nil {
 		return client.IgnoreNotFound(fmt.Errorf("deleting the node on interruption message, %w", err))
 	}
-	logging.FromContext(ctx).Infof("deleted machine from interruption message")
+	logging.FromContext(ctx).Infof("initiating delete for machine from interruption message")
 	c.recorder.Publish(interruptionevents.TerminatingOnInterruption(node, machine)...)
 	metrics.MachinesTerminatedCounter.With(prometheus.Labels{
 		metrics.ReasonLabel:      terminationReasonLabel,
