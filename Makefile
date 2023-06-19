@@ -192,7 +192,7 @@ download: ## Recursively "go mod download" on all directories where go.mod exist
 	$(foreach dir,$(MOD_DIRS),cd $(dir) && go mod download $(newline))
 
 update-core: ## Update karpenter-core to latest
-	go get -u github.com/aws/karpenter-core
+	go get -u github.com/aws/karpenter-core@HEAD
 	go mod tidy
 	cd test/ && go get -u github.com/aws/karpenter-core && go mod tidy
 
