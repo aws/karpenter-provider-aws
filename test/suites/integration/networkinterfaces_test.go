@@ -16,8 +16,11 @@ package integration_test
 
 import (
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/samber/lo"
+	v1 "k8s.io/api/core/v1"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
@@ -27,7 +30,12 @@ import (
 )
 
 var _ = Describe("NetworkInterfaces", func() {
-	It("should create a default NetworkInterface if none specified", func() {
+	It("should create a default NetworkInterface if none specified, with no public IP auto assignment", func() {
+		subnets := env.GetSubnets(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
+		Expect(len(subnets)).ToNot(Equal(0))
+		allSubnets := lo.Flatten(lo.Values(subnets))
+		ExpectAssociatePublicIPAddressToBe(false, allSubnets...)
+
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 			AWS: v1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
@@ -45,9 +53,39 @@ var _ = Describe("NetworkInterfaces", func() {
 		Expect(instance.NetworkInterfaces[0]).ToNot(BeNil())
 		Expect(instance.NetworkInterfaces[0].Attachment).To(HaveField("DeviceIndex", HaveValue(Equal(int64(0)))))
 		Expect(instance.NetworkInterfaces[0].Attachment).To(HaveField("NetworkCardIndex", HaveValue(Equal(int64(0)))))
-		//Expect(instance.PublicIpAddress).To(BeNil())
+		Expect(instance.PublicIpAddress).To(BeNil())
+	})
+	It("should create a default NetworkInterface if none specified, with public IP auto assignment", func() {
+		subnets := env.GetSubnets(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
+		Expect(len(subnets)).ToNot(Equal(0))
+		allSubnets := lo.Flatten(lo.Values(subnets))
+		ExpectAssociatePublicIPAddressToBe(true, allSubnets...)
+
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+			AWS: v1alpha1.AWS{
+				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+				LaunchTemplate:        v1alpha1.LaunchTemplate{},
+			},
+		})
+		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
+		pod := test.Pod()
+		env.ExpectCreated(pod, provider, provisioner)
+		env.EventuallyExpectHealthy(pod)
+		env.ExpectCreatedNodeCount("==", 1)
+		instance := env.GetInstance(pod.Spec.NodeName)
+		Expect(instance.NetworkInterfaces).To(HaveLen(1))
+		Expect(instance.NetworkInterfaces[0]).ToNot(BeNil())
+		Expect(instance.NetworkInterfaces[0].Attachment).To(HaveField("DeviceIndex", HaveValue(Equal(int64(0)))))
+		Expect(instance.NetworkInterfaces[0].Attachment).To(HaveField("NetworkCardIndex", HaveValue(Equal(int64(0)))))
+		Expect(instance.PublicIpAddress).ToNot(BeNil())
 	})
 	It("should use the specified NetworkInterface", func() {
+		subnets := env.GetSubnets(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
+		Expect(len(subnets)).ToNot(Equal(0))
+		allSubnets := lo.Flatten(lo.Values(subnets))
+		ExpectAssociatePublicIPAddressToBe(false, allSubnets...)
+
 		desc := "a test network interface"
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 			AWS: v1alpha1.AWS{
@@ -67,7 +105,16 @@ var _ = Describe("NetworkInterfaces", func() {
 				},
 			},
 		})
-		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
+		provisioner := test.Provisioner(test.ProvisionerOptions{
+			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
+			Requirements: []v1.NodeSelectorRequirement{
+				{
+					Key:      "karpenter.k8s.aws/instance-hypervisor",
+					Operator: "In",
+					Values:   []string{"nitro"},
+				},
+			},
+		})
 		pod := test.Pod()
 		env.ExpectCreated(pod, provider, provisioner)
 		env.EventuallyExpectHealthy(pod)
@@ -80,7 +127,7 @@ var _ = Describe("NetworkInterfaces", func() {
 		Expect(instance.NetworkInterfaces[0].Ipv4Prefixes).To(HaveLen(2))
 		Expect(instance.NetworkInterfaces[0].Ipv6Prefixes).To(HaveLen(2))
 		Expect(instance.NetworkInterfaces[0].Description).To(Equal(desc))
-		//Expect(instance.PublicIpAddress).ToNot(BeNil())
+		Expect(instance.PublicIpAddress).ToNot(BeNil())
 	})
 	It("should create a node with more than one NetworkInterface", func() {
 		desc1 := "a test network interface"
@@ -128,3 +175,15 @@ var _ = Describe("NetworkInterfaces", func() {
 		Expect(instance.NetworkInterfaces[1].InterfaceType).To(Equal("efa"))
 	})
 })
+
+func ExpectAssociatePublicIPAddressToBe(enabled bool, subnetIDs ...string) {
+	for subnetID := range subnetIDs {
+		_, err := env.EC2API.ModifySubnetAttribute(&ec2.ModifySubnetAttributeInput{
+			MapPublicIpOnLaunch: &ec2.AttributeBooleanValue{
+				Value: aws.Bool(enabled),
+			},
+			SubnetId: aws.String(subnetIDs[subnetID]),
+		})
+		Expect(err).To(BeNil())
+	}
+}
