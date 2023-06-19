@@ -38,19 +38,24 @@ on:
     secrets:
       SLACK_WEBHOOK_URL:
         required: true
-permissions:
-  id-token: write # This is required for requesting the JWT
-  contents: read  # This is required for actions/checkout
+env:
+  ACCOUNT_ID: 857221689048
+  AWS_REGION: us-east-2
+  K8S_VERSION: 1.25
+  ROLE_NAME: GithubActionsRole
+  WORKSPACE_ID: ws-d4d85b73-ac6d-4448-b858-363834e66ff4
 jobs:
   run-suite:
     runs-on: ubuntu-latest
-    environment: e2e
+    permissions:
+      id-token: write # This is required for requesting the JWT
+      contents: read  # This is required for actions/checkout
     steps:
       - name: configure aws credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          role-to-assume: arn:aws:iam::${{ vars.ACCOUNT_ID }}:role/${{ vars.ROLE_NAME }}
-          aws-region: ${{ vars.AWS_REGION }}
+          role-to-assume: arn:aws:iam::${{ env.ACCOUNT_ID }}:role/${{ env.ROLE_NAME }}
+          aws-region: ${{ env.AWS_REGION }}
           role-duration-seconds: 21600
       - uses: actions/checkout@v3
         with:
@@ -63,28 +68,28 @@ jobs:
       - name: create eks cluster '${{ env.CLUSTER_NAME }}'
         uses: ./actions/.github/actions/e2e/create-cluster
         with:
-          account_id: ${{ vars.ACCOUNT_ID }}
-          role: ${{ vars.ROLE_NAME }}
-          region: ${{ vars.AWS_REGION }}
+          account_id: ${{ env.ACCOUNT_ID }}
+          role: ${{ env.ROLE_NAME }}
+          region: ${{ env.AWS_REGION }}
           cluster_name: ${{ env.CLUSTER_NAME }}
-          kubernetes_version: ${{ vars.K8S_VERSION }}
+          kubernetes_version: ${{ env.K8S_VERSION }}
           ip_family: ${{ inputs.suite == 'IPv6' && 'IPv6' || 'IPv4' }} # Set the value to IPv6 if IPv6 suite, else IPv4
           git_repo: ${{ inputs.git_repo }}
           git_ref: ${{ inputs.git_ref }}
       - name: install prometheus
         uses: ./actions/.github/actions/e2e/install-prometheus
         with:
-          account_id: ${{ vars.ACCOUNT_ID }}
-          role: ${{ vars.ROLE_NAME }}
-          region: ${{ vars.AWS_REGION }}
+          account_id: ${{ env.ACCOUNT_ID }}
+          role: ${{ env.ROLE_NAME }}
+          region: ${{ env.AWS_REGION }}
           cluster_name: ${{ env.CLUSTER_NAME }}
-          workspace_id: ${{ vars.WORKSPACE_ID }}
+          workspace_id: ${{ env.WORKSPACE_ID }}
       - name: install karpenter
         uses: ./actions/.github/actions/e2e/install-karpenter
         with:
-          account_id: ${{ vars.ACCOUNT_ID }}
-          role: ${{ vars.ROLE_NAME }}
-          region: ${{ vars.AWS_REGION }}
+          account_id: ${{ env.ACCOUNT_ID }}
+          role: ${{ env.ROLE_NAME }}
+          region: ${{ env.AWS_REGION }}
           cluster_name: ${{ env.CLUSTER_NAME }}
           git_repo: ${{ inputs.git_repo }}
           git_ref: ${{ inputs.git_ref }}
@@ -104,15 +109,15 @@ jobs:
         uses: ./actions/.github/actions/e2e/dump-logs
         if: failure() || cancelled()
         with:
-          account_id: ${{ vars.ACCOUNT_ID }}
-          role: ${{ vars.ROLE_NAME }}
-          region: ${{ vars.AWS_REGION }}
+          account_id: ${{ env.ACCOUNT_ID }}
+          role: ${{ env.ROLE_NAME }}
+          region: ${{ env.AWS_REGION }}
           cluster_name: ${{ env.CLUSTER_NAME }}
       - name: cleanup karpenter and cluster '${{ env.CLUSTER_NAME }}' resources
         uses: ./actions/.github/actions/e2e/cleanup
         if: always()
         with:
-          account_id: ${{ vars.ACCOUNT_ID }}
-          role: ${{ vars.ROLE_NAME }}
-          region: ${{ vars.AWS_REGION }}
+          account_id: ${{ env.ACCOUNT_ID }}
+          role: ${{ env.ROLE_NAME }}
+          region: ${{ env.AWS_REGION }}
           cluster_name: ${{ env.CLUSTER_NAME }}
