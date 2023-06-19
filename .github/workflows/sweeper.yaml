@@ -1,0 +1,20 @@
+name: Sweeper
+on:
+  schedule:
+    - cron: '0 */12 * * *'
+  workflow_dispatch:
+permissions:
+  id-token: write # This is required for requesting the JWT
+  contents: read  # This is required for actions/checkout
+jobs:
+  sweeper:
+    if: github.repository == 'aws/karpenter' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: configure aws credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.ACCOUNT_ID }}:role/${{ vars.ROLE_NAME }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - uses: actions/checkout@v3
+      - run: ./test/hack/cleanup/cleanup.sh

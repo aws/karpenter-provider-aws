@@ -4,8 +4,13 @@ inputs:
   suite:
     description: "Suite that's running"
     required: true
+  pr_number:
+    description: "If specified, this run is associated with a PR and the slack message will reflect that"
   url:
     description: "Webhook URL to send the Slack notification to"
+    required: true
+  event_name:
+    description: "Type of event that triggered this test run"
     required: true
 runs:
   using: "composite"
@@ -13,13 +18,25 @@ runs:
     - uses: actions/checkout@v3
       with:
         path: actions
+    - shell: bash
+      run: |
+        if [[ ! -z "${{ inputs.pr_number }}" ]]; then
+          RUN_NAME="${{ inputs.suite }}-pr-${{ inputs.pr_number }}"
+        elif [[ ${{ inputs.event_name }} == "schedule" ]]; then
+          RUN_NAME="${{ inputs.suite }}-periodic"
+        else
+          RUN_NAME="${{ inputs.suite }}-${GITHUB_SHA::7}"
+        fi
+        
+        # Convert the RUN_NAME to all lowercase
+        echo RUN_NAME=${RUN_NAME,,} >> $GITHUB_ENV
     - uses: ./actions/.github/actions/e2e/slack/send-message
       if: ${{ job.status == 'success' }}
       with:
         url: ${{ inputs.url }}
-        message: ":white_check_mark: ${{ inputs.suite }}-${{ github.run_id }} suite succeeded"
+        message: ":white_check_mark: ${{ env.RUN_NAME }} tests succeeded (#${{ github.run_number }})"
     - uses: ./actions/.github/actions/e2e/slack/send-message
       if: ${{ job.status == 'failure' }}
       with:
         url: ${{ inputs.url }}
-        message: ":x: ${{ inputs.suite }}-${{ github.run_id }} suite failed"
+        message: ":x: ${{ env.RUN_NAME }} tests failed (#${{ github.run_number }})"
