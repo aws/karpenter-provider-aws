@@ -194,19 +194,25 @@ func (env *Environment) ExpectPrefixDelegationDisabled() {
 		"ENABLE_PREFIX_DELEGATION", "false")
 }
 
-func (env *Environment) ExpectFound(obj client.Object) {
+func (env *Environment) ExpectExists(obj client.Object) {
 	ExpectWithOffset(1, env.Client.Get(env, client.ObjectKeyFromObject(obj), obj)).To(Succeed())
 }
 
 func (env *Environment) EventuallyExpectHealthy(pods ...*v1.Pod) {
+	GinkgoHelper()
+	env.EventuallyExpectHealthyWithTimeout(-1, pods...)
+}
+
+func (env *Environment) EventuallyExpectHealthyWithTimeout(timeout time.Duration, pods ...*v1.Pod) {
+	GinkgoHelper()
 	for _, pod := range pods {
-		EventuallyWithOffset(1, func(g Gomega) {
+		Eventually(func(g Gomega) {
 			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(pod), pod)).To(Succeed())
 			g.Expect(pod.Status.Conditions).To(ContainElement(And(
 				HaveField("Type", Equal(v1.PodReady)),
 				HaveField("Status", Equal(v1.ConditionTrue)),
 			)))
-		}).Should(Succeed())
+		}).WithTimeout(timeout).Should(Succeed())
 	}
 }
 
@@ -294,9 +300,15 @@ func (env *Environment) EventuallyExpectPendingPodCount(selector labels.Selector
 
 func (env *Environment) EventuallyExpectHealthyPodCount(selector labels.Selector, numPods int) {
 	By(fmt.Sprintf("waiting for %d pods matching selector %s to be ready", numPods, selector.String()))
+	GinkgoHelper()
+	env.EventuallyExpectHealthyPodCountWithTimeout(-1, selector, numPods)
+}
+
+func (env *Environment) EventuallyExpectHealthyPodCountWithTimeout(timeout time.Duration, selector labels.Selector, numPods int) {
+	GinkgoHelper()
 	EventuallyWithOffset(1, func(g Gomega) {
 		g.Expect(env.Monitor.RunningPodsCount(selector)).To(Equal(numPods))
-	}).Should(Succeed())
+	}).WithTimeout(timeout).Should(Succeed())
 }
 
 func (env *Environment) ExpectUniqueNodeNames(selector labels.Selector, uniqueNames int) {

@@ -28,23 +28,26 @@ import (
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	awstest "github.com/aws/karpenter/pkg/test"
+	"github.com/aws/karpenter/test/pkg/environment/aws"
 
 	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 )
 
 var _ = Describe("KubeletConfiguration Overrides", func() {
-	DescribeTable("should startup successfully with all kubelet configuration set",
-		func(amiFamily *string) {
-			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
+	Context("All kubelet configuration set", func() {
+		var nodeTemplate *v1alpha1.AWSNodeTemplate
+		var provisioner *v1alpha5.Provisioner
+
+		BeforeEach(func() {
+			nodeTemplate = awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-				AMIFamily:             amiFamily,
 			}})
 
 			// MaxPods needs to account for the daemonsets that will run on the nodes
-			provisioner := test.Provisioner(test.ProvisionerOptions{
-				ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
+			provisioner = test.Provisioner(test.ProvisionerOptions{
+				ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name},
 				Kubelet: &v1alpha5.KubeletConfiguration{
 					ContainerRuntime: ptr.String("containerd"),
 					MaxPods:          ptr.Int32(110),
@@ -89,16 +92,63 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 					CPUCFSQuota:                 ptr.Bool(false),
 				},
 			})
+		})
+		DescribeTable("Linux AMIFamilies",
+			func(amiFamily *string) {
+				nodeTemplate.Spec.AMIFamily = amiFamily
+				// Need to enable provisioner-level OS-scoping for now since DS evaluation is done off of the provisioner
+				// requirements, not off of the instance type options so scheduling can fail if provisioners aren't
+				// properly scoped
+				provisioner.Spec.Requirements = append(provisioner.Spec.Requirements, v1.NodeSelectorRequirement{
+					Key:      v1.LabelOSStable,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{string(v1.Linux)},
+				})
+				pod := test.Pod(test.PodOptions{
+					NodeSelector: map[string]string{
+						v1.LabelOSStable:   string(v1.Linux),
+						v1.LabelArchStable: "amd64",
+					},
+				})
+				env.ExpectCreated(provisioner, nodeTemplate, pod)
+				env.EventuallyExpectHealthy(pod)
+				env.ExpectCreatedNodeCount("==", 1)
+			},
+			Entry("when the AMIFamily is AL2", &v1alpha1.AMIFamilyAL2),
+			Entry("when the AMIFamily is Ubuntu", &v1alpha1.AMIFamilyUbuntu),
+			Entry("when the AMIFamily is Bottlerocket", &v1alpha1.AMIFamilyBottlerocket),
+		)
+		DescribeTable("Windows AMIFamilies",
+			func(amiFamily *string) {
+				env.ExpectWindowsIPAMEnabled()
+				DeferCleanup(func() {
+					env.ExpectWindowsIPAMDisabled()
+				})
 
-			pod := test.Pod()
-			env.ExpectCreated(provisioner, provider, pod)
-			env.EventuallyExpectHealthy(pod)
-			env.ExpectCreatedNodeCount("==", 1)
-		},
-		Entry("when the AMIFamily is AL2", &v1alpha1.AMIFamilyAL2),
-		Entry("when the AMIFamily is Ubuntu", &v1alpha1.AMIFamilyUbuntu),
-		Entry("when the AMIFamily is Bottlerocket", &v1alpha1.AMIFamilyBottlerocket),
-	)
+				nodeTemplate.Spec.AMIFamily = amiFamily
+				// Need to enable provisioner-level OS-scoping for now since DS evaluation is done off of the provisioner
+				// requirements, not off of the instance type options so scheduling can fail if provisioners aren't
+				// properly scoped
+				provisioner.Spec.Requirements = append(provisioner.Spec.Requirements, v1.NodeSelectorRequirement{
+					Key:      v1.LabelOSStable,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{string(v1.Windows)},
+				})
+				pod := test.Pod(test.PodOptions{
+					Image: aws.WindowsDefaultImage,
+					NodeSelector: map[string]string{
+						v1.LabelOSStable:   string(v1.Windows),
+						v1.LabelArchStable: "amd64",
+					},
+				})
+				env.ExpectCreated(provisioner, nodeTemplate, pod)
+				env.EventuallyExpectHealthyWithTimeout(time.Minute*15, pod)
+				env.ExpectCreatedNodeCount("==", 1)
+			},
+			Entry("when the AMIFamily is Windows2019", &v1alpha1.AMIFamilyWindows2019),
+			Entry("when the AMIFamily is Windows2022", &v1alpha1.AMIFamilyWindows2022),
+		)
+	})
 	It("should schedule pods onto separate nodes when maxPods is set", func() {
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},

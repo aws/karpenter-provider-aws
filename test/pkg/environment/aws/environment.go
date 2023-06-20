@@ -39,6 +39,8 @@ import (
 	"github.com/aws/karpenter/test/pkg/environment/common"
 )
 
+const WindowsDefaultImage = "mcr.microsoft.com/oss/kubernetes/pause:3.9"
+
 type Environment struct {
 	*common.Environment
 	Region string

@@ -32,6 +32,7 @@ import (
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 // Spot Interruption experiment details partially copied from
@@ -41,6 +42,20 @@ const (
 	fisTargetLimit = 5
 	spotITNAction  = "aws:ec2:send-spot-instance-interruptions"
 )
+
+func (env *Environment) ExpectWindowsIPAMEnabled() {
+	GinkgoHelper()
+	env.ExpectConfigMapDataOverridden(types.NamespacedName{Namespace: "kube-system", Name: "amazon-vpc-cni"}, map[string]string{
+		"enable-windows-ipam": "true",
+	})
+}
+
+func (env *Environment) ExpectWindowsIPAMDisabled() {
+	GinkgoHelper()
+	env.ExpectConfigMapDataOverridden(types.NamespacedName{Namespace: "kube-system", Name: "amazon-vpc-cni"}, map[string]string{
+		"enable-windows-ipam": "false",
+	})
+}
 
 func (env *Environment) ExpectInstance(nodeName string) Assertion {
 	return Expect(env.GetInstance(nodeName))
