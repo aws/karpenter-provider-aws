@@ -60,7 +60,7 @@ runs:
     run: |
       # Create or Upgrade the cluster based on whether the cluster already exists
       cmd="create"
-      eksctl get cluster --name $(params.cluster-name) && cmd="upgrade"
+      eksctl get cluster --name ${{ inputs.cluster_name }} && cmd="upgrade"
       
       eksctl ${cmd} cluster -f - <<EOF
       ---
