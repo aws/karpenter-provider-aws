@@ -56,7 +56,7 @@ jobs:
     if: (github.repository == 'aws/karpenter' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')) || github.event_name == 'workflow_dispatch'
     uses: ./.github/workflows/e2e-upgrade.yaml
     with:
-      from_git_ref: v0.26.1
+      from_git_ref: v0.27.5
       to_git_ref: ${{ needs.resolve-git-ref.outputs.GIT_REF }}
       pr_number: ${{ needs.resolve-git-ref.outputs.PR_NUM }}
       event_name: ${{ github.event_name }}
