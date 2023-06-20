@@ -23,6 +23,8 @@ jobs:
       # Download the artifact and resolve the commit if initiated by PR snapshot
       # Otherwise, use the currently checked-out branch to run the E2E tests against
       - uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.git_ref }}
       - if: github.event_name == 'workflow_run'
         uses: ./.github/actions/download-artifact
       - id: resolve-step
@@ -44,7 +46,6 @@ jobs:
     uses: ./.github/workflows/e2e.yaml
     with:
       suite: ${{ matrix.suite }}
-      git_repo: aws/karpenter
       git_ref: ${{ needs.resolve-git-ref.outputs.GIT_REF }}
       pr_number: ${{ needs.resolve-git-ref.outputs.PR_NUM }}
       event_name: ${{ github.event_name }}
@@ -55,8 +56,7 @@ jobs:
     if: (github.repository == 'aws/karpenter' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')) || github.event_name == 'workflow_dispatch'
     uses: ./.github/workflows/e2e-upgrade.yaml
     with:
-      git_repo: aws/karpenter
-      from_git_ref: v0.26.1
+      from_git_ref: v0.27.5
       to_git_ref: ${{ needs.resolve-git-ref.outputs.GIT_REF }}
       pr_number: ${{ needs.resolve-git-ref.outputs.PR_NUM }}
       event_name: ${{ github.event_name }}

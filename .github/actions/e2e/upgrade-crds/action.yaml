@@ -13,9 +13,6 @@ inputs:
   cluster_name:
     description: 'Name of the cluster to be launched by eksctl'
     required: true
-  git_repo:
-    description: "The git repo can be used to run tests on a fork"
-    default: "aws/karpenter"
   git_ref:
     description: "The git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release"
 runs:
@@ -29,11 +26,7 @@ runs:
         role-duration-seconds: 21600
     - uses: actions/checkout@v3
       with:
-        repository: ${{ inputs.git_repo }}
         ref: ${{ inputs.git_ref }}
-    - uses: actions/checkout@v3
-      with:
-        path: "actions"
     - name: install-karpenter
       shell: bash
       run: |
