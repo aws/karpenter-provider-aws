@@ -103,10 +103,9 @@ of having only 2 network interfaces per LaunchTemplate.
 The [drift design doc #366](https://github.com/aws/karpenter-core/pull/366) suggests classifying CRD fields as  (1) Static, (2) Dynamic, or (3) Behavioral. in this
 context, the networkInterfaces would be classified as following:
 
-|                                                                | Static | Dynamic | Behavioral |
+|                                                                | Static | Dynamic | Behavioral | 
 |----------------------------------------------------------------|--------|---------|------------|
 | AWSNodeTemplate.NetworkInterfaces.length                       | x      |         |            |
-| AWSNodeTemplate.NetworkInterfaces.order                        | x      |         |            |
 | AWSNodeTemplate.NetworkInterfaces[@].AssociateCarrierIpAddress | x      |         |            |
 | AWSNodeTemplate.NetworkInterfaces[@].AssociatePublicIpAddress  | x      |         |            |
 | AWSNodeTemplate.NetworkInterfaces[@].DeleteOnTermination       |        |         | x          |
@@ -117,9 +116,5 @@ context, the networkInterfaces would be classified as following:
 | AWSNodeTemplate.NetworkInterfaces[@].ipv4PrefixCount           | x      |         |            |
 | AWSNodeTemplate.NetworkInterfaces[@].ipv6PrefixCount           | x      |         |            |
 
-since `AWSNodeTemplate.NetworkInterfaces` is a list, Drift would be triggered if:
-
-- the number of network interfaces of the node does not contain the specified `AWSNodeTemplate.NetworkInterfaces`
-- the order of network interfaces of a node do not match the order of `AWSNodeTemplate.NetworkInterfaces` when sorted
-  by `NetworkCardIndex` and `DeviceIndex`. if `AWSNodeTemplate.NetworkInterfaces` do not define `NetworkCardIndex` or `DeviceIndex`, their values are assumed to
-  equal the index of the  `v1alpha1.NetworkInterface` object in the list
+since `AWSNodeTemplate.NetworkInterfaces` is a list, Drift would be triggered if the number of network interfaces of the node does not contain the specified `AWSNodeTemplate.NetworkInterfaces`
+in addition, the comparison will happen after sorting the networkInterfaces with `deviceIndex` which is enforced to be unique by AWS. in case 
