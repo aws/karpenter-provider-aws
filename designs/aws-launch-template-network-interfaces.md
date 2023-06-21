@@ -81,9 +81,9 @@ spec:
       associatePublicIPAddress: false     # optional, Indicates whether to assign a public IPv4 address to eth0 for a new network interface.
       deleteOnTermination: false          # optional, Indicates whether the network interface is deleted when the instance is terminated.
       description: "..."                  # optional, A description for the network interface.
-      deviceIndex: 0                      # required, The device index for the network interface attachment.
+      deviceIndex: 0                      # optional, The device index for the network interface attachment.
       interfaceType: "interface"          # optional, The interface type for the network interface. To create an Elastic Fabric Adapter (EFA), specify efa
-      networkCardIndex: 0 
+      networkCardIndex: 0                 # optional, The index of the network card. Some instance types support multiple network cards. The primary network interface must be assigned to network card index 0. The default is network card index 0.
       ipv4PrefixCount: 1                  # optional, The number of IPv4 prefixes that AWS automatically assigns to the network interface.
       ipv6PrefixCount: 1                  # optional, The number of IPv6 prefixes that AWS automatically assigns to the network interface.
     - { ... }
@@ -121,6 +121,5 @@ since `AWSNodeTemplate.NetworkInterfaces` is a list, Drift would be triggered if
 
 - the number of network interfaces of the node does not contain the specified `AWSNodeTemplate.NetworkInterfaces`
 - the order of network interfaces of a node do not match the order of `AWSNodeTemplate.NetworkInterfaces` when sorted
-  by `NetworkCardIndex` and `DeviceIndex`.
-  `AWSNodeTemplate.NetworkInterfaces` do not define `NetworkCardIndex` or `DeviceIndex`, their values are assumed to
+  by `NetworkCardIndex` and `DeviceIndex`. if `AWSNodeTemplate.NetworkInterfaces` do not define `NetworkCardIndex` or `DeviceIndex`, their values are assumed to
   equal the index of the  `v1alpha1.NetworkInterface` object in the list
