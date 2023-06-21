@@ -25,15 +25,9 @@ import (
 	"net"
 	"net/mail"
 	"net/textproto"
-	"sort"
 	"strings"
 
 	"github.com/samber/lo"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"knative.dev/pkg/ptr"
-
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
-	"github.com/aws/karpenter-core/pkg/utils/resources"
 )
 
 type EKS struct {
@@ -87,86 +81,15 @@ func (e EKS) eksBootstrapScript() string {
 	return userData.String()
 }
 
-func (e EKS) kubeletExtraArgs() (args []string) {
-	args = append(args, e.nodeLabelArg(), e.nodeTaintArg(), e.maxPodsArg())
-
-	if e.KubeletConfig == nil {
-		return lo.Compact(args)
+// kubeletExtraArgs for the EKS bootstrap.sh script uses the concept of ENI-limited pod density to set pods
+// If this argument is explicitly disabled, then set the max-pods value on the kubelet to the static value of 110
+func (e EKS) kubeletExtraArgs() []string {
+	args := e.Options.kubeletExtraArgs()
+	// Set the static value for --max-pods to 110 when AWSENILimitedPodDensity is explicitly disabled and the value isn't set
+	if !e.AWSENILimitedPodDensity && (e.KubeletConfig == nil || e.KubeletConfig.MaxPods == nil) {
+		args = append(args, "--max-pods=110")
 	}
-	if e.KubeletConfig.PodsPerCore != nil {
-		args = append(args, fmt.Sprintf("--pods-per-core=%d", ptr.Int32Value(e.KubeletConfig.PodsPerCore)))
-	}
-	// We have to convert some of these maps so that their values return the correct string
-	args = append(args, joinParameterArgs("--system-reserved", resources.StringMap(e.KubeletConfig.SystemReserved), "="))
-	args = append(args, joinParameterArgs("--kube-reserved", resources.StringMap(e.KubeletConfig.KubeReserved), "="))
-	args = append(args, joinParameterArgs("--eviction-hard", e.KubeletConfig.EvictionHard, "<"))
-	args = append(args, joinParameterArgs("--eviction-soft", e.KubeletConfig.EvictionSoft, "<"))
-	args = append(args, joinParameterArgs("--eviction-soft-grace-period", lo.MapValues(e.KubeletConfig.EvictionSoftGracePeriod, func(v metav1.Duration, _ string) string { return v.Duration.String() }), "="))
-
-	if e.KubeletConfig.EvictionMaxPodGracePeriod != nil {
-		args = append(args, fmt.Sprintf("--eviction-max-pod-grace-period=%d", ptr.Int32Value(e.KubeletConfig.EvictionMaxPodGracePeriod)))
-	}
-	if e.KubeletConfig.ImageGCHighThresholdPercent != nil {
-		args = append(args, fmt.Sprintf("--image-gc-high-threshold=%d", ptr.Int32Value(e.KubeletConfig.ImageGCHighThresholdPercent)))
-	}
-	if e.KubeletConfig.ImageGCLowThresholdPercent != nil {
-		args = append(args, fmt.Sprintf("--image-gc-low-threshold=%d", ptr.Int32Value(e.KubeletConfig.ImageGCLowThresholdPercent)))
-	}
-	if e.KubeletConfig.CPUCFSQuota != nil {
-		args = append(args, fmt.Sprintf("--cpu-cfs-quota=%t", lo.FromPtr(e.KubeletConfig.CPUCFSQuota)))
-	}
-	return lo.Compact(args)
-}
-
-func (e EKS) maxPodsArg() string {
-	if e.KubeletConfig != nil && e.KubeletConfig.MaxPods != nil {
-		return fmt.Sprintf("--max-pods=%d", ptr.Int32Value(e.KubeletConfig.MaxPods))
-	}
-	if !e.AWSENILimitedPodDensity {
-		return "--max-pods=110"
-	}
-	return ""
-}
-
-func (e EKS) nodeTaintArg() string {
-	if len(e.Taints) == 0 {
-		return ""
-	}
-	var taintStrings []string
-	for _, taint := range e.Taints {
-		taintStrings = append(taintStrings, fmt.Sprintf("%s=%s:%s", taint.Key, taint.Value, taint.Effect))
-	}
-	return fmt.Sprintf("--register-with-taints=%q", strings.Join(taintStrings, ","))
-}
-
-func (e EKS) nodeLabelArg() string {
-	if len(e.Labels) == 0 {
-		return ""
-	}
-	var labelStrings []string
-	keys := lo.Keys(e.Labels)
-	sort.Strings(keys) // ensures this list is deterministic, for easy testing.
-	for _, key := range keys {
-		if v1alpha5.LabelDomainExceptions.Has(key) {
-			continue
-		}
-		labelStrings = append(labelStrings, fmt.Sprintf("%s=%v", key, e.Labels[key]))
-	}
-	return fmt.Sprintf("--node-labels=%q", strings.Join(labelStrings, ","))
-}
-
-// joinParameterArgs joins a map of keys and values by their separator. The separator will sit between the
-// arguments in a comma-separated list i.e. arg1<sep>val1,arg2<sep>val2
-func joinParameterArgs[K comparable, V any](name string, m map[K]V, separator string) string {
-	var args []string
-
-	for k, v := range m {
-		args = append(args, fmt.Sprintf("%v%s%v", k, separator, v))
-	}
-	if len(args) > 0 {
-		return fmt.Sprintf("%s=%q", name, strings.Join(args, ","))
-	}
-	return ""
+	return args
 }
 
 func (e EKS) mergeCustomUserData(userDatas ...string) (string, error) {

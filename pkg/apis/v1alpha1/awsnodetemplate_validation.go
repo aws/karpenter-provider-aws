@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"regexp"
 
+	"github.com/samber/lo"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	"knative.dev/pkg/apis"
 
@@ -64,6 +65,9 @@ func (a *AWSNodeTemplateSpec) validateUserData() (errs *apis.FieldError) {
 	}
 	if a.LaunchTemplateName != nil {
 		errs = errs.Also(apis.ErrMultipleOneOf(userDataPath, launchTemplatePath))
+	}
+	if lo.FromPtr(a.AMIFamily) == AMIFamilyWindows2019 || lo.FromPtr(a.AMIFamily) == AMIFamilyWindows2022 {
+		errs = errs.Also(apis.ErrGeneric(fmt.Sprintf("%s AMIFamily is not currently supported with custom userData", lo.FromPtr(a.AMIFamily)), userDataPath))
 	}
 	return errs
 }

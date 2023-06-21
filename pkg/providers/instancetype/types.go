@@ -71,9 +71,10 @@ func computeRequirements(ctx context.Context, info *ec2.InstanceTypeInfo, offeri
 		// Well Known Upstream
 		scheduling.NewRequirement(v1.LabelInstanceTypeStable, v1.NodeSelectorOpIn, aws.StringValue(info.InstanceType)),
 		scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, getArchitecture(info)),
-		scheduling.NewRequirement(v1.LabelOSStable, v1.NodeSelectorOpIn, string(v1.Linux)),
+		scheduling.NewRequirement(v1.LabelOSStable, v1.NodeSelectorOpIn, getOS(info, amiFamily)...),
 		scheduling.NewRequirement(v1.LabelTopologyZone, v1.NodeSelectorOpIn, lo.Map(offerings.Available(), func(o cloudprovider.Offering, _ int) string { return o.Zone })...),
 		scheduling.NewRequirement(v1.LabelTopologyRegion, v1.NodeSelectorOpIn, region),
+		scheduling.NewRequirement(v1.LabelWindowsBuild, v1.NodeSelectorOpDoesNotExist),
 		// Well Known to Karpenter
 		scheduling.NewRequirement(v1alpha5.LabelCapacityType, v1.NodeSelectorOpIn, lo.Map(offerings.Available(), func(o cloudprovider.Offering, _ int) string { return o.CapacityType })...),
 		// Well Known to AWS
@@ -129,6 +130,10 @@ func computeRequirements(ctx context.Context, info *ec2.InstanceTypeInfo, offeri
 		requirements.Get(v1alpha1.LabelInstanceAcceleratorManufacturer).Insert(lowerKabobCase(aws.StringValue(accelerator.Manufacturer)))
 		requirements.Get(v1alpha1.LabelInstanceAcceleratorCount).Insert(fmt.Sprint(aws.Int64Value(accelerator.Count)))
 	}
+	// Windows Build Version Labels
+	if family, ok := amiFamily.(*amifamily.Windows); ok {
+		requirements.Get(v1.LabelWindowsBuild).Insert(family.Build)
+	}
 	return hardcodeNeuron(requirements, info)
 }
 
@@ -144,6 +149,16 @@ func hardcodeNeuron(requirements scheduling.Requirements, info *ec2.InstanceType
 	return requirements
 }
 
+func getOS(info *ec2.InstanceTypeInfo, amiFamily amifamily.AMIFamily) []string {
+	if _, ok := amiFamily.(*amifamily.Windows); ok {
+		if getArchitecture(info) == v1alpha5.ArchitectureAmd64 {
+			return []string{string(v1.Windows)}
+		}
+		return []string{}
+	}
+	return []string{string(v1.Linux)}
+}
+
 func getArchitecture(info *ec2.InstanceTypeInfo) string {
 	for _, architecture := range info.ProcessorInfo.SupportedArchitectures {
 		if value, ok := v1alpha1.AWSToKubeArchitectures[aws.StringValue(architecture)]; ok {
@@ -156,7 +171,7 @@ func getArchitecture(info *ec2.InstanceTypeInfo) string {
 func computeCapacity(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily amifamily.AMIFamily,
 	blockDeviceMappings []*v1alpha1.BlockDeviceMapping, kc *v1alpha5.KubeletConfiguration) v1.ResourceList {
 
-	return v1.ResourceList{
+	resourceList := v1.ResourceList{
 		v1.ResourceCPU:               *cpu(info),
 		v1.ResourceMemory:            *memory(ctx, info),
 		v1.ResourceEphemeralStorage:  *ephemeralStorage(amiFamily, blockDeviceMappings),
@@ -167,6 +182,11 @@ func computeCapacity(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily 
 		v1alpha1.ResourceAWSNeuron:   *awsNeurons(info),
 		v1alpha1.ResourceHabanaGaudi: *habanaGaudis(info),
 	}
+	if _, ok := amiFamily.(*amifamily.Windows); ok {
+		//ResourcePrivateIPv4Address is the same as ENILimitedPods on Windows node
+		resourceList[v1alpha1.ResourcePrivateIPv4Address] = *privateIPv4Address(info)
+	}
+	return resourceList
 }
 
 func cpu(info *ec2.InstanceTypeInfo) *resource.Quantity {
@@ -201,6 +221,12 @@ func ephemeralStorage(amiFamily amifamily.AMIFamily, blockDeviceMappings []*v1al
 				return blockDeviceMapping.EBS.VolumeSize
 			}
 		}
+	}
+	//Return the ephemeralBlockDevice size if defined in ami
+	if ephemeralBlockDevice, ok := lo.Find(amiFamily.DefaultBlockDeviceMappings(), func(item *v1alpha1.BlockDeviceMapping) bool {
+		return *amiFamily.EphemeralBlockDevice() == *item.DeviceName
+	}); ok {
+		return ephemeralBlockDevice.EBS.VolumeSize
 	}
 	return amifamily.DefaultEBS.VolumeSize
 }
@@ -268,10 +294,11 @@ func habanaGaudis(info *ec2.InstanceTypeInfo) *resource.Quantity {
 	return resources.Quantity(fmt.Sprint(count))
 }
 
-// The number of pods per node is calculated using the formula:
-// max number of ENIs * (IPv4 Addresses per ENI -1) + 2
-// https://github.com/awslabs/amazon-eks-ami/blob/master/files/eni-max-pods.txt#L20
 func ENILimitedPods(ctx context.Context, info *ec2.InstanceTypeInfo) *resource.Quantity {
+	// The number of pods per node is calculated using the formula:
+	// max number of ENIs * (IPv4 Addresses per ENI -1) + 2
+	// https://github.com/awslabs/amazon-eks-ami/blob/master/files/eni-max-pods.txt#L20
+
 	// VPC CNI only uses the default network interface
 	// https://github.com/aws/amazon-vpc-cni-k8s/blob/3294231c0dce52cfe473bf6c62f47956a3b333b6/scripts/gen_vpc_ip_limits.go#L162
 	networkInterfaces := *info.NetworkInfo.NetworkCards[*info.NetworkInfo.DefaultNetworkCardIndex].MaximumNetworkInterfaces
@@ -281,6 +308,13 @@ func ENILimitedPods(ctx context.Context, info *ec2.InstanceTypeInfo) *resource.Q
 	}
 	addressesPerInterface := *info.NetworkInfo.Ipv4AddressesPerInterface
 	return resources.Quantity(fmt.Sprint(usableNetworkInterfaces*(addressesPerInterface-1) + 2))
+}
+
+func privateIPv4Address(info *ec2.InstanceTypeInfo) *resource.Quantity {
+
+	//https://github.com/aws/amazon-vpc-resource-controller-k8s/blob/ecbd6965a0100d9a070110233762593b16023287/pkg/provider/ip/provider.go#L297
+	capacity := aws.Int64Value(info.NetworkInfo.Ipv4AddressesPerInterface) - 1
+	return resources.Quantity(fmt.Sprint(capacity))
 }
 
 func systemReservedResources(kc *v1alpha5.KubeletConfiguration) v1.ResourceList {
@@ -363,10 +397,11 @@ func pods(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily amifamily.A
 	switch {
 	case kc != nil && kc.MaxPods != nil:
 		count = int64(ptr.Int32Value(kc.MaxPods))
-	case !awssettings.FromContext(ctx).EnableENILimitedPodDensity:
-		count = 110
-	default:
+	case awssettings.FromContext(ctx).EnableENILimitedPodDensity && amiFamily.FeatureFlags().SupportsENILimitedPodDensity:
 		count = ENILimitedPods(ctx, info).Value()
+	default:
+		count = 110
+
 	}
 	if kc != nil && ptr.Int32Value(kc.PodsPerCore) > 0 && amiFamily.FeatureFlags().PodsPerCoreEnabled {
 		count = lo.Min([]int64{int64(ptr.Int32Value(kc.PodsPerCore)) * ptr.Int64Value(info.VCpuInfo.DefaultVCpus), count})

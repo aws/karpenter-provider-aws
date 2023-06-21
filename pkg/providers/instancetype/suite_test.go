@@ -71,7 +71,9 @@ var awsEnv *test.Environment
 var fakeClock *clock.FakeClock
 var prov *provisioning.Provisioner
 var provisioner *v1alpha5.Provisioner
+var windowsProvisioner *v1alpha5.Provisioner
 var nodeTemplate *v1alpha1.AWSNodeTemplate
+var windowsNodeTemplate *v1alpha1.AWSNodeTemplate
 var cluster *state.Cluster
 var cloudProvider *cloudprovider.CloudProvider
 
@@ -126,6 +128,27 @@ var _ = BeforeEach(func() {
 			Name:       nodeTemplate.Name,
 		},
 	})
+	windowsNodeTemplate = test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+		AWS: v1alpha1.AWS{
+			AMIFamily: &v1alpha1.AMIFamilyWindows2022,
+		},
+	})
+	windowsProvisioner = test.Provisioner(coretest.ProvisionerOptions{
+		Requirements: []v1.NodeSelectorRequirement{
+			{
+				Key:      v1alpha1.LabelInstanceCategory,
+				Operator: v1.NodeSelectorOpExists,
+			},
+			{
+				Key:      v1.LabelOSStable,
+				Operator: v1.NodeSelectorOpIn,
+				Values:   []string{string(v1.Windows)},
+			},
+		},
+		ProviderRef: &v1alpha5.MachineTemplateRef{
+			Name: windowsNodeTemplate.Name,
+		},
+	})
 
 	cluster.Reset()
 	awsEnv.Reset()
@@ -140,7 +163,7 @@ var _ = AfterEach(func() {
 
 var _ = Describe("Instance Types", func() {
 	It("should support individual instance type labels", func() {
-		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+		ExpectApplied(ctx, env.Client, provisioner, windowsProvisioner, nodeTemplate, windowsNodeTemplate)
 
 		nodeSelector := map[string]string{
 			// Well known
@@ -177,6 +200,7 @@ var _ = Describe("Instance Types", func() {
 			"beta.kubernetes.io/os":         "linux",
 			v1.LabelInstanceType:            "g4dn.8xlarge",
 			"topology.ebs.csi.aws.com/zone": "test-zone-1a",
+			v1.LabelWindowsBuild:            v1alpha1.Windows2022Build,
 		}
 
 		// Ensure that we're exercising all well known labels
@@ -229,12 +253,14 @@ var _ = Describe("Instance Types", func() {
 		}
 
 		// Ensure that we're exercising all well known labels except for accelerator labels
-		expectedLabels := append(v1alpha5.WellKnownLabels.Difference(sets.NewString(
-			v1alpha1.LabelInstanceAcceleratorCount,
-			v1alpha1.LabelInstanceAcceleratorName,
-			v1alpha1.LabelInstanceAcceleratorManufacturer,
-		)).UnsortedList(), lo.Keys(v1alpha5.NormalizedLabels)...)
-		Expect(lo.Keys(nodeSelector)).To(ContainElements(expectedLabels))
+		Expect(lo.Keys(nodeSelector)).To(ContainElements(
+			append(
+				v1alpha5.WellKnownLabels.Difference(sets.NewString(
+					v1alpha1.LabelInstanceAcceleratorCount,
+					v1alpha1.LabelInstanceAcceleratorName,
+					v1alpha1.LabelInstanceAcceleratorManufacturer,
+					v1.LabelWindowsBuild,
+				)).UnsortedList(), lo.Keys(v1alpha5.NormalizedLabels)...)))
 
 		pod := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: nodeSelector})
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -282,6 +308,7 @@ var _ = Describe("Instance Types", func() {
 			v1alpha1.LabelInstanceGPUManufacturer,
 			v1alpha1.LabelInstanceGPUMemory,
 			v1alpha1.LabelInstanceLocalNVME,
+			v1.LabelWindowsBuild,
 		)).UnsortedList(), lo.Keys(v1alpha5.NormalizedLabels)...)
 		Expect(lo.Keys(nodeSelector)).To(ContainElements(expectedLabels))
 
@@ -642,6 +669,31 @@ var _ = Describe("Instance Types", func() {
 			Expect(it.Capacity.Pods().Value()).ToNot(BeNumerically("==", 110))
 		}
 	})
+	It("should set pods to 110 even ENILimitedPodDensity is enabled in awssettings but amifamily doesn't support", func() {
+		instanceInfo, err := awsEnv.InstanceTypesProvider.GetInstanceTypes(ctx)
+		Expect(err).To(BeNil())
+		windowsNodeTemplate := &v1alpha1.AWSNodeTemplate{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: coretest.RandomName(),
+			},
+			Spec: v1alpha1.AWSNodeTemplateSpec{
+				AWS: v1alpha1.AWS{
+					AMIFamily:             aws.String(v1alpha1.AMIFamilyWindows2019),
+					SubnetSelector:        map[string]string{"*": "*"},
+					SecurityGroupSelector: map[string]string{"*": "*"},
+				},
+			},
+		}
+
+		ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
+			EnableENILimitedPodDensity: lo.ToPtr(true),
+		}))
+		for _, info := range instanceInfo {
+			it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", windowsNodeTemplate, nil)
+			Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 110))
+		}
+	})
+
 	It("should expose vcpu metrics for instance types", func() {
 		instanceInfo, err := awsEnv.InstanceTypesProvider.List(ctx, provisioner.Spec.KubeletConfiguration, nodeTemplate)
 		Expect(err).To(BeNil())

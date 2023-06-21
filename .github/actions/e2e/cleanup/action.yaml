@@ -13,6 +13,8 @@ inputs:
   cluster_name:
     description: 'Name of the cluster to be launched by eksctl'
     required: true
+  git_ref:
+    description: "The git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release"
 runs:
   using: "composite"
   steps:
@@ -24,8 +26,8 @@ runs:
         role-duration-seconds: 21600
     - uses: actions/checkout@v3
       with:
-        path: "actions"
-    - uses: ./actions/.github/actions/e2e/install-eksctl
+        ref: ${{ inputs.git_ref }}
+    - uses: ./.github/actions/e2e/install-eksctl
     - name: delete-cluster
       shell: bash
       run: |

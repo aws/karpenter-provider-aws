@@ -93,6 +93,7 @@ type FeatureFlags struct {
 	UsesENILimitedMemoryOverhead bool
 	PodsPerCoreEnabled           bool
 	EvictionSoftEnabled          bool
+	SupportsENILimitedPodDensity bool
 }
 
 // DefaultFamily provides default values for AMIFamilies that compose it
@@ -103,6 +104,7 @@ func (d DefaultFamily) FeatureFlags() FeatureFlags {
 		UsesENILimitedMemoryOverhead: true,
 		PodsPerCoreEnabled:           true,
 		EvictionSoftEnabled:          true,
+		SupportsENILimitedPodDensity: true,
 	}
 }
 
@@ -181,6 +183,10 @@ func GetAMIFamily(amiFamily *string, options *Options) AMIFamily {
 		return &Bottlerocket{Options: options}
 	case v1alpha1.AMIFamilyUbuntu:
 		return &Ubuntu{Options: options}
+	case v1alpha1.AMIFamilyWindows2019:
+		return &Windows{Options: options, Version: v1alpha1.Windows2019, Build: v1alpha1.Windows2019Build}
+	case v1alpha1.AMIFamilyWindows2022:
+		return &Windows{Options: options, Version: v1alpha1.Windows2022, Build: v1alpha1.Windows2022Build}
 	case v1alpha1.AMIFamilyCustom:
 		return &Custom{Options: options}
 	default:
