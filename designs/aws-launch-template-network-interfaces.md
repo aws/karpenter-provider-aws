@@ -117,4 +117,4 @@ context, the networkInterfaces would be classified as following:
 | AWSNodeTemplate.NetworkInterfaces[@].ipv6PrefixCount           | x      |         |            |
 
 since `AWSNodeTemplate.NetworkInterfaces` is a list, Drift would be triggered if the number of network interfaces of the node does not contain the specified `AWSNodeTemplate.NetworkInterfaces`
-in addition, the comparison will happen after sorting the networkInterfaces with `deviceIndex` which is enforced to be unique by AWS. in case 
+in addition, the comparison will happen after sorting the networkInterfaces with `deviceIndex` 
