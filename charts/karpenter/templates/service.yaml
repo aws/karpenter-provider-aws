@@ -13,7 +13,7 @@ spec:
   type: ClusterIP
   ports:
     - name: http-metrics
-      port: 8080
+      port: 8000
       targetPort: http-metrics
       protocol: TCP
     - name: https-webhook
