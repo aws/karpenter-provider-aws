@@ -97,6 +97,7 @@ Resources:
               - cloudformation:DescribeStackEvents
               - cloudformation:ExecuteChangeSet
               - cloudformation:ListStacks
+              - cloudformation:GetTemplate
               - cloudformation:GetTemplateSummary
             Resource: !Sub "arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/*"
           - Effect: Allow

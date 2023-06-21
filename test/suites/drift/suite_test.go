@@ -187,10 +187,10 @@ var _ = Describe("Drift", Label("AWS"), func() {
 			}
 			return ""
 		})
-		providerSecurityGroupID := strings.Join(lo.WithoutEmpty(awsIDs), ",")
+		clusterSecurityGroupIDs := strings.Join(lo.WithoutEmpty(awsIDs), ",")
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 			AWS: v1alpha1.AWS{
-				SecurityGroupSelector: map[string]string{"aws-ids": fmt.Sprintf("%s,%s", providerSecurityGroupID, awssdk.StringValue(testSecurityGroup.GroupId))},
+				SecurityGroupSelector: map[string]string{"aws-ids": fmt.Sprintf("%s,%s", clusterSecurityGroupIDs, awssdk.StringValue(testSecurityGroup.GroupId))},
 				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			},
 		})
@@ -210,7 +210,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		env.ExpectCreatedNodeCount("==", 1)
 		By("updating the provider securitygroup")
 		node := env.Monitor.CreatedNodes()[0]
-		provider.Spec.SecurityGroupSelector = map[string]string{"aws-ids": providerSecurityGroupID}
+		provider.Spec.SecurityGroupSelector = map[string]string{"aws-ids": clusterSecurityGroupIDs}
 		env.ExpectCreatedOrUpdated(provider)
 
 		By("checking the node metadata")
