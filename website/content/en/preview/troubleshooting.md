@@ -15,7 +15,7 @@ If you installed the controller in the `karpenter` namespace you can see the cur
 
 ```
 kubectl get configmap -n karpenter config-logging -o yaml
-apiVersion: v1                                 
+apiVersion: v1
 data:
   loglevel.webhook: error
   zap-logger-config: |

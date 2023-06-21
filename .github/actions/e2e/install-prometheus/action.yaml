@@ -16,13 +16,15 @@ inputs:
   workspace_id:
     description: "Id of the prometheus remote_write workspace"
     required: true
+  git_ref:
+    description: "The git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release"
 runs:
   using: "composite"
   steps:
     - uses: actions/checkout@v3
       with:
-        path: "actions"
-    - uses: ./actions/.github/actions/e2e/install-helm
+        ref: ${{ inputs.git_ref }}
+    - uses: ./.github/actions/e2e/install-helm
     - name: add prometheus repo
       shell: bash
       run: |
@@ -37,7 +39,7 @@ runs:
       run: |
         helm upgrade --install prometheus prometheus-community/kube-prometheus-stack \
           -n prometheus --create-namespace \
-          -f ./actions/.github/actions/e2e/install-prometheus/values.yaml \
+          -f ./.github/actions/e2e/install-prometheus/values.yaml \
           --set prometheus.prometheusSpec.remoteWrite[0].url=https://aps-workspaces.${{ inputs.region }}.amazonaws.com/workspaces/${{ inputs.workspace_id }}/api/v1/remote_write \
           --set prometheus.prometheusSpec.remoteWrite[0].sigv4.region=${{ inputs.region }} \
           --set prometheus.serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="arn:aws:iam::${{ inputs.account_id }}:role/prometheus-irsa-${{ inputs.cluster_name }}"

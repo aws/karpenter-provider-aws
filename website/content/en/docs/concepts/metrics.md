@@ -150,4 +150,3 @@ Size of the request batch per batcher
 
 ### `karpenter_cloudprovider_batcher_batch_time_seconds`
 Duration of the batching window per batcher
-
