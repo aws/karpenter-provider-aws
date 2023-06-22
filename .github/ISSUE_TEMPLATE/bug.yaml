@@ -1,18 +1,15 @@
----
-name: Bug Report
-about: Report a bug
-title: ''
+name: Bug
+description: Report a bug
 labels: bug
-assignees: ''
+body: 
+- type: markdown
+  attributes: |
+    **Observed Behavior**:
 
----
+    **Expected Behavior**:
 
-**Observed Behavior**:
+    **Reproduction Steps** (Please include YAML):
 
-**Expected Behavior**:
-
-**Reproduction Steps** (Please include YAML):
-
-**Versions**:
-- Chart Version: 
-- Kubernetes Version (`kubectl version`): 
+    **Versions**:
+    - Chart Version: 
+    - Kubernetes Version (`kubectl version`): 

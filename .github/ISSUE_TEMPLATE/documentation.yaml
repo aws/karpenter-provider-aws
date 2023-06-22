@@ -1,10 +1,7 @@
----
 name: Documentation
-about: How the docs be improved?
-title: ''
+description: How the docs be improved?
 labels: documentation
-assignees: ''
-
----
-
-**How can the docs be improved?**
+body: 
+- type: markdown
+  attributes: |
+    **How can the docs be improved?**
