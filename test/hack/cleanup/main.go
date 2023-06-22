@@ -1,3 +1,17 @@
+/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package main
 
 import (
@@ -12,7 +26,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
-	"go.uber.org/multierr"
 	"go.uber.org/zap"
 )
 
@@ -44,41 +57,54 @@ func main() {
 	ids := getOldInstances(ctx, ec2Client, expirationTime)
 	logger.With("ids", ids, "count", len(ids)).Infof("discovered test instances to delete")
 	if len(ids) > 0 {
-		_ = lo.Must(ec2Client.TerminateInstances(ctx, &ec2.TerminateInstancesInput{
+		if _, err := ec2Client.TerminateInstances(ctx, &ec2.TerminateInstancesInput{
 			InstanceIds: ids,
-		}))
+		}); err != nil {
+			logger.With("ids", ids, "count", len(ids)).Errorf("terminating test instances, %v", err)
+		} else {
+			logger.With("ids", ids, "count", len(ids)).Infof("terminated test instances")
+			if err = fireMetric(ctx, cloudWatchClient, "InstancesDeleted", float64(len(ids))); err != nil {
+				logger.With("name", "InstancesDeleted").Errorf("firing metric, %v", err)
+			}
+		}
 	}
-	logger.With("ids", ids, "count", len(ids)).Infof("terminated test instances")
-	lo.Must0(fireMetric(ctx, cloudWatchClient, "InstancesDeleted", float64(len(ids))))
 
 	// Terminate any old stacks that were provisioned as part of testing
 	// We execute these in serial since we will most likely get rate limited if we try to delete these too aggressively
 	names := getOldStacks(ctx, cloudFormationClient, expirationTime)
 	logger.With("names", names, "count", len(names)).Infof("discovered test stacks to delete")
-	errs := make([]error, len(names))
+	deleted := 0
 	for i := range names {
-		_, errs[i] = cloudFormationClient.DeleteStack(ctx, &cloudformation.DeleteStackInput{
+		if _, err := cloudFormationClient.DeleteStack(ctx, &cloudformation.DeleteStackInput{
 			StackName: lo.ToPtr(names[i]),
-		})
-		logger.With("name", names[i]).Infof("deleted test stack")
+		}); err != nil {
+			logger.With("name", names[i]).Errorf("deleting test stack, %v", err)
+		} else {
+			logger.With("name", names[i]).Infof("deleted test stack")
+			deleted++
+		}
 	}
-	lo.Must0(multierr.Combine(errs...))
-	logger.With("names", names, "count", len(names)).Infof("terminated test stacks")
-	lo.Must0(fireMetric(ctx, cloudWatchClient, "StacksDeleted", float64(len(names))))
+	if err := fireMetric(ctx, cloudWatchClient, "StacksDeleted", float64(deleted)); err != nil {
+		logger.With("name", "StacksDeleted").Errorf("firing metric, %v", err)
+	}
 
 	// Terminate any old launch templates that were managed by Karpenter and were provisioned as part of testing
 	names = getOldLaunchTemplates(ctx, ec2Client, expirationTime)
 	logger.With("names", names, "count", len(names)).Infof("discovered test launch templates to delete")
-	errs = make([]error, len(names))
+	deleted = 0
 	for i := range names {
-		_, errs[i] = ec2Client.DeleteLaunchTemplate(ctx, &ec2.DeleteLaunchTemplateInput{
+		if _, err := ec2Client.DeleteLaunchTemplate(ctx, &ec2.DeleteLaunchTemplateInput{
 			LaunchTemplateName: lo.ToPtr(names[i]),
-		})
-		logger.With("name", names[i]).Infof("deleted test launch template")
+		}); err != nil {
+			logger.With("name", names[i]).Errorf("deleting test launch template, %v", err)
+		} else {
+			logger.With("name", names[i]).Infof("deleted test launch template")
+			deleted++
+		}
 	}
-	lo.Must0(multierr.Combine(errs...))
-	logger.With("names", names, "count", len(names)).Infof("terminated test launch templates")
-	lo.Must0(fireMetric(ctx, cloudWatchClient, "LaunchTemplatesDeleted", float64(len(names))))
+	if err := fireMetric(ctx, cloudWatchClient, "LaunchTemplatesDeleted", float64(deleted)); err != nil {
+		logger.With("name", "LaunchTemplatesDeleted").Errorf("firing metric, %v", err)
+	}
 }
 
 func fireMetric(ctx context.Context, cloudWatchClient *cloudwatch.Client, name string, value float64) error {
@@ -136,7 +162,11 @@ func getOldStacks(ctx context.Context, cloudFormationClient *cloudformation.Clie
 			NextToken: nextToken,
 		}))
 
-		for _, stack := range out.Stacks {
+		stacks := lo.Reject(out.Stacks, func(s cloudformationtypes.Stack, _ int) bool {
+			return s.StackStatus == cloudformationtypes.StackStatusDeleteComplete ||
+				s.StackStatus == cloudformationtypes.StackStatusDeleteInProgress
+		})
+		for _, stack := range stacks {
 			if _, found := lo.Find(stack.Tags, func(t cloudformationtypes.Tag) bool {
 				return lo.FromPtr(t.Key) == githubRunURLTag
 			}); found && lo.FromPtr(stack.CreationTime).Before(expirationTime) {

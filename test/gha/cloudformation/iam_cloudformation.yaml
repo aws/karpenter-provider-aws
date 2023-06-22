@@ -95,7 +95,6 @@ Resources:
               - cloudformation:CreateStack
               - cloudformation:DeleteStack
               - cloudformation:DescribeChangeSet
-              - cloudformation:DescribeStacks
               - cloudformation:DescribeStackEvents
               - cloudformation:ExecuteChangeSet
               - cloudformation:GetTemplate
@@ -104,8 +103,10 @@ Resources:
               - !Sub "arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/iam-*"
               - !Sub "arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/eksctl-*"
           - Effect: Allow
-            Action: cloudformation:ListStacks
-            Resource: !Sub "arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/*"
+            Action:
+             - cloudformation:ListStacks
+             - cloudformation:DescribeStacks
+            Resource: "*"
           - Effect: Allow
             Action:
               - eks:CreateCluster
