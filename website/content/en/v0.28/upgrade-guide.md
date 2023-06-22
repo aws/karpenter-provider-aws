@@ -102,9 +102,6 @@ Snapshot releases are tagged with the git commit hash prefixed by the Karpenter 
 
 ## Released Upgrade Notes
 
-### Upgrading to v0.29.0+
-* Karpenter has changed the default metrics service port from 8080 to 8000. In `v0.28.0`, the Karpenter pod port was changed to 8000, but referenced the service by name, allowing users to scrape the service at port 8080 for metrics. `v0.29.0` aligns the two ports so that default service and default pod metrics ports are the same.
-
 ### Upgrading to v0.28.0+
 
 {{% alert title="Warning" color="warning" %}}

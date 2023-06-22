@@ -170,7 +170,7 @@ Read the [Drift Design](https://github.com/aws/karpenter-core/pull/366/files) fo
 |AWSNodeTemplate Fields      | Static | Dynamic | Behavioral | Implemented |
 |----------------------------|  :---: |  :---:  |   :---:    |    :---:    |
 | Subnet Selector            |        |    x    |            |             |
-| Security Group Selector    |        |    x    |            |      x      |
+| Security Group Selector    |        |    x    |            |             |
 | Instance Profile           |    x   |         |            |             |
 | AMI Family/AMI Selector    |        |    x    |            |      x      |
 | UserData                   |    x   |         |            |             |
