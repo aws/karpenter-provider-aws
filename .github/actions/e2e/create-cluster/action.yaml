@@ -70,7 +70,7 @@ runs:
       metadata:
         name: ${{ inputs.cluster_name }}
         region: ${{ inputs.region }}
-        version: "${{ inputs.kubernetes_version }}"
+        version: "${{ inputs.k8s_version }}"
         tags:
           karpenter.sh/discovery: ${{ inputs.cluster_name }}
           github.com/run-url: "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
