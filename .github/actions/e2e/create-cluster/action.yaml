@@ -54,7 +54,8 @@ runs:
         --stack-name iam-${{ inputs.cluster_name }} \
         --template-file $CLOUDFORMATION_PATH \
         --capabilities CAPABILITY_NAMED_IAM \
-        --parameter-overrides "ClusterName=${{ inputs.cluster_name }}"
+        --parameter-overrides "ClusterName=${{ inputs.cluster_name }}" \
+        --tags "testing.karpenter.sh/type=e2e" github.com/run-url=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
   - name: create or upgrade cluster
     shell: bash
     run: |
@@ -72,7 +73,8 @@ runs:
         version: "${{ inputs.kubernetes_version }}"
         tags:
           karpenter.sh/discovery: ${{ inputs.cluster_name }}
-          github.com/run-url: "https://github.com/${{ inputs.git_repo }}/actions/runs/${{ github.run_id }}"
+          github.com/run-url: "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          testing.karpenter.sh/type: "e2e"
       kubernetesNetworkConfig:
         ipFamily: ${{ inputs.ip_family }}
       managedNodeGroups:
