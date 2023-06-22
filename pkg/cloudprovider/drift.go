@@ -21,6 +21,7 @@ import (
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
@@ -45,11 +46,16 @@ func (c *CloudProvider) isNodeTemplateDrifted(ctx context.Context, machine *v1al
 	if err != nil {
 		return false, fmt.Errorf("calculating securitygroup drift, %w", err)
 	}
+	subnetDrifted, err := c.isSubnetDrifted(ctx, instance, nodeTemplate)
+	if err != nil {
+		return false, fmt.Errorf("calculating subnet drift, %w", err)
+	}
 
-	return amiDrifted || securitygroupDrifted, nil
+	return amiDrifted || securitygroupDrifted || subnetDrifted, nil
 }
 
-func (c *CloudProvider) isAMIDrifted(ctx context.Context, machine *v1alpha5.Machine, provisioner *v1alpha5.Provisioner, nodeTemplate *v1alpha1.AWSNodeTemplate) (bool, error) {
+func (c *CloudProvider) isAMIDrifted(ctx context.Context, machine *v1alpha5.Machine, provisioner *v1alpha5.Provisioner, instance *ec2.Instance,
+	nodeTemplate *v1alpha1.AWSNodeTemplate) (bool, error) {
 	instanceTypes, err := c.GetInstanceTypes(ctx, provisioner)
 	if err != nil {
 		return false, fmt.Errorf("getting instanceTypes, %w", err)
@@ -74,16 +80,17 @@ func (c *CloudProvider) isAMIDrifted(ctx context.Context, machine *v1alpha5.Mach
 	if len(mappedAMIs) == 0 {
 		return false, fmt.Errorf("no instance types satisfy requirements of amis %v,", amis)
 	}
-	// Get InstanceID to fetch from EC2
-	instanceID, err := utils.ParseInstanceID(machine.Status.ProviderID)
-	if err != nil {
-		return false, err
+	return !lo.Contains(lo.Keys(mappedAMIs), *instance.ImageId), nil
+}
+
+func (c *CloudProvider) isSubnetDrifted(ctx context.Context, instance *ec2.Instance, nodeTemplate *v1alpha1.AWSNodeTemplate) (bool, error) {
+	if nodeTemplate.Status.Subnets == nil {
+		return false, fmt.Errorf("AWSNodeTemplate has no subnets")
 	}
-	instance, err := c.instanceProvider.Get(ctx, instanceID)
-	if err != nil {
-		return false, fmt.Errorf("getting instance, %w", err)
-	}
-	return !lo.Contains(lo.Keys(mappedAMIs), instance.ImageID), nil
+	_, found := lo.Find(nodeTemplate.Status.Subnets, func(subnet v1alpha1.Subnet) bool {
+		return subnet.ID == aws.StringValue(instance.SubnetId)
+	})
+	return !found, nil
 }
 
 // Checks if the security groups are drifted, by comparing the AWSNodeTemplate.Status.SecurityGroups

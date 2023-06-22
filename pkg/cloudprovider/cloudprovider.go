@@ -199,7 +199,7 @@ func (c *CloudProvider) IsMachineDrifted(ctx context.Context, machine *v1alpha5.
 	}
 	drifted, err := c.isNodeTemplateDrifted(ctx, machine, provisioner, nodeTemplate)
 	if err != nil {
-		return false, err
+		return false, cloudprovider.IgnoreMachineNotFoundError(err)
 	}
 	return drifted, nil
 }
