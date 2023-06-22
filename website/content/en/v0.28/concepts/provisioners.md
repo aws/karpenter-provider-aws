@@ -112,7 +112,7 @@ spec:
     cpuCFSQuota: true
     podsPerCore: 2
     maxPods: 20
-    
+
 
   # Resource limits constrain the total size of the cluster.
   # Limits prevent Karpenter from creating new instances once the limit is exceeded.
@@ -258,7 +258,7 @@ For more information on weighting Provisioners, see the [Weighting Provisioners 
 ## spec.kubeletConfiguration
 
 Karpenter provides the ability to specify a few additional Kubelet args. These are all optional and provide support for
-additional customization and use cases. Adjust these only if you know you need to do so. For more details on kubelet configuration arguments, [see the KubeletConfiguration API specification docs](https://kubernetes.io/docs/reference/config-api/kubelet-config.v1beta1/).
+additional customization and use cases. Adjust these only if you know you need to do so. For more details on kubelet configuration arguments, [see the KubeletConfiguration API specification docs](https://kubernetes.io/docs/reference/config-api/kubelet-config.v1beta1/). The implemented fields are a subset of the full list of upstream kubelet configuration arguments. Please cut an issue if you'd like to see another field implemented.
 
 ```yaml
 spec:
@@ -393,7 +393,7 @@ Bottlerocket AMIFamily currently does not support `podsPerCore` configuration. I
 
 ## spec.limits.resources
 
-The provisioner spec includes a limits section (`spec.limits.resources`), which constrains the maximum amount of resources that the provisioner will manage. 
+The provisioner spec includes a limits section (`spec.limits.resources`), which constrains the maximum amount of resources that the provisioner will manage.
 
 Karpenter supports limits of any resource type reported by your cloudprovider. It limits instance types when scheduling to those that will not exceed the specified limits.  If a limit has been exceeded, nodes provisioning is prevented until some nodes have been terminated.
 
@@ -409,7 +409,7 @@ spec:
       values: ["spot"]
   limits:
     resources:
-      cpu: 1000 
+      cpu: 1000
       memory: 1000Gi
       nvidia.com/gpu: 2
 ```
@@ -450,7 +450,7 @@ kind: Provisioner
 metadata:
   name: gpu
 spec:
-  consolidation: 
+  consolidation:
     enabled: true
   requirements:
   - key: node.kubernetes.io/instance-type
@@ -473,7 +473,7 @@ kind: Provisioner
 metadata:
   name: cilium-startup
 spec:
-  consolidation: 
+  consolidation:
     enabled: true
   startupTaints:
   - key: node.cilium.io/agent-not-ready

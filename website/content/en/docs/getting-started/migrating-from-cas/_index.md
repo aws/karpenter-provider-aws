@@ -92,7 +92,7 @@ One for your Karpenter node role and one for your existing node group.
 First set the Karpenter release you want to deploy.
 
 ```bash
-export KARPENTER_VERSION=v0.28.0
+export KARPENTER_VERSION=v0.28.1
 ```
 
 We can now generate a full Karpenter deployment yaml from the helm chart.
@@ -134,7 +134,7 @@ Now that our deployment is ready we can create the karpenter namespace, create t
 ## Create default provisioner
 
 We need to create a default provisioner so Karpenter knows what types of nodes we want for unscheduled workloads.
-You can refer to some of the [example provisioners](https://github.com/aws/karpenter/tree/v0.28.0/examples/provisioner) for specific needs.
+You can refer to some of the [example provisioners](https://github.com/aws/karpenter/tree/v0.28.1/examples/provisioner) for specific needs.
 
 {{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step11-create-provisioner.sh" language="bash" %}}
 

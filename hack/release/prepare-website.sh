@@ -6,7 +6,7 @@ source "${SCRIPT_DIR}/common.sh"
 
 config
 
-GIT_TAG=$(git describe --exact-match --tags || echo "none")
+GIT_TAG=${GIT_TAG:-$(git describe --exact-match --tags || echo "none")}
 if [[ $(releaseType "$GIT_TAG") != $RELEASE_TYPE_STABLE ]]; then
   echo "Not a stable release. Missing required git tag."
   exit 1
