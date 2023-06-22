@@ -175,10 +175,15 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		_, _ = env.EC2API.CreateSecurityGroup(createSecurityGroup)
 
 		By("looking for security groups")
-		securitygroups := env.GetSecurityGroups(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
-		testSecurityGroup, _ := lo.Find(securitygroups, func(sg aws.SecurityGroup) bool {
-			return awssdk.StringValue(sg.GroupName) == "security-group-drift"
-		})
+		var securitygroups []aws.SecurityGroup
+		var testSecurityGroup aws.SecurityGroup
+		Eventually(func(g Gomega) {
+			securitygroups = env.GetSecurityGroups(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
+			testSecurityGroup, _ = lo.Find(securitygroups, func(sg aws.SecurityGroup) bool {
+				return awssdk.StringValue(sg.GroupName) == "security-group-drift"
+			})
+			g.Expect(testSecurityGroup).ToNot(BeNil())
+		}).Should(Succeed())
 
 		By("creating a new provider with the new securitygroup")
 		awsIDs := lo.Map(securitygroups, func(sg aws.SecurityGroup, _ int) string {

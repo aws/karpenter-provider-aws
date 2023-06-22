@@ -85,8 +85,10 @@ Resources:
               - iam:CreatePolicy
               - iam:DeletePolicy
               - iam:GetPolicy
+              - iam:CreatePolicyVersion
+              - iam:DeletePolicyVersion
               - iam:ListPolicyVersions
-            Resource: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/*"
+            Resource: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/KarpenterControllerPolicy-*"
           - Effect: Allow
             Action:
               - cloudformation:CreateChangeSet
@@ -96,9 +98,13 @@ Resources:
               - cloudformation:DescribeStacks
               - cloudformation:DescribeStackEvents
               - cloudformation:ExecuteChangeSet
-              - cloudformation:ListStacks
               - cloudformation:GetTemplate
               - cloudformation:GetTemplateSummary
+            Resource:
+              - !Sub "arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/iam-*"
+              - !Sub "arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/eksctl-*"
+          - Effect: Allow
+            Action: cloudformation:ListStacks
             Resource: !Sub "arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/*"
           - Effect: Allow
             Action:
