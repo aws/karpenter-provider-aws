@@ -1,12 +1,9 @@
----
 name: Feature
-about: Suggest an idea for a new feature
-title: ''
+description: Suggest an idea for a new feature
 labels: feature
-assignees: ''
+body: 
+- type: markdown
+  attributes: |
+    **What problem are you trying to solve?**
 
----
-
-**What problem are you trying to solve?**
-
-**How important is this feature to you?**
+    **How important is this feature to you?**
