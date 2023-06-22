@@ -43,6 +43,7 @@ import (
 	"github.com/aws/karpenter/pkg/providers/amifamily"
 	"github.com/aws/karpenter/pkg/providers/instance"
 	"github.com/aws/karpenter/pkg/providers/instancetype"
+	"github.com/aws/karpenter/pkg/providers/securitygroup"
 
 	coreapis "github.com/aws/karpenter-core/pkg/apis"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
@@ -57,18 +58,21 @@ func init() {
 var _ cloudprovider.CloudProvider = (*CloudProvider)(nil)
 
 type CloudProvider struct {
-	instanceTypeProvider *instancetype.Provider
-	instanceProvider     *instance.Provider
-	kubeClient           client.Client
-	amiProvider          *amifamily.Provider
+	instanceTypeProvider  *instancetype.Provider
+	instanceProvider      *instance.Provider
+	kubeClient            client.Client
+	amiProvider           *amifamily.Provider
+	securityGroupProvider *securitygroup.Provider
 }
 
-func New(instanceTypeProvider *instancetype.Provider, instanceProvider *instance.Provider, kubeClient client.Client, amiProvider *amifamily.Provider) *CloudProvider {
+func New(instanceTypeProvider *instancetype.Provider, instanceProvider *instance.Provider,
+	kubeClient client.Client, amiProvider *amifamily.Provider, securityGroupProvider *securitygroup.Provider) *CloudProvider {
 	return &CloudProvider{
-		instanceTypeProvider: instanceTypeProvider,
-		instanceProvider:     instanceProvider,
-		kubeClient:           kubeClient,
-		amiProvider:          amiProvider,
+		instanceTypeProvider:  instanceTypeProvider,
+		instanceProvider:      instanceProvider,
+		kubeClient:            kubeClient,
+		amiProvider:           amiProvider,
+		securityGroupProvider: securityGroupProvider,
 	}
 }
 
@@ -194,7 +198,11 @@ func (c *CloudProvider) IsMachineDrifted(ctx context.Context, machine *v1alpha5.
 	if err != nil {
 		return false, client.IgnoreNotFound(fmt.Errorf("resolving node template, %w", err))
 	}
-	return c.isNodeTemplateDrifted(ctx, machine, provisioner, nodeTemplate)
+	drifted, err := c.isNodeTemplateDrifted(ctx, machine, provisioner, nodeTemplate)
+	if err != nil {
+		return false, err
+	}
+	return drifted, nil
 }
 
 // Name returns the CloudProvider implementation name.
