@@ -218,11 +218,13 @@ var _ = Describe("CloudProvider", func() {
 		var validSecurityGroup string
 		var selectedInstanceType *corecloudproivder.InstanceType
 		var instance *ec2.Instance
-		var validSubnet string
+		var validSubnet1 string
+		var validSubnet2 string
 		BeforeEach(func() {
 			validAMI = fake.ImageID()
 			validSecurityGroup = fake.SecurityGroupID()
-			validSubnet = fake.SubnetID()
+			validSubnet1 = fake.SubnetID()
+			validSubnet2 = fake.SubnetID()
 			awsEnv.SSMAPI.GetParameterOutput = &ssm.GetParameterOutput{
 				Parameter: &ssm.Parameter{Value: aws.String(validAMI)},
 			}
@@ -240,6 +242,16 @@ var _ = Describe("CloudProvider", func() {
 					Name: "test-securitygroup",
 				},
 			}
+			nodeTemplate.Status.Subnets = []v1alpha1.Subnet{
+				{
+					ID:   validSubnet1,
+					Zone: "zone-1",
+				},
+				{
+					ID:   validSubnet2,
+					Zone: "zone-2",
+				},
+			}
 			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, provisioner)
 			Expect(err).ToNot(HaveOccurred())
@@ -249,7 +261,7 @@ var _ = Describe("CloudProvider", func() {
 			instance = &ec2.Instance{
 				ImageId:               aws.String(validAMI),
 				InstanceType:          aws.String(selectedInstanceType.Name),
-				SubnetId:              aws.String(validSubnet),
+				SubnetId:              aws.String(validSubnet1),
 				SpotInstanceRequestId: aws.String(coretest.RandomName()),
 				State: &ec2.InstanceState{
 					Name: aws.String(ec2.InstanceStateNameRunning),
@@ -336,11 +348,39 @@ var _ = Describe("CloudProvider", func() {
 					},
 				},
 			})
-			// Instance is a reference to what we return in the GetInstances call
 			instance.SubnetId = aws.String(fake.SubnetID())
 			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machineutil.NewFromNode(node))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(isDrifted).To(BeTrue())
+		})
+		It("should not return drifted if the subnet is in the AWSNodeTemplate subnets", func() {
+			node := coretest.Node(coretest.NodeOptions{
+				ProviderID: fake.ProviderID(lo.FromPtr(instance.InstanceId)),
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+						v1.LabelInstanceTypeStable:       selectedInstanceType.Name,
+					},
+				},
+			})
+			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machineutil.NewFromNode(node))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(isDrifted).To(BeFalse())
+		})
+		It("should return an error if AWSNodeTemplate subnets are empty", func() {
+			node := coretest.Node(coretest.NodeOptions{
+				ProviderID: fake.ProviderID(lo.FromPtr(instance.InstanceId)),
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+						v1.LabelInstanceTypeStable:       selectedInstanceType.Name,
+					},
+				},
+			})
+			nodeTemplate.Status.Subnets = []v1alpha1.Subnet{}
+			ExpectApplied(ctx, env.Client, nodeTemplate)
+			_, err := cloudProvider.IsMachineDrifted(ctx, machineutil.NewFromNode(node))
+			Expect(err).To(HaveOccurred())
 		})
 		It("should not return drifted if the node is valid", func() {
 			node := coretest.Node(coretest.NodeOptions{

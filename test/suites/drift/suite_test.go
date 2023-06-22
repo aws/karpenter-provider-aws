@@ -22,6 +22,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -226,6 +227,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		delete(pod.Annotations, v1alpha5.DoNotEvictPodAnnotationKey)
 		env.ExpectUpdated(pod)
 		env.EventuallyExpectNotFound(pod, node)
+	})
 	It("should deprovision nodes that have drifted due to subnets", func() {
 		env.ExpectSettingsOverridden(map[string]string{
 			"featureGates.driftEnabled": "true",
@@ -271,28 +273,3 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		env.EventuallyExpectNotFound(pod, node)
 	})
 })
-<<<<<<< HEAD
-
-func selectSubnets() []string {
-	subnets, err := env.EC2API.DescribeSubnets(&ec2.DescribeSubnetsInput{
-		Filters: []*ec2.Filter{
-			{
-				Name:   awssdk.String("tag-key"),
-				Values: []*string{awssdk.String("karpenter.sh/discovery")},
-			},
-			{
-				Name:   awssdk.String("tag-value"),
-				Values: []*string{awssdk.String(settings.FromContext(env.Context).ClusterName)},
-			},
-		},
-	})
-	Expect(err).To(BeNil())
-	Expect(len(subnets.Subnets)).To(BeNumerically(">", 1))
-	return lo.Map(subnets.Subnets, func(s *ec2.Subnet, _ int) string {
-		return *s.SubnetId
-	})
-}
-	})
-})
-=======
->>>>>>> 584c908b (rebase and comments)

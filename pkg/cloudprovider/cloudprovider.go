@@ -65,7 +65,6 @@ type CloudProvider struct {
 	amiProvider           *amifamily.Provider
 	securityGroupProvider *securitygroup.Provider
 	subnetProvider        *subnet.Provider
-
 }
 
 func New(instanceTypeProvider *instancetype.Provider, instanceProvider *instance.Provider,
@@ -76,7 +75,7 @@ func New(instanceTypeProvider *instancetype.Provider, instanceProvider *instance
 		kubeClient:            kubeClient,
 		amiProvider:           amiProvider,
 		securityGroupProvider: securityGroupProvider,
-		subnetProvider: subnetProvider,
+		subnetProvider:        subnetProvider,
 	}
 }
 
@@ -133,9 +132,14 @@ func (c *CloudProvider) List(ctx context.Context) ([]*v1alpha5.Machine, error) {
 }
 
 func (c *CloudProvider) Get(ctx context.Context, providerID string) (*v1alpha5.Machine, error) {
-	instance, err := c.getInstance(ctx, providerID)
+	id, err := utils.ParseInstanceID(providerID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("getting instance ID, %w", err)
+	}
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("id", id))
+	instance, err := c.instanceProvider.Get(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("getting instance, %w", err)
 	}
 	instanceType, err := c.resolveInstanceTypeFromInstance(ctx, instance)
 	if err != nil {
@@ -298,17 +302,4 @@ func (c *CloudProvider) instanceToMachine(i *instance.Instance, instanceType *cl
 	}
 	machine.Status.ProviderID = fmt.Sprintf("aws:///%s/%s", i.Zone, i.ID)
 	return machine
-}
-
-func (c *CloudProvider) getInstance(ctx context.Context, id string) (*ec2.Instance, error) {
-	instanceID, err := utils.ParseInstanceID(id)
-	if err != nil {
-		return nil, err
-	}
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("id", id))
-	instance, err := c.instanceProvider.Get(ctx, instanceID)
-	if err != nil {
-		return nil, fmt.Errorf("getting instance, %w", err)
-	}
-	return instance, nil
 }
