@@ -13,10 +13,10 @@ inputs:
   cluster_name:
     description: 'Name of the cluster to be launched by eksctl'
     required: true
-  kubernetes_version:
+  k8s_version:
     description: 'Version of Kubernetes to use for the launched cluster'
     required: false
-    default: "1.25"
+    default: "1.27"
   ip_family:
     description: "IP Family of the cluster. Valid values are IPv4 or IPv6"
     required: false

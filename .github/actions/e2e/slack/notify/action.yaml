@@ -4,6 +4,8 @@ inputs:
   suite:
     description: "Suite that's running"
     required: true
+  k8s_version:
+    description: "Kubernetes version that this test ran against"
   pr_number:
     description: "If specified, this run is associated with a PR and the slack message will reflect that"
   url:
@@ -22,8 +24,10 @@ runs:
         ref: ${{ inputs.git_ref }}
     - shell: bash
       run: |
-        if [[ ! -z "${{ inputs.pr_number }}" ]]; then
-          RUN_NAME="${{ inputs.suite }}-pr-${{ inputs.pr_number }}"
+        if [[ ${{ inputs.event_name }} == "conformance" ]]; then
+          RUN_NAME="conformance-periodic-${{ inputs.k8s_version }}"
+        elif [[ ! -z "${{ inputs.pr_number }}" ]]; then
+          RUN_NAME="${{ inputs.suite }}-pr"
         elif [[ ${{ inputs.event_name }} == "schedule" ]]; then
           RUN_NAME="${{ inputs.suite }}-periodic"
         else

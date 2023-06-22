@@ -7,6 +7,15 @@ on:
         required: true
       to_git_ref:
         type: string
+      k8s_version:
+        type: choice
+        options:
+          - "1.23"
+          - "1.24"
+          - "1.25"
+          - "1.26"
+          - "1.27"
+        default: "1.27"
   workflow_call:
     inputs:
       from_git_ref:
@@ -19,6 +28,9 @@ on:
       event_name:
         type: string
         required: true
+      k8s_version:
+        type: string
+        default: "1.27"
     secrets:
       SLACK_WEBHOOK_URL:
         required: true
@@ -50,7 +62,7 @@ jobs:
           role: ${{ vars.ROLE_NAME }}
           region: ${{ vars.AWS_REGION }}
           cluster_name: ${{ env.CLUSTER_NAME }}
-          kubernetes_version: ${{ vars.K8S_VERSION }}
+          k8s_version: ${{ inputs.k8s_version }}
           ip_family: IPv4 # Set the value to IPv6 if IPv6 suite, else IPv4
           git_ref: ${{ inputs.from_git_ref }}
       - name: install prometheus
@@ -80,7 +92,7 @@ jobs:
           role: ${{ vars.ROLE_NAME }}
           region: ${{ vars.AWS_REGION }}
           cluster_name: ${{ env.CLUSTER_NAME }}
-          kubernetes_version: ${{ vars.K8S_VERSION }}
+          kubernetes_version: ${{ inputs.k8s_version }}
           ip_family: IPv4 # Set the value to IPv6 if IPv6 suite, else IPv4
           git_ref: ${{ inputs.to_git_ref }}
       - name: upgrade prometheus
@@ -118,6 +130,7 @@ jobs:
         with:
           url: ${{ secrets.SLACK_WEBHOOK_URL }}
           suite: Upgrade
+          k8s_version: ${{ inputs.k8s_version }}
           pr_number: ${{ inputs.pr_number }}
           event_name: ${{ inputs.event_name }}
           git_ref: ${{ inputs.to_git_ref }}
