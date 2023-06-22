@@ -55,7 +55,7 @@ runs:
         --template-file $CLOUDFORMATION_PATH \
         --capabilities CAPABILITY_NAMED_IAM \
         --parameter-overrides "ClusterName=${{ inputs.cluster_name }}" \
-        --tags "testing.karpenter.sh/type=e2e" github.com/run-url=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        --tags "testing.karpenter.sh/type=e2e" "github.com/run-url=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
   - name: create or upgrade cluster
     shell: bash
     run: |
