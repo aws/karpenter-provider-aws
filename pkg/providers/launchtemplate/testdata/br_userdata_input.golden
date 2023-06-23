@@ -1,6 +1,7 @@
 [settings.kubernetes]
 "unknown-setting" = "unknown"
 api-server = 'replaceme'
+cloud-provider = 'external'
 cluster-certificate = "replaceme"
 cluster-name = 'replaceme'
 max-pods = 9999999999 # replaceme

@@ -44,6 +44,7 @@ type BottlerocketSettings struct {
 // BottlerocketKubernetes is k8s specific configuration for bottlerocket api
 type BottlerocketKubernetes struct {
 	APIServer                   *string                          `toml:"api-server"`
+	CloudProvider               *string                          `toml:"cloud-provider"`
 	ClusterCertificate          *string                          `toml:"cluster-certificate"`
 	ClusterName                 *string                          `toml:"cluster-name"`
 	ClusterDNSIP                *string                          `toml:"cluster-dns-ip,omitempty"`
