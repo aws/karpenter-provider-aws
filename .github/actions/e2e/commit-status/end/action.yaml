@@ -17,10 +17,10 @@ runs:
           github.rest.repos.createCommitStatus({
             owner: context.repo.owner,
             repo: context.repo.repo,
-            context: "${{ github.workflow }} / e2e (${{ inputs.suite }}) / ${{ github.job }}",
+            context: "${{ github.workflow }} / e2e (${{ inputs.suite }}) / ${{ github.job }} (snapshot)",
             sha: "${{ inputs.git_ref }}",
             state: "success",
-            target_url: "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }} (snapshot)",
+            target_url: "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}",
           });
     - uses: actions/github-script@v6
       if: job.status == 'failure' || job.status == 'cancelled'
