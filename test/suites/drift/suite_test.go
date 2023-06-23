@@ -229,10 +229,6 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		env.EventuallyExpectNotFound(pod, node)
 	})
 	It("should deprovision nodes that have drifted due to subnets", func() {
-		env.ExpectSettingsOverridden(map[string]string{
-			"featureGates.driftEnabled": "true",
-		})
-
 		subnets := env.GetSubnetNameAndIds(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
 		Expect(len(subnets)).To(BeNumerically(">", 1))
 

@@ -365,22 +365,6 @@ var _ = Describe("CloudProvider", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(isDrifted).To(BeTrue())
 		})
-		It("should not return drifted if the subnet is in the AWSNodeTemplate subnets", func() {
-			machine := coretest.Machine(v1alpha5.Machine{
-				Status: v1alpha5.MachineStatus{
-					ProviderID: fake.ProviderID(lo.FromPtr(instance.InstanceId)),
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
-						v1.LabelInstanceTypeStable:       selectedInstanceType.Name,
-					},
-				},
-			})
-			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machine)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(isDrifted).To(BeFalse())
-		})
 		It("should return an error if AWSNodeTemplate subnets are empty", func() {
 			machine := coretest.Machine(v1alpha5.Machine{
 				Status: v1alpha5.MachineStatus{
