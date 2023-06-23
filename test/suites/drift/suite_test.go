@@ -234,7 +234,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		})
 
 		subnets := env.GetSubnetNameAndIds(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
-		Expect(len(subnets)).To(BeNumerically(">1"))
+		Expect(len(subnets)).To(BeNumerically(">", 1))
 
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
