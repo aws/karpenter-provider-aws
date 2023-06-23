@@ -19,6 +19,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 	"time"
 
@@ -554,6 +555,26 @@ func (env *Environment) ExpectCABundle() string {
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 	logging.FromContext(env.Context).Debugf("Discovered caBundle, length %d", len(transportConfig.TLS.CAData))
 	return base64.StdEncoding.EncodeToString(transportConfig.TLS.CAData)
+}
+
+type KubernetesVersionInfo struct {
+	Major int
+	Minor int
+}
+
+func (env *Environment) ExpectKubernetesVersionInfo() KubernetesVersionInfo {
+	GinkgoHelper()
+
+	version, err := env.KubeClient.Discovery().ServerVersion()
+	Expect(err).ToNot(HaveOccurred())
+	majorVersion, err := strconv.Atoi(version.Major)
+	Expect(err).ToNot(HaveOccurred())
+	minorVersion, err := strconv.Atoi(strings.TrimSuffix(version.Minor, "+"))
+	Expect(err).ToNot(HaveOccurred())
+	return KubernetesVersionInfo{
+		Major: majorVersion,
+		Minor: minorVersion,
+	}
 }
 
 func (env *Environment) GetDaemonSetCount(prov *v1alpha5.Provisioner) int {

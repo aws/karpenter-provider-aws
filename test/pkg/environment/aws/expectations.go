@@ -17,7 +17,6 @@ package aws
 import (
 	"fmt"
 	"net"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -268,14 +267,12 @@ func (env *Environment) ExpectParsedProviderID(providerID string) string {
 }
 
 func (env *Environment) GetCustomAMI(amiPath string, versionOffset int) string {
-	serverVersion, err := env.KubeClient.Discovery().ServerVersion()
-	Expect(err).To(BeNil())
-	minorVersion, err := strconv.Atoi(strings.TrimSuffix(serverVersion.Minor, "+"))
-	Expect(err).To(BeNil())
+	info := env.ExpectKubernetesVersionInfo()
+
 	// Choose a minor version one lesser than the server's minor version. This ensures that we choose an AMI for
 	// this test that wouldn't be selected as Karpenter's SSM default (therefore avoiding false positives), and also
 	// ensures that we aren't violating version skew.
-	version := fmt.Sprintf("%s.%d", serverVersion.Major, minorVersion-versionOffset)
+	version := fmt.Sprintf("%d.%d", info.Major, info.Minor-versionOffset)
 	parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
 		Name: aws.String(fmt.Sprintf(amiPath, version)),
 	})

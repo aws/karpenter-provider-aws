@@ -182,6 +182,12 @@ var _ = Describe("AMI", func() {
 			env.ExpectCreatedNodeCount("==", 1)
 		})
 		It("should provision a node using the Ubuntu family", func() {
+			// Ubuntu is currently not supported on K8s version 1.27
+			// This Skip can be removed once Ubuntu is supported by the newest version of Kubernetes
+			if env.ExpectKubernetesVersionInfo().Minor >= 27 {
+				Skip("Ubuntu is not currently supported on Kubernetes 1.27")
+			}
+
 			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},

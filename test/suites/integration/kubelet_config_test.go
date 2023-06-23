@@ -19,6 +19,7 @@ import (
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
+	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -95,6 +96,12 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		})
 		DescribeTable("Linux AMIFamilies",
 			func(amiFamily *string) {
+				// Ubuntu is currently not supported on K8s version 1.27
+				// This Skip can be removed once Ubuntu is supported by the newest version of Kubernetes
+				if env.ExpectKubernetesVersionInfo().Minor >= 27 && lo.FromPtr(amiFamily) == v1alpha1.AMIFamilyUbuntu {
+					Skip("Ubuntu is not currently supported on Kubernetes 1.27")
+				}
+
 				nodeTemplate.Spec.AMIFamily = amiFamily
 				// Need to enable provisioner-level OS-scoping for now since DS evaluation is done off of the provisioner
 				// requirements, not off of the instance type options so scheduling can fail if provisioners aren't
