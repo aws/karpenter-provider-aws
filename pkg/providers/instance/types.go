@@ -66,6 +66,7 @@ func NewInstanceFromFleet(out *ec2.CreateFleetInstance, tags map[string]string) 
 		Type:         aws.StringValue(out.InstanceType),
 		Zone:         aws.StringValue(out.LaunchTemplateAndOverrides.Overrides.AvailabilityZone),
 		CapacityType: aws.StringValue(out.Lifecycle),
+		SubnetID:     aws.StringValue(out.LaunchTemplateAndOverrides.Overrides.SubnetId),
 		Tags:         tags,
 	}
 }
