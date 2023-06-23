@@ -73,6 +73,8 @@ var provisioner *v1alpha5.Provisioner
 var nodeTemplate *v1alpha1.AWSNodeTemplate
 var machine *v1alpha5.Machine
 
+// var instanceProvider *instance.Provider
+
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
 	RegisterFailHandler(Fail)
@@ -85,6 +87,7 @@ var _ = BeforeSuite(func() {
 	ctx = settings.ToContext(ctx, test.Settings())
 	ctx, stop = context.WithCancel(ctx)
 	awsEnv = test.NewEnvironment(ctx, env)
+	// instanceProvider = awsEnv.InstanceProvider
 
 	fakeClock = clock.NewFakeClock(time.Now())
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.SubnetProvider)
@@ -537,6 +540,22 @@ var _ = Describe("CloudProvider", func() {
 			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machineutil.NewFromNode(node))
 			Expect(err).To(HaveOccurred())
 			Expect(isDrifted).To(BeFalse())
+		})
+		It("should error drift if the underlying machine does not exist", func() {
+			awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(&ec2.DescribeInstancesOutput{
+				Reservations: []*ec2.Reservation{{Instances: []*ec2.Instance{}}},
+			})
+			node := coretest.Node(coretest.NodeOptions{
+				ProviderID: fake.ProviderID(fake.InstanceID()),
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+						v1.LabelInstanceTypeStable:       selectedInstanceType.Name,
+					},
+				},
+			})
+			_, err := cloudProvider.IsMachineDrifted(ctx, machineutil.NewFromNode(node))
+			Expect(err).To(HaveOccurred())
 		})
 	})
 	Context("Provider Backwards Compatibility", func() {

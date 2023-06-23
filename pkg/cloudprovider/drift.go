@@ -31,11 +31,6 @@ import (
 )
 
 func (c *CloudProvider) isNodeTemplateDrifted(ctx context.Context, machine *v1alpha5.Machine, provisioner *v1alpha5.Provisioner, nodeTemplate *v1alpha1.AWSNodeTemplate) (bool, error) {
-	// nodeTemplate selectors can be nil if the user is using a launchTemplateName to define their subnets, security groups, and AMIs.
-	// Karpenter will not drift on changes if launchTemplateName is used.
-	if nodeTemplate.Spec.LaunchTemplateName != nil {
-		return false, nil
-	}
 	instance, err := c.getInstance(ctx, machine.Status.ProviderID)
 	if err != nil {
 		return false, err
@@ -68,6 +63,9 @@ func (c *CloudProvider) isAMIDrifted(ctx context.Context, machine *v1alpha5.Mach
 	if !found {
 		return false, fmt.Errorf(`finding node instance type "%s"`, machine.Labels[v1.LabelInstanceTypeStable])
 	}
+	if nodeTemplate.Spec.LaunchTemplateName != nil {
+		return false, nil
+	}
 	amis, err := c.amiProvider.Get(ctx, nodeTemplate, &amifamily.Options{})
 	if err != nil {
 		return false, fmt.Errorf("getting amis, %w", err)
@@ -96,6 +94,11 @@ func (c *CloudProvider) isSubnetDrifted(instance *instance.Instance, nodeTemplat
 // Checks if the security groups are drifted, by comparing the AWSNodeTemplate.Status.SecurityGroups
 // to the ec2 instance security groups
 func (c *CloudProvider) areSecurityGroupsDrifted(ec2Instance *instance.Instance, nodeTemplate *v1alpha1.AWSNodeTemplate) (bool, error) {
+	// nodeTemplate.Spec.SecurityGroupSelector can be nil if the user is using a launchTemplateName to define SecurityGroups
+	// Karpenter will not drift on changes to securitygroup in the launchTemplateName
+	if nodeTemplate.Spec.LaunchTemplateName != nil {
+		return false, nil
+	}
 	securityGroupIds := sets.New(lo.Map(nodeTemplate.Status.SecurityGroups, func(sg v1alpha1.SecurityGroup, _ int) string { return sg.ID })...)
 	if len(securityGroupIds) == 0 {
 		return false, fmt.Errorf("no security groups exist in the AWSNodeTemplate Status")
