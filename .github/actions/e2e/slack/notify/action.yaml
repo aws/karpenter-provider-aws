@@ -1,4 +1,4 @@
-name: NotifySlack
+name: SlackNotify
 description: 'Notifies slack of the success or failure of the suite'
 inputs:
   suite:
