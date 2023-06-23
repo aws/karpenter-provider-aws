@@ -239,11 +239,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			SubnetSelector:        map[string]string{"aws-ids": subnets[0].ID},
-			AMIFamily:             &v1alpha1.AMIFamilyCustom,
-		},
-			AMISelector: map[string]string{"aws-ids": customAMI},
-			UserData:    awssdk.String(fmt.Sprintf("#!/bin/bash\n/etc/eks/bootstrap.sh '%s'", settings.FromContext(env.Context).ClusterName)),
-		})
+		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
 
 		// Add a do-not-evict pod so that we can check node metadata before we deprovision
