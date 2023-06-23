@@ -148,9 +148,7 @@ createNewWebsiteDirectory() {
     find website/content/en/${RELEASE_MINOR_VERSION}/*/*/*.yaml -type f | xargs perl -i -p -e "s/preview/${RELEASE_VERSION}/g;"
     find "website/content/en/${RELEASE_MINOR_VERSION}/" -type f | xargs perl -i -p -e "s/{{< githubRelRef >}}/\/${RELEASE_VERSION}\//g;"
 
-    rm -rf website/content/en/docs
-    mkdir -p website/content/en/docs
-    cp -r website/content/en/${RELEASE_MINOR_VERSION}/* website/content/en/docs/
+    ln -shf "website/content/en/${RELEASE_MINOR_VERSION}" "website/content/en/docs"
 }
 
 removeOldWebsiteDirectories() {
