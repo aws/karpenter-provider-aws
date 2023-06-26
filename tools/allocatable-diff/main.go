@@ -80,6 +80,8 @@ func main() {
 		op.InstanceProvider,
 		op.GetClient(),
 		op.AMIProvider,
+		op.SecurityGroupProvider,
+		op.SubnetProvider,
 	)
 	raw := &runtime.RawExtension{}
 	lo.Must0(raw.UnmarshalJSON(lo.Must(json.Marshal(&v1alpha1.AWS{
