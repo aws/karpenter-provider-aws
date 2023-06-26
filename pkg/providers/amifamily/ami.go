@@ -160,9 +160,13 @@ func (p *Provider) getDefaultAMIFromSSM(ctx context.Context, nodeTemplate *v1alp
 	for _, ssmOutput := range ssmRequirements {
 		amiID, err := p.fetchAMIsFromSSM(ctx, ssmOutput.Query)
 		if err != nil {
-			return nil, err
+			logging.FromContext(ctx).With("query", ssmOutput.Query).Warnf("discover ami from ssm failed: %v", err)
+			continue
 		}
 		amis = append(amis, AMI{AmiID: amiID, Requirements: ssmOutput.Requirements})
+	}
+	if len(amis) == 0 {
+		return nil, fmt.Errorf("no amis found for kubernetes version %s", kubernetesVersion)
 	}
 	amis, err = p.findAMINames(ctx, amis)
 	if err != nil {
