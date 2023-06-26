@@ -15,8 +15,8 @@ Fixes #N/A <!-- issue number -->
 **How was this change tested?**
 
 **Does this change impact docs?**
-- [ ] Yes, PR includes docs updates
-- [ ] Yes, issue opened: # <!-- issue number -->
-- [ ] No
+- [] Yes, PR includes docs updates
+- [] Yes, issue opened: # <!-- issue number -->
+- [x] No
 
 By submitting this pull request, I confirm that my contribution is made under the terms of the Apache 2.0 license.
