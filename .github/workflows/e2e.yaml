@@ -27,7 +27,7 @@ on:
           - "1.27"
         default: "1.27"
       enable_cloudwatch:
-        type: bool
+        type: boolean
         default: false
   workflow_call:
     inputs:
@@ -43,7 +43,7 @@ on:
         type: string
         default: "1.27"
       enable_cloudwatch:
-        type: bool
+        type: boolean
         default: false
     secrets:
       SLACK_WEBHOOK_URL:
