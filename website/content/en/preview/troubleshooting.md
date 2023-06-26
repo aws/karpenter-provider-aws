@@ -314,6 +314,32 @@ When a node is launched by Karpenter, it is assigned to a subnet within your VPC
 
 For more troubleshooting information on why your pod may have a `FailedCreateSandbox` error, view the [EKS CreatePodSandbox Knowledge Center Post](https://repost.aws/knowledge-center/eks-failed-create-pod-sandbox).
 
+### Windows pods are failing with `FailedCreatedPodSandbox`
+
+The following solution(s) may resolve your issue if you are seeing an error similar to the following when attempting to launch Windows pods. This error typically occurs if you have not enabled Windows support.
+
+```
+Failed to create pod sandbox: rpc error: code = Unknown desc = failed to setup network for sandbox "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx": plugin type="vpc-bridge" name="vpc" failed (add): failed to parse Kubernetes args: pod does not have label vpc.amazonaws.com/PrivateIPv4Address
+```
+
+#### Solutions
+1. See [Enabling Windows support](https://docs.aws.amazon.com/eks/latest/userguide/windows-support.html#enable-windows-support) for instructions on how to enable Windows support.
+
+### Windows pods fail to launch with image pull error
+
+The following solution(s) may resolve your issue if you are seeing an error similar to the following when attempting to launch Windows pods.
+
+```
+Failed to pull image "mcr.microsoft.com/windows/servercore:xxx": rpc error: code = NotFound desc = failed to pull and unpack image "mcr.microsoft.com/windows/servercore:xxx": no match for platform in manifest: not found
+```
+
+This error typically occurs in a scenario whereby a pod with a given container OS version attempts to be scheduled on an incompatible Windows host OS version.
+Windows requires the host OS version to match the container OS version.
+
+#### Solutions
+
+1. Define your pod's `nodeSelector` to ensure that your containers are scheduled on a compatible OS host version. To learn more, see [Windows container version compatibility](https://learn.microsoft.com/en-us/virtualization/windowscontainers/deploy-containers/version-compatibility).
+
 ## Deprovisioning
 
 ### Nodes not deprovisioned

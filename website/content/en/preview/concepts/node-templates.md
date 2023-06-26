@@ -39,7 +39,8 @@ status:
   securityGroups: { ... }        # resolved security groups
   amis: { ... }                  # resolved AMIs 
 ```
-Refer to the [Provisioner docs]({{<ref "./provisioners" >}}) for settings applicable to all providers.
+Refer to the [Provisioner docs]({{<ref "./provisioners" >}}) for settings applicable to all providers. To explore various `AWSNodeTemplate` configurations, refer to the examples provided [in the Karpenter Github repository](https://github.com/aws/karpenter/blob/main/examples/provisioner/).
+
 See below for other AWS provider-specific parameters.
 
 ## spec.subnetSelector
@@ -161,12 +162,16 @@ spec:
 
 The AMI used when provisioning nodes can be controlled by the `amiFamily` field. Based on the value set for `amiFamily`, Karpenter will automatically query for the appropriate [EKS optimized AMI](https://docs.aws.amazon.com/eks/latest/userguide/eks-optimized-amis.html) via AWS Systems Manager (SSM). When an `amiFamily` of `Custom` is chosen, then an `amiSelector` must be specified that informs Karpenter on which custom AMIs are to be used.
 
-Currently, Karpenter supports `amiFamily` values `AL2`, `Bottlerocket`, `Ubuntu` and `Custom`. GPUs are only supported with `AL2` and `Bottlerocket`. The `AL2` amiFamily does not support ARM64 GPU instance types unless you specify a custom amiSelector.
+Currently, Karpenter supports `amiFamily` values `AL2`, `Bottlerocket`, `Ubuntu`, `Windows2019`, `Windows2022` and `Custom`. GPUs are only supported with `AL2` and `Bottlerocket`. The `AL2` amiFamily does not support ARM64 GPU instance types unless you specify a custom amiSelector.
+
+{{% alert title="Defaults" color="secondary" %}}
+If no `amiFamily` is defined, Karpenter will set the default `amiFamily` to AL2
 
 ```yaml
 spec:
-  amiFamily: Bottlerocket
+  amiFamily: AL2
 ```
+{{% /alert %}}
 
 ## spec.amiSelector
 
@@ -313,10 +318,10 @@ spec:
         snapshotID: snap-0123456789
 ```
 
-### Defaults
+{{% alert title="Defaults" color="secondary" %}}
+If no `blockDeviceMappings` is defined, Karpenter will set the default `blockDeviceMappings` to the following for the given AMI family.
 
 #### AL2
-
 ```yaml
 apiVersion: karpenter.k8s.aws/v1alpha1
 kind: AWSNodeTemplate
@@ -330,7 +335,6 @@ spec:
 ```
 
 #### Bottlerocket
-
 ```yaml
 apiVersion: karpenter.k8s.aws/v1alpha1
 kind: AWSNodeTemplate
@@ -351,7 +355,6 @@ spec:
 ```
 
 #### Ubuntu
-
 ```yaml
 apiVersion: karpenter.k8s.aws/v1alpha1
 kind: AWSNodeTemplate
@@ -363,6 +366,20 @@ spec:
         volumeType: gp3
         encrypted: true
 ```
+
+#### Windows2019, Windows2022
+```yaml
+apiVersion: karpenter.k8s.aws/v1alpha1
+kind: AWSNodeTemplate
+spec:
+  blockDeviceMappings:
+    - deviceName: /dev/sda1
+      ebs:
+        volumeSize: 50Gi
+        volumeType: gp3
+        encrypted: true
+```
+{{% /alert %}}
 
 ## spec.userData
 
@@ -420,6 +437,10 @@ spec:
 ```
 
 For more examples on configuring these fields for different AMI families, see the [examples here](https://github.com/aws/karpenter/blob/main/examples/provisioner/launchtemplates).
+
+{{% alert title="Windows Support Notice" color="warning" %}}
+Specifying `spec.userData` is not currently supported for Windows nodes, but support is expected in the future.
+{{% /alert %}}
 
 ### Merge Semantics
 

@@ -24,6 +24,12 @@ Karpenter can be configured to disable nodes' ENI-based pod density.  This is es
 When using small instance types, it may be necessary to enable [prefix assignment mode](https://aws.amazon.com/blogs/containers/amazon-vpc-cni-increases-pods-per-node-limits/) in the AWS VPC CNI plugin to more pods per node.  Prefix assignment mode was introduced in AWS VPC CNI v1.9 and allows ENIs to manage a broader set of IP addresses.  Much higher pod densities are supported as a result.
 {{% /alert %}}
 
+{{% alert title="Windows Support Notice" color="warning" %}}
+Presently, only a single ENI per Windows worker node is supported.
+As a consequence, the number of IP addresses, and subsequently, the number of pods that a Windows worker node can support is limited by the number of IPv4 addresses available on the primary ENI.
+At the moment, Karpenter will only consider individual secondary IP addresses when calculating the pod density limit.
+{{% /alert %}}
+
 ### Provisioner-Specific Pod Density
 
 #### Static Pod Density
@@ -51,6 +57,10 @@ Environment variables for the Karpenter controller may be specified as [helm cha
 ### VPC CNI Custom Networking
 
 By default, the VPC CNI allocates IPs for a node and pods from the same subnet. With [VPC CNI Custom Networking](https://aws.github.io/aws-eks-best-practices/networking/custom-networking), the pods will receive IP addresses from another subnet dedicated to pod IPs. This approach makes it easier to manage IP addresses and allows for separate Network Access Control Lists (NACLs) applied to your pods. VPC CNI Custom Networking reduces the pod density of a node since one of the ENI attachments will be used for the node and cannot share the allocated IPs on the interface to pods. Karpenter supports VPC CNI Custom Networking and similar CNI setups where the primary node interface is separated from the pods interfaces through a global [setting](./settings.md#configmap) within the karpenter-global-settings configmap: `aws.reservedENIs`. In the common case, `aws.reservedENIs` should be set to `"1"` if using Custom Networking.
+
+{{% alert title="Windows Support Notice" color="warning" %}}
+It's currently not possible to specify custom networking with Windows nodes.
+{{% /alert %}}
 
 ## Limit Pod Density
 
