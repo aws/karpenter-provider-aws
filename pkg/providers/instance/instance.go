@@ -31,14 +31,12 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 
-	"github.com/aws/karpenter-core/pkg/events"
 	"github.com/aws/karpenter-core/pkg/utils/resources"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/batcher"
 	"github.com/aws/karpenter/pkg/cache"
 	awserrors "github.com/aws/karpenter/pkg/errors"
-	instanceevents "github.com/aws/karpenter/pkg/providers/instance/events"
 	"github.com/aws/karpenter/pkg/providers/instancetype"
 	"github.com/aws/karpenter/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter/pkg/providers/subnet"
@@ -68,11 +66,10 @@ type Provider struct {
 	subnetProvider         *subnet.Provider
 	launchTemplateProvider *launchtemplate.Provider
 	ec2Batcher             *batcher.EC2API
-	recorder               events.Recorder
 }
 
 func NewProvider(ctx context.Context, region string, ec2api ec2iface.EC2API, unavailableOfferings *cache.UnavailableOfferings,
-	instanceTypeProvider *instancetype.Provider, subnetProvider *subnet.Provider, launchTemplateProvider *launchtemplate.Provider, recorder events.Recorder) *Provider {
+	instanceTypeProvider *instancetype.Provider, subnetProvider *subnet.Provider, launchTemplateProvider *launchtemplate.Provider) *Provider {
 	return &Provider{
 		region:                 region,
 		ec2api:                 ec2api,
@@ -81,7 +78,6 @@ func NewProvider(ctx context.Context, region string, ec2api ec2iface.EC2API, una
 		subnetProvider:         subnetProvider,
 		launchTemplateProvider: launchTemplateProvider,
 		ec2Batcher:             batcher.EC2(ctx, ec2api),
-		recorder:               recorder,
 	}
 }
 
@@ -357,12 +353,6 @@ func (p *Provider) updateUnavailableOfferingsCache(ctx context.Context, errors [
 	for _, err := range errors {
 		if awserrors.IsUnfulfillableCapacity(err) {
 			p.unavailableOfferings.MarkUnavailableForFleetErr(ctx, err, capacityType)
-
-			// Add a k8s event for the instance type and zone without the involved object which has an ICE error
-			instanceType := aws.StringValue(err.LaunchTemplateAndOverrides.Overrides.InstanceType)
-			availabilityZone := aws.StringValue(err.LaunchTemplateAndOverrides.Overrides.AvailabilityZone)
-
-			p.recorder.Publish(instanceevents.InsufficientCapacityErrorEvent(instanceType, availabilityZone, capacityType))
 		}
 	}
 }

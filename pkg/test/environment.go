@@ -76,7 +76,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	ec2Cache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	kubernetesVersionCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	instanceTypeCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
-	unavailableOfferingsCache := awscache.NewUnavailableOfferings()
+	unavailableOfferingsCache := awscache.NewUnavailableOfferings(events.NewRecorder(&record.FakeRecorder{}))
 	launchTemplateCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	subnetCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	securityGroupCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
@@ -110,7 +110,6 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 			instanceTypesProvider,
 			subnetProvider,
 			launchTemplateProvider,
-			events.NewRecorder(&record.FakeRecorder{}),
 		)
 
 	return &Environment{
