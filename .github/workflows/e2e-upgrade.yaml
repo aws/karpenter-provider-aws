@@ -23,8 +23,6 @@ on:
         required: true
       to_git_ref:
         type: string
-      pr_number:
-        type: string
       event_name:
         type: string
         required: true
@@ -137,12 +135,11 @@ jobs:
           TEST_SUITE="Integration" make e2etests
       - name: notify slack of success or failure
         uses: ./.github/actions/e2e/slack/notify
-        if: success() || failure()
+        if: (success() || failure()) && inputs.event_name != 'workflow_run'
         with:
           url: ${{ secrets.SLACK_WEBHOOK_URL }}
           suite: Upgrade
           k8s_version: ${{ inputs.k8s_version }}
-          pr_number: ${{ inputs.pr_number }}
           event_name: ${{ inputs.event_name }}
           git_ref: ${{ inputs.to_git_ref }}
       - name: dump logs on failure

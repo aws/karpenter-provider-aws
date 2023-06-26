@@ -35,6 +35,7 @@ type Instance struct {
 	Zone             string
 	CapacityType     string
 	SecurityGroupIDs []string
+	SubnetID         string
 	Tags             map[string]string
 }
 
@@ -50,7 +51,8 @@ func NewInstance(out *ec2.Instance) *Instance {
 		SecurityGroupIDs: lo.Map(out.SecurityGroups, func(securitygroup *ec2.GroupIdentifier, _ int) string {
 			return aws.StringValue(securitygroup.GroupId)
 		}),
-		Tags: lo.SliceToMap(out.Tags, func(t *ec2.Tag) (string, string) { return aws.StringValue(t.Key), aws.StringValue(t.Value) }),
+		SubnetID: aws.StringValue(out.SubnetId),
+		Tags:     lo.SliceToMap(out.Tags, func(t *ec2.Tag) (string, string) { return aws.StringValue(t.Key), aws.StringValue(t.Value) }),
 	}
 
 }
@@ -64,6 +66,7 @@ func NewInstanceFromFleet(out *ec2.CreateFleetInstance, tags map[string]string) 
 		Type:         aws.StringValue(out.InstanceType),
 		Zone:         aws.StringValue(out.LaunchTemplateAndOverrides.Overrides.AvailabilityZone),
 		CapacityType: aws.StringValue(out.Lifecycle),
+		SubnetID:     aws.StringValue(out.LaunchTemplateAndOverrides.Overrides.SubnetId),
 		Tags:         tags,
 	}
 }
