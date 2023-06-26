@@ -64,7 +64,7 @@ func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, unavailableR
 	atomic.AddUint64(&u.SeqNum, 1)
 
 	// Add a k8s event for the instance type and zone without the involved object which has an ICE error
-	u.recorder.Publish(InsufficientCapacityErrorEvent(instanceType, zone, capacityType))
+	u.recorder.Publish(UnavailableOfferingEvent(instanceType, zone, capacityType))
 }
 
 func (u *UnavailableOfferings) MarkUnavailableForFleetErr(ctx context.Context, fleetErr *ec2.CreateFleetError, capacityType string) {
