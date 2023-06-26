@@ -21,10 +21,10 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/karpenter-core/pkg/events"
-	cacheevents "github.com/aws/karpenter/pkg/cache/events"
 	"github.com/patrickmn/go-cache"
 	"knative.dev/pkg/logging"
+
+	"github.com/aws/karpenter-core/pkg/events"
 )
 
 // UnavailableOfferings stores any offerings that return ICE (insufficient capacity errors) when
@@ -64,7 +64,7 @@ func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, unavailableR
 	atomic.AddUint64(&u.SeqNum, 1)
 
 	// Add a k8s event for the instance type and zone without the involved object which has an ICE error
-	u.recorder.Publish(cacheevents.UnavailableOfferingEvent(instanceType, zone, capacityType))
+	u.recorder.Publish(InsufficientCapacityErrorEvent(instanceType, zone, capacityType))
 }
 
 func (u *UnavailableOfferings) MarkUnavailableForFleetErr(ctx context.Context, fleetErr *ec2.CreateFleetError, capacityType string) {
