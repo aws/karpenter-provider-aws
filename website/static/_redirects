@@ -3,5 +3,5 @@
 /v0.27.5/*                      /v0.27/:splat
 /v0.26.1/*                      /v0.26/:splat
 /v0.26/getting-started/getting-started-with-karpenter/*  /v0.26/getting-started/getting-started-with-eksctl/:splat
-/v0.27/getting-started/getting-started-with-eksctl/* /v0.27/getting-started/getting-stated-with-karpenter/:splat
-/v0.28/getting-started/getting-started-with-eksctl/* /v0.28/getting-started/getting-stated-with-karpenter/:splat
+/v0.27/getting-started/getting-started-with-eksctl/* /v0.27/getting-started/getting-started-with-karpenter/:splat
+/v0.28/getting-started/getting-started-with-eksctl/* /v0.28/getting-started/getting-started-with-karpenter/:splat
