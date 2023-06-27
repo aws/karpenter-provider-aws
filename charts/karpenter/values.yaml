@@ -101,7 +101,7 @@ controller:
     # -- Tag of the controller image.
     tag: v0.28.1
     # -- SHA256 digest of the controller image.
-    digest: sha256:4194fc219d5a1019cd8d7d69f518b903e972966cad2e9420ccbe9dca149f179d
+    digest: sha256:66227007f8ebadd16da3095a4c966ab9cf56a90a9f71238f341404bbafb1acea
   # -- SecurityContext for the controller container.
   securityContext: {}
   # -- Additional environment variables for the controller pod.
