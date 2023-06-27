@@ -54,9 +54,20 @@ spec:
       workingDir: $(workspaces.ws.path)
       script: |
         aws iam create-service-linked-role --aws-service-name spot.amazonaws.com || true
+        
+        CLOUDFORMATION_PATH=website/content/en/preview/getting-started/getting-started-with-eksctl/cloudformation.yaml
+        
+        # Iterate through the policy and add more permissive tagging for tests to succeed
+        # There are various tests that add more tags than are permitted by the default policy
+        EXTRA_TAGS=""
+        for TAG in "TestTag" "example.com\/tag" "custom-tag" "custom-tag2"; do
+          EXTRA_TAGS="$EXTRA_TAGS\n                    \"$TAG\","
+        done
+        sed -i "s/\"aws:TagKeys\": \[/\"aws:TagKeys\": \[$EXTRA_TAGS/" "$CLOUDFORMATION_PATH"
+        
         aws cloudformation deploy \
           --stack-name iam-$(params.cluster-name) \
-          --template-file website/content/en/preview/getting-started/getting-started-with-eksctl/cloudformation.yaml \
+          --template-file "$CLOUDFORMATION_PATH" \
           --capabilities CAPABILITY_NAMED_IAM \
           --parameter-overrides "ClusterName=$(params.cluster-name)"
 

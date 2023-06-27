@@ -11,7 +11,7 @@ Resources:
       InstanceProfileName: !Sub "KarpenterNodeInstanceProfile-${ClusterName}"
       Path: "/"
       Roles:
-        - Ref: "KarpenterNodeRole"
+        - !Ref "KarpenterNodeRole"
   KarpenterNodeRole:
     Type: "AWS::IAM::Role"
     Properties:
@@ -35,48 +35,216 @@ Resources:
     Type: AWS::IAM::ManagedPolicy
     Properties:
       ManagedPolicyName: !Sub "KarpenterControllerPolicy-${ClusterName}"
-      PolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Resource: "*"
-            Action:
-              # Write Operations
-              - ec2:CreateFleet
-              - ec2:CreateLaunchTemplate
-              - ec2:CreateTags
-              - ec2:DeleteLaunchTemplate
-              - ec2:RunInstances
-              - ec2:TerminateInstances
-              # Read Operations
-              - ec2:DescribeAvailabilityZones
-              - ec2:DescribeImages
-              - ec2:DescribeInstances
-              - ec2:DescribeInstanceTypeOfferings
-              - ec2:DescribeInstanceTypes
-              - ec2:DescribeLaunchTemplates
-              - ec2:DescribeSecurityGroups
-              - ec2:DescribeSpotPriceHistory
-              - ec2:DescribeSubnets
-              - pricing:GetProducts
-              - ssm:GetParameter
-          - Effect: Allow
-            Action:
-              # Write Operations
-              - sqs:DeleteMessage
-              # Read Operations
-              - sqs:GetQueueAttributes
-              - sqs:GetQueueUrl
-              - sqs:ReceiveMessage
-            Resource: !GetAtt KarpenterInterruptionQueue.Arn
-          - Effect: Allow
-            Action:
-              - iam:PassRole
-            Resource: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/KarpenterNodeRole-${ClusterName}"
-          - Effect: Allow
-            Action:
-              - eks:DescribeCluster
-            Resource: !Sub "arn:${AWS::Partition}:eks:${AWS::Region}:${AWS::AccountId}:cluster/${ClusterName}"
+      # The PolicyDocument must be in JSON string format because we use a StringEquals condition that uses an interpolated
+      # value in one of its key parameters which isn't natively supported by CloudFormation
+      PolicyDocument: !Sub |
+        {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "AllowScopedEC2InstanceActions",
+              "Effect": "Allow",
+              "Resource": [
+                "arn:${AWS::Partition}:ec2:${AWS::Region}::image/*",
+                "arn:${AWS::Partition}:ec2:${AWS::Region}::snapshot/*",
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:*:spot-instances-request/*",
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:*:security-group/*",
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:*:subnet/*",
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:*:launch-template/*"
+              ],
+              "Action": [
+                "ec2:RunInstances",
+                "ec2:CreateFleet"
+              ]
+            },
+            {
+              "Sid": "AllowScopedEC2LaunchTemplateActions",
+              "Effect": "Allow",
+              "Resource": "arn:${AWS::Partition}:ec2:${AWS::Region}:*:launch-template/*",
+              "Action": "ec2:CreateLaunchTemplate",
+              "Condition": {
+                "StringEquals": {
+                  "aws:RequestTag/kubernetes.io/cluster/${ClusterName}": "owned"
+                },
+                "StringLike": {
+                  "aws:RequestTag/karpenter.sh/provisioner-name": "*"
+                },
+                "ForAllValues:StringEquals": {
+                  "aws:TagKeys": [
+                    "Name",
+                    "karpenter.sh/managed-by",
+                    "karpenter.sh/provisioner-name",
+                    "kubernetes.io/cluster/${ClusterName}",
+                    "karpenter.k8s.aws/cluster"
+                  ]
+                }
+              }
+            },
+            {
+              "Sid": "AllowScopedEC2InstanceActionsWithTags",
+              "Effect": "Allow",
+              "Resource": [
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:*:fleet/*",
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:*:instance/*",
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:*:volume/*",
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:*:network-interface/*"
+              ],
+              "Action": [
+                "ec2:RunInstances",
+                "ec2:CreateFleet"
+              ],
+              "Condition": {
+                "StringEquals": {
+                  "aws:RequestTag/kubernetes.io/cluster/${ClusterName}": "owned"
+                },
+                "StringLike": {
+                  "aws:RequestTag/karpenter.sh/provisioner-name": "*"
+                },
+                "ForAllValues:StringEquals": {
+                  "aws:TagKeys": [
+                    "Name",
+                    "karpenter.sh/managed-by",
+                    "karpenter.sh/provisioner-name",
+                    "kubernetes.io/cluster/${ClusterName}"
+                  ]
+                }
+              }
+            },
+            {
+              "Sid": "AllowScopedResourceCreationTagging",
+              "Effect": "Allow",
+              "Resource": [
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:*:fleet/*",
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:*:instance/*",
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:*:volume/*",
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:*:network-interface/*",
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:*:launch-template/*"
+              ],
+              "Action": "ec2:CreateTags",
+              "Condition": {
+                "StringEquals": {
+                  "aws:RequestTag/kubernetes.io/cluster/${ClusterName}": "owned",
+                  "ec2:CreateAction": [
+                    "RunInstances",
+                    "CreateFleet",
+                    "CreateLaunchTemplate"
+                  ]
+                },
+                "StringLike": {
+                  "aws:RequestTag/karpenter.sh/provisioner-name": "*"
+                },
+                "ForAllValues:StringEquals": {
+                  "aws:TagKeys": [
+                    "Name",
+                    "karpenter.sh/managed-by",
+                    "karpenter.sh/provisioner-name",
+                    "kubernetes.io/cluster/${ClusterName}",
+                    "karpenter.k8s.aws/cluster"
+                  ]
+                }
+              }
+            },
+            {
+              "Sid": "AllowMachineMigrationTagging",
+              "Effect": "Allow",
+              "Resource": "arn:${AWS::Partition}:ec2:${AWS::Region}:*:instance/*",
+              "Action": "ec2:CreateTags",
+              "Condition": {
+                "StringEquals": {
+                  "aws:ResourceTag/kubernetes.io/cluster/${ClusterName}": "owned",
+                  "aws:RequestTag/karpenter.sh/managed-by": "${ClusterName}"
+                },
+                "StringLike": {
+                  "aws:RequestTag/karpenter.sh/provisioner-name": "*"
+                },
+                "ForAllValues:StringEquals": {
+                  "aws:TagKeys": [
+                    "karpenter.sh/provisioner-name",
+                    "karpenter.sh/managed-by"
+                  ]
+                }
+              }
+            },
+            {
+              "Sid": "AllowScopedDeletion",
+              "Effect": "Allow",
+              "Resource": [
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:*:instance/*",
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:*:launch-template/*"
+              ],
+              "Action": [
+                "ec2:TerminateInstances",
+                "ec2:DeleteLaunchTemplate"
+              ],
+              "Condition": {
+                "StringEquals": {
+                  "aws:ResourceTag/kubernetes.io/cluster/${ClusterName}": "owned"
+                },
+                "StringLike": {
+                  "aws:ResourceTag/karpenter.sh/provisioner-name": "*"
+                }
+              }
+            },
+            {
+              "Sid": "AllowRegionalReadActions",
+              "Effect": "Allow",
+              "Resource": "*",
+              "Action": [
+                "ec2:DescribeAvailabilityZones",
+                "ec2:DescribeImages",
+                "ec2:DescribeInstances",
+                "ec2:DescribeInstanceTypeOfferings",
+                "ec2:DescribeInstanceTypes",
+                "ec2:DescribeLaunchTemplates",
+                "ec2:DescribeSecurityGroups",
+                "ec2:DescribeSpotPriceHistory",
+                "ec2:DescribeSubnets"
+              ],
+              "Condition": {
+                "StringEquals": {
+                  "aws:RequestedRegion": "${AWS::Region}"
+                }
+              }
+            },
+            {
+              "Sid": "AllowGlobalReadActions",
+              "Effect": "Allow",
+              "Resource": "*",
+              "Action": [
+                "pricing:GetProducts",
+                "ssm:GetParameter"
+              ]
+            },
+            {
+              "Sid": "AllowInterruptionQueueActions",
+              "Effect": "Allow",
+              "Resource": "${KarpenterInterruptionQueue.Arn}",
+              "Action": [
+                "sqs:DeleteMessage",
+                "sqs:GetQueueAttributes",
+                "sqs:GetQueueUrl",
+                "sqs:ReceiveMessage"
+              ]
+            },
+            {
+              "Sid": "AllowPassingInstanceRole",
+              "Effect": "Allow",
+              "Resource": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/KarpenterNodeRole-${ClusterName}",
+              "Action": "iam:PassRole",
+              "Condition": {
+                "StringEquals": {
+                  "iam:PassedToService": "ec2.amazonaws.com"
+                }
+              }
+            },
+            {
+              "Sid": "AllowAPIServerEndpointDiscovery",
+              "Effect": "Allow",
+              "Resource": "arn:${AWS::Partition}:eks:${AWS::Region}:${AWS::AccountId}:cluster/${ClusterName}",
+              "Action": "eks:DescribeCluster"
+            }
+          ]
+        }
   KarpenterInterruptionQueue:
     Type: AWS::SQS::Queue
     Properties:
