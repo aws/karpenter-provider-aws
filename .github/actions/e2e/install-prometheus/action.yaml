@@ -43,11 +43,7 @@ runs:
           --set prometheus.prometheusSpec.remoteWrite[0].url=https://aps-workspaces.${{ inputs.region }}.amazonaws.com/workspaces/${{ inputs.workspace_id }}/api/v1/remote_write \
           --set prometheus.prometheusSpec.remoteWrite[0].sigv4.region=${{ inputs.region }} \
           --set prometheus.serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="arn:aws:iam::${{ inputs.account_id }}:role/prometheus-irsa-${{ inputs.cluster_name }}"
-          --set prometheus.prometheusSpec.commonLabels[0].name=clusterName \
-          --set prometheus.prometheusSpec.commonLabels[0].value=${{ inputs.cluster_name }} \
-          --set prometheus.prometheusSpec.commonLabels[1].name=gitRef \
-          --set prometheus.prometheusSpec.commonLabels[1].value=${{ inputs.git_ref }} \
-          --set prometheus.prometheusSpec.commonLabels[2].name=mostRecentTag \
-          --set prometheus.prometheusSpec.commonLabels[2].value=$(git describe --abbrev=0 --tags) \
-          --set prometheus.prometheusSpec.commonLabels[3].name=commitsAfterTag \
-          --set prometheus.prometheusSpec.commonLabels[3].value=$(git describe --tags | cut -d '-' -f 2)
+          --set prometheus.prometheusSpec.commonLabels.clusterName=${{ inputs.cluster_name }} \
+          --set prometheus.prometheusSpec.commonLabels.gitRef=${{ inputs.git_ref }} \
+          --set prometheus.prometheusSpec.commonLabels.mostRecentTag=$(git describe --abbrev=0 --tags) \
+          --set prometheus.prometheusSpec.commonLabels.commitsAfterTag=$(git describe --tags | cut -d '-' -f 2)
