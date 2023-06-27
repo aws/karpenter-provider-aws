@@ -95,18 +95,20 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		env.EventuallyExpectHealthy(pod)
 		env.ExpectCreatedNodeCount("==", 1)
 
-		node := env.Monitor.CreatedNodes()[0]
+		machine := env.EventuallyExpectCreatedMachineCount("==", 1)[0]
+		node := env.EventuallyExpectNodeCount("==", 1)[0]
 		provider.Spec.AMISelector = map[string]string{"aws-ids": customAMI}
 		env.ExpectCreatedOrUpdated(provider)
 
 		EventuallyWithOffset(1, func(g Gomega) {
-			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(node), node)).To(Succeed())
-			g.Expect(node.Annotations).To(HaveKeyWithValue(v1alpha5.VoluntaryDisruptionAnnotationKey, v1alpha5.VoluntaryDisruptionDriftedAnnotationValue))
+			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(machine), machine)).To(Succeed())
+			g.Expect(machine.StatusConditions().GetCondition(v1alpha5.MachineDrifted)).ToNot(BeNil())
+			g.Expect(machine.StatusConditions().GetCondition(v1alpha5.MachineDrifted).IsTrue()).To(BeTrue())
 		}).Should(Succeed())
 
 		delete(pod.Annotations, v1alpha5.DoNotEvictPodAnnotationKey)
 		env.ExpectUpdated(pod)
-		env.EventuallyExpectNotFound(pod, node)
+		env.EventuallyExpectNotFound(pod, machine, node)
 	})
 	It("should not deprovision nodes that have drifted without the featureGate enabled", func() {
 		env.ExpectSettingsOverridden(map[string]string{
@@ -211,22 +213,23 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		})
 
 		env.ExpectCreated(pod, provider, provisioner)
+		machine := env.EventuallyExpectCreatedMachineCount("==", 1)[0]
+		node := env.EventuallyExpectCreatedNodeCount("==", 1)[0]
 		env.EventuallyExpectHealthy(pod)
-		env.ExpectCreatedNodeCount("==", 1)
-		By("updating the provider securitygroup")
-		node := env.Monitor.CreatedNodes()[0]
+
 		provider.Spec.SecurityGroupSelector = map[string]string{"aws-ids": clusterSecurityGroupIDs}
 		env.ExpectCreatedOrUpdated(provider)
 
-		By("checking the node metadata")
+		By("validating the drifted status condition has propagated")
 		EventuallyWithOffset(1, func(g Gomega) {
-			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(node), node)).To(Succeed())
-			g.Expect(node.Annotations).To(HaveKeyWithValue(v1alpha5.VoluntaryDisruptionAnnotationKey, v1alpha5.VoluntaryDisruptionDriftedAnnotationValue))
+			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(machine), machine)).To(Succeed())
+			g.Expect(machine.StatusConditions().GetCondition(v1alpha5.MachineDrifted)).ToNot(BeNil())
+			g.Expect(machine.StatusConditions().GetCondition(v1alpha5.MachineDrifted).IsTrue()).To(BeTrue())
 		}).Should(Succeed())
 
 		delete(pod.Annotations, v1alpha5.DoNotEvictPodAnnotationKey)
 		env.ExpectUpdated(pod)
-		env.EventuallyExpectNotFound(pod, node)
+		env.EventuallyExpectNotFound(pod, machine, node)
 	})
 	It("should deprovision nodes that have drifted due to subnets", func() {
 		subnets := env.GetSubnetNameAndIds(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
@@ -248,16 +251,18 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		})
 
 		env.ExpectCreated(pod, provider, provisioner)
+		machine := env.EventuallyExpectCreatedMachineCount("==", 1)[0]
+		node := env.EventuallyExpectCreatedNodeCount("==", 1)[0]
 		env.EventuallyExpectHealthy(pod)
-		env.ExpectCreatedNodeCount("==", 1)
 
-		node := env.Monitor.CreatedNodes()[0]
 		provider.Spec.SubnetSelector = map[string]string{"aws-ids": subnets[1].ID}
 		env.ExpectCreatedOrUpdated(provider)
 
+		By("validating the drifted status condition has propagated")
 		EventuallyWithOffset(1, func(g Gomega) {
-			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(node), node)).To(Succeed())
-			g.Expect(node.Annotations).To(HaveKeyWithValue(v1alpha5.VoluntaryDisruptionAnnotationKey, v1alpha5.VoluntaryDisruptionDriftedAnnotationValue))
+			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(machine), machine)).To(Succeed())
+			g.Expect(machine.StatusConditions().GetCondition(v1alpha5.MachineDrifted)).ToNot(BeNil())
+			g.Expect(machine.StatusConditions().GetCondition(v1alpha5.MachineDrifted).IsTrue()).To(BeTrue())
 		}).Should(Succeed())
 
 		delete(pod.Annotations, v1alpha5.DoNotEvictPodAnnotationKey)
