@@ -18,10 +18,6 @@ inputs:
     required: true
   git_ref:
     description: "The git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release"
-  most_recent_tag:
-    description: "The git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release"
-  commits_after_tag:
-    description: "The git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release"
 runs:
   using: "composite"
   steps:
