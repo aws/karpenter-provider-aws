@@ -15,6 +15,7 @@ webhooks:
       service:
         name: {{ include "karpenter.fullname" . }}
         namespace: {{ .Release.Namespace }}
+        port: {{ .Values.webhook.port }}
     failurePolicy: Fail
     sideEffects: None
     rules:
@@ -46,6 +47,7 @@ webhooks:
       service:
         name: {{ include "karpenter.fullname" . }}
         namespace: {{ .Release.Namespace }}
+        port: {{ .Values.webhook.port }}
     failurePolicy: Fail
     sideEffects: None
     objectSelector:
