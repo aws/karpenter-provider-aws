@@ -46,4 +46,8 @@ runs:
           --set prometheus.prometheusSpec.commonLabels[0].name=clusterName \
           --set prometheus.prometheusSpec.commonLabels[0].value=${{ inputs.cluster_name }} \
           --set prometheus.prometheusSpec.commonLabels[1].name=gitRef \
-          --set prometheus.prometheusSpec.commonLabels[1].value=${{ inputs.git_ref }}
+          --set prometheus.prometheusSpec.commonLabels[1].value=${{ inputs.git_ref }} \
+          --set prometheus.prometheusSpec.commonLabels[2].name=mostRecentTag \
+          --set prometheus.prometheusSpec.commonLabels[2].value=$(git describe --abbrev=0 --tags) \
+          --set prometheus.prometheusSpec.commonLabels[3].name=commitsAfterTag \
+          --set prometheus.prometheusSpec.commonLabels[3].value=$(git describe --tags | cut -d '-' -f 2)
