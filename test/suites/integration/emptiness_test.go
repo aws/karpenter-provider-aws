@@ -45,16 +45,14 @@ var _ = Describe("Emptiness", func() {
 		deployment := test.Deployment(test.DeploymentOptions{Replicas: numPods})
 
 		env.ExpectCreated(provider, provisioner, deployment)
+		machine := env.EventuallyExpectCreatedMachineCount("==", 1)[0]
+		node := env.EventuallyExpectCreatedNodeCount("==", 1)[0]
 		env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), numPods)
-		env.ExpectCreatedNodeCount("==", 1)
 
 		persisted := deployment.DeepCopy()
 		deployment.Spec.Replicas = ptr.Int32(0)
 		Expect(env.Client.Patch(env, deployment, client.MergeFrom(persisted))).To(Succeed())
 
-		nodes := env.Monitor.CreatedNodes()
-		for i := range nodes {
-			env.EventuallyExpectNotFound(nodes[i])
-		}
+		env.EventuallyExpectNotFound(machine, node)
 	})
 })
