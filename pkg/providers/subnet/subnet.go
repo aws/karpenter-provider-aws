@@ -199,7 +199,7 @@ func (p *Provider) UpdateInflightIPs(createFleetInput *ec2.CreateFleetInput, cre
 	}
 }
 
-func (p *Provider) LivenessProbe(req *http.Request) error {
+func (p *Provider) LivenessProbe(_ *http.Request) error {
 	p.Lock()
 	//nolint: staticcheck
 	p.Unlock()

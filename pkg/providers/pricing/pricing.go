@@ -384,7 +384,7 @@ func (p *Provider) UpdateSpotPricing(ctx context.Context) error {
 	return nil
 }
 
-func (p *Provider) LivenessProbe(req *http.Request) error {
+func (p *Provider) LivenessProbe(_ *http.Request) error {
 	// ensure we don't deadlock and nolint for the empty critical section
 	p.mu.Lock()
 	//nolint: staticcheck

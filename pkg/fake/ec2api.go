@@ -590,7 +590,7 @@ func (e *EC2API) DescribeInstanceTypeOfferingsPagesWithContext(_ context.Context
 	return nil
 }
 
-func (e *EC2API) DescribeSpotPriceHistoryPagesWithContext(_ aws.Context, in *ec2.DescribeSpotPriceHistoryInput, fn func(*ec2.DescribeSpotPriceHistoryOutput, bool) bool, opts ...request.Option) error {
+func (e *EC2API) DescribeSpotPriceHistoryPagesWithContext(_ aws.Context, in *ec2.DescribeSpotPriceHistoryInput, fn func(*ec2.DescribeSpotPriceHistoryOutput, bool) bool, _ ...request.Option) error {
 	e.DescribeSpotPriceHistoryInput.Set(in)
 	if !e.NextError.IsNil() {
 		defer e.NextError.Reset()

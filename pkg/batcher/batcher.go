@@ -116,7 +116,7 @@ func (b *Batcher[T, U]) Add(ctx context.Context, input *T) Result[U] {
 }
 
 // DefaultHasher will hash the entire input
-func DefaultHasher[T input](ctx context.Context, input *T) uint64 {
+func DefaultHasher[T input](_ context.Context, input *T) uint64 {
 	hash, err := hashstructure.Hash(input, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	if err != nil {
 		panic("error hashing")
@@ -125,7 +125,7 @@ func DefaultHasher[T input](ctx context.Context, input *T) uint64 {
 }
 
 // OneBucketHasher will return a constant hash and should be used when there is only one type of request
-func OneBucketHasher[T input](ctx context.Context, input *T) uint64 {
+func OneBucketHasher[T input](_ context.Context, input *T) uint64 {
 	return 0
 }
 
