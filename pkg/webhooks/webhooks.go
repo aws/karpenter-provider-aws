@@ -37,7 +37,7 @@ func NewWebhooks() []knativeinjection.ControllerConstructor {
 	}
 }
 
-func NewCRDDefaultingWebhook(ctx context.Context, w configmap.Watcher) *controller.Impl {
+func NewCRDDefaultingWebhook(ctx context.Context, _ configmap.Watcher) *controller.Impl {
 	return defaulting.NewAdmissionController(ctx,
 		"defaulting.webhook.karpenter.k8s.aws",
 		"/default/karpenter.k8s.aws",
@@ -47,7 +47,7 @@ func NewCRDDefaultingWebhook(ctx context.Context, w configmap.Watcher) *controll
 	)
 }
 
-func NewCRDValidationWebhook(ctx context.Context, w configmap.Watcher) *controller.Impl {
+func NewCRDValidationWebhook(ctx context.Context, _ configmap.Watcher) *controller.Impl {
 	return validation.NewAdmissionController(ctx,
 		"validation.webhook.karpenter.k8s.aws",
 		"/validate/karpenter.k8s.aws",

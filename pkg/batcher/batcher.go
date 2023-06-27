@@ -125,7 +125,7 @@ func DefaultHasher[T input](_ context.Context, input *T) uint64 {
 }
 
 // OneBucketHasher will return a constant hash and should be used when there is only one type of request
-func OneBucketHasher[T input](_ context.Context, input *T) uint64 {
+func OneBucketHasher[T input](_ context.Context, _ *T) uint64 {
 	return 0
 }
 

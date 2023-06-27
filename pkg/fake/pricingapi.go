@@ -38,7 +38,7 @@ func (p *PricingAPI) Reset() {
 	p.GetProductsOutput.Reset()
 }
 
-func (p *PricingAPI) GetProductsPagesWithContext(_ aws.Context, inp *pricing.GetProductsInput, fn func(*pricing.GetProductsOutput, bool) bool, _ ...request.Option) error {
+func (p *PricingAPI) GetProductsPagesWithContext(_ aws.Context, _ *pricing.GetProductsInput, fn func(*pricing.GetProductsOutput, bool) bool, _ ...request.Option) error {
 	if !p.NextError.IsNil() {
 		return p.NextError.Get()
 	}
