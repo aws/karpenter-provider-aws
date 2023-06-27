@@ -18,6 +18,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       GIT_REF: ${{ steps.resolve-step.outputs.GIT_REF }}
+      MOST_RECENT_TAG: ${{ steps.resolve-step.outputs.GIT_REF }}
+      COMMITS_AFTER_TAG: ${{ steps.resolve-step.outputs.GIT_REF }}
     steps:
       # Download the artifact and resolve the commit if initiated by PR snapshot
       # Otherwise, use the currently checked-out branch to run the E2E tests against
@@ -30,8 +32,12 @@ jobs:
         run: |
           if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
             echo GIT_REF=$(tail -n 1 /tmp/artifacts/metadata.txt) >> $GITHUB_OUTPUT
+            echo MOST_RECENT_TAG=$(git describe --abbrev=0 --tags) >> $GITHUB_OUTPUT
+            echo COMMITS_AFTER_TAG=$(git describe --tags | cut -d '-' -f 2) >> $GITHUB_OUTPUT
           else
             echo GIT_REF="" >> $GITHUB_OUTPUT
+            echo MOST_RECENT_TAG="" >> $GITHUB_OUTPUT
+            echo COMMITS_AFTER_TAG="" >> $GITHUB_OUTPUT
           fi
   e2e:
     needs: [resolve-git-ref]

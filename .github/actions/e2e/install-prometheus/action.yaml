@@ -18,6 +18,10 @@ inputs:
     required: true
   git_ref:
     description: "The git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release"
+  most_recent_tag:
+    description: "The git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release"
+  commits_after_tag:
+    description: "The git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release"
 runs:
   using: "composite"
   steps:
@@ -45,5 +49,5 @@ runs:
           --set prometheus.serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="arn:aws:iam::${{ inputs.account_id }}:role/prometheus-irsa-${{ inputs.cluster_name }}"
           --set prometheus.prometheusSpec.commonLabels.clusterName=${{ inputs.cluster_name }} \
           --set prometheus.prometheusSpec.commonLabels.gitRef=${{ inputs.git_ref }} \
-          --set prometheus.prometheusSpec.commonLabels.mostRecentTag=$(git describe --abbrev=0 --tags) \
-          --set prometheus.prometheusSpec.commonLabels.commitsAfterTag=$(git describe --tags | cut -d '-' -f 2)
+          --set prometheus.prometheusSpec.commonLabels.mostRecentTag=${{ inputs.most_recent_tag }} \
+          --set prometheus.prometheusSpec.commonLabels.commitsAfterTag=${{ inputs.commits_after_tag }}
