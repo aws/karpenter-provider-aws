@@ -363,7 +363,7 @@ func (e *EC2API) DescribeLaunchTemplatesWithContext(_ context.Context, input *ec
 	return output, nil
 }
 
-func (e *EC2API) DescribeSubnetsWithContext(ctx context.Context, input *ec2.DescribeSubnetsInput, opts ...request.Option) (*ec2.DescribeSubnetsOutput, error) {
+func (e *EC2API) DescribeSubnetsWithContext(_ context.Context, input *ec2.DescribeSubnetsInput, _ ...request.Option) (*ec2.DescribeSubnetsOutput, error) {
 	if !e.NextError.IsNil() {
 		defer e.NextError.Reset()
 		return nil, e.NextError.Get()
