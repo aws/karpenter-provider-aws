@@ -78,7 +78,7 @@ func (c *Controller) Name() string {
 	return "awsnodetemplate"
 }
 
-func (c *Controller) Builder(ctx context.Context, m manager.Manager) corecontroller.Builder {
+func (c *Controller) Builder(_ context.Context, m manager.Manager) corecontroller.Builder {
 	return corecontroller.Adapt(controllerruntime.
 		NewControllerManagedBy(m).
 		For(&v1alpha1.AWSNodeTemplate{}).

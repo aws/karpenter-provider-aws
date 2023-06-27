@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-K8S_VERSION="${K8S_VERSION:="1.23.x"}"
+K8S_VERSION="${K8S_VERSION:="1.27.x"}"
 KUBEBUILDER_ASSETS="${KUBEBUILDER_ASSETS:="${HOME}/.kubebuilder/bin"}"
 
 main() {
@@ -10,16 +10,16 @@ main() {
 }
 
 tools() {
-    go install github.com/google/go-licenses@v1.6.0
-    go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.51.1
-    go install github.com/google/ko@v0.11.2
-    go install github.com/mikefarah/yq/v4@v4.30.8
-    go install github.com/norwoodj/helm-docs/cmd/helm-docs@v1.11.0
-    go install sigs.k8s.io/controller-runtime/tools/setup-envtest@v0.0.0-20230213155330-c98b7fd9183a
-    go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.11.3
-    go install github.com/sigstore/cosign/cmd/cosign@v1.13.1
+    go install github.com/google/go-licenses@latest
+    go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+    go install github.com/google/ko@latest
+    go install github.com/mikefarah/yq/v4@latest
+    go install github.com/norwoodj/helm-docs/cmd/helm-docs@latest
+    go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+    go install sigs.k8s.io/controller-tools/cmd/controller-gen@latest
+    go install github.com/sigstore/cosign/cmd/cosign@latest
     go install -tags extended github.com/gohugoio/hugo@v0.110.0
-    go install golang.org/x/vuln/cmd/govulncheck@v0.0.0-20230217165152-67742527d09b
+    go install golang.org/x/vuln/cmd/govulncheck@latest
     go install github.com/onsi/ginkgo/v2/ginkgo@latest
 
     if ! echo "$PATH" | grep -q "${GOPATH:-undefined}/bin\|$HOME/go/bin"; then

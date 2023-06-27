@@ -19,5 +19,5 @@ import (
 )
 
 // SetDefaults for the AWSNodeTemplate
-func (a *AWSNodeTemplate) SetDefaults(ctx context.Context) {
+func (a *AWSNodeTemplate) SetDefaults(_ context.Context) {
 }

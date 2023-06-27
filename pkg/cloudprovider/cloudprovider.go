@@ -149,10 +149,7 @@ func (c *CloudProvider) Get(ctx context.Context, providerID string) (*v1alpha5.M
 }
 
 func (c *CloudProvider) LivenessProbe(req *http.Request) error {
-	if err := c.instanceTypeProvider.LivenessProbe(req); err != nil {
-		return err
-	}
-	return nil
+	return c.instanceTypeProvider.LivenessProbe(req)
 }
 
 // GetInstanceTypes returns all available InstanceTypes
