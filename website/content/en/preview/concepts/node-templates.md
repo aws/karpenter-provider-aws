@@ -37,6 +37,7 @@ spec:
 status:
   subnets: { ... }               # resolved subnets
   securityGroups: { ... }        # resolved security groups
+  amis: { ... }                  # resolved AMIs 
 ```
 Refer to the [Provisioner docs]({{<ref "./provisioners" >}}) for settings applicable to all providers.
 See below for other AWS provider-specific parameters.
