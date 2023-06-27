@@ -154,12 +154,12 @@ Read the [Drift Design](https://github.com/aws/karpenter-core/pull/366/files) fo
 
 |Provisioner Fields          | Static | Dynamic | Behavioral | Implemented |
 |----------------------------|  :---: |  :---:  |   :---:    |    :---:    |
-| Startup Taints             |    x   |         |            |             |
-| Taints                     |    x   |         |            |             |
-| Labels                     |    x   |         |            |             |
-| Annotations                |    x   |         |            |             |
+| Startup Taints             |    x   |         |            |      x      |
+| Taints                     |    x   |         |            |      x      |
+| Labels                     |    x   |         |            |      x      |
+| Annotations                |    x   |         |            |      x      |
 | Node Requirements          |        |    x    |            |             |
-| Kubelet Configuration      |    x   |         |            |             |
+| Kubelet Configuration      |    x   |         |            |      x      |
 | Weight                     |        |         |      x     |     NA      |
 | Limits                     |        |         |      x     |     NA      |
 | Consolidation              |        |         |      x     |     NA      |
