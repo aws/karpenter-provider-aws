@@ -127,7 +127,7 @@ func (p *Provider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTempla
 			return nil, err
 		}
 	}
-	amis = groupAMIsByRequirements(sortAMIsByCreationDate(amis))
+	amis = groupAMIsByRequirements(SortAMIsByCreationDate(amis))
 	if p.cm.HasChanged(fmt.Sprintf("amis/%s", nodeTemplate.Name), amis) {
 		logging.FromContext(ctx).With("ids", amiList(amis), "count", len(amis)).Debugf("discovered amis")
 	}
@@ -160,19 +160,15 @@ func (p *Provider) getDefaultAMIFromSSM(ctx context.Context, nodeTemplate *v1alp
 	for _, ssmOutput := range ssmRequirements {
 		amiID, err := p.fetchAMIsFromSSM(ctx, ssmOutput.Query)
 		if err != nil {
-			logging.FromContext(ctx).With("query", ssmOutput.Query).Warnf("discover ami from ssm failed: %v", err)
+			logging.FromContext(ctx).With("query", ssmOutput.Query).Errorf("discovering amis from ssm, %s", err)
 			continue
 		}
 		amis = append(amis, AMI{AmiID: amiID, Requirements: ssmOutput.Requirements})
-	}
-	if len(amis) == 0 {
-		return nil, fmt.Errorf("no amis found for kubernetes version %s", kubernetesVersion)
 	}
 	amis, err = p.findAMINames(ctx, amis)
 	if err != nil {
 		return nil, err
 	}
-
 	return amis, nil
 }
 
@@ -233,7 +229,7 @@ func (p *Provider) getAMIsFromSelector(ctx context.Context, selector map[string]
 }
 
 func (p *Provider) fetchAMIsFromEC2(ctx context.Context, amiSelector map[string]string) ([]*ec2.Image, error) {
-	filters, owners := getFiltersAndOwners(amiSelector)
+	filters, owners := GetFiltersAndOwners(amiSelector)
 	hash, err := hashstructure.Hash(filters, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	if err != nil {
 		return nil, err
@@ -267,8 +263,8 @@ func amiList(amis []AMI) string {
 	return sb.String()
 }
 
-func getFiltersAndOwners(amiSelector map[string]string) ([]*ec2.Filter, []*string) {
-	filters := []*ec2.Filter{}
+func GetFiltersAndOwners(amiSelector map[string]string) ([]*ec2.Filter, []*string) {
+	var filters []*ec2.Filter
 	var owners []*string
 	imagesSet := false
 	for key, value := range amiSelector {
@@ -302,9 +298,9 @@ func getFiltersAndOwners(amiSelector map[string]string) ([]*ec2.Filter, []*strin
 	return filters, owners
 }
 
-// sortAMIsByCreationDate the AMIs are sorted by creation date in descending order.
+// SortAMIsByCreationDate the AMIs are sorted by creation date in descending order.
 // If creation date is nil or two AMIs have the same creation date, the AMIs will be sorted by name in ascending order.
-func sortAMIsByCreationDate(amis []AMI) []AMI {
+func SortAMIsByCreationDate(amis []AMI) []AMI {
 	sort.Slice(amis, func(i, j int) bool {
 		if amis[i].CreationDate != "" || amis[j].CreationDate != "" {
 			itime, _ := time.Parse(time.RFC3339, amis[i].CreationDate)
