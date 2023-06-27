@@ -46,8 +46,8 @@ runs:
           -f ./.github/actions/e2e/install-prometheus/values.yaml \
           --set prometheus.prometheusSpec.remoteWrite[0].url=https://aps-workspaces.${{ inputs.region }}.amazonaws.com/workspaces/${{ inputs.workspace_id }}/api/v1/remote_write \
           --set prometheus.prometheusSpec.remoteWrite[0].sigv4.region=${{ inputs.region }} \
-          --set prometheus.serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="arn:aws:iam::${{ inputs.account_id }}:role/prometheus-irsa-${{ inputs.cluster_name }}"
+          --set prometheus.serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="arn:aws:iam::${{ inputs.account_id }}:role/prometheus-irsa-${{ inputs.cluster_name }}" \
           --set prometheus.prometheusSpec.commonLabels.clusterName=${{ inputs.cluster_name }} \
           --set prometheus.prometheusSpec.commonLabels.gitRef=${{ inputs.git_ref }} \
-          --set prometheus.prometheusSpec.commonLabels.mostRecentTag=${{ inputs.most_recent_tag }} \
-          --set prometheus.prometheusSpec.commonLabels.commitsAfterTag=${{ inputs.commits_after_tag }}
+          --set prometheus.prometheusSpec.commonLabels.mostRecentTag=$(git describe --abbrev=0 --tags) \
+          --set prometheus.prometheusSpec.commonLabels.commitsAfterTag=$(git describe --tags | cut -d '-' -f 2)
