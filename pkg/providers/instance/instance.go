@@ -145,8 +145,8 @@ func (p *Provider) Get(ctx context.Context, id string) (*Instance, error) {
 }
 
 func (p *Provider) List(ctx context.Context) ([]*Instance, error) {
-	// Use the machine name data to determine which instances match this machine
-	out, err := p.ec2api.DescribeInstancesWithContext(ctx, &ec2.DescribeInstancesInput{
+	var out = &ec2.DescribeInstancesOutput{}
+	err := p.ec2api.DescribeInstancesPagesWithContext(ctx, &ec2.DescribeInstancesInput{
 		Filters: []*ec2.Filter{
 			{
 				Name:   aws.String("tag-key"),
@@ -158,6 +158,9 @@ func (p *Provider) List(ctx context.Context) ([]*Instance, error) {
 			},
 			instanceStateFilter,
 		},
+	}, func(page *ec2.DescribeInstancesOutput, _ bool) bool {
+		out.Reservations = append(out.Reservations, page.Reservations...)
+		return true
 	})
 	if err != nil {
 		return nil, fmt.Errorf("describing ec2 instances, %w", err)
