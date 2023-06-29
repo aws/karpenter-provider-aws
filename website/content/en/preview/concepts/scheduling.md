@@ -117,6 +117,10 @@ spec:
             vpc.amazonaws.com/pod-eni: "1"
 ```
 
+{{% alert title="Windows Support Notice" color="warning" %}}
+Security groups for pods are [currently unsupported for Windows nodes](https://docs.aws.amazon.com/eks/latest/userguide/security-groups-for-pods.html)
+{{% /alert %}}
+
 ## Selecting nodes
 
 With `nodeSelector` you can ask for a node that matches selected key-value pairs.
@@ -137,6 +141,7 @@ Take care to ensure the label domains are correct. A well known label like `karp
 | -------------------------------------------------------------- | ----------  | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | topology.kubernetes.io/zone                                    | us-east-2a  | Zones are defined by your cloud provider ([aws](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-regions-availability-zones.html))                     |
 | node.kubernetes.io/instance-type                               | g4dn.8xlarge| Instance types are defined by your cloud provider ([aws](https://aws.amazon.com/ec2/instance-types/))                                                           |
+| node.kubernetes.io/windows-build                               | 10.0.17763  | Windows OS build in the format "MajorVersion.MinorVersion.BuildNumber". Can be `10.0.17763` for WS2019, or `10.0.20348` for WS2022. ([k8s](https://kubernetes.io/docs/reference/labels-annotations-taints/#nodekubernetesiowindows-build)) |
 | kubernetes.io/os                                               | linux       | Operating systems are defined by [GOOS values](https://github.com/golang/go/blob/master/src/go/build/syslist.go#L10) on the instance                            |
 | kubernetes.io/arch                                             | amd64       | Architectures are defined by [GOARCH values](https://github.com/golang/go/blob/master/src/go/build/syslist.go#L50) on the instance                              |
 | karpenter.sh/capacity-type                                     | spot        | Capacity types include `spot`, `on-demand`                                                                                                                      |
