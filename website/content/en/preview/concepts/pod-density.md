@@ -25,7 +25,7 @@ When using small instance types, it may be necessary to enable [prefix assignmen
 {{% /alert %}}
 
 {{% alert title="Windows Support Notice" color="warning" %}}
-Presently, only a single ENI per Windows worker node is supported.
+Presently, Windows worker nodes do not support using more than one ENI.
 As a consequence, the number of IP addresses, and subsequently, the number of pods that a Windows worker node can support is limited by the number of IPv4 addresses available on the primary ENI.
 At the moment, Karpenter will only consider individual secondary IP addresses when calculating the pod density limit.
 {{% /alert %}}
