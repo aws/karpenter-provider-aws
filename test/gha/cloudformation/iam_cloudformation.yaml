@@ -17,8 +17,12 @@ Resources:
       Url: https://token.actions.githubusercontent.com
       ClientIdList:
         - sts.amazonaws.com
+      # Relevant context for all these thumbprints can be found in the GH issue and blogpost:
+      # https://github.com/aws-actions/configure-aws-credentials/issues/357#issuecomment-1605290219
+      # https://github.blog/changelog/2023-06-27-github-actions-update-on-oidc-integration-with-aws/
       ThumbprintList:
         - 6938fd4d98bab03faadb97b34396831e3780aea1
+        - 1c58a3a8518e8759bf075b76b750d4f2df264fcd
   GithubActionsPolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:
@@ -85,20 +89,28 @@ Resources:
               - iam:CreatePolicy
               - iam:DeletePolicy
               - iam:GetPolicy
+              - iam:CreatePolicyVersion
+              - iam:DeletePolicyVersion
               - iam:ListPolicyVersions
-            Resource: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/*"
+            Resource: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/KarpenterControllerPolicy-*"
           - Effect: Allow
             Action:
               - cloudformation:CreateChangeSet
               - cloudformation:CreateStack
               - cloudformation:DeleteStack
               - cloudformation:DescribeChangeSet
-              - cloudformation:DescribeStacks
               - cloudformation:DescribeStackEvents
               - cloudformation:ExecuteChangeSet
-              - cloudformation:ListStacks
+              - cloudformation:GetTemplate
               - cloudformation:GetTemplateSummary
-            Resource: !Sub "arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/*"
+            Resource:
+              - !Sub "arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/iam-*"
+              - !Sub "arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/eksctl-*"
+          - Effect: Allow
+            Action:
+             - cloudformation:ListStacks
+             - cloudformation:DescribeStacks
+            Resource: "*"
           - Effect: Allow
             Action:
               - eks:CreateCluster

@@ -363,7 +363,7 @@ func (e *EC2API) DescribeLaunchTemplatesWithContext(_ context.Context, input *ec
 	return output, nil
 }
 
-func (e *EC2API) DescribeSubnetsWithContext(ctx context.Context, input *ec2.DescribeSubnetsInput, opts ...request.Option) (*ec2.DescribeSubnetsOutput, error) {
+func (e *EC2API) DescribeSubnetsWithContext(_ context.Context, input *ec2.DescribeSubnetsInput, _ ...request.Option) (*ec2.DescribeSubnetsOutput, error) {
 	if !e.NextError.IsNil() {
 		defer e.NextError.Reset()
 		return nil, e.NextError.Get()
@@ -411,7 +411,7 @@ func (e *EC2API) DescribeSubnetsWithContext(ctx context.Context, input *ec2.Desc
 	return &ec2.DescribeSubnetsOutput{Subnets: FilterDescribeSubnets(subnets, input.Filters)}, nil
 }
 
-func (e *EC2API) DescribeSecurityGroupsWithContext(ctx context.Context, input *ec2.DescribeSecurityGroupsInput, opts ...request.Option) (*ec2.DescribeSecurityGroupsOutput, error) {
+func (e *EC2API) DescribeSecurityGroupsWithContext(_ context.Context, input *ec2.DescribeSecurityGroupsInput, _ ...request.Option) (*ec2.DescribeSecurityGroupsOutput, error) {
 	if !e.NextError.IsNil() {
 		defer e.NextError.Reset()
 		return nil, e.NextError.Get()
@@ -590,7 +590,7 @@ func (e *EC2API) DescribeInstanceTypeOfferingsPagesWithContext(_ context.Context
 	return nil
 }
 
-func (e *EC2API) DescribeSpotPriceHistoryPagesWithContext(_ aws.Context, in *ec2.DescribeSpotPriceHistoryInput, fn func(*ec2.DescribeSpotPriceHistoryOutput, bool) bool, opts ...request.Option) error {
+func (e *EC2API) DescribeSpotPriceHistoryPagesWithContext(_ aws.Context, in *ec2.DescribeSpotPriceHistoryInput, fn func(*ec2.DescribeSpotPriceHistoryOutput, bool) bool, _ ...request.Option) error {
 	e.DescribeSpotPriceHistoryInput.Set(in)
 	if !e.NextError.IsNil() {
 		defer e.NextError.Reset()

@@ -60,7 +60,7 @@ func (env *Environment) ExpectCreated(objects ...client.Object) {
 
 func (env *Environment) ExpectDeletedWithOffset(offset int, objects ...client.Object) {
 	for _, object := range objects {
-		ExpectWithOffset(offset+1, env.Client.Delete(env, object, &client.DeleteOptions{GracePeriodSeconds: ptr.Int64(0)})).To(Succeed())
+		ExpectWithOffset(offset+1, env.Client.Delete(env, object, client.PropagationPolicy(metav1.DeletePropagationForeground), &client.DeleteOptions{GracePeriodSeconds: ptr.Int64(0)})).To(Succeed())
 	}
 }
 

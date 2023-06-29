@@ -1,4 +1,4 @@
-export K8S_VERSION ?= 1.23.x
+export K8S_VERSION ?= 1.27.x
 export KUBEBUILDER_ASSETS ?= ${HOME}/.kubebuilder/bin
 CLUSTER_NAME ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].name}' | rev | cut -d"/" -f1 | rev | cut -d"." -f1)
 
@@ -192,9 +192,8 @@ download: ## Recursively "go mod download" on all directories where go.mod exist
 	$(foreach dir,$(MOD_DIRS),cd $(dir) && go mod download $(newline))
 
 update-core: ## Update karpenter-core to latest
-	go get -u github.com/aws/karpenter-core
+	go get -u github.com/aws/karpenter-core@HEAD
 	go mod tidy
-	cd test/ && go get -u github.com/aws/karpenter-core && go mod tidy
 
 .PHONY: help dev ci release test battletest e2etests verify tidy download docgen codegen apply delete toolchain licenses vulncheck issues website nightly snapshot
 

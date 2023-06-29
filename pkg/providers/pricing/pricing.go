@@ -93,7 +93,7 @@ func NewAPI(sess *session.Session, region string) pricingiface.PricingAPI {
 	return pricing.New(sess, &aws.Config{Region: aws.String(pricingAPIRegion)})
 }
 
-func NewProvider(ctx context.Context, pricing pricingiface.PricingAPI, ec2Api ec2iface.EC2API, region string) *Provider {
+func NewProvider(_ context.Context, pricing pricingiface.PricingAPI, ec2Api ec2iface.EC2API, region string) *Provider {
 	p := &Provider{
 		region:  region,
 		ec2:     ec2Api,
@@ -384,7 +384,7 @@ func (p *Provider) UpdateSpotPricing(ctx context.Context) error {
 	return nil
 }
 
-func (p *Provider) LivenessProbe(req *http.Request) error {
+func (p *Provider) LivenessProbe(_ *http.Request) error {
 	// ensure we don't deadlock and nolint for the empty critical section
 	p.mu.Lock()
 	//nolint: staticcheck

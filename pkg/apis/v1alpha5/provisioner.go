@@ -38,7 +38,7 @@ func (p *Provisioner) SupportedVerbs() []admissionregistrationv1.OperationType {
 	}
 }
 
-func (p *Provisioner) Validate(ctx context.Context) (errs *apis.FieldError) {
+func (p *Provisioner) Validate(_ context.Context) (errs *apis.FieldError) {
 	if p.Spec.Provider == nil {
 		return nil
 	}
@@ -49,7 +49,7 @@ func (p *Provisioner) Validate(ctx context.Context) (errs *apis.FieldError) {
 	return provider.Validate()
 }
 
-func (p *Provisioner) SetDefaults(ctx context.Context) {
+func (p *Provisioner) SetDefaults(_ context.Context) {
 	requirements := scheduling.NewNodeSelectorRequirements(p.Spec.Requirements...)
 
 	// default to linux OS

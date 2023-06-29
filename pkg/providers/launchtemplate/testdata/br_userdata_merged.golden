@@ -1,6 +1,7 @@
 [settings]
 [settings.kubernetes]
 api-server = 'https://test-cluster'
+cloud-provider = 'external'
 cluster-certificate = 'ca-bundle'
 cluster-name = 'test-cluster'
 cluster-dns-ip = '10.0.100.10'

@@ -26,6 +26,10 @@ alertmanager:
     tolerations:
       - key: CriticalAddonsOnly
         operator: Exists
+kubelet:
+  serviceMonitor:
+    additionalLabels:
+      scrape: enabled
 prometheus:
   prometheusSpec:
     tolerations:
@@ -38,6 +42,12 @@ prometheus:
       limits:
         cpu: 1
         memory: 5Gi
+    serviceMonitorSelector:
+      matchLabels:
+        scrape: enabled
+    serviceMonitorNamespaceSelector:
+      matchLabels:
+        scrape: enabled
     remoteWrite:
       - queueConfig:
           maxSamplesPerSend: 1000

@@ -105,7 +105,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		logging.FromContext(ctx).With("kube-dns-ip", kubeDNSIP).Debugf("discovered kube dns")
 	}
 
-	unavailableOfferingsCache := awscache.NewUnavailableOfferings()
+	unavailableOfferingsCache := awscache.NewUnavailableOfferings(operator.EventRecorder)
 	subnetProvider := subnet.NewProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
 	securityGroupProvider := securitygroup.NewProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
 	pricingProvider := pricing.NewProvider(
@@ -116,7 +116,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	)
 	amiProvider := amifamily.NewProvider(operator.GetClient(), operator.KubernetesInterface, ssm.New(sess), ec2api,
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
-	amiResolver := amifamily.New(operator.GetClient(), amiProvider)
+	amiResolver := amifamily.New(amiProvider)
 	launchTemplateProvider := launchtemplate.NewProvider(
 		ctx,
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),

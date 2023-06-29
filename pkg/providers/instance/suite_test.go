@@ -62,7 +62,7 @@ var _ = BeforeSuite(func() {
 	ctx = coresettings.ToContext(ctx, coretest.Settings())
 	ctx = settings.ToContext(ctx, test.Settings())
 	awsEnv = test.NewEnvironment(ctx, env)
-	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, env.Client, awsEnv.AMIProvider)
+	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.SubnetProvider)
 })
 
 var _ = AfterSuite(func() {

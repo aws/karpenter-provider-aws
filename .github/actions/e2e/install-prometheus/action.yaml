@@ -32,13 +32,13 @@ runs:
     - name: create prometheus namespace
       shell: bash
       run: |
-        kubectl create ns prometheus
-        kubectl label ns prometheus scrape=enabled
+        kubectl create ns prometheus || true
+        kubectl label ns prometheus scrape=enabled --overwrite=true
     - name: install prometheus
       shell: bash
       run: |
         helm upgrade --install prometheus prometheus-community/kube-prometheus-stack \
-          -n prometheus --create-namespace \
+          -n prometheus \
           -f ./.github/actions/e2e/install-prometheus/values.yaml \
           --set prometheus.prometheusSpec.remoteWrite[0].url=https://aps-workspaces.${{ inputs.region }}.amazonaws.com/workspaces/${{ inputs.workspace_id }}/api/v1/remote_write \
           --set prometheus.prometheusSpec.remoteWrite[0].sigv4.region=${{ inputs.region }} \

@@ -121,10 +121,7 @@ func (p *Provider) LivenessProbe(req *http.Request) error {
 	if err := p.subnetProvider.LivenessProbe(req); err != nil {
 		return err
 	}
-	if err := p.pricingProvider.LivenessProbe(req); err != nil {
-		return err
-	}
-	return nil
+	return p.pricingProvider.LivenessProbe(req)
 }
 
 func (p *Provider) createOfferings(ctx context.Context, instanceType *ec2.InstanceTypeInfo, zones sets.String) []cloudprovider.Offering {

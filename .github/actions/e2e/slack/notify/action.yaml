@@ -1,11 +1,11 @@
-name: NotifySlack
+name: SlackNotify
 description: 'Notifies slack of the success or failure of the suite'
 inputs:
   suite:
     description: "Suite that's running"
     required: true
-  pr_number:
-    description: "If specified, this run is associated with a PR and the slack message will reflect that"
+  k8s_version:
+    description: "Kubernetes version that this test ran against"
   url:
     description: "Webhook URL to send the Slack notification to"
     required: true
@@ -22,8 +22,8 @@ runs:
         ref: ${{ inputs.git_ref }}
     - shell: bash
       run: |
-        if [[ ! -z "${{ inputs.pr_number }}" ]]; then
-          RUN_NAME="${{ inputs.suite }}-pr-${{ inputs.pr_number }}"
+        if [[ ${{ inputs.event_name }} == "conformance" ]]; then
+          RUN_NAME="conformance-periodic-${{ inputs.k8s_version }}"
         elif [[ ${{ inputs.event_name }} == "schedule" ]]; then
           RUN_NAME="${{ inputs.suite }}-periodic"
         else
@@ -36,9 +36,9 @@ runs:
       if: ${{ job.status == 'success' }}
       with:
         url: ${{ inputs.url }}
-        message: ":white_check_mark: ${{ env.RUN_NAME }} tests succeeded (#${{ github.run_number }})"
+        message: ":white_check_mark: ${{ env.RUN_NAME }} (https://github.com/${{github.repository}}/actions/runs/${{github.run_id}})"
     - uses: ./.github/actions/e2e/slack/send-message
       if: ${{ job.status == 'failure' }}
       with:
         url: ${{ inputs.url }}
-        message: ":x: ${{ env.RUN_NAME }} tests failed (#${{ github.run_number }})"
+        message: ":x: ${{ env.RUN_NAME }} (https://github.com/${{github.repository}}/actions/runs/${{github.run_id}})"

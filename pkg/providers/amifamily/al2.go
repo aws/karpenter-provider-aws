@@ -73,7 +73,7 @@ func (a AL2) DefaultAMIs(version string) []DefaultAMIOutput {
 // even if elements of those inputs are in differing orders,
 // guaranteeing it won't cause spurious hash differences.
 // AL2 userdata also works on Ubuntu
-func (a AL2) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []v1.Taint, labels map[string]string, caBundle *string, instanceTypes []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper {
+func (a AL2) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []v1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper {
 	containerRuntime := aws.String("containerd")
 	if kubeletConfig != nil && kubeletConfig.ContainerRuntime != nil {
 		containerRuntime = kubeletConfig.ContainerRuntime

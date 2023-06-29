@@ -13,10 +13,10 @@ inputs:
   cluster_name:
     description: 'Name of the cluster to be launched by eksctl'
     required: true
-  kubernetes_version:
+  k8s_version:
     description: 'Version of Kubernetes to use for the launched cluster'
     required: false
-    default: "1.25"
+    default: "1.27"
   ip_family:
     description: "IP Family of the cluster. Valid values are IPv4 or IPv6"
     required: false
@@ -49,12 +49,21 @@ runs:
       # Update the Cloudformation policy to add the permissionBoundary to the NodeRole
       yq -i '.Resources.KarpenterNodeRole.Properties.PermissionsBoundary="arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"' $CLOUDFORMATION_PATH
       
+      # Iterate through the policy and add more permissive tagging for tests to succeed
+      # There are various tests that add more tags than are permitted by the default policy
+      EXTRA_TAGS=""
+      for TAG in "TestTag" "example.com\/tag" "custom-tag" "custom-tag2"; do
+        EXTRA_TAGS="$EXTRA_TAGS\n                    \"$TAG\","
+      done
+      sed -i "s/\"aws:TagKeys\": \[/\"aws:TagKeys\": \[$EXTRA_TAGS/" "$CLOUDFORMATION_PATH"
+      
       aws iam create-service-linked-role --aws-service-name spot.amazonaws.com || true
       aws cloudformation deploy \
         --stack-name iam-${{ inputs.cluster_name }} \
         --template-file $CLOUDFORMATION_PATH \
         --capabilities CAPABILITY_NAMED_IAM \
-        --parameter-overrides "ClusterName=${{ inputs.cluster_name }}"
+        --parameter-overrides "ClusterName=${{ inputs.cluster_name }}" \
+        --tags "testing.karpenter.sh/type=e2e" "github.com/run-url=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
   - name: create or upgrade cluster
     shell: bash
     run: |
@@ -69,10 +78,11 @@ runs:
       metadata:
         name: ${{ inputs.cluster_name }}
         region: ${{ inputs.region }}
-        version: "${{ inputs.kubernetes_version }}"
+        version: "${{ inputs.k8s_version }}"
         tags:
           karpenter.sh/discovery: ${{ inputs.cluster_name }}
-          github.com/run-url: "https://github.com/${{ inputs.git_repo }}/actions/runs/${{ github.run_id }}"
+          github.com/run-url: "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          testing.karpenter.sh/type: "e2e"
       kubernetesNetworkConfig:
         ipFamily: ${{ inputs.ip_family }}
       managedNodeGroups:

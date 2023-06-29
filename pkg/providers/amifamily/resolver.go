@@ -25,7 +25,6 @@ import (
 	"github.com/samber/lo"
 	core "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/providers/amifamily/bootstrap"
@@ -109,7 +108,7 @@ func (d DefaultFamily) FeatureFlags() FeatureFlags {
 }
 
 // New constructs a new launch template Resolver
-func New(kubeClient client.Client, amiProvider *Provider) *Resolver {
+func New(amiProvider *Provider) *Resolver {
 	return &Resolver{
 		amiProvider: amiProvider,
 	}

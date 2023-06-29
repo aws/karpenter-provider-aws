@@ -16,18 +16,20 @@ package drift
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	awssdk "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/aws/aws-sdk-go/service/ssm"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
@@ -58,12 +60,12 @@ var _ = AfterEach(func() { env.AfterEach() })
 
 var _ = Describe("Drift", Label("AWS"), func() {
 	BeforeEach(func() {
-		customAMI = selectCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", 1)
-	})
-	It("should deprovision nodes that have drifted due to AMIs", func() {
+		customAMI = env.GetCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", 1)
 		env.ExpectSettingsOverridden(map[string]string{
 			"featureGates.driftEnabled": "true",
 		})
+	})
+	It("should deprovision nodes that have drifted due to AMIs", func() {
 		// choose an old static image
 		parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
 			Name: awssdk.String("/aws/service/eks/optimized-ami/1.23/amazon-linux-2/amazon-eks-node-1.23-v20230322/image_id"),
@@ -148,20 +150,118 @@ var _ = Describe("Drift", Label("AWS"), func() {
 			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), &v1.Node{})).To(Succeed())
 		}).WithTimeout(time.Minute).Should(Succeed())
 	})
-})
+	It("should deprovision nodes that have drifted due to securitygroup", func() {
+		By("getting the cluster vpc id")
+		output, err := env.EKSAPI.DescribeCluster(&eks.DescribeClusterInput{Name: awssdk.String(settings.FromContext(env.Context).ClusterName)})
+		Expect(err).To(BeNil())
 
-func selectCustomAMI(amiPath string, versionOffset int) string {
-	serverVersion, err := env.KubeClient.Discovery().ServerVersion()
-	Expect(err).To(BeNil())
-	minorVersion, err := strconv.Atoi(strings.TrimSuffix(serverVersion.Minor, "+"))
-	Expect(err).To(BeNil())
-	// Choose a minor version one lesser than the server's minor version. This ensures that we choose an AMI for
-	// this test that wouldn't be selected as Karpenter's SSM default (therefore avoiding false positives), and also
-	// ensures that we aren't violating version skew.
-	version := fmt.Sprintf("%s.%d", serverVersion.Major, minorVersion-versionOffset)
-	parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
-		Name: awssdk.String(fmt.Sprintf(amiPath, version)),
+		By("creating new security group")
+		createSecurityGroup := &ec2.CreateSecurityGroupInput{
+			GroupName:   awssdk.String("security-group-drift"),
+			Description: awssdk.String("End-to-end Drift Test, should delete after drift test is completed"),
+			VpcId:       output.Cluster.ResourcesVpcConfig.VpcId,
+			TagSpecifications: []*ec2.TagSpecification{
+				{
+					ResourceType: awssdk.String("security-group"),
+					Tags: []*ec2.Tag{
+						{
+							Key:   awssdk.String("karpenter.sh/discovery"),
+							Value: awssdk.String(settings.FromContext(env.Context).ClusterName),
+						},
+					},
+				},
+			},
+		}
+		_, _ = env.EC2API.CreateSecurityGroup(createSecurityGroup)
+
+		By("looking for security groups")
+		var securitygroups []aws.SecurityGroup
+		var testSecurityGroup aws.SecurityGroup
+		Eventually(func(g Gomega) {
+			securitygroups = env.GetSecurityGroups(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
+			testSecurityGroup, _ = lo.Find(securitygroups, func(sg aws.SecurityGroup) bool {
+				return awssdk.StringValue(sg.GroupName) == "security-group-drift"
+			})
+			g.Expect(testSecurityGroup).ToNot(BeNil())
+		}).Should(Succeed())
+
+		By("creating a new provider with the new securitygroup")
+		awsIDs := lo.Map(securitygroups, func(sg aws.SecurityGroup, _ int) string {
+			if awssdk.StringValue(sg.GroupId) != awssdk.StringValue(testSecurityGroup.GroupId) {
+				return awssdk.StringValue(sg.GroupId)
+			}
+			return ""
+		})
+		clusterSecurityGroupIDs := strings.Join(lo.WithoutEmpty(awsIDs), ",")
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+			AWS: v1alpha1.AWS{
+				SecurityGroupSelector: map[string]string{"aws-ids": fmt.Sprintf("%s,%s", clusterSecurityGroupIDs, awssdk.StringValue(testSecurityGroup.GroupId))},
+				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			},
+		})
+		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
+
+		// Add a do-not-evict pod so that we can check node metadata before we deprovision
+		pod := test.Pod(test.PodOptions{
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{
+					v1alpha5.DoNotEvictPodAnnotationKey: "true",
+				},
+			},
+		})
+
+		env.ExpectCreated(pod, provider, provisioner)
+		env.EventuallyExpectHealthy(pod)
+		env.ExpectCreatedNodeCount("==", 1)
+		By("updating the provider securitygroup")
+		node := env.Monitor.CreatedNodes()[0]
+		provider.Spec.SecurityGroupSelector = map[string]string{"aws-ids": clusterSecurityGroupIDs}
+		env.ExpectCreatedOrUpdated(provider)
+
+		By("checking the node metadata")
+		EventuallyWithOffset(1, func(g Gomega) {
+			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(node), node)).To(Succeed())
+			g.Expect(node.Annotations).To(HaveKeyWithValue(v1alpha5.VoluntaryDisruptionAnnotationKey, v1alpha5.VoluntaryDisruptionDriftedAnnotationValue))
+		}).Should(Succeed())
+
+		delete(pod.Annotations, v1alpha5.DoNotEvictPodAnnotationKey)
+		env.ExpectUpdated(pod)
+		env.EventuallyExpectNotFound(pod, node)
 	})
-	Expect(err).To(BeNil())
-	return *parameter.Parameter.Value
-}
+	It("should deprovision nodes that have drifted due to subnets", func() {
+		subnets := env.GetSubnetNameAndIds(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
+		Expect(len(subnets)).To(BeNumerically(">", 1))
+
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			SubnetSelector:        map[string]string{"aws-ids": subnets[0].ID},
+		}})
+		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
+
+		// Add a do-not-evict pod so that we can check node metadata before we deprovision
+		pod := test.Pod(test.PodOptions{
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{
+					v1alpha5.DoNotEvictPodAnnotationKey: "true",
+				},
+			},
+		})
+
+		env.ExpectCreated(pod, provider, provisioner)
+		env.EventuallyExpectHealthy(pod)
+		env.ExpectCreatedNodeCount("==", 1)
+
+		node := env.Monitor.CreatedNodes()[0]
+		provider.Spec.SubnetSelector = map[string]string{"aws-ids": subnets[1].ID}
+		env.ExpectCreatedOrUpdated(provider)
+
+		EventuallyWithOffset(1, func(g Gomega) {
+			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(node), node)).To(Succeed())
+			g.Expect(node.Annotations).To(HaveKeyWithValue(v1alpha5.VoluntaryDisruptionAnnotationKey, v1alpha5.VoluntaryDisruptionDriftedAnnotationValue))
+		}).Should(Succeed())
+
+		delete(pod.Annotations, v1alpha5.DoNotEvictPodAnnotationKey)
+		env.ExpectUpdated(pod)
+		env.EventuallyExpectNotFound(pod, node)
+	})
+})

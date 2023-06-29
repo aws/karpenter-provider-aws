@@ -11,10 +11,17 @@ jobs:
     if: github.repository == 'aws/karpenter' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v3
       - name: configure aws credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
           role-to-assume: arn:aws:iam::${{ vars.ACCOUNT_ID }}:role/${{ vars.ROLE_NAME }}
           aws-region: ${{ vars.AWS_REGION }}
-      - uses: actions/checkout@v3
-      - run: ./test/hack/cleanup/cleanup.sh
+      - uses: actions/setup-go@v4
+        with:
+          go-version-file: test/hack/cleanup/go.mod
+          check-latest: true
+          cache-dependency-path: "test/hack/cleanup/go.sum"
+      - run: go run main.go
+        working-directory: ./test/hack/cleanup
+        name: "Run cleanup script"

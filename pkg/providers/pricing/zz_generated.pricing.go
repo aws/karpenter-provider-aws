@@ -18,9 +18,9 @@ package pricing
 
 import "time"
 
-// generated at 2023-06-12T13:08:11Z for us-east-1
+// generated at 2023-06-26T13:09:51Z for us-east-1
 
-var initialPriceUpdate, _ = time.Parse(time.RFC3339, "2023-06-12T13:08:11Z")
+var initialPriceUpdate, _ = time.Parse(time.RFC3339, "2023-06-26T13:09:51Z")
 var initialOnDemandPrices = map[string]map[string]float64{}
 
 func init() {
@@ -85,6 +85,9 @@ func init() {
 		"c7g.12xlarge": 1.740000, "c7g.16xlarge": 2.320000, "c7g.2xlarge": 0.290000, "c7g.4xlarge": 0.580000,
 		"c7g.8xlarge": 1.160000, "c7g.large": 0.072500, "c7g.medium": 0.036300, "c7g.metal": 2.320000,
 		"c7g.xlarge": 0.145000,
+		// c7gn family
+		"c7gn.12xlarge": 2.995200, "c7gn.16xlarge": 3.993600, "c7gn.2xlarge": 0.499200, "c7gn.4xlarge": 0.998400,
+		"c7gn.8xlarge": 1.996800, "c7gn.large": 0.124800, "c7gn.medium": 0.062400, "c7gn.xlarge": 0.249600,
 		// cc2 family
 		"cc2.8xlarge": 2.000000,
 		// cr1 family
@@ -120,6 +123,8 @@ func init() {
 		"g5g.metal": 2.744000, "g5g.xlarge": 0.420000,
 		// h1 family
 		"h1.16xlarge": 3.744000, "h1.2xlarge": 0.468000, "h1.4xlarge": 0.936000, "h1.8xlarge": 1.872000,
+		// hpc7g family
+		"hpc7g.16xlarge": 1.683200, "hpc7g.4xlarge": 1.683200, "hpc7g.8xlarge": 1.683200,
 		// hs1 family
 		"hs1.8xlarge": 4.600000,
 		// i2 family

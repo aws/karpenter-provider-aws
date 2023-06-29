@@ -23,21 +23,36 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
+	"github.com/aws/karpenter-core/pkg/utils/sets"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/providers/amifamily"
+	"github.com/aws/karpenter/pkg/providers/instance"
 	"github.com/aws/karpenter/pkg/utils"
 )
 
 func (c *CloudProvider) isNodeTemplateDrifted(ctx context.Context, machine *v1alpha5.Machine, provisioner *v1alpha5.Provisioner, nodeTemplate *v1alpha1.AWSNodeTemplate) (bool, error) {
-	amiDrifted, err := c.isAMIDrifted(ctx, machine, provisioner, nodeTemplate)
+	instance, err := c.getInstance(ctx, machine.Status.ProviderID)
 	if err != nil {
-		return false, cloudprovider.IgnoreMachineNotFoundError(fmt.Errorf("calculating ami drift, %w", err))
+		return false, err
+	}
+	amiDrifted, err := c.isAMIDrifted(ctx, machine, provisioner, instance, nodeTemplate)
+	if err != nil {
+		return false, fmt.Errorf("calculating ami drift, %w", err)
+	}
+	securitygroupDrifted, err := c.areSecurityGroupsDrifted(instance, nodeTemplate)
+	if err != nil {
+		return false, fmt.Errorf("calculating securitygroup drift, %w", err)
+	}
+	subnetDrifted, err := c.isSubnetDrifted(instance, nodeTemplate)
+	if err != nil {
+		return false, fmt.Errorf("calculating subnet drift, %w", err)
 	}
 
-	return amiDrifted, nil
+	return amiDrifted || securitygroupDrifted || subnetDrifted, nil
 }
 
-func (c *CloudProvider) isAMIDrifted(ctx context.Context, machine *v1alpha5.Machine, provisioner *v1alpha5.Provisioner, nodeTemplate *v1alpha1.AWSNodeTemplate) (bool, error) {
+func (c *CloudProvider) isAMIDrifted(ctx context.Context, machine *v1alpha5.Machine, provisioner *v1alpha5.Provisioner,
+	instance *instance.Instance, nodeTemplate *v1alpha1.AWSNodeTemplate) (bool, error) {
 	instanceTypes, err := c.GetInstanceTypes(ctx, provisioner)
 	if err != nil {
 		return false, fmt.Errorf("getting instanceTypes, %w", err)
@@ -62,14 +77,44 @@ func (c *CloudProvider) isAMIDrifted(ctx context.Context, machine *v1alpha5.Mach
 	if len(mappedAMIs) == 0 {
 		return false, fmt.Errorf("no instance types satisfy requirements of amis %v,", amis)
 	}
+	return !lo.Contains(lo.Keys(mappedAMIs), instance.ImageID), nil
+}
+
+func (c *CloudProvider) isSubnetDrifted(instance *instance.Instance, nodeTemplate *v1alpha1.AWSNodeTemplate) (bool, error) {
+	// If the node template status does not have subnets, wait for the subnets to be populated before continuing
+	if nodeTemplate.Status.Subnets == nil {
+		return false, fmt.Errorf("AWSNodeTemplate has no subnets")
+	}
+	_, found := lo.Find(nodeTemplate.Status.Subnets, func(subnet v1alpha1.Subnet) bool {
+		return subnet.ID == instance.SubnetID
+	})
+	return !found, nil
+}
+
+// Checks if the security groups are drifted, by comparing the AWSNodeTemplate.Status.SecurityGroups
+// to the ec2 instance security groups
+func (c *CloudProvider) areSecurityGroupsDrifted(ec2Instance *instance.Instance, nodeTemplate *v1alpha1.AWSNodeTemplate) (bool, error) {
+	// nodeTemplate.Spec.SecurityGroupSelector can be nil if the user is using a launchTemplateName to define SecurityGroups
+	// Karpenter will not drift on changes to securitygroup in the launchTemplateName
+	if nodeTemplate.Spec.LaunchTemplateName != nil {
+		return false, nil
+	}
+	securityGroupIds := sets.New(lo.Map(nodeTemplate.Status.SecurityGroups, func(sg v1alpha1.SecurityGroup, _ int) string { return sg.ID })...)
+	if len(securityGroupIds) == 0 {
+		return false, fmt.Errorf("no security groups exist in the AWSNodeTemplate Status")
+	}
+	return !securityGroupIds.Equal(sets.New(ec2Instance.SecurityGroupIDs...)), nil
+}
+
+func (c *CloudProvider) getInstance(ctx context.Context, providerID string) (*instance.Instance, error) {
 	// Get InstanceID to fetch from EC2
-	instanceID, err := utils.ParseInstanceID(machine.Status.ProviderID)
+	instanceID, err := utils.ParseInstanceID(providerID)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 	instance, err := c.instanceProvider.Get(ctx, instanceID)
 	if err != nil {
-		return false, fmt.Errorf("getting instance, %w", err)
+		return nil, fmt.Errorf("getting instance, %w", err)
 	}
-	return !lo.Contains(lo.Keys(mappedAMIs), instance.ImageID), nil
+	return instance, nil
 }
