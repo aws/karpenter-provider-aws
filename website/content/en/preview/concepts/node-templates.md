@@ -439,7 +439,7 @@ spec:
 For more examples on configuring these fields for different AMI families, see the [examples here](https://github.com/aws/karpenter/blob/main/examples/provisioner/launchtemplates).
 
 {{% alert title="Windows Support Notice" color="warning" %}}
-Specifying `spec.userData` is not currently supported for Windows nodes, but support is expected in the future.
+Specifying `spec.userData` is not currently supported for Windows nodes. Support for this feature is tracked through [this Github issue](https://github.com/aws/karpenter/issues/4081).
 {{% /alert %}}
 
 ### Merge Semantics
