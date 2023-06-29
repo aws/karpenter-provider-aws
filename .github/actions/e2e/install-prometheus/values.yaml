@@ -53,3 +53,5 @@ prometheus:
           maxSamplesPerSend: 1000
           maxShards: 200
           capacity: 2500
+    additionalScrapeConfigs:
+    - job_name: karpenter
