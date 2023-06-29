@@ -193,7 +193,7 @@ This annotation will have no effect for static pods, pods that tolerate `NoSched
 Nodes can be opted out of consolidation deprovisioning by setting the annotation `karpenter.sh/do-not-consolidate: "true"` on the node.
 
 ```yaml
-apiVersion: karpenter.sh/v1alpha5
+apiVersion: v1
 kind: Node
 metadata:
   annotations:
