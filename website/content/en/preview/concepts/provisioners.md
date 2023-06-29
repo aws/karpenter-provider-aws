@@ -24,6 +24,8 @@ Here are things you should know about Provisioners:
 * If Karpenter encounters a startup taint in the Provisioner it will be applied to nodes that are provisioned, but pods do not need to tolerate the taint.  Karpenter assumes that the taint is temporary and some other system will remove the taint.
 * It is recommended to create Provisioners that are mutually exclusive. So no Pod should match multiple Provisioners. If multiple Provisioners are matched, Karpenter will use the Provisioner with the highest [weight](#specweight).
 
+For some example `Provisioner` configurations, see the [examples in the Karpenter GitHub repository](https://github.com/aws/karpenter/blob/main/examples/provisioner/).
+
 ```yaml
 apiVersion: karpenter.sh/v1alpha5
 kind: Provisioner
@@ -211,8 +213,9 @@ requirements:
  - key: `kubernetes.io/os`
  - values
    - `linux`
+   - `windows`
 
-Karpenter supports only `linux` nodes at this time.
+Karpenter supports `linux` and `windows` operating systems.
 
 {{% alert title="Defaults" color="secondary" %}}
 If no operating system constraint is defined, Karpenter will set the default operating system constraint on your Provisioner that supports most common user workloads:
@@ -294,11 +297,9 @@ spec:
     maxPods: 20
 ```
 
-☁️ **AWS**
-
 You can specify the container runtime to be either `dockerd` or `containerd`. By default, `containerd` is used.
 
-* `containerd` is the only valid container runtime when using the Bottlerocket AMI Family or when using the AL2 AMI Family and K8s version 1.24+
+* `containerd` is the only valid container runtime when using the `Bottlerocket` AMIFamily or when using Kubernetes version 1.24+ and the `AL2`, `Windows2019`, or `Windows2022` AMIFamilies.
 
 ### Reserved Resources
 
@@ -465,7 +466,7 @@ In order for a pod to run on a node defined in this provisioner, it must tolerat
 
 ### Cilium Startup Taint
 
-Per the Cilium [docs](https://docs.cilium.io/en/stable/installation/taints/#taint-effects),  it's recommended to place a taint of `node.cilium.io/agent-not-ready=true:NoExecute` on nodes to allow Cilium to configure networking prior to other pods starting.  This can be accomplished via the use of Karpenter `startupTaints`.  These taints are placed on the node, but pods aren't required to tolerate these taints to be considered for provisioning.
+Per the Cilium [docs](https://docs.cilium.io/en/stable/installation/taints/#taint-effects), it's recommended to place a taint of `node.cilium.io/agent-not-ready=true:NoExecute` on nodes to allow Cilium to configure networking prior to other pods starting.  This can be accomplished via the use of Karpenter `startupTaints`.  These taints are placed on the node, but pods aren't required to tolerate these taints to be considered for provisioning.
 
 ```yaml
 apiVersion: karpenter.sh/v1alpha5
