@@ -55,3 +55,8 @@ prometheus:
           capacity: 2500
     additionalScrapeConfigs:
     - job_name: karpenter
+      kubernetes_sd_configs:
+      - role: endpoints
+        namespaces:
+          names:
+          - karpenter
