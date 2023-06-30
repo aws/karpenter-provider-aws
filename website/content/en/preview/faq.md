@@ -167,6 +167,14 @@ Windows nodes do not support IPv6.
 
 As an example, suppose you scale up a deployment with a preferred zonal topology spread and none of the newly created pods can run on your existing cluster.  Karpenter will then launch multiple nodes to satisfy that preference.  If a) one of the nodes becomes ready slightly faster than other nodes and b) has enough capacity for multiple pods, `kube-scheduler` will schedule as many pods as possible to the single ready node so they won't remain unschedulable. It doesn't consider the in-flight capacity that will be ready in a few seconds.  If all of the pods fit on the single node, the remaining nodes that Karpenter has launched aren't needed when they become ready and consolidation will delete them.
 
+### When deploying an additional DaemonSet to my cluster, why does Karpenter not scale-up my nodes to support the extra DaemonSet?
+
+Karpenter will not scale-up more capacity for an additional DaemonSet on its own. This is due to the fact that the only pod that would schedule to that new node would be the DaemonSet pod, which is consuming additional capacity with no benefit. Therefore, Karpenter only considers DaemonSets when doing overhead calculations for scale-ups to workload pods.
+
+To avoid new DaemonSets failing to schedule to existing Nodes, you should [set a high priority on your DaemonSet pods with a `preemptionPolicy: PreemptLowerPriority`](https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#example-priorityclass) so that DaemonSet pods will be guaranteed to schedule on all existing and new Nodes. For existing Nodes, this will cause some pods with lower priority to get [preempted](https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#preemption), replaced by the DaemonSet and re-scheduled onto new capacity that Karpenter will launch in response to the new pending pods.
+
+The Karpenter maintainer team is also discussing a consolidation mechanism [in this Github issue](https://github.com/aws/karpenter/issues/3256) that would allow existing capacity to be rolled when a new DaemonSet is deployed without having to set [priority or preemption](https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/) on the pods.
+
 ## Workloads
 
 ### How can someone deploying pods take advantage of Karpenter?
@@ -177,7 +185,7 @@ See [Application developer]({{< ref "./concepts/#application-developer" >}}) for
 Yes.  See [Persistent Volume Topology]({{< ref "./concepts/scheduling#persistent-volume-topology" >}}) for details.
 
 ### Can I set `--max-pods` on my nodes?
-Not yet.
+Yes, see the [KubeletConfiguration Section in the Provisioners Documentation]({{<ref "./concepts/provisioners#speckubeletconfiguration" >}}) to learn more.
 
 ### Why do the Windows2019 and Windows2022 AMI families only support Windows Server Core?
 The difference between the Core and Full variants is that Core is a minimal OS with less components and no graphic user interface (GUI) or desktop experience.
