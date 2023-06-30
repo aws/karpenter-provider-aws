@@ -60,9 +60,9 @@ jobs:
         with:
           ref: ${{ inputs.git_ref }}
       - if: always() && inputs.event_name == 'workflow_run'
-        uses: ./.github/actions/e2e/commit-status/start
+        uses: ./.github/actions/commit-status/start
         with:
-          suite: ${{ inputs.suite }}
+          name: "${{ github.workflow }} / e2e (${{ inputs.suite }}) / ${{ github.job }} (snapshot)"
           git_ref: ${{ inputs.git_ref }}
       - name: configure aws credentials
         uses: aws-actions/configure-aws-credentials@v2
@@ -133,7 +133,7 @@ jobs:
           cluster_name: ${{ env.CLUSTER_NAME }}
           git_ref: ${{ inputs.git_ref }}
       - if: always() && inputs.event_name == 'workflow_run'
-        uses: ./.github/actions/e2e/commit-status/end
+        uses: ./.github/actions/commit-status/end
         with:
-          suite: ${{ inputs.suite }}
+          name: "${{ github.workflow }} / e2e (${{ inputs.suite }}) / ${{ github.job }} (snapshot)"
           git_ref: ${{ inputs.git_ref }}

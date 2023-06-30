@@ -573,8 +573,85 @@ var _ = Describe("AWSNodeTemplateController", func() {
 						},
 					},
 				},
-			},
-			))
+			}))
+		})
+		It("should resolve amiSelector AMis and requirements into status when all SSM aliases don't resolve", func() {
+			version := lo.Must(awsEnv.AMIProvider.KubeServerVersion(ctx))
+			// This parameter set doesn't include any of the Nvidia AMIs
+			awsEnv.SSMAPI.Parameters = map[string]string{
+				fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/x86_64/latest/image_id", version): "ami-id-123",
+				fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/arm64/latest/image_id", version):  "ami-id-456",
+			}
+			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
+			nodeTemplate.Spec.AMISelector = nil
+			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
+				Images: []*ec2.Image{
+					{
+						Name:         aws.String("test-ami-1"),
+						ImageId:      aws.String("ami-id-123"),
+						CreationDate: aws.String(time.Now().Format(time.RFC3339)),
+						Architecture: aws.String("x86_64"),
+						Tags: []*ec2.Tag{
+							{Key: aws.String("Name"), Value: aws.String("test-ami-1")},
+							{Key: aws.String("foo"), Value: aws.String("bar")},
+						},
+					},
+					{
+						Name:         aws.String("test-ami-2"),
+						ImageId:      aws.String("ami-id-456"),
+						CreationDate: aws.String(time.Now().Add(time.Minute).Format(time.RFC3339)),
+						Architecture: aws.String("arm64"),
+						Tags: []*ec2.Tag{
+							{Key: aws.String("Name"), Value: aws.String("test-ami-2")},
+							{Key: aws.String("foo"), Value: aws.String("bar")},
+						},
+					},
+				},
+			})
+			ExpectApplied(ctx, env.Client, nodeTemplate)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
+			sortRequirements(nodeTemplate.Status.AMIs)
+			Expect(nodeTemplate.Status.AMIs).To(ContainElements([]v1alpha1.AMI{
+				{
+					Name: "test-ami-1",
+					ID:   "ami-id-123",
+					Requirements: []v1.NodeSelectorRequirement{
+						{
+							Key:      v1.LabelArchStable,
+							Operator: v1.NodeSelectorOpIn,
+							Values:   []string{v1alpha5.ArchitectureAmd64},
+						},
+						{
+							Key:      v1alpha1.LabelInstanceGPUCount,
+							Operator: v1.NodeSelectorOpDoesNotExist,
+						},
+						{
+							Key:      v1alpha1.LabelInstanceAcceleratorCount,
+							Operator: v1.NodeSelectorOpDoesNotExist,
+						},
+					},
+				},
+				{
+					Name: "test-ami-2",
+					ID:   "ami-id-456",
+					Requirements: []v1.NodeSelectorRequirement{
+						{
+							Key:      v1.LabelArchStable,
+							Operator: v1.NodeSelectorOpIn,
+							Values:   []string{v1alpha5.ArchitectureArm64},
+						},
+						{
+							Key:      v1alpha1.LabelInstanceGPUCount,
+							Operator: v1.NodeSelectorOpDoesNotExist,
+						},
+						{
+							Key:      v1alpha1.LabelInstanceAcceleratorCount,
+							Operator: v1.NodeSelectorOpDoesNotExist,
+						},
+					},
+				},
+			}))
 		})
 		It("Should resolve a valid AMI selector", func() {
 			ExpectApplied(ctx, env.Client, nodeTemplate)
