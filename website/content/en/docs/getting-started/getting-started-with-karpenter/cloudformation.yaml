@@ -68,15 +68,6 @@ Resources:
                 },
                 "StringLike": {
                   "aws:RequestTag/karpenter.sh/provisioner-name": "*"
-                },
-                "ForAllValues:StringEquals": {
-                  "aws:TagKeys": [
-                    "Name",
-                    "karpenter.sh/managed-by",
-                    "karpenter.sh/provisioner-name",
-                    "kubernetes.io/cluster/${ClusterName}",
-                    "karpenter.k8s.aws/cluster"
-                  ]
                 }
               }
             },
@@ -99,14 +90,6 @@ Resources:
                 },
                 "StringLike": {
                   "aws:RequestTag/karpenter.sh/provisioner-name": "*"
-                },
-                "ForAllValues:StringEquals": {
-                  "aws:TagKeys": [
-                    "Name",
-                    "karpenter.sh/managed-by",
-                    "karpenter.sh/provisioner-name",
-                    "kubernetes.io/cluster/${ClusterName}"
-                  ]
                 }
               }
             },
@@ -132,15 +115,6 @@ Resources:
                 },
                 "StringLike": {
                   "aws:RequestTag/karpenter.sh/provisioner-name": "*"
-                },
-                "ForAllValues:StringEquals": {
-                  "aws:TagKeys": [
-                    "Name",
-                    "karpenter.sh/managed-by",
-                    "karpenter.sh/provisioner-name",
-                    "kubernetes.io/cluster/${ClusterName}",
-                    "karpenter.k8s.aws/cluster"
-                  ]
                 }
               }
             },
