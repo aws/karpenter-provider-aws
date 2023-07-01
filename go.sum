@@ -64,8 +64,8 @@ github.com/andybalholm/cascadia v1.3.1/go.mod h1:R4bJ1UQfqADjvDa4P6HZHLh/3OxWWEq
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=
 github.com/avast/retry-go v3.0.0+incompatible h1:4SOWQ7Qs+oroOTQOYnAHqelpCO0biHSxpiH9JdtuBj0=
 github.com/avast/retry-go v3.0.0+incompatible/go.mod h1:XtSnn+n/sHqQIpZ10K1qAevBhOOCWBLXXy3hyiqqBrY=
-github.com/aws/aws-sdk-go v1.44.273 h1:CX8O0gK+cGrgUyv7bgJ6QQP9mQg7u5mweHdNzULH47c=
-github.com/aws/aws-sdk-go v1.44.273/go.mod h1:aVsgQcEevwlmQ7qHE9I3h+dtQgpqhFB+i8Phjh7fkwI=
+github.com/aws/aws-sdk-go v1.44.294 h1:3x7GaEth+pDU9HwFcAU0awZlEix5CEdyIZvV08SlHa8=
+github.com/aws/aws-sdk-go v1.44.294/go.mod h1:aVsgQcEevwlmQ7qHE9I3h+dtQgpqhFB+i8Phjh7fkwI=
 github.com/aws/karpenter-core v0.28.1-0.20230626225608-1e88464e98f1 h1:Kia2fqMxqvT4GdSps5/2TsBnC1+YoLANq0tWOYGuoMk=
 github.com/aws/karpenter-core v0.28.1-0.20230626225608-1e88464e98f1/go.mod h1:BiPQ/eMeJ1rkfNWctOHmBxvabf8s9IFAWZz5hpHP3Bc=
 github.com/benbjohnson/clock v1.1.0 h1:Q92kusRqC1XV2MjkWETPvjJVqKetz1OzxZB7mHJLju8=
