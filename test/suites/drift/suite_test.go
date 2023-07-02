@@ -64,20 +64,21 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		env.ExpectSettingsOverridden(map[string]string{
 			"featureGates.driftEnabled": "true",
 		})
+
 	})
 	It("should deprovision nodes that have drifted due to AMIs", func() {
 		// choose an old static image
 		parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
-			Name: awssdk.String("/aws/service/eks/optimized-ami/1.23/amazon-linux-2/amazon-eks-node-1.23-v20230322/image_id"),
+			Name: awssdk.String("/aws/service/eks/optimized-ami/1.23/amazon-linux-2/recommended/image_id"),
 		})
 		Expect(err).To(BeNil())
-		oldCustomAMI := *parameter.Parameter.Value
+		latestAMI := *parameter.Parameter.Value
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			AMIFamily:             &v1alpha1.AMIFamilyCustom,
 		},
-			AMISelector: map[string]string{"aws-ids": oldCustomAMI},
+			AMISelector: map[string]string{"aws-ids": latestAMI},
 			UserData:    awssdk.String(fmt.Sprintf("#!/bin/bash\n/etc/eks/bootstrap.sh '%s'", settings.FromContext(env.Context).ClusterName)),
 		})
 		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
@@ -112,18 +113,18 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		env.ExpectSettingsOverridden(map[string]string{
 			"featureGates.driftEnabled": "false",
 		})
-		// choose an old static image
+		// choose latest image
 		parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
-			Name: awssdk.String("/aws/service/eks/optimized-ami/1.23/amazon-linux-2/amazon-eks-node-1.23-v20230322/image_id"),
+			Name: awssdk.String("/aws/service/eks/optimized-ami/1.23/amazon-linux-2/recommended/image_id"),
 		})
 		Expect(err).To(BeNil())
-		oldCustomAMI := *parameter.Parameter.Value
+		latestAMI := *parameter.Parameter.Value
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			AMIFamily:             &v1alpha1.AMIFamilyCustom,
 		},
-			AMISelector: map[string]string{"aws-ids": oldCustomAMI},
+			AMISelector: map[string]string{"aws-ids": latestAMI},
 			UserData:    awssdk.String(fmt.Sprintf("#!/bin/bash\n/etc/eks/bootstrap.sh '%s'", settings.FromContext(env.Context).ClusterName)),
 		})
 		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
