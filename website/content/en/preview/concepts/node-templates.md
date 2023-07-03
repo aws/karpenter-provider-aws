@@ -97,25 +97,32 @@ EKS creates at least two security groups by default, [review the documentation](
 Security groups may be specified by any AWS tag, including "Name". Selecting tags using wildcards (`*`) is supported.
 
 {{% alert title="Note" color="primary" %}}
-When launching nodes, Karpenter uses all the security groups that match the selector. If multiple security groups have the tag `kubernetes.io/cluster/MyClusterName`, this may result in failures using the AWS Load Balancer controller. The Load Balancer controller only supports a single security group having that tag key. See [this issue](https://github.com/kubernetes-sigs/aws-load-balancer-controller/issues/2367) for more details.
+When launching nodes, Karpenter uses all the security groups that match the selector. If you choose to use the `kubernetes.io/cluster/$CLUSTER_NAME` tag for discovery, note that this may result in failures using the AWS Load Balancer controller. The Load Balancer controller only supports a single security group having that tag key. See [this issue](https://github.com/kubernetes-sigs/aws-load-balancer-controller/issues/2367) for more details.
 {{% /alert %}}
 
 To verify if this restriction affects you, run the following commands.
 ```bash
 CLUSTER_VPC_ID="$(aws eks describe-cluster --name $CLUSTER_NAME --query cluster.resourcesVpcConfig.vpcId --output text)"
 
-aws ec2 describe-security-groups --filters Name=vpc-id,Values=$CLUSTER_VPC_ID Name=tag-key,Values=karpenter.sh/discovery/$CLUSTER_NAME --query 'SecurityGroups[].[GroupName]' --output text
+aws ec2 describe-security-groups --filters Name=vpc-id,Values=$CLUSTER_VPC_ID Name=tag-key,Values=kubernetes.io/cluster/$CLUSTER_NAME --query 'SecurityGroups[].[GroupName]' --output text
 ```
 
-If multiple securityGroups are printed, you will need a more specific securityGroupSelector.
+If multiple securityGroups are printed, you will need a more specific securityGroupSelector. We generally recommend that you use the `karpenter.sh/discovery: $CLUSTER_NAME` tag selector instead.
 
 **Examples**
+
+Select all assigned to a cluster:
+```yaml
+spec:
+  securityGroupSelector:
+    karpenter.sh/discovery: "${CLUSTER_NAME}"
+```
 
 Select all with a specified tag key:
 ```yaml
 spec:
   securityGroupSelector:
-    karpenter.sh/discovery/MyClusterName: '*'
+    MyTag: '*'
 ```
 
 Select by name and tag (all criteria must match):
