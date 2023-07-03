@@ -132,7 +132,7 @@ func main() {
 
 	// Format and print to the file
 	formatted := lo.Must(format.Source([]byte(fmt.Sprintf(fileFormat, license, body))))
-	file := lo.Must(os.Create(flag.Args()[0]))
+	file := lo.Must(os.Create(flag.Arg(0)))
 	lo.Must(file.Write(formatted))
 	file.Close()
 }
