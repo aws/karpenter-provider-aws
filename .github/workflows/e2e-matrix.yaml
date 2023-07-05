@@ -1,40 +1,45 @@
 name: E2EMatrix
 on:
-  schedule:
-    - cron: '7 */8 * * *'
-  push:
-    branches: [main]
-  workflow_run:
-    workflows: [ApprovalComment]
-    types: [completed]
+  workflow_call:
+    inputs:
+      region:
+        type: string
+        default: "us-east-2"
+      k8s_version:
+        type: string
+        default: "1.27"
+      git_ref:
+        type: string
+      event_name:
+        type: string
+        required: true
+    secrets:
+      SLACK_WEBHOOK_URL:
+        required: true
   workflow_dispatch:
+    inputs:
+      region:
+        type: choice
+        options:
+          - "us-east-2"
+          - "us-west-2"
+          - "us-west-1"
+        default: "us-east-2"
+      k8s_version:
+        type: choice
+        options:
+          - "1.23"
+          - "1.24"
+          - "1.25"
+          - "1.26"
+          - "1.27"
+        default: "1.27"
 # All jobs will run under the following conditions:
 #   1. Upstream Karpenter repo triggered the job by schedule, push, or dispatch
 #   2. Upstream Karpenter repo triggered the job by workflow_run, which requires maintainer check to succeed
 #   3. Downstream fork triggered the job through dispatch and has set 'ENABLE_E2E' in repo environment variables
 jobs:
-  resolve-git-ref:
-    if: (github.repository == 'aws/karpenter' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')) || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    outputs:
-      GIT_REF: ${{ steps.resolve-step.outputs.GIT_REF }}
-    steps:
-      # Download the artifact and resolve the commit if initiated by PR snapshot
-      # Otherwise, use the currently checked-out branch to run the E2E tests against
-      - uses: actions/checkout@v3
-        with:
-          ref: ${{ inputs.git_ref }}
-      - if: github.event_name == 'workflow_run'
-        uses: ./.github/actions/download-artifact
-      - id: resolve-step
-        run: |
-          if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
-            echo GIT_REF=$(tail -n 1 /tmp/artifacts/metadata.txt) >> $GITHUB_OUTPUT
-          else
-            echo GIT_REF="" >> $GITHUB_OUTPUT
-          fi
   e2e:
-    needs: [resolve-git-ref]
     if: (github.repository == 'aws/karpenter' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')) || github.event_name == 'workflow_dispatch'
     strategy:
       fail-fast: false
@@ -43,17 +48,20 @@ jobs:
     uses: ./.github/workflows/e2e.yaml
     with:
       suite: ${{ matrix.suite }}
-      git_ref: ${{ needs.resolve-git-ref.outputs.GIT_REF }}
-      event_name: ${{ github.event_name }}
+      git_ref: ${{ inputs.git_ref }}
+      event_name: ${{ inputs.event_name }}
+      region: ${{ inputs.region }}
+      k8s_version: ${{ inputs.k8s_version }}
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
   e2e-upgrade:
-    needs: [resolve-git-ref]
     if: (github.repository == 'aws/karpenter' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')) || github.event_name == 'workflow_dispatch'
     uses: ./.github/workflows/e2e-upgrade.yaml
     with:
       from_git_ref: v0.28.0
-      to_git_ref: ${{ needs.resolve-git-ref.outputs.GIT_REF }}
-      event_name: ${{ github.event_name }}
+      to_git_ref: ${{ inputs.git_ref }}
+      event_name: ${{ inputs.event_name }}
+      region: ${{ inputs.region}}
+      k8s_version: ${{ inputs.k8s_version }}
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
