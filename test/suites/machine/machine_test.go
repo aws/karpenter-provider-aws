@@ -30,7 +30,6 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter-core/pkg/utils/functional"
 	"github.com/aws/karpenter-core/pkg/utils/resources"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
@@ -44,10 +43,6 @@ var _ = Describe("StandaloneMachine", func() {
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
-	})
-	// For standalone machines, there is no Provisioner owner, so we just list all machines and delete them all
-	AfterEach(func() {
-		env.CleanupObjects(functional.Pair[client.Object, client.ObjectList]{First: &v1alpha5.Machine{}, Second: &v1alpha5.MachineList{}})
 	})
 	It("should create a standard machine within the 'c' instance family", func() {
 		machine := test.Machine(v1alpha5.Machine{
