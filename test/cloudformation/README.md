@@ -22,7 +22,7 @@ aws cloudformation deploy \
 ```console
 aws cloudformation deploy --stack-name GithubActionsIAM \
     --template-file iam_cloudformation.yaml \
-    --parameter-overrides "Repository=<repository>" Branches="*" "PrometheusWorkspaceID=<workspace-id>" \
+    --parameter-overrides "Repository=<repository>" Branches="*" "PrometheusWorkspaceID=<workspace-id>" Regions="us-east-2,us-west-2,..." \
     --capabilities CAPABILITY_NAMED_IAM
 ```
 
