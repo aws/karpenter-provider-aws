@@ -4,16 +4,38 @@ on:
     - cron: '7 22 * * *'
   workflow_dispatch:
 jobs:
+  resolve-git-ref:
+    if: (github.repository == 'aws/karpenter' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')) || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    outputs:
+      GIT_REF: ${{ steps.resolve-step.outputs.GIT_REF }}
+    steps:
+      # Download the artifact and resolve the commit if initiated by PR snapshot
+      # Otherwise, use the currently checked-out branch to run the E2E tests against
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.git_ref }}
+      - if: github.event_name == 'workflow_run'
+        uses: ./.github/actions/download-artifact
+      - id: resolve-step
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
+            echo GIT_REF=$(tail -n 1 /tmp/artifacts/metadata.txt) >> $GITHUB_OUTPUT
+          else
+            echo GIT_REF="" >> $GITHUB_OUTPUT
+          fi
   conformance:
+    needs: [resolve-git-ref]
     if: github.repository == 'aws/karpenter' || github.event_name == 'workflow_dispatch'
     strategy:
       fail-fast: false
       matrix:
         k8s_version: [ "1.23", "1.24", "1.25", "1.26", "1.27" ]
-    uses: ./.github/workflows/e2e.yaml
+    uses: ./.github/workflows/e2e-matrix.yaml
     with:
-      suite: Integration
       event_name: conformance
+      region: "us-west-2"
       k8s_version: ${{ matrix.k8s_version }}
+      git_ref: ${{ needs.resolve-git-ref.outputs.GIT_REF }}
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

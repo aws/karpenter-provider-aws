@@ -28,6 +28,9 @@ on:
       from_git_ref:
         type: string
         required: true
+      region:
+        type: string
+        default: "us-east-2"
       to_git_ref:
         type: string
       region:

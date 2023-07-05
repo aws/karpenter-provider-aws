@@ -39,7 +39,7 @@ runs:
       aws eks update-kubeconfig --name ${{ inputs.cluster_name }}
       helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter \
         -n karpenter \
-        --version v0-$(git rev-parse HEAD) \
+        --version v0-0bfe571ad223d522a69f06d9476192a48195a527 \
         --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="arn:aws:iam::${{ inputs.account_id }}:role/karpenter-irsa-${{ inputs.cluster_name }}" \
         --set settings.aws.clusterName=${{ inputs.cluster_name }} \
         --set settings.aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${{ inputs.cluster_name }} \
@@ -56,5 +56,5 @@ runs:
     run: |
       helm diff upgrade --namespace karpenter \
         karpenter oci://public.ecr.aws/karpenter/karpenter \
-        --version v0-$(git rev-parse HEAD) \
+        --version v0-0bfe571ad223d522a69f06d9476192a48195a527 \
         --reuse-values --three-way-merge --detailed-exitcode
