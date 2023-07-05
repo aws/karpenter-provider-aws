@@ -1,0 +1,42 @@
+name: InstallPrometheusPushGateway
+description: 'Installs prometheus pushgateway'
+inputs:
+  account_id:
+    description: "Account ID to access AWS"
+    required: true
+  role:
+    description: "Role to access AWS"
+    required: true
+  region:
+    description: "Region to access AWS"
+    required: true
+  cluster_name:
+    description: 'Name of the cluster to be launched by eksctl'
+    required: true
+  workspace_id:
+    description: "Id of the prometheus remote_write workspace"
+    required: true
+  git_ref:
+    description: "The git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release"
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/checkout@v3
+      with:
+        ref: ${{ inputs.git_ref }}
+    - uses: ./.github/actions/e2e/install-helm
+    - name: add prometheus repo
+      shell: bash
+      run: |
+        helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+    - name: create prometheus namespace
+      shell: bash
+      run: |
+        kubectl create ns prometheus || true
+        kubectl label ns prometheus scrape=enabled --overwrite=true
+    - name: install prometheus
+      shell: bash
+      run: |
+        helm upgrade --install prometheus-pushgateway prometheus-community/prometheus-pushgateway \
+          -n prometheus \
+          -f ./.github/actions/e2e/install-prometheus-pushgateway/values.yaml

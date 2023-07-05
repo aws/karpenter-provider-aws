@@ -1,0 +1,9 @@
+tolerations:
+  - key: CriticalAddonsOnly
+    operator: Exists
+serviceMonitor:
+  enabled: true
+  namespace: prometheus
+  additionalLabels:
+    scrape: enabled
+
