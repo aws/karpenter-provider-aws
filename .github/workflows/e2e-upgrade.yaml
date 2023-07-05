@@ -5,6 +5,12 @@ on:
       from_git_ref:
         type: string
         required: true
+      region:
+        type: choice
+        options:
+          - "us-east-2"
+          - "us-west-2"
+        default: "us-east-2"
       to_git_ref:
         type: string
       k8s_version:
@@ -23,6 +29,9 @@ on:
         required: true
       to_git_ref:
         type: string
+      region:
+        type: string 
+        default: "us-east-2"
       event_name:
         type: string
         required: true
@@ -38,6 +47,7 @@ permissions:
   statuses: write
 jobs:
   run-suite:
+    name: suite-upgrade
     runs-on: ubuntu-latest
     steps:
       # This additional checkout can be removed when the commit status action is added to the from_git_ref version of Karpenter
@@ -56,7 +66,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v2
         with:
           role-to-assume: arn:aws:iam::${{ vars.ACCOUNT_ID }}:role/${{ vars.ROLE_NAME }}
-          aws-region: ${{ vars.AWS_REGION }}
+          aws-region: ${{ inputs.region }}
           role-duration-seconds: 21600
       - name: generate cluster name
         run: |
@@ -68,7 +78,7 @@ jobs:
         with:
           account_id: ${{ vars.ACCOUNT_ID }}
           role: ${{ vars.ROLE_NAME }}
-          region: ${{ vars.AWS_REGION }}
+          region: ${{ inputs.region }}
           cluster_name: ${{ env.CLUSTER_NAME }}
           k8s_version: ${{ inputs.k8s_version }}
           ip_family: IPv4 # Set the value to IPv6 if IPv6 suite, else IPv4
@@ -78,7 +88,7 @@ jobs:
         with:
           account_id: ${{ vars.ACCOUNT_ID }}
           role: ${{ vars.ROLE_NAME }}
-          region: ${{ vars.AWS_REGION }}
+          region: ${{ inputs.region }}
           cluster_name: ${{ env.CLUSTER_NAME }}
           workspace_id: ${{ vars.WORKSPACE_ID }}
           git_ref: ${{ inputs.from_git_ref }}
@@ -87,7 +97,7 @@ jobs:
         with:
           account_id: ${{ vars.ACCOUNT_ID }}
           role: ${{ vars.ROLE_NAME }}
-          region: ${{ vars.AWS_REGION }}
+          region: ${{ inputs.region }}
           cluster_name: ${{ env.CLUSTER_NAME }}
           git_ref: ${{ inputs.from_git_ref }}
       - uses: actions/checkout@v3
@@ -98,7 +108,7 @@ jobs:
         with:
           account_id: ${{ vars.ACCOUNT_ID }}
           role: ${{ vars.ROLE_NAME }}
-          region: ${{ vars.AWS_REGION }}
+          region: ${{ inputs.region }}
           cluster_name: ${{ env.CLUSTER_NAME }}
           k8s_version: ${{ inputs.k8s_version }}
           ip_family: IPv4 # Set the value to IPv6 if IPv6 suite, else IPv4
@@ -108,7 +118,7 @@ jobs:
         with:
           account_id: ${{ vars.ACCOUNT_ID }}
           role: ${{ vars.ROLE_NAME }}
-          region: ${{ vars.AWS_REGION }}
+          region: ${{ inputs.region }}
           cluster_name: ${{ env.CLUSTER_NAME }}
           workspace_id: ${{ vars.WORKSPACE_ID }}
           git_ref: ${{ inputs.to_git_ref }}
@@ -117,7 +127,7 @@ jobs:
         with:
           account_id: ${{ vars.ACCOUNT_ID }}
           role: ${{ vars.ROLE_NAME }}
-          region: ${{ vars.AWS_REGION }}
+          region: ${{ inputs.region }}
           cluster_name: ${{ env.CLUSTER_NAME }}
           git_ref: ${{ inputs.to_git_ref }}
       - name: upgrade karpenter
@@ -125,7 +135,7 @@ jobs:
         with:
           account_id: ${{ vars.ACCOUNT_ID }}
           role: ${{ vars.ROLE_NAME }}
-          region: ${{ vars.AWS_REGION }}
+          region: ${{ inputs.region }}
           cluster_name: ${{ env.CLUSTER_NAME }}
           git_ref: ${{ inputs.to_git_ref }}
       - name: run the Upgrade test suite
@@ -147,7 +157,7 @@ jobs:
         with:
           account_id: ${{ vars.ACCOUNT_ID }}
           role: ${{ vars.ROLE_NAME }}
-          region: ${{ vars.AWS_REGION }}
+          region: ${{ inputs.region }}
           cluster_name: ${{ env.CLUSTER_NAME }}
       - name: cleanup karpenter and cluster '${{ env.CLUSTER_NAME }}' resources
         uses: ./.github/actions/e2e/cleanup
@@ -155,7 +165,7 @@ jobs:
         with:
           account_id: ${{ vars.ACCOUNT_ID }}
           role: ${{ vars.ROLE_NAME }}
-          region: ${{ vars.AWS_REGION }}
+          region: ${{ inputs.region }}
           cluster_name: ${{ env.CLUSTER_NAME }}
           git_ref: ${{ inputs.to_git_ref }}
       - if: always() && inputs.event_name == 'workflow_run'

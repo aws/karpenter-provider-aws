@@ -4,6 +4,12 @@ on:
     inputs:
       git_ref:
         type: string
+      region:
+        type: choice
+        options:
+          - "us-east-2"
+          - "us-west-2"
+        default: "us-east-2"
       suite:
         type: choice
         required: true
@@ -33,6 +39,9 @@ on:
     inputs:
       git_ref:
         type: string
+      region:
+        type: string
+        default: "us-east-2"
       suite:
         type: string
         required: true
@@ -54,6 +63,7 @@ permissions:
   statuses: write
 jobs:
   run-suite:
+    name: suite-${{ inputs.suite }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -68,7 +78,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v2
         with:
           role-to-assume: arn:aws:iam::${{ vars.ACCOUNT_ID }}:role/${{ vars.ROLE_NAME }}
-          aws-region: ${{ vars.AWS_REGION }}
+          aws-region: ${{ inputs.region }}
           role-duration-seconds: 21600
       - name: generate cluster name
         run: |
@@ -80,7 +90,7 @@ jobs:
         with:
           account_id: ${{ vars.ACCOUNT_ID }}
           role: ${{ vars.ROLE_NAME }}
-          region: ${{ vars.AWS_REGION }}
+          region: ${{ inputs.region }}
           cluster_name: ${{ env.CLUSTER_NAME }}
           k8s_version: ${{ inputs.k8s_version }}
           ip_family: ${{ inputs.suite == 'IPv6' && 'IPv6' || 'IPv4' }} # Set the value to IPv6 if IPv6 suite, else IPv4
@@ -90,7 +100,7 @@ jobs:
         with:
           account_id: ${{ vars.ACCOUNT_ID }}
           role: ${{ vars.ROLE_NAME }}
-          region: ${{ vars.AWS_REGION }}
+          region: ${{ inputs.region }}
           cluster_name: ${{ env.CLUSTER_NAME }}
           workspace_id: ${{ vars.WORKSPACE_ID }}
           git_ref: ${{ inputs.git_ref }}
@@ -99,7 +109,7 @@ jobs:
         with:
           account_id: ${{ vars.ACCOUNT_ID }}
           role: ${{ vars.ROLE_NAME }}
-          region: ${{ vars.AWS_REGION }}
+          region: ${{ inputs.region }}
           cluster_name: ${{ env.CLUSTER_NAME }}
           git_ref: ${{ inputs.git_ref }}
       - name: run the ${{ inputs.suite }} test suite
@@ -121,7 +131,7 @@ jobs:
         with:
           account_id: ${{ vars.ACCOUNT_ID }}
           role: ${{ vars.ROLE_NAME }}
-          region: ${{ vars.AWS_REGION }}
+          region: ${{ inputs.region }}
           cluster_name: ${{ env.CLUSTER_NAME }}
       - name: cleanup karpenter and cluster '${{ env.CLUSTER_NAME }}' resources
         uses: ./.github/actions/e2e/cleanup
@@ -129,7 +139,7 @@ jobs:
         with:
           account_id: ${{ vars.ACCOUNT_ID }}
           role: ${{ vars.ROLE_NAME }}
-          region: ${{ vars.AWS_REGION }}
+          region: ${{ inputs.region }}
           cluster_name: ${{ env.CLUSTER_NAME }}
           git_ref: ${{ inputs.git_ref }}
       - if: always() && inputs.event_name == 'workflow_run'
