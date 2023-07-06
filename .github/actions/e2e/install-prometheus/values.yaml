@@ -26,10 +26,6 @@ alertmanager:
     tolerations:
       - key: CriticalAddonsOnly
         operator: Exists
-kubelet:
-  serviceMonitor:
-    additionalLabels:
-      scrape: enabled
 prometheus:
   prometheusSpec:
     tolerations:

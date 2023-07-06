@@ -6,4 +6,3 @@ serviceMonitor:
   namespace: prometheus
   additionalLabels:
     scrape: enabled
-

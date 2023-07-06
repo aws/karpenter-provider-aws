@@ -10,6 +10,6 @@ jobs:
     with:
       suite: Scale
       event_name: ${{ github.event_name }}
-      enable_cloudwatch: true
+      enable_metrics: true
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

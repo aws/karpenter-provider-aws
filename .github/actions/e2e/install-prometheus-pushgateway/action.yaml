@@ -1,20 +1,8 @@
 name: InstallPrometheusPushGateway
 description: 'Installs prometheus pushgateway'
 inputs:
-  account_id:
-    description: "Account ID to access AWS"
-    required: true
-  role:
-    description: "Role to access AWS"
-    required: true
-  region:
-    description: "Region to access AWS"
-    required: true
   cluster_name:
     description: 'Name of the cluster to be launched by eksctl'
-    required: true
-  workspace_id:
-    description: "Id of the prometheus remote_write workspace"
     required: true
   git_ref:
     description: "The git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release"
@@ -39,4 +27,12 @@ runs:
       run: |
         helm upgrade --install prometheus-pushgateway prometheus-community/prometheus-pushgateway \
           -n prometheus \
-          -f ./.github/actions/e2e/install-prometheus-pushgateway/values.yaml
+          -f ./.github/actions/e2e/install-prometheus-pushgateway/values.yaml \
+          --set serviceMonitor.relabelings[0].targetLabel=clusterName \
+          --set serviceMonitor.relabelings[0].replacement=${{ inputs.cluster_name }} \
+          --set serviceMonitor.relabelings[1].targetLabel=gitRef \
+          --set serviceMonitor.relabelings[1].replacement=$(git rev-parse HEAD) \
+          --set serviceMonitor.relabelings[2].targetLabel=mostRecentTag \
+          --set serviceMonitor.relabelings[2].replacement=$(git describe --abbrev=0 --tags) \
+          --set serviceMonitor.relabelings[3].targetLabel=commitsAfterTag \
+          --set serviceMonitor.relabelings[3].replacement=$(git describe --tags | cut -d '-' -f 2)
