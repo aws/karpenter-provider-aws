@@ -61,6 +61,22 @@ Karpenter has permissions to create and manage cloud instances. Karpenter has Ku
 
 ## AWS-Specific Threats
 
+### Threat: Using EC2 CreateTag/DeleteTag Permissions to Orchestrate Machine Creation/Deletion
+
+**Background**: As of v0.28.0, Karpenter creates a mapping between CloudProvider machines and CustomResources in the cluster for capacity tracking. To ensure this mapping is consistent, Karpenter utilizes the following tag keys:
+
+* `karpenter.sh/managed-by`
+* `karpenter.sh/provisioner-name`
+* `kubernetes.io/cluster/${CLUSTER_NAME}`
+
+Any user that has the ability to Create/Delete tags on CloudProvider machines will have the ability to orchestrate Karpenter to Create/Delete CloudProvider machines as a side effect.
+
+In addition, as of v0.29.0, Karpenter will Drift on Security Groups and Subnets. If a user has the Create/Delete tags permission for either of resources, they can orchestrate Karpenter to Create/Delete CloudProvider machines as a side effect.
+
+**Threat:** A Cluster Operator attempts to create or delete a tag on a resource discovered by Karpenter. If it has the ability to create a tag it can effectively create or delete CloudProvider machines associated with the tagged resources.
+
+**Mitigation** Cluster Operators should [enforce tag-based IAM policies](https://docs.aws.amazon.com/IAM/latest/UserGuide/access_tags.html) on these tags against any EC2 instance resource (`i-*`) for any users that might have [CreateTags](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateTags.html)/[DeleteTags](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DeleteTags.html) permissions but should not have [RunInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_RunInstances.html)/[TerminateInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_TerminateInstances.html) permissions.
+
 ### Threat: Launching EC2 instances with IAM roles not intended for Karpenter nodes
 
 **Background**: Many IAM roles in an AWS account may trust the EC2 service principal. IAM administrators must grant the `iam:PassRole` permission to IAM principals to allow those principals in the account to launch instances with specific roles.
@@ -84,4 +100,3 @@ Karpenter has permissions to create and manage cloud instances. Karpenter has Ku
 **Threat:** A threat actor creates a public AMI with the same name as a customer’s AMI in an attempt to get Karpenter to select the threat actor’s AMI instead of the intended AMI.
 
 **Mitigation**: When selecting AMIs by name or tags, Karpenter defaults to adding an ownership filter of `self,amazon` so AMI images external to the account are not used.
-
