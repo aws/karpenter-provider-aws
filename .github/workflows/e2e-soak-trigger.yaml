@@ -8,6 +8,5 @@ jobs:
     with:
       suite: Soak
       event_name: ${{ github.event_name }}
-      region: "us-west-2"
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

@@ -114,7 +114,7 @@ var _ = Describe("Soak", func() {
 			dep.Spec.Replicas = awssdk.Int32(0)
 			env.ExpectUpdated(dep)
 			time.Sleep(time.Second * 30)
-		}, time.Hour*12).Should(Succeed())
+		}, time.Hour*12).WithTimeout(12 * time.Hour).Should(Succeed())
 	})
 })
 
