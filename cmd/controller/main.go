@@ -52,7 +52,7 @@ func main() {
 			op.EventRecorder,
 			cloudProvider,
 		)...).
-		WithWebhooks(corewebhooks.NewWebhooks()...).
+		WithWebhooks(ctx, corewebhooks.NewWebhooks()...).
 		WithControllers(ctx, controllers.NewControllers(
 			ctx,
 			op.Session,
@@ -66,6 +66,6 @@ func main() {
 			op.PricingProvider,
 			op.AMIProvider,
 		)...).
-		WithWebhooks(webhooks.NewWebhooks()...).
+		WithWebhooks(ctx, webhooks.NewWebhooks()...).
 		Start(ctx)
 }
