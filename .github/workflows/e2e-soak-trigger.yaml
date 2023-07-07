@@ -1,0 +1,12 @@
+name: E2ESoakTrigger
+on:
+  workflow_dispatch:
+jobs:
+  scale:
+    if: github.repository == 'aws/karpenter' || github.event_name == 'workflow_dispatch'
+    uses: ./.github/workflows/e2e.yaml
+    with:
+      suite: Soak
+      event_name: ${{ github.event_name }}
+    secrets:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
