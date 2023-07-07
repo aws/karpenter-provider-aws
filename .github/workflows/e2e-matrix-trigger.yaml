@@ -18,8 +18,6 @@ jobs:
       # Download the artifact and resolve the commit if initiated by PR snapshot
       # Otherwise, use the currently checked-out branch to run the E2E tests against
       - uses: actions/checkout@v3
-        with:
-          ref: ${{ inputs.git_ref }}
       - if: github.event_name == 'workflow_run'
         uses: ./.github/actions/download-artifact
       - id: resolve-step
@@ -29,7 +27,7 @@ jobs:
           else
             echo GIT_REF="" >> $GITHUB_OUTPUT
           fi
-  e2e-periodic:
+  e2e-matrix:
     needs: [resolve-git-ref]
     if: (github.repository == 'aws/karpenter' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')) || github.event_name == 'workflow_dispatch'
     uses: ./.github/workflows/e2e-matrix.yaml

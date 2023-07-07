@@ -100,7 +100,7 @@ jobs:
         with:
           account_id: ${{ vars.ACCOUNT_ID }}
           role: ${{ vars.ROLE_NAME }}
-          region: ${{ inputs.region }}
+          region: ${{ vars.PROMETHEUS_REGION }}
           cluster_name: ${{ env.CLUSTER_NAME }}
           workspace_id: ${{ vars.WORKSPACE_ID }}
           git_ref: ${{ inputs.git_ref }}
