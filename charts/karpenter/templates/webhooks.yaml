@@ -20,17 +20,6 @@ webhooks:
     sideEffects: None
     rules:
       - apiGroups:
-          - karpenter.k8s.aws
-        apiVersions:
-          - v1alpha1
-        operations:
-          - CREATE
-          - UPDATE
-        resources:
-          - awsnodetemplates
-          - awsnodetemplates/status
-        scope: '*'
-      - apiGroups:
           - karpenter.sh
         apiVersions:
           - v1alpha5
