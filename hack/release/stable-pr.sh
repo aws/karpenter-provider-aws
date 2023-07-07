@@ -39,8 +39,6 @@ BRANCH_NAME="release-${GIT_TAG}"
 git checkout -b "${BRANCH_NAME}"
 git add go.mod
 git add go.sum
-git add test/go.mod
-git add test/go.sum
 git add website
 git add charts/karpenter-crd/Chart.yaml
 git add charts/karpenter/Chart.yaml

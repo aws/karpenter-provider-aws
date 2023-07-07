@@ -17,47 +17,43 @@ package common
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2" //nolint:revive,stylecheck
 	. "github.com/onsi/gomega"    //nolint:revive,stylecheck
+	"github.com/samber/lo"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
 	schedulingv1 "k8s.io/api/scheduling/v1"
 	storagev1 "k8s.io/api/storage/v1"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
 	"github.com/aws/karpenter-core/pkg/apis"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/operator/injection"
 	"github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter-core/pkg/utils/functional"
 	"github.com/aws/karpenter-core/pkg/utils/pod"
 	"github.com/aws/karpenter/test/pkg/debug"
 )
 
 var (
-	CleanableObjects = []functional.Pair[client.Object, client.ObjectList]{
-		{First: &v1.Pod{}, Second: &v1.PodList{}},
-		{First: &appsv1.Deployment{}, Second: &appsv1.DeploymentList{}},
-		{First: &appsv1.DaemonSet{}, Second: &appsv1.DaemonSetList{}},
-		{First: &policyv1.PodDisruptionBudget{}, Second: &policyv1.PodDisruptionBudgetList{}},
-		{First: &v1.PersistentVolumeClaim{}, Second: &v1.PersistentVolumeClaimList{}},
-		{First: &v1.PersistentVolume{}, Second: &v1.PersistentVolumeList{}},
-		{First: &storagev1.StorageClass{}, Second: &storagev1.StorageClassList{}},
-		{First: &v1alpha5.Provisioner{}, Second: &v1alpha5.ProvisionerList{}},
-		{First: &v1.LimitRange{}, Second: &v1.LimitRangeList{}},
-		{First: &schedulingv1.PriorityClass{}, Second: &schedulingv1.PriorityClassList{}},
-	}
-	// Delete objects with Karpenter finalizers separately. Executing delete calls on all of these objects at once
-	// may be grouped as DeleteCollection requests, which have a lower timeout than individual delete calls (before k8s 1.27).
-	// Separating them out diminishes the chance of running into timeouts when doing cleanup for tests of high scale.
-	// https://github.com/kubernetes/kubernetes/pull/115341
-	FinalizableObjects = []functional.Pair[client.Object, client.ObjectList]{
-		{First: &v1.Node{}, Second: &v1.NodeList{}},
-		{First: &v1alpha5.Machine{}, Second: &v1alpha5.MachineList{}},
+	CleanableObjects = []client.Object{
+		&v1.Pod{},
+		&appsv1.Deployment{},
+		&appsv1.DaemonSet{},
+		&policyv1.PodDisruptionBudget{},
+		&v1.PersistentVolumeClaim{},
+		&v1.PersistentVolume{},
+		&storagev1.StorageClass{},
+		&v1alpha5.Provisioner{},
+		&v1.LimitRange{},
+		&schedulingv1.PriorityClass{},
+		&v1.Node{},
+		&v1alpha5.Machine{},
 	}
 )
 
@@ -96,7 +92,6 @@ func (env *Environment) ExpectCleanCluster() {
 
 func (env *Environment) Cleanup() {
 	env.CleanupObjects(CleanableObjects...)
-	env.CleanupObjects(FinalizableObjects...)
 	env.eventuallyExpectScaleDown()
 	env.ExpectNoCrashes()
 }
@@ -106,32 +101,33 @@ func (env *Environment) AfterEach() {
 	env.printControllerLogs(&v1.PodLogOptions{Container: "controller"})
 }
 
-func (env *Environment) CleanupObjects(cleanableObjects ...functional.Pair[client.Object, client.ObjectList]) {
-	namespaces := &v1.NamespaceList{}
-	Expect(env.Client.List(env, namespaces)).To(Succeed())
+func (env *Environment) CleanupObjects(cleanableObjects ...client.Object) {
 	wg := sync.WaitGroup{}
-	for _, p := range cleanableObjects {
-		for _, namespace := range namespaces.Items {
-			wg.Add(1)
-			go func(obj client.Object, objList client.ObjectList, namespace string) {
-				defer wg.Done()
+	for _, obj := range cleanableObjects {
+		wg.Add(1)
+		go func(obj client.Object) {
+			defer wg.Done()
+			defer GinkgoRecover()
+
+			// This only gets the metadata for the objects since we don't need all the details of the objects
+			metaList := &metav1.PartialObjectMetadataList{}
+			metaList.SetGroupVersionKind(lo.Must(apiutil.GVKForObject(obj, env.Client.Scheme())))
+			Expect(env.Client.List(env, metaList, client.HasLabels([]string{test.DiscoveryLabel}))).To(Succeed())
+			// Limit the concurrency of these calls to 50 workers per object so that we try to limit how aggressively we
+			// are deleting so that we avoid getting client-side throttled
+			workqueue.ParallelizeUntil(env, 50, len(metaList.Items), func(i int) {
 				defer GinkgoRecover()
-				Expect(env.Client.DeleteAllOf(env, obj,
-					client.InNamespace(namespace),
-					client.HasLabels([]string{test.DiscoveryLabel}),
-					client.PropagationPolicy(metav1.DeletePropagationForeground),
-				)).To(Succeed())
 				Eventually(func(g Gomega) {
-					stored := objList.DeepCopyObject().(client.ObjectList)
-					g.Expect(env.Client.List(env, stored,
-						client.InNamespace(namespace),
-						client.HasLabels([]string{test.DiscoveryLabel}))).To(Succeed())
-					items, err := meta.ExtractList(stored)
-					g.Expect(err).To(Succeed())
-					g.Expect(len(items)).To(BeZero())
-				}).Should(Succeed())
-			}(p.First, p.Second, namespace.Name)
-		}
+					g.Expect(client.IgnoreNotFound(env.Client.Delete(env, &metaList.Items[i], client.PropagationPolicy(metav1.DeletePropagationForeground)))).To(Succeed())
+				}).WithPolling(time.Second).Should(Succeed())
+			})
+			Eventually(func(g Gomega) {
+				metaList = &metav1.PartialObjectMetadataList{}
+				metaList.SetGroupVersionKind(lo.Must(apiutil.GVKForObject(obj, env.Client.Scheme())))
+				g.Expect(env.Client.List(env, metaList, client.HasLabels([]string{test.DiscoveryLabel}))).To(Succeed())
+				g.Expect(len(metaList.Items)).To(BeZero())
+			}).WithPolling(time.Second * 10).Should(Succeed())
+		}(obj)
 	}
 	wg.Wait()
 }
