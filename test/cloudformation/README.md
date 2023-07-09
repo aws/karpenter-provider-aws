@@ -8,6 +8,14 @@ aws cloudformation deploy \
     --capabilities CAPABILITY_NAMED_IAM
 ```
 
+### Deploy Timestream
+```console
+aws cloudformation deploy \
+   --stack-name GithubActionsTimestream \
+   --template-file timestream_cloudformation.yaml \
+   --parameter-overrides "DatabaseName=karpenterTesting" "TableName=scaleTestDurations"
+```
+
 ### [Optional] Deploying ManagedGrafana and its Policy
 ```console
 aws cloudformation deploy \

@@ -15,28 +15,33 @@ limitations under the License.
 package aws
 
 import (
-	"strconv"
+	"context"
+	"fmt"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/cloudwatch"
-	"github.com/aws/aws-sdk-go/service/cloudwatch/cloudwatchiface"
+	"github.com/aws/aws-sdk-go/aws/request"
+	"github.com/aws/aws-sdk-go/service/timestreamwrite"
+	"github.com/aws/aws-sdk-go/service/timestreamwrite/timestreamwriteiface"
 	. "github.com/onsi/ginkgo/v2" //nolint:revive,stylecheck
 	. "github.com/onsi/gomega"    //nolint:revive,stylecheck
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter/test/pkg/environment/common"
-
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 )
 
-var _ cloudwatchiface.CloudWatchAPI = (*NoOpCloudwatchAPI)(nil)
+const (
+	databaseName = "karpenterTesting"
+	tableName    = "scaleTestDurations"
+)
 
-type NoOpCloudwatchAPI struct {
-	cloudwatch.CloudWatch
+var _ timestreamwriteiface.TimestreamWriteAPI = (*NoOpTimeStreamAPI)(nil)
+
+type NoOpTimeStreamAPI struct {
+	timestreamwriteiface.TimestreamWriteAPI
 }
 
-func (o NoOpCloudwatchAPI) PutMetricData(_ *cloudwatch.PutMetricDataInput) (*cloudwatch.PutMetricDataOutput, error) {
+func (o NoOpTimeStreamAPI) WriteRecordsWithContext(_ context.Context, _ *timestreamwrite.WriteRecordsInput, _ ...request.Option) (*timestreamwrite.WriteRecordsOutput, error) {
 	return nil, nil
 }
 
@@ -48,19 +53,28 @@ const (
 )
 
 const (
-	scaleTestingMetricNamespace     = v1alpha5.TestingGroup + "/scale"
-	TestEventTypeDimension          = "eventType"
-	TestSubEventTypeDimension       = "subEventType"
-	TestGroupDimension              = "group"
+	TestCategoryDimension           = "category"
 	TestNameDimension               = "name"
 	GitRefDimension                 = "gitRef"
-	DeprovisionedNodeCountDimension = "deprovisionedNodeCount"
 	ProvisionedNodeCountDimension   = "provisionedNodeCount"
+	DeprovisionedNodeCountDimension = "deprovisionedNodeCount"
 	PodDensityDimension             = "podDensity"
 )
 
+func (env *Environment) MeasureProvisioningDurationFor(f func(), dimensions map[string]string) {
+	GinkgoHelper()
+
+	env.MeasureDurationFor(f, ProvisioningEventType, dimensions)
+}
+
+func (env *Environment) MeasureDeprovisioningDurationFor(f func(), dimensions map[string]string) {
+	GinkgoHelper()
+
+	env.MeasureDurationFor(f, DeprovisioningEventType, dimensions)
+}
+
 // MeasureDurationFor observes the duration between the beginning of the function f() and the end of the function f()
-func (env *Environment) MeasureDurationFor(f func(), eventType EventType, group, name string, additionalLabels map[string]string) {
+func (env *Environment) MeasureDurationFor(f func(), eventType EventType, dimensions map[string]string) {
 	GinkgoHelper()
 	start := time.Now()
 	f()
@@ -68,45 +82,36 @@ func (env *Environment) MeasureDurationFor(f func(), eventType EventType, group,
 	if env.Context.Value(common.GitRefContextKey) != nil {
 		gitRef = env.Value(common.GitRefContextKey).(string)
 	}
-	env.ExpectEventDurationMetric(time.Since(start), lo.Assign(map[string]string{
-		TestEventTypeDimension: string(eventType),
-		TestGroupDimension:     group,
-		TestNameDimension:      name,
-		GitRefDimension:        gitRef,
-	}, additionalLabels))
+
+	dimensions = lo.Assign(dimensions, map[string]string{
+		GitRefDimension: gitRef,
+	})
+	switch eventType {
+	case ProvisioningEventType:
+		env.ExpectMetric("provisioningDuration", time.Since(start).Seconds(), dimensions)
+	case DeprovisioningEventType:
+		env.ExpectMetric("deprovisioningDuration", time.Since(start).Seconds(), dimensions)
+	}
 }
 
-func (env *Environment) ExpectEventDurationMetric(d time.Duration, labels map[string]string) {
+func (env *Environment) ExpectMetric(name string, value float64, labels map[string]string) {
 	GinkgoHelper()
-	env.ExpectMetric("eventDuration", cloudwatch.StandardUnitSeconds, d.Seconds(), labels)
-}
-
-func (env *Environment) ExpectMetric(name string, unit string, value float64, labels map[string]string) {
-	GinkgoHelper()
-	_, err := env.CloudwatchAPI.PutMetricData(&cloudwatch.PutMetricDataInput{
-		Namespace: aws.String(scaleTestingMetricNamespace),
-		MetricData: []*cloudwatch.MetricDatum{
+	_, err := env.TimeStreamAPI.WriteRecordsWithContext(env.Context, &timestreamwrite.WriteRecordsInput{
+		DatabaseName: aws.String(databaseName),
+		TableName:    aws.String(tableName),
+		Records: []*timestreamwrite.Record{
 			{
-				MetricName: aws.String(name),
-				Dimensions: lo.MapToSlice(labels, func(k, v string) *cloudwatch.Dimension {
-					return &cloudwatch.Dimension{
+				MeasureName:  aws.String(name),
+				MeasureValue: aws.String(fmt.Sprintf("%f", value)),
+				Dimensions: lo.MapToSlice(labels, func(k, v string) *timestreamwrite.Dimension {
+					return &timestreamwrite.Dimension{
 						Name:  aws.String(k),
 						Value: aws.String(v),
 					}
 				}),
-				Unit:      aws.String(unit),
-				Value:     aws.Float64(value),
-				Timestamp: aws.Time(time.Now()),
+				Time: aws.String(fmt.Sprintf("%d", time.Now().UnixMilli())),
 			},
 		},
 	})
 	Expect(err).ToNot(HaveOccurred())
-}
-
-func GenerateTestDimensions(provisionedNodeCount, deprovisionedNodeCount, podDensity int) map[string]string {
-	return map[string]string{
-		DeprovisionedNodeCountDimension: strconv.Itoa(deprovisionedNodeCount),
-		ProvisionedNodeCountDimension:   strconv.Itoa(provisionedNodeCount),
-		PodDensityDimension:             strconv.Itoa(podDensity),
-	}
 }
