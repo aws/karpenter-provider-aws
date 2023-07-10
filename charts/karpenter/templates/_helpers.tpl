@@ -40,6 +40,7 @@ helm.sh/chart: {{ include "karpenter.chart" . }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
+app.kubernetes.io/part-of: {{ include "karpenter.name" . }}
 {{- with .Values.additionalLabels }}
 {{ toYaml . }}
 {{- end }}
