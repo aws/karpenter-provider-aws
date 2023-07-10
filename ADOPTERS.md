@@ -40,6 +40,7 @@ If you are open to others contacting you about your use of Karpenter on Slack, a
 | QuestDB | Using Karpenter for the service nodes of the QuestBD Cloud (time-series database). | [questdb slack group](https://slack.questdb.io/) | [QuestDB](https://questdb.io/) |
 | Sendcloud | Using Karpenter to scale our k8s clusters for Europe’s #1 shipping automation platform  | N/A | [Homepage](https://www.sendcloud.com/) |
 | Sentra | Using Karpenter to scale our EKS clusters, running our platform and workflows while maximizing cost-efficiency with minimal operational overhead | `@Roei Jacobovich` | [Homepage](https://sentra.io/) |
+| Stone Pagamentos | Using Karpenter to do smart sizing of our clusters  | `@fabiano-amaral` | [Stone Pagamentos](https://www.stone.com.br/) |
 | Stytch | Powering the scaling needs of Stytch's authentication and user-management APIs  | `@Elijah Chanakira`, `@Ovadia Harary` | [Homepage](https://www.stytch.com/) |
 | Superbexperience | Using Karpenter to scale the k8s clusters running our Guest Experience Management platform  | `@Wernich Bekker` | [Homepage](https://www.superbexperience.com/) |
 | Target Australia | Using Karpenter to manage (scale, auto update etc) the containerised (EKS) compute that powers much of the Target Online platform | `@gazal-k` | [Target Australia Online Shopping](https://www.target.com.au) |
