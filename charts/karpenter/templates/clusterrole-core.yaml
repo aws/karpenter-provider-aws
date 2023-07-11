@@ -50,7 +50,7 @@ rules:
   # Write
   - apiGroups: ["karpenter.sh"]
     resources: ["provisioners/status", "machines", "machines/status"]
-    verbs: ["create", "delete", "patch"]
+    verbs: ["create", "delete", "update", "patch"]
   - apiGroups: [""]
     resources: ["events"]
     verbs: ["create", "patch"]
