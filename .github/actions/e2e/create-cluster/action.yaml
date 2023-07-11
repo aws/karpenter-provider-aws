@@ -125,6 +125,18 @@ runs:
         wellKnownPolicies:
           ebsCSIController: true
       EOF
+  - name: tag oidc provider of the cluster
+    if: always()
+    shell: bash
+    run: |
+      for arn in $(aws iam list-open-id-connect-providers --query "OpenIDConnectProviderList[*].{ARN:Arn}" --output text); do
+          tags=$(aws iam list-open-id-connect-provider-tags --open-id-connect-provider-arn $arn --output json)
+          if [[ $(echo $tags | jq -r '.Tags[] | select(.Key == "alpha.eksctl.io/cluster-name") | .Value') == "${{ inputs.cluster_name }}" ]]; then 
+              aws iam tag-open-id-connect-provider --open-id-connect-provider-arn $arn \
+              --tags Key=testing.karpenter.sh/type,Value=e2e  Key=github.com/run-url,Value=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+              break
+          fi
+      done
   - name: give KarpenterNodeRole permission to bootstrap
     shell: bash
     run: |

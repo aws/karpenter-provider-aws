@@ -98,6 +98,9 @@ Resources:
             Action:
               - iam:CreateOpenIDConnectProvider
               - iam:DeleteOpenIDConnectProvider
+              - iam:ListOpenIDConnectProviders
+              - iam:ListOpenIDConnectProviderTags
+              - iam:TagOpenIDConnectProvider
               - iam:GetOpenIDConnectProvider
               - iam:TagOpenIDConnectProvider
             Resource: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:oidc-provider/*"
