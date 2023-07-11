@@ -23,7 +23,7 @@ runs:
     - shell: bash
       run: |
         if [[ ${{ inputs.event_name }} == "conformance" ]]; then
-          RUN_NAME="conformance-periodic-${{ inputs.k8s_version }}"
+          RUN_NAME="conformance-periodic-${{ inputs.k8s_version }}-${{ inputs.suite }}"
         elif [[ ${{ inputs.event_name }} == "schedule" ]]; then
           RUN_NAME="${{ inputs.suite }}-periodic"
         else
