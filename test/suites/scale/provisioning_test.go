@@ -16,6 +16,7 @@ package scale_test
 
 import (
 	"context"
+	"strconv"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -36,7 +37,7 @@ import (
 
 const testGroup = "provisioning"
 
-var _ = Describe("Provisioning", Label(debug.NoWatch), func() {
+var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), func() {
 	var provisioner *v1alpha5.Provisioner
 	var nodeTemplate *v1alpha1.AWSNodeTemplate
 	var deployment *appsv1.Deployment
@@ -116,7 +117,7 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), func() {
 		env.ExpectCreated(deployment)
 		env.EventuallyExpectPendingPodCount(selector, replicas)
 
-		env.MeasureDurationFor(func() {
+		env.MeasureProvisioningDurationFor(func() {
 			By("kicking off provisioning by applying the provisioner and nodeTemplate")
 			env.ExpectCreated(provisioner, nodeTemplate)
 
@@ -124,9 +125,15 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), func() {
 			env.EventuallyExpectCreatedNodeCount("==", expectedNodeCount)
 			env.EventuallyExpectInitializedNodeCount("==", expectedNodeCount)
 			env.EventuallyExpectHealthyPodCount(selector, replicas)
-		}, aws.ProvisioningEventType, testGroup, "node-dense", aws.GenerateTestDimensions(expectedNodeCount, 0, replicasPerNode))
+		}, map[string]string{
+			aws.TestCategoryDimension:           testGroup,
+			aws.TestNameDimension:               "node-dense",
+			aws.ProvisionedNodeCountDimension:   strconv.Itoa(expectedNodeCount),
+			aws.DeprovisionedNodeCountDimension: strconv.Itoa(0),
+			aws.PodDensityDimension:             strconv.Itoa(replicasPerNode),
+		})
 	}, SpecTimeout(time.Minute*30))
-	It("should scale successfully on a pod-dense scale-up", Label(debug.NoEvents), func(_ context.Context) {
+	It("should scale successfully on a pod-dense scale-up", func(_ context.Context) {
 		replicasPerNode := 110
 		maxPodDensity := replicasPerNode + dsCount
 		expectedNodeCount := 60
@@ -144,7 +151,7 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), func() {
 			},
 		)
 
-		env.MeasureDurationFor(func() {
+		env.MeasureProvisioningDurationFor(func() {
 			By("waiting for the deployment to deploy all of its pods")
 			env.ExpectCreated(deployment)
 			env.EventuallyExpectPendingPodCount(selector, replicas)
@@ -156,6 +163,12 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), func() {
 			env.EventuallyExpectCreatedNodeCount("==", expectedNodeCount)
 			env.EventuallyExpectInitializedNodeCount("==", expectedNodeCount)
 			env.EventuallyExpectHealthyPodCount(selector, replicas)
-		}, aws.ProvisioningEventType, testGroup, "pod-dense", aws.GenerateTestDimensions(expectedNodeCount, 0, replicasPerNode))
+		}, map[string]string{
+			aws.TestCategoryDimension:           testGroup,
+			aws.TestNameDimension:               "pod-dense",
+			aws.ProvisionedNodeCountDimension:   strconv.Itoa(expectedNodeCount),
+			aws.DeprovisionedNodeCountDimension: strconv.Itoa(0),
+			aws.PodDensityDimension:             strconv.Itoa(replicasPerNode),
+		})
 	}, SpecTimeout(time.Minute*30))
 })
