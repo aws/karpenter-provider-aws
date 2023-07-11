@@ -86,7 +86,7 @@ func NewEnvironment(t *testing.T) *Environment {
 func GetTimeStreamAPI(session *session.Session) timestreamwriteiface.TimestreamWriteAPI {
 	if lo.Must(env.GetBool("ENABLE_METRICS", false)) {
 		By("enabling metrics firing for this suite")
-		return timestreamwrite.New(session)
+		return timestreamwrite.New(session, &aws.Config{Region: aws.String(env.GetString("METRICS_REGION", metricsDefaultRegion))})
 	}
 	return &NoOpTimeStreamAPI{}
 }

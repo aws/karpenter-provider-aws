@@ -31,8 +31,9 @@ import (
 )
 
 const (
-	databaseName = "karpenterTesting"
-	tableName    = "scaleTestDurations"
+	metricsDefaultRegion = "us-east-2"
+	databaseName         = "karpenterTesting"
+	tableName            = "scaleTestDurations"
 )
 
 var _ timestreamwriteiface.TimestreamWriteAPI = (*NoOpTimeStreamAPI)(nil)
