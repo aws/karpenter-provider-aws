@@ -14,6 +14,7 @@
    AWS_REGION: <region>
    ACCOUNT_ID: <account-id>
    ROLE_NAME: <github-actions-role-name>
+   PROMETHEUS_REGION: <managed-prometheus-hosted-region>
    WORKSPACE_ID: <managed-prometheus-workspace-id>
    ```
 3. Trigger a `workflow_dispatch` event against the branch with your workflow changes to run the tests in GHA.
