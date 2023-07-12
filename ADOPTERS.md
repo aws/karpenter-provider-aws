@@ -48,3 +48,4 @@ If you are open to others contacting you about your use of Karpenter on Slack, a
 | Tyk Cloud | Scaling workloads for the Cloud Free plan  | `@Artem Hluvchynskyi`, `@gowtham` | [Tyk Cloud](https://tyk.io/cloud/) |
 | Wehkamp | Using Karpenter to scale the EKS clusters for our e-commerce platforms | `@ChrisV` | [Wehkamp](https://www.wehkamp.nl) & [Wehkamp Techblog](https://medium.com/wehkamp-techblog)|
 | Next Insurance | Using Karpenter to manage the nodes in all our EKS clusters, including dev and prod, on demand and spots | `@moshebs` | [Homepage](https://www.nextinsurance.com)|
+| Grover Group GmbH | We use Karpenter for efficient and cost effective scaling of our nodes in all of our EKS clusters | `@suraj2410` | [Homepage](https://www.grover.com/de-en) & [Engineering Techblog](https://engineering.grover.com)|
