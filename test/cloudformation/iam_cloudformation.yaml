@@ -226,7 +226,7 @@ Resources:
                 aws:RequestedRegion: 
                   Ref: Regions
           - Effect: Allow
-            Action: timestream:WriteMetrics
+            Action: timestream:WriteRecords
             Resource: !Sub "arn:${AWS::Partition}:timestream:${AWS::Region}:${AWS::AccountId}:database/${DatabaseName}/table/${TableName}"
           - Effect: Allow
             Action: timestream:DescribeEndpoints
