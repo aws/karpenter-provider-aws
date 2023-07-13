@@ -2,7 +2,7 @@ module github.com/aws/karpenter
 
 go 1.20
 
-replace github.com/aws/karpenter-core => github.com/engedaam/karpenter-core v0.0.0-20230712210619-29eb91e475b5
+replace github.com/aws/karpenter-core => github.com/engedaam/karpenter-core v0.0.0-20230714000609-30b9e69a8b02
 
 require (
 	github.com/Pallinder/go-randomdata v1.2.0
