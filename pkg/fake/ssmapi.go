@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/mitchellh/hashstructure/v2"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -37,10 +38,13 @@ func (a SSMAPI) GetParameterWithContext(_ context.Context, input *ssm.GetParamet
 	if a.WantErr != nil {
 		return nil, a.WantErr
 	}
-	if amiID, ok := a.Parameters[*input.Name]; ok {
-		return &ssm.GetParameterOutput{
-			Parameter: &ssm.Parameter{Value: aws.String(amiID)},
-		}, nil
+	if len(a.Parameters) > 0 {
+		if amiID, ok := a.Parameters[*input.Name]; ok {
+			return &ssm.GetParameterOutput{
+				Parameter: &ssm.Parameter{Value: aws.String(amiID)},
+			}, nil
+		}
+		return nil, awserr.New(ssm.ErrCodeParameterNotFound, fmt.Sprintf("%s couldn't be found", *input.Name), nil)
 	}
 	hc, _ := hashstructure.Hash(input.Name, hashstructure.FormatV2, nil)
 	if a.GetParameterOutput != nil {
@@ -54,5 +58,6 @@ func (a SSMAPI) GetParameterWithContext(_ context.Context, input *ssm.GetParamet
 
 func (a *SSMAPI) Reset() {
 	a.GetParameterOutput = nil
+	a.Parameters = nil
 	a.WantErr = nil
 }

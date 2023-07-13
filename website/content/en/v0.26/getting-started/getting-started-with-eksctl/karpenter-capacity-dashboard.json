@@ -501,7 +501,7 @@
             "fieldConfig": {
                 "defaults": {
                     "color": {
-                        "mode": "thresholds"
+                        "mode": "continuous-RdYlGr"
                     },
                     "custom": {
                         "align": "left",
@@ -616,7 +616,7 @@
                     },
                     "editorMode": "code",
                     "exemplar": false,
-                    "expr": "(karpenter_provisioner_usage{resource_type=\"memory\"} / karpenter_provisioner_limit{resource_type=\"memory\"}) or karpenter_provisioner_limit*0",
+                    "expr": "karpenter_provisioner_usage{resource_type=\"memory\"} / karpenter_provisioner_limit{resource_type=\"memory\"}",
                     "format": "table",
                     "hide": false,
                     "instant": true,
@@ -821,7 +821,7 @@
             "fieldConfig": {
                 "defaults": {
                     "color": {
-                        "mode": "thresholds"
+                        "mode": "continuous-RdYlGr"
                     },
                     "custom": {
                         "align": "left",

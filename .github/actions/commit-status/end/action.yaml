@@ -1,0 +1,36 @@
+name: CommitStatusEnd
+description: 'Adds a commit status at the end of the test run based on success, failure, or cancelled'
+inputs:
+  name:
+    description: "Name of the check"
+    required: true
+  git_ref:
+    description: "The git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release"
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/github-script@v6
+      if: job.status == 'success'
+      with:
+        script: |
+          github.rest.repos.createCommitStatus({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            context: "${{ inputs.name }}",
+            sha: "${{ inputs.git_ref }}",
+            state: "success",
+            target_url: "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+          });
+    - uses: actions/github-script@v6
+      if: job.status == 'failure' || job.status == 'cancelled'
+      with:
+        script: |
+          github.rest.repos.createCommitStatus({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            context: "${{ inputs.name }}",
+            sha: "${{ inputs.git_ref }}",
+            state: "failure",
+            target_url: "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+          });

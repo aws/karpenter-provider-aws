@@ -1,0 +1,24 @@
+name: CommitStatusStart
+description: 'Adds a commit status at the start of the test run to set the status to pending'
+inputs:
+  name:
+    description: "Name of the check"
+    required: true
+  git_ref:
+    description: "The git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release"
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/github-script@v6
+      if: always()
+      with:
+        script: |
+          github.rest.repos.createCommitStatus({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            context: "${{ inputs.name }}",
+            sha: "${{ inputs.git_ref }}",
+            state: "pending",
+            target_url: "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+          });

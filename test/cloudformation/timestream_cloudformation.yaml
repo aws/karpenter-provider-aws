@@ -1,0 +1,58 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Resources used for monitoring the scale testing runs using Timestream
+Parameters:
+  DatabaseName:
+    Type: String
+    Description: "Timestream database to forward test metrics to"
+  TableName:
+    Type: String
+    Description: "Timestream table to forward test metrics to"
+  BackupDisasterRecoveryRegion:
+    Type: String
+    Default: "us-east-1"
+    Description: "Disaster recovery region for the timestream backup"
+Resources:
+  TimestreamDatabase:
+    Type: AWS::Timestream::Database
+    Properties:
+      DatabaseName: !Sub "${DatabaseName}"
+  TimestreamTable:
+    Type: "AWS::Timestream::Table"
+    Properties:
+      DatabaseName: !Ref "TimestreamDatabase"
+      TableName: !Sub "${TableName}"
+      MagneticStoreWriteProperties:
+        EnableMagneticStoreWrites: true
+      RetentionProperties:
+        MemoryStoreRetentionPeriodInHours: "2160" # Three months of memory store retention
+        MagneticStoreRetentionPeriodInDays: "1825" # 5 years of magnetic store retention
+  TimestreamBackupPlan:
+    Type: "AWS::Backup::BackupPlan"
+    Properties:
+      BackupPlan:
+        BackupPlanName: !Sub "timestream-${DatabaseName}-${TableName}-backup"
+        BackupPlanRule:
+          - RuleName: "DailyBackups"
+            TargetBackupVault: "Default"
+            ScheduleExpression: "cron(0 0 ? * * *)"
+            StartWindowMinutes: "480"
+            CompletionWindowMinutes: "10080"
+            Lifecycle:
+              DeleteAfterDays: "35"
+            CopyActions:
+              - DestinationBackupVaultArn: !Sub "arn:${AWS::Partition}:backup:${BackupDisasterRecoveryRegion}:${AWS::AccountId}:backup-vault:Default"
+                Lifecycle:
+                  DeleteAfterDays: "70"
+  TimestreamBackupPlanSelection:
+    Type: "AWS::Backup::BackupSelection"
+    Properties:
+      BackupSelection:
+        SelectionName: !Sub "timestream_${DatabaseName}_${TableName}_selection"
+        IamRoleArn: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/service-role/AWSBackupDefaultServiceRole"
+        Resources:
+          - !GetAtt "TimestreamTable.Arn"
+      BackupPlanId: !Ref "TimestreamBackupPlan"
+Outputs:
+  TimestreamTableARN:
+    Description: "Timestream Table ARN"
+    Value: !GetAtt TimestreamTable.Arn

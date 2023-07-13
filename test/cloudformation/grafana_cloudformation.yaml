@@ -1,0 +1,91 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Resources used for monitoring the GHA test runs using Grafana
+Parameters:
+  PrometheusWorkspaceID:
+    Type: String
+    Description: "Prometheus workspace to give access to Grafana to query metrics from"
+Resources:
+  GrafanaWorkspace:
+    Type: AWS::Grafana::Workspace
+    Properties:
+      Name: KarpenterTestMonitoring
+      Description: Amazon Grafana Workspace for Karpenter Test Monitoring
+      AccountAccessType: CURRENT_ACCOUNT
+      PermissionType: CUSTOMER_MANAGED
+      RoleArn: !Ref GrafanaWorkspaceRole
+      AuthenticationProviders:
+        - SAML
+      SamlConfiguration:
+        IdpMetadata:
+          Xml: >-
+            <?xml version="1.0" encoding="UTF-8"?>
+            <md:EntityDescriptor
+            	xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" entityID="https://idp-integ.federate.amazon.com">
+            	<md:IDPSSODescriptor WantAuthnRequestsSigned="false" protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+            		<md:KeyDescriptor use="signing">
+            			<ds:KeyInfo
+            				xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
+            				<ds:X509Data>
+            					<ds:X509Certificate>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</ds:X509Certificate>
+            				</ds:X509Data>
+            			</ds:KeyInfo>
+            		</md:KeyDescriptor>
+            		<md:SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="https://idp-integ.federate.amazon.com/api/saml2/v1/logout"/>
+            		<md:SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://idp-integ.federate.amazon.com/api/saml2/v1/logout"/>
+            		<md:NameIDFormat>urn:oasis:names:tc:SAML:2.0:nameid-format:unspecified</md:NameIDFormat>
+            		<md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://idp-integ.federate.amazon.com/api/saml2/v1/sso"/>
+            		<md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="https://idp-integ.federate.amazon.com/api/saml2/v1/sso"/>
+            	</md:IDPSSODescriptor>
+            </md:EntityDescriptor>
+        AssertionAttributes:
+          Name: displayName
+          Login: mail
+          Email: mail
+          Role: role
+        RoleValues:
+          Admin:
+            - admin
+        LoginValidityDuration: 120
+  GrafanaWorkspaceRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      ManagedPolicyArns:
+        - !Ref GrafanaToPrometheusDataSourcePolicy
+        - arn:aws:iam::aws:policy/service-role/AmazonGrafanaCloudWatchAccess
+        - arn:aws:iam::aws:policy/service-role/AmazonTimestreamReadOnlyAccess
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - grafana.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+  GrafanaToPrometheusDataSourcePolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: GrafanaToPrometheusDataSourcePolicy
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action: aps:ListWorkspaces
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - aps:DescribeWorkspace
+              - aps:QueryMetrics
+              - aps:GetLabels
+              - aps:GetSeries
+              - aps:GetMetricMetadata
+            Resource: !Sub "arn:${AWS::Partition}:aps:${AWS::Region}:${AWS::AccountId}:workspace/${PrometheusWorkspaceID}"
+Outputs:
+  WorkspaceEndpoint:
+    Value: !GetAtt GrafanaWorkspace.Endpoint
+  WorkspaceStatus:
+    Value: !GetAtt GrafanaWorkspace.Status
+  WorkspaceID:
+    Value: !Ref GrafanaWorkspace
+  GrafanaVersion:
+    Value: !GetAtt GrafanaWorkspace.GrafanaVersion
