@@ -1370,6 +1370,25 @@ var _ = Describe("LaunchTemplates", func() {
 					Expect(*config.Settings.Kubernetes.ClusterDNSIP).To(Equal("10.0.100.10"))
 				})
 			})
+			It("should pass CPUCFSQuota when specified", func() {
+				nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
+				provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
+					CPUCFSQuota: aws.Bool(false),
+				}
+				ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
+				awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
+					Expect(err).To(BeNil())
+					config := &bootstrap.BottlerocketConfig{}
+					Expect(config.UnmarshalTOML(userData)).To(Succeed())
+					Expect(config.Settings.Kubernetes.CPUCFSQuota).ToNot(BeNil())
+					Expect(*config.Settings.Kubernetes.CPUCFSQuota).To(BeFalse())
+				})
+			})
 		})
 		Context("AL2 Custom UserData", func() {
 			It("should merge in custom user data", func() {
