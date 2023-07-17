@@ -143,9 +143,9 @@ createNewWebsiteDirectory() {
     versionData "${RELEASE_VERSION}"
     
     mkdir -p "website/content/en/${RELEASE_MINOR_VERSION}"
-    cp -r website/content/en/preview/* website/content/en/${RELEASE_MINOR_VERSION}/
+    cp -r website/content/en/preview/* "website/content/en/${RELEASE_MINOR_VERSION}/"
     find "website/content/en/${RELEASE_MINOR_VERSION}/" -type f | xargs perl -i -p -e "s/{{< param \"latest_release_version\" >}}/${RELEASE_VERSION}/g;"
-    find website/content/en/${RELEASE_MINOR_VERSION}/*/*/*.yaml -type f | xargs perl -i -p -e "s/preview/${RELEASE_VERSION}/g;"
+    find website/content/en/${RELEASE_MINOR_VERSION}/*/*/*.yaml -type f | xargs perl -i -p -e "s/preview/${RELEASE_MINOR_VERSION}/g;"
     find "website/content/en/${RELEASE_MINOR_VERSION}/" -type f | xargs perl -i -p -e "s/{{< githubRelRef >}}/\/${RELEASE_VERSION}\//g;"
 
     rm -rf website/content/en/docs
