@@ -55,7 +55,7 @@ jobs:
   e2e-upgrade:
     uses: ./.github/workflows/e2e-upgrade.yaml
     with:
-      from_git_ref: aed1095cfdaf8196f44a46c40a3c69e7a31df917
+      from_git_ref: v0.29.1
       to_git_ref: ${{ inputs.git_ref }}
       event_name: ${{ inputs.event_name }}
       region: ${{ inputs.region }}
