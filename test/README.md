@@ -3,7 +3,7 @@
 Karpenter leverages Github Actions to run our E2E test suites. These suites are triggered by:
 1. Periodic schedule runs every 8 hours
 2. New commits to the `main` branch
-3. `/karpenter snapshot` comments by maintainers on Pull Requests
+3. `/karpenter snapshot` review comments by maintainers on Pull Requests
 
 ![GithubActions Architecture](./assets/gha_architecture.png)
 
