@@ -1,7 +1,8 @@
 name: E2EConformanceTrigger
 on:
   schedule:
-    - cron: '7 22 * * 1'
+    # The test will run every Monday at 12:07 AM UTC
+    - cron: '7 0 * * 1'
   workflow_dispatch:
 jobs:
   conformance:
