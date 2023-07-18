@@ -19,6 +19,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"encoding/json"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -67,12 +68,62 @@ var _ = Describe("Drift", Label("AWS"), func() {
 
 	})
 	It("should deprovision nodes that have drifted due to AMIs", func() {
+
+		clusterVersion := "1.23"
+		path := "/aws/service/eks/optimized-ami/" + clusterVersion +"/amazon-linux-2"
+	
+		// Create the input for the GetParametersByPath operation
+		input := &ssm.GetParametersByPathInput{
+			Path:           awssdk.String(path),
+			Recursive:      awssdk.Bool(true), // Set to true if you want to retrieve parameters recursively
+			WithDecryption: awssdk.Bool(true), // Set to true if you want to decrypt secure string parameters
+		}
+
+		
+	
+		// Call the GetParametersByPath operation
+		result, err := env.SSMAPI.GetParametersByPath(input)
+		if err != nil {
+			fmt.Println("Failed to retrieve parameters:", err)
+			return
+		}
+	
+		// Create a new slice to store the filtered parameters
+		filteredParams := []*ssm.Parameter{}
+	
+		// Iterate over the retrieved parameters
+		for _, param := range result.Parameters {
+			name := awssdk.StringValue(param.Name)
+			// remove inconsistent parameters
+			if len(name) >= 82 {
+				continue 
+			}
+			if len(name) == 62 {
+				continue
+			}
+			
+			filteredParams = append(filteredParams, param)
+		}
+
+		data := awssdk.StringValue(filteredParams[len(filteredParams)-3].Value)
+		
+		var jsonresult map[string]interface{}
+		err = json.Unmarshal([]byte(data), &jsonresult)
+		if err != nil {
+			fmt.Println("JSON parsing error:", err)
+			return
+		}
+	
+		imageID, ok := jsonresult["image_id"].(string)
+		if !ok {
+			fmt.Println("Failed to extract image_id")
+			return
+		}
+
 		// choose an old static image
-		parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
-			Name: awssdk.String("/aws/service/eks/optimized-ami/1.23/amazon-linux-2/recommended/image_id"),
-		})
-		Expect(err).To(BeNil())
-		latestAMI := *parameter.Parameter.Value
+
+		latestAMI := imageID
+		
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
