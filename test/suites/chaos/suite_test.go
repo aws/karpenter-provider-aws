@@ -210,14 +210,14 @@ func startNodeCountMonitor(ctx context.Context, kubeClient client.Client) {
 	factory := informers.NewSharedInformerFactoryWithOptions(env.KubeClient, time.Second*30,
 		informers.WithTweakListOptions(func(l *metav1.ListOptions) { l.LabelSelector = v1alpha5.ProvisionerNameLabelKey }))
 	nodeInformer := factory.Core().V1().Nodes().Informer()
-	nodeInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_ = lo.Must(nodeInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(_ interface{}) {
 			createdNodes.Add(1)
 		},
 		DeleteFunc: func(_ interface{}) {
 			deletedNodes.Add(1)
 		},
-	})
+	}))
 	factory.Start(ctx.Done())
 	go func() {
 		for {

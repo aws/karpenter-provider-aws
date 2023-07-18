@@ -255,7 +255,7 @@ var _ = Describe("Instance Types", func() {
 		// Ensure that we're exercising all well known labels except for accelerator labels
 		Expect(lo.Keys(nodeSelector)).To(ContainElements(
 			append(
-				v1alpha5.WellKnownLabels.Difference(sets.NewString(
+				v1alpha5.WellKnownLabels.Difference(sets.New(
 					v1alpha1.LabelInstanceAcceleratorCount,
 					v1alpha1.LabelInstanceAcceleratorName,
 					v1alpha1.LabelInstanceAcceleratorManufacturer,
@@ -302,7 +302,7 @@ var _ = Describe("Instance Types", func() {
 		}
 
 		// Ensure that we're exercising all well known labels except for gpu labels and nvme
-		expectedLabels := append(v1alpha5.WellKnownLabels.Difference(sets.NewString(
+		expectedLabels := append(v1alpha5.WellKnownLabels.Difference(sets.New(
 			v1alpha1.LabelInstanceGPUCount,
 			v1alpha1.LabelInstanceGPUName,
 			v1alpha1.LabelInstanceGPUManufacturer,
