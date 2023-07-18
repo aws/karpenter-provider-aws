@@ -66,12 +66,12 @@ var (
 		AMIFamilyWindows2022,
 		AMIFamilyCustom,
 	}
-	SupportedContainerRuntimesByAMIFamily = map[string]sets.String{
-		AMIFamilyBottlerocket: sets.NewString("containerd"),
-		AMIFamilyAL2:          sets.NewString("dockerd", "containerd"),
-		AMIFamilyUbuntu:       sets.NewString("dockerd", "containerd"),
-		AMIFamilyWindows2019:  sets.NewString("dockerd", "containerd"),
-		AMIFamilyWindows2022:  sets.NewString("dockerd", "containerd"),
+	SupportedContainerRuntimesByAMIFamily = map[string]sets.Set[string]{
+		AMIFamilyBottlerocket: sets.New("containerd"),
+		AMIFamilyAL2:          sets.New("dockerd", "containerd"),
+		AMIFamilyUbuntu:       sets.New("dockerd", "containerd"),
+		AMIFamilyWindows2019:  sets.New("dockerd", "containerd"),
+		AMIFamilyWindows2022:  sets.New("dockerd", "containerd"),
 	}
 
 	Windows2019                                           = "2019"

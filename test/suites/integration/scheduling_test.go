@@ -40,7 +40,7 @@ import (
 var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 	var provider *v1alpha1.AWSNodeTemplate
 	var provisioner *v1alpha5.Provisioner
-	var selectors sets.String
+	var selectors sets.Set[string]
 
 	BeforeEach(func() {
 		provider = awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
@@ -56,7 +56,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 		})
 	})
 	BeforeAll(func() {
-		selectors = sets.NewString()
+		selectors = sets.New[string]()
 	})
 	AfterAll(func() {
 		// Ensure that we're exercising all well known labels
