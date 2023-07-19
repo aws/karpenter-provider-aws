@@ -103,6 +103,11 @@ Snapshot releases are tagged with the git commit hash prefixed by the Karpenter 
 ## Released Upgrade Notes
 
 ### Upgrading to v0.29.0+
+
+{{% alert title="Warning" color="warning" %}}
+Karpenter `v0.29.0` contains a [file descriptor and memory leak bug](https://github.com/aws/karpenter/issues/4296) that leads to Karpenter getting OOMKilled and restarting at the point that it hits its memory or file descriptor limit. Karpenter `>v0.29.1` fixes this leak.
+{{% /alert %}}
+
 * Karpenter has changed the default metrics service port from 8080 to 8000 and the default webhook service port from 443 to 8443. In `v0.28.0`, the Karpenter pod port was changed to 8000, but referenced the service by name, allowing users to scrape the service at port 8080 for metrics. `v0.29.0` aligns the two ports so that service and pod metrics ports are the same. These ports are set by the `controller.metrics.port` and `webhook.port` helm chart values, so if you have previously set these to non-default values, you may need to update your Prometheus scraper to match these new values.
 
 * Karpenter will now reconcile nodes that are drifted due to their Security Groups or their Subnets. If your AWSNodeTemplate's Security Groups differ from the Security Groups used for an instance, Karpenter will consider it drifted. If the Subnet used by an instance is not contained in the allowed list of Subnets for an AWSNodeTemplate, Karpenter will also consider it drifted.
