@@ -171,15 +171,16 @@ editWebsiteConfig() {
 
 # editWebsiteVersionsMenu sets relevant releases in the version dropdown menu of the website
 # without increasing the size of the set.
-# TODO: We need to maintain a list of latest minors here only. This is not currently
-# easy to achieve, however when we have a major release and we decide to maintain
-# a selected minor releases we can maintain that list in the repo and use it in here
 editWebsiteVersionsMenu() {
   RELEASE_VERSION=$1
   versionData "${RELEASE_VERSION}"
   VERSIONS=(${RELEASE_MINOR_VERSION})
   while IFS= read -r LINE; do
     SANITIZED_VERSION=$(echo "${LINE}" | sed -e 's/["-]//g' -e 's/ *//g')
+    # Bail from this config.yaml update if the version is already in the existing list
+    if [[ "${RELEASE_MINOR_VERSION}" == "${SANITIZED_VERSION}" ]]; then
+      return
+    fi
     VERSIONS+=("${SANITIZED_VERSION}")
   done < <(yq '.params.versions' website/config.yaml)
   unset VERSIONS[${#VERSIONS[@]}-2]
