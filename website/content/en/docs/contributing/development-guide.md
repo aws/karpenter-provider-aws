@@ -65,6 +65,19 @@ If you are only interested in building the Karpenter images and not deploying th
 make build # build and push the karpenter images
 ```
 
+### Build and Deploy the Karpenter with a KWOK cloud provider
+
+```bash
+# install the latest version of the KWOK controller
+./hack/install-kwok.sh
+
+# deploy Karpenter with the KWOK controller
+# WARNING: This uses the standard karpenter namespace with a controller called karpenter. It wil replace your
+# existing running karpenter.  You should ensure you have no real running Karpenter managed nodes prior to
+# doing this.
+make apply-kwok 
+```
+
 ### Testing
 
 ```bash

@@ -137,12 +137,32 @@ build: ## Build the Karpenter controller images using ko build
 	$(eval IMG_TAG=$(shell echo $(CONTROLLER_IMG) | cut -d "@" -f 1 | cut -d ":" -f 2 -s))
 	$(eval IMG_DIGEST=$(shell echo $(CONTROLLER_IMG) | cut -d "@" -f 2))
 
+build-kwok: ## Build the Karpenter KWOK controller images using ko build
+	$(eval CONTROLLER_IMG=$(shell $(WITH_GOFLAGS) KO_DOCKER_REPO="$(KO_DOCKER_REPO)" ko build -B github.com/aws/karpenter/cmd/controller-kwok))
+	$(eval IMG_REPOSITORY=$(shell echo $(CONTROLLER_IMG) | cut -d "@" -f 1 | cut -d ":" -f 1))
+	$(eval IMG_TAG=$(shell echo $(CONTROLLER_IMG) | cut -d "@" -f 1 | cut -d ":" -f 2 -s))
+	$(eval IMG_DIGEST=$(shell echo $(CONTROLLER_IMG) | cut -d "@" -f 2))
+
+
 apply: build ## Deploy the controller from the current state of your git repository into your ~/.kube/config cluster
 	helm upgrade --install karpenter charts/karpenter --namespace ${SYSTEM_NAMESPACE} \
 		$(HELM_OPTS) \
 		--set controller.image.repository=$(IMG_REPOSITORY) \
 		--set controller.image.tag=$(IMG_TAG) \
 		--set controller.image.digest=$(IMG_DIGEST)
+
+# Run hack/install-kwok.sh to install the kwok controller in your cluster first
+apply-kwok: build-kwok ## Deploy the kwok controller from the current state of your git repository into your ~/.kube/config cluster
+	helm upgrade --install karpenter charts/karpenter --namespace ${SYSTEM_NAMESPACE} \
+		$(HELM_OPTS) \
+		--set controller.image.repository=$(IMG_REPOSITORY) \
+		--set controller.image.tag=$(IMG_TAG) \
+		--set controller.image.digest=$(IMG_DIGEST)
+
+	kubectl delete validatingwebhookconfiguration validation.webhook.config.karpenter.sh
+	kubectl delete validatingwebhookconfiguration validation.webhook.karpenter.k8s.aws
+	kubectl delete validatingwebhookconfiguration validation.webhook.karpenter.sh
+	kubectl delete mutatingwebhookconfiguration defaulting.webhook.karpenter.k8s.aws
 
 install:  ## Deploy the latest released version into your ~/.kube/config cluster
 	@echo Upgrading to ${KARPENTER_VERSION}
