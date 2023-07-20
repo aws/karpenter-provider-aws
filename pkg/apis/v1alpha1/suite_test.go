@@ -16,10 +16,12 @@ package v1alpha1_test
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/Pallinder/go-randomdata"
+	"github.com/mitchellh/hashstructure/v2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
@@ -27,7 +29,10 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/aws/aws-sdk-go/aws"
+
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/test"
 )
 
 var ctx context.Context
@@ -113,6 +118,84 @@ var _ = Describe("Validation", func() {
 				"karpenter.sh/managed-by": "test",
 			}
 			Expect(ant.Validate(ctx)).To(Not(Succeed()))
+		})
+	})
+	var _ = Describe("AWSNodeTemplate Hash", func() {
+		var awsnodetemplatespec v1alpha1.AWSNodeTemplateSpec
+		var awsnodetemplate *v1alpha1.AWSNodeTemplate
+		BeforeEach(func() {
+			awsnodetemplatespec = v1alpha1.AWSNodeTemplateSpec{
+				AWS: v1alpha1.AWS{
+					AMIFamily:       aws.String(v1alpha1.AMIFamilyAL2),
+					Context:         aws.String("context-1"),
+					InstanceProfile: aws.String("profile-1"),
+					Tags: map[string]string{
+						"keyTag-1": "valueTag-1",
+						"keyTag-2": "valueTag-2",
+					},
+					LaunchTemplate: v1alpha1.LaunchTemplate{
+						MetadataOptions: &v1alpha1.MetadataOptions{
+							HTTPEndpoint: aws.String("test-metadata-1"),
+						},
+						BlockDeviceMappings: []*v1alpha1.BlockDeviceMapping{
+							{
+								DeviceName: aws.String("map-device-1"),
+							},
+							{
+								DeviceName: aws.String("map-device-2"),
+							},
+						},
+					},
+				},
+				UserData:           aws.String("userdata-test-1"),
+				DetailedMonitoring: aws.Bool(false),
+			}
+			awsnodetemplate = test.AWSNodeTemplate(awsnodetemplatespec)
+		})
+		DescribeTable("should change hash when static fields are updated", func(awsnodetemplatespec v1alpha1.AWSNodeTemplateSpec) {
+			expectedHash := awsnodetemplate.Hash()
+			updatedAWSNodeTemplate := test.AWSNodeTemplate(*awsnodetemplatespec.DeepCopy(), awsnodetemplatespec)
+			actualHash := updatedAWSNodeTemplate.Hash()
+			Expect(actualHash).ToNot(Equal(fmt.Sprint(expectedHash)))
+		},
+			Entry("InstanceProfile Drift", v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{InstanceProfile: aws.String("profile-2")}}),
+			Entry("UserData Drift", v1alpha1.AWSNodeTemplateSpec{UserData: aws.String("userdata-test-2")}),
+			Entry("Tags Drift", v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{Tags: map[string]string{"keyTag-test-3": "valueTag-test-3"}}}),
+			Entry("MetadataOptions Drift", v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{LaunchTemplate: v1alpha1.LaunchTemplate{MetadataOptions: &v1alpha1.MetadataOptions{HTTPEndpoint: aws.String("test-metadata-2")}}}}),
+			Entry("BlockDeviceMappings Drift", v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{LaunchTemplate: v1alpha1.LaunchTemplate{BlockDeviceMappings: []*v1alpha1.BlockDeviceMapping{{DeviceName: aws.String("map-device-test-3")}}}}}),
+			Entry("Context Drift", v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{Context: aws.String("context-2")}}),
+			Entry("DetailedMonitoring Drift", v1alpha1.AWSNodeTemplateSpec{DetailedMonitoring: aws.Bool(true)}),
+			Entry("AMIFamily Drift", v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{AMIFamily: aws.String(v1alpha1.AMIFamilyBottlerocket)}}),
+			Entry("Reorder Tags", v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{Tags: map[string]string{"keyTag-2": "valueTag-2", "keyTag-1": "valueTag-1"}}}),
+			Entry("Reorder BlockDeviceMapping", v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{LaunchTemplate: v1alpha1.LaunchTemplate{BlockDeviceMappings: []*v1alpha1.BlockDeviceMapping{{DeviceName: aws.String("map-device-2")}, {DeviceName: aws.String("map-device-1")}}}}}),
+		)
+		It("should not change hash when behavior/dynamic fields are updated", func() {
+			actualHash := awsnodetemplate.Hash()
+
+			expectedHash, err := hashstructure.Hash(awsnodetemplate.Spec, hashstructure.FormatV2, &hashstructure.HashOptions{
+				SlicesAsSets:    true,
+				IgnoreZeroValue: true,
+				ZeroNil:         true,
+			})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(actualHash).To(Equal(fmt.Sprint(expectedHash)))
+
+			// Update a behavior/dynamic field
+			awsnodetemplate.Spec.SubnetSelector = map[string]string{"subnet-test-key": "subnet-test-value"}
+			awsnodetemplate.Spec.SecurityGroupSelector = map[string]string{"sg-test-key": "sg-test-value"}
+			awsnodetemplate.Spec.AMISelector = map[string]string{"ami-test-key": "ami-test-value"}
+
+			actualHash = awsnodetemplate.Hash()
+			Expect(err).ToNot(HaveOccurred())
+			Expect(actualHash).To(Equal(fmt.Sprint(expectedHash)))
+		})
+		It("should expect two provisioner with the same spec to have the same provisioner hash", func() {
+			awsnodetemplateTwo := &v1alpha1.AWSNodeTemplate{
+				ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName())},
+			}
+			awsnodetemplateTwo.Spec = awsnodetemplatespec
+
+			Expect(awsnodetemplate.Hash()).To(Equal(awsnodetemplateTwo.Hash()))
 		})
 	})
 })

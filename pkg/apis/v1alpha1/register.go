@@ -107,6 +107,7 @@ var (
 	LabelInstanceAcceleratorName              = LabelDomain + "/instance-accelerator-name"
 	LabelInstanceAcceleratorManufacturer      = LabelDomain + "/instance-accelerator-manufacturer"
 	LabelInstanceAcceleratorCount             = LabelDomain + "/instance-accelerator-count"
+	AnnotationNodeTemplateHash                = LabelDomain + "/nodetemplate-hash"
 )
 
 var (
