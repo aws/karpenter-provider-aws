@@ -8,9 +8,7 @@ config(){
   RELEASE_REPO_ECR=${RELEASE_REPO_ECR:-public.ecr.aws/${ECR_GALLERY_NAME}/}
   RELEASE_REPO_GH=${RELEASE_REPO_GH:-ghcr.io/${GITHUB_ACCOUNT}/karpenter}
 
-  MAIN_GITHUB_ACCOUNT="aws"
   PRIVATE_PULL_THROUGH_HOST="${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com"
-  SNS_TOPIC_ARN="arn:aws:sns:us-east-1:${AWS_ACCOUNT_ID}:KarpenterReleases"
   CURRENT_MAJOR_VERSION="0"
   RELEASE_PLATFORM="--platform=linux/amd64,linux/arm64"
 
@@ -36,11 +34,6 @@ release() {
 Release Version: ${RELEASE_VERSION}
 Commit: $(git rev-parse HEAD)
 Helm Chart Version $(helmChartVersion $RELEASE_VERSION)"
-
-  PR_NUMBER=${GH_PR_NUMBER:-}
-  if [ "${GH_PR_NUMBER+defined}" != defined ]; then
-   PR_NUMBER="none"
-  fi
 
   authenticate
   buildImages
@@ -85,11 +78,11 @@ releaseType(){
 
 helmChartVersion(){
     RELEASE_VERSION=$1
-    if [[ $(releaseType $RELEASE_VERSION) == $RELEASE_TYPE_STABLE ]]; then
-      echo $RELEASE_VERSION
+    if [[ $(releaseType "$RELEASE_VERSION") == "$RELEASE_TYPE_STABLE" ]]; then
+      echo "$RELEASE_VERSION"
     fi
 
-    if [[ $(releaseType $RELEASE_VERSION) == $RELEASE_TYPE_SNAPSHOT ]]; then
+    if [[ $(releaseType "$RELEASE_VERSION") == "$RELEASE_TYPE_SNAPSHOT" ]]; then
       echo "v${CURRENT_MAJOR_VERSION}-${RELEASE_VERSION}"
     fi
 }
@@ -126,13 +119,13 @@ publishHelmChart() {
     CHART_NAME=$1
     RELEASE_VERSION=$2
     RELEASE_REPO=$3
-    HELM_CHART_VERSION=$(helmChartVersion $RELEASE_VERSION)
+    HELM_CHART_VERSION=$(helmChartVersion "$RELEASE_VERSION")
     HELM_CHART_FILE_NAME="${CHART_NAME}-${HELM_CHART_VERSION}.tgz"
 
     cd charts
     helm dependency update "${CHART_NAME}"
     helm lint "${CHART_NAME}"
-    helm package "${CHART_NAME}" --version $HELM_CHART_VERSION
+    helm package "${CHART_NAME}" --version "$HELM_CHART_VERSION"
     helm push "${HELM_CHART_FILE_NAME}" "oci://${RELEASE_REPO}"
     rm "${HELM_CHART_FILE_NAME}"
     cd ..
@@ -174,7 +167,7 @@ editWebsiteConfig() {
 editWebsiteVersionsMenu() {
   RELEASE_VERSION=$1
   versionData "${RELEASE_VERSION}"
-  VERSIONS=(${RELEASE_MINOR_VERSION})
+  VERSIONS=("${RELEASE_MINOR_VERSION}")
   while IFS= read -r LINE; do
     SANITIZED_VERSION=$(echo "${LINE}" | sed -e 's/["-]//g' -e 's/ *//g')
     # Bail from this config.yaml update if the version is already in the existing list
