@@ -103,7 +103,20 @@ controller:
     # -- SHA256 digest of the controller image.
     digest: sha256:06f08a2c9b5125a2da57936a5ccfb54e5796677e247fb0bb960e70e79242a147
   # -- SecurityContext for the controller container.
-  securityContext: {}
+  securityContext:
+    # -- Disabling Privileged Escalation for Controller Container
+    allowPrivilegeEscalation: false
+    # -- Dropping all capabilities of the controller container
+    capabilities:
+      drop:
+      - ALL
+    # -- Set root filesystem to read only
+    readOnlyRootFilesystem: true
+    # -- Set the container to run as Non Root
+    runAsNonRoot: true
+    # -- Set SeccomProfile for the controller container
+    seccompProfile:
+      type: RuntimeDefault
   # -- Additional environment variables for the controller pod.
   env: []
   # - name: AWS_REGION
