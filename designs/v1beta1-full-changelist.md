@@ -10,15 +10,16 @@ As part of the bump to v1beta1, to allow the v1alpha5 APIs to exist alongside th
     1. `karpenter.k8s.aws` → `compute.k8s.aws`
 2. Kind Renames
     1. `Provisioner` → `NodePool`
-    2. `AWSNodeTemplate` → `NodeTemplate`
+    2. `Machine` -> `NodeClaim`
+    3. `AWSNodeTemplate` → `NodeClass`
 
 We see the renames as opportunities to better align our API groups and kinds with upstream concepts as well as reducing confusion between other Kubernetes API concepts. Specifically, the word `Provisioner` (on its own) has become overloaded in Kubernetes, [particularly in the area of storage provisioning](https://kubernetes.io/docs/concepts/storage/storage-classes/#the-storageclass-resource). We want to get completely away from this naming, while also prefixing all of our kinds that apply to nodes with `Node` for better alignment and clarity across the project. 
 
 This gives the following naming to API types within the Karpenter project
 
 1. `karpenter.sh/NodePool`
-2. `karpenter.sh/Machine`
-3. `compute.k8s.aws/NodeTemplate`
+2. `karpenter.sh/NodeClaim`
+3. `compute.k8s.aws/NodeClass`
 
 ### Remove Validation/Mutating Webhooks in favor of CEL (Common Expression Language)
 
@@ -32,7 +33,7 @@ Karpenter v1beta1 will introduce CEL into the CRD OpenAPISpec while maintaining 
 
 ### `karpenter.sh/do-not-evict` →  `karpenter.sh/do-not-disrupt`
 
-Karpenter validates disruption across Machines and determines which Machines/Nodes it is allowed to disrupt as part of the deprovisioning flow. While eviction is part of the termination process, it’s more accurate to say that the `karpenter.sh/do-not-evict` annotation actually prevents Karpenter’s disruption of the Machine/Node rather than the eviction of it.
+Karpenter validates disruption across NodeClaims and determines which NodeClaims/Nodes it is allowed to disrupt as part of the deprovisioning flow. While eviction is part of the termination process, it’s more accurate to say that the `karpenter.sh/do-not-evict` annotation actually prevents Karpenter’s disruption of the NodeClaim/Node rather than the eviction of it.
 
 ###  `karpenter.sh/do-not-consolidate`  → `karpenter.sh/do-not-disrupt`
 
@@ -47,11 +48,11 @@ While this feature is useful for consolidation, it should be expanded out to all
 Currently fields that control node properties, such as `Labels`, `Taints`, `StartupTaints`, `Requirements`, `Kubelet`, `ProviderRef,` are top level members of `provisioner.spec`. We can draw a nice line between:
 
 1. Behavior-based fields that dictate how Karpenter should act on nodes
-2. Configuration-based fields that dictate how Machines/Nodes should look
+2. Configuration-based fields that dictate how NodeClaims/Nodes should look
 
 In this case, behavior-based fields will live in the top-level of the `spec` of the `NodePool` and configuration-based fields live within the `spec.template`.
 
-On top of this, this interface is very similar to the Deployment/StatefulSet/Job relationship, where a top-level object spawns templatized versions of lower-level objects. In our case, this top-level object is the `NodePool` and the lower-level object is the `Machine` (with the `Node` joining the cluster as a side-effect of the `Machine`).
+On top of this, this interface is very similar to the Deployment/StatefulSet/Job relationship, where a top-level object spawns templatized versions of lower-level objects. In our case, this top-level object is the `NodePool` and the lower-level object is the `NodeClaim` (with the `Node` joining the cluster as a side-effect of the `NodeClaim`).
 
 ```
 spec:
@@ -77,24 +78,28 @@ Karpenter plans to expand the amount of control that it gives users over both th
 
 We can better delineate the fields that specifically pertain to this configuration from the other fields in the `spec` (global behavior-based fields, provisioning-specific fields, node static configuration fields) by moving these fields inside a `deprovisioning` block. This will make it clearer to users which configuration options specifically pertain to scale-down when they are configuring their `NodePool` CRs.
 
-#### `provisioner.Spec.ttlSecondsAfterEmpty` → `nodePool.Spec.deprovisioning.ttlAfterUnderutilized`
+#### `provisioner.Spec.ttlSecondsAfterEmpty` → `nodePool.spec.deprovisioning.consolidationPolicy`
 
 Currently, Karpenter has two mutually exclusive ways to deprovision nodes based on emptiness: `ttlSecondsAfterEmpty` and `consolidation`. If users are using `ttlSecondsAfterEmpty`, we have generally seen that users are configuring this field in one of two ways:
 
 1. `ttlSecondsAfterEmpty=0` → Users want to delete nodes as soon as they go empty and Karpenter sees that they are empty
 2. `ttlSecondsAfterEmpty >> 0` → Users want to delete nodes that are empty but want to reduce the amount of node churn as a result of high pod churn on a larger cluster
 
-We anticipate that both of these scenarios can be captured through the consolidation deprovisioning mechanism, making `ttlAfterUnderutilized` the single place where users can configure the aggressiveness of deprovisioning.
+We anticipate that both of these scenarios can be captured through the consolidation deprovisioning mechanism; however, we understand that there are use-cases where a user may want to reduce the aggressiveness of Karpenter deprovisioning and only deprovision empty nodes. In this case, a user can configure the `consolidationPolicy` to be `WhenEmpty` which will tell the consolidation deprovisioning mechanism to only deprovision empty nodes through consolidation. Alternatively, you can specify a `consolidationPolicy` of `WhenUnderutilized` which will allow consolidation to deprovision both empty and underutilized nodes.
 
-While we expect consolidation to be the de-facto method for users to deprovision nodes that are empty in the future, we recognize that consolidation still needs improvements to handle high-scale clusters (which are being planned as part of other design work). As a precursor to these improvements, we will make `ttlAfterUnderutilized` be the field that is used to configure emptiness TTLs, which will later be expanded to take non-empty nodes that could be consolidated when we drop the `consolidation.enabled` field from the spec.
+If `consolidationPolicy` is not set, Karpenter will implicitly default to `WhenUnderutilized`.
+
+#### `provisioner.Spec.ttlSecondsAfterEmpty` → `nodePool.spec.deprovisioning.consolidationTTL`
+
+While the `consolidationPolicy` offers one mechanism for users to control the aggressiveness of deprovisioning, users that enable a `consolidationPolicy` of `WhenEmpty` or `WhenUnderutilized` may still want to dictate the speed at which nodes are deemed underutilized. This is particularly true on clusters that are large in size and have a large amount of churn. To support this, Karpenter will surface a `consolidationTTL` which will allow you to define a per-node TTL to define the time that Karpenter can begin deprovisioning the node after first seeing that the node is eligible for consolidation.
 
 #### Remove `nodePool.spec.provider`
 
 We’ve recommended that customers leverage spec.providerRef in favor of spec.provider since Q2 2022. Documentation for this feature has been removed since Q3 2022. We will take the opportunity to remove the feature entirely to minimize code bugs/complexity and user confusion.
 
-### `NodeTemplate` Changes
+### `NodeClass` Changes
 
-#### Update `nodetemplate.spec.amiSelector`
+#### Update `nodeClass.spec.amiSelector`
 
 The current `amiSelector` has two primary limitations that restrict user’s ability to specify the AMIs that they want Karpenter to use:
 
@@ -103,7 +108,7 @@ The current `amiSelector` has two primary limitations that restrict user’s abi
     1. To support *some* of these use-cases, Karpenter has begun effectively creating “system-tags” i.e. (`aws::ids`, `aws::owners`, `aws::name`). These are special-cased version of the standard user custom-tags that allow users to achieve the scenarios described in #2; however, they are not easily discoverable or understood and if we are beginning to support special-cases like this, it makes sense that we should begin to structure these fields.
 
 ```
-amiSelector:
+amiSelectorTerms:
 - name: foo
   id: abc-123
   owner: amazon
@@ -119,12 +124,12 @@ amiSelector:
     key: value
 ```
 
-#### Update `nodetemplate.spec.subnetSelector`
+#### Update `nodeClass.spec.subnetSelector`
 
-`subnetSelector` should have a similar parity to the `amiSelector` in its design to improve the ease-of-use for users. As a result, we should design the `subnetSelector` in the same spirit as the `amiSelector` such that you can also specify multiple selectors through `tags` and `ids` that can be ORed together to produce the ultimate set of items that you want to use.
+`subnetSelectorTerms` should have a similar parity to the `amiSelectorTerms` in its design to improve the ease-of-use for users. As a result, we should design the `subnetSelectorTerms` in the same spirit as the `amiSelectorTerms` such that you can also specify multiple selectors through `tags` and `ids` that can be ORed together to produce the ultimate set of items that you want to use.
 
 ```
-subnetSelector:
+subnetSelectorTerms:
 - id: abc-123
   tags:
     key: value
@@ -134,12 +139,12 @@ subnetSelector:
     key: value
 ```
 
-#### Update `nodetemplate.spec.securityGroupSelector`
+#### Update `nodeClass.spec.securityGroupSelector`
 
-The same logic for `subnetSelector` applies to `securityGroupSelector`. We should have a similar parity to the `amiSelector` to improve the ease-of-use around this selector.
+The same logic for `subnetSelectorTerms` applies to `securityGroupSelectorTerms`. We should have a similar parity to the `amiSelectorTerms` to improve the ease-of-use around this selector.
 
 ```
-securityGroupSelector:
+securityGroupSelectorTerms:
 - id: abc-123
   name: default-secuirty-group # Not the same as the name tag
   tags:
@@ -151,13 +156,13 @@ securityGroupSelector:
     key: value
 ```
 
-#### Remove `nodetemplate.spec.launchTemplate`
+#### Remove `nodeClass.spec.launchTemplate`
 
 Direct launch template support is problematic for many reasons, outlined in the design [Unmanaged LaunchTemplate Support for Karpenter](./unmanaged-launch-template-removal.md). Customers continue to run into issues when directly using launch templates. Rather than continue to maintain these sharp edges and give users a half-baked experience of Karpenter, we should remove this field, considering that we can always add it back later if there is enough ask from users to do so.
 
-#### `nodeTemplate.spec.instanceProfile` → `nodeTemplate.spec.role`
+#### `nodeTemplate.spec.instanceProfile` → `nodeClass.spec.role`
 
-Currently, Karpenter uses an `instanceProfile` in the `AWSNodeTemplate` that is referenced to determine the profile that the EC2 node should launch with. Instance profiles are IAM entities that are specific to EC2 and do not have a lot of detail built around them (including console support); users are generally more familiar with the concept of IAM roles. As a result, we can support a `role` in the new `NodeTemplate` and allow Karpenter to provision the instance profile `ad-hoc` with the `role`  specified attached to it.
+Currently, Karpenter uses an `instanceProfile` in the `AWSNodeTemplate` that is referenced to determine the profile that the EC2 node should launch with. Instance profiles are IAM entities that are specific to EC2 and do not have a lot of detail built around them (including console support); users are generally more familiar with the concept of IAM roles. As a result, we can support a `role` in the new `NodeClass` and allow Karpenter to provision the instance profile `ad-hoc` with the `role`  specified attached to it.
 
 #### Remove tag-based AMI Requirements
 
@@ -180,11 +185,11 @@ This functionality of Karpenter hasn’t been surfaced widely at this point in t
 
 #### Deprecate `defaultInstanceProfile` in `karpenter-global-settings`
 
-InstanceProfile, SubnetSelector, and SecurityGroup are all required information to launch nodes. Currently InstanceProfile is set in default settings, but subnetSelector and securityGroupSelector aren't. This is awkward and [doesn't provide a consistent experience for users](https://github.com/aws/karpenter/issues/2973). We should align all of our configuration at the `NodeTemplate` and `Provisioner` -level for users to streamline their experience.
+InstanceProfile, SubnetSelector, and SecurityGroup are all required information to launch nodes. Currently InstanceProfile is set in default settings, but subnetSelector and securityGroupSelector aren't. This is awkward and [doesn't provide a consistent experience for users](https://github.com/aws/karpenter/issues/2973). We should align all of our configuration at the `NodeClass` and `Provisioner` -level for users to streamline their experience.
 
-#### Deprecate `tags` from `karpenter-global-settings` in favor of `nodeTemplate.tags`
+#### Deprecate `tags` from `karpenter-global-settings` in favor of `nodeClass.tags`
 
-Having `tags` inside of the `karpenter-global-settings` makes it difficult to detect drift when these tag values are changed. Since the primary reason this field exists inside the `karpenter-global-settings` is for ease-of-use, and there is a simple workaround for customers (setting consistent tags inside each `NodeTemplate`), it makes natural sense to remove this from the `karpenter-global-settings` .
+Having `tags` inside of the `karpenter-global-settings` makes it difficult to detect drift when these tag values are changed. Since the primary reason this field exists inside the `karpenter-global-settings` is for ease-of-use, and there is a simple workaround for customers (setting consistent tags inside each `NodeClass`), it makes natural sense to remove this from the `karpenter-global-settings` .
 
 #### Remove `aws.enablePodENI` from `karpenter-global-settings`
 
@@ -192,4 +197,4 @@ This value has no meaning anymore now that our initialization logic does not rel
 
 #### Deprecate `aws.enableENILimitedPodDensity`  in `karpenter-global-settings`
 
-Setting static pod density is available through the `nodeTemplate.kubelet.maxPods` so there is no need for this setting to be configured at a global level anymore.
+Setting static pod density is available through the `nodeClass.kubelet.maxPods` so there is no need for this setting to be configured at a global level anymore.

@@ -20,12 +20,12 @@ To workaround the limitation of round-trippability, we are proposing a rename of
 
 #### Aggressive Scale-Down
 
-1. Spin up a new `v1beta1/NodePool` and `v1beta1/NodeTemplate` resource matching their `v1alpha5` counterparts
+1. Spin up a new `v1beta1/NodePool` and `v1beta1/NodeClass` resource matching their `v1alpha5` counterparts
 2. Delete the `v1alpha5/Provisioner` and `v1alpha5/AWSNodeTemplate` with [cascading foreground deletion](https://kubernetes.io/docs/concepts/architecture/garbage-collection/#foreground-deletion) to delete the nodes and have Karpenter roll the nodes to `v1beta1`
 
 #### Slow Scale-Down
 
-1. Spin up a new `v1beta1/NodePool` and `v1beta1/NodeTemplate` resource matching their `v1alpha5` counterparts
+1. Spin up a new `v1beta1/NodePool` and `v1beta1/NodeClass` resource matching their `v1alpha5` counterparts
 2. Set the `spec.limits` on your `v1alpha5/Provisioner` resource to `cpu=0` to stop provisioning
 3. Manually delete Nodes one-by-one to have Karpenter roll the nodes over to `v1beta1`
 
@@ -36,10 +36,10 @@ To help clearly define where configuration should live within Karpenter’s API,
 1. `NodePool`
     1. Neutral Node configuration-based fields that affect the **compatibility between Nodes and Pods during scheduling** (e.g. requirements, taints, labels)
     2. Neutral behavior-based fields for configuring Karpenter’s scheduling and deprovisioning decision-making
-2. `NodeTemplate`
+2. `NodeClass`
     1. Cloudprovider-specific Node configuration-based fields that affect launch and bootstrap process for that Node including: configuring startup scripts (including kubelet configuration), volume mappings, metadata settings, etc.
     2. Cloudprovider-specific behavior-based fields for configuring Karpenter’s scheduling and deprovisioning decision-making (e.g. interruption-based disruption, allocation strategy)
-3. `Machine`
+3. `NodeClaim`
     1. A Karpenter management object that fully manages the lifecycle of a single node including: configuring and launching the node, monitoring the node health (including disruption conditions), and handling the deprovisioning and termination of the node
 
 ### `karpenter.sh/NodePool`
@@ -57,8 +57,10 @@ spec:
       annotations:
         example.com/owner: "my-team"
     spec:
-      nodeTemplateRef:
+      nodeClass:
         name: default
+        kind: NodeClass
+        apiVersion: compute.k8s.aws/v1beta1
       taints:
         - key: example.com/special-taint
           effect: NoSchedule
@@ -69,49 +71,48 @@ spec:
         - key: "karpenter.k8s.aws/instance-category"
           operator: In
           values: ["c", "m", "r"]
-      resources: # Most users wouldn't set this field but it's in the MachineSpec
+      resources:
         requests:
           cpu: "1"
           memory: "100Mi"
+      kubeletConfiguration:
+        clusterDNS: ["10.0.1.100"]
+        containerRuntime: containerd
+        systemReserved:
+          cpu: 100m
+          memory: 100Mi
+          ephemeral-storage: 1Gi
+        kubeReserved:
+          cpu: 200m
+          memory: 100Mi
+          ephemeral-storage: 3Gi
+        evictionHard:
+          memory.available: 5%
+          nodefs.available: 10%
+          nodefs.inodesFree: 10%
+        evictionSoft:
+          memory.available: 500Mi
+          nodefs.available: 15%
+          nodefs.inodesFree: 15%
+        evictionSoftGracePeriod:
+          memory.available: 1m
+          nodefs.available: 1m30s
+          nodefs.inodesFree: 2m
+        evictionMaxPodGracePeriod: 60
+        imageGCHighThresholdPercent: 85
+        imageGCLowThresholdPercent: 80
+        cpuCFSQuota: true
+        podsPerCore: 2
+        maxPods: 20
   deprovisioning:
-    ttlAfterUninitialized: 10m
-    ttlAfterUnderutilized: 30s
-    ttlUntilExpired: 30d
-    consolidation:
-      enabled: true/false
+    consolidationTTL: 10m
+    consolidationPolicy: WhenEmpty | WhenUnderutilized
+    expirationTTL: 30d
+    uninitializedTTL: 20m
   weight: 10
   limits:
     cpu: "1000"
     memory: 1000Gi
-  kubeletConfiguration:
-    clusterDNS: ["10.0.1.100"]
-    containerRuntime: containerd
-    systemReserved:
-      cpu: 100m
-      memory: 100Mi
-      ephemeral-storage: 1Gi
-    kubeReserved:
-      cpu: 200m
-      memory: 100Mi
-      ephemeral-storage: 3Gi
-    evictionHard:
-      memory.available: 5%
-      nodefs.available: 10%
-      nodefs.inodesFree: 10%
-    evictionSoft:
-      memory.available: 500Mi
-      nodefs.available: 15%
-      nodefs.inodesFree: 15%
-    evictionSoftGracePeriod:
-      memory.available: 1m
-      nodefs.available: 1m30s
-      nodefs.inodesFree: 2m
-    evictionMaxPodGracePeriod: 60
-    imageGCHighThresholdPercent: 85
-    imageGCLowThresholdPercent: 80
-    cpuCFSQuota: true
-    podsPerCore: 2
-    maxPods: 20
 status:
   resources:
      cpu: "2"
@@ -119,27 +120,27 @@ status:
      ephemeral-storage: "100Gi"
 ```
 
-### `compute.k8s.aws/NodeTemplate`
+### `compute.k8s.aws/NodeClass`
 
 ```
 apiVersion: compute.k8s.aws/v1beta1
-kind: NodeTemplate
+kind: NodeClass
 metadata:
   name: default
 spec:
   amiFamily: AL2
-  amiSelector:
+  amiSelectorTerms:
     - tags: 
         key: value
     - id: abc-123
     - name: foo
       owner: amazon
     - ssm: "/my/custom/parameter"
-  subnetSelector:
+  subnetSelectorTerms:
     - tags:
         compute.k8s.aws/discovery: cluster-name
     - id: subnet-1234
-  securityGroupSelector:
+  securityGroupSelectorTerms:
     - tags:
         compute.k8s.aws/discovery: cluster-name
     - name: default-security-group
@@ -222,11 +223,11 @@ status:
           operator: DoesNotExist
 ```
 
-### `karpenter.sh/Machine`
+### `karpenter.sh/NodeClaim`
 
 ```
 apiVersion: karpenter.sh/v1beta1
-kind: Machine
+kind: NodeClaim
 metadata:
   name: default
   labels:
@@ -234,8 +235,10 @@ metadata:
   annotations:
     example.com/owner: "my-team"
 spec:
-  nodeTemplateRef:
+  nodeClass:
     name: default
+    kind: NodeClass
+    apiVersion: compute.k8s.aws/v1beta1
   taints:
     - key: example.com/special-taint
       effect: NoSchedule
@@ -291,15 +294,15 @@ status:
     memory: 942684Ki
     pods: "4"
   conditions:
-  - type: MachineDrifted
+  - type: NodeDrifted
     status: "True"
     severity: Warning
   - status: "True"
-    type: MachineInitialized
+    type: NodeInitialized
   - status: "True"
-    type: MachineLaunched
+    type: NodeLaunched
   - status: "True"
-    type: MachineRegistered
+    type: NodeRegistered
   - status: "True"
     type: Ready
   nodeName: ip-192-168-62-137.us-west-2.compute.internal
