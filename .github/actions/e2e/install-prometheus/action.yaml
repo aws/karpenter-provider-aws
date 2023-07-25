@@ -43,4 +43,12 @@ runs:
           --set prometheus.prometheusSpec.remoteWrite[0].url=https://aps-workspaces.${{ inputs.region }}.amazonaws.com/workspaces/${{ inputs.workspace_id }}/api/v1/remote_write \
           --set prometheus.prometheusSpec.remoteWrite[0].sigv4.region=${{ inputs.region }} \
           --set prometheus.serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="arn:aws:iam::${{ inputs.account_id }}:role/prometheus-irsa-${{ inputs.cluster_name }}" \
+          --set "kubelet.serviceMonitor.relabelings[0].targetLabel=clusterName" \
+          --set "kubelet.serviceMonitor.relabelings[0].replacement=${{ inputs.cluster_name }}" \
+          --set "kubelet.serviceMonitor.relabelings[1].targetLabel=gitRef" \
+          --set "kubelet.serviceMonitor.relabelings[1].replacement=$(git rev-parse HEAD)" \
+          --set "kubelet.serviceMonitor.relabelings[2].targetLabel=mostRecentTag" \
+          --set "kubelet.serviceMonitor.relabelings[2].replacement=$(git describe --abbrev=0 --tags)" \
+          --set "kubelet.serviceMonitor.relabelings[3].targetLabel=commitsAfterTag" \
+          --set "kubelet.serviceMonitor.relabelings[3].replacement=\"$(git describe --tags | cut -d '-' -f 2)\"" \
           --wait

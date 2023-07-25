@@ -52,7 +52,9 @@ authenticatePrivateRepo() {
 }
 
 buildImages() {
-    CONTROLLER_IMG=$(GOFLAGS=${GOFLAGS} KO_DOCKER_REPO=${RELEASE_REPO_ECR} ko publish -B -t "${RELEASE_VERSION}" "${RELEASE_PLATFORM}" ./cmd/controller)
+    # Set the SOURCE_DATE_EPOCH and KO_DATA_DATE_EPOCH values for reproducable builds with timestamps
+    # https://ko.build/advanced/faq/
+    CONTROLLER_IMG=$(GOFLAGS=${GOFLAGS} SOURCE_DATE_EPOCH=$(git log -1 --format='%ct') KO_DATA_DATE_EPOCH=$(git log -1 --format='%ct') KO_DOCKER_REPO=${RELEASE_REPO_ECR} ko publish -B -t "${RELEASE_VERSION}" "${RELEASE_PLATFORM}" ./cmd/controller)
     HELM_CHART_VERSION=$(helmChartVersion "$RELEASE_VERSION")
     IMG_REPOSITORY=$(echo "$CONTROLLER_IMG" | cut -d "@" -f 1 | cut -d ":" -f 1)
     IMG_TAG=$(echo "$CONTROLLER_IMG" | cut -d "@" -f 1 | cut -d ":" -f 2 -s)
@@ -88,13 +90,11 @@ helmChartVersion(){
 }
 
 buildDate(){
-    # TODO restore https://reproducible-builds.org/docs/source-date-epoch/
+    # Set the SOURCE_DATE_EPOCH and KO_DATA_DATE_EPOCH values for reproducable builds with timestamps
+    # https://ko.build/advanced/faq/
     DATE_FMT="+%Y-%m-%dT%H:%M:%SZ"
-    if [ -z "${SOURCE_DATE_EPOCH-}" ]; then
-        echo $(date -u ${DATE_FMT})
-    else
-        echo$(date -u -d "${SOURCE_DATE_EPOCH}" "${DATE_FMT}" 2>/dev/null || date -u -r "${SOURCE_DATE_EPOCH}" "$(DATE_FMT)" 2>/dev/null || date -u "$(DATE_FMT)")
-    fi
+    SOURCE_DATE_EPOCH=$(git log -1 --format='%ct')
+    echo "$(date -u -r "${SOURCE_DATE_EPOCH}" $DATE_FMT 2>/dev/null)"
 }
 
 cosignImages() {
