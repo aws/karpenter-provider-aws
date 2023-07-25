@@ -74,6 +74,9 @@ func (b Bottlerocket) Script() (string, error) {
 		if b.KubeletConfig.ImageGCLowThresholdPercent != nil {
 			s.Settings.Kubernetes.ImageGCLowThresholdPercent = lo.ToPtr(strconv.FormatInt(int64(*b.KubeletConfig.ImageGCLowThresholdPercent), 10))
 		}
+		if b.KubeletConfig.CPUCFSQuota != nil {
+			s.Settings.Kubernetes.CPUCFSQuota = b.KubeletConfig.CPUCFSQuota
+		}
 	}
 
 	s.Settings.Kubernetes.NodeTaints = map[string][]string{}
