@@ -21,7 +21,7 @@ jobs:
           stale-issue-label: 'lifecycle/stale'
           close-issue-label: 'lifecycle/closed'
           stale-pr-message: 'This PR has been inactive for 14 days. StaleBot will close this stale PR after 14 more days of inactivity.'
-          exempt-pr-labels: 'blocked'
+          exempt-pr-labels: 'blocked,needs-review,needs-design'
           stale-pr-label: 'lifecycle/stale'
           close-pr-label: 'lifecycle/closed'
           days-before-stale: 14
