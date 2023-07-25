@@ -53,6 +53,11 @@ var _ = Describe("StandaloneMachine", func() {
 						Operator: v1.NodeSelectorOpIn,
 						Values:   []string{"c"},
 					},
+					{
+						Key:      v1alpha5.LabelCapacityType,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{v1alpha1.CapacityTypeOnDemand},
+					},
 				},
 				MachineTemplateRef: &v1alpha5.MachineTemplateRef{
 					Name: nodeTemplate.Name,
@@ -198,6 +203,11 @@ var _ = Describe("StandaloneMachine", func() {
 						Operator: v1.NodeSelectorOpIn,
 						Values:   []string{"c"},
 					},
+					{
+						Key:      v1alpha5.LabelCapacityType,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{v1alpha1.CapacityTypeOnDemand},
+					},
 				},
 				MachineTemplateRef: &v1alpha5.MachineTemplateRef{
 					Name: nodeTemplate.Name,
@@ -227,6 +237,11 @@ var _ = Describe("StandaloneMachine", func() {
 						Key:      v1alpha1.LabelInstanceCategory,
 						Operator: v1.NodeSelectorOpIn,
 						Values:   []string{"c"},
+					},
+					{
+						Key:      v1alpha5.LabelCapacityType,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{v1alpha1.CapacityTypeOnDemand},
 					},
 				},
 				MachineTemplateRef: &v1alpha5.MachineTemplateRef{
@@ -274,6 +289,11 @@ var _ = Describe("StandaloneMachine", func() {
 						Operator: v1.NodeSelectorOpIn,
 						Values:   []string{"amd64"},
 					},
+					{
+						Key:      v1alpha5.LabelCapacityType,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{v1alpha1.CapacityTypeOnDemand},
+					},
 				},
 				MachineTemplateRef: &v1alpha5.MachineTemplateRef{
 					Name: nodeTemplate.Name,
@@ -313,6 +333,11 @@ var _ = Describe("StandaloneMachine", func() {
 						Key:      v1.LabelArchStable,
 						Operator: v1.NodeSelectorOpIn,
 						Values:   []string{"amd64"},
+					},
+					{
+						Key:      v1alpha5.LabelCapacityType,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{v1alpha1.CapacityTypeOnDemand},
 					},
 				},
 				MachineTemplateRef: &v1alpha5.MachineTemplateRef{
