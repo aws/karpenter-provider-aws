@@ -85,7 +85,7 @@ var _ = BeforeSuite(func() {
 	ctx, stop = context.WithCancel(ctx)
 	awsEnv = test.NewEnvironment(ctx, env)
 	fakeClock = clock.NewFakeClock(time.Now())
-	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.SubnetProvider)
+	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.SubnetProvider, awsEnv.LaunchTemplateProvider)
 	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
 	prov = provisioning.NewProvisioner(env.Client, env.KubernetesInterface.CoreV1(), events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster)
 })
@@ -563,6 +563,77 @@ var _ = Describe("CloudProvider", func() {
 			})
 			_, err := cloudProvider.IsMachineDrifted(ctx, machine)
 			Expect(err).To(HaveOccurred())
+		})
+		It("should not return drifted if instance is newer than launch template", func() {
+			machine := coretest.Machine(v1alpha5.Machine{
+				Status: v1alpha5.MachineStatus{
+					ProviderID: fake.ProviderID(lo.FromPtr(instance.InstanceId)),
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+						v1.LabelInstanceTypeStable:       selectedInstanceType.Name,
+					},
+				},
+			})
+			instance.LaunchTime = aws.Time(time.Now())
+			nodeTemplate.Spec.LaunchTemplateName = aws.String("validLaunchTemplateName")
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			awsEnv.EC2API.DescribeLaunchTemplateVersionsOutput.Set(&ec2.DescribeLaunchTemplateVersionsOutput{
+				LaunchTemplateVersions: []*ec2.LaunchTemplateVersion{
+					{
+						CreateTime:    aws.Time(time.Date(2020, time.January, 3, 0, 0, 0, 0, time.UTC)),
+						VersionNumber: aws.Int64(1),
+					},
+					{
+						CreateTime:    aws.Time(time.Date(2020, time.January, 4, 0, 0, 0, 0, time.UTC)),
+						VersionNumber: aws.Int64(2),
+					},
+					{
+						CreateTime:    aws.Time(time.Date(2020, time.January, 5, 0, 0, 0, 0, time.UTC)),
+						VersionNumber: aws.Int64(3),
+					},
+				}})
+
+			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machine)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(isDrifted).To(BeFalse())
+		})
+		It("should return drifted if launch template is newer than instance", func() {
+			machine := coretest.Machine(v1alpha5.Machine{
+				Status: v1alpha5.MachineStatus{
+					ProviderID: fake.ProviderID(lo.FromPtr(instance.InstanceId)),
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+						v1.LabelInstanceTypeStable:       selectedInstanceType.Name,
+					},
+					CreationTimestamp: metav1.Time{Time: time.Date(2020, time.January, 3, 0, 0, 0, 0, time.UTC)},
+				},
+			})
+			instance.LaunchTime = aws.Time(time.Date(2020, time.January, 4, 0, 0, 0, 0, time.UTC))
+			nodeTemplate.Spec.LaunchTemplateName = aws.String("validLaunchTemplateName")
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			awsEnv.EC2API.DescribeLaunchTemplateVersionsOutput.Set(&ec2.DescribeLaunchTemplateVersionsOutput{
+				LaunchTemplateVersions: []*ec2.LaunchTemplateVersion{
+					{
+						CreateTime:    aws.Time(time.Date(2020, time.January, 2, 0, 0, 0, 0, time.UTC)),
+						VersionNumber: aws.Int64(1),
+					},
+					{
+						CreateTime:    aws.Time(time.Date(2020, time.January, 3, 0, 0, 0, 0, time.UTC)),
+						VersionNumber: aws.Int64(2),
+					},
+					{
+						CreateTime:    aws.Time(time.Date(2020, time.January, 5, 0, 0, 0, 0, time.UTC)),
+						VersionNumber: aws.Int64(3),
+					},
+				}})
+
+			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machine)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(isDrifted).To(BeTrue())
 		})
 	})
 	Context("Provider Backwards Compatibility", func() {

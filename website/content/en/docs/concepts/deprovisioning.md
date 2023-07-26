@@ -55,7 +55,7 @@ There are both automated and manual ways of deprovisioning nodes provisioned by 
 * **Consolidation**: Karpenter works to actively reduce cluster cost by identifying when:
   * Nodes can be removed as their workloads will run on other nodes in the cluster.
   * Nodes can be replaced with cheaper variants due to a change in the workloads.
-* **Drift**: Karpenter will annotate nodes as drifted and deprovision nodes that have drifted from their desired specification. Currently, Karpenter will only automatically mark nodes as drifted in the case of a drifted AMI.
+* **Drift**: Karpenter will annotate nodes as drifted and deprovision nodes that have drifted from their desired specification. Currently, Karpenter will only automatically mark nodes as drifted in the case of a drifted AMI, drifted subnets, drifted security groups or a drifted launch template.
 * **Interruption**: If enabled, Karpenter will watch for upcoming involuntary interruption events that could affect your nodes (health events, spot interruption, etc.) and will cordon, drain, and terminate the node(s) ahead of the event to reduce workload disruption.
 
 {{% alert title="Note" color="primary" %}}
@@ -178,8 +178,16 @@ Read the [Drift Design](https://github.com/aws/karpenter-core/pull/366/files) fo
 | Metadata Options           |    x   |         |            |             |
 | Block Device Mappings      |    x   |         |            |             |
 | Detailed Monitoring        |    x   |         |            |             |
+| Launch Template Name       |    x   |         |            |             |
 |                            |        |         |            |             |
 
+### Launch Template Drift
+
+Launch template drift is a bit different than the others in that it is triggered only from launch template changes in AWS. This is useful for folks who manage their own launch templates, perhaps with kOps or by hand using the AWS UI.
+
+*Important note:* Launch template drift occurs when an instance create time is older than the latest launch template version. Due to this somewhat naive implementation, Karpenter will not detect drift if the default version on a launch template is set to an old launch template version.
+
+### Feature Flag
 
 To enable the drift feature flag, refer to the [Settings Feature Gates]({{<ref "./settings#feature-gates" >}}).
 

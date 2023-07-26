@@ -353,3 +353,14 @@ func (p *Provider) getInstanceProfile(ctx context.Context, nodeTemplate *v1alpha
 	}
 	return defaultProfile, nil
 }
+
+func (p *Provider) GetLaunchTemplateVersions(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) ([]*ec2.LaunchTemplateVersion, error) {
+	input := &ec2.DescribeLaunchTemplateVersionsInput{
+		LaunchTemplateName: nodeTemplate.Spec.LaunchTemplateName,
+	}
+	ltv, err := p.ec2api.DescribeLaunchTemplateVersionsWithContext(ctx, input)
+	if err != nil {
+		return nil, fmt.Errorf("error getting launch template versions: %w", err)
+	}
+	return ltv.LaunchTemplateVersions, nil
+}

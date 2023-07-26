@@ -6,6 +6,8 @@ Karpenter users are requesting for Node Upgrades, generally asking for [more com
 
 For the initial implementation, Karpenter's drift will reconcile when a node's AMI drifts from provisioning requirements. This mechanism will be scalable to other methods of drift reconciliation in the future. Addtionally, Karpenter can implement Imperative Upgrades or Maintenance Windows in the future.
 
+Since the initial version, drift detection has been added for subnet drift, security group drift and launch template drift.
+
 This document will answer the following questions:
 
 * How will Karpenter upgrade nodes?
@@ -122,7 +124,7 @@ PDBs, the `do-not-evict` pod annotation, and other finalizers are ways that user
 
 ## Which nodes should Karpenter upgrade?
 
-When provisioning a node, Karpenter generates a launch template and fills it with an AMI selected by the `AWSNodeTemplate` `AMISelector`. As hinted above, drifted nodes with AMIs not matching the `AWSNodeTemplate` `AMISelector` will be upgraded.
+When provisioning a node, Karpenter generates a launch template and fills it with an AMI selected by the `AWSNodeTemplate` `AMISelector`. As hinted above, drifted nodes with AMIs, subnets, security groups or launch templates not matching the `AWSNodeTemplate` `AMISelector` will be upgraded.
 
 Karpenter will not upgrade drifted nodes that have the `do-not-evict: true` annotation, [misconfigured PDBs, or blocking PDBs](https://kubernetes.io/docs/concepts/scheduling-eviction/api-eviction/#how-api-initiated-eviction-works). Karpenter's deprovisioning controller will respect this as well.
 

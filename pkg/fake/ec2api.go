@@ -46,25 +46,27 @@ type CapacityPool struct {
 // EC2Behavior must be reset between tests otherwise tests will
 // pollute each other.
 type EC2Behavior struct {
-	DescribeImagesOutput                AtomicPtr[ec2.DescribeImagesOutput]
-	DescribeLaunchTemplatesOutput       AtomicPtr[ec2.DescribeLaunchTemplatesOutput]
-	DescribeSubnetsOutput               AtomicPtr[ec2.DescribeSubnetsOutput]
-	DescribeSecurityGroupsOutput        AtomicPtr[ec2.DescribeSecurityGroupsOutput]
-	DescribeInstanceTypesOutput         AtomicPtr[ec2.DescribeInstanceTypesOutput]
-	DescribeInstanceTypeOfferingsOutput AtomicPtr[ec2.DescribeInstanceTypeOfferingsOutput]
-	DescribeAvailabilityZonesOutput     AtomicPtr[ec2.DescribeAvailabilityZonesOutput]
-	DescribeSpotPriceHistoryInput       AtomicPtr[ec2.DescribeSpotPriceHistoryInput]
-	DescribeSpotPriceHistoryOutput      AtomicPtr[ec2.DescribeSpotPriceHistoryOutput]
-	CreateFleetBehavior                 MockedFunction[ec2.CreateFleetInput, ec2.CreateFleetOutput]
-	TerminateInstancesBehavior          MockedFunction[ec2.TerminateInstancesInput, ec2.TerminateInstancesOutput]
-	DescribeInstancesBehavior           MockedFunction[ec2.DescribeInstancesInput, ec2.DescribeInstancesOutput]
-	CreateTagsBehavior                  MockedFunction[ec2.CreateTagsInput, ec2.CreateTagsOutput]
-	CalledWithCreateLaunchTemplateInput AtomicPtrSlice[ec2.CreateLaunchTemplateInput]
-	CalledWithDescribeImagesInput       AtomicPtrSlice[ec2.DescribeImagesInput]
-	Instances                           sync.Map
-	LaunchTemplates                     sync.Map
-	InsufficientCapacityPools           atomic.Slice[CapacityPool]
-	NextError                           AtomicError
+	DescribeImagesOutput                 AtomicPtr[ec2.DescribeImagesOutput]
+	DescribeLaunchTemplatesOutput        AtomicPtr[ec2.DescribeLaunchTemplatesOutput]
+	DescribeLaunchTemplateVersionsOutput AtomicPtr[ec2.DescribeLaunchTemplateVersionsOutput]
+	DescribeSubnetsOutput                AtomicPtr[ec2.DescribeSubnetsOutput]
+	DescribeSecurityGroupsOutput         AtomicPtr[ec2.DescribeSecurityGroupsOutput]
+	DescribeInstanceTypesOutput          AtomicPtr[ec2.DescribeInstanceTypesOutput]
+	DescribeInstanceTypeOfferingsOutput  AtomicPtr[ec2.DescribeInstanceTypeOfferingsOutput]
+	DescribeAvailabilityZonesOutput      AtomicPtr[ec2.DescribeAvailabilityZonesOutput]
+	DescribeSpotPriceHistoryInput        AtomicPtr[ec2.DescribeSpotPriceHistoryInput]
+	DescribeSpotPriceHistoryOutput       AtomicPtr[ec2.DescribeSpotPriceHistoryOutput]
+	CreateFleetBehavior                  MockedFunction[ec2.CreateFleetInput, ec2.CreateFleetOutput]
+	TerminateInstancesBehavior           MockedFunction[ec2.TerminateInstancesInput, ec2.TerminateInstancesOutput]
+	DescribeInstancesBehavior            MockedFunction[ec2.DescribeInstancesInput, ec2.DescribeInstancesOutput]
+	CreateTagsBehavior                   MockedFunction[ec2.CreateTagsInput, ec2.CreateTagsOutput]
+	CalledWithCreateLaunchTemplateInput  AtomicPtrSlice[ec2.CreateLaunchTemplateInput]
+	CalledWithDescribeImagesInput        AtomicPtrSlice[ec2.DescribeImagesInput]
+	Instances                            sync.Map
+	LaunchTemplates                      sync.Map
+	LaunchTemplateVersions               sync.Map
+	InsufficientCapacityPools            atomic.Slice[CapacityPool]
+	NextError                            AtomicError
 }
 
 type EC2API struct {
@@ -80,6 +82,7 @@ var DefaultSupportedUsageClasses = aws.StringSlice([]string{"on-demand", "spot"}
 func (e *EC2API) Reset() {
 	e.DescribeImagesOutput.Reset()
 	e.DescribeLaunchTemplatesOutput.Reset()
+	e.DescribeLaunchTemplateVersionsOutput.Reset()
 	e.DescribeSubnetsOutput.Reset()
 	e.DescribeSecurityGroupsOutput.Reset()
 	e.DescribeInstanceTypesOutput.Reset()
@@ -98,6 +101,10 @@ func (e *EC2API) Reset() {
 	})
 	e.LaunchTemplates.Range(func(k, v any) bool {
 		e.LaunchTemplates.Delete(k)
+		return true
+	})
+	e.LaunchTemplateVersions.Range(func(k, v any) bool {
+		e.LaunchTemplateVersions.Delete(k)
 		return true
 	})
 	e.InsufficientCapacityPools.Reset()
@@ -358,6 +365,28 @@ func (e *EC2API) DescribeLaunchTemplatesWithContext(_ context.Context, input *ec
 		return true
 	})
 	if len(output.LaunchTemplates) == 0 {
+		return nil, awserr.New("InvalidLaunchTemplateName.NotFoundException", "not found", nil)
+	}
+	return output, nil
+}
+
+func (e *EC2API) DescribeLaunchTemplateVersionsWithContext(_ context.Context, input *ec2.DescribeLaunchTemplateVersionsInput, _ ...request.Option) (*ec2.DescribeLaunchTemplateVersionsOutput, error) {
+	if !e.NextError.IsNil() {
+		defer e.NextError.Reset()
+		return nil, e.NextError.Get()
+	}
+	if !e.DescribeLaunchTemplateVersionsOutput.IsNil() {
+		return e.DescribeLaunchTemplateVersionsOutput.Clone(), nil
+	}
+	output := &ec2.DescribeLaunchTemplateVersionsOutput{}
+	e.LaunchTemplateVersions.Range(func(key, value interface{}) bool {
+		launchTemplateVersion := value.(*ec2.LaunchTemplateVersion)
+		if aws.StringValue(input.LaunchTemplateName) == aws.StringValue(launchTemplateVersion.LaunchTemplateName) {
+			output.LaunchTemplateVersions = append(output.LaunchTemplateVersions, launchTemplateVersion)
+		}
+		return true
+	})
+	if len(output.LaunchTemplateVersions) == 0 {
 		return nil, awserr.New("InvalidLaunchTemplateName.NotFoundException", "not found", nil)
 	}
 	return output, nil

@@ -16,6 +16,7 @@ package cloudprovider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/samber/lo"
@@ -34,6 +35,13 @@ func (c *CloudProvider) isNodeTemplateDrifted(ctx context.Context, machine *v1al
 	instance, err := c.getInstance(ctx, machine.Status.ProviderID)
 	if err != nil {
 		return false, err
+	}
+	if nodeTemplate.Spec.LaunchTemplateName != nil {
+		launchTemplateDrifted, err := c.isLaunchTemplateDrifted(ctx, instance, nodeTemplate)
+		if err != nil {
+			return false, fmt.Errorf("calculating launch template drift, %w", err)
+		}
+		return launchTemplateDrifted, nil
 	}
 	amiDrifted, err := c.isAMIDrifted(ctx, machine, provisioner, instance, nodeTemplate)
 	if err != nil {
@@ -104,6 +112,29 @@ func (c *CloudProvider) areSecurityGroupsDrifted(ec2Instance *instance.Instance,
 		return false, fmt.Errorf("no security groups exist in the AWSNodeTemplate Status")
 	}
 	return !securityGroupIds.Equal(sets.New(ec2Instance.SecurityGroupIDs...)), nil
+}
+
+// Checks if the node template is drifted by comparing the instance launch
+// timestamp with the latest launch template version looked up using the
+// AWSNodeTemplate.LaunchTemplateName
+func (c *CloudProvider) isLaunchTemplateDrifted(ctx context.Context, instance *instance.Instance, nodeTemplate *v1alpha1.AWSNodeTemplate) (bool, error) {
+	versions, err := c.launchTemplateProvider.GetLaunchTemplateVersions(ctx, nodeTemplate)
+	if err != nil {
+		return false, fmt.Errorf("getting launch template versionss, %w", err)
+	}
+	if len(versions) == 0 {
+		return false, errors.New("no launch template versions found")
+	}
+	maxVersion := versions[0]
+	for _, version := range versions {
+		if lo.FromPtr(version.VersionNumber) > lo.FromPtr(maxVersion.VersionNumber) {
+			maxVersion = version
+		}
+	}
+	if instance.LaunchTime.Before(lo.FromPtr(maxVersion.CreateTime)) {
+		return true, nil
+	}
+	return false, nil
 }
 
 func (c *CloudProvider) getInstance(ctx context.Context, providerID string) (*instance.Instance, error) {

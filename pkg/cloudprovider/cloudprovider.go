@@ -43,6 +43,7 @@ import (
 	"github.com/aws/karpenter/pkg/providers/amifamily"
 	"github.com/aws/karpenter/pkg/providers/instance"
 	"github.com/aws/karpenter/pkg/providers/instancetype"
+	"github.com/aws/karpenter/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
 	"github.com/aws/karpenter/pkg/providers/subnet"
 
@@ -59,23 +60,25 @@ func init() {
 var _ cloudprovider.CloudProvider = (*CloudProvider)(nil)
 
 type CloudProvider struct {
-	instanceTypeProvider  *instancetype.Provider
-	instanceProvider      *instance.Provider
-	kubeClient            client.Client
-	amiProvider           *amifamily.Provider
-	securityGroupProvider *securitygroup.Provider
-	subnetProvider        *subnet.Provider
+	instanceTypeProvider   *instancetype.Provider
+	instanceProvider       *instance.Provider
+	kubeClient             client.Client
+	amiProvider            *amifamily.Provider
+	securityGroupProvider  *securitygroup.Provider
+	subnetProvider         *subnet.Provider
+	launchTemplateProvider *launchtemplate.Provider
 }
 
 func New(instanceTypeProvider *instancetype.Provider, instanceProvider *instance.Provider,
-	kubeClient client.Client, amiProvider *amifamily.Provider, securityGroupProvider *securitygroup.Provider, subnetProvider *subnet.Provider) *CloudProvider {
+	kubeClient client.Client, amiProvider *amifamily.Provider, securityGroupProvider *securitygroup.Provider, subnetProvider *subnet.Provider, launchTemplateProvider *launchtemplate.Provider) *CloudProvider {
 	return &CloudProvider{
-		instanceTypeProvider:  instanceTypeProvider,
-		instanceProvider:      instanceProvider,
-		kubeClient:            kubeClient,
-		amiProvider:           amiProvider,
-		securityGroupProvider: securityGroupProvider,
-		subnetProvider:        subnetProvider,
+		instanceTypeProvider:   instanceTypeProvider,
+		instanceProvider:       instanceProvider,
+		kubeClient:             kubeClient,
+		amiProvider:            amiProvider,
+		securityGroupProvider:  securityGroupProvider,
+		subnetProvider:         subnetProvider,
+		launchTemplateProvider: launchTemplateProvider,
 	}
 }
 

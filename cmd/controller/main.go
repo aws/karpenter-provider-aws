@@ -38,6 +38,7 @@ func main() {
 		op.AMIProvider,
 		op.SecurityGroupProvider,
 		op.SubnetProvider,
+		op.LaunchTemplateProvider,
 	)
 	lo.Must0(op.AddHealthzCheck("cloud-provider", awsCloudProvider.LivenessProbe))
 	cloudProvider := metrics.Decorate(awsCloudProvider)
@@ -65,6 +66,7 @@ func main() {
 			op.SecurityGroupProvider,
 			op.PricingProvider,
 			op.AMIProvider,
+			op.LaunchTemplateProvider,
 		)...).
 		WithWebhooks(ctx, webhooks.NewWebhooks()...).
 		Start(ctx)
