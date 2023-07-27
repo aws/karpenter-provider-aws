@@ -30,6 +30,18 @@ runs:
     - uses: ./.github/actions/e2e/install-eksctl
       with:
         eksctl_version: v0.147.0
+    - name: delete-instance-profiles
+      shell:
+      run: |
+        for name in $(aws iam list-instance-profiles --query "InstanceProfiles[*].{Name:InstanceProfileName}" --output text); do
+          tags=$(aws iam list-instance-profile-tags --instance-profile-name $name --output json)
+          if [[ $(echo $tags | jq -r '.Tags[] | select(.Key == "testing.karpenter.sh/cluster") | .Value') == "${{ inputs.cluster_name }}" ]]; then 
+              roleName=$(aws iam get-instance-profile --instance-profile-name $name --query "InstanceProfile.Roles[*].{Name:RoleName}" --output text)
+              aws iam remove-role-from-instance-profile --instance-profile-name $name --role-name $roleName
+              aws iam delete-instance-profile --instance-profile-name $name
+              break
+          fi
+        done
     - name: delete-cluster
       shell: bash
       run: |

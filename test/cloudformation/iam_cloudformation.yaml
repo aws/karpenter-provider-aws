@@ -78,14 +78,22 @@ Resources:
             Resource: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/eksctl-*"
           - Effect: Allow
             Action:
+              - iam:ListInstanceProfiles
+              - iam:ListInstanceProfileTags
+            Resource:
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:instance-profile/*" 
+          - Effect: Allow
+            Action:
               - iam:AddRoleToInstanceProfile
               - iam:CreateInstanceProfile
+              - iam:TagInstanceProfile
               - iam:RemoveRoleFromInstanceProfile
               - iam:DeleteInstanceProfile
               - iam:GetInstanceProfile
             Resource:
               - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:instance-profile/KarpenterNodeInstanceProfile-*"
               - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/KarpenterNodeRole-*"
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:instance-profile/KarpenterNodeInstanceProfile-Drift-*"
           - Effect: Allow
             Action:
               - iam:CreateOpenIDConnectProvider
