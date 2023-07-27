@@ -1,0 +1,65 @@
+/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package integration_test
+
+import (
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/test"
+	"github.com/aws/karpenter/pkg/apis/settings"
+	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+
+	awstest "github.com/aws/karpenter/pkg/test"
+)
+
+var _ = Describe("CRD Hash", func() {
+	It("should have Provisioner hash", func() {
+		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+			AWS: v1alpha1.AWS{
+				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			},
+		})
+		provisioner := test.Provisioner(test.ProvisionerOptions{
+			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
+		})
+
+		env.ExpectCreated(provider, provisioner)
+
+		var prov v1alpha5.Provisioner
+		err := env.Client.Get(env, client.ObjectKeyFromObject(provisioner), &prov)
+		Expect(err).ToNot(HaveOccurred())
+
+		Expect(prov.Annotations[v1alpha5.ProvisionerHashAnnotationKey]).To(Equal(provisioner.Hash()))
+	})
+	It("should have AWSNodeTemplate hash", func() {
+		nodeTemplate := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+			AWS: v1alpha1.AWS{
+				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			},
+		})
+		env.ExpectCreated(nodeTemplate)
+
+		var ant v1alpha1.AWSNodeTemplate
+		err := env.Client.Get(env, client.ObjectKeyFromObject(nodeTemplate), &ant)
+		Expect(err).ToNot(HaveOccurred())
+
+		Expect(ant.Annotations[v1alpha1.AnnotationNodeTemplateHash]).To(Equal(nodeTemplate.Hash()))
+	})
+})

@@ -720,6 +720,55 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			))
 		})
 	})
+	Context("AWSNodeTemplate Static Drift Hash", func() {
+		DescribeTable("should update the static drift hash when nodeTemplate static field is updated", func(awsnodetemplatespec v1alpha1.AWSNodeTemplateSpec) {
+			updatedAWSNodeTemplate := test.AWSNodeTemplate(*nodeTemplate.Spec.DeepCopy(), awsnodetemplatespec)
+			updatedAWSNodeTemplate.ObjectMeta = nodeTemplate.ObjectMeta
+			updatedAWSNodeTemplate.Annotations = map[string]string{v1alpha1.AnnotationNodeTemplateHash: updatedAWSNodeTemplate.Hash()}
+
+			ExpectApplied(ctx, env.Client, nodeTemplate)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
+
+			expectedHash := nodeTemplate.Hash()
+			Expect(nodeTemplate.ObjectMeta.Annotations[v1alpha1.AnnotationNodeTemplateHash]).To(Equal(expectedHash))
+
+			ExpectApplied(ctx, env.Client, updatedAWSNodeTemplate)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
+
+			expectedHashTwo := nodeTemplate.Hash()
+			Expect(expectedHash).ToNot(Equal(expectedHashTwo))
+			Expect(nodeTemplate.ObjectMeta.Annotations[v1alpha1.AnnotationNodeTemplateHash]).To(Equal(expectedHashTwo))
+		},
+			Entry("InstanceProfile Drift", v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{InstanceProfile: aws.String("profile-2")}}),
+			Entry("UserData Drift", v1alpha1.AWSNodeTemplateSpec{UserData: aws.String("userdata-test-2")}),
+			Entry("Tags Drift", v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{Tags: map[string]string{"keyTag-test-3": "valueTag-test-3"}}}),
+			Entry("MetadataOptions Drift", v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{LaunchTemplate: v1alpha1.LaunchTemplate{MetadataOptions: &v1alpha1.MetadataOptions{HTTPEndpoint: aws.String("test-metadata-2")}}}}),
+			Entry("BlockDeviceMappings Drift", v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{LaunchTemplate: v1alpha1.LaunchTemplate{BlockDeviceMappings: []*v1alpha1.BlockDeviceMapping{{DeviceName: aws.String("map-device-test-3")}}}}}),
+			Entry("Context Drift", v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{Context: aws.String("context-2")}}),
+			Entry("DetailedMonitoring Drift", v1alpha1.AWSNodeTemplateSpec{DetailedMonitoring: aws.Bool(true)}),
+			Entry("AMIFamily Drift", v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{AMIFamily: aws.String(v1alpha1.AMIFamilyBottlerocket)}}),
+		)
+		It("should not update the static drift hash when nodeTemplate dynamic field is updated", func() {
+			ExpectApplied(ctx, env.Client, nodeTemplate)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
+
+			expectedHash := nodeTemplate.Hash()
+			Expect(nodeTemplate.ObjectMeta.Annotations[v1alpha1.AnnotationNodeTemplateHash]).To(Equal(expectedHash))
+
+			nodeTemplate.Spec.SubnetSelector = map[string]string{"aws-ids": "subnet-test1"}
+			nodeTemplate.Spec.SecurityGroupSelector = map[string]string{"aws-ids": "sg-test1"}
+			nodeTemplate.Spec.AMISelector = map[string]string{"ami-test-key": "ami-test-value"}
+
+			ExpectApplied(ctx, env.Client, nodeTemplate)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
+
+			Expect(nodeTemplate.ObjectMeta.Annotations[v1alpha1.AnnotationNodeTemplateHash]).To(Equal(expectedHash))
+		})
+	})
 })
 
 func sortRequirements(amis []v1alpha1.AMI) {
