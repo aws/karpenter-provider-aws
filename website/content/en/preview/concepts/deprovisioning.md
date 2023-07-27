@@ -172,7 +172,8 @@ Read the [Drift Design](https://github.com/aws/karpenter-core/pull/366/files) fo
 | Subnet Selector            |        |    x    |            |      x      |
 | Security Group Selector    |        |    x    |            |      x      |
 | Instance Profile           |    x   |         |            |             |
-| AMI Family/AMI Selector    |        |    x    |            |      x      |
+  AMI Family                 |    x   |         |            |             |
+| AMI Selector               |        |    x    |            |      x      |
 | UserData                   |    x   |         |            |             |
 | Tags                       |    x   |         |            |             |
 | Metadata Options           |    x   |         |            |             |
