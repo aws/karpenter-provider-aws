@@ -68,7 +68,7 @@ spec:
     - key: "karpenter.k8s.aws/instance-hypervisor"
       operator: In
       values: ["nitro"]
-    - key: karpenter.k8s.aws/instance-generation
+    - key: "karpenter.k8s.aws/instance-generation"
       operator: Gt
       values: ["2"]
     - key: "topology.kubernetes.io/zone"
