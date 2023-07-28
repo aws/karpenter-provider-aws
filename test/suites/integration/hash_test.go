@@ -29,23 +29,27 @@ import (
 
 var _ = Describe("CRD Hash", func() {
 	It("should have Provisioner hash", func() {
-		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+		nodeTemplate := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 			AWS: v1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			},
 		})
 		provisioner := test.Provisioner(test.ProvisionerOptions{
-			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
+			ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name},
 		})
 
-		env.ExpectCreated(provider, provisioner)
+		env.ExpectCreated(nodeTemplate, provisioner)
 
-		var prov v1alpha5.Provisioner
-		err := env.Client.Get(env, client.ObjectKeyFromObject(provisioner), &prov)
-		Expect(err).ToNot(HaveOccurred())
+		Eventually(func(g Gomega) {
+			var prov v1alpha5.Provisioner
+			err := env.Client.Get(env, client.ObjectKeyFromObject(provisioner), &prov)
+			g.Expect(err).ToNot(HaveOccurred())
 
-		Expect(prov.Annotations[v1alpha5.ProvisionerHashAnnotationKey]).To(Equal(provisioner.Hash()))
+			hash, found := prov.Annotations[v1alpha5.ProvisionerHashAnnotationKey]
+			g.Expect(found).To(BeTrue())
+			g.Expect(hash).To(Equal(provisioner.Hash()))
+		})
 	})
 	It("should have AWSNodeTemplate hash", func() {
 		nodeTemplate := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
@@ -56,10 +60,14 @@ var _ = Describe("CRD Hash", func() {
 		})
 		env.ExpectCreated(nodeTemplate)
 
-		var ant v1alpha1.AWSNodeTemplate
-		err := env.Client.Get(env, client.ObjectKeyFromObject(nodeTemplate), &ant)
-		Expect(err).ToNot(HaveOccurred())
+		Eventually(func(g Gomega) {
+			var ant v1alpha1.AWSNodeTemplate
+			err := env.Client.Get(env, client.ObjectKeyFromObject(nodeTemplate), &ant)
+			g.Expect(err).ToNot(HaveOccurred())
 
-		Expect(ant.Annotations[v1alpha1.AnnotationNodeTemplateHash]).To(Equal(nodeTemplate.Hash()))
+			hash, found := ant.Annotations[v1alpha1.AnnotationNodeTemplateHash]
+			g.Expect(found).To(BeTrue())
+			g.Expect(hash).To(Equal(nodeTemplate.Hash()))
+		})
 	})
 })
