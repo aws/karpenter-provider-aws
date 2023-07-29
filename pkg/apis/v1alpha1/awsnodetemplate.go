@@ -15,6 +15,9 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"fmt"
+
+	"github.com/mitchellh/hashstructure/v2"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -79,7 +82,7 @@ type AWSNodeTemplateSpec struct {
 	AWS      `json:",inline"`
 	// AMISelector discovers AMIs to be used by Amazon EC2 tags.
 	// +optional
-	AMISelector map[string]string `json:"amiSelector,omitempty"`
+	AMISelector map[string]string `json:"amiSelector,omitempty" hash:"ignore"`
 	// DetailedMonitoring controls if detailed monitoring is enabled for instances that are launched
 	// +optional
 	DetailedMonitoring *bool `json:"detailedMonitoring,omitempty"`
@@ -95,6 +98,16 @@ type AWSNodeTemplate struct {
 
 	Spec   AWSNodeTemplateSpec   `json:"spec,omitempty"`
 	Status AWSNodeTemplateStatus `json:"status,omitempty"`
+}
+
+func (a *AWSNodeTemplate) Hash() string {
+	hash, _ := hashstructure.Hash(a.Spec, hashstructure.FormatV2, &hashstructure.HashOptions{
+		SlicesAsSets:    true,
+		IgnoreZeroValue: true,
+		ZeroNil:         true,
+	})
+
+	return fmt.Sprint(hash)
 }
 
 // AWSNodeTemplateList contains a list of AWSNodeTemplate

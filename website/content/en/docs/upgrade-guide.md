@@ -105,7 +105,7 @@ Snapshot releases are tagged with the git commit hash prefixed by the Karpenter 
 ### Upgrading to v0.29.0+
 
 {{% alert title="Warning" color="warning" %}}
-Karpenter `v0.29.0` contains a [file descriptor and memory leak bug](https://github.com/aws/karpenter/issues/4296) that leads to Karpenter getting OOMKilled and restarting at the point that it hits its memory or file descriptor limit. Karpenter `>v0.29.1` fixes this leak.
+Karpenter `v0.29.1` contains a [file descriptor and memory leak bug](https://github.com/aws/karpenter/issues/4296) that leads to Karpenter getting OOMKilled and restarting at the point that it hits its memory or file descriptor limit. Karpenter `>v0.29.2` fixes this leak.
 {{% /alert %}}
 
 * Karpenter has changed the default metrics service port from 8080 to 8000 and the default webhook service port from 443 to 8443. In `v0.28.0`, the Karpenter pod port was changed to 8000, but referenced the service by name, allowing users to scrape the service at port 8080 for metrics. `v0.29.0` aligns the two ports so that service and pod metrics ports are the same. These ports are set by the `controller.metrics.port` and `webhook.port` helm chart values, so if you have previously set these to non-default values, you may need to update your Prometheus scraper to match these new values.
@@ -204,14 +204,14 @@ kubectl delete mutatingwebhookconfigurations defaulting.webhook.karpenter.sh
 * Pods without an ownerRef (also called "controllerless" or "naked" pods) will now be evicted by default during node termination and consolidation.  Users can prevent controllerless pods from being voluntarily disrupted by applying the `karpenter.sh/do-not-evict: "true"` annotation to the pods in question.
 * The following CLI options/environment variables are now removed and replaced in favor of pulling settings dynamically from the [`karpenter-global-settings`]({{<ref "./concepts/settings#configmap" >}}) ConfigMap. See the [Settings docs]({{<ref "./concepts/settings/#environment-variables--cli-flags" >}}) for more details on configuring the new values in the ConfigMap.
 
-  * `CLUSTER_NAME` -> `aws.clusterName`
-  * `CLUSTER_ENDPOINT` -> `aws.clusterEndpoint`
-  * `AWS_DEFAULT_INSTANCE_PROFILE` -> `aws.defaultInstanceProfile`
-  * `AWS_ENABLE_POD_ENI` -> `aws.enablePodENI`
-  * `AWS_ENI_LIMITED_POD_DENSITY` -> `aws.enableENILimitedPodDensity`
-  * `AWS_ISOLATED_VPC` -> `aws.isolatedVPC`
-  * `AWS_NODE_NAME_CONVENTION` -> `aws.nodeNameConvention`
-  * `VM_MEMORY_OVERHEAD` -> `aws.vmMemoryOverheadPercent`
+  * `CLUSTER_NAME` -> `settings.aws.clusterName`
+  * `CLUSTER_ENDPOINT` -> `settings.aws.clusterEndpoint`
+  * `AWS_DEFAULT_INSTANCE_PROFILE` -> `settings.aws.defaultInstanceProfile`
+  * `AWS_ENABLE_POD_ENI` -> `settings.aws.enablePodENI`
+  * `AWS_ENI_LIMITED_POD_DENSITY` -> `settings.aws.enableENILimitedPodDensity`
+  * `AWS_ISOLATED_VPC` -> `settings.aws.isolatedVPC`
+  * `AWS_NODE_NAME_CONVENTION` -> `settings.aws.nodeNameConvention`
+  * `VM_MEMORY_OVERHEAD` -> `settings.aws.vmMemoryOverheadPercent`
 
 ### Upgrading to v0.18.0+
 * v0.18.0 removes the `karpenter_consolidation_nodes_created` and `karpenter_consolidation_nodes_terminated` prometheus metrics in favor of the more generic `karpenter_nodes_created` and `karpenter_nodes_terminated` metrics. You can still see nodes created and terminated by consolidation by checking the `reason` label on the metrics. Check out all the metrics published by Karpenter [here]({{<ref "./concepts/metrics" >}}).

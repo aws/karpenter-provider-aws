@@ -24,7 +24,7 @@ import (
 type AWS struct {
 	// TypeMeta includes version and kind of the extensions, inferred if not provided.
 	// +optional
-	metav1.TypeMeta `json:",inline"`
+	metav1.TypeMeta `json:",inline" hash:"ignore"`
 	// AMIFamily is the AMI family that instances use.
 	// +optional
 	AMIFamily *string `json:"amiFamily,omitempty"`
@@ -37,10 +37,10 @@ type AWS struct {
 	InstanceProfile *string `json:"instanceProfile,omitempty"`
 	// SubnetSelector discovers subnets by tags. A value of "" is a wildcard.
 	// +optional
-	SubnetSelector map[string]string `json:"subnetSelector,omitempty"`
+	SubnetSelector map[string]string `json:"subnetSelector,omitempty" hash:"ignore"`
 	// SecurityGroups specify the names of the security groups.
 	// +optional
-	SecurityGroupSelector map[string]string `json:"securityGroupSelector,omitempty"`
+	SecurityGroupSelector map[string]string `json:"securityGroupSelector,omitempty" hash:"ignore"`
 	// Tags to be applied on ec2 resources like instances and launch templates.
 	// +optional
 	Tags map[string]string `json:"tags,omitempty"`
@@ -53,7 +53,7 @@ type LaunchTemplate struct {
 	// NOTE: This field is for specifying a custom launch template and is exposed in the Spec
 	// as `launchTemplate` for backwards compatibility.
 	// +optional
-	LaunchTemplateName *string `json:"launchTemplate,omitempty"`
+	LaunchTemplateName *string `json:"launchTemplate,omitempty" hash:"ignore"`
 	// MetadataOptions for the generated launch template of provisioned nodes.
 	//
 	// This specifies the exposure of the Instance Metadata Service to

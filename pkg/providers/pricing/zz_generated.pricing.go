@@ -18,9 +18,9 @@ package pricing
 
 import "time"
 
-// generated at 2023-06-26T13:09:51Z for us-east-1
+// generated at 2023-07-24T13:07:32Z for us-east-1
 
-var initialPriceUpdate, _ = time.Parse(time.RFC3339, "2023-06-26T13:09:51Z")
+var initialPriceUpdate, _ = time.Parse(time.RFC3339, "2023-07-24T13:07:32Z")
 var initialOnDemandPrices = map[string]map[string]float64{}
 
 func init() {
@@ -88,8 +88,6 @@ func init() {
 		// c7gn family
 		"c7gn.12xlarge": 2.995200, "c7gn.16xlarge": 3.993600, "c7gn.2xlarge": 0.499200, "c7gn.4xlarge": 0.998400,
 		"c7gn.8xlarge": 1.996800, "c7gn.large": 0.124800, "c7gn.medium": 0.062400, "c7gn.xlarge": 0.249600,
-		// cc2 family
-		"cc2.8xlarge": 2.000000,
 		// cr1 family
 		"cr1.8xlarge": 3.500000,
 		// d2 family
@@ -125,8 +123,6 @@ func init() {
 		"h1.16xlarge": 3.744000, "h1.2xlarge": 0.468000, "h1.4xlarge": 0.936000, "h1.8xlarge": 1.872000,
 		// hpc7g family
 		"hpc7g.16xlarge": 1.683200, "hpc7g.4xlarge": 1.683200, "hpc7g.8xlarge": 1.683200,
-		// hs1 family
-		"hs1.8xlarge": 4.600000,
 		// i2 family
 		"i2.2xlarge": 1.705000, "i2.4xlarge": 3.410000, "i2.8xlarge": 6.820000, "i2.xlarge": 0.853000,
 		// i3 family

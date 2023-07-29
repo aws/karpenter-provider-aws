@@ -101,7 +101,11 @@ func (c *CloudProvider) Create(ctx context.Context, machine *v1alpha5.Machine) (
 	instanceType, _ := lo.Find(instanceTypes, func(i *cloudprovider.InstanceType) bool {
 		return i.Name == instance.Type
 	})
-	return c.instanceToMachine(instance, instanceType), nil
+	m := c.instanceToMachine(instance, instanceType)
+	m.Annotations = lo.Assign(m.Annotations, map[string]string{
+		v1alpha1.AnnotationNodeTemplateHash: nodeTemplate.Hash(),
+	})
+	return m, nil
 }
 
 // Link adds a tag to the cloudprovider machine to tell the cloudprovider that it's now owned by a Machine

@@ -22,6 +22,7 @@ import (
 
 	"go.uber.org/multierr"
 	"golang.org/x/time/rate"
+	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/client-go/util/workqueue"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -61,14 +62,21 @@ func NewController(kubeClient client.Client, subnetProvider *subnet.Provider, se
 func (c *Controller) Reconcile(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) (reconcile.Result, error) {
 	stored := nodeTemplate.DeepCopy()
 
+	nodeTemplate.Annotations = lo.Assign(nodeTemplate.ObjectMeta.Annotations, map[string]string{v1alpha1.AnnotationNodeTemplateHash: nodeTemplate.Hash()})
 	err := multierr.Combine(
 		c.resolveSubnets(ctx, nodeTemplate),
 		c.resolveSecurityGroups(ctx, nodeTemplate),
 		c.resolveAMIs(ctx, nodeTemplate),
 	)
 
-	if patchErr := c.kubeClient.Status().Patch(ctx, nodeTemplate, client.MergeFrom(stored)); patchErr != nil {
-		err = multierr.Append(err, client.IgnoreNotFound(patchErr))
+	if !equality.Semantic.DeepEqual(stored, nodeTemplate) {
+		statusCopy := nodeTemplate.DeepCopy()
+		if patchErr := c.kubeClient.Patch(ctx, nodeTemplate, client.MergeFrom(stored)); patchErr != nil {
+			err = multierr.Append(err, client.IgnoreNotFound(patchErr))
+		}
+		if patchErr := c.kubeClient.Status().Patch(ctx, statusCopy, client.MergeFrom(stored)); patchErr != nil {
+			err = multierr.Append(err, client.IgnoreNotFound(patchErr))
+		}
 	}
 
 	return reconcile.Result{RequeueAfter: 5 * time.Minute}, err
