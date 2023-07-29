@@ -204,14 +204,14 @@ kubectl delete mutatingwebhookconfigurations defaulting.webhook.karpenter.sh
 * Pods without an ownerRef (also called "controllerless" or "naked" pods) will now be evicted by default during node termination and consolidation.  Users can prevent controllerless pods from being voluntarily disrupted by applying the `karpenter.sh/do-not-evict: "true"` annotation to the pods in question.
 * The following CLI options/environment variables are now removed and replaced in favor of pulling settings dynamically from the [`karpenter-global-settings`]({{<ref "./concepts/settings#configmap" >}}) ConfigMap. See the [Settings docs]({{<ref "./concepts/settings/#environment-variables--cli-flags" >}}) for more details on configuring the new values in the ConfigMap.
 
-  * `CLUSTER_NAME` -> `aws.clusterName`
-  * `CLUSTER_ENDPOINT` -> `aws.clusterEndpoint`
-  * `AWS_DEFAULT_INSTANCE_PROFILE` -> `aws.defaultInstanceProfile`
-  * `AWS_ENABLE_POD_ENI` -> `aws.enablePodENI`
-  * `AWS_ENI_LIMITED_POD_DENSITY` -> `aws.enableENILimitedPodDensity`
-  * `AWS_ISOLATED_VPC` -> `aws.isolatedVPC`
-  * `AWS_NODE_NAME_CONVENTION` -> `aws.nodeNameConvention`
-  * `VM_MEMORY_OVERHEAD` -> `aws.vmMemoryOverheadPercent`
+  * `CLUSTER_NAME` -> `settings.aws.clusterName`
+  * `CLUSTER_ENDPOINT` -> `settings.aws.clusterEndpoint`
+  * `AWS_DEFAULT_INSTANCE_PROFILE` -> `settings.aws.defaultInstanceProfile`
+  * `AWS_ENABLE_POD_ENI` -> `settings.aws.enablePodENI`
+  * `AWS_ENI_LIMITED_POD_DENSITY` -> `settings.aws.enableENILimitedPodDensity`
+  * `AWS_ISOLATED_VPC` -> `settings.aws.isolatedVPC`
+  * `AWS_NODE_NAME_CONVENTION` -> `settings.aws.nodeNameConvention`
+  * `VM_MEMORY_OVERHEAD` -> `settings.aws.vmMemoryOverheadPercent`
 
 ### Upgrading to v0.18.0+
 * v0.18.0 removes the `karpenter_consolidation_nodes_created` and `karpenter_consolidation_nodes_terminated` prometheus metrics in favor of the more generic `karpenter_nodes_created` and `karpenter_nodes_terminated` metrics. You can still see nodes created and terminated by consolidation by checking the `reason` label on the metrics. Check out all the metrics published by Karpenter [here]({{<ref "./concepts/metrics" >}}).
