@@ -73,6 +73,8 @@ type LaunchTemplate struct {
 	// BlockDeviceMappings to be applied to provisioned nodes.
 	// +optionals
 	BlockDeviceMappings []*BlockDeviceMapping `json:"blockDeviceMappings,omitempty"`
+
+	NetworkInterfaces []*NetworkInterface `json:"networkInterfaces,omitempty"`
 }
 
 // MetadataOptions contains parameters for specifying the exposure of the
@@ -195,4 +197,16 @@ func DeserializeProvider(raw []byte) (*AWS, error) {
 		a.SetGroupVersionKind(*gvk)
 	}
 	return a, nil
+}
+
+type NetworkInterface struct {
+
+	// Associates a public IPv4 address with eth0 for a new network interface.
+	AssociatePublicIPAddress *bool `json:"associatePublicIPAddress,omitempty"`
+
+	// A description for the network interface.
+	Description *string `json:"description,omitempty"`
+
+	// The device index for the network interface attachment.
+	DeviceIndex *int64 `json:"deviceIndex,omitempty"`
 }

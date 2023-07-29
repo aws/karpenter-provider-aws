@@ -33,6 +33,7 @@ spec:
   tags: { ... }                  # optional, propagates tags to underlying EC2 resources
   metadataOptions: { ... }       # optional, configures IMDS for the instance
   blockDeviceMappings: [ ... ]   # optional, configures storage devices for the instance
+  networkInterfaces: { ... }     # optional, configures the network interfaces for the instance
   detailedMonitoring: "..."      # optional, configures detailed monitoring for the instance
 status:
   subnets: { ... }               # resolved subnets
@@ -387,6 +388,34 @@ spec:
         encrypted: true
 ```
 {{% /alert %}}
+
+## spec.networkInterfaces
+the `networkInterfaces` field on the AWSNodeTemplate is mapped to [AWS EC2 LaunchTemplate NetworkInterfaces](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-ec2-launchtemplate-networkinterface.html)
+and can be used to configure the network Interfaces that AWS EC2 will attach to the provisioned nodes
+
+when not specified, a single network interface will be added to the node. In case all referenced subnets had `MapPublicIpOnLaunch` set to `false`, the generated network interface will have `AssociatePublicIpAddress` equals `false`
+
+currently these are the supported fields
+```yaml
+networkInterfaces:                        # optional, configures network interfaces for the instance
+      associatePublicIPAddress: false     # optional, Indicates whether to assign a public IPv4 address to eth0 for a new network interface.
+      description: "..."                  # optional, A description for the network interface.
+      deviceIndex: 0                      # optional, The device index for the network interface attachment.
+```
+Learn more about [Network Interfaces](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-eni.html).
+### Examples
+
+```yaml
+apiVersion: karpenter.k8s.aws/v1alpha1
+kind: AWSNodeTemplate
+spec:
+  networkInterfaces:
+    - associatePublicIPAddress: true
+      description: "main network interface"
+      deviceIndex: 0
+    - description: "secondary network interface"
+      deviceIndex: 1
+``` 
 
 ## spec.userData
 
