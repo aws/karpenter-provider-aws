@@ -18,9 +18,9 @@ package pricing
 
 import "time"
 
-// generated at 2023-07-24T13:07:32Z for us-east-1
+// generated at 2023-07-31T13:09:33Z for us-east-1
 
-var initialPriceUpdate, _ = time.Parse(time.RFC3339, "2023-07-24T13:07:32Z")
+var initialPriceUpdate, _ = time.Parse(time.RFC3339, "2023-07-31T13:09:33Z")
 var initialOnDemandPrices = map[string]map[string]float64{}
 
 func init() {
@@ -85,6 +85,9 @@ func init() {
 		"c7g.12xlarge": 1.740000, "c7g.16xlarge": 2.320000, "c7g.2xlarge": 0.290000, "c7g.4xlarge": 0.580000,
 		"c7g.8xlarge": 1.160000, "c7g.large": 0.072500, "c7g.medium": 0.036300, "c7g.metal": 2.320000,
 		"c7g.xlarge": 0.145000,
+		// c7gd family
+		"c7gd.12xlarge": 2.177300, "c7gd.16xlarge": 2.903000, "c7gd.2xlarge": 0.362900, "c7gd.4xlarge": 0.725800,
+		"c7gd.8xlarge": 1.451500, "c7gd.large": 0.090700, "c7gd.medium": 0.045400, "c7gd.xlarge": 0.181400,
 		// c7gn family
 		"c7gn.12xlarge": 2.995200, "c7gn.16xlarge": 3.993600, "c7gn.2xlarge": 0.499200, "c7gn.4xlarge": 0.998400,
 		"c7gn.8xlarge": 1.996800, "c7gn.large": 0.124800, "c7gn.medium": 0.062400, "c7gn.xlarge": 0.249600,
@@ -213,6 +216,9 @@ func init() {
 		"m7g.12xlarge": 1.958400, "m7g.16xlarge": 2.611200, "m7g.2xlarge": 0.326400, "m7g.4xlarge": 0.652800,
 		"m7g.8xlarge": 1.305600, "m7g.large": 0.081600, "m7g.medium": 0.040800, "m7g.metal": 2.611200,
 		"m7g.xlarge": 0.163200,
+		// m7gd family
+		"m7gd.12xlarge": 2.562800, "m7gd.16xlarge": 3.417100, "m7gd.2xlarge": 0.427100, "m7gd.4xlarge": 0.854300,
+		"m7gd.8xlarge": 1.708600, "m7gd.large": 0.106800, "m7gd.medium": 0.053400, "m7gd.xlarge": 0.213600,
 		// p2 family
 		"p2.16xlarge": 14.400000, "p2.8xlarge": 7.200000, "p2.xlarge": 0.900000,
 		// p3 family
@@ -223,6 +229,8 @@ func init() {
 		"p4d.24xlarge": 32.772600,
 		// p4de family
 		"p4de.24xlarge": 40.965750,
+		// p5 family
+		"p5.48xlarge": 98.320000,
 		// r3 family
 		"r3.2xlarge": 0.665000, "r3.4xlarge": 1.330000, "r3.8xlarge": 2.660000, "r3.large": 0.166000,
 		"r3.xlarge": 0.333000,
@@ -287,6 +295,9 @@ func init() {
 		"r7g.12xlarge": 2.570400, "r7g.16xlarge": 3.427200, "r7g.2xlarge": 0.428400, "r7g.4xlarge": 0.856800,
 		"r7g.8xlarge": 1.713600, "r7g.large": 0.107100, "r7g.medium": 0.053600, "r7g.metal": 3.427200,
 		"r7g.xlarge": 0.214200,
+		// r7gd family
+		"r7gd.12xlarge": 3.265900, "r7gd.16xlarge": 4.354600, "r7gd.2xlarge": 0.544300, "r7gd.4xlarge": 1.088600,
+		"r7gd.8xlarge": 2.177300, "r7gd.large": 0.136100, "r7gd.medium": 0.068000, "r7gd.xlarge": 0.272200,
 		// t1 family
 		"t1.micro": 0.020000,
 		// t2 family
