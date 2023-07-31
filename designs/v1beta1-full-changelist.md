@@ -72,7 +72,7 @@ spec:
     ttlAfterUnderutilized: ...
 ```
 
-#### `provisioner.Spec.ttl...` → `nodePool.Spec.deprovisioning.ttl...`
+#### `provisioner.spec.ttl...` → `nodePool.spec.deprovisioning.ttl...`
 
 Karpenter plans to expand the amount of control that it gives users over both the aggressiveness of deprovisioning and when deprovisioning can take place. As part of these upcoming changes, more fields within the `NodePool` API will begint to pertain to deprovisioning configuration.
 
