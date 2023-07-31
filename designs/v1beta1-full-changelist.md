@@ -115,7 +115,7 @@ amiSelectorTerms:
   ssm: "/al2/alias"
   tags: 
     key: value
-# Selectors are ORed
+# Selector Terms are ORed
 - name: foo
   id: abc-123
   owner: self
@@ -133,7 +133,7 @@ subnetSelectorTerms:
 - id: abc-123
   tags:
     key: value
-# Selectors are ORed
+# Selector Terms are ORed
 - id: abc-123
   tags:
     key: value
@@ -146,10 +146,10 @@ The same logic for `subnetSelectorTerms` applies to `securityGroupSelectorTerms`
 ```
 securityGroupSelectorTerms:
 - id: abc-123
-  name: default-secuirty-group # Not the same as the name tag
+  name: default-security-group # Not the same as the name tag
   tags:
     key: value
-# Selectors are ORed
+# Selector Terms are ORed
 - id: abc-123
   name: custom-security-group # Not the same as the name tag
   tags:
