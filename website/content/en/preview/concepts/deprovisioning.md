@@ -158,7 +158,7 @@ Read the [Drift Design](https://github.com/aws/karpenter-core/pull/366/files) fo
 | Taints                     |    x   |         |            |      x      |
 | Labels                     |    x   |         |            |      x      |
 | Annotations                |    x   |         |            |      x      |
-| Node Requirements          |        |    x    |            |             |
+| Node Requirements          |        |    x    |            |      x      |
 | Kubelet Configuration      |    x   |         |            |      x      |
 | Weight                     |        |         |      x     |     NA      |
 | Limits                     |        |         |      x     |     NA      |
