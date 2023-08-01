@@ -466,14 +466,14 @@ Resources:
           - Effect: Deny
             Action:
               - ec2:RunInstances
-            Resource: "*"
+            Resource: !Sub "arn:${AWS::Partition}:ec2:*:${AWS::AccountId}:instance/*"
             Condition:
               StringNotEquals:
                 ec2:MetadataHttpTokens: required
           - Effect: Deny
             Action:
               - ec2:ModifyInstanceMetadataOptions
-            Resource: "*"
+            Resource: !Sub "arn:${AWS::Partition}:ec2:*:${AWS::AccountId}:instance/*"
             Condition:
               StringEquals:
                 ec2:Attribute: HttpTokens
