@@ -102,6 +102,9 @@ Snapshot releases are tagged with the git commit hash prefixed by the Karpenter 
 
 ## Released Upgrade Notes
 
+### Upgrading to v0.30.0+
+
+* Karpenter will now [statically drift]({{<ref "./concepts/deprovisioning.md#drift" >}}) on both Provisioner and AWSNodeTemplate Fields. For Provisioner Static Drift, the `karpenter.sh/provisioner-hash` annotation must be present on both the Provisioner and Machine. For AWSNodeTemplate drift, the `karpenter.k8s.aws/nodetemplate-hash` annotation must be present on the AWSNodeTemplate and Machine. Karpenter will not add these annotations to pre-existing nodes, so each of these nodes will need to be recycled one time for the annotations to be added.
 ### Upgrading to v0.29.0+
 
 {{% alert title="Warning" color="warning" %}}

@@ -171,16 +171,14 @@ Read the [Drift Design](https://github.com/aws/karpenter-core/pull/366/files) fo
 |----------------------------|  :---: |  :---:  |   :---:    |    :---:    |
 | Subnet Selector            |        |    x    |            |      x      |
 | Security Group Selector    |        |    x    |            |      x      |
-| Instance Profile           |    x   |         |            |             |
-  AMI Family                 |    x   |         |            |             |
+| Instance Profile           |    x   |         |            |      x      |
+| AMI Family                 |    x   |         |            |      x      |
 | AMI Selector               |        |    x    |            |      x      |
-| UserData                   |    x   |         |            |             |
-| Tags                       |    x   |         |            |             |
-| Metadata Options           |    x   |         |            |             |
-| Block Device Mappings      |    x   |         |            |             |
-| Detailed Monitoring        |    x   |         |            |             |
-|                            |        |         |            |             |
-
+| UserData                   |    x   |         |            |      x      |
+| Tags                       |    x   |         |            |      x      |
+| Metadata Options           |    x   |         |            |      x      |
+| Block Device Mappings      |    x   |         |            |      x      |
+| Detailed Monitoring        |    x   |         |            |      x      |
 
 To enable the drift feature flag, refer to the [Settings Feature Gates]({{<ref "./settings#feature-gates" >}}).
 

@@ -48,7 +48,7 @@ func (c *CloudProvider) isNodeTemplateDrifted(ctx context.Context, machine *v1al
 		return false, fmt.Errorf("calculating subnet drift, %w", err)
 	}
 
-	return amiDrifted || securitygroupDrifted || subnetDrifted, nil
+	return amiDrifted || securitygroupDrifted || subnetDrifted || c.areStaticFieldsDrifted(machine, nodeTemplate), nil
 }
 
 func (c *CloudProvider) isAMIDrifted(ctx context.Context, machine *v1alpha5.Machine, provisioner *v1alpha5.Provisioner,
@@ -104,6 +104,16 @@ func (c *CloudProvider) areSecurityGroupsDrifted(ec2Instance *instance.Instance,
 		return false, fmt.Errorf("no security groups exist in the AWSNodeTemplate Status")
 	}
 	return !securityGroupIds.Equal(sets.New(ec2Instance.SecurityGroupIDs...)), nil
+}
+
+func (c *CloudProvider) areStaticFieldsDrifted(machine *v1alpha5.Machine, nodeTemplate *v1alpha1.AWSNodeTemplate) bool {
+	nodeTemplateHash, foundHashNodeTemplate := nodeTemplate.ObjectMeta.Annotations[v1alpha1.AnnotationNodeTemplateHash]
+	machineHash, foundHashMachine := machine.ObjectMeta.Annotations[v1alpha1.AnnotationNodeTemplateHash]
+	if !foundHashNodeTemplate || !foundHashMachine {
+		return false
+	}
+
+	return nodeTemplateHash != machineHash
 }
 
 func (c *CloudProvider) getInstance(ctx context.Context, providerID string) (*instance.Instance, error) {
