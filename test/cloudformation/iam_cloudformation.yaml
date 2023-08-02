@@ -7,9 +7,18 @@ Parameters:
   Branches:
     Type: String
     Description: "The restrictions on which branches have permission to reach out to the OIDC provider. This is useful for security hardening of your github actions as described in https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions"
+  Regions:
+    Type: CommaDelimitedList
+    Default: "us-east-2,us-west-2,eu-west-1"
   PrometheusWorkspaceID:
     Type: String
     Description: "Prometheus workspace to forward cluster prometheus metrics to"
+  DatabaseName:
+    Type: String
+    Description: "Timestream database to forward test metrics to"
+  TableName:
+    Type: String
+    Description: "Timestream table to forward test metrics to"
 Resources:
   GithubOIDCProvider:
     Type: AWS::IAM::OIDCProvider
@@ -104,8 +113,12 @@ Resources:
               - cloudformation:GetTemplate
               - cloudformation:GetTemplateSummary
             Resource:
-              - !Sub "arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/iam-*"
-              - !Sub "arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/eksctl-*"
+              - !Sub "arn:${AWS::Partition}:cloudformation:*:${AWS::AccountId}:stack/iam-*"
+              - !Sub "arn:${AWS::Partition}:cloudformation:*:${AWS::AccountId}:stack/eksctl-*"
+            Condition:
+              StringEquals:
+                aws:RequestedRegion: 
+                  Ref: Regions
           - Effect: Allow
             Action:
              - cloudformation:ListStacks
@@ -120,31 +133,61 @@ Resources:
               - eks:ListFargateProfiles
               - eks:TagResource
               - eks:DescribeCluster
-            Resource: !Sub "arn:${AWS::Partition}:eks:${AWS::Region}:${AWS::AccountId}:cluster/*"
+            Resource: 
+              - !Sub "arn:${AWS::Partition}:eks:*:${AWS::AccountId}:cluster/*"
+            Condition:
+              StringEquals:
+                aws:RequestedRegion: 
+                  Ref: Regions
           - Effect: Allow
             Action:
               - eks:DeleteAddon
               - eks:DescribeAddon
-            Resource: !Sub "arn:${AWS::Partition}:eks:${AWS::Region}:${AWS::AccountId}:addon/*"
+            Resource:
+              - !Sub "arn:${AWS::Partition}:eks:*:${AWS::AccountId}:addon/*"
+            Condition:
+              StringEquals:
+                aws:RequestedRegion: 
+                  Ref: Regions
           - Effect: Allow
             Action:
               - eks:DeleteNodegroup
               - eks:DescribeNodegroup
-            Resource: !Sub "arn:${AWS::Partition}:eks:${AWS::Region}:${AWS::AccountId}:nodegroup/*"
+            Resource: 
+              - !Sub "arn:${AWS::Partition}:eks:*:${AWS::AccountId}:nodegroup/*"
+            Condition:
+              StringEquals:
+                aws:RequestedRegion: 
+                  Ref: Regions
           - Effect: Allow
             Action: fis:CreateExperimentTemplate
-            Resource: !Sub "arn:${AWS::Partition}:fis:${AWS::Region}:${AWS::AccountId}:action/*"
+            Resource: 
+              - !Sub "arn:${AWS::Partition}:fis:*:${AWS::AccountId}:action/*"
+            Condition:
+              StringEquals:
+                aws:RequestedRegion: 
+                  Ref: Regions
           - Effect: Allow
             Action:
               - fis:CreateExperimentTemplate
               - fis:DeleteExperimentTemplate
               - fis:StartExperiment
-            Resource: !Sub "arn:${AWS::Partition}:fis:${AWS::Region}:${AWS::AccountId}:experiment-template/*"
+            Resource: 
+              - !Sub "arn:${AWS::Partition}:fis:*:${AWS::AccountId}:experiment-template/*"
+            Condition:
+              StringEquals:
+                aws:RequestedRegion: 
+                  Ref: Regions
           - Effect: Allow
             Action:
               - fis:GetExperiment
               - fis:StartExperiment
-            Resource: !Sub "arn:${AWS::Partition}:fis:${AWS::Region}:${AWS::AccountId}:experiment/*"
+            Resource: 
+              - !Sub "arn:${AWS::Partition}:fis:*:${AWS::AccountId}:experiment/*"
+            Condition:
+              StringEquals:
+                aws:RequestedRegion: 
+                  Ref: Regions
           - Effect: Allow
             Action:
               - iam:CreateServiceLinkedRole
@@ -163,7 +206,12 @@ Resources:
               - sqs:RemovePermission
               - sqs:DeleteQueue
               - sqs:UntagQueue
-            Resource: !Sub "arn:${AWS::Partition}:sqs:${AWS::Region}:${AWS::AccountId}:*"
+            Resource: 
+            - !Sub "arn:${AWS::Partition}:sqs:*:${AWS::AccountId}:*"
+            Condition:
+              StringEquals:
+                aws:RequestedRegion: 
+                  Ref: Regions
           - Effect: Allow
             Action:
               - events:PutRule
@@ -172,7 +220,17 @@ Resources:
               - events:PutTargets
               - events:RemoveTargets
               - events:EnableRule
-            Resource: !Sub "arn:${AWS::Partition}:events:${AWS::Region}:${AWS::AccountId}:rule/*"
+            Resource: !Sub "arn:${AWS::Partition}:events:*:${AWS::AccountId}:rule/*"
+            Condition:
+              StringEquals:
+                aws:RequestedRegion: 
+                  Ref: Regions
+          - Effect: Allow
+            Action: timestream:WriteRecords
+            Resource: !Sub "arn:${AWS::Partition}:timestream:${AWS::Region}:${AWS::AccountId}:database/${DatabaseName}/table/${TableName}"
+          - Effect: Allow
+            Action: timestream:DescribeEndpoints
+            Resource: "*"
   # GithubActionsPermissionsBoundary includes all permissions needed for all designated roles provisioned by the GithubActions
   # CI task. This includes the cluster ServiceRoles that are generated by EKSCTL and all roles generated with IRSA to interface from the
   # cluster into AWS services through IAM.
@@ -230,9 +288,6 @@ Resources:
               - ec2:DescribeVpcs
               # Image Permissions
               - ec2:DescribeImages
-            Resource: "*"
-          - Effect: Allow
-            Action:
               # Tag Permissions
               - ec2:CreateTags
               - ec2:DeleteTags
@@ -306,12 +361,7 @@ Resources:
               - ec2:DeleteVpc
               - ec2:DescribeVpcAttribute
               - ec2:ModifyVpcAttribute
-            Resource: "*"
-          - Effect: Allow
-            Action: ec2:RunInstances
-            Resource: "*"
-          - Effect: Allow
-            Action:
+              - ec2:RunInstances
               # Read-Only Permissions to pull ECR images needed by the NodeInstanceRole
               - ecr:GetAuthorizationToken
               - ecr:BatchCheckLayerAvailability
@@ -325,15 +375,9 @@ Resources:
               - ecr:GetLifecyclePolicyPreview
               - ecr:ListTagsForResource
               - ecr:DescribeImageScanFindings
-            Resource: "*"
-          - Effect: Allow
-            Action:
               # EKS ServiceRole permissions needed for AutoScalingGroups
               - autoscaling:DescribeAutoScalingGroups
               - autoscaling:UpdateAutoScalingGroup
-            Resource: "*"
-          - Effect: Allow
-            Action:
               # EKS ServiceRole permissions needed to handle LoadBalancer
               - elasticloadbalancing:AddTags
               - elasticloadbalancing:ApplySecurityGroupsToLoadBalancer
@@ -366,15 +410,9 @@ Resources:
               - elasticloadbalancing:RegisterTargets
               - elasticloadbalancing:SetLoadBalancerPoliciesForBackendServer
               - elasticloadbalancing:SetLoadBalancerPoliciesOfListener
-            Resource: "*"
-          - Effect: Allow
-            Action:
               - kms:CreateGrant
               - kms:GenerateDataKeyWithoutPlaintext
               - kms:DescribeKey
-            Resource: "*"
-          - Effect: Allow
-            Action:
               # SSM Permissions for AmazonSSMManagedInstanceCore policy applied to the NodeInstanceRole
               - ssm:DescribeAssociation
               - ssm:GetDeployablePatchSnapshotForInstance
@@ -391,17 +429,11 @@ Resources:
               - ssm:UpdateAssociationStatus
               - ssm:UpdateInstanceAssociationStatus
               - ssm:UpdateInstanceInformation
-            Resource: "*"
-          - Effect: Allow
-            Action:
               # SSM Permissions for AmazonSSMManagedInstanceCore policy applied to the NodeInstanceRole
               - ssmmessages:CreateControlChannel
               - ssmmessages:CreateDataChannel
               - ssmmessages:OpenControlChannel
               - ssmmessages:OpenDataChannel
-            Resource: "*"
-          - Effect: Allow
-            Action:
               # SSM Permissions for AmazonSSMManagedInstanceCore policy applied to the NodeInstanceRole
               - ec2messages:AcknowledgeMessage
               - ec2messages:DeleteMessage
@@ -409,14 +441,14 @@ Resources:
               - ec2messages:GetEndpoint
               - ec2messages:GetMessages
               - ec2messages:SendReply
-            Resource: "*"
-          - Effect: Allow
-            Action:
               - sqs:DeleteMessage
               - sqs:GetQueueAttributes
               - sqs:GetQueueUrl
               - sqs:SendMessage
               - sqs:ReceiveMessage
+              - pricing:GetProducts
+              - ec2:DescribeSpotPriceHistory
+              - eks:DescribeCluster
             Resource: "*"
           - Effect: Allow
             Action: iam:PassRole
@@ -425,25 +457,28 @@ Resources:
               - !GetAtt FISInterruptionRole.Arn
           - Effect: Allow
             Action:
-             - pricing:GetProducts
-             - ec2:DescribeSpotPriceHistory
-            Resource: "*"
-          - Effect: Allow
-            Action: eks:DescribeCluster
-            Resource: "*"
-          - Effect: Allow
-            Action:
               - aps:RemoteWrite
               - aps:GetSeries
               - aps:GetLabels
               - aps:GetMetricMetadata
             Resource: !Sub "arn:${AWS::Partition}:aps:${AWS::Region}:${AWS::AccountId}:workspace/${PrometheusWorkspaceID}"
-          - Effect: Allow
-            Action: cloudwatch:PutMetricData
-            Resource: "*"
+          # Deny ALL IMDSv1 instance launch
+          - Effect: Deny
+            Action:
+              - ec2:RunInstances
+            Resource: !Sub "arn:${AWS::Partition}:ec2:*:${AWS::AccountId}:instance/*"
             Condition:
-              StringLike:
-                "cloudwatch:namespace": "testing.karpenter.sh/*"
+              StringNotEquals:
+                ec2:MetadataHttpTokens: required
+          - Effect: Deny
+            Action:
+              - ec2:ModifyInstanceMetadataOptions
+            Resource: !Sub "arn:${AWS::Partition}:ec2:*:${AWS::AccountId}:instance/*"
+            Condition:
+              StringEquals:
+                ec2:Attribute: HttpTokens
+              StringNotEquals:
+                ec2:Attribute/HttpTokens: required
   GithubActionsRole:
     Type: AWS::IAM::Role
     Properties:
@@ -491,4 +526,9 @@ Resources:
         Statement:
           - Effect: Allow
             Action: ec2:SendSpotInstanceInterruptions
-            Resource: !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/*"
+            Resource: 
+              - !Sub "arn:${AWS::Partition}:ec2:*:${AWS::AccountId}:instance/*"
+            Condition:
+              StringEquals:
+                aws:RequestedRegion: 
+                  Ref: Regions

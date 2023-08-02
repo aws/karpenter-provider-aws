@@ -40,6 +40,7 @@ If you are open to others contacting you about your use of Karpenter on Slack, a
 | QuestDB | Using Karpenter for the service nodes of the QuestBD Cloud (time-series database). | [questdb slack group](https://slack.questdb.io/) | [QuestDB](https://questdb.io/) |
 | Sendcloud | Using Karpenter to scale our k8s clusters for Europe’s #1 shipping automation platform  | N/A | [Homepage](https://www.sendcloud.com/) |
 | Sentra | Using Karpenter to scale our EKS clusters, running our platform and workflows while maximizing cost-efficiency with minimal operational overhead | `@Roei Jacobovich` | [Homepage](https://sentra.io/) |
+| Stone Pagamentos | Using Karpenter to do smart sizing of our clusters  | `@fabiano-amaral` | [Stone Pagamentos](https://www.stone.com.br/) |
 | Stytch | Powering the scaling needs of Stytch's authentication and user-management APIs  | `@Elijah Chanakira`, `@Ovadia Harary` | [Homepage](https://www.stytch.com/) |
 | Superbexperience | Using Karpenter to scale the k8s clusters running our Guest Experience Management platform  | `@Wernich Bekker` | [Homepage](https://www.superbexperience.com/) |
 | Target Australia | Using Karpenter to manage (scale, auto update etc) the containerised (EKS) compute that powers much of the Target Online platform | `@gazal-k` | [Target Australia Online Shopping](https://www.target.com.au) |
@@ -47,3 +48,5 @@ If you are open to others contacting you about your use of Karpenter on Slack, a
 | Tyk Cloud | Scaling workloads for the Cloud Free plan  | `@Artem Hluvchynskyi`, `@gowtham` | [Tyk Cloud](https://tyk.io/cloud/) |
 | Wehkamp | Using Karpenter to scale the EKS clusters for our e-commerce platforms | `@ChrisV` | [Wehkamp](https://www.wehkamp.nl) & [Wehkamp Techblog](https://medium.com/wehkamp-techblog)|
 | Next Insurance | Using Karpenter to manage the nodes in all our EKS clusters, including dev and prod, on demand and spots | `@moshebs` | [Homepage](https://www.nextinsurance.com)|
+| Grover Group GmbH | We use Karpenter for efficient and cost effective scaling of our nodes in all of our EKS clusters | `@suraj2410` | [Homepage](https://www.grover.com/de-en) & [Engineering Techblog](https://engineering.grover.com)|
+| Logz.io | Using Karpenter in all of our EKS clusters for efficient and cost effective scaling of all our K8s workloads | `@pincher95`, `@Samplify` | [Homepage](https://logz.io/)|

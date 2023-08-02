@@ -38,23 +38,34 @@ var _ = Describe("Emptiness", func() {
 		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{
 			ProviderRef:          &v1alpha5.MachineTemplateRef{Name: provider.Name},
-			TTLSecondsAfterEmpty: ptr.Int64(0),
+			TTLSecondsAfterEmpty: ptr.Int64(1e6), // A really long timeframe so that we set the Empty Status Condition
 		})
 
 		const numPods = 1
 		deployment := test.Deployment(test.DeploymentOptions{Replicas: numPods})
 
+		By("kicking off provisioning for a deployment")
 		env.ExpectCreated(provider, provisioner, deployment)
+		machine := env.EventuallyExpectCreatedMachineCount("==", 1)[0]
+		node := env.EventuallyExpectCreatedNodeCount("==", 1)[0]
 		env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), numPods)
-		env.ExpectCreatedNodeCount("==", 1)
 
+		By("making the machine empty")
 		persisted := deployment.DeepCopy()
 		deployment.Spec.Replicas = ptr.Int32(0)
 		Expect(env.Client.Patch(env, deployment, client.MergeFrom(persisted))).To(Succeed())
 
-		nodes := env.Monitor.CreatedNodes()
-		for i := range nodes {
-			env.EventuallyExpectNotFound(nodes[i])
-		}
+		By("waiting for the machine emptiness status condition to propagate")
+		EventuallyWithOffset(1, func(g Gomega) {
+			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(machine), machine)).To(Succeed())
+			g.Expect(machine.StatusConditions().GetCondition(v1alpha5.MachineEmpty)).ToNot(BeNil())
+			g.Expect(machine.StatusConditions().GetCondition(v1alpha5.MachineEmpty).IsTrue()).To(BeTrue())
+		}).Should(Succeed())
+
+		By("waiting for the machine to deprovision when past its TTLSecondsAfterEmpty of 0")
+		provisioner.Spec.TTLSecondsAfterEmpty = ptr.Int64(0)
+		env.ExpectUpdated(provisioner)
+
+		env.EventuallyExpectNotFound(machine, node)
 	})
 })

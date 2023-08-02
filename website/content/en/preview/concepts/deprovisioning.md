@@ -154,12 +154,12 @@ Read the [Drift Design](https://github.com/aws/karpenter-core/pull/366/files) fo
 
 |Provisioner Fields          | Static | Dynamic | Behavioral | Implemented |
 |----------------------------|  :---: |  :---:  |   :---:    |    :---:    |
-| Startup Taints             |    x   |         |            |             |
-| Taints                     |    x   |         |            |             |
-| Labels                     |    x   |         |            |             |
-| Annotations                |    x   |         |            |             |
-| Node Requirements          |        |    x    |            |             |
-| Kubelet Configuration      |    x   |         |            |             |
+| Startup Taints             |    x   |         |            |      x      |
+| Taints                     |    x   |         |            |      x      |
+| Labels                     |    x   |         |            |      x      |
+| Annotations                |    x   |         |            |      x      |
+| Node Requirements          |        |    x    |            |      x      |
+| Kubelet Configuration      |    x   |         |            |      x      |
 | Weight                     |        |         |      x     |     NA      |
 | Limits                     |        |         |      x     |     NA      |
 | Consolidation              |        |         |      x     |     NA      |
@@ -172,7 +172,8 @@ Read the [Drift Design](https://github.com/aws/karpenter-core/pull/366/files) fo
 | Subnet Selector            |        |    x    |            |      x      |
 | Security Group Selector    |        |    x    |            |      x      |
 | Instance Profile           |    x   |         |            |             |
-| AMI Family/AMI Selector    |        |    x    |            |      x      |
+  AMI Family                 |    x   |         |            |             |
+| AMI Selector               |        |    x    |            |      x      |
 | UserData                   |    x   |         |            |             |
 | Tags                       |    x   |         |            |             |
 | Metadata Options           |    x   |         |            |             |

@@ -311,6 +311,14 @@ func (env *Environment) EventuallyExpectHealthyPodCountWithTimeout(timeout time.
 	}).WithTimeout(timeout).Should(Succeed())
 }
 
+func (env *Environment) ExpectPodsMatchingSelector(selector labels.Selector) []*v1.Pod {
+	GinkgoHelper()
+
+	podList := &v1.PodList{}
+	Expect(env.Client.List(env.Context, podList, client.MatchingLabelsSelector{Selector: selector})).To(Succeed())
+	return lo.ToSlicePtr(podList.Items)
+}
+
 func (env *Environment) ExpectUniqueNodeNames(selector labels.Selector, uniqueNames int) {
 	pods := env.Monitor.RunningPods(selector)
 	nodeNames := sets.NewString()

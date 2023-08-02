@@ -4,28 +4,42 @@ updates:
   - package-ecosystem: "gomod"
     directory: "/"
     schedule:
-      interval: "monthly"
-    # Interdependent
-    ignore:
-      - dependency-name: "k8s.io/api"
-      - dependency-name: "k8s.io/apimachinery"
-      - dependency-name: "k8s.io/client-go"
-      - dependency-name: "sigs.k8s.io/controller-runtime"
-  - package-ecosystem: "gomod"
-    directory: "/test"
-    schedule:
-      interval: "monthly"
-    # Interdependent
-    ignore:
-      - dependency-name: "k8s.io/api"
-      - dependency-name: "k8s.io/apimachinery"
-      - dependency-name: "k8s.io/client-go"
-      - dependency-name: "sigs.k8s.io/controller-runtime"
+      interval: "weekly"
+    groups:
+      # Group updates together, so that they are all applied in a single PR.
+      # Grouped updates are currently in beta and is subject to change.
+      # xref: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file#groups
+      k8s-go-deps:
+        patterns:
+          - "k8s.io/*"
+          - "sigs.k8s.io/*"
+          - "knative.dev/*"
+      go-deps:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "k8s.io/*"
+          - "sigs.k8s.io/*"
+          - "knative.dev/*"
   - package-ecosystem: "github-actions"
-    directory: "/.github"
+    directory: "/"
     schedule:
-      interval: "monthly"
+      interval: "weekly"
+    groups:
+      # Group updates together, so that they are all applied in a single PR.
+      # Grouped updates are currently in beta and is subject to change.
+      # xref: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file#groups
+      actions-deps:
+        patterns:
+          - "*"
   - package-ecosystem: "npm"
     directory: "/website"
     schedule:
-      interval: "monthly"
+      interval: "weekly"
+    groups:
+      # Group updates together, so that they are all applied in a single PR.
+      # Grouped updates are currently in beta and is subject to change.
+      # xref: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file#groups
+      website-deps:
+        patterns:
+          - "*"

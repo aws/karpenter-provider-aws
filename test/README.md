@@ -1,10 +1,19 @@
-# Testing Directory
+# E2E Testing
 
-## File Directory
-- `/cloudformation`: Testing IAM Roles, Managed Prometheus Workspace, Managed Grafana Workspace
-- `/suites`: Directories defining test suites
-- `/pkg`: Common utilities and expectations
-- `/hack`: Testing scripts
+Karpenter leverages Github Actions to run our E2E test suites. These suites are triggered by:
+1. Periodic schedule runs every 8 hours
+2. New commits to the `main` branch
+3. `/karpenter snapshot` review comments by maintainers on Pull Requests
+
+![GithubActions Architecture](./assets/gha_architecture.png)
+
+## Directories
+- `./.github/workflows`: Workflow files run within this repository. Relevant files for E2E testing are prefixed with `e2e-`
+- `./.github/actions/e2e`: Composite actions utilized by the E2E workflows
+- `./test/cloudformation`: Testing IAM Roles, Managed Prometheus Workspace, Managed Grafana Workspace
+- `./test/suites`: Directories defining test suites
+- `./test/pkg`: Common utilities and expectations
+- `./test/hack`: Testing scripts
 
 ## Enabling Github Action Runs in Your AWS Account
 
@@ -14,6 +23,8 @@
    AWS_REGION: <region>
    ACCOUNT_ID: <account-id>
    ROLE_NAME: <github-actions-role-name>
+   PROMETHEUS_REGION: <managed-prometheus-hosted-region>
+   TIMESTREAM_REGION: <timestream-hosted-region>
    WORKSPACE_ID: <managed-prometheus-workspace-id>
    ```
 3. Trigger a `workflow_dispatch` event against the branch with your workflow changes to run the tests in GHA.

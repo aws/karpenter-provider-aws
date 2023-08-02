@@ -30,7 +30,6 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter-core/pkg/utils/functional"
 	"github.com/aws/karpenter-core/pkg/utils/resources"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
@@ -45,10 +44,6 @@ var _ = Describe("StandaloneMachine", func() {
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
 	})
-	// For standalone machines, there is no Provisioner owner, so we just list all machines and delete them all
-	AfterEach(func() {
-		env.CleanupObjects(functional.Pair[client.Object, client.ObjectList]{First: &v1alpha5.Machine{}, Second: &v1alpha5.MachineList{}})
-	})
 	It("should create a standard machine within the 'c' instance family", func() {
 		machine := test.Machine(v1alpha5.Machine{
 			Spec: v1alpha5.MachineSpec{
@@ -57,6 +52,11 @@ var _ = Describe("StandaloneMachine", func() {
 						Key:      v1alpha1.LabelInstanceCategory,
 						Operator: v1.NodeSelectorOpIn,
 						Values:   []string{"c"},
+					},
+					{
+						Key:      v1alpha5.LabelCapacityType,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{v1alpha1.CapacityTypeOnDemand},
 					},
 				},
 				MachineTemplateRef: &v1alpha5.MachineTemplateRef{
@@ -203,6 +203,11 @@ var _ = Describe("StandaloneMachine", func() {
 						Operator: v1.NodeSelectorOpIn,
 						Values:   []string{"c"},
 					},
+					{
+						Key:      v1alpha5.LabelCapacityType,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{v1alpha1.CapacityTypeOnDemand},
+					},
 				},
 				MachineTemplateRef: &v1alpha5.MachineTemplateRef{
 					Name: nodeTemplate.Name,
@@ -232,6 +237,11 @@ var _ = Describe("StandaloneMachine", func() {
 						Key:      v1alpha1.LabelInstanceCategory,
 						Operator: v1.NodeSelectorOpIn,
 						Values:   []string{"c"},
+					},
+					{
+						Key:      v1alpha5.LabelCapacityType,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{v1alpha1.CapacityTypeOnDemand},
 					},
 				},
 				MachineTemplateRef: &v1alpha5.MachineTemplateRef{
@@ -279,6 +289,11 @@ var _ = Describe("StandaloneMachine", func() {
 						Operator: v1.NodeSelectorOpIn,
 						Values:   []string{"amd64"},
 					},
+					{
+						Key:      v1alpha5.LabelCapacityType,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{v1alpha1.CapacityTypeOnDemand},
+					},
 				},
 				MachineTemplateRef: &v1alpha5.MachineTemplateRef{
 					Name: nodeTemplate.Name,
@@ -318,6 +333,11 @@ var _ = Describe("StandaloneMachine", func() {
 						Key:      v1.LabelArchStable,
 						Operator: v1.NodeSelectorOpIn,
 						Values:   []string{"amd64"},
+					},
+					{
+						Key:      v1alpha5.LabelCapacityType,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{v1alpha1.CapacityTypeOnDemand},
 					},
 				},
 				MachineTemplateRef: &v1alpha5.MachineTemplateRef{

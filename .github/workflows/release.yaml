@@ -34,9 +34,8 @@ jobs:
           secret: ${{ secrets.GITHUB_TOKEN }}
       - run: make release
       - run: make docgen
-      - name: Autogenerate and commit files for PR for major and minor releases only
-        if: endsWith(env.TAG ,'.0')
-        run: make prepare-website
+      - run: make prepare-website
+        if: env.TAG != 'no tag'
       - run: make stable-release-pr
         if: env.TAG != 'no tag'
         env:

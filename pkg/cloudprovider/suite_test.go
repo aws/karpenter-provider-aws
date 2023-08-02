@@ -161,6 +161,14 @@ var _ = Describe("CloudProvider", func() {
 		Expect(corecloudproivder.IsInsufficientCapacityError(err)).To(BeTrue())
 		Expect(cloudProviderMachine).To(BeNil())
 	})
+	It("should return AWSNodetemplate Hash on the machine", func() {
+		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate, machine)
+		cloudProviderMachine, err := cloudProvider.Create(ctx, machine)
+		Expect(err).To(BeNil())
+		Expect(cloudProviderMachine).ToNot(BeNil())
+		_, ok := cloudProviderMachine.ObjectMeta.Annotations[v1alpha1.AnnotationNodeTemplateHash]
+		Expect(ok).To(BeTrue())
+	})
 	Context("Defaulting", func() {
 		// Intent here is that if updates occur on the provisioningController, the Provisioner doesn't need to be recreated
 		It("should not set the InstanceProfile with the default if none provided in Provisioner", func() {

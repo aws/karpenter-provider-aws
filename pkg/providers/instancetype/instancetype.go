@@ -124,7 +124,7 @@ func (p *Provider) LivenessProbe(req *http.Request) error {
 	return p.pricingProvider.LivenessProbe(req)
 }
 
-func (p *Provider) createOfferings(ctx context.Context, instanceType *ec2.InstanceTypeInfo, zones sets.String) []cloudprovider.Offering {
+func (p *Provider) createOfferings(ctx context.Context, instanceType *ec2.InstanceTypeInfo, zones sets.Set[string]) []cloudprovider.Offering {
 	var offerings []cloudprovider.Offering
 	for zone := range zones {
 		// while usage classes should be a distinct set, there's no guarantee of that
@@ -154,7 +154,7 @@ func (p *Provider) createOfferings(ctx context.Context, instanceType *ec2.Instan
 	return offerings
 }
 
-func (p *Provider) getInstanceTypeZones(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) (map[string]sets.String, error) {
+func (p *Provider) getInstanceTypeZones(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) (map[string]sets.Set[string], error) {
 	// DO NOT REMOVE THIS LOCK ----------------------------------------------------------------------------
 	// We lock here so that multiple callers to getInstanceTypeZones do not result in cache misses and multiple
 	// calls to EC2 when we could have just made one call.
@@ -168,7 +168,7 @@ func (p *Provider) getInstanceTypeZones(ctx context.Context, nodeTemplate *v1alp
 	}
 	cacheKey := fmt.Sprintf("%s%016x", InstanceTypeZonesCacheKeyPrefix, subnetSelectorHash)
 	if cached, ok := p.cache.Get(cacheKey); ok {
-		return cached.(map[string]sets.String), nil
+		return cached.(map[string]sets.Set[string]), nil
 	}
 
 	// Constrain AZs from subnets
@@ -184,13 +184,13 @@ func (p *Provider) getInstanceTypeZones(ctx context.Context, nodeTemplate *v1alp
 	})...)
 
 	// Get offerings from EC2
-	instanceTypeZones := map[string]sets.String{}
+	instanceTypeZones := map[string]sets.Set[string]{}
 	if err := p.ec2api.DescribeInstanceTypeOfferingsPagesWithContext(ctx, &ec2.DescribeInstanceTypeOfferingsInput{LocationType: aws.String("availability-zone")},
 		func(output *ec2.DescribeInstanceTypeOfferingsOutput, lastPage bool) bool {
 			for _, offering := range output.InstanceTypeOfferings {
 				if zones.Has(aws.StringValue(offering.Location)) {
 					if _, ok := instanceTypeZones[aws.StringValue(offering.InstanceType)]; !ok {
-						instanceTypeZones[aws.StringValue(offering.InstanceType)] = sets.NewString()
+						instanceTypeZones[aws.StringValue(offering.InstanceType)] = sets.New[string]()
 					}
 					instanceTypeZones[aws.StringValue(offering.InstanceType)].Insert(aws.StringValue(offering.Location))
 				}

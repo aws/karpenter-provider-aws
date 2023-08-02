@@ -16,6 +16,7 @@ package drift
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -95,18 +96,20 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		env.EventuallyExpectHealthy(pod)
 		env.ExpectCreatedNodeCount("==", 1)
 
-		node := env.Monitor.CreatedNodes()[0]
+		machine := env.EventuallyExpectCreatedMachineCount("==", 1)[0]
+		node := env.EventuallyExpectNodeCount("==", 1)[0]
 		provider.Spec.AMISelector = map[string]string{"aws-ids": customAMI}
 		env.ExpectCreatedOrUpdated(provider)
 
 		EventuallyWithOffset(1, func(g Gomega) {
-			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(node), node)).To(Succeed())
-			g.Expect(node.Annotations).To(HaveKeyWithValue(v1alpha5.VoluntaryDisruptionAnnotationKey, v1alpha5.VoluntaryDisruptionDriftedAnnotationValue))
+			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(machine), machine)).To(Succeed())
+			g.Expect(machine.StatusConditions().GetCondition(v1alpha5.MachineDrifted)).ToNot(BeNil())
+			g.Expect(machine.StatusConditions().GetCondition(v1alpha5.MachineDrifted).IsTrue()).To(BeTrue())
 		}).Should(Succeed())
 
 		delete(pod.Annotations, v1alpha5.DoNotEvictPodAnnotationKey)
 		env.ExpectUpdated(pod)
-		env.EventuallyExpectNotFound(pod, node)
+		env.EventuallyExpectNotFound(pod, machine, node)
 	})
 	It("should not deprovision nodes that have drifted without the featureGate enabled", func() {
 		env.ExpectSettingsOverridden(map[string]string{
@@ -211,22 +214,23 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		})
 
 		env.ExpectCreated(pod, provider, provisioner)
+		machine := env.EventuallyExpectCreatedMachineCount("==", 1)[0]
+		node := env.EventuallyExpectCreatedNodeCount("==", 1)[0]
 		env.EventuallyExpectHealthy(pod)
-		env.ExpectCreatedNodeCount("==", 1)
-		By("updating the provider securitygroup")
-		node := env.Monitor.CreatedNodes()[0]
+
 		provider.Spec.SecurityGroupSelector = map[string]string{"aws-ids": clusterSecurityGroupIDs}
 		env.ExpectCreatedOrUpdated(provider)
 
-		By("checking the node metadata")
+		By("validating the drifted status condition has propagated")
 		EventuallyWithOffset(1, func(g Gomega) {
-			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(node), node)).To(Succeed())
-			g.Expect(node.Annotations).To(HaveKeyWithValue(v1alpha5.VoluntaryDisruptionAnnotationKey, v1alpha5.VoluntaryDisruptionDriftedAnnotationValue))
+			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(machine), machine)).To(Succeed())
+			g.Expect(machine.StatusConditions().GetCondition(v1alpha5.MachineDrifted)).ToNot(BeNil())
+			g.Expect(machine.StatusConditions().GetCondition(v1alpha5.MachineDrifted).IsTrue()).To(BeTrue())
 		}).Should(Succeed())
 
 		delete(pod.Annotations, v1alpha5.DoNotEvictPodAnnotationKey)
 		env.ExpectUpdated(pod)
-		env.EventuallyExpectNotFound(pod, node)
+		env.EventuallyExpectNotFound(pod, machine, node)
 	})
 	It("should deprovision nodes that have drifted due to subnets", func() {
 		subnets := env.GetSubnetNameAndIds(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
@@ -248,20 +252,92 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		})
 
 		env.ExpectCreated(pod, provider, provisioner)
+		machine := env.EventuallyExpectCreatedMachineCount("==", 1)[0]
+		node := env.EventuallyExpectCreatedNodeCount("==", 1)[0]
 		env.EventuallyExpectHealthy(pod)
-		env.ExpectCreatedNodeCount("==", 1)
 
-		node := env.Monitor.CreatedNodes()[0]
 		provider.Spec.SubnetSelector = map[string]string{"aws-ids": subnets[1].ID}
 		env.ExpectCreatedOrUpdated(provider)
 
+		By("validating the drifted status condition has propagated")
 		EventuallyWithOffset(1, func(g Gomega) {
-			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(node), node)).To(Succeed())
-			g.Expect(node.Annotations).To(HaveKeyWithValue(v1alpha5.VoluntaryDisruptionAnnotationKey, v1alpha5.VoluntaryDisruptionDriftedAnnotationValue))
+			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(machine), machine)).To(Succeed())
+			g.Expect(machine.StatusConditions().GetCondition(v1alpha5.MachineDrifted)).ToNot(BeNil())
+			g.Expect(machine.StatusConditions().GetCondition(v1alpha5.MachineDrifted).IsTrue()).To(BeTrue())
 		}).Should(Succeed())
 
 		delete(pod.Annotations, v1alpha5.DoNotEvictPodAnnotationKey)
 		env.ExpectUpdated(pod)
 		env.EventuallyExpectNotFound(pod, node)
+	})
+	Describe("Provisioner Drift", func() {
+		var pod *v1.Pod
+		var nodeTemplate *v1alpha1.AWSNodeTemplate
+		var provisioner *v1alpha5.Provisioner
+		BeforeEach(func() {
+			nodeTemplate = awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
+				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			}})
+			provisioner = test.Provisioner(test.ProvisionerOptions{
+				Requirements: []v1.NodeSelectorRequirement{{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha5.CapacityTypeOnDemand}}},
+				ProviderRef:  &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name},
+			})
+			// Add a do-not-evict pod so that we can check node metadata before we deprovision
+			pod = test.Pod(test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						v1alpha5.DoNotEvictPodAnnotationKey: "true",
+					},
+				},
+			})
+		})
+		DescribeTable("Provisioner Drift", func(fieldName string, provisionerOption test.ProvisionerOptions) {
+			provisionerOption.ObjectMeta = provisioner.ObjectMeta
+			updatedProvisioner := test.Provisioner(
+				test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name}},
+				provisionerOption,
+			)
+
+			env.ExpectCreated(pod, nodeTemplate, provisioner)
+			machine := env.EventuallyExpectCreatedMachineCount("==", 1)[0]
+			node := env.EventuallyExpectCreatedNodeCount("==", 1)[0]
+			env.EventuallyExpectHealthy(pod)
+
+			env.ExpectCreatedOrUpdated(updatedProvisioner)
+
+			By("validating the drifted status condition has propagated")
+			EventuallyWithOffset(1, func(g Gomega) {
+				g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(machine), machine)).To(Succeed())
+				g.Expect(machine.StatusConditions().GetCondition(v1alpha5.MachineDrifted)).ToNot(BeNil())
+				g.Expect(machine.StatusConditions().GetCondition(v1alpha5.MachineDrifted).IsTrue()).To(BeTrue())
+			}).Should(Succeed())
+
+			delete(pod.Annotations, v1alpha5.DoNotEvictPodAnnotationKey)
+			env.ExpectUpdated(pod)
+
+			// Nodes will need to have the start-up taint removed before the node can be considered as initialized
+			if fieldName == "Start-up Taint" {
+				nodes := env.EventuallyExpectCreatedNodeCount("==", 2)
+				sort.Slice(nodes, func(i int, j int) bool {
+					return nodes[i].CreationTimestamp.Before(&nodes[j].CreationTimestamp)
+				})
+				nodeTwo := nodes[1]
+				nodeTwo.Spec.Taints = []v1.Taint{}
+				env.ExpectCreatedOrUpdated(nodeTwo)
+			}
+
+			env.EventuallyExpectNotFound(pod, node)
+		},
+			Entry("Annotation Drift", "Annotation", test.ProvisionerOptions{Annotations: map[string]string{"keyAnnotationTest": "valueAnnotationTest"}}),
+			Entry("Labels Drift", "Labels", test.ProvisionerOptions{Labels: map[string]string{"keyLabelTest": "valueLabelTest"}}),
+			Entry("Taints Drift", "Taints", test.ProvisionerOptions{Taints: []v1.Taint{{Key: "example.com/another-taint-2", Effect: v1.TaintEffectPreferNoSchedule}}}),
+			Entry("KubeletConfiguration Drift", "KubeletConfiguration", test.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{
+				EvictionSoft:            map[string]string{"memory.available": "5%"},
+				EvictionSoftGracePeriod: map[string]metav1.Duration{"memory.available": {Duration: time.Minute}},
+			}}),
+			Entry("Start-up Taints Drift", "Start-up Taint", test.ProvisionerOptions{StartupTaints: []v1.Taint{{Key: "example.com/another-taint-2", Effect: v1.TaintEffectPreferNoSchedule}}}),
+			Entry("NodeRequirement Drift", "NodeRequirement", test.ProvisionerOptions{Requirements: []v1.NodeSelectorRequirement{{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha5.CapacityTypeSpot}}}}),
+		)
 	})
 })

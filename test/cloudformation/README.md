@@ -8,6 +8,14 @@ aws cloudformation deploy \
     --capabilities CAPABILITY_NAMED_IAM
 ```
 
+### Deploy Timestream
+```console
+aws cloudformation deploy \
+   --stack-name GithubActionsTimestream \
+   --template-file timestream_cloudformation.yaml \
+   --parameter-overrides "DatabaseName=karpenterTesting" "TableName=scaleTestDurations"
+```
+
 ### [Optional] Deploying ManagedGrafana and its Policy
 ```console
 aws cloudformation deploy \
@@ -22,7 +30,7 @@ aws cloudformation deploy \
 ```console
 aws cloudformation deploy --stack-name GithubActionsIAM \
     --template-file iam_cloudformation.yaml \
-    --parameter-overrides "Repository=<repository>" Branches="*" "PrometheusWorkspaceID=<workspace-id>" \
+    --parameter-overrides "DatabaseName=karpenterTesting" "TableName=scaleTestDurations" "Repository=<repository>" Branches="*" "PrometheusWorkspaceID=<workspace-id>" Regions="us-east-2,us-west-2,..." \
     --capabilities CAPABILITY_NAMED_IAM
 ```
 

@@ -1,19 +1,21 @@
 name: E2EConformanceTrigger
 on:
   schedule:
-    - cron: '7 22 * * *'
+    # The test will run every Monday at 12:07 AM UTC
+    - cron: '7 0 * * 1'
   workflow_dispatch:
 jobs:
   conformance:
     if: github.repository == 'aws/karpenter' || github.event_name == 'workflow_dispatch'
     strategy:
+      max-parallel: 1
       fail-fast: false
       matrix:
         k8s_version: [ "1.23", "1.24", "1.25", "1.26", "1.27" ]
-    uses: ./.github/workflows/e2e.yaml
+    uses: ./.github/workflows/e2e-matrix.yaml
     with:
-      suite: Integration
       event_name: conformance
+      region: "eu-west-1"
       k8s_version: ${{ matrix.k8s_version }}
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

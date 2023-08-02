@@ -70,6 +70,7 @@ type BottlerocketKubernetes struct {
 	TopologyManagerScope        *string                          `toml:"topology-manager-scope,omitempty"`
 	ImageGCHighThresholdPercent *string                          `toml:"image-gc-high-threshold-percent,omitempty"`
 	ImageGCLowThresholdPercent  *string                          `toml:"image-gc-low-threshold-percent,omitempty"`
+	CPUCFSQuota                 *bool                            `toml:"cpu-cfs-quota-enforced,omitempty"`
 }
 
 type BottlerocketStaticPod struct {

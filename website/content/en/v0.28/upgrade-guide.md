@@ -105,7 +105,7 @@ Snapshot releases are tagged with the git commit hash prefixed by the Karpenter 
 ### Upgrading to v0.28.0+
 
 {{% alert title="Warning" color="warning" %}}
-Karpenter v0.28.0 is incompatible with Kubernetes version 1.26+, which can result in additional node scale outs when using `--cloudprovider=external`, which is the default for the EKS Optimized AMI. See: https://github.com/aws/karpenter-core/pull/375
+Karpenter `v0.28.0` is incompatible with Kubernetes version 1.26+, which can result in additional node scale outs when using `--cloudprovider=external`, which is the default for the EKS Optimized AMI. See: https://github.com/aws/karpenter-core/pull/375. Karpenter `>v0.28.1` fixes this issue and is compatible with Kubernetes version 1.26+.
 {{% /alert %}}
 
 * The `extraObjects` value is now removed from the Helm chart. Having this value in the chart proved to not work in the majority of Karpenter installs and often led to anti-patterns, where the Karpenter resources installed to manage Karpenter's capacity were directly tied to the install of the Karpenter controller deployments. The Karpenter team recommends that, if you want to install Karpenter manifests alongside the Karpenter helm chart, to do so by creating a separate chart for the manifests, creating a dependency on the controller chart.
@@ -132,7 +132,7 @@ Karpenter creates a mapping between CloudProvider machines and CustomResources i
 * `karpenter.sh/provisioner-name`
 * `kubernetes.io/cluster/${CLUSTER_NAME}`
 
-Because Karpenter takes this dependency, any user that has the ability to Create/Delete these tags on CloudProvider machines will have the ability to orchestrate Karpenter to Create/Delete CloudProvider machines as a side effect. We recommend that you [enforce tag-based IAM policies](https://docs.aws.amazon.com/IAM/latest/UserGuide/access_tags.html) on these tags against any EC2 instance resource (`i-*`) for any users that might have [CreateTags](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateTags.html)/[DeleteTags](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DeleteTags.html) permissions but should not have [RunInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_RunInstances.html)/[TerminateInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_TerminateInstances.html) permissions.
+Because Karpenter takes this dependency, any user that has the ability to Create/Delete these tags on CloudProvider machines will have the ability to orchestrate Karpenter to Create/Delete CloudProvider machines as a side effect. Check the [Threat Model]({{<ref "./concepts/threat-model.md#threat-using-ec2-createtagdeletetag-permissions-to-orchestrate-machine-creationdeletion" >}}) to see how this might affect you, and ways to mitigate this.
 {{% /alert %}}
 
 {{% alert title="Rolling Back" color="warning" %}}
@@ -193,14 +193,14 @@ kubectl delete mutatingwebhookconfigurations defaulting.webhook.karpenter.sh
 * Pods without an ownerRef (also called "controllerless" or "naked" pods) will now be evicted by default during node termination and consolidation.  Users can prevent controllerless pods from being voluntarily disrupted by applying the `karpenter.sh/do-not-evict: "true"` annotation to the pods in question.
 * The following CLI options/environment variables are now removed and replaced in favor of pulling settings dynamically from the [`karpenter-global-settings`]({{<ref "./concepts/settings#configmap" >}}) ConfigMap. See the [Settings docs]({{<ref "./concepts/settings/#environment-variables--cli-flags" >}}) for more details on configuring the new values in the ConfigMap.
 
-  * `CLUSTER_NAME` -> `aws.clusterName`
-  * `CLUSTER_ENDPOINT` -> `aws.clusterEndpoint`
-  * `AWS_DEFAULT_INSTANCE_PROFILE` -> `aws.defaultInstanceProfile`
-  * `AWS_ENABLE_POD_ENI` -> `aws.enablePodENI`
-  * `AWS_ENI_LIMITED_POD_DENSITY` -> `aws.enableENILimitedPodDensity`
-  * `AWS_ISOLATED_VPC` -> `aws.isolatedVPC`
-  * `AWS_NODE_NAME_CONVENTION` -> `aws.nodeNameConvention`
-  * `VM_MEMORY_OVERHEAD` -> `aws.vmMemoryOverheadPercent`
+  * `CLUSTER_NAME` -> `settings.aws.clusterName`
+  * `CLUSTER_ENDPOINT` -> `settings.aws.clusterEndpoint`
+  * `AWS_DEFAULT_INSTANCE_PROFILE` -> `settings.aws.defaultInstanceProfile`
+  * `AWS_ENABLE_POD_ENI` -> `settings.aws.enablePodENI`
+  * `AWS_ENI_LIMITED_POD_DENSITY` -> `settings.aws.enableENILimitedPodDensity`
+  * `AWS_ISOLATED_VPC` -> `settings.aws.isolatedVPC`
+  * `AWS_NODE_NAME_CONVENTION` -> `settings.aws.nodeNameConvention`
+  * `VM_MEMORY_OVERHEAD` -> `settings.aws.vmMemoryOverheadPercent`
 
 ### Upgrading to v0.18.0+
 * v0.18.0 removes the `karpenter_consolidation_nodes_created` and `karpenter_consolidation_nodes_terminated` prometheus metrics in favor of the more generic `karpenter_nodes_created` and `karpenter_nodes_terminated` metrics. You can still see nodes created and terminated by consolidation by checking the `reason` label on the metrics. Check out all the metrics published by Karpenter [here]({{<ref "./concepts/metrics" >}}).
