@@ -53,7 +53,6 @@ ci-non-test: verify licenses vulncheck ## Runs checks other than tests
 
 run: ## Run Karpenter controller binary against your local cluster
 	kubectl create configmap -n ${SYSTEM_NAMESPACE} karpenter-global-settings \
-		--from-literal=aws.assumeRole=arn:aws:iam::901733549619:role/stupidrole \
 		--from-literal=aws.clusterName=${CLUSTER_NAME} \
 		--from-literal=aws.clusterEndpoint=${CLUSTER_ENDPOINT} \
 		--from-literal=aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
