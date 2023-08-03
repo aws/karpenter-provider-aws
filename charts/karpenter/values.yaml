@@ -166,10 +166,14 @@ settings:
   batchIdleDuration: 1s
   # -- AWS-specific configuration values
   aws:
+    # -- Role to assume for calling AWS services.
+    assumeRole: ""
     # -- Cluster name.
     clusterName: ""
     # -- Cluster endpoint. If not set, will be discovered during startup (EKS only)
     clusterEndpoint: ""
+    # -- Duration of assumed credentials in minutes. Default value is 15 minutes. Not used unless aws.assumeRole set.
+    credsDuration: ""
     # -- The default instance profile to use when launching nodes
     defaultInstanceProfile: ""
     # -- If true then instances that support pod ENI will report a vpc.amazonaws.com/pod-eni resource

@@ -45,10 +45,14 @@ data:
   # faster than this time, the batching window will be extended up to the maxDuration. If they arrive slower, the pods
   # will be batched separately.
   batchIdleDuration: 1s
+  # Role to assume for calling AWS services.
+  aws.assumerole: arn:aws:iam::111222333444:role/examplerole
   # [REQUIRED] The kubernetes cluster name for resource discovery
   aws.clusterName: karpenter-cluster
   # [REQUIRED] The external kubernetes cluster endpoint for new nodes to connect with
   aws.clusterEndpoint: https://00000000000000000000000000000000.gr7.us-west-2.eks.amazonaws.com
+  # Duration of assumed credentials in minutes. Default value is 15 minutes. Not used unless aws.assumeRole set.
+  aws.credsDuration
   # The default instance profile to use when provisioning nodes
   aws.defaultInstanceProfile: karpenter-instance-profile
   # If true, then instances that support pod ENI will report a vpc.amazonaws.com/pod-eni resource
