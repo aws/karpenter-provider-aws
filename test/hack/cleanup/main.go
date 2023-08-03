@@ -16,6 +16,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -35,7 +36,7 @@ import (
 
 const (
 	expirationTTL            = time.Hour * 12
-	karpenterMetricNamespace = "testing.karpenter.sh/Cleanup"
+	karpenterMetricNamespace = "testing.karpenter.sh/cleanup"
 
 	karpenterProvisionerNameTag = "karpenter.sh/provisioner-name"
 	karpenterLaunchTemplateTag  = "karpenter.k8s.aws/cluster"
@@ -45,13 +46,8 @@ const (
 
 type CleanableResourceType interface {
 	Type() string
-	Cleanup(ctx context.Context)
-}
-
-type DefaultResource struct {
-	cloudWatchClient *cloudwatch.Client
-	expirationTime   time.Time
-	logger           *zap.SugaredLogger
+	Get(context.Context, time.Time) ([]string, error)
+	Cleanup(context.Context, []string) ([]string, error)
 }
 
 func main() {
@@ -69,22 +65,33 @@ func main() {
 	cloudWatchClient := cloudwatch.NewFromConfig(cfg)
 	iamClient := iam.NewFromConfig(cfg)
 
-	defaultResource := &DefaultResource{cloudWatchClient: cloudWatchClient, expirationTime: expirationTime, logger: logger}
 	resources := []CleanableResourceType{
-		&instance{ec2Client: ec2Client, DefaultResource: defaultResource},
-		&securitygroup{ec2Client: ec2Client, DefaultResource: defaultResource},
-		&stack{cloudFormationClient: cloudFormationClient, DefaultResource: defaultResource},
-		&launchtemplate{ec2Client: ec2Client, DefaultResource: defaultResource},
-		&oidc{iamClient: iamClient, DefaultResource: defaultResource},
+		&instance{ec2Client: ec2Client},
+		&securitygroup{ec2Client: ec2Client},
+		&stack{cloudFormationClient: cloudFormationClient},
+		&launchtemplate{ec2Client: ec2Client},
+		&oidc{iamClient: iamClient},
 	}
-
 	workqueue.ParallelizeUntil(ctx, len(resources), len(resources), func(i int) {
-		resources[i].Cleanup(ctx)
+		ids, err := resources[i].Get(ctx, expirationTime)
+		if err != nil {
+			logger.With("type", resources[i].Type()).Errorf("%v", err)
+		}
+		logger.With("type", resources[i].Type(), "ids", ids, "count", len(ids)).Infof("discovered resources")
+		if len(ids) > 0 {
+			cleaned, err := resources[i].Cleanup(ctx, ids)
+			if err != nil {
+				logger.With("type", resources[i].Type()).Errorf("%v", err)
+			}
+			if err = fireMetric(ctx, cloudWatchClient, fmt.Sprintf("%sDeleted", resources[i].Type()), float64(len(cleaned))); err != nil {
+				logger.With("type", resources[i].Type()).Errorf("%v", err)
+			}
+			logger.With("type", resources[i].Type(), "ids", cleaned, "count", len(cleaned)).Infof("deleted resources")
+		}
 	})
 }
 
 type instance struct {
-	*DefaultResource
 	ec2Client *ec2.Client
 }
 
@@ -92,167 +99,7 @@ func (i *instance) Type() string {
 	return "Instances"
 }
 
-// Terminate any old instances that were provisioned by Karpenter as part of testing
-// We execute these in serial since we will most likely get rate limited if we try to delete these too aggressively
-func (i *instance) Cleanup(ctx context.Context) {
-	ids, err := i.GetExpired(ctx)
-	if err != nil {
-		i.logger.With("error", err).Error("getting instances")
-	}
-	i.logger.With("ids", ids, "count", len(ids)).Infof("discovered test instances to delete")
-	if len(ids) > 0 {
-		if _, err := i.ec2Client.TerminateInstances(ctx, &ec2.TerminateInstancesInput{
-			InstanceIds: ids,
-		}); err != nil {
-			i.logger.With("ids", ids, "count", len(ids)).Errorf("terminating test instances, %v", err)
-		} else {
-			i.logger.With("ids", ids, "count", len(ids)).Infof("terminated test instances")
-			if err = i.fireMetric(ctx, "InstancesDeleted", float64(len(ids))); err != nil {
-				i.logger.With("name", "InstancesDeleted").Errorf("firing metric, %v", err)
-			}
-		}
-	}
-}
-
-type securitygroup struct {
-	*DefaultResource
-	ec2Client *ec2.Client
-}
-
-func (sg *securitygroup) Type() string {
-	return "Security Group"
-}
-
-func (sg *securitygroup) Cleanup(ctx context.Context) {
-	ids, err := sg.GetExpired(ctx)
-	if err != nil {
-		sg.logger.With("error", err).Error("getting security groups")
-	}
-	sg.logger.With("ids", ids, "count", len(ids)).Infof("discovered test security groups to delete")
-	deleted := 0
-
-	for i := range ids {
-		_, err := sg.ec2Client.DeleteSecurityGroup(ctx, &ec2.DeleteSecurityGroupInput{
-			GroupId: aws.String(ids[i]),
-		})
-		deleted += sg.GetCleanup("ids", "security group", ids[i], err)
-	}
-	if err := sg.fireMetric(ctx, "SecurityGroupDeleted", float64(deleted)); err != nil {
-		sg.logger.With("name", "InstancesDeleted").Errorf("firing metric, %v", err)
-	}
-}
-
-type stack struct {
-	*DefaultResource
-	cloudFormationClient *cloudformation.Client
-}
-
-func (s *stack) Type() string {
-	return "Cloudformation Stacks"
-}
-
-// Terminate any old stacks that were provisioned as part of testing
-// We execute these in serial since we will most likely get rate limited if we try to delete these too aggressively
-func (s *stack) Cleanup(ctx context.Context) {
-	names, err := s.GetExpired(ctx)
-	if err != nil {
-		s.logger.With("error", err).Error("getting stacks")
-	}
-	s.logger.With("names", names, "count", len(names)).Infof("discovered test stacks to delete")
-	deleted := 0
-
-	for i := range names {
-		_, err := s.cloudFormationClient.DeleteStack(ctx, &cloudformation.DeleteStackInput{
-			StackName: lo.ToPtr(names[i]),
-		})
-		deleted += s.GetCleanup("name", "stack", names[i], err)
-	}
-	if err := s.fireMetric(ctx, "StacksDeleted", float64(deleted)); err != nil {
-		s.logger.With("name", "StacksDeleted").Errorf("firing metric, %v", err)
-	}
-}
-
-type launchtemplate struct {
-	*DefaultResource
-	ec2Client *ec2.Client
-}
-
-func (lt *launchtemplate) Type() string {
-	return "Launch Templates"
-}
-
-// Terminate any old launch templates that were managed by Karpenter and were provisioned as part of testing
-// We execute these in serial since we will most likely get rate limited if we try to delete these too aggressively
-func (lt *launchtemplate) Cleanup(ctx context.Context) {
-	names, err := lt.GetExpired(ctx)
-	if err != nil {
-		lt.logger.With("error", err).Error("getting launch templates")
-	}
-	lt.logger.With("names", names, "count", len(names)).Infof("discovered test launch templates to delete")
-	deleted := 0
-
-	for i := range names {
-		_, err := lt.ec2Client.DeleteLaunchTemplate(ctx, &ec2.DeleteLaunchTemplateInput{
-			LaunchTemplateName: lo.ToPtr(names[i]),
-		})
-		deleted += lt.GetCleanup("name", "launch template", names[i], err)
-	}
-	if err := lt.fireMetric(ctx, "LaunchTemplatesDeleted", float64(deleted)); err != nil {
-		lt.logger.With("name", "LaunchTemplatesDeleted").Errorf("firing metric, %v", err)
-	}
-}
-
-type oidc struct {
-	*DefaultResource
-	iamClient *iam.Client
-}
-
-func (o *oidc) Type() string {
-	return "OpenID Connect Provider"
-}
-
-// Terminate any old OIDC providers that were are remaining as part of testing
-// We execute these in serial since we will most likely get rate limited if we try to delete these too aggressively
-func (o *oidc) Cleanup(ctx context.Context) {
-	arns, err := o.GetExpired(ctx)
-	if err != nil {
-		o.logger.With("error", err).Error("getting  OICD provider")
-	}
-	deleted := 0
-	for i := range arns {
-		_, err := o.iamClient.DeleteOpenIDConnectProvider(ctx, &iam.DeleteOpenIDConnectProviderInput{
-			OpenIDConnectProviderArn: lo.ToPtr(arns[i]),
-		})
-		deleted += o.GetCleanup("arns", "oidc", arns[i], err)
-	}
-	if err := o.fireMetric(ctx, "OIDCDeleted", float64(deleted)); err != nil {
-		o.logger.With("name", "OIDCDeleted").Errorf("firing metric, %v", err)
-	}
-}
-
-func (d *DefaultResource) GetCleanup(providerType string, providerName string, provider string, err error) int {
-	if err != nil {
-		d.logger.With(providerType, provider).Errorf("deleting test cluster %s, %v", providerName, err)
-		return 0
-	}
-	d.logger.With("arn", provider).Infof("deleted test cluster %s", providerName)
-	return 1
-}
-
-func (d *DefaultResource) fireMetric(ctx context.Context, name string, value float64) error {
-	_, err := d.cloudWatchClient.PutMetricData(ctx, &cloudwatch.PutMetricDataInput{
-		Namespace: lo.ToPtr(karpenterMetricNamespace),
-		MetricData: []cloudwatchtypes.MetricDatum{
-			{
-				MetricName: lo.ToPtr(name),
-				Value:      lo.ToPtr(value),
-			},
-		},
-	})
-	return err
-}
-
-func (i *instance) GetExpired(ctx context.Context) (ids []string, err error) {
+func (i *instance) Get(ctx context.Context, expirationTime time.Time) (ids []string, err error) {
 	var nextToken *string
 	for {
 		out, err := i.ec2Client.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
@@ -276,7 +123,7 @@ func (i *instance) GetExpired(ctx context.Context) (ids []string, err error) {
 			for _, instance := range res.Instances {
 				if _, found := lo.Find(instance.Tags, func(t ec2types.Tag) bool {
 					return lo.FromPtr(t.Key) == "kubernetes.io/cluster/KITInfrastructure"
-				}); !found && lo.FromPtr(instance.LaunchTime).Before(i.expirationTime) {
+				}); !found && lo.FromPtr(instance.LaunchTime).Before(expirationTime) {
 					ids = append(ids, lo.FromPtr(instance.InstanceId))
 				}
 			}
@@ -290,7 +137,26 @@ func (i *instance) GetExpired(ctx context.Context) (ids []string, err error) {
 	return ids, err
 }
 
-func (sg *securitygroup) GetExpired(ctx context.Context) (ids []string, err error) {
+// Terminate any old instances that were provisioned by Karpenter as part of testing
+// We execute these in serial since we will most likely get rate limited if we try to delete these too aggressively
+func (i *instance) Cleanup(ctx context.Context, ids []string) ([]string, error) {
+	if _, err := i.ec2Client.TerminateInstances(ctx, &ec2.TerminateInstancesInput{
+		InstanceIds: ids,
+	}); err != nil {
+		return nil, err
+	}
+	return ids, nil
+}
+
+type securitygroup struct {
+	ec2Client *ec2.Client
+}
+
+func (sg *securitygroup) Type() string {
+	return "SecurityGroup"
+}
+
+func (sg *securitygroup) Get(ctx context.Context, expirationTime time.Time) (ids []string, err error) {
 	var nextToken *string
 	for {
 		out, err := sg.ec2Client.DescribeSecurityGroups(ctx, &ec2.DescribeSecurityGroupsInput{
@@ -317,7 +183,7 @@ func (sg *securitygroup) GetExpired(ctx context.Context) (ids []string, err erro
 			if err != nil {
 				continue
 			}
-			if time.Before(sg.expirationTime) {
+			if time.Before(expirationTime) {
 				ids = append(ids, lo.FromPtr(sgroup.GroupId))
 			}
 		}
@@ -330,7 +196,31 @@ func (sg *securitygroup) GetExpired(ctx context.Context) (ids []string, err erro
 	return ids, err
 }
 
-func (s *stack) GetExpired(ctx context.Context) (names []string, err error) {
+func (sg *securitygroup) Cleanup(ctx context.Context, ids []string) ([]string, error) {
+	deleted := []string{}
+	var errs error
+	for i := range ids {
+		_, err := sg.ec2Client.DeleteSecurityGroup(ctx, &ec2.DeleteSecurityGroupInput{
+			GroupId: aws.String(ids[i]),
+		})
+		if err != nil {
+			errs = multierr.Append(errs, err)
+		}
+		deleted = append(deleted, ids[i])
+	}
+
+	return deleted, errs
+}
+
+type stack struct {
+	cloudFormationClient *cloudformation.Client
+}
+
+func (s *stack) Type() string {
+	return "CloudformationStacks"
+}
+
+func (s *stack) Get(ctx context.Context, expirationTime time.Time) (names []string, err error) {
 	var nextToken *string
 	for {
 		out, err := s.cloudFormationClient.DescribeStacks(ctx, &cloudformation.DescribeStacksInput{
@@ -347,7 +237,7 @@ func (s *stack) GetExpired(ctx context.Context) (names []string, err error) {
 		for _, stack := range stacks {
 			if _, found := lo.Find(stack.Tags, func(t cloudformationtypes.Tag) bool {
 				return lo.FromPtr(t.Key) == githubRunURLTag
-			}); found && lo.FromPtr(stack.CreationTime).Before(s.expirationTime) {
+			}); found && lo.FromPtr(stack.CreationTime).Before(expirationTime) {
 				names = append(names, lo.FromPtr(stack.StackName))
 			}
 		}
@@ -360,7 +250,32 @@ func (s *stack) GetExpired(ctx context.Context) (names []string, err error) {
 	return names, err
 }
 
-func (lt *launchtemplate) GetExpired(ctx context.Context) (names []string, err error) {
+// Terminate any old stacks that were provisioned as part of testing
+// We execute these in serial since we will most likely get rate limited if we try to delete these too aggressively
+func (s *stack) Cleanup(ctx context.Context, names []string) ([]string, error) {
+	var errs error
+	deleted := []string{}
+	for i := range names {
+		_, err := s.cloudFormationClient.DeleteStack(ctx, &cloudformation.DeleteStackInput{
+			StackName: lo.ToPtr(names[i]),
+		})
+		if err != nil {
+			errs = multierr.Append(errs, err)
+		}
+		deleted = append(deleted, names[i])
+	}
+	return deleted, errs
+}
+
+type launchtemplate struct {
+	ec2Client *ec2.Client
+}
+
+func (lt *launchtemplate) Type() string {
+	return "LaunchTemplates"
+}
+
+func (lt *launchtemplate) Get(ctx context.Context, expirationTime time.Time) (names []string, err error) {
 	var nextToken *string
 	for {
 		out, err := lt.ec2Client.DescribeLaunchTemplates(ctx, &ec2.DescribeLaunchTemplatesInput{
@@ -377,7 +292,7 @@ func (lt *launchtemplate) GetExpired(ctx context.Context) (names []string, err e
 		}
 
 		for _, launchTemplate := range out.LaunchTemplates {
-			if lo.FromPtr(launchTemplate.CreateTime).Before(lt.expirationTime) {
+			if lo.FromPtr(launchTemplate.CreateTime).Before(expirationTime) {
 				names = append(names, lo.FromPtr(launchTemplate.LaunchTemplateName))
 			}
 		}
@@ -390,7 +305,32 @@ func (lt *launchtemplate) GetExpired(ctx context.Context) (names []string, err e
 	return names, err
 }
 
-func (o *oidc) GetExpired(ctx context.Context) (names []string, err error) {
+// Terminate any old launch templates that were managed by Karpenter and were provisioned as part of testing
+// We execute these in serial since we will most likely get rate limited if we try to delete these too aggressively
+func (lt *launchtemplate) Cleanup(ctx context.Context, names []string) ([]string, error) {
+	var errs error
+	deleted := []string{}
+	for i := range names {
+		_, err := lt.ec2Client.DeleteLaunchTemplate(ctx, &ec2.DeleteLaunchTemplateInput{
+			LaunchTemplateName: lo.ToPtr(names[i]),
+		})
+		if err != nil {
+			errs = multierr.Append(errs, err)
+		}
+		deleted = append(deleted, names[i])
+	}
+	return deleted, errs
+}
+
+type oidc struct {
+	iamClient *iam.Client
+}
+
+func (o *oidc) Type() string {
+	return "OpenIDConnectProvider"
+}
+
+func (o *oidc) Get(ctx context.Context, expirationTime time.Time) (names []string, err error) {
 	out, err := o.iamClient.ListOpenIDConnectProviders(ctx, &iam.ListOpenIDConnectProvidersInput{})
 	if err != nil {
 		return names, err
@@ -406,11 +346,40 @@ func (o *oidc) GetExpired(ctx context.Context) (names []string, err error) {
 		}
 
 		for _, t := range oicd.Tags {
-			if lo.FromPtr(t.Key) == githubRunURLTag && oicd.CreateDate.Before(o.expirationTime) {
+			if lo.FromPtr(t.Key) == githubRunURLTag && oicd.CreateDate.Before(expirationTime) {
 				names = append(names, lo.FromPtr(out.OpenIDConnectProviderList[i].Arn))
 			}
 		}
 	}
 
 	return names, multierr.Combine(errs...)
+}
+
+// Terminate any old OIDC providers that were are remaining as part of testing
+// We execute these in serial since we will most likely get rate limited if we try to delete these too aggressively
+func (o *oidc) Cleanup(ctx context.Context, arns []string) ([]string, error) {
+	var errs error
+	deleted := []string{}
+	for i := range arns {
+		_, err := o.iamClient.DeleteOpenIDConnectProvider(ctx, &iam.DeleteOpenIDConnectProviderInput{
+			OpenIDConnectProviderArn: lo.ToPtr(arns[i]),
+		})
+		if err != nil {
+			errs = multierr.Append(errs, err)
+		}
+	}
+	return deleted, errs
+}
+
+func fireMetric(ctx context.Context, cloudWatchClient *cloudwatch.Client, name string, value float64) error {
+	_, err := cloudWatchClient.PutMetricData(ctx, &cloudwatch.PutMetricDataInput{
+		Namespace: lo.ToPtr(karpenterMetricNamespace),
+		MetricData: []cloudwatchtypes.MetricDatum{
+			{
+				MetricName: lo.ToPtr(name),
+				Value:      lo.ToPtr(value),
+			},
+		},
+	})
+	return err
 }
