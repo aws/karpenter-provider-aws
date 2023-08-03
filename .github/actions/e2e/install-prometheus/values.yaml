@@ -28,6 +28,15 @@ alertmanager:
         operator: Exists
 kubelet:
   serviceMonitor:
+    # Enable CAdvisor metrics (this is enabled by default but explicitly specified for clarity)
+    # https://github.com/prometheus-community/helm-charts/blob/main/charts/kube-prometheus-stack/templates/exporters/kubelet/servicemonitor.yaml#L41
+    cAdvisor: true
+    # Disable probes scrape endpoint
+    # https://github.com/prometheus-community/helm-charts/blob/main/charts/kube-prometheus-stack/templates/exporters/kubelet/servicemonitor.yaml#L68
+    probes: false
+    # Disable resource scrape endpoint
+    # https://github.com/prometheus-community/helm-charts/blob/main/charts/kube-prometheus-stack/templates/exporters/kubelet/servicemonitor.yaml#L95
+    resource: false
     additionalLabels:
       scrape: enabled
 prometheus:
