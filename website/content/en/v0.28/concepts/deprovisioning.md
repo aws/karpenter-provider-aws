@@ -55,7 +55,7 @@ There are both automated and manual ways of deprovisioning nodes provisioned by 
 * **Consolidation**: Karpenter works to actively reduce cluster cost by identifying when:
   * Nodes can be removed as their workloads will run on other nodes in the cluster.
   * Nodes can be replaced with cheaper variants due to a change in the workloads.
-* **Drift**: Karpenter will annotate nodes as drifted and deprovision nodes that have drifted from their desired specification. See [Drift](../deprovisioning/#drift) to see which fields are considered.
+* **Drift**: Karpenter will annotate nodes as drifted and deprovision nodes that have drifted from their desired specification. See [Drift]({{<ref "./deprovisioning/#drift" >}}) to see which fields are considered.
 * **Interruption**: If enabled, Karpenter will watch for upcoming involuntary interruption events that could affect your nodes (health events, spot interruption, etc.) and will cordon, drain, and terminate the node(s) ahead of the event to reduce workload disruption.
 
 {{% alert title="Note" color="primary" %}}
