@@ -191,12 +191,13 @@ Karpenter will remove the  `karpenter.sh/voluntary-disruption: "drifted"` annota
 
 If the node is marked as voluntarily disrupted by another controller, karpenter will do nothing.
 
-## Disabling Deprovisioning
+## Controls
 
-### Pod Eviction
+### Pod-Level Controls
 
-Pods can be opted out of eviction by setting the annotation `karpenter.sh/do-not-evict: "true"` on the pod. This is useful for pods that you want to run from start to finish without interruption.
-Examples might include a real-time, interactive game that you don't want to interrupt, or a long batch job (such as you might have with machine learning) that would need to start over if it were interrupted.
+You can block Karpenter from voluntarily choosing to disrupt certain pods by setting the `karpenter.sh/do-not-evict: "true"` annotation on the pod. This is useful for pods that you want to run from start to finish without disruption. By opting pods out of this disruption, you are telling Karpenter that it should not voluntarily remove a node containing this pod.
+
+Examples of pods that you might want to opt-out of disruption include an interactive game that you don't want to interrupt or a long batch job (such as you might have with machine learning) that would need to start over if it were interrupted.
 
 ```yaml
 apiVersion: apps/v1
@@ -208,10 +209,9 @@ spec:
         karpenter.sh/do-not-evict: "true"
 ```
 
-By opting pods out of eviction, you are telling Karpenter that it should not voluntarily remove nodes containing this pod.
-
-However, if a do-not-evict pod is added to a node while the node is draining, the remaining pods will still evict, but that pod will block termination until it is removed.
-In either case, the node will be cordoned to prevent additional work from scheduling.
+{{% alert title="Note" color="primary" %}}
+This annotation will be ignored for [terminating pods](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-phase), [terminal pods](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-phase) (Failed/Succeeded), [DaemonSet pods](https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/), or [static pods](https://kubernetes.io/docs/tasks/configure-pod-container/static-pod/).
+{{% /alert %}}
 
 Examples of voluntary node removal that will be prevented by this annotation include:
 - [Consolidation]({{<ref "#consolidation" >}})
@@ -220,14 +220,10 @@ Examples of voluntary node removal that will be prevented by this annotation inc
 - Expiration
 
 {{% alert title="Note" color="primary" %}}
-Voluntary node removal does not include [Interruption]({{<ref "#interruption" >}}) or manual deletion initiated through `kubectl delete node`, both considered involuntary events, since node removal cannot be delayed.
+Voluntary node removal does not include [Interruption]({{<ref "#interruption" >}}) or manual deletion initiated through `kubectl delete node`. Both of these are considered involuntary events, since node removal cannot be delayed.
 {{% /alert %}}
 
-{{% alert title="Note" color="primary" %}}
-This annotation will have no effect for static pods, pods that tolerate `NoSchedule`, or pods terminating past their graceful termination period.
-{{% /alert %}}
-
-### Node Consolidation
+### Node-Level Controls
 
 Nodes can be opted out of consolidation deprovisioning by setting the annotation `karpenter.sh/do-not-consolidate: "true"` on the node.
 
