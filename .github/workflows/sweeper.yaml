@@ -9,6 +9,10 @@ permissions:
 jobs:
   sweeper:
     if: github.repository == 'aws/karpenter' || github.event_name == 'workflow_dispatch'
+    strategy:
+      fail-fast: false
+      matrix:
+        region: [us-east-2, us-west-2, eu-west-1]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -16,7 +20,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v2
         with:
           role-to-assume: arn:aws:iam::${{ vars.ACCOUNT_ID }}:role/${{ vars.ROLE_NAME }}
-          aws-region: ${{ vars.AWS_REGION }}
+          aws-region: ${{ matrix.region }}
       - uses: actions/setup-go@v4
         with:
           go-version-file: test/hack/cleanup/go.mod

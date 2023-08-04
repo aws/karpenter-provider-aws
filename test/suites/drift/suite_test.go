@@ -166,6 +166,10 @@ var _ = Describe("Drift", Label("AWS"), func() {
 							Key:   awssdk.String(test.DiscoveryLabel),
 							Value: awssdk.String(settings.FromContext(env.Context).ClusterName),
 						},
+						{
+							Key:   awssdk.String("creation-date"),
+							Value: awssdk.String(time.Now().Format(time.RFC3339)),
+						},
 					},
 				},
 			},
