@@ -144,41 +144,47 @@ data:
 
 Karpenter Drift will classify each CRD field as a (1) Static, (2) Dynamic, or (3) Behavioral field and will treat them differently. Static Drift will be a one-way reconciliation, triggered only by CRD changes. Dynamic Drift will be a two-way reconciliation, triggered by machine/node/instance changes and Provisioner or AWSNodetemplate changes.
 
-1. For Static Fields, values in the CRDs are reflected in the machine in the same way that they’re set. A machine will be detected as drifted if the values in the CRDs do not match the values in the machine.
+### Static Fields
+For Static Fields, values in the CRDs are reflected in the machine in the same way that they’re set. A machine will be detected as drifted if the values in the CRDs do not match the values in the machine.
 
-2. Dynamic Fields can correspond to multiple values and must be handled differently. Dynamic fields can create cases where drift occurs without changes to CRDs, or where CRD changes do not result in drift. For example, if a machine has `node.kubernetes.io/instance-type: m5.large`, and requirements change from `node.kubernetes.io/instance-type In [m5.large]` to `node.kubernetes.io/instance-type In [m5.large, m5.2xlarge]`, the machine will not be drifted because it's value is still compatible with the new requirements. Conversely, for an AWS Installation, if a machine is using a machine image `ami: ami-abc`, but a new image is published, Karpenter's `AWSNodeTemplate.amiSelector` will discover that the new correct value is `ami: ami-xyz`, and detect the machine as drifted.
+### Dynamic Fields
+Dynamic Fields can correspond to multiple values and must be handled differently. Dynamic fields can create cases where drift occurs without changes to CRDs, or where CRD changes do not result in drift. For example, if a machine has `node.kubernetes.io/instance-type: m5.large`, and requirements change from `node.kubernetes.io/instance-type In [m5.large]` to `node.kubernetes.io/instance-type In [m5.large, m5.2xlarge]`, the machine will not be drifted because it's value is still compatible with the new requirements. Conversely, for an AWS Installation, if a machine is using a machine image `ami: ami-abc`, but a new image is published, Karpenter's `AWSNodeTemplate.amiSelector` will discover that the new correct value is `ami: ami-xyz`, and detect the machine as drifted.
 
-3. Behavioral Fields are treated as over-arching settings on the Provisioner to dictate how Karpenter behaves. These fields don’t correspond to settings on the machine or instance. They’re set by the user to control Karpenter’s Provisioning and Deprovisioning logic. Since these don’t map to a desired state of machines, these fields will not be considered for Drift.
+### Behavioral Fields
+Behavioral Fields are treated as over-arching settings on the Provisioner to dictate how Karpenter behaves. These fields don’t correspond to settings on the machine or instance. They’re set by the user to control Karpenter’s Provisioning and Deprovisioning logic. Since these don’t map to a desired state of machines, __behavioral fields are not considered for Drift__.
 
-Read the [Drift Design](https://github.com/aws/karpenter-core/pull/366/files) for more.
+Read the [Drift Design](https://github.com/aws/karpenter-core/blob/main/designs/drift.md) for more.
 
-|Provisioner Fields          | Static | Dynamic | Behavioral | Implemented |
-|----------------------------|  :---: |  :---:  |   :---:    |    :---:    |
-| Startup Taints             |    x   |         |            |      x      |
-| Taints                     |    x   |         |            |      x      |
-| Labels                     |    x   |         |            |      x      |
-| Annotations                |    x   |         |            |      x      |
-| Node Requirements          |        |    x    |            |      x      |
-| Kubelet Configuration      |    x   |         |            |      x      |
-| Weight                     |        |         |      x     |     NA      |
-| Limits                     |        |         |      x     |     NA      |
-| Consolidation              |        |         |      x     |     NA      |
-| TTLSecondsUntilExpired     |        |         |      x     |     NA      |
-| TTLSecondsAfterEmpty       |        |         |      x     |     NA      |
+#### Provisioner
+| Fields                     | Static | Dynamic | 
+|----------------------------|  :---: |  :---:  |    
+| Startup Taints             |    x   |         |      
+| Taints                     |    x   |         |      
+| Labels                     |    x   |         |      
+| Annotations                |    x   |         |      
+| Node Requirements          |        |    x    |      
+| Kubelet Configuration      |    x   |         |
 
-
-|AWSNodeTemplate Fields      | Static | Dynamic | Behavioral | Implemented |
-|----------------------------|  :---: |  :---:  |   :---:    |    :---:    |
-| Subnet Selector            |        |    x    |            |      x      |
-| Security Group Selector    |        |    x    |            |      x      |
-| Instance Profile           |    x   |         |            |      x      |
-| AMI Family                 |    x   |         |            |      x      |
-| AMI Selector               |        |    x    |            |      x      |
-| UserData                   |    x   |         |            |      x      |
-| Tags                       |    x   |         |            |      x      |
-| Metadata Options           |    x   |         |            |      x      |
-| Block Device Mappings      |    x   |         |            |      x      |
-| Detailed Monitoring        |    x   |         |            |      x      |
+__Behavioral Fields__
+- Weight                      
+- Limits                      
+- Consolidation               
+- TTLSecondsUntilExpired      
+- TTLSecondsAfterEmpty  
+---      
+#### AWSNodeTemplate
+| Fields                     | Static | Dynamic |
+|----------------------------|  :---: |  :---:  |
+| Subnet Selector            |        |    x    |
+| Security Group Selector    |        |    x    |
+| Instance Profile           |    x   |         |
+| AMI Family                 |    x   |         |
+| AMI Selector               |        |    x    |
+| UserData                   |    x   |         |
+| Tags                       |    x   |         |
+| Metadata Options           |    x   |         |
+| Block Device Mappings      |    x   |         |
+| Detailed Monitoring        |    x   |         |
 
 To enable the drift feature flag, refer to the [Settings Feature Gates]({{<ref "./settings#feature-gates" >}}).
 
