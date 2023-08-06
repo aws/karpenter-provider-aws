@@ -307,33 +307,33 @@ var _ = Describe("CloudProvider", func() {
 			ExpectDeleted(ctx, env.Client, nodeTemplate)
 			drifted, err := cloudProvider.IsMachineDrifted(ctx, machine)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(drifted).To(BeFalse())
+			Expect(drifted).To(BeEmpty())
 		})
 		It("should return false if providerRef is not defined", func() {
 			provisioner.Spec.ProviderRef = nil
 			ExpectApplied(ctx, env.Client, provisioner)
 			drifted, err := cloudProvider.IsMachineDrifted(ctx, machine)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(drifted).To(BeFalse())
+			Expect(drifted).To(BeEmpty())
 		})
 		It("should not fail if provisioner does not exist", func() {
 			ExpectDeleted(ctx, env.Client, provisioner)
 			drifted, err := cloudProvider.IsMachineDrifted(ctx, machine)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(drifted).To(BeFalse())
+			Expect(drifted).To(BeEmpty())
 		})
 		It("should return drifted if the AMI is not valid", func() {
 			// Instance is a reference to what we return in the GetInstances call
 			instance.ImageId = aws.String(fake.ImageID())
 			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machine)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(isDrifted).To(BeTrue())
+			Expect(isDrifted).To(Equal(cloudprovider.AMIDrift))
 		})
 		It("should return drifted if the subnet is not valid", func() {
 			instance.SubnetId = aws.String(fake.SubnetID())
 			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machine)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(isDrifted).To(BeTrue())
+			Expect(isDrifted).To(Equal(cloudprovider.SubnetDrift))
 		})
 		It("should return an error if AWSNodeTemplate subnets are empty", func() {
 			nodeTemplate.Status.Subnets = []v1alpha1.Subnet{}
@@ -344,7 +344,7 @@ var _ = Describe("CloudProvider", func() {
 		It("should not return drifted if the machine is valid", func() {
 			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machine)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(isDrifted).To(BeFalse())
+			Expect(isDrifted).To(BeEmpty())
 		})
 		It("should return an error if the AWSNodeTemplate securitygroup are empty", func() {
 			nodeTemplate.Status.SecurityGroups = []v1alpha1.SecurityGroup{}
@@ -359,14 +359,14 @@ var _ = Describe("CloudProvider", func() {
 			instance.SecurityGroups = []*ec2.GroupIdentifier{{GroupId: aws.String(fake.SecurityGroupID())}}
 			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machine)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(isDrifted).To(BeTrue())
+			Expect(isDrifted).To(Equal(cloudprovider.SecurityGroupDrift))
 		})
 		It("should return drifted if there are more instance securitygroups are present than AWSNodeTemplate Status", func() {
 			// Instance is a reference to what we return in the GetInstances call
 			instance.SecurityGroups = []*ec2.GroupIdentifier{{GroupId: aws.String(fake.SecurityGroupID())}, {GroupId: aws.String(validSecurityGroup)}}
 			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machine)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(isDrifted).To(BeTrue())
+			Expect(isDrifted).To(Equal(cloudprovider.SecurityGroupDrift))
 		})
 		It("should return drifted if more AWSNodeTemplate securitygroups are present than instance securitygroups", func() {
 			nodeTemplate.Status.SecurityGroups = []v1alpha1.SecurityGroup{
@@ -382,7 +382,7 @@ var _ = Describe("CloudProvider", func() {
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machine)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(isDrifted).To(BeTrue())
+			Expect(isDrifted).To(Equal(cloudprovider.SecurityGroupDrift))
 		})
 		It("should not return drifted if launchTemplateName is defined", func() {
 			nodeTemplate.Spec.LaunchTemplateName = aws.String("validLaunchTemplateName")
@@ -390,12 +390,12 @@ var _ = Describe("CloudProvider", func() {
 			nodeTemplate.Status.SecurityGroups = nil
 			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machine)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(isDrifted).To(BeFalse())
+			Expect(isDrifted).To(BeEmpty())
 		})
 		It("should not return drifted if the securitygroups match", func() {
 			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machine)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(isDrifted).To(BeFalse())
+			Expect(isDrifted).To(BeEmpty())
 		})
 		It("should error if the machine doesn't have the instance-type label", func() {
 			machine.Labels = map[string]string{
@@ -408,7 +408,7 @@ var _ = Describe("CloudProvider", func() {
 			machine.Status = v1alpha5.MachineStatus{}
 			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machine)
 			Expect(err).To(HaveOccurred())
-			Expect(isDrifted).To(BeFalse())
+			Expect(isDrifted).To(BeEmpty())
 		})
 		It("should error drift if the underlying machine does not exist", func() {
 			awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(&ec2.DescribeInstancesOutput{
@@ -431,7 +431,7 @@ var _ = Describe("CloudProvider", func() {
 					ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 					isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machine)
 					Expect(err).NotTo(HaveOccurred())
-					Expect(isDrifted).To(BeFalse())
+					Expect(isDrifted).To(BeEmpty())
 
 					updatedAWSNodeTemplate := test.AWSNodeTemplate(*nodeTemplate.Spec.DeepCopy(), awsnodetemplatespec)
 					updatedAWSNodeTemplate.ObjectMeta = nodeTemplate.ObjectMeta
@@ -441,7 +441,7 @@ var _ = Describe("CloudProvider", func() {
 					ExpectApplied(ctx, env.Client, updatedAWSNodeTemplate)
 					isDrifted, err = cloudProvider.IsMachineDrifted(ctx, machine)
 					Expect(err).NotTo(HaveOccurred())
-					Expect(isDrifted).To(BeTrue())
+					Expect(isDrifted).To(Equal(cloudprovider.NodeTemplateStaticDrift))
 				},
 				Entry("InstanceProfile Drift", v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{InstanceProfile: aws.String("profile-2")}}),
 				Entry("UserData Drift", v1alpha1.AWSNodeTemplateSpec{UserData: aws.String("userdata-test-2")}),
@@ -457,7 +457,7 @@ var _ = Describe("CloudProvider", func() {
 					ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 					isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machine)
 					Expect(err).NotTo(HaveOccurred())
-					Expect(isDrifted).To(BeFalse())
+					Expect(isDrifted).To(BeEmpty())
 
 					updatedAWSNodeTemplate := test.AWSNodeTemplate(*nodeTemplate.Spec.DeepCopy(), awsnodetemplatespec)
 					updatedAWSNodeTemplate.ObjectMeta = nodeTemplate.ObjectMeta
@@ -467,7 +467,7 @@ var _ = Describe("CloudProvider", func() {
 					ExpectApplied(ctx, env.Client, updatedAWSNodeTemplate)
 					isDrifted, err = cloudProvider.IsMachineDrifted(ctx, machine)
 					Expect(err).NotTo(HaveOccurred())
-					Expect(isDrifted).To(BeFalse())
+					Expect(isDrifted).To(BeEmpty())
 				},
 				Entry("AMISelector Drift", v1alpha1.AWSNodeTemplateSpec{AMISelector: map[string]string{"aws::ids": validAMI}}),
 				Entry("SubnetSelector Drift", v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{SubnetSelector: map[string]string{"aws-ids": "subnet-test1"}}}),
@@ -481,7 +481,7 @@ var _ = Describe("CloudProvider", func() {
 				ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 				isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machine)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(isDrifted).To(BeFalse())
+				Expect(isDrifted).To(BeEmpty())
 			})
 		})
 	})

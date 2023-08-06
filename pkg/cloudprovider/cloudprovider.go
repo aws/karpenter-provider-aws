@@ -189,24 +189,24 @@ func (c *CloudProvider) Delete(ctx context.Context, machine *v1alpha5.Machine) e
 	return c.instanceProvider.Delete(ctx, id)
 }
 
-func (c *CloudProvider) IsMachineDrifted(ctx context.Context, machine *v1alpha5.Machine) (bool, error) {
+func (c *CloudProvider) IsMachineDrifted(ctx context.Context, machine *v1alpha5.Machine) (cloudprovider.DriftReason, error) {
 	// Not needed when GetInstanceTypes removes provisioner dependency
 	provisioner := &v1alpha5.Provisioner{}
 	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: machine.Labels[v1alpha5.ProvisionerNameLabelKey]}, provisioner); err != nil {
-		return false, client.IgnoreNotFound(fmt.Errorf("getting provisioner, %w", err))
+		return "", client.IgnoreNotFound(fmt.Errorf("getting provisioner, %w", err))
 	}
 	if provisioner.Spec.ProviderRef == nil {
-		return false, nil
+		return "", nil
 	}
 	nodeTemplate, err := c.resolveNodeTemplate(ctx, nil, provisioner.Spec.ProviderRef)
 	if err != nil {
-		return false, client.IgnoreNotFound(fmt.Errorf("resolving node template, %w", err))
+		return "", client.IgnoreNotFound(fmt.Errorf("resolving node template, %w", err))
 	}
-	drifted, err := c.isNodeTemplateDrifted(ctx, machine, provisioner, nodeTemplate)
+	driftReason, err := c.isNodeTemplateDrifted(ctx, machine, provisioner, nodeTemplate)
 	if err != nil {
-		return false, err
+		return "", err
 	}
-	return drifted, nil
+	return driftReason, nil
 }
 
 // Name returns the CloudProvider implementation name.
