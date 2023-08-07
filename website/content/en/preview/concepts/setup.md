@@ -1,9 +1,9 @@
 ---
-title: "Karpenter Setup"
-linkTitle: "Karpenter Setup"
+title: "Karpenter CloudFormation Setup"
+linkTitle: "Karpenter CloudFormation Setup"
 weight: 5
 description: >
-  Descriptions of how Karpenter sets up infrastructure
+  Descriptions of how Karpenter uses CloudFormation to set up permissions
 ---
 When you create a cluster to use with Karpenter in the [Getting Started with Karpenter]({{< relref "../getting-started-with-karpenter/" >}}) guide, the procedure uses CloudFormation to prepare the cluster for Karpenter to be able to create and manage nodes.
 This document describes the `cloudformation.yaml` file used in that guide.
