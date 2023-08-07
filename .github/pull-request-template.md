@@ -16,7 +16,7 @@ Fixes #N/A <!-- issue number -->
 **How was this change tested?**
 
 **Does this change impact docs?**
-- [ ] Yes, PR includes docs updates
+- [ ] Yes, PR includes docs updates <!-- docs must be added to /preview to be included in future version releases -->
 - [ ] Yes, issue opened: # <!-- issue number -->
 - [x] No
 
