@@ -201,7 +201,7 @@ amiSelector:
 ### How does Karpenter deprovision nodes?
 See [Deprovisioning nodes]({{< ref "./concepts/deprovisioning" >}}) for information on how Karpenter deprovisions nodes.
 
-## Upgrading
+## Upgrading Karpenter
 
 ### How do I upgrade Karpenter?
 Karpenter is a controller that runs in your cluster, but it is not tied to a specific Kubernetes version, as the Cluster Autoscaler is.
@@ -221,6 +221,14 @@ error: error validating "provisioner.yaml": error validating data: ValidationErr
 ```
 
 The `startupTaints` parameter was added in v0.10.0.  Helm upgrades do not upgrade the CRD describing the provisioner, so it must be done manually. For specific details, see the [Upgrade Guide]({{< ref "./upgrade-guide/#upgrading-to-v0100" >}})
+
+## Upgrading Kubernetes Cluster
+
+### How do I upgrade an EKS Cluster with Karpenter?
+
+When upgrading an Amazon EKS cluster, [Karpenter's Drift feature]({{<ref "./concepts/deprovisioning#drift" >}}) can automatically upgrade the Karpenter-provisioned nodes to stay in-sync with the EKS control plane. Karpenter Drift currently needs to be enabled using a [feature gate]({{<ref "./concepts/settings#feature-gates" >}}). Karpenter's default [AWSNodeTemplate `amiFamily` configuration]({{<ref "./concepts/node-templates#specamifamily" >}}) uses the latest EKS Optimized AL2 AMI for the same major and minor version as the EKS cluster's control plane. Karpenter's AWSNodeTemplate can be configured to not use the EKS optimized AL2 AMI in favor of a custom AMI by configuring the [`amiSelector`]({{<ref "./concepts/node-templates#specamiselector" >}}). If using a custom AMI, you will need to trigger the rollout of this new worker node image through the publication of a new AMI with tags matching the [`amiSelector`]({{<ref "./concepts/node-templates#specamiselector" >}}), or a change to the [`amiSelector`]({{<ref "./concepts/node-templates#specamiselector" >}}) field.
+
+Start by [upgrading the EKS Cluster control plane](https://docs.aws.amazon.com/eks/latest/userguide/update-cluster.html). After the EKS Cluster upgrade completes, Karpenter's Drift feature will detect that the Karpenter-provisioned nodes are using EKS Optimized AMIs for the previous cluster version, and [automatically cordon, drain, and replace those nodes]({{<ref "./concepts/deprovisioning#control-flow" >}}). To support pods moving to new nodes, follow Kubernetes best practices by setting appropriate pod [Resource Quotas](https://kubernetes.io/docs/concepts/policy/resource-quotas/), and using [Pod Disruption Budgets](https://kubernetes.io/docs/concepts/workloads/pods/disruptions/) (PDB). Karpenter's Drift feature will spin up replacement nodes based on the pod resource requests, and will respect the PDBs when deprovisioning nodes.
 
 ## Interruption Handling
 
