@@ -272,8 +272,13 @@ var _ = Describe("Drift", Label("AWS"), func() {
 				return nodes[i].CreationTimestamp.Before(&nodes[j].CreationTimestamp)
 			})
 			nodeTwo := nodes[1]
-			nodeTwo.Spec.Taints = []v1.Taint{}
-			env.ExpectCreatedOrUpdated(nodeTwo)
+			Eventually(func(g Gomega) {
+				n := &v1.Node{}
+				g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodeTwo), n)).To(Succeed())
+				stored := n.DeepCopy()
+				n.Spec.Taints = []v1.Taint{}
+				g.Expect(env.Client.Patch(env.Context, n, client.MergeFrom(stored))).To(Succeed())
+			}).Should(Succeed())
 		}
 
 		env.EventuallyExpectNotFound(pod, node)
