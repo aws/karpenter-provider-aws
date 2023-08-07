@@ -18,9 +18,9 @@ package pricing
 
 import "time"
 
-// generated at 2023-07-31T13:09:33Z for us-east-1
+// generated at 2023-08-07T13:06:56Z for us-east-1
 
-var initialPriceUpdate, _ = time.Parse(time.RFC3339, "2023-07-31T13:09:33Z")
+var initialPriceUpdate, _ = time.Parse(time.RFC3339, "2023-08-07T13:06:56Z")
 var initialOnDemandPrices = map[string]map[string]float64{}
 
 func init() {
@@ -219,6 +219,13 @@ func init() {
 		// m7gd family
 		"m7gd.12xlarge": 2.562800, "m7gd.16xlarge": 3.417100, "m7gd.2xlarge": 0.427100, "m7gd.4xlarge": 0.854300,
 		"m7gd.8xlarge": 1.708600, "m7gd.large": 0.106800, "m7gd.medium": 0.053400, "m7gd.xlarge": 0.213600,
+		// m7i-flex family
+		"m7i-flex.2xlarge": 0.383040, "m7i-flex.4xlarge": 0.766080, "m7i-flex.8xlarge": 1.532160,
+		"m7i-flex.large": 0.095760, "m7i-flex.xlarge": 0.191520,
+		// m7i family
+		"m7i.12xlarge": 2.419200, "m7i.16xlarge": 3.225600, "m7i.24xlarge": 4.838400, "m7i.2xlarge": 0.403200,
+		"m7i.48xlarge": 9.676800, "m7i.4xlarge": 0.806400, "m7i.8xlarge": 1.612800, "m7i.large": 0.100800,
+		"m7i.xlarge": 0.201600,
 		// p2 family
 		"p2.16xlarge": 14.400000, "p2.8xlarge": 7.200000, "p2.xlarge": 0.900000,
 		// p3 family
