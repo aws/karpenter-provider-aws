@@ -219,7 +219,7 @@ func (p *Provider) UpdateOnDemandPricing(ctx context.Context) error {
 		}).Set(price)
 	}
 	if p.cm.HasChanged("on-demand-prices", p.onDemandPrices) {
-		logging.FromContext(ctx).With("instance-type-count", len(p.onDemandPrices)).Infof("updated on-demand pricing")
+		logging.FromContext(ctx).With("instance-type-count", len(p.onDemandPrices)).Debugf("updated on-demand pricing")
 	}
 	return nil
 }
@@ -379,7 +379,7 @@ func (p *Provider) UpdateSpotPricing(ctx context.Context) error {
 	if p.cm.HasChanged("spot-prices", p.spotPrices) {
 		logging.FromContext(ctx).With(
 			"instance-type-count", len(p.onDemandPrices),
-			"offering-count", totalOfferings).Infof("updated spot pricing with instance types and offerings")
+			"offering-count", totalOfferings).Debugf("updated spot pricing with instance types and offerings")
 	}
 	return nil
 }
