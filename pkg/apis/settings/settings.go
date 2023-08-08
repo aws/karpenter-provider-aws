@@ -35,7 +35,7 @@ type settingsKeyType struct{}
 var ContextKey = settingsKeyType{}
 
 var defaultSettings = &Settings{
-	AssumeRole:                 "",
+	AssumeRoleARN:              "",
 	ClusterName:                "",
 	ClusterEndpoint:            "",
 	AssumeRoleDuration:         time.Duration(15) * time.Minute,
@@ -51,7 +51,7 @@ var defaultSettings = &Settings{
 
 // +k8s:deepcopy-gen=true
 type Settings struct {
-	AssumeRole                 string
+	AssumeRoleARN              string
 	ClusterName                string `validate:"required"`
 	ClusterEndpoint            string
 	AssumeRoleDuration         time.Duration `validate:"min=15m"`
@@ -74,7 +74,7 @@ func (*Settings) Inject(ctx context.Context, cm *v1.ConfigMap) (context.Context,
 	s := defaultSettings.DeepCopy()
 
 	if err := configmap.Parse(cm.Data,
-		configmap.AsString("aws.assumeRole", &s.AssumeRole),
+		configmap.AsString("aws.assumeRoleARN", &s.AssumeRoleARN),
 		configmap.AsString("aws.clusterName", &s.ClusterName),
 		configmap.AsString("aws.clusterEndpoint", &s.ClusterEndpoint),
 		configmap.AsDuration("aws.assumeRoleDuration", &s.AssumeRoleDuration),

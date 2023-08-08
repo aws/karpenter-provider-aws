@@ -167,8 +167,8 @@ settings:
   # -- AWS-specific configuration values
   aws:
     # -- Role to assume for calling AWS services.
-    assumeRole: ""
-    # -- Duration of assumed credentials in minutes. Default value is 15 minutes. Not used unless aws.assumeRole set.
+    assumeRoleARN: ""
+    # -- Duration of assumed credentials in minutes. Default value is 15 minutes. Not used unless aws.assumeRoleARN set.
     assumeRoleDuration: ""
     # -- Cluster name.
     clusterName: ""

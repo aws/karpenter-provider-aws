@@ -46,7 +46,7 @@ data:
   # will be batched separately.
   batchIdleDuration: 1s
   # Role to assume for calling AWS services.
-  aws.assumerole: arn:aws:iam::111222333444:role/examplerole
+  aws.assumeRoleARN: arn:aws:iam::111222333444:role/examplerole
   # Duration of assumed credentials in minutes. Default value is 15 minutes. Not used unless aws.assumeRole set.
   aws.assumeRoleDuration: 15
   # [REQUIRED] The kubernetes cluster name for resource discovery

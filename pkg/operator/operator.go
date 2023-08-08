@@ -78,8 +78,8 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		STSRegionalEndpoint: endpoints.RegionalSTSEndpoint,
 	}
 
-	if assumeRole := settings.FromContext(ctx).AssumeRole; assumeRole != "" {
-		config.Credentials = stscreds.NewCredentials(session.Must(session.NewSession()), assumeRole,
+	if assumeRoleARN := settings.FromContext(ctx).AssumeRoleARN; assumeRoleARN != "" {
+		config.Credentials = stscreds.NewCredentials(session.Must(session.NewSession()), assumeRoleARN,
 			func(provider *stscreds.AssumeRoleProvider) { setDurationAndExpiry(provider, ctx) })
 	}
 
