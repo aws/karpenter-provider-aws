@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 	"go.uber.org/multierr"
@@ -37,7 +38,7 @@ var defaultSettings = &Settings{
 	AssumeRole:                 "",
 	ClusterName:                "",
 	ClusterEndpoint:            "",
-	CredsDuration:              15,
+	AssumeRoleDuration:         time.Duration(15) * time.Minute,
 	DefaultInstanceProfile:     "",
 	EnablePodENI:               false,
 	EnableENILimitedPodDensity: true,
@@ -53,7 +54,7 @@ type Settings struct {
 	AssumeRole                 string
 	ClusterName                string `validate:"required"`
 	ClusterEndpoint            string
-	CredsDuration              int `validate:"min=15"`
+	AssumeRoleDuration         time.Duration `validate:"min=15m"`
 	DefaultInstanceProfile     string
 	EnablePodENI               bool
 	EnableENILimitedPodDensity bool
@@ -76,7 +77,7 @@ func (*Settings) Inject(ctx context.Context, cm *v1.ConfigMap) (context.Context,
 		configmap.AsString("aws.assumeRole", &s.AssumeRole),
 		configmap.AsString("aws.clusterName", &s.ClusterName),
 		configmap.AsString("aws.clusterEndpoint", &s.ClusterEndpoint),
-		configmap.AsInt("aws.credsDuration", &s.CredsDuration),
+		configmap.AsDuration("aws.assumeRoleDuration", &s.AssumeRoleDuration),
 		configmap.AsString("aws.defaultInstanceProfile", &s.DefaultInstanceProfile),
 		configmap.AsBool("aws.enablePodENI", &s.EnablePodENI),
 		configmap.AsBool("aws.enableENILimitedPodDensity", &s.EnableENILimitedPodDensity),

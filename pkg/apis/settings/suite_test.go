@@ -46,7 +46,7 @@ var _ = Describe("Validation", func() {
 		Expect(err).ToNot(HaveOccurred())
 		s := settings.FromContext(ctx)
 		Expect(s.AssumeRole).To(Equal(""))
-		Expect(s.CredsDuration).To(Equal(15))
+		Expect(s.AssumeRoleDuration).To(Equal(15))
 		Expect(s.DefaultInstanceProfile).To(Equal(""))
 		Expect(s.EnablePodENI).To(BeFalse())
 		Expect(s.EnableENILimitedPodDensity).To(BeTrue())
@@ -59,7 +59,7 @@ var _ = Describe("Validation", func() {
 		cm := &v1.ConfigMap{
 			Data: map[string]string{
 				"aws.assumeRole":                 "arn:aws:iam::111222333444:role/testrole",
-				"aws.credsDuration":              "27",
+				"aws.assumeRoleDuration":         "27",
 				"aws.clusterEndpoint":            "https://00000000000000000000000.gr7.us-west-2.eks.amazonaws.com",
 				"aws.clusterName":                "my-cluster",
 				"aws.defaultInstanceProfile":     "karpenter",
@@ -75,7 +75,7 @@ var _ = Describe("Validation", func() {
 		Expect(err).ToNot(HaveOccurred())
 		s := settings.FromContext(ctx)
 		Expect(s.AssumeRole).To(Equal("arn:aws:iam::111222333444:role/testrole"))
-		Expect(s.CredsDuration).To(Equal(27))
+		Expect(s.AssumeRoleDuration).To(Equal(27))
 		Expect(s.DefaultInstanceProfile).To(Equal("karpenter"))
 		Expect(s.EnablePodENI).To(BeTrue())
 		Expect(s.EnableENILimitedPodDensity).To(BeFalse())
