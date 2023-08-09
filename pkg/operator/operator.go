@@ -80,7 +80,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 
 	if assumeRoleARN := settings.FromContext(ctx).AssumeRoleARN; assumeRoleARN != "" {
 		config.Credentials = stscreds.NewCredentials(session.Must(session.NewSession()), assumeRoleARN,
-			func(provider *stscreds.AssumeRoleProvider) { setDurationAndExpiry(provider, ctx) })
+			func(provider *stscreds.AssumeRoleProvider) { setDurationAndExpiry(ctx, provider) })
 	}
 
 	sess := withUserAgent(session.Must(session.NewSession(
@@ -237,7 +237,7 @@ func kubeDNSIP(ctx context.Context, kubernetesInterface kubernetes.Interface) (n
 	return kubeDNSIP, nil
 }
 
-func setDurationAndExpiry(provider *stscreds.AssumeRoleProvider, ctx context.Context) {
+func setDurationAndExpiry(ctx context.Context, provider *stscreds.AssumeRoleProvider) {
 	provider.Duration = settings.FromContext(ctx).AssumeRoleDuration
 	provider.ExpiryWindow = time.Duration(10) * time.Second
 }

@@ -36,9 +36,9 @@ var ContextKey = settingsKeyType{}
 
 var defaultSettings = &Settings{
 	AssumeRoleARN:              "",
+	AssumeRoleDuration:         time.Duration(15) * time.Minute,
 	ClusterName:                "",
 	ClusterEndpoint:            "",
-	AssumeRoleDuration:         time.Duration(15) * time.Minute,
 	DefaultInstanceProfile:     "",
 	EnablePodENI:               false,
 	EnableENILimitedPodDensity: true,
@@ -52,9 +52,9 @@ var defaultSettings = &Settings{
 // +k8s:deepcopy-gen=true
 type Settings struct {
 	AssumeRoleARN              string
-	ClusterName                string `validate:"required"`
-	ClusterEndpoint            string
 	AssumeRoleDuration         time.Duration `validate:"min=15m"`
+	ClusterName                string        `validate:"required"`
+	ClusterEndpoint            string
 	DefaultInstanceProfile     string
 	EnablePodENI               bool
 	EnableENILimitedPodDensity bool
@@ -75,9 +75,9 @@ func (*Settings) Inject(ctx context.Context, cm *v1.ConfigMap) (context.Context,
 
 	if err := configmap.Parse(cm.Data,
 		configmap.AsString("aws.assumeRoleARN", &s.AssumeRoleARN),
+		configmap.AsDuration("aws.assumeRoleDuration", &s.AssumeRoleDuration),
 		configmap.AsString("aws.clusterName", &s.ClusterName),
 		configmap.AsString("aws.clusterEndpoint", &s.ClusterEndpoint),
-		configmap.AsDuration("aws.assumeRoleDuration", &s.AssumeRoleDuration),
 		configmap.AsString("aws.defaultInstanceProfile", &s.DefaultInstanceProfile),
 		configmap.AsBool("aws.enablePodENI", &s.EnablePodENI),
 		configmap.AsBool("aws.enableENILimitedPodDensity", &s.EnableENILimitedPodDensity),
