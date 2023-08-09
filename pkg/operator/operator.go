@@ -19,6 +19,9 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"net"
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	awsclient "github.com/aws/aws-sdk-go/aws/client"
@@ -40,8 +43,6 @@ import (
 	"k8s.io/client-go/transport"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
-	"net"
-	"time"
 
 	"github.com/aws/karpenter-core/pkg/operator"
 	"github.com/aws/karpenter/pkg/apis/settings"
