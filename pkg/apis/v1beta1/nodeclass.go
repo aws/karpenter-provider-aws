@@ -49,12 +49,10 @@ type NodeClassSpec struct {
 	// Tags to be applied on ec2 resources like instances and launch templates.
 	// +optional
 	Tags map[string]string `json:"tags,omitempty"`
-	// DetailedMonitoring controls if detailed monitoring is enabled for instances that are launched
+	// BlockDeviceMappings to be applied to provisioned nodes.
 	// +optional
 	BlockDeviceMappings []*BlockDeviceMapping `json:"blockDeviceMappings,omitempty"`
-	// LaunchTemplateName for the node. If not specified, a launch template will be generated.
-	// NOTE: This field is for specifying a custom launch template and is exposed in the Spec
-	// as `launchTemplate` for backwards compatibility.
+	// DetailedMonitoring controls if detailed monitoring is enabled for instances that are launched
 	// +optional
 	DetailedMonitoring *bool `json:"detailedMonitoring,omitempty"`
 	// MetadataOptions for the generated launch template of provisioned nodes.
@@ -73,13 +71,20 @@ type NodeClassSpec struct {
 	// required.
 	// +optional
 	MetadataOptions *MetadataOptions `json:"metadataOptions,omitempty"`
-	// BlockDeviceMappings to be applied to provisioned nodes.
-	// +optional
 	// Context is a Reserved field in EC2 APIs
 	// https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html
 	// +optional
-	Context            *string `json:"context,omitempty"`
+	Context *string `json:"context,omitempty"`
+	// TODO @joinnis: Remove this field when v1alpha5 is unsupported in a future version of Karpenter
+	// LaunchTemplateName for the node. If not specified, a launch template will be generated.
+	// NOTE: This field is for specifying a custom launch template and is exposed in the Spec
+	// as `launchTemplate` for backwards compatibility.
+	// +optional
 	LaunchTemplateName *string `json:"-" hash:"ignore"`
+	// TODO @joinnis: Remove this field when v1alpha5 is unsupported in a future version of Karpenter
+	// InstanceProfile is the AWS identity that instances use.
+	// +optional
+	InstanceProfile *string `json:"-" hash:"ignore"`
 }
 
 // SubnetSelectorTerm defines selection logic for a subnet used by Karpenter to launch nodes.
