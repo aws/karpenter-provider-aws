@@ -74,8 +74,7 @@ spec:
                   type: object
                 type: array
               blockDeviceMappings:
-                description: DetailedMonitoring controls if detailed monitoring is
-                  enabled for instances that are launched
+                description: BlockDeviceMappings to be applied to provisioned nodes.
                 items:
                   properties:
                     deviceName:
@@ -146,14 +145,11 @@ spec:
                   type: object
                 type: array
               context:
-                description: BlockDeviceMappings to be applied to provisioned nodes.
-                  Context is a Reserved field in EC2 APIs https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html
+                description: Context is a Reserved field in EC2 APIs https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html
                 type: string
               detailedMonitoring:
-                description: 'LaunchTemplateName for the node. If not specified, a
-                  launch template will be generated. NOTE: This field is for specifying
-                  a custom launch template and is exposed in the Spec as `launchTemplate`
-                  for backwards compatibility.'
+                description: DetailedMonitoring controls if detailed monitoring is
+                  enabled for instances that are launched
                 type: boolean
               metadataOptions:
                 description: "MetadataOptions for the generated launch template of
