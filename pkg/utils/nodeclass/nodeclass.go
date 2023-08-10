@@ -51,6 +51,27 @@ func New(nodeTemplate *v1alpha1.AWSNodeTemplate) *v1beta1.NodeClass {
 			LaunchTemplateName: nodeTemplate.Spec.LaunchTemplateName,
 			InstanceProfile:    nodeTemplate.Spec.InstanceProfile,
 		},
+		Status: v1beta1.NodeClassStatus{
+			Subnets: lo.Map(nodeTemplate.Status.Subnets, func(s v1alpha1.Subnet, _ int) v1beta1.Subnet {
+				return v1beta1.Subnet{
+					ID:   s.ID,
+					Zone: s.Zone,
+				}
+			}),
+			SecurityGroups: lo.Map(nodeTemplate.Status.SecurityGroups, func(s v1alpha1.SecurityGroup, _ int) v1beta1.SecurityGroup {
+				return v1beta1.SecurityGroup{
+					ID:   s.ID,
+					Name: s.Name,
+				}
+			}),
+			AMIs: lo.Map(nodeTemplate.Status.AMIs, func(a v1alpha1.AMI, _ int) v1beta1.AMI {
+				return v1beta1.AMI{
+					ID:           a.ID,
+					Name:         a.Name,
+					Requirements: a.Requirements,
+				}
+			}),
+		},
 		IsNodeTemplate: true,
 	}
 }
@@ -81,20 +102,24 @@ func NewAMISelectorTerms(amiSelector map[string]string) (terms []v1beta1.AMISele
 	if len(amiSelector) == 0 {
 		return nil
 	}
-	var owners, ids, names []string
-	var tags map[string]string
+	// Each of these slices needs to be pre-populated with the "0" element so that we can properly generate permutations
+	ids := []*string{nil}
+	names := []*string{nil}
+	owners := []*string{nil}
+	tags := map[string]string{}
 	for k, v := range amiSelector {
 		switch k {
 		case "aws-ids", "aws::ids":
-			ids = strings.Split(strings.Trim(v, " "), ",")
+			ids = lo.ToSlicePtr(strings.Split(strings.Trim(v, " "), ","))
 		case "aws::name":
-			names = strings.Split(strings.Trim(v, " "), ",")
+			names = lo.ToSlicePtr(strings.Split(strings.Trim(v, " "), ","))
 		case "aws::owners":
-			owners = strings.Split(strings.Trim(v, " "), ",")
+			owners = lo.ToSlicePtr(strings.Split(strings.Trim(v, " "), ","))
 		default:
 			tags[k] = v
 		}
 	}
+	// If there are some "special" keys used, we have to represent the old selector as multiple terms
 	for _, owner := range owners {
 		for _, id := range ids {
 			for _, name := range names {
@@ -111,6 +136,9 @@ func NewAMISelectorTerms(amiSelector map[string]string) (terms []v1beta1.AMISele
 }
 
 func NewBlockDeviceMapping(bdm *v1alpha1.BlockDeviceMapping) *v1beta1.BlockDeviceMapping {
+	if bdm == nil {
+		return nil
+	}
 	return &v1beta1.BlockDeviceMapping{
 		DeviceName: bdm.DeviceName,
 		EBS:        NewBlockDevice(bdm.EBS),
@@ -134,6 +162,9 @@ func NewBlockDevice(bd *v1alpha1.BlockDevice) *v1beta1.BlockDevice {
 }
 
 func NewMetadataOptions(mo *v1alpha1.MetadataOptions) *v1beta1.MetadataOptions {
+	if mo == nil {
+		return nil
+	}
 	return &v1beta1.MetadataOptions{
 		HTTPEndpoint:            mo.HTTPEndpoint,
 		HTTPProtocolIPv6:        mo.HTTPProtocolIPv6,

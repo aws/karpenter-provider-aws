@@ -97,7 +97,7 @@ type SubnetSelectorTerm struct {
 	// ID is the subnet id in EC2
 	// +kubebuilder:validation:Pattern="subnet-[0-9a-z]+"
 	// +optional
-	ID string `json:"id,omitempty"`
+	ID *string `json:"id,omitempty"`
 }
 
 // SecurityGroupSelectorTerm defines selection logic for a security group used by Karpenter to launch nodes.
@@ -110,10 +110,10 @@ type SecurityGroupSelectorTerm struct {
 	// ID is the security group id in EC2
 	// +kubebuilder:validation:Pattern:="sg-[0-9a-z]+"
 	// +optional
-	ID string `json:"id,omitempty"`
+	ID *string `json:"id,omitempty"`
 	// Name is the security group name in EC2.
 	// This value is the name field, which is different from the name tag.
-	Name string `json:"name,omitempty"`
+	Name *string `json:"name,omitempty"`
 }
 
 // AMISelectorTerm defines selection logic for an ami used by Karpenter to launch nodes.
@@ -126,18 +126,18 @@ type AMISelectorTerm struct {
 	// ID is the ami id in EC2
 	// +kubebuilder:validation:Pattern:="ami-[0-9a-z]+"
 	// +optional
-	ID string `json:"id,omitempty"`
+	ID *string `json:"id,omitempty"`
 	// Name is the ami name in EC2.
 	// This value is the name field, which is different from the name tag.
 	// +optional
-	Name string `json:"name,omitempty"`
+	Name *string `json:"name,omitempty"`
 	// Owner is the owner for the ami.
 	// You can specify a combination of AWS account IDs, "self", "amazon",and "aws-marketplace"
 	// +optional
-	Owner string `json:"owner,omitempty"`
+	Owner *string `json:"owner,omitempty"`
 	// SSM is the ssm alias for an ami.
 	// +optional
-	SSM string `json:"ssm,omitempty"`
+	SSM *string `json:"ssm,omitempty"`
 }
 
 // MetadataOptions contains parameters for specifying the exposure of the
