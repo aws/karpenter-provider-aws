@@ -2,7 +2,7 @@
 
 A Helm chart for Karpenter, an open-source node provisioning project built for Kubernetes.
 
-![Version: 0.29.2](https://img.shields.io/badge/Version-0.29.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.29.2](https://img.shields.io/badge/AppVersion-0.29.2-informational?style=flat-square)
+![Version: 0.30.0-rc.0](https://img.shields.io/badge/Version-0.30.0--rc.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.30.0-rc.0](https://img.shields.io/badge/AppVersion-0.30.0--rc.0-informational?style=flat-square)
 
 ## Documentation
 
@@ -15,7 +15,7 @@ You can follow the detailed installation instruction in the [documentation](http
 ```bash
 helm upgrade --install --namespace karpenter --create-namespace \
   karpenter oci://public.ecr.aws/karpenter/karpenter \
-  --version v0.29.2 \
+  --version v0.30.0-rc.0 \
   --set serviceAccount.annotations.eks\.amazonaws\.com/role-arn=${KARPENTER_IAM_ROLE_ARN} \
   --set settings.aws.clusterName=${CLUSTER_NAME} \
   --set settings.aws.clusterEndpoint=${CLUSTER_ENDPOINT} \
@@ -37,9 +37,9 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | controller.errorOutputPaths | list | `["stderr"]` | Controller errorOutputPaths - default to stderr only |
 | controller.extraVolumeMounts | list | `[]` | Additional volumeMounts for the controller pod. |
 | controller.healthProbe.port | int | `8081` | The container port to use for http health probe. |
-| controller.image.digest | string | `"sha256:bac5ea470c09df21eb3742cf9448e9b806138ed5b6321d4e04697bbdf122eac6"` | SHA256 digest of the controller image. |
+| controller.image.digest | string | `"sha256:06f08a2c9b5125a2da57936a5ccfb54e5796677e247fb0bb960e70e79242a147"` | SHA256 digest of the controller image. |
 | controller.image.repository | string | `"public.ecr.aws/karpenter/controller"` | Repository path to the controller image. |
-| controller.image.tag | string | `"v0.29.2"` | Tag of the controller image. |
+| controller.image.tag | string | `"v0.30.0-rc.0"` | Tag of the controller image. |
 | controller.logEncoding | string | `""` | Controller log encoding, defaults to the global log encoding |
 | controller.logLevel | string | `""` | Controller log level, defaults to the global log level |
 | controller.metrics.port | int | `8000` | The container port to use for metrics. |
