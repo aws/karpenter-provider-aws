@@ -20,10 +20,12 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	awsclient "github.com/aws/aws-sdk-go/aws/client"
+	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/aws/aws-sdk-go/aws/request"
@@ -73,12 +75,22 @@ type Operator struct {
 }
 
 func NewOperator(ctx context.Context, operator *operator.Operator) (context.Context, *Operator) {
+	config := &aws.Config{
+		STSRegionalEndpoint: endpoints.RegionalSTSEndpoint,
+	}
+
+	if assumeRoleARN := settings.FromContext(ctx).AssumeRoleARN; assumeRoleARN != "" {
+		config.Credentials = stscreds.NewCredentials(session.Must(session.NewSession()), assumeRoleARN,
+			func(provider *stscreds.AssumeRoleProvider) { setDurationAndExpiry(ctx, provider) })
+	}
+
 	sess := withUserAgent(session.Must(session.NewSession(
 		request.WithRetryer(
-			&aws.Config{STSRegionalEndpoint: endpoints.RegionalSTSEndpoint},
+			config,
 			awsclient.DefaultRetryer{NumMaxRetries: awsclient.DefaultRetryerMaxNumRetries},
 		),
 	)))
+
 	if *sess.Config.Region == "" {
 		logging.FromContext(ctx).Debug("retrieving region from IMDS")
 		region, err := ec2metadata.New(sess).Region()
@@ -224,4 +236,9 @@ func kubeDNSIP(ctx context.Context, kubernetesInterface kubernetes.Interface) (n
 		return nil, fmt.Errorf("parsing cluster IP")
 	}
 	return kubeDNSIP, nil
+}
+
+func setDurationAndExpiry(ctx context.Context, provider *stscreds.AssumeRoleProvider) {
+	provider.Duration = settings.FromContext(ctx).AssumeRoleDuration
+	provider.ExpiryWindow = time.Duration(10) * time.Second
 }

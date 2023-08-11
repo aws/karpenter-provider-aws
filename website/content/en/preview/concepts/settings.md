@@ -45,6 +45,10 @@ data:
   # faster than this time, the batching window will be extended up to the maxDuration. If they arrive slower, the pods
   # will be batched separately.
   batchIdleDuration: 1s
+  # Role to assume for calling AWS services.
+  aws.assumeRoleARN: arn:aws:iam::111222333444:role/examplerole
+  # Duration of assumed credentials in minutes. Default value is 15 minutes. Not used unless aws.assumeRole set.
+  aws.assumeRoleDuration: 15m
   # [REQUIRED] The kubernetes cluster name for resource discovery
   aws.clusterName: karpenter-cluster
   # [REQUIRED] The external kubernetes cluster endpoint for new nodes to connect with

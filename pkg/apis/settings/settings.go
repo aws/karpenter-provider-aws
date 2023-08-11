@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 	"go.uber.org/multierr"
@@ -34,6 +35,8 @@ type settingsKeyType struct{}
 var ContextKey = settingsKeyType{}
 
 var defaultSettings = &Settings{
+	AssumeRoleARN:              "",
+	AssumeRoleDuration:         time.Duration(15) * time.Minute,
 	ClusterName:                "",
 	ClusterEndpoint:            "",
 	DefaultInstanceProfile:     "",
@@ -48,7 +51,9 @@ var defaultSettings = &Settings{
 
 // +k8s:deepcopy-gen=true
 type Settings struct {
-	ClusterName                string `validate:"required"`
+	AssumeRoleARN              string
+	AssumeRoleDuration         time.Duration `validate:"min=15m"`
+	ClusterName                string        `validate:"required"`
 	ClusterEndpoint            string
 	DefaultInstanceProfile     string
 	EnablePodENI               bool
@@ -69,6 +74,8 @@ func (*Settings) Inject(ctx context.Context, cm *v1.ConfigMap) (context.Context,
 	s := defaultSettings.DeepCopy()
 
 	if err := configmap.Parse(cm.Data,
+		configmap.AsString("aws.assumeRoleARN", &s.AssumeRoleARN),
+		configmap.AsDuration("aws.assumeRoleDuration", &s.AssumeRoleDuration),
 		configmap.AsString("aws.clusterName", &s.ClusterName),
 		configmap.AsString("aws.clusterEndpoint", &s.ClusterEndpoint),
 		configmap.AsString("aws.defaultInstanceProfile", &s.DefaultInstanceProfile),

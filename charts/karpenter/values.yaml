@@ -166,6 +166,10 @@ settings:
   batchIdleDuration: 1s
   # -- AWS-specific configuration values
   aws:
+    # -- Role to assume for calling AWS services.
+    assumeRoleARN: ""
+    # -- Duration of assumed credentials in minutes. Default value is 15 minutes. Not used unless aws.assumeRoleARN set.
+    assumeRoleDuration: ""
     # -- Cluster name.
     clusterName: ""
     # -- Cluster endpoint. If not set, will be discovered during startup (EKS only)
