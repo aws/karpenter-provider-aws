@@ -12,6 +12,7 @@ config(){
   CURRENT_MAJOR_VERSION="0"
   RELEASE_PLATFORM="--platform=linux/amd64,linux/arm64"
 
+  MAIN_GITHUB_ACCOUNT="aws"
   RELEASE_TYPE_STABLE="stable"
   RELEASE_TYPE_SNAPSHOT="snapshot"
 }
