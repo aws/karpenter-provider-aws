@@ -16,7 +16,15 @@ spec:
     singular: provisioner
   scope: Cluster
   versions:
-  - name: v1alpha5
+  - additionalPrinterColumns:
+    - jsonPath: .spec.providerRef.name
+      name: Template
+      type: string
+    - jsonPath: .spec.weight
+      name: Weight
+      priority: 1
+      type: string
+    name: v1alpha5
     schema:
       openAPIV3Schema:
         description: Provisioner is the Schema for the Provisioners API

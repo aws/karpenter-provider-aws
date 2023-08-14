@@ -36,7 +36,7 @@ Yes, as long as the controller has network and IAM/RBAC access to the Kubernetes
 ## Compatibility
 
 ### Which versions of Kubernetes does Karpenter support?
-Karpenter is tested with Kubernetes v1.21-v1.25. Support for Kubernetes v1.20 was dropped in Karpenter v0.22.0+ as described in the [Upgrade Guide]({{< ref "./upgrade-guide/" >}}).
+Karpenter is tested with [all currently supported EKS versions](https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html). As with all EKS supported versions, Karpenter will [support a version for 14 months after it is first made available](https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html#version-deprecation).
 
 ### What Kubernetes distributions are supported?
 Karpenter documents integration with a fresh or existing install of the latest AWS Elastic Kubernetes Service (EKS).
@@ -225,3 +225,11 @@ Details on provisioning the SQS queue and EventBridge rules can be found in the 
 ### Why do I sometimes see an extra node get launched when updating a deployment that remains empty and is later removed?
 
 Consolidation packs pods tightly onto nodes which can leave little free allocatable CPU/memory on your nodes.  If a deployment uses a deployment strategy with a non-zero `maxSurge`, such as the default 25%, those surge pods may not have anywhere to run. In this case, Karpenter will launch a new node so that the surge pods can run and then remove it soon after if it's not needed.
+
+## Logging
+
+### How do I customize or configure the log output?
+
+Karpenter uses [uber-go/zap](https://github.com/uber-go/zap) for logging. You can customize or configure the log messages by editing the [configmap-logging.yaml](https://github.com/aws/karpenter/blob/main/charts/karpenter/templates/configmap-logging.yaml)
+`ConfigMap`'s [data.zap-logger-config](https://github.com/aws/karpenter/blob/main/charts/karpenter/templates/configmap-logging.yaml#L26) field.
+The available configuration options are specified in the [zap.Config godocs](https://pkg.go.dev/go.uber.org/zap#Config).

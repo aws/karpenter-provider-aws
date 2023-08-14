@@ -62,7 +62,7 @@ make presubmit # run codegen, lint, and tests
 If you are only interested in building the Karpenter images and not deploying the updated release to your cluster immediately with Helm, you can run
 
 ```bash
-make build # build and push the karpenter images
+make image # build and push the karpenter images
 ```
 
 ### Testing
@@ -106,15 +106,12 @@ stern -n karpenter -l app.kubernetes.io/name=karpenter
 ### AWS
 
 For local development on Karpenter you will need a Docker repo which can manage your images for Karpenter components.
-You can use the following command to provision an ECR repository.
+You can use the following command to provision an ECR repository. We recommend using a single "dev" repository for 
+development across multiple projects, and to use specific image hashes instead of image tags. 
 
 ```bash
 aws ecr create-repository \
-    --repository-name karpenter/controller \
-    --image-scanning-configuration scanOnPush=true \
-    --region "${AWS_DEFAULT_REGION}"
-aws ecr create-repository \
-    --repository-name karpenter/webhook \
+    --repository-name dev \
     --image-scanning-configuration scanOnPush=true \
     --region "${AWS_DEFAULT_REGION}"
 ```
@@ -122,7 +119,7 @@ aws ecr create-repository \
 Once you have your ECR repository provisioned, configure your Docker daemon to authenticate with your newly created repository.
 
 ```bash
-export KO_DOCKER_REPO="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/karpenter"
+export KO_DOCKER_REPO="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/dev"
 aws ecr get-login-password --region "${AWS_DEFAULT_REGION}" | docker login --username AWS --password-stdin "${KO_DOCKER_REPO}"
 ```
 

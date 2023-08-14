@@ -224,6 +224,7 @@ var _ = Describe("CloudProvider", func() {
 		var validSecurityGroup string
 		var selectedInstanceType *corecloudproivder.InstanceType
 		var instance *ec2.Instance
+		var machine *v1alpha5.Machine
 		var validSubnet1 string
 		var validSubnet2 string
 		BeforeEach(func() {
@@ -235,12 +236,14 @@ var _ = Describe("CloudProvider", func() {
 				Parameter: &ssm.Parameter{Value: aws.String(validAMI)},
 			}
 			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
-				Images: []*ec2.Image{{
-					Name:         aws.String(coretest.RandomName()),
-					ImageId:      aws.String(validAMI),
-					Architecture: aws.String("x86_64"),
-					CreationDate: aws.String("2022-08-15T12:00:00Z"),
-				}},
+				Images: []*ec2.Image{
+					{
+						Name:         aws.String(coretest.RandomName()),
+						ImageId:      aws.String(validAMI),
+						Architecture: aws.String("arm64"),
+						CreationDate: aws.String("2022-08-15T12:00:00Z"),
+					},
+				},
 			})
 			nodeTemplate.Status.SecurityGroups = []v1alpha1.SecurityGroup{
 				{
@@ -281,10 +284,11 @@ var _ = Describe("CloudProvider", func() {
 			awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(&ec2.DescribeInstancesOutput{
 				Reservations: []*ec2.Reservation{{Instances: []*ec2.Instance{instance}}},
 			})
-		})
-		It("should not fail if node template does not exist", func() {
-			ExpectDeleted(ctx, env.Client, nodeTemplate)
-			machine := coretest.Machine(v1alpha5.Machine{
+			nodeTemplateHash := nodeTemplate.Hash()
+			nodeTemplate.Annotations = lo.Assign(nodeTemplate.Annotations, map[string]string{
+				v1alpha1.AnnotationNodeTemplateHash: nodeTemplateHash,
+			})
+			machine = coretest.Machine(v1alpha5.Machine{
 				Status: v1alpha5.MachineStatus{
 					ProviderID: fake.ProviderID(lo.FromPtr(instance.InstanceId)),
 				},
@@ -293,128 +297,57 @@ var _ = Describe("CloudProvider", func() {
 						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
 						v1.LabelInstanceTypeStable:       selectedInstanceType.Name,
 					},
+					Annotations: map[string]string{
+						v1alpha1.AnnotationNodeTemplateHash: nodeTemplateHash,
+					},
 				},
 			})
+		})
+		It("should not fail if node template does not exist", func() {
+			ExpectDeleted(ctx, env.Client, nodeTemplate)
 			drifted, err := cloudProvider.IsMachineDrifted(ctx, machine)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(drifted).To(BeFalse())
+			Expect(drifted).To(BeEmpty())
 		})
 		It("should return false if providerRef is not defined", func() {
 			provisioner.Spec.ProviderRef = nil
 			ExpectApplied(ctx, env.Client, provisioner)
-			machine := coretest.Machine(v1alpha5.Machine{
-				Status: v1alpha5.MachineStatus{
-					ProviderID: fake.ProviderID(lo.FromPtr(instance.InstanceId)),
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
-						v1.LabelInstanceTypeStable:       selectedInstanceType.Name,
-					},
-				},
-			})
 			drifted, err := cloudProvider.IsMachineDrifted(ctx, machine)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(drifted).To(BeFalse())
+			Expect(drifted).To(BeEmpty())
 		})
 		It("should not fail if provisioner does not exist", func() {
 			ExpectDeleted(ctx, env.Client, provisioner)
-			machine := coretest.Machine(v1alpha5.Machine{
-				Status: v1alpha5.MachineStatus{
-					ProviderID: fake.ProviderID(lo.FromPtr(instance.InstanceId)),
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
-						v1.LabelInstanceTypeStable:       selectedInstanceType.Name,
-					},
-				},
-			})
 			drifted, err := cloudProvider.IsMachineDrifted(ctx, machine)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(drifted).To(BeFalse())
+			Expect(drifted).To(BeEmpty())
 		})
 		It("should return drifted if the AMI is not valid", func() {
-			machine := coretest.Machine(v1alpha5.Machine{
-				Status: v1alpha5.MachineStatus{
-					ProviderID: fake.ProviderID(lo.FromPtr(instance.InstanceId)),
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
-						v1.LabelInstanceTypeStable:       selectedInstanceType.Name,
-					},
-				},
-			})
 			// Instance is a reference to what we return in the GetInstances call
 			instance.ImageId = aws.String(fake.ImageID())
 			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machine)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(isDrifted).To(BeTrue())
+			Expect(isDrifted).To(Equal(cloudprovider.AMIDrift))
 		})
 		It("should return drifted if the subnet is not valid", func() {
-			machine := coretest.Machine(v1alpha5.Machine{
-				Status: v1alpha5.MachineStatus{
-					ProviderID: fake.ProviderID(lo.FromPtr(instance.InstanceId)),
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
-						v1.LabelInstanceTypeStable:       selectedInstanceType.Name,
-					},
-				},
-			})
 			instance.SubnetId = aws.String(fake.SubnetID())
 			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machine)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(isDrifted).To(BeTrue())
+			Expect(isDrifted).To(Equal(cloudprovider.SubnetDrift))
 		})
 		It("should return an error if AWSNodeTemplate subnets are empty", func() {
-			machine := coretest.Machine(v1alpha5.Machine{
-				Status: v1alpha5.MachineStatus{
-					ProviderID: fake.ProviderID(lo.FromPtr(instance.InstanceId)),
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
-						v1.LabelInstanceTypeStable:       selectedInstanceType.Name,
-					},
-				},
-			})
 			nodeTemplate.Status.Subnets = []v1alpha1.Subnet{}
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			_, err := cloudProvider.IsMachineDrifted(ctx, machine)
 			Expect(err).To(HaveOccurred())
 		})
 		It("should not return drifted if the machine is valid", func() {
-			machine := coretest.Machine(v1alpha5.Machine{
-				Status: v1alpha5.MachineStatus{
-					ProviderID: fake.ProviderID(lo.FromPtr(instance.InstanceId)),
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
-						v1.LabelInstanceTypeStable:       selectedInstanceType.Name,
-					},
-				},
-			})
 			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machine)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(isDrifted).To(BeFalse())
+			Expect(isDrifted).To(BeEmpty())
 		})
 		It("should return an error if the AWSNodeTemplate securitygroup are empty", func() {
 			nodeTemplate.Status.SecurityGroups = []v1alpha1.SecurityGroup{}
-			machine := coretest.Machine(v1alpha5.Machine{
-				Status: v1alpha5.MachineStatus{
-					ProviderID: fake.ProviderID(lo.FromPtr(instance.InstanceId)),
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
-						v1.LabelInstanceTypeStable:       selectedInstanceType.Name,
-					},
-				},
-			})
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			// Instance is a reference to what we return in the GetInstances call
 			instance.SecurityGroups = []*ec2.GroupIdentifier{{GroupId: aws.String(fake.SecurityGroupID())}}
@@ -422,53 +355,20 @@ var _ = Describe("CloudProvider", func() {
 			Expect(err).To(HaveOccurred())
 		})
 		It("should return drifted if the instance securitygroup do not match the AWSNodeTemplateStatus", func() {
-			machine := coretest.Machine(v1alpha5.Machine{
-				Status: v1alpha5.MachineStatus{
-					ProviderID: fake.ProviderID(lo.FromPtr(instance.InstanceId)),
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
-						v1.LabelInstanceTypeStable:       selectedInstanceType.Name,
-					},
-				},
-			})
 			// Instance is a reference to what we return in the GetInstances call
 			instance.SecurityGroups = []*ec2.GroupIdentifier{{GroupId: aws.String(fake.SecurityGroupID())}}
 			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machine)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(isDrifted).To(BeTrue())
+			Expect(isDrifted).To(Equal(cloudprovider.SecurityGroupDrift))
 		})
 		It("should return drifted if there are more instance securitygroups are present than AWSNodeTemplate Status", func() {
-			machine := coretest.Machine(v1alpha5.Machine{
-				Status: v1alpha5.MachineStatus{
-					ProviderID: fake.ProviderID(lo.FromPtr(instance.InstanceId)),
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
-						v1.LabelInstanceTypeStable:       selectedInstanceType.Name,
-					},
-				},
-			})
 			// Instance is a reference to what we return in the GetInstances call
 			instance.SecurityGroups = []*ec2.GroupIdentifier{{GroupId: aws.String(fake.SecurityGroupID())}, {GroupId: aws.String(validSecurityGroup)}}
 			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machine)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(isDrifted).To(BeTrue())
+			Expect(isDrifted).To(Equal(cloudprovider.SecurityGroupDrift))
 		})
 		It("should return drifted if more AWSNodeTemplate securitygroups are present than instance securitygroups", func() {
-			machine := coretest.Machine(v1alpha5.Machine{
-				Status: v1alpha5.MachineStatus{
-					ProviderID: fake.ProviderID(lo.FromPtr(instance.InstanceId)),
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
-						v1.LabelInstanceTypeStable:       selectedInstanceType.Name,
-					},
-				},
-			})
 			nodeTemplate.Status.SecurityGroups = []v1alpha1.SecurityGroup{
 				{
 					ID:   validSecurityGroup,
@@ -482,87 +382,107 @@ var _ = Describe("CloudProvider", func() {
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machine)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(isDrifted).To(BeTrue())
+			Expect(isDrifted).To(Equal(cloudprovider.SecurityGroupDrift))
 		})
 		It("should not return drifted if launchTemplateName is defined", func() {
-			machine := coretest.Machine(v1alpha5.Machine{
-				Status: v1alpha5.MachineStatus{
-					ProviderID: fake.ProviderID(lo.FromPtr(instance.InstanceId)),
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
-						v1.LabelInstanceTypeStable:       selectedInstanceType.Name,
-					},
-				},
-			})
 			nodeTemplate.Spec.LaunchTemplateName = aws.String("validLaunchTemplateName")
 			nodeTemplate.Spec.SecurityGroupSelector = nil
 			nodeTemplate.Status.SecurityGroups = nil
 			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machine)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(isDrifted).To(BeFalse())
+			Expect(isDrifted).To(BeEmpty())
 		})
 		It("should not return drifted if the securitygroups match", func() {
-			machine := coretest.Machine(v1alpha5.Machine{
-				Status: v1alpha5.MachineStatus{
-					ProviderID: fake.ProviderID(lo.FromPtr(instance.InstanceId)),
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
-						v1.LabelInstanceTypeStable:       selectedInstanceType.Name,
-					},
-				},
-			})
 			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machine)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(isDrifted).To(BeFalse())
+			Expect(isDrifted).To(BeEmpty())
 		})
 		It("should error if the machine doesn't have the instance-type label", func() {
-			machine := coretest.Machine(v1alpha5.Machine{
-				Status: v1alpha5.MachineStatus{
-					ProviderID: fake.ProviderID(lo.FromPtr(instance.InstanceId)),
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
-					},
-				},
-			})
+			machine.Labels = map[string]string{
+				v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+			}
 			_, err := cloudProvider.IsMachineDrifted(ctx, machine)
 			Expect(err).To(HaveOccurred())
 		})
 		It("should error drift if machine doesn't have provider id", func() {
-			machine := coretest.Machine(v1alpha5.Machine{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
-						v1.LabelInstanceTypeStable:       selectedInstanceType.Name,
-					},
-				},
-			})
+			machine.Status = v1alpha5.MachineStatus{}
 			isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machine)
 			Expect(err).To(HaveOccurred())
-			Expect(isDrifted).To(BeFalse())
+			Expect(isDrifted).To(BeEmpty())
 		})
 		It("should error drift if the underlying machine does not exist", func() {
 			awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(&ec2.DescribeInstancesOutput{
 				Reservations: []*ec2.Reservation{{Instances: []*ec2.Instance{}}},
 			})
-			machine := coretest.Machine(v1alpha5.Machine{
-				Status: v1alpha5.MachineStatus{
-					ProviderID: fake.ProviderID(lo.FromPtr(instance.InstanceId)),
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
-						v1.LabelInstanceTypeStable:       selectedInstanceType.Name,
-					},
-				},
-			})
 			_, err := cloudProvider.IsMachineDrifted(ctx, machine)
 			Expect(err).To(HaveOccurred())
+		})
+		Context("Static Drift Detection", func() {
+			BeforeEach(func() {
+				provisioner = test.Provisioner(coretest.ProvisionerOptions{
+					ProviderRef: &v1alpha5.MachineTemplateRef{Kind: nodeTemplate.Kind, Name: nodeTemplate.Name},
+				})
+				machine.ObjectMeta.Labels = lo.Assign(machine.ObjectMeta.Labels, map[string]string{
+					v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+				})
+			})
+			DescribeTable("should return drifted if the AWSNodeTemplate.Spec is updated",
+				func(awsnodetemplatespec v1alpha1.AWSNodeTemplateSpec) {
+					ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+					isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machine)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(isDrifted).To(BeEmpty())
+
+					updatedAWSNodeTemplate := test.AWSNodeTemplate(*nodeTemplate.Spec.DeepCopy(), awsnodetemplatespec)
+					updatedAWSNodeTemplate.ObjectMeta = nodeTemplate.ObjectMeta
+					updatedAWSNodeTemplate.Status = nodeTemplate.Status
+					updatedAWSNodeTemplate.Annotations = map[string]string{v1alpha1.AnnotationNodeTemplateHash: updatedAWSNodeTemplate.Hash()}
+
+					ExpectApplied(ctx, env.Client, updatedAWSNodeTemplate)
+					isDrifted, err = cloudProvider.IsMachineDrifted(ctx, machine)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(isDrifted).To(Equal(cloudprovider.NodeTemplateStaticDrift))
+				},
+				Entry("InstanceProfile Drift", v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{InstanceProfile: aws.String("profile-2")}}),
+				Entry("UserData Drift", v1alpha1.AWSNodeTemplateSpec{UserData: aws.String("userdata-test-2")}),
+				Entry("Tags Drift", v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{Tags: map[string]string{"keyTag-test-3": "valueTag-test-3"}}}),
+				Entry("MetadataOptions Drift", v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{LaunchTemplate: v1alpha1.LaunchTemplate{MetadataOptions: &v1alpha1.MetadataOptions{HTTPEndpoint: aws.String("test-metadata-2")}}}}),
+				Entry("BlockDeviceMappings Drift", v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{LaunchTemplate: v1alpha1.LaunchTemplate{BlockDeviceMappings: []*v1alpha1.BlockDeviceMapping{{DeviceName: aws.String("map-device-test-3")}}}}}),
+				Entry("Context Drift", v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{Context: aws.String("context-2")}}),
+				Entry("DetailedMonitoring Drift", v1alpha1.AWSNodeTemplateSpec{DetailedMonitoring: aws.Bool(true)}),
+				Entry("AMIFamily Drift", v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{AMIFamily: aws.String(v1alpha1.AMIFamilyBottlerocket)}}),
+			)
+			DescribeTable("should not return drifted if dynamic felids are updated",
+				func(awsnodetemplatespec v1alpha1.AWSNodeTemplateSpec) {
+					ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+					isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machine)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(isDrifted).To(BeEmpty())
+
+					updatedAWSNodeTemplate := test.AWSNodeTemplate(*nodeTemplate.Spec.DeepCopy(), awsnodetemplatespec)
+					updatedAWSNodeTemplate.ObjectMeta = nodeTemplate.ObjectMeta
+					updatedAWSNodeTemplate.Status = nodeTemplate.Status
+					updatedAWSNodeTemplate.Annotations = map[string]string{v1alpha1.AnnotationNodeTemplateHash: updatedAWSNodeTemplate.Hash()}
+
+					ExpectApplied(ctx, env.Client, updatedAWSNodeTemplate)
+					isDrifted, err = cloudProvider.IsMachineDrifted(ctx, machine)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(isDrifted).To(BeEmpty())
+				},
+				Entry("AMISelector Drift", v1alpha1.AWSNodeTemplateSpec{AMISelector: map[string]string{"aws::ids": validAMI}}),
+				Entry("SubnetSelector Drift", v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{SubnetSelector: map[string]string{"aws-ids": "subnet-test1"}}}),
+				Entry("SecurityGroupSelector Drift", v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{SecurityGroupSelector: map[string]string{"sg-key": "sg-value"}}}),
+			)
+			It("should not return drifted if karpenter.k8s.aws/nodetemplate-hash annotation is not present on the machine", func() {
+				machine.Annotations = map[string]string{}
+				nodeTemplate.Spec.Tags = map[string]string{
+					"Test Key": "Test Value",
+				}
+				ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+				isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machine)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(isDrifted).To(BeEmpty())
+			})
 		})
 	})
 	Context("Provider Backwards Compatibility", func() {

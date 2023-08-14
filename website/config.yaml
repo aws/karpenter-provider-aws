@@ -71,7 +71,7 @@ params:
     - v0.29
     - v0.28
     - v0.27
-    - v0.26
+    - v0.30.0-rc
     - preview
 menu:
   main:

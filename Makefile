@@ -31,7 +31,7 @@ HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${K
 # CR for local builds of Karpenter
 SYSTEM_NAMESPACE ?= karpenter
 KARPENTER_VERSION ?= $(shell git tag --sort=committerdate | tail -1)
-KO_DOCKER_REPO ?= ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/karpenter
+KO_DOCKER_REPO ?= ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/dev
 GETTING_STARTED_SCRIPT_DIR = website/content/en/preview/getting-started/getting-started-with-karpenter/scripts
 
 # Common Directories
@@ -112,7 +112,7 @@ coverage:
 verify: tidy download ## Verify code. Includes dependencies, linting, formatting, etc
 	go generate ./...
 	hack/boilerplate.sh
-	cp $(KARPENTER_CORE_DIR)/pkg/apis/crds/* pkg/apis/crds
+	cp  $(KARPENTER_CORE_DIR)/pkg/apis/crds/* pkg/apis/crds
 	$(foreach dir,$(MOD_DIRS),cd $(dir) && golangci-lint run $(newline))
 	@git diff --quiet ||\
 		{ echo "New file modification detected in the Git working tree. Please check in before commit."; git --no-pager diff --name-only | uniq | awk '{print "  - " $$0}'; \
@@ -131,13 +131,13 @@ licenses: download ## Verifies dependency licenses
 setup: ## Sets up the IAM roles needed prior to deploying the karpenter-controller. This command only needs to be run once
 	CLUSTER_NAME=${CLUSTER_NAME} ./$(GETTING_STARTED_SCRIPT_DIR)/add-roles.sh $(KARPENTER_VERSION)
 
-build: ## Build the Karpenter controller images using ko build
-	$(eval CONTROLLER_IMG=$(shell $(WITH_GOFLAGS) KO_DOCKER_REPO="$(KO_DOCKER_REPO)" ko build -B github.com/aws/karpenter/cmd/controller))
+image: ## Build the Karpenter controller images using ko build
+	$(eval CONTROLLER_IMG=$(shell $(WITH_GOFLAGS) KO_DOCKER_REPO="$(KO_DOCKER_REPO)" ko build --bare github.com/aws/karpenter/cmd/controller))
 	$(eval IMG_REPOSITORY=$(shell echo $(CONTROLLER_IMG) | cut -d "@" -f 1 | cut -d ":" -f 1))
 	$(eval IMG_TAG=$(shell echo $(CONTROLLER_IMG) | cut -d "@" -f 1 | cut -d ":" -f 2 -s))
 	$(eval IMG_DIGEST=$(shell echo $(CONTROLLER_IMG) | cut -d "@" -f 2))
 
-apply: build ## Deploy the controller from the current state of your git repository into your ~/.kube/config cluster
+apply: image ## Deploy the controller from the current state of your git repository into your ~/.kube/config cluster
 	helm upgrade --install karpenter charts/karpenter --namespace ${SYSTEM_NAMESPACE} \
 		$(HELM_OPTS) \
 		--set controller.image.repository=$(IMG_REPOSITORY) \

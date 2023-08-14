@@ -125,6 +125,14 @@ runs:
         wellKnownPolicies:
           ebsCSIController: true
       EOF
+  - name: tag oidc provider of the cluster
+    if: always()
+    shell: bash
+    run: |
+      oidc_id=$(aws eks describe-cluster --name ${{ inputs.cluster_name }} --query "cluster.identity.oidc.issuer" --output text | cut -d '/' -f 3,4,5)
+      arn="arn:aws:iam::${{ inputs.account_id }}:oidc-provider/${oidc_id}"
+      aws iam tag-open-id-connect-provider --open-id-connect-provider-arn $arn \
+         --tags Key=testing.karpenter.sh/type,Value=e2e  Key=github.com/run-url,Value=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
   - name: give KarpenterNodeRole permission to bootstrap
     shell: bash
     run: |

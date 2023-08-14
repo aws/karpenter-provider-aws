@@ -23,6 +23,7 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	"github.com/aws/karpenter/pkg/apis/settings"
+	"github.com/aws/karpenter/pkg/apis/v1beta1"
 
 	"github.com/samber/lo"
 
@@ -36,6 +37,7 @@ var (
 	// Builder includes all types within the apis package
 	Builder = runtime.NewSchemeBuilder(
 		v1alpha1.SchemeBuilder.AddToScheme,
+		v1beta1.SchemeBuilder.AddToScheme,
 	)
 	// AddToScheme may be used to add all resources defined in the project to a Scheme
 	AddToScheme = Builder.AddToScheme
@@ -46,7 +48,12 @@ var (
 var (
 	//go:embed crds/karpenter.k8s.aws_awsnodetemplates.yaml
 	AWSNodeTemplateCRD []byte
-	CRDs               = append(apis.CRDs, lo.Must(functional.Unmarshal[v1.CustomResourceDefinition](AWSNodeTemplateCRD)))
+	//go:embed crds/compute.k8s.aws_nodeclasses.yaml
+	NodeClassCRD []byte
+	CRDs         = append(apis.CRDs,
+		lo.Must(functional.Unmarshal[v1.CustomResourceDefinition](AWSNodeTemplateCRD)),
+		lo.Must(functional.Unmarshal[v1.CustomResourceDefinition](NodeClassCRD)),
+	)
 )
 
 func init() {

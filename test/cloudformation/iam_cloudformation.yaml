@@ -78,18 +78,29 @@ Resources:
             Resource: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/eksctl-*"
           - Effect: Allow
             Action:
+              - iam:ListInstanceProfiles
+              - iam:ListInstanceProfileTags
+            Resource:
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:instance-profile/*" 
+          - Effect: Allow
+            Action:
               - iam:AddRoleToInstanceProfile
               - iam:CreateInstanceProfile
+              - iam:TagInstanceProfile
               - iam:RemoveRoleFromInstanceProfile
               - iam:DeleteInstanceProfile
               - iam:GetInstanceProfile
             Resource:
               - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:instance-profile/KarpenterNodeInstanceProfile-*"
               - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/KarpenterNodeRole-*"
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:instance-profile/KarpenterNodeInstanceProfile-Drift-*"
           - Effect: Allow
             Action:
               - iam:CreateOpenIDConnectProvider
               - iam:DeleteOpenIDConnectProvider
+              - iam:ListOpenIDConnectProviders
+              - iam:ListOpenIDConnectProviderTags
+              - iam:TagOpenIDConnectProvider
               - iam:GetOpenIDConnectProvider
               - iam:TagOpenIDConnectProvider
             Resource: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:oidc-provider/*"
@@ -288,9 +299,6 @@ Resources:
               - ec2:DescribeVpcs
               # Image Permissions
               - ec2:DescribeImages
-            Resource: "*"
-          - Effect: Allow
-            Action:
               # Tag Permissions
               - ec2:CreateTags
               - ec2:DeleteTags
@@ -364,12 +372,7 @@ Resources:
               - ec2:DeleteVpc
               - ec2:DescribeVpcAttribute
               - ec2:ModifyVpcAttribute
-            Resource: "*"
-          - Effect: Allow
-            Action: ec2:RunInstances
-            Resource: "*"
-          - Effect: Allow
-            Action:
+              - ec2:RunInstances
               # Read-Only Permissions to pull ECR images needed by the NodeInstanceRole
               - ecr:GetAuthorizationToken
               - ecr:BatchCheckLayerAvailability
@@ -383,15 +386,9 @@ Resources:
               - ecr:GetLifecyclePolicyPreview
               - ecr:ListTagsForResource
               - ecr:DescribeImageScanFindings
-            Resource: "*"
-          - Effect: Allow
-            Action:
               # EKS ServiceRole permissions needed for AutoScalingGroups
               - autoscaling:DescribeAutoScalingGroups
               - autoscaling:UpdateAutoScalingGroup
-            Resource: "*"
-          - Effect: Allow
-            Action:
               # EKS ServiceRole permissions needed to handle LoadBalancer
               - elasticloadbalancing:AddTags
               - elasticloadbalancing:ApplySecurityGroupsToLoadBalancer
@@ -424,15 +421,9 @@ Resources:
               - elasticloadbalancing:RegisterTargets
               - elasticloadbalancing:SetLoadBalancerPoliciesForBackendServer
               - elasticloadbalancing:SetLoadBalancerPoliciesOfListener
-            Resource: "*"
-          - Effect: Allow
-            Action:
               - kms:CreateGrant
               - kms:GenerateDataKeyWithoutPlaintext
               - kms:DescribeKey
-            Resource: "*"
-          - Effect: Allow
-            Action:
               # SSM Permissions for AmazonSSMManagedInstanceCore policy applied to the NodeInstanceRole
               - ssm:DescribeAssociation
               - ssm:GetDeployablePatchSnapshotForInstance
@@ -449,17 +440,11 @@ Resources:
               - ssm:UpdateAssociationStatus
               - ssm:UpdateInstanceAssociationStatus
               - ssm:UpdateInstanceInformation
-            Resource: "*"
-          - Effect: Allow
-            Action:
               # SSM Permissions for AmazonSSMManagedInstanceCore policy applied to the NodeInstanceRole
               - ssmmessages:CreateControlChannel
               - ssmmessages:CreateDataChannel
               - ssmmessages:OpenControlChannel
               - ssmmessages:OpenDataChannel
-            Resource: "*"
-          - Effect: Allow
-            Action:
               # SSM Permissions for AmazonSSMManagedInstanceCore policy applied to the NodeInstanceRole
               - ec2messages:AcknowledgeMessage
               - ec2messages:DeleteMessage
@@ -467,14 +452,14 @@ Resources:
               - ec2messages:GetEndpoint
               - ec2messages:GetMessages
               - ec2messages:SendReply
-            Resource: "*"
-          - Effect: Allow
-            Action:
               - sqs:DeleteMessage
               - sqs:GetQueueAttributes
               - sqs:GetQueueUrl
               - sqs:SendMessage
               - sqs:ReceiveMessage
+              - pricing:GetProducts
+              - ec2:DescribeSpotPriceHistory
+              - eks:DescribeCluster
             Resource: "*"
           - Effect: Allow
             Action: iam:PassRole
@@ -483,19 +468,28 @@ Resources:
               - !GetAtt FISInterruptionRole.Arn
           - Effect: Allow
             Action:
-             - pricing:GetProducts
-             - ec2:DescribeSpotPriceHistory
-            Resource: "*"
-          - Effect: Allow
-            Action: eks:DescribeCluster
-            Resource: "*"
-          - Effect: Allow
-            Action:
               - aps:RemoteWrite
               - aps:GetSeries
               - aps:GetLabels
               - aps:GetMetricMetadata
             Resource: !Sub "arn:${AWS::Partition}:aps:${AWS::Region}:${AWS::AccountId}:workspace/${PrometheusWorkspaceID}"
+          # Deny ALL IMDSv1 instance launch
+          - Effect: Deny
+            Action:
+              - ec2:RunInstances
+            Resource: !Sub "arn:${AWS::Partition}:ec2:*:${AWS::AccountId}:instance/*"
+            Condition:
+              StringNotEquals:
+                ec2:MetadataHttpTokens: required
+          - Effect: Deny
+            Action:
+              - ec2:ModifyInstanceMetadataOptions
+            Resource: !Sub "arn:${AWS::Partition}:ec2:*:${AWS::AccountId}:instance/*"
+            Condition:
+              StringEquals:
+                ec2:Attribute: HttpTokens
+              StringNotEquals:
+                ec2:Attribute/HttpTokens: required
   GithubActionsRole:
     Type: AWS::IAM::Role
     Properties:
