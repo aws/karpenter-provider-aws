@@ -24,11 +24,9 @@ import (
 	"github.com/go-playground/validator/v10"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"knative.dev/pkg/apis"
 	"knative.dev/pkg/configmap"
 
-	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 )
 
@@ -38,7 +36,7 @@ var ContextKey = settingsKeyType{}
 
 var defaultSettings = &Settings{
 	AssumeRoleARN:              "",
-	AssumeRoleDuration:         &metav1.Duration{Duration: time.Minute * 15},
+	AssumeRoleDuration:         time.Minute * 15,
 	ClusterName:                "",
 	ClusterEndpoint:            "",
 	DefaultInstanceProfile:     "",
@@ -54,8 +52,8 @@ var defaultSettings = &Settings{
 // +k8s:deepcopy-gen=true
 type Settings struct {
 	AssumeRoleARN              string
-	AssumeRoleDuration         *metav1.Duration `validate:"min=15m"`
-	ClusterName                string           `validate:"required"`
+	AssumeRoleDuration         time.Duration `validate:"min=15m"`
+	ClusterName                string        `validate:"required"`
 	ClusterEndpoint            string
 	DefaultInstanceProfile     string
 	EnablePodENI               bool
@@ -77,7 +75,7 @@ func (*Settings) Inject(ctx context.Context, cm *v1.ConfigMap) (context.Context,
 
 	if err := configmap.Parse(cm.Data,
 		configmap.AsString("aws.assumeRoleARN", &s.AssumeRoleARN),
-		coresettings.AsMetaDuration("aws.assumeRoleDuration", &s.AssumeRoleDuration),
+		configmap.AsDuration("aws.assumeRoleDuration", &s.AssumeRoleDuration),
 		configmap.AsString("aws.clusterName", &s.ClusterName),
 		configmap.AsString("aws.clusterEndpoint", &s.ClusterEndpoint),
 		configmap.AsString("aws.defaultInstanceProfile", &s.DefaultInstanceProfile),
