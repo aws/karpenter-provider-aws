@@ -164,6 +164,7 @@ Resources:
             Action:
               - eks:DeleteNodegroup
               - eks:DescribeNodegroup
+              - eks:TagResource
             Resource: 
               - !Sub "arn:${AWS::Partition}:eks:*:${AWS::AccountId}:nodegroup/*"
             Condition:
