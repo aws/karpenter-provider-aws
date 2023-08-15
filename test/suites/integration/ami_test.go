@@ -189,6 +189,20 @@ var _ = Describe("AMI", func() {
 			}})
 			provisioner := test.Provisioner(test.ProvisionerOptions{
 				ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
+				// TODO: remove requirements after Ubuntu fixes bootstrap script issue w/
+				// new instance types not included in the max-pods.txt file.
+				Requirements: []v1.NodeSelectorRequirement{
+					{
+						Key:      v1alpha1.LabelInstanceGeneration,
+						Operator: v1.NodeSelectorOpLt,
+						Values:   []string{"7"},
+					},
+					{
+						Key:      v1.LabelOSStable,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{string(v1.Linux)},
+					},
+				},
 			})
 			pod := test.Pod()
 			env.ExpectCreated(provider, provisioner, pod)
