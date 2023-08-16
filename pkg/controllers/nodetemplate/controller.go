@@ -108,7 +108,7 @@ func (c *Controller) resolveSubnets(ctx context.Context, nodeTemplate *v1alpha1.
 	}
 	if len(subnetList) == 0 {
 		nodeTemplate.Status.Subnets = nil
-		return fmt.Errorf("no subnets exist given constraints")
+		return fmt.Errorf("no subnets exist given constraints %v", nodeTemplate.Spec.SubnetSelector)
 	}
 
 	sort.Slice(subnetList, func(i, j int) bool {
