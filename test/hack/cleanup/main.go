@@ -41,6 +41,7 @@ const (
 	karpenterProvisionerNameTag = "karpenter.sh/provisioner-name"
 	karpenterLaunchTemplateTag  = "karpenter.k8s.aws/cluster"
 	karpenterSecurityGroupTag   = "karpenter.sh/discovery"
+	karpenterTestingTag         = "testing.karpenter.sh/cluster"
 	githubRunURLTag             = "github.com/run-url"
 )
 
@@ -71,6 +72,7 @@ func main() {
 		&stack{cloudFormationClient: cloudFormationClient},
 		&launchtemplate{ec2Client: ec2Client},
 		&oidc{iamClient: iamClient},
+		&instanceProfile{iamClient: iamClient},
 	}
 	workqueue.ParallelizeUntil(ctx, len(resources), len(resources), func(i int) {
 		ids, err := resources[i].Get(ctx, expirationTime)
@@ -363,6 +365,60 @@ func (o *oidc) Cleanup(ctx context.Context, arns []string) ([]string, error) {
 	for i := range arns {
 		_, err := o.iamClient.DeleteOpenIDConnectProvider(ctx, &iam.DeleteOpenIDConnectProviderInput{
 			OpenIDConnectProviderArn: lo.ToPtr(arns[i]),
+		})
+		if err != nil {
+			errs = multierr.Append(errs, err)
+		}
+	}
+	return deleted, errs
+}
+
+type instanceProfile struct {
+	iamClient *iam.Client
+}
+
+func (ip *instanceProfile) Type() string {
+	return "InstanceProfile"
+}
+
+func (ip *instanceProfile) Get(ctx context.Context, expirationTime time.Time) (names []string, err error) {
+	out, err := ip.iamClient.ListInstanceProfiles(ctx, &iam.ListInstanceProfilesInput{})
+	if err != nil {
+		return names, err
+	}
+
+	errs := make([]error, len(out.InstanceProfiles))
+	for i := range out.InstanceProfiles {
+		profiles, err := ip.iamClient.ListInstanceProfileTags(ctx, &iam.ListInstanceProfileTagsInput{
+			InstanceProfileName: out.InstanceProfiles[i].InstanceProfileName,
+		})
+		if err != nil {
+			errs[i] = err
+		}
+
+		for _, t := range profiles.Tags {
+			if lo.FromPtr(t.Key) == karpenterTestingTag && out.InstanceProfiles[i].CreateDate.Before(expirationTime) {
+				names = append(names, lo.FromPtr(out.InstanceProfiles[i].InstanceProfileName))
+			}
+		}
+	}
+
+	return names, multierr.Combine(errs...)
+}
+
+func (ip *instanceProfile) Cleanup(ctx context.Context, names []string) ([]string, error) {
+	var errs error
+	deleted := []string{}
+	for i := range names {
+		out, _ := ip.iamClient.GetInstanceProfile(ctx, &iam.GetInstanceProfileInput{InstanceProfileName: lo.ToPtr(names[i])})
+		if len(out.InstanceProfile.Roles) != 0 {
+			_, _ = ip.iamClient.RemoveRoleFromInstanceProfile(ctx, &iam.RemoveRoleFromInstanceProfileInput{
+				InstanceProfileName: lo.ToPtr(names[i]),
+				RoleName:            out.InstanceProfile.Roles[0].RoleName,
+			})
+		}
+		_, err := ip.iamClient.DeleteInstanceProfile(ctx, &iam.DeleteInstanceProfileInput{
+			InstanceProfileName: lo.ToPtr(names[i]),
 		})
 		if err != nil {
 			errs = multierr.Append(errs, err)
