@@ -31,10 +31,10 @@ import (
 )
 
 const (
-	AMIDrift                cloudprovider.DriftReason = "AMIDrift"
-	SubnetDrift             cloudprovider.DriftReason = "SubnetDrift"
-	SecurityGroupDrift      cloudprovider.DriftReason = "SecurityGroupDrift"
-	NodeTemplateStaticDrift cloudprovider.DriftReason = "NodeTemplateStaticDrift"
+	AMIDrift           cloudprovider.DriftReason = "AMIDrift"
+	SubnetDrift        cloudprovider.DriftReason = "SubnetDrift"
+	SecurityGroupDrift cloudprovider.DriftReason = "SecurityGroupDrift"
+	NodeTemplateDrift  cloudprovider.DriftReason = "NodeTemplateDrift"
 )
 
 func (c *CloudProvider) isNodeTemplateDrifted(ctx context.Context, machine *v1alpha5.Machine, provisioner *v1alpha5.Provisioner, nodeTemplate *v1alpha1.AWSNodeTemplate) (cloudprovider.DriftReason, error) {
@@ -132,7 +132,7 @@ func (c *CloudProvider) areStaticFieldsDrifted(machine *v1alpha5.Machine, nodeTe
 		return ""
 	}
 	if nodeTemplateHash != machineHash {
-		return NodeTemplateStaticDrift
+		return NodeTemplateDrift
 	}
 	return ""
 }

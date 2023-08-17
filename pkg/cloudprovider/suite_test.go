@@ -441,7 +441,7 @@ var _ = Describe("CloudProvider", func() {
 					ExpectApplied(ctx, env.Client, updatedAWSNodeTemplate)
 					isDrifted, err = cloudProvider.IsMachineDrifted(ctx, machine)
 					Expect(err).NotTo(HaveOccurred())
-					Expect(isDrifted).To(Equal(cloudprovider.NodeTemplateStaticDrift))
+					Expect(isDrifted).To(Equal(cloudprovider.NodeTemplateDrift))
 				},
 				Entry("InstanceProfile Drift", v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{InstanceProfile: aws.String("profile-2")}}),
 				Entry("UserData Drift", v1alpha1.AWSNodeTemplateSpec{UserData: aws.String("userdata-test-2")}),
