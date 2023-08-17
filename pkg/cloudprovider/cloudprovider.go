@@ -167,7 +167,7 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, provisioner *v1alp
 	}
 	nodeTemplate, err := c.resolveNodeTemplate(ctx, rawProvider, provisioner.Spec.ProviderRef)
 	if err != nil {
-		return nil, err
+		return nil, client.IgnoreNotFound(err)
 	}
 	// TODO, break this coupling
 	instanceTypes, err := c.instanceTypeProvider.List(ctx, provisioner.Spec.KubeletConfiguration, nodeTemplate)

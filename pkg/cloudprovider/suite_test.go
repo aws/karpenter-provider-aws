@@ -719,7 +719,8 @@ var _ = Describe("CloudProvider", func() {
 				ProviderRef: &v1alpha5.MachineTemplateRef{
 					APIVersion: misconfiguredNodeTemplate.APIVersion,
 					Kind:       misconfiguredNodeTemplate.Kind,
-					Name:       misconfiguredNodeTemplate.Name,
+					// select nothing!
+					Name: "nothing",
 				},
 			})
 			ExpectApplied(ctx, env.Client, provisioner, prov2, nodeTemplate, misconfiguredNodeTemplate)
