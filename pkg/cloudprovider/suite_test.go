@@ -704,5 +704,28 @@ var _ = Describe("CloudProvider", func() {
 			createFleetInput = awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
 			Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-2"))
 		})
+		It("should launch instances with an alternate provisioner when an awsnodetemplate selects 0 subnets, security groups, or amis", func() {
+			misconfiguredNodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+				AWS: v1alpha1.AWS{
+					// select nothing!
+					SubnetSelector: map[string]string{"Name": "nothing"},
+					// select nothing!
+					SecurityGroupSelector: map[string]string{"Name": "nothing"},
+				},
+				// select nothing!
+				AMISelector: map[string]string{"Name": "nothing"},
+			})
+			prov2 := test.Provisioner(coretest.ProvisionerOptions{
+				ProviderRef: &v1alpha5.MachineTemplateRef{
+					APIVersion: misconfiguredNodeTemplate.APIVersion,
+					Kind:       misconfiguredNodeTemplate.Kind,
+					Name:       misconfiguredNodeTemplate.Name,
+				},
+			})
+			ExpectApplied(ctx, env.Client, provisioner, prov2, nodeTemplate, misconfiguredNodeTemplate)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+		})
 	})
 })
