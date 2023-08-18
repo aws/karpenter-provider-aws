@@ -285,6 +285,8 @@ func (p *Provider) generateNetworkInterfaces(options *amifamily.LaunchTemplate) 
 	for _, networkInterface := range options.NetworkInterfaces {
 		networkInterfacesRequest = append(networkInterfacesRequest, &ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
 			AssociatePublicIpAddress: networkInterface.AssociatePublicIPAddress,
+			DeviceIndex:              networkInterface.DeviceIndex,
+			Description:              networkInterface.Description,
 			Groups:                   lo.Map(options.SecurityGroups, func(s v1beta1.SecurityGroup, _ int) *string { return aws.String(s.ID) }),
 		})
 	}
