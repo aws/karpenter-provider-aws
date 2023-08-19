@@ -47,6 +47,8 @@ podDisruptionBudget:
 # -- SecurityContext for the pod.
 podSecurityContext:
   fsGroup: 1000
+  runAsUser: 1000
+  runAsGroup: 1000
 # -- PriorityClass name for the pod.
 priorityClassName: system-cluster-critical
 # -- Override the default termination grace period for the pod.
@@ -99,9 +101,9 @@ controller:
     # -- Repository path to the controller image.
     repository: public.ecr.aws/karpenter/controller
     # -- Tag of the controller image.
-    tag: v0.30.0-rc.0
+    tag: v0.29.1
     # -- SHA256 digest of the controller image.
-    digest: sha256:06f08a2c9b5125a2da57936a5ccfb54e5796677e247fb0bb960e70e79242a147
+    digest: sha256:973fb8353ce6b0b0181bd48dab0eb41549da9b5411f60421356c8894408bcfe4
   # -- SecurityContext for the controller container.
   securityContext:
     # -- Disabling Privileged Escalation for Controller Container
