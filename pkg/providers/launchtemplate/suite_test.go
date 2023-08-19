@@ -1696,6 +1696,48 @@ var _ = Describe("LaunchTemplates", func() {
 				})
 			})
 		})
+		Context("Windows Custom UserData", func() {
+			BeforeEach(func() {
+				ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
+					EnableENILimitedPodDensity: lo.ToPtr(false),
+				}))
+				provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{{Key: v1.LabelOSStable, Operator: v1.NodeSelectorOpIn, Values: []string{string(v1.Windows)}}}
+				nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyWindows2022
+			})
+			It("should merge and bootstrap with custom user data", func() {
+				content, err := os.ReadFile("testdata/windows_userdata_input.golden")
+				Expect(err).To(BeNil())
+				nodeTemplate.Spec.UserData = aws.String(string(content))
+				ExpectApplied(ctx, env.Client, nodeTemplate, provisioner)
+				Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(provisioner), provisioner)).To(Succeed())
+				pod := coretest.UnschedulablePod(coretest.PodOptions{
+					NodeSelector: map[string]string{
+						v1.LabelOSStable:     string(v1.Windows),
+						v1.LabelWindowsBuild: "10.0.20348",
+					},
+				})
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				content, err = os.ReadFile("testdata/windows_userdata_merged.golden")
+				Expect(err).To(BeNil())
+				ExpectLaunchTemplatesCreatedWithUserData(fmt.Sprintf(string(content), provisioner.Name))
+			})
+			It("should bootstrap when custom user data is empty", func() {
+				ExpectApplied(ctx, env.Client, nodeTemplate, provisioner)
+				Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(provisioner), provisioner)).To(Succeed())
+				pod := coretest.UnschedulablePod(coretest.PodOptions{
+					NodeSelector: map[string]string{
+						v1.LabelOSStable:     string(v1.Windows),
+						v1.LabelWindowsBuild: "10.0.20348",
+					},
+				})
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				content, err := os.ReadFile("testdata/windows_userdata_unmerged.golden")
+				Expect(err).To(BeNil())
+				ExpectLaunchTemplatesCreatedWithUserData(fmt.Sprintf(string(content), provisioner.Name))
+			})
+		})
 	})
 	Context("Detailed Monitoring", func() {
 		It("should default detailed monitoring to off", func() {

@@ -67,16 +67,6 @@ var _ = Describe("Validation", func() {
 			ant.Spec.UserData = ptr.String("someUserData")
 			Expect(ant.Validate(ctx)).To(Not(Succeed()))
 		})
-		It("should fail if Windows2019 AMIFamily is specified", func() {
-			ant.Spec.AMIFamily = &v1alpha1.AMIFamilyWindows2019
-			ant.Spec.UserData = ptr.String("someUserData")
-			Expect(ant.Validate(ctx)).To(Not(Succeed()))
-		})
-		It("should fail if Windows2022 AMIFamily is specified", func() {
-			ant.Spec.AMIFamily = &v1alpha1.AMIFamilyWindows2022
-			ant.Spec.UserData = ptr.String("someUserData")
-			Expect(ant.Validate(ctx)).To(Not(Succeed()))
-		})
 	})
 	Context("Tags", func() {
 		It("should succeed when tags are empty", func() {

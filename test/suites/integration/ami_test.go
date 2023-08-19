@@ -36,6 +36,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 
 	awstest "github.com/aws/karpenter/pkg/test"
+	awsenv "github.com/aws/karpenter/test/pkg/environment/aws"
 )
 
 var _ = Describe("AMI", func() {
@@ -343,9 +344,61 @@ var _ = Describe("AMI", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(string(actualUserData)).To(ContainSubstring("kube-api-qps = 30"))
 		})
+		It("should merge UserData contents for Windows AMIFamily", func() {
+			env.ExpectWindowsIPAMEnabled()
+			DeferCleanup(func() {
+				env.ExpectWindowsIPAMDisabled()
+			})
+
+			content, err := os.ReadFile("testdata/windows_userdata_input.ps1")
+			Expect(err).ToNot(HaveOccurred())
+			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
+				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+				AMIFamily:             &v1alpha1.AMIFamilyWindows2022,
+			},
+				UserData: aws.String(string(content)),
+			})
+			provisioner := test.Provisioner(test.ProvisionerOptions{
+				ProviderRef:   &v1alpha5.MachineTemplateRef{Name: provider.Name},
+				Taints:        []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoExecute"}},
+				StartupTaints: []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoSchedule"}},
+				Requirements: []v1.NodeSelectorRequirement{
+					{
+						Key:      v1alpha1.LabelInstanceCategory,
+						Operator: v1.NodeSelectorOpExists,
+					},
+					{
+						Key:      v1.LabelOSStable,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{string(v1.Windows)},
+					},
+				},
+			})
+			pod := test.Pod(test.PodOptions{
+				Image: awsenv.WindowsDefaultImage,
+				NodeSelector: map[string]string{
+					v1.LabelOSStable:     string(v1.Windows),
+					v1.LabelWindowsBuild: "10.0.20348",
+				},
+				Tolerations: []v1.Toleration{{Key: "example.com", Operator: v1.TolerationOpExists}},
+			})
+
+			env.ExpectCreated(pod, provider, provisioner)
+			env.EventuallyExpectHealthyWithTimeout(time.Minute*15, pod) // Wait 15 minutes because Windows nodes/containers take longer to spin up
+			Expect(env.GetNode(pod.Spec.NodeName).Spec.Taints).To(ContainElements(
+				v1.Taint{Key: "example.com", Value: "value", Effect: "NoExecute"},
+				v1.Taint{Key: "example.com", Value: "value", Effect: "NoSchedule"},
+			))
+			actualUserData, err := base64.StdEncoding.DecodeString(*getInstanceAttribute(pod.Spec.NodeName, "userData").UserData.Value)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(string(actualUserData)).To(ContainSubstring("Write-Host \"Running custom user data script\""))
+			Expect(string(actualUserData)).To(ContainSubstring("[string]$EKSBootstrapScriptFile = \"$env:ProgramFiles\\Amazon\\EKS\\Start-EKSBootstrap.ps1\""))
+		})
 	})
 })
 
+//nolint:unparam
 func getInstanceAttribute(nodeName string, attribute string) *ec2.DescribeInstanceAttributeOutput {
 	var node v1.Node
 	Expect(env.Client.Get(env.Context, types.NamespacedName{Name: nodeName}, &node)).To(Succeed())

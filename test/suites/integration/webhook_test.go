@@ -271,24 +271,6 @@ var _ = Describe("Webhooks", func() {
 					UserData: ptr.String("data"),
 				}))).ToNot(Succeed())
 			})
-			It("should fail if both userdata and Windows2019 AMIFamily are set", func() {
-				Expect(env.Client.Create(env, awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-					AMIFamily:             &v1alpha1.AMIFamilyWindows2019,
-					SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-					SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-				},
-					UserData: ptr.String("data"),
-				}))).ToNot(Succeed())
-			})
-			It("should fail if both userdata and Windows2022 AMIFamily are set", func() {
-				Expect(env.Client.Create(env, awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-					AMIFamily:             &v1alpha1.AMIFamilyWindows2022,
-					SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-					SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-				},
-					UserData: ptr.String("data"),
-				}))).ToNot(Succeed())
-			})
 			It("should fail if both amiSelector and launchTemplate are set", func() {
 				Expect(env.Client.Create(env, awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 					LaunchTemplate:        v1alpha1.LaunchTemplate{LaunchTemplateName: ptr.String("lt")},
