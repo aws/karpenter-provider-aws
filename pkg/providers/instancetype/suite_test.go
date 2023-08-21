@@ -1588,13 +1588,14 @@ func generateSpotPricing(cp *cloudprovider.CloudProvider, prov *v1alpha5.Provisi
 	t := fakeClock.Now()
 
 	for _, it := range instanceTypes {
+		instanceType := it
 		onDemandPrice := 1.00
 		for _, o := range it.Offerings {
 			if o.CapacityType == v1alpha5.CapacityTypeOnDemand {
 				onDemandPrice = o.Price
 			}
 		}
-		for _, o := range it.Offerings {
+		for _, o := range instanceType.Offerings {
 			o := o
 			if o.CapacityType != v1alpha5.CapacityTypeSpot {
 				continue
@@ -1602,7 +1603,7 @@ func generateSpotPricing(cp *cloudprovider.CloudProvider, prov *v1alpha5.Provisi
 			spotPrice := fmt.Sprintf("%0.3f", onDemandPrice*0.5)
 			rsp.SpotPriceHistory = append(rsp.SpotPriceHistory, &ec2.SpotPrice{
 				AvailabilityZone: &o.Zone,
-				InstanceType:     &it.Name,
+				InstanceType:     &instanceType.Name,
 				SpotPrice:        &spotPrice,
 				Timestamp:        &t,
 			})
