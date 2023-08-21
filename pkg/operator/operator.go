@@ -239,6 +239,6 @@ func kubeDNSIP(ctx context.Context, kubernetesInterface kubernetes.Interface) (n
 }
 
 func setDurationAndExpiry(ctx context.Context, provider *stscreds.AssumeRoleProvider) {
-	provider.Duration = settings.FromContext(ctx).AssumeRoleDuration.Duration
+	provider.Duration = settings.FromContext(ctx).AssumeRoleDuration
 	provider.ExpiryWindow = time.Duration(10) * time.Second
 }
