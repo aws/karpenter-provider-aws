@@ -255,7 +255,13 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 		provisioner.Spec.Requirements = append(provisioner.Spec.Requirements, v1.NodeSelectorRequirement{
 			Key:      v1.LabelOSStable,
 			Operator: v1.NodeSelectorOpExists,
-		})
+		},
+			// TODO: remove this requirement once VPC RC rolls out m7a.* ENI data (https://github.com/aws/karpenter/issues/4472)
+			v1.NodeSelectorRequirement{
+				Key:      v1alpha1.LabelInstanceGeneration,
+				Operator: v1.NodeSelectorOpLt,
+				Values:   []string{"7"},
+			})
 		env.ExpectCreated(provisioner, provider, deployment)
 		env.EventuallyExpectHealthyPodCountWithTimeout(time.Minute*15, labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
 		env.ExpectCreatedNodeCount("==", 1)
