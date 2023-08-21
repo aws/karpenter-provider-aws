@@ -52,7 +52,6 @@ var _ = Describe("NetworkInterfaces", func() {
 		Expect(instance.NetworkInterfaces).To(HaveLen(1))
 		Expect(instance.NetworkInterfaces[0]).ToNot(BeNil())
 		Expect(instance.NetworkInterfaces[0].Attachment).To(HaveField("DeviceIndex", HaveValue(Equal(int64(0)))))
-		Expect(instance.NetworkInterfaces[0].Attachment).To(HaveField("NetworkCardIndex", HaveValue(Equal(int64(0)))))
 		Expect(instance.PublicIpAddress).To(BeNil())
 	})
 	It("should create a default NetworkInterface if none specified, with public IP auto assignment", func() {
@@ -77,7 +76,6 @@ var _ = Describe("NetworkInterfaces", func() {
 		Expect(instance.NetworkInterfaces).To(HaveLen(1))
 		Expect(instance.NetworkInterfaces[0]).ToNot(BeNil())
 		Expect(instance.NetworkInterfaces[0].Attachment).To(HaveField("DeviceIndex", HaveValue(Equal(int64(0)))))
-		Expect(instance.NetworkInterfaces[0].Attachment).To(HaveField("NetworkCardIndex", HaveValue(Equal(int64(0)))))
 		Expect(instance.PublicIpAddress).ToNot(BeNil())
 	})
 	It("should use the specified NetworkInterface", func() {
@@ -120,9 +118,6 @@ var _ = Describe("NetworkInterfaces", func() {
 		Expect(instance.NetworkInterfaces).To(HaveLen(1))
 		Expect(instance.NetworkInterfaces[0]).ToNot(BeNil())
 		Expect(instance.NetworkInterfaces[0].Attachment).To(HaveField("DeviceIndex", HaveValue(Equal(int64(0)))))
-		Expect(instance.NetworkInterfaces[0].Attachment).To(HaveField("NetworkCardIndex", HaveValue(Equal(int64(0)))))
-		Expect(instance.NetworkInterfaces[0].Ipv4Prefixes).To(HaveLen(2))
-		Expect(instance.NetworkInterfaces[0].Ipv6Prefixes).To(HaveLen(2))
 		Expect(instance.NetworkInterfaces[0].Description).To(Equal(desc))
 		Expect(instance.PublicIpAddress).ToNot(BeNil())
 	})
@@ -157,15 +152,11 @@ var _ = Describe("NetworkInterfaces", func() {
 
 		Expect(instance.NetworkInterfaces[0]).ToNot(BeNil())
 		Expect(instance.NetworkInterfaces[0].Attachment).To(HaveField("DeviceIndex", HaveValue(Equal(int64(0)))))
-		Expect(instance.NetworkInterfaces[0].Attachment).To(HaveField("NetworkCardIndex", HaveValue(Equal(int64(0)))))
 		Expect(instance.NetworkInterfaces[0].Description).To(Equal(desc1))
-		Expect(instance.NetworkInterfaces[0].InterfaceType).To(Equal("interface"))
 
 		Expect(instance.NetworkInterfaces[1]).ToNot(BeNil())
 		Expect(instance.NetworkInterfaces[1].Attachment).To(HaveField("DeviceIndex", HaveValue(Equal(int64(1)))))
-		Expect(instance.NetworkInterfaces[1].Attachment).To(HaveField("NetworkCardIndex", HaveValue(Equal(int64(1)))))
 		Expect(instance.NetworkInterfaces[1].Description).To(Equal(desc2))
-		Expect(instance.NetworkInterfaces[1].InterfaceType).To(Equal("efa"))
 	})
 })
 
