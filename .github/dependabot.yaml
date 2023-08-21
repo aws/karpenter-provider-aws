@@ -21,6 +21,7 @@ updates:
           - "k8s.io/*"
           - "sigs.k8s.io/*"
           - "knative.dev/*"
+          - "github.com/aws/karpenter-core"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
