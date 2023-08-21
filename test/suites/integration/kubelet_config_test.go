@@ -133,7 +133,13 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 					Key:      v1.LabelOSStable,
 					Operator: v1.NodeSelectorOpIn,
 					Values:   []string{string(v1.Windows)},
-				})
+				},
+					// TODO: remove this requirement once VPC RC rolls out m7a.* ENI data (https://github.com/aws/karpenter/issues/4472)
+					v1.NodeSelectorRequirement{
+						Key:      v1alpha1.LabelInstanceGeneration,
+						Operator: v1.NodeSelectorOpLt,
+						Values:   []string{"7"},
+					})
 				pod := test.Pod(test.PodOptions{
 					Image: aws.WindowsDefaultImage,
 					NodeSelector: map[string]string{

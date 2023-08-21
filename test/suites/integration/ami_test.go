@@ -191,7 +191,7 @@ var _ = Describe("AMI", func() {
 			provisioner := test.Provisioner(test.ProvisionerOptions{
 				ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 				// TODO: remove requirements after Ubuntu fixes bootstrap script issue w/
-				// new instance types not included in the max-pods.txt file.
+				// new instance types not included in the max-pods.txt file. (https://github.com/aws/karpenter/issues/4472)
 				Requirements: []v1.NodeSelectorRequirement{
 					{
 						Key:      v1alpha1.LabelInstanceGeneration,
