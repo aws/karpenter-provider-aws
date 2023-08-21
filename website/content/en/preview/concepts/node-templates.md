@@ -445,10 +445,6 @@ spec:
 
 For more examples on configuring these fields for different AMI families, see the [examples here](https://github.com/aws/karpenter/blob/main/examples/provisioner/launchtemplates).
 
-{{% alert title="Windows Support Notice" color="warning" %}}
-Specifying `spec.userData` is not currently supported for Windows nodes. Support for this feature is tracked through [this Github issue](https://github.com/aws/karpenter/issues/4081).
-{{% /alert %}}
-
 ### Merge Semantics
 
 Karpenter will evaluate and merge the UserData that you specify in the AWSNodeTemplate resources depending upon the AMIFamily that you have chosen.
@@ -563,6 +559,28 @@ spec:
   userData: |
     #!/bin/bash
     echo "$(jq '.kubeAPIQPS=50' /etc/kubernetes/kubelet/kubelet-config.json)" > /etc/kubernetes/kubelet/kubelet-config.json
+```
+
+#### Windows
+
+* Your UserData must be specified as PowerShell commands.
+* The UserData specified will be prepended to a Karpenter managed section that will bootstrap the kubelet.
+* Karpenter will continue to set ClusterDNS and all other parameters defined in spec.kubeletConfiguration as before.
+
+Consider the following example to understand how your custom UserData settings will be merged in.
+
+Your UserData -
+```
+Write-Host "Running custom user data script"
+```
+
+Final merged UserData -
+```
+<powershell>
+Write-Host "Running custom user data script"
+[string]$EKSBootstrapScriptFile = "$env:ProgramFiles\Amazon\EKS\Start-EKSBootstrap.ps1"
+& $EKSBootstrapScriptFile -EKSClusterName 'test-cluster' -APIServerEndpoint 'https://test-cluster' -Base64ClusterCA 'ca-bundle' -KubeletExtraArgs '--node-labels="karpenter.sh/capacity-type=spot,karpenter.sh/provisioner-name=windows2022,testing.karpenter.sh/test-id=unspecified" --max-pods=110' -DNSClusterIP '10.0.100.10'
+</powershell>
 ```
 
 ## spec.detailedMonitoring
