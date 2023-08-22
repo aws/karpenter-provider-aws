@@ -59,6 +59,7 @@ jobs:
         with:
           name: "${{ github.workflow }} / e2e (Upgrade) / ${{ github.job }} (snapshot)"
           git_ref: ${{ inputs.to_git_ref }}
+      - uses: ./.github/actions/install-deps
       - uses: actions/checkout@v3
         with:
           ref: ${{ inputs.from_git_ref }}
