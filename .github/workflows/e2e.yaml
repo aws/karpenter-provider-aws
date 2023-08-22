@@ -74,6 +74,7 @@ jobs:
         with:
           name: "${{ github.workflow }} / e2e (${{ inputs.suite }}) / ${{ github.job }} (snapshot)"
           git_ref: ${{ inputs.git_ref }}
+      - uses: ./.github/actions/install-deps
       - name: configure aws credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
