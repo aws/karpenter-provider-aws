@@ -37,6 +37,7 @@ var ContextKey = settingsKeyType{}
 var defaultSettings = &Settings{
 	AssumeRoleARN:              "",
 	AssumeRoleDuration:         time.Minute * 15,
+	ClusterCABundle:            "",
 	ClusterName:                "",
 	ClusterEndpoint:            "",
 	DefaultInstanceProfile:     "",
@@ -53,7 +54,8 @@ var defaultSettings = &Settings{
 type Settings struct {
 	AssumeRoleARN              string
 	AssumeRoleDuration         time.Duration `validate:"min=15m"`
-	ClusterName                string        `validate:"required"`
+	ClusterCABundle            string
+	ClusterName                string `validate:"required"`
 	ClusterEndpoint            string
 	DefaultInstanceProfile     string
 	EnablePodENI               bool
@@ -76,6 +78,7 @@ func (*Settings) Inject(ctx context.Context, cm *v1.ConfigMap) (context.Context,
 	if err := configmap.Parse(cm.Data,
 		configmap.AsString("aws.assumeRoleARN", &s.AssumeRoleARN),
 		configmap.AsDuration("aws.assumeRoleDuration", &s.AssumeRoleDuration),
+		configmap.AsString("aws.clusterCABundle", &s.ClusterCABundle),
 		configmap.AsString("aws.clusterName", &s.ClusterName),
 		configmap.AsString("aws.clusterEndpoint", &s.ClusterEndpoint),
 		configmap.AsString("aws.defaultInstanceProfile", &s.DefaultInstanceProfile),
