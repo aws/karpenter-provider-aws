@@ -118,7 +118,7 @@ var _ = Describe("NetworkInterfaces", func() {
 		Expect(instance.NetworkInterfaces).To(HaveLen(1))
 		Expect(instance.NetworkInterfaces[0]).ToNot(BeNil())
 		Expect(instance.NetworkInterfaces[0].Attachment).To(HaveField("DeviceIndex", HaveValue(Equal(int64(0)))))
-		Expect(instance.NetworkInterfaces[0].Description).To(Equal(desc))
+		Expect(*instance.NetworkInterfaces[0].Description).To(Equal(desc1))
 		Expect(instance.PublicIpAddress).ToNot(BeNil())
 	})
 	It("should create a node with more than one NetworkInterface", func() {
