@@ -22,7 +22,7 @@ RUN set -ex; \
     ./aws/install --bin-dir /aws-cli-bin; \
     /aws-cli-bin/aws --version
 
-FROM golang:1.20-alpine
+FROM golang:1.21-alpine
 
 # Install APK packages
 RUN echo "@community http://dl-cdn.alpinelinux.org/alpine/edge/community" >>/etc/apk/repositories
